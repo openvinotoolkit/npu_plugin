@@ -300,7 +300,6 @@ class Barrier_Schedule_Generator {
 
     bool reached_end() const { return scheduler_begin_ == scheduler_end_; }
 
-    dag_t const *input_dag_;
     size_t barrier_count_;
     size_t slots_per_barrier_;
     const resource_state_t start_state_;

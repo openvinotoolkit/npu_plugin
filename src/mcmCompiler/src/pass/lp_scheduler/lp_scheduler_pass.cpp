@@ -163,6 +163,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     if (!exceeding_ops.empty()) {
       fprintf(stderr, "exceeding ops %lu\n", exceeding_ops.size());
       fflush(stderr);
+      if (fptr)
+        fclose(fptr);
       throw "Exceeding ops ";
     }
   }
@@ -436,6 +438,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   mv::ControlModel cmodel_local(model);
   bool is_schedule_valid = cmodel_local.isDag();
   if (!is_schedule_valid) {
+    if (fptr)
+        fclose(fptr);
     throw lp_scheduler_exception_t("Control flow graph has cycles!");
   }
 

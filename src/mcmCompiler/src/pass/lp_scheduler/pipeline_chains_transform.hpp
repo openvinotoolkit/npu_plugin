@@ -31,6 +31,8 @@ class Pipeline_Chains {
       }
 
       void compute_total_read_sizes() {
+        if (weight_reads_.empty())
+          throw RuntimeError("LpScheduler", "compute_total_read_sizes(): weight_reads_ is empty");
         auto read_itr = weight_reads_.begin();
         for (operation_t dpu_op : dpu_chain_) {
           size_t total_read_size = 0UL;
@@ -221,7 +223,7 @@ class Pipeline_Chains {
     }
 
     template<typename OutputIterator>
-    size_t locate_longer_chains(OutputIterator output) {
+    void locate_longer_chains(OutputIterator output) {
       std::map<size_t, op_list_t> dpu_levels;
 
       mv::OpModel &model = omodel_;
@@ -440,6 +442,8 @@ class Pipeline_Chains {
          *           [PSEUDO-N-1]-->[read-N]
          */
         auto curr_dpu_itr = dpu_chain.begin();
+        if (weight_reads.empty())
+          throw mv::RuntimeError("LpScheduler", "transform_op_model_old(): weight reads empty");
         auto curr_weights_itr = weight_reads.begin();
 
         operation_t chain_head = get_non_weight_input(*curr_dpu_itr);
@@ -458,7 +462,7 @@ class Pipeline_Chains {
 
         if (!chain_head) {
           fprintf(fptr, "chain_head invalid for %s\n",
-              (*curr_dpu_itr)->getName());
+              (*curr_dpu_itr)->getName().c_str());
           continue;
         }
 
@@ -582,7 +586,11 @@ class Pipeline_Chains {
         size_t curr_dpu_index = 2UL;
         std::unordered_map<operation_t, size_t> stage_memory;
         while (curr_dpu_itr != dpu_chain.end()) {
+          if (curr_itr == weight_reads.end())
+            throw RuntimeError("transform_op_model", "curr_itr == weight_reads.end()");
           const op_list_t & curr_read_list = *curr_itr;
+          if (pprev_itr == weight_reads.end())
+            throw RuntimeError("transform_op_model", "pprev_itr == weight_reads.end()");
           const op_list_t & pprev_read_list = *pprev_itr;
           if (!pprev_read_list.empty())
           {

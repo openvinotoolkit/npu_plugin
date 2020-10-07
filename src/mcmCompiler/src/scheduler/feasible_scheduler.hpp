@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <vector>
 #include "include/mcm/utils/warning_manager.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 
 namespace mv {
 
@@ -706,7 +707,12 @@ class Feasible_Schedule_Generator {
 
   void operator++() { next_schedulable_operation(); }
   // Precondition: reached_end() is false //
-  const operation_t& operator*() const { return *schedulable_op_; }
+  const operation_t& operator*() const 
+  {
+    if (!schedulable_op_)
+      throw RuntimeError("LpScheduler", "Feasible_Schedule_Generator: Null ptr dereference");
+    return *schedulable_op_; 
+  }
 
   bool operator==(const Feasible_Schedule_Generator& o) const {
     return reached_end() && o.reached_end();

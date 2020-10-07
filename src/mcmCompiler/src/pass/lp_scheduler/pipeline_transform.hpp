@@ -729,8 +729,10 @@ class Pipelining_Transform {
       tensor_itr->setAddress(final_address);
 
       mv::DataModel dm(omodel_);
-      auto tensor_alloc_name=
-          tensor_itr->get<std::set<std::string>>("allocators").begin();
+      auto tensor_allocators = tensor_itr->get<std::set<std::string>>("allocators");
+      if (tensor_allocators.empty())
+        throw mv::RuntimeError("LpScheduler", "Pipelining_Transform: Tensor Allocators empty");
+      auto tensor_alloc_name=tensor_allocators.begin();
       auto tensor_alloc= dm.getAllocator(*tensor_alloc_name);
       mv::Data::BufferIterator tensor_buffer_itr =
           tensor_alloc.getBuffer(0, tensor_itr);
