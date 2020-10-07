@@ -287,6 +287,9 @@
                 "html": true
             },
             {
+              "name" : "LocateInplaceEltwiseOps"
+            },
+            {
               "name" : "ChainPipeliningTransform",
               "select_stages" : 2
             },
@@ -294,7 +297,8 @@
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
               "no_temporal_edges" : true,
-              "enable_cmx_concat" : true
+              "enable_cmx_concat" : true,
+              "enable_inplace_eltwise": true
             },
             {
               "name" : "RecomputeImplicitOpMemoryLocations"

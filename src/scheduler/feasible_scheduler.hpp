@@ -53,6 +53,11 @@ struct scheduler_traits {
   static bool is_pseudo_input_edge(const dag_t&,
         const operation_t& a, const operation_t& b);
 
+  // An operation is an inplace_op it overwrites one of its inputs //
+  static bool is_inplace_op(const dag_t&, const operation_t& op);
+  // Precondition: is_inplace_op(dag, op) is true //
+  // this should return one of the inputs to op which will be overwritten //
+  static operation_t get_inplace_output_op(dag_t&, const operation_t& op);
   //////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////////////
@@ -417,6 +422,21 @@ class Contiguous_Resource_State {
         return false;
       }
       lookup_.erase(litr);
+      return true;
+    }
+
+    // moves the resources of op_a to op_b //
+    bool relocate_resources(const key_t& op_a, const key_t& op_b) {
+      typename lookup_t::iterator litr = lookup_.find(op_a);
+      if (litr == lookup_.end()) { 
+        throw "Source does not have any relocatable resources";
+      }
+      if (lookup_.find(op_b) != lookup_.end()) {
+        throw "Destination already has resources assigned";
+      }
+      interval_info_t interval_info = litr->second;
+      unassign_resources(op_a);
+      assign_resources(op_b, interval_info.begin_, interval_info.end_);
       return true;
     }
 
@@ -1015,6 +1035,9 @@ class Feasible_Memory_Schedule_Generator {
       bool active() const { return state_ == operation_output_e::ACTIVE; }
       bool spilled() const { return state_ == operation_output_e::SPILLED; }
       bool consumed() const { return state_ == operation_output_e::CONSUMED; }
+      bool has_single_outstanding_consumer() const {
+        return outstanding_consumers_ == 1UL;
+      }
 
       void change_state_to_active() { state_ = operation_output_e::ACTIVE; }
       void change_state_to_consumed() { state_ = operation_output_e::CONSUMED; } 
@@ -1060,26 +1083,32 @@ class Feasible_Memory_Schedule_Generator {
     struct active_result_info_t {
 
       active_result_info_t() : op_(), parent_op_(),
-        demand_index_(), interval_info_() {}
+        demand_index_(), interval_info_(), is_relocated_(false) {}
 
       active_result_info_t(operation_t op, size_t demand_index,
             const interval_info_t& interval_info) : op_(op), parent_op_(op),
-      demand_index_(demand_index), interval_info_(interval_info) {}
+      demand_index_(demand_index), interval_info_(interval_info),
+      is_relocated_(false) {}
 
       active_result_info_t(operation_t op, operation_t pop, size_t demand_index,
             const interval_info_t& interval_info) : op_(op), parent_op_(pop),
-      demand_index_(demand_index), interval_info_(interval_info) {}
+      demand_index_(demand_index), interval_info_(interval_info),
+      is_relocated_(false) {}
 
       active_result_info_t& operator=(const active_result_info_t& o) {
         op_ = o.op_; parent_op_ = o.parent_op_;
         demand_index_ = o.demand_index_;
         interval_info_ = o.interval_info_;
+        is_relocated_ = o.is_relocated_;
       }
 
       operation_t op_;
       operation_t parent_op_;
       size_t demand_index_;
       interval_info_t interval_info_;
+      // if set true means the resources are relocated and will not unassign
+      // resources during unschedule_op //
+      bool is_relocated_; 
     }; // struct active_result_info_t //
 
     struct heap_element_t {
@@ -1553,7 +1582,8 @@ class Feasible_Memory_Schedule_Generator {
       resource_t demand = traits::resource_utility(*input_ptr_, op);
       size_t op_demand_count = 0UL;
 
-      if (!traits::is_empty_demand(demand)) {
+      if (!traits::is_inplace_op(*input_ptr_, op) &&
+            !traits::is_empty_demand(demand)) {
         output = demand;
         output_op = op;
         ++op_demand_count;
@@ -1837,7 +1867,6 @@ class Feasible_Memory_Schedule_Generator {
         }
         ++outstanding_consumers;
       }
-
       op_output_table_.insert( std::make_pair(op,
             op_output_info_t(operation_output_e::ACTIVE,
                 outstanding_consumers)) ); 
@@ -1894,6 +1923,63 @@ class Feasible_Memory_Schedule_Generator {
               traits::delay(*input_ptr_, input_op));
       } // foreach resource in the demand list //
       //////////////////////////////////////////////////////////////////////////
+
+
+      //////////////////////////////////////////////////////////////////////////
+      //Inplace Ops: At this point the compute op is fully scheduled. If its an
+      //inplace op then all its inputs should now have active resources in the
+      //active resource table. 
+      //TODO(vamsikku): now locate the 
+      if (traits::is_inplace_op(*input_ptr_, op)) {
+        // transfer the resources from input to this op//
+        operation_t overwrite_op =
+            traits::get_inplace_output_op(*input_ptr_, op);
+        // STEP-1:
+        //  a. locate overwrite_op in op_output_table_ 
+        //  b. this must be active.
+        //  c. this must have exactly one outstanding consumers //
+        //  d. resource utility must be exactly the same. //
+        typename op_output_table_t::iterator
+            overwrite_out_itr = op_output_table_.find(overwrite_op);
+
+        if ( !((overwrite_out_itr != op_output_table_.end()) && 
+              (overwrite_out_itr->second).active() && 
+              (overwrite_out_itr->second).has_single_outstanding_consumer()) ) {
+          throw "Invalid overwrite state of inplace output";
+        }
+
+        // STEP-2: set relocated flag in active
+        typename active_resource_table_t::iterator aitr =
+            active_resource_table_.find(overwrite_op);
+        if ( (aitr == active_resource_table_.end()) ||
+              ((aitr->second).size() != 1UL) ) {
+          throw "Unable to find inplace overwrite op in active_resource_table"
+              " (or) Invalid active resource table entry.";
+        }
+        active_result_info_t &overwrite_active_result_info =
+            (aitr->second).front();
+        overwrite_active_result_info.is_relocated_ = true;
+
+        // STEP-3: relocate resources in the //
+        memory_state_.relocate_resources( op_demand_info_t(overwrite_op, 0UL),
+            op_demand_info_t(op, 0UL) );
+
+        // create an entry in the active resources table //
+        typename active_resource_table_t::iterator op_aitr =
+            active_resource_table_.find(op);
+        if (op_aitr != active_resource_table_.end()) { 
+          throw "Invalid active_resource state for currently scheduled op";
+        }
+
+        op_aitr = active_resource_table_.insert(
+            std::make_pair(op, active_op_resources_t())).first;
+        (op_aitr->second).push_back( active_result_info_t(op, 0UL,
+                overwrite_active_result_info.interval_info_));
+      }
+      //////////////////////////////////////////////////////////////////////////
+
+
+
 
 
       //////////////////////////////////////////////////////////////////////////
@@ -2001,6 +2087,7 @@ class Feasible_Memory_Schedule_Generator {
             const active_result_info_t& active_result = active_op_resources[i];
             op_demand_info_t demand_key(active_result.op_,
                   active_result.demand_index_);
+            if (active_result.is_relocated_) { continue; }
 
             bool unassigned = memory_state_.unassign_resources(demand_key);
             UNUSED(unassigned);

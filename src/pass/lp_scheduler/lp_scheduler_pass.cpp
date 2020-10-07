@@ -136,6 +136,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     input_dag.reset(cm);
   }
 
+  if (passDesc.hasAttr("enable_inplace_eltwise")) {
+    input_dag.enable_eltwise_transforms(cm);
+  }
+
   FILE *fptr = nullptr;
   if (mv::isDebugFilesEnabled()) {
     const std::string output_file = passDesc.get<std::string>("output");
@@ -228,13 +232,13 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     input_dag.drop_all_pseudo_edges();
   }
 
+
   { 
     std::list<scheduled_op_t> new_scheduled_ops;
 
     mv::lp_scheduler::Remove_Redundant_Spill_Writes::remove(
         scheduled_ops.begin(), scheduled_ops.end(),
           std::back_inserter(new_scheduled_ops));
-
     scheduled_ops = new_scheduled_ops;
   }
 
