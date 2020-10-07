@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <legacy/ie_layers.h>
+#include <ie_layers.h>
 
 #include <converters.hpp>
 #include <frontend_mcm.hpp>
-#include <include/mcm/tensor/tensor_info.hpp>
 #include <vpu/utils/simple_math.hpp>
 
 #include "custom_layer.hpp"

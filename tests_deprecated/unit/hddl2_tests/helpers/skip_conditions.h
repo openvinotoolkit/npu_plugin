@@ -14,11 +14,15 @@
 // stated in the License.
 //
 #include <common_test_utils/gtest/googletest/include/gtest/gtest.h>
-#include "hddl2_metrics.h"
+#include "subplugin/hddl2_backend.h"
+
+inline bool canWorkWithDevice() {
+    return vpux::HDDL2::HDDL2Backend::isServiceAvailable();
+}
 
 #   define SKIP_IF_NO_DEVICE()                                              \
     do {                                                                    \
-        if (!vpu::HDDL2Plugin::HDDL2Metrics::isServiceAvailable()) {        \
+        if (!canWorkWithDevice()) {             \
             SKIP() << "Skip test due to absence of HDDL2 device";           \
         }                                                                   \
     } while (false)

@@ -45,7 +45,7 @@ public:
 //      class HDDL2_RemoteContext_UnitTests Implementation
 //------------------------------------------------------------------------------
 void HDDL2_RemoteContext_UnitTests::SetUp() {
-    if (HDDL2Metrics::isServiceAvailable()) {
+    if (canWorkWithDevice()) {
         workloadContextHelperPtr = std::make_shared<WorkloadContext_Helper>();
         WorkloadID id = workloadContextHelperPtr->getWorkloadId();
         params = RemoteContext_Helper::wrapWorkloadIdToMap(id);
@@ -171,7 +171,7 @@ protected:
 
 void HDDL2_RemoteContext_CreateBlob_UnitTests::SetUp() {
     HDDL2_RemoteContext_UnitTests::SetUp();
-    if (HDDL2Metrics::isServiceAvailable()) {
+    if (canWorkWithDevice()) {
         tensorDesc = _tensorDescriptionHelper.tensorDesc;
         auto remoteMemory =
             _remoteMemoryHelper.allocateRemoteMemory(workloadContextHelperPtr->getWorkloadId(), sizeToAllocate);

@@ -2031,7 +2031,7 @@ mv::Data::TensorIterator mv::OpModel::sparsityMap(const std::vector<int64_t>& da
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::tanh(Data::TensorIterator data, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::tanh(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2040,6 +2040,8 @@ mv::Data::TensorIterator mv::OpModel::tanh(Data::TensorIterator data, const std:
             data
         },
         {
+            { "dType", dType },
+            { "quantParams", quantParams }
         },
         name
     
@@ -2048,7 +2050,7 @@ mv::Data::TensorIterator mv::OpModel::tanh(Data::TensorIterator data, const std:
     if (recordModel_) { 
 
         const auto outputName = output != tensorEnd() ? varName(output->getName()) : (!name.empty() ? name : "tanh");
-        printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, "tanh", name, "data", data);
+        printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, "tanh", name, "data,dType, quantParams", data,dType, quantParams);
     }
     return output;
 }

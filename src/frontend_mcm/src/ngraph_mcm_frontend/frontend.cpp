@@ -22,15 +22,9 @@
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_conv.hpp"
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_model.hpp"
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_fc.hpp"
-#include "ngraph_mcm_frontend/passes/fuse_dequantize.hpp"
-#include "ngraph_mcm_frontend/passes/merge_quantize_with_input.hpp"
 #include "ngraph_mcm_frontend/passes/merge_result_convert.hpp"
-#include "ngraph_mcm_frontend/passes/quantize_constants.hpp"
-#include "ngraph_mcm_frontend/passes/quantize_conv_biases.hpp"
 #include "ngraph_mcm_frontend/passes/replace_add_with_eltwise.hpp"
-#include "ngraph_mcm_frontend/passes/replace_scale_shift_with_fq.hpp"
 #include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
-#include "ngraph_mcm_frontend/passes/split_fq.hpp"
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 #include <file_utils.h>
@@ -49,6 +43,33 @@
 #include <transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_power_to_power_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
+#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
+
+
+#include "transformations/common_optimizations/algebraic_simplification.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/depth_to_space_fusion.hpp"
+#include "transformations/optimize_strided_slice.hpp"
+#include "transformations/convert_scatter_elements_to_scatter.hpp"
+#include "transformations/convert_pad_to_group_conv.hpp"
+#include "transformations/remove_filtering_boxes_by_size.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/mish_fusion.hpp"
+#include "transformations/softplus_fusion.hpp"
+#include "transformations/softplus_to_mish_fusion.hpp"
+#include "transformations/swish_fusion.hpp"
+#include "transformations/hswish_fusion.hpp"
+#include "transformations/normalize_l2_fusion.hpp"
+#include "transformations/convert_quantize_dequantize.hpp"
+#include "transformations/bidirectional_sequences_decomposition.hpp"
+#include <generic_ie.hpp>
+
 #include <include/mcm/compiler/compilation_unit.hpp>
 #include <memory>
 #include <string>
@@ -58,6 +79,59 @@
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     const std::string& tensorName,
     const InferenceEngine::TensorDesc& tensorInfo);
+
+namespace {
+    std::map<std::string, std::string> MapInputOutputInfoToNgraphOps(const std::shared_ptr<ngraph::Function>& func,
+        const ie::InputsDataMap& inputsInfo,
+        const ie::OutputsDataMap& outputsInfo) {
+        // Due to historical reasons, ICNNNetwork::getOutputsInfo() does not match excatly
+        // to ngraph::op::v0::Result::get_friendly_name(), actual get_friendly_name() may be have arbitary different.
+        // Instead getOutputsInfo() returns names of nodes, who produces input to ngraph::op::v0::Result,
+        // This expected to be fixed in 2021.2
+        // Below ngraph function is changed and Result producers are replaced, making impossible to match.
+        // Therefore Ngraph Results must be mached to OutputsInfo Here.
+        // There is no API to extract actual mapping from CNNNetwork
+        // See how results are converted to outputInfo in convert_function_to_cnn_network.cpp
+        std::map<std::string, std::string> ioMap;
+        // TBD Do we need inputs too?
+        for (auto&& inputInfo : inputsInfo) {
+            bool isFound = false;
+            for (auto&& paramOp : func->get_parameters()) {
+                IE_ASSERT(1 == paramOp->get_output_size());
+                auto name = paramOp->output(0).get_tensor().get_name();
+                if (name.empty())
+                    name = ngraph::op::util::create_ie_output_name(paramOp->output(0));
+                if (name == inputInfo.first) {
+                    ioMap[inputInfo.first] = paramOp->get_friendly_name();
+                    isFound = true;
+                    break;
+                }
+            }
+            if (!isFound)
+                THROW_IE_EXCEPTION << "Input not found: " << inputInfo.first;
+        }
+
+        for (auto&& outputInfo : outputsInfo) {
+            bool isFound = false;
+            for (auto&& resultOp : func->get_results()) {
+                IE_ASSERT(1 == resultOp->get_input_size());
+                const auto &input = resultOp->input_value(0);
+                auto name = input.get_tensor().get_name();
+                if (name.empty())
+                    name = ngraph::op::util::create_ie_output_name(input);
+                if (name == outputInfo.first) {
+                    ioMap[outputInfo.first] = resultOp->get_friendly_name();
+                    isFound = true;
+                    break;
+                }
+            }
+            if (!isFound)
+                THROW_IE_EXCEPTION << "Ouput not found: " << outputInfo.first;
+        }
+
+        return ioMap;
+    }
+}
 
 std::vector<char> compileNGraph(
         const std::shared_ptr<ngraph::Function>& func,
@@ -80,8 +154,20 @@ std::vector<char> compileNGraph(
         log->debug("Configure MCM Compiler");
         VPU_LOGGER_SECTION(log);
 
+        bool layoutNCHW = true;
+        auto compDescName = config.mcmCompilationDesciptor();
+        for (const auto& netInput : inputsInfo) {
+            if (netInput.second->getLayout() != InferenceEngine::Layout::NCHW) {
+                layoutNCHW = false;
+                break;
+            }
+        }
+        if (layoutNCHW) {
+            compDescName = "release_kmb_with_CM_Conv";
+        }
+
         const auto targetPath = ie::getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + config.mcmTargetDesciptor() + ".json";
-        const auto compDescPath = ie::getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" + config.mcmCompilationDesciptor() + ".json";
+        const auto compDescPath = ie::getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" + compDescName + ".json";
 
         IE_ASSERT(mcmCompiler.loadTargetDescriptor(targetPath));
         IE_ASSERT(mcmCompiler.loadCompilationDescriptor(compDescPath));
@@ -127,6 +213,10 @@ std::vector<char> compileNGraph(
         NodeOutputToMcmMap mcmOutputsMap;
 
         ngraph::pass::Manager passManager;
+        passManager.register_pass<ngraph::pass::ConvertPriorBox>();
+        passManager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+        passManager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        passManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
 
         passManager.register_pass<ngraph::pass::ConstantFolding>();
         passManager.register_pass<ngraph::pass::ConvertConvolutions>();
@@ -137,11 +227,15 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
         passManager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
         passManager.register_pass<ngraph::pass::ConvertReduceToPooling>();
-        passManager.register_pass<ngraph::pass::ConstantFolding>();
-        passManager.register_pass<ngraph::pass::ConvertPriorBox>();
         passManager.register_pass<ngraph::pass::ConvertPReLUToReLUIE>();
+        passManager.register_pass<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
 
-        // TBD passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>(); // transformation for ONNX importer #34095
+        passManager.register_pass<ngraph::pass::ConvertPowerToPowerIEMatcher>();
+        passManager.register_pass<ngraph::pass::ConstantFolding>();
+
+        // TBD Should be ngraph::pass too in order to be applied in between other passes.
+        const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
+
 
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
@@ -149,15 +243,13 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ReplaceAddWithMcmEltwise>();
         passManager.register_pass<AlignEltwiseScales>();
         passManager.register_pass<AlignConcatScales>();
-        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap);
+        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap);
 
         const auto start = std::chrono::high_resolution_clock::now();
         passManager.run_passes(func);
         const auto end = std::chrono::high_resolution_clock::now();
         const auto process_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
-        std::stringstream msg;
-        msg << "Plugin time: " << process_time.count() << " ms" << std::endl;
-        log->debug(msg.str().c_str());
+        log->info("Plugin processing time: %v ms", process_time.count());
     }
 
     //
@@ -171,10 +263,7 @@ std::vector<char> compileNGraph(
         mcmCompiler.run();
         const auto end = std::chrono::high_resolution_clock::now();
         const auto compile_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
-        std::stringstream msg;
-        msg << "MCM Compiler time: " << compile_time.count() << " ms" << std::endl;
-        log->debug(msg.str().c_str());
-
+        log->info("Compiler processing time: %v ms", compile_time.count());
     }
 
     //

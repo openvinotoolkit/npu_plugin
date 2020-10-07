@@ -76,8 +76,6 @@ public:
 
     std::set<std::string> checkSupportedLayers(ie::ICNNNetwork& network);
 
-    McmNodePtr output() { return _output; }
-
     //
     // Passes
     //

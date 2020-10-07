@@ -19,7 +19,8 @@
 #include <fstream>
 
 #include <allocators.hpp>
-#include <test_model/kmb_test_utils.hpp>
+#include <vpu/utils/io.hpp>
+#include <ie_utils.hpp>
 
 #include "models/model_pooling.h"
 #include "vpu_layers_tests.hpp"

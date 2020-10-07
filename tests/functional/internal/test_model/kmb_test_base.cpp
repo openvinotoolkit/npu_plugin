@@ -23,8 +23,6 @@
 
 #include <blob_factory.hpp>
 #include "functional_test_utils/plugin_cache.hpp"
-#include <test_model_path.hpp>
-#include <single_layer_common.hpp>
 #include <format_reader_ptr.h>
 #include <vpu/utils/error.hpp>
 #include <blob_factory.hpp>
@@ -184,7 +182,7 @@ const bool KmbTestBase::PRINT_PERF_COUNTERS = []() -> bool {
 }();
 
 void KmbTestBase::SetUp() {
-    ASSERT_NO_FATAL_FAILURE(TestsCommon::SetUp());
+    ASSERT_NO_FATAL_FAILURE(CommonTestUtils::TestsCommon::SetUp());
 
     const auto testInfo = testing::UnitTest::GetInstance()->current_test_info();
     IE_ASSERT(testInfo != nullptr);
@@ -307,34 +305,42 @@ void KmbTestBase::compareOutputs(
 
     ASSERT_EQ(refDesc.getDims(), actualDesc.getDims());
 
-    BufferWrapper refPtr(refOutput);
-    BufferWrapper actualPtr(actualOutput);
+    const auto refFP32 = toFP32(toDefLayout(refOutput));
+    const auto actualFP32 = toFP32(toDefLayout(actualOutput));
 
-    const auto printCount = std::min<size_t>(refOutput->size(), 10);
+    {
+        auto refMem = refFP32->cbuffer();
+        auto actualMem = actualFP32->cbuffer();
 
-    SizeVector tensorInd(refDesc.getDims().size());
+        const auto refPtr = refMem.as<const float*>();
+        const auto actualPtr = actualMem.as<const float*>();
 
-    for (size_t i = 0; i < printCount; ++i) {
-        const auto refOffset = refDesc.offset(tensorInd);
-        const auto actualOffset = actualDesc.offset(tensorInd);
+        const auto printCount = std::min<size_t>(refOutput->size(), 10);
 
-        const auto refVal = refPtr[refOffset];
-        const auto actualVal = actualPtr[actualOffset];
+        SizeVector tensorInd(refDesc.getDims().size());
 
-        const auto absdiff = std::fabs(refVal - actualVal);
+        for (size_t i = 0; i < printCount; ++i) {
+            const auto refOffset = refDesc.offset(tensorInd);
+            const auto actualOffset = actualDesc.offset(tensorInd);
 
-        std::cout << "        " << i << " :"
-                  << " ref : " << std::setw(10) << refVal
-                  << " actual : " << std::setw(10) << actualVal
-                  << " absdiff : " << std::setw(10) << absdiff
-                  << std::endl;
+            const auto refVal = refPtr[refOffset];
+            const auto actualVal = actualPtr[actualOffset];
 
-        if (!tensorIter(tensorInd, refDesc)) {
-            break;
+            const auto absdiff = std::fabs(refVal - actualVal);
+
+            std::cout << "        " << i << " :"
+                      << " ref : " << std::setw(10) << refVal
+                      << " actual : " << std::setw(10) << actualVal
+                      << " absdiff : " << std::setw(10) << absdiff
+                      << std::endl;
+
+            if (!tensorIter(tensorInd, refDesc)) {
+                break;
+            }
         }
     }
 
-    EXPECT_NO_FATAL_FAILURE(compareBlobs(actualOutput, refOutput, tolerance, method));
+    EXPECT_NO_FATAL_FAILURE(compareBlobs(actualFP32, refFP32, tolerance, method));
 }
 
 void KmbTestBase::compareWithReference(
@@ -675,9 +681,41 @@ void TestNetworkDesc::fillUserOutputInfo(OutputsDataMap& info) const {
 // KmbNetworkTestBase
 //
 
+std::string KmbNetworkTestBase::getTestDataPath() {
+    if (const auto envVar = std::getenv("DATA_PATH")) {
+        return envVar;
+    }
+
+#ifdef DATA_PATH
+    return DATA_PATH;
+#else
+    return {};
+#endif
+}
+
+namespace {
+
+std::string getTestModelsBasePath() {
+    if (const auto envVar = std::getenv("MODELS_PATH")) {
+        return envVar;
+    }
+
+#ifdef MODELS_PATH
+    return MODELS_PATH;
+#else
+    return {};
+#endif
+}
+
+}  // namespace
+
+std::string KmbNetworkTestBase::getTestModelsPath() {
+    return getTestModelsBasePath() + "/src/models";
+}
+
 Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, int channels, int height, int width) {
     std::ostringstream imageFilePath;
-    imageFilePath << TestDataHelpers::get_data_path() << "/" << image.imageFileName();
+    imageFilePath << getTestDataPath() << "/" << image.imageFileName();
 
     FormatReader::ReaderPtr reader(imageFilePath.str().c_str());
     IE_ASSERT(reader.get() != nullptr);
@@ -713,10 +751,10 @@ Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, int channels
 }
 
 CNNNetwork KmbNetworkTestBase::readNetwork(const TestNetworkDesc& netDesc, bool fillUserInfo) {
-    ModelsPath modelPath;
-    modelPath << "/" << netDesc.irFileName();
+    std::ostringstream modelPath;
+    modelPath << getTestModelsPath() << "/" << netDesc.irFileName();
 
-    auto net = core->ReadNetwork(modelPath);
+    auto net = core->ReadNetwork(modelPath.str());
 
     if (fillUserInfo) {
         auto inputsInfo = net.getInputsInfo();
@@ -1242,7 +1280,7 @@ void GazeEstimationNetworkTest::runTest(const TestNetworkDesc& netDesc,
         IE_ASSERT(actualOutput->size() == refOutput->size());
 
         auto actualData = actualOutput->buffer().as<float*>();
-        auto refData = actualOutput->buffer().as<float*>();
+        auto refData = refOutput->buffer().as<float*>();
 
         for (size_t i = 0; i < actualOutput->size(); ++i) {
             auto diff = std::abs(actualData[i] - refData[i]);
@@ -1519,8 +1557,8 @@ PersonAttrRecNetworkTest::PersonAttributes PersonAttrRecNetworkTest::parseOutput
 
 void PersonAttrRecNetworkTest::comparePersonsAttributes(const PersonAttrRecNetworkTest::PersonAttributes& p1,
     const PersonAttrRecNetworkTest::PersonAttributes& p2, float tolerance) {
-    std::map<float, uint> differences;
-    for (uint i = 0; i < ATTRIBUTES_COUNT; ++i) {
+    std::map<float, uint32_t> differences;
+    for (uint32_t i = 0; i < ATTRIBUTES_COUNT; ++i) {
         differences[std::abs(p1.attrs[i] - p2.attrs[i])] = i;
     }
 
@@ -1530,7 +1568,7 @@ void PersonAttrRecNetworkTest::comparePersonsAttributes(const PersonAttrRecNetwo
 }
 
 std::ostream& operator<<(std::ostream& stream, const PersonAttrRecNetworkTest::PersonAttributes& p) {
-    for (uint i = 0; i < ATTRIBUTES_COUNT; ++i) {
+    for (uint32_t i = 0; i < ATTRIBUTES_COUNT; ++i) {
         stream << i << " - " << p.attrs[i] << "\n";
     }
     stream << std::endl;

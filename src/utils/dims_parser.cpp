@@ -19,10 +19,9 @@
 
 namespace vpu {
 
-void parseDims(const InferenceEngine::TensorDesc& desc, size_t& dimN, size_t& dimZ, size_t& dimY, size_t& dimX,
+void parseDims(const InferenceEngine::SizeVector& dims, size_t& dimN, size_t& dimZ, size_t& dimY, size_t& dimX,
     size_t defaultValue) {
     dimN = dimZ = dimY = dimX = defaultValue;
-    const auto& dims = desc.getDims();
     switch (dims.size()) {
     case 1:
         dimZ = dims[0];
@@ -50,14 +49,14 @@ void parseDims(const InferenceEngine::TensorDesc& desc, size_t& dimN, size_t& di
 
 InferenceEngine::TensorDesc getNCHW(const InferenceEngine::TensorDesc& desc, size_t defaultValue) {
     size_t dimN, dimZ, dimY, dimX;
-    parseDims(desc, dimN, dimZ, dimY, dimX, defaultValue);
+    parseDims(desc.getDims(), dimN, dimZ, dimY, dimX, defaultValue);
     InferenceEngine::TensorDesc new_desc(desc.getPrecision(), {dimN, dimZ, dimY, dimX}, InferenceEngine::Layout::NCHW);
     return new_desc;
 }
 
 InferenceEngine::TensorDesc getWHCN(const InferenceEngine::TensorDesc& desc, size_t defaultValue) {
     size_t dimN, dimZ, dimY, dimX;
-    parseDims(desc, dimN, dimZ, dimY, dimX, defaultValue);
+    parseDims(desc.getDims(), dimN, dimZ, dimY, dimX, defaultValue);
     InferenceEngine::TensorDesc new_desc(desc.getPrecision(), {dimX, dimY, dimZ, dimN}, InferenceEngine::Layout::ANY);
     return new_desc;
 }

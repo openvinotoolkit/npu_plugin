@@ -14,19 +14,15 @@
 // stated in the License.
 //
 
-#include "hddl2_metrics.h"
-
-#include <hddl2_exceptions.h>
-
-#include <algorithm>
-#include <fstream>
+// IE
 #include <ie_metric_helpers.hpp>
-
-#include "hddl2_params.hpp"
+// Plugin
+#include "hddl2_exceptions.h"
+#include "hddl2_metrics.h"
 
 using namespace vpu::HDDL2Plugin;
 
-HDDL2Metrics::HDDL2Metrics() {
+HDDL2Metrics::HDDL2Metrics(const vpux::VPUXBackends::CPtr& backends): _backends(backends) {
     _supportedMetrics = {
         METRIC_KEY(SUPPORTED_METRICS),
         METRIC_KEY(AVAILABLE_DEVICES),
@@ -44,48 +40,20 @@ HDDL2Metrics::HDDL2Metrics() {
     };
 }
 
-std::vector<std::string> HDDL2Metrics::GetAvailableDevicesNames() {
-    if (!HDDL2Metrics::isServiceAvailable()) {
-        // return empty device list if service is not available
-        return std::vector<std::string>();
-    }
-
-    std::vector<HddlUnite::Device> devices;
-    auto status = getAvailableDevices(devices);
-    if (status != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to get devices names!";
-    }
-
-    std::vector<std::string> devicesNames;
-    for (const auto& device : devices) {
-        devicesNames.push_back(std::to_string(device.getSwDeviceId()));
-    }
-    std::sort(devicesNames.begin(), devicesNames.end());
-    return devicesNames;
+std::vector<std::string> HDDL2Metrics::GetAvailableDevicesNames() const {
+    return _backends->getAvailableDevicesNames();
 }
 
+// TODO each backend may support different metrics
 const std::vector<std::string>& HDDL2Metrics::SupportedMetrics() const { return _supportedMetrics; }
-bool HDDL2Metrics::isServiceAvailable(const vpu::Logger::Ptr& logger) {
-    const std::ifstream defaultService("/opt/intel/hddlunite/bin/hddl_scheduler_service");
-
-    const std::string specifiedServicePath =
-        std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
-    const std::ifstream specifiedService(specifiedServicePath + std::string("/bin/hddl_scheduler_service"));
-
-    const auto serviceAvailable = specifiedService.good() || defaultService.good() || isServiceRunning();
-    if (logger) {
-        serviceAvailable ? logger->debug(SERVICE_AVAILABLE.c_str()) : logger->debug(SERVICE_NOT_AVAILABLE.c_str());
-    }
-    return serviceAvailable;
-}
-
-bool HDDL2Metrics::isServiceRunning() { return HddlUnite::isServiceRunning(); }
 
 // TODO: Need to add the full name
-std::string HDDL2Metrics::GetFullDevicesNames() { return {""}; }
+std::string HDDL2Metrics::GetFullDevicesNames() const { return {""}; }
 
+// TODO each backend may support different configs
 const std::vector<std::string>& HDDL2Metrics::GetSupportedConfigKeys() const { return _supportedConfigKeys; }
 
+// TODO each backend may support different optimization capabilities
 const std::vector<std::string>& HDDL2Metrics::GetOptimizationCapabilities() const { return _optimizationCapabilities; }
 
 const std::tuple<uint32_t, uint32_t, uint32_t>& HDDL2Metrics::GetRangeForAsyncInferRequest() const {

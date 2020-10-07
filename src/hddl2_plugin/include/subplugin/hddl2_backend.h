@@ -22,15 +22,20 @@ namespace HDDL2 {
 class HDDL2Backend final : public vpux::IEngineBackend {
 public:
     using Ptr = std::shared_ptr<HDDL2Backend>;
+    using CPtr = std::shared_ptr<const HDDL2Backend>;
 
     HDDL2Backend(const VPUXConfig& config);
     /** @brief HDDL2 is considered as one device, so no separate devices will be returned */
     const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const override { return _devices; }
+
     /** @brief Search for specific device, if required*/
     const std::shared_ptr<IDevice> getDevice(const std::string& deviceName) const;
+    static bool isServiceAvailable(const vpu::Logger::Ptr& logger = nullptr);
+    static bool isServiceRunning();
+    const std::vector<std::string> getDevicesNames() const;
 
 private:
-    vpu::Logger::Ptr _logger;
+    vpu::Logger::Ptr _logger = nullptr;
     const std::map<std::string, std::shared_ptr<IDevice>> _devices;
     std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();
 };

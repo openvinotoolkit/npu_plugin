@@ -18,6 +18,9 @@
 
 #include "test_model/kmb_test_base.hpp"
 
+// TODO: [Track number: C#40310]
+//       We need to remove or transform XML based tests before opening the source.
+
 //
 // ResNet50 FP16 IRv10
 //
@@ -306,18 +309,18 @@ TEST_P(KmbClassifyNetworkTestWithSpecificLayout, precommit_resnet_50_pytorch_den
         1, 0.7f);
 }
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(specificLayout));
-
-TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_ngraph) {
+TEST_P(KmbClassifyNetworkTestWithSpecificLayout, precommit_resnet_50_pytorch_dense_int8_IRv10_ngraph) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
+            .setUserInputLayout("input", GetParam())
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
         TestImageDesc("224x224/husky.bmp", ImageFormat::RGB),
         1, 0.7f);
 }
+
+INSTANTIATE_TEST_CASE_P(precommit, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(specificLayout));
 
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32) {
     runTest(
@@ -832,7 +835,9 @@ TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
         0.3f);  // mean intersection over union tolerance
 }
 
-TEST_F(UnetNetworkTest, precommit_unet_camvid_ava_0001_NHWC_NCHW) {
+
+// [Track number: S#25636]
+TEST_F(UnetNetworkTest, DISABLED_precommit_unet_camvid_ava_0001_NHWC_NCHW) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -842,7 +847,10 @@ TEST_F(UnetNetworkTest, precommit_unet_camvid_ava_0001_NHWC_NCHW) {
         0.3f);  // mean intersection over union tolerance
 }
 
-TEST_F(UnetNetworkTest, unet_camvid_ava_0001_NCHW_NCHW) {
+// Bad accuracy
+// [Track number: S#39621]
+TEST_F(UnetNetworkTest, DISABLED_unet_camvid_ava_0001_NCHW_NCHW) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad accuracy");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -903,6 +911,30 @@ TEST_F(AgeGenderNetworkTest, DISABLED_precommit_age_gender_retail_0013) {
         TestNetworkDesc("KMB_models/INT8/icv/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013_ww22.xml")
             .setUserInputPrecision(input_name, Precision::U8),
         TestImageDesc("62x62/face62.bmp", ImageFormat::RGB),
+        0.1f);
+}
+
+// C++ exception with description "Cannot convert layer "GatherIE_6126" due to unsupported layer type "Gather"
+// [Track number: S#31241]
+TEST_F(PersonAttrRecNetworkTest, person_attributes_recognition_crossroad_0234) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0234.xml"),
+        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR),
+        0.1f);
+}
+
+// C++ exception with description "Cannot convert layer "GatherIE_6126" due to unsupported layer type "Gather"
+// [Track number: S#31241]
+TEST_F(PersonAttrRecNetworkTest, person_attributes_recognition_crossroad_0238) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml"),
+        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR),
         0.1f);
 }
 
