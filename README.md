@@ -364,7 +364,7 @@ All output blobs will be written to `$IE_VPU_KMB_DUMP_OUTPUT_PATH/output-dump%d.
 ### Common x86_64
 
 * Ubuntu 18.04 long-term support (LTS), 64-bit
-* Kernel 5.0.x, 5.3.x (you can use [ukuu kernel manager] to easily update system kernel)
+* Kernel 5.x (you can use [ukuu kernel manager] to easily update system kernel)
 * Kernel headers
 
     ```bash
@@ -422,7 +422,56 @@ The following environment variables should be set:
 
 1. Configure board (use instructions from [VPU Wiki Board Configure])
 
-2. Install PCIe XLink driver (use instructions from [VPU Wiki PCIe XLink driver])
+2. Install PCIe XLink and Hddl drivers (use instructions from [VPU Wiki PCIe XLink driver])
+
+## Set up HDDL2 plugin on ARM
+
+1. Download last version of HDDLUnite package from [VPUX configuration] (hddlunite-kmb_*.tar.gz) with the following commands:
+
+    ```bash
+    mkdir -p ~/Downloads
+    cd ~/Downloads
+    wget <HDDLUnite package link>
+    ```
+
+If wget doesn't work properly, use browser instead.
+
+2. Rename current HDDLUnite directory if it exists with the following commands:
+
+    ```bash
+    ls /opt/intel/hddlunite &&
+    mv /opt/intel/hddlunite /opt/intel/hddlunite_orig
+    ```
+
+3. Unpack HDDLUnite package with command:
+
+    ```bash
+    cd ~/Downloads
+    tar -xzf hddlunite-kmb_*.tar.gz -C /opt/intel
+    ```
+
+4. Copy original env.sh script with command:
+
+    ```bash
+    cp /opt/intel/hddlunite_orig/env.sh /opt/intel/hddlunite
+    ```
+
+5. Reboot the board
+
+6. Check if the hddl_device_service boots with command:
+
+    ```bash
+    systemctl status deviceservice
+    ```
+
+* Expected output:
+
+    ```bash
+    ctl status deviceservice
+    * deviceservice.service - HDDL Device Service
+        Loaded: loaded (/etc/systemd/system/deviceservice.service; enabled; vendor preset: enabled)
+        Active: active (running) since Fri 2020-10-02 04:17:52 UTC; 1h 49min ago
+    ```
 
 ## Set up HDDL2 plugin on x86_64
 
@@ -446,47 +495,9 @@ The following environment variables should be set:
     ${KMB_INSTALL_DIR}/bin/hddl_scheduler_service
     ```
 
-## Set up HDDL2 plugin on ARM
-
-1. Download last version of HDDLUnite package from [VPUX configuration] (hddlunite-kmb_*.tar.gz) with the following commands:
-
+4. Open another terminal, repeat step 2 and then set HddlUnite mode with command:
     ```bash
-    mkdir -p ~/Downloads
-    cd ~/Downloads
-    wget <HDDLUnite package link>
-    ```
-
-If wget doesn't work properly, use browser instead.
-
-2. Unpack HDDLUnite package with command:
-
-    ```bash
-    cd ~/Downloads
-    tar -xzf hddlunite-kmb_*.tar.gz -C /opt/intel
-    ```
-
-3. Edit env_host.sh script with the following commands:
-
-    ```bash
-    cd /opt/intel
-    nano env_host.sh
-    ```
-
-Modify string:
-
-    ARM_INSTALL_DIR=/opt/intel
-
-4. Set environment variables with commands:
-
-    ```bash
-    cd /opt/intel
-    source ./env_host.sh
-    ```
-
-5. Run device service on EVM with command:
-
-    ```bash
-    ${KMB_INSTALL_DIR}/bin/hddl_device_service
+    ${KMB_INSTALL_DIR}/bin/SetHDDLMode -m bypass
     ```
 
 ## Final check
@@ -495,12 +506,6 @@ Modify string:
 
     ```bash
     [16:52:48.7836][1480]I[main.cpp:55] HDDL Scheduler Service is Ready!
-    ```
-
-* Expected output on ARM:
-
-    ```bash
-    [20:56:15.3854][602]I[main.cpp:42] Device Service is Ready!
     ```
 
 [DLDT Project]: https://gitlab-icv.inn.intel.com/inference-engine/dldt
