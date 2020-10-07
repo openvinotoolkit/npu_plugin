@@ -49,6 +49,7 @@
 #include <ngraph/op/power.hpp>
 #include <ngraph_ops/relu_ie.hpp>
 #include <ngraph_ops/eltwise.hpp>
+#include <ngraph_ops/gather_ie.hpp>
 #include <ngraph_ops/power.hpp>
 #include <ngraph/op/normalize_l2.hpp>
 
@@ -80,6 +81,7 @@
 #include <ngraph_ops/prior_box_ie.hpp>
 #include <ngraph_ops/normalize_ie.hpp>
 #include <ngraph_ops/topk_ie.hpp>
+#include <ngraph_ops/proposal_ie.hpp>
 
 #include <parse_layers_helpers.hpp>
 #include <dims_parser.hpp>
@@ -258,6 +260,17 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
     if (mvShape.ndims() == 3) {
         mvShape = mv::Shape::augment_major(mvShape, 4);
     }
+
+    // MCM compiler can't work with constant blob with dims {1}
+    // TODO: remove this workaround when this case will be handled on mcm compiler side
+    if (mvShape.ndims() == 1) {
+        for (auto&& consumerNode : constant->get_users())
+            if (ngraph::op::GatherIE::type_info == consumerNode->get_type_info()) {
+                mvShape = mv::Shape::augment_major(mvShape, 4);
+                break;
+            }
+    }
+    // end of workaround
 
     auto mvDType = cvtElemTypeToMCM(constant->get_element_type());
     const auto mvOrder = mv::Order::getColMajorID(mvShape.ndims()) ; //McmOpAttrs::getOrder(constant);
@@ -1023,13 +1036,13 @@ void convert(std::shared_ptr<ngraph::op::NormalizeIE> normalizeIE, mv::OpModel& 
     const auto mvDType = mv::DType("Default");
     const auto& opName = normalizeIE->get_friendly_name();
 
-    double eps = normalizeIE->get_eps();
+    const double eps = normalizeIE->get_eps();
     auto const_axis = std::dynamic_pointer_cast<ngraph::op::Constant> (normalizeIE->input(1).get_source_output().get_node_shared_ptr());
     IE_ASSERT(nullptr != const_axis);
-    auto axis = const_axis->cast_vector<size_t>();
-    bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
+    const auto& axis = const_axis->cast_vector<size_t>();
+    const bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
 
-    size_t weightsSize = mcmData->getShape()[2];
+    const size_t weightsSize = mcmData->getShape()[2];
     const mv::Shape weightsShape = {1, weightsSize, 1, 1};
     std::vector<double> weightsData (weightsSize, 1.0); // see convert_normalizel2_to_normalize_ie.cpp
     bool channel_shared = false;
@@ -1043,6 +1056,57 @@ void convert(std::shared_ptr<ngraph::op::NormalizeIE> normalizeIE, mv::OpModel& 
     auto mvNormalizeOutput = mcmModel.normalize(mcmData, mvWeightsValues, eps, across_spatial, channel_shared,
                                                 mvDType, initialQuantParams(), opName);
     registerOutputs(normalizeIE, {mvNormalizeOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::ProposalIE> proposalIE, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(proposalIE, mcmOutputsMap);
+    IE_ASSERT(mcmInputs.size() == 3u);
+    const auto& opName = proposalIE->get_friendly_name();
+    const ngraph::op::ProposalAttrs& attrs = proposalIE->get_attrs();
+    // size_t base_size;                  // Anchor sizes
+    // size_t pre_nms_topn;               // Number of boxes before nms
+    // size_t post_nms_topn;              // Number of boxes after nms
+    // float nms_thresh = 0.0f;           // Threshold for nms
+    // size_t feat_stride = 1;            // Feature stride
+    // size_t min_size = 1;               // Minimum box size
+    // std::vector<float> ratio;          // Ratios for anchor generation
+    // std::vector<float> scale;          // Scales for anchor generation
+    // bool clip_before_nms = true;       // Clip before NMs
+    // bool clip_after_nms = false;       // Clip after NMs
+    // bool normalize = false;            // Normalize boxes to [0,1]
+    // float box_size_scale = 1.0f;       // Scale factor for scaling box size
+    // float box_coordinate_scale = 1.0f; // Scale factor for scaling box coordiate
+    // std::string framework;             // Calculation frameworkrithm to use
+    // bool infer_probs = false;
+
+    // ngraph does not have these params
+    auto for_deformable = false;
+    float pre_nms_thresh = 0.0f;
+
+    std::string framework = attrs.framework;
+    if (attrs.framework == "tensorflow" || framework == "caffe") {
+        std::transform(framework.begin(), framework.end(), framework.begin(), ::toupper);
+    } else {
+        THROW_IE_EXCEPTION << "Proposal layer doesn't support framework: " << framework;
+    }
+
+    auto mcmProposal = mcmModel.proposal(mcmInputs, attrs.scale, attrs.ratio, attrs.base_size, attrs.pre_nms_topn,
+        attrs.post_nms_topn, attrs.nms_thresh, attrs.feat_stride, attrs.min_size, pre_nms_thresh,
+        attrs.clip_before_nms, attrs.clip_after_nms,  attrs.normalize, attrs.box_size_scale,
+        attrs.box_coordinate_scale, framework, for_deformable, mv::DType("Default"), initialQuantParams(), opName);
+
+    registerOutputs(proposalIE, {mcmProposal}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::GatherIE> gatherIE, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(gatherIE, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto& opName = gatherIE->get_friendly_name();
+    const int64_t axis = gatherIE->get_axis();
+    // TODO: Replace Float16 with Default when MCM Compiler is fixed. See ticket #40356
+    auto mcmGather = mcmModel.gather(mcmInputs.at(0), mcmInputs.at(1), axis, mv::DType("Float16"), initialQuantParams(), opName);
+
+    registerOutputs(gatherIE, {mcmGather}, mcmOutputsMap);
 }
 
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
@@ -1104,6 +1168,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::ResampleV2),
     MAP_ENTRY(ngraph::op::Interp),
     MAP_ENTRY(ngraph::op::NormalizeIE),
+    MAP_ENTRY(ngraph::op::ProposalIE),
+    MAP_ENTRY(ngraph::op::GatherIE)
 };
 
 #undef MAP_ENTRY
