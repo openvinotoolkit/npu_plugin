@@ -409,6 +409,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
         "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB -o " + FILE_BLOB_NAME;
 
+    // if exists, reads the input layout from commandline. Otherwise use env var
     if (! FLAGS_il.empty() )
         commandline += " -il " + FLAGS_il;
     else
@@ -420,10 +421,15 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
             commandline += " -il NCHW";
     }
 
+    // if exists, reads the input precision from commandline. Otherwise use env var
     if (! FLAGS_ip.empty() )
         commandline += (" -ip " + FLAGS_ip);
     else 
-        commandline += " -ip U8";
+    {
+        std::string inputPrecision = getEnvVarDefault("INPUT_PRECISION", "U8");
+        commandline += " -ip " + inputPrecision;
+    }
+
     commandline += " -op FP32";
 
     std::cout << commandline << std::endl;
