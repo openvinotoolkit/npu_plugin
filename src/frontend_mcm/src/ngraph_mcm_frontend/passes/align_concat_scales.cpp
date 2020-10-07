@@ -17,6 +17,7 @@
 // clang-format off
 #ifdef ENABLE_MCM_COMPILER
 
+#include <details/ie_exception.hpp>
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 
 #include <memory>
@@ -45,6 +46,9 @@ bool inputsHasSameScalesAndZeroPoints(const std::vector<std::shared_ptr<ngraph::
         if (inputs.size() < 2) return true;
 
         auto fq1 = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(inputs[0]);
+        if (fq1 == nullptr) {
+            THROW_IE_EXCEPTION << "Failed to cast first input to FakeQuantize";
+        }
         auto outputLow1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq1->input_value(3).get_node_shared_ptr());
         auto outputHigh1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq1->input_value(4).get_node_shared_ptr());
         auto ol = outputLow1->cast_vector<double>().at(0);
@@ -52,6 +56,9 @@ bool inputsHasSameScalesAndZeroPoints(const std::vector<std::shared_ptr<ngraph::
 
         for (size_t i = 1; i < inputs.size(); i++) {
             auto fq2 = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(inputs[i]);
+            if (fq2 == nullptr) {
+                THROW_IE_EXCEPTION << "Failed to cast input to FakeQuantize";
+            }
 
             auto outputLow2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq2->input_value(3).get_node_shared_ptr());
             auto outputHigh2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq2->input_value(4).get_node_shared_ptr());
