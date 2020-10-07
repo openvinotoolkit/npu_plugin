@@ -3,9 +3,10 @@
 //
 
 #include <xml_parse_utils.h>
+
+#include <caseless.hpp>
 #include <custom_layer/ShaveElfMetadataParser.hpp>
 #include <custom_layer/custom_kernel.hpp>
-#include <caseless.hpp>
 #include <vpu/utils/error.hpp>
 #include <vpu/utils/extra.hpp>
 
@@ -42,32 +43,32 @@ VPU_PACKED(Elf32Section {
 };)
 
 VPU_PACKED(Elf32Phdr {
-    uint32_t pType;       // Identifies program segment type
-    uint32_t pOffset;     // Segment file offset
-    uint32_t pVaddr;      // Segment virtual address
-    uint32_t pPaddr;      // Segment physical address
-    uint32_t pFilesz;     // Segment size in file
-    uint32_t pMemsz;      // Segment size in memory
-    uint32_t pFlags;      // Flags position from ELF standard spec
-    uint32_t pAlign;      // Segment alignment, file & memory
+    uint32_t pType;    // Identifies program segment type
+    uint32_t pOffset;  // Segment file offset
+    uint32_t pVaddr;   // Segment virtual address
+    uint32_t pPaddr;   // Segment physical address
+    uint32_t pFilesz;  // Segment size in file
+    uint32_t pMemsz;   // Segment size in memory
+    uint32_t pFlags;   // Flags position from ELF standard spec
+    uint32_t pAlign;   // Segment alignment, file & memory
 };)
 
 VPU_PACKED(Elf32Sym {
     uint32_t stName;
     uint32_t stValue;
     uint32_t stSize;
-    uint8_t  stInfo;
-    uint8_t  stOther;
+    uint8_t stInfo;
+    uint8_t stOther;
     uint16_t stShndx;
 };)
 
 VPU_PACKED(KernelHdr {
-    uint32_t address;       // Kernel address
-    uint32_t flags;         // Should be 0 for now
-    uint32_t sectionSize;   // Section size, offset to the next kernel
-    uint32_t argOffset;     // offset to arguments
-    uint32_t stackSize;     // Size of the stack required for kernel
-    uint32_t stackSizeWI;     // Size of the stack required for kernel per WI
+    uint32_t address;      // Kernel address
+    uint32_t flags;        // Should be 0 for now
+    uint32_t sectionSize;  // Section size, offset to the next kernel
+    uint32_t argOffset;    // offset to arguments
+    uint32_t stackSize;    // Size of the stack required for kernel
+    uint32_t stackSizeWI;  // Size of the stack required for kernel per WI
 };)
 
 VPU_PACKED(KernelArgHdr {
@@ -78,19 +79,19 @@ VPU_PACKED(KernelArgHdr {
     uint32_t laneSize;
 };)
 
-static const Elf32Shdr *get_elf_section_with_name(const uint8_t *elf_data, const char* section_name) {
+static const Elf32Shdr* get_elf_section_with_name(const uint8_t* elf_data, const char* section_name) {
     IE_ASSERT(elf_data);
     IE_ASSERT(section_name);
 
-    const auto *ehdr = reinterpret_cast<const Elf32Ehdr *>(elf_data);
+    const auto* ehdr = reinterpret_cast<const Elf32Ehdr*>(elf_data);
     IE_ASSERT(0 != ehdr->eShoff);
     IE_ASSERT(0 != ehdr->ePhoff);
 
     // Pointer to the first section header
-    const Elf32Shdr *shdr = reinterpret_cast<const Elf32Shdr *>(elf_data + ehdr->eShoff);
+    const Elf32Shdr* shdr = reinterpret_cast<const Elf32Shdr*>(elf_data + ehdr->eShoff);
 
     // Pointer to section header string table header
-    const Elf32Shdr *strShdr = &shdr[ehdr->eShstrndx];
+    const Elf32Shdr* strShdr = &shdr[ehdr->eShstrndx];
 
     // We couldn't find sections for the symbol string names and for the symbols
     // entries
@@ -100,11 +101,11 @@ static const Elf32Shdr *get_elf_section_with_name(const uint8_t *elf_data, const
 
     // The string at index 0, which corresponds to the first byte, is a null
     // character
-    const char *firstStr = reinterpret_cast<const char *>(elf_data + strShdr->shOffset);
+    const char* firstStr = reinterpret_cast<const char*>(elf_data + strShdr->shOffset);
 
     // Find the section with the custom SHAVEComputeAorta data
     for (uint16_t i = 0; i < ehdr->eShnum; i++) {
-        const char *currentSectionName = firstStr + shdr[i].shName;
+        const char* currentSectionName = firstStr + shdr[i].shName;
 
         if (0 == strcmp(currentSectionName, section_name)) {
             return shdr + i;
@@ -128,17 +129,24 @@ SmallVector<CustomKernel::Argument> deduceKernelArguments(const md_parser_t& par
         const auto arg = parser.get_argument(kernelDesc, i);
         VPU_THROW_UNLESS(arg, "Error while parsing custom layer elf file.");
         const auto argName = parser.get_name(arg);
+
+        // skip hoisted buffers
+        if (arg->flags & md_arg_flags_generated_prepost) {
+            continue;
+        }
+
         arguments.emplace_back(argName, static_cast<int>(arg->size_elm));
     }
 
     return arguments;
 }
 
-CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir): _configDir {std::move(configDir)} {
+CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir): _configDir{std::move(configDir)} {
     _maxShaves = XMLParseUtils::GetIntAttr(kernel, "max-shaves", 0);
 
+    std::string fileName;
     for (auto source = kernel.child("Source"); !source.empty(); source = source.next_sibling("Source")) {
-        auto fileName = _configDir + "/" + XMLParseUtils::GetStrAttr(source, "filename", "");
+        fileName = _configDir + "/" + XMLParseUtils::GetStrAttr(source, "filename", "");
 
         std::ifstream inputFile(fileName, std::ios::in | std::ios::binary);
         if (!inputFile.is_open()) {
@@ -155,20 +163,27 @@ CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir):
     const auto kernelEntryName = XMLParseUtils::GetStrAttr(kernel, "entry");
 
     const auto elf = _kernelBinary.data();
-    const Elf32Shdr *neoMetadataShdr = get_elf_section_with_name(elf, ".neo_metadata");
+    const Elf32Shdr* neoMetadataShdr = get_elf_section_with_name(elf, ".neo_metadata");
     VPU_THROW_UNLESS(neoMetadataShdr, "Error while parsing custom layer elf: Couldn't find .neo_metadata section");
 
-    const uint8_t *neoMetadata = elf + neoMetadataShdr->shOffset;
+    const uint8_t* neoMetadata = elf + neoMetadataShdr->shOffset;
     const size_t neoMetadataSize = neoMetadataShdr->shSize;
 
-    const Elf32Shdr *neoMetadataStrShdr = get_elf_section_with_name(elf, ".neo_metadata.str");
-    VPU_THROW_UNLESS(neoMetadataStrShdr,"Error while parsing custom layer elf: Couldn't find .neo_metadata.str section");
+    const Elf32Shdr* neoMetadataStrShdr = get_elf_section_with_name(elf, ".neo_metadata.str");
+    VPU_THROW_UNLESS(
+        neoMetadataStrShdr, "Error while parsing custom layer elf: Couldn't find .neo_metadata.str section");
 
-    const char *neoMetadataStr = reinterpret_cast<const char *>(elf + neoMetadataStrShdr->shOffset);
+    const char* neoMetadataStr = reinterpret_cast<const char*>(elf + neoMetadataStrShdr->shOffset);
     const size_t neoMetadataStrSize = neoMetadataStrShdr->shSize;
 
     const auto parser = md_parser_t{neoMetadata, neoMetadataSize, neoMetadataStr, neoMetadataStrSize};
     _kernelId = parser.get_kernel_id(kernelEntryName);
+    VPU_THROW_UNLESS(_kernelId != -1, "Failed to find kernel with name `%l`", kernelEntryName);
+
+    VPU_THROW_UNLESS(parser.get_kernel_count() == 1,
+        "Failed to load kernel binary '%l'\n"
+        "\tReason: binary should contain only one kernel, but contains %l",
+        fileName, parser.get_kernel_count());
     _kernelArguments = deduceKernelArguments(parser, _kernelId);
 
     processParametersNode(kernel);
@@ -208,16 +223,10 @@ std::pair<CustomDimSource, int> parseDimSource(const std::string& dims) {
     return std::make_pair(dimSource, idx);
 }
 
-
 CustomDataFormat formatFromString(const std::string& str) {
     static const ie::details::caseless_map<std::string, CustomDataFormat> FormatNameToType = {
-        { "BFYX" , CustomDataFormat::BFYX },
-        { "BYXF" , CustomDataFormat::BYXF },
-        { "FYX" , CustomDataFormat::FYX },
-        { "YXF" , CustomDataFormat::YXF },
-        { "BF" , CustomDataFormat::BF },
-        { "ANY"  , CustomDataFormat::Any }
-    };
+        {"BFYX", CustomDataFormat::BFYX}, {"BYXF", CustomDataFormat::BYXF}, {"FYX", CustomDataFormat::FYX},
+        {"YXF", CustomDataFormat::YXF}, {"BF", CustomDataFormat::BF}, {"ANY", CustomDataFormat::Any}};
 
     auto it = FormatNameToType.find(str);
     if (it != FormatNameToType.end()) {
@@ -241,7 +250,7 @@ SmallVector<std::string> parseSizeRule(const std::string& size) {
 }
 
 void CustomKernel::processParametersNode(const pugi::xml_node& node) {
-    const auto cmp = ie::details::CaselessEq<std::string> {};
+    const auto cmp = ie::details::CaselessEq<std::string>{};
     const auto parameters = node.child("Parameters");
     auto bindings = SmallVector<BindingParameter>{};
 
@@ -352,4 +361,4 @@ void CustomKernel::processWorkSizesNode(const pugi::xml_node& node) {
     _localGridSizeRules = parseSizeRule(lwgs);
 }
 
-} // namespace vpu
+}  // namespace vpu

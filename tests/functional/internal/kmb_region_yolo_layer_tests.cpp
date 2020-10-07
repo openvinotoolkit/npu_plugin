@@ -33,8 +33,7 @@ struct RegionYoloTestParams final {
 
 std::ostream& operator<<(std::ostream& os, const RegionYoloTestParams& p) {
     const auto num = p.doSoftmax() ? p.regions() : p.mask().size();
-    const auto& dims = SizeVector{1,
-                                    num * (p.coords() + p.classes() + 1), p.height(), p.width()};
+    const auto& dims = SizeVector{1, num * (p.coords() + p.classes() + 1), p.height(), p.width()};
 
     vpu::formatPrint(os, "dims: %v, classes: %l, coords: %l, regions: %l, maskSize: %l, doSoftmax: %l",
         dims, p.classes(), p.coords(), p.regions(), p.mask().size(), p.doSoftmax());

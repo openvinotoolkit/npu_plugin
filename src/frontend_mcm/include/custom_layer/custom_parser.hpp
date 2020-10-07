@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include <ie_layers.h>
+
 #include <converters.hpp>
 #include <custom_layer/custom_kernel.hpp>
 #include <frontend_mcm.hpp>
-#include <ie_layers.h>
 #include <vpu/utils/simple_math.hpp>
 
 namespace vpu {
@@ -20,10 +21,7 @@ class CustomLayerParser {
         std::string argName;
 
         StageOutput(bool is_buffer, int buffer_size, int port_index, std::string arg_name)
-            : isBuffer(is_buffer),
-              bufferSize(buffer_size),
-              portIndex(port_index),
-              argName{std::move(arg_name)} {}
+            : isBuffer(is_buffer), bufferSize(buffer_size), portIndex(port_index), argName{std::move(arg_name)} {}
     };
 
     SmallVector<ie::TensorDesc> inputDescs;
@@ -35,8 +33,7 @@ class CustomLayerParser {
 
 private:
     static SmallVector<int> calcSizesFromParams(const ie::TensorDesc& desc,
-        const SmallVector<std::string>& bufferSizeRules,
-        std::map<std::string, std::string> layerParams) {
+        const SmallVector<std::string>& bufferSizeRules, std::map<std::string, std::string> layerParams) {
         const auto& dims = desc.getDims();
         const auto B = std::to_string(dims[0]);
         const auto F = std::to_string(dims[1]);
@@ -44,10 +41,14 @@ private:
         const auto X = std::to_string(dims[3]);
 
         auto sizes = std::vector<std::pair<std::string, std::string>>{
-            {"b", B}, {"B", B},
-            {"f", F}, {"F", F},
-            {"y", Y}, {"Y", Y},
-            {"x", X}, {"X", X},
+            {"b", B},
+            {"B", B},
+            {"f", F},
+            {"F", F},
+            {"y", Y},
+            {"Y", Y},
+            {"x", X},
+            {"X", X},
         };
 
         std::move(begin(sizes), end(sizes), inserter(layerParams, end(layerParams)));
@@ -62,8 +63,7 @@ private:
 
         auto parsedSizes = SmallVector<int>{};
         parsedSizes.reserve(bufferSizeRules.size());
-        std::transform(begin(bufferSizeRules), end(bufferSizeRules),
-            std::back_inserter(parsedSizes), parseSizeRule);
+        std::transform(begin(bufferSizeRules), end(bufferSizeRules), std::back_inserter(parsedSizes), parseSizeRule);
 
         return parsedSizes;
     }
@@ -86,8 +86,7 @@ public:
         const CustomKernel& kernel, const vpu::SmallVector<uint32_t>& kernelArgs) {
         const auto workGroupDims = 3;
 
-        const auto& wgDimSource =
-            (kernel.dimSource() == CustomDimSource::Input) ? inputDescs : outputDescs;
+        const auto& wgDimSource = (kernel.dimSource() == CustomDimSource::Input) ? inputDescs : outputDescs;
         const auto& wgDataDesc = wgDimSource.at(kernel.dimSourceIndex());
 
         auto lwgs = calcSizesFromParams(wgDataDesc, kernel.localGridSizeRules(), cnnLayer->params);
@@ -122,18 +121,16 @@ public:
         return kernelData;
     }
 
-    std::vector<mv::TensorInfo> resolveStageOutputs(const CustomKernel& kernel,
-        const CustomLayer& customLayer, const std::vector<StageOutput>& stageOutputs) {
+    std::vector<mv::TensorInfo> resolveStageOutputs(
+        const CustomKernel& kernel, const CustomLayer& customLayer, const std::vector<StageOutput>& stageOutputs) {
         std::vector<mv::TensorInfo> kernelOutputs;
         for (const auto& output : stageOutputs) {
             if (output.isBuffer) {
-                kernelOutputs.emplace_back(
-                    mv::Shape{static_cast<uint32_t>(output.bufferSize), 1, 1, 1},
+                kernelOutputs.emplace_back(mv::Shape{static_cast<uint32_t>(output.bufferSize), 1, 1, 1},
                     mv::DType{"UInt8"}, mv::Order::getZMajorID(4));
             } else {
                 const auto& desc = outputDescs.at(output.portIndex);
-                VPU_THROW_UNLESS(
-                    desc.getDims().size() <= 4, "Custom layer does not support tensors greater 4D");
+                VPU_THROW_UNLESS(desc.getDims().size() <= 4, "Custom layer does not support tensors greater 4D");
                 auto shape = sizeVectorToShape(desc.getDims());
                 // Propagate shape to 4D, adding 1's on major dimensions
                 shape = mv::Shape::augment_major(shape, 4);
@@ -155,17 +152,15 @@ public:
                         return arg.name == output.argName;
                     };
 
-                    auto argument = std::find_if(
-                        begin(kernel.arguments()), end(kernel.arguments()), withBindingName);
+                    auto argument = std::find_if(begin(kernel.arguments()), end(kernel.arguments()), withBindingName);
                     IE_ASSERT(argument != kernel.arguments().end());
 
                     if (argument->underlyingTypeSize == 1) return mv::DType{"UInt8"};
                     if (argument->underlyingTypeSize == 2) return mv::DType{"Float16"};
 
-                    VPU_THROW_EXCEPTION
-                        << "Custom layer output parameter '" << output.argName
-                        << "' has unsupported output data type with "
-                        << "underlying type size = " << argument->underlyingTypeSize;
+                    VPU_THROW_EXCEPTION << "Custom layer output parameter '" << output.argName
+                                        << "' has unsupported output data type with "
+                                        << "underlying type size = " << argument->underlyingTypeSize;
                 }();
 
                 // setting type as `Default` to replace it with input[0]'s DType inside MCM
@@ -192,6 +187,13 @@ public:
 
         StageInfo stage;
 
+        const auto isInput = [&](const CustomKernel::BindingParameter& binding) {
+            return binding.type == CustomParamType::Input || binding.type == CustomParamType::InputBuffer ||
+                   binding.type == CustomParamType::Data;
+        };
+
+        const auto inputCount = std::count_if(begin(bindings), end(bindings), isInput);
+
         for (const auto& binding : bindings) {
             switch (binding.type) {
             case CustomParamType::InputBuffer: {
@@ -214,7 +216,7 @@ public:
 
                 const int bufferSize = parseBufferSize(binding);
                 stage.outputs.emplace_back(true, bufferSize, binding.portIndex, binding.argName);
-                stage.arguments.push_back(stage.outputs.size() - 1);
+                stage.arguments.push_back(stage.outputs.size() - 1 + inputCount);
                 break;
             }
             case CustomParamType::Data:
@@ -230,7 +232,7 @@ public:
             }
             case CustomParamType::Output: {
                 stage.outputs.emplace_back(false, 0, binding.portIndex, binding.argName);
-                stage.arguments.push_back(stage.outputs.size() - 1);
+                stage.arguments.push_back(stage.outputs.size() - 1 + inputCount);
                 break;
             }
             case CustomParamType::Int:
@@ -278,8 +280,7 @@ public:
                         stage.arguments.push_back(floatAsInt(val.get()));
                     }
                     // if not cnnLayer param, check if it is 'I.X' format param
-                } else if (binding.irSource[1] == '.' &&
-                           (binding.irSource[0] == 'I' || binding.irSource[0] == 'O')) {
+                } else if (binding.irSource[1] == '.' && (binding.irSource[0] == 'I' || binding.irSource[0] == 'O')) {
                     VPU_THROW_UNLESS(binding.irSource.length() == 3,
                         "Unable to deduce parameter '%s' for '%s' layer."
                         "Wrong source format",
@@ -333,8 +334,7 @@ public:
                         "Name is: '%s', parameter is: '%s'",
                         binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
 
-                    const auto number =
-                        binding.type == CustomParamType::Int ? val.get() : floatAsInt(val.get());
+                    const auto number = binding.type == CustomParamType::Int ? val.get() : floatAsInt(val.get());
                     stage.arguments.push_back(number);
                 }
                 break;
@@ -356,9 +356,7 @@ public:
         return sizes[0];
     }
 
-    void addBuffer(int port, const mv::Data::TensorIterator& bufferIt) {
-        buffers.emplace(port, bufferIt);
-    }
+    void addBuffer(int port, const mv::Data::TensorIterator& bufferIt) { buffers.emplace(port, bufferIt); }
 };
 
 }  // namespace vpu
