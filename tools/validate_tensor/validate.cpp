@@ -374,8 +374,9 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     if (FLAGS_r)
         commandline += (" -r ");
 
-    if (! FLAGS_ip.empty() )
-        commandline += (" -ip " + FLAGS_ip);
+    // test_classification doesn't support ip flag of FP16
+    // if (! FLAGS_ip.empty() && FLAGS_ip != "FP16")
+    //     commandline += (" -ip " + FLAGS_ip);
 
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
@@ -411,7 +412,10 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     else
         commandline += " -il NCHW";
 
-    commandline += " -ip U8";
+    if (! FLAGS_ip.empty() )
+        commandline += (" -ip " + FLAGS_ip);
+    else 
+        commandline += " -ip U8";
     commandline += " -op FP32";
 
     std::cout << commandline << std::endl;
@@ -456,12 +460,19 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     // copy the required files to InferenceManagerDemo folder
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/input-0.bin");
-    if ((!FLAGS_ip.empty()) && (FLAGS_ip != "U8")){
-        // hardcoded for AclNet.
-        // if the input precision is set and not 'U8', a U8 precision input SHOULD be prepared manually.
+    
+    // hardcoded for AclNet.
+    if (FLAGS_m.find("aclnet") != std::string::npos)
+    {   // ACLnet needs to be validated with: airplane_3_17-FP32.bin (for CPU) and airplane_3_17-FP32-FQU8.bin (for VPU)
+        //https://github.com/movidius/migNetworkZoo/tree/master/internal/test_support
         inputCPU = FLAGS_i.replace(FLAGS_i.find(".bin"), 4, "-FQU8.bin");
         if (!checkFilesExist({inputCPU}))
             return FAIL_GENERAL;
+    }
+
+    // switch to fp16 input bin if fp16 network
+    if ((!FLAGS_ip.empty()) && (FLAGS_ip == "FP16")){
+        inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_FP16;
     }
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
@@ -766,30 +777,32 @@ int copyImage(std::string imagePath, std::string blobPath)
             }
         }
 
-        MVCNN::DType dtype = graphFile.header->net_output[0]->data_dtype;
+        // MVCNN::DType dtype = graphFile.header->net_output[0]->data_dtype;
+        MVCNN::DType dtype = graphFile.header->net_input[0]->data_dtype;
         if (dtype == MVCNN::DType::DType_FP16)
         {
             std::string inputDest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_FP16;
             std::string inputSource = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
-            std::string cpubackup = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "input_cpu_fp32.bin";
 
             std::ofstream fileOut(inputDest, std::ios::out | std::ios::binary);
             std::ifstream fileIn(inputSource, std::ios::in | std::ios::binary);
 
             fileIn.seekg(0, std::ios::end);
-            auto totalActual = fileIn.tellg() / sizeof(float);
+            auto totalActual = fileIn.tellg() / sizeof(uint8_t);
             fileIn.seekg(0, std::ios::beg);
 
             std::vector<uint16_t> inputVectorFP16;
-            std::vector<float> inputVectorFP32(totalActual);
-            fileIn.read(reinterpret_cast<char *>(&inputVectorFP32[0]), totalActual * sizeof(float));
-            for (size_t i = 0; i < inputVectorFP32.size(); ++i)
-                inputVectorFP16.push_back(mv::fp32_to_fp16(inputVectorFP32[i]));
+            std::vector<uint8_t> inputVectorInt8(totalActual);
+            fileIn.read(reinterpret_cast<char *>(&inputVectorInt8[0]), totalActual * sizeof(uint8_t));
+            for (size_t i = 0; i < inputVectorInt8.size(); ++i)
+            {
+                float val = static_cast<float>(inputVectorInt8[i]);
+                inputVectorFP16.push_back(mv::fp32_to_fp16(val));
+            }
+                
             fileOut.write(reinterpret_cast<char *>(&inputVectorFP16[0]), totalActual * sizeof(uint16_t) );
             fileOut.close();
             fileIn.close();
-            //rename(inputSource.c_str(), cpubackup.c_str());
-            //rename(inputDest.c_str(), inputSource.c_str());
         }
     }
     else
@@ -976,7 +989,7 @@ int main(int argc, char *argv[])
     // Normal operation
     int result = 0;
 
-    std::string blobPath("/home/aleckey/git/icv/dldt/bin/intel64/Debug/mcm.blob");
+    std::string blobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "mcm.blob";
     result = runEmulator(FLAGS_m, FLAGS_i, blobPath);
     if ( result > 0 ) return result;
 

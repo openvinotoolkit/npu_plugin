@@ -48,6 +48,9 @@ static const char rgb_message[] = "Optional. Use input image in RGB format. Defa
 /// @brief message for precision
 static const char precision_message[] = "Optional. U8, FP32 or FP16 ";
 
+/// @brief message for layout
+static const char layout_message[] = "Optional. NHWC or NCHW (default) ";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -91,6 +94,10 @@ DEFINE_bool(r, false, rgb_message);
 /// @brief Define input precision <br>
 /// It is an optional parameter
 DEFINE_string(ip, "", precision_message);
+
+/// @brief Define input layout <br>
+/// It is an optional parameter
+DEFINE_string(il, "NCHW", layout_message);
 
 /**
 * @brief This function show a help message
