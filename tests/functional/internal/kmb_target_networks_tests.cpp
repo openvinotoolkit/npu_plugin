@@ -316,6 +316,17 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_
         1, 7.0f);
 }
 
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32_no_align) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32)
+            .setCompileConfig({{"VPU_COMPILER_ELTWISE_SCALES_ALIGNMENT", "NO"}}),
+        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
+        1, 7.0f);
+}
+
 TEST_F(KmbClassifyNetworkTest, mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_ngraph) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
