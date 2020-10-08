@@ -478,8 +478,7 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             1.f, 0.3f);
 }
 
-// [Track number: H#18013178167]
-TEST_F(KmbSSDNetworkTest, DISABLED_precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
+TEST_F(KmbSSDNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8),
@@ -643,8 +642,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_vgg16_caffe_dense_int8_IRv10_from_fp32)
             1, 0.05f);
 }
 
-// [Track number: S#40270]
-TEST_F(KmbRetinaFaceNetworkTest, DISABLED_precommit_retinaface_mobilenetv2_0_25_modified) {
+TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -903,8 +901,7 @@ TEST_F(SmokeNetworkTest, DISABLED_openpose_pose_cf_NCHW) {
             .setUserOutputPrecision("output", Precision::FP32));
 }
 
-// [Track number: S#40281]
-TEST_F(AgeGenderNetworkTest, DISABLED_precommit_age_gender_retail_0013) {
+TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
     const std::string input_name = "input";
 
     runTest(
