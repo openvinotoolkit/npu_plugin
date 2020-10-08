@@ -1056,3 +1056,15 @@ TEST_F(KmbDetectionNetworkTest, person_detection_retail_0013) {
         0.3f,
         0.1f, 0.3f);
 }
+
+// C++ exception with description "Caught exception during unit run:
+// propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams
+// [Track number: S#40387]
+TEST_F(KmbClassifyNetworkTest, DISABLED_densenet_121) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/densenet-121/densenet-121.xml")
+            .setUserInputPrecision("input", Precision::U8),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+        1,
+        0.3f);
+}
