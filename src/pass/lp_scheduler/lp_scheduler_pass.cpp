@@ -389,8 +389,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   clock_t scheduler_algo_end_time = clock();
   double runtime = double( double(scheduler_algo_end_time) -
             double(scheduler_algo_start_time) ) / double(CLOCKS_PER_SEC);
-  printf("[Core Scheduler Algorithm Time]: %0.4lf \n", runtime);
-
+  
   ////////////////////// Control Edge Generation ///////////////////////////////
   mv::ControlModel cmodel(model);
   control_edge_set_t control_edges(cmodel);
