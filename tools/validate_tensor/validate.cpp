@@ -428,6 +428,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     {
         std::string inputPrecision = getEnvVarDefault("INPUT_PRECISION", "U8");
         commandline += " -ip " + inputPrecision;
+        FLAGS_ip = inputPrecision;
     }
 
     commandline += " -op FP32";
@@ -486,6 +487,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
 
     // switch to fp16 input bin if fp16 network
     if ((!FLAGS_ip.empty()) && (FLAGS_ip == "FP16")){
+        std::cout << "FP16 mode: using image " << FILE_CPU_INPUT_FP16 << std::endl;
         inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_FP16;
     }
     if (!copyFile(inputCPU, inputDest))
@@ -795,6 +797,7 @@ int copyImage(std::string imagePath, std::string blobPath)
         MVCNN::DType dtype = graphFile.header->net_input[0]->data_dtype;
         if (dtype == MVCNN::DType::DType_FP16)
         {
+            std::cout << "Creating FP16 image from: " << FILE_CPU_INPUT << std::endl;
             std::string inputDest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_FP16;
             std::string inputSource = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
 
