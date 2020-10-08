@@ -393,7 +393,8 @@ void KmbTestBase::exportNetwork(ExecutableNetwork& exeNet) {
         exeNet.Export(fileName);
     } else {
         std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
-        IE_ASSERT(file.is_open());
+        if (!file.is_open())
+            THROW_IE_EXCEPTION << "exportNetwork() failed. Can't open file " << fileName;
 
         exeNet.Export(file);
     }
@@ -408,7 +409,8 @@ ExecutableNetwork KmbTestBase::importNetwork() {
         return core->ImportNetwork(fileName, DEVICE_NAME);
     } else {
         std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
-        IE_ASSERT(file.is_open());
+        if (!file.is_open())
+            THROW_IE_EXCEPTION << "importNetwork() failed. Can't open file " << fileName;
 
         return core->ImportNetwork(file, DEVICE_NAME);
     }
@@ -420,7 +422,8 @@ void KmbTestBase::dumpBlob(const std::string& blobName, const Blob::Ptr& blob) {
     const auto fileName = vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(blobName));
 
     std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
-    IE_ASSERT(file.is_open());
+    if (!file.is_open())
+            THROW_IE_EXCEPTION << "dumpBlob() failed. Can't open file " << fileName;
 
     file.write(blob->cbuffer().as<const char*>(), static_cast<std::streamsize>(blob->byteSize()));
 }
@@ -439,9 +442,10 @@ Blob::Ptr KmbTestBase::importBlob(const std::string& name, const TensorDesc& des
     const auto blob = make_blob_with_precision(desc);
     blob->allocate();
 
-    std::ifstream file(vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(name)),
-        std::ios_base::in | std::ios_base::binary);
-    IE_ASSERT(file.is_open());
+    const auto fileName = vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(name));
+    std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
+    if (!file.is_open())
+        THROW_IE_EXCEPTION << "importBlob() failed. Can't open file " << fileName;
 
     file.read(blob->buffer().as<char*>(), static_cast<std::streamsize>(blob->byteSize()));
 
