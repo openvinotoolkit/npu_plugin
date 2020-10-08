@@ -16,17 +16,19 @@
 
 #include "kmb_plugin.h"
 
-#include <graph_transformer.h>
-#include <kmb_remote_context.h>
 
-#include <cnn_network_impl.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <ie_itt.hpp>
-#include <ie_util_internal.hpp>
 #include <inference_engine.hpp>
 #include <memory>
 #include <vector>
+
+#include <legacy/graph_transformer.h>
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_util_internal.hpp>
+
 #include <vpu/kmb_plugin_config.hpp>
+#include <kmb_remote_context.h>
 
 #include "file_reader.h"
 #include "ie_macro.hpp"

@@ -20,10 +20,10 @@
 #include <string>
 #include <vector>
 // IE
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 
-#include <convert_function_to_cnn_network.hpp>
 #include <generic_ie.hpp>
+#include <legacy/convert_function_to_cnn_network.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <threading/ie_executor_manager.hpp>

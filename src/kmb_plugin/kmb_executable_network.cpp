@@ -24,14 +24,15 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
 #include <ie_itt.hpp>
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 #include <generic_ie.hpp>
-#include <convert_function_to_cnn_network.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_quantize_dequantize.hpp>
 #include <ngraph/pass/manager.hpp>
+
+#include <legacy/convert_function_to_cnn_network.hpp>
 
 #include <vpux_compiler.hpp>
 #include <vpux.hpp>

@@ -45,6 +45,7 @@ link_system_libraries(${TARGET_NAME}
         ${VPUSMM_LIBRARY}
     PUBLIC
         IE::inference_engine_lp_transformations
+        IE::inference_engine_legacy
         IE::vpu_common_lib)
 
 if(ENABLE_CLANG_FORMAT)
