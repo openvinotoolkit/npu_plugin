@@ -28,7 +28,8 @@ void KmbTestTool::exportNetwork(ExecutableNetwork& exeNet, const std::string& te
         exeNet.Export(fileName);
     } else {
         std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
-        IE_ASSERT(file.is_open()) << "No open file";
+        if (!file.is_open())
+            THROW_IE_EXCEPTION << "exportNetwork(). Can't open file " << fileName;
 
         exeNet.Export(file);
     }
@@ -46,7 +47,8 @@ ExecutableNetwork KmbTestTool::importNetwork(const std::shared_ptr<InferenceEngi
         return core->ImportNetwork(fileName, DEVICE_NAME);
     } else {
         std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
-        IE_ASSERT(file.is_open()) << "No open file";
+        if (!file.is_open())
+            THROW_IE_EXCEPTION << "importNetwork(). Can't open file " << fileName;
 
         return core->ImportNetwork(file, DEVICE_NAME);
     }
