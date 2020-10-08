@@ -129,10 +129,10 @@ const std::vector<PermuteTestParams> unsupportedCases {
         .order({0, 2, 3, 1}),
 };
 
-INSTANTIATE_TEST_CASE_P(SupportedCases,            KmbPermuteLayerTests, testing::ValuesIn(supportedCases));
+INSTANTIATE_TEST_CASE_P(precommit_SupportedCases,            KmbPermuteLayerTests, testing::ValuesIn(supportedCases));
 // [Track number: S-37612]
-INSTANTIATE_TEST_CASE_P(DISABLED_FaceDetectionRetail, KmbPermuteLayerTests, testing::ValuesIn(FaceDetectionRetailCases));
-INSTANTIATE_TEST_CASE_P(DISABLED_UnsupportedCases, KmbPermuteLayerTests, testing::ValuesIn(unsupportedCases));
+INSTANTIATE_TEST_CASE_P(DISABLED_precommit_FaceDetectionRetail, KmbPermuteLayerTests, testing::ValuesIn(FaceDetectionRetailCases));
+INSTANTIATE_TEST_CASE_P(DISABLED_precommit_UnsupportedCases, KmbPermuteLayerTests, testing::ValuesIn(unsupportedCases));
 
 static std::vector<std::vector<int64_t>> genPermutations(std::vector<int64_t> seq) {
     std::vector<std::vector<int64_t>> permutations;
@@ -157,7 +157,7 @@ static std::vector<PermuteTestParams> getTestCases(TensorDesc desc, std::vector<
 // FIXME: Currently it's impossible to use tensor with batch not equal to one due:
 // [Track number: H#18011923106]
 // Enable it when this problem & unsupportedCases are fixed
-INSTANTIATE_TEST_CASE_P(DISABLED_StressTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_precommit_StressTest,
                         KmbPermuteLayerTests,
                         testing::ValuesIn(getTestCases(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW},
                                                        genPermutations({0, 1, 2, 3}))));

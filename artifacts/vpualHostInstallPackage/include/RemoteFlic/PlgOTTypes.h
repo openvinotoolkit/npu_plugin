@@ -59,6 +59,72 @@ inline const char* ToString(TrackType v)
     }
 }
 
+typedef enum {
+    /**
+     *  This is the status to indicate successful completion.
+     */
+    OT_SUCCESSFUL                                       = 0,
+    /**
+     *  This is the status to indicate that the specified tracking type is not supported.
+     */
+    OT_CREATE_NOT_SUPPORTED_TRACKING_TYPE               = 1,
+    /**
+     *  This is the status to indicate that "svuInit" failed.
+     */
+    OT_CREATE_SVU_INIT_ERROR                            = 2,
+    /**
+     *  This is the status to indicate that "svuOpenShave" returned an error.
+     */
+    OT_CREATE_SVU_OPEN_ERROR                            = 3,
+    /**
+     *  This is the status to indicate that "svuSolveShaveRelAddr" returned an error.
+     */
+    OT_CREATE_SVU_SOLVE_SHV_REAL_ADDR_ERROR             = 4,
+    /**
+     *  This is the status to indicate that "svuGetContextDataOfShaveApp" returned an error.
+     */
+    OT_CREATE_SVU_GET_CONTEXT_DATA_OF_SHVAPP_ERROR      = 5,
+    /**
+     *  This is the status to indicate that "svuCfgShaveAppStackSize" returned an error.
+     */
+    OT_CREATE_SVU_CFG_SHVAPP_STACK_SIZE_ERROR           = 6,
+    /**
+     *  This is the status to indicate that "svuCfgShaveAppHeapSize" returned an error.
+     */
+    OT_CREATE_SVU_CFG_SHVAPP_HEAP_SIZE_ERROR            = 7,
+    /**
+     *  This is the status to indicate that "svuInstantiateShvAppContextData" returned an error.
+     */
+    OT_CREATE_SVU_INSTANTIATE_SHVAPP_CONTEXTDATA_ERROR  = 8,
+    /**
+     *  This is the status to indicate that "OsDrvResMgrAllocate" returned an error.
+     */
+    OT_CREATE_DRV_RESMGR_ALLOC_ERROR                    = 9,
+    /**
+     *  This is the status to indicate that the shave index allocated from resource manager was invalid.
+     */
+    OT_CREATE_DRV_RESMGR_INVALID_SHV_ID                 = 10,
+    /**
+     *  This is the status to indicate that the number of allocated shaves was invalid.
+     */
+    OT_CREATE_INVALID_NUM_ALLOC_SHAVES                  = 11,
+    /**
+     *  This is the status to indicate that there is no enough space for stack within CMX slice size.
+     */
+    OT_CREATE_OUT_OF_BOUND_CMX_SLICE_SIZE               = 12,
+    /**
+     *  This is the status to indicate that allocating text buffer in DDR from memory manager failed.
+     */
+    OT_CREATE_MMGR_ALLOC_SVU_TEXT_BUF_ERROR             = 13,
+    /**
+     *  This is the status to indicate that allocating data buffer in CMX slice from memory manager failed.
+     */
+    OT_CREATE_MMGR_ALLOC_SVU_DATA_BUF_ERROR             = 14,
+    /**
+     *  This is the status to indicate that allocating memory for DDR heap from memory manager failed.
+     */
+    OT_CREATE_MMGR_ALLOC_SVU_DDR_HEAP_ERROR             = 15
+} ot_status_code;
 
 /**
  * @enum TrackingStatus

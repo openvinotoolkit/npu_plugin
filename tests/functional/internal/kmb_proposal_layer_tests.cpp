@@ -54,7 +54,6 @@ std::ostream& operator<<(std::ostream& os, const ProposalTestParams& p) {
 
 class KmbProposalLayerTests : public KmbLayerTestBase,
                               public testing::WithParamInterface<ProposalTestParams> {};
-
 TEST_P(KmbProposalLayerTests, AccuracyTest) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
 
@@ -195,4 +194,4 @@ const std::vector<ProposalTestParams> proposalParams {
                                     .scale({8.0, 16.0, 32.0}))
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbProposalLayerTests, testing::ValuesIn(proposalParams));
+INSTANTIATE_TEST_CASE_P(precommit_SomeCase, KmbProposalLayerTests, testing::ValuesIn(proposalParams));

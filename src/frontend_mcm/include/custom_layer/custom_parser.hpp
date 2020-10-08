@@ -7,11 +7,14 @@
 #include <legacy/ie_layers.h>
 
 #include <converters.hpp>
-#include <custom_layer/custom_kernel.hpp>
 #include <frontend_mcm.hpp>
 #include <vpu/utils/simple_math.hpp>
 
+#include "custom_layer.hpp"
+
 namespace vpu {
+
+namespace ie = InferenceEngine;
 
 class CustomLayerParser {
     struct StageOutput {

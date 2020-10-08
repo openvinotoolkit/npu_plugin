@@ -75,8 +75,10 @@ const auto params4D = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
+// Tests are disabled due to hanging on ImportNetwork
+// [Track number: S#40296]
 INSTANTIATE_TEST_CASE_P(
-    smoke_SoftMax4D,
+    DISABLED_smoke_SoftMax4D,
     KmbSoftMaxLayerTest,
     params4D,
     SoftMaxLayerTest::getTestCaseName

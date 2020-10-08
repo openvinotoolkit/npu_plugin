@@ -365,7 +365,11 @@ class XPool : public PluginStub
         xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
         xlink_error rc = xlink_close_channel(&XlinkDeviceHandle, chanId);
         if (X_LINK_SUCCESS != rc) {
-            std::cerr << "XPool close channel status: " << rc << std::endl;
+            std::string error_message {
+                        "XPool close channel status: "
+                        + std::to_string(rc)
+                        };
+                    throw std::runtime_error(error_message);
         }
     }
 
