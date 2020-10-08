@@ -35,60 +35,15 @@
 
 namespace vpux {
 
+//------------------------------------------------------------------------------
 class IDevice;
+class Device;
 
 class IEngineBackend : public InferenceEngine::details::IRelease {
 public:
     virtual const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const = 0;
 
     void Release() noexcept override { delete this; }
-};
-
-class Allocator : public InferenceEngine::IAllocator {
-public:
-    // TODO: need update methods to remove Kmb from parameters
-    virtual void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept = 0;
-    virtual void* wrapRemoteMemoryOffset(
-        const int& remoteMemoryFd, const size_t size, const size_t& memOffset) noexcept = 0;
-
-    // FIXME: temporary exposed to allow executor to use vpux::Allocator
-    virtual unsigned long getPhysicalAddress(void* handle) noexcept = 0;
-};
-
-class Executor;
-
-class IDevice : public InferenceEngine::details::IRelease {
-public:
-    virtual std::shared_ptr<Allocator> getAllocator() const = 0;
-
-    virtual std::shared_ptr<Executor> createExecutor(
-        const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) = 0;
-
-    virtual std::string getName() const = 0;
-
-    void Release() noexcept override { delete this; }
-};
-
-class Device final {
-    // Device stores instances of classes inherited from IDevice. The instances come from _plg library.
-    // Device has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
-    // an instance of IDevice
-    std::shared_ptr<IDevice> _actual = nullptr;
-    InferenceEngine::details::SharedObjectLoader::Ptr _plg = nullptr;
-
-public:
-    Device(const std::shared_ptr<IDevice> device, InferenceEngine::details::SharedObjectLoader::Ptr plg)
-        : _actual(device), _plg(plg) {}
-    std::shared_ptr<Allocator> getAllocator() const { return _actual->getAllocator(); }
-
-    virtual std::shared_ptr<Executor> createExecutor(
-        const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
-        return _actual->createExecutor(networkDescription, config);
-    }
-
-    std::string getName() const { return _actual->getName(); }
-
-    ~Device() { _actual = nullptr; }
 };
 
 class EngineBackendConfigurator;
@@ -109,10 +64,76 @@ private:
     const std::map<std::string, std::shared_ptr<Device>> createDeviceMap();
 };
 
+class EngineBackendConfigurator {
+public:
+    static std::shared_ptr<EngineBackend> findBackend(const InferenceEngine::ParamMap& params = {});
+
+private:
+    EngineBackendConfigurator();
+};
+
+//------------------------------------------------------------------------------
+class Allocator : public InferenceEngine::IAllocator {
+public:
+    using Ptr = std::shared_ptr<Allocator>;
+    using CPtr = std::shared_ptr<const Allocator>;
+
+    // TODO: need update methods to remove Kmb from parameters
+    virtual void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept = 0;
+    virtual void* wrapRemoteMemoryOffset(
+        const int& remoteMemoryFd, const size_t size, const size_t& memOffset) noexcept = 0;
+
+    // FIXME: temporary exposed to allow executor to use vpux::Allocator
+    virtual unsigned long getPhysicalAddress(void* handle) noexcept = 0;
+};
+
+//------------------------------------------------------------------------------
+class Executor;
+
+class IDevice : public InferenceEngine::details::IRelease {
+public:
+    virtual std::shared_ptr<Allocator> getAllocator() const = 0;
+
+    virtual std::shared_ptr<Executor> createExecutor(
+        const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) = 0;
+
+    virtual std::string getName() const = 0;
+
+    void Release() noexcept override { delete this; }
+};
+
+class Device final {
+private:
+    // Device stores instances of classes inherited from IDevice. The instances come from _plg library.
+    // Device has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
+    // an instance of IDevice
+    std::shared_ptr<IDevice> _actual = nullptr;
+    InferenceEngine::details::SharedObjectLoader::Ptr _plg = nullptr;
+
+public:
+    using Ptr = std::shared_ptr<Device>;
+    using CPtr = std::shared_ptr<const Device>;
+
+    Device(const std::shared_ptr<IDevice> device, InferenceEngine::details::SharedObjectLoader::Ptr plg)
+        : _actual(device), _plg(plg) {}
+    std::shared_ptr<Allocator> getAllocator() const { return _actual->getAllocator(); }
+
+    virtual std::shared_ptr<Executor> createExecutor(
+        const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
+        return _actual->createExecutor(networkDescription, config);
+    }
+
+    std::string getName() const { return _actual->getName(); }
+
+    ~Device() { _actual = nullptr; }
+};
+
+//------------------------------------------------------------------------------
 using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;
 class Executor {
 public:
     using Ptr = std::shared_ptr<Executor>;
+    using CPtr = std::shared_ptr<const Executor>;
 
     virtual void setup(const InferenceEngine::ParamMap& params) = 0;
     virtual Executor::Ptr clone() const { THROW_IE_EXCEPTION << "Not implemented"; }
@@ -127,14 +148,6 @@ public:
     virtual InferenceEngine::Parameter getParameter(const std::string& paramName) const = 0;
 
     virtual ~Executor() = default;
-};
-
-class EngineBackendConfigurator {
-public:
-    static std::shared_ptr<EngineBackend> findBackend(const InferenceEngine::ParamMap& params = {});
-
-private:
-    EngineBackendConfigurator();
 };
 
 }  // namespace vpux
