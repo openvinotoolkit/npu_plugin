@@ -429,7 +429,6 @@ void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationMode
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-    auto globalConfigParams = model.getGlobalConfigParams();
 
     auto dpuTasks = om.topologicalSort();
     for(auto vecIt = dpuTasks.begin(); vecIt != dpuTasks.end(); ++vecIt)
