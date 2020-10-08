@@ -402,6 +402,12 @@ void convert(std::shared_ptr<ngraph::op::v1::MaxPool> maxPool, mv::OpModel& mcmM
     const auto padsBegin = maxPool->get_pads_begin();
     const auto padsEnd = maxPool->get_pads_begin();
 
+    const int kernelSizeX = kernelShape.at(1);
+    const int kernelSizeY = kernelShape.at(0);
+
+    const int kernelStrideX = strides.at(1);
+    const int kernelStrideY = strides.at(0);
+
     int padLeft = padsBegin.at(1);
     int padRight = padsEnd.at(1);
     int padTop = padsBegin.at(0);
@@ -410,14 +416,14 @@ void convert(std::shared_ptr<ngraph::op::v1::MaxPool> maxPool, mv::OpModel& mcmM
     auto outputShape = maxPool->get_output_shape(0);
 
     cvtPaddingsFromCeilToFloorMode(
-        mcmData->getShape()[0], outputShape.at(3), kernelShape.at(0), strides.at(0), padLeft, padRight);
+        mcmData->getShape()[0], outputShape.at(3), kernelSizeX, kernelStrideX, padLeft, padRight);
     cvtPaddingsFromCeilToFloorMode(
-        mcmData->getShape()[1], outputShape.at(2), kernelShape.at(1), strides.at(1), padTop, padBottom);
+        mcmData->getShape()[1], outputShape.at(2), kernelSizeY, kernelStrideY, padTop, padBottom);
 
     IE_ASSERT(mv::DType("Default") == mvDType);
     const auto mcmMaxPoolOutput = mcmModel.maxPool(mcmData,
-            {static_cast<uint16_t>(kernelShape.at(0)), static_cast<uint16_t>(kernelShape.at(1))},
-            {static_cast<uint16_t>(strides.at(0)), static_cast<uint16_t>(strides.at(1))},
+            {static_cast<uint16_t>(kernelSizeX), static_cast<uint16_t>(kernelSizeY)},
+            {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight),
              static_cast<uint16_t>(padTop), static_cast<uint16_t>(padBottom)},
             true,
@@ -438,6 +444,12 @@ void convert(std::shared_ptr<ngraph::op::v1::AvgPool> avgPool, mv::OpModel& mcmM
     const auto padsBegin = avgPool->get_pads_begin();
     const auto padsEnd = avgPool->get_pads_begin();
 
+    const int kernelSizeX = kernelShape.at(1);
+    const int kernelSizeY = kernelShape.at(0);
+
+    const int kernelStrideX = strides.at(1);
+    const int kernelStrideY = strides.at(0);
+
     int padLeft = padsBegin.at(1);
     int padRight = padsEnd.at(1);
     int padTop = padsBegin.at(0);
@@ -446,14 +458,14 @@ void convert(std::shared_ptr<ngraph::op::v1::AvgPool> avgPool, mv::OpModel& mcmM
     auto outputShape = avgPool->get_output_shape(0);
 
     cvtPaddingsFromCeilToFloorMode(
-        mcmData->getShape()[0], outputShape.at(3), kernelShape.at(0), strides.at(0), padLeft, padRight);
+        mcmData->getShape()[0], outputShape.at(3), kernelSizeX, kernelStrideX, padLeft, padRight);
     cvtPaddingsFromCeilToFloorMode(
-        mcmData->getShape()[1], outputShape.at(2), kernelShape.at(1), strides.at(1), padTop, padBottom);
+        mcmData->getShape()[1], outputShape.at(2), kernelSizeY, kernelStrideY, padTop, padBottom);
 
     IE_ASSERT(mv::DType("Default") == mvDType);
     const auto mcmAvgPoolOutput = mcmModel.averagePool(mcmData,
-            {static_cast<uint16_t>(kernelShape.at(0)), static_cast<uint16_t>(kernelShape.at(1))},
-            {static_cast<uint16_t>(strides.at(0)), static_cast<uint16_t>(strides.at(1))},
+            {static_cast<uint16_t>(kernelSizeX), static_cast<uint16_t>(kernelSizeY)},
+            {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight),
              static_cast<uint16_t>(padTop), static_cast<uint16_t>(padBottom)},
              avgPool->get_exclude_pad(), //false,
