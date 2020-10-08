@@ -224,13 +224,16 @@ bool areAllInputQuantParamsEqual(mv::OpModel om, mv::Data::OpListIterator op) {
         input_params.push_back(getParentQuantParams(om, op, i));
     }
 
-    for (unsigned i = 0; (input_params.size()>1) && i < input_params.size()-1; i++)
-    {
-        if (!isEqualScale(*(input_params.begin()) , *(input_params.begin()+i+1)) ) //compare the first element with the succeeding elements
-        {
-            return false;//we found mismatch no need to go further
+    if (input_params.empty()) {
+        return true;
+    }
+
+    for (auto& param : input_params) {
+        if (!isEqualScale(param, input_params[0])) {
+            return false;
         }
     }
+
     return true;
 }
 
@@ -254,17 +257,16 @@ void propagateParameters(mv::ComputationModel& model) {
     mv::QuantizationParams quant_params{{}, {}, {}, {}};
     auto sorted_ops = om.topologicalSort();
     for (auto& op : sorted_ops) {
-        if (op->getOpType() == "Eltwise" || op->getOpType() == "Concat") {
-            if ( false == areAllInputQuantParamsEqual(om, op) )
+        if (op->getOpType() == "Concat") {
+            if (false == areAllInputQuantParamsEqual(om, op) )
             {
-                throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: inputs of the Eltwise/Concat do not have the same QuantParams"));
+                throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: inputs of the Concat do not have the same QuantParams"));
             }
-
         }
 
         if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
             || op->getOpType() == "Interp" || op->getOpType() == "Normalize" //Interp might be used for re-quantize, need the quant params
-            || op->getOpType() == "Deconv") { 
+            || op->getOpType() == "Deconv") {
             quant_params = findOutputQuantParams(model, op);
 
             if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params())) {
