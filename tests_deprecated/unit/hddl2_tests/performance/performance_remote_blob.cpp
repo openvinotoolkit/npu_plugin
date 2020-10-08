@@ -39,11 +39,10 @@ public:
 
     InferenceEngine::TensorDesc tensorDesc;
     size_t tensorSize;
-    HDDL2RemoteContext::Ptr remoteContextPtr;
+    vpux::VPUXRemoteContext::Ptr remoteContextPtr;
 
     InferenceEngine::ParamMap blobParamMap;
     HDDL2RemoteBlob::Ptr remoteBlobPtr = nullptr;
-    const vpu::HDDL2Config config = vpu::HDDL2Config();
 
     void setRemoteMemory(const std::string& data);
 

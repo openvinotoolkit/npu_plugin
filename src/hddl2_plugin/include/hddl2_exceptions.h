@@ -48,7 +48,7 @@ namespace HDDL2Plugin {
 ///  Context
 #define FAILED_CAST_CONTEXT               \
     std::string("Context is incorrect.\n" \
-                "Please make sure you are using HDDL2RemoteContext.")
+                "Please make sure you are using VPUXRemoteContext.")
 
 ///  Infer request
 #define NO_EXECUTOR_FOR_INFERENCE               \

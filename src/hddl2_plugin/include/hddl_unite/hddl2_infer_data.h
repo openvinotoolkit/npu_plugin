@@ -27,7 +27,7 @@
 #include "ie_preprocess_data.hpp"
 // Plugin
 #include "blob_descriptor.h"
-#include "hddl2_remote_context.h"
+#include "vpux_remote_context.h"
 // Low-level
 #include "InferData.h"
 #include "InferGraph.h"

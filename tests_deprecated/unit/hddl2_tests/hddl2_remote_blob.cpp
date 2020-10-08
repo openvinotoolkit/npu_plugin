@@ -40,7 +40,7 @@ public:
 
     InferenceEngine::TensorDesc tensorDesc;
     size_t tensorSize;
-    HDDL2RemoteContext::Ptr remoteContextPtr;
+    vpux::VPUXRemoteContext::Ptr remoteContextPtr;
     std::shared_ptr<vpux::Allocator> allocator;
 
     InferenceEngine::ParamMap blobParamMap;

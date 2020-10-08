@@ -23,8 +23,8 @@
 #include "ie_blob.h"
 #include "ie_remote_context.hpp"
 // Plugin
-#include "hddl2_remote_context.h"
 #include "vpux.hpp"
+#include "vpux_remote_context.h"
 // Low-level
 #include "RemoteMemory.h"
 
@@ -53,9 +53,9 @@ public:
     using Ptr = std::shared_ptr<HDDL2RemoteBlob>;
     using CPtr = std::shared_ptr<const HDDL2RemoteBlob>;
 
-    explicit HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const HDDL2RemoteContext::Ptr& contextPtr,
-        const std::shared_ptr<vpux::Allocator>& allocator, const InferenceEngine::ParamMap& params,
-        const LogLevel logLevel = LogLevel::None);
+    explicit HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
+        const vpux::VPUXRemoteContext::Ptr& contextPtr, const std::shared_ptr<vpux::Allocator>& allocator,
+        const InferenceEngine::ParamMap& params, const LogLevel logLevel = LogLevel::None);
     ~HDDL2RemoteBlob() override { HDDL2RemoteBlob::deallocate(); }
 
     /**
@@ -101,7 +101,7 @@ protected:
     void* _memoryHandle = nullptr;
 
     const HDDL2BlobParams _params;
-    std::weak_ptr<HDDL2RemoteContext> _remoteContextPtr;
+    std::weak_ptr<vpux::VPUXRemoteContext> _remoteContextPtr;
     std::shared_ptr<InferenceEngine::IAllocator> _allocatorPtr = nullptr;
 
     const HddlUnite::RemoteMemory::Ptr _remoteMemory;

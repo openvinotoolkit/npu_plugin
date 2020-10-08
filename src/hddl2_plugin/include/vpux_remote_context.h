@@ -23,37 +23,34 @@
 #include "ie_blob.h"
 #include "ie_remote_context.hpp"
 // Plugin
-#include "hddl2_config.h"
-// Subplugin
 #include "vpux.hpp"
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
 
-class HDDL2RemoteContext :
+class VPUXRemoteContext :
     public InferenceEngine::RemoteContext,
-    public std::enable_shared_from_this<HDDL2RemoteContext> {
+    public std::enable_shared_from_this<VPUXRemoteContext> {
 public:
-    using Ptr = std::shared_ptr<HDDL2RemoteContext>;
-    using CPtr = std::shared_ptr<const HDDL2RemoteContext>;
+    using Ptr = std::shared_ptr<VPUXRemoteContext>;
+    using CPtr = std::shared_ptr<const VPUXRemoteContext>;
 
-    explicit HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config);
+    explicit VPUXRemoteContext(const std::shared_ptr<IDevice>& device, const InferenceEngine::ParamMap& paramMap,
+        const vpux::VPUXConfig& config = {});
 
     InferenceEngine::RemoteBlob::Ptr CreateBlob(
         const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) noexcept override;
-    // TODO replace with Device::Ptr?
-    std::shared_ptr<vpux::IDevice> getDevice() const;
+    // TODO replace with Device::Ptr ?
+    std::shared_ptr<vpux::IDevice> getDevice() const { return _devicePtr; }
+
     /** @brief Provide device name attached to current context.
      * Format: {plugin prefix}.{device name} */
-    std::string getDeviceName() const noexcept override;
-
-    InferenceEngine::ParamMap getParams() const override;
+    std::string getDeviceName() const noexcept override { return "VPUX." + _devicePtr->getName(); }
+    InferenceEngine::ParamMap getParams() const override { return _paramMap; }
 
 protected:
     std::shared_ptr<vpux::IDevice> _devicePtr = nullptr;
-    const vpux::VPUXConfig& _config;
-    const Logger::Ptr _logger;
+    const vpux::VPUXConfig _config;
+    const vpu::Logger::Ptr _logger;
     const InferenceEngine::ParamMap _paramMap;
 };
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace vpux

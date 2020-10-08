@@ -16,9 +16,10 @@
 
 #pragma once
 // Plugin
-#include "hddl2_remote_context.h"
 #include "vpux.hpp"
+#include "vpux_remote_context.h"
 // Low-level
+#include "hddl2_config.h"
 #include "hddl_unite/hddl2_unite_graph.h"
 
 namespace vpux {
