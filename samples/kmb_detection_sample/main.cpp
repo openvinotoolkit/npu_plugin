@@ -33,7 +33,6 @@
 #include "detection_sample_yolov2tiny.h"
 #include "region_yolov2tiny.h"
 
-#include <ie_util_internal.hpp>
 #include <ie_compound_blob.h>
 #include <format_reader_ptr.h>
 

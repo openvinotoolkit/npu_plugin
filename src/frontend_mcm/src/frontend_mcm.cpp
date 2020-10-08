@@ -21,10 +21,10 @@
 #include <converters.hpp>
 #include <custom_layer/custom_parser.hpp>
 #include <frontend_mcm.hpp>
-#include <graph_tools.hpp>
 #include <ie_itt.hpp>
-#include <ie_util_internal.hpp>
 #include <include/mcm/tensor/tiling.hpp>
+#include <legacy/graph_tools.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <limits>
 #include <low_precision_transformations/network_helper.hpp>
 #include <low_precision_transformations/transformer.hpp>

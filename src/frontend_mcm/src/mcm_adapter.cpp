@@ -17,15 +17,12 @@
 #include "mcm_adapter.hpp"
 
 #include <file_utils.h>
-#include <net_pass.h>
 #include <sys/stat.h>
 
 #include <ie_icnn_network.hpp>
 #include <ie_itt.hpp>
-#include <ie_util_internal.hpp>
 
 #include "frontend_mcm.hpp"
-#include "include/mcm/compiler/compilation_unit.hpp"
 
 #if defined(_WIN32)
 #include <direct.h>
@@ -33,7 +30,11 @@
 #endif
 
 #include <flatbuffers/flatbuffers.h>
+#include <legacy/net_pass.h>
 #include <schema/graphfile/graphfile_generated.h>
+
+#include <include/mcm/compiler/compilation_unit.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 #include "converters.hpp"
 #include "ie_memcpy.h"

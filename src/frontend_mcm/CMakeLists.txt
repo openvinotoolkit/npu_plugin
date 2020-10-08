@@ -58,6 +58,7 @@ target_include_directories(${OBJ_TARGET_NAME}
 link_system_libraries(${OBJ_TARGET_NAME}
     PUBLIC
         IE::inference_engine
+        IE::inference_engine_legacy
         IE::inference_engine_transformations
         IE::inference_engine_lp_transformations
         IE::pugixml
