@@ -94,6 +94,7 @@ namespace mv
                 SparsitySpilling,
                 DeConvSubConvSOKHeight,
                 SpiltOverHForLayer79InACLNet,
+                SplitOverHOverlappedWronglyComputed,
                 SoftwareDeconvolutionSet,
                 UpaHKSwitch
             };
@@ -1045,6 +1046,11 @@ namespace mv
                                 return FailCause::SoftwareDeconvolutionSet;
                      }
                 }
+                //temporarily disable the SplitOverHOverlapped for custom network kernel size 7x7 subtensors not correct
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 7 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 7)
+                    return FailCause::SplitOverHOverlappedWronglyComputed;
                 return FailCause::Pass; //good strategy
             }
 
@@ -1444,10 +1450,9 @@ namespace mv
 
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
-                if ( op.getOpType() == "Conv" ) {
+                if (op.getOpType() == "Conv" ) {
                     if( clustering == "SplitOverH" and
-                        (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1 or
-                        op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1) and
+                        (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1) and
                         !isCMConv and
                         referenceDevice == "A0")
                         {

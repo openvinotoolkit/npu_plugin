@@ -381,7 +381,7 @@ bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string refe
             if(splitStrategy == "SplitOverH" &&
                sink->getOpType() == "DPUTask" &&
                sink->get<std::string>("taskOp") == "Conv" &&
-               (sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 ||
+               (
                 sink->get<std::array<unsigned short, 2>>("kSize")[1] > 1))
 
                 return true;
