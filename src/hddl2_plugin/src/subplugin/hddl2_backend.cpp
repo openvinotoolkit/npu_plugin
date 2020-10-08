@@ -22,6 +22,7 @@
 #include "hddl2_metrics.h"
 // Subplugin
 #include "subplugin/hddl2_backend.h"
+#include "subplugin/hddl2_context_device.h"
 #include "subplugin/hddl2_device.h"
 // Low-level
 #include <HddlUnite.h>
@@ -34,7 +35,25 @@ HDDL2Backend::HDDL2Backend(const VPUXConfig& config)
     : _logger(std::make_shared<vpu::Logger>("HDDL2Backend", config.logLevel(), vpu::consoleOutput())),
       _devices(createDeviceMap()) {}
 
-const std::vector<std::string> HDDL2Backend::getDevicesNames() const {
+/** Generic device */
+const std::shared_ptr<IDevice> HDDL2Backend::getDevice() const { return std::make_shared<HDDLUniteDevice>(); }
+
+/** Specific device */
+const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const std::string& specificDeviceName) const {
+    const auto devices = getDeviceNames();
+    const auto it = std::find(devices.cbegin(), devices.cend(), specificDeviceName);
+    if (it != devices.end()) {
+        return std::make_shared<HDDLUniteDevice>(*it);
+    } else {
+        return nullptr;
+    }
+}
+
+const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const InferenceEngine::ParamMap& paramMap) const {
+    return std::make_shared<HDDLUniteContextDevice>(paramMap);
+}
+
+const std::vector<std::string> HDDL2Backend::getDeviceNames() const {
     if (!isServiceAvailable()) {
         // return empty device list if service is not available
         return std::vector<std::string>();
@@ -57,23 +76,13 @@ const std::vector<std::string> HDDL2Backend::getDevicesNames() const {
 std::map<std::string, std::shared_ptr<vpux::IDevice>> HDDL2Backend::createDeviceMap() {
     std::map<std::string, std::shared_ptr<IDevice>> devices;
     // TODO Add more logs and cases handling
-    if (isServiceAvailable(_logger) && !getDevicesNames().empty()) {
+    if (isServiceAvailable(_logger) && !getDeviceNames().empty()) {
         devices.insert({"HDDL2", std::make_shared<HDDLUniteDevice>()});
         _logger->debug("HDDL2 devices found for execution.");
     } else {
         _logger->debug("HDDL2 devices not found for execution.");
     }
     return devices;
-}
-
-const std::shared_ptr<vpux::IDevice> HDDL2Backend::getDevice(const std::string& deviceName) const {
-    const auto devices = getDevicesNames();
-    const auto it = std::find(devices.cbegin(), devices.cend(), deviceName);
-    if (it != devices.end()) {
-        return std::make_shared<HDDLUniteDevice>(*it);
-    } else {
-        return nullptr;
-    }
 }
 
 bool HDDL2Backend::isServiceAvailable(const vpu::Logger::Ptr& logger) {

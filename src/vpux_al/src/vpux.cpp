@@ -62,4 +62,16 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
     return nullptr;
 }
 
+const std::shared_ptr<IDevice> IEngineBackend::getDevice() const { THROW_IE_EXCEPTION << "Not implemented"; }
+const std::shared_ptr<IDevice> IEngineBackend::getDevice(const std::string&) const {
+    THROW_IE_EXCEPTION << "Not implemented";
+}
+const std::shared_ptr<IDevice> IEngineBackend::getDevice(const InferenceEngine::ParamMap&) const {
+    THROW_IE_EXCEPTION << "Not implemented";
+}
+const std::vector<std::string> IEngineBackend::getDeviceNames() const { THROW_IE_EXCEPTION << "Not implemented"; }
+const std::string IEngineBackend::getName() const { THROW_IE_EXCEPTION << "Not implemented"; }
+const std::map<std::string, std::shared_ptr<IDevice>>& IEngineBackend::getDevices() const {
+    THROW_IE_EXCEPTION << "Not implemented";
+}
 }  // namespace vpux

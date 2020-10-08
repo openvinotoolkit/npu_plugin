@@ -41,7 +41,20 @@ class Device;
 
 class IEngineBackend : public InferenceEngine::details::IRelease {
 public:
-    virtual const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const = 0;
+    // TODO Remove this method and default implementation after merging all to one plugin.
+    /** @deprecated Will be replaced with methods bellow */
+    virtual const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const;
+
+    /** @brief Get device, which can be used for inference. Backend responsible for selection. */
+    virtual const std::shared_ptr<IDevice> getDevice() const;
+    /** @brief Search for a specific device by name */
+    virtual const std::shared_ptr<IDevice> getDevice(const std::string& /*specificDeviceName*/) const;
+    /** @brief Get device, which is configured/suitable for provided params */
+    virtual const std::shared_ptr<IDevice> getDevice(const InferenceEngine::ParamMap& /*paramMap*/) const;
+    /** @brief Provide a list of names of all devices, with which user can work directly */
+    virtual const std::vector<std::string> getDeviceNames() const;
+    /** @brief Get name of backend */
+    virtual const std::string getName() const;
 
     void Release() noexcept override { delete this; }
 };
@@ -49,14 +62,23 @@ public:
 class EngineBackendConfigurator;
 
 class EngineBackend final {
+public:
+    /** @deprecated Will be replaced with methods below */
+    const std::map<std::string, std::shared_ptr<Device>>& getDevices() const { return _devices; }
+    virtual const std::shared_ptr<IDevice> getDevice() const { return _impl->getDevice(); }
+    virtual const std::shared_ptr<IDevice> getDevice(const std::string& specificDeviceName) const {
+        return _impl->getDevice(specificDeviceName);
+    }
+    virtual const std::vector<std::string> getDeviceNames() const { return _impl->getDeviceNames(); }
+    virtual const std::string getName() const { return _impl->getName(); }
+
+private:
     friend class EngineBackendConfigurator;
 
     using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
     IEngineBackendPtr _impl = {};
+    /** @deprecated Force storing will be removed after plugins merging */
     const std::map<std::string, std::shared_ptr<Device>> _devices = {};
-
-public:
-    const std::map<std::string, std::shared_ptr<Device>>& getDevices() const { return _devices; }
 
 private:
     EngineBackend(std::string pathToLib);

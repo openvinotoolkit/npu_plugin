@@ -64,7 +64,7 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const 
 
     auto color_format_iter = params.find(IE::HDDL2_PARAM_KEY(COLOR_FORMAT));
     if (color_format_iter == params.end()) {
-        _logger->info("Color format information is not found. Default BGR will be used.");
+        _logger->trace("Color format information is not found. Default BGR will be used.");
         _colorFormat = IE::ColorFormat::BGR;
     } else {
         try {
@@ -80,7 +80,7 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const 
 
 //------------------------------------------------------------------------------
 HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
-    const HDDL2RemoteContext::Ptr& contextPtr, const std::shared_ptr<vpux::Allocator>& allocator,
+    const vpux::VPUXRemoteContext::Ptr& contextPtr, const std::shared_ptr<vpux::Allocator>& allocator,
     const InferenceEngine::ParamMap& params, const LogLevel logLevel)
     : RemoteBlob(tensorDesc),
       _params(params, logLevel),
@@ -94,7 +94,7 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
         THROW_IE_EXCEPTION << CONTEXT_ERROR_str << "Remote context is null.";
     }
 
-    _logger->info("%s: HDDL2RemoteBlob wrapping %d size\n", __FUNCTION__, static_cast<int>(this->size()));
+    _logger->trace("HDDL2RemoteBlob wrapping %d size\n", static_cast<int>(this->size()));
 
     // TODO since we can't use _allocatorPtr to wrap remote memory,
     //  this shown design flaw in RemoteBlob + IE:Allocator concept

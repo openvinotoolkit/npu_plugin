@@ -20,7 +20,7 @@
 #include <memory>
 // Plugin
 #include "hddl2_infer_data.h"
-#include "hddl2_remote_context.h"
+#include "vpux_remote_context.h"
 // Subplugin
 #include "vpux.hpp"
 // Low-level

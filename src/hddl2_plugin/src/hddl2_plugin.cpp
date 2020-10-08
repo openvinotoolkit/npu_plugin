@@ -35,15 +35,15 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 
 // Plugin include
-#include "vpux.hpp"
-#include "hddl2_exceptions.h"
 #include "file_reader.h"
+#include "hddl2_exceptions.h"
 #include "hddl2_executable_network.h"
+#include "hddl2_metrics.h"
 #include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
-#include "hddl2_metrics.h"
 #include "ie_macro.hpp"
-#include "hddl2_remote_context.h"
+#include "vpux.hpp"
+#include "vpux_remote_context.h"
 // Subplugin
 #include "subplugin/hddl2_backend.h"
 
@@ -90,14 +90,14 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
-    auto device = _backends->getDeviceToUse(networkConfig.deviceId());
+    auto device = _backends->getDevice(networkConfig.deviceId());
     return LoadExeNetwork(network, device, networkConfig);
 }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     const ICNNNetwork& network, RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
-    auto device = _backends->getDeviceFromContext(context);
+    auto device = _backends->getDevice(context);
     return LoadExeNetwork(network, device, networkConfig);
 }
 
@@ -115,7 +115,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     // TODO This backend instance should be replaced with VPUX after backend refactoring
-    auto device = _backends->getDeviceToUse(networkConfig.deviceId());
+    auto device = _backends->getDevice(networkConfig.deviceId());
     const auto executableNetwork = std::make_shared<vpu::HDDL2Plugin::ExecutableNetwork>(networkModel, device, networkConfig);
     return InferenceEngine::make_executable_network(executableNetwork);
 }
@@ -124,7 +124,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const RemoteContext::Ptr& context, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
-    auto device = _backends->getDeviceFromContext(context);
+    auto device = _backends->getDevice(context);
     const auto executableNetwork = std::make_shared<vpu::HDDL2Plugin::ExecutableNetwork>(networkModel, device, networkConfig);
     return InferenceEngine::make_executable_network(executableNetwork);
 }
@@ -148,7 +148,8 @@ void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std
 
 RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
     // Device in this case will be searched inside RemoteContext creation
-    return std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteContext>(map, _parsedConfig);
+    const auto device = _backends->getDevice(map);
+    return std::make_shared<VPUXRemoteContext>(device, map, _parsedConfig);
 }
 
 InferenceEngine::Parameter Engine::GetMetric(

@@ -19,25 +19,23 @@
 #include <string>
 // Plugin
 #include "hddl2_params.hpp"
-#include "hddl2_remote_context.h"
-#include "subplugin/hddl2_remote_blob.h"
+#include "vpux_remote_context.h"
 // Subplugin
-#include <subplugin/hddl2_context_device.h>
+#include "subplugin/hddl2_remote_blob.h"
 
-using namespace vpu::HDDL2Plugin;
+using namespace vpux;
 
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-HDDL2RemoteContext::HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config)
-    : _config(config),
-      _logger(std::make_shared<Logger>("VPUXRemoteContext", config.logLevel(), consoleOutput())),
-      _paramMap(paramMap) {
-    // TODO There should be searching for corresponding device
-    _devicePtr = std::make_shared<vpux::HDDL2::HDDLUniteContextDevice>(paramMap, config);
-}
+VPUXRemoteContext::VPUXRemoteContext(
+    const std::shared_ptr<IDevice>& device, const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config)
+    : _devicePtr(device),
+      _config(config),
+      _logger(std::make_shared<vpu::Logger>("VPUXRemoteContext", config.logLevel(), vpu::consoleOutput())),
+      _paramMap(paramMap) {}
 
-IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
+IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(
     const IE::TensorDesc& tensorDesc, const IE::ParamMap& params) noexcept {
     try {
         auto smart_this = shared_from_this();
@@ -47,7 +45,9 @@ IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
     }
     try {
         auto allocator = _devicePtr->getAllocator();
-        return std::make_shared<HDDL2RemoteBlob>(tensorDesc, shared_from_this(), allocator, params, _config.logLevel());
+        // TODO Remote HDDL2RemoteBlob direct dependencies
+        return std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteBlob>(
+            tensorDesc, shared_from_this(), allocator, params, _config.logLevel());
     } catch (const std::exception& ex) {
         _logger->warning("Incorrect parameters for CreateBlob call.\n"
                          "Please make sure remote memory is correct.\nError: %s\n",
@@ -55,9 +55,3 @@ IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
         return nullptr;
     }
 }
-
-std::string HDDL2RemoteContext::getDeviceName() const noexcept { return "VPUX." + _devicePtr->getName(); }
-
-IE::ParamMap HDDL2RemoteContext::getParams() const { return _paramMap; }
-
-std::shared_ptr<vpux::IDevice> HDDL2RemoteContext::getDevice() const { return _devicePtr; }

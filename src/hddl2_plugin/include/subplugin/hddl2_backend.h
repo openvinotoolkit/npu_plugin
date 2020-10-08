@@ -24,15 +24,17 @@ public:
     using Ptr = std::shared_ptr<HDDL2Backend>;
     using CPtr = std::shared_ptr<const HDDL2Backend>;
 
-    HDDL2Backend(const VPUXConfig& config);
-    /** @brief HDDL2 is considered as one device, so no separate devices will be returned */
-    const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const override { return _devices; }
+    explicit HDDL2Backend(const VPUXConfig& config = {});
 
-    /** @brief Search for specific device, if required*/
-    const std::shared_ptr<IDevice> getDevice(const std::string& deviceName) const;
+    const std::shared_ptr<IDevice> getDevice() const override;
+    const std::shared_ptr<IDevice> getDevice(const std::string& specificDeviceName) const override;
+    const std::shared_ptr<IDevice> getDevice(const InferenceEngine::ParamMap& map) const override;
+    const std::vector<std::string> getDeviceNames() const override;
+    const std::string getName() const override { return "HDDL2"; }
+
+    // TODO remove static and make them private
     static bool isServiceAvailable(const vpu::Logger::Ptr& logger = nullptr);
     static bool isServiceRunning();
-    const std::vector<std::string> getDevicesNames() const;
 
 private:
     vpu::Logger::Ptr _logger = nullptr;

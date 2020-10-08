@@ -16,11 +16,11 @@
 
 #pragma once
 
-#include "ie_remote_context.hpp"
-
 #include "hddl2_helpers/helper_workload_context.h"
-#include "hddl2_remote_context.h"
+#include "helper_hddl2_backend.h"
 #include "hddl2_params.hpp"
+#include "ie_remote_context.hpp"
+#include "vpux_remote_context.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -34,8 +34,7 @@ public:
     WorkloadID getWorkloadId() const;
     HddlUnite::WorkloadContext::Ptr getWorkloadContext();
 
-    HDDL2RemoteContext::Ptr remoteContextPtr = nullptr;
-    const vpu::HDDL2Config config;
+    vpux::VPUXRemoteContext::Ptr remoteContextPtr = nullptr;
 
 protected:
     // TODO Use stub instead of creating "default" _workloadContext
@@ -44,8 +43,11 @@ protected:
 
 //------------------------------------------------------------------------------
 inline RemoteContext_Helper::RemoteContext_Helper() {
+    vpux::HDDL2Backend_Helper _backendHelper;
+
     auto param = wrapWorkloadIdToMap(_workloadContextHelper.getWorkloadId());
-    remoteContextPtr = std::make_shared<HDDL2RemoteContext>(param, config);
+    auto device = _backendHelper.getDevice(param);
+    remoteContextPtr = std::make_shared<vpux::VPUXRemoteContext>(device, param);
 }
 
 inline InferenceEngine::ParamMap

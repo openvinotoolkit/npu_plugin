@@ -45,7 +45,7 @@ WorkloadID HDDL2ContextParams::getWorkloadId() const { return _workloadId; }
 //------------------------------------------------------------------------------
 HDDLUniteContextDevice::HDDLUniteContextDevice(const InferenceEngine::ParamMap& paramMap, const VPUXConfig& config)
     : _contextParams(paramMap) {
-    // TODO Use config
+    // TODO Create logger for context device
     _workloadContext = HddlUnite::queryWorkloadContext(_contextParams.getWorkloadId());
     if (_workloadContext == nullptr) {
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Context is not found.";

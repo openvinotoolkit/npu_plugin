@@ -38,88 +38,87 @@ public:
 
     InferenceEngine::ParamMap params;
     WorkloadContext_Helper::Ptr workloadContextHelperPtr;
-    const vpu::HDDL2Config config = vpu::HDDL2Config();
+    std::shared_ptr<vpux::IDevice> devicePtr;
 };
 
-//------------------------------------------------------------------------------
-//      class HDDL2_RemoteContext_UnitTests Implementation
-//------------------------------------------------------------------------------
+
 void HDDL2_RemoteContext_UnitTests::SetUp() {
     if (canWorkWithDevice()) {
         workloadContextHelperPtr = std::make_shared<WorkloadContext_Helper>();
         WorkloadID id = workloadContextHelperPtr->getWorkloadId();
         params = RemoteContext_Helper::wrapWorkloadIdToMap(id);
+        vpux::HDDL2Backend_Helper backendHelper;
+        devicePtr = backendHelper.getDevice(params);
     }
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_RemoteContext_UnitTests Initiations - constructor
-//------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromCorrectId_NoThrow) {
     SKIP_IF_NO_DEVICE();
-    ASSERT_NO_THROW(HDDL2RemoteContext context(params, config));
+    ASSERT_NO_THROW(vpux::VPUXRemoteContext context(devicePtr, params));
 }
 
 TEST_F(HDDL2_RemoteContext_UnitTests, constructor_TwiceSameId_NoThrow) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext::Ptr firstContext = nullptr;
-    HDDL2RemoteContext::Ptr secondContext = nullptr;
+    vpux::VPUXRemoteContext::Ptr firstContext = nullptr;
+    vpux::VPUXRemoteContext::Ptr secondContext = nullptr;
 
-    ASSERT_NO_THROW(firstContext = std::make_shared<HDDL2RemoteContext>(params, config));
-    ASSERT_NO_THROW(secondContext = std::make_shared<HDDL2RemoteContext>(params, config));
+    ASSERT_NO_THROW(firstContext = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params));
+    ASSERT_NO_THROW(secondContext = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params));
 }
 
 TEST_F(HDDL2_RemoteContext_UnitTests, constructor_TwiceSameId_NoNull) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext::Ptr firstContext = nullptr;
-    HDDL2RemoteContext::Ptr secondContext = nullptr;
+    vpux::VPUXRemoteContext::Ptr firstContext = nullptr;
+    vpux::VPUXRemoteContext::Ptr secondContext = nullptr;
 
-    firstContext = std::make_shared<HDDL2RemoteContext>(params, config);
-    secondContext = std::make_shared<HDDL2RemoteContext>(params, config);
+    firstContext = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
+    secondContext = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
 
     ASSERT_NE(nullptr, firstContext);
     ASSERT_NE(nullptr, secondContext);
 }
 
-TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromEmptyPararams_ThrowException) {
+// TODO Not it's not handled inside RemoteContext class, but should be handled in Context device class Track #-40390
+TEST_F(HDDL2_RemoteContext_UnitTests, DISABLED_constructor_fromEmptyPararams_ThrowException) {
     SKIP_IF_NO_DEVICE();
     InferenceEngine::ParamMap emptyParams = {};
 
-    ASSERT_ANY_THROW(HDDL2RemoteContext context(emptyParams, config));
+    ASSERT_ANY_THROW(vpux::VPUXRemoteContext context(devicePtr, emptyParams));
 }
 
-TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromIncorrectPararams_ThrowException) {
+// TODO Not it's not handled inside RemoteContext class, but should be handled in Context device class Track #-40390
+TEST_F(HDDL2_RemoteContext_UnitTests, DISABLED_constructor_fromIncorrectPararams_ThrowException) {
     SKIP_IF_NO_DEVICE();
     InferenceEngine::ParamMap badParams = {{"Bad key", "Bad value"}};
-    ASSERT_ANY_THROW(HDDL2RemoteContext context(badParams, config));
+    ASSERT_ANY_THROW(vpux::VPUXRemoteContext context(devicePtr, badParams));
 }
 
-TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromNotExistsContext_ThrowException) {
+// TODO Not it's not handled inside RemoteContext class, but should be handled in Context device class Track #-40390
+TEST_F(HDDL2_RemoteContext_UnitTests, DISABLED_constructor_fromNotExistsContext_ThrowException) {
     SKIP_IF_NO_DEVICE();
     const int badWorkloadId = UINT32_MAX;
     EXPECT_FALSE(workloadContextHelperPtr->isValidWorkloadContext(badWorkloadId));
 
     InferenceEngine::ParamMap notExistsParams = RemoteContext_Helper::wrapWorkloadIdToMap(badWorkloadId);
 
-    ASSERT_ANY_THROW(HDDL2RemoteContext context(notExistsParams, config));
+    ASSERT_ANY_THROW(vpux::VPUXRemoteContext context(devicePtr, notExistsParams));
 }
 
-//------------------------------------------------------------------------------
-//      class HDDL2_RemoteContext_UnitTests Initiations - destructor
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_UnitTests, destructor_workloadContextNotUnregistered) {
     SKIP_IF_NO_DEVICE();
     auto workloadId = workloadContextHelperPtr->getWorkloadId();
     auto params = RemoteContext_Helper::wrapWorkloadIdToMap(workloadId);
 
-    ASSERT_NO_THROW({ HDDL2RemoteContext context(params, config); });
+    ASSERT_NO_THROW({ vpux::VPUXRemoteContext context(devicePtr, params); });
     ASSERT_TRUE(workloadContextHelperPtr->isValidWorkloadContext(workloadId));
 }
 
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_UnitTests, getDeviceName_ReturnCorrectPluginName) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
+    vpux::VPUXRemoteContext::Ptr context = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
 
     const auto devicesNames = DeviceName::getDevicesNamesWithPrefix();
     auto sameNameFound = devicesNames.find(context->getDeviceName());
@@ -127,11 +126,9 @@ TEST_F(HDDL2_RemoteContext_UnitTests, getDeviceName_ReturnCorrectPluginName) {
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_RemoteContext_UnitTests Initiations - getParams
-//------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_UnitTests, getParams_containsWorkloadId) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
+    vpux::VPUXRemoteContext::Ptr context = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
 
     const std::string workloadContextKey = IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID);
 
@@ -143,7 +140,7 @@ TEST_F(HDDL2_RemoteContext_UnitTests, getParams_containsWorkloadId) {
 
 TEST_F(HDDL2_RemoteContext_UnitTests, getParams_containsSameWorkloadId) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
+    vpux::VPUXRemoteContext::Ptr context = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
     const std::string workloadContextKey = IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID);
 
     auto params = context->getParams();
@@ -184,7 +181,7 @@ void HDDL2_RemoteContext_CreateBlob_UnitTests::TearDown() { _remoteMemoryHelper.
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_WithParams_ReturnNotNull) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
+    vpux::VPUXRemoteContext::Ptr context = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
 
     auto blob = context->CreateBlob(tensorDesc, blobParams);
     ASSERT_NE(nullptr, blob);
@@ -192,7 +189,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_WithParams_ReturnNot
 
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_NoParams_ReturnNull) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
+    vpux::VPUXRemoteContext::Ptr context = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
     InferenceEngine::ParamMap emptyBlobParams = {};
 
     auto blob = context->CreateBlob(tensorDesc, emptyBlobParams);
@@ -202,7 +199,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_NoParams_ReturnNull)
 
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_InvalidParams_ReturnNull) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
+    vpux::VPUXRemoteContext::Ptr context = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
     InferenceEngine::ParamMap invalidBlobParams = {{"Invalid key", "Invalid value"}};
 
     auto blob = context->CreateBlob(tensorDesc, invalidBlobParams);
@@ -213,7 +210,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_InvalidParams_Return
 // TODO Provide more information to user that this way should not be used (How?)
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreatBlob_NotFromPointer_ReturnNull) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext context(params, config);
+    vpux::VPUXRemoteContext context(devicePtr, params);
 
     auto blob = context.CreateBlob(tensorDesc, blobParams);
     ASSERT_EQ(nullptr, blob);
@@ -221,7 +218,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreatBlob_NotFromPointer_Return
 
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_IsRemoteBlob) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
+    vpux::VPUXRemoteContext::Ptr context = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
 
     auto blob = context->CreateBlob(tensorDesc, blobParams);
     ASSERT_TRUE(blob->is<IE::RemoteBlob>());
@@ -229,7 +226,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_IsRemoteBlob
 
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_CanAllocate) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
+    vpux::VPUXRemoteContext::Ptr context = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
 
     auto blob = context->CreateBlob(tensorDesc, blobParams);
 
@@ -238,7 +235,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_CanAllocate)
 
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, DISABLED_CreateBlob_Default_LockedMemoryNotNull) {
     SKIP_IF_NO_DEVICE();
-    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
+    vpux::VPUXRemoteContext::Ptr context = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
 
     auto blob = context->CreateBlob(tensorDesc, blobParams);
 

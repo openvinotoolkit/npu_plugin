@@ -19,8 +19,8 @@
 
 #include "hddl2_exceptions.h"
 // Subplugin - TODO remove this dependencies
-#include "hddl2_remote_context.h"
 #include "subplugin/hddl2_backend.h"
+#include "vpux_remote_context.h"
 
 namespace vpux {
 namespace IE = InferenceEngine;
@@ -32,36 +32,26 @@ vpux::VPUXBackends::VPUXBackends(const VPUXConfig& config)
     {
         // TODO Hardcoded for now. Move to separate lib and use vpux::EngineBackendConfigurator::findBackend();
         // TODO default config for now.
-        std::shared_ptr<vpux::IEngineBackend> backEnd = std::make_shared<vpux::HDDL2::HDDL2Backend>(config);
+        // TODO Backend should be configured by BackendConfigurator
+        _backend = std::make_shared<vpux::HDDL2::HDDL2Backend>(config);
         // TODO Print name of backend. Required getName interface for vpux::Backend class
         _logger->debug("Backend found!");
-        _backends.emplace_back(backEnd);
     }
 }
 
-std::shared_ptr<vpux::IDevice> VPUXBackends::getDeviceToUse(const std::string& specificDeviceName) const {
+std::shared_ptr<vpux::IDevice> VPUXBackends::getDevice(const std::string& specificName) const {
     _logger->debug("Searching for device to use started...");
     // TODO iterate over all available backends
     std::shared_ptr<vpux::IDevice> deviceToUse = nullptr;
-    for (const auto& backend : _backends) {
-        // TODO Ignore default VPU-0. Track #S-38444
-        const std::string ignoredDeviceName("VPU-0");
-        if (specificDeviceName.empty() || specificDeviceName == ignoredDeviceName) {
-            const auto& devices = backend->getDevices();
-            // Get first available device and exit
-            if (!devices.empty()) {
-                deviceToUse = devices.begin()->second;
-                break;
-            }
-        } else {
-            // TODO Implementation for HDDL2Backend specific. Required investigation for real solution
-            auto privateBackend = std::dynamic_pointer_cast<HDDL2::HDDL2Backend>(backend);
-            if (privateBackend == nullptr) {
-                THROW_IE_EXCEPTION << "Get getAvailableDevicesNames not implemented for this backend";
-            }
-            deviceToUse = privateBackend->getDevice(specificDeviceName);
-        }
+    // TODO Ignore default VPU-0. Track #S-38444
+    const std::string ignoredDeviceName("VPU-0");
+
+    if (specificName.empty() || specificName == ignoredDeviceName) {
+        deviceToUse = _backend->getDevice();
+    } else {
+        deviceToUse = _backend->getDevice(specificName);
     }
+
     if (deviceToUse == nullptr) {
         _logger->warning("Device to use not found!");
     } else {
@@ -70,33 +60,24 @@ std::shared_ptr<vpux::IDevice> VPUXBackends::getDeviceToUse(const std::string& s
     return deviceToUse;
 }
 
-std::shared_ptr<vpux::IDevice> VPUXBackends::getDeviceFromContext(
-    const InferenceEngine::RemoteContext::Ptr& context) const {
+std::shared_ptr<vpux::IDevice> VPUXBackends::getDevice(const InferenceEngine::ParamMap& paramMap) const {
+    return _backend->getDevice(paramMap);
+}
+
+std::shared_ptr<vpux::IDevice> VPUXBackends::getDevice(const InferenceEngine::RemoteContext::Ptr& context) const {
     // TODO more complicated logic should be here. Might require changing in backend implementation
-    auto privateContext = std::dynamic_pointer_cast<vpu::HDDL2Plugin::HDDL2RemoteContext>(context);
-    if (privateContext == nullptr) {
-        THROW_IE_EXCEPTION << "Get getDeviceFromContext not implemented for this backend";
+    const auto privateContext = std::dynamic_pointer_cast<VPUXRemoteContext>(context);
+    if (context == nullptr) {
+        THROW_IE_EXCEPTION << FAILED_CAST_CONTEXT;
     }
-    auto device = privateContext->getDevice();
+    const auto device = privateContext->getDevice();
     _logger->debug("Device from context found: {}", device->getName());
     return device;
 }
 
-std::vector<std::string> VPUXBackends::getAvailableDevicesNames() const {
-    std::vector<std::string> deviceNames;
-    // TODO device name should have prefix for each backend
-    for (const auto& backend : _backends) {
-        // TODO currently implemented only for HDDL2Backend. Required changes in vpux backend interface
-        auto privateBackend = std::dynamic_pointer_cast<HDDL2::HDDL2Backend>(backend);
-        if (privateBackend == nullptr) {
-            THROW_IE_EXCEPTION << "Get getAvailableDevicesNames not implemented for this backend";
-        }
-        const auto devices = privateBackend->getDevicesNames();
-        deviceNames.insert(deviceNames.begin(), devices.cbegin(), devices.cend());
-    }
-    std::sort(deviceNames.begin(), deviceNames.end());
-    return deviceNames;
-}
+std::vector<std::string> VPUXBackends::getAvailableDevicesNames() const { return _backend->getDeviceNames(); }
+
+// TODO config should be also specified to backends, to allow use logging in devices and all levels below
 void VPUXBackends::setup(const VPUXConfig& config) const { _logger->setLevel(config.logLevel()); }
 
 }  // namespace vpux

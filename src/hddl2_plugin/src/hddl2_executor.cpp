@@ -28,8 +28,8 @@
 
 #include "hddl2_exceptions.h"
 #include "hddl2_metrics.h"
-#include "hddl2_remote_context.h"
 #include "hddl_unite/hddl2_unite_graph.h"
+#include "vpux_remote_context.h"
 
 namespace vpux {
 namespace HDDL2 {
