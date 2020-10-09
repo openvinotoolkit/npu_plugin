@@ -113,13 +113,15 @@ ExecutableNetwork::ExecutableNetwork(
         if (network.getFunction()) {
             auto nGraphFunc = network.getFunction();
             ngraph::pass::Manager manager;
+            ngraph::pass::ConvertPriorBox().run_on_function(
+                nGraphFunc);  // strict requirement: ConvertPriorBox should be first
+
             manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
             manager.run_passes(nGraphFunc);
             // Disable shape inference (WA for generic operations)
             ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-            ngraph::pass::ConvertPriorBox().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
 
             manager.register_pass<ngraph::pass::ReduceL1Decomposition>();  // in CommonOptimizations.
