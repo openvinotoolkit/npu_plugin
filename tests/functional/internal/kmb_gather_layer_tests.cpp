@@ -86,9 +86,9 @@ ie::Blob::Ptr makeBlobFromData(const TensorDesc& desc, std::vector<size_t> data)
     return blob;
 }
 
-class KmbGatherLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<GatherTestParams> {};
+class internal_KmbGatherLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<GatherTestParams> {};
 
-TEST_P(KmbGatherLayerTests, EqualWithCPU) {
+TEST_P(internal_KmbGatherLayerTests, EqualWithCPU) {
     // TODO: Need to fix bad check in gather layer parser in runtime
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Hangs on runtime");
     const auto &p = GetParam();
@@ -174,4 +174,4 @@ const std::vector<GatherTestParams> gatherParams {
                 .axis(0)
 };
 
-INSTANTIATE_TEST_CASE_P(Gather, KmbGatherLayerTests, testing::ValuesIn(gatherParams));
+INSTANTIATE_TEST_CASE_P(Gather, internal_KmbGatherLayerTests, testing::ValuesIn(gatherParams));

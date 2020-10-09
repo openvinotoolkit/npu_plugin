@@ -1480,11 +1480,30 @@ void FrontEndMcm::parseGather(const ie::CNNLayerPtr& layer, const McmNodeVector&
     logParsingStartHelper(_logger, layer, inputs);
     auto axis = layer->GetParamAsUInt("axis", 1u);
 
-    auto mvGather = _modelMcm.gather(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(), axis, mv::DType("Float16"),
-        initialQuantParams(), layer->name);
-
-    bindOutput(mvGather, layer->outData[0]);
-    _logger->debug(FINISH_PARSING_STR, mvGather->getName());
+    // int64 precision for indices is not supported by runtime yet
+    if (inputs[1]->getMcmNode()->getDType() == precisionToDType(Precision::I64)) {
+        std::vector<mv::DataElement> indices_old = inputs[1]->getMcmNode()->getData();
+        std::vector<int64_t> indices_new(indices_old.size(), 0);
+        for (size_t i = 0; i < indices_old.size(); ++i) {
+            indices_new[i] = indices_old[i];
+        }
+        // create new constant layer with I32 precision
+        auto constMCM = _modelMcm.constantInt(indices_new, inputs[1]->getMcmNode()->getShape(),
+            precisionToDType(Precision::I32), mv::Order::getColMajorID(inputs[1]->getMcmNode()->getShape().ndims()),
+            initialQuantParams(), layer->name + "_indices_i32");
+        // remove old input for indices
+        _modelMcm.removeOp(_modelMcm.getSourceOp(inputs[1]->getMcmNode()));
+        // add gather layer with indices which have suitable precision
+        auto mvGather = _modelMcm.gather(
+            inputs[0]->getMcmNode(), constMCM, axis, mv::DType("Float16"), initialQuantParams(), layer->name);
+        bindOutput(mvGather, layer->outData[0]);
+        _logger->debug(FINISH_PARSING_STR, mvGather->getName());
+    } else {
+        auto mvGather = _modelMcm.gather(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(), axis, mv::DType("Float16"),
+            initialQuantParams(), layer->name);
+        bindOutput(mvGather, layer->outData[0]);
+        _logger->debug(FINISH_PARSING_STR, mvGather->getName());
+    }
 }
 
 void FrontEndMcm::parseFakeQuantize(const InferenceEngine::CNNLayerPtr& layer, const vpu::McmNodeVector& inputs) {
