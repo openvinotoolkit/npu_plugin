@@ -459,13 +459,39 @@ namespace mv
                     op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
                     uint16_t kernelH;
+                    std::array<unsigned short, 4> padding;
+                    auto axisToSplit =  0;
+                    
                     auto originalH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                     auto newOutputSizes = tileSpatialOutputSize(originalH, splits);
-                    int remainderOutputSize = newOutputSizes.back();
+                    //todo:: is there any macro for kernel w/h order?
+                    auto kernelAxis = (axisToSplit == mv::Shape::getAxis("W")) ? 0 : 1;
+                    int padStart=0,padEnd=0;
+
+                    if (axisToSplit == mv::Shape::getAxis("W"))
+                    {
+                        padStart = padding[0];
+                        padEnd = padding[1];
+                    }
+                    else if (axisToSplit == mv::Shape::getAxis("H"))
+                    {
+                        padStart = padding[2];
+                        padEnd = padding[3];
+                    }
+
+                    unsigned short kernelStride;
+                    if (op.hasAttr("stride"))
+                        kernelStride = op.get<std::array<unsigned short, 2>>("stride")[axisToSplit];
+                    else
+                        kernelStride = 1;//fake stride
+                    
+                    if (op.hasAttr("padding"))
+                        padding = op.get<std::array<unsigned short, 4>>("padding");
+                    else
+                        padding = {0, 0, 0, 0};
 
                     if (op.hasAttr("kSize"))
                     {
-
                         auto kernelShape = op.get<std::array<unsigned short, 2>>("kSize");
                         kernelH = kernelShape[1];
                     }
@@ -474,9 +500,11 @@ namespace mv
                         auto weightsShape = op.getInputTensor(1)->getShape();
                         kernelH = weightsShape[mv::KERNEL_HEIGHT];
                     }
-                    if (remainderOutputSize < kernelH)
+                    int inputSizeForLastSplit = ((newOutputSizes.back() -1) * kernelStride)  -padStart - padEnd + kernelH;
+                    if (inputSizeForLastSplit < kernelH)
                         return false;
                 }
+
                 return true;
             }
 
