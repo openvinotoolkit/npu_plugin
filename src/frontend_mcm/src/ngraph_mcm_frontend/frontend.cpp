@@ -21,6 +21,7 @@
 #include "ngraph_mcm_frontend/passes/add_io_convert_ops.hpp"
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_conv.hpp"
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_model.hpp"
+#include "ngraph_mcm_frontend/passes/collapse_concat_chain.hpp"
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_fc.hpp"
 #include "ngraph_mcm_frontend/passes/merge_result_convert.hpp"
 #include "ngraph_mcm_frontend/passes/replace_add_with_eltwise.hpp"
@@ -211,7 +212,13 @@ std::vector<char> compileNGraph(
         NodeOutputToMcmMap mcmOutputsMap;
 
         ngraph::pass::Manager passManager;
-        passManager.register_pass<ngraph::pass::ConvertPriorBox>();
+        passManager.register_pass<ngraph::pass::ConvertPriorBox>(); // strict requirement: ConvertPriorBox should be first
+
+        // Add passes for rewriting parts of graph
+        auto anchor = passManager.register_pass<ngraph::pass::GraphRewrite>();
+        anchor->add_matcher<ngraph::pass::CollapseConcats0238>();
+        anchor->set_name("ngraph::pass::mcmAdaptation");
+
         passManager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         passManager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         passManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
