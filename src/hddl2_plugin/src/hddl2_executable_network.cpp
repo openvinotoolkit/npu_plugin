@@ -18,10 +18,7 @@
 // Can get compile error, if the order of the headers will be changed.
 
 // System
-#include <memory>
 #include <fstream>
-#include <string>
-#include <vector>
 
 //IE
 #include <ie_metric_helpers.hpp>

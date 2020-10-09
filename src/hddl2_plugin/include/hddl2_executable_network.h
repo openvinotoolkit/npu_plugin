@@ -15,18 +15,15 @@
 //
 
 #pragma once
-
 // System
 #include <memory>
 #include <string>
 #include <vector>
 // IE
-// #include <ie_common.h>
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 // Plugin
 #include "hddl2_config.h"
 #include "vpux.hpp"
-// #include <Inference.h>
 
 namespace vpu {
 namespace HDDL2Plugin {
