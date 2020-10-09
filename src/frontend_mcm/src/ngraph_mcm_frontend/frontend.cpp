@@ -94,7 +94,7 @@ namespace {
         // See how results are converted to outputInfo in convert_function_to_cnn_network.cpp
         std::map<std::string, std::string> ioMap;
         // TBD Do we need inputs too?
-        for (auto&& inputInfo : inputsInfo) {
+        for (const auto& inputInfo : inputsInfo) {
             bool isFound = false;
             for (auto&& paramOp : func->get_parameters()) {
                 IE_ASSERT(1 == paramOp->get_output_size());
@@ -111,7 +111,7 @@ namespace {
                 THROW_IE_EXCEPTION << "Input not found: " << inputInfo.first;
         }
 
-        for (auto&& outputInfo : outputsInfo) {
+        for (const auto& outputInfo : outputsInfo) {
             bool isFound = false;
             for (auto&& resultOp : func->get_results()) {
                 IE_ASSERT(1 == resultOp->get_input_size());
@@ -142,7 +142,6 @@ std::vector<char> compileNGraph(
     const auto log = std::make_shared<vpu::Logger>("KMB nGraph Parser", config.logLevel(), vpu::consoleOutput());
 
     log->info("Parse nGraph %v", netName);
-    VPU_LOGGER_SECTION(log);
 
     //
     // Configure MCM Compiler
@@ -207,7 +206,6 @@ std::vector<char> compileNGraph(
 
     {
         log->debug("Convert nGraph to MCM Model");
-        VPU_LOGGER_SECTION(log);
 
         auto& mcmModel = mcmCompiler.model();
         NodeOutputToMcmMap mcmOutputsMap;
@@ -258,12 +256,22 @@ std::vector<char> compileNGraph(
 
     {
         log->debug("Run MCM Compiler");
-        VPU_LOGGER_SECTION(log);
-        const auto start = std::chrono::high_resolution_clock::now();
-        mcmCompiler.run();
-        const auto end = std::chrono::high_resolution_clock::now();
-        const auto compile_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
-        log->info("Compiler processing time: %v ms", compile_time.count());
+        try {
+            const auto start = std::chrono::high_resolution_clock::now();
+            mcmCompiler.run();
+            const auto end = std::chrono::high_resolution_clock::now();
+            const auto compile_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
+            log->info("Compiler processing time: %v ms", compile_time.count());
+        } catch (std::string& str) {
+            log->error("MCM Compiler error: %v", str);
+            throw std::logic_error(str);
+        } catch (std::exception& ex) {
+            log->error("MCM Compiler exception: %v", ex.what());
+            throw;
+        } catch (...) {
+            log->error("MCM Compiler general exception");
+            throw;
+        }
     }
 
     //

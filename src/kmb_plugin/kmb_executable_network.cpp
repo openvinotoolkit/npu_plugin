@@ -108,7 +108,6 @@ ExecutableNetwork::ExecutableNetwork(
 
         std::shared_ptr<ICNNNetwork> convertedNetwork;
         auto actualNetwork = &network;
-        (void)actualNetwork;
 
         if (network.getFunction()) {
             auto nGraphFunc = network.getFunction();
