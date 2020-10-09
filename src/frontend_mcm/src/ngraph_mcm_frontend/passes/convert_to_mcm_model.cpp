@@ -60,6 +60,8 @@
 #include <ngraph/op/fake_quantize.hpp>
 
 #include <ngraph_ops/convolution_ie.hpp>
+#include <ngraph_ops/crop_ie.hpp>
+#include <ngraph_ops/deconvolution_ie.hpp>
 #include <ngraph_ops/scaleshift.hpp>
 
 #include <ngraph/op/parameter.hpp>
@@ -71,6 +73,9 @@
 #include <ngraph/op/unsqueeze.hpp>
 #include <ngraph/op/softmax.hpp>
 #include <ngraph/op/topk.hpp>
+#include <ngraph/op/tanh.hpp>
+#include <ngraph/op/exp.hpp>
+#include <ngraph/op/multiply.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -107,8 +112,9 @@ std::vector<mv::Data::TensorIterator> getMcmInputs(std::shared_ptr<ngraph::Node>
         try {
             out.push_back(mcmOutputsMap.at(input.get_source_output()));
         } catch (const std::exception &ex) {
-            std::cout << "Output not found: " << input.get_source_output().get_tensor().get_name()
-                      << " " << ex.what() << std::endl;
+            THROW_IE_EXCEPTION << "For operation " << node->get_type_name() << " name " << node->get_friendly_name()
+                << "output not found: " << input.get_source_output().get_tensor().get_name()
+                << " " << ex.what();
         }
     }
 
@@ -129,7 +135,6 @@ void cvtPaddingsFromCeilToFloorMode(
     pad_end = pad_end + (input_size_floor - input_size_ceil);
     pad_end = std::max(pad_end, 0);
 }
-
 
 void registerOutputs(std::shared_ptr<ngraph::Node> node, const std::vector<mv::Data::TensorIterator>& mcmOutputs, NodeOutputToMcmMap& mcmOutputsMap) {
     size_t ind = 0;
@@ -200,7 +205,6 @@ void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel
 
     registerOutputs(param, {mcmOutput}, mcmOutputsMap);
 }
-
 
 void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
     InferenceEngine::DataPtr ieData) {
@@ -322,10 +326,10 @@ void convert(std::shared_ptr<McmConv> conv, mv::OpModel& mcmModel, NodeOutputToM
     IE_ASSERT(4 == filterShape.ndims());
     const auto kernelSizeX = filterShape[0];
     const auto kernelSizeY = filterShape[1];
-    const auto kernelStrideX = strides.at(0);
-    const auto kernelStrideY = strides.at(1);
-    const auto dilationX = dilations.at(0);
-    const auto dilationY = dilations.at(1);
+    const auto kernelStrideX = strides.at(1);
+    const auto kernelStrideY = strides.at(0);
+    const auto dilationX = dilations.at(1);
+    const auto dilationY = dilations.at(0);
 
     cvtPaddingsFromCeilToFloorMode(mcmData->getShape()[0], outputShape.at(3),
         kernelSizeX * dilationX - (dilationX - 1), kernelStrideX, padLeft, padRight);
@@ -505,14 +509,19 @@ void convert(std::shared_ptr<ngraph::op::Eltwise> eltwise, mv::OpModel& mcmModel
     const auto& opType = eltwise->eltwise_type;
 
     IE_ASSERT(2 == mcmInputs.size());
-    IE_ASSERT(ELTWISE_TYPE::Sum == opType);
     IE_ASSERT(mv::DType("Default") == mvDType);
-    const auto mcmEltwiseOutput = mcmModel.eltwise(mcmInputs, "Add", mvDType, initialQuantParams(), opName + "_FUF");
+
+    mv::Data::TensorIterator mcmEltwiseOutput;
+
+    if (ELTWISE_TYPE::Sum == opType)
+        mcmEltwiseOutput = mcmModel.eltwise(mcmInputs, "Add", mvDType, initialQuantParams(), opName);
+    else if (ELTWISE_TYPE::Prod  == opType)
+        mcmEltwiseOutput = mcmModel.eltwise(mcmInputs, "Multiply", mvDType, initialQuantParams(), opName);
+    else
+        THROW_IE_EXCEPTION << "Operation " << eltwise->get_type_name() << " " << opName << " has unsupported parameter ";
 
     registerOutputs(eltwise, {mcmEltwiseOutput}, mcmOutputsMap);
 }
-
-
 void convert(std::shared_ptr<ngraph::op::v1::Reshape> reshape, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(reshape, mcmOutputsMap);
     const auto mcmData = mcmInputs.at(0);
@@ -566,28 +575,31 @@ void convert(std::shared_ptr<ngraph::op::PowerIE> power, mv::OpModel& mcmModel, 
     const float scale = power->scale;
     const float shift = power->shift;
 
-    if (1.0f != power->power)
-        THROW_IE_EXCEPTION << opName + " unsupported power " << power->power;
+    if (1.0f == power->power) {
+        const auto shape = power->get_output_shape(0);
+        const size_t weights_size = (1 == shape.size()) ? shape.at(0) : getWHCN(shape)[2];
 
-    const auto shape = power->get_output_shape(0);
-    const size_t weights_size = (1 == shape.size()) ? shape.at(0) : getWHCN(shape)[2];
+        std::vector<double> weights(weights_size, scale);
+        mv::Shape weightsShape = {weights.size()};
+        auto mcmWeights = mcmModel.constant(
+            weights, weightsShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams());
 
-    std::vector<double> weights(weights_size, scale);
-    mv::Shape weightsShape = {weights.size()};
-    auto mcmWeights = mcmModel.constant(
-        weights, weightsShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams());
-
-    IE_ASSERT(mv::DType("Default") == mvDType);
-    const auto mcmScaleOutput = mcmModel.scale(mcmData, mcmWeights, mvDType, initialQuantParams(), opName);
-    if (0.0f != shift) {
-        std::vector<double> biases (weights.size(), shift);
-        mv::Shape shiftShape { biases.size() };
-        auto shiftData = mcmModel.constant(biases, shiftShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams());
-        auto biasOutput = mcmModel.bias(mcmScaleOutput, shiftData, mv::DType("Default"), initialQuantParams(), opName + "_bias");
-        registerOutputs(power, {biasOutput}, mcmOutputsMap);
-    } else {
-        registerOutputs(power, {mcmScaleOutput}, mcmOutputsMap);
-    }
+        IE_ASSERT(mv::DType("Default") == mvDType);
+        const auto mcmScaleOutput = mcmModel.scale(mcmData, mcmWeights, mvDType, initialQuantParams(), opName);
+        if (0.0f != shift) {
+            std::vector<double> biases (weights.size(), shift);
+            mv::Shape shiftShape { biases.size() };
+            auto shiftData = mcmModel.constant(biases, shiftShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams());
+            auto biasOutput = mcmModel.bias(mcmScaleOutput, shiftData, mv::DType("Default"), initialQuantParams(), opName + "_bias");
+            registerOutputs(power, {biasOutput}, mcmOutputsMap);
+        } else {
+            registerOutputs(power, {mcmScaleOutput}, mcmOutputsMap);
+        }
+    } else if (-1.0f == power->power) {
+            auto reciprocal_result = mcmModel.reciprocal(mcmData, mv::DType("Default"), initialQuantParams(), opName);
+            registerOutputs(power, {reciprocal_result}, mcmOutputsMap);
+    } else
+        THROW_IE_EXCEPTION << "Operation " << power->get_type_name() << " " + opName + " has unsupported power " << power->power;
 }
 
 void convert(std::shared_ptr<McmScale> scale, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -620,6 +632,14 @@ void convert(std::shared_ptr<ngraph::op::v0::Concat> concat, mv::OpModel& mcmMod
     const auto& opName = concat->get_friendly_name();
 
     const auto mcmConcatOutput = mcmModel.concat(mcmInputs, mcmAxis, mvDType, initialQuantParams(), opName);
+    // MCM compiler compiles wrong blob when concat layer is the last layer in the network,
+    // e.g. person_attributes_recognition_crossroad_0238 person_attributes_recognition_crossroad_0234
+    // TODO: remove this workaround when this case will be handled on mcm compiler side
+    // if (getInputTo(concatLayer->outData[0]).empty()) {
+    //     mvConcat = _modelMcm.maxPool(mvConcat, {1, 1}, {1, 1}, {0, 0, 0, 0}, true, mv::DType("Default"),
+    //         initialQuantParams(), concatLayer->name + "_maxpool");
+    // }
+    // end of workaround
     registerOutputs(concat, {mcmConcatOutput}, mcmOutputsMap);
 }
 
@@ -687,7 +707,6 @@ void convert(std::shared_ptr<ngraph::op::v0::Unsqueeze> reshape, mv::OpModel& mc
     auto mcmReshapeOutput = mcmModel.reshape(mcmData, newShape, mvDType, initialQuantParams(), opName);
     registerOutputs(reshape, {mcmReshapeOutput}, mcmOutputsMap);
 }
-
 
 void convert(std::shared_ptr<ngraph::op::v1::Softmax> softmax, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(softmax, mcmOutputsMap);
@@ -1040,6 +1059,174 @@ void convert(std::shared_ptr<ngraph::op::Interp> interp, mv::OpModel& mcmModel, 
     registerOutputs(interp, {mcmInterpOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::DeconvolutionIE> deconvIE, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(deconvIE, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size() || 3u == mcmInputs.size());
+    const auto mcmData = mcmInputs.at(0);
+    const auto mcmWeights = mcmInputs.at(1);
+    const auto& opName = deconvIE->get_friendly_name();
+
+    const auto& strides = deconvIE->get_strides();
+    const auto& padsBegin = deconvIE->get_pads_begin();
+    const auto& padsEnd = deconvIE->get_pads_end();
+    const auto& dilations = deconvIE->get_dilations();
+    const size_t& groupSize = deconvIE->get_group();
+
+    const auto ngFilterShape = deconvIE->get_input_shape(1);
+    const auto filterShape = mcmWeights->getShape();
+    IE_ASSERT(4 == filterShape.ndims());
+    IE_ASSERT(4 == ngFilterShape.size());
+
+    size_t kernelSizeX = filterShape[0];
+    size_t kernelSizeY = filterShape[1];
+    const int kernelStrideX = strides.at(1);
+    const int kernelStrideY = strides.at(0);
+    const auto dilationX = dilations.at(1);
+    const auto dilationY = dilations.at(0);
+
+    IE_ASSERT(2u == padsBegin.size());
+    IE_ASSERT(2u == padsEnd.size());
+    int padLeft = padsBegin.at(1);
+    int padRight = padsEnd.at(1);
+    int padTop = padsBegin.at(0);
+    int padBottom = padsEnd.at(0);
+
+    if (dilationX != dilationY)
+        THROW_IE_EXCEPTION << "Deconvolution supports only equal dilationX and dilationY";
+
+    // TODO: implement cvtPaddingsFromCeilToFloorMode for deconv, existing func does not suit
+
+    mv::Data::TensorIterator mcmDeconv;
+    mv::Data::TensorIterator mcmDeconvOnly;
+
+    auto inputShape = deconvIE->get_input_shape(0);
+    auto outputShape = deconvIE->get_output_shape(0);
+    IE_ASSERT(4 == inputShape.size());
+    IE_ASSERT(4 == outputShape.size());
+    const auto inputGroupSize = inputShape.at(1);
+    const auto outputGroupSize = outputShape.at(1);
+
+    bool isDepthWiseConv = (groupSize > 1) && (groupSize == inputGroupSize) && (groupSize == outputGroupSize);
+
+    if (isDepthWiseConv) {
+        IE_ASSERT(2u == mcmInputs.size());
+        /* TODO: Need align API in mcmCompiler
+           mcm expects (1,*,*,*) shape for depthwise weights, but Openvino has a (*,1,*,*) */
+        //auto weights = layer->blobs["weights"];
+        //auto weightsData = mcmWeights packBlobToVector<double>(weights, weights->size());
+
+        const mv::Shape mcmShape = {static_cast<uint64_t>(kernelSizeY), static_cast<uint64_t>(kernelSizeX), groupSize, 1lu};
+        IE_ASSERT(mcmWeights->getShape() == mcmShape);
+        IE_ASSERT(mcmWeights->getDType() == mv::DType("Float32"));
+
+        mcmWeights->setOrder(mv::Order::getZMajorID(mcmShape.ndims())); // TODO
+        IE_ASSERT(mv::Order(mv::Order::getZMajorID(mcmShape.ndims())) == mcmWeights->getOrder());
+
+        mcmWeights->set<bool>("is_depthwise_weights", true);
+
+        mcmDeconv = mcmModel.deconv(mcmData, mcmWeights,
+            {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
+            {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
+                static_cast<uint16_t>(padBottom)},
+            static_cast<unsigned>(dilationX), static_cast<unsigned>(groupSize), true, mv::DType("Default"),
+            initialQuantParams(), opName);
+    } else {
+        const mv::Shape mcmShape = {static_cast<uint64_t>(kernelSizeY), static_cast<uint64_t>(kernelSizeX), inputGroupSize, outputGroupSize};
+
+        const auto ngraphWeights = std::dynamic_pointer_cast<ngraph::op::Constant>(deconvIE->input_value(1).get_node_shared_ptr());
+        IE_ASSERT(nullptr != ngraphWeights);
+        const std::vector<double> weightsData = ngraphWeights->cast_vector<double>();
+        std::vector<double> weightsDataReorder(weightsData.size());
+
+        for (size_t k = 0; k < outputGroupSize; k++)
+            for (size_t c = 0; c < inputGroupSize; c++)
+                for (size_t h = 0; h < kernelSizeY; h++)
+                    for (size_t w = 0; w < kernelSizeX; w++) {
+                        size_t src_idx = c * outputGroupSize * kernelSizeY * kernelSizeX +
+                                         k * kernelSizeY * kernelSizeX + h * kernelSizeX + w;
+                        size_t dst_idx = k * inputGroupSize * kernelSizeY * kernelSizeX +
+                                         c * kernelSizeY * kernelSizeX + h * kernelSizeX + w;
+                        weightsDataReorder[dst_idx] = weightsData[src_idx];
+                    }
+
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmWeights));
+        const auto mcmWeightsReordered =  mcmModel.constant(weightsDataReorder, mcmShape, mv::DType("Float32"), mv::Order("NCHW"));
+
+        mcmDeconv = mcmModel.deconv(mcmData, mcmWeightsReordered,
+            {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
+            {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
+                static_cast<uint16_t>(padBottom)},
+            static_cast<unsigned>(dilationX), static_cast<unsigned>(groupSize), false, mv::DType("Default"),
+            initialQuantParams(), opName);
+    }
+
+    if (3u == mcmInputs.size()) {
+        const auto mcmBiases = mcmInputs.at(2);
+        IE_ASSERT(1u == deconvIE->get_input_shape(2).size());
+        mv::Shape mcmShape = {deconvIE->get_input_shape(2).at(0)};
+
+        IE_ASSERT(mcmBiases->getShape() == mcmShape);
+        IE_ASSERT(mcmBiases->getDType() == mv::DType("Float32"));
+        IE_ASSERT(mcmBiases->getOrder() == mv::Order(mv::Order::getColMajorID(mcmShape.ndims())));
+
+        mcmDeconvOnly = mcmDeconv;
+        mcmDeconv = mcmModel.bias(mcmDeconvOnly, mcmBiases, mv::DType("Default"), initialQuantParams(), opName + "_bias");
+    }
+
+    registerOutputs(deconvIE, {mcmDeconv}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::CropIE> crop, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(crop, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const std::vector<int64_t>& axes = crop->axes;     // number of a dimension to crop
+    const std::vector<int64_t>& dim = crop->dim;       // starting point for crop in the input blob
+    const std::vector<int64_t>& offset = crop->offset; // resulting size of the output blob for the specified axis
+    const mv::Shape outShape = getWHCN(crop->get_output_shape(0));
+    const std::size_t ndims = outShape.ndims();
+
+    if (ndims == axes.size() && ndims == offset.size() && ndims == dim.size()) {
+        mv::Shape mvOffsets(ndims);
+        mv::Shape mvOutDims(ndims);
+        // fill offsets and out dimensions size with conversion NCHW->WHCN
+        for (std::size_t i = 0; i < ndims; ++i) {
+            mvOffsets[ndims - 1 - axes[i]] = offset[i];
+            mvOutDims[ndims - 1 - axes[i]] = dim[i];
+        }
+        if (mvOutDims != outShape)
+            THROW_IE_EXCEPTION << "Crop layer dim parameter mismatches output shape";
+        // mcmModel.crop() is single dimensional and mcmModel.slice() is multdimensional
+        auto mcmSlice = mcmModel.slice(mcmInputs.at(0), mvOffsets, outShape, initialQuantParams(), crop->get_friendly_name());
+        registerOutputs(crop, {mcmSlice}, mcmOutputsMap);
+    } else {
+        THROW_IE_EXCEPTION << "Unsupported Crop layer parameters:"
+            << " axes.size() = " << axes.size()
+            << ", offset.size() = " << offset.size()
+            << ", dims.size() = " << dim.size();
+    }
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::Exp> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto mcmOpOutput = mcmModel.exp(mcmInputs.at(0), mv::DType("Default"), initialQuantParams(), op->get_friendly_name());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::Tanh> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto mcmOpOutput = mcmModel.tanh(mcmInputs.at(0), mv::DType("Default"), initialQuantParams(), op->get_friendly_name());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::Multiply> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto mcmOpOutput = mcmModel.eltwise(mcmInputs, "Multiply", mv::DType("Default"),
+        initialQuantParams(), op->get_friendly_name());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
 
 void convert(std::shared_ptr<ngraph::op::NormalizeIE> normalizeIE, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(normalizeIE, mcmOutputsMap);
@@ -1179,6 +1366,11 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::TopKIE),
     MAP_ENTRY(ngraph::op::ResampleV2),
     MAP_ENTRY(ngraph::op::Interp),
+    MAP_ENTRY(ngraph::op::DeconvolutionIE),
+    MAP_ENTRY(ngraph::op::CropIE),
+    MAP_ENTRY(ngraph::op::v0::Exp),
+    MAP_ENTRY(ngraph::op::v0::Tanh),
+    MAP_ENTRY(ngraph::op::v1::Multiply),
     MAP_ENTRY(ngraph::op::NormalizeIE),
     MAP_ENTRY(ngraph::op::ProposalIE),
     MAP_ENTRY(ngraph::op::GatherIE)

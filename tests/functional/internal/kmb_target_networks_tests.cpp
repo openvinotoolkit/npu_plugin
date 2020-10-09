@@ -149,37 +149,6 @@ TEST_F(KmbYoloV1NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV1) {
 }
 
 //
-// TinyYolo V2
-//
-
-TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
-    // Track number: H#18012088819
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
-        0.6, 0.4, 0.4, false);
-}
-
-//
-// Yolo V2
-//
-
-TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");  // TODO: create JIRA ticket
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
-        0.6, 0.4, 0.4, false);
-}
-
-//
 // Yolo V3
 //
 

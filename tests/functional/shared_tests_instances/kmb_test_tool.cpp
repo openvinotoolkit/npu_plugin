@@ -19,7 +19,10 @@ KmbTestTool::KmbTestTool(const KmbTestEnvConfig& envCfg): envConfig(envCfg),
 }
 
 void KmbTestTool::exportNetwork(ExecutableNetwork& exeNet, const std::string& testName) {
-    IE_ASSERT(!envConfig.IE_KMB_TESTS_DUMP_PATH.empty());
+    if (envConfig.IE_KMB_TESTS_DUMP_PATH.empty()) {
+        std::cout << "IE_KMB_TESTS_DUMP_PATH is not set. Skip blob export" << std::endl;
+        return;
+    }
 
     const auto fileName = vpu::formatString("%v/%v.net", envConfig.IE_KMB_TESTS_DUMP_PATH, testName);
     std::cout << "Exporting nn into file " << fileName << std::endl;
