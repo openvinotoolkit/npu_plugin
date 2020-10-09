@@ -296,7 +296,6 @@
               "ddr_address_generation" : true,
               "no_temporal_edges" : true,
               "enable_cmx_concat" : true,
-              "ignore_these_concats" : "rf_c1_det_concat, rf_c2_det_concat, rf_c3_det_concat",
               "enable_inplace_eltwise" : true
             },
             {
