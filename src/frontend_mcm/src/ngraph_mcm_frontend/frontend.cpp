@@ -214,10 +214,10 @@ std::vector<char> compileNGraph(
         ngraph::pass::Manager passManager;
         passManager.register_pass<ngraph::pass::ConvertPriorBox>(); // strict requirement: ConvertPriorBox should be first
 
-        // Add passes for rewriting parts of graph
-        auto anchor = passManager.register_pass<ngraph::pass::GraphRewrite>();
-        anchor->add_matcher<ngraph::pass::CollapseConcats0238>();
-        anchor->set_name("ngraph::pass::mcmAdaptation");
+        // TODO: Add passes for rewriting parts of graph
+        // auto anchor = passManager.register_pass<ngraph::pass::GraphRewrite>();
+        // anchor->add_matcher<ngraph::pass::CollapseConcats0238>();
+        // anchor->set_name("ngraph::pass::mcmAdaptation");
 
         passManager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         passManager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();

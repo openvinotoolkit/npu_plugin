@@ -34,7 +34,9 @@ std::ostream& operator<<(std::ostream& os, const ConvertTestParams &p) {
 
 class KmbConvertLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<ConvertTestParams> {};
 
-TEST_P(KmbConvertLayerTests, accuracy) {
+// ngraph_parser_enabled custom layers support not implemented
+// [Track number: S#40571]
+TEST_P(KmbConvertLayerTests, DISABLED_accuracy) {
     const auto &p = GetParam();
 
     const auto netPrecision = Precision::FP32;

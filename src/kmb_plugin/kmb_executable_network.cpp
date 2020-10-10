@@ -86,8 +86,7 @@ ExecutableNetwork::ExecutableNetwork(
 
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
 
-    const bool kmb_use_ngraph = (NULL != getenv("KMB_USE_NGRAPH_PARSER"));
-    if (kmb_use_ngraph || _config.useNGraphParser()) {
+    if (_config.useNGraphParser()) {
         if (const auto func = network.getFunction()) {
             _logger->info("Using NGraph parser");
             InputsDataMap inputsInfo;
@@ -102,10 +101,8 @@ ExecutableNetwork::ExecutableNetwork(
             THROW_IE_EXCEPTION << "Failed to read NGraph network";
         }
     } else {
-        _logger->info("NGraph parser disabled");
-        _logger->info("Using CNNNetwork parser");
+        _logger->warning("Using Legacy parser");
         // HACK: convert nGraph to old CNNNetwork to fix LP transformations
-
         std::shared_ptr<ICNNNetwork> convertedNetwork;
         auto actualNetwork = &network;
 

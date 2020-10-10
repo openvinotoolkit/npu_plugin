@@ -423,7 +423,7 @@ void KmbTestBase::dumpBlob(const std::string& blobName, const Blob::Ptr& blob) {
 
     std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
     if (!file.is_open())
-            THROW_IE_EXCEPTION << "dumpBlob() failed. Can't open file " << fileName;
+        THROW_IE_EXCEPTION << "dumpBlob() failed. Can't open file " << fileName;
 
     file.write(blob->cbuffer().as<const char*>(), static_cast<std::streamsize>(blob->byteSize()));
 }

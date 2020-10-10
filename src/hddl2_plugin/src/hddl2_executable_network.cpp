@@ -87,8 +87,7 @@ ExecutableNetwork::ExecutableNetwork(
     : ExecutableNetwork(config) {
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
-    const bool kmb_use_ngraph = (NULL != getenv("KMB_USE_NGRAPH_PARSER"));
-    if (kmb_use_ngraph || _config.useNGraphParser()) {
+    if (_config.useNGraphParser()) {
         if (const auto func = network.getFunction()) {
             _logger->info("Using NGraph parser");
             IE::InputsDataMap inputsInfo;
@@ -103,10 +102,8 @@ ExecutableNetwork::ExecutableNetwork(
             THROW_IE_EXCEPTION << "Failed to read NGraph network";
         }
     } else {
-        _logger->info("NGraph parser disabled");
-        _logger->info("Using CNNNetwork parser");
+        _logger->warning("Using Legacy parser");
         // HACK: convert nGraph to old CNNNetwork to fix LP transformations
-
         std::shared_ptr<IE::ICNNNetwork> convertedNetwork;
         auto actualNetwork = &network;
 

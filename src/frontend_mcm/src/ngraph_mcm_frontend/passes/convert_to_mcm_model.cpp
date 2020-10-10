@@ -653,10 +653,11 @@ void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mc
     std::shared_ptr<ngraph::Node> orderNode = permute->input(1).get_source_output().get_node_shared_ptr();
     std::vector<size_t> orderIndices = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(orderNode)->cast_vector<size_t>();
 
-    std::string oldOrder = "NHWC"; // McmOpAttrs::getOrder(permute, 0).toString();
+    // 4d NCHW inputs are supported
     std::string newOrder;
+    const auto ieLayout = ie::TensorDesc::getLayoutByDims(permute->input(0).get_shape());
     for (size_t i = 0; i < orderIndices.size(); i++) {
-        newOrder += oldOrder[orderIndices.size() - 1 - i];
+        newOrder += getDimLabel(orderIndices[orderIndices.size() - 1 - i], ieLayout);
     }
 
     for (size_t i = 1; i < mcmInputs.size(); i++) {

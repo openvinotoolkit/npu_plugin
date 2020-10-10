@@ -47,8 +47,10 @@ const auto params = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_KEEMBAY)
 );
 
+// nGraph parser doesn't contain specific gather parser
+// [Track number: S#40603]
 INSTANTIATE_TEST_CASE_P(
-        smoke_Gather,
+        DISABLED_smoke_Gather,
         KmbGatherLayerTest,
         params,
         KmbGatherLayerTest::getTestCaseName

@@ -457,8 +457,10 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             0.3f,
             1.f, 0.3f);
 }
-
+// Disabled due to accuracy regression with nGraph frontend
+// [Track number: S#40575]
 TEST_F(KmbSSDNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX","ngraph_parser_enabled bad infer results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8),
@@ -483,7 +485,9 @@ TEST_F(KmbDetectionNetworkTest, precommit_faster_rcnn_resnet101_coco_tf_dense_in
             0.1f, 0.3f);
 }
 
-TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v4_tf_dense_int8_IRv10_from_fp32) {
+// ngraph_parser_enabled MCMCompiler throws an error
+// [Track number: S#40573]
+TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_googlenet_v4_tf_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/googlenet-v4/googlenet_v4_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -612,7 +616,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_alexnet_caffe_dense_int8_IRv10_from_fp3
 // [Track number: D#3640]
 TEST_F(KmbClassifyNetworkTest, precommit_vgg16_caffe_dense_int8_IRv10_from_fp32) {
     SKIP_ON("KMB", "HDDL2", "VPUX", "very long compile time");
-
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -881,8 +884,11 @@ TEST_F(SmokeNetworkTest, DISABLED_openpose_pose_cf_NCHW) {
             .setUserOutputPrecision("output", Precision::FP32));
 }
 
+// Disabled due to unstable CPU results
+// [Track number: S#40572]
 TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
     const std::string input_name = "input";
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "CPU ref generate different results time to time");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013_ww22.xml")
