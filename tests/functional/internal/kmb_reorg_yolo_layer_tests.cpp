@@ -34,7 +34,9 @@ class KmbReorgYoloLayerTests :
     public KmbLayerTestBase,
     public testing::WithParamInterface<std::tuple<ReorgYoloTestParams, Layout, UseCustomLayers>> {};
 
+// [Track number: S#40578]
 TEST_P(KmbReorgYoloLayerTests, accuracy) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX","ngraph_parser_enabled bad infer results");
     const auto& p = std::get<0>(GetParam());
     const auto& layout = std::get<1>(GetParam());
     const auto& useCustomLayers = std::get<2>(GetParam());

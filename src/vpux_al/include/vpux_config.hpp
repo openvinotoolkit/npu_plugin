@@ -67,7 +67,7 @@ public:
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
-    bool _useNGraphParser = false;
+    bool _useNGraphParser = true;
 
     int _throughputStreams = 1;
 
