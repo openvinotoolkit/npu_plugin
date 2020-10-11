@@ -42,7 +42,11 @@ const auto maxPool_ExplicitPad_FloorRounding_Params =
 
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MaxPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
     ::testing::Combine(maxPool_ExplicitPad_FloorRounding_Params,
-        ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
@@ -58,7 +62,11 @@ const auto maxPool_ExplicitPad_CeilRounding_Params =
 
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MaxPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
     ::testing::Combine(maxPool_ExplicitPad_CeilRounding_Params,
-        ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
@@ -76,7 +84,11 @@ const auto avgPoolExplicitPadCeilRoundingParams =
 
 INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
     ::testing::Combine(avgPoolExplicitPadCeilRoundingParams,
-        ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
@@ -90,7 +102,11 @@ const auto avgPoolExplicitPadFloorRoundingParams =
 
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_AvgPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
     ::testing::Combine(avgPoolExplicitPadFloorRoundingParams,
-        ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
@@ -106,7 +122,11 @@ const auto allPools_ValidPad_Params = ::testing::Combine(::testing::Values(Pooli
 
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MAX_and_AVGPool_ValidPad, KmbPoolingLayerTest,
     ::testing::Combine(allPools_ValidPad_Params,
-        ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 

@@ -30,6 +30,10 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
 
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_NoReshape, ConcatLayerTest,
     ::testing::Combine(::testing::ValuesIn(axes), ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(netPrecisions), ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
     ConcatLayerTest::getTestCaseName);
 }  // namespace

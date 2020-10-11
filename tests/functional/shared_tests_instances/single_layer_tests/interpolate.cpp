@@ -125,6 +125,10 @@ const auto interpolateCases = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Interpolate_Basic, KmbInterpolateLayerTest, ::testing::Combine(
     interpolateCasesWithoutNearest,
     ::testing::ValuesIn(netPrecisions),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::Values(InferenceEngine::Layout::ANY),
     ::testing::ValuesIn(inShapes),
     ::testing::ValuesIn(targetShapes),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
@@ -138,6 +142,10 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Interpolate_Basic, KmbInterpolateLayerTes
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Interpolate_Nearest, KmbInterpolateLayerTest, ::testing::Combine(
     interpolateCases,
     ::testing::ValuesIn(netPrecisions),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::Values(InferenceEngine::Layout::ANY),
     ::testing::ValuesIn(inShapes),
     ::testing::ValuesIn(targetShapes),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),

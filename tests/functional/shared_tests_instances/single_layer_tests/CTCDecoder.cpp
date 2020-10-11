@@ -41,6 +41,10 @@ const std::vector<InferenceEngine::SizeVector> inputShapes = {
 
 const auto params = testing::Combine(
     testing::ValuesIn(netPrecisions),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    testing::Values(InferenceEngine::Layout::ANY),
+    testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes),
     testing::ValuesIn(mergeRepeated),
     testing::Values(LayerTestsUtils::testPlatformTargetDevice)

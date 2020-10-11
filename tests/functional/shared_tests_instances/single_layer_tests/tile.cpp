@@ -40,6 +40,10 @@ INSTANTIATE_TEST_CASE_P(DISABLED_Tile, KmbTileLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(repeats),
                             ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({2, 3, 4})),
                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                         KmbTileLayerTest::getTestCaseName);
@@ -52,6 +56,10 @@ INSTANTIATE_TEST_CASE_P(DISABLED_Tile6d, KmbTileLayerTest,
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({1, 1, 1, 2, 1, 2})),
                             ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({1, 4, 3, 1, 3, 1})),
                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                         KmbTileLayerTest::getTestCaseName);
@@ -66,6 +74,10 @@ INSTANTIATE_TEST_CASE_P(DISABLED_Kmb_Specific_Tile, KmbTileLayerTest,
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({1, 1, 88})),
                             ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({1, 1, 128, 1})),
                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                         KmbTileLayerTest::getTestCaseName);
