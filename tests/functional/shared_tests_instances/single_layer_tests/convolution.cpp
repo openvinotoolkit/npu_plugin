@@ -55,8 +55,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_ExplicitPadding, KmbConvolutionLayer
     ::testing::Combine(conv2DParams_ExplicitPadding,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(inPrc), ::testing::Values(outPrc),
-        ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(inLayout), ::testing::Values(outLayout),
+        ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     ConvolutionLayerTest::getTestCaseName);
 
@@ -64,8 +64,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid, KmbConvolutionLayerTes
     ::testing::Combine(conv2DParams_AutoPadValid,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(inPrc), ::testing::Values(outPrc),
-        ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(inLayout), ::testing::Values(outLayout),
+        ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     ConvolutionLayerTest::getTestCaseName);
 
@@ -98,8 +98,8 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution3D_ExplicitPadding, KmbConvolu
     ::testing::Combine(conv3DParams_ExplicitPadding,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(inPrc), ::testing::Values(outPrc),
-        ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
         ::testing::Values(inLayout), ::testing::Values(outLayout),
+        ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     ConvolutionLayerTest::getTestCaseName);
 
@@ -107,8 +107,8 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution3D_AutoPadValid, KmbConvolutio
     ::testing::Combine(conv3DParams_AutoPadValid,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(inPrc), ::testing::Values(outPrc),
-        ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
         ::testing::Values(inLayout), ::testing::Values(outLayout),
+        ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     ConvolutionLayerTest::getTestCaseName);
 }  // namespace
