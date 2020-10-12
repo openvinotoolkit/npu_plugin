@@ -460,28 +460,16 @@ namespace mv
                 {
                     uint16_t kernelH;
                     std::array<unsigned short, 4> padding;
-                    auto axisToSplit =  0;
-                    
+                                       
                     auto originalH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                     auto newOutputSizes = tileSpatialOutputSize(originalH, splits);
-                    //todo:: is there any macro for kernel w/h order?
-                    auto kernelAxis = (axisToSplit == mv::Shape::getAxis("W")) ? 0 : 1;
-                    int padStart=0,padEnd=0;
-
-                    if (axisToSplit == mv::Shape::getAxis("W"))
-                    {
-                        padStart = padding[0];
-                        padEnd = padding[1];
-                    }
-                    else if (axisToSplit == mv::Shape::getAxis("H"))
-                    {
-                        padStart = padding[2];
-                        padEnd = padding[3];
-                    }
-
+                    
+                    int padStart = padding[2];
+                    int padEnd = padding[3];
+                    
                     unsigned short kernelStride;
                     if (op.hasAttr("stride"))
-                        kernelStride = op.get<std::array<unsigned short, 2>>("stride")[axisToSplit];
+                        kernelStride = op.get<std::array<unsigned short, 2>>("stride")[1];
                     else
                         kernelStride = 1;//fake stride
                     
@@ -501,7 +489,7 @@ namespace mv
                         kernelH = weightsShape[mv::KERNEL_HEIGHT];
                     }
                     int inputSizeForLastSplit = ((newOutputSizes.back() -1) * kernelStride)  -padStart - padEnd + kernelH;
-                    if (inputSizeForLastSplit < kernelH)
+                    if ((inputSizeForLastSplit + padStart + padEnd) < kernelH)
                         return false;
                 }
 
