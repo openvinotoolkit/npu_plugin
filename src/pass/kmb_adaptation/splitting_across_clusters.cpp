@@ -161,10 +161,12 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         subTensorsGen(model, specialTensors, numClusters, pass, 1);
         for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
         {
-            if (opIt->getOpType() == "Crop" || opIt->getOpType() == "Concat" || opIt->getOpType() == "ImplicitConcat" || opIt->getOpType() == "Slice")
+            if (opIt->getOpType() == "Crop" || opIt->getOpType() == "Concat" ||
+                    opIt->getOpType() == "ImplicitConcat" || opIt->getOpType() == "Slice")
             {
                 auto sinkOperators = findSinkLayers(dm, opIt->getOutputTensor(0));
-                if (sinkOperators[0]->getOpType() == "Align" || sinkOperators[0]->getOpType() == "Crop")
+                if (sinkOperators[0]->getOpType() == "Align" || sinkOperators[0]->getOpType() == "Crop"
+                        || sinkOperators[0]->getOpType() == "Slice")
                 {
                     subTensorsGen(model, {opIt->getOutputTensor(0)},numClusters, pass);
                 }
