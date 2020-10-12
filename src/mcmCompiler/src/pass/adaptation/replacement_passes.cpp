@@ -318,6 +318,14 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationMod
         auto scale2 = secondEltwiseInputTensorQuantizationParams.getScale();
 
         auto size = scale1.size();
+        auto size2 = scale2.size();
+
+        if (size != size2 && (size == 0 || size2 == 0)) {
+            // one of inputs does not have quant params
+            opIt->set<bool>("softwareExecuted", true);
+            return;
+        }
+
         std::vector <double> scaleDifference(size), absRelativeErrorScale(size), relativeErrorScale(size);
         std::transform(scale1.begin(),
                        scale1.end(),

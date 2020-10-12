@@ -1254,6 +1254,12 @@ void FrontEndMcm::parseEltwise(const ie::CNNLayerPtr& layer, const McmNodeVector
     case ie::EltwiseLayer::eOperation::Prod:
         mvEltwise = _modelMcm.eltwise(eltwiseLayer->name, mvInputs, "Multiply");
         break;
+    case ie::EltwiseLayer::eOperation::Min:
+        mvEltwise = _modelMcm.eltwise(eltwiseLayer->name, mvInputs, "Minimum");
+        break;
+    case ie::EltwiseLayer::eOperation::Max:
+        mvEltwise = _modelMcm.eltwise(eltwiseLayer->name, mvInputs, "Maximum");
+        break;
     default:
         VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
     }

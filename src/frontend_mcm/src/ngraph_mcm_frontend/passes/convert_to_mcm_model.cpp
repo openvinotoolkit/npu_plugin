@@ -77,6 +77,8 @@
 #include <ngraph/op/exp.hpp>
 #include <ngraph/op/multiply.hpp>
 #include <ngraph/op/elu.hpp>
+#include <ngraph/op/maximum.hpp>
+#include <ngraph/op/minimum.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -1341,6 +1343,23 @@ void convert(std::shared_ptr<ngraph::op::GatherIE> gatherIE, mv::OpModel& mcmMod
     registerOutputs(gatherIE, {mcmGather}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v1::Maximum> maximum, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(maximum, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto& opName = maximum->get_friendly_name();
+    auto mcmMax = mcmModel.eltwise(opName, mcmInputs, "Maximum");
+    registerOutputs(maximum, {mcmMax}, mcmOutputsMap);
+}
+
+
+void convert(std::shared_ptr<ngraph::op::v1::Minimum> minimum, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(minimum, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto& opName = minimum->get_friendly_name();
+    auto mcmMin = mcmModel.eltwise(opName, mcmInputs, "Minimum");
+    registerOutputs(minimum, {mcmMin}, mcmOutputsMap);
+}
+
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
 template <typename T>
@@ -1408,7 +1427,9 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::NormalizeIE),
     MAP_ENTRY(ngraph::op::ProposalIE),
     MAP_ENTRY(ngraph::op::GatherIE),
-    MAP_ENTRY(ngraph::op::v0::Elu)
+    MAP_ENTRY(ngraph::op::v0::Elu),
+    MAP_ENTRY(ngraph::op::v1::Maximum),
+    MAP_ENTRY(ngraph::op::v1::Minimum)
 };
 
 #undef MAP_ENTRY
