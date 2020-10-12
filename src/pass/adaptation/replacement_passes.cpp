@@ -342,12 +342,17 @@ static void markCMCompatibleConvsFcn(const mv::pass::PassEntry&, mv::Computation
     if (!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")))
         return;
 
+    //set the CM Conv flag to 'False'. But if there are any convs exist that support CMConv, then set the flag to true
+    om.getGlobalConfigParams()->set<bool>("enable_channel_major_conv", false);
+
     // Mark CMConv-compatible convolutions
     auto convs = om.getOps("Conv");
     for(auto& conv : convs)
     {
         auto supports_CMConv = (*conv).supportsCMConv();
         (*conv).set<bool>("supportsCM", supports_CMConv);
+        if(!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")))
+            om.getGlobalConfigParams()->set<bool>("enable_channel_major_conv", true);
     }
 }
 
