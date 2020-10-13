@@ -67,8 +67,12 @@ void KmbLayerTestsCommon::Run() {
     std::cout << "KmbLayerTestsCommon::ExportNetwork()" << std::endl;
     ASSERT_NO_THROW(ExportNetwork());
 #else
-    std::cout << "KmbLayerTestsCommon::ImportNetwork()" << std::endl;
-    ASSERT_NO_THROW(ImportNetwork());
+    if (envConfig.IE_KMB_TESTS_RUN_IMPORT) {
+        std::cout << "KmbLayerTestsCommon::ImportNetwork()" << std::endl;
+        ASSERT_NO_THROW(ImportNetwork());
+    } else {
+        std::cout << "Skip KmbLayerTestsCommon::ImportNetwork()" << std::endl;
+    }
     if (envConfig.IE_KMB_TESTS_RUN_INFER) {
         // todo: infers are not run forcefully; layer test networks hang the board
         SKIP() << "Skip infer due to layer test networks hang the board";
