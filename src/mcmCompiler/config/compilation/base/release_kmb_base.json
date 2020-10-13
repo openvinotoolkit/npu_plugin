@@ -8,61 +8,7 @@
                 "verbose": "Error",
                 "recordWeightsAsText": false,
                 "barrier_index_assignment" : "Dynamic",
-                "split_strategy" :
-                [
-                    {
-                        "name_filter" : "Example",
-                        "cluster_filter" : 0,
-                        "strategy" : "Example"
-                    }
-                ],
-                "default_tensor_placement" : "NNCMX",
-                "tensor_placement_override" :
-                [
-                    {
-                        "name_filter" : ".*_ddr_.*",
-                        "mem_location" : "DDR"
-                    },
-                    {
-                        "name_filter" : ".*_cmx_.*",
-                        "mem_location" : "CMX"
-                    },
-                    {
-                        "name_filter" : ".*_input_.*",
-                        "mem_location" : "INPUT"
-                    },
-                    {
-                        "name_filter" : ".*_output_.*",
-                        "mem_location" : "OUTPUT"
-                    },
-                    {
-                        "name_filter" : ".*weights.*",
-                        "mem_location" : "BLOB"
-                    }
-
-                ],
-                "streaming_strategy" :
-                [
-                    {
-                        "name_filter" : "Example",
-                        "splits" : [
-                            {"W" : 1},
-                            {"H" : 1},
-                            {"C" : 1},
-                            {"K" : 1},
-                            {"N" : 1}
-                        ]
-                    }
-                ],
-                "sparsity_strategy" :
-                [
-                    {
-                        "name_filter": "Example",
-                        "inputActivationSparsity": false,
-                        "outputActivationSparsity": false,
-                        "weightsSparsity": false
-                    }
-                ]
+                "default_tensor_placement" : "NNCMX"
             },
             "AssignInputNode",
             "AssignOutputNode",
