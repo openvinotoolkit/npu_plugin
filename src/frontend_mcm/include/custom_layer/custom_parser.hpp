@@ -324,21 +324,21 @@ public:
                         "but parameter is neither a tensor, nor an array type.",
                         binding.argName, cnnLayer->type, binding.portIndex);
 
-                    const auto val = [&] {
-                        if (binding.type == CustomParamType::Int) {
-                            return parseNumber<int>(binding.irSource);
-                        } else {
-                            return parseNumber<float>(binding.irSource);
-                        }
-                    }();
-
-                    VPU_THROW_UNLESS(val.hasValue(),
-                        "Unable to deduce parameter '%s' for '%s' layer. "
-                        "Name is: '%s', parameter is: '%s'",
-                        binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
-
-                    const auto number = binding.type == CustomParamType::Int ? val.get() : floatAsInt(val.get());
-                    stage.arguments.push_back(number);
+                    if (binding.type == CustomParamType::Int) {
+                        const auto val = parseNumber<int>(binding.irSource);
+                        VPU_THROW_UNLESS(val.hasValue(),
+                            "Unable to deduce parameter '%s' for '%s' layer. "
+                            "Name is: '%s', parameter is: '%s'",
+                            binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
+                        stage.arguments.push_back(val.get());
+                    } else {
+                        const auto val = parseNumber<float>(binding.irSource);
+                        VPU_THROW_UNLESS(val.hasValue(),
+                            "Unable to deduce parameter '%s' for '%s' layer. "
+                            "Name is: '%s', parameter is: '%s'",
+                            binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
+                        stage.arguments.push_back(floatAsInt(val.get()));
+                    }
                 }
                 break;
             }
