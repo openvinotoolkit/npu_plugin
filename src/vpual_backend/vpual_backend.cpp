@@ -36,13 +36,22 @@ bool isDeviceFree(const std::shared_ptr<xlink_handle>& devHandle) {
 }
 
 std::string getNameByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
-    return "VPU-" + std::to_string(devHandle->sw_device_id / 2);
+    // bits 3-1 define slice ID
+    // right shift to omit bit 0, thus slice id is stored in bits 2-0
+    // apply b111 mask to discard anything but slice ID
+    uint32_t sliceId = (devHandle->sw_device_id >> 1) & 0x7;
+    return "VPU-" + std::to_string(sliceId);
 }
 
 bool isVPUDevice(const uint32_t deviceId) {
-    constexpr uint32_t IPC_INTERFACE_MARKER = 0x1000000;
-    bool isPCIDevice = (deviceId & IPC_INTERFACE_MARKER);
-    return !isPCIDevice;
+    // bits 26-24 define interface type
+    // 000 - IPC
+    // 001 - PCIe
+    // 010 - USB
+    // 011 - ethernet
+    constexpr uint32_t INTERFACE_TYPE_SELECTOR = 0x7000000;
+    uint32_t interfaceType = (deviceId & INTERFACE_TYPE_SELECTOR);
+    return (interfaceType == 0);
 }
 #endif
 
