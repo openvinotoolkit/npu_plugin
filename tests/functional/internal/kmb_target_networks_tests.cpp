@@ -335,20 +335,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v1_tf_dense_int8_IRv10_from_f
 }
 
 // Bad accuracy
-// [Track number: S#39433]
-TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_ngraph) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad accuracy");
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/googlenet-v1/googlenet_v1_tf_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 0.05f);
-}
-
-// Bad accuracy
 // [Track number: S#39435]
 TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_fp32) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad accuracy");
