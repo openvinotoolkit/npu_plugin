@@ -36,20 +36,7 @@ bool isDeviceFree(const std::shared_ptr<xlink_handle>& devHandle) {
 }
 
 std::string getNameByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
-    constexpr size_t maxDeviceNameSize = 128;
-    std::vector<char> devNameData(maxDeviceNameSize, 0x0);
-    xlink_error getNameResult = xlink_get_device_name(devHandle.get(), devNameData.data(), devNameData.size());
-    if (getNameResult != X_LINK_SUCCESS) {
-        THROW_IE_EXCEPTION << "getNameByDeviceId: xlink_get_device_name failed with error: " << getNameResult;
-    }
-    std::string devName = devNameData.data();
-    static const std::map<std::string, std::string> xlinkNameMapping = {
-        {"vpu-slice-0", "VPU-0"},
-        {"vpu-slice-1", "VPU-1"},
-        {"vpu-slice-2", "VPU-2"},
-        {"vpu-slice-3", "VPU-3"},
-    };
-    return xlinkNameMapping.at(devName);
+    return "VPU-" + std::to_string(devHandle->sw_device_id / 2);
 }
 
 bool isVPUDevice(const uint32_t deviceId) {
