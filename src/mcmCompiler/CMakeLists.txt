@@ -1,5 +1,4 @@
-project(mcmComplier VERSION 1.0.0)
-
+project(mcmComplier VERSION 1.5.0)
 
 #############################################################################################
 ### Setup
@@ -280,6 +279,11 @@ add_library(mcmCompiler SHARED
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
 )
 
+set_target_properties(mcmCompiler PROPERTIES
+    VERSION "${PROJECT_VERSION}"
+    SOVERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
+)
+
 if(MSVC)
     set_target_properties(mcmCompiler PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 endif()
@@ -293,10 +297,12 @@ endif()
 
 target_include_directories(mcmCompiler
     PUBLIC
-        ${PROJECT_SOURCE_DIR}
-        "${PROJECT_SOURCE_DIR}/include"
-        ${META_DIR_PATH}
-        "${META_DIR_PATH}/include"
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${META_DIR_PATH}>
+        $<BUILD_INTERFACE:${META_DIR_PATH}/include>
+    INTERFACE
+        $<INSTALL_INTERFACE:include>
     PRIVATE
         "${PROJECT_SOURCE_DIR}/src"
         "${PROJECT_SOURCE_DIR}/src/pass"
@@ -304,6 +310,68 @@ target_include_directories(mcmCompiler
 )
 
 target_link_libraries(mcmCompiler
-    PUBLIC
+    PRIVATE
         flatbuffers
 )
+
+#############################################################################################
+### Package
+#############################################################################################
+
+if(ENABLE_MCM_COMPILER_PACKAGE)
+    include(CMakePackageConfigHelpers)
+
+    configure_package_config_file(
+        "${PROJECT_SOURCE_DIR}/cmake/mcmCompilerConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/mcmCompilerConfig.cmake"
+        INSTALL_DESTINATION "share/cmake/mcmCompiler"
+        NO_SET_AND_CHECK_MACRO
+        NO_CHECK_REQUIRED_COMPONENTS_MACRO
+    )
+
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/mcmCompilerConfigVersion.cmake"
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY ExactVersion
+    )
+
+    string(REPLACE "${IE_CPACK_IE_DIR}/" "" MCM_CPACK_RUNTIME_PATH ${IE_CPACK_RUNTIME_PATH})
+    string(REPLACE "${IE_CPACK_IE_DIR}/" "" MCM_CPACK_ARCHIVE_PATH ${IE_CPACK_ARCHIVE_PATH})
+    string(REPLACE "${IE_CPACK_IE_DIR}/" "" MCM_CPACK_LIBRARY_PATH ${IE_CPACK_LIBRARY_PATH})
+
+    install(
+        TARGETS mcmCompiler
+        EXPORT mcmCompilerTargets
+        RUNTIME DESTINATION ${MCM_CPACK_RUNTIME_PATH} COMPONENT ${MCM_COMPILER_COMPONENT}
+        ARCHIVE DESTINATION ${MCM_CPACK_ARCHIVE_PATH} COMPONENT ${MCM_COMPILER_COMPONENT}
+        LIBRARY DESTINATION ${MCM_CPACK_LIBRARY_PATH} COMPONENT ${MCM_COMPILER_COMPONENT}
+    )
+
+    install(
+        DIRECTORY
+            "${PROJECT_SOURCE_DIR}/include/"
+            "${META_DIR_PATH}/include/"
+        DESTINATION "include"
+        COMPONENT ${MCM_COMPILER_COMPONENT}
+    )
+
+    install(
+        DIRECTORY "${PROJECT_SOURCE_DIR}/config"
+        DESTINATION "."
+        COMPONENT ${MCM_COMPILER_COMPONENT}
+    )
+
+    install(
+        EXPORT mcmCompilerTargets
+        DESTINATION "share/cmake/mcmCompiler"
+        COMPONENT ${MCM_COMPILER_COMPONENT}
+    )
+
+    install(
+        FILES
+            "${CMAKE_CURRENT_BINARY_DIR}/mcmCompilerConfig.cmake"
+            "${CMAKE_CURRENT_BINARY_DIR}/mcmCompilerConfigVersion.cmake"
+        DESTINATION "share/cmake/mcmCompiler"
+        COMPONENT ${MCM_COMPILER_COMPONENT}
+    )
+endif()
