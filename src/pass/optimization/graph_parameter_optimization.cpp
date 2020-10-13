@@ -463,10 +463,7 @@ namespace mv
                                        
                     auto originalH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                     auto newOutputSizes = tileSpatialOutputSize(originalH, splits);
-                    
-                    int padStart = padding[2];
-                    int padEnd = padding[3];
-                    
+                                       
                     unsigned short kernelStride;
                     if (op.hasAttr("stride"))
                         kernelStride = op.get<std::array<unsigned short, 2>>("stride")[1];
@@ -477,6 +474,9 @@ namespace mv
                         padding = op.get<std::array<unsigned short, 4>>("padding");
                     else
                         padding = {0, 0, 0, 0};
+
+                    int padStart = 0;
+                    int padEnd = padding[3];
 
                     if (op.hasAttr("kSize"))
                     {
@@ -489,7 +489,7 @@ namespace mv
                         kernelH = weightsShape[mv::KERNEL_HEIGHT];
                     }
                     int inputSizeForLastSplit = ((newOutputSizes.back() -1) * kernelStride)  -padStart - padEnd + kernelH;
-                    if ((inputSizeForLastSplit + padStart + padEnd) < kernelH)
+                    if ((inputSizeForLastSplit + padEnd) < kernelH)
                         return false;
                 }
 
