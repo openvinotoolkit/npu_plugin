@@ -27,7 +27,7 @@ For now only Ubuntu 18.04 x86 hosts are supported.
 To build ARM64 code for KMB board the Yocto SDK is required. It can be installed with the following commands:
 
 ```bash
-wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/development/20200420-2100/oecore-x86_64-aarch64-toolchain-1.0.sh && \
+wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/dev-test-image/YP3p1/oecore-x86_64-aarch64-toolchain-1.0.sh && \
     chmod +x oecore-x86_64-aarch64-toolchain-1.0.sh && \
     ./oecore-x86_64-aarch64-toolchain-1.0.sh -y -d /usr/local/oecore-x86_64 && \
     rm oecore-x86_64-aarch64-toolchain-1.0.sh
