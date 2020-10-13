@@ -48,9 +48,9 @@ public:
 
     virtual ~ExecutableNetwork() = default;
 
-    void GetMetric(const std::string& name, ie::Parameter& result, ie::ResponseDesc* resp) const override;
-    void SetConfig(const std::map<std::string, ie::Parameter>& config, ie::ResponseDesc* resp) override;
-    void GetConfig(const std::string& name, ie::Parameter& result, ie::ResponseDesc* resp) const override;
+    void SetConfig(const std::map<std::string, ie::Parameter>& config) override;
+    ie::Parameter GetMetric(const std::string& name) const override;
+    ie::Parameter GetConfig(const std::string& name) const override;
 
     ie::InferRequestInternal::Ptr CreateInferRequestImpl(
         ie::InputsDataMap networkInputs, ie::OutputsDataMap networkOutputs) override {
@@ -62,7 +62,7 @@ public:
             networkInputs, networkOutputs, _stagesMetaData, _config, _executor, _device->getAllocator(), _netName);
     }
 
-    void CreateInferRequest(ie::IInferRequest::Ptr& asyncRequest) override {
+    ie::IInferRequest::Ptr CreateInferRequest() override {
         if (_device == nullptr) {
             THROW_IE_EXCEPTION << "Can not create an infer request because there are no devices";
         }
@@ -74,11 +74,13 @@ public:
         auto taskExecutorGetResult = getNextTaskExecutor();
         auto asyncThreadSafeImpl = std::make_shared<KmbAsyncInferRequest>(
             syncRequestImpl, _taskExecutor, taskExecutorGetResult, _callbackExecutor, _logger);
+        ie::IInferRequest::Ptr asyncRequest;
         asyncRequest.reset(new ie::InferRequestBase<ie::AsyncInferRequestThreadSafeDefault>(asyncThreadSafeImpl),
             [](ie::IInferRequest* p) {
                 p->Release();
             });
         asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+        return asyncRequest;
     }
 
     void ExportImpl(std::ostream& model) override {
