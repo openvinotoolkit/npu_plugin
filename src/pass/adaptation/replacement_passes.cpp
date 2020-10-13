@@ -351,7 +351,7 @@ static void markCMCompatibleConvsFcn(const mv::pass::PassEntry&, mv::Computation
     {
         auto supports_CMConv = (*conv).supportsCMConv();
         (*conv).set<bool>("supportsCM", supports_CMConv);
-        if(!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")))
+        if(supports_CMConv)
             om.getGlobalConfigParams()->set<bool>("enable_channel_major_conv", true);
     }
 }
