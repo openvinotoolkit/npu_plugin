@@ -167,24 +167,26 @@ ExecutableNetwork::ExecutableNetwork(
     }
 }
 
-void ExecutableNetwork::GetMetric(const std::string& name, Parameter& result, ResponseDesc*) const {
+Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
+
+    return {};
 }
 
-void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* /* resp */) {
+void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
     for (const auto& entry : config) {
         _parsedConfig[entry.first] = entry.second;
     }
 }
 
-void ExecutableNetwork::GetConfig(const std::string& name, Parameter& result, ResponseDesc* /* resp */) const {
+Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
     auto res = _parsedConfig.find(name);
     if (res != _parsedConfig.end()) {
-        result = res->second;
+        return res->second;
     } else {
         THROW_IE_EXCEPTION << name << " not found in the ExecutableNetwork config";
     }

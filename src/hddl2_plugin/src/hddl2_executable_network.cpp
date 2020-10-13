@@ -162,7 +162,7 @@ IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRe
     return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, inferExecutor, _config);
 }
 
-void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) {
+InferenceEngine::IInferRequest::Ptr ExecutableNetwork::CreateInferRequest() {
     auto inferExecutor = getExecutorForInference(_executorPtr);
     auto syncRequestImpl = std::make_shared<HDDL2InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config);
 
@@ -173,12 +173,15 @@ void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& 
 
     auto asyncThreadSafeImpl =
         std::make_shared<HDDL2AsyncInferRequest>(syncRequestImpl, _taskExecutor, resultExecutor, _callbackExecutor);
+
+    InferenceEngine::IInferRequest::Ptr asyncRequest;
     asyncRequest.reset(
         new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(asyncThreadSafeImpl),
         [](InferenceEngine::IInferRequest* p) {
             p->Release();
         });
     asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+    return asyncRequest;
 }
 
 //------------------------------------------------------------------------------

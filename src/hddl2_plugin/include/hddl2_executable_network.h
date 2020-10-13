@@ -47,7 +47,7 @@ public:
     using InferenceEngine::ExecutableNetworkInternal::Export;
     void Export(const std::string& modelFileName) override;
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
 
 private:
     explicit ExecutableNetwork(const vpux::VPUXConfig& config);

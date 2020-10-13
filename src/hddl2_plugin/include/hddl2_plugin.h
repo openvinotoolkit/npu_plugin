@@ -43,7 +43,7 @@ public:
 
     using InferenceEngine::InferencePluginInternal::ImportNetwork;
 
-    IExecutableNetwork::Ptr ImportNetwork(
+    InferenceEngine::ExecutableNetwork ImportNetwork(
         const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::ExecutableNetwork ImportNetworkImpl(
@@ -54,8 +54,8 @@ public:
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
-        InferenceEngine::QueryNetworkResult& res) const override;
+    InferenceEngine::QueryNetworkResult QueryNetwork(
+        const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config) const override;
 
     InferenceEngine::Parameter GetMetric(
         const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
