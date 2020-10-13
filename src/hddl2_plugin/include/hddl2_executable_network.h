@@ -27,9 +27,8 @@
 
 namespace vpu {
 namespace HDDL2Plugin {
-namespace ie = InferenceEngine;
 
-class ExecutableNetwork : public ie::ExecutableNetworkThreadSafeDefault {
+class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
@@ -40,18 +39,20 @@ public:
         std::istream& networkModel, std::shared_ptr<vpux::IDevice>& device, const vpux::VPUXConfig& config);
     ~ExecutableNetwork() override = default;
 
-    ie::InferRequestInternal::Ptr CreateInferRequestImpl(
-        const ie::InputsDataMap networkInputs, const ie::OutputsDataMap networkOutputs) override;
+    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
+        const InferenceEngine::InputsDataMap networkInputs,
+        const InferenceEngine::OutputsDataMap networkOutputs) override;
     void ExportImpl(std::ostream& model) override;
     void Export(std::ostream& networkModel) override { ExportImpl(networkModel); }
 
-    using ie::ExecutableNetworkInternal::Export;
+    using InferenceEngine::ExecutableNetworkInternal::Export;
     void Export(const std::string& modelFileName) override;
 
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
     InferenceEngine::Parameter GetMetric(const std::string& name) const override;
 
-    void GetMetric(const std::string& name, ie::Parameter& result, ie::ResponseDesc* resp) const override;
+    void GetMetric(const std::string& name, InferenceEngine::Parameter& result,
+        InferenceEngine::ResponseDesc* resp) const override;
 
 private:
     explicit ExecutableNetwork(const vpux::VPUXConfig& config);
