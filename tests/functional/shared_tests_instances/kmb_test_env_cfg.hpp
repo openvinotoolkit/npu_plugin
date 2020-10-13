@@ -15,6 +15,7 @@ public:
     std::string IE_KMB_TESTS_LOG_LEVEL;
     bool IE_KMB_TESTS_RAW_EXPORT;
     bool IE_KMB_TESTS_RUN_INFER;
+    bool IE_KMB_TESTS_RUN_IMPORT;
 public:
     explicit KmbTestEnvConfig();
 };

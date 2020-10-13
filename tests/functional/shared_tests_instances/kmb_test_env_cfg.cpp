@@ -44,6 +44,11 @@ KmbTestEnvConfig::KmbTestEnvConfig() {
     } else {
         IE_KMB_TESTS_RUN_INFER = true;
     }
+    if (auto var = std::getenv("IE_KMB_TESTS_RUN_IMPORT")) {
+        IE_KMB_TESTS_RUN_IMPORT = strToBool("IE_KMB_TESTS_RUN_IMPORT", var);
+    } else {
+        IE_KMB_TESTS_RUN_IMPORT = false;
+    }
 }
 
 }  // namespace LayerTestsUtils
