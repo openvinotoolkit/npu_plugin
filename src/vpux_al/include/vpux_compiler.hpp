@@ -97,9 +97,7 @@ public:
     virtual ~ICompiler() = default;
 };
 
-enum class CompilerType {
-    MCMCompiler,
-};
+enum class CompilerType { MCMCompiler, VPUXCompiler };
 
 //////////////////////////////////////////Compiler ////////////////////////////////////////////////
 class Compiler final {

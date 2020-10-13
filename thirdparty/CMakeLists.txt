@@ -15,17 +15,50 @@
 #
 
 #
+# Replace compiler flags
+#
+
+foreach(flag IN ITEMS "-Werror" "-fvisibility=hidden" "-fvisibility-inlines-hidden")
+    string(REPLACE ${flag} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REPLACE ${flag} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+endforeach()
+
+#
+# LLVM/MLIR
+#
+
+if(ENABLE_EXPERIMENTAL_MLIR)
+    set(LLVM_ENABLE_BACKTRACES OFF CACHE BOOL "" FORCE)
+    set(LLVM_ENABLE_BINDINGS OFF CACHE BOOL "" FORCE)
+    set(LLVM_ENABLE_CRASH_OVERRIDES OFF CACHE BOOL "" FORCE)
+    set(LLVM_ENABLE_RTTI ON CACHE BOOL "" FORCE)
+    set(LLVM_ENABLE_EH ON CACHE BOOL "" FORCE)
+    set(LLVM_ENABLE_PROJECTS "mlir" CACHE STRING "" FORCE)
+    set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "" FORCE)
+    set(CROSS_TOOLCHAIN_FLAGS_ "" CACHE STRING "" FORCE)
+    set(CROSS_TOOLCHAIN_FLAGS_NATIVE "" CACHE STRING "" FORCE)
+    add_subdirectory(llvm-project/llvm EXCLUDE_FROM_ALL)
+endif()
+
+#
 # flatbuffers
 #
 
 set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(FLATBUFFERS_INSTALL OFF CACHE BOOL "" FORCE)
-if(CMAKE_CROSSCOMPILING)
-    set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
-else()
-    set(FLATBUFFERS_BUILD_FLATC ON CACHE BOOL "" FORCE)
-endif()
+set(FLATBUFFERS_BUILD_FLATC ON CACHE BOOL "" FORCE)
 add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    set(flatc_COMMAND "flatc" CACHE INTERNAL "" FORCE)
+else()
+    vpux_add_native_tool(flatc "${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers"
+        CMAKE_ARGS
+            "FLATBUFFERS_BUILD_TESTS:BOOL=OFF"
+            "FLATBUFFERS_INSTALL:BOOL=OFF"
+            "FLATBUFFERS_BUILD_FLATC:BOOL=ON"
+    )
+endif()
 
 #
 # vpual

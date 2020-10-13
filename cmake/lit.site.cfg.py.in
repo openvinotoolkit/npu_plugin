@@ -1,0 +1,30 @@
+#
+# Copyright 2020 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials,
+# and your use of them is governed by the express license under which they
+# were provided to you (End User License Agreement for the Intel(R) Software
+# Development Products (Version May 2017)). Unless the License provides
+# otherwise, you may not use, modify, copy, publish, distribute, disclose or
+# transmit this software or the related documents without Intel's prior
+# written permission.
+#
+# This software and the related documents are provided as is, with no
+# express or implied warranties, other than those that are expressly
+# stated in the License.
+#
+
+import lit.llvm
+
+@LIT_SITE_CFG_IN_HEADER@
+
+config.name = '@TEST_NAME@'
+config.suffixes = [@SUFFIXES@]
+
+config.bin_dir = path('../..')
+config.bin_dir = config.bin_dir % lit_config.params
+
+@EXTRA_SUBSTITUTIONS@
+
+lit.llvm.initialize(lit_config, config)
+lit_config.load_config(config, path('lit.cfg.py'))

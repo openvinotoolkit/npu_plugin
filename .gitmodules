@@ -7,3 +7,6 @@
 [submodule "thirdparty/graphFile-schema"]
 	path = thirdparty/graphFile-schema
 	url = ../../movidius/graphFile-schema.git
+[submodule "thirdparty/llvm-project"]
+	path = thirdparty/llvm-project
+	url = ../llvm-project.git

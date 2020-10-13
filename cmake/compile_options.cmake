@@ -74,3 +74,14 @@ function(link_system_libraries TARGET_NAME)
         endif()
     endforeach()
 endfunction()
+
+function(vpux_enable_clang_format TARGET_NAME)
+    add_clang_format_target("${TARGET_NAME}_clang_format"
+        FOR_TARGETS ${TARGET_NAME}
+        ${ARGN}
+    )
+
+    if(TARGET "${TARGET_NAME}_clang_format_fix")
+        add_dependencies(${TARGET_NAME} "${TARGET_NAME}_clang_format_fix")
+    endif()
+endfunction()

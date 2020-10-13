@@ -56,10 +56,23 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(
 }
 
 vpux::Compiler::Ptr vpux::Compiler::create(vpux::CompilerType t) {
+#ifdef ENABLE_EXPERIMENTAL_MLIR
+    if (const auto env = std::getenv("IE_VPUX_USE_EXPERIMENTAL_COMPILER")) {
+        if (std::stoi(env) != 0) {
+            t = vpux::CompilerType::VPUXCompiler;
+        }
+    }
+#endif
+
     switch (t) {
     case vpux::CompilerType::MCMCompiler: {
         return std::make_shared<Compiler>(getLibFilePath("frontend_mcm"));
     }
+#ifdef ENABLE_EXPERIMENTAL_MLIR
+    case vpux::CompilerType::VPUXCompiler: {
+        return std::make_shared<Compiler>(getLibFilePath("vpux_compiler"));
+    }
+#endif
     default:
         THROW_IE_EXCEPTION << "Compiler type not found";
     }

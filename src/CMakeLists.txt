@@ -20,7 +20,7 @@ add_subdirectory(vpual_backend)
 add_subdirectory(mcmCompiler)
 add_subdirectory(frontend_mcm)
 
-# TODO Should be only on AARCH64. Enabled for kmbPlugin Windows build 
+# TODO Should be only on AARCH64. Enabled for kmbPlugin Windows build
 #if(AARCH64)
     add_subdirectory(hddl2_plugin/preproc_gapi)
 #endif()
@@ -35,3 +35,7 @@ if(ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(zero_backend)
 endif()
 add_subdirectory(vpux_plugin)
+
+if(ENABLE_EXPERIMENTAL_MLIR)
+    add_subdirectory(experimental)
+endif()
