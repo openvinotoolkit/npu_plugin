@@ -50,47 +50,37 @@ endif()
 # mcmCompilerGenSchema
 #
 
-if(NOT CMAKE_CROSSCOMPILING AND DEFINED MCM_GRAPH_SCHEMA_TAG)
-    include(FetchContent)
+if(NOT CMAKE_CROSSCOMPILING)
+    set(schema_src_dir "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/graphFile-schema/src/schema")
+    file(GLOB schema_src_files "${schema_src_dir}/*.fbs")
 
-    FetchContent_Declare(schema
-         GIT_REPOSITORY "git@github.com:movidius/graphFile-schema.git"
-         GIT_TAG ${MCM_GRAPH_SCHEMA_TAG})
+    set(schema_dst_dir "${META_DIR_PATH}/include/schema/graphfile")
+    file(MAKE_DIRECTORY ${schema_dst_dir})
 
-    FetchContent_GetProperties(schema)
+    set(schema_dst_files)
+    foreach(src_file IN LISTS schema_src_files)
+        get_filename_component(file_name_we "${src_file}" NAME_WE)
+        set(dst_file "${schema_dst_dir}/${file_name_we}_generated.h")
+        list(APPEND schema_dst_files ${dst_file})
+    endforeach()
 
-    if(NOT schema_POPULATED)
-        FetchContent_Populate(schema)
+    add_custom_command(
+        OUTPUT
+            ${schema_dst_files}
+        COMMAND
+            flatc -o ${schema_dst_dir} --cpp --gen-object-api --force-empty ${schema_src_files}
+        DEPENDS
+            ${schema_src_files}
+            flatc
+        COMMENT
+            "[flatc] Generate graphfile headers"
+        VERBATIM
+    )
 
-        file(MAKE_DIRECTORY "${META_DIR_PATH}/include/schema")
-
-        file(GLOB fbs_input_files "${schema_SOURCE_DIR}/src/schema/*.fbs")
-
-        set(fbs_output_files)
-        foreach(fbs_file IN LISTS fbs_input_files)
-            get_filename_component(file_name_we "${fbs_file}" NAME_WE)
-            set(output_file "${META_DIR_PATH}/include/schema/graphfile/${file_name_we}_generated.h")
-            list(APPEND fbs_output_files ${output_file})
-        endforeach()
-
-        add_custom_command(
-            OUTPUT
-                ${fbs_output_files}
-            COMMAND
-                flatc -o "${META_DIR_PATH}/include/schema/graphfile" --cpp --gen-object-api --force-empty ${fbs_input_files}
-            DEPENDS
-                ${fbs_input_files}
-                flatc
-            COMMENT
-                "[flatc] Generate graphfile headers"
-            VERBATIM
-        )
-
-        add_custom_target(mcmCompilerGenSchema
-            DEPENDS
-                ${fbs_output_files}
-            COMMENT
-                "[flatc] Generate graphfile headers"
-        )
-    endif()
+    add_custom_target(mcmCompilerGenSchema
+        DEPENDS
+            ${schema_dst_files}
+        COMMENT
+            "[flatc] Generate graphfile headers"
+    )
 endif()
