@@ -202,14 +202,16 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
     }
 }
 
-void ExecutableNetwork::GetMetric(const std::string& name, IE::Parameter& result, IE::ResponseDesc*) const {
+IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         // TODO This value should be investigated
         // [Track number: S#37055]
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
+
+    return {};
 }
 
 }  // namespace HDDL2Plugin
