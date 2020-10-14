@@ -39,6 +39,8 @@ ie_dependent_option(ENABLE_VALIDATION_SET "download validation_set required for 
 
 ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker -export-dynamic options" OFF)
 
+ie_option(ENABLE_MCM_COMPILER_PACKAGE "Enable build of separate mcmCompiler package" OFF)
+
 function (print_enabled_kmb_features)
     message(STATUS "KMB Plugin enabled features: ")
     message(STATUS "")

@@ -32,8 +32,9 @@ project(InferenceEngineVPUXPlugin)
 # Build properties
 #
 
-set(VPUX_DEVICE_NAME    "VPUX")
-set(KMB_DEVICE_NAME     "KMB")
+set(VPUX_DEVICE_NAME        "VPUX")
+set(KMB_DEVICE_NAME         "KMB")
+set(MCM_COMPILER_COMPONENT  "mcmCompiler")
 
 set(IE_MAIN_VPUX_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(THIRDPARTY_SERVER_PATH "http://nnt-srv01.inn.intel.com/dl_score_engine/")
@@ -88,4 +89,9 @@ add_subdirectory(tools)
 # CPack
 #
 
-ie_cpack(${VPUX_DEVICE_NAME} ${KMB_DEVICE_NAME})
+set(all_components ${VPUX_DEVICE_NAME} ${KMB_DEVICE_NAME})
+if(ENABLE_MCM_COMPILER_PACKAGE)
+    list(APPEND all_components ${MCM_COMPILER_COMPONENT})
+endif()
+
+ie_cpack(${all_components})

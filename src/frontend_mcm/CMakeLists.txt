@@ -65,6 +65,7 @@ link_system_libraries(${OBJ_TARGET_NAME}
         IE::ngraph_reference
         IE::vpu_common_lib
         mcmCompiler
+        flatbuffers
 )
 target_link_libraries(${OBJ_TARGET_NAME}
     PUBLIC
