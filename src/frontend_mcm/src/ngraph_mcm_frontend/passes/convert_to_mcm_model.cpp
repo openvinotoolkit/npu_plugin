@@ -1422,10 +1422,18 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
             THROW_IE_EXCEPTION << "Input not found: " << inputInfo.first;
     }
 
+    for (const auto& op: func->get_ordered_ops()) {
+        if (ngraph::op::Constant::type_info == op->get_type_info()) {
+            ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr);
+        }
+    }
+
     for (const auto& op : func->get_ordered_ops()) {
         if (ngraph::op::Parameter::type_info == op->get_type_info())
             continue;
         if (ngraph::op::Result::type_info == op->get_type_info())
+            continue;
+        if (ngraph::op::Constant::type_info == op->get_type_info())
             continue;
         ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr);
     }

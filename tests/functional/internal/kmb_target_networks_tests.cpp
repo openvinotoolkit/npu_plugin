@@ -471,9 +471,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_faster_rcnn_resnet101_coco_tf_dense_in
             0.1f, 0.3f);
 }
 
-// ngraph_parser_enabled MCMCompiler throws an error
-// [Track number: S#40573]
-TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_googlenet_v4_tf_dense_int8_IRv10_from_fp32) {
+TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v4_tf_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/googlenet-v4/googlenet_v4_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
