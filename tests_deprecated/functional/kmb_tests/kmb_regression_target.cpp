@@ -18,7 +18,6 @@
 
 #include <file_reader.h>
 #include <gtest/gtest.h>
-#include <ie_layers.h>
 #include <precision_utils.h>
 
 #include <blob_factory.hpp>
