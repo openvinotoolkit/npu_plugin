@@ -32,15 +32,16 @@
 namespace vpux {
 namespace HDDL2 {
 
-class HDDL2ContextParams {
+class ParsedContextParams final {
 public:
-    explicit HDDL2ContextParams(const InferenceEngine::ParamMap& paramMap);
-
+    explicit ParsedContextParams(const InferenceEngine::ParamMap& paramMap);
     InferenceEngine::ParamMap getParamMap() const;
+
     WorkloadID getWorkloadId() const;
 
-protected:
+private:
     InferenceEngine::ParamMap _paramMap;
+
     WorkloadID _workloadId;
 };
 
@@ -54,12 +55,12 @@ public:
     std::shared_ptr<Allocator> getAllocator() const override { return _allocatorPtr; }
     std::string getName() const override { return _name; }
     Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;
-    const HDDL2ContextParams& getContextParams() const { return _contextParams; }
+    const ParsedContextParams& getContextParams() const { return _contextParams; }
     HddlUnite::WorkloadContext::Ptr getUniteContext() const { return _workloadContext; }
 
 private:
     InferenceEngine::RemoteContext::Ptr _contextPtr;
-    HDDL2ContextParams _contextParams;
+    ParsedContextParams _contextParams;
 
     vpu::HDDL2Plugin::HDDL2RemoteAllocator::Ptr _allocatorPtr = nullptr;
     HddlUnite::WorkloadContext::Ptr _workloadContext = nullptr;

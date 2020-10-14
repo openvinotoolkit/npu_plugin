@@ -33,7 +33,7 @@
 #include "hddl2_executor.h"
 #include "ie_algorithm.hpp"
 #include "ie_utils.hpp"
-#include "subplugin/hddl2_remote_blob.h"
+#include "vpux_remote_blob.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
@@ -140,7 +140,7 @@ void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
 }
 
 void HDDL2InferRequest::SetBlob(const char* name, const IE::Blob::Ptr& data) {
-    if (!data->is<HDDL2RemoteBlob>()) {
+    if (!data->is<vpux::VPUXRemoteBlob>()) {
         IE::InferRequestInternal::SetBlob(name, data);
         return;
     }
@@ -200,10 +200,10 @@ void HDDL2InferRequest::SetBlob(const char* name, const IE::Blob::Ptr& data) {
 }
 
 void HDDL2InferRequest::checkBlobs() {
-    for (auto const& input : _inputs) {
-        if (!input.second->is<HDDL2RemoteBlob>()) checkBlob(input.second, input.first, true);
+    for (const auto& input : _inputs) {
+        if (!input.second->is<vpux::VPUXRemoteBlob>()) checkBlob(input.second, input.first, true);
     }
-    for (auto const& output : _outputs) {
-        if (!output.second->is<HDDL2RemoteBlob>()) checkBlob(output.second, output.first, false);
+    for (const auto& output : _outputs) {
+        if (!output.second->is<vpux::VPUXRemoteBlob>()) checkBlob(output.second, output.first, false);
     }
 }

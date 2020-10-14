@@ -61,11 +61,6 @@ namespace HDDL2ContextParams {
     DECLARE_HDDL2_PARAM_KEY(COLOR_FORMAT, InferenceEngine::ColorFormat);
 
     /**
-     * @brief ROI of blob
-     */
-    DECLARE_HDDL2_PARAM_KEY(ROI, InferenceEngine::ROI);
-
-    /**
      * @brief CSRAM size
      */
     DECLARE_HDDL2_PARAM_KEY(CSRAM_SIZE, uint64_t);

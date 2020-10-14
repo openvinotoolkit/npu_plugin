@@ -100,7 +100,10 @@ public:
     using Ptr = std::shared_ptr<Allocator>;
     using CPtr = std::shared_ptr<const Allocator>;
 
+    /** @brief Wrap remote memory. Backend should get all required data from paramMap */
+    virtual void* wrapRemoteMemory(const InferenceEngine::ParamMap& /*paramMap*/) noexcept;
     // TODO: need update methods to remove Kmb from parameters
+    /** @deprecated These functions below should not be used */
     virtual void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept = 0;
     virtual void* wrapRemoteMemoryOffset(
         const int& remoteMemoryFd, const size_t size, const size_t& memOffset) noexcept = 0;

@@ -64,9 +64,7 @@ public:
      */
     void* lock(void* remoteMemoryHandle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE) noexcept override;
 
-    /**
-     * @brief Unlock and synchronize memory from host to device if locked for write
-     */
+    /** @brief Unlock and synchronize memory from host to device if locked for write */
     void unlock(void* remoteMemoryHandle) noexcept override;
 
     /**
@@ -76,28 +74,21 @@ public:
     void* alloc(size_t size) noexcept override;
 
     /**
-     * @brief Wrap already allocated on device memory
-     * @return Allocated remote memory
-     */
-    void* wrapRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) noexcept;
-
-    /**
-     * @brief Fake copy of already allocated on device memory by incrementing remote memory counter
-     * @return Handle to allocated memory
-     */
-    void* incrementRemoteMemoryCounter(const void* remoteMemoryHandle) noexcept;
-
-    /**
      * @brief Free local memory and remote if we are owner
      * @return True if successful otherwise false
      */
     bool free(void* remoteMemoryHandle) noexcept override;
 
-    /**
-     * @brief Free all memory
-     */
+    /** @brief Free all memory */
     void Release() noexcept override;
 
+    /**
+     * @brief Wrap already allocated on device memory
+     * @return Allocated remote memory
+     */
+    void* wrapRemoteMemory(const InferenceEngine::ParamMap& map) noexcept override;
+
+    // TODO To remove. Specific KMB API
     void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept override;
 
     void* wrapRemoteMemoryOffset(
@@ -111,6 +102,12 @@ protected:
      * @return Number of references on remote memory
      */
     size_t decrementRemoteMemoryCounter(void* remoteMemoryHandle, bool& findMemoryHandle) noexcept;
+
+    /**
+     * @brief Fake copy of already allocated on device memory by incrementing remote memory counter
+     * @return Handle to allocated memory
+     */
+    void* incrementRemoteMemoryCounter(const void* remoteMemoryHandle) noexcept;
 
 private:
     HddlUnite::WorkloadContext::Ptr _contextPtr = nullptr;

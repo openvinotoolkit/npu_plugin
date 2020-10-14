@@ -18,7 +18,7 @@
 
 #include <ie_compound_blob.h>
 #include <ie_memcpy.h>
-#include <subplugin/hddl2_remote_blob.h>
+#include <vpux_remote_blob.h>
 
 #include <blob_factory.hpp>
 #include <ie_preprocess.hpp>
@@ -29,6 +29,7 @@
 #include "hddl2_exceptions.h"
 #include "hddl2_metrics.h"
 #include "hddl_unite/hddl2_unite_graph.h"
+#include "vpux_params_private_options.h"
 #include "vpux_remote_context.h"
 
 namespace vpux {
@@ -116,12 +117,13 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
 }
 //------------------------------------------------------------------------------
 HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
-    const VPUXConfig& config, const HddlUnite::WorkloadContext::Ptr workloadContext) {
+    const VPUXConfig& config, const std::shared_ptr<vpux::Allocator>& allocator,
+    const HddlUnite::WorkloadContext::Ptr& workloadContext) {
     auto logger = std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput());
     vpux::HDDL2::HDDL2Executor::Ptr executor = nullptr;
 
     try {
-        executor = std::make_shared<vpux::HDDL2::HDDL2Executor>(networkDesc, config, workloadContext);
+        executor = std::make_shared<vpux::HDDL2::HDDL2Executor>(networkDesc, config, allocator, workloadContext);
     } catch (const IE::details::InferenceEngineException& exception) {
         if (exception.hasStatus() && exception.getStatus() == IE::StatusCode::NETWORK_NOT_LOADED) {
             logger->error(FAILED_LOAD_NETWORK.c_str());
@@ -135,19 +137,22 @@ HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription
 }
 
 HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
-    HddlUnite::WorkloadContext::Ptr workloadContext)
-    : _network(network),
-      // TODO Make executor logger name unique
-      _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())),
+    const std::shared_ptr<vpux::Allocator>& allocator, const HddlUnite::WorkloadContext::Ptr workloadContext)
+    // TODO Make executor logger name unique
+    : _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())),
+      _network(network),
+      _allocatorPtr(allocator),
       _workloadContext(workloadContext) {
     _config.parseFrom(config);
     loadGraphToDevice();
 }
 
 HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
-    : _network(ex._network),
-      _config(ex._config),
+    : _config(ex._config),
+      _logger(std::make_shared<vpu::Logger>("Executor", _config.logLevel(), vpu::consoleOutput())),
+      _network(ex._network),
       _uniteGraphPtr(ex._uniteGraphPtr),
+      _allocatorPtr(ex._allocatorPtr),
       _workloadContext(ex._workloadContext) {}
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
@@ -186,8 +191,10 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         if (preProcMap.find(inputName) != preProcMap.end()) {
             needUnitePreProcessing = true;
         }
-        if (inputBlobPtr->is<vpu::HDDL2Plugin::HDDL2RemoteBlob>()) {
-            needUnitePreProcessing |= (inputBlobPtr->as<vpu::HDDL2Plugin::HDDL2RemoteBlob>()->getROIPtr() != nullptr);
+
+        if (inputBlobPtr->is<IE::RemoteBlob>()) {
+            const auto& param = std::static_pointer_cast<IE::RemoteBlob>(inputBlobPtr)->getParams();
+            needUnitePreProcessing |= (param.find(IE::KMB_PARAM_KEY(ROI_PTR)) != param.end());
         }
 
         const auto deviceInputLayout = deviceInputs.at(inputName)->getLayout();

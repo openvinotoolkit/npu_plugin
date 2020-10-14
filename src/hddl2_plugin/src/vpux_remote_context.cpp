@@ -21,7 +21,7 @@
 #include "hddl2_params.hpp"
 #include "vpux_remote_context.h"
 // Subplugin
-#include "subplugin/hddl2_remote_blob.h"
+#include "vpux_remote_blob.h"
 
 using namespace vpux;
 
@@ -45,8 +45,7 @@ IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(
     }
     try {
         auto allocator = _devicePtr->getAllocator();
-        // TODO Remote HDDL2RemoteBlob direct dependencies
-        return std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteBlob>(
+        return std::make_shared<vpux::VPUXRemoteBlob>(
             tensorDesc, shared_from_this(), allocator, params, _config.logLevel());
     } catch (const std::exception& ex) {
         _logger->warning("Incorrect parameters for CreateBlob call.\n"

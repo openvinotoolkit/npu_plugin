@@ -14,15 +14,23 @@
 // stated in the License.
 //
 
-#include "subplugin/hddl2_remote_allocator.h"
-
+// System
 #include <climits>
 #include <memory>
 #include <string>
+// Plugin
+#include "hddl2_exceptions.h"
+#include "hddl2_params.hpp"
+#include "vpux_params_private_options.h"
+// Subplugin
+#include "subplugin/hddl2_helper.h"
+#include "subplugin/hddl2_remote_allocator.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
+namespace IE = InferenceEngine;
 
+//------------------------------------------------------------------------------
 bool static isValidRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) {
     // Using local namespace because INVALID_DMABUFFD is macro (-1) and HddlUnite::(-1) is incorrect
     using namespace HddlUnite;
@@ -58,8 +66,23 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
     return nullptr;
 }
 
-void* HDDL2RemoteAllocator::wrapRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) noexcept {
+void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& map) noexcept {
     std::lock_guard<std::mutex> lock(memStorageMutex);
+
+    // If we already allocate this memory, just try to find it and increase counter
+    if (map.find(IE::KMB_PARAM_KEY(BLOB_MEMORY_HANDLE)) != map.end()) {
+        const auto memoryHandle = static_cast<void*>(map.at(IE::KMB_PARAM_KEY(BLOB_MEMORY_HANDLE)));
+        return incrementRemoteMemoryCounter(memoryHandle);
+    }
+
+    // TODO potential (low influence) performance problem, since this will be called on each wrap
+    HddlUnite::RemoteMemory::Ptr remoteMemory = nullptr;
+    try {
+        remoteMemory = vpux::HDDL2::getRemoteMemoryFromParams(map);
+    } catch (const std::exception& ex) {
+        _logger->error("Failed to get remote memory! {}", ex.what());
+        return nullptr;
+    }
 
     if (!remoteMemory) {
         return nullptr;
@@ -91,7 +114,6 @@ void* HDDL2RemoteAllocator::incrementRemoteMemoryCounter(const void* remoteMemor
         return nullptr;
     }
 
-    std::lock_guard<std::mutex> lock(memStorageMutex);
     auto counter_it = _memoryHandleCounter.find(const_cast<void*>(remoteMemoryHandle));
     if (counter_it == _memoryHandleCounter.end()) {
         _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);

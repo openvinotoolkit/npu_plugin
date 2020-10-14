@@ -15,12 +15,16 @@
 //
 
 #pragma once
+// System
 #include <memory>
-
-#include "Inference.h"
+// IE
 #include "ie_blob.h"
 #include "ie_data.h"
 #include "ie_preprocess.hpp"
+// Plugin
+#include <vpux_params.hpp>
+// Low-level
+#include "Inference.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -46,15 +50,14 @@ public:
     virtual void initUniteBlobDesc(HddlUnite::Inference::BlobDesc&);
     virtual HddlUnite::Inference::NNInputDesc createNNDesc();
 
-    std::shared_ptr<InferenceEngine::ROI> getROIPtr() const { return _roiPtr; }
+    std::shared_ptr<const InferenceEngine::ROI> getROIPtr() const { return _parsedBlobParamsPtr->getROIPtr(); }
 
 protected:
     const bool _createRemoteMemoryDescriptor;
     const bool _isNeedAllocation = true;
-    bool _isNV12Data = false;
-    std::shared_ptr<InferenceEngine::ROI> _roiPtr;
 
     InferenceEngine::Blob::CPtr _blobPtr = nullptr;
+    std::shared_ptr<vpux::ParsedRemoteBlobParams> _parsedBlobParamsPtr = nullptr;
 
     InferenceEngine::DataPtr _desc = nullptr;
 

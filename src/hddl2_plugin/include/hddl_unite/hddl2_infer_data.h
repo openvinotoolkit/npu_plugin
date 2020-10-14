@@ -38,12 +38,13 @@ namespace HDDL2Plugin {
 /**
  * Carries information necessary for invoking infer request on Unite
  */
-class HddlUniteInferData {
+class HddlUniteInferData final {
 public:
     using Ptr = std::shared_ptr<HddlUniteInferData>;
 
+    // TODO refactor this mess
     explicit HddlUniteInferData(const bool& needPreProcessing = false,
-        const HddlUnite::WorkloadContext::Ptr workloadContext = nullptr,
+        const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
         const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR,
         const size_t numOutputs = 1);
 

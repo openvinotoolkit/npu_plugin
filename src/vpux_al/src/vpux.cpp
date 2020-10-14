@@ -74,4 +74,8 @@ const std::string IEngineBackend::getName() const { THROW_IE_EXCEPTION << "Not i
 const std::map<std::string, std::shared_ptr<IDevice>>& IEngineBackend::getDevices() const {
     THROW_IE_EXCEPTION << "Not implemented";
 }
+void* Allocator::wrapRemoteMemory(const InferenceEngine::ParamMap&) noexcept {
+    std::cerr << "Not implemented" << std::endl;
+    return nullptr;
+}
 }  // namespace vpux

@@ -14,21 +14,22 @@
 // stated in the License.
 //
 
-// Plugin
-#include "hddl2_exceptions.h"
-#include "hddl2_executor.h"
-// Subplugin
-#include "subplugin/hddl2_device.h"
-namespace vpux {
-namespace HDDL2 {
-namespace IE = InferenceEngine;
+/**
+ * @brief Represent private params options, which should not be exposed to user and used only inside plugin
+ */
 
-//------------------------------------------------------------------------------
-HDDLUniteDevice::HDDLUniteDevice(const std::string& name): _name(name) {}
+#pragma once
 
-vpux::Executor::Ptr HDDLUniteDevice::createExecutor(
-    const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
-    return HDDL2Executor::prepareExecutor(networkDescription, config);
-}
-}  // namespace HDDL2
-}  // namespace vpux
+#include "kmb_params.hpp"
+// TODO Refactor namespace and names in configs/params activity
+namespace InferenceEngine {
+namespace KmbContextParams {
+
+/** @brief Memory handle stored inside blob */
+DECLARE_KMB_PARAM_KEY(BLOB_MEMORY_HANDLE, void*);
+
+/** @brief Allow to store ROI provided by user on createROI call */
+DECLARE_KMB_PARAM_KEY(ROI_PTR, std::shared_ptr<InferenceEngine::ROI>);
+
+}  // namespace KmbContextParams
+}  // namespace InferenceEngine

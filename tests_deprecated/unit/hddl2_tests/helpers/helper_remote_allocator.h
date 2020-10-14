@@ -21,9 +21,8 @@
 namespace vpu {
 namespace HDDL2Plugin {
 
+namespace IE = InferenceEngine;
 using memoryHandle = void*;
-
-
 //------------------------------------------------------------------------------
 class Allocator_Helper {
 public:
@@ -69,7 +68,8 @@ private:
 
 inline memoryHandle Allocator_WrappedRemoteMemory_Helper::createMemory(const size_t &size) {
     UNUSED(size);
-    return allocatorPtr->wrapRemoteMemory(_remoteMemory);
+    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), _remoteMemory}};
+    return allocatorPtr->wrapRemoteMemory(paramMap);
 }
 
 inline Allocator_WrappedRemoteMemory_Helper::
