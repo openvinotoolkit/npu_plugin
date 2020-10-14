@@ -24,23 +24,22 @@
 namespace vpux {
 namespace HDDL2 {
 namespace IE = InferenceEngine;
-//------------------------------------------------------------------------------
-HDDL2ContextParams::HDDL2ContextParams(const InferenceEngine::ParamMap& paramMap) {
-    if (paramMap.empty()) {
-        THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param map for context is empty.";
+
+ParsedContextParams::ParsedContextParams(const InferenceEngine::ParamMap& paramMap): _paramMap(paramMap) {
+    // TODO Add trace logging
+    if (_paramMap.empty()) {
+        THROW_IE_EXCEPTION << PARAMS_ERROR_str << "Param map for context is empty.";
     }
     // Get workload id and based on it get HddlUniteContext
-    auto workload_ctx_iter = paramMap.find(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID));
-    if (workload_ctx_iter == paramMap.end()) {
-        THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param map does not contain workload id information";
+    if (_paramMap.find(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)) == paramMap.end()) {
+        THROW_IE_EXCEPTION << PARAMS_ERROR_str << "Param map does not contain workload id information";
     }
-    _workloadId = paramMap.at(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID));
-    _paramMap = paramMap;
+    _workloadId = _paramMap.at(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID));
 }
 
-InferenceEngine::ParamMap HDDL2ContextParams::getParamMap() const { return _paramMap; }
+InferenceEngine::ParamMap ParsedContextParams::getParamMap() const { return _paramMap; }
 
-WorkloadID HDDL2ContextParams::getWorkloadId() const { return _workloadId; }
+WorkloadID ParsedContextParams::getWorkloadId() const { return _workloadId; }
 
 //------------------------------------------------------------------------------
 HDDLUniteContextDevice::HDDLUniteContextDevice(const InferenceEngine::ParamMap& paramMap, const VPUXConfig& config)
@@ -59,7 +58,7 @@ HDDLUniteContextDevice::HDDLUniteContextDevice(const InferenceEngine::ParamMap& 
 
 vpux::Executor::Ptr HDDLUniteContextDevice::createExecutor(
     const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
-    return vpux::HDDL2::HDDL2Executor::prepareExecutor(networkDescription, config, _workloadContext);
+    return vpux::HDDL2::HDDL2Executor::prepareExecutor(networkDescription, config, _allocatorPtr, _workloadContext);
 }
 }  // namespace HDDL2
 }  // namespace vpux

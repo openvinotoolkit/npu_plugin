@@ -14,34 +14,15 @@
 // stated in the License.
 //
 
-#pragma once
-
-// System
-#include <memory>
-#include <string>
 // IE
-#include "ie_allocator.hpp"
-// Plugin
-#include "vpux.hpp"
+#include <ie_remote_context.hpp>
+// Low-level
+#include <RemoteMemory.h>
 
 namespace vpux {
 namespace HDDL2 {
-/**
- * @brief General device, for ImageWorkload.
- * If specific name not provided, device selection will be postponed until inference
- */
-class HDDLUniteDevice final : public IDevice {
-public:
-    explicit HDDLUniteDevice(const std::string& name = "");
-    std::shared_ptr<Allocator> getAllocator() const override { return _allocatorPtr; }
-    std::string getName() const override { return _name; }
 
-    Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;
-
-private:
-    std::shared_ptr<Allocator> _allocatorPtr = nullptr;
-    const std::string _name;
-};
+HddlUnite::RemoteMemory::Ptr getRemoteMemoryFromParams(const InferenceEngine::ParamMap& params);
 
 }  // namespace HDDL2
 }  // namespace vpux

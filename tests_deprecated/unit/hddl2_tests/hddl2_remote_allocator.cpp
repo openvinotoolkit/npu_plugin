@@ -61,12 +61,12 @@ TEST_F(RemoteAllocator_UnitTests, constructor_NullContext_Throw) {
 
 using RemoteAllocator_WrapMemory = RemoteAllocator_UnitTests;
 
-TEST_F(RemoteAllocator_WrapMemory, IncorrectRemoteMem_ReturnNull) {
+TEST_F(RemoteAllocator_WrapMemory, IncorrectRemoteMemType_ReturnNull) {
     SKIP_IF_NO_DEVICE();
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr);
-
-    auto remoteMem = allocatorPtr->wrapRemoteMemory(nullptr);
-    ASSERT_EQ(remoteMem, nullptr);
+    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), nullptr}};
+    const auto memoryHandle = allocatorPtr->wrapRemoteMemory(paramMap);
+    EXPECT_EQ(memoryHandle, nullptr);
 }
 
 //------------------------------------------------------------------------------

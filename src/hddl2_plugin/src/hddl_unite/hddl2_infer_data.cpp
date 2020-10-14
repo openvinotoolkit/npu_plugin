@@ -24,7 +24,7 @@
 #include "hddl_unite/hddl2_infer_data.h"
 // Subplugin
 #include "subplugin/hddl2_context_device.h"
-#include "subplugin/hddl2_remote_blob.h"
+#include "vpux_remote_blob.h"
 // Low-level
 #include "Inference.h"
 
@@ -42,11 +42,12 @@ static void checkData(const IE::DataPtr& desc) {
 }
 
 //------------------------------------------------------------------------------
-HddlUniteInferData::HddlUniteInferData(const bool& needUnitePreProcessing,
-    const HddlUnite::WorkloadContext::Ptr workloadContext, const IE::ColorFormat colorFormat, const size_t numOutputs)
+HddlUniteInferData::HddlUniteInferData(const bool& needPreProcessing,
+    const HddlUnite::WorkloadContext::Ptr& workloadContext, const InferenceEngine::ColorFormat colorFormat,
+    const size_t numOutputs)
     : _workloadContext(workloadContext),
       _haveRemoteContext(workloadContext != nullptr),
-      _needUnitePreProcessing(needUnitePreProcessing),
+      _needUnitePreProcessing(needPreProcessing),
       _graphColorFormat(colorFormat) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
 

@@ -14,11 +14,11 @@
 // stated in the License.
 //
 
+// TODO cleanup this
 #include <ie_blob.h>
 
 #include <blob_factory.hpp>
 #include <fstream>
-#include <hddl2_plugin_config.hpp>
 
 #include <creators/creator_blob_nv12.h>
 #include <tests_common.hpp>
@@ -36,6 +36,7 @@
 #include <helper_calc_cpu_ref.h>
 #include "models/precompiled_resnet.h"
 #include <vpu/utils/ie_helpers.hpp>
+#include "kmb_params.hpp"
 
 namespace IE = InferenceEngine;
 

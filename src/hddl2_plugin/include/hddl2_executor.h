@@ -31,9 +31,10 @@ public:
 
     HDDL2Executor(const HDDL2Executor& ex);
     explicit HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
-        HddlUnite::WorkloadContext::Ptr workloadContext);
+        const std::shared_ptr<vpux::Allocator>& allocator, HddlUnite::WorkloadContext::Ptr workloadContext);
     static HDDL2Executor::Ptr prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
-        const VPUXConfig& config, const HddlUnite::WorkloadContext::Ptr workloadContext);
+        const VPUXConfig& config, const std::shared_ptr<vpux::Allocator>& allocator = nullptr,
+        const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr);
 
     void setup(const InferenceEngine::ParamMap& params) override;
 
@@ -53,16 +54,17 @@ private:
     void loadGraphToDevice();
 
 private:
-    NetworkDescription::CPtr _network;
-
     vpu::HDDL2Config _config;
     const vpu::Logger::Ptr _logger;
+
+    NetworkDescription::CPtr _network;
 
     vpu::HDDL2Plugin::HddlUniteGraph::Ptr _uniteGraphPtr = nullptr;
     vpu::HDDL2Plugin::HddlUniteInferData::Ptr _inferDataPtr = nullptr;
 
     // Variables below might be not required for executor
-    HddlUnite::WorkloadContext::Ptr _workloadContext;
+    std::shared_ptr<vpux::Allocator> _allocatorPtr = nullptr;
+    HddlUnite::WorkloadContext::Ptr _workloadContext = nullptr;
 
     // TODO [Track number: S#37397] [Workaround] Avoid allocation inferData each time. If size of inputs is changed,
     // need  to recreating (not implemented yet)

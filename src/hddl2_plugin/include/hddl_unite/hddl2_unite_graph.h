@@ -29,7 +29,7 @@
 namespace vpu {
 namespace HDDL2Plugin {
 
-class HddlUniteGraph {
+class HddlUniteGraph final {
 public:
     using Ptr = std::shared_ptr<HddlUniteGraph>;
     using CPtr = std::shared_ptr<const HddlUniteGraph>;
@@ -46,7 +46,7 @@ public:
     ~HddlUniteGraph();
     void InferAsync(const HddlUniteInferData::Ptr& data) const;
 
-protected:
+private:
     HddlUnite::Inference::Graph::Ptr _uniteGraphPtr = nullptr;
     const Logger::Ptr _logger;
 };

@@ -41,8 +41,6 @@
 #include "ie_macro.hpp"
 #include "vpux.hpp"
 #include "vpux_remote_context.h"
-// Subplugin
-#include "subplugin/hddl2_backend.h"
 
 namespace vpux {
 namespace HDDL2 {

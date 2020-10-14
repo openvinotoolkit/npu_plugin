@@ -23,52 +23,28 @@
 #include "ie_blob.h"
 #include "ie_remote_context.hpp"
 // Plugin
+#include "hddl2_exceptions.h"
 #include "vpux.hpp"
+#include "vpux_params.hpp"
 #include "vpux_remote_context.h"
-// Low-level
-#include "RemoteMemory.h"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
 
 //------------------------------------------------------------------------------
-class HDDL2BlobParams {
+class VPUXRemoteBlob final : public InferenceEngine::RemoteBlob {
 public:
-    explicit HDDL2BlobParams(const InferenceEngine::ParamMap& paramMap, const vpu::LogLevel& logLevel);
+    using Ptr = std::shared_ptr<VPUXRemoteBlob>;
+    using CPtr = std::shared_ptr<const VPUXRemoteBlob>;
 
-    InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
-    HddlUnite::RemoteMemory::Ptr getRemoteMemory() const { return _remoteMemory; }
-    InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
-
-protected:
-    InferenceEngine::ParamMap _paramMap;
-    HddlUnite::RemoteMemory::Ptr _remoteMemory;
-    InferenceEngine::ColorFormat _colorFormat;
-    const Logger::Ptr _logger;
-};
-
-//------------------------------------------------------------------------------
-class HDDL2RemoteBlob : public InferenceEngine::RemoteBlob {
-public:
-    using Ptr = std::shared_ptr<HDDL2RemoteBlob>;
-    using CPtr = std::shared_ptr<const HDDL2RemoteBlob>;
-
-    explicit HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
+    explicit VPUXRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
         const vpux::VPUXRemoteContext::Ptr& contextPtr, const std::shared_ptr<vpux::Allocator>& allocator,
-        const InferenceEngine::ParamMap& params, const LogLevel logLevel = LogLevel::None);
-    ~HDDL2RemoteBlob() override { HDDL2RemoteBlob::deallocate(); }
+        const InferenceEngine::ParamMap& params, const vpu::LogLevel logLevel = vpu::LogLevel::None);
+    ~VPUXRemoteBlob() override { VPUXRemoteBlob::deallocate(); }
 
-    /**
-     * @details Since Remote blob just wrap remote memory, allocation is not required
-     */
+    /** @details Since Remote blob just wrap remote memory, allocation is not required */
     void allocate() noexcept override {}
 
-    /**
-     * @brief Deallocate local memory
-     * @return True if allocation is done, False if deallocation is failed.
-     */
     bool deallocate() noexcept override;
-
     InferenceEngine::LockedMemory<void> buffer() noexcept override;
 
     InferenceEngine::LockedMemory<const void> cbuffer() const noexcept override;
@@ -81,15 +57,7 @@ public:
 
     std::shared_ptr<InferenceEngine::RemoteContext> getContext() const noexcept override;
 
-    InferenceEngine::ParamMap getParams() const override { return _params.getParamMap(); }
-
     std::string getDeviceName() const noexcept override;
-
-    HddlUnite::RemoteMemory::Ptr getRemoteMemory() const { return _remoteMemory; }
-
-    InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
-
-    std::shared_ptr<InferenceEngine::ROI> getROIPtr() const { return _roiPtr; }
 
     size_t size() const noexcept override;
 
@@ -97,23 +65,27 @@ public:
 
     InferenceEngine::Blob::Ptr createROI(const InferenceEngine::ROI& regionOfInterest) const override;
 
-protected:
+    InferenceEngine::ParamMap getParams() const override { return _parsedParams.getParamMap(); }
+
+private:
+    /** @brief All objects, which might be used inside backend, should be stored in paramMap */
+    ParsedRemoteBlobParams _parsedParams;
+
     void* _memoryHandle = nullptr;
 
-    const HDDL2BlobParams _params;
     std::weak_ptr<vpux::VPUXRemoteContext> _remoteContextPtr;
     std::shared_ptr<InferenceEngine::IAllocator> _allocatorPtr = nullptr;
 
-    const HddlUnite::RemoteMemory::Ptr _remoteMemory;
-    const InferenceEngine::ColorFormat _colorFormat;
-    std::shared_ptr<InferenceEngine::ROI> _roiPtr;
-    const Logger::Ptr _logger;
+    const vpu::Logger::Ptr _logger;
 
-    explicit HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
+private:
+    /** @details Remote ROI blob can be created only based on full frame Remote blob.
+     *  IE API assume, that Remote ROI blob can be created only by using blob->createROI call on RemoteBlob
+     *  This will not allow to create ROI blob using paramMap, which is not API approach. */
+    explicit VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
 
-    void* getHandle() const noexcept override;
+    void* getHandle() const noexcept override { return _memoryHandle; }
     const std::shared_ptr<InferenceEngine::IAllocator>& getAllocator() const noexcept override;
 };
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace vpux

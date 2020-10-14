@@ -27,6 +27,7 @@ addIeTargetTest(
         "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
         "${IE_MAIN_SOURCE_DIR}/include"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/hddl2"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/vpu"
     LINK_LIBRARIES
         IE::IESharedTests
         IE::vpu_common_lib
