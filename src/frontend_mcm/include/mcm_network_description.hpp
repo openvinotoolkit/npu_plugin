@@ -41,7 +41,7 @@ public:
     const std::string& getName() const override;
 
 private:
-    const std::string _name;
+    std::string _name;
     const std::vector<char> _compiledNetwork;
 
     vpux::DataMap _deviceInputs;

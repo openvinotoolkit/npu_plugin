@@ -23,6 +23,7 @@
 #include <legacy/net_pass.h>
 
 #include <generic_ie.hpp>
+#include <ie_metric_helpers.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
@@ -199,6 +200,18 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
         ExportImpl(modelFile);
     } else {
         THROW_IE_EXCEPTION << "The " << modelFileName << " file can not be opened for export.";
+    }
+}
+
+InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
+    if (name == METRIC_KEY(NETWORK_NAME)) {
+        if (_networkPtr != nullptr) {
+            IE_SET_METRIC_RETURN(NETWORK_NAME, _networkPtr->getName());
+        } else {
+            THROW_IE_EXCEPTION << "GetMetric: network is not initialized";
+        }
+    } else {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 }
 
