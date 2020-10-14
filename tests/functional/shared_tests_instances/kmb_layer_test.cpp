@@ -22,12 +22,6 @@ KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
     if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
         configuration[CONFIG_KEY(LOG_LEVEL)] = envConfig.IE_KMB_TESTS_LOG_LEVEL;
     }
-    // todo: values are temporarily overriden to enable mcm compilation
-    // targetDevice = testPlatformTargetDevice;
-    inLayout = InferenceEngine::Layout::NHWC;
-    outLayout = InferenceEngine::Layout::NHWC;
-    inPrc = InferenceEngine::Precision::FP16;
-    outPrc = InferenceEngine::Precision::FP16;
 }
 
 void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
