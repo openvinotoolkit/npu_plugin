@@ -377,9 +377,9 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     if (FLAGS_r)
         commandline += (" -r ");
 
-    // test_classification doesn't support ip flag of FP16
-    // if (! FLAGS_ip.empty() && FLAGS_ip != "FP16")
-    //     commandline += (" -ip " + FLAGS_ip);
+    // Hardcoding for ACL net, as test_classification doesn't support ip flag of FP16
+    if (FLAGS_m.find("aclnet") != std::string::npos)
+        commandline += (" -ip FP32");
 
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
