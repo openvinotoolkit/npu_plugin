@@ -32,9 +32,6 @@ namespace mv
 
 void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    UNUSED(fuseScaleFcn);
-    UNUSED(fuseBatchNormFcn);
-
     mv::OpModel om(model);
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseTaskMap =

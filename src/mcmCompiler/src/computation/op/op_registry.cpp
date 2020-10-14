@@ -669,8 +669,8 @@ std::string mv::op::OpRegistry::getLabelNameStringifyCall_(const std::string& la
         ".end(), ':', '_');" + eol;
 }
 
-std::string mv::op::OpRegistry::getStringifiedInputsCall_(const std::string opType, const std::string& indent,
-    const std::string eol)
+std::string mv::op::OpRegistry::getStringifiedInputsCall_(const std::string& opType, const std::string& indent,
+    const std::string& eol)
 {
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of obtaining a stringified inputs representation call for an unregistered op type " + opType);
@@ -706,7 +706,7 @@ std::string mv::op::OpRegistry::getStringifiedInputsCall_(const std::string opTy
 
 }
 
-std::string mv::op::OpRegistry::getStringifiedOutputsCall_(const std::string opType, const std::string& indent, const std::string eol)
+std::string mv::op::OpRegistry::getStringifiedOutputsCall_(const std::string& opType, const std::string& indent, const std::string& eol)
 {
 
     if (!checkOpType(opType))
@@ -736,7 +736,7 @@ std::string mv::op::OpRegistry::getStringifiedOutputsCall_(const std::string opT
 
 }
 
-std::vector<std::string> mv::op::OpRegistry::getStringifiedArgsCall_(const std::string opType)
+std::vector<std::string> mv::op::OpRegistry::getStringifiedArgsCall_(const std::string& opType)
 {
 
     if (!checkOpType(opType))

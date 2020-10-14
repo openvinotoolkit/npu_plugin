@@ -33,9 +33,9 @@ namespace mv
             static std::string getCompositionDecl_(const std::string& opType);
             static std::string getCompositionDef_(const std::string& opType, const std::string& eol = "\n", const std::string& tab = "    ");
             static std::string getCompositionCall_(const std::string& opType);
-            static std::string getStringifiedInputsCall_(const std::string opType, const std::string& indent, const std::string eol);
-            static std::string getStringifiedOutputsCall_(const std::string opType, const std::string& indent, const std::string eol);
-            static std::vector<std::string> getStringifiedArgsCall_(const std::string opType);
+            static std::string getStringifiedInputsCall_(const std::string& opType, const std::string& indent, const std::string& eol);
+            static std::string getStringifiedOutputsCall_(const std::string& opType, const std::string& indent, const std::string& eol);
+            static std::vector<std::string> getStringifiedArgsCall_(const std::string& opType);
             static std::string getLabelNameStringifyCall_(const std::string& label, const std::string& name, std::size_t idx,
                 const std::string& indent, const std::string& eol);
 

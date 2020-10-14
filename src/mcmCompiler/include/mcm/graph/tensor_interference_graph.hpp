@@ -30,7 +30,7 @@ namespace mv
         {
         }
 
-        TensorInterferenceGraphNode(std::string name_) :
+        TensorInterferenceGraphNode(const std::string& name_) :
             name(name_),
             weight(0),
             neighborsWeight(0),
@@ -113,7 +113,7 @@ namespace mv
             void cmTransitiveClosureHelper_(mv::OpModel& om, mv::ControlModel& cm, std::string source, std::string target);
             bool checkNodesAreNeighbors_(TensorInterferenceGraph::node_list_iterator& n1, TensorInterferenceGraph::node_list_iterator& n2);
             bool checkNodesDontInterfere_(std::unordered_set<std::string>& sourceNodeNames, std::unordered_set<std::string>& sinkNodeNames);
-            bool isTensorInTopNames_(const std::vector<Data::TensorIterator>& tensorList, DataModel& model, const std::string tensorName);
+            bool isTensorInTopNames_(const std::vector<Data::TensorIterator>& tensorList, DataModel& model, const std::string& tensorName);
             void genIntereferenceGraph_(const mv::pass::PassEntry& pass, ComputationModel& model , const TensorIteratorFilter& tensorFilter,const OpIteratorFilter& taskFilter, const SinkOpIteratorFilter& sinkFilter, bool isDMA);
             std::set<std::string> getTensorNames_(ComputationModel& model, const TensorIteratorFilter& tensorFilter, const OpIteratorFilter& taskFilter, bool isDMA);
             void addWeightsToInterferenceGraph_(const mv::pass::PassEntry& pass, ComputationModel& model, std::size_t alignment);

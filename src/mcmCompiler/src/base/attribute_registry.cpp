@@ -171,7 +171,7 @@ const std::function<mv::Attribute(const mv::json::Value&)>& mv::attr::AttributeR
         " not found in the attribute registry");
 }
 
-const std::function<mv::Attribute(const mv::json::Value&)>& mv::attr::AttributeRegistry::getFromJSONFunc(std::string typeName)
+const std::function<mv::Attribute(const mv::json::Value&)>& mv::attr::AttributeRegistry::getFromJSONFunc(const std::string& typeName)
 {
     return getFromJSONFunc(getTypeID(typeName));
 }
