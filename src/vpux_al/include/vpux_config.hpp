@@ -44,6 +44,7 @@ public:
     bool useNGraphParser() const { return _useNGraphParser; }
 
     int throughputStreams() const { return _throughputStreams; }
+    int executorStreams() const { return _executorStreams; }
 
     const std::string& platform() const { return _platform; }
 
@@ -70,6 +71,7 @@ protected:
     bool _useNGraphParser = true;
 
     int _throughputStreams = 1;
+    int _executorStreams = 1;
 
     std::string _platform = "VPU_2490";
 

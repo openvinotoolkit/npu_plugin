@@ -43,7 +43,7 @@ fetch_models_and_validation_set()
 # OpenCL compiler
 #
 
-set(VPU_CLC_MA2X9X_VERSION "movi-cltools-20.09.1-ldscripts-kmb")
+set(VPU_CLC_MA2X9X_VERSION "movi-cltools-20.09.2")
 
 if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
@@ -121,7 +121,7 @@ function(add_kmb_compile_custom_kernels)
             OUTPUT ${out_file}
             COMMAND
                 ${CMAKE_COMMAND} -E env
-                    "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X9X}/ldscripts/"
+                    "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X9X}/ldscripts/3010xx"
                     "SHAVE_MA2X8XLIBS_DIR=${VPU_CLC_MA2X9X}/lib"
                     "SHAVE_MYRIAD_LD_DIR=${VPU_CLC_MA2X9X}/bin"
                     "SHAVE_MOVIASM_DIR=${VPU_CLC_MA2X9X}/bin"

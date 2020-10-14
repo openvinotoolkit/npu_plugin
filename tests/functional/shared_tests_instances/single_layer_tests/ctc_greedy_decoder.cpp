@@ -11,13 +11,13 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbCTCDecoderLayerTest: public CTCGreedyDecoderLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class KmbCTCGreedyDecoderLayerTest: public CTCGreedyDecoderLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     std::vector<std::vector<std::uint8_t>> CalculateRefs() override {
         return CTCGreedyDecoderLayerTest::CalculateRefs();
     };
 };
 
-TEST_P(KmbCTCDecoderLayerTest, CompareWithRefs) {
+TEST_P(KmbCTCGreedyDecoderLayerTest, CompareWithRefs) {
     Run();
 }
 
@@ -53,7 +53,7 @@ const auto params = testing::Combine(
 // TODO: [Track number: C#40001]
 INSTANTIATE_TEST_CASE_P(
     DISABLED_CTCDecoder,
-    KmbCTCDecoderLayerTest,
+    KmbCTCGreedyDecoderLayerTest,
     params,
     CTCGreedyDecoderLayerTest::getTestCaseName
 );

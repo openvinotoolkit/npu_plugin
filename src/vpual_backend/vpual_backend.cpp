@@ -43,7 +43,12 @@ std::shared_ptr<xlink_handle> getHandleById(const uint32_t& devId) {
 bool isDeviceFree(const std::shared_ptr<xlink_handle>& devHandle) {
     uint32_t devStatus = XLINK_DEV_ERROR;
     xlink_error getStatusResult = xlink_get_device_status(devHandle.get(), &devStatus);
-    return (getStatusResult == X_LINK_SUCCESS && devStatus == XLINK_DEV_OFF);
+    // FIXME this is a hack for detect + classify use case
+    // for some reason two instances of IE Core is created (one for each network)
+    // both networks run on the same device
+    // the first instance of plug-in seizes the device, so the second instance receives device busy
+    // [Track number: H#18012987025]
+    return getStatusResult == X_LINK_SUCCESS;
 }
 
 std::string getNameByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
@@ -61,6 +66,12 @@ std::string getNameByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
         {"vpu-slice-3", "VPU-3"},
     };
     return xlinkNameMapping.at(devName);
+}
+
+bool isVPUDevice(const uint32_t deviceId) {
+    constexpr uint32_t IPC_INTERFACE_MARKER = 0x1000000;
+    bool isPCIDevice = (deviceId & IPC_INTERFACE_MARKER);
+    return !isPCIDevice;
 }
 #endif
 
@@ -82,8 +93,12 @@ std::vector<std::string> getAvailableDevices() {
     }
     deviceIdList.resize(availableDevicesCount);
 
+    // filter devices by type since VPUAL backend cannot use PCIe end-points for inference
+    std::vector<uint32_t> vpuDevIdList;
+    std::copy_if(deviceIdList.begin(), deviceIdList.end(), std::back_inserter(vpuDevIdList), isVPUDevice);
+
     std::vector<std::shared_ptr<xlink_handle>> devHandleList;
-    std::transform(deviceIdList.begin(), deviceIdList.end(), std::back_inserter(devHandleList), getHandleById);
+    std::transform(vpuDevIdList.begin(), vpuDevIdList.end(), std::back_inserter(devHandleList), getHandleById);
 
     // filter devices by status
     std::vector<std::shared_ptr<xlink_handle>> freeDevIdList;

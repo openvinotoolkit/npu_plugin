@@ -229,7 +229,9 @@ const std::vector<PrivateConfigTestParams> privateConfigParams {
         .privateConfig({{"VPU_KMB_USE_SIPP", CONFIG_VALUE(YES)}})
         .inputWidth(228)
         .inputHeight(228)
-        .nClasses(2),
+        .nClasses(2)};
+
+const std::vector<PrivateConfigTestParams> privateConfigParamsBrokenTests {
     PrivateConfigTestParams()
         .testDescription("FORCE_NCHW_TO_NHWC")
         .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
@@ -244,16 +246,29 @@ const std::vector<PrivateConfigTestParams> privateConfigParams {
     PrivateConfigTestParams()
         .testDescription("USE_CORE_NN")
         .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
-        .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin")
-        .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin")
-        .preProc(false)
+        .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin")
+        .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
+        .preProc(true)
         .checkSIPP(false)
         .privateConfig({{"VPU_KMB_USE_CORE_NN", CONFIG_VALUE(YES)}})
-        .inputWidth(224)
-        .inputHeight(224)
+        .inputWidth(228)
+        .inputHeight(228)
+        .nClasses(2),
+    PrivateConfigTestParams()
+        .testDescription("executor streams")
+        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
+        .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin")
+        .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
+        .preProc(true)
+        .checkSIPP(false)
+        .privateConfig({{"EXCLUSIVE_ASYNC_REQUESTS", CONFIG_VALUE(NO)}, {"VPU_KMB_EXECUTOR_STREAMS", "3"}})
+        .inputWidth(228)
+        .inputHeight(228)
         .nClasses(2)};
 
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
+
+INSTANTIATE_TEST_CASE_P(DISABLED_precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParamsBrokenTests));
 
 TEST_F(KmbPrivateConfigTests, DISABLED_precommit_SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
 #if defined(__arm__) || defined(__aarch64__)
