@@ -40,7 +40,7 @@ namespace mv
     }
 }
 
-mv::Data::TensorIterator createDeconvSubConv(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceWeights,
+mv::Data::TensorIterator createDeconvSubConv(mv::OpModel & om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceWeights,
                                                     std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape, size_t subConvIdx, size_t i, size_t j)
 {
     mv::Data::TensorIterator subConv;
@@ -138,7 +138,7 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel om, mv::Data::OpListIte
     return subConv;
 }
 
-mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
+mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel & om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
                                                     std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape, size_t subConvIdx, size_t i, size_t j)
 {
     mv::Data::TensorIterator subConv;

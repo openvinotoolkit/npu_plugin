@@ -118,8 +118,10 @@ struct Tensor_Allocator_Assignment {
     if(!has_any_lp_scheduler_address_attributes(tensor_itr)) { return; }
 
     mv::DataModel dm(model_);
-    auto tensor_alloc_name=
-        tensor_itr->get<std::set<std::string>>("allocators").begin();
+    auto & tensor_allocators = tensor_itr->get<std::set<std::string>>("allocators");
+    if (tensor_allocators.empty())
+      throw mv::ArgumentError("Tensor_Allocator_Assignment", "",  "Tensor Allocators empty", "");
+    auto tensor_alloc_name = tensor_allocators.begin();
     auto tensor_alloc= dm.getAllocator(*tensor_alloc_name);
     mv::Data::BufferIterator tensor_buffer_itr =
         tensor_alloc.getBuffer(0, tensor_itr);
@@ -2100,8 +2102,10 @@ class Master_Slave_Buffer_Relations {
 
       // check if master buffer is the same //
       mv::DataModel dm(*cmodel_ptr_);
-      auto talloc_name =
-          tensor_itr->get<std::set<std::string>>("allocators").begin();
+      auto & tallocs = tensor_itr->get<std::set<std::string>>("allocators");
+      if (tallocs.empty())
+        throw mv::ArgumentError("get_op_associated_with_master_buffer", "",  "Tensor Allocators empty", "");
+      auto talloc_name = tallocs.begin();
       auto talloc = dm.getAllocator(*talloc_name);
       mv::Data::BufferIterator tensor_buffer_itr = talloc.getBuffer(0UL,
             tensor_itr);

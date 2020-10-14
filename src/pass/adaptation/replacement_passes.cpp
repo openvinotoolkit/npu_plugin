@@ -921,7 +921,7 @@ unsigned short getPad(std::pair<unsigned short, unsigned short> factors, size_t 
     return pad;
 }
 
-mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
+mv::Data::TensorIterator createPartialDepthwise(mv::OpModel & om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
                                                 std::string name, double scaleValue, std::array<unsigned short, 2> newKernel,
                                                 std::array<unsigned short, 4> padding, bool quantRequired)
 {

@@ -6,7 +6,7 @@
 #include <numeric>
 #include <cmath>
 
-void placeEltwiseDequantize(mv::OpModel om, mv::Data::OpListIterator task);
+void placeEltwiseDequantize(mv::OpModel & om, mv::Data::OpListIterator task);
 static void placementOfOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void placeNeutralMaxPoolBefore(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::Element &);
 
@@ -79,7 +79,7 @@ void placeNeutralMaxPoolBefore(const mv::pass::PassEntry&, mv::ComputationModel&
 
 }
 
-void placeEltwiseDequantize(mv::OpModel om, mv::Data::OpListIterator task)
+void placeEltwiseDequantize(mv::OpModel & om, mv::Data::OpListIterator task)
 {
     auto neutralCopy = om.copy(task->getInputTensor(0), mv::DType("UInt8"),
                     task->getInputTensor(0)->get<mv::QuantizationParams>("quantParams"), task->getName() + "Neutral");

@@ -9,7 +9,7 @@
 
 static void preprocessForPWL(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator opIt, std::size_t index, mv::Data::TensorIterator inputTensor, mv::QuantizationParams quantParams);
+static void placeReQuantizeDepthwiseBefore(mv::OpModel & om, mv::Data::OpListIterator opIt, std::size_t index, mv::Data::TensorIterator inputTensor, mv::QuantizationParams quantParams);
 
 namespace mv
 {
@@ -31,7 +31,7 @@ namespace mv
     }
 }
 
-void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator opIt, std::size_t index, mv::Data::TensorIterator inputTensor, mv::QuantizationParams quantParams)
+void placeReQuantizeDepthwiseBefore(mv::OpModel & om, mv::Data::OpListIterator opIt, std::size_t index, mv::Data::TensorIterator inputTensor, mv::QuantizationParams quantParams)
 {
     //FIND THE APPROPRIATE FLOW
     auto inputFlow = opIt.leftmostInput();

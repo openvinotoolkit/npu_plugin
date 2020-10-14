@@ -580,7 +580,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     auto tensorLocation = t->get<mv::Tensor::MemoryLocation>("Location");
 
     auto tensorAllocators = t->get<std::set<std::string>>("allocators");
-
+    if (tensorAllocators.empty())
+        throw mv::ArgumentError("buildTensorReferenceT", "",  "Tensor Allocators empty", "");
     auto tensorAllocatorName = tensorAllocators.begin();
     if(!allocatorName.empty())
         tensorAllocatorName = tensorAllocators.find(allocatorName);
@@ -873,7 +874,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
         alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), IO_CHANNEL_DIMENSION, paddOutput);
-    auto taskCount = [](mv::OpModel m)
+    auto taskCount = [](mv::OpModel & m)
     {
         unsigned i = 0;
         for(auto opIt = m.opBegin(); opIt != m.opEnd(); ++opIt)
