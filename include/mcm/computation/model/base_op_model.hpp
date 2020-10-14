@@ -25,8 +25,10 @@ namespace mv
         BaseOpModel(const std::string& name);
         BaseOpModel(ComputationModel& model);
         BaseOpModel(mv::json::Value& value);
+        BaseOpModel(mv::BaseOpModel & rhs) = delete;
         virtual ~BaseOpModel() = 0;
 
+        BaseOpModel & operator=(const BaseOpModel &) = delete;
         void initRecordingFile(const std::string& outFileName, bool recordWeightsAsText = false);
 
         Data::OpListIterator switchContext(Control::OpListIterator other);

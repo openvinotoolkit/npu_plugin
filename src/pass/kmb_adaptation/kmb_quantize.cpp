@@ -29,7 +29,7 @@ namespace mv
 
 }
 
-void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>& tasks, const mv::DType& dtypeNeededInInput)
+void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterator>& tasks, const mv::DType& dtypeNeededInInput)
 {
     for(auto& task : tasks)
     {
@@ -97,7 +97,7 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
     }
 }
 
-void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListIterator>& slices, const mv::DType& dtypeNeededInInput)
+void addSliceQuantizationLayer(mv::OpModel & om, std::vector<mv::Data::OpListIterator>& slices, const mv::DType& dtypeNeededInInput)
 {
     std::vector <mv::Data::TensorIterator> sliceInputs;
     std::map <std::string, std::vector<mv::Data::OpListIterator>> sliceLeafs;
