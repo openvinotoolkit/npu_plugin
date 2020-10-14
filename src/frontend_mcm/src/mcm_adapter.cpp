@@ -205,6 +205,8 @@ void MCMAdapter::compileNetwork(
             graphFileInstance.header->out_tensor_desc.push_back(
                 buildTensorReference(outInfo.first, outInfo.second->getTensorDesc()));
         }
+
+        graphFileInstance.header->identifier = network.getName();
     };
     compDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
 
@@ -283,7 +285,7 @@ std::set<std::string> MCMAdapter::getSupportedLayers(InferenceEngine::ICNNNetwor
 
 bool vpu::MCMAdapter::isMCMCompilerAvailable() { return true; }
 
-std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> vpu::MCMAdapter::deserializeMetaData(
+vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(
     const std::vector<char>& outBlob, const MCMConfig& config) {
     Logger::Ptr logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
     if (logger == nullptr) {
@@ -292,6 +294,9 @@ std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> vpu::
     const MVCNN::GraphFile* graphFilePtr = MVCNN::GetGraphFile(outBlob.data());
     MVCNN::GraphFileT graphFileInstance;
     graphFilePtr->UnPackTo(&graphFileInstance);
+
+    const std::string& networkName = graphFileInstance.header->identifier;
+    logger->debug("networkName: %s", networkName);
 
     InferenceEngine::InputsDataMap resultNetworkInputs;
     size_t inputTensorsCount = graphFileInstance.header->in_tensor_desc.size();
@@ -346,5 +351,5 @@ std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> vpu::
         resultNetworkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
     }
 
-    return {resultNetworkInputs, resultNetworkOutputs};
+    return {networkName, resultNetworkInputs, resultNetworkOutputs};
 }

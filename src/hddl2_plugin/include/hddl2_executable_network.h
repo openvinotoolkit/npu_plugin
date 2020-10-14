@@ -48,6 +48,7 @@ public:
     void Export(const std::string& modelFileName) override;
 
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
+    InferenceEngine::Parameter GetMetric(const std::string& name) const override;
 
 private:
     explicit ExecutableNetwork(const vpux::VPUXConfig& config);

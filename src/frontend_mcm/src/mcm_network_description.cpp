@@ -43,10 +43,10 @@ MCMNetworkDescription::MCMNetworkDescription(
     : _name(name),
       _compiledNetwork(compiledNetwork),
       _logger(std::make_shared<vpu::Logger>("MCMNetworkDescription", config.logLevel(), consoleOutput())) {
-    std::pair<ie::InputsDataMap, ie::OutputsDataMap> portsInfo =
-        MCMAdapter::deserializeMetaData(compiledNetwork, config);
-    const ie::InputsDataMap& deserializedInputs = portsInfo.first;
-    const ie::OutputsDataMap& deserializedOutputs = portsInfo.second;
+    MetaInfo metaInfo = MCMAdapter::deserializeMetaData(compiledNetwork, config);
+    const ie::InputsDataMap& deserializedInputs = metaInfo._inputs;
+    const ie::OutputsDataMap& deserializedOutputs = metaInfo._outputs;
+    const std::string& networkName = metaInfo._networkName;
     const bool newFormat = (deserializedInputs.size() > 0) && (deserializedOutputs.size() > 0);
 
     // FIXME: the code below does matching of actual device in/outs with meta data to give
@@ -71,6 +71,10 @@ MCMNetworkDescription::MCMNetworkDescription(
     } else {
         _networkInputs = _deviceInputs;
         _networkOutputs = _deviceOutputs;
+    }
+
+    if (_name.empty()) {
+        _name = networkName;
     }
 
     // TODO: it makes sense to print maps here under log level

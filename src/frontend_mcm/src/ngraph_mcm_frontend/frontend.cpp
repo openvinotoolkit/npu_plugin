@@ -166,7 +166,7 @@ std::vector<char> compileNGraph(
         }
 
         std::function<void(MVCNN::GraphFileT&)> metaInfoSerializer =
-            [&inputsInfo, &outputsInfo](MVCNN::GraphFileT& graphFileInstance) {
+            [&inputsInfo, &outputsInfo, &netName](MVCNN::GraphFileT& graphFileInstance) {
             if (graphFileInstance.header == nullptr) {
                 THROW_IE_EXCEPTION << "metaInfoSerializer: graph file header points to null";
             }
@@ -180,6 +180,8 @@ std::vector<char> compileNGraph(
                 graphFileInstance.header->out_tensor_desc.push_back(
                     buildTensorReference(outInfo.first, outInfo.second->getTensorDesc()));
             }
+
+            graphFileInstance.header->identifier = netName;
         };
         mcmCompDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
 

@@ -82,7 +82,7 @@ ExecutableNetwork::ExecutableNetwork(
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
 
     _netName = network.getName();
-    _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
+    _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS), METRIC_KEY(NETWORK_NAME)};
 
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
 
@@ -170,6 +170,8 @@ ExecutableNetwork::ExecutableNetwork(
 Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
+    } else if (name == METRIC_KEY(NETWORK_NAME)) {
+        IE_SET_METRIC_RETURN(NETWORK_NAME, _netName);
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
