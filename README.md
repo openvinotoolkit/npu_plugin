@@ -323,6 +323,10 @@ All input blobs will be written to `$IE_VPU_KMB_DUMP_INPUT_PATH/input-dump%d.bin
 The variable must contain path to any writable directory.
 All output blobs will be written to `$IE_VPU_KMB_DUMP_OUTPUT_PATH/output-dump%d.bin`.
 
+`KMB_USE_LEGACY_PARSER` environment variable can be used to switch frontend parser between nGraph or legacy CNNNetwork.
+The variable support values `1` for enabling legacy parser and `0` for disabled.
+Available only in DEBUG mode.
+
 ## OpenVINO HDDL2 plugin
 
 ### HDDL2 Prerequsites
