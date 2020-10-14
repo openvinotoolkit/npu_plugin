@@ -63,18 +63,7 @@ std::vector<std::string> mv::json::Object::getKeys() const
 
 bool mv::json::Object::operator==(const Object& other) const
 {
-    if (size() != other.size())
-        return false;
-
-    auto e1 = members_.begin();
-    for (auto e2 = other.members_.begin(); e2 != other.members_.end(); ++e2)
-    {
-        if (*e1 != *e2)
-            return false;
-        ++e1;
-    }
-
-    return true;
+    return members_ == other.members_;
 }
 
 bool mv::json::Object::operator!=(const Object& other) const

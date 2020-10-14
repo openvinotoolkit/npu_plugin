@@ -166,19 +166,7 @@ mv::json::Array& mv::json::Array::operator=(const Array& other)
 
 bool mv::json::Array::operator==(const Array& other) const
 {
-    
-    if (size() != other.size())
-        return false;
-
-    auto e1 = elements_.begin();
-    for (auto e2 = other.elements_.begin(); e2 != other.elements_.end(); ++e2)
-    {
-        if (*e1 != *e2)
-            return false;
-        ++e1;
-    }
-
-    return true;
+    return elements_ == other.elements_;
 
 }
 

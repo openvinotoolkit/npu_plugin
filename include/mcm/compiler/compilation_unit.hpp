@@ -38,8 +38,10 @@ namespace mv
 
         CompilationUnit(const std::string& modelName);
         CompilationUnit(const char *blobBuffer, unsigned blobSize, TargetDescriptor td);
+        CompilationUnit(const CompilationUnit & rhs) = delete;
         ~CompilationUnit();
 
+        CompilationUnit & operator=(const CompilationUnit & rhs) = delete;
         bool loadTargetDescriptor(const std::string& path);
         bool loadTargetDescriptor(Target target);
         bool loadCompilationDescriptor(const std::string& path);

@@ -8,7 +8,8 @@ int main()
 {
     const std::string binLocation = mv::utils::projectRootPath() +
         "/tests/layer/net_test_mobilenetv2_fp16/";
-    mv::CompilationUnit compilationUnit = buildMobilenetV2_fp16(binLocation);
+    mv::CompilationUnit compilationUnit("mobilenetv2_fp16");
+    buildMobilenetV2_fp16(compilationUnit, binLocation);
     mv::OpModel& opModel = compilationUnit.model();
 
     // Initialize and run the compilation unit.

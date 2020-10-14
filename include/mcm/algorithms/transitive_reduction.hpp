@@ -9,6 +9,7 @@
 #include "include/mcm/graph/graph.hpp"
 #include "include/mcm/algorithms/topological_sort.hpp"
 #include "include/mcm/compiler/compilation_profiler.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 
 #include <cstdio>
 
@@ -336,7 +337,8 @@ class DAG_Transitive_Reducer {
       std::map<size_t, std::list<edge_iterator_t> > ordered_edges;
       for (auto e=g.edge_begin(); e!=g.edge_end(); ++e) {
         auto src_itr = level_map_.find(e->source());
-        assert(src_itr != level_map_.end());
+        if (src_itr == level_map_.end())
+          throw RuntimeError("Reduction algorithm", "No such node in Level map");
         ordered_edges[ src_itr->second ].push_back(e);
       }
 
@@ -350,10 +352,10 @@ class DAG_Transitive_Reducer {
           edge_iterator_t e = *eitr;
           auto src_itr = level_map_.find(e->source());
           auto sink_itr = level_map_.find(e->sink());
-          assert(src_itr != level_map_.end());
-          assert(sink_itr != level_map_.end());
-          assert(sink_itr->second > src_itr->second);
-
+          if (src_itr == level_map_.end() || sink_itr == level_map_.end())
+            throw RuntimeError("Reduction algorithm", "No such node in Level map");
+          if (sink_itr->second <= src_itr->second)
+            throw RuntimeError("Reduction algorithm", "sink_itr->second <= src_itr->second");
           // edge (u,w) can be eliminated if there is a path between 'u' and
           // 'w' of at least one node between them.
           size_t level_diff = sink_itr->second - src_itr->second;
@@ -461,7 +463,8 @@ class DAG_Transitive_Reducer {
           for (auto e=(*zitr)->leftmost_output(); e != g.edge_end(); ++e) {
             node_iterator_t sink_node = e->sink();
             auto in_degree_sink_itr = in_degree_map.find(sink_node);
-            assert(in_degree_sink_itr != in_degree_map.end());
+            if (in_degree_sink_itr == in_degree_map.end())
+              throw RuntimeError("Reduction algorithm", "No such node in in-degree map");
             assert(in_degree_sink_itr->second > 0UL);
             (in_degree_sink_itr->second)--;
 
