@@ -32,7 +32,7 @@ namespace vpu {
 
 namespace QuantizationHelpers {
 
-int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::Precision precision) {
+int64_t calculateZeroPoint(float high, float low, int levels, const InferenceEngine::Precision& precision) {
     int64_t zeroPoint = 0;
 
     // Typical condition for symmetric case is low < 0, high > 0

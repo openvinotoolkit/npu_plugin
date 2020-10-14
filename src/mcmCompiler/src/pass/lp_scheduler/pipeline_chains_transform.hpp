@@ -318,7 +318,7 @@ class Pipeline_Chains {
           std::vector<mv::Data::TensorIterator> inputs;
           inputs.push_back(tail_output_tensor_itr);
 
-          sprintf(buf, "PseduoOp-%lu", ++pseudo_op_id);
+          sprintf(buf, "PseduoOp-%zu", ++pseudo_op_id);
           mv::Data::TensorIterator curr_pseudo_op_tensor_itr =
               om.pseudoOp(inputs, buf);
           mv::Data::OpListIterator curr_pseudo_op_itr =

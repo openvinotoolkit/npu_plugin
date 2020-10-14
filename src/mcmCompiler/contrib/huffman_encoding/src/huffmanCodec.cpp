@@ -2,6 +2,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include <cmath>
 #include <cstdio>
@@ -35,7 +36,7 @@ huffmanCodec::huffmanCodec(
     mHuffmanCodecConfig->blockSizeBytes = pBlockSizeBytes;
     mHuffmanCodecConfig->bitsPerSym = pBitsPerSym;
     mHuffmanCodecConfig->maxEncSyms = pMaxEncSyms;
-    mHuffmanCodecConfig->exclusions = pExclusions;
+    mHuffmanCodecConfig->exclusions = std::move(pExclusions);   // we could move due ctor got object by copy
     mHuffmanCodecConfig->statsOnly = pStatsOnly;
     mHuffmanCodecConfig->bypass = pBypass;
     mHuffmanCodecConfig->verbosity = pVerbosity;

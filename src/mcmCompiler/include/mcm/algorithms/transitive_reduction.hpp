@@ -287,7 +287,7 @@ class DAG_Transitive_Reducer {
 
 
     void dump_reduce_info() const {
-      printf("[TransitiveReduction] input=%lu eliminated=%lu\n",
+      printf("[TransitiveReduction] input=%zu eliminated=%zu\n",
           input_edge_count_, eliminated_edge_count_);
     }
 

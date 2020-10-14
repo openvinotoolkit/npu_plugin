@@ -76,7 +76,7 @@ bool mv::TensorInterferenceGraph::checkNodesAreNeighbors_(mv::TensorInterference
 }
 
 bool mv::TensorInterferenceGraph::isTensorInTopNames_(const std::vector<mv::Data::TensorIterator>& tensorList, mv::DataModel& model,
-    const std::string tensorName)
+    const std::string& tensorName)
 {
     for (unsigned i = 0; i < tensorList.size(); i++)
     {

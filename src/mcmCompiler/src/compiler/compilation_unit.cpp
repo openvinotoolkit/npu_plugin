@@ -41,7 +41,7 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
         mv::json::Object jsonDesc = mv::CompilationDescriptor::load(filePath);
         compDescriptor_ = CompilationDescriptor(jsonDesc);
     }
-    catch (ParsingError& e)
+    catch (ParsingError&)
     {
         return false;
     }

@@ -393,7 +393,7 @@ bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string refe
 }
 
 
-bool mv::isVectorsEqual(const std::vector<double> left, const std::vector<double> right) {
+bool mv::isVectorsEqual(const std::vector<double>& left, const std::vector<double>& right) {
     if(left.size() != right.size()) {
         return false;
     }

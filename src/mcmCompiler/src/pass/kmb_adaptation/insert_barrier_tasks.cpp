@@ -201,7 +201,7 @@ void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterat
                     std::set<std::string> consumers;
                     producers.insert(sourceOpName);
                     consumers.insert(sinkOpName);
-                    struct mv::Barrier new_barrier(producers, consumers);
+                    mv::Barrier new_barrier(producers, consumers);
                     barriers.push_back(new_barrier);
                 }
             }

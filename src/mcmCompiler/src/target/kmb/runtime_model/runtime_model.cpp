@@ -3199,7 +3199,7 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         if (inputTensor->isPopulated() && inputTensor->isSparse())
         {
             if (numClusters < toReturn) {
-                for (int i = 0; i < numClusters; ++i) {
+                for (unsigned i = 0; i < numClusters; ++i) {
                     if (inputTensor->getSubTensor(i).dataPackedSize() == 0)
                         toReturn--;
                 }

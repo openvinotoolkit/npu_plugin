@@ -595,7 +595,7 @@ class Producer_Consumer_Contiguous_Resource :
       if (citr != citr_end) {
         const producers_t& producers = citr->second;
         typename producers_t::const_iterator pitr = producers.begin(),
-                 pitr_next, pitr_end = producers.end();
+                 pitr_end = producers.end();
 
 
         for(;pitr != pitr_end; ++pitr) {

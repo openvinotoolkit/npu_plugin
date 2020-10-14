@@ -222,7 +222,7 @@ class Control_Model_Barrier_Scheduler {
           char barrier_name[64UL]; 
           // digits in barrier_task_id <= 64xlog(2)_10 < 20 so the barrier_name
           // cannot exceed 64 chars //
-          sprintf(barrier_name, "Barrier_%lu", barrier_task_id++);
+          sprintf(barrier_name, "Barrier_%zu", barrier_task_id++);
 
           std::set<std::string> empty_set;
           struct mv::Barrier new_barrier(empty_set, empty_set);
@@ -582,13 +582,13 @@ class Control_Model_Barrier_Scheduler {
         size_t rcount = remove_redundant_wait_barriers(oitr);
 
         if (fptr && rcount) {
-          fprintf(fptr, "op=%s rcount=%lu\n", oitr->getName().c_str(),
+          fprintf(fptr, "op=%s rcount=%zu\n", oitr->getName().c_str(),
               rcount);
         }
         total += rcount;
       }
       if(fptr) {
-        fprintf(fptr, "total=%lu\n", total);
+        fprintf(fptr, "total=%zu\n", total);
         fclose(fptr);
       }
 

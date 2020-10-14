@@ -277,7 +277,6 @@ class Path_Splitter {
 
       if ((u == dag_.node_end()) || (v == dag_.node_end())) { return 0UL; }
 
-      visited_nodes_t visited_nodes;
       dfs_state_e dfs_state;
       dfs_stack_t dfs_stack;
       node_ptr_t v_node_ptr = v.operator->();

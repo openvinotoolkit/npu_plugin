@@ -105,7 +105,6 @@ HuffmanResult_t Huffman::encode(const Symbol *data, int len, int bpb, bool bypas
 HuffmanResult_t Huffman::encode(const vector<Symbol> &data, int bpb, bool bypass)
 {
     HuffmanTuple_t a, b, c;
-    stringstream rptStream;
 
 //    unsigned char *byte = (unsigned char *) data;
 
