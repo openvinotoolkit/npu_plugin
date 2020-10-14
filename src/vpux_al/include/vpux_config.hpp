@@ -84,6 +84,9 @@ protected:
     bool _useM2I = false;
 
     std::string _deviceId = "VPU-0";
+
+private:
+    void parseEnvironment();
 };
 
 }  // namespace vpux

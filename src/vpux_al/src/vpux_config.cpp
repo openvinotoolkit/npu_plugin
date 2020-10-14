@@ -61,6 +61,14 @@ static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {
     }
 }
 
+void vpux::VPUXConfig::parseEnvironment() {
+#ifndef NDEBUG
+    if (const auto envVar = std::getenv("KMB_USE_LEGACY_PARSER")) {
+        _useNGraphParser = !std::stoi(envVar);
+    }
+#endif
+}
+
 void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     vpux::VPUXConfigBase::parse(config);
     setOption(_useNGraphParser, switches, config, VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER));
@@ -84,4 +92,6 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_performanceCounting, switches, config, CONFIG_KEY(PERF_COUNT));
     setOption(_useM2I, switches, config, VPU_KMB_CONFIG_KEY(USE_M2I));
     setOption(_deviceId, config, CONFIG_KEY(DEVICE_ID));
+
+    parseEnvironment();
 }
