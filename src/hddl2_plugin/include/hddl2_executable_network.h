@@ -51,8 +51,6 @@ public:
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
     InferenceEngine::Parameter GetMetric(const std::string& name) const override;
 
-    InferenceEngine::Parameter GetMetric(const std::string& name) const override;
-
 private:
     explicit ExecutableNetwork(const vpux::VPUXConfig& config);
 

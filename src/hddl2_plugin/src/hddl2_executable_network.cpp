@@ -203,7 +203,13 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
 }
 
 IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
-    if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+    if (name == METRIC_KEY(NETWORK_NAME)) {
+        if (_networkPtr != nullptr) {
+            IE_SET_METRIC_RETURN(NETWORK_NAME, _networkPtr->getName());
+        } else {
+            THROW_IE_EXCEPTION << "GetMetric: network is not initialized";
+        }
+    } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         // TODO This value should be investigated
         // [Track number: S#37055]
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
