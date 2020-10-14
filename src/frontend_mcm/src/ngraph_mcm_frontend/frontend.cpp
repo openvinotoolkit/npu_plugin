@@ -30,45 +30,30 @@
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
+
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-
 #include <ngraph/pass/visualize_tree.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
-#include <transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
-#include <transformations/convert_reduce_to_pooling.hpp>
-#include <transformations/lin_op_sequence_fusoin.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_power_to_power_ie.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
 
+#include <legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_power_to_power_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 
-#include "transformations/common_optimizations/algebraic_simplification.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
-#include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/depth_to_space_fusion.hpp"
-#include "transformations/optimize_strided_slice.hpp"
-#include "transformations/convert_scatter_elements_to_scatter.hpp"
-#include "transformations/convert_pad_to_group_conv.hpp"
-#include "transformations/remove_filtering_boxes_by_size.hpp"
-#include "transformations/init_node_info.hpp"
-#include "transformations/mish_fusion.hpp"
-#include "transformations/softplus_fusion.hpp"
-#include "transformations/softplus_to_mish_fusion.hpp"
-#include "transformations/swish_fusion.hpp"
-#include "transformations/hswish_fusion.hpp"
-#include "transformations/normalize_l2_fusion.hpp"
-#include "transformations/convert_quantize_dequantize.hpp"
-#include "transformations/bidirectional_sequences_decomposition.hpp"
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/common_optimizations/conv_bias_fusion.hpp>
+
+#include <transformations/op_conversions/convert_convolutions.hpp>
+#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
+
 #include <generic_ie.hpp>
 
 #include <include/mcm/compiler/compilation_unit.hpp>

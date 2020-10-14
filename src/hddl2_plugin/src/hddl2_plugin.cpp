@@ -22,7 +22,6 @@
 // Inference Engine include
 #include <legacy/graph_transformer.h>
 #include <legacy/cnn_network_impl.hpp>
-#include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/ie_util_internal.hpp>
 
 #include <details/ie_irelease.hpp>
@@ -31,8 +30,6 @@
 #include <ie_icore.hpp>
 #include <ie_itt.hpp>
 #include <ie_metric_helpers.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 
 // Plugin include
 #include "file_reader.h"
