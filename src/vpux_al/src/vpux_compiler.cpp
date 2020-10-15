@@ -19,6 +19,7 @@
 
 #include <details/ie_exception.hpp>
 #include <fstream>
+#include <vpu/utils/io.hpp>
 #include <vpux_compiler.hpp>
 
 vpux::NetworkDescription::NetworkDescription(
@@ -55,13 +56,13 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(
 }
 
 vpux::Compiler::Ptr vpux::Compiler::create(vpux::CompilerType t) {
-    auto root = InferenceEngine::getIELibraryPath();
+    const auto root = InferenceEngine::getIELibraryPath();
     switch (t) {
     case vpux::CompilerType::MCMCompiler: {
 #ifdef __unix__
-        std::string lib_name = "/libfrontend_mcm.so";
+        const std::string lib_name = "/libfrontend_mcm.so";
 #else
-        std::string lib_name = "/frontend_mcm.dll";
+        const std::string lib_name = vpu::formatString("/frontend_mcm%v.dll", IE_BUILD_POSTFIX);
 #endif
         return std::make_shared<Compiler>(root + lib_name);
     }
