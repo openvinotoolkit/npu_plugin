@@ -248,6 +248,18 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
        THROW_IE_EXCEPTION << "Output shape size is not supported: " << result->get_shape().size();
     }
 
+    // MCM compiler compiles wrong blob when concat layer is the last layer in the network,
+    // e.g. person_attributes_recognition_crossroad_0238 person_attributes_recognition_crossroad_0234
+    // TODO: remove this workaround when this case will be handled on mcm compiler side
+    const auto concat = std::dynamic_pointer_cast<ngraph::op::Concat>(result->input_value(0).get_node_shared_ptr());
+    if (nullptr != concat) {
+        const auto mcmConcat = mcmModel.maxPool(mcmInputs.at(0), {1, 1}, {1, 1}, {0, 0, 0, 0}, true, mv::DType("Default"),
+            initialQuantParams(), concat->get_friendly_name() + "_maxpool");
+        mcmModel.output(mcmConcat, outputType, {{}, {}, {}, {}});
+        return;
+    }
+    // end of workaround
+
     // MCM Compiler requirements
     // IE_ASSERT(mv::DType("Float16") == mvDType || mv::DType("UInt8") == mvDType);
     IE_ASSERT(mv::DType("Float16") == outputType || mv::DType("UInt8") == outputType);
@@ -637,14 +649,6 @@ void convert(std::shared_ptr<ngraph::op::v0::Concat> concat, mv::OpModel& mcmMod
     const auto& opName = concat->get_friendly_name();
 
     const auto mcmConcatOutput = mcmModel.concat(mcmInputs, mcmAxis, mvDType, initialQuantParams(), opName);
-    // MCM compiler compiles wrong blob when concat layer is the last layer in the network,
-    // e.g. person_attributes_recognition_crossroad_0238 person_attributes_recognition_crossroad_0234
-    // TODO: remove this workaround when this case will be handled on mcm compiler side
-    // if (getInputTo(concatLayer->outData[0]).empty()) {
-    //     mvConcat = _modelMcm.maxPool(mvConcat, {1, 1}, {1, 1}, {0, 0, 0, 0}, true, mv::DType("Default"),
-    //         initialQuantParams(), concatLayer->name + "_maxpool");
-    // }
-    // end of workaround
     registerOutputs(concat, {mcmConcatOutput}, mcmOutputsMap);
 }
 
