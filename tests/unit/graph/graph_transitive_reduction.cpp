@@ -30,6 +30,253 @@ struct DefaultComparator {
   }
 };
 
+using char_int_graph = mv::graph<char, int>;
+
+/*
+Generic sibling test:
+a--->d
+a--->e
+a--->f
+a--->g
+a--->h
+a--->i
+
+b--->d
+b--->e
+b--->f
+b--->g
+b--->h
+b--->i
+
+c--->d
+c--->e
+c--->f
+c--->g
+c--->h
+c--->i
+ */
+TEST (graph_dynamic_sibling_enumeration, sibling_test)
+{
+    char_int_graph g;
+
+    auto na = g.node_insert('a');
+    auto nb = g.node_insert('b');
+    auto nc = g.node_insert('c');
+    auto nd = g.node_insert('d');
+    auto ne = g.node_insert('e');
+    auto nf = g.node_insert('f');
+    auto ng = g.node_insert('g');
+    auto nh = g.node_insert('h');
+    auto ni = g.node_insert('i');
+    auto nj = g.node_insert('j');
+    auto nk = g.node_insert('k');
+    auto nl = g.node_insert('l');
+
+
+    auto e1 = g.edge_insert(na, nd, 1);
+    auto e2 = g.edge_insert(na, ne, 2);
+    auto e3 = g.edge_insert(na, nf, 3);
+    auto e4 = g.edge_insert(na, ng, 4);
+    auto e5 = g.edge_insert(na, nh, 5);
+    auto e6 = g.edge_insert(na, ni, 6);
+
+    auto e7 = g.edge_insert(nb, nd, 7);
+    auto e8 = g.edge_insert(nb, ne, 8);
+    auto e9 = g.edge_insert(nb, nf, 9);
+    auto e10 = g.edge_insert(nb, ng, 10);
+    auto e11 = g.edge_insert(nb, nh, 11);
+    auto e12 = g.edge_insert(nb, ni, 12);
+
+    auto e13 = g.edge_insert(nc, nd, 13);
+    auto e14 = g.edge_insert(nc, ne, 14);
+    auto e15 = g.edge_insert(nc, nf, 15);
+    auto e16 = g.edge_insert(nc, ng, 16);
+    auto e17 = g.edge_insert(nc, nh, 17);
+    auto e18 = g.edge_insert(nc, ni, 18);
+    auto e19 = g.edge_insert(nd, nj, 19);
+    auto e20 = g.edge_insert(nd, nk, 20);
+    auto e21 = g.edge_insert(ne, nl, 21);
+
+    // Siblings of node ne
+    std::vector<char> nodes_sid={'d','e','g','h','i'};
+    int count_nodes_sid= 0 ;
+    for (char_int_graph::node_sibling_iterator it(nf); it != g.node_end(); ++it)
+    {
+        EXPECT_EQ (nodes_sid[count_nodes_sid++], *it) << "ERROR: incorrect sibling of node f";
+    }
+
+    EXPECT_EQ (nf->siblings_size(), count_nodes_sid) << "ERROR: wrong number of siblings of node f";
+
+    EXPECT_EQ ('e', *nd->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node d";
+    EXPECT_EQ ('d', *nf->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node f";
+    EXPECT_EQ ('d', *ni->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node i";
+
+    EXPECT_EQ ('i', *nd->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node d";
+    EXPECT_EQ ('i', *nf->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node f";
+    EXPECT_EQ ('h', *ni->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node i";
+
+    // Siblings of node nj
+    std::vector<char> nodes_sid_2={'k'};
+    int count_nodes_sid_2= 0 ;
+    for (char_int_graph::node_sibling_iterator it(nj); it != g.node_end(); ++it)
+    {
+        EXPECT_EQ (nodes_sid_2[count_nodes_sid_2++], *it) << "ERROR: incorrect sibling of node j";
+    }
+    EXPECT_EQ (nj->siblings_size(), count_nodes_sid_2) << "ERROR: wrong number of siblings of node j";
+
+}
+
+/*
+Test:
+-check to get leftmost sibling: iterate over sibling of next parent
+-check when sibling share only 1 parent in common
+
+a     b
+|  / | \
+| /  |  \
+c    d    e
+ */
+
+
+TEST (graph_dynamic_sibling_enumeration, sibling_test_2)
+{
+    char_int_graph g;
+
+    auto na = g.node_insert('a');
+    auto nb = g.node_insert('b');
+    auto nc = g.node_insert('c');
+    auto nd = g.node_insert('d');
+    auto ne = g.node_insert('e');
+
+    auto e1 = g.edge_insert(na, nc, 1);
+    auto e2 = g.edge_insert(nb, nc, 2);
+    auto e3 = g.edge_insert(nb, nd, 3);
+    auto e4 = g.edge_insert(nb, ne, 4);
+
+    EXPECT_EQ ('e', *nc->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node c";
+    EXPECT_EQ ('d', *nc->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node c";
+
+    //Test for the previous bug found while removing parent when there is only one common parent with sibling
+    g.edge_erase(e1);
+
+    // Siblings of node nc
+    std::vector<char> nodes_sid={'d','e'};
+    int count_nodes_sid= 0 ;
+    for (char_int_graph::node_sibling_iterator it(nc); it != g.node_end(); ++it)
+    {
+        EXPECT_EQ (nodes_sid[count_nodes_sid++], *it) << "ERROR: incorrect sibling of node c";
+    }
+    EXPECT_EQ (2, count_nodes_sid) << "ERROR: wrong number of siblings of node c";
+
+}
+
+/*
+	a
+   /|
+  b |
+   \|
+    c
+
+    sibling is also a parent
+ */
+
+TEST (graph_dynamic_sibling_enumeration, sibling_test_3)
+{
+    char_int_graph g;
+
+    auto na = g.node_insert('a');
+    auto nb = g.node_insert('b');
+    auto nc = g.node_insert('c');
+
+    auto e1 = g.edge_insert(na, nb, 1);
+    auto e2 = g.edge_insert(na, nc, 2);
+    auto e7 = g.edge_insert(nb, nc, 3);
+
+    EXPECT_EQ ('b', *nc->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node c";
+    EXPECT_EQ (nc->siblings_size(), 1) << "ERROR: wrong number of siblings of node c";
+
+    // Siblings of node nc
+    std::vector<char> nodes_sid={'b'};
+    int count_nodes_sid= 0 ;
+    for (char_int_graph::node_sibling_iterator it(nc); it != g.node_end(); ++it)
+    {
+        EXPECT_EQ (nodes_sid[count_nodes_sid++], *it) << "ERROR: incorrect sibling of node c";
+    }
+
+}
+
+/*
+a  b  c
+|\ | /|
+| \|/ |
+d  e  f
+ */
+
+TEST (graph_dynamic_sibling_enumeration, sibling_test_4)
+{
+    char_int_graph g;
+
+    auto na = g.node_insert('a');
+    auto nb = g.node_insert('b');
+    auto nc = g.node_insert('c');
+    auto nd = g.node_insert('d');
+    auto ne = g.node_insert('e');
+    auto nf = g.node_insert('f');
+
+    auto e1 = g.edge_insert(na, nd, 1);
+    auto e2 = g.edge_insert(na, ne, 2);
+    auto e3 = g.edge_insert(nb, ne, 3);
+    auto e4 = g.edge_insert(nc, ne, 4);
+    auto e5 = g.edge_insert(nc, nf, 5);
+
+    EXPECT_EQ ('e', *nf->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node f";
+    EXPECT_EQ ('e', *nf->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node f";
+
+    EXPECT_EQ (1, nf->siblings_size()) << "ERROR: wrong number of siblings of node f";
+}
+
+TEST (graph_dynamic_sibling_enumeration, sibling_test_no_sibling)
+{
+    char_int_graph g;
+
+    auto na = g.node_insert('a');
+    auto nb = g.node_insert('b');
+    auto nc = g.node_insert('c');
+    auto nd = g.node_insert('d');
+
+    auto e1 = g.edge_insert(na, nd, 1);
+    auto e2 = g.edge_insert(nb, nd, 2);
+    auto e3 = g.edge_insert(nc, nd, 3);
+
+    try
+    {
+     char_int_graph::node_sibling_iterator it(nd);
+     auto test_null_sibling = *it;
+    }
+    catch (std::exception& e)
+    {
+       std::cout << "Sibling iterator returns " << e.what() << std::endl;
+    }
+    try
+    {
+       auto left_sibling = *nd->leftmost_sibling();
+    }
+    catch (std::exception& e)
+    {
+       std::cout << "leftmost_sibling returns " << e.what() << std::endl;
+    }
+    try
+    {
+       auto right_Sibling = *nd->rightmost_sibling();
+    }
+    catch (std::exception& e)
+    {
+       std::cout << "rightmost_sibling returns " << e.what() << std::endl;
+    }
+
+    EXPECT_EQ (0, nd->siblings_size()) << "ERROR: wrong number of siblings of node d";
+}
+
 TEST (graph_transitive_reduction, test1)
 {
     // Define graph
@@ -139,7 +386,7 @@ TEST(graph_transitive_reduction, read_from_file) {
 
   printf("done reading edges\n");
   fflush(stdout);
-  
+
   dag_transitive_reducer_t reducer(test_dag);
 
   EXPECT_TRUE(reducer.reduce());
