@@ -73,13 +73,6 @@ target_link_libraries(${OBJ_TARGET_NAME}
         kmb_utils
 )
 
-add_custom_target(mcm_compiler_copy ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/config"
-        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/mcm_config"
-    COMMENT "[MCM Compiler] Copy config files"
-)
-
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${OBJ_TARGET_NAME}
         FOR_TARGETS ${OBJ_TARGET_NAME}
