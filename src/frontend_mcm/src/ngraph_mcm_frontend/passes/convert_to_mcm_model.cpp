@@ -265,20 +265,25 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
         mvShape = mv::Shape::augment_major(mvShape, 4);
     }
 
-    // MCM compiler can't work with constant blob with dims {1}
+    auto mvDType = cvtElemTypeToMCM(constant->get_element_type());
+    std::string opName = constant->get_friendly_name();
+    // MCM compiler can't work with constant blob with dims {1} and i64 precision
     // TODO: remove this workaround when this case will be handled on mcm compiler side
     if (mvShape.ndims() == 1) {
         for (auto&& consumerNode : constant->get_users())
             if (ngraph::op::GatherIE::type_info == consumerNode->get_type_info()) {
                 mvShape = mv::Shape::augment_major(mvShape, 4);
+                // int64 precision for indices is not supported by runtime yet
+                if (ngraph::element::i64 == constant->get_element_type()) {
+                    mvDType == mv::DType("Int32");
+                    opName += "_indices_i32";
+                }
                 break;
             }
     }
     // end of workaround
 
-    auto mvDType = cvtElemTypeToMCM(constant->get_element_type());
     const auto mvOrder = mv::Order::getColMajorID(mvShape.ndims()) ; //McmOpAttrs::getOrder(constant);
-    const auto& opName = constant->get_friendly_name();
 
     mv::Data::TensorIterator mcmOutput;
     if (constant->get_element_type().is_real()) {
