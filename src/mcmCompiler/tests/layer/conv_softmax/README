@@ -1,0 +1,3 @@
+Notes:
+- conv_softmax.tflite generated from migNetworkZoo, replacing the tf.identity() with a tf.nn.softmax() in convolution.py
+- conv_softmax.w & conv_softmax.b generated using Netron to save the weights & biases to .npy, & using python to convert arrays to int64 & save as binaries

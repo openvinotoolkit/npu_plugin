@@ -1,0 +1,41 @@
+<?xml version="1.0" ?>
+<testsuite errors="1" failures="0" name="TestComposition-20180910133718" tests="27" time="0.134">
+	<testcase classname="TestComposition" name="testDOT" time="0.071"/>
+	<testcase classname="TestComposition" name="test_SWIG_connection" time="0.000"/>
+	<testcase classname="TestComposition" name="test_add" time="0.002"/>
+	<testcase classname="TestComposition" name="test_avgpool" time="0.001"/>
+	<testcase classname="TestComposition" name="test_batchNorm" time="0.010"/>
+	<testcase classname="TestComposition" name="test_bias" time="0.001"/>
+	<testcase classname="TestComposition" name="test_compile_convolution_01" time="0.003"/>
+	<testcase classname="TestComposition" name="test_compile_convolution_02" time="0.003"/>
+	<testcase classname="TestComposition" name="test_compile_convolution_03" time="0.003"/>
+	<testcase classname="TestComposition" name="test_compile_convolution_04" time="0.003"/>
+	<testcase classname="TestComposition" name="test_compile_convolution_05" time="0.013"/>
+	<testcase classname="TestComposition" name="test_concat" time="0.001"/>
+	<testcase classname="TestComposition" name="test_convolution" time="0.001"/>
+	<testcase classname="TestComposition" name="test_divide" time="0.001"/>
+	<testcase classname="TestComposition" name="test_empty_om" time="0.001"/>
+	<testcase classname="TestComposition" name="test_fullyConnected" time="0.006"/>
+	<testcase classname="TestComposition" name="test_matMul" time="0.005"/>
+	<testcase classname="TestComposition" name="test_maxpool" time="0.001"/>
+	<testcase classname="TestComposition" name="test_minimal_om" time="0.001"/>
+	<testcase classname="TestComposition" name="test_multiply" time="0.001"/>
+	<testcase classname="TestComposition" name="test_relu" time="0.001"/>
+	<testcase classname="TestComposition" name="test_reshape" time="0.001"/>
+	<testcase classname="TestComposition" name="test_scale" time="0.002"/>
+	<testcase classname="TestComposition" name="test_simple" time="0.000"/>
+	<testcase classname="TestComposition" name="test_softmax" time="0.001"/>
+	<testcase classname="TestComposition" name="test_subtract" time="0.001"/>
+	<testcase classname="TestComposition" name="test_prelu" time="0.001">
+		<error message="False is not true" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "../tests/convolution_composition_test.py", line 198, in test_prelu
+    self.assertTrue(ca.isValid(om))
+AssertionError: False is not true
+]]>		</error>
+	</testcase>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+</testsuite>

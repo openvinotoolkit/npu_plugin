@@ -1,0 +1,2 @@
+Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
+Resnet 50, fc1000,Convolution, 1x1x2048, 1x1x1000, 1x1,1,UINT8,No,0.5

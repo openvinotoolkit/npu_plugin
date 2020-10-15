@@ -1,0 +1,408 @@
+{
+
+    "target": "ma2490",
+
+    "ops":
+    {
+        "Conv" : {
+            "MvTensor":{
+                "serial_description":[
+                    "Attr:radixX",
+                    "Attr:radixY",
+                    "Attr:strideX",
+                    "Attr:strideY",
+                    "Attr:padX",
+                    "Attr:padY",
+                    "Attr:padStyle",
+                    "Attr:dilation",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1",
+                    "Tensor:0:2"
+                ]
+            },
+            "NCE1":{
+                "serial_description":[
+                    "Attr:streamingMask",
+                    "Attr:inputSize",
+                    "Attr:outputSize",
+                    "Attr:concatOffset",
+                    "Attr:unloadCMX",
+                    "Attr:overwriteInput",
+                    "Attr:CMXSize",
+                    "Attr:reluSHVAcc",
+                    "Attr:shvNegSlope",
+                    "Attr:shvPosSlope",
+                    "Attr:desc_count",
+                    "Attr:descriptors",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1",
+                    "Tensor:0:2",
+                    "Tensor:0:3"
+                ]
+            }
+        },
+        "DepthwiseConv":{
+            "MvTensor":{
+                "serial_description":[
+                    "Attr:radixX",
+                    "Attr:radixY",
+                    "Attr:strideX",
+                    "Attr:strideY",
+                    "Attr:padX",
+                    "Attr:padY",
+                    "Attr:padStyle",
+                    "Attr:dilation",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1",
+                    "Tensor:0:2"
+                ]
+            }
+        },
+        "MatMul":{
+            "MvTensor":{
+                "serial_description":[
+                    "Attr:radixX",
+                    "Attr:radixY",
+                    "Attr:strideX",
+                    "Attr:strideY",
+                    "Attr:padX",
+                    "Attr:padY",
+                    "Attr:padStyle",
+                    "Attr:dilation",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1",
+                    "Tensor:0:2"
+                ]
+            }
+        },
+        "MaxPool":{
+            "MvTensor":{
+                "serial_description":[
+                    "Attr:radixX",
+                    "Attr:radixY",
+                    "Attr:strideX",
+                    "Attr:strideY",
+                    "Attr:padX",
+                    "Attr:padY",
+                    "Attr:padStyle",
+                    "Tensor:0:0",
+                    "Tensor:1:0"
+                ]
+            },
+            "NCE1":{
+                "serial_description":[
+                    "Attr:streamingMask",
+                    "Attr:inputSize",
+                    "Attr:outputSize",
+                    "Attr:concatOffset",
+                    "Attr:unloadCMX",
+                    "Attr:overwriteInput",
+                    "Attr:CMXSize",
+                    "Attr:reluSHVAcc",
+                    "Attr:shvNegSlope",
+                    "Attr:shvPosSlope",
+                    "Attr:desc_count",
+                    "Attr:descriptors",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1",
+                    "Tensor:0:2",
+                    "Tensor:0:3"
+                ]
+            }
+        },
+        "AveragePool":{
+            "MvTensor":{
+                "serial_description":[
+                    "Attr:radixX",
+                    "Attr:radixY",
+                    "Attr:strideX",
+                    "Attr:strideY",
+                    "Attr:padX",
+                    "Attr:padY",
+                    "Attr:padStyle",
+                    "Tensor:0:0",
+                    "Tensor:1:0"
+                ]
+            },
+            "NCE1":{
+                "serial_description":[
+                    "Attr:streamingMask",
+                    "Attr:inputSize",
+                    "Attr:outputSize",
+                    "Attr:concatOffset",
+                    "Attr:unloadCMX",
+                    "Attr:overwriteInput",
+                    "Attr:CMXSize",
+                    "Attr:reluSHVAcc",
+                    "Attr:shvNegSlope",
+                    "Attr:shvPosSlope",
+                    "Attr:desc_count",
+                    "Attr:descriptors",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1",
+                    "Tensor:0:2",
+                    "Tensor:0:3"
+                ]
+            }
+        },
+        "Relu":{
+            "MvTensor":{
+                "serial_description":[
+                    "Attr:opX",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Attr:strideX",
+                    "Attr:strideY"
+                ]
+            }
+        },
+        "Elu":{
+            "MvTensor":{
+                "serial_description":[
+                    "Attr:alpha",
+                    "Attr:strideX",
+                    "Attr:strideY",
+                    "Tensor:0:0",
+                    "Tensor:1:0"
+                ]
+            }
+        },
+        "LeakyRelu":{
+            "MvTensor":{
+                "serial_description":[
+                    "Attr:alpha",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Attr:strideX",
+                    "Attr:strideY"
+                ]
+            }
+        },
+        "Prelu":{
+            "MvTensor":{
+                "serial_description":[
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1"
+                ]
+            }
+        },
+        "Sigmoid":{
+            "MvTensor":{
+                "serial_description":[
+                    "Tensor:0:0",
+                    "Tensor:1:0"
+                ]
+            }
+        },
+        "Softmax":{
+            "MvTensor":{
+                "serial_description":[
+                    "Attr:axis",
+                    "Tensor:0:0",
+                    "Tensor:1:0"
+                ]
+            }
+        },
+        "Scale":{
+            "MvTensor":{
+                "serial_description":[
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1",
+                    "Tensor:0:2"
+                ]
+            }
+        },
+        "Eltwise":{
+            "MvTensor":{
+                "serial_description":[
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1"
+                ]
+            }
+        },
+        "Tanh":{
+            "MvTensor":{
+                "serial_description":[
+                    "Tensor:0:0",
+                    "Tensor:1:0"
+                ]
+            }
+        },
+        "LocalResponseNormalization":{
+            "MvTensor":{
+                "serial_description":[
+                    "Attr:size",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Attr:bias"
+                ]
+            }
+        },
+        "Conversion":{
+            "MvTensor":{
+                "serial_description":[
+                    "Tensor:0:0",
+                    "Tensor:1:0"
+                ]
+            }
+        },
+        "FullyConnected":{
+            "MvTensor":{
+                "serial_description":[
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1",
+                    "Tensor:0:2"
+                ]
+            },
+            "NCE1":{
+                "serial_description":[
+                    "Attr:streamingMask",
+                    "Attr:inputSize",
+                    "Attr:outputSize",
+                    "Attr:concatOffset",
+                    "Attr:unloadCMX",
+                    "Attr:overwriteInput",
+                    "Attr:CMXSize",
+                    "Attr:reluSHVAcc",
+                    "Attr:shvNegSlope",
+                    "Attr:shvPosSlope",
+                    "Attr:desc_count",
+                    "Attr:descriptors",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1",
+                    "Tensor:0:2",
+                    "Tensor:0:3"
+                ]
+            }
+        }
+    },
+
+    "postOps" : {
+        "Relu" : {
+            "MvTensor":{
+                "serial_description":[
+                    "Attr:radixX",
+                    "Attr:radixY",
+                    "Attr:strideX",
+                    "Attr:strideY",
+                    "Attr:padX",
+                    "Attr:padY",
+                    "Attr:padStyle",
+                    "Attr:dilation",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1",
+                    "Tensor:0:2"
+                ]
+            },
+            "NCE1":{
+                "serial_description":[
+                    "Attr:streamingMask",
+                    "Attr:inputSize",
+                    "Attr:outputSize",
+                    "Attr:concatOffset",
+                    "Attr:unloadCMX",
+                    "Attr:overwriteInput",
+                    "Attr:CMXSize",
+                    "Attr:reluSHVAcc",
+                    "Attr:shvNegSlope",
+                    "Attr:shvPosSlope",
+                    "Attr:desc_count",
+                    "Attr:descriptors",
+                    "Tensor:0:0",
+                    "Tensor:1:0",
+                    "Tensor:0:1",
+                    "Tensor:0:2",
+                    "Tensor:0:3"
+                ]
+            }
+        }
+    },
+
+    "dtype":
+    {
+        "global": "Float16"
+    },
+
+    "resources":
+    {
+        "memory":
+        [
+
+            {
+                "name": "GraphFile",
+                "alignment": 64,
+                "size": 1024000000
+            },
+
+            {
+                "name": "VPU_DDR_Heap",
+                "alignment": 64,
+                "size": 31457280
+            },
+
+            {
+                "name": "VPU_CMX_NN",
+                "alignment": 64,
+                "size": 3686400
+            },
+
+            {
+                "name": "VPU_CMX_UPA",
+                "alignment": 64,
+                "size": 1024000000
+            },
+
+            {
+                "name": "VPU_DDR_BSS",
+                "alignment": 64,
+                "size": 1024000000
+            },
+
+            {
+                "name": "ProgrammableInput",
+                "alignment": 64,
+                "size": 1024000000
+            },
+            {
+                "name": "ProgrammableOutput",
+                "alignment": 64,
+                "size": 1024000000
+            }
+        ],
+        "nce_block":
+        [
+            {
+                "name": "DPUs",
+                "totalNumber": 20
+            },
+
+            {
+                "name": "Clusters",
+                "totalNumber": 4
+            }
+        ],
+        "huffman_decode_engine":
+        [
+            {
+                "name": "HDE",
+                "numberOfHDEModules": 1,
+                "bitPerSymbol": 8,
+                "blockSize": 4096,
+                "maxNumberEncodedSymbols": 16,
+                "bypassMode": false
+            }
+        ]
+    }
+}
