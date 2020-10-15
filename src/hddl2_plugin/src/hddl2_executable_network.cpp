@@ -35,6 +35,8 @@
 #include <transformations/op_conversions/reduce_l1_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l2_decomposition.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+
 // Plugin
 #include "hddl2_async_infer_request.h"
 #include "hddl2_exceptions.h"
@@ -120,19 +122,18 @@ ExecutableNetwork::ExecutableNetwork(
             ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
+
+            ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
+            ngraph::pass::ConstantFolding().run_on_function(nGraphFunc);
+            ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
 
             manager.register_pass<ngraph::pass::ReduceL1Decomposition>();  // in CommonOptimizations.
             manager.register_pass<ngraph::pass::ReduceL2Decomposition>();
-            auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-            decomp->add_matcher<ngraph::pass::ConvertReduceMeanToPooling>();
-            decomp->add_matcher<ngraph::pass::ConvertReduceMaxToPooling>();
-            decomp->add_matcher<ngraph::pass::ConvertReduceSumToPooling>();
-            decomp->set_name("ngraph::pass::Decompositions");
+            manager.register_pass<ngraph::pass::ConvertReduceToPooling>();
             manager.run_passes(nGraphFunc);
-
             ngraph::pass::ConstantFolding().run_on_function(nGraphFunc);
-            ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
+
             convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network, true);
             actualNetwork = convertedNetwork.get();
         }
