@@ -1,4 +1,4 @@
-project(mcmComplier VERSION 1.5.0)
+project(mcmComplier VERSION 1.5.3)
 
 #############################################################################################
 ### Setup
