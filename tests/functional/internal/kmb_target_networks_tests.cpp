@@ -432,7 +432,10 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw
             1.f, 0.3f);
 }
 
+// [Track number: S#41097]
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc_fuse_scale_input_accuracy_drop) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX","bad infer results");
+
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -609,7 +612,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_vgg16_caffe_dense_int8_IRv10_from_fp32)
             1, 0.05f);
 }
 
-TEST_F(KmbRetinaFaceNetworkTest, DISABLED_precommit_retinaface_mobilenetv2_0_25_modified) {
+// [Track number: S#41097]
+TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "segfault on compile time");
     runTest(
             TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
                     .setUserInputPrecision("input", Precision::U8)

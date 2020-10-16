@@ -54,7 +54,10 @@ std::ostream& operator<<(std::ostream& os, const ProposalTestParams& p) {
 
 class KmbProposalLayerTests : public KmbLayerTestBase,
                               public testing::WithParamInterface<ProposalTestParams> {};
+
+// [Track number: S#41097]
 TEST_P(KmbProposalLayerTests, AccuracyTest) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
 
     const auto& p = GetParam();
