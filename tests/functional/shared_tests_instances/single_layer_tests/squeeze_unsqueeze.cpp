@@ -44,7 +44,7 @@ const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {
 // C++ exception with description "Size of dims(5) and format(NHWC) are inconsistent.
 // and so on.
 // [Track number: S#39977]
-INSTANTIATE_TEST_CASE_P(DISABLED_Basic, KmbSqueezeUnsqueezeLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Basic, KmbSqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors)),
                             ::testing::ValuesIn(opTypes),
@@ -55,4 +55,65 @@ INSTANTIATE_TEST_CASE_P(DISABLED_Basic, KmbSqueezeUnsqueezeLayerTest,
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                         SqueezeUnsqueezeLayerTest::getTestCaseName);
+
+
+// Subset of parameters and test for Unsqueeze.
+// This subset is used to enable test on Usqueeze.
+// Do not forget to remove this subset and test when initial test DISABLED_smoke_Basic will be enabled.
+
+std::map<std::vector<size_t>, std::vector<std::vector<int>>> axesVectors_unsqueeze_pass_mcm = {
+    {{1}, {{-1}, {0}}},
+    {{1, 2}, {{0}}},
+    {{2, 1}, {{1}, {-1}}},
+};
+
+const std::vector<ngraph::helpers::SqueezeOpType> opTypes_unsqueeze_pass_mcm = {
+    ngraph::helpers::SqueezeOpType::UNSQUEEZE
+};
+
+
+INSTANTIATE_TEST_CASE_P(smoke_Basic_unsqueeze_pass_mcm, KmbSqueezeUnsqueezeLayerTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors_unsqueeze_pass_mcm)),
+                            ::testing::ValuesIn(opTypes_unsqueeze_pass_mcm),
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                        SqueezeUnsqueezeLayerTest::getTestCaseName);
+
+// End of parameters and test for Unsqueeze.
+
+// Subset of parameters and test for Squeeze.
+// This subset is used to enable test on Squeeze.
+// Do not forget to remove this subset and test when initial test DISABLED_smoke_Basic will be enabled.
+
+std::map<std::vector<size_t>, std::vector<std::vector<int>>> axesVectors_squeeze_pass_mcm = {
+    {{1, 1, 1, 1}, {{-1}, {0}, {1}, {2}, {3}, {0, 1}, {0, 2}, {0, 3}, {1, 2}, {2, 3}, {0, 1, 2}, {0, 2, 3}, {1, 2, 3}}},
+    {{1, 2, 3, 4}, {{0}}},
+    {{2, 1, 3, 4}, {{1}}},
+    {{1, 2}, {{0}}},
+    {{2, 1}, {{1}, {-1}}},
+};
+
+const std::vector<ngraph::helpers::SqueezeOpType> opTypes_squeeze_pass_mcm = {
+    ngraph::helpers::SqueezeOpType::SQUEEZE
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_Basic_squeeze_pass_mcm, KmbSqueezeUnsqueezeLayerTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors_squeeze_pass_mcm)),
+                            ::testing::ValuesIn(opTypes_squeeze_pass_mcm),
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                        SqueezeUnsqueezeLayerTest::getTestCaseName);
+
+// End of parameters and test for Squeeze.
+
 }  // namespace

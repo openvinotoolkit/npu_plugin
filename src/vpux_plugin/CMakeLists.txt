@@ -68,3 +68,51 @@ endif()
 list(APPEND ALL_PLUGINS ${VPUX_PLUGIN_TARGET})
 
 ie_register_plugins(MAIN_TARGET ${VPUX_PLUGIN_TARGET} POSSIBLE_PLUGINS ${ALL_PLUGINS})
+
+add_custom_target(mcm_compiler_copy ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/config"
+        "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/mcm_config"
+    COMMENT "[MCM Compiler] Copy config files"
+)
+
+add_custom_target(vpu_bin_copy ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/vpu"
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
+        "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/vpu/"
+    COMMENT "[Firmware] Copy vpu.bin"
+)
+
+if(AARCH64)
+    add_custom_target(vpual_copy ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/vpu"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/lib/"
+            "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/vpu/"
+        COMMENT "[VPUAL] Copy libraries"
+    )
+endif()
+
+if(ENABLE_HDDL2)
+    if(WIN32)
+        add_custom_target(hddl_unite_copy ALL
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${HDDL_UNITE}/bin/"
+                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>"
+            COMMENT "[HDDL Unite] Copy libraries"
+        )
+    else()
+        add_custom_target(hddl_unite_copy ALL
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${HDDL_UNITE}/lib/"
+                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${HDDL_UNITE}/thirdparty/XLink/lib/"
+                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>"
+            COMMENT "[HDDL Unite] Copy libraries"
+        )
+    endif()
+endif()
