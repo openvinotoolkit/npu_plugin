@@ -65,7 +65,7 @@ void mv::setOutputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator 
 }
 
 mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator parentOpIt,
-                                                 mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+                                                 mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt)
 {
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
@@ -105,7 +105,7 @@ mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator pa
     return opIt;
 }
 mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt,
-                                                      mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+                                                      mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt)
 {
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
@@ -147,7 +147,7 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterat
 
 
 mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpListIterator parentOpIt,
-                                                      std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel om, mv::Data::OpListIterator opIt)
+                                                      std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel & om, mv::Data::OpListIterator opIt)
 {
     
     //Important: do not change the order of this ops
@@ -196,7 +196,7 @@ mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpLi
 }
 
 mv::Data::OpListIterator mv::linkNewOperationsReplacementRemoveFlows(mv::Data::OpListIterator childOpIt,
-                                                      mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+                                                      mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt)
 {
     std::vector<mv::Data::OpListIterator> opsToLink;
     std::vector<std::size_t> inputSlots;
@@ -381,7 +381,7 @@ bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string refe
             if(splitStrategy == "SplitOverH" &&
                sink->getOpType() == "DPUTask" &&
                sink->get<std::string>("taskOp") == "Conv" &&
-               (sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 ||
+               (
                 sink->get<std::array<unsigned short, 2>>("kSize")[1] > 1))
 
                 return true;

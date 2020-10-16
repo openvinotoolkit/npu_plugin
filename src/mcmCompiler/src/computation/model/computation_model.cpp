@@ -1,6 +1,132 @@
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/op/op.hpp"
 
+mv::BufferEntry::BufferEntry(const std::string& name, BufferType type,
+    const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype) :
+name_(name), type_(type), size_(shape.totalSize()), order_(order), shape_(shape), dtype_(dtype)
+{
+
+}
+
+const char* mv::BufferEntry::getName() const 
+{
+    return name_.c_str();
+}
+
+mv::BufferType mv::BufferEntry::getBufferType() const
+{
+    return type_;
+}
+
+uint32_t mv::BufferEntry::getSize() const
+{
+    return size_;
+}
+
+const mv::Order& mv::BufferEntry::getOrder() const
+{
+    return order_;
+}
+
+const mv::Shape& mv::BufferEntry::getShape() const
+{
+    return shape_;
+}
+
+const mv::DType& mv::BufferEntry::getDType() const
+{
+    return dtype_;
+}
+
+void mv::BufferMap::addScratch(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype)
+{
+    if (scratchBuffers_.size() >= UINT32_MAX)
+        throw RuntimeError(*this, "Scratch buffer map full, can only store " + std::to_string(UINT32_MAX));
+    scratchBuffers_.push_back(BufferEntry(name, BufferType::Scratch, order, shape, dtype));
+}
+
+void mv::BufferMap::addInput(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype)
+{
+    if (inputBuffers_.size() >= UINT32_MAX)
+        throw RuntimeError(*this, "Input buffer map full, can only store " + std::to_string(UINT32_MAX));
+    inputBuffers_.push_back(BufferEntry(name, BufferType::Input, order, shape, dtype));
+}
+
+void mv::BufferMap::addOutput(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype)
+{
+    if (outputBuffers_.size() >= UINT32_MAX)
+        throw RuntimeError(*this, "Output buffer map full, can only store " + std::to_string(UINT32_MAX));
+    outputBuffers_.push_back(BufferEntry(name, BufferType::Output, order, shape, dtype));
+}
+
+void mv::BufferMap::addProfiling(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype)
+{
+    if (profilingBuffers_.size() >= UINT32_MAX)
+        throw RuntimeError(*this, "Profiling buffer map full, can only store " + std::to_string(UINT32_MAX));
+    profilingBuffers_.push_back(BufferEntry(name, BufferType::Profiling, order, shape, dtype));
+}
+
+void mv::BufferMap::clear()
+{
+    scratchBuffers_.clear();
+    inputBuffers_.clear();
+    outputBuffers_.clear();
+    profilingBuffers_.clear();
+}
+
+const mv::BufferEntry* mv::BufferMap::getScratch() const
+{
+    if (scratchBuffers_.empty())
+        return nullptr;
+    return scratchBuffers_.data();
+}
+
+uint32_t mv::BufferMap::getScratchCount() const
+{
+    return scratchBuffers_.size();
+}
+
+const mv::BufferEntry* mv::BufferMap::getInput() const
+{
+    if (inputBuffers_.empty())
+        return nullptr;
+    return inputBuffers_.data();
+}
+
+uint32_t mv::BufferMap::getInputCount() const
+{
+    return inputBuffers_.size();
+}
+
+const mv::BufferEntry* mv::BufferMap::getOutput() const
+{
+    if (outputBuffers_.empty())
+        return nullptr;
+    return outputBuffers_.data();
+}
+
+uint32_t mv::BufferMap::getOutputCount() const
+{
+    return outputBuffers_.size();
+}
+
+const mv::BufferEntry* mv::BufferMap::getProfiling () const
+{
+    if (profilingBuffers_.empty())
+        return nullptr;
+    return profilingBuffers_.data();
+}
+
+uint32_t mv::BufferMap::getProfilingCount() const
+{
+    return profilingBuffers_.size();
+}
+
+std::string mv::BufferMap::getLogID() const
+{
+    return "BufferMap";
+}
+
 mv::ComputationModel::ComputationModel(const std::string& name) :
 name_(name),
 opsGraph_(std::make_shared<conjoined_graph<Op, DataFlow, ControlFlow>>()),
@@ -25,6 +151,7 @@ input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 networkInputs_(std::make_shared<std::vector<Data::OpListIterator>>()),
 networkOutputs_(std::make_shared<std::vector<Data::OpListIterator>>()),
+bufferMap_(std::make_shared<BufferMap>()),
 selfRef_(*this)
 {
 
@@ -54,6 +181,7 @@ input_(other.input_),
 output_(other.output_),
 networkInputs_(other.networkInputs_),
 networkOutputs_(other.networkOutputs_),
+bufferMap_(other.bufferMap_),
 selfRef_(other.selfRef_)
 {
 
@@ -483,12 +611,18 @@ void mv::ComputationModel::clear()
     opsIndexCounter_->clear();
     dataGraph_.clear();
     controlGraph_.clear();
+    bufferMap_->clear();
     *dataOpEnd_ = dataGraph_.node_end();
     *dataFlowEnd_ = dataGraph_.edge_end();
     *controlOpEnd_ = controlGraph_.node_end();
     *controlFlowEnd_ = controlGraph_.edge_end();
     *input_ = dataGraph_.node_end();
     *output_ = dataGraph_.node_end();
+}
+
+void mv::ComputationModel::setName(const std::string& name)
+{
+    name_ = name;
 }
 
 mv::json::Value mv::ComputationModel::toJSON() const
@@ -533,4 +667,18 @@ std::shared_ptr<mv::Element>mv::ComputationModel::getGlobalConfigParams() const
 void mv::ComputationModel::setGlobalConfigParams(mv::Element& element)
 {
     *globalConfigParams_ = element;
+}
+
+mv::BufferMap& mv::ComputationModel::bufferMap()
+{
+    return *bufferMap_;
+}
+
+bool mv::operator==(const mv::BufferEntry& lhs, const mv::BufferEntry& rhs) {
+    return lhs.name_ == rhs.name_ &&
+        lhs.type_ == rhs.type_ &&
+        lhs.size_ == rhs.size_ &&
+        lhs.order_ == rhs.order_ &&
+        lhs.shape_ == rhs.shape_ &&
+        lhs.dtype_ == rhs.dtype_; 
 }

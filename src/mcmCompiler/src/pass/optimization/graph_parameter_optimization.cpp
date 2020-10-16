@@ -94,6 +94,7 @@ namespace mv
                 SparsitySpilling,
                 DeConvSubConvSOKHeight,
                 SpiltOverHForLayer79InACLNet,
+                SplitOverHOverlappedWronglyComputed,
                 SoftwareDeconvolutionSet,
                 UpaHKSwitch
             };
@@ -452,6 +453,46 @@ namespace mv
                             return false;
                     }
                 }
+
+                //check that the inputSize will not be smaller than kernel size
+                if (op.getOpType() == "MaxPool" ||
+                    op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
+                {
+                    uint16_t kernelH;
+                    std::array<unsigned short, 4> padding;
+                                       
+                    auto originalH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                    auto newOutputSizes = tileSpatialOutputSize(originalH, splits);
+                                       
+                    unsigned short kernelStride;
+                    if (op.hasAttr("stride"))
+                        kernelStride = op.get<std::array<unsigned short, 2>>("stride")[1];
+                    else
+                        kernelStride = 1;//fake stride
+                    
+                    if (op.hasAttr("padding"))
+                        padding = op.get<std::array<unsigned short, 4>>("padding");
+                    else
+                        padding = {0, 0, 0, 0};
+
+                    int padStart = 0;
+                    int padEnd = padding[3];
+
+                    if (op.hasAttr("kSize"))
+                    {
+                        auto kernelShape = op.get<std::array<unsigned short, 2>>("kSize");
+                        kernelH = kernelShape[1];
+                    }
+                    else
+                    {
+                        auto weightsShape = op.getInputTensor(1)->getShape();
+                        kernelH = weightsShape[mv::KERNEL_HEIGHT];
+                    }
+                    int inputSizeForLastSplit = ((newOutputSizes.back() -1) * kernelStride)  -padStart - padEnd + kernelH;
+                    if ((inputSizeForLastSplit + padEnd) < kernelH)
+                        return false;
+                }
+
                 return true;
             }
 
@@ -1021,6 +1062,11 @@ namespace mv
                                 return FailCause::SoftwareDeconvolutionSet;
                      }
                 }
+                //temporarily disable the SplitOverHOverlapped for custom network kernel size 7x7 subtensors not correct
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 7 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 7)
+                    return FailCause::SplitOverHOverlappedWronglyComputed;
                 return FailCause::Pass; //good strategy
             }
 
@@ -1420,10 +1466,9 @@ namespace mv
 
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
-                if ( op.getOpType() == "Conv" ) {
+                if (op.getOpType() == "Conv" ) {
                     if( clustering == "SplitOverH" &&
-                        (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1 ||
-                        op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1) &&
+                        (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1) &&
                         !isCMConv &&
                         referenceDevice == "A0")
                         {
@@ -2302,7 +2347,8 @@ namespace mv
                     return false;
 
                 // Note: No sense prefetching weights if we are nested streaming
-                auto childStreams =  child["streaming"].get<mv::Shape>();
+                mv::Shape& childStreams = child["streaming"].get<mv::Shape>();
+
                 if(childStreams["H"] > 1 && childStreams["K"] > 1)
                     return false;
 

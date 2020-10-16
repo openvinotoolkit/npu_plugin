@@ -13,9 +13,52 @@ const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compila
 const std::string mv::CompilationUnit::ma3100DefCompDescPath_ = "/config/compilation/release_kmb.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
-model_(new OpModel(modelName))
+model_(new OpModel(modelName)),
+preCompiled_(false)
 {
     MV_PROFILER_START;
+}
+
+mv::CompilationUnit::CompilationUnit(const char *blobBuffer, unsigned blobSize, TargetDescriptor td) :
+model_(new OpModel("")),
+targetDescriptor_(td),
+preCompiled_(true)
+{
+    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(targetDescriptor_);
+    rm.deserialize(blobBuffer, blobSize);
+    auto& graphFile = rm.getGraphFile();
+    model_->setName(graphFile.header->identifier);
+    
+    model_->bufferMap().addScratch("Scratch", mv::Order("W"),
+        {graphFile.header->resources->ddr_scratch}, mv::DType("Default"));
+
+    for (unsigned i = 0; i < graphFile.header->net_input.size(); ++i) {
+        auto dimensions = graphFile.header->net_input[i]->dimensions;
+        auto strides = graphFile.header->net_input[i]->strides;
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(strides.begin(), strides.end());
+        model_->bufferMap().addInput(
+            graphFile.header->net_input[i]->name,
+            //graphFile.header->net_input[i]->,
+            RuntimeModel::stridesToOrder(strides, dimensions),
+            std::vector<std::size_t>(dimensions.begin(), dimensions.end()),
+            RuntimeModel::convertDtype(graphFile.header->net_input[i]->data_dtype)
+        );
+    }
+    
+    for (unsigned i = 0; i < graphFile.header->net_output.size(); ++i) {
+        auto dimensions = graphFile.header->net_output[i]->dimensions;
+        auto strides = graphFile.header->net_output[i]->strides;
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(strides.begin(), strides.end());
+        model_->bufferMap().addOutput(
+            graphFile.header->net_output[i]->name,
+            RuntimeModel::stridesToOrder(strides, dimensions),
+            std::vector<std::size_t>(dimensions.begin(), dimensions.end()),
+            RuntimeModel::convertDtype(graphFile.header->net_output[i]->data_dtype)
+        );
+    }
+
 }
 
 mv::CompilationUnit::~CompilationUnit()
@@ -130,12 +173,17 @@ mv::CompilationDescriptor& mv::CompilationUnit::compilationDescriptor()
 
 mv::OpModel& mv::CompilationUnit::model()
 {
+    if (preCompiled_)
+        throw RuntimeError(*this, "Reverse compilation is not supported,"
+            " model is unavilable in case of loading a precompiled blob");
     return *model_;
 }
 
 bool mv::CompilationUnit::initialize()
 {
-
+    if (preCompiled_)
+        throw RuntimeError(*this, "Compilation cannot be initialized in case"
+            " of loading a precompiled blob");
     if (!passManager_.initialize(*model_, targetDescriptor_, compDescriptor_))
         return false;
     // Initialize resouces
@@ -151,11 +199,17 @@ bool mv::CompilationUnit::initialize()
 
 mv::Element mv::CompilationUnit::runStep()
 {
+    if (preCompiled_)
+        throw RuntimeError(*this, "Compilation cannot be executed in case"
+            " of loading a precompiled blob");
     return passManager_.step();
 }
 
 mv::Element mv::CompilationUnit::run()
 {
+    if (preCompiled_)
+        throw RuntimeError(*this, "Compilation cannot be executed in case"
+            " of loading a precompiled blob");
     MV_PROFILED_FUNCTION(MV_PROFILE_PHASE);
     Element output("CompilationOutput");
     output.set<std::string>("ModelName", model_->getName());
@@ -191,7 +245,25 @@ mv::Element mv::CompilationUnit::run()
 
 bool mv::CompilationUnit::completed() const
 {
+    if (preCompiled_)
+        return true;
     return passManager_.completed();
+}
+
+void mv::CompilationUnit::reset()
+{
+    RuntimeModel::getInstance(targetDescriptor_).clear();
+    targetDescriptor_ = TargetDescriptor();
+    model_->clear();
+    if (preCompiled_) 
+    {
+        preCompiled_ = false;
+    }
+    else
+    {
+        model_->clear();
+        compDescriptor_ = CompilationDescriptor();
+    }
 }
 
 std::string mv::CompilationUnit::getLogID() const
@@ -205,4 +277,16 @@ std::shared_ptr<std::vector<char>> mv::CompilationUnit::getBlob() const
         log(Logger::MessageType::Warning, "Getting a blob from compilation unit before completion");
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(targetDescriptor_);
     return rm.getBlob();
+}
+
+const mv::BufferMap& mv::CompilationUnit::getBufferMap() const
+{
+    if(!completed())
+        throw RuntimeError(*this, "Attempt of quering the buffer map before the completion of the compilation");
+    return model_->bufferMap();
+}
+
+void mv::CompilationUnit::getName(char* name, unsigned bufferSize) const 
+{
+    strncpy(name, model_->getName().c_str(), bufferSize);
 }

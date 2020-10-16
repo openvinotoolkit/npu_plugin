@@ -136,6 +136,8 @@
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             "MarkEltWiseUpaInputs",
+            "MarkCMCompatibleConvs",
+            "AddPermuteToNonCMConvPaths",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -269,18 +271,16 @@
     "control_flows":{
         "Singular" : [
             "TaskControlFlows",
-            "TransitiveReduction",
-            "LayerNumbering",
-            "TransitiveReduction",
-            "LayerNumbering",
-            "NNCMX2DDRControlFlows",
-            "TransitiveReduction"
+            "NNCMX2DDRControlFlows"
         ]
     },
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsEltwise",
+            {
+              "name" : "LocateInplaceEltwiseOps"
+            },
             {
               "name" : "ChainPipeliningTransform",
               "select_stages" : 2
@@ -289,7 +289,8 @@
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
               "no_temporal_edges" : true,
-              "enable_cmx_concat" : true
+              "enable_cmx_concat" : true,
+              "enable_inplace_eltwise" : true
             },
             {
               "name" : "RecomputeImplicitOpMemoryLocations"
@@ -298,8 +299,6 @@
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
-            "TransitiveReduction",
-            "LayerNumbering",
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
@@ -318,8 +317,7 @@
               "ddr_control_edges" : true
             },
             "SetSliceAddressesInCMX",
-            "TransitiveReduction",
-            "LayerNumbering",
+            "LayerNumbering",                        
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"

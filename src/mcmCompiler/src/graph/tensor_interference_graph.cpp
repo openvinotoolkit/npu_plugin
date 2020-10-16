@@ -31,7 +31,10 @@ std::string mv::TensorInterferenceGraph::getTensorTopMaster_(const mv::Data::Ten
     if (foundIt != topMasterMap_.end())
         return foundIt->second;
 
-    auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+    auto & allocators = t->get<std::set<std::string>>("allocators");
+    if (allocators.empty())
+        throw mv::ArgumentError("getTensorTopMaster_", "",  "Tensor Allocators empty", "");
+    auto tensorAllocatorName = allocators.begin();
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
     auto masterTensor = tensorAllocator.getTopMasterBuffer(tensorBufferIt);

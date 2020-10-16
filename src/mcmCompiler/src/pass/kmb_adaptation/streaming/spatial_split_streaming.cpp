@@ -47,7 +47,7 @@ namespace mv
 
 mv::Data::OpListIterator operationsReplacement(mv::Data::OpListIterator parentOpIt,
         mv::Data::TensorIterator sourceTensor,
-        mv::OpModel om,
+        mv::OpModel & om,
         mv::Data::OpListIterator opIt)
 {
     //Important: do not change the order of this ops
@@ -265,6 +265,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                     op->get<mv::DType>("dType"),
                                     op->get<mv::QuantizationParams>("quantParams"),
                                     streamingOpName);
+            newTensor->setOrder(mv::Order("NHWC"));
 
             if (split != number_of_splits - 1)
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
@@ -541,7 +542,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
 
-            if (opType == "Conv")
+            if (opType == "Conv"){
                 newTensor = om.conv(slice,
                                 op->getInputTensor(1),
                                 kernelStride,
@@ -551,6 +552,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
+                newTensor->setOrder(mv::Order("NHWC"));
+            }
             if (split != number_of_splits - 1)
             {
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
@@ -624,7 +627,17 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     {
         mv::Tensor::MemoryLocation outputLocation(mv::Tensor::MemoryLocation::DEFAULT);
         if(numChildStreames > 1)
+        {
             outputLocation.relocate(outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+            //NOTE: the idea here is that if you are not aligned with 16 channels in case that you are a z-maj
+            //operation later you will have added the mechanism of align crop operation dmas to solve the //16
+            //so if you are the last layer do not populate the output as a location but the ddr, leaving it in comments
+            //as it is used mainly for the modelCutter, normally the locations should be handled in the placement of the
+            //crop,align, quantize etc...
+//            if ((newTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % 16 != 0) &&
+//                    outputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::OUTPUT)
+//                outputLocation.relocate(mv::Tensor::MemoryLocation::DDR);
+        }
         else
             outputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
         newTensor->set<mv::Tensor::MemoryLocation>("Location",outputLocation);

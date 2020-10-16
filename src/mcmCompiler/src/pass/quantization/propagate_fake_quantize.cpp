@@ -218,7 +218,7 @@ void setQuantizationParams(mv::Data::OpListIterator& op, mv::QuantizationParams 
     }
 }
 
-bool areAllInputQuantParamsEqual(mv::OpModel om, mv::Data::OpListIterator op) {
+bool areAllInputQuantParamsEqual(mv::OpModel & om, mv::Data::OpListIterator op) {
     std::vector<mv::QuantizationParams> input_params;
     for (size_t i = 0; i < op->getInputTensor().size(); ++i) {
         input_params.push_back(getParentQuantParams(om, op, i));

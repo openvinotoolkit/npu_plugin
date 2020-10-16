@@ -183,6 +183,8 @@ std::queue<std::string> aggressiveSimplify(const mv::pass::PassEntry& pass, mv::
     while(n > 0)
     {
         orderedNodes = orderingFunc(g);
+        if (orderedNodes.empty())
+            throw mv::ArgumentError("aggressiveSimplify", "", "", "orderedNodes is empty");
         auto itr = orderedNodes.begin();
         auto ni = g.node_find(*itr);
         if (orderStrategy != mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST && !isNodeSimplificable(ni, memorySize))
@@ -528,7 +530,10 @@ size_t bestFitMemoryAllocation(const mv::pass::PassEntry& pass, mv::ComputationM
         t->setAddress((*it).address); //still needed to set sparsityMap and storageElement addresses
         if ((*it).height > maxHeight)
             maxHeight = (*it).height;
-        auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+        auto & allocators = t->get<std::set<std::string>>("allocators");
+        if (allocators.empty())
+            throw mv::ArgumentError("bestFitMemoryAllocation", "",  "Tensor Allocators empty", "");
+        auto tensorAllocatorName = allocators.begin();
         auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
         mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
         tensorBufferIt->setOffset((*it).address);
@@ -613,7 +618,10 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
                 return false;
             },
             false);
-    auto memsize = memDefs.find("VPU_DDR_Heap")->second.size;
+    auto itHeap = memDefs.find("VPU_DDR_Heap");
+    if (itHeap == memDefs.end())
+        throw mv::ArgumentError("tensorGraphColoringFnc", "memDefs", "", "VPU_DDR_Heap not found");
+    auto memsize = itHeap->second.size;
 
     auto agOrder = aggressiveSimplify(pass, ddr_heap_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "DDR_HEAP");

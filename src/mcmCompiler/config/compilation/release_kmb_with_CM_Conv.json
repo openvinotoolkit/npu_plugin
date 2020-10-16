@@ -23,8 +23,8 @@
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
-                "PWLUsage": true,
                 "ScaleFuseInput": true,
+                "PWLUsage": true,
                 "ReferenceMode": false,
                 "split_strategy" :
                 [
@@ -136,6 +136,8 @@
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             "MarkEltWiseUpaInputs",
+            "MarkCMCompatibleConvs",
+            "AddPermuteToNonCMConvPaths",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -154,7 +156,7 @@
                     "globalStrategies" : [
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
-                        {"name" : "enablePipelining",   "value" : true       },
+                        {"name" : "enablePipelining",   "value" : false },
                         {"name" : "enablePrefetching",   "value" : true      },
                         {"name" : "forceActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : false      },
@@ -176,8 +178,8 @@
                             "name" : "DepthwiseConv",
                             "strategies": [
 
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH", "StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH", "Clustering","SplitOverK"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false},
@@ -275,18 +277,16 @@
     "control_flows":{
         "Singular" : [
             "TaskControlFlows",
-            "TransitiveReduction",
-            "LayerNumbering",
-            "TransitiveReduction",
-            "LayerNumbering",
-            "NNCMX2DDRControlFlows",
-            "TransitiveReduction"
+            "NNCMX2DDRControlFlows"
         ]
     },
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsEltwise",
+            {
+              "name" : "LocateInplaceEltwiseOps"
+            },
             {
               "name" : "ChainPipeliningTransform",
               "select_stages" : 2
@@ -295,7 +295,8 @@
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
               "no_temporal_edges" : true,
-              "enable_cmx_concat" : true 
+              "enable_cmx_concat" : true,
+              "enable_inplace_eltwise" : true
             },
             {
               "name" : "RecomputeImplicitOpMemoryLocations"
@@ -305,8 +306,6 @@
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
-            "TransitiveReduction",
-            "LayerNumbering",
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
@@ -325,8 +324,7 @@
               "ddr_control_edges" : true
             },
             "SetSliceAddressesInCMX",
-            "TransitiveReduction",
-            "LayerNumbering",
+            "LayerNumbering",                        
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"

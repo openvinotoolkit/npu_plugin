@@ -118,8 +118,10 @@ struct Tensor_Allocator_Assignment {
     if(!has_any_lp_scheduler_address_attributes(tensor_itr)) { return; }
 
     mv::DataModel dm(model_);
-    auto tensor_alloc_name=
-        tensor_itr->get<std::set<std::string>>("allocators").begin();
+    auto & tensor_allocators = tensor_itr->get<std::set<std::string>>("allocators");
+    if (tensor_allocators.empty())
+      throw mv::ArgumentError("Tensor_Allocator_Assignment", "",  "Tensor Allocators empty", "");
+    auto tensor_alloc_name = tensor_allocators.begin();
     auto tensor_alloc= dm.getAllocator(*tensor_alloc_name);
     mv::Data::BufferIterator tensor_buffer_itr =
         tensor_alloc.getBuffer(0, tensor_itr);
@@ -624,6 +626,7 @@ class Control_Edge_Set {
       // !comodel.pathExists(oitr_sink, oitr_source), however the calling the
       // calling this (CosumerControl) need to check avoiding edges between
       // the sibiling and then this check can be removed.
+#if 0
       if ( (flow_itr == cmodel.flowEnd()) &&
           !(cmodel.pathExists(oitr_source, oitr_sink)) ) {
         if (cmodel.pathExists(oitr_sink, oitr_source)) {
@@ -632,6 +635,12 @@ class Control_Edge_Set {
               sink->getName().c_str(), source->getName().c_str());
           throw "[LpScheduler] unexpected cycle in the control DAG ";
         }
+        cmodel.defineFlow(oitr_source, oitr_sink);
+        edge_added = true;
+      }
+#endif
+
+      if (flow_itr == cmodel.flowEnd()) {
         cmodel.defineFlow(oitr_source, oitr_sink);
         edge_added = true;
       }
@@ -2094,8 +2103,10 @@ class Master_Slave_Buffer_Relations {
 
       // check if master buffer is the same //
       mv::DataModel dm(*cmodel_ptr_);
-      auto talloc_name =
-          tensor_itr->get<std::set<std::string>>("allocators").begin();
+      auto & tallocs = tensor_itr->get<std::set<std::string>>("allocators");
+      if (tallocs.empty())
+        throw mv::ArgumentError("get_op_associated_with_master_buffer", "",  "Tensor Allocators empty", "");
+      auto talloc_name = tallocs.begin();
       auto talloc = dm.getAllocator(*talloc_name);
       mv::Data::BufferIterator tensor_buffer_itr = talloc.getBuffer(0UL,
             tensor_itr);
@@ -2292,6 +2303,29 @@ class DDR_Address_Generator {
       }
     }
 
+    template<typename OperationIterator>
+    void add_scratch_info_into_model(
+        const master_slave_relations_t& msrelations, OperationIterator obegin,
+        OperationIterator oend) {
+
+      mv::BufferMap& buffer_map = model_.bufferMap();
+      mv::DataModel dm(model_);
+      uint32_t scratchHighWatermark = 0;
+      for (; obegin!=oend; ++obegin) {
+        mv::Op *master_op =
+          const_cast<mv::Op *>(msrelations.master_tensor_op(*obegin));
+        mv::Data::TensorIterator tensor_itr = master_op->getOutputTensor(0UL);
+        if (scratchHighWatermark >= std::numeric_limits<uint32_t>::max() - tensor_itr->getShape().totalSize())
+          throw mv::RuntimeError("Scheduler", "Scratch buffer exceeds 32-bit address space");
+        scratchHighWatermark += tensor_itr->getShape().totalSize();
+      }
+      buffer_map.addScratch(
+        "Scratch",
+        mv::Order("W"),
+        {scratchHighWatermark},
+        mv::DType("Default")
+      );
+    }
 
     template<typename ScheduleIterator>
     bool generate_tensor_addresses(
@@ -2335,6 +2369,9 @@ class DDR_Address_Generator {
       if (status) {
         auto params = model_.getGlobalConfigParams();
         params->set<int>("DDRScratch", (int)(high_watermark_));
+        if (high_watermark_)
+          model_.bufferMap().addScratch("Scratch", mv::Order("W"),
+              {high_watermark_}, mv::DType("Default"));
       }
 
 

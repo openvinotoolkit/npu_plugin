@@ -23,21 +23,25 @@ namespace mv
         static const std::string ma2490DefCompDescPath_;
         static const std::string ma3100DefCompDescPath_;
         static const std::string compositionalModelRecordingsPath_;
+        static const unsigned jsonParserBufferLength_ = 256;
 
         static Logger& logger_;
+        static bool init_;
 
         OpModel* model_;
         PassManager passManager_;
         TargetDescriptor targetDescriptor_;
         CompilationDescriptor compDescriptor_;
-        const static unsigned jsonParserBufferLength_ = 256;
+        bool preCompiled_;
 
     public:
-        std::shared_ptr<std::vector<char> > getBlob() const;
 
         CompilationUnit(const std::string& modelName);
+        CompilationUnit(const char *blobBuffer, unsigned blobSize, TargetDescriptor td);
+        CompilationUnit(const CompilationUnit & rhs) = delete;
         ~CompilationUnit();
 
+        CompilationUnit & operator=(const CompilationUnit & rhs) = delete;
         bool loadTargetDescriptor(const std::string& path);
         bool loadTargetDescriptor(Target target);
         bool loadCompilationDescriptor(const std::string& path);
@@ -50,6 +54,13 @@ namespace mv
         Element runStep();
         Element run();
         bool completed() const;
+        void reset();
+
+        void getName(char* name, unsigned bufferSize) const;
+        std::shared_ptr<std::vector<char> > getBlob() const;
+        const BufferMap& getBufferMap() const;
+
+        void loadBlob(const char *blobBuffer, unsigned blobSize);
 
         virtual std::string getLogID() const override;
 
