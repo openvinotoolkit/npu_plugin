@@ -603,9 +603,10 @@ TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
             1, 0.05f);
 }
 
-// [Track number: S#41097]
-// segfault on compile time
-TEST_F(KmbRetinaFaceNetworkTest, DISABLED_precommit_retinaface_mobilenetv2_0_25_modified) {
+// Required w/a is disabling SplitOverH clustering strategy in compilation descriptor
+// [Track number: H#18012385770]
+// [Track number: H#18013202155]
+TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
                     .setUserInputPrecision("input", Precision::U8)
