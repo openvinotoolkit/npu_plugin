@@ -1,6 +1,0 @@
-*.npy
-NA
-__pycache__/
-graph
-*.png
-python_unittests_xml/

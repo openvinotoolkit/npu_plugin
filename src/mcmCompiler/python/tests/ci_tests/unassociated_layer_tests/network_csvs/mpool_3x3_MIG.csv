@@ -1,2 +1,0 @@
-Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
-None,james3x3pool,MaxPooling,112x112x64,56x56x64,3x3,2,UINT8,No,0

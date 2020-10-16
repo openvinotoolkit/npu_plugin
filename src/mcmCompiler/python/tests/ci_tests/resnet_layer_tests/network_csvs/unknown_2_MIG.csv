@@ -1,2 +1,0 @@
-Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
-Resnet 50, unknown_2,Convolution, 7x7x256, 7x7x1024, 1x1,1,UINT8,No,0.5
