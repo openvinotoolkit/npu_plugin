@@ -14,8 +14,6 @@
 # stated in the License.
 #
 
-file(MAKE_DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu")
-
 #
 # flatbuffers
 #
@@ -48,16 +46,6 @@ if(AARCH64)
     set_target_properties(sipp_custom PROPERTIES IMPORTED_GLOBAL TRUE)
     set_target_properties(XLink PROPERTIES IMPORTED_GLOBAL TRUE)
     set_target_properties(RemoteFlic PROPERTIES IMPORTED_GLOBAL TRUE)
-
-    add_custom_target(vpual_copy_library ALL
-        COMMAND ${CMAKE_COMMAND} -E copy
-            $<TARGET_PROPERTY:NN,LOCATION>
-            $<TARGET_PROPERTY:VpualDispatcher,LOCATION>
-            $<TARGET_PROPERTY:sipp_custom,LOCATION>
-            $<TARGET_PROPERTY:XLink,LOCATION>
-            $<TARGET_PROPERTY:RemoteFlic,LOCATION>
-            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu"
-        COMMENT "[VPUAL] Copy vpual libraries to build results")
 
     add_subdirectory(gapi_sipp/sipp)
     add_subdirectory(gapi_sipp/m2i)
@@ -98,14 +86,3 @@ else()
     set(GAPI_M2I_LIBRARY "" CACHE INTERNAL "")
     set(GAPI_M2I_INCLUDES "" CACHE INTERNAL "")
 endif()
-
-#
-# Firmware
-#
-
-# copy firmware to lib folder to have vpu.bin in a package
-add_custom_target(vpu_bin_copy ALL
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
-        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu"
-    COMMENT "[Firmware] Copy vpu.bin")
