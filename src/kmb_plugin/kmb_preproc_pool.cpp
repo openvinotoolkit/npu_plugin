@@ -21,6 +21,7 @@ Preprocessor::Preprocessor(unsigned int shaveFirst, unsigned int shaveLast, unsi
 Preprocessor::~Preprocessor() = default;
 
 void Preprocessor::execDataPreprocessing(const PreprocTask& t) {
+    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "Preprocessor::execDataPreprocessing for task");
     IE_ASSERT(t.inputs.size() == 1);
     for (auto& input : t.inputs) {
         const auto& blobName = input.first;
@@ -59,6 +60,7 @@ PreprocessorPool::PreprocessorPool(
 }
 
 void PreprocessorPool::execDataPreprocessing(const PreprocTask& task) {
+    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "PreprocessorPool::execDataPreprocessing for task");
     std::unique_lock<std::mutex> lock(_mutex);
     if (_free_preprocs.empty()) {
         _free_cond.wait(lock, [&]() {
