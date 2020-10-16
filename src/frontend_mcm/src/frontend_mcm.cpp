@@ -1142,7 +1142,8 @@ void FrontEndMcm::parseNorm(const ie::CNNLayerPtr& layer, const McmNodeVector& i
 
     auto alpha = static_cast<double>(normLayer->_alpha);
     auto beta = static_cast<double>(normLayer->_beta);
-    std::string region = std::to_string(normLayer->_k);
+    auto region = normLayer->GetParamAsString("region");
+
     auto mvLRN = _modelMcm.norm(normLayer->name, inputs[0]->getMcmNode(), alpha, beta, region, normLayer->_size);
     mvLRN->setQuantParams(initialQuantParams());
 
