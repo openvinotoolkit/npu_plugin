@@ -127,6 +127,7 @@ void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
 void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
     unsigned int lpi) {
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "relocationAndExecKmbDataPreprocessing");
     std::map<std::string, PreProcessDataPtr> preprocDataRealloc;
     for (const auto& input : inputs) {
         const std::string& inputName = input.first;
@@ -188,6 +189,7 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
 void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     std::map<std::string, PreProcessDataPtr>& preprocData, InferenceEngine::InputsDataMap& networkInputs,
     InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi) {
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "execKmbDataPreprocessing");
     IE_ASSERT(_config.useSIPP() || _config.useM2I());
     const KmbPreproc::Path ppPath = _config.useM2I() ? KmbPreproc::Path::M2I : KmbPreproc::Path::SIPP;
     KmbPreproc::execDataPreprocessing(
