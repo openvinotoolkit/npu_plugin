@@ -465,8 +465,8 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             unsigned short factor = inHeight / outHeight;
             auto parentOpIt = om.getSourceOp(sourceTensor);
 
-            std::array<unsigned short, 2> kSize({factor, factor});
-            std::array<unsigned short, 2> stride({factor, factor});
+            std::array<unsigned short, 2> kSize = {factor, factor};
+            std::array<unsigned short, 2> stride = {factor, factor};
             auto name = opIt->getName();
 
             //Check the last argument name!!!
