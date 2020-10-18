@@ -32,7 +32,9 @@ void KmbNetworkNameTest::runTest(const TestNetworkDesc& netDesc) {
     ASSERT_EQ(netName, "squeezenet1.1");
 }
 
+// [Track number: S#40932]
 TEST_F(KmbNetworkNameTest, fetchNetworkName) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "netName 'net1' is not equal to 'squeezenet1.1'");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)

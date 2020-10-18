@@ -846,16 +846,20 @@ const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};
 INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingTestsWithParam, ::testing::ValuesIn(preprocTypes));
 
 using namespace testing;
-INSTANTIATE_TEST_CASE_P(precommit_preprocessing_shaves, VpuPreprocessingConfigAndInferTestsSipp,
+// [Track number: H#18013271822]
+INSTANTIATE_TEST_CASE_P(DISABLED_precommit_preprocessing_shaves, VpuPreprocessingConfigAndInferTestsSipp,
     Combine(Values("VPU_KMB_PREPROCESSING_SHAVES"), Values("4", "6")));
 
-INSTANTIATE_TEST_CASE_P(precommit_preprocessing_lpi, VpuPreprocessingConfigAndInferTestsSipp,
+// [Track number: H#18013271822]
+INSTANTIATE_TEST_CASE_P(DISABLED_precommit_preprocessing_lpi, VpuPreprocessingConfigAndInferTestsSipp,
     Combine(Values("VPU_KMB_PREPROCESSING_LPI"), Values("4", "8")));
 
+// [Track number: H#18013271822]
 INSTANTIATE_TEST_CASE_P(
-    precommit, VpuPreprocessingConfigAndInferTests, Combine(Values("VPU_KMB_USE_M2I"), Values("YES", "NO")));
+    DISABLED_precommit, VpuPreprocessingConfigAndInferTests, Combine(Values("VPU_KMB_USE_M2I"), Values("YES", "NO")));
 
-INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingConfigTests,
+// [Track number: H#18013271822]
+INSTANTIATE_TEST_CASE_P(DISABLED_precommit, VpuPreprocessingConfigTests,
     Values(std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "8", true),
         std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "seventy one", false),
         std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "16", true),

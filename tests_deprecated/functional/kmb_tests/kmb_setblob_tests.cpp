@@ -59,7 +59,8 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobInput) {
     ASSERT_EQ((void*)inputBlob->buffer(), (void*)newInputBlob->buffer());
 }
 
-TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobOutput) {
+// [Track number: H#18013271822]
+TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlobOutput) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;

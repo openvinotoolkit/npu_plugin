@@ -433,9 +433,9 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw
 }
 
 // [Track number: S#41097]
+// [Track number: S#40935]
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc_fuse_scale_input_accuracy_drop) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX","bad infer results");
-
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Accuracy regression");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
