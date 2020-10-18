@@ -409,8 +409,8 @@ class VpuPreprocessingWithTwoNetworksTests :
     public VpuPreprocessingTests,
     public testing::WithParamInterface<
         std::tuple<const char*, std::size_t, std::size_t, const char*, std::size_t, std::size_t>> {};
-// Track number: [H#-18013271822]
-TEST_P(VpuPreprocessingWithTwoNetworksTests, DISABLED_inference) {
+
+TEST_P(VpuPreprocessingWithTwoNetworksTests, inference) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
@@ -717,9 +717,7 @@ TEST_P(VpuPreprocessingConfigAndInferTestsSipp, setConfigAndInfer) { setConfigAn
 class VpuPreprocessingConfigTests :
     public vpuLayersTests,
     public testing::WithParamInterface<std::tuple<const char*, const char*, bool>> {};
-
-// Track number: [H#-18013271822]
-TEST_P(VpuPreprocessingConfigTests, DISABLED_setConfigAndCheck) {
+TEST_P(VpuPreprocessingConfigTests, setConfigAndCheck) {
     std::string key, value;
     bool valid;
     std::tie(key, value, valid) = GetParam();
