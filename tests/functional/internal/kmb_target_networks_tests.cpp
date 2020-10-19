@@ -700,14 +700,13 @@ TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp1
 }
 
 TEST_F(KmbClassifyNetworkTest, googlenet_v4_tf_dense_int8_IRv10_fp16_to_int8) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/googlenet-v4/googlenet_v4_tf_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
-            1, 0.5f);
+            TestImageDesc("300x300/dog.bmp", ImageFormat::RGB),
+            1, 0.06f);
 }
 
 TEST_F(KmbClassifyNetworkTest, resnet_101_caffe_dense_int8_IRv10_fp16_to_int8) {
