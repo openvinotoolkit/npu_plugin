@@ -28,6 +28,7 @@
 #include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
+#include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -229,6 +230,7 @@ std::vector<char> compileNGraph(
         const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
 
 
+        passManager.register_pass<FuseScaleShift>();
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
         passManager.register_pass<ReplaceScaleShiftWithMcmScale>();
