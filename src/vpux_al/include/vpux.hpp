@@ -65,10 +65,9 @@ class EngineBackend final {
 public:
     /** @deprecated Will be replaced with methods below */
     const std::map<std::string, std::shared_ptr<Device>>& getDevices() const { return _devices; }
-    virtual const std::shared_ptr<IDevice> getDevice() const { return _impl->getDevice(); }
-    virtual const std::shared_ptr<IDevice> getDevice(const std::string& specificDeviceName) const {
-        return _impl->getDevice(specificDeviceName);
-    }
+    virtual const std::shared_ptr<Device> getDevice() const;
+    virtual const std::shared_ptr<Device> getDevice(const std::string& specificDeviceName) const;
+    virtual const std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
     virtual const std::vector<std::string> getDeviceNames() const { return _impl->getDeviceNames(); }
     virtual const std::string getName() const { return _impl->getName(); }
 

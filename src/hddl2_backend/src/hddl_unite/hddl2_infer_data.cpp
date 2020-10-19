@@ -22,9 +22,6 @@
 #include "ie_preprocess_data.hpp"
 // Plugin
 #include "hddl_unite/hddl2_infer_data.h"
-// Subplugin
-#include "subplugin/hddl2_context_device.h"
-#include "vpux_remote_blob.h"
 // Low-level
 #include "Inference.h"
 

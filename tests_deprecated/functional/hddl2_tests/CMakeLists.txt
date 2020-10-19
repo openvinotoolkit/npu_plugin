@@ -32,6 +32,7 @@ addIeTargetTest(
         IE::IESharedTests
         IE::vpu_common_lib
         HddlUnite
+        hddl2_backend_static
         ${XLINK_LIB}
         kmb_utils
         frontend_mcm_static

@@ -15,16 +15,14 @@
 //
 
 // System
-#include <climits>
 #include <memory>
 #include <string>
 // Plugin
-#include "hddl2_exceptions.h"
-#include "hddl2_params.hpp"
+#include "hddl2/hddl2_params.hpp"
 #include "vpux_params_private_options.h"
 // Subplugin
-#include "subplugin/hddl2_helper.h"
-#include "subplugin/hddl2_remote_allocator.h"
+#include "hddl2_helper.h"
+#include "hddl2_remote_allocator.h"
 
 namespace vpu {
 namespace HDDL2Plugin {

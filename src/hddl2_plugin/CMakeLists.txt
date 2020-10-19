@@ -43,22 +43,22 @@ target_compile_definitions(${HDDL2_PLUGIN_OBJS_TARGET}
 target_include_directories(${HDDL2_PLUGIN_OBJS_TARGET}
     PUBLIC
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/vpu"
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/hddl2"
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/include/hddl_unite")
+        "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 link_system_libraries(${HDDL2_PLUGIN_OBJS_TARGET}
     PUBLIC
         IE::inference_engine
         IE::inference_engine_plugin_api
         IE::vpu_common_lib
-        HddlUnite)
+        )
+
 target_link_libraries(${HDDL2_PLUGIN_OBJS_TARGET}
     PUBLIC
         kmb_utils
-        vpux_al)
+        vpux_al
+        )
 
+add_dependencies(${HDDL2_PLUGIN_OBJS_TARGET} hddl2_backend)
 add_cpplint_target(${HDDL2_PLUGIN_OBJS_TARGET}_cpplint FOR_TARGETS ${HDDL2_PLUGIN_OBJS_TARGET})
 
 if(ENABLE_CLANG_FORMAT)
@@ -88,8 +88,7 @@ link_system_libraries(${HDDL2_PLUGIN_STATIC_TARGET}
         IE::inference_engine
         IE::inference_engine_plugin_api
         IE::vpu_common_lib
-    PRIVATE
-        HddlUnite)
+        )
 target_link_libraries(${HDDL2_PLUGIN_STATIC_TARGET}
     PUBLIC
         kmb_utils

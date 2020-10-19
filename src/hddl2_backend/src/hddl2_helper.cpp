@@ -14,11 +14,10 @@
 // stated in the License.
 //
 
-#include "subplugin/hddl2_helper.h"
+#include "hddl2_helper.h"
 
-#include <hddl2_exceptions.h>
-
-#include "hddl2_params.hpp"
+#include "hddl2/hddl2_params.hpp"
+#include "hddl2_exceptions.h"
 
 namespace vpux {
 namespace HDDL2 {

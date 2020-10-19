@@ -14,7 +14,8 @@
 // stated in the License.
 //
 #include <gtest/gtest.h>
-#include "subplugin/hddl2_backend.h"
+
+#include "hddl2_backend.h"
 
 #   define SKIP_IF_NO_DEVICE()                                              \
     do {                                                                    \

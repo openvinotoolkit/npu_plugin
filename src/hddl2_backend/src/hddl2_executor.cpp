@@ -18,16 +18,13 @@
 
 #include <ie_compound_blob.h>
 #include <ie_memcpy.h>
-#include <vpux_remote_blob.h>
 
 #include <blob_factory.hpp>
 #include <ie_preprocess.hpp>
 #include <ie_remote_context.hpp>
 #include <ie_utils.hpp>
-#include <vpu/utils/ie_helpers.hpp>
 
 #include "hddl2_exceptions.h"
-#include "hddl2_metrics.h"
 #include "hddl_unite/hddl2_unite_graph.h"
 #include "vpux_params_private_options.h"
 #include "vpux_remote_context.h"
@@ -137,7 +134,7 @@ HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription
 }
 
 HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
-    const std::shared_ptr<vpux::Allocator>& allocator, const HddlUnite::WorkloadContext::Ptr workloadContext)
+    const std::shared_ptr<vpux::Allocator>& allocator, const HddlUnite::WorkloadContext::Ptr& workloadContext)
     // TODO Make executor logger name unique
     : _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())),
       _network(network),

@@ -16,20 +16,10 @@
 
 #pragma once
 
-#include <HddlUnite.h>
-#include <Inference.h>
-
+// IE
 #include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
+// Plugin
 #include <vpux.hpp>
-
-#include "hddl2_config.h"
-#include "hddl2_executor.h"
-#include "hddl_unite/hddl2_infer_data.h"
-#include "hddl_unite/hddl2_unite_graph.h"
 
 namespace vpu {
 namespace HDDL2Plugin {

@@ -69,7 +69,7 @@ public:
 
 private:
     ExecutableNetworkInternal::Ptr LoadExeNetwork(
-        const ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const VPUXConfig& networkConfig);
+        const ICNNNetwork& network, std::shared_ptr<vpux::Device>& device, const VPUXConfig& networkConfig);
 
 private:
     VPUXConfig _parsedConfig;

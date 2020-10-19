@@ -14,6 +14,7 @@
 // stated in the License.
 //
 
+#pragma once
 // IE
 #include <ie_remote_context.hpp>
 // Low-level

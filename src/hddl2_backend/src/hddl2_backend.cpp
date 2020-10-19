@@ -19,11 +19,10 @@
 #include <memory>
 // Plugin
 #include "hddl2_exceptions.h"
-#include "hddl2_metrics.h"
 // Subplugin
-#include "subplugin/hddl2_backend.h"
-#include "subplugin/hddl2_context_device.h"
-#include "subplugin/hddl2_device.h"
+#include "hddl2_backend.h"
+#include "hddl2_context_device.h"
+#include "hddl2_device.h"
 // Low-level
 #include <HddlUnite.h>
 
@@ -100,6 +99,16 @@ bool HDDL2Backend::isServiceAvailable(const vpu::Logger::Ptr& logger) {
 }
 
 bool HDDL2Backend::isServiceRunning() { return HddlUnite::isServiceRunning(); }
+
+INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
+CreateVPUXEngineBackend(vpux::IEngineBackend*& backend, InferenceEngine::ResponseDesc* resp) noexcept {
+    try {
+        backend = new HDDL2Backend();
+        return InferenceEngine::StatusCode::OK;
+    } catch (std::exception& ex) {
+        return InferenceEngine::DescriptionBuffer(InferenceEngine::StatusCode::GENERAL_ERROR, resp) << ex.what();
+    }
+}
 
 }  // namespace HDDL2
 }  // namespace vpux

@@ -30,6 +30,7 @@ class VpualEngineBackend final : public vpux::IEngineBackend {
 public:
     VpualEngineBackend();
     const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const override;
+    const std::string getName() const override { return "VPUAL"; }
 
 private:
     const std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();

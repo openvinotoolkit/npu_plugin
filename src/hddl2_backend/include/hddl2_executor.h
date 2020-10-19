@@ -16,11 +16,10 @@
 
 #pragma once
 // Plugin
-#include "vpux.hpp"
-#include "vpux_remote_context.h"
-// Low-level
 #include "hddl2_config.h"
 #include "hddl_unite/hddl2_unite_graph.h"
+#include "vpux.hpp"
+#include "vpux_remote_context.h"
 
 namespace vpux {
 namespace HDDL2 {
@@ -31,7 +30,7 @@ public:
 
     HDDL2Executor(const HDDL2Executor& ex);
     explicit HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
-        const std::shared_ptr<vpux::Allocator>& allocator, HddlUnite::WorkloadContext::Ptr workloadContext);
+        const std::shared_ptr<vpux::Allocator>& allocator, const HddlUnite::WorkloadContext::Ptr& workloadContext);
     static HDDL2Executor::Ptr prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
         const VPUXConfig& config, const std::shared_ptr<vpux::Allocator>& allocator = nullptr,
         const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr);

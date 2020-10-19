@@ -20,8 +20,6 @@
 #include "hddl2_exceptions.h"
 #include "hddl2_metrics.h"
 #include "hddl_unite/hddl2_unite_graph.h"
-// Subplugin
-#include "subplugin/hddl2_context_device.h"
 // Low level
 #include <Inference.h>
 #include <WorkloadContext.h>

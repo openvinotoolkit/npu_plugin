@@ -42,7 +42,6 @@
 #include "hddl2_infer_request.h"
 #include "hddl2_metrics.h"
 // Subplugin
-#include "subplugin/hddl2_device.h"
 #include "vpux.hpp"
 #include "vpux_compiler.hpp"
 
@@ -54,7 +53,7 @@ namespace IE = InferenceEngine;
 //      Helpers
 //------------------------------------------------------------------------------
 static vpux::Executor::Ptr createExecutor(const vpux::NetworkDescription::Ptr& network, const vpux::VPUXConfig& config,
-    std::shared_ptr<vpux::IDevice>& device) {
+    std::shared_ptr<vpux::Device>& device) {
     if (network == nullptr) {
         THROW_IE_EXCEPTION << "Network is null!";
     }
@@ -84,7 +83,7 @@ ExecutableNetwork::ExecutableNetwork(const vpux::VPUXConfig& config)
 //      Load network
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(
-    IE::ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const vpux::VPUXConfig& config)
+    IE::ICNNNetwork& network, std::shared_ptr<vpux::Device>& device, const vpux::VPUXConfig& config)
     : ExecutableNetwork(config) {
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
@@ -146,7 +145,7 @@ ExecutableNetwork::ExecutableNetwork(
 //      Import network
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(
-    std::istream& networkModel, std::shared_ptr<vpux::IDevice>& device, const vpux::VPUXConfig& config)
+    std::istream& networkModel, std::shared_ptr<vpux::Device>& device, const vpux::VPUXConfig& config)
     : ExecutableNetwork(config) {
     _networkPtr = _compiler->parse(networkModel, _config);
     _executorPtr = createExecutor(_networkPtr, config, device);

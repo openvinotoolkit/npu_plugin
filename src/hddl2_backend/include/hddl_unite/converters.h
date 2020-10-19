@@ -16,6 +16,7 @@
 
 #pragma once
 
+// IE
 #include "ie_precision.hpp"
 
 namespace vpu {

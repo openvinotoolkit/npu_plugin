@@ -15,11 +15,11 @@
 //
 
 // Plugin
+#include "hddl2/hddl2_params.hpp"
 #include "hddl2_exceptions.h"
 #include "hddl2_executor.h"
-#include "hddl2_params.hpp"
 // Subplugin
-#include "subplugin/hddl2_context_device.h"
+#include "hddl2_context_device.h"
 
 namespace vpux {
 namespace HDDL2 {
