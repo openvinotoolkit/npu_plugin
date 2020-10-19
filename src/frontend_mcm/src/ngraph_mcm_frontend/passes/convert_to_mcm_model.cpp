@@ -76,6 +76,7 @@
 #include <ngraph/op/tanh.hpp>
 #include <ngraph/op/exp.hpp>
 #include <ngraph/op/multiply.hpp>
+#include <ngraph/op/elu.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -503,6 +504,17 @@ void convert(std::shared_ptr<ngraph::op::v0::Relu> relu, mv::OpModel& mcmModel, 
     const auto mcmReluOutput = mcmModel.relu(mcmData, mvDType, initialQuantParams(), opName);
 
     registerOutputs(relu, {mcmReluOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::Elu> elu, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmData = getMcmInputs(elu, mcmOutputsMap).at(0);
+    const auto& opName = elu->get_friendly_name();
+
+    auto alpha = elu->get_alpha();
+
+    const auto mcmEluOutput = mcmModel.elu(mcmData, alpha, opName);
+
+    registerOutputs(elu, {mcmEluOutput}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<McmEltwise> eltwise, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -1383,7 +1395,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::Multiply),
     MAP_ENTRY(ngraph::op::NormalizeIE),
     MAP_ENTRY(ngraph::op::ProposalIE),
-    MAP_ENTRY(ngraph::op::GatherIE)
+    MAP_ENTRY(ngraph::op::GatherIE),
+    MAP_ENTRY(ngraph::op::v0::Elu)
 };
 
 #undef MAP_ENTRY

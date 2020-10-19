@@ -484,9 +484,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_facenet_20180408_102900_tf_dense_int8_I
             1, 0.05f);
 }
 
-// C++ exception with description "ELU layer is not supported by kmbPlugin
-// kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1604
-// [Track number: D#2725]
+// C++ exception with description "Caught exception during unit run:
+// propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams
+// [Track number: D#3675]
 // Unsupported operation: bottleneck1_1/dim_red/fn with name Elu_4549 with C++ type ngraph::op::v0::Elu (MR1176)
 // Caught exception during unit run: propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams
 // TODO Check after 1176 and 1377
