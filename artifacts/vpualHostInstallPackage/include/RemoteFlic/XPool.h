@@ -26,6 +26,7 @@
 #include <sstream>
 
 #include <unistd.h>
+#include <mv_types.h>
 
 #include "Flic.h"
 #include "Message.h"
@@ -268,6 +269,7 @@ class XPool : public PluginStub
      */
     int Create(uint32_t nBuf, uint32_t bSize, uint16_t xId_unused, FreeFunction freefunc = NULL)
     {
+        UNUSED(xId_unused);
         uint16_t xId;
         // Save the parameters.
         buffersInPool = nBuf;

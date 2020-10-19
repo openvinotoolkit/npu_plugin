@@ -65,7 +65,7 @@ typedef struct frameElements
     uint8_t *p3;    // Pointer to third image plane  (if used)
 } frameBuffer;
 
-static uint32_t size_from_framespec(const frameSpec *spec)
+static inline uint32_t size_from_framespec(const frameSpec *spec)
 {
     switch (spec->type)
     {

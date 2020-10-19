@@ -251,6 +251,7 @@ enum SippFilters {
     svuCvtColorYUV422iToBGR               = BASE_SW_ID + 202,
     svuCvtColorYUV420pToBGR               = BASE_SW_ID + 203,
     svuCvtColorYUV422iToBGR_u10           = BASE_SW_ID + 204,
+    svuCvtColorChromaYUV420ToNV12         = BASE_SW_ID + 205,
 };
 
 // SIPP function identifiers.
