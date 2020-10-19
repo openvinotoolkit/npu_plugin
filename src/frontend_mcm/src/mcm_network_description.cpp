@@ -73,7 +73,9 @@ MCMNetworkDescription::MCMNetworkDescription(
         _networkOutputs = _deviceOutputs;
     }
 
-    if (_name.empty()) {
+    // network name is preferable
+    // override default name 'net#' if flatbuffer contains the name
+    if (!networkName.empty()) {
         _name = networkName;
     }
 
