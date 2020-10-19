@@ -9,12 +9,23 @@
 #include "include/mcm/pass/pass_utils.hpp"
 #include "mcm/utils/custom_strings.hpp"
 
-
 static void GraphParameterOptimizationFcn(const mv::pass::PassEntry&,
     mv::ComputationModel& model,
     mv::TargetDescriptor&, mv::Element& passDesc,
     mv::Element&
 );
+
+
+namespace {
+
+struct EnumClassHash final {
+    template <typename E>
+    size_t operator()(E t) const {
+        return std::hash<int32_t>()(static_cast<int32_t>(t));
+    }
+};
+
+}  // namespace
 
 namespace mv
 {
@@ -99,7 +110,7 @@ namespace mv
                 UpaHKSwitch
             };
 
-            std::unordered_map<FailCause, std::string> failure_causes = {
+            std::unordered_map<FailCause, std::string, ::EnumClassHash> failure_causes = {
                 {FailCause::Pass, "Pass"},
                 {FailCause::cmxConcatDecision, "cmxConcatDecision"},
                 {FailCause::MemorySize, "MemorySize"},
