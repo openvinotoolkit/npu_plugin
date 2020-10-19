@@ -926,3 +926,15 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_densenet_121) {
         1,
         0.3f);
 }
+
+// C++ exception with description "Cannot convert layer "efficientnet-b0/model/stem/swish_f32" 
+// due to unsupported layer type "Swish"
+// [Track number: D#3769]
+TEST_F(KmbClassifyNetworkTest, DISABLED_efficientnet_b0) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/efficientnet-b0/efficientnet-b0.xml")
+            .setUserInputPrecision("input", Precision::U8),
+	TestImageDesc("224x224/husky.bmp", ImageFormat::BGR),
+	1,
+	0.3f);
+}
