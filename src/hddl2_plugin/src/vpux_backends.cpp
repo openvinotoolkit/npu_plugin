@@ -18,8 +18,6 @@
 #include "vpux_backends.h"
 
 #include "hddl2_exceptions.h"
-// Subplugin - TODO remove this dependencies
-#include "subplugin/hddl2_backend.h"
 #include "vpux_remote_context.h"
 
 namespace vpux {
@@ -27,22 +25,13 @@ namespace IE = InferenceEngine;
 
 // TODO Config will be useless here, since only default values will be used
 vpux::VPUXBackends::VPUXBackends(const VPUXConfig& config)
-    : _logger(std::make_shared<vpu::Logger>("VPUXBackends", config.logLevel(), vpu::consoleOutput())) {
-    // TODO Engine should have ability to work with different backends and scope of one plugin object
-    {
-        // TODO Hardcoded for now. Move to separate lib and use vpux::EngineBackendConfigurator::findBackend();
-        // TODO default config for now.
-        // TODO Backend should be configured by BackendConfigurator
-        _backend = std::make_shared<vpux::HDDL2::HDDL2Backend>(config);
-        // TODO Print name of backend. Required getName interface for vpux::Backend class
-        _logger->debug("Backend found!");
-    }
-}
+    : _logger(std::make_shared<vpu::Logger>("VPUXBackends", config.logLevel(), vpu::consoleOutput())),
+      _backend(vpux::EngineBackendConfigurator::findBackend()) {}
 
-std::shared_ptr<vpux::IDevice> VPUXBackends::getDevice(const std::string& specificName) const {
+std::shared_ptr<vpux::Device> VPUXBackends::getDevice(const std::string& specificName) const {
     _logger->debug("Searching for device to use started...");
     // TODO iterate over all available backends
-    std::shared_ptr<vpux::IDevice> deviceToUse = nullptr;
+    std::shared_ptr<vpux::Device> deviceToUse = nullptr;
     // TODO Ignore default VPU-0. Track #S-38444
     const std::string ignoredDeviceName("VPU-0");
 
@@ -60,11 +49,11 @@ std::shared_ptr<vpux::IDevice> VPUXBackends::getDevice(const std::string& specif
     return deviceToUse;
 }
 
-std::shared_ptr<vpux::IDevice> VPUXBackends::getDevice(const InferenceEngine::ParamMap& paramMap) const {
+std::shared_ptr<vpux::Device> VPUXBackends::getDevice(const InferenceEngine::ParamMap& paramMap) const {
     return _backend->getDevice(paramMap);
 }
 
-std::shared_ptr<vpux::IDevice> VPUXBackends::getDevice(const InferenceEngine::RemoteContext::Ptr& context) const {
+std::shared_ptr<vpux::Device> VPUXBackends::getDevice(const InferenceEngine::RemoteContext::Ptr& context) const {
     // TODO more complicated logic should be here. Might require changing in backend implementation
     const auto privateContext = std::dynamic_pointer_cast<VPUXRemoteContext>(context);
     if (context == nullptr) {

@@ -18,8 +18,8 @@
 #include <memory>
 #include <string>
 // Plugin
+#include "hddl2/hddl2_params.hpp"
 #include "hddl2_exceptions.h"
-#include "hddl2_params.hpp"
 #include "vpux_params_private_options.h"
 #include "vpux_remote_blob.h"
 

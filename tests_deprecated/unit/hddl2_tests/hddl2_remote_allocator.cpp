@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 #include <hddl2_helpers/helper_workload_context.h>
 #include <hddl2_plugin.h>
-#include <subplugin/hddl2_remote_allocator.h>
+#include <hddl2_remote_allocator.h>
 
 #include <climits>
 

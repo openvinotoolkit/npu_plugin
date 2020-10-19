@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,12 +16,14 @@
 
 #pragma once
 
-#include <ie_common.h>
-
-#include <hddl2/hddl2_plugin_config.hpp>
+// System
 #include <map>
 #include <string>
 #include <unordered_set>
+// IE
+#include <ie_common.h>
+// Plugin
+#include <hddl2/hddl2_plugin_config.hpp>
 #include <vpux_config.hpp>
 
 namespace vpu {

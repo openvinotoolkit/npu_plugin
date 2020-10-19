@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "kmb_params.hpp"
+#include "vpu/kmb_params.hpp"
 // TODO Refactor namespace and names in configs/params activity
 namespace InferenceEngine {
 namespace KmbContextParams {

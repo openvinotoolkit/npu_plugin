@@ -14,18 +14,15 @@
 // stated in the License.
 //
 
-#include "blob_descriptor.h"
-
+// IE
 #include <ie_compound_blob.h>
-#include <vpux_remote_blob.h>
+#include <ie_memcpy.h>
 
 #include <ie_algorithm.hpp>
-#include <memory>
-
+// Plugin
+#include "blob_descriptor.h"
 #include "converters.h"
-#include "hddl2_params.hpp"
-#include "ie_memcpy.h"
-#include "subplugin/hddl2_helper.h"
+#include "hddl2_helper.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace vpu {
@@ -45,7 +42,7 @@ static void checkBlobIsValid(const IE::Blob::CPtr& blob) {
 }
 
 static void checkBlobCompatibility(const IE::Blob::CPtr& blob) {
-    if (blob->is<vpux::VPUXRemoteBlob>() || blob->is<IE::MemoryBlob>() || blob->is<IE::NV12Blob>()) {
+    if (blob->is<IE::RemoteBlob>() || blob->is<IE::MemoryBlob>() || blob->is<IE::NV12Blob>()) {
         return;
     }
     if (blob->is<IE::CompoundBlob>()) {
@@ -68,7 +65,7 @@ static IE::SizeVector getNV12ImageDims(const IE::Blob::CPtr& blobPtr) {
         }
         auto yPlaneBlob = nv12Ptr->y();
         return yPlaneBlob->getTensorDesc().getDims();
-    } else if (blobPtr->is<vpux::VPUXRemoteBlob>()) {
+    } else if (blobPtr->is<IE::RemoteBlob>()) {
         return blobPtr->getTensorDesc().getDims();
     }
     THROW_IE_EXCEPTION << "Unsupported blob format with NV12 Data";
@@ -257,7 +254,8 @@ HddlUnite::Inference::NNInputDesc BlobDescriptor::createNNDesc() {
 }
 
 void BlobDescriptor::initUniteBlobDesc(HddlUnite::Inference::BlobDesc& blobDesc) {
-    if (_blobPtr->is<vpux::VPUXRemoteBlob>()) {
+    checkBlobIsValid(_blobPtr);
+    if (_blobPtr->is<IE::RemoteBlob>()) {
         const auto remoteBlob = std::dynamic_pointer_cast<const InferenceEngine::RemoteBlob>(_blobPtr);
         if (remoteBlob == nullptr) {
             THROW_IE_EXCEPTION << "Failed to convert blob to remote memory!";
@@ -284,14 +282,14 @@ void BlobDescriptor::initUniteBlobDesc(HddlUnite::Inference::BlobDesc& blobDesc)
 //------------------------------------------------------------------------------
 LocalBlobDescriptor::LocalBlobDescriptor(const IE::DataPtr& desc, const IE::Blob::CPtr& blob)
     : BlobDescriptor(desc, blob, false, true, blob == nullptr) {
-    if (_blobPtr && _blobPtr->is<vpux::VPUXRemoteBlob>()) {
+    if (_blobPtr && _blobPtr->is<IE::RemoteBlob>()) {
         THROW_IE_EXCEPTION << "Unable to create local blob descriptor from remote memory";
     }
 }
 
 //------------------------------------------------------------------------------
 RemoteBlobDescriptor::RemoteBlobDescriptor(const IE::DataPtr& desc, const IE::Blob::CPtr& blob)
-    : BlobDescriptor(desc, blob, true, blob ? !blob->is<vpux::VPUXRemoteBlob>() : true, blob == nullptr) {
+    : BlobDescriptor(desc, blob, true, blob ? !blob->is<IE::RemoteBlob>() : true, blob == nullptr) {
     if (_blobPtr && _blobPtr->is<IE::RemoteBlob>()) {
         const auto remoteBlob = std::static_pointer_cast<const IE::RemoteBlob>(_blobPtr);
         _parsedBlobParamsPtr->update(remoteBlob->getParams());

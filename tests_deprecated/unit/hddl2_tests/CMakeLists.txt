@@ -27,6 +27,7 @@ addIeTargetTest(
         IE::IESharedTests
         ${HDDL2_PLUGIN_STATIC_TARGET}
         HddlUnite
+        hddl2_backend_static
         ${XLINK_LIB}
         IE::gtest
         IE::gtest_main

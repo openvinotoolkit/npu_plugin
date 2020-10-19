@@ -17,7 +17,7 @@
 #include "vpux_remote_blob.h"
 
 #include <gtest/gtest.h>
-#include <subplugin/hddl2_remote_allocator.h>
+#include <hddl2_remote_allocator.h>
 
 #include "hddl2_helpers/helper_device_name.h"
 #include "hddl2_helpers/helper_remote_blob.h"

@@ -38,7 +38,7 @@ public:
 
     InferenceEngine::ParamMap params;
     WorkloadContext_Helper::Ptr workloadContextHelperPtr;
-    std::shared_ptr<vpux::IDevice> devicePtr;
+    std::shared_ptr<vpux::Device> devicePtr;
 };
 
 

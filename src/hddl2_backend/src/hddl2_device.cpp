@@ -18,7 +18,8 @@
 #include "hddl2_exceptions.h"
 #include "hddl2_executor.h"
 // Subplugin
-#include "subplugin/hddl2_device.h"
+#include "hddl2_device.h"
+
 namespace vpux {
 namespace HDDL2 {
 namespace IE = InferenceEngine;

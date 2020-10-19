@@ -14,13 +14,15 @@
 // stated in the License.
 //
 
-#include "hddl2_config.h"
-
+// System
 #include <map>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+// Plugin
 #include <vpu/kmb_plugin_config.hpp>
+
+#include "hddl2_config.h"
 
 using namespace vpu;
 namespace IE = InferenceEngine;

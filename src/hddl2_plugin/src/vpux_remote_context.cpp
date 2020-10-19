@@ -18,10 +18,9 @@
 #include <memory>
 #include <string>
 // Plugin
-#include "hddl2_params.hpp"
-#include "vpux_remote_context.h"
-// Subplugin
+#include "hddl2/hddl2_params.hpp"
 #include "vpux_remote_blob.h"
+#include "vpux_remote_context.h"
 
 using namespace vpux;
 
@@ -29,7 +28,7 @@ namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
 VPUXRemoteContext::VPUXRemoteContext(
-    const std::shared_ptr<IDevice>& device, const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config)
+    const std::shared_ptr<Device>& device, const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config)
     : _devicePtr(device),
       _config(config),
       _logger(std::make_shared<vpu::Logger>("VPUXRemoteContext", config.logLevel(), vpu::consoleOutput())),

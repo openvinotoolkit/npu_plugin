@@ -36,7 +36,6 @@
 #include "hddl2_exceptions.h"
 #include "hddl2_executable_network.h"
 #include "hddl2_metrics.h"
-#include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
 #include "ie_macro.hpp"
 #include "vpux.hpp"
@@ -68,7 +67,7 @@ Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)),
 //      Load network
 //------------------------------------------------------------------------------
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
-    const ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const VPUXConfig& networkConfig) {
+    const ICNNNetwork& network, std::shared_ptr<vpux::Device>& device, const VPUXConfig& networkConfig) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "LoadExeNetwork");
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
 

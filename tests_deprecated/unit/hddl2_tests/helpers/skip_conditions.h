@@ -14,7 +14,8 @@
 // stated in the License.
 //
 #include <common_test_utils/gtest/googletest/include/gtest/gtest.h>
-#include "subplugin/hddl2_backend.h"
+
+#include "hddl2_backend.h"
 
 inline bool canWorkWithDevice() {
     return vpux::HDDL2::HDDL2Backend::isServiceAvailable();

@@ -16,23 +16,15 @@
 
 #include "hddl2_infer_request.h"
 
-#include <InferBlob.h>
 #include <ie_blob.h>
 #include <ie_layouts.h>
-#include <precision_utils.h>
 
-#include <algorithm>
-#include <functional>
 #include <ie_itt.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <vpu/utils/ie_helpers.hpp>
 
-#include "hddl2_executor.h"
-#include "ie_algorithm.hpp"
-#include "ie_utils.hpp"
 #include "vpux_remote_blob.h"
 
 using namespace vpu::HDDL2Plugin;

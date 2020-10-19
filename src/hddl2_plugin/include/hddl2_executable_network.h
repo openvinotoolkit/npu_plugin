@@ -22,7 +22,6 @@
 // IE
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 // Plugin
-#include "hddl2_config.h"
 #include "vpux.hpp"
 
 namespace vpu {
@@ -33,10 +32,10 @@ public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
     explicit ExecutableNetwork(
-        InferenceEngine::ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const vpux::VPUXConfig& config);
+        InferenceEngine::ICNNNetwork& network, std::shared_ptr<vpux::Device>& device, const vpux::VPUXConfig& config);
 
     explicit ExecutableNetwork(
-        std::istream& networkModel, std::shared_ptr<vpux::IDevice>& device, const vpux::VPUXConfig& config);
+        std::istream& networkModel, std::shared_ptr<vpux::Device>& device, const vpux::VPUXConfig& config);
     ~ExecutableNetwork() override = default;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(

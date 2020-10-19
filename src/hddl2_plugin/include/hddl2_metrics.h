@@ -22,10 +22,10 @@
 #include <vector>
 #include <vpux.hpp>
 // Plugin
-#include "hddl2_params.hpp"
+#include "hddl2/hddl2_params.hpp"
 #include "vpux_backends.h"
 // TODO should not be here
-#include "kmb_plugin_config.hpp"
+#include "vpu/kmb_plugin_config.hpp"
 
 namespace vpu {
 namespace HDDL2Plugin {
