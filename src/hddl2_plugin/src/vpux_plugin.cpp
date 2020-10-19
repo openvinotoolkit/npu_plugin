@@ -21,8 +21,6 @@
 
 // Inference Engine include
 #include <legacy/graph_transformer.h>
-#include <legacy/cnn_network_impl.hpp>
-#include <legacy/ie_util_internal.hpp>
 
 #include <details/ie_irelease.hpp>
 #include <fstream>
@@ -30,19 +28,20 @@
 #include <ie_icore.hpp>
 #include <ie_itt.hpp>
 #include <ie_metric_helpers.hpp>
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 // Plugin include
 #include "file_reader.h"
-#include "hddl2_exceptions.h"
-#include "hddl2_executable_network.h"
-#include "hddl2_metrics.h"
-#include "hddl2_plugin.h"
 #include "ie_macro.hpp"
 #include "vpux.hpp"
+#include "vpux_executable_network.h"
+#include "vpux_metrics.h"
+#include "vpux_plugin.h"
 #include "vpux_remote_context.h"
 
 namespace vpux {
-namespace HDDL2 {
+namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
 //      Helpers
@@ -55,11 +54,10 @@ static VPUXConfig mergePluginAndNetworkConfigs(
 }
 
 //------------------------------------------------------------------------------
-Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)),
-                  _metrics(_backends) {
+Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)), _metrics(_backends) {
     _pluginName = DEVICE_NAME;  // "VPUX"
     // TODO Different backends can require different compilers in future
-    _compiler = vpux::Compiler::create(vpux::CompilerType::MCMCompiler);
+    _compiler = Compiler::create(CompilerType::MCMCompiler);
     _parsedConfig.expandSupportedOptions(_compiler->getSupportedOptions());
 }
 
@@ -67,7 +65,7 @@ Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)),
 //      Load network
 //------------------------------------------------------------------------------
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
-    const ICNNNetwork& network, std::shared_ptr<vpux::Device>& device, const VPUXConfig& networkConfig) {
+    const ICNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& networkConfig) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "LoadExeNetwork");
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
 
@@ -78,7 +76,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
         transformator.fullTrim();
     }
 
-    return std::make_shared<vpu::HDDL2Plugin::ExecutableNetwork>(*clonedNetwork, device, networkConfig);
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork, device, networkConfig);
 }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
@@ -98,29 +96,29 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
 //------------------------------------------------------------------------------
 //      Import network
 //------------------------------------------------------------------------------
-InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
+IE::ExecutableNetwork Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
     std::ifstream blobStream(modelFileName, std::ios::binary);
     return ImportNetworkImpl(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
-InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
+IE::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     // TODO This backend instance should be replaced with VPUX after backend refactoring
     auto device = _backends->getDevice(networkConfig.deviceId());
-    const auto executableNetwork = std::make_shared<vpu::HDDL2Plugin::ExecutableNetwork>(networkModel, device, networkConfig);
-    return InferenceEngine::make_executable_network(executableNetwork);
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
+    return IE::make_executable_network(executableNetwork);
 }
 
-InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
+IE::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const RemoteContext::Ptr& context, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(context);
-    const auto executableNetwork = std::make_shared<vpu::HDDL2Plugin::ExecutableNetwork>(networkModel, device, networkConfig);
-    return InferenceEngine::make_executable_network(executableNetwork);
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
+    return IE::make_executable_network(executableNetwork);
 }
 
 //------------------------------------------------------------------------------
@@ -132,8 +130,8 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
     }
 }
 
-InferenceEngine::QueryNetworkResult Engine::QueryNetwork(
-    const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config) const {
+IE::QueryNetworkResult Engine::QueryNetwork(
+    const IE::ICNNNetwork& network, const std::map<std::string, std::string>& config) const {
     UNUSED(network);
     UNUSED(config);
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED;
@@ -146,8 +144,8 @@ RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
     return std::make_shared<VPUXRemoteContext>(device, map, _parsedConfig);
 }
 
-InferenceEngine::Parameter Engine::GetMetric(
-    const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& /*options*/) const {
+IE::Parameter Engine::GetMetric(
+    const std::string& name, const std::map<std::string, IE::Parameter>& /*options*/) const {
     if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics.GetAvailableDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -169,6 +167,4 @@ InferenceEngine::Parameter Engine::GetMetric(
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "VPUXPlugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
 
-}  // namespace HDDL2
 }  // namespace vpux
-

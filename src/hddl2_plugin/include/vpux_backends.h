@@ -31,9 +31,9 @@ public:
 
     explicit VPUXBackends(const VPUXConfig& config);
 
-    std::shared_ptr<vpux::Device> getDevice(const std::string& specificName = "") const;
-    std::shared_ptr<vpux::Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
-    std::shared_ptr<vpux::Device> getDevice(const InferenceEngine::RemoteContext::Ptr& context) const;
+    std::shared_ptr<Device> getDevice(const std::string& specificName = "") const;
+    std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
+    std::shared_ptr<Device> getDevice(const InferenceEngine::RemoteContext::Ptr& context) const;
     std::vector<std::string> getAvailableDevicesNames() const;
 
     void setup(const VPUXConfig& config) const;

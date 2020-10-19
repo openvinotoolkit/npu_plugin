@@ -46,11 +46,6 @@ namespace HDDL2Plugin {
     std::string("No executor has been created for the device, only export is possible.\n" \
                 "For execution, please start the service or check the environment variable \"KMB_INSTALL_DIR\".")
 
-///  Context
-#define FAILED_CAST_CONTEXT               \
-    std::string("Context is incorrect.\n" \
-                "Please make sure you are using VPUXRemoteContext.")
-
 ///  Infer request
 #define NO_EXECUTOR_FOR_INFERENCE               \
     std::string("Can't create infer request!\n" \

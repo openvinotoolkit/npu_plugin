@@ -36,36 +36,34 @@
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 
 // Plugin
-#include "hddl2_async_infer_request.h"
-#include "hddl2_exceptions.h"
-#include "hddl2_executable_network.h"
-#include "hddl2_infer_request.h"
-#include "hddl2_metrics.h"
+#include "vpux_async_infer_request.h"
+#include "vpux_exceptions.h"
+#include "vpux_executable_network.h"
+#include "vpux_infer_request.h"
 // Subplugin
 #include "vpux.hpp"
 #include "vpux_compiler.hpp"
 
-namespace vpu {
-namespace HDDL2Plugin {
-
+namespace vpux {
 namespace IE = InferenceEngine;
+
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static vpux::Executor::Ptr createExecutor(const vpux::NetworkDescription::Ptr& network, const vpux::VPUXConfig& config,
-    std::shared_ptr<vpux::Device>& device) {
+static Executor::Ptr createExecutor(
+    const NetworkDescription::Ptr& network, const VPUXConfig& config, std::shared_ptr<Device>& device) {
     if (network == nullptr) {
         THROW_IE_EXCEPTION << "Network is null!";
     }
     // Default executor is nullptr, allow only perform export
-    vpux::Executor::Ptr executor = nullptr;
+    Executor::Ptr executor = nullptr;
     if (device != nullptr) {
         executor = device->createExecutor(network, config);
     }
     return executor;
 }
 
-static vpux::Executor::Ptr getExecutorForInference(const vpux::Executor::Ptr& executor) {
+static Executor::Ptr getExecutorForInference(const Executor::Ptr& executor) {
     if (executor == nullptr) {
         THROW_IE_EXCEPTION << NO_EXECUTOR_FOR_INFERENCE;
     }
@@ -74,16 +72,16 @@ static vpux::Executor::Ptr getExecutorForInference(const vpux::Executor::Ptr& ex
 //------------------------------------------------------------------------------
 //      Shared init ctor
 //------------------------------------------------------------------------------
-ExecutableNetwork::ExecutableNetwork(const vpux::VPUXConfig& config)
+ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config)
     : _config(config),
-      _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
-      _compiler(vpux::Compiler::create(vpux::CompilerType::MCMCompiler)) {}
+      _logger(std::make_shared<vpu::Logger>("ExecutableNetwork", config.logLevel(), vpu::consoleOutput())),
+      _compiler(Compiler::create(CompilerType::MCMCompiler)) {}
 
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(
-    IE::ICNNNetwork& network, std::shared_ptr<vpux::Device>& device, const vpux::VPUXConfig& config)
+    IE::ICNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& config)
     : ExecutableNetwork(config) {
     _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
@@ -145,34 +143,34 @@ ExecutableNetwork::ExecutableNetwork(
 //      Import network
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(
-    std::istream& networkModel, std::shared_ptr<vpux::Device>& device, const vpux::VPUXConfig& config)
+    std::istream& networkModel, std::shared_ptr<Device>& device, const VPUXConfig& config)
     : ExecutableNetwork(config) {
     _networkPtr = _compiler->parse(networkModel, _config);
     _executorPtr = createExecutor(_networkPtr, config, device);
-    _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
-    _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
+    _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
+    _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
 }
 
 //------------------------------------------------------------------------------
 //      Create infer requests
 //------------------------------------------------------------------------------
-IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRequestImpl(
+IE::InferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(
     const IE::InputsDataMap networkInputs, const IE::OutputsDataMap networkOutputs) {
     auto inferExecutor = getExecutorForInference(_executorPtr);
-    return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, inferExecutor, _config);
+    return std::make_shared<InferRequest>(networkInputs, networkOutputs, inferExecutor, _config);
 }
 
 InferenceEngine::IInferRequest::Ptr ExecutableNetwork::CreateInferRequest() {
     auto inferExecutor = getExecutorForInference(_executorPtr);
-    auto syncRequestImpl = std::make_shared<HDDL2InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config);
+    auto syncRequestImpl = std::make_shared<InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config);
 
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
-    const std::string resultExecutorName = "HDDL2ResultExecutor";
+    const std::string resultExecutorName = "VPUXResultExecutor";
     auto resultExecutor = IE::ExecutorManager::getInstance()->getExecutor(resultExecutorName);
 
     auto asyncThreadSafeImpl =
-        std::make_shared<HDDL2AsyncInferRequest>(syncRequestImpl, _taskExecutor, resultExecutor, _callbackExecutor);
+        std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, resultExecutor, _callbackExecutor);
 
     InferenceEngine::IInferRequest::Ptr asyncRequest;
     asyncRequest.reset(
@@ -218,5 +216,4 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
     return {};
 }
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace vpux

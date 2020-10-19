@@ -17,12 +17,11 @@
 // IE
 #include <ie_metric_helpers.hpp>
 // Plugin
-#include "hddl2_exceptions.h"
-#include "hddl2_metrics.h"
+#include "vpux_metrics.h"
 
-using namespace vpu::HDDL2Plugin;
+namespace vpux {
 
-HDDL2Metrics::HDDL2Metrics(const vpux::VPUXBackends::CPtr& backends): _backends(backends) {
+Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
     _supportedMetrics = {
         METRIC_KEY(SUPPORTED_METRICS),
         METRIC_KEY(AVAILABLE_DEVICES),
@@ -40,24 +39,24 @@ HDDL2Metrics::HDDL2Metrics(const vpux::VPUXBackends::CPtr& backends): _backends(
     };
 }
 
-std::vector<std::string> HDDL2Metrics::GetAvailableDevicesNames() const {
-    return _backends->getAvailableDevicesNames();
-}
+std::vector<std::string> Metrics::GetAvailableDevicesNames() const { return _backends->getAvailableDevicesNames(); }
 
 // TODO each backend may support different metrics
-const std::vector<std::string>& HDDL2Metrics::SupportedMetrics() const { return _supportedMetrics; }
+const std::vector<std::string>& Metrics::SupportedMetrics() const { return _supportedMetrics; }
 
 // TODO: Need to add the full name
-std::string HDDL2Metrics::GetFullDevicesNames() const { return {""}; }
+std::string Metrics::GetFullDevicesNames() const { return {""}; }
 
 // TODO each backend may support different configs
-const std::vector<std::string>& HDDL2Metrics::GetSupportedConfigKeys() const { return _supportedConfigKeys; }
+const std::vector<std::string>& Metrics::GetSupportedConfigKeys() const { return _supportedConfigKeys; }
 
 // TODO each backend may support different optimization capabilities
-const std::vector<std::string>& HDDL2Metrics::GetOptimizationCapabilities() const { return _optimizationCapabilities; }
+const std::vector<std::string>& Metrics::GetOptimizationCapabilities() const { return _optimizationCapabilities; }
 
-const std::tuple<uint32_t, uint32_t, uint32_t>& HDDL2Metrics::GetRangeForAsyncInferRequest() const {
+const std::tuple<uint32_t, uint32_t, uint32_t>& Metrics::GetRangeForAsyncInferRequest() const {
     return _rangeForAsyncInferRequests;
 }
 
-const std::tuple<uint32_t, uint32_t>& HDDL2Metrics::GetRangeForStreams() const { return _rangeForStreams; }
+const std::tuple<uint32_t, uint32_t>& Metrics::GetRangeForStreams() const { return _rangeForStreams; }
+
+}  // namespace vpux

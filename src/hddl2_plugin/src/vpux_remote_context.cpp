@@ -18,17 +18,15 @@
 #include <memory>
 #include <string>
 // Plugin
-#include "hddl2/hddl2_params.hpp"
 #include "vpux_remote_blob.h"
 #include "vpux_remote_context.h"
 
-using namespace vpux;
-
+namespace vpux {
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
 VPUXRemoteContext::VPUXRemoteContext(
-    const std::shared_ptr<Device>& device, const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config)
+    const std::shared_ptr<Device>& device, const IE::ParamMap& paramMap, const VPUXConfig& config)
     : _devicePtr(device),
       _config(config),
       _logger(std::make_shared<vpu::Logger>("VPUXRemoteContext", config.logLevel(), vpu::consoleOutput())),
@@ -44,8 +42,7 @@ IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(
     }
     try {
         auto allocator = _devicePtr->getAllocator();
-        return std::make_shared<vpux::VPUXRemoteBlob>(
-            tensorDesc, shared_from_this(), allocator, params, _config.logLevel());
+        return std::make_shared<VPUXRemoteBlob>(tensorDesc, shared_from_this(), allocator, params, _config.logLevel());
     } catch (const std::exception& ex) {
         _logger->warning("Incorrect parameters for CreateBlob call.\n"
                          "Please make sure remote memory is correct.\nError: %s\n",
@@ -53,3 +50,4 @@ IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(
         return nullptr;
     }
 }
+}  // namespace vpux

@@ -34,11 +34,11 @@ public:
     using CPtr = std::shared_ptr<const VPUXRemoteContext>;
 
     explicit VPUXRemoteContext(const std::shared_ptr<Device>& device, const InferenceEngine::ParamMap& paramMap,
-        const vpux::VPUXConfig& config = {});
+        const VPUXConfig& config = {});
 
     InferenceEngine::RemoteBlob::Ptr CreateBlob(
         const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) noexcept override;
-    std::shared_ptr<vpux::Device> getDevice() const { return _devicePtr; }
+    std::shared_ptr<Device> getDevice() const { return _devicePtr; }
 
     /** @brief Provide device name attached to current context.
      * Format: {plugin prefix}.{device name} */
@@ -46,8 +46,8 @@ public:
     InferenceEngine::ParamMap getParams() const override { return _paramMap; }
 
 protected:
-    std::shared_ptr<vpux::Device> _devicePtr = nullptr;
-    const vpux::VPUXConfig _config;
+    std::shared_ptr<Device> _devicePtr = nullptr;
+    const VPUXConfig _config;
     const vpu::Logger::Ptr _logger;
     const InferenceEngine::ParamMap _paramMap;
 };

@@ -24,18 +24,16 @@
 // Plugin
 #include "vpux.hpp"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
 
 class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
     explicit ExecutableNetwork(
-        InferenceEngine::ICNNNetwork& network, std::shared_ptr<vpux::Device>& device, const vpux::VPUXConfig& config);
+        InferenceEngine::ICNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& config);
 
-    explicit ExecutableNetwork(
-        std::istream& networkModel, std::shared_ptr<vpux::Device>& device, const vpux::VPUXConfig& config);
+    explicit ExecutableNetwork(std::istream& networkModel, std::shared_ptr<Device>& device, const VPUXConfig& config);
     ~ExecutableNetwork() override = default;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
@@ -51,17 +49,16 @@ public:
     InferenceEngine::Parameter GetMetric(const std::string& name) const override;
 
 private:
-    explicit ExecutableNetwork(const vpux::VPUXConfig& config);
+    explicit ExecutableNetwork(const VPUXConfig& config);
 
 private:
-    const vpux::VPUXConfig _config;
-    const Logger::Ptr _logger;
+    const VPUXConfig _config;
+    const vpu::Logger::Ptr _logger;
 
-    vpux::Compiler::Ptr _compiler = nullptr;
-    vpux::NetworkDescription::Ptr _networkPtr = nullptr;
-    vpux::Executor::Ptr _executorPtr;
+    Compiler::Ptr _compiler = nullptr;
+    NetworkDescription::Ptr _networkPtr = nullptr;
+    Executor::Ptr _executorPtr;
     std::vector<std::string> _supportedMetrics;
 };
 
-}  //  namespace HDDL2Plugin
-}  //  namespace vpu
+}  //  namespace vpux

@@ -23,7 +23,6 @@
 #include "ie_blob.h"
 #include "ie_remote_context.hpp"
 // Plugin
-#include "hddl2_exceptions.h"
 #include "vpux.hpp"
 #include "vpux_params.hpp"
 #include "vpux_remote_context.h"
@@ -36,9 +35,9 @@ public:
     using Ptr = std::shared_ptr<VPUXRemoteBlob>;
     using CPtr = std::shared_ptr<const VPUXRemoteBlob>;
 
-    explicit VPUXRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
-        const vpux::VPUXRemoteContext::Ptr& contextPtr, const std::shared_ptr<vpux::Allocator>& allocator,
-        const InferenceEngine::ParamMap& params, const vpu::LogLevel logLevel = vpu::LogLevel::None);
+    explicit VPUXRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const VPUXRemoteContext::Ptr& contextPtr,
+        const std::shared_ptr<Allocator>& allocator, const InferenceEngine::ParamMap& params,
+        const vpu::LogLevel logLevel = vpu::LogLevel::None);
     ~VPUXRemoteBlob() override { VPUXRemoteBlob::deallocate(); }
 
     /** @details Since Remote blob just wrap remote memory, allocation is not required */
@@ -73,7 +72,7 @@ private:
 
     void* _memoryHandle = nullptr;
 
-    std::weak_ptr<vpux::VPUXRemoteContext> _remoteContextPtr;
+    std::weak_ptr<VPUXRemoteContext> _remoteContextPtr;
     std::shared_ptr<InferenceEngine::IAllocator> _allocatorPtr = nullptr;
 
     const vpu::Logger::Ptr _logger;

@@ -14,13 +14,13 @@
 // stated in the License.
 //
 
-#include "hddl2_async_infer_request.h"
+#include "vpux_async_infer_request.h"
 
-using namespace vpu::HDDL2Plugin;
+namespace vpux {
 namespace IE = InferenceEngine;
 
 // clang-format off
-HDDL2AsyncInferRequest::HDDL2AsyncInferRequest(const HDDL2InferRequest::Ptr &inferRequest,
+AsyncInferRequest::AsyncInferRequest(const InferRequest::Ptr &inferRequest,
                                                const IE::ITaskExecutor::Ptr &requestExecutor,
                                                const IE::ITaskExecutor::Ptr &getResultExecutor,
                                                const IE::ITaskExecutor::Ptr &callbackExecutor)
@@ -32,4 +32,6 @@ HDDL2AsyncInferRequest::HDDL2AsyncInferRequest(const HDDL2InferRequest::Ptr &inf
     };
 }
 
-HDDL2AsyncInferRequest::~HDDL2AsyncInferRequest() { StopAndWait(); }
+AsyncInferRequest::~AsyncInferRequest() { StopAndWait(); }
+
+} // namespace vpux

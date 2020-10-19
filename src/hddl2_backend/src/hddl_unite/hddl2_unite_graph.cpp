@@ -18,8 +18,8 @@
 #include <string>
 // Plugin
 #include "hddl2_exceptions.h"
-#include "hddl2_metrics.h"
 #include "hddl_unite/hddl2_unite_graph.h"
+#include "vpux_metrics.h"
 // Low level
 #include <Inference.h>
 #include <WorkloadContext.h>

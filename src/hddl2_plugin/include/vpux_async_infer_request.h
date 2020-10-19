@@ -17,26 +17,24 @@
 #pragma once
 
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
-#include "hddl2_infer_request.h"
+#include "vpux_infer_request.h"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
 
-class HDDL2AsyncInferRequest final : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class AsyncInferRequest final : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
-    using Ptr = std::shared_ptr<HDDL2AsyncInferRequest>;
+    using Ptr = std::shared_ptr<AsyncInferRequest>;
 
-    explicit HDDL2AsyncInferRequest(const HDDL2InferRequest::Ptr& inferRequest,
+    explicit AsyncInferRequest(const InferRequest::Ptr& inferRequest,
         const InferenceEngine::ITaskExecutor::Ptr& requestExecutor,
         const InferenceEngine::ITaskExecutor::Ptr& getResultExecutor,
         const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
 
-    ~HDDL2AsyncInferRequest() override;
+    ~AsyncInferRequest() override;
 
 private:
-    HDDL2InferRequest::Ptr _inferRequest;
+    InferRequest::Ptr _inferRequest;
     InferenceEngine::ITaskExecutor::Ptr _getResultExecutor;
 };
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace vpux

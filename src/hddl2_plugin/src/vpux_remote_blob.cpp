@@ -18,8 +18,7 @@
 #include <memory>
 #include <string>
 // Plugin
-#include "hddl2/hddl2_params.hpp"
-#include "hddl2_exceptions.h"
+#include "vpux_exceptions.h"
 #include "vpux_params_private_options.h"
 #include "vpux_remote_blob.h"
 
@@ -27,9 +26,8 @@ namespace vpux {
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-VPUXRemoteBlob::VPUXRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
-    const vpux::VPUXRemoteContext::Ptr& contextPtr, const std::shared_ptr<vpux::Allocator>& allocator,
-    const InferenceEngine::ParamMap& params, const vpu::LogLevel logLevel)
+VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemoteContext::Ptr& contextPtr,
+    const std::shared_ptr<Allocator>& allocator, const IE::ParamMap& params, const vpu::LogLevel logLevel)
     : RemoteBlob(tensorDesc),
       _remoteContextPtr(contextPtr),
       _allocatorPtr(allocator),
@@ -52,7 +50,7 @@ static std::shared_ptr<IE::ROI> makeROIOverROI(const std::shared_ptr<const IE::R
     const IE::ROI& appliedROI, const size_t width, const size_t height) {
     std::shared_ptr<IE::ROI> resultROI = nullptr;
     if (origROIPtr) {
-        InferenceEngine::ROI newROI = appliedROI;
+        IE::ROI newROI = appliedROI;
         newROI.posX += origROIPtr->posX;
         newROI.posY += origROIPtr->posY;
         resultROI = std::make_shared<IE::ROI>(newROI);
@@ -86,7 +84,7 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
     _parsedParams.update(updatedROIPtrParam);
 
     // TODO Remove this cast
-    const auto privateAllocator = std::static_pointer_cast<vpux::Allocator>(_allocatorPtr);
+    const auto privateAllocator = std::static_pointer_cast<Allocator>(_allocatorPtr);
     IE::ParamMap memoryHandleParam = {{IE::KMB_PARAM_KEY(BLOB_MEMORY_HANDLE), origBlob._memoryHandle}};
     _memoryHandle = privateAllocator->wrapRemoteMemory(memoryHandleParam);
     if (_memoryHandle == nullptr) {
@@ -101,23 +99,23 @@ bool VPUXRemoteBlob::deallocate() noexcept {
     return _allocatorPtr->free(_memoryHandle);
 }
 
-InferenceEngine::LockedMemory<void> VPUXRemoteBlob::buffer() noexcept {
+IE::LockedMemory<void> VPUXRemoteBlob::buffer() noexcept {
     return IE::LockedMemory<void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
-InferenceEngine::LockedMemory<const void> VPUXRemoteBlob::cbuffer() const noexcept {
+IE::LockedMemory<const void> VPUXRemoteBlob::cbuffer() const noexcept {
     return IE::LockedMemory<const void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
-InferenceEngine::LockedMemory<void> VPUXRemoteBlob::rwmap() noexcept {
+IE::LockedMemory<void> VPUXRemoteBlob::rwmap() noexcept {
     return IE::LockedMemory<void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
-InferenceEngine::LockedMemory<const void> VPUXRemoteBlob::rmap() const noexcept {
+IE::LockedMemory<const void> VPUXRemoteBlob::rmap() const noexcept {
     return IE::LockedMemory<const void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
-InferenceEngine::LockedMemory<void> VPUXRemoteBlob::wmap() noexcept {
+IE::LockedMemory<void> VPUXRemoteBlob::wmap() noexcept {
     return IE::LockedMemory<void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
@@ -129,13 +127,9 @@ std::string VPUXRemoteBlob::getDeviceName() const noexcept {
     return remoteContext->getDeviceName();
 }
 
-std::shared_ptr<InferenceEngine::RemoteContext> VPUXRemoteBlob::getContext() const noexcept {
-    return _remoteContextPtr.lock();
-}
+std::shared_ptr<IE::RemoteContext> VPUXRemoteBlob::getContext() const noexcept { return _remoteContextPtr.lock(); }
 
-const std::shared_ptr<InferenceEngine::IAllocator>& VPUXRemoteBlob::getAllocator() const noexcept {
-    return _allocatorPtr;
-}
+const std::shared_ptr<IE::IAllocator>& VPUXRemoteBlob::getAllocator() const noexcept { return _allocatorPtr; }
 
 size_t VPUXRemoteBlob::size() const noexcept {
     if (_parsedParams.getColorFormat() == IE::ColorFormat::NV12) {
@@ -152,7 +146,7 @@ size_t VPUXRemoteBlob::size() const noexcept {
 
 size_t VPUXRemoteBlob::byteSize() const noexcept { return size() * element_size(); }
 
-InferenceEngine::Blob::Ptr VPUXRemoteBlob::createROI(const InferenceEngine::ROI& regionOfInterest) const {
+IE::Blob::Ptr VPUXRemoteBlob::createROI(const IE::ROI& regionOfInterest) const {
     return Blob::Ptr(new VPUXRemoteBlob(*this, regionOfInterest));
 }
 }  // namespace vpux

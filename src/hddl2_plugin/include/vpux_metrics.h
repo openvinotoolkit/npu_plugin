@@ -22,17 +22,15 @@
 #include <vector>
 #include <vpux.hpp>
 // Plugin
-#include "hddl2/hddl2_params.hpp"
 #include "vpux_backends.h"
 // TODO should not be here
 #include "vpu/kmb_plugin_config.hpp"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
 
-class HDDL2Metrics {
+class Metrics {
 public:
-    HDDL2Metrics(const vpux::VPUXBackends::CPtr& backends);
+    Metrics(const VPUXBackends::CPtr& backends);
 
     std::vector<std::string> GetAvailableDevicesNames() const;
     const std::vector<std::string>& SupportedMetrics() const;
@@ -42,10 +40,10 @@ public:
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
     const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
 
-    ~HDDL2Metrics() = default;
+    ~Metrics() = default;
 
 private:
-    const vpux::VPUXBackends::CPtr _backends;
+    const VPUXBackends::CPtr _backends;
     std::vector<std::string> _supportedMetrics;
     std::vector<std::string> _supportedConfigKeys;
     const std::vector<std::string> _optimizationCapabilities = {METRIC_VALUE(INT8)};
@@ -57,5 +55,4 @@ private:
     const std::tuple<uint32_t, uint32_t> _rangeForStreams{1u, 4u};
 };
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace vpux

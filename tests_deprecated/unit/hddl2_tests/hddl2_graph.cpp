@@ -15,9 +15,9 @@
 //
 
 #include "gtest/gtest.h"
-#include "hddl2_plugin.h"
 #include "models/model_pooling.h"
 #include "models/precompiled_resnet.h"
+#include "vpux_plugin.h"
 
 using namespace InferenceEngine;
 
