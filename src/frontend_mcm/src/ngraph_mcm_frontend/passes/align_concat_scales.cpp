@@ -24,6 +24,7 @@
 #include <ngraph/op/constant.hpp>
 #include <ngraph/type/element_type.hpp>
 #include "ngraph/op/concat.hpp"
+#include <ngraph_ops/prior_box_ie.hpp>
 
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
 
@@ -34,7 +35,7 @@ namespace {
 bool needsConcatScaleAlignment(std::shared_ptr<ngraph::Node> node) {
     auto input_values = node->input_values();
     for ( auto&& iv : input_values ) {
-        if (dynamic_cast<ngraph::op::v0::PriorBox*>(iv.get_node()))
+        if (dynamic_cast<ngraph::op::v0::PriorBox*>(iv.get_node()) || dynamic_cast<ngraph::op::PriorBoxIE*>(iv.get_node()))
             return false;
     }
     return true;
