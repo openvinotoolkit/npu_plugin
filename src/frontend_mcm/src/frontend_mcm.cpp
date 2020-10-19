@@ -1790,8 +1790,18 @@ void FrontEndMcm::parseCopy(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "Copy layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseELU(const ie::CNNLayerPtr&, const McmNodeVector&) {
-    VPU_THROW_EXCEPTION << "ELU layer is not supported by kmbPlugin";
+void FrontEndMcm::parseELU(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    IE_ASSERT(inputs.size() == 1);
+
+    logParsingStartHelper(_logger, layer, inputs);
+
+    auto alpha = layer->GetParamAsUInt("alpha");
+
+    mv::Data::TensorIterator mvElu = _modelMcm.elu(inputs[0]->getMcmNode(), alpha, layer->name);
+
+    bindOutput(mvElu, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, mvElu->getName());
 }
 
 void FrontEndMcm::parseCrop(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {

@@ -7,26 +7,48 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
+#include "kmb_layer_test.hpp"
+
+namespace LayerTestsDefinitions {
+
+class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+
+TEST_P(KmbActivationLayerTest, CompareWithRefs) {
+    Run();
+}
+
+}  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph::helpers;
 namespace {
+const std::vector<InferenceEngine::Precision> inputPrecisions = {
+        InferenceEngine::Precision::FP32
+};
+
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16};
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
-    {Sigmoid, {}},
-    {Tanh,    {}},
-    {Relu,    {}},
-    {Exp,     {}},
-    {Log,     {}},
-    {Sign,    {}},
-    {Abs,      {}}
+    {Sigmoid, {{1.0f}}},
+    {Tanh,    {{1.0f}}},
+    {Relu,    {{1.0f}}},
+    {Exp,     {{1.0f}}},
+    {Log,     {{1.0f}}},
+    {Sign,    {{1.0f}}},
+    {Abs,     {{1.0f}}},
+    {Elu,     {{1.0f}}}
+};
+
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
+    {Sigmoid, {{1.0f}}},
+    {Relu,    {{1.0f}}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
-    {{1, 50}, {}},
-    {{1, 128}, {}},
+    {{1, 50, 1, 1}, {{1}, {50}}},
+    {{1, 128, 1, 1}, {{1}, {128}}},
 };
 
 const auto basicCases = ::testing::Combine(
@@ -37,8 +59,20 @@ const auto basicCases = ::testing::Combine(
     ::testing::Values(InferenceEngine::Layout::ANY),
     ::testing::Values(InferenceEngine::Layout::ANY),
     ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-    ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY));
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+const auto basicParamCases = ::testing::Combine(
+    ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)),
+    ::testing::ValuesIn(netPrecisions),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Activation_Test, KmbActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Param, KmbActivationLayerTest, basicParamCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace
