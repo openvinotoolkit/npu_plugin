@@ -210,9 +210,7 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
             THROW_IE_EXCEPTION << "GetMetric: network is not initialized";
         }
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        // TODO This value should be investigated
-        // [Track number: S#37055]
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(8u));
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
