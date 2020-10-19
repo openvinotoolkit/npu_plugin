@@ -1,2 +1,2 @@
 
-VPUIP2: bf8130a9947e4e4bcf52f30741cdecb0f60defbd
+VPUIP2: 27fb61eef6a2f64b34a362418a1f68bfc7beb1bf tag: kmb_release_ww42.3
