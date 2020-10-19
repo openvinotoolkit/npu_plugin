@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpual_executor.hpp"
+#include "vpual_core_nn_executor.hpp"
 
 #include <ie_common.h>
 
@@ -38,30 +38,45 @@ namespace ie = InferenceEngine;
 
 namespace vpux {
 #if defined(__arm__) || defined(__aarch64__)
-const uint32_t POOL_SIZE = 30 * 1024 * 1024;
+constexpr uint32_t POOL_SIZE = 30 * 1024 * 1024;
 #endif
 
-VpualExecutor::VpualExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
+VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
     const VpusmmAllocator::Ptr& allocator, const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
       _config(config),
-      _logger(std::make_shared<vpu::Logger>("VpualExecutor", _config.logLevel(), vpu::consoleOutput())),
+      _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
+#if defined(__arm__) || defined(__aarch64__)
+      _nnXlinkPlg(new NnXlinkPlg()),
+      _nnCorePlg(new NnCorePlg(),
+          [](NnCorePlg* nnCorePlgPtr) {
+              if (nnCorePlgPtr != nullptr) {
+                  nnCorePlgPtr->Delete();
+              }
+          }),
+      _pipe(new Pipeline(),
+          [](Pipeline* pipePtr) {
+              if (pipePtr != nullptr) {
+                  pipePtr->Stop();
+                  pipePtr->Wait();
+                  pipePtr->Delete();
+              }
+          }),
+      blob_file(nullptr,
+          [this](void* blobFilePtr) {
+              _allocator->free(blobFilePtr);
+          }),
+      _blobHandle(new BlobHandle_t()),
+#endif
       _inputBuffer(nullptr,
           [this](uint8_t* buffer) {
               _allocator->free(buffer);
           }),
-      _outputBuffer(nullptr,
-          [this](uint8_t* buffer) {
-              _allocator->free(buffer);
-          }),
-      _inferenceId(nullptr, [this](uint32_t* buffer) {
+      _outputBuffer(nullptr, [this](uint8_t* buffer) {
           _allocator->free(buffer);
       }) {
 #if defined(__arm__) || defined(__aarch64__)
-    blob_file = nullptr;
-    _inferenceId = nullptr;
-
     std::size_t inputsTotalSize = 0;
     for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
         const auto& tensorDesc = in.second->getTensorDesc();
@@ -74,54 +89,14 @@ VpualExecutor::VpualExecutor(const vpux::NetworkDescription::Ptr& networkDescrip
     _outputBuffer.reset(reinterpret_cast<uint8_t*>(allocator->alloc(POOL_SIZE)));
     _logger->debug("Allocated buffer for output with the size: %d", POOL_SIZE);
 
-    initVpualObjects();
     allocateGraph(_networkDescription->getCompiledNetwork());
 #endif
 }
 
-VpualExecutor::~VpualExecutor() { deallocateGraph(); }
-
-void VpualExecutor::initVpualObjects() {
+VpualCoreNNExecutor::~VpualCoreNNExecutor() {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "initVpualObjects");
-    if (!RgnAlloc) {
-        RgnAlloc = std::make_shared<RgnAllocator>();
-    }
-    if (!HeapAlloc) {
-        HeapAlloc = std::make_shared<HeapAllocator>();
-    }
-    if (!nnPl) {
-        nnPl = std::make_shared<NNFlicPlg>();
-    }
-    if (!gg) {
-        gg = std::make_shared<GraphManagerPlg>();
-    }
-    if (!plgTensorInput_) {
-        plgTensorInput_ = std::make_shared<PlgTensorSource>();
-    }
-    if (!plgTensorOutput_) {
-        plgTensorOutput_ = std::make_shared<PlgStreamResult>();
-    }
-    if (!plgInferenceInput_) {
-        plgInferenceInput_ = std::make_shared<PlgInferenceInput>();
-    }
-    if (!plgInferenceOutput_) {
-        plgInferenceOutput_ = std::make_shared<PlgInferenceOutput>();
-    }
-    if (!plgPoolOutputs) {
-        plgPoolOutputs = std::make_shared<PlgPool<TensorMsg>>();
-    }
-    if (!plgPoolInferenceMsg) {
-        plgPoolInferenceMsg = std::make_shared<PlgPool<InferenceMsg>>();
-    }
-    if (!BHandle) {
-        BHandle = std::make_shared<BlobHandle_t>();
-    }
-    if (!pipe) {
-        pipe = std::make_shared<Pipeline>();
-    }
-    if (!_inferenceId) {
-        _inferenceId.reset(reinterpret_cast<uint32_t*>(_allocator->alloc(sizeof(uint32_t))));
+    for (const auto& scratchPtr : _scratchBuffers) {
+        _allocator->free(scratchPtr);
     }
 #endif
 }
@@ -136,12 +111,13 @@ namespace {
  * 4. Give result to SetScratchBuffer
  * 5. Track allocated chunks by virtual addresses to free them properly
  */
-static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnFlicPtr, const unsigned int threadCount,
-    const std::shared_ptr<VpusmmAllocator>& allocatorPtr, const std::shared_ptr<vpu::Logger>& logger) {
+static std::vector<void*> setScratchHelper(const std::unique_ptr<NnCorePlg, std::function<void(NnCorePlg*)>>& nnCorePtr,
+    const unsigned int threadCount, const std::shared_ptr<vpux::Allocator>& allocatorPtr,
+    const std::shared_ptr<vpu::Logger>& logger) {
     if (threadCount > 1) {
         logger->warning("scratchHelper: trying to set scratch buffer to %u threads.", threadCount);
     }
-    uint32_t memoryReqs = nnFlicPtr->GetMemoryRequirements();
+    uint32_t memoryReqs = nnCorePtr->GetScratchBufferSize();
     logger->info("scratchHelper: GetMemoryRequirements returned %u", memoryReqs);
     constexpr uint32_t minimalScratchSize = 1024 * 1024;
     if (memoryReqs < minimalScratchSize) {
@@ -166,90 +142,70 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
         virtAddrVec.push_back(scratchVirtAddr);
     }
 
-    nnFlicPtr->SetScratchBuffer(physAddrVec);
+    nnCorePtr->SetScratchBuffers(physAddrVec);
     return virtAddrVec;
 }
 }  // namespace
 #endif
 
-void VpualExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
+void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "allocateGraph");
-    initVpualObjects();
     static int graphId_main = 1;
     int nThreads = _config.throughputStreams();
-    int nShaves = 16;
 
-    _logger->info("VpualExecutor::allocateGraph begins");
+    _logger->info("VpualCoreNNExecutor::allocateGraph begins");
 
-    BHandle->graphid = graphId_main++;
-    BHandle->graphBuff = 0x00000000;
-    BHandle->graphLen = graphFileContent.size();
-    BHandle->refCount = 0;
+    _blobHandle->graphid = graphId_main++;
+    _blobHandle->graphBuff = 0x00000000;
+    _blobHandle->graphLen = graphFileContent.size();
+    _blobHandle->refCount = 0;
 
-    // ########################################################################
-    // Try and get some CMA allocations.
-    // ########################################################################
-    blob_file = _allocator->alloc(BHandle->graphLen);
+    // allocate memory for graph file
+    blob_file.reset(_allocator->alloc(_blobHandle->graphLen));
 
-    if (!blob_file) {
-        _logger->error("VpualExecutor::allocateGraph: Error getting CMA for graph");
+    if (blob_file == nullptr) {
+        _logger->error("VpualCoreNNExecutor::allocateGraph: Error getting CMA for graph");
         THROW_IE_EXCEPTION << "allocateGraph: allocation failed for graph";
     }
 
-    // ########################################################################
-    // Load the input files
-    // ########################################################################
+    std::memcpy(blob_file.get(), graphFileContent.data(), graphFileContent.size());
+    std::memset(static_cast<uint8_t*>(blob_file.get()) + graphFileContent.size(), 0,
+        _blobHandle->graphLen - graphFileContent.size());
 
-    std::memcpy(blob_file, graphFileContent.data(), graphFileContent.size());
-    std::memset(
-        static_cast<uint8_t*>(blob_file) + graphFileContent.size(), 0, BHandle->graphLen - graphFileContent.size());
-    // Point Blob Handle to the newly loaded graph file. Only allow 32-bit
+    // only lower 32 bits have to be used
+    // inference runtime cannot address more than that
+    _blobHandle->graphBuff = _allocator->getPhysicalAddress(blob_file.get()) & 0xffffffff;
 
-    // Assigning physical address of Blob file
-
-    BHandle->graphBuff = _allocator->getPhysicalAddress(blob_file);  // Only lower 32-bits
-
-    gg->Create();
-
-    GraphStatus status = gg->NNGraphCheckAvailable(BHandle->graphid);
-    if (Success == status) {
-        _logger->info("Blob available!");
-        status = gg->NNGraphAllocateExistingBlob(BHandle.get());
-        _logger->info("Allocated existing blob with status: %d", status);
-    } else if (No_GraphId_Found == status) {
-        _logger->info("Blob not found.");
-        status = gg->NNGraphAllocate(BHandle.get());
-        _logger->info("Allocated new blob with id: %d; with status: %d", BHandle->graphid, status);
-    } else {
-        _logger->error("Error checking graph availability: %d", status);
-        // TODO: error
+    auto status = _nnCorePlg->Create(_blobHandle.get(), nThreads);
+    if (MVNCI_SUCCESS != status) {
+        _logger->error("VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg");
+        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: " << status;
     }
 
-    // Plugins:
-
-    // Pool plugins (to allocate memory for the plugins which require some):
-
-    _logger->info("Instantiated Plugins...");
-
-    // FLIC Pipeline:
-
-    // Setting number of threads for NNPlugin
-
-    nnPl->SetNumberOfThreads(nThreads);
-    nnPl->SetNumberOfShaves(nShaves);
-
-    nnPl->Create(BHandle.get());
-
-    _scratchBuffers = setScratchHelper(nnPl, nThreads, _allocator, _logger);
-
-    _logger->info("NN Plugin Create finished...");
-
-    NNPlgState state = nnPl->GetLatestState();
-    if (SUCCESS != state) {
-        _logger->error("Error, bad NN Plugin state: %d", state);
-        THROW_IE_EXCEPTION << "allocateGraph: flic NN is in unexpected state: " << state;
+    // pipeline depth means the size of NnExec messages queue
+    // when the message is sent and there's some free space in the queue, message is accepted
+    // if there isn't, request must wait for vacant spaces
+    // number of threads is multiplied by 2 in order to allow requests to be queued up
+    // for example, number of executor threads equals to 2 which makes pipeline depth 4
+    // two requests can be queued up while other two requests are being processed
+    const uint32_t pipelineDepth = nThreads * 2;
+    auto xlinkStatus = _nnXlinkPlg->Create(pipelineDepth);
+    if (xlinkStatus) {
+        _logger->error("VpualCoreNNExecutor::allocateGraph: failed to create NnXlinkPlg");
+        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::allocateGraph: failed to create NnXlinkPlg: " << xlinkStatus;
     }
+
+    MvNCIVersion blobVersion;
+    status = _nnCorePlg->GetBlobVersion(&blobVersion);
+    if (MVNCI_SUCCESS != status) {
+        _logger->error("VpualCoreNNExecutor::allocateGraph: failed to get blob version");
+        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::allocateGraph: failed to get blob version: " << status;
+    }
+
+    _logger->info("Blob Version: %d %d %d", static_cast<int>(blobVersion.major), static_cast<int>(blobVersion.minor),
+        static_cast<int>(blobVersion.patch));
+    _scratchBuffers = setScratchHelper(_nnCorePlg, nThreads, _allocator, _logger);
 
     auto tensor_deserializer = [&](const flicTensorDescriptor_t& descriptor) -> void {
         _logger->info(
@@ -259,7 +215,7 @@ void VpualExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     };
 
     _logger->info("Deserializing descriptors:");
-    size_t inputsSize = nnPl->GetNumberOfInputs();
+    size_t inputsSize = _nnCorePlg->GetNumberOfInputs();
     flicTensorDescriptor_t sumSizeTensorDescIn;
     // tensor batch is not a proper 4D tensor anymore, but a 1D tensor with concatenated reshaped inputs
     // use width and total size to determine the size of the blob. other dimensions are just 1
@@ -270,7 +226,7 @@ void VpualExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     sumSizeTensorDescIn.totalSize = 0;
     sumSizeTensorDescIn.widthStride = 1;
     for (size_t inputIdx = 0; inputIdx < inputsSize; inputIdx++) {
-        flicTensorDescriptor_t descIn = nnPl->GetInputTensorDescriptor(inputIdx);
+        flicTensorDescriptor_t descIn = _nnCorePlg->GetInputTensorDescriptor(inputIdx);
         _logger->info("Input: %d", inputIdx);
         tensor_deserializer(descIn);
 
@@ -280,7 +236,7 @@ void VpualExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     sumSizeTensorDescIn.heightStride = sumSizeTensorDescIn.totalSize;
     sumSizeTensorDescIn.channelsStride = sumSizeTensorDescIn.totalSize;
 
-    size_t outputsSize = nnPl->GetNumberOfOutputs();
+    size_t outputsSize = _nnCorePlg->GetNumberOfOutputs();
     flicTensorDescriptor_t sumSizeTensorDescOut;
     sumSizeTensorDescOut.n = 1;
     sumSizeTensorDescOut.c = 1;
@@ -288,67 +244,30 @@ void VpualExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     sumSizeTensorDescOut.w = 0;
     sumSizeTensorDescOut.totalSize = 0;
     sumSizeTensorDescOut.widthStride = 1;
+
+    size_t outputTotalSize = 0;
     for (size_t outputIdx = 0; outputIdx < outputsSize; outputIdx++) {
-        flicTensorDescriptor_t descOut = nnPl->GetOutputTensorDescriptor(outputIdx);
+        flicTensorDescriptor_t descOut = _nnCorePlg->GetOutputTensorDescriptor(outputIdx);
         _logger->info("Output: %d", outputIdx);
         tensor_deserializer(descOut);
 
-        sumSizeTensorDescOut.totalSize += descOut.totalSize;
+        auto outPhysAddr = _allocator->getPhysicalAddress(_outputBuffer.get()) + outputTotalSize;
+        _outputPhysAddrs.push_back(outPhysAddr);
+        outputTotalSize += descOut.totalSize;
     }
     sumSizeTensorDescOut.w = sumSizeTensorDescOut.totalSize;
     sumSizeTensorDescOut.heightStride = sumSizeTensorDescOut.totalSize;
     sumSizeTensorDescOut.channelsStride = sumSizeTensorDescOut.totalSize;
 
-    RgnAlloc->Create(_allocator->getPhysicalAddress(_outputBuffer.get()), POOL_SIZE);
-    _logger->info("VpualExecutor::allocateGraph: Created RgnAlloc");
+    _nnCorePlg->PrepareNetwork();
 
-    const unsigned int shavel2CacheLineSize = 64;
-    unsigned int outputTensorSize = ROUND_UP(sumSizeTensorDescOut.totalSize, shavel2CacheLineSize);
+    _pipe->Add(_nnCorePlg.get());
+    _pipe->Add(_nnXlinkPlg.get());
+    _nnXlinkPlg->requestOut.Link(&_nnCorePlg->requestInput);
+    _nnCorePlg->resultOut.Link(&_nnXlinkPlg->resultIn);
 
-    _logger->info("read memory pool finished...");
-    plgPoolOutputs->Create(RgnAlloc.get(), 1, 3 * outputTensorSize);
-    _logger->info("Created plgPoolOutputs");
+    _pipe->Start();
 
-    unsigned int inferenceIDSize = ROUND_UP(sizeof(uint32_t), shavel2CacheLineSize);
-    plgPoolInferenceMsg->Create(HeapAlloc.get(), 1, 3 * inferenceIDSize);
-    _logger->info("Created plgPoolInferenceMsg");
-
-    plgTensorInput_->Create(sumSizeTensorDescIn.totalSize, 0 /*ignored*/, sumSizeTensorDescIn);
-    _logger->info("Created plgTensorInput");
-
-    plgTensorOutput_->Create(sumSizeTensorDescOut.totalSize, 0 /*ignored*/, sumSizeTensorDescOut);
-    _logger->info("Created plgTensorOutput");
-
-    plgInferenceInput_->Create(3 * inferenceIDSize, 0 /*ignored*/);
-    _logger->info("Created plgInferenceInput_");
-
-    plgInferenceOutput_->Create(3 * inferenceIDSize, 0 /*ignored*/);
-    _logger->info("Created plgInferenceOutput_");
-
-    _logger->info("Created all Plugins");
-
-    // Add the plugins to the pipeline:
-    pipe->Add(plgPoolOutputs.get());
-    pipe->Add(plgTensorInput_.get());
-    pipe->Add(plgTensorOutput_.get());
-    pipe->Add(plgPoolInferenceMsg.get());
-    pipe->Add(plgInferenceInput_.get());
-    pipe->Add(plgInferenceOutput_.get());
-    pipe->Add(nnPl.get());
-
-    _logger->info("Added Plugins to Pipeline");
-
-    // Link the plugins' messages:
-    plgPoolOutputs->out.Link(&nnPl->resultInput);
-    plgTensorInput_->tensorOut.Link(&nnPl->tensorInput);
-    nnPl->output.Link(&plgTensorOutput_->dataIn);
-
-    plgPoolInferenceMsg->out.Link(&nnPl->inferenceResult);
-    plgInferenceInput_->inferenceOut.Link(&nnPl->inferenceInput);
-    nnPl->inferenceOutput.Link(&plgInferenceOutput_->inferenceIn);
-
-    _logger->info("Linked Plugins...");
-    pipe->Start();
     _logger->info("Started FLIC pipeline...");
 #else
     UNUSED(graphFileContent);
@@ -411,7 +330,7 @@ static bool needRepackForNHWC(const ie::TensorDesc& actualDesc) {
     }
 }
 
-ie::Blob::Ptr VpualExecutor::prepareInputForInference(
+ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
     const ie::Blob::Ptr& actualInput, const ie::TensorDesc& deviceDesc) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "prepareInputForInference");
 
@@ -449,10 +368,10 @@ ie::Blob::Ptr VpualExecutor::prepareInputForInference(
 
     return inputForInference;
 }
-void VpualExecutor::push(const ie::BlobMap& inputs) {
+void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "push");
-    _logger->info("VpualExecutor::push started");
+    _logger->info("VpualCoreNNExecutor::push started");
 
     ie::BlobMap updatedInputs;
     const auto& deviceInputs = _networkDescription->getDeviceInputsInfo();
@@ -468,22 +387,36 @@ void VpualExecutor::push(const ie::BlobMap& inputs) {
         inputsByteSize += updatedInput->byteSize();
     }
 
-    auto inputBufferPhysAddr = extractPhysAddrForInference(updatedInputs);
-    plgTensorInput_->Push(inputBufferPhysAddr, inputsByteSize);
+    NnExecMsg request;
+    request.inferenceID = 1;
+    for (const auto& input : updatedInputs) {
+        auto blob = ie::as<ie::MemoryBlob>(input.second);
+        auto memoryHolder = blob->rmap();
+        auto inputBufferPhysAddr = _allocator->getPhysicalAddress(memoryHolder.as<uint8_t*>());
+        request.inputTensors.push_back(inputBufferPhysAddr);
+    }
 
-    *_inferenceId = 1;
-    plgInferenceInput_->PushInferenceID(_allocator->getPhysicalAddress(_inferenceId.get()), sizeof(uint32_t));
-    _logger->info("VpualExecutor::push finished");
+    for (const auto& inferOutput : _outputPhysAddrs) {
+        request.outputTensors.push_back(inferOutput);
+    }
+
+    auto status = _nnXlinkPlg->RequestInference(request);
+    if (MVNCI_SUCCESS != status) {
+        _logger->error("VpualCoreNNExecutor::push: RequestInference failed");
+        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::push: RequestInference failed" << status;
+    }
+
+    _logger->info("VpualCoreNNExecutor::push finished");
 #else
     UNUSED(inputs);
 #endif
 }
 
-void VpualExecutor::push(const InferenceEngine::BlobMap&, const PreprocMap&) {
+void VpualCoreNNExecutor::push(const InferenceEngine::BlobMap&, const PreprocMap&) {
     THROW_IE_EXCEPTION << "Not implemented";
 }
 
-uint32_t VpualExecutor::extractPhysAddrForInference(const ie::BlobMap& inputs) {
+uint32_t VpualCoreNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inputs) {
     uint32_t physAddr = 0;
     if (inputs.size() == 1) {
         auto blob = ie::as<ie::MemoryBlob>(inputs.begin()->second);
@@ -520,28 +453,26 @@ uint32_t VpualExecutor::extractPhysAddrForInference(const ie::BlobMap& inputs) {
     return physAddr;
 }
 
-void VpualExecutor::pull(ie::BlobMap& outputs) {
+void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "pull");
-    _logger->info("VpualExecutor::pull started");
-    uint32_t idPhysAddr = 0;
-    uint32_t idLength = 0;
-    plgInferenceOutput_->PullInferenceID(&idPhysAddr, &idLength);
+    _logger->info("VpualCoreNNExecutor::pull started");
+    NnExecResponseMsg response;
+    auto status = _nnXlinkPlg->WaitForResponse(response);
+    if (MVNCI_SUCCESS != status) {
+        _logger->error("VpualCoreNNExecutor::pull: WaitForResponse failed");
+        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::pull: WaitForResponse failed" << status;
+    }
 
-    uint32_t outputBufferPhysAddr = 0;
-    uint32_t outputBufferLength = 0;
-    plgTensorOutput_->Pull(&outputBufferPhysAddr, &outputBufferLength);
-    // FIXME output->Pull gives only the length of the first tensor
-    // need to check if we get buffer of expected size
-    ie::BlobMap deviceOutputs = extractOutputsFromPhysAddr(outputBufferPhysAddr);
+    ie::BlobMap deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
     repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
-    _logger->info("VpualExecutor::pull finished");
+    _logger->info("VpualCoreNNExecutor::pull finished");
 #else
     UNUSED(outputs);
 #endif
 }
 
-ie::BlobMap VpualExecutor::extractOutputsFromPhysAddr(uint32_t physAddr) {
+ie::BlobMap VpualCoreNNExecutor::extractOutputsFromPhysAddr(uint32_t physAddr) {
     ie::BlobMap deviceOutputs;
     std::size_t offset = physAddr - _allocator->getPhysicalAddress(_outputBuffer.get());
     for (auto&& out : _networkDescription->getDeviceOutputsInfo()) {
@@ -554,7 +485,8 @@ ie::BlobMap VpualExecutor::extractOutputsFromPhysAddr(uint32_t physAddr) {
     return deviceOutputs;
 }
 
-void VpualExecutor::repackDeviceOutputsToNetworkOutputs(const ie::BlobMap& deviceOutputs, ie::BlobMap& networkOutputs) {
+void VpualCoreNNExecutor::repackDeviceOutputsToNetworkOutputs(
+    const ie::BlobMap& deviceOutputs, ie::BlobMap& networkOutputs) {
     for (const auto& item : deviceOutputs) {
         const auto& name = item.first;
         const auto& deviceBlob = item.second;
@@ -592,61 +524,17 @@ void VpualExecutor::repackDeviceOutputsToNetworkOutputs(const ie::BlobMap& devic
     }
 }
 
-void VpualExecutor::setup(const ie::ParamMap&) { THROW_IE_EXCEPTION << "Not implemented"; }
+void VpualCoreNNExecutor::setup(const ie::ParamMap&) { THROW_IE_EXCEPTION << "Not implemented"; }
 
-bool VpualExecutor::isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) const { return false; }
+bool VpualCoreNNExecutor::isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) const { return false; }
 
-std::map<std::string, ie::InferenceEngineProfileInfo> VpualExecutor::getLayerStatistics() {
+std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLayerStatistics() {
     THROW_IE_EXCEPTION << "Not implemented";
     return std::map<std::string, ie::InferenceEngineProfileInfo>();
 }
 
-InferenceEngine::Parameter VpualExecutor::getParameter(const std::string&) const {
+InferenceEngine::Parameter VpualCoreNNExecutor::getParameter(const std::string&) const {
     return InferenceEngine::Parameter();
-}
-
-void VpualExecutor::deallocateGraph() {
-#if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "deallocateGraph");
-    if (pipe) {
-        pipe->Stop();
-        pipe->Delete();
-    }
-    if (nnPl) {
-        nnPl->Delete();
-    }
-    if (gg) {
-        gg->NNDeallocateGraph(BHandle->graphid);
-    }
-    if (plgTensorInput_) {
-        plgTensorInput_->Delete();
-    }
-    if (plgTensorOutput_) {
-        plgTensorOutput_->Delete();
-    }
-    if (plgPoolOutputs) {
-        plgPoolOutputs->Delete();
-    }
-    if (RgnAlloc) {
-        RgnAlloc->Delete();
-    }
-    if (blob_file) {
-        _allocator->free(blob_file);
-    }
-    if (plgInferenceInput_) {
-        plgInferenceInput_->Delete();
-    }
-    if (plgInferenceOutput_) {
-        plgInferenceOutput_->Delete();
-    }
-    if (plgPoolInferenceMsg) {
-        plgPoolInferenceMsg->Delete();
-    }
-
-    for (const auto& scratchPtr : _scratchBuffers) {
-        _allocator->free(scratchPtr);
-    }
-#endif
 }
 
 }  // namespace vpux

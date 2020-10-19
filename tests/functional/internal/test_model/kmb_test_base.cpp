@@ -411,19 +411,19 @@ void KmbTestBase::exportNetwork(ExecutableNetwork& exeNet) {
     }
 }
 
-ExecutableNetwork KmbTestBase::importNetwork() {
+ExecutableNetwork KmbTestBase::importNetwork(const std::map<std::string, std::string>& importConfig) {
     IE_ASSERT(!DUMP_PATH.empty());
 
     const auto fileName = vpu::formatString("%v/%v.net", DUMP_PATH, dumpBaseName);
 
     if (RAW_EXPORT) {
-        return core->ImportNetwork(fileName, DEVICE_NAME);
+        return core->ImportNetwork(fileName, DEVICE_NAME, importConfig);
     } else {
         std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
         if (!file.is_open())
             THROW_IE_EXCEPTION << "importNetwork() failed. Can't open file " << fileName;
 
-        return core->ImportNetwork(file, DEVICE_NAME);
+        return core->ImportNetwork(file, DEVICE_NAME, importConfig);
     }
 }
 

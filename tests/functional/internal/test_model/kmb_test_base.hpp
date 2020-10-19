@@ -221,7 +221,7 @@ protected:
 protected:
     void exportNetwork(ExecutableNetwork& exeNet);
 
-    ExecutableNetwork importNetwork();
+    ExecutableNetwork importNetwork(const std::map<std::string, std::string>& importConfig = {});
 
     void dumpBlob(const std::string& blobName, const Blob::Ptr& blob);
 

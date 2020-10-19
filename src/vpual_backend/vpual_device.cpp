@@ -18,7 +18,8 @@
 
 #include <memory>
 
-#include "vpual_executor.hpp"
+#include "vpual_core_nn_executor.hpp"
+#include "vpual_flic_nn_executor.hpp"
 #include "vpusmm_allocator.hpp"
 
 namespace vpux {
@@ -49,7 +50,14 @@ std::shared_ptr<Executor> VpualDevice::createExecutor(
 
     _config.parseFrom(config);
 
-    return std::make_shared<VpualExecutor>(networkDescription, vpusmmAllocator, _config);
+    std::shared_ptr<Executor> executor = nullptr;
+    if (_config.useCoreNN()) {
+        executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, _config);
+    } else {
+        executor = std::make_shared<VpualFlicNNExecutor>(networkDescription, vpusmmAllocator, _config);
+    }
+
+    return executor;
 }
 
 std::shared_ptr<Allocator> VpualDevice::getAllocator() const { return _allocator; }

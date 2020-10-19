@@ -49,12 +49,12 @@ namespace ie = InferenceEngine;
 
 namespace vpux {
 
-class VpualExecutor final : public vpux::Executor {
+class VpualFlicNNExecutor final : public vpux::Executor {
 public:
-    using Ptr = std::shared_ptr<VpualExecutor>;
+    using Ptr = std::shared_ptr<VpualFlicNNExecutor>;
 
-    virtual ~VpualExecutor();
-    VpualExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
+    virtual ~VpualFlicNNExecutor();
+    VpualFlicNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
         const VpualConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
