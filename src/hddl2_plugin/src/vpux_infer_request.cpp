@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "hddl2_infer_request.h"
+#include "vpux_infer_request.h"
 
 #include <ie_blob.h>
 #include <ie_layouts.h>
@@ -27,7 +27,7 @@
 
 #include "vpux_remote_blob.h"
 
-using namespace vpu::HDDL2Plugin;
+namespace vpux {
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
@@ -53,13 +53,12 @@ static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc) {
 }
 
 //------------------------------------------------------------------------------
-HDDL2InferRequest::HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-    const InferenceEngine::OutputsDataMap& networkOutputs, const vpux::Executor::Ptr& executor,
-    const vpux::VPUXConfig& config)
+InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
+    const Executor::Ptr& executor, const VPUXConfig& config)
     : InferRequestInternal(networkInputs, networkOutputs),
       _executorPtr(executor),
       _config(config),
-      _logger(std::make_shared<Logger>("HDDL2InferRequest", config.logLevel(), consoleOutput())) {
+      _logger(std::make_shared<vpu::Logger>("InferRequest", config.logLevel(), vpu::consoleOutput())) {
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
         const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
@@ -75,12 +74,12 @@ HDDL2InferRequest::HDDL2InferRequest(const InferenceEngine::InputsDataMap& netwo
     }
 }
 
-void HDDL2InferRequest::Infer() {
+void InferRequest::Infer() {
     checkBlobs();
     InferImpl();
 }
 
-void HDDL2InferRequest::InferImpl() {
+void InferRequest::InferImpl() {
     InferAsync();
     GetResult();
 }
@@ -92,10 +91,9 @@ void HDDL2InferRequest::InferImpl() {
  * @param[in] preProcData Container with blobs, which should be preprocessed
  * @return Map with preprocess information
  */
-vpux::PreprocMap HDDL2InferRequest::preparePreProcessing(InferenceEngine::BlobMap& inputs,
-    const InferenceEngine::InputsDataMap& networkInputs,
+PreprocMap InferRequest::preparePreProcessing(IE::BlobMap& inputs, const IE::InputsDataMap& networkInputs,
     const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData) {
-    vpux::PreprocMap preProcMap;
+    PreprocMap preProcMap;
     for (auto& input : networkInputs) {
         const std::string inputName = input.second->name();
         const auto& preProcDataIt = preProcData.find(inputName);
@@ -112,32 +110,31 @@ vpux::PreprocMap HDDL2InferRequest::preparePreProcessing(InferenceEngine::BlobMa
     return preProcMap;
 }
 
-void HDDL2InferRequest::InferAsync() {
+void InferRequest::InferAsync() {
     // TODO [Track number: S#36866]
-    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "InferAsync");
+    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "InferAsync");
     const auto preProcMap = preparePreProcessing(_inputs, _networkInputs, _preProcData);
     _executorPtr->push(_inputs, preProcMap);
 }
 
-void HDDL2InferRequest::GetResult() {
-    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "GetResult");
+void InferRequest::GetResult() {
+    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "GetResult");
     _executorPtr->pull(_outputs);
 }
 
-void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
-    std::map<std::string, IE::InferenceEngineProfileInfo>& perfMap) const {
+void InferRequest::GetPerformanceCounts(std::map<std::string, IE::InferenceEngineProfileInfo>& perfMap) const {
     if (_config.performanceCounting()) {
         perfMap = _executorPtr->getLayerStatistics();
     }
 }
 
-void HDDL2InferRequest::SetBlob(const char* name, const IE::Blob::Ptr& data) {
-    if (!data->is<vpux::VPUXRemoteBlob>()) {
+void InferRequest::SetBlob(const char* name, const IE::Blob::Ptr& data) {
+    if (!data->is<VPUXRemoteBlob>()) {
         IE::InferRequestInternal::SetBlob(name, data);
         return;
     }
 
-    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "SetBlob");
+    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "SetBlob");
     if (name == nullptr) {
         THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
     }
@@ -191,11 +188,12 @@ void HDDL2InferRequest::SetBlob(const char* name, const IE::Blob::Ptr& data) {
     }
 }
 
-void HDDL2InferRequest::checkBlobs() {
+void InferRequest::checkBlobs() {
     for (const auto& input : _inputs) {
-        if (!input.second->is<vpux::VPUXRemoteBlob>()) checkBlob(input.second, input.first, true);
+        if (!input.second->is<VPUXRemoteBlob>()) checkBlob(input.second, input.first, true);
     }
     for (const auto& output : _outputs) {
-        if (!output.second->is<vpux::VPUXRemoteBlob>()) checkBlob(output.second, output.first, false);
+        if (!output.second->is<VPUXRemoteBlob>()) checkBlob(output.second, output.first, false);
     }
 }
+}  // namespace vpux

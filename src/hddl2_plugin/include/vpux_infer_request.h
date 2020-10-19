@@ -21,16 +21,14 @@
 // Plugin
 #include <vpux.hpp>
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
 
-class HDDL2InferRequest final : public InferenceEngine::InferRequestInternal {
+class InferRequest final : public InferenceEngine::InferRequestInternal {
 public:
-    using Ptr = std::shared_ptr<HDDL2InferRequest>;
+    using Ptr = std::shared_ptr<InferRequest>;
 
-    explicit HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-        const InferenceEngine::OutputsDataMap& networkOutputs, const vpux::Executor::Ptr& executor,
-        const vpux::VPUXConfig& config);
+    explicit InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+        const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor, const VPUXConfig& config);
 
     void Infer() override;
     void InferImpl() override;
@@ -43,15 +41,14 @@ public:
 protected:
     void checkBlobs() override;
 
-    vpux::PreprocMap preparePreProcessing(InferenceEngine::BlobMap& inputs,
+    PreprocMap preparePreProcessing(InferenceEngine::BlobMap& inputs,
         const InferenceEngine::InputsDataMap& networkInputs,
         const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
     void SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) override;
 
-    const vpux::Executor::Ptr _executorPtr;
-    const vpux::VPUXConfig& _config;
-    const Logger::Ptr _logger;
+    const Executor::Ptr _executorPtr;
+    const VPUXConfig& _config;
+    const vpu::Logger::Ptr _logger;
 };
 
-}  //  namespace HDDL2Plugin
-}  //  namespace vpu
+}  //  namespace vpux

@@ -23,13 +23,12 @@
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 #include "inference_engine.hpp"
 // Plugin
-#include "hddl2_metrics.h"
 #include "vpux.hpp"
 #include "vpux_backends.h"
 #include "vpux_compiler.hpp"
+#include "vpux_metrics.h"
 
 namespace vpux {
-namespace HDDL2 {
 
 class Engine : public InferenceEngine::InferencePluginInternal {
 public:
@@ -63,20 +62,18 @@ public:
     /**
      * @brief Create context form param map. Will reuse already created workloadContext (workload
      * context id should be specified in param map)
-     * @note Params can be found in hddl2_params.h file
      */
     RemoteContext::Ptr CreateContext(const ParamMap& map) override;
 
 private:
     ExecutableNetworkInternal::Ptr LoadExeNetwork(
-        const ICNNNetwork& network, std::shared_ptr<vpux::Device>& device, const VPUXConfig& networkConfig);
+        const ICNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& networkConfig);
 
 private:
     VPUXConfig _parsedConfig;
     VPUXBackends::CPtr _backends;
-    vpu::HDDL2Plugin::HDDL2Metrics _metrics;
-    vpux::Compiler::Ptr _compiler;
+    Metrics _metrics;
+    Compiler::Ptr _compiler;
 };
 
-}  // namespace HDDL2
 }  // namespace vpux

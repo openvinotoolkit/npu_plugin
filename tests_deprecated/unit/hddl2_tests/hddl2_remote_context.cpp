@@ -23,10 +23,10 @@
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_helpers/helper_workload_context.h"
 #include "hddl2_params.hpp"
-#include "hddl2_plugin.h"
 #include "helper_remote_context.h"
 #include "skip_conditions.h"
-#include "hddl2_metrics.h"
+#include "vpux_metrics.h"
+#include "vpux_plugin.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;

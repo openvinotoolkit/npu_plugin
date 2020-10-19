@@ -17,6 +17,7 @@
 #pragma once
 
 #include "hddl2_helpers/helper_remote_memory.h"
+#include "hddl2/hddl2_params.hpp"
 
 namespace vpu {
 namespace HDDL2Plugin {
