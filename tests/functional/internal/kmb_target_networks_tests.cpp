@@ -75,9 +75,9 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_MobileNet_V2) {
 //
 
 // KMB : Op:pool5/7x7_s1 - OpError: Invalid input data (0) - Filter kernel width (7) exceeds the padded input width (6)
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_Inception_V1) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");  // TODO: create JIRA ticket
-
+// Unsupported operation: pool1/norm16960 with name LRN_IE_3845 with C++ type ngraph::op::LRN_IE
+// [Track number: D#40918]
+TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_Caffe_IRv10_Inception_V1) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v1_caffe/googlenet-v1-caffe-from-icv-bench-cache.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -91,10 +91,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_Inception_V1) {
 // InceptionV3
 //
 
-// KMB : Power layer is not supported by kmbPlugin
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_Inception_V3) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");  // TODO: create JIRA ticket
-
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v3_tf/googlenet-v3-pytorch-from-icv-bench-cache.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -104,10 +102,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_Inception_V3) {
         1, 1e-1f);
 }
 
-// KMB : Power layer is not supported by kmbPlugin
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv10_Inception_V3) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");  // TODO: create JIRA ticket
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v3_tf/googlenet-v3-tf-frozen-from-icv-bench-cache.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -122,9 +117,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv10_Inception_V3) {
 //
 
 // FIXME: Missing IR in models-ir repository
+// ????
 TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_Caffe2_IRv10_SqueezeNet_1_1) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");  // TODO: create JIRA ticket
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_caffe/squeezenet1.1-caffe2-uint8-int8-weights-perchannel-IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -188,13 +182,13 @@ INSTANTIATE_TEST_CASE_P(all_layouts, KmbYoloV3NetworkTestWithSpecificLayout,
 // Start of test-set for KMB-alpha IRv10
 //////////////////////////////////////////
 
-TEST_F(KmbYoloV2NetworkTest, yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_ngraph) {
+TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
+            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(NO)}}),
         TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
@@ -202,7 +196,6 @@ TEST_F(KmbYoloV2NetworkTest, yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_ngraph) {
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
         getIELibraryPath() + "/kmb_custom_kernels/yolov2.xml");
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -216,8 +209,6 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
 // KMB : Bad inference results. Possible bug in test system.
 // [Track number: S#28790]
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -240,7 +231,6 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
         getIELibraryPath() + "/kmb_custom_kernels/yolov2.xml");
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -251,20 +241,16 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
         0.6, 0.4, 0.4, false);
 }
 
-TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_ngraph) {
+TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
+            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(NO)}}),
         TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
-
-const static std::vector<InferenceEngine::Layout> specificLayout = {
-        InferenceEngine::Layout::NHWC,
-        InferenceEngine::Layout::NCHW};
 
 class KmbClassifyNetworkTestWithSpecificLayout : public KmbClassifyNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 
@@ -278,18 +264,7 @@ TEST_P(KmbClassifyNetworkTestWithSpecificLayout, precommit_resnet_50_pytorch_den
         1, 0.7f);
 }
 
-TEST_P(KmbClassifyNetworkTestWithSpecificLayout, precommit_resnet_50_pytorch_dense_int8_IRv10_ngraph) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", GetParam())
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("224x224/husky.bmp", ImageFormat::RGB),
-        1, 0.7f);
-}
-
-INSTANTIATE_TEST_CASE_P(precommit, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(specificLayout));
+INSTANTIATE_TEST_CASE_P(precommit, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32) {
     runTest(
@@ -312,18 +287,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_
         1, 7.0f);
 }
 
-TEST_F(KmbClassifyNetworkTest, mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_ngraph) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
-        1, 7.0f);
-}
-
-
 TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v1_tf_dense_int8_IRv10_from_fp32) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/googlenet-v1/googlenet_v1_tf_dense_int8_IRv10_from_fp32.xml")
@@ -337,7 +300,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v1_tf_dense_int8_IRv10_from_f
 // Bad accuracy
 // [Track number: S#39435]
 TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad accuracy");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/googlenet-v3/googlenet_v3_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -347,14 +309,13 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_f
         1, 0.05f);
 }
 
-
-TEST_F(KmbClassifyNetworkTest, googlenet_v3_tf_dense_int8_IRv10_ngraph) {
+TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_legacy_parser) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/googlenet-v3/googlenet_v3_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
+            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(NO)}}),
         TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
         1, 0.1f);
 }
@@ -370,59 +331,35 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
         1, 2.0f);
 }
 
-// C++ exception with description "propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams"
-// [Track number: S#31766]
-TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_ngraph) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setUserOutputLayout("output", Layout::NHWC)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
-        1, 2.0f);
-}
 //////////////////////////////////////////
 // End of test-set for KMB-alpha IRv10
 //////////////////////////////////////////
-
 
 //////////////////////////////////////////
 // Start of test-set for KMB-beta IRv10
 //////////////////////////////////////////
 
-// C++ exception with description "Caught exception during unit run: Wrong strategy generated:
-// tensor fire6/squeeze1x1:0_crop:0_align:0 needs sparsity but it can't be sparsified" thrown in the test body.
-// [Track number: D#3467]
-TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "Compilation fails");
+class KmbDetectionNetworkTestWithSpecificLayout : public KmbDetectionNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 
+TEST_P(KmbDetectionNetworkTestWithSpecificLayout, face_detection_retail_caffe_IRV10_fp16_int8) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NCHW),
+            .setUserInputLayout("input", GetParam()),
             TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", ImageFormat::RGB),
             0.3f,
             1.f, 0.3f);
 }
 
-TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc) {
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC),
-            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", ImageFormat::RGB),
-            0.3f,
-            1.f, 0.3f);
-}
+INSTANTIATE_TEST_CASE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, ::testing::ValuesIn({Layout::NHWC}));
+// [Track number: S#41097]
+// Wrong strategy generated: tensor fire3/squeeze1x1:0_crop:0_align:0 needs sparsity but it can't be sparsified
+// INSTANTIATE_TEST_CASE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
-// C++ exception with description "Caught exception during unit run: Wrong strategy generated:
-// tensor fire6/squeeze1x1:0_crop:0_align:0 needs sparsity but it can't be sparsified" thrown in the test body.
-// [Track number: D#3467]
+// TODO Check [Track number: D#3467]
+// TODO 4 similar tests face_detection_retail_caffe_IRV10_fp16_int8_*
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw_fuse_scale_input_accuracy_drop) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "Compilation fails");
-
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -446,6 +383,7 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             0.3f,
             1.f, 0.3f);
 }
+
 // Disabled due to accuracy regression with nGraph frontend
 // [Track number: S#40575]
 TEST_F(KmbSSDNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
@@ -461,9 +399,11 @@ TEST_F(KmbSSDNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
 // C++ exception with description "Only single input is supported currently
 // kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:785
 // [Track number: D#2723]
-TEST_F(KmbDetectionNetworkTest, precommit_faster_rcnn_resnet101_coco_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
+// Convertor for operation McmFC_7719 failed due to runtime error
+// Op:McmFC_7719 - OpError: Invalid input data (0) - Inconsistent total size of input tensor (input 0) 204800
+// and 1st dimension of weights tensor (input 1) 2048
+// [Track number: D#40919]
+TEST_F(KmbDetectionNetworkTest, DISABLED_precommit_faster_rcnn_resnet101_coco_tf_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/faster_rcnn_resnet101_coco/faster_rcnn_resnet101_coco_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -497,25 +437,25 @@ TEST_F(KmbSSDNetworkTest, precommit_ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_fr
 // KmbFunctionalTests: kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1635:
 // void vpu::FrontEndMcm::parseNormalize(const CNNLayerPtr&, const McmNodeVector&):
 // Assertion `(dims[1] == weightsSize)' failed.
+// TODO Check 2918
 // [Track number: D#2918]
 TEST_F(KmbClassifyNetworkTest, precommit_facenet_20180408_102900_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/facenet-20180408-102900/facenet_20180408_102900_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("160x160/cat3.bmp", ImageFormat::RGB),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
             1, 0.05f);
 }
 
 // C++ exception with description "ELU layer is not supported by kmbPlugin
 // kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1604
 // [Track number: D#2725]
-TEST_F(KmbDetectionNetworkTest, precommit_person_vehicle_bike_detection_crossroad_0078_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
+// Unsupported operation: bottleneck1_1/dim_red/fn with name Elu_4549 with C++ type ngraph::op::v0::Elu (MR1176)
+// Caught exception during unit run: propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams
+// TODO Check after 1176 and 1377
+TEST_F(KmbDetectionNetworkTest, DISABLED_precommit_person_vehicle_bike_detection_crossroad_0078_caffe_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/person-vehicle-bike-detection-crossroad-0078/person_vehicle_bike_detection_crossroad_0078_caffe_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -535,10 +475,12 @@ TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrie
             0.1f, 0.3f);
 }
 
+// TODO Update to YoloV3
 // FIXME change adapter to Yolo V3 when available
 // [Track number: H#1801262299]
+// "output strides are set to represent NHWC"
 TEST_F(KmbYoloV2NetworkTest, person_vehicle_bike_detection_crossroad_yolov3_1020) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "output strides are set to represent NHWC");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/"
                     "person-vehicle-bike-detection-crossroad-yolov3-1020/"
@@ -547,13 +489,9 @@ TEST_F(KmbYoloV2NetworkTest, person_vehicle_bike_detection_crossroad_yolov3_1020
             TestImageDesc("500x500/car_fcn8.bmp", ImageFormat::RGB),
             0.6, 0.4, 0.4, false);
 }
-
-// C++ exception with description "PriorBoxClustered layer is not supported by kmbPlugin
-// kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1779
-// [Track number: D#2727]
-TEST_F(KmbDetectionNetworkTest, precommit_face_detection_retail_0004_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
+// Model file KMB_models/INT8/icv/face-detection-retail-0004/face_detection_retail_0004_caffe_dense_int8_IRv10_from_fp32.xml
+// cannot be opened!
+TEST_F(KmbDetectionNetworkTest, DISABLED_precommit_face_detection_retail_0004_caffe_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/face_detection_retail_0004_caffe_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -587,9 +525,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_152_caffe_dense_int8_IRv10_from_
 // C++ exception with description "Op:conv2 - OpError: Invalid input weights (1) -
 // Does not match the channel dimension of input 96
 // [Track number: D#2799]
-TEST_F(KmbClassifyNetworkTest, precommit_alexnet_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
+// Unsupported operation: norm11198 with name LRN_IE_1388 with C++ type ngraph::op::LRN_IE
+// [Track number: D#40918]
+TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_alexnet_caffe_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/alexnet/alexnet_caffe_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -601,8 +539,8 @@ TEST_F(KmbClassifyNetworkTest, precommit_alexnet_caffe_dense_int8_IRv10_from_fp3
 
 // Compilation time is about 10 minutes
 // [Track number: D#3640]
-TEST_F(KmbClassifyNetworkTest, precommit_vgg16_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "very long compile time");
+TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_from_fp32) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");  // TODO Create Ticket
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -612,9 +550,24 @@ TEST_F(KmbClassifyNetworkTest, precommit_vgg16_caffe_dense_int8_IRv10_from_fp32)
             1, 0.05f);
 }
 
+
+// Compilation time is about 10 minutes
+// [Track number: D#3640]
+TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
+    // [Track number: S#39223]
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPrecision("output", Precision::FP32),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
+            1, 0.05f);
+}
+
 // [Track number: S#41097]
-TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "segfault on compile time");
+// segfault on compile time
+TEST_F(KmbRetinaFaceNetworkTest, DISABLED_precommit_retinaface_mobilenetv2_0_25_modified) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -635,9 +588,11 @@ TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified)
 // C++ exception with description "Layer Power_123537 supports only power = 1
 // kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1464
 // [Track number: D#2809]
-TEST_F(KmbYoloV2NetworkTest, yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
+// Convertor for operation image_preprocess/sub failed due to runtime error Op:image_preprocess/sub - OpError:
+// Invalid input inputs (0) - All the inputs of eltwise ops have to share the same size or the other inputs
+// must have size 1 and be populated
+// Track ?
+TEST_F(KmbYoloV2NetworkTest, DISABLED_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -709,7 +664,8 @@ TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp1
             1, 0.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, DISABLED_googlenet_v4_tf_dense_int8_IRv10_fp16_to_int8) {
+TEST_F(KmbClassifyNetworkTest, googlenet_v4_tf_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/googlenet-v4/googlenet_v4_tf_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -739,30 +695,16 @@ TEST_F(KmbClassifyNetworkTest, resnet_152_caffe_dense_int8_IRv10_fp16_to_int8) {
             1, 0.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
-    // [Track number: S#39223]
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_fp16_to_int8.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-            1, 0.05f);
-}
-
 // Compilation fails with exception:
 // "Caught exception during unit run: propagateParameters ERROR:
 // inputs of the Eltwise/Concat do not have the same QuantParams"
 // [Track number: D#3453]
-TEST_F(KmbRFCNNetworkTest, rfcn_resnet50_caffe_IRV10_fp16_int8) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "Compilation fails");
-    // [Track number: S#3331]
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
-
+// TODO CHECK [Track number: S#3331]
+// C++ exception with description "Proposal layer doesn't support framework: " thrown in the test body.
+// TOO Create ticket
+TEST_F(KmbRFCNNetworkTest, DISABLED_rfcn_resnet50_caffe_IRV10_fp16_int8) {
     const std::string data_name    = "data";
     const std::string im_info_name = "im_info";
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/private/rfcn-resnet50/caffe/FP16-INT8/rfcn-resnet50_ww22.xml")
             .setUserInputPrecision(data_name, Precision::U8)
@@ -776,6 +718,7 @@ TEST_F(KmbRFCNNetworkTest, rfcn_resnet50_caffe_IRV10_fp16_int8) {
         "im_info",
         {224.f, 224.f, 1.f});
 }
+
 ////////////////////////////////////////////////////////////
 // End of test-set for IRv10 FP16 to INT8 quantization
 ////////////////////////////////////////////////////////////
@@ -783,7 +726,6 @@ TEST_F(KmbRFCNNetworkTest, rfcn_resnet50_caffe_IRV10_fp16_int8) {
 // Bad accuracy
 // [Track number: S#39421]
 TEST_F(KmbClassifyNetworkTest, emotion_recognition_retail_0003) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad accuracy");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/emotions-recognition-retail-0003/emotions-recognition-retail-0003_int8_from_fp16.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -805,41 +747,31 @@ TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
         0.3f);  // mean intersection over union tolerance
 }
 
-
 // [Track number: S#25636]
-TEST_F(UnetNetworkTest, DISABLED_precommit_unet_camvid_ava_0001_NHWC_NCHW) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputLayout("output", Layout::NCHW),
-        TestImageDesc("480x360/0016E5_07959.png", ImageFormat::RGB),
-        0.3f);  // mean intersection over union tolerance
-}
-
-// Bad accuracy
+// Segmentation fault in MCM replacement_passes.cpp:303
 // [Track number: S#39621]
-TEST_F(UnetNetworkTest, DISABLED_unet_camvid_ava_0001_NCHW_NCHW) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad accuracy");
+// [Track number: D#40921]
+class UnetNetworkTestWithSpecificLayout : public UnetNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
+TEST_P(UnetNetworkTestWithSpecificLayout, DISABLED_unet_camvid_ava_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
             .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NCHW)
+            .setUserInputLayout("input", GetParam())
             .setUserOutputLayout("output", Layout::NCHW),
         TestImageDesc("480x360/0016E5_07959.png", ImageFormat::RGB),
         0.3f);  // mean intersection over union tolerance
 }
+INSTANTIATE_TEST_CASE_P(precommit, UnetNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
 // Compilation fails with exception:
 // "Caught exception during unit run: QuantizationParams: quantParams -
 // ArgumentError: attribute identifer mult - Undefine identifier"
+// QuantizationParams: quantParams - ArgumentError: attribute identifer mult - Undefined identifier
 // [Track number: D#3707]
-TEST_F(GazeEstimationNetworkTest, gaze_estimation_adas_0002) {
+TEST_F(GazeEstimationNetworkTest, DISABLED_gaze_estimation_adas_0002) {
     const auto left_eye_input_name = "left_eye_image";
     const auto right_eye_input_name = "right_eye_image";
     const auto head_pos_input_name = "head_pose_angles";
-
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/gaze-estimation-adas-0002/gaze_estimation_adas_0002_int8_from_fp16_ww22.xml")
             .setUserInputPrecision(left_eye_input_name, Precision::U8)
@@ -857,28 +789,21 @@ TEST_F(GazeEstimationNetworkTest, gaze_estimation_adas_0002) {
         std::vector<float>{-2.076815605163574, -2.1021695137023926, 0.13159990310668945});
 }
 
-TEST_F(SmokeNetworkTest, openpose_pose_cf_NHWC) {
+class SmokeNetworkTestWithSpecificLayout : public SmokeNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
+TEST_P(SmokeNetworkTestWithSpecificLayout, openpose_pose_cf) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/OpenPose/FP16-INT8/openpose-pose_cf_ww22.xml")
             .setUserInputPrecision("image", Precision::U8)
-            .setUserInputLayout("image", Layout::NHWC)
+            .setUserInputLayout("image", GetParam())
             .setUserOutputPrecision("output", Precision::FP32));
 }
-
-TEST_F(SmokeNetworkTest, DISABLED_openpose_pose_cf_NCHW) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/OpenPose/FP16-INT8/openpose-pose_cf_ww22.xml")
-            .setUserInputPrecision("image", Precision::U8)
-            .setUserInputLayout("image", Layout::NCHW)
-            .setUserOutputPrecision("output", Precision::FP32));
-}
+INSTANTIATE_TEST_CASE_P(precommit, SmokeNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
 // Disabled due to unstable CPU results
 // [Track number: S#40572]
 TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
     const std::string input_name = "input";
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "CPU ref generate different results time to time");
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013_ww22.xml")
             .setUserInputPrecision(input_name, Precision::U8),
@@ -886,34 +811,8 @@ TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
         0.1f);
 }
 
-// C++ exception with description "Cannot convert layer "GatherIE_6126" due to unsupported layer type "Gather"
-// [Track number: S#31241]
-TEST_F(PersonAttrRecNetworkTest, person_attributes_recognition_crossroad_0234) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0234.xml"),
-        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR),
-        0.1f);
-}
-
-// C++ exception with description "Cannot convert layer "GatherIE_6126" due to unsupported layer type "Gather"
-// [Track number: S#31241]
-TEST_F(PersonAttrRecNetworkTest, person_attributes_recognition_crossroad_0238) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml"),
-        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR),
-        0.1f);
-}
-
 // [Track number: D#3604]
 TEST_F(KmbSSDNetworkTest, ssdlite_mobilenet_v2) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ssdlite_mobilenet_v2/ssdlite_mobilenet_v2.xml")
             .setUserInputPrecision("image_tensor", Precision::U8),
@@ -936,9 +835,9 @@ TEST_F(VehicleAttrRecNetworkTest, vehicle_attributes_recognition_barrier_0042) {
 // All the inputs of eltwise ops have to share the same size
 // or the other inputs must have size 1 and be populated
 // [Track number: D#3627]
-TEST_F(KmbSegmentationNetworkTest, road_segmentation_adas_0001) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
+// Convertor for operation L0067_AddBackward1 failed due to runtime error
+// TODO Create ticket
+TEST_F(KmbSegmentationNetworkTest, DISABLED_road_segmentation_adas_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/road_segmentation_adas_0001/road-segmentation-adas-0001.xml"),
         TestImageDesc("512x896/road-segmentation-adas-0001.png", ImageFormat::BGR),
@@ -948,10 +847,9 @@ TEST_F(KmbSegmentationNetworkTest, road_segmentation_adas_0001) {
 // C++ exception with description "Caught exception during unit run: MemoryAllocator:VPU_CMX_NN - ArgumentError:
 // conv4_3_0_norm_mbox_locNeutral_copy0conv4_3_0_norm_mbox_locNeutral_copyDMAconv5_5/sep/bn/variance/Fused_Add_:0:0:0::paddedShape[2]
 // 192 - Does not match the dimension 184 of the tensor conv4_3_0_norm_mbox_locNeutral:0 already allocated in the given buffer
-// // [Track number: D#3656]
+// TODO Check ticket
+// [Track number: D#3656]
 TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/face-detection-adas-0001/face-detection-adas-0001.xml")
 	    .setUserInputPrecision("input", Precision::U8)
@@ -961,9 +859,9 @@ TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
         1.f, 0.3f);
 }
 
+// TODO Create ticket
 TEST_F(HeadPoseEstimationNetworkTest, head_pose_estimation_adas_0001) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/head_pose_estimation_adas_0001/head-pose-estimation-adas-0001.xml")
 	    .setUserInputPrecision("input", Precision::U8),
@@ -975,7 +873,6 @@ TEST_F(HeadPoseEstimationNetworkTest, head_pose_estimation_adas_0001) {
 TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0234) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     const std::string input_name = "input";
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0234.xml")
                 .setUserInputPrecision("input", Precision::U8)
@@ -988,7 +885,6 @@ TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0234) {
 TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0238) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     const std::string input_name = "input";
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -998,10 +894,9 @@ TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0238) {
 }
 
 // C++ exception with description "Tile layer is not supported by kmbPlugin
+// Unsupported operation: Tile with name TileIE_1896 with C++ type ngraph::op::TileIE (MR940)
 // [Track number: D#3657]
-TEST_F(KmbClassifyNetworkTest, license_plate_recognition_barrier_0007) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
+TEST_F(KmbClassifyNetworkTest, DISABLED_license_plate_recognition_barrier_0007) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/license-plate-recognition-barrier-0007/license-plate-recognition-barrier-0007.xml")
 	    .setUserInputPrecision("input", Precision::U8),
@@ -1011,8 +906,7 @@ TEST_F(KmbClassifyNetworkTest, license_plate_recognition_barrier_0007) {
 }
 
 TEST_F(KmbDetectionNetworkTest, person_detection_retail_0013) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
-
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-detection-retail-0013/person-detection-retail-0013.xml")
 	    .setUserInputPrecision("input", Precision::U8),
