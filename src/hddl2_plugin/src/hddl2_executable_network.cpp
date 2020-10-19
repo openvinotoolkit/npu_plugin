@@ -16,14 +16,12 @@
 
 // System
 #include <fstream>
-#include <memory>
-#include <string>
-#include <vector>
 // IE
 #include <legacy/net_pass.h>
 
 #include <generic_ie.hpp>
 #include <ie_metric_helpers.hpp>
+#include <ie_plugin_config.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
@@ -85,6 +83,7 @@ ExecutableNetwork::ExecutableNetwork(const vpux::VPUXConfig& config)
 ExecutableNetwork::ExecutableNetwork(
     IE::ICNNNetwork& network, std::shared_ptr<vpux::Device>& device, const vpux::VPUXConfig& config)
     : ExecutableNetwork(config) {
+    _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
     if (_config.useNGraphParser()) {
@@ -202,16 +201,20 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
     }
 }
 
-InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
+IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
         if (_networkPtr != nullptr) {
             IE_SET_METRIC_RETURN(NETWORK_NAME, _networkPtr->getName());
         } else {
             THROW_IE_EXCEPTION << "GetMetric: network is not initialized";
         }
+    } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(8u));
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
+
+    return {};
 }
 
 }  // namespace HDDL2Plugin

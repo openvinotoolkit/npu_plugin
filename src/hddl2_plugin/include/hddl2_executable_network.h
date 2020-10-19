@@ -60,6 +60,7 @@ private:
     vpux::Compiler::Ptr _compiler = nullptr;
     vpux::NetworkDescription::Ptr _networkPtr = nullptr;
     vpux::Executor::Ptr _executorPtr;
+    std::vector<std::string> _supportedMetrics;
 };
 
 }  //  namespace HDDL2Plugin
