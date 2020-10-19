@@ -44,6 +44,26 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
         1, 2.5f);
 }
 
+TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v1_caffe2_dense_int8_IRv10.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserOutputPrecision("output", Precision::FP32),
+        TestImageDesc("224x224/watch.bmp", ImageFormat::BGR),
+        1, 2.5f);
+}
+
+// [Track number: S#40780]
+TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v2) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v2_caffe2_dense_int8_IRv10.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserOutputPrecision("output", Precision::FP32),
+        TestImageDesc("224x224/watch.bmp", ImageFormat::BGR),
+        1, 2.5f);
+}
+
 //
 // MobileNetV2
 //
@@ -139,6 +159,21 @@ TEST_F(KmbYoloV1NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV1) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
         TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
+        0.6, 0.4, 0.4, true);
+}
+
+//
+// TinyYolo V2
+//
+
+// [Track number: S#40783]
+TEST_F(KmbYoloV1NetworkTest, INT8_Dense_Cntk_TinyYoloV2) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/private/tiny_yolo_v2/tiny_yolo_v2_cntk_dense_int8_IRv10.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserOutputPrecision("output", Precision::FP32),
+        TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::BGR),
         0.6, 0.4, 0.4, true);
 }
 
