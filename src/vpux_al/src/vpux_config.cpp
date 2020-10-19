@@ -60,6 +60,7 @@ const std::unordered_set<std::string>& vpux::VPUXConfigBase::getRunTimeOptions()
                                                              CONFIG_KEY(PERF_COUNT),
                                                              VPU_KMB_CONFIG_KEY(USE_M2I),
                                                              CONFIG_KEY(DEVICE_ID),
+                                                             VPU_KMB_CONFIG_KEY(USE_CORE_NN),
                                                          });
 
     return options;
@@ -108,6 +109,7 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_performanceCounting, switches, config, CONFIG_KEY(PERF_COUNT));
     setOption(_useM2I, switches, config, VPU_KMB_CONFIG_KEY(USE_M2I));
     setOption(_deviceId, config, CONFIG_KEY(DEVICE_ID));
+    setOption(_useCoreNN, switches, config, VPU_KMB_CONFIG_KEY(USE_CORE_NN));
 
     parseEnvironment();
 }

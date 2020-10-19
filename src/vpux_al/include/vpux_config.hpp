@@ -59,6 +59,8 @@ public:
 
     bool useM2I() const { return _useM2I; }
 
+    bool useCoreNN() const { return _useCoreNN; }
+
     bool performanceCounting() const { return _performanceCounting; }
 
     std::string deviceId() const { return _deviceId; }
@@ -84,6 +86,7 @@ protected:
     // FIXME: Likely has to be true by default as well.
     // NB.: Currently applies to the detection use-case only
     bool _useM2I = false;
+    bool _useCoreNN = false;
 
     std::string _deviceId = "VPU-0";
 
