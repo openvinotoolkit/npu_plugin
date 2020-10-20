@@ -42,7 +42,7 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         auto inputs = concat->getInputTensor();
         auto axis = concat->get<std::string>("axis");
         auto name = concat->getName();
-        mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+        auto quantParams = concat->getOutputTensor(0)->getQuantParams();
         std::string splitStrategy;
         bool pipelined = false;
         unsigned pipelineId;
@@ -51,8 +51,6 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         bool mixedToFloat = false;
         if(concat->hasAttr("splitStrategy"))
             splitStrategy = concat->get<std::string>("splitStrategy");
-        if(concat->hasAttr("quantParams"))
-            quantParams = concat->get<mv::QuantizationParams>("quantParams");
         if(concat->hasAttr("schedule_for_dpu_dma_overlap"))
         {
             pipelined = true;
@@ -68,7 +66,8 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         auto outputLocation = concat->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto opId = concat->get<unsigned>("opId");
         auto outputFlows = mv::getOutputDataFlow(om, concat);
-        auto implicitConcat = om.implicitConcat(inputs, axis, quantParams, name);
+        auto implicitConcat = om.implicitConcat(name, inputs, axis);
+        implicitConcat->setQuantParams(quantParams);
         om.getSourceOp(implicitConcat)->set<unsigned>("opId", opId);
         implicitConcat->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
         if(!splitStrategy.empty())

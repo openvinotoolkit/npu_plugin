@@ -8,8 +8,8 @@ int main()
 
     mv::CompilationUnit unit("DepthwiseChannelScalingModel");
     mv::OpModel& om = unit.model();
-    auto input0 = om.input({16,16,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#3");
-
+    auto input0 = om.input("input#3", {16,16,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    input0->setQuantParams({{128},{0.007843137718737125},{-1.0},{1.0}});
 
     std::vector<double> scale(16);
     for (std::size_t i = 0; i < 16; i++)
@@ -38,13 +38,17 @@ int main()
     b_file.open(Biases_filename, std::fstream::in | std::fstream::binary);
     b_file.read((char*)(biasd_WeightsData0.data()), 16 * sizeof(uint64_t));
 
-    auto d_weights0 = om.constantInt(d_weightsData0,{1,1,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{145},{scale},{-0.2301538735628128},{0.17448118329048157}}, "dwconv0#0_weights#1");
-    auto depthConv0 = om.depthwiseConv(input0, d_weights0, {1, 1}, {0, 0, 0, 0}, 1, mv::DType("UInt8"), {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "dwconv0#4");
+    auto d_weights0 = om.constantInt("dwconv0#0_weights#1", d_weightsData0,{1,1,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    auto depthConv0 = om.depthwiseConv("dwconv0#4", input0, d_weights0, {1, 1}, {0, 0, 0, 0}, 1);
+    d_weights0->setQuantParams({{145},{scale},{-0.2301538735628128},{0.17448118329048157}});
+    depthConv0->setQuantParams({{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
 
-    auto biasdWeights0 = om.constantInt(biasd_WeightsData0,{16}, mv::DType("Int32"), mv::Order::getColMajorID(1), {{0},{1.2445522770576645e-05},{-inf},{inf}}, "dwconv0#0_bias#2");
-    auto bias_cd0 = om.bias(depthConv0, biasdWeights0, mv::DType("UInt8"), {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
+    auto biasdWeights0 = om.constantInt("dwconv0#0_bias#2", biasd_WeightsData0,{16}, mv::DType("Int32"), mv::Order::getColMajorID(1));
+    auto bias_cd0 = om.bias("", depthConv0, biasdWeights0);
+    biasdWeights0->setQuantParams({{0},{1.2445522770576645e-05},{-inf},{inf}});
+    bias_cd0->setQuantParams({{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
 
-    om.output(bias_cd0);
+    om.output("", bias_cd0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

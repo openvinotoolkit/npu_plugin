@@ -22,17 +22,6 @@ namespace mv
         {
             mv::Tensor outputTensor(*inputs[0]);
 
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse != mv::DType("Default"))
-                outputTensor.setDType(dTypeToUse);
-
-            mv::QuantizationParams quantParams= {{},{},{},{}};
-
-            if (!args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                quantParams = args.at("quantParams").get<mv::QuantizationParams>();
-
-            outputTensor.set<mv::QuantizationParams>("quantParams", quantParams);
-
             outputs.push_back(std::move(outputTensor));
             outputs[0].setName(outputs[0].getName() + ":0");
             if (outputs[0].hasAttr("flows")) 
@@ -54,8 +43,6 @@ namespace mv
         MV_REGISTER_OP(Quantize)
         .setInputs({"data"})
         .setOutputs({"output"})
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_quantize::inputCheckFcn)
         .setOutputDef(op_quantize::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

@@ -42,9 +42,9 @@ TEST_P(layers_clamp, dump_blob)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input(shape, dtype, order);
-    auto layer = om.clamp(input, min, max);
-    auto output = om.output(layer);
+    auto input = om.input("", shape, dtype, order);
+    auto layer = om.clamp(|"", input, min, max);
+    auto output = om.output("", layer);
 
     ASSERT_TRUE(om.isValid(layer));
     ASSERT_TRUE(om.isValid(om.getSourceOp(layer)));

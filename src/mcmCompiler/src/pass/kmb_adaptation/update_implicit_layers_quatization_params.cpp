@@ -39,7 +39,6 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
             if (input->hasAttr("quantParams"))
             {
                 mv::QuantizationParams &inputQuantization = input->get<mv::QuantizationParams>("quantParams");
-                opIt->set<mv::QuantizationParams>("quantParams", inputQuantization);
                 output->set<mv::QuantizationParams>("quantParams", inputQuantization);
             }
         }
@@ -135,10 +134,10 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
                     }
                     ++outputFlow;
                 }
-                auto compensatorOutput = om.dMATask(opIt->getInputTensor(0),
-                                                        mv::DmaDirectionEnum::NNCMX2DDR,
-                                                        0,
-                                                        opIt->getName() + "_copyDMA");
+                auto compensatorOutput = om.dMATask(opIt->getName() + "_copyDMA",
+                                                    opIt->getInputTensor(0),
+                                                    mv::DmaDirectionEnum::NNCMX2DDR,
+                                                    0);
                 compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
                 om.getSourceOp(compensatorOutput)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 

@@ -34,12 +34,7 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
     for(auto& task : tasks)
     {
         if (task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Quantize")
-        {
-            auto quantParams = task->get<mv::QuantizationParams>("quantParams");
-            auto output = task->getOutputTensor(0);
-            output->set<mv::QuantizationParams>("quantParams", quantParams);
             continue;
-        }
 
         auto inputFlow = task.leftmostInput();
         auto outputDType = task->getOutputTensor(0)->getDType();
@@ -48,6 +43,7 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
         {
             auto tensor = inputFlow->getTensor();
             auto tensorDType = tensor->getDType();
+            auto tensorQuantParams = tensor->getQuantParams();
 
             // NOTE: Maybe here a check for mixed precision should be added
             if(!tensor->isPopulated() && tensorDType != dtypeNeededInInput)
@@ -60,11 +56,11 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
                     tensor = previousOpIt->getInputTensor()[0];
                     alignCase = true;
                 }
-                auto quantize = om.uPATaskQuantize({tensor}, outputDType,
-                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
+                auto quantize = om.uPATaskQuantize("Quantize" + task->getName() + std::to_string(id), {tensor});
+                quantize->setDType(outputDType);
+                quantize->setQuantParams(tensorQuantParams);
                 if (tensor->hasAttr("splitStrategy"))
                     quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
-                
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
 
@@ -160,8 +156,10 @@ void addSliceQuantizationLayer(mv::OpModel & om, std::vector<mv::Data::OpListIte
 
                 if (!alreadyQuantized)
                 {
-                    quantize = om.uPATaskQuantize({tensor}, outputDType,
-                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + slice->getName() + std::to_string(id));
+                    auto quantParams = tensor->getQuantParams();
+                    quantize = om.uPATaskQuantize("Quantize" + slice->getName() + std::to_string(id), {tensor});
+                    quantize->setDType(outputDType);
+                    quantize->setQuantParams(quantParams);
                     if (tensor->hasAttr("splitStrategy"))
                         quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
                     auto quantizeOp = om.getSourceOp(quantize);
@@ -305,12 +303,12 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
                 for (std::size_t i = 0; i < om.getSourceOp(outputOp[0]->getInputTensor(0))->getInputTensor().size(); i++)
                     om.getSourceOp(outputOp[0]->getInputTensor(0))->getInputTensor(i)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
             }
-            auto quantize = om.uPATaskQuantize({outputOp[0]->getInputTensor(0)}, wantedPrecision,
-                        outputOp[0]->getInputTensor(0)->get<mv::QuantizationParams>("quantParams"), "Precision" + outputOp[0]->getName());
-            
+            auto quantParams = outputOp[0]->getInputTensor(0)->getQuantParams();
+            auto quantize = om.uPATaskQuantize("Precision" + outputOp[0]->getName(), {outputOp[0]->getInputTensor(0)});
+            quantize->setDType(wantedPrecision);
+            quantize->setQuantParams(quantParams);
             if (outputOp[0]->getInputTensor(0)->hasAttr("splitStrategy"))
                 quantize->set<std::string>("splitStrategy", outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
-            
             quantize->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::OUTPUT);
             outputOp[0]->getInputTensor(0)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
             outputOp[0]->getInputTensor(0)->set<mv::QuantizationParams>("quantParams",

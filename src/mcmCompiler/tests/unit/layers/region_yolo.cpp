@@ -60,10 +60,10 @@ TEST_P(layers_region_yolo, dump_blob)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input(shape, dtype, order);
-    auto layer = om.regionYolo(input, coords, classes, do_softmax, num, mask);
+    auto input = om.input("", shape, dtype, order);
+    auto layer = om.regionYolo("", input, coords, classes, do_softmax, num, mask);
     auto layerOp = om.getSourceOp(layer);
-    auto output = om.output(layer);
+    auto output = om.output("", layer);
 
     ASSERT_TRUE(om.isValid(layer));
     ASSERT_TRUE(om.isValid(layerOp));

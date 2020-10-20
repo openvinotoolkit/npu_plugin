@@ -10,11 +10,11 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
 {
 
     mv::OpModel om("testModel");
-    auto input = om.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input("", {64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 3 * 3);
 
-    auto weights = om.constant(weightsData, {3, 3, 3, 3}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(4)), {{},{},{},{}}, "weights");
-    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1}, 1);
+    auto weights = om.constant("weights", weightsData, {3, 3, 3, 3}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(4)));
+    auto conv = om.conv("", input, weights, {1, 1}, {1, 1, 1, 1}, 1);
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(convShape.totalSize());
@@ -22,18 +22,18 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     std::vector<double> offsetData = mv::utils::generateSequence<double>(convShape.totalSize());
     std::vector<double> scaleData = mv::utils::generateSequence<double>(convShape.totalSize());
     double eps = 1e-3;
-    auto bnmean = om.constant(meanData, convShape, mv::DType("Float16"), conv->getOrder() ,{{},{},{},{}}, "mean");
+    auto bnmean = om.constant("mean", meanData, convShape, mv::DType("Float16"), conv->getOrder());
     auto bnmeanOp = om.getSourceOp(bnmean);
-    auto bnvariance = om.constant(varianceData, convShape, mv::DType("Float16"), conv->getOrder() , {{},{},{},{}},"variance");
+    auto bnvariance = om.constant("variance", varianceData, convShape, mv::DType("Float16"), conv->getOrder());
     auto bnvarianceOp = om.getSourceOp(bnvariance);
-    auto bnoffset = om.constant(offsetData, convShape, mv::DType("Float16"), conv->getOrder() ,{{},{},{},{}}, "offset");
+    auto bnoffset = om.constant("offset", offsetData, convShape, mv::DType("Float16"), conv->getOrder());
     auto bnoffsetOp = om.getSourceOp(bnoffset);
-    auto bnscale = om.constant(scaleData, convShape, mv::DType("Float16"), conv->getOrder(), {{},{},{},{}}, "scale");
+    auto bnscale = om.constant("scale", scaleData, convShape, mv::DType("Float16"), conv->getOrder());
     auto bnscaleOp = om.getSourceOp(bnscale);
-    auto batchnorm = om.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
+    auto batchnorm = om.batchNormalization("", conv, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
 
-    om.output(batchnorm);
+    om.output("", batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
     mv::Element dummyPassDesc("");
@@ -98,11 +98,11 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
 TEST(fuse_batch_norm_pass, case_1dim_conv)
 {
     mv::OpModel om("testModel");
-    auto input = om.input({64, 64, 16, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input("", {64, 64, 16, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
 
-    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DType("Float16"), mv::Order("NCHW"), {{},{},{},{}},"weights");
-    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1}, 1);
+    auto weights = om.constant("weights", weightsData, {3, 3, 16, 32}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto conv = om.conv("", input, weights, {1, 1}, {1, 1, 1, 1}, 1);
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(convShape[mv::IO_CHANNEL_DIMENSION]);
@@ -110,18 +110,18 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     std::vector<double> offsetData = mv::utils::generateSequence<double>(convShape[mv::IO_CHANNEL_DIMENSION]);
     std::vector<double> scaleData = mv::utils::generateSequence<double>(convShape[mv::IO_CHANNEL_DIMENSION]);
     double eps = 1e-3;
-    auto bnmean = om.constant(meanData, {convShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"), {{},{},{},{}},"mean");
+    auto bnmean = om.constant("mean", meanData, {convShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"));
     auto bnmeanOp = om.getSourceOp(bnmean);
-    auto bnvariance = om.constant(varianceData, {convShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"),{{},{},{},{}}, "variance");
+    auto bnvariance = om.constant("variance", varianceData, {convShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"));
     auto bnvarianceOp = om.getSourceOp(bnvariance);
-    auto bnoffset = om.constant(offsetData, {convShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"),{{},{},{},{}}, "offset");
+    auto bnoffset = om.constant("offset", offsetData, {convShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"));
     auto bnoffsetOp = om.getSourceOp(bnoffset);
-    auto bnscale = om.constant(scaleData, {convShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"),{{},{},{},{}}, "scale");
+    auto bnscale = om.constant("scale", scaleData, {convShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"));
     auto bnscaleOp = om.getSourceOp(bnscale);
-    auto batchnorm = om.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
+    auto batchnorm = om.batchNormalization("", conv, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
 
-    om.output(batchnorm);
+    om.output("", batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
     mv::Element dummyPassDesc("");
@@ -176,8 +176,8 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
 {
 
     mv::OpModel om("testModel");
-    auto input = om.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto pool = om.maxPool(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto input = om.input("", {64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto pool = om.maxPool("", input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto poolOp = om.getSourceOp(pool);
     auto poolShape = pool->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(poolShape.totalSize());
@@ -185,18 +185,18 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
     std::vector<double> offsetData = mv::utils::generateSequence<double>(poolShape.totalSize());
     std::vector<double> scaleData = mv::utils::generateSequence<double>(poolShape.totalSize());
     double eps = 1e-3;
-    auto bnmean = om.constant(meanData, poolShape, mv::DType("Float16"), mv::Order("NCHW"),{{},{},{},{}}, "mean");
+    auto bnmean = om.constant("mean", meanData, poolShape, mv::DType("Float16"), mv::Order("NCHW"));
     auto bnmeanOp = om.getSourceOp(bnmean);
-    auto bnvariance = om.constant(varianceData, poolShape, mv::DType("Float16"), mv::Order("NCHW"),{{},{},{},{}}, "variance");
+    auto bnvariance = om.constant("variance", varianceData, poolShape, mv::DType("Float16"), mv::Order("NCHW"));
     auto bnvarianceOp = om.getSourceOp(bnvariance);
-    auto bnoffset = om.constant(offsetData, poolShape, mv::DType("Float16"), mv::Order("NCHW"), {{},{},{},{}},"offset");
+    auto bnoffset = om.constant("offset", offsetData, poolShape, mv::DType("Float16"), mv::Order("NCHW"));
     auto bnoffsetOp = om.getSourceOp(bnoffset);
-    auto bnscale = om.constant(scaleData, poolShape, mv::DType("Float16"), mv::Order("NCHW"),{{},{},{},{}}, "scale");
+    auto bnscale = om.constant("scale", scaleData, poolShape, mv::DType("Float16"), mv::Order("NCHW"));
     auto bnscaleOp = om.getSourceOp(bnscale);
-    auto batchnorm = om.batchNormalization(pool, bnmean, bnvariance, bnoffset, bnscale, eps);
+    auto batchnorm = om.batchNormalization("", pool, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
 
-    om.output(batchnorm);
+    om.output("", batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
     mv::Element dummyPassDesc("");
@@ -266,8 +266,8 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
 {
 
     mv::OpModel om("testModel");
-    auto input = om.input({64, 64, 16, 1}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto pool = om.maxPool(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto input = om.input("", {64, 64, 16, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto pool = om.maxPool("", input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto poolOp = om.getSourceOp(pool);
     auto poolShape = pool->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(poolShape[mv::IO_CHANNEL_DIMENSION]);
@@ -275,18 +275,18 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
     std::vector<double> offsetData = mv::utils::generateSequence<double>(poolShape[mv::IO_CHANNEL_DIMENSION]);
     std::vector<double> scaleData = mv::utils::generateSequence<double>(poolShape[mv::IO_CHANNEL_DIMENSION]);
     double eps = 1e-3;
-    auto bnmean = om.constant(meanData, {poolShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"),{{},{},{},{}}, "mean");
+    auto bnmean = om.constant("mean", meanData, {poolShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"));
     auto bnmeanOp = om.getSourceOp(bnmean);
-    auto bnvariance = om.constant(varianceData, {poolShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"),{{},{},{},{}}, "variance");
+    auto bnvariance = om.constant("variance", varianceData, {poolShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"));
     auto bnvarianceOp = om.getSourceOp(bnvariance);
-    auto bnoffset = om.constant(offsetData, {poolShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"), {{},{},{},{}},"offset");
+    auto bnoffset = om.constant("offset", offsetData, {poolShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"));
     auto bnoffsetOp = om.getSourceOp(bnoffset);
-    auto bnscale = om.constant(scaleData, {poolShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"),{{},{},{},{}}, "scale");
+    auto bnscale = om.constant("scale", scaleData, {poolShape[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float16"), mv::Order("W"));
     auto bnscaleOp = om.getSourceOp(bnscale);
-    auto batchnorm = om.batchNormalization(pool, bnmean, bnvariance, bnoffset, bnscale, eps);
+    auto batchnorm = om.batchNormalization("", pool, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
 
-    om.output(batchnorm);
+    om.output("", batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
     mv::Element dummyPassDesc("");

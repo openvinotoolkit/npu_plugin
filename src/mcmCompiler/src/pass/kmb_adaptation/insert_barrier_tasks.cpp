@@ -241,7 +241,7 @@ static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, cons
     {
         //Following POC convention for the moment, reversable in any moment :)
         std::string barrierName(mv::createBarrierName((*barrier.getConsumers().begin()), barrier.getID()));
-        om.barrierTask(barrier, barrierName);
+        om.barrierTask(barrierName, barrier);
 
         // Add control flows to insert this barrier to the control flow graph
         auto barrierOp = om.getOp(barrierName);

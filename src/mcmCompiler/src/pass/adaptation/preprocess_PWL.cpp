@@ -53,13 +53,17 @@ void placeReQuantizeDepthwiseBefore(mv::OpModel & om, mv::Data::OpListIterator o
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
     int64_t weightsValue = 1;
     std::vector<int64_t> weightsData(inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], weightsValue);
-    weights = om.constantInt(weightsData,
+    weights = om.constantInt("",
+                        weightsData,
                         {1, 1, inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], 1},
                         mv::DType("UInt8"),
-                        mv::Order(mv::Order::getRowMajorID(4)),
-                        weightsQuantParams);
-    auto reQuantizeDepthwise = om.depthwiseConv(inputTensor, weights, {1,1}, {0, 0, 0, 0},
-                        1, mv::DType("UInt8"), quantParams, opIt->getName() + "Depthwise_requant" + std::to_string(index));
+                        mv::Order(mv::Order::getRowMajorID(4)));
+    weights->setQuantParams(weightsQuantParams);
+    auto reQuantizeDepthwise = om.depthwiseConv(opIt->getName() + "Depthwise_requant" + std::to_string(index),
+                        inputTensor, weights,
+                        {1,1}, {0, 0, 0, 0}, 1);
+    reQuantizeDepthwise->setDType(mv::DType("UInt8"));
+    reQuantizeDepthwise->setQuantParams(quantParams);
     auto reQuantizeDepthwiseOp = om.getSourceOp(reQuantizeDepthwise);
     auto weightsOp = om.getSourceOp(weights);
     reQuantizeDepthwiseOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
@@ -132,7 +136,7 @@ void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& mod
                 //NOTE: the idea is that the pwl needs constant quantized range (-128,128) in order
                 // to be maximum accurate so we apply the formula below, the idea is that we keep
                 // same float range and zero point and we balance with changing scale, quantized range
-                auto outQuantParams = conv->get<mv::QuantizationParams>("quantParams");
+                auto outQuantParams = conv->getOutputTensor(0)->getQuantParams();
                 double fl_min = outQuantParams.getMin()[0];
                 double fl_min_before_lrelu = outQuantParams.getMin()[0]/conv->get<double>("leakyAlpha");
                 double fl_max = outQuantParams.getMax()[0];
@@ -158,8 +162,7 @@ void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& mod
                     mv::QuantizationParams newQuantParams = mv::QuantizationParams({newZp},{newScale},
                                     {fl_min},{fl_max});
                     auto outputTensor = conv->getOutputTensor()[0];
-                    conv->set<mv::QuantizationParams>("quantParams", newQuantParams);
-                    outputTensor->set<mv::QuantizationParams>("quantParams", newQuantParams);
+                    outputTensor->setQuantParams(newQuantParams);
                     auto nextOps = mv::findSinkLayers(dm, conv->getOutputTensor()[0]);
                     for (auto nextOp:nextOps)
                     {

@@ -83,6 +83,9 @@ namespace mv
         virtual bool isEmpty() const;
         virtual bool isNeutral() const;
         virtual bool infinitelimits() const;
+
+        static QuantizationParams empty();
+        static QuantizationParams initial();
     };
 
 }

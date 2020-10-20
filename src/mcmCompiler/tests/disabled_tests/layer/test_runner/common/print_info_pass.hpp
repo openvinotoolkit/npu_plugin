@@ -24,7 +24,7 @@ static void printBlobInfoFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
     for (auto op = om.opBegin(); op != om.opEnd(); ++op) {
 		if (op->getOpType() != "Input") continue;
-		blobInfo.inputDType = op->get<mv::DType>("dType").toString();
+		blobInfo.inputDType = op->getOutputTensor(0)->getDType().toString();
 		blobInfo.inputOrder = op->get<mv::Order>("order").toString();
 		blobInfo.inputShape = op->get<mv::Shape>("shape").toString();
 		break;

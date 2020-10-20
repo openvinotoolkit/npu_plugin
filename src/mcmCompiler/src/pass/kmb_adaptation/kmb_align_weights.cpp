@@ -78,9 +78,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             auto kernelShape = kernel->getShape();
             auto kernelName = kernelOp->getName();
             auto kernelDType = kernel->getDType();
-            mv::QuantizationParams quantParams = {{},{},{},{}};
-            if(kernel->hasAttr("quantParams"))
-                quantParams = kernel->get<mv::QuantizationParams>("quantParams");
+            auto quantParams = kernel->getQuantParams();
 
             auto inputChannels = kernelShape[mv::KERNEL_INPUT_CHANNELS];
             unsigned short kernelWidth = kernelShape[mv::KERNEL_WIDTH];
@@ -118,8 +116,9 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             if(paddingDifference != 0)
                 newKernelName = mv::createAlignWeightSetConstantName(kernelName);
             auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
-            auto newKernel = om.constantDataElement(newData, newShape, kernelDType,
-                                                    mv::Order("NHWC"), quantParams, newKernelName);
+            auto newKernel = om.constantDataElement(newKernelName, newData, newShape,
+                                                    kernelDType, mv::Order("NHWC"));
+            newKernel->setQuantParams(quantParams);
             auto newKernelOp = om.getSourceOp(newKernel);
             newKernelOp->set<unsigned>("opId", opId);
 
@@ -137,7 +136,6 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                 flowPair.first->set<std::array<unsigned short, 2>>("kSize", {kernelWidth, kernelHeight});
                 flowPair.first->set<unsigned>("inputChannels", inputChannels);
                 flowPair.first->set<unsigned>("outputChannels", outputChannels);
-                flowPair.first->set<mv::QuantizationParams>("quantParams", quantParams);
             }
         }
         else if (hasAtLeastOneUPATask)

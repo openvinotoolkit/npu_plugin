@@ -50,7 +50,7 @@ namespace mv
             auto outputShape = input->getShape();
             auto outputOrder = args.at("order").get<mv::Order>();
 
-            outputs.push_back(mv::Tensor(":0", outputShape, input->getDType(), outputOrder));
+            outputs.emplace_back(":0", outputShape, input->getDType(), outputOrder);
         
         };
 

@@ -101,13 +101,7 @@ namespace mv
 
             mv::Shape outputShape({W, H, C, N});
 
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, data->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+            outputs.emplace_back(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder());
         };
     }
 
@@ -120,8 +114,6 @@ namespace mv
         .setOptionalArg<unsigned>("dilationFactor", 1)
         .setOptionalArg<unsigned>("group", 1)
         .setOptionalArg<bool>("is_depthwise", false)
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_deconv::inputCheckFcn)
         .setOutputDef(op_deconv::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

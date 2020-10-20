@@ -839,17 +839,17 @@ TEST(tensor, splitOverH)
     mv::CompilationUnit unit("res2a_branch2a_testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({56, 56, 64, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
+    auto input = om.input("", {56, 56, 64, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*64*64);
-    auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    auto weights = om.constantInt("", weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
+    auto conv = om.conv("", input, weights, {1, 1}, {0, 0, 0, 0});
 
     std::vector<int64_t> biasesData =  mv::utils::generateSequence<int64_t>(conv->getShape()[mv::IO_CHANNEL_DIMENSION]);
-    auto biases = om.constantInt(biasesData, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Int32"), mv::Order("W"),{{},{},{},{}}, "biases");
-    auto bias = om.bias(conv, biases);
+    auto biases = om.constantInt("biases", biasesData, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Int32"), mv::Order("W"));
+    auto bias = om.bias("", conv, biases);
 
-    auto output = om.output(conv);
+    auto output = om.output("", conv);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -1010,17 +1010,17 @@ TEST(tensor, splitOverK)
     mv::CompilationUnit unit("res2a_branch2a_testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({56, 56, 64, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
+    auto input = om.input("", {56, 56, 64, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*64*64);
-    auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    auto weights = om.constantInt("", weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
+    auto conv = om.conv("", input, weights, {1, 1}, {0, 0, 0, 0});
 
     std::vector<int64_t> biasesData =  mv::utils::generateSequence<int64_t>(conv->getShape()[mv::IO_CHANNEL_DIMENSION]);
-    auto biases = om.constantInt(biasesData, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Int32"), mv::Order("W"),{{},{},{},{}}, "biases");
-    auto bias = om.bias(conv, biases);
+    auto biases = om.constantInt("biases", biasesData, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Int32"), mv::Order("W"));
+    auto bias = om.bias("", conv, biases);
 
-    auto output = om.output(conv);
+    auto output = om.output("", conv);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);

@@ -372,7 +372,7 @@ void storeDilationConcatsDDRFcn(const mv::pass::PassEntry&,
                 auto previousSubConv = om.getSourceOp(concat->getInputTensor()[0]);
                 if (nextNotImplicitOp->getOpType() == "Output")
                 {
-                    if (previousSubConv->get<mv::DType>("dType") == mv::DType("UInt8") &&
+                    if (previousSubConv->getOutputTensor(0)->getDType() == mv::DType("UInt8") &&
                             (nextNotImplicitOp->get<mv::DType>("precision") == mv::DType("Default") ||
                              nextNotImplicitOp->get<mv::DType>("precision") == mv::DType("UInt8")))
                     {

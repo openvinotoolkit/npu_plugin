@@ -87,10 +87,7 @@ namespace mv
                         dTypeToUse = inputDType;
             }
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+            outputs.emplace_back(":0", mv::Shape(inputShape0), dTypeToUse, inputs[0]->getOrder());
         };
 
         // Default axis is channels (like for Intel Inference Engine)
@@ -105,7 +102,6 @@ namespace mv
         .setOutputs({"output"})
         .setVariableInputNum(true)
         .setOptionalArg<std::string>("axis", op_implicit_concat::channels)
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_implicit_concat::inputCheckFcn)
         .setOutputDef(op_implicit_concat::outputDefFcn);
 

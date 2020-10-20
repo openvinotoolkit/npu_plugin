@@ -74,10 +74,6 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-
             mv::Order order(inputs[0]->getOrder());
 
             auto axis = MAX_AXIS_VALUE - args.at("axis").get<unsigned>();
@@ -97,10 +93,7 @@ namespace mv
                 outputDims.push_back(inputShape[i]);
             }
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", Shape(outputDims), dTypeToUse, order));
-            else
-                outputs.push_back(mv::Tensor(":0", Shape(outputDims), dTypeToUse, order, args.at("quantParams").get<mv::QuantizationParams>()));
+            outputs.emplace_back(":0", Shape(outputDims), inputs[0]->getDType(), order);
         };
     }
 
@@ -110,8 +103,6 @@ namespace mv
         .setInputs({"data", "indices"})
         .setOutputs({"output"})
         .setArg<unsigned>("axis")
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_gather::inputCheckFcn)
         .setOutputDef(op_gather::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

@@ -47,7 +47,7 @@ namespace mv
 
 mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel & om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<int64_t>& sparsityMapData)
 {
-    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NHWC"), {{},{},{},{}},sparsityMapName);
+    auto sparsityMap = om.constantInt(sparsityMapName, sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NHWC"));
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     unsigned newSize = dpuTaskOp->addInputTensor(sparsityMap);
     om.defineFlow(sparsityMap, dpuTaskOp, newSize - 1);
@@ -258,13 +258,11 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                                             {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/8},
                                             {1}});
                     std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255);
-                    mv::QuantizationParams quantParams = {{},{},{},{}};
                     std::string unpopulatedSparsityMapName = dpuTask->getName() +
                         "activation_map_" + std::to_string(tidx);
                     auto unpopulatedSparsityMap =
-                        om.constantInt(unpopulatedSparsityMapData, mapShape,
-                                    mv::DType("UInt8"), mv::Order("NHWC"),
-                                    quantParams, unpopulatedSparsityMapName);
+                        om.constantInt(unpopulatedSparsityMapName, unpopulatedSparsityMapData,
+                                    mapShape, mv::DType("UInt8"), mv::Order("NHWC"));
                     unpopulatedSparsityMap->set<bool>("solvedSparsity", true);
                     om.getSourceOp(unpopulatedSparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                     unsigned newInputsSize = dpuTask->addInputTensor(unpopulatedSparsityMap);
@@ -284,9 +282,8 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     std::string storageElementName = dpuTask->getName() +
                         "storage_element_map" + std::to_string(tidx);
                     auto storageElement =
-                        om.constantInt(storageElementData, storageElementShape,
-                                    mv::DType("Int32"), mv::Order("NHWC"),
-                                    quantParams, storageElementName);
+                        om.constantInt(storageElementName, storageElementData,
+                                    storageElementShape, mv::DType("Int32"), mv::Order("NHWC"));
                     storageElement->set<bool>("solvedSparsity", true);
                     om.getSourceOp(storageElement)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                     newInputsSize = dpuTask->addInputTensor(storageElement);
@@ -313,9 +310,8 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                                            {1}});
 
                 std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255); // 255 converts to all 1's in SM
-                mv::QuantizationParams quantParams = {{},{},{},{}};
                 std::string unpopulatedSparsityMapName = dpuTask->getName() + "activation_map";
-                auto unpopulatedSparsityMap = om.constantInt(unpopulatedSparsityMapData, mapShape, mv::DType("UInt8"), mv::Order("NHWC"), quantParams, unpopulatedSparsityMapName);
+                auto unpopulatedSparsityMap = om.constantInt(unpopulatedSparsityMapName, unpopulatedSparsityMapData, mapShape, mv::DType("UInt8"), mv::Order("NHWC"));
                 om.getSourceOp(unpopulatedSparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                 unsigned newInputsSize = dpuTask->addInputTensor(unpopulatedSparsityMap);
                 unpopulatedSparsityMap->set<bool>("dilatedSubConvSM", true);
@@ -335,7 +331,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                                                            {1}});
                 std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);
                 std::string storageElementName = dpuTask->getName() + "storage_element_map";
-                auto storageElement = om.constantInt(storageElementData, storageElementShape, mv::DType("Int32"), mv::Order("NHWC"), quantParams, storageElementName);
+                auto storageElement = om.constantInt(storageElementName, storageElementData, storageElementShape, mv::DType("Int32"), mv::Order("NHWC"));
                 storageElement->set<bool>("dilatedSubConvSE", true);
                 om.getSourceOp(storageElement)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                 unsigned newSize = dpuTask->addInputTensor(storageElement);

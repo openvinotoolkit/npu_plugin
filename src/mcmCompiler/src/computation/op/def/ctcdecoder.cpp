@@ -39,10 +39,7 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&args, std::vector<Tensor>& outputs)
         {
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-            outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder()));
+            outputs.emplace_back(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder());
         };
 
     }
@@ -52,8 +49,6 @@ namespace mv
         .setInputs({"data", "seq"})
         .setOutputs({"output"})
         .setArg<bool>("ctc_merge_repeated")
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_ctcdecoder::inputCheckFcn)
         .setOutputDef(op_ctcdecoder::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

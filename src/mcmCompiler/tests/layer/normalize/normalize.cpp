@@ -7,7 +7,7 @@ int main()
 
     mv::CompilationUnit unit("NormalizeModel");
     mv::OpModel& om = unit.model();
-    auto input0 = om.input({112,112,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input0");
+    auto input0 = om.input("input0", {112,112,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
     std::vector<uint16_t> weightsData(32);
 
     //Load weights tensor from file
@@ -19,12 +19,12 @@ int main()
     for(unsigned i = 0; i < weightsData.size(); ++i)
         weightsData_converted[i] = weightsData[i];
 
-    auto weights0 = om.constantInt(weightsData_converted,{1,1,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{},{},{},{}}, "weights0");
+    auto weights0 = om.constantInt("weights0", weightsData_converted,{1,1,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
 
     double eps = 0.001;
-    auto normalize0 = om.normalize(input0, weights0, eps, 0, 0, mv::DType("Float16"));
+    auto normalize0 = om.normalize("", input0, weights0, eps, 0, 0);
 
-    om.output(normalize0);
+    om.output("", normalize0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

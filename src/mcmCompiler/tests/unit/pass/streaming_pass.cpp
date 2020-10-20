@@ -7,13 +7,13 @@ TEST(streaming_pass, op_fission_conv0)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NHWC"));
+    auto input = om.input("", {64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NHWC"));
 
     std::vector<int64_t> weights4Fixed = mv::utils::generateSequence<int64_t>((4*3*3*16), 0 , 1 );
-    auto weights4 = om.constantInt(weights4Fixed, {4, 3, 3, 16}, mv::DType("UInt8"), mv::Order("NHWC"));
-    auto conv4 = om.conv(input, weights4, {1, 1}, {0, 0, 0, 0});
+    auto weights4 = om.constantInt("", weights4Fixed, {4, 3, 3, 16}, mv::DType("UInt8"), mv::Order("NHWC"));
+    auto conv4 = om.conv("", input, weights4, {1, 1}, {0, 0, 0, 0});
 
-    om.output(conv4);
+    om.output("", conv4);
     std::cout << "in fission test " << std::endl ;
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
@@ -50,21 +50,21 @@ TEST(streaming_pass, op_fission_multiple_outputs)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NHWC"));
+    auto input = om.input("", {64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NHWC"));
 
     std::vector<int64_t> weights4Fixed = mv::utils::generateSequence<int64_t>((4*3*3*16), 0 , 1 );
-    auto weights4 = om.constantInt(weights4Fixed, {4, 3, 3, 16}, mv::DType("UInt8"), mv::Order("NHWC"));
+    auto weights4 = om.constantInt("", weights4Fixed, {4, 3, 3, 16}, mv::DType("UInt8"), mv::Order("NHWC"));
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>((1*1*1*16), 0 , 1 );
-    auto weight0 = om.constantInt(weightsData, {1,1,16,1}, mv::DType("UInt8"), mv::Order("NHWC"));
-    auto weight2 = om.constantInt(weightsData, {1,1,16,1}, mv::DType("UInt8"), mv::Order("NHWC"));
-    auto conv0 = om.conv(input, weights4, {1, 1}, {0, 0, 0, 0});
-    auto conv1 = om.conv(conv0, weight0, {1, 1}, {0, 0, 0, 0});
-    auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0});
+    auto weight0 = om.constantInt("", weightsData, {1,1,16,1}, mv::DType("UInt8"), mv::Order("NHWC"));
+    auto weight2 = om.constantInt("", weightsData, {1,1,16,1}, mv::DType("UInt8"), mv::Order("NHWC"));
+    auto conv0 = om.conv("", input, weights4, {1, 1}, {0, 0, 0, 0});
+    auto conv1 = om.conv("", conv0, weight0, {1, 1}, {0, 0, 0, 0});
+    auto conv2 = om.conv("", conv0, weight2, {1, 1}, {0, 0, 0, 0});
 
-    auto add1 = om.add({conv1, conv2});   // one barrier, #2
+    auto add1 = om.eltwise("", {conv1, conv2}, "Add");   // one barrier, #2
 
-    om.output(add1); // one barrier for DMA out from CMX to DDR, #3
+    om.output("", add1); // one barrier for DMA out from CMX to DDR, #3
 
     std::cout << "in fission test diamond" << std::endl ;
 

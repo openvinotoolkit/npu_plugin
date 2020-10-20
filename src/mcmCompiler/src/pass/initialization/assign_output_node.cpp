@@ -44,7 +44,7 @@ void assignOutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     {
         auto inputTensor = networkOutputs[i]->getInputTensor(0);
         // Assumes one input per outputNode
-        auto implicitOutput = om.implicitOutput(inputTensor);
+        auto implicitOutput = om.implicitOutput("", inputTensor);
         // Save op name to seprate attribute to avoid conflicts and renaming
         om.getSourceOp(implicitOutput)->set<std::string>("networkOutputName", networkOutputs[i]->getName());
         om.getSourceOp(implicitOutput)->set<uint8_t>("outputIndex", i);
@@ -61,6 +61,6 @@ void assignOutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
 
     // Create an implicit union, connect all network outputs to that union, and attach;
 
-    auto outputUnion = om.implicitUnion(outputTensors);
-    auto output = om.output(outputUnion, mv::DType("Default"), {{},{},{},{}}, false);
+    auto outputUnion = om.implicitUnion("", outputTensors);
+    auto output = om.output("", outputUnion, mv::DType("Default"), false);
 }

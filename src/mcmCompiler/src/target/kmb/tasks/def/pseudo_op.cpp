@@ -20,9 +20,9 @@ namespace mv
 
               std::vector<std::size_t> inputShape0(inputs[0]->getShape());
               auto dTypeToUse = inputs[0]->getDType();
-             
-              outputs.push_back( mv::Tensor(":0", mv::Shape(inputShape0),
-                    dTypeToUse, inputs[0]->getOrder()) ); 
+
+              outputs.emplace_back(mv::Tensor(":0", mv::Shape(inputShape0),
+                    dTypeToUse, inputs[0]->getOrder()));
         };
 
   } // namespace op_pseudo_op //

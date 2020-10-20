@@ -13,16 +13,22 @@ void build_conv_leakyrelu(mv::OpModel& model)
     static const auto inf = std::numeric_limits<double>::infinity();
 
 
-    const auto data_0 = model.input({1, 1, 256, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{1.000000000000000},{0.0},{255.0},{0},{1}}, true, "data");
+    const auto data_0 = model.input("data", {1, 1, 256, 1}, mv::DType("UInt8"), mv::Order("NHWC"), true);
+    data_0->setQuantParams({{0},{1.000000000000000},{0.0},{255.0},{0},{1}});
 
-    auto weights0 = model.constantInt(weights_0_data,{1,1,256,256}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.00392156862745098},{0.0},{1.0}});
-    auto conv0 = model.conv(data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{128},{1.000000000000000},{-128.0},{127.0},{0},{1}} , "conv");
+    auto weights0 = model.constantInt("", weights_0_data,{1,1,256,256}, mv::DType("UInt8"), mv::Order("NCHW"));
+    weights0->setQuantParams({{0},{0.00392156862745098},{0.0},{1.0}});
+    auto conv0 = model.conv("conv", data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    conv0->setQuantParams({{128},{1.000000000000000},{-128.0},{127.0},{0},{1}});
 
     std::vector<int64_t> bias_0_data = mv::utils::generateSequence<int64_t> (256, -32640, 0);
-    const auto bias_0 = model.constantInt(bias_0_data, {256}, mv::DType("Int32"), mv::Order("W"), {{0},{0.00392156862745098},{-128.0},{-128.0},{0},{1}}, "bias");
-    const auto conv_bias_0 = model.bias(conv0, bias_0, mv::DType("Default"), {{0},{0.00392156862745098},{-128.0},{127.0},{0},{1}}, "conv:bias");
-    const auto LeakyReLU_5353_0 = model.leakyRelu(conv_bias_0, 0.100000, mv::DType("Default"), {{25},{0.5521568627450981},{-12.8},{127.0},{0},{1}}, "LeakyReLU_5353");
-    const auto output = model.output(LeakyReLU_5353_0, mv::DType("Float16"), {{},{},{},{}}, true, "");
+    const auto bias_0 = model.constantInt("bias", bias_0_data, {256}, mv::DType("Int32"), mv::Order("W"));
+    bias_0->setQuantParams({{0},{0.00392156862745098},{-128.0},{-128.0},{0},{1}});
+    const auto conv_bias_0 = model.bias("conv:bias", conv0, bias_0);
+    conv_bias_0->setQuantParams({{0},{0.00392156862745098},{-128.0},{127.0},{0},{1}});
+    const auto LeakyReLU_5353_0 = model.leakyRelu("LeakyReLU_5353", conv_bias_0, 0.100000);
+    LeakyReLU_5353_0->setQuantParams({{25},{0.5521568627450981},{-12.8},{127.0},{0},{1}});
+    const auto output = model.output("", LeakyReLU_5353_0, mv::DType("Float16"), true);
 
 }
 

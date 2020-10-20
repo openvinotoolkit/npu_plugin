@@ -15,9 +15,9 @@ TEST(ops, region_yolo_num)
     unsigned num = 5;
 
     mv::OpModel om("testModel");
-    auto input = om.input({W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto region = om.regionYolo(input, coords, classes, do_softmax, num);
-    auto output = om.output(region);
+    auto input = om.input("", {W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto region = om.regionYolo("", input, coords, classes, do_softmax, num);
+    auto output = om.output("", region);
 
     auto regionOp = om.getSourceOp(region);
 
@@ -26,7 +26,7 @@ TEST(ops, region_yolo_num)
     ASSERT_EQ(region->attrsCount(), 6);
 
     ASSERT_EQ(regionOp->getOpType(), "RegionYolo");
-    ASSERT_EQ(regionOp->attrsCount(), 7);
+    ASSERT_EQ(regionOp->attrsCount(), 6);
     ASSERT_EQ(regionOp->inputSlots(), 1);
     ASSERT_EQ(regionOp->outputSlots(), 1);
     ASSERT_TRUE(regionOp->hasTypeTrait("executable"));
@@ -45,9 +45,9 @@ TEST(ops, region_yolo_mask)
     std::vector<unsigned> mask({0, 1, 2});
 
     mv::OpModel om("testModel");
-    auto input = om.input({W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto region = om.regionYolo(input, coords, classes, do_softmax, 0, mask);
-    auto output = om.output(region);
+    auto input = om.input("", {W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto region = om.regionYolo("", input, coords, classes, do_softmax, 0, mask);
+    auto output = om.output("", region);
 
     auto regionOp = om.getSourceOp(region);
 
@@ -56,7 +56,7 @@ TEST(ops, region_yolo_mask)
     ASSERT_EQ(region->attrsCount(), 6);
 
     ASSERT_EQ(regionOp->getOpType(), "RegionYolo");
-    ASSERT_EQ(regionOp->attrsCount(), 7);
+    ASSERT_EQ(regionOp->attrsCount(), 6);
     ASSERT_EQ(regionOp->inputSlots(), 1);
     ASSERT_EQ(regionOp->outputSlots(), 1);
     ASSERT_TRUE(regionOp->hasTypeTrait("executable"));

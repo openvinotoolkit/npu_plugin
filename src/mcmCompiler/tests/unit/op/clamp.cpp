@@ -11,9 +11,9 @@ TEST(ops, clamp)
     mv::OpModel om("testModel");
 
     std::vector<double> inputData = mv::utils::generateSequence<double>(N * C * H * W);
-    auto input = om.constant(inputData, {W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto clamp = om.clamp(input, min, max);
-    auto output = om.output(clamp);
+    auto input = om.constant("", inputData, {W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto clamp = om.clamp("", input, min, max);
+    auto output = om.output("", clamp);
 
     ASSERT_EQ(clamp->getShape(), mv::Shape({W, H, C, N}));
     ASSERT_EQ(clamp->attrsCount(), 6);

@@ -20,16 +20,8 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
-                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
-                                             args.at("order").get<mv::Order>()));
-            else
-                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
-                    args.at("order").get<mv::Order>(), args.at("quantParams").get<mv::QuantizationParams>()));
-
-
+            outputs.emplace_back(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                    args.at("order").get<mv::Order>());
         };
 
     }
@@ -41,7 +33,6 @@ namespace mv
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_implicit_input::inputCheckFcn)
         .setOutputDef(op_implicit_input::outputDefFcn)
         .setTypeTrait({"exposed", "executable", "optimizable"});

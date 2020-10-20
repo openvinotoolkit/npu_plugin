@@ -14,11 +14,11 @@ TEST(global_params_reset, barrierCounter)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
     auto barrierOps = om.getOps("BarrierTask");
-    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input("", {28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
-    auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1}); // one barrier
-    om.output(conv1); // one barrier for DMA out from CMX to DDR
+    auto weights1 = om.constant("", weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv1 = om.conv("", input, weights1, {1, 1}, {1, 1, 1, 1}); // one barrier
+    om.output("", conv1); // one barrier for DMA out from CMX to DDR
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -50,10 +50,10 @@ TEST(global_params_reset, barrierCounter)
     //below Assert is to check that the current status of barriers
     expected_num_barriers = 0; 
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
-    auto input_2 = om2.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto weights1_2 = om2.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv1_2 = om2.conv(input_2, weights1_2, {1, 1}, {1, 1, 1, 1}); // one barrier
-    om2.output(conv1_2); // one barrier for DMA out from CMX to DDR
+    auto input_2 = om2.input("", {28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto weights1_2 = om2.constant("", weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv1_2 = om2.conv("", input_2, weights1_2, {1, 1}, {1, 1, 1, 1}); // one barrier
+    om2.output("", conv1_2); // one barrier for DMA out from CMX to DDR
     unit2.loadCompilationDescriptor(compDescPath);
     unit2.loadTargetDescriptor(mv::Target::ma2490);
     unit2.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
@@ -80,10 +80,10 @@ TEST(global_params_reset, barrierCounter)
     // Below Assert shows '0' starting barriers, ofcourse!
     expected_num_barriers = 0; 
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
-    auto input_3 = om3.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto weights1_3 = om3.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv1_3 = om3.conv(input_3, weights1_3, {1, 1}, {1, 1, 1, 1}); // one barrier
-    om3.output(conv1_3); // one barrier for DMA out from CMX to DDR
+    auto input_3 = om3.input("", {28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto weights1_3 = om3.constant("", weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv1_3 = om3.conv("", input_3, weights1_3, {1, 1}, {1, 1, 1, 1}); // one barrier
+    om3.output("", conv1_3); // one barrier for DMA out from CMX to DDR
     unit3.loadCompilationDescriptor(compDescPath);
     unit3.loadTargetDescriptor(mv::Target::ma2490);
     unit3.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");

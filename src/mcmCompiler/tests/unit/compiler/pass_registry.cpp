@@ -15,7 +15,7 @@ static void setPassReg()
                 " with undefined target");
         mv::OpModel om(model);
         //om.clear();
-        om.input({1}, mv::DType("Float16"), mv::Order("W"));
+        om.input("", {1}, mv::DType("Float16"), mv::Order("W"));
         om.addAttr(om.getInput(), "test", (bool)true);
     };
 

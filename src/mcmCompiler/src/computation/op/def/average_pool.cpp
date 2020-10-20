@@ -55,14 +55,7 @@ namespace mv
 
             Shape outputShape({W, H, C, N});
 
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
-
+            outputs.emplace_back(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder());
         };
     }
 
@@ -74,8 +67,6 @@ namespace mv
         .setArg<std::array<unsigned short, 2>>("stride")
         .setArg<std::array<unsigned short, 4>>("padding")
         .setOptionalArg<bool>("exclude_pad", true)
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_average_pool::inputCheckFcn)
         .setOutputDef(op_average_pool::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

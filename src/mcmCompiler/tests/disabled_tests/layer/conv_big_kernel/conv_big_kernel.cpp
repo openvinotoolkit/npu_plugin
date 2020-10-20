@@ -17,17 +17,20 @@ int main()
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
 
-    const auto data_0 = model.input({64, 64, 16, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{0.00196078431372549},{-inf},{inf},{0},{1}}, "data");
+    const auto data_0 = model.input("data", {64, 64, 16, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
+    data_0->setQuantParams({{0},{0.00196078431372549},{-inf},{inf},{0},{1}});
     // Load weights (u8 saved as int64)
     std::string weights_filename(mv::utils::projectRootPath() + "/tests/layer/conv_big_kernel/conv_big_kernel_13.w");
-//    std::string weights_filename(mv::utils::projectRootPath() + "/tests/layer/conv_big_kernel/conv_big_kernel_15.w");
+    // std::string weights_filename(mv::utils::projectRootPath() + "/tests/layer/conv_big_kernel/conv_big_kernel_15.w");
     std::vector<int64_t> weightsData = mv::utils::readWeightsFromFile<int64_t>(weights_filename);
 
-    auto weights0 = model.constantInt(weightsData,{13,13,16,16}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.00392156862745098},{},{}});
-    //    auto weights0 = model.constantInt(weightsData,{15,15,16,16}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.00392156862745098},{},{}});
-    auto conv0 = model.conv(data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{0.00196078431372549},{-inf},{inf},{0},{1}} , "conv");
+    auto weights0 = model.constantInt("", weightsData, {13,13,16,16}, mv::DType("UInt8"), mv::Order("NCHW"));
+    // auto weights0 = model.constantInt("", weightsData,{15,15,16,16}, mv::DType("UInt8"), mv::Order("NCHW"));
+    auto conv0 = model.conv("conv", data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    weights0->setQuantParams({{0},{0.00392156862745098},{},{}});
+    conv0->setQuantParams({{0},{0.00196078431372549},{-inf},{inf},{0},{1}});
 
-    model.output(conv0, mv::DType("Float16"), {{},{},{},{}});
+    model.output("", conv0, mv::DType("Float16"));
     unit.initialize();
     unit.run();
 }

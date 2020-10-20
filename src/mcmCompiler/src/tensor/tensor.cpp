@@ -728,6 +728,17 @@ void mv::Tensor::broadcast(const Shape& shape)
 
 }
 
+mv::QuantizationParams mv::Tensor::getQuantParams() {
+    if (!hasAttr("quantParams"))
+        return mv::QuantizationParams::empty();
+    return get<mv::QuantizationParams>("quantParams");
+}
+
+void mv::Tensor::setQuantParams(const mv::QuantizationParams& quantParams) {
+    if (!quantParams.isEmpty())
+        set<mv::QuantizationParams>("quantParams", quantParams);
+}
+
 // TODO - Handle the case when tensor got deleted, by the reference is still in use
 std::vector<double> mv::Tensor::getDoubleData()
 {

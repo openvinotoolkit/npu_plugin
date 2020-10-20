@@ -17,15 +17,19 @@ int main()
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
 
-    const auto data_0 = model.input({64, 64, 1, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{1},{-inf},{inf},{0},{1}}, "data");
-   
+    const auto data_0 = model.input("data", {64, 64, 1, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
+    data_0->setQuantParams({{0},{1},{-inf},{inf},{0},{1}});
+
     mv::Shape kernel = mv::Shape({13,13,1,1});
     std::vector<int64_t> weightsData(kernel.totalSize(), 1);
 
-    auto weights0 = model.constantInt(weightsData,{13,13,1,1}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{1},{},{}});
-    auto conv0 = model.conv(data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{1},{-inf},{inf},{0},{1}} , "conv");
+    auto weights0 = model.constantInt("", weightsData, {13,13,1,1}, mv::DType("UInt8"), mv::Order("NCHW"));
+    auto conv0 = model.conv("conv", data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    weights0->setQuantParams({{0},{1},{},{}});
+    conv0->setQuantParams({{0},{1},{-inf},{inf},{0},{1}});
 
-    model.output(conv0);
+    model.output("", conv0);
+
     unit.initialize();
     unit.run();
 }

@@ -60,13 +60,16 @@ void placeReQuantizeDepthwiseBefore(mv::OpModel & om, mv::Data::OpListIterator c
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
     int64_t weightsValue = 1;
     std::vector<int64_t> weightsData(inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], weightsValue);
-    weights = om.constantInt(weightsData,
+    weights = om.constantInt("",
+                        weightsData,
                         {1, 1, inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], 1},
                         mv::DType("UInt8"),
-                        mv::Order(mv::Order::getRowMajorID(4)),
-                        weightsQuantParams);
-    auto reQuantizeDepthwise = om.depthwiseConv(inputTensor, weights, {1,1}, {0, 0, 0, 0},
-                        1, mv::DType("UInt8"), {{alignedZeroPoint},{alignedScale},{},{}}, concat->getName() + inputTensor->getName() + "Depthwise" + std::to_string(index));
+                        mv::Order(mv::Order::getRowMajorID(4)));
+    weights->setQuantParams(weightsQuantParams);
+    auto reQuantizeDepthwise = om.depthwiseConv(concat->getName() + inputTensor->getName() + "Depthwise" + std::to_string(index),
+                        inputTensor, weights, {1,1}, {0, 0, 0, 0}, 1);
+    reQuantizeDepthwise->setDType(mv::DType("UInt8"));
+    reQuantizeDepthwise->setQuantParams({{alignedZeroPoint}, {alignedScale}, {}, {}});
     reQuantizeDepthwise->set<double>("oldScale", inputTensor->get<double>("oldScale"));
     auto reQuantizeDepthwiseOp = om.getSourceOp(reQuantizeDepthwise);
     auto weightsOp = om.getSourceOp(weights);
@@ -220,8 +223,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterQuant.getScale()[0], masterQuant.getZeroPoint()[0]);
             }
-            concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
-            concatIt->set<mv::QuantizationParams>("quantParams", masterQuant);
+            concatIt->getOutputTensor(0)->setQuantParams(masterQuant);
         }
     }
     markCompensatedConcats(childConcats);
@@ -237,8 +239,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 double weightScale = 1.0f;
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterQuant.getScale()[0], masterQuant.getZeroPoint()[0]);
             }
-            concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
-            concatIt->set<mv::QuantizationParams>("quantParams", masterQuant);
+            concatIt->getOutputTensor(0)->setQuantParams(masterQuant);
         }
     }
 }
@@ -352,7 +353,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationM
                 std::vector <int64_t> zeroPoint(outputChannels, 0);
                 bool outputOfAccWithBias = true;
                 mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
-                if (!(output->hasAttr("dType") && output->get<mv::DType>("dType") == mv::DType("Int32")))
+                if (!(output->hasAttr("dType") && output->getDType() == mv::DType("Int32")))
                 {
                     //NOTE: Here I compute all the quantization parameters like they should be
                     //in order to dequantize the output of the DPU TASK, as Int32

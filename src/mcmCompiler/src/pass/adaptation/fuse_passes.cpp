@@ -268,8 +268,9 @@ void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &mode
     double bnEps = opIt->get<double>("eps");
     auto scaleParam = mv::math::divide(bnScale, mv::math::sqrt(mv::math::add(bnVar, bnEps)));
     auto offsetParam = mv::math::subtract(bnOffset, mv::math::multiply(bnMean, scaleParam));
-    auto offset = om.constantDataElement(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(),
-        offsetParam.getOrder(),{{},{},{},{}}, batchNormName + "_offset");
+    auto offset = om.constantDataElement(batchNormName + "_offset",
+                        offsetParam.getData(), offsetParam.getShape(),
+                        offsetParam.getDType(), offsetParam.getOrder());
 
     mv::Data::TensorIterator sourceTensor;
 
@@ -282,22 +283,22 @@ void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &mode
         }
         else
         {
-            auto scale = om.constantDataElement(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
-            sourceTensor = om.scale(opIt->getInputTensor(0), scale);
+            auto scale = om.constantDataElement("", scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+            sourceTensor = om.scale("", opIt->getInputTensor(0), scale);
             parentOpIt = om.getSourceOp(sourceTensor);
         }
     }
     else
     {
-        auto scale = om.constantDataElement(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
-        sourceTensor = om.eltwise({opIt->getInputTensor(0), scale}, "Multiply");
+        auto scale = om.constantDataElement("", scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+        sourceTensor = om.eltwise("", {opIt->getInputTensor(0), scale}, "Multiply");
         parentOpIt = om.getSourceOp(sourceTensor);
     }
 
     if (offsetParam.getShape().ndims() == 1)
-        sourceTensor = om.bias(sourceTensor, offset);
+        sourceTensor = om.bias("", sourceTensor, offset);
     else
-        sourceTensor = om.eltwise({sourceTensor, offset}, "Add");
+        sourceTensor = om.eltwise("", {sourceTensor, offset}, "Add");
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (outputMemoryLocation.isForced())
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);

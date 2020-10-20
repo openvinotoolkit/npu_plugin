@@ -10,7 +10,7 @@ void run_test(const std::string& dataType, bool useQuantization)
     mv::Data::TensorIterator input;
     if (!useQuantization)
     {
-        input = om.input({16, 16, 1, 1}, mv::DType(dataType), mv::Order("NCHW"));
+        input = om.input("", {16, 16, 1, 1}, mv::DType(dataType), mv::Order("NCHW"));
     }
     else
     {
@@ -20,14 +20,15 @@ void run_test(const std::string& dataType, bool useQuantization)
         std::vector<double> max = { 1 };
 
         mv::QuantizationParams inputQuantParams(zp, scale, min, max);
-        input = om.input({16, 16, 1, 1}, mv::DType(dataType), mv::Order("NCHW"), inputQuantParams);
+        input = om.input("", {16, 16, 1, 1}, mv::DType(dataType), mv::Order("NCHW"));
+        input->setQuantParams(inputQuantParams);
     }
 
     short unsigned int kH = 2;
     short unsigned int kW = 2;
-    auto pool = om.averagePool(input, {kH, kW}, {2, 2}, {1, 1, 1, 1});
+    auto pool = om.averagePool("", input, {kH, kW}, {2, 2}, {1, 1, 1, 1});
     auto poolShape = pool->getShape();
-    auto output = om.output(pool);
+    auto output = om.output("", pool);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);

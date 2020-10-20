@@ -25,19 +25,24 @@ int main()
 
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
-    auto input0 = om.input({224,224,3,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#170");
+    auto input0 = om.input("input#170", {224,224,3,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
     //auto input0 = om.input({224,224,3,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-16319.999034851846},{16192.499042392066}}, "input#170");
+    input0->setQuantParams({{128},{0.007843137718737125},{-1.0},{1.0}});
     
     std::vector<int64_t> weightsData0 = read_weights_from_file<int64_t, uint8_t>(mv::utils::projectRootPath() + "/tests/layer/conv_output_quant/Relu6#0_weights#1.dat");
-    auto weights0 = om.constantInt(weightsData0,{3,3,3,32}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{105},{0.002647720742970705},{-0.2793084979057312},{0.3958602845668793}}, "Conv/Relu6#0_weights#1");
+    auto weights0 = om.constantInt("Conv/Relu6#0_weights#1", weightsData0, {3,3,3,32}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    weights0->setQuantParams({{105},{0.002647720742970705},{-0.2793084979057312},{0.3958602845668793}});
     //auto conv0 = om.conv(input0, weights0, {2, 2}, {0, 1, 0, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "Conv/Relu6#171");
-    auto conv0 = om.conv(input0, weights0, {2, 2}, {0, 1, 0, 1}, 1, 1, mv::DType("UInt8"), {{0},{1},{0.0},{1.0}}, "Conv/Relu6#171");
+    auto conv0 = om.conv("Conv/Relu6#171", input0, weights0, {2, 2}, {0, 1, 0, 1}, 1, 1);
+    conv0->setQuantParams({{0},{1},{0.0},{1.0}});
 
     std::vector<int64_t> biasWeightsData0 = read_weights_from_file<int64_t, int32_t>(mv::utils::projectRootPath() + "/tests/layer/conv_output_quant/Relu6#0_bias#2.dat");
-    auto biasWeights0 = om.constantInt(biasWeightsData0,{32}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{2.076643613690976e-05},{-inf},{inf}}, "Conv/Relu6#0_bias#2");
-    auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
+    auto biasWeights0 = om.constantInt("Conv/Relu6#0_bias#2", biasWeightsData0,{32}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+    biasWeights0->setQuantParams({{0},{2.076643613690976e-05},{-inf},{inf}});
+    auto bias_c0 = om.bias("", conv0, biasWeights0);
+    bias_c0->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
 
-    om.output(bias_c0);
+    om.output("", bias_c0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

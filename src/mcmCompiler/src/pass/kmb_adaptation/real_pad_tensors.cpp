@@ -104,17 +104,13 @@ void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::Tens
 
     //TODO check if already there's a crop? or maybe move this to separate pass
     auto cropOpName = outputTensor->getName() + "_crop";
-    mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+    auto quantParams = outputTensor->getQuantParams();
 
-    if (outputTensor->hasAttr("quantParams"))
-    {
-        quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
-    }
-    auto croppedTensor = om.crop(outputTensor,
+    auto croppedTensor = om.crop(cropOpName,
+                        outputTensor,
                         outputTensorChannels,
-                        mv::IO_CHANNEL_DIMENSION,
-                        quantParams,
-                        cropOpName);
+                        mv::IO_CHANNEL_DIMENSION);
+    croppedTensor->setQuantParams(quantParams);
     croppedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
     auto cropOp = om.getOp(cropOpName);
     cropOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
@@ -272,16 +268,13 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
         }
 
         auto alignOpName = inputTensor->getName() + "_align";
-        mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+        auto quantParams = inputTensor->getQuantParams();
 
-        if (inputTensor->hasAttr("quantParams"))
-            quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
-
-        auto alignedTensor = om.align(inputTensor,
+        auto alignedTensor = om.align(alignOpName,
+                                inputTensor,
                                 mv::IO_WIDTH_DIMENSION,
-                                tensorWidthMultiple,
-                                quantParams,
-                                alignOpName);
+                                tensorWidthMultiple);
+        alignedTensor->setQuantParams(quantParams);
         // This will work because of the implicit flows compensatory DMA passes
         //auto outputTensorMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto outputTensorMemoryLocation = mv::Tensor::MemoryLocation::NNCMX;
@@ -373,16 +366,13 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     }
 
                     auto alignOpName = inputTensor->getName() + "_align";
-                    mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+                    auto quantParams = inputTensor->getQuantParams();
 
-                    if (inputTensor->hasAttr("quantParams"))
-                        quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
-
-                    auto alignedTensor = om.align(inputTensor,
+                    auto alignedTensor = om.align(alignOpName,
+                                        inputTensor,
                                         mv::IO_CHANNEL_DIMENSION,
-                                        pad,
-                                        quantParams,
-                                        alignOpName);
+                                        pad);
+                    alignedTensor->setQuantParams(quantParams);
                     alignedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
                     // This will work because of the implicit flows compensatory DMA passes
 
@@ -518,13 +508,13 @@ static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &
     auto weightsTensorDType = weightsTensor->getDType();
     auto weightsTensorShape = weightsTensor->getShape();
     int64_t zeroPoint = 0;
-    mv::QuantizationParams weightsTensorQuantizationParams({},{},{},{});
+    mv::QuantizationParams weightsTensorQuantizationParams = mv::QuantizationParams::empty();
 
     if (weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS] == alignedShape[mv::KERNEL_OUTPUT_CHANNELS] &&
         weightsTensorShape[mv::KERNEL_INPUT_CHANNELS] == alignedShape[mv::KERNEL_INPUT_CHANNELS])
             return;
 
-    if(weightsTensor->isQuantized())
+    if (weightsTensor->isQuantized())
     {
         weightsTensorQuantizationParams = weightsTensor->get<mv::QuantizationParams>("quantParams");
         zeroPoint = weightsTensorQuantizationParams.getZeroPoint()[0];
@@ -533,7 +523,8 @@ static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &
     auto newData = std::vector<mv::DataElement>(alignedShape.totalSize(), mv::DataElement(weightsTensorDType.isDoubleType(), zeroPoint));
     auto constantOp = om.getSourceOp(weightsTensor);
     auto outFlows = mv::getOutputDataFlow(om, constantOp, false);
-    mv::Data::TensorIterator newKernel = om.constantDataElement(newData, alignedShape, weightsTensorDType, weightsTensorOrder, weightsTensorQuantizationParams, mv::createAlignConstantName(constantOp->getName()));
+    mv::Data::TensorIterator newKernel = om.constantDataElement(mv::createAlignConstantName(constantOp->getName()), newData, alignedShape, weightsTensorDType, weightsTensorOrder);
+    newKernel->setQuantParams(weightsTensorQuantizationParams);
 
     //DO NOT CHANGE THE LIMITS OF THE LOOP! THERE IS A REASON WHY IT'S DONE LIKE THIS AND NOT USING THE AUXILIARY VARIABLES
     for(unsigned oc = 0; oc < weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
@@ -558,20 +549,17 @@ static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::Tens
     auto biasTensorName = opIt->get<std::string>("bias");
     if(biasTensorSizePadded != biasTensorSize)
     {
-        mv::QuantizationParams biasTensorQuantizationParams({}, {}, {}, {});
-        if (biasTensor->isQuantized()) {
-          biasTensorQuantizationParams =
-            biasTensor->get<mv::QuantizationParams>("quantParams");
-        }
-
         int64_t zeroPoint = 0;
-        if(biasTensor->isQuantized())
+        mv::QuantizationParams biasTensorQuantizationParams = mv::QuantizationParams::empty();
+
+        if (biasTensor->isQuantized()) {
+            biasTensorQuantizationParams = biasTensor->get<mv::QuantizationParams>("quantParams");
             zeroPoint = biasTensorQuantizationParams.getZeroPoint()[0];
+        }
 
         auto newData = std::vector<mv::DataElement>(biasTensorSizePadded, mv::DataElement(biasTensorDType.isDoubleType(), zeroPoint));
         auto newBiasTensor = dm.defineTensor(mv::createAlignConstantName(biasTensorName), {biasTensorSizePadded}, biasTensorDType, mv::Order("W"), newData);
-        if(biasTensor->isQuantized())
-            newBiasTensor->set<mv::QuantizationParams>("quantParams", biasTensorQuantizationParams);
+        newBiasTensor->setQuantParams(biasTensorQuantizationParams);
 
         for(unsigned i = 0; i < biasTensorSize; ++i)
             newBiasTensor->at({i}) = biasTensor->at({i});

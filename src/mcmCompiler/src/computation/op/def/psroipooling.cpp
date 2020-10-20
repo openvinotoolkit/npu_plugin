@@ -36,15 +36,8 @@ namespace mv
             auto H = args.at("pooled_h").get<std::size_t>();
             auto W = args.at("pooled_w").get<std::size_t>();
 
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = input->getDType();
-
             mv::Shape outputShape({W, H, C, N});;
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, outputOrder));
-            else
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, outputOrder, args.at("quantParams").get<mv::QuantizationParams>()));
+            outputs.emplace_back(":0", outputShape, inputs[0]->getDType(), outputOrder);
         };
     }
     namespace op
@@ -60,8 +53,6 @@ namespace mv
         .setArg<std::size_t>("spatial_bin_x")
         .setArg<std::size_t>("spatial_bin_y")
         .setArg<std::string>("mode")
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_psroi_pooling::inputCheckFcn)
         .setOutputDef(op_psroi_pooling::outputDefFcn)
         .setTypeTrait({"executable", "exposed"})

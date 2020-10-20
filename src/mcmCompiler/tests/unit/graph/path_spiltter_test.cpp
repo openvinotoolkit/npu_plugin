@@ -401,74 +401,74 @@ class ImplicitOp_Path_Splitter_Test_Fixture : public testing::Test {
     void setup_implicit_op_test() {
       mv::CompilationUnit &unit = implicit_op_test_;
       mv::OpModel& om = unit.model();
-      
-      auto input0 = om.input({1,1,1000,1}, mv::DType("Float64"),
-          mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input:0#4");
-      std::string axis = "C";
 
+      auto input0 = om.input("input:0#4", {1,1,1000,1},
+          mv::DType("Float64"), mv::Order::getZMajorID(4));
+      input0->setQuantParams({{0},{1.0},{},{}});
+      std::string axis = "C";
 
       /// CONV-0 ///
       std::vector<int64_t> weightsData0 =
           mv::utils::generateSequence<int64_t> (1*1*1000*1);
-      auto weights0 = om.constantInt(weightsData0,{1,1,1000,1},
-            mv::DType("UInt8"), mv::Order::getZMajorID(4),
-            {{135},{0.0025439101736992598},{-0.3435550332069397},
-              {0.3051420748233795}}, "conv#0_weights#1");
-      auto conv0 = om.conv(input0, weights0, {1, 1}, {1, 1, 1, 1}, 1, 1,
-          mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}},
-            "conv#10");
+      auto weights0 = om.constantInt("conv#0_weights#1", weightsData0,
+          {1,1,1000,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+      auto conv0 = om.conv("conv#10", input0, weights0, {1, 1},
+          {1, 1, 1, 1}, 1, 1);
+      weights0->setQuantParams({{135},{0.0025439101736992598},
+          {-0.3435550332069397},{0.3051420748233795}});
+      conv0->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
+      conv0->setDType(mv::DType("UInt8"));
 
       // SLICE //
-      auto conv0_slice = om.slice(conv0, mv::Shape({0,0,0,0}),
-            mv::Shape({3,3,1,1}));
+      auto conv0_slice = om.slice("", conv0, mv::Shape({0,0,0,0}),
+          mv::Shape({3,3,1,1}));
 
       /// CONV-1 ///
       std::vector<int64_t> weightsData1 =
           mv::utils::generateSequence<int64_t> (3*3*1*1);
-      auto weights1 = om.constantInt(weightsData1,{3,3,1,1},
-            mv::DType("UInt8"), mv::Order::getZMajorID(4),
-            {{135},{0.0025439101736992598},{-0.3435550332069397},
-              {0.3051420748233795}}, "conv#11_weights#1");
-      auto conv1 = om.conv(conv0_slice, weights1, {1, 1}, {1, 1, 1, 1}, 1, 1,
-          mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}},
-            "conv#11");
+      auto weights1 = om.constantInt("conv#11_weights#1", weightsData1,
+          {3,3,1,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+      auto conv1 = om.conv("conv#11", conv0_slice, weights1, {1, 1},
+          {1, 1, 1, 1}, 1, 1);
+      weights1->setQuantParams({{135},{0.0025439101736992598},
+          {-0.3435550332069397}, {0.3051420748233795}});
+      conv1->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
 
       // SLICE //
-      auto conv1_slice = om.slice(conv0_slice, mv::Shape({0,0,0,0}),
-            mv::Shape({1,1,1,1}));
+      auto conv1_slice = om.slice("", conv0_slice, mv::Shape({0,0,0,0}),
+          mv::Shape({1,1,1,1}));
 
       /// CONV-2 ///
       std::vector<int64_t> weightsData2 =
           mv::utils::generateSequence<int64_t> (1*1*1*1);
-      auto weights2 = om.constantInt(weightsData2,{1,1,1,1},
-            mv::DType("UInt8"), mv::Order::getZMajorID(4),
-            {{135},{0.0025439101736992598},{-0.3435550332069397},
-              {0.3051420748233795}}, "conv#12_weights#1");
-      auto conv2 = om.conv(conv1_slice, weights2, {1, 1}, {1, 1, 1, 1}, 1, 1,
-          mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}},
-            "conv#12");
+      auto weights2 = om.constantInt("conv#12_weights#1", weightsData2,
+          {1,1,1,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+      auto conv2 = om.conv("conv#12", conv1_slice, weights2, {1, 1},
+          {1, 1, 1, 1}, 1, 1);
+      weights2->setQuantParams({{135},{0.0025439101736992598},
+          {-0.3435550332069397},{0.3051420748233795}});
+      conv2->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
 
       // CONV-3 ///
-      auto conv3 = om.conv(conv1_slice, weights2, {1, 1}, {1, 1, 1, 1}, 1, 1,
-          mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}},
-            "conv#13");
+      auto conv3 = om.conv("conv#13", conv1_slice, weights2, {1, 1},
+          {1, 1, 1, 1}, 1, 1);
+      conv3->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
 
       // CONV-3 ///
-      auto conv4 = om.conv(conv1_slice, weights2, {1, 1}, {1, 1, 1, 1}, 1, 1,
-          mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}},
-            "conv#14");
+      auto conv4 = om.conv("conv#14", conv1_slice, weights2, {1, 1},
+          {1, 1, 1, 1}, 1, 1);
+      conv4->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
 
       std::vector<mv::Data::TensorIterator> concat0_inputs = {conv1, conv2};
-      auto concat0 = om.concat(concat0_inputs);
+      auto concat0 = om.concat("", concat0_inputs);
 
       std::vector<mv::Data::TensorIterator> concat1_inputs = {conv3, conv4};
-      auto concat1 = om.concat(concat1_inputs);
+      auto concat1 = om.concat("", concat1_inputs);
 
       std::vector<mv::Data::TensorIterator> concat2_inputs = {concat0, concat1};
-      auto concat2 = om.concat(concat2_inputs);
+      auto concat2 = om.concat("", concat2_inputs);
 
-
-      om.output(concat2);
+      om.output("", concat2);
     }
 
     mv::OpModel& get_implicit_op_test() {

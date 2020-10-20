@@ -161,9 +161,10 @@ mv::Data::OpListIterator mv::BaseOpModel::cloneOp(
     name += opType + "_0";
 
   std::vector<Data::TensorIterator> inputs;
+  std::vector<Data::TensorIterator> outputs;
   std::vector< std::pair<std::string, Attribute> > args;
 
-  { 
+  {
     // clone the args //
     std::vector<std::string> all_attrs;
     auto attr_map = (*original_op).getAttrs(all_attrs);
@@ -176,11 +177,21 @@ mv::Data::OpListIterator mv::BaseOpModel::cloneOp(
     for (size_t i=0; i<original_op->inputSlots(); i++) {
       inputs.push_back( original_op->getInputTensor(i) );
     }
-
+  }
+  {
+    // clone the outputs //
+    for (size_t i=0; i<original_op->outputSlots(); i++) {
+      outputs.push_back( original_op->getOutputTensor(i) );
+    }
   }
 
-  auto opNode = dataGraph_.node_insert(
-      Op(*this, opType, name, inputs, args, false, false));
+  auto newOp = Op(*this, opType, name, inputs, args, false, false);
+
+  for (size_t i = 0; i < newOp.outputSlots(); ++i) {
+    newOp.getOutputTensor(i)->setAttrs(outputs[i]->getAttrs());
+  }
+
+  auto opNode = dataGraph_.node_insert(newOp);
 
   incrementOpsInstanceCounter_(opType);
   incrementOpsIndexCounter_(opType);

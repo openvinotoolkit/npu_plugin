@@ -75,16 +75,14 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     if (opTypeAfter == "Crop")
                         opItBackup->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
 
-                    mv::QuantizationParams outputQuantParams = {{},{},{},{}};
-                    if (output->hasAttr("quantParams"))
-                        outputQuantParams = output->get<mv::QuantizationParams>("quantParams");
+                    auto outputQuantParams = output->getQuantParams();
 
                     std::string memoryLocation = outputMemoryLocation.toString();
                     if(memoryLocation == "OUTPUT" || memoryLocation == "INPUT")
                         memoryLocation = "DDR";
                     std::string stringDirection("NNCMX2"+memoryLocation);
                     mv::DmaDirection direction(stringDirection);
-                    auto dpuCopyOut = om.dMATask(output, direction, 0, opIt->getName() + "_copyOut");
+                    auto dpuCopyOut = om.dMATask(opIt->getName() + "_copyOut", output, direction, 0);
                     if (sinkOp->hasAttr("dilatedWidthConcat") && sinkOp->get<bool>("dilatedWidthConcat"))
                     {
                         std::size_t slot = 0;
@@ -134,7 +132,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     auto dpuCopyOutOp = om.getSourceOp(dpuCopyOut);
                     dpuCopyOutOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
                     if (output->hasAttr("quantParams"))
-                        dpuCopyOutOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(outputQuantParams.getShift(), outputQuantParams.getMult());
+                        dpuCopyOut->get<mv::QuantizationParams>("quantParams").quantize(outputQuantParams.getShift(), outputQuantParams.getMult());
 
                     setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
                     dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
@@ -152,9 +150,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     if(inputMemoryLocation != mv::Tensor::MemoryLocation::NNCMX ||(opIt->hasAttr("DilatedSubConv") && opIt->get<bool>("DilatedSubConv")))
                     {
                         auto input = opIt->getInputTensor(i);
-                        mv::QuantizationParams inputQuantParams = {{},{},{},{}};
-                        if(input->hasAttr("quantParams"))
-                            inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
+                        mv::QuantizationParams inputQuantParams = input->getQuantParams();
 
                         if(opIt->hasAttr("DilatedSubConv") && opIt->get<bool>("DilatedSubConv"))
                         {
@@ -174,7 +170,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
 
                                 if (om.getSourceOp(sliceInput)->getOpType() != "DMATask")
                                 {
-                                    auto dpuCopyIn = om.dMATask(sliceInput, direction, 0, opIt->getName() + "_copyIn_" + std::to_string(i));
+                                    auto dpuCopyIn = om.dMATask(opIt->getName() + "_copyIn_" + std::to_string(i), sliceInput, direction, 0);
                                     auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
                                     if(dpuCopyInOp->getOutputTensor(0)->hasAttr("quantParams"))
                                         dpuCopyInOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(inputQuantParams.getShift(), inputQuantParams.getMult());
@@ -212,7 +208,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                                 memoryLocation = "DDR";
                             std::string stringDirection(memoryLocation+"2NNCMX");
                             mv::DmaDirection direction(stringDirection);
-                            auto dpuCopyIn = om.dMATask(input, direction, 0, opIt->getName() + "_copyIn_" + std::to_string(i));
+                            auto dpuCopyIn = om.dMATask(opIt->getName() + "_copyIn_" + std::to_string(i), input, direction, 0);
                             auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
 
                             if(dpuCopyInOp->getOutputTensor(0)->hasAttr("quantParams"))

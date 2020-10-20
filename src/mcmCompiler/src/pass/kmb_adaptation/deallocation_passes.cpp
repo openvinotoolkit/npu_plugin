@@ -205,7 +205,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 
             mv::Data::OpListIterator deallocateInputOp;
 
-            om.deallocate(inputTensor, deallocationName);
+            om.deallocate(deallocationName, inputTensor);
             deallocateInputOp = om.getOp(deallocationName);
             deallocateInputOp->set<mv::Tensor::MemoryLocation>("Location", inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 

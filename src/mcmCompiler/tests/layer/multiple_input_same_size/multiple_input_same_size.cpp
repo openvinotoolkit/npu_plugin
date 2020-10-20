@@ -12,11 +12,14 @@ void build_pySwigCU(mv::OpModel& model)
 
     static const auto inf = std::numeric_limits<double>::infinity();
 
-    const auto Parameter_0_0 = model.input({64, 64, 3, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{1.000000000000000},{-inf},{inf},{0},{1}}, "Parameter_0");
-    const auto Parameter_1_0 = model.input({64, 64, 3, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{1.000000000000000},{-inf},{inf},{0},{1}}, "Parameter_1");
-    const auto Add_2_0 = model.eltwise({Parameter_0_0, Parameter_1_0}, "Add", mv::DType("Default"), {{0},{1.000000000000000},{-inf},{inf},{0},{1}}, "Add_2");
-    const auto output = model.output(Add_2_0);
+    const auto Parameter_0_0 = model.input("Parameter_0", {64, 64, 3, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
+    const auto Parameter_1_0 = model.input("Parameter_1", {64, 64, 3, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
+    const auto Add_2_0 = model.eltwise("Add_2", {Parameter_0_0, Parameter_1_0}, "Add");
+    const auto output = model.output("", Add_2_0);
 
+    Parameter_0_0->setQuantParams({{0},{1.000000000000000},{-inf},{inf},{0},{1}});
+    Parameter_1_0->setQuantParams({{0},{1.000000000000000},{-inf},{inf},{0},{1}});
+    Add_2_0->setQuantParams({{0},{1.000000000000000},{-inf},{inf},{0},{1}});
 }
 
 int main()

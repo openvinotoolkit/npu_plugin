@@ -31,7 +31,7 @@ namespace mv
             auto dTypeToUse = inputs[0]->getDType();
             auto outputOrder = inputs[0]->getOrder();
 
-            outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, outputOrder));
+            outputs.emplace_back(":0", outputShape, dTypeToUse, outputOrder);
 
         };
 

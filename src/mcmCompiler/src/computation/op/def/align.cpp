@@ -47,11 +47,7 @@ namespace mv
             auto outputShape = inputShape;
             outputShape[dim] = dimPadded;
 
-            if(args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
-                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(),
-                        args.at("quantParams").get<mv::QuantizationParams>()));
+            outputs.emplace_back(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder());
 
             if (inputs[0]->hasAttr("Location"))
                 outputs[0].set<Tensor::MemoryLocation>("Location",
@@ -66,7 +62,6 @@ namespace mv
         .setOutputs({"output"})
         .setOptionalArg<std::size_t>("dimension", mv::IO_CHANNEL_DIMENSION)
         .setOptionalArg<std::size_t>("pad", 16)
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_align::inputCheckFcn)
         .setOutputDef(op_align::outputDefFcn)
         .setTypeTrait({"exposed"});

@@ -70,14 +70,7 @@ namespace mv
             mv::Shape outputShape({(inputs[0]->getShape()[IO_WIDTH_DIMENSION] + padding[0] + padding[1] - weights->getShape()[IO_WIDTH_DIMENSION]) / stride[0] + 1, (
                 inputs[0]->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - weights->getShape()[IO_HEIGHT_DIMENSION]) / stride[1] + 1, inputs[0]->getShape()[KERNEL_INPUT_CHANNELS],inputs[0]->getShape()[IO_BATCH_DIMENSION]});
 
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
-
+            outputs.emplace_back(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder());
         };
 
 
@@ -90,8 +83,6 @@ namespace mv
         .setArg<std::array<unsigned short, 2>>("stride")
         .setOptionalArg<unsigned>("dilationFactor", 1)
         .setArg<std::array<unsigned short, 4>>("padding")
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_depthwise_conv::inputCheckFcn)
         .setOutputDef(op_depthwise_conv::outputDefFcn)
         .setTypeTrait({"executable", "exposed", "optimizable"});

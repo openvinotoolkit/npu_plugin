@@ -50,19 +50,19 @@ TEST_P(layers_conversion, dump_blob)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input(shape, dtype, order);
+    auto input = om.input("", shape, dtype, order);
 
     mv::Data::TensorIterator layer;
     switch (func)
     {
         case Conversion:
-            layer = om.conversion(input, order_new);
+            layer = om.conversion("", input, order_new);
             break;
         case Permute:
-            layer = om.permute(input, order_new);
+            layer = om.permute("", input, order_new);
             break;
         case Reorder:
-            layer = om.reorder(input, order_new);
+            layer = om.reorder("", input, order_new);
             break;
         default:
             throw "unknown function";
@@ -70,7 +70,7 @@ TEST_P(layers_conversion, dump_blob)
 
     auto layerOp = om.getSourceOp(layer);
 
-    auto output = om.output(layer);
+    auto output = om.output("", layer);
 
     ASSERT_TRUE(om.isValid(layer));
     ASSERT_TRUE(om.isValid(layerOp));

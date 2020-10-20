@@ -189,3 +189,11 @@ double mv::QuantizationParams::getScale(const size_t channel) const {
     return scales[channel];
 }
 
+mv::QuantizationParams mv::QuantizationParams::empty() {
+    return {{}, {}, {}, {}};
+}
+
+mv::QuantizationParams mv::QuantizationParams::initial() {
+    static double inf = std::numeric_limits<double>::infinity();
+    return {{0}, {1}, {-inf}, {inf}};
+}

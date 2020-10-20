@@ -2459,7 +2459,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& 
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_QuantizeParams;
     auto softLayerParamsValue = new MVCNN::QuantizeParamsT();
 
-    auto quantizationParams = opIt->get<mv::QuantizationParams>("quantParams");
+    auto quantizationParams = output->getQuantParams();
     auto quantScale = quantizationParams.getScale();
     auto quantZero = quantizationParams.getZeroPoint();
 

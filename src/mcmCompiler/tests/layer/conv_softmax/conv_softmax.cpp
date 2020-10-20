@@ -20,19 +20,26 @@ int main()
     std::vector<int64_t> biasData = mv::utils::readWeightsFromFile<int64_t>(bias_filename);
 
     // Input
-    auto input0 = om.input(input_shape, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#4");
+    auto input0 = om.input("input#4", input_shape, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    input0->setQuantParams({{128},{0.007843137718737125},{-1.0},{1.0}});
 
     // Conv
-    auto weights0 = om.constantInt(weightsData, weights_shape, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{130},{0.0033313746098428965},{-0.43268874287605286},{0.4168117642402649}}, "conv#0_weights#1");
-    auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "conv#5");
-    auto biasWeights0 = om.constantInt(biasData, {weights_shape[mv::IO_BATCH_DIMENSION]}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{2.6128427634830587e-05},{},{}}, "conv#0_bias#2");
-    auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
+    auto weights0 = om.constantInt("conv#0_weights#1", weightsData, weights_shape, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    auto conv0 = om.conv("conv#5", input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    auto biasWeights0 = om.constantInt("conv#0_bias#2", biasData, {weights_shape[mv::IO_BATCH_DIMENSION]}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+    auto bias_c0 = om.bias("", conv0, biasWeights0);
+    weights0->setQuantParams({{130},{0.0033313746098428965},{-0.43268874287605286},{0.4168117642402649}});
+    conv0->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
+    biasWeights0->setQuantParams({{0},{2.6128427634830587e-05},{},{}});
+    bias_c0->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
 
     // Softmax
-    auto softmax0 = om.softmax(bias_c0, "C", mv::DType("Float16"), {{0},{0.00390625},{0.0},{0.99609375}}, "conv_softmax#6");
+    auto softmax0 = om.softmax("conv_softmax#6", bias_c0, "C");
+    softmax0->setQuantParams({{0},{0.00390625},{0.0},{0.99609375}});
+    softmax0->setDType(mv::DType("Float16"));
 
     // Output
-    om.output(softmax0);
+    om.output("", softmax0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

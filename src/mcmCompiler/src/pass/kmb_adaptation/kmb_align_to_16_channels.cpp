@@ -130,9 +130,9 @@ static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &
         newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, channelsPadded, 1});
 
     int64_t zeroPoint = 0;
-    mv::QuantizationParams weightsTensorQuantizationParams({},{},{},{});
+    auto weightsTensorQuantizationParams = mv::QuantizationParams::empty();
 
-    if(weightsTensor->isQuantized())
+    if (weightsTensor->isQuantized())
     {
         weightsTensorQuantizationParams = weightsTensor->get<mv::QuantizationParams>("quantParams");
         zeroPoint = weightsTensorQuantizationParams.getZeroPoint()[0];
@@ -141,7 +141,8 @@ static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &
     auto newData = std::vector<mv::DataElement>(newShape.totalSize(), mv::DataElement(weightsTensorDType.isDoubleType(), zeroPoint));
     auto constantOp = om.getSourceOp(weightsTensor);
     auto outFlows = mv::getOutputDataFlow(om, constantOp, false);
-    mv::Data::TensorIterator newKernel = om.constantDataElement(newData, newShape, weightsTensorDType, weightsTensorOrder, weightsTensorQuantizationParams, mv::createAlignConstantName(constantOp->getName()));
+    mv::Data::TensorIterator newKernel = om.constantDataElement(mv::createAlignConstantName(constantOp->getName()), newData, newShape, weightsTensorDType, weightsTensorOrder);
+    newKernel->setQuantParams(weightsTensorQuantizationParams);
 
     //DO NOT CHANGE THE LIMITS OF THE LOOP! THERE IS A REASON WHY IT'S DONE LIKE THIS AND NOT USING THE AUXILIARY VARIABLES
     for(unsigned oc = 0; oc < weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
@@ -166,15 +167,14 @@ static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::Tens
     auto biasTensorName = opIt->get<std::string>("bias");
     if(biasTensorSizePadded != biasTensorSize)
     {
-        auto biasTensorQuantizationParams = biasTensor->get<mv::QuantizationParams>("quantParams");
+        auto biasTensorQuantizationParams = biasTensor->getQuantParams();
         int64_t zeroPoint = 0;
 //        if(biasTensor->isQuantized())
 //            zeroPoint = biasTensorQuantizationParams.getZeroPoint()[0];
 
         auto newData = std::vector<mv::DataElement>(biasTensorSizePadded, mv::DataElement(biasTensorDType.isDoubleType(), zeroPoint));
         auto newBiasTensor = dm.defineTensor(mv::createAlignConstantName(biasTensorName), {biasTensorSizePadded}, biasTensorDType, mv::Order("W"), newData);
-        if(biasTensor->isQuantized())
-            newBiasTensor->set<mv::QuantizationParams>("quantParams", biasTensorQuantizationParams);
+        newBiasTensor->setQuantParams(biasTensorQuantizationParams);
 
         for(unsigned i = 0; i < biasTensorSize; ++i)
             newBiasTensor->at({i}) = biasTensor->at({i});

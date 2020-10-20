@@ -1331,9 +1331,9 @@ namespace mv
                         kernelH = weightsShape[mv::KERNEL_HEIGHT];
                     }
 
-                    mv::DType dataType =op.getInputTensor(0)->get<mv::DType>("dType");
+                    mv::DType dataType = op.getInputTensor(0)->getDType();
                     if (opType != "MaxPool")
-                        dataType = op.getInputTensor(1)->get<mv::DType>("dType");
+                        dataType = op.getInputTensor(1)->getDType();
 
                     auto windowsSize = getWindowSize(kernelW, strides[0], dataType);
                     size_t fakeSparsitySize = 0;

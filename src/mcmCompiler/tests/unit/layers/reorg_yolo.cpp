@@ -38,9 +38,9 @@ TEST_P(layers_reorg_yolo, dump_blob)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto  input = om.input(in_shape, dtype, in_order);
-    auto  reorg = om.reorgYolo(input, stride);
-    auto output = om.output(reorg);
+    auto  input = om.input("", in_shape, dtype, in_order);
+    auto  reorg = om.reorgYolo("", input, stride);
+    auto output = om.output("", reorg);
 
     ASSERT_TRUE(om.isValid(reorg));
     ASSERT_TRUE(om.isValid(om.getSourceOp(reorg)));

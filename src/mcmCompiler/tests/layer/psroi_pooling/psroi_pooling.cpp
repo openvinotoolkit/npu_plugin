@@ -22,7 +22,7 @@ int main()
     std::vector<uint16_t> weightsData(5*5);
 
     // Define tensors
-    auto input0 = om.input({14,14,pooled_w*pooled_h*output_dim,1}, mv::DType("Float16"), mv::Order::getColMajorID(4), {{0},{1.0},{},{}}, "input0");
+    auto input0 = om.input("input0", {14,14,pooled_w*pooled_h*output_dim,1}, mv::DType("Float16"), mv::Order::getColMajorID(4));
 
     //Load weights from file
     std::string  weights_filename(mv::utils::projectRootPath() + "/tests/layer/psroi_pooling/psroi_pooling.in2");
@@ -34,18 +34,18 @@ int main()
         weightsData_converted[i] = weightsData[i];
     }
 
-    auto weights0 = om.constantInt(weightsData_converted,{1,1,5,num_rois}, mv::DType("Float16"),
-                                   mv::Order::getZMajorID(4), {{0},{1.},{},{}}, "weights0");
+    auto weights0 = om.constantInt("weights0", weightsData_converted,{1,1,5,num_rois}, mv::DType("Float16"),
+                                   mv::Order::getZMajorID(4));
 
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;
     inputs.push_back(input0);
     inputs.push_back(weights0);
     // Build Model
-    auto psroiPooling = om.pSROIPooling(inputs, output_dim, group_size, spatial_scale, pooled_h, pooled_w,
-                                        spatial_bins_x, spatial_bins_y, mode, mv::DType("Float16"));
+    auto psroiPooling = om.pSROIPooling("", inputs, output_dim, group_size, spatial_scale, pooled_h, pooled_w,
+                                        spatial_bins_x, spatial_bins_y, mode);
 
-    om.output(psroiPooling);
+    om.output("", psroiPooling);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

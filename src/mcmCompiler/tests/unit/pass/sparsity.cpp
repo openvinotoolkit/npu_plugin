@@ -12,10 +12,10 @@ TEST(sparsity, case_cm)
     //mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Debug);
     mv::OpModel om("testModel");
 
-    auto input = om.input({56, 56 , 3, 1}, mv::DType("UInt8"), mv::Order("NCWH"));
+    auto input = om.input("", {56, 56 , 3, 1}, mv::DType("UInt8"), mv::Order("NCWH"));
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(3*3*3*64);
-    auto weights = om.constantInt(weightsData, {3, 3, 3, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)),{{},{},{},{}}, "weights");
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1); //stride {1,1}
+    auto weights = om.constantInt("weights", weightsData, {3, 3, 3, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)));
+    auto conv = om.conv("", input, weights, {1, 1}, {0, 0, 0, 0}, 1); //stride {1,1}
 
     mv::Element dummyCompDesc("dummyPassDesc");
 
@@ -62,14 +62,14 @@ TEST(sparsity, case_hwPooling)
     //mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Debug);
     mv::OpModel om("testModel");
 
-    auto input = om.input({56, 56 , 2048, 1}, mv::DType("UInt8"), mv::Order("NCHW"));
+    auto input = om.input("", {56, 56 , 2048, 1}, mv::DType("UInt8"), mv::Order("NCHW"));
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*1*2048);
-    auto weights = om.constantInt(weightsData, {1, 1, 2048, 1}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)),{{},{},{},{}}, "weights");
-    //auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1); //stride {1,1}
+    auto weights = om.constantInt("weights", weightsData, {1, 1, 2048, 1}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)));
+    //auto conv = om.conv("",input, weights, {1, 1}, {0, 0, 0, 0}, 1); //stride {1,1}
 
-    auto pool = om.maxPool(input, {1,1}, {1, 1}, {0, 0, 0, 0}); //stride {1,1}
+    auto pool = om.maxPool("", input, {1,1}, {1, 1}, {0, 0, 0, 0}); //stride {1,1}
     auto poolOp = om.getSourceOp(pool);
-    auto output = om.output(pool);
+    auto output = om.output("", pool);
     mv::Element dummyCompDesc("dummyPassDesc");
     mv::Element compOutput("CompilationOutput");
     mv::TargetDescriptor desc;

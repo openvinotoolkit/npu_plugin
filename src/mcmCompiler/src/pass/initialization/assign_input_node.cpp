@@ -39,32 +39,31 @@ void assignInputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
     }
 
     // Create the virtual graph input node. Size doesn't really matter.
-    auto inputTensor = om.input(mv::Shape({64,64,3,1}),  mv::DType("UInt8"), mv::Order("NHWC"), {{},{},{},{}}, false);
-
+    auto inputTensor = om.input("", mv::Shape({64,64,3,1}), mv::DType("UInt8"), mv::Order("NHWC"), false);
 
     auto networkInputs = om.getNetworkInputs();
     std::vector<mv::Data::TensorIterator> inputTensors;
     for (size_t i = 0; i < networkInputs.size(); i++)
     {
         auto networkInput = networkInputs[i]->getOutputTensor(0);
+        auto quantParams = networkInput->getQuantParams();
 
         // Create an implicit Input slice op, connect respective network input to that op, and attach.
-        auto implicitInputSlice = om.implicitInputSlice(inputTensor);
+        auto implicitInputSlice = om.implicitInputSlice("", inputTensor);
 
         implicitInputSlice->setShape(networkInput->getShape());
         implicitInputSlice->setDType(networkInput->getDType());
         implicitInputSlice->setOrder(networkInput->getOrder());
-        implicitInputSlice->set<mv::QuantizationParams>("quantParams", networkInput->get<mv::QuantizationParams>("quantParams"));
+        implicitInputSlice->setQuantParams(quantParams);
 
         auto networkInputOp = om.getSourceOp(networkInput);
         // Assumes one input per outputNode
-        auto implicitInput = om.implicitInput(implicitInputSlice,
-                                                networkInput->getShape(),
-                                                networkInput->getDType(),
-                                                networkInput->getOrder(),
-                                                networkInput->get<mv::QuantizationParams>("quantParams"),
-                                                networkInput->getName() + "_implicit");
-        
+        auto implicitInput = om.implicitInput(networkInput->getName() + "_implicit",
+                                              implicitInputSlice,
+                                              networkInput->getShape(),
+                                              networkInput->getDType(),
+                                              networkInput->getOrder());
+        implicitInput->setQuantParams(quantParams);
 
         implicitInput->set<uint8_t>("inputIndex", i);
 

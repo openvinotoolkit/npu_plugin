@@ -43,7 +43,7 @@ TEST_P(layers_binops, dump_blob)
     mv::OpModel& om = unit.model();
 
     mv::Data::TensorIterator data0, data1;
-    data0 = om.input(shape, dtype, order);
+    data0 = om.input("", shape, dtype, order);
 #if MULTIPLE_INPUTS
     //---------------------------------------------------
     // MCM compiler does not support multile inputs (yet)
@@ -53,23 +53,23 @@ TEST_P(layers_binops, dump_blob)
     if (dtype == mv::DType("Float16"))
     {
         auto coefs = mv::utils::generateSequence<double>(shape.totalSize());
-        data1 = om.constant(coefs, shape, dtype, order);
+        data1 = om.constant("", coefs, shape, dtype, order);
     } else
     {
         auto coefs = mv::utils::generateSequence<int64_t>(shape.totalSize());
-        data1 = om.constantInt(coefs, shape, dtype, order);
+        data1 = om.constantInt("", coefs, shape, dtype, order);
     }
 #endif
 
     auto binop = func == Add ?
-                     om.add({data0, data1}) :
+                     om.eltwise("", {data0, data1}, "Add") :
                  func == Subtract ?
-                     om.subtract({data0, data1}) :
+                     om.eltwise("", {data0, data1}, "Subtract") :
                  func == Multiply ?
-                     om.multiply({data0, data1}) :
+                     om.eltwise("", {data0, data1}, "Multiply") :
     //           func == Divide ?
-                     om.divide(data0, data1);
-    auto output = om.output(binop);
+                     om.eltwise("", {data0, data1}, "Divide");
+    auto output = om.output("", binop);
 
     ASSERT_TRUE(om.isValid(binop));
     ASSERT_TRUE(om.isValid(om.getSourceOp(binop)));

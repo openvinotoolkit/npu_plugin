@@ -19,21 +19,28 @@ TEST(runtime_model, test_soh_dma_addresses)
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
 
-    auto input0 = om.input({416,416,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{0.003921568859368563},{0.0},{1.0}}, "conv1#34");
+    auto input0 = om.input("conv1#34", {416,416,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    input0->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto pool0 = om.maxPool(input0, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool1/max_pool#35");
+    auto pool0 = om.maxPool("pool1/max_pool#35", input0, {2, 2}, {2, 2}, {0, 0, 0, 0}, true);
+    pool0->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
 
     std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (3*3*16*32);
-    auto weights0 = om.constantInt(weightsData0,{3,3,16,32}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{119},{0.002742463955655694},{-0.32530343532562256},{0.374024897813797}}, "conv2#4_weights#5");
-    auto conv0 = om.conv(pool0, weights0, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "conv2#36");
+    auto weights0 = om.constantInt("conv2#4_weights#5", weightsData0,{3,3,16,32}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    weights0->setQuantParams({{119},{0.002742463955655694},{-0.32530343532562256},{0.374024897813797}});
+    auto conv0 = om.conv("conv2#36", pool0, weights0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    conv0->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
 
     std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (32);
-    auto biasWeights0 = om.constantInt(biasWeightsData0,{32}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.075476120604435e-05},{-inf},{inf}}, "conv2#4_bias#6");
-    auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
+    auto biasWeights0 = om.constantInt("conv2#4_bias#6", biasWeightsData0,{32}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+    biasWeights0->setQuantParams({{0},{1.075476120604435e-05},{-inf},{inf}});
+    auto bias_c0 = om.bias("", conv0, biasWeights0);
+    bias_c0->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto pool1 = om.maxPool(bias_c0, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool2/max_pool#37");
+    auto pool1 = om.maxPool("pool2/max_pool#37", bias_c0, {2, 2}, {2, 2}, {0, 0, 0, 0}, true);
+    pool1->setQuantParams({{0},{0.003921568859368563},{0.0},{1.0}});
 
-    om.output(pool1);
+    om.output("", pool1);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -165,25 +172,40 @@ TEST(runtime_model, test_hkswitch_address_assignment)
 
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
-    auto input0 = om.input({52,52,256,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{0.07285668700933456},{0.0},{18.578454971313477}}, "model/re_lu_5/Relu#85");
+    auto input0 = om.input("model/re_lu_5/Relu#85", {52,52,256,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    input0->setQuantParams({{0},{0.07285668700933456},{0.0},{18.578454971313477}});
 
     std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (1*1*256*128);
-    auto weights0 = om.constantInt(weightsData0,{1,1,256,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{139},{0.01167607493698597},{-1.6125890016555786},{1.353134036064148}}, "model/re_lu_6/Relu#21_weights#22");    auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.09908168017864227},{0.0},{25.26582908630371}}, "model/re_lu_6/Relu#86");
+    auto weights0 = om.constantInt("model/re_lu_6/Relu#21_weights#22", weightsData0,{1,1,256,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4));    auto conv0 = om.conv("model/re_lu_6/Relu#86", input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    weights0->setQuantParams({{139},{0.01167607493698597},{-1.6125890016555786},{1.353134036064148}});
+    conv0->setQuantParams({{0},{0.09908168017864227},{0.0},{25.26582908630371}});
     std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (128);
-    auto biasWeights0 = om.constantInt(biasWeightsData0,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0008506801095791161},{-inf},{inf}}, "model/re_lu_6/Relu#21_bias#23");     auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{0.09908168017864227},{0.0},{25.26582908630371}});
+    auto biasWeights0 = om.constantInt("model/re_lu_6/Relu#21_bias#23", biasWeightsData0,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1));     auto bias_c0 = om.bias("", conv0, biasWeights0);
+    biasWeights0->setQuantParams({{0},{0.0008506801095791161},{-inf},{inf}});
+    bias_c0->setQuantParams({{0},{0.09908168017864227},{0.0},{25.26582908630371}});
 
     std::vector<int64_t> weightsData1 = mv::utils::generateSequence<int64_t> (3*3*128*256);
-    auto weights1 = om.constantInt(weightsData1,{3,3,128,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{114},{0.0023650287184864283},{-0.2681608498096466},{0.33255642652511597}}, "model/re_lu_7/Relu#24_weights#25");    auto conv1 = om.conv(bias_c0, weights1, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.07538475096225739},{0.0},{19.223112106323242}}, "model/re_lu_7/Relu#87");
+    auto weights1 = om.constantInt("model/re_lu_7/Relu#24_weights#25", weightsData1,{3,3,128,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4));    auto conv1 = om.conv("model/re_lu_7/Relu#87", bias_c0, weights1, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    weights1->setQuantParams({{114},{0.0023650287184864283},{-0.2681608498096466},{0.33255642652511597}});
+    conv1->setQuantParams({{0},{0.07538475096225739},{0.0},{19.223112106323242}});
     std::vector<int64_t> biasWeightsData1 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights1 = om.constantInt(biasWeightsData1,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0002343310188734904},{-inf},{inf}}, "model/re_lu_7/Relu#24_bias#26");     auto bias_c1 = om.bias(conv1, biasWeights1, mv::DType("UInt8"), {{0},{0.07538475096225739},{0.0},{19.223112106323242}});
+    auto biasWeights1 = om.constantInt("model/re_lu_7/Relu#24_bias#26", biasWeightsData1,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1));     auto bias_c1 = om.bias("", conv1, biasWeights1);
+    biasWeights1->setQuantParams({{0},{0.0002343310188734904},{-inf},{inf}});
+    bias_c1->setQuantParams({{0},{0.0002343310188734904},{-inf},{inf}});
 
-    auto pool0 = om.maxPool(bias_c1, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.07538475096225739},{0.0},{19.223112106323242}}, "model/max_pooling2d_3/MaxPool#88");
+
+    auto pool0 = om.maxPool("model/max_pooling2d_3/MaxPool#88", bias_c1, {2, 2}, {2, 2}, {0, 0, 0, 0}, true);
+    pool0->setQuantParams({{0},{0.07538475096225739},{0.0},{19.223112106323242}});
     std::vector<int64_t> weightsData2 = mv::utils::generateSequence<int64_t> (3*3*256*512);
-    auto weights2 = om.constantInt(weightsData2,{3,3,256,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{73},{0.0030357716605067253},{-0.21838819980621338},{0.5526977777481079}}, "model/re_lu_8/Relu#28_weights#29");    auto conv2 = om.conv(pool0, weights2, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.0771605372428894},{0.0},{19.67593765258789}}, "model/re_lu_8/Relu#89");
+    auto weights2 = om.constantInt("model/re_lu_8/Relu#28_weights#29", weightsData2,{3,3,256,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4));    auto conv2 = om.conv("model/re_lu_8/Relu#89", pool0, weights2, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    weights2->setQuantParams({{73},{0.0030357716605067253},{-0.21838819980621338},{0.5526977777481079}});
+    conv2->setQuantParams({{0},{0.0771605372428894},{0.0},{19.67593765258789}});
     std::vector<int64_t> biasWeightsData2 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights2 = om.constantInt(biasWeightsData2,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00022885088401380926},{-inf},{inf}}, "model/re_lu_8/Relu#28_bias#30");    auto bias_c2 = om.bias(conv2, biasWeights2, mv::DType("UInt8"), {{0},{0.0771605372428894},{0.0},{19.67593765258789}});
+    auto biasWeights2 = om.constantInt("model/re_lu_8/Relu#28_bias#30", biasWeightsData2,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1));    auto bias_c2 = om.bias("", conv2, biasWeights2);
+    biasWeights2->setQuantParams({{0},{0.00022885088401380926},{-inf},{inf}});
+    bias_c2->setQuantParams({{0},{0.0771605372428894},{0.0},{19.67593765258789}});
 
-    om.output(bias_c2);
+    om.output("", bias_c2);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

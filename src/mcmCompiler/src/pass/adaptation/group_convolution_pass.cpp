@@ -63,15 +63,9 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
             mv::Shape weightsGroupBegin = {{0},{0},{0},{0}};
             std::vector< mv::Data::TensorIterator> convOutputs = {};
             mv::Data::TensorIterator biasTensor;
-            mv::QuantizationParams inputQuantParams = {{},{},{},{}};
-            mv::QuantizationParams outputQuantParams = {{},{},{},{}};
-            mv::QuantizationParams weightQuantParams = {{},{},{},{}};
-            if (inputTensor->hasAttr("quantParams"))
-                inputQuantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
-            if (weightTensor->hasAttr("quantParams"))
-                weightQuantParams = weightTensor->get<mv::QuantizationParams>("quantParams");
-            if (convOp->hasAttr("quantParams"))
-                outputQuantParams = convOp->get<mv::QuantizationParams>("quantParams");
+            mv::QuantizationParams inputQuantParams  = inputTensor->getQuantParams();
+            mv::QuantizationParams weightQuantParams = weightTensor->getQuantParams();
+            mv::QuantizationParams outputQuantParams = outputTensor->getQuantParams();
             if (convOp->hasAttr("bias"))
                 biasTensor = dm.getTensor(convOp->get<std::string>("bias"));
             for (unsigned branchId = 0; branchId < group; branchId++)
@@ -81,32 +75,33 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 std::string convName = convOp->getName() + sliceName;
                 std::string biasName = mv::createBiasName(convName + "bias");
                 groupBegin = {{0},{0},{branchId * inputGroupSize},{0}};
-                mv::Data::TensorIterator slice = om.slice(inputTensor,
-                                    groupBegin,
-                                    groupShape,
-                                    inputQuantParams,
-                                    sliceName);
+                auto slice = om.slice(sliceName,
+                                      inputTensor,
+                                      groupBegin,
+                                      groupShape);
+                slice->setQuantParams(inputQuantParams);
+
                 om.getSourceOp(slice)->set<unsigned>("opId", convOp->get<unsigned>("opId"));
 
                 weightsGroupBegin = {{0},{0},{0},{branchId * weightsGroupSize}};
 
-                mv::Data::TensorIterator weightsSlice = om.slice(weightTensor,
-                                    weightsGroupBegin,
-                                    weightsGroupShape,
-                                    weightQuantParams,
-                                    weightSliceName);
+                auto weightsSlice = om.slice(weightSliceName,
+                                             weightTensor,
+                                             weightsGroupBegin,
+                                             weightsGroupShape);
+                weightsSlice->setQuantParams(weightQuantParams);
 
                 om.getSourceOp(weightsSlice)->set<unsigned>("opId", om.getSourceOp(convOp->getInputTensor(1))->get<unsigned>("opId"));
 
-                mv::Data::TensorIterator newConvTensor = om.conv(slice,
-                                weightsSlice,
-                                convOp->get<std::array<unsigned short, 2>>("stride"),
-                                convOp->get("padding"),
-                                convOp->get<unsigned>("dilationFactor"),
-                                1,
-                                convOp->get<mv::DType>("dType"),
-                                outputQuantParams,
-                                convName);
+                auto newConvTensor = om.conv(convName,
+                                             slice,
+                                             weightsSlice,
+                                             convOp->get<std::array<unsigned short, 2>>("stride"),
+                                             convOp->get("padding"),
+                                             convOp->get<unsigned>("dilationFactor"),
+                                             1);
+                newConvTensor->setDType(convOp->getOutputTensor(0)->getDType());
+                newConvTensor->setQuantParams(outputQuantParams);
                 om.getSourceOp(newConvTensor)->set<unsigned>("opId", convOp->get<unsigned>("opId"));
                 auto sliceConvOp = om.getSourceOp(newConvTensor);
                 if (convOp->hasAttr("bias"))
@@ -122,11 +117,11 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 }
                 convOutputs.push_back(newConvTensor);
             }
-            auto concat = om.concat(convOutputs,
-                            "C",
-                            convOp->get<mv::DType>("dType"),
-                            outputQuantParams,
-                            convOp->getName() + "concat_");
+            auto concat = om.concat(convOp->getName() + "concat_",
+                            convOutputs,
+                            "C");
+            concat->setDType(convOp->getOutputTensor(0)->getDType());
+            concat->setQuantParams(outputQuantParams);
             om.getSourceOp(concat)->set<unsigned>("opId", convOp->get<unsigned>("opId"));
             for (auto sourceFlow = convOp.leftmostInput(); sourceFlow != om.flowEnd(); ++sourceFlow)
             {

@@ -754,8 +754,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
                 // 0 -> DATA_PTR
                 mv::Shape shape({WT_ELEMENTS_PER_CHANNEL, 1, 1, outputChannels});
                 std::vector<int64_t> weightsTableData(shape.totalSize(), 0);
-                mv::QuantizationParams quantParams = {{},{},{},{}};
-                auto weightTable = om.constantInt(weightsTableData, shape, mv::DType("Int32"), mv::Order("NHWC"), quantParams, kernelWeightsTableName);
+                auto weightTable = om.constantInt(kernelWeightsTableName, weightsTableData, shape, mv::DType("Int32"), mv::Order("NHWC"));
                 weightTable->set<bool>("weightTable", true);
                 om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
                 unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
@@ -790,8 +789,7 @@ static void generateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::Com
                     std::size_t alignedInstructions = mv::round_up(numberOfInstructions, 16);
                     mv::Shape shape({alignedInstructions, 1, 1, 1});
                     std::vector<int64_t> instructionListTableData(shape.totalSize(), 0);
-                    mv::QuantizationParams quantParams = {{},{},{},{}};
-                    auto instructionListTable = om.constantInt(instructionListTableData, shape, mv::DType("Int32"), mv::Order("NHWC"), quantParams, instructionListTableName);
+                    auto instructionListTable = om.constantInt(instructionListTableName, instructionListTableData, shape, mv::DType("Int32"), mv::Order("NHWC"));
                     instructionListTable->set<bool>("instructionListTable", true);
                     om.getSourceOp(instructionListTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
                     unsigned newSize = dpuTaskOp->addInputTensor(instructionListTable);

@@ -45,10 +45,6 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-
             // Axis is based off NCHW channel ordering, i.e. 0 = N, W=3
             // This is consistent with the TensorReference ordering of dimensions
             // 99 to signal nothing specified, since -3..3 including 0 are valid values
@@ -85,16 +81,10 @@ namespace mv
                 outputShape[3] = 1;
             }
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+            outputs.emplace_back(":0",  outputShape, inputs[0]->getDType(), inputs[0]->getOrder());
 
             //TODO, the second output is the indices, dtype is supposed to be unsigned int
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":1",  outputShape, dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":1",  outputShape, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+            outputs.emplace_back(":1",  outputShape, inputs[0]->getDType(), inputs[0]->getOrder());
         };
 
     }
@@ -108,8 +98,6 @@ namespace mv
         .setArg<std::string>("mode")
         .setArg<int64_t>("top_k")
         .setOptionalArg<int64_t>("axis", 99)
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_topk::inputCheckFcn)
         .setOutputDef(op_topk::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

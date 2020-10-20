@@ -25,15 +25,21 @@ int main()
     }
 
     // Input
-    auto input0 = om.input(inputShape, mv::DType("UInt8"), inputOrder, {{0},{1.0},{},{}}, "input0");
+    auto input0 = om.input("input0", inputShape, mv::DType("UInt8"), inputOrder);
+    input0->setQuantParams({{0},{1.0},{},{}});
 
     // Slices
     std::vector<mv::Data::TensorIterator> slices;
     std::vector<mv::Data::TensorIterator> maxpools;
     for (auto i=0; i<1; ++i)
     {
-        slices.push_back(om.slice(input0, beginShapes.at(i), outputShapes.at(i), {{0},{1.0},{},{}}, "slice" + std::to_string(i)));
-        maxpools.push_back(om.maxPool(slices.back(), {1,1}, {1,1}, {0,0,0,0}, true, mv::DType("UInt8"), {{0},{1.0},{},{}}, "identity_maxpool" + std::to_string(i)));
+        auto slice = om.slice("slice" + std::to_string(i), input0, beginShapes.at(i), outputShapes.at(i));
+        auto maxpool = om.maxPool("identity_maxpool" + std::to_string(i), slice, {1,1}, {1,1}, {0,0,0,0}, true);
+        slice->setQuantParams({{0},{1.0},{},{}});
+        maxpool->setQuantParams({{0},{1.0},{},{}});
+
+        slices.push_back(slice);
+        maxpools.push_back(maxpool);
     }
 
     // Concat
@@ -44,7 +50,7 @@ int main()
     //auto maxpool5 = om.maxPool(concat0, {1,1}, {1,1}, {0,0,0,0}, true, mv::DType("UInt8"), {{0},{1.0},{},{}}, "identity_maxpool5");
 
     // Output
-    auto output0 = om.output(maxpools.back());
+    auto output0 = om.output("", maxpools.back());
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

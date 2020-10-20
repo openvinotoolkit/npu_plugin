@@ -52,9 +52,7 @@ void alignSliceOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
         auto outputShape = output->getShape();
         auto outputName = op->getName();
         auto outputDType = output->getDType();
-        mv::QuantizationParams quantParams = {{},{},{},{}};
-        if(input->hasAttr("quantParams"))
-            quantParams = input->get<mv::QuantizationParams>("quantParams");
+        auto quantParams = input->getQuantParams();
 
         auto inputChannels = outputShape[mv::KERNEL_INPUT_CHANNELS];
         auto outputWidth = outputShape[mv::KERNEL_WIDTH];
@@ -69,11 +67,11 @@ void alignSliceOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
 
         mv::Shape newShape({weightSetDimensionPadded, 1, 1, outputChannels});
 
-        auto newSlice = om.slice(input,
+        auto newSlice = om.slice(op->getName() + "_Aligned",
+                                input,
                                 origBegin,
-                                newShape,
-                                quantParams,
-                                op->getName() + "_Aligned");
+                                newShape);
+        newSlice->setQuantParams(quantParams);
 
         std::string newOutputName = outputName;
         if(paddingDifference != 0)
@@ -107,7 +105,7 @@ void alignSliceOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
             flowPair.first->set<std::array<unsigned short, 2>>("kSize", {outputWidth, outputHeight});
             flowPair.first->set<unsigned>("inputChannels", inputChannels);
             flowPair.first->set<unsigned>("outputChannels", outputChannels);
-            flowPair.first->set<mv::QuantizationParams>("quantParams", quantParams);
+            flowPair.first->getOutputTensor(0)->setQuantParams(quantParams);
         }
     }
 }

@@ -180,6 +180,8 @@ namespace mv
         const Order& getInternalOrder() const;
         void setShape(const Shape& shape);
         void setAddress(int64_t address);
+        mv::QuantizationParams getQuantParams();
+        void setQuantParams(const mv::QuantizationParams& quantParams);
 
         void add(const Tensor& other);
         void add(double val);

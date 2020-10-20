@@ -8,10 +8,10 @@ int main()
     mv::CompilationUnit unit("ReshapeModel");
     mv::OpModel& om = unit.model();
 
-    auto input0 = om.input({1,1,40257,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input0");
+    auto input0 = om.input("input0", {1,1,40257,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
     mv::Shape new_shape({21,1,1917,1});
-    auto reshape0 = om.reshape(input0, new_shape, mv::DType("Float16"));
-    om.output(reshape0);
+    auto reshape0 = om.reshape("", input0, new_shape);
+    om.output("", reshape0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

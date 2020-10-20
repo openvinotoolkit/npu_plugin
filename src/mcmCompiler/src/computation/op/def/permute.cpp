@@ -45,11 +45,6 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-
             auto input = inputs[0];
             auto outputOrder = input->getOrder();
             auto old_order = input->getOrder();
@@ -79,11 +74,7 @@ namespace mv
             }
 
             // output tensor uses permuted shape with old order
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, old_order));
-            else
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, old_order, args.at("quantParams").get<mv::QuantizationParams>()));
-
+            outputs.emplace_back(":0", outputShape, inputs[0]->getDType(), old_order);
         };
 
     }
@@ -106,8 +97,6 @@ namespace mv
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::Order>("order")
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_permute::inputCheckFcn)
         .setOutputDef(op_permute::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

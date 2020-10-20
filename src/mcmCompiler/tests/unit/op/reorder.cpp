@@ -22,9 +22,9 @@ TEST(ops, reorder)
     constexpr int W = 320; // width
 
     mv::OpModel om("testModel");
-    auto input = om.input({W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto reorder = om.reorder(input, mv::Order("NCWH")); // rename W and H dims
-    auto output = om.output(reorder);
+    auto input = om.input("", {W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto reorder = om.reorder("", input, mv::Order("NCWH")); // rename W and H dims
+    auto output = om.output("", reorder);
 
     auto reorderOp = om.getSourceOp(reorder);
 
@@ -33,7 +33,7 @@ TEST(ops, reorder)
     ASSERT_EQ(reorder->attrsCount(), 6);
 
     ASSERT_EQ(reorderOp->getOpType(), "Reorder");
-    ASSERT_EQ(reorderOp->attrsCount(), 3);
+    ASSERT_EQ(reorderOp->attrsCount(), 2);
     ASSERT_EQ(reorderOp->inputSlots(), 1);
     ASSERT_EQ(reorderOp->outputSlots(), 1);
     ASSERT_TRUE(reorderOp->hasTypeTrait("executable"));

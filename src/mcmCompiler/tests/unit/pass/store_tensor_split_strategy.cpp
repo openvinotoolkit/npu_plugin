@@ -7,12 +7,12 @@ TEST(store_split_strategy, parse_strategy)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"), {{}, {}, {}, {}}, "input");
+    auto input = om.input("input", {28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
-    auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"), {{}, {}, {}, {}}, "weights1");
-    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1}, 1, 1, {{}, {}, {}, {}}, "conv1"); // one barrier
+    auto weights1 = om.constant("weights1", weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv1 = om.conv("conv1", input, weights1, {1, 1}, {1, 1, 1, 1}, 1, 1); // one barrier
 
-    om.output(conv1); // one barrier for DMA out from CMX to DDR
+    om.output("", conv1); // one barrier for DMA out from CMX to DDR
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);

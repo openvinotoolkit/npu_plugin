@@ -20,19 +20,10 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-
             auto outputOrder = inputs[0]->getOrder();
             auto outputShape = args.at("shape").get<mv::Shape>();
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, outputOrder));
-            else
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, outputOrder, args.at("quantParams").get<mv::QuantizationParams>()));
-
+            outputs.emplace_back(":0", outputShape, inputs[0]->getDType(), outputOrder);
         };
 
         static std::string empty;
@@ -45,8 +36,6 @@ namespace mv
         .setInputs({"inputs"})
         .setOutputs({"output"})
         .setArg<mv::Shape>("shape")
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_implicit_permute::inputCheckFcn)
         .setOutputDef(op_implicit_permute::outputDefFcn);
 

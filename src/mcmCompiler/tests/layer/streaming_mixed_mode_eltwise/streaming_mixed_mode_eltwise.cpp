@@ -17,7 +17,8 @@ int main()
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     //input full of 0.5
-    const auto data_0 = model.input({64, 64, 512, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{0.00196078431372549},{-inf},{inf},{0},{1}}, "data");
+    const auto data_0 = model.input("data", {64, 64, 512, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
+    data_0->setQuantParams({{0},{0.00196078431372549},{-inf},{inf},{0},{1}});
 
     //Weights i take 0.8 and split it to 16 channels 16 values. First channels full of 0.8/16 and so on...
     std::vector<int64_t> weightsData = {};
@@ -54,10 +55,12 @@ int main()
     weightsData.insert( weightsData.end(), weightsData14.begin(), weightsData14.end() );
     weightsData.insert( weightsData.end(), weightsData15.begin(), weightsData15.end() );
 
-    auto weights0 = model.constantInt(weightsData,{3,3,512,16}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.0031372549019607846},{},{}});
-    auto conv0 = model.conv(data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{1},{-inf},{inf},{0},{1}} , "conv");
+    auto weights0 = model.constantInt("", weightsData, {3,3,512,16}, mv::DType("UInt8"), mv::Order("NCHW"));
+    weights0->setQuantParams({{0},{0.0031372549019607846},{},{}});
+    auto conv0 = model.conv("conv", data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    conv0->setQuantParams({{0},{1},{-inf},{inf},{0},{1}});
 
-    model.output(conv0, mv::DType("Float16"), {{},{},{},{}});
+    model.output("", conv0, mv::DType("Float16"));
     unit.initialize();
     unit.run();
 }

@@ -44,17 +44,20 @@ int main()
     for(unsigned i = 0; i < imInfoData.size(); ++i)
         imInfoData_converted[i] = imInfoData[i];
 
-    auto cls_pred = om.input({14,14,18,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "cls_pred0");
-    auto weights = om.constantInt(weightsData_converted, {14, 14, 36, 1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "weights");
-    auto im_info = om.constantInt(imInfoData_converted, {1,4,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "im_info0");
+    auto cls_pred = om.input("cls_pred0", {14,14,18,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
+    auto weights = om.constantInt("weights", weightsData_converted, {14, 14, 36, 1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
+    auto im_info = om.constantInt("im_info0" ,imInfoData_converted, {1,4,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
+    cls_pred->setQuantParams({{0},{1.0},{},{}});
+    weights->setQuantParams({{0},{1.0},{},{}});
+    im_info->setQuantParams({{0},{1.0},{},{}});
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;
     inputs.push_back(cls_pred);
     inputs.push_back(weights);
     inputs.push_back(im_info);
     // Build Model
-    auto proposal = om.proposal(inputs, scale, ratio, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride, min_size, pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale, framework, for_deformable, mv::DType("Float16"));
-    om.output(proposal);
+    auto proposal = om.proposal("", inputs, scale, ratio, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride, min_size, pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale, framework, for_deformable);
+    om.output("", proposal);
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");

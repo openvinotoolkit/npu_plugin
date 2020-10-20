@@ -44,21 +44,23 @@ int main()
     for(unsigned i = 0; i < proposalsData.size(); ++i)
         proposalsData_converted[i] = proposalsData[i];
     // Define tensors
-    auto bbox_pred = om.constantInt(bboxPredData_converted, {34928,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "bbox_pred0");
-    auto cls_pred = om.input({183372,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "cls_pred0");
-    auto proposals = om.constantInt(proposalsData_converted, {34928,2,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "proposals");
+    auto bbox_pred = om.constantInt("bbox_pred0", bboxPredData_converted, {34928,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
+    auto cls_pred = om.input("cls_pred0", {183372,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
+    auto proposals = om.constantInt("proposals", proposalsData_converted, {34928,2,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
+    bbox_pred->setQuantParams({{0},{1.0},{},{}});
+    cls_pred->setQuantParams({{0},{1.0},{},{}});
+    proposals->setQuantParams({{0},{1.0},{},{}});
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;
     inputs.push_back(bbox_pred);
     inputs.push_back(cls_pred);
     inputs.push_back(proposals);
-    auto dtype = mv::DType("Float16");
-    auto quantParams = mv::QuantizationParams({{128},{0.007843137718737125},{-1.0},{1.0}});
     // Build Model
-    auto detection0 = om.detectionOutput(inputs, num_classes, keep_top_k, nms_threshold, background_label_id, top_k, variance_encoded_in_target,
+    auto detection0 = om.detectionOutput("detection_output", inputs, num_classes, keep_top_k, nms_threshold, background_label_id, top_k, variance_encoded_in_target,
                                                                          code_type, share_location, confidence_threshold, clip_before_nms, clip_after_nms,
-                                                                         decrease_label_id, normalized, input_height, input_width, objectness_score, dtype, quantParams, "detection_output");
-    om.output(detection0);
+                                                                         decrease_label_id, normalized, input_height, input_width, objectness_score);
+    detection0->setQuantParams({{128},{0.007843137718737125},{-1.0},{1.0}});
+    om.output("", detection0);
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
