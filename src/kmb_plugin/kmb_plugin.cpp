@@ -82,9 +82,8 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
     }
 }
 
-QueryNetworkResult Engine::QueryNetwork(
-    const ICNNNetwork& network, const std::map<std::string, std::string>& config) const {
-    QueryNetworkResult res;
+void Engine::QueryNetwork(
+    const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
     if (network.getFunction()) {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported nativelly";
     }
@@ -99,8 +98,6 @@ QueryNetworkResult Engine::QueryNetwork(
     for (auto&& layerName : layerNames) {
         res.supportedLayersMap.insert({layerName, GetName()});
     }
-
-    return res;
 }
 
 Engine::Engine()
@@ -112,7 +109,7 @@ Engine::Engine()
     _parsedConfig.expandSupportedOptions(_compiler->getSupportedOptions());
 }
 
-InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
+IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ImportNetwork");
     std::ifstream blobStream(modelFileName, std::ios::binary);

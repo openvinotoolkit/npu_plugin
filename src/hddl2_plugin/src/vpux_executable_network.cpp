@@ -159,7 +159,7 @@ IE::InferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(
     return std::make_shared<InferRequest>(networkInputs, networkOutputs, inferExecutor, _config);
 }
 
-InferenceEngine::IInferRequest::Ptr ExecutableNetwork::CreateInferRequest() {
+void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) {
     auto inferExecutor = getExecutorForInference(_executorPtr);
     auto syncRequestImpl = std::make_shared<InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config);
 
@@ -170,15 +170,12 @@ InferenceEngine::IInferRequest::Ptr ExecutableNetwork::CreateInferRequest() {
 
     auto asyncThreadSafeImpl =
         std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, resultExecutor, _callbackExecutor);
-
-    InferenceEngine::IInferRequest::Ptr asyncRequest;
     asyncRequest.reset(
         new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(asyncThreadSafeImpl),
         [](InferenceEngine::IInferRequest* p) {
             p->Release();
         });
     asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
-    return asyncRequest;
 }
 
 //------------------------------------------------------------------------------
@@ -199,20 +196,19 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
     }
 }
 
-IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
+void ExecutableNetwork::GetMetric(
+    const std::string& name, InferenceEngine::Parameter& result, InferenceEngine::ResponseDesc*) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
         if (_networkPtr != nullptr) {
-            IE_SET_METRIC_RETURN(NETWORK_NAME, _networkPtr->getName());
+            result = IE_SET_METRIC(NETWORK_NAME, _networkPtr->getName());
         } else {
             THROW_IE_EXCEPTION << "GetMetric: network is not initialized";
         }
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(8u));
+        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(8u));
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
-
-    return {};
 }
 
 }  // namespace vpux

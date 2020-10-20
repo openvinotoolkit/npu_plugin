@@ -99,7 +99,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
 //------------------------------------------------------------------------------
 //      Import network
 //------------------------------------------------------------------------------
-IE::ExecutableNetwork Engine::ImportNetwork(
+IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
     std::ifstream blobStream(modelFileName, std::ios::binary);
     return ImportNetworkImpl(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
@@ -133,12 +133,12 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
     }
 }
 
-IE::QueryNetworkResult Engine::QueryNetwork(
-    const IE::ICNNNetwork& network, const std::map<std::string, std::string>& config) const {
+void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
+    InferenceEngine::QueryNetworkResult& res) const {
     UNUSED(network);
     UNUSED(config);
+    UNUSED(res);
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED;
-    return {};
 }
 
 RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
