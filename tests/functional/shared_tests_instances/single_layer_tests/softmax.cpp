@@ -25,7 +25,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16,
 };
 
 const std::vector<InferenceEngine::Layout> inputLayouts2D = {
@@ -34,8 +34,11 @@ const std::vector<InferenceEngine::Layout> inputLayouts2D = {
 
 const std::vector<InferenceEngine::SizeVector> inputShapes2D = {
     InferenceEngine::SizeVector {1, 100},
-    InferenceEngine::SizeVector {100, 1},
-    InferenceEngine::SizeVector {10, 10},
+    InferenceEngine::SizeVector {1, 20},
+    InferenceEngine::SizeVector {1, 200},
+    // TODO: [Track number: C#40910]
+    // InferenceEngine::SizeVector {100, 1},
+    // InferenceEngine::SizeVector {10, 10},
 };
 
 const std::vector<size_t> axis2D = {
@@ -44,8 +47,8 @@ const std::vector<size_t> axis2D = {
 
 const auto params2D = testing::Combine(
     testing::ValuesIn(netPrecisions),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    testing::Values(InferenceEngine::Precision::FP16),
+    testing::Values(InferenceEngine::Precision::FP16),
     testing::ValuesIn(inputLayouts2D),
     testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes2D),
@@ -64,15 +67,16 @@ INSTANTIATE_TEST_CASE_P(
 const std::vector<InferenceEngine::SizeVector> inputShapes4D = {
     InferenceEngine::SizeVector {1, 100, 1, 1},
     InferenceEngine::SizeVector {1, 3, 4, 3},
-    InferenceEngine::SizeVector {2, 3, 4, 5},
+    // TODO: [Track number: C#40910]
+    // InferenceEngine::SizeVector {2, 3, 4, 5},
 };
 
 const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
 const auto params4D = testing::Combine(
     testing::ValuesIn(netPrecisions),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    testing::Values(InferenceEngine::Precision::FP16),
+    testing::Values(InferenceEngine::Precision::FP16),
     testing::Values(InferenceEngine::Layout::NCHW),
     testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes4D),

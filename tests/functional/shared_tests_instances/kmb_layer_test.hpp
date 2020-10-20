@@ -28,6 +28,7 @@ protected:
     void ExportNetwork();
 
     void Validate() override;
+    void Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;
     std::vector<std::vector<std::uint8_t>> CalculateRefs() override;
 };
 
