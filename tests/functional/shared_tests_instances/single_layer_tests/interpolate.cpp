@@ -131,7 +131,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Interpolate_Basic, KmbInterpolateLayerTes
     ::testing::Values(InferenceEngine::Layout::ANY),
     ::testing::ValuesIn(inShapes),
     ::testing::ValuesIn(targetShapes),
-    ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbInterpolateLayerTest::getTestCaseName);
 
 // Tests are disabled due to error:
@@ -148,7 +148,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Interpolate_Nearest, KmbInterpolateLayerT
     ::testing::Values(InferenceEngine::Layout::ANY),
     ::testing::ValuesIn(inShapes),
     ::testing::ValuesIn(targetShapes),
-    ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbInterpolateLayerTest::getTestCaseName);
 
 } // namespace

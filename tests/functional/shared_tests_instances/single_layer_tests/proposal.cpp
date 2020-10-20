@@ -62,7 +62,7 @@ const auto proposalParams = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Proposal_tests, KmbProposalLayerTest,
                         ::testing::Combine(
                             proposalParams,
-                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbProposalLayerTest::getTestCaseName
 );
 

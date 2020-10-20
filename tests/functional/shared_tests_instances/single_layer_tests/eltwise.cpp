@@ -65,7 +65,7 @@ const auto multiply_params = ::testing::Combine(
     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     ::testing::Values(InferenceEngine::Layout::ANY),
-    ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
     ::testing::Values(additional_config));
 
 // Test works only when input/outpu layouts are NHWC. There are two such tests:
@@ -110,7 +110,7 @@ const auto multiply_params_pass_mcm = ::testing::Combine(
     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     ::testing::Values(InferenceEngine::Layout::ANY),
-    ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
     ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_pass_mcm, KmbEltwiseLayerTest, multiply_params_pass_mcm,

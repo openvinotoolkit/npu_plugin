@@ -55,7 +55,7 @@ const auto MvnCases = ::testing::Combine(
     ::testing::ValuesIn(acrossChannels),
     ::testing::ValuesIn(normalizeVariance),
     ::testing::ValuesIn(epsilon),
-    ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
 // Tests fail with errors:
