@@ -24,19 +24,25 @@ int main()
     std::vector<int64_t> biasWeightsData0 = mv::utils::readWeightsFromFile<int64_t>(bias_filename);
 
     // Input
-    auto input0 = om.input({1,1,184,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#20");
+    auto input0 = om.input("input#20", {1,1,184,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    input0->setQuantParams({{128},{0.007843137718737125},{-1.0},{1.0}});
 
     // FC
-    auto weights0 = om.constantInt(weightsData0,{184,128}, mv::DType("UInt8"), mv::Order("WC"), {{128},{0.001087399199604988},{-0.13866370916366577},{0.13862307369709015}}, "fully_connected/BiasAdd_weights#1");
-    auto fc0 = om.fullyConnected(input0, weights0, mv::DType("UInt8"), {{128},{0.0470588244497776},{-6.023529529571533},{5.976470470428467}}, "fully_connected/BiasAdd#21");
-    auto biasWeights0 = om.constantInt(biasWeightsData0,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{8.528621037839912e-06},{},{}}, "fully_connected/BiasAdd_bias#2");
-    auto bias_i0 = om.bias(fc0, biasWeights0, mv::DType("UInt8"), {{128},{0.0470588244497776},{-6.023529529571533},{5.976470470428467}});
+    auto weights0 = om.constantInt("fully_connected/BiasAdd_weights#1", weightsData0,{184,128}, mv::DType("UInt8"), mv::Order("WC"));
+    auto fc0 = om.fullyConnected("fully_connected/BiasAdd#21", input0, weights0);
+    auto biasWeights0 = om.constantInt("fully_connected/BiasAdd_bias#2", biasWeightsData0,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+    auto bias_i0 = om.bias("", fc0, biasWeights0);
+    weights0->setQuantParams({{128},{0.001087399199604988},{-0.13866370916366577},{0.13862307369709015}});
+    fc0->setQuantParams({{128},{0.0470588244497776},{-6.023529529571533},{5.976470470428467}});
+    biasWeights0->setQuantParams({{0},{8.528621037839912e-06},{},{}});
+    bias_i0->setQuantParams({{128},{0.0470588244497776},{-6.023529529571533},{5.976470470428467}});
 
     // Sigmoid
-    auto sigmoid0 = om.sigmoid(bias_i0, mv::DType("UInt8"), {{0},{0.00390625},{0.0},{0.99609375}}, "fully_connected/Sigmoid#22");
+    auto sigmoid0 = om.sigmoid("fully_connected/Sigmoid#22", bias_i0);
+    sigmoid0->setQuantParams({{0},{0.00390625},{0.0},{0.99609375}});
 
     // Output
-    om.output(sigmoid0);
+    om.output("", sigmoid0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

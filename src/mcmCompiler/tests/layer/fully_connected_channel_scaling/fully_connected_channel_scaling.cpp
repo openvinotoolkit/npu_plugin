@@ -7,7 +7,8 @@ int main()
     mv::CompilationUnit unit("FullyConnectedChannelScalingModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({1, 1, 16, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}});
+    auto input = om.input("", {1, 1, 16, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    input->setQuantParams({{0},{1.0},{},{}});
 
     // per channel scale
     const std::vector<int64_t> zp(100, 0);
@@ -25,9 +26,11 @@ int main()
     }
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(input->getShape()[2] * 100u, 1, 0);
-    auto weights1 = om.constantInt(weightsData, {input->getShape()[2], 100}, mv::DType("UInt8"), mv::Order::getColMajorID(2), {{0},{scale},{},{}});
-    auto fullyConnected = om.fullyConnected(input, weights1, mv::DType("UInt8"), {{0},{1.0},{},{}});
-    auto output = om.output(fullyConnected);
+    auto weights1 = om.constantInt("", weightsData, {input->getShape()[2], 100}, mv::DType("UInt8"), mv::Order::getColMajorID(2));
+    weights1->setQuantParams({{0},{scale},{},{}});
+    auto fullyConnected = om.fullyConnected("", input, weights1);
+    fullyConnected->setQuantParams({{0},{1.0},{},{}});
+    auto output = om.output("", fullyConnected);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

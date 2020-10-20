@@ -14,18 +14,23 @@ TEST(quantization, case_conv)
     //Test based on res2a_branch2a/quantized_model.tflite modeil in POC
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
-    auto input0 = om.input({56,56,64,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#3");
+    auto input0 = om.input("input#3", {56,56,64,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    input0->setQuantParams({{128},{0.007843137718737125},{-1.0},{1.0}});
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(64*64);
-    auto weights0 = om.constantInt(weightsData,{1,1,64,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{117},{0.002597350161522627},{-0.3044497072696686},{0.3578746020793915}}, "res2a_branch2a_weights#1");
+    auto weights0 = om.constantInt("res2a_branch2a_weights#1", weightsData, {1,1,64,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
     //    weights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
-    auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1, {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "res2a_branch2a#4");
+    auto conv0 = om.conv("res2a_branch2a#4", input0, weights0,{1, 1}, {0, 0, 0, 0}, 1, 1);
+    weights0->setQuantParams({{117},{0.002597350161522627},{-0.3044497072696686},{0.3578746020793915}});
+    conv0->setQuantParams({{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
 
     std::vector<int64_t> biasWeightsData0 = {000,-1702,000,000,000,16226,7740,14930,000,000,2931,-4815,000,000,3235,000,15412,7743,5898,3870,000,000,11536,000,-9447,-6232,-3706,14845,-4487,-3621,17741,1963,-9524,5490,000,000,000,000,-4179,000,000,16772,5611,000,000,000,-2581,693,000,8228,000,9119,000,-26908,12922,4479,000,-10064,000,000,000,7896,1087,2877};
-    auto biasWeights0 = om.constantInt(biasWeightsData0,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{2.0371373466332443e-05},{-inf},{inf}}, "res2a_branch2a_bias#2");
-    auto bias_c0 = om.bias(conv0, biasWeights0, {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
+    auto biasWeights0 = om.constantInt("res2a_branch2a_bias#2", biasWeightsData0, {64}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+    auto bias_c0 = om.bias("", conv0, biasWeights0);
+    biasWeights0->setQuantParams({{0},{2.0371373466332443e-05},{-inf},{inf}});
+    bias_c0->setQuantParams({{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
 
-    om.output(bias_c0);
+    om.output("", bias_c0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);

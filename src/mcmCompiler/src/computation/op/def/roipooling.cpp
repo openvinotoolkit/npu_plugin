@@ -38,16 +38,8 @@ namespace mv
             auto C =  inputShape[IO_CHANNEL_DIMENSION];
             auto N = args.at("num_rois").get<unsigned>();
 
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = input->getDType();
-
             mv::Shape outputShape({W, H, C, N});;
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, outputOrder));
-            else
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, outputOrder, args.at("quantParams").get<mv::QuantizationParams>()));
-
+            outputs.emplace_back(":0", outputShape, input->getDType(), outputOrder);
         };
     }
     namespace op
@@ -60,8 +52,6 @@ namespace mv
         .setArg<double>("spatial_scale")
         .setArg<unsigned>("roi_pooling_method")
         .setArg<unsigned>("num_rois")
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_roi_pooling::inputCheckFcn)
         .setOutputDef(op_roi_pooling::outputDefFcn)
         .setTypeTrait({"executable", "exposed"})

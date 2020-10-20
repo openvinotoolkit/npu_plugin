@@ -54,49 +54,70 @@ class CMX_Concatenation_Test : public ::testing::Test {
       double inf = std::numeric_limits<double>::infinity();
 
       ////////////////////////////[MODEL BEGIN] ////////////////////////////////
-      auto input0 = om.input({227,227,3,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{1.0},{-128.0},{127.0}}, "true, input#89");
+      auto input0 = om.input("input#89", {227,227,3,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), true);
+      input0->setQuantParams({{128},{1.0},{-128.0},{127.0}});
 
       std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (3*3*3*64);
-      auto weights0 = om.constantInt(weightsData0,{3,3,3,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{130},{0.006698549259454012},{-0.8641261458396912},{0.8373053669929504}}, "conv1/Relu#0_weights#1");
-      auto conv0 = om.conv(input0, weights0, {2, 2}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{3.6097023487091064},{0.0},{920.47412109375}}, "conv1/Relu#90");
+      auto weights0 = om.constantInt("conv1/Relu#0_weights#1", weightsData0,{3,3,3,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+      auto conv0 = om.conv("conv1/Relu#90", input0, weights0, {2, 2}, {0, 0, 0, 0}, 1, 1);
+      weights0->setQuantParams({{130},{0.006698549259454012},{-0.8641261458396912},{0.8373053669929504}});
+      conv0->setQuantParams({{0},{3.6097023487091064},{0.0},{920.47412109375}});
 
       std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (64);
-      auto biasWeights0 = om.constantInt(biasWeightsData0,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.006698549259454012},{-inf},{inf}}, "conv1/Relu#0_bias#2");
-      auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{3.6097023487091064},{0.0},{920.47412109375}});
+      auto biasWeights0 = om.constantInt("conv1/Relu#0_bias#2", biasWeightsData0,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+      auto bias_c0 = om.bias("", conv0, biasWeights0);
+      biasWeights0->setQuantParams({{0},{0.006698549259454012},{-inf},{inf}});
+      bias_c0->setQuantParams({{0},{3.6097023487091064},{0.0},{920.47412109375}});
 
-
-      auto pool0 = om.maxPool(bias_c0, {3, 3}, {2, 2}, {0, 0, 0, 0}, false, mv::DType("UInt8"), {{0},{3.6097023487091064},{0.0},{920.47412109375}}, "pool1/MaxPool#91");
+      auto pool0 = om.maxPool("pool1/MaxPool#91", bias_c0, {3, 3}, {2, 2}, {0, 0, 0, 0}, false);
+      pool0->setQuantParams({{0},{3.6097023487091064},{0.0},{920.47412109375}});
 
       std::vector<int64_t> weightsData1 = mv::utils::generateSequence<int64_t> (1*1*64*16);
-      auto weights1 = om.constantInt(weightsData1,{1,1,64,16}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{135},{0.0099817318841815},{-1.337534785270691},{1.1978250741958618}}, "fire2/squeeze1x1/Relu#4_weights#5");
-      auto conv1 = om.conv(pool0, weights1, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{7.038242816925049},{0.0},{1794.751953125}}, "fire2/squeeze1x1/Relu#92");
+      auto weights1 = om.constantInt("fire2/squeeze1x1/Relu#4_weights#5", weightsData1,{1,1,64,16}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+      auto conv1 = om.conv("fire2/squeeze1x1/Relu#92", pool0, weights1, {1, 1}, {0, 0, 0, 0}, 1, 1);
+      weights1->setQuantParams({{135},{0.0099817318841815},{-1.337534785270691},{1.1978250741958618}});
+      conv1->setQuantParams({{0},{7.038242816925049},{0.0},{1794.751953125}});
 
       std::vector<int64_t> biasWeightsData1 = mv::utils::generateSequence<int64_t> (16);
-      auto biasWeights1 = om.constantInt(biasWeightsData1,{16}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0360310822725296},{-inf},{inf}}, "fire2/squeeze1x1/Relu#4_bias#6");
-      auto bias_c1 = om.bias(conv1, biasWeights1, mv::DType("UInt8"), {{0},{7.038242816925049},{0.0},{1794.751953125}});
+      auto biasWeights1 = om.constantInt("fire2/squeeze1x1/Relu#4_bias#6", biasWeightsData1,{16}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+      auto bias_c1 = om.bias("", conv1, biasWeights1);
+      biasWeights1->setQuantParams({{0},{0.0360310822725296},{-inf},{inf}});
+      bias_c1->setQuantParams({{0},{7.038242816925049},{0.0},{1794.751953125}});
 
       std::vector<int64_t> weightsData2 = mv::utils::generateSequence<int64_t> (1*1*16*64);
-      auto weights2 = om.constantInt(weightsData2,{1,1,16,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{115},{0.006223201286047697},{-0.709420919418335},{0.8712722659111023}}, "fire2/expand1x1/Relu#7_weights#8");
-      auto conv2 = om.conv(bias_c1, weights2, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{5.427421569824219},{0.0},{1383.9925537109375}}, "fire2/expand1x1/Relu#93");
+      auto weights2 = om.constantInt("fire2/expand1x1/Relu#7_weights#8", weightsData2,{1,1,16,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+      auto conv2 = om.conv("fire2/expand1x1/Relu#93", bias_c1, weights2, {1, 1}, {0, 0, 0, 0}, 1, 1);
+      weights2->setQuantParams({{115},{0.006223201286047697},{-0.709420919418335},{0.8712722659111023}});
+      conv2->setQuantParams({{0},{5.427421569824219},{0.0},{1383.9925537109375}});
 
       std::vector<int64_t> biasWeightsData2 = mv::utils::generateSequence<int64_t> (64);
-      auto biasWeights2 = om.constantInt(biasWeightsData2,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.04380040243268013},{-inf},{inf}}, "fire2/expand1x1/Relu#7_bias#9");
-      auto bias_c2 = om.bias(conv2, biasWeights2, mv::DType("UInt8"), {{0},{5.427421569824219},{0.0},{1383.9925537109375}});
+      auto biasWeights2 = om.constantInt("fire2/expand1x1/Relu#7_bias#9", biasWeightsData2,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+      auto bias_c2 = om.bias("", conv2, biasWeights2);
+      biasWeights2->setQuantParams({{0},{0.04380040243268013},{-inf},{inf}});
+      bias_c2->setQuantParams({{0},{5.427421569824219},{0.0},{1383.9925537109375}});
 
       std::vector<int64_t> weightsData3 = mv::utils::generateSequence<int64_t> (3*3*16*64);
-      auto weights3 = om.constantInt(weightsData3,{3,3,16,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{135},{0.005374675616621971},{-0.7201219797134399},{0.6450456380844116}}, "fire2/expand3x3/Relu#10_weights#11");
-      auto conv3 = om.conv(bias_c1, weights3, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{5.427421569824219},{0.0},{1383.9925537109375}}, "fire2/expand3x3/Relu#94");
+      auto weights3 = om.constantInt("fire2/expand3x3/Relu#10_weights#11", weightsData3,{3,3,16,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+      auto conv3 = om.conv("fire2/expand3x3/Relu#94", bias_c1, weights3, {1, 1}, {1, 1, 1, 1}, 1, 1);
+      weights3->setQuantParams({{135},{0.005374675616621971},{-0.7201219797134399},{0.6450456380844116}});
+      conv3->setQuantParams({{0},{5.427421569824219},{0.0},{1383.9925537109375}});
 
       std::vector<int64_t> biasWeightsData3 = mv::utils::generateSequence<int64_t> (64);
-      auto biasWeights3 = om.constantInt(biasWeightsData3,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.03782827407121658},{-inf},{inf}}, "fire2/expand3x3/Relu#10_bias#12");
-      auto bias_c3 = om.bias(conv3, biasWeights3, mv::DType("UInt8"), {{0},{5.427421569824219},{0.0},{1383.9925537109375}});
+      auto biasWeights3 = om.constantInt("fire2/expand3x3/Relu#10_bias#12", biasWeightsData3,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+      auto bias_c3 = om.bias("", conv3, biasWeights3);
+      biasWeights3->setQuantParams({{0},{0.03782827407121658},{-inf},{inf}});
+      bias_c3->setQuantParams({{0},{5.427421569824219},{0.0},{1383.9925537109375}});
 
-      auto concat0 = om.concat({bias_c2, bias_c3}, "C", mv::DType("UInt8"), {{0},{5.427421569824219},{0.0},{1383.9925537109375}}, "concat#95");
+      auto concat0 = om.concat("concat#95", {bias_c2, bias_c3}, "C");
+      concat0->setQuantParams({{0},{5.427421569824219},{0.0},{1383.9925537109375}});
 
       std::vector<int64_t> weightsData4 = mv::utils::generateSequence<int64_t> (1*1*128*16);
-      auto weights4 = om.constantInt(weightsData4,{1,1,128,16}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{136},{0.00555797666311264},{-0.7503653168678284},{0.6613607406616211}}, "fire3/squeeze1x1/Relu#14_weights#15");
-      auto conv4 = om.conv(concat0, weights4, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{6.281661510467529},{0.0},{1601.82373046875}}, "fire3/squeeze1x1/Relu#96");
-      om.output(conv4);
+      auto weights4 = om.constantInt("fire3/squeeze1x1/Relu#14_weights#15", weightsData4,{1,1,128,16}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+      auto conv4 = om.conv("fire3/squeeze1x1/Relu#96", concat0, weights4, {1, 1}, {0, 0, 0, 0}, 1, 1);
+      weights4->setQuantParams({{136},{0.00555797666311264},{-0.7503653168678284},{0.6613607406616211}});
+      conv4->setQuantParams({{0},{6.281661510467529},{0.0},{1601.82373046875}});
+
+      om.output("", conv4);
       ////////////////////////////[MODEL END] //////////////////////////////////
 
       mv::GenerateDotFromModel(om, "OpModel", "input_opmodel_orig.dot");

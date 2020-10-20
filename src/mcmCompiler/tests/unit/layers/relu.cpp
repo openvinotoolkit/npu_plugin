@@ -57,16 +57,16 @@ TEST_P(layers_relu, dump_blob)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input(shape, dtype, order);
+    auto input = om.input("", shape, dtype, order);
 
     mv::Data::TensorIterator layer;
     switch (func)
     {
         case ReLU:
-            layer = om.relu(input);
+            layer = om.relu("", input);
             break;
         case LeakyReLU:
-            layer = om.leakyRelu(input, slope);
+            layer = om.leakyRelu("", input, slope);
             break;
         case PReLU:
             {
@@ -82,15 +82,15 @@ TEST_P(layers_relu, dump_blob)
                 if (dtype == mv::DType("Float16"))
                 {
                     auto data = clone_vec(static_cast<double>(slope), c);
-                    slope_tensor = om.constant(data, {c}, dtype, mv::Order("C"));
+                    slope_tensor = om.constant("", data, {c}, dtype, mv::Order("C"));
                 }
                 else
                 {
                     auto data = clone_vec(static_cast<int64_t>(slope), c);
-                    slope_tensor = om.constantInt(data, {c}, dtype, mv::Order("C"));
+                    slope_tensor = om.constantInt("", data, {c}, dtype, mv::Order("C"));
                 }
 
-                layer = om.prelu(input, slope_tensor);
+                layer = om.prelu("", input, slope_tensor);
             }
             break;
         default:
@@ -99,7 +99,7 @@ TEST_P(layers_relu, dump_blob)
 
     auto layerOp = om.getSourceOp(layer);
 
-    auto output = om.output(layer);
+    auto output = om.output("", layer);
 
     ASSERT_TRUE(om.isValid(layer));
     ASSERT_TRUE(om.isValid(layerOp));

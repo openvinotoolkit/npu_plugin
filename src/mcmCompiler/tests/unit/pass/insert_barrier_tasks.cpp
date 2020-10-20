@@ -7,12 +7,12 @@ TEST(insert_barrier_tasks, serial_path)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input("", {28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
-    auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1}); // one barrier
+    auto weights1 = om.constant("", weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv1 = om.conv("", input, weights1, {1, 1}, {1, 1, 1, 1}); // one barrier
 
-    om.output(conv1); // one barrier for DMA out from CMX to DDR
+    om.output("", conv1); // one barrier for DMA out from CMX to DDR
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -37,17 +37,17 @@ TEST(insert_barrier_tasks, parallel_paths)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input("", {64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*1*1);
-    auto weight0 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto weight2 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv0 = om.conv(input, weight0, {1, 1}, {0, 0, 0, 0}); // one barrier, #0
-    auto conv1 = om.conv(input, weight0, {1, 1}, {0, 0, 0, 0}); // REUSE barrier 0
-    auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
+    auto weight0 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight2 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv0 = om.conv("", input, weight0, {1, 1}, {0, 0, 0, 0}); // one barrier, #0
+    auto conv1 = om.conv("", input, weight0, {1, 1}, {0, 0, 0, 0}); // REUSE barrier 0
+    auto conv2 = om.conv("", conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
 
-    auto add1 = om.add({conv2, conv1});   // one barrier, #2
+    auto add1 = om.eltwise("", {conv2, conv1}, "Add");   // one barrier, #2
 
-    om.output(add1); // one barrier for DMA out from CMX to DDR, #3
+    om.output("", add1); // one barrier for DMA out from CMX to DDR, #3
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -115,19 +115,19 @@ TEST(insert_barrier_tasks, single_control_edge)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input("", {64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*1*1);
-    auto weight0 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto weight1 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto weight2 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto weight3 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv0 = om.conv(input, weight0, {1, 1}, {0, 0, 0, 0}); // one barrier, #0
-    auto conv1 = om.conv(input, weight1, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
-    auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #2
+    auto weight0 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight1 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight2 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight3 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv0 = om.conv("", input, weight0, {1, 1}, {0, 0, 0, 0}); // one barrier, #0
+    auto conv1 = om.conv("", input, weight1, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
+    auto conv2 = om.conv("", conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #2
 
-    auto add1 = om.add({conv2, conv1});   // one barrier, #3
+    auto add1 = om.eltwise("", {conv2, conv1}, "Add");   // one barrier, #3
 
-    om.output(add1); // one barrier for DMA out from CMX to DDR, #4
+    om.output("", add1); // one barrier for DMA out from CMX to DDR, #4
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -215,18 +215,18 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input("", {64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*1*1);
-    auto weight0 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto weight1 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto weight2 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv0 = om.conv(input, weight0, {1, 1}, {0, 0, 0, 0}); // one barrier, #0
-    auto conv1 = om.conv(input, weight1, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
-    auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #2
+    auto weight0 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight1 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight2 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv0 = om.conv("", input, weight0, {1, 1}, {0, 0, 0, 0}); // one barrier, #0
+    auto conv1 = om.conv("", input, weight1, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
+    auto conv2 = om.conv("", conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #2
 
-    auto add1 = om.add({conv2, conv1});   // one barrier, #3
+    auto add1 = om.eltwise("", {conv2, conv1}, "Add");   // one barrier, #3
 
-    om.output(add1); // one barrier for DMA out from CMX to DDR, #4
+    om.output("", add1); // one barrier for DMA out from CMX to DDR, #4
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -334,19 +334,19 @@ TEST(insert_barrier_tasks, dealloc_edge)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input("", {64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*1*1);
-    auto weight0 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto weight1 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto weight2 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto weight3 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv0 = om.conv(input, weight0, {1, 1}, {0, 0, 0, 0}); // one barrier, #0
-    auto conv1 = om.conv(input, weight1, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
-    auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #2
+    auto weight0 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight1 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight2 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight3 = om.constant("", weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv0 = om.conv("", input, weight0, {1, 1}, {0, 0, 0, 0}); // one barrier, #0
+    auto conv1 = om.conv("", input, weight1, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
+    auto conv2 = om.conv("", conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #2
 
-    auto add1 = om.add({conv2, conv1});   // one barrier, #3
+    auto add1 = om.eltwise("", {conv2, conv1}, "Add");   // one barrier, #3
 
-    om.output(add1); // one barrier for DMA out from CMX to DDR, #4
+    om.output("", add1); // one barrier for DMA out from CMX to DDR, #4
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -435,37 +435,37 @@ TEST(insert_barrier_tasks, static_index_assignment)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input("", {28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
-    auto weights0 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv0 = om.conv(input, weights0, {1, 1}, {1, 1, 1, 1});  // barrier
-    auto pool0 = om.maxPool(conv0, {2, 2}, {2, 2}, {0, 0, 0, 0}); // barrier
-    auto pool1 = om.maxPool(conv0, {4, 4}, {2, 2}, {1, 1, 1, 1}); // barrier
+    auto weights0 = om.constant("", weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv0 = om.conv("", input, weights0, {1, 1}, {1, 1, 1, 1});  // barrier
+    auto pool0 = om.maxPool("", conv0, {2, 2}, {2, 2}, {0, 0, 0, 0}); // barrier
+    auto pool1 = om.maxPool("", conv0, {4, 4}, {2, 2}, {1, 1, 1, 1}); // barrier
                                                                   // prefetch sparsity barrier
 
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(3*3*16*16);
-    auto weights1 = om.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv1 = om.conv(pool0, weights1, {1, 1}, {1, 1, 1, 1});  // barrier
+    auto weights1 = om.constant("", weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv1 = om.conv("", pool0, weights1, {1, 1}, {1, 1, 1, 1});  // barrier
 
-    auto weights2 = om.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv2 = om.conv(pool1, weights2, {1, 1}, {1, 1, 1, 1});  // barrier
+    auto weights2 = om.constant("", weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv2 = om.conv("", pool1, weights2, {1, 1}, {1, 1, 1, 1});  // barrier
                                                                   // prefetch barrier
 
-    auto add0 = om.add({conv1, conv2});   // barrier
+    auto add0 = om.eltwise("", {conv1, conv2}, "Add");   // barrier
 
-    auto weights3 = om.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv3 = om.conv(add0, weights3, {1, 1}, {1, 1, 1, 1});    // barrier
+    auto weights3 = om.constant("", weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv3 = om.conv("", add0, weights3, {1, 1}, {1, 1, 1, 1});    // barrier
                                                                    // wts prefetch reuse barrier
 
-    auto weights4 = om.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv4 = om.conv(conv3, weights4, {1, 1}, {1, 1, 1, 1});   // barrier
+    auto weights4 = om.constant("", weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv4 = om.conv("", conv3, weights4, {1, 1}, {1, 1, 1, 1});   // barrier
                                                                    // wts prefetch barrier
 
-    auto weights5 = om.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});   // barrier
+    auto weights5 = om.constant("", weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv5 = om.conv("", conv4, weights5, {1, 1}, {1, 1, 1, 1});   // barrier
                                                                    // wts prefetch barrier
 
-    om.output(conv5);    // barrier (DMA)
+    om.output("", conv5);    // barrier (DMA)
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -517,30 +517,30 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
 
-    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
-    auto pool1 = om.maxPool(conv1, {2, 2}, {2, 2}, {0, 0, 0, 0});
-    auto pool2 = om.maxPool(conv1, {4, 4}, {2, 2}, {1, 1, 1, 1});
+    auto input = om.input("", {28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto weights1 = om.constant("", weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv1 = om.conv("", input, weights1, {1, 1}, {1, 1, 1, 1});
+    auto pool1 = om.maxPool("", conv1, {2, 2}, {2, 2}, {0, 0, 0, 0});
+    auto pool2 = om.maxPool("", conv1, {4, 4}, {2, 2}, {1, 1, 1, 1});
 
-    auto weights2 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv2 = om.conv(pool1, weights2, {1, 1}, {1, 1, 1, 1});
+    auto weights2 = om.constant("", weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv2 = om.conv("", pool1, weights2, {1, 1}, {1, 1, 1, 1});
 
-    auto weights3 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv3 = om.conv(pool2, weights3, {1, 1}, {1, 1, 1, 1});
+    auto weights3 = om.constant("", weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv3 = om.conv("", pool2, weights3, {1, 1}, {1, 1, 1, 1});
 
-    auto add1 = om.add({conv2, conv3});
+    auto add1 = om.eltwise("", {conv2, conv3}, "Add");
 
-    auto weights4 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv4 = om.conv(add1, weights4, {1, 1}, {1, 1, 1, 1});
+    auto weights4 = om.constant("", weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv4 = om.conv("", add1, weights4, {1, 1}, {1, 1, 1, 1});
 
-    auto weights5 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});
+    auto weights5 = om.constant("", weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv5 = om.conv("", conv4, weights5, {1, 1}, {1, 1, 1, 1});
 
-    auto weights6 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv6 = om.conv(conv5, weights6, {1, 1}, {1, 1, 1, 1});
+    auto weights6 = om.constant("", weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv6 = om.conv("", conv5, weights6, {1, 1}, {1, 1, 1, 1});
 
-    om.output(conv6);
+    om.output("", conv6);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -586,28 +586,28 @@ TEST(insert_barrier_tasks, weights_prefetch)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(unit.model());
 
-    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input("", {28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
-    auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
+    auto weights1 = om.constant("", weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv1 = om.conv("", input, weights1, {1, 1}, {1, 1, 1, 1});
     std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
 
-    auto weights2 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv2 = om.conv(conv1, weights2, {1, 1}, {1, 1, 1, 1});
+    auto weights2 = om.constant("",  weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv2 = om.conv("", conv1, weights2, {1, 1}, {1, 1, 1, 1});
 
-    auto weights3 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv3 = om.conv(conv2, weights3, {1, 1}, {1, 1, 1, 1});
+    auto weights3 = om.constant("", weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv3 = om.conv("", conv2, weights3, {1, 1}, {1, 1, 1, 1});
 
-    auto weights4 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv4 = om.conv(conv3, weights4, {1, 1}, {1, 1, 1, 1});
+    auto weights4 = om.constant("", weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv4 = om.conv("", conv3, weights4, {1, 1}, {1, 1, 1, 1});
 
-    auto weights5 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});
+    auto weights5 = om.constant("", weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv5 = om.conv("", conv4, weights5, {1, 1}, {1, 1, 1, 1});
 
-    auto weights6 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv6 = om.conv(conv5, weights6, {1, 1}, {1, 1, 1, 1});
+    auto weights6 = om.constant("", weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv6 = om.conv("", conv5, weights6, {1, 1}, {1, 1, 1, 1});
 
-    om.output(conv6);
+    om.output("", conv6);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -661,46 +661,46 @@ static void RunTest(mv::CompilationUnit& unit, std::vector<int>& barrierOpIndice
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(unit.model());
 
-    auto input = om.input({56, 56, 16, 1}, mv::DType("Int8"), mv::Order("NCHW"));
+    auto input = om.input("", {56, 56, 16, 1}, mv::DType("Int8"), mv::Order("NCHW"));
     std::vector<int64_t> weightsData_1by1_16by64 = mv::utils::generateSequence<int64_t>(1*1*16*64);
     std::vector<int64_t> weightsData_1by1_64by64 = mv::utils::generateSequence<int64_t>(1*1*64*64);
     std::vector<int64_t> weightsData_3by3 = mv::utils::generateSequence<int64_t>(3*3*64*64);
     std::vector<int64_t> weightsData_3by3_2 = mv::utils::generateSequence<int64_t>(3*3*64*64);
 
-    auto weights1 = om.constantInt(weightsData_1by1_16by64, {1, 1, 16, 64}, mv::DType("Int8"), mv::Order("NCWH"));
-    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
+    auto weights1 = om.constantInt("", weightsData_1by1_16by64, {1, 1, 16, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv1 = om.conv("", input, weights1, {1, 1}, {1, 1, 1, 1});
 
-    auto weights2 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
-    auto conv2 = om.conv(conv1, weights2, {1, 1}, {1, 1, 1, 1});
+    auto weights2 = om.constantInt("", weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv2 = om.conv("", conv1, weights2, {1, 1}, {1, 1, 1, 1});
 
-    auto weights3 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
-    auto conv3 = om.conv(conv2, weights3, {1, 1}, {1, 1, 1, 1});
+    auto weights3 = om.constantInt("", weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv3 = om.conv("", conv2, weights3, {1, 1}, {1, 1, 1, 1});
 
-    auto weights4 = om.constantInt(weightsData_3by3_2, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
-    auto conv4 = om.conv(conv3, weights4, {1, 1}, {1, 1, 1, 1});
+    auto weights4 = om.constantInt("", weightsData_3by3_2, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv4 = om.conv("", conv3, weights4, {1, 1}, {1, 1, 1, 1});
 
-    auto weights5 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
-    auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});
+    auto weights5 = om.constantInt("", weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv5 = om.conv("", conv4, weights5, {1, 1}, {1, 1, 1, 1});
 
-    auto weights6 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
-    auto conv6 = om.conv(conv5, weights6, {1, 1}, {1, 1, 1, 1});
+    auto weights6 = om.constantInt("", weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv6 = om.conv("", conv5, weights6, {1, 1}, {1, 1, 1, 1});
 
-    auto weights7 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
-    auto conv7 = om.conv(conv6, weights7, {1, 1}, {1, 1, 1, 1});
+    auto weights7 = om.constantInt("", weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv7 = om.conv("", conv6, weights7, {1, 1}, {1, 1, 1, 1});
 
-    auto weights8 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
-    auto conv8 = om.conv(conv7, weights8, {1, 1}, {1, 1, 1, 1});
+    auto weights8 = om.constantInt("", weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv8 = om.conv("", conv7, weights8, {1, 1}, {1, 1, 1, 1});
 
-    auto weights9 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
-    auto conv9 = om.conv(conv8, weights9, {1, 1}, {1, 1, 1, 1});
+    auto weights9 = om.constantInt("", weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv9 = om.conv("", conv8, weights9, {1, 1}, {1, 1, 1, 1});
 
-    auto weights10 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
-    auto conv10 = om.conv(conv9, weights10, {1, 1}, {1, 1, 1, 1});
+    auto weights10 = om.constantInt("", weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv10 = om.conv("", conv9, weights10, {1, 1}, {1, 1, 1, 1});
 
-    auto weights11 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
-    auto conv11 = om.conv(conv10, weights11, {1, 1}, {1, 1, 1, 1});
+    auto weights11 = om.constantInt("", weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv11 = om.conv("", conv10, weights11, {1, 1}, {1, 1, 1, 1});
 
-    om.output(conv11); // one barrier for DMA out from CMX to DDR
+    om.output("", conv11); // one barrier for DMA out from CMX to DDR
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);

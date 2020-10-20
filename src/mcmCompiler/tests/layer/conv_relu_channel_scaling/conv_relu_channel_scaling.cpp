@@ -9,7 +9,8 @@ int main()
     mv::OpModel& om = unit.model();
 
 
-    auto input0 = om.input({16,16,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4),  {{0},{1},{-inf},{inf}}, "input#170");
+    auto input0 = om.input("input#170", {16,16,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    input0->setQuantParams({{0},{1},{-inf},{inf}});
 
     std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (16*128*3*3, 1, 0);
 
@@ -30,14 +31,18 @@ int main()
     const std::vector<double> infv(128, -inf);
 
     const std::vector<double> infvp(128, inf);
-    auto weights0 = om.constantInt(weightsData0,{3,3,16,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {zp,scale,infv,infvp});
-    auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{1},{-inf},{inf}} , "conv");
+    auto weights0 = om.constantInt("", weightsData0, {3,3,16,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    weights0->setQuantParams({zp,scale,infv,infvp});
+    auto conv0 = om.conv("conv", input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    conv0->setQuantParams({{0},{1},{-inf},{inf}});
 
     std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (128, 3, 0);
-    auto biasWeights0 = om.constantInt(biasWeightsData0,{128}, mv::DType("Int32"), mv::Order::getColMajorID(1), {{},{},{},{}});
-    auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("Default"), {{0},{1},{-inf},{inf}}, "conv:bias");
-    auto relu = om.relu(bias_c0,  mv::DType("Default"), {{0},{1},{-inf},{inf}}, "relu");
-    om.output(relu);
+    auto biasWeights0 = om.constantInt("", biasWeightsData0, {128}, mv::DType("Int32"), mv::Order::getColMajorID(1));
+    auto bias_c0 = om.bias("conv:bias", conv0, biasWeights0);
+    bias_c0->setQuantParams({{0},{1},{-inf},{inf}});
+    auto relu = om.relu("relu", bias_c0);
+    relu->setQuantParams({{0},{1},{-inf},{inf}});
+    om.output("", relu);
 
     std::string path = std::getenv("MCM_HOME");
     std::string compDescPath = path + "/config/compilation/release_kmb.json";

@@ -37,9 +37,9 @@ namespace mv
             size_t C = 5;
             size_t N = args.at("post_nms_topn").get<unsigned>();
 
-            mv::Shape outputShape({W, H, C, N});;
+            mv::Shape outputShape({W, H, C, N});
 
-            outputs.push_back(mv::Tensor(":0", outputShape, input->getDType(), input->getOrder()));
+            outputs.emplace_back(":0", outputShape, input->getDType(), input->getOrder());
 
         };
     }
@@ -67,8 +67,6 @@ namespace mv
         .setOptionalArg<double>("box_coordinate_scale", 1.0)
         .setOptionalArg<std::string>("framework", std::string("TENSORFLOW"))
         .setOptionalArg<bool>("for_deformable", false)
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_proposal::inputCheckFcn)
         .setOutputDef(op_proposal::outputDefFcn)
         .setTypeTrait({"executable", "exposed"})

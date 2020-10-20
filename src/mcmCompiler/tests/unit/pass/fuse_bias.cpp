@@ -9,16 +9,16 @@ TEST(fuse_bias, case_conv)
 {
 
     mv::OpModel om("testModel");
-    auto input = om.input({64, 64, 16, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input("", {64, 64, 16, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
-    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(4)), {{},{},{},{}},"weights");
-    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1}, 1);
+    auto weights = om.constant("weights", weightsData, {3, 3, 16, 32}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(4)));
+    auto conv = om.conv("", input, weights, {1, 1}, {1, 1, 1, 1}, 1);
     auto convOp = om.getSourceOp(conv);
     std::vector<double> biasesData = mv::utils::generateSequence<double>(32);
-    auto biases = om.constant(biasesData, {32}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(1)), {{},{},{},{}},"biases");
-    auto bias = om.bias(conv, biases);
+    auto biases = om.constant("biases", biasesData, {32}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(1)));
+    auto bias = om.bias("", conv, biases);
     auto biasOp = om.getSourceOp(bias);
-    om.output(bias);
+    om.output("", bias);
     
     auto outputOp = biasOp.leftmostChild();
 

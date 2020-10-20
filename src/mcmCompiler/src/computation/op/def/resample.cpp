@@ -33,11 +33,6 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-
             // Notes on 2 types of Resample:
             // - Resample (Type 1) Layer - factor specifies a scale factor for output height and width.
             // - Resample (Type 2) Layer - factor parameter is ignored; 1D blob describing output shape is used instead.
@@ -46,11 +41,7 @@ namespace mv
             //
             auto outputShape = args.at("output_shape").get<mv::Shape>();
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
-
+            outputs.emplace_back(":0",  outputShape, inputs[0]->getDType(), inputs[0]->getOrder());
         };
 
         static std::string empty;
@@ -65,8 +56,6 @@ namespace mv
         .setArg<std::string>("interpolation")
         .setArg<bool>("antialias")
         .setArg<mv::Shape>("output_shape")
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_resample::inputCheckFcn)
         .setOutputDef(op_resample::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

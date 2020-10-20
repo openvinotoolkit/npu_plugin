@@ -34,13 +34,8 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",{1, 1, inputs[1]->getShape()[KERNEL_HEIGHT], 1}, dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0",{1, 1, inputs[1]->getShape()[KERNEL_HEIGHT], 1}, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+            const Shape shape = {1, 1, inputs[1]->getShape()[KERNEL_HEIGHT], 1};
+            outputs.emplace_back(":0", shape, inputs[0]->getDType(), inputs[0]->getOrder());
         };
 
     }
@@ -49,8 +44,6 @@ namespace mv
         MV_REGISTER_OP(FullyConnected)
         .setInputs({"data", "weights"})
         .setOutputs({"output"})
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_fully_connected::inputCheckFcn)
         .setOutputDef(op_fully_connected::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

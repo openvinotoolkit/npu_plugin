@@ -227,7 +227,7 @@ class Control_Model_Barrier_Scheduler {
           std::set<std::string> empty_set;
           struct mv::Barrier new_barrier(empty_set, empty_set);
 
-          om_ptr_->barrierTask(new_barrier, barrier_name);
+          om_ptr_->barrierTask(barrier_name, new_barrier);
           op_iterator_t barrier_new = om_ptr_->getOp(barrier_name);
           assert((barrier_new != om_ptr_->opEnd()) &&
                   barrier_new->hasAttr("Barrier"));

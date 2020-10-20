@@ -16,14 +16,17 @@ int main()
     double lowerBound = 20;
     double upperBound = 40;
 
-    auto input0 = om.input({2,1,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4),  {{0},{1.0},{},{}}, "input#170");
+    auto input0 = om.input("input#170", {2,1,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    input0->setQuantParams({{0},{1},{},{}});
     std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (16, 1, 0);
 
-    auto weights0 = om.constantInt(weightsData0,{1,1,16,1}, mv::DType("UInt8"), mv::Order::getRowMajorID(4), {{0},{1.0},{},{}});
-    auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{1.0},{},{}} , "conv");
-    auto min0 = om.minimum(conv0, upperBound);
-    auto max0 = om.maximum(min0, lowerBound);
-    om.output(max0);
+    auto weights0 = om.constantInt("", weightsData0, {1,1,16,1}, mv::DType("UInt8"), mv::Order::getRowMajorID(4));
+    weights0->setQuantParams({{0},{1},{},{}});
+    auto conv0 = om.conv("conv", input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    conv0->setQuantParams({{0},{1},{},{}});
+    auto min0 = om.minimum("", conv0, upperBound);
+    auto max0 = om.maximum("", min0, lowerBound);
+    om.output("", max0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

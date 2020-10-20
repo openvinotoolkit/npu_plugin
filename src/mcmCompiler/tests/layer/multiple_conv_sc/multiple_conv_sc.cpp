@@ -26,13 +26,17 @@ static mv::Data::TensorIterator convBias(mv::OpModel& om,
                                         const std::string& id)
 {
     std::vector<int64_t> weightsData = read_weights_from_file<int64_t, uint8_t>("weights_bias/fc_" + id +"_weights.dat");
-    auto weights = om.constantInt(weightsData, kernelShape, mv::DType("UInt8"), mv::Order::getColMajorID(4), wtQuantParams, "fc_" + id + "_weights");
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), actQuantParams, "fc_" + id);
+    auto weights = om.constantInt("fc_" + id + "_weights", weightsData, kernelShape, mv::DType("UInt8"), mv::Order::getColMajorID(4));
+    auto conv = om.conv("fc_" + id, input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    weights->setQuantParams(wtQuantParams);
+    conv->setQuantParams(actQuantParams);
 
     auto biasShape = mv::Shape({kernelShape[3]});
     std::vector<int64_t> biasWeightsData0 = read_weights_from_file<int64_t, int32_t>("weights_bias/fc_" + id +"_bias.dat");
-    auto biasWeights = om.constantInt(biasWeightsData0, biasShape, mv::DType("UInt8"), mv::Order::getColMajorID(1), biasQuantParams, "fc_" + id + "_bias");
-    auto bias = om.bias(conv, biasWeights, mv::DType("UInt8"), actQuantParams);
+    auto biasWeights = om.constantInt("fc_" + id + "_bias", biasWeightsData0, biasShape, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+    auto bias = om.bias("", conv, biasWeights);
+    biasWeights->setQuantParams(biasQuantParams);
+    bias->setQuantParams(actQuantParams);
 
     return bias;
 }
@@ -42,7 +46,8 @@ int main()
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({16,20,784,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input");
+    auto input = om.input("", {16,20,784,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    input->setQuantParams({{128},{0.007843137718737125},{-1.0},{1.0}});
 
     auto fc_0 = convBias(om, input, {1,1,784,1024},
                                     {{0},{0.003921568859368563},{0.0},{1.0}},
@@ -68,7 +73,7 @@ int main()
                                     {{0},{1.0178569027630147e-05},{-inf},{inf}},
                                     "3");
 
-    om.output(fc_3);
+    om.output("", fc_3);
 
     std::string compDescPath = mv::utils::projectRootPath() +
         "/config/compilation/release_kmb.json";

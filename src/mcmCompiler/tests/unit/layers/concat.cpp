@@ -51,7 +51,7 @@ TEST_P(layers_concat, dump_blob)
     mv::OpModel& om = unit.model();
 
     std::vector<mv::Data::TensorIterator> inputs;
-    inputs.push_back(om.input(shape, dtype, order));
+    inputs.push_back(om.input("", shape, dtype, order));
 
     for (int i=0; i < arity-1; i++)
     {
@@ -61,17 +61,17 @@ TEST_P(layers_concat, dump_blob)
         if (dtype == mv::DType("Float16"))
         {
             auto coefs = mv::utils::generateSequence<double>(shape.totalSize());
-            inputs.push_back(om.constant(coefs, shape, dtype, order));
+            inputs.push_back(om.constant("", coefs, shape, dtype, order));
         } else
         {
             auto coefs = mv::utils::generateSequence<int64_t>(shape.totalSize());
-            inputs.push_back(om.constantInt(coefs, shape, dtype, order));
+            inputs.push_back(om.constantInt("", coefs, shape, dtype, order));
         }
     #endif
     }
 
-    auto layer = om.concat(inputs, axis);
-    auto output = om.output(layer);
+    auto layer = om.concat("", inputs, axis);
+    auto output = om.output("", layer);
 
     ASSERT_TRUE(om.isValid(layer));
     ASSERT_TRUE(om.isValid(om.getSourceOp(layer)));

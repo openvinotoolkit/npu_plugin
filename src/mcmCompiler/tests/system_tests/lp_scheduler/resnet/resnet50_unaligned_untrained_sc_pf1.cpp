@@ -1,6 +1,5 @@
-#include <unistd.h>
+// Network source: migNetworkZoo/internal/full_networks/IRv10/WW22/vd_kmb_models_public_ww22/resnet-50-pytorch/caffe2/FP16-INT8
 
-//This file is the parsed network which is created through python.
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/op_model.hpp"
@@ -8,41 +7,961 @@
 
 #include <iostream>
 #include <fstream>
-
+#include <unistd.h>
 
 struct InputParams {
 
-  InputParams() : comp_descriptor_(NULL) {}
+    InputParams() : comp_descriptor_(NULL) {}
 
-  bool parse_args(int argc, char **argv) {
-    int opt;
-    char const * const options = "d:";
+    bool parse_args(int argc, char **argv) {
+        int opt;
+        char const * const options = "d:";
 
-    while ((opt = getopt(argc, argv, options)) != -1) {
-      switch (opt) {
-        case 'd':
-          comp_descriptor_ = optarg;
-          break;
-        default:
-          usage();
-          return false;
-      }
+        while ((opt = getopt(argc, argv, options)) != -1) {
+            switch (opt) {
+            case 'd':
+                comp_descriptor_ = optarg;
+                break;
+            default:
+                usage();
+                return false;
+            }
+        }
+
+        if (!comp_descriptor_) { 
+            usage();
+            return false; 
+        }
+        return true;
     }
 
-    if (!comp_descriptor_) { 
-      usage();
-      return false; 
+    void usage() const {
+        fprintf(stderr, "./three_layer_conv_model -d {comp_descriptor}\n");
     }
-    return true;
-  }
 
-  void usage() const {
-    fprintf(stderr, "./three_layer_conv_model -d {comp_descriptor}\n");
-  }
-
-  const char *comp_descriptor_;
+    const char *comp_descriptor_;
 };  // struct InputParams //
 
+void build_resnet_50_pytorch(mv::OpModel& model)
+{
+    using namespace mv;
+
+    const auto data_0 = model.input("data", {224, 224, 3, 1}, mv::DType("UInt8"), mv::Order("NHWC"), true);
+    const auto prob_WithoutBiases_fq_weights_1_Copy_out_low4659_const_0 = model.constant("prob/WithoutBiases/fq_weights_1/Copy/out_low4659_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto prob_WithoutBiases_fq_weights_1_Copy_out_high4660_const_0 = model.constant("prob/WithoutBiases/fq_weights_1/Copy/out_high4660_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4433_0 = model.constant("Constant_4433", mv::utils::generateSequence<double>(1000), {1000}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4431_0 = model.constant("Constant_4431", mv::utils::generateSequence<double>(2048), {2048}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4430_0 = model.constant("Constant_4430", mv::utils::generateSequence<double>(512), {512}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4429_0 = model.constant("Constant_4429", mv::utils::generateSequence<double>(512), {512}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4428_0 = model.constant("Constant_4428", mv::utils::generateSequence<double>(2048), {2048}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4427_0 = model.constant("Constant_4427", mv::utils::generateSequence<double>(512), {512}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4426_0 = model.constant("Constant_4426", mv::utils::generateSequence<double>(512), {512}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4425_0 = model.constant("Constant_4425", mv::utils::generateSequence<double>(2048), {2048}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4424_0 = model.constant("Constant_4424", mv::utils::generateSequence<double>(2048), {2048}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4423_0 = model.constant("Constant_4423", mv::utils::generateSequence<double>(512), {512}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4422_0 = model.constant("Constant_4422", mv::utils::generateSequence<double>(512), {512}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4421_0 = model.constant("Constant_4421", mv::utils::generateSequence<double>(1024), {1024}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4420_0 = model.constant("Constant_4420", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4419_0 = model.constant("Constant_4419", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4418_0 = model.constant("Constant_4418", mv::utils::generateSequence<double>(1024), {1024}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4417_0 = model.constant("Constant_4417", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4416_0 = model.constant("Constant_4416", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4415_0 = model.constant("Constant_4415", mv::utils::generateSequence<double>(1024), {1024}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4414_0 = model.constant("Constant_4414", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4413_0 = model.constant("Constant_4413", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4412_0 = model.constant("Constant_4412", mv::utils::generateSequence<double>(1024), {1024}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4411_0 = model.constant("Constant_4411", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4410_0 = model.constant("Constant_4410", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4409_0 = model.constant("Constant_4409", mv::utils::generateSequence<double>(1024), {1024}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4408_0 = model.constant("Constant_4408", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4407_0 = model.constant("Constant_4407", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4406_0 = model.constant("Constant_4406", mv::utils::generateSequence<double>(1024), {1024}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4405_0 = model.constant("Constant_4405", mv::utils::generateSequence<double>(1024), {1024}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4404_0 = model.constant("Constant_4404", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4403_0 = model.constant("Constant_4403", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4402_0 = model.constant("Constant_4402", mv::utils::generateSequence<double>(512), {512}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4401_0 = model.constant("Constant_4401", mv::utils::generateSequence<double>(128), {128}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4400_0 = model.constant("Constant_4400", mv::utils::generateSequence<double>(128), {128}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4399_0 = model.constant("Constant_4399", mv::utils::generateSequence<double>(512), {512}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4398_0 = model.constant("Constant_4398", mv::utils::generateSequence<double>(128), {128}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4397_0 = model.constant("Constant_4397", mv::utils::generateSequence<double>(128), {128}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4396_0 = model.constant("Constant_4396", mv::utils::generateSequence<double>(512), {512}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4395_0 = model.constant("Constant_4395", mv::utils::generateSequence<double>(128), {128}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4394_0 = model.constant("Constant_4394", mv::utils::generateSequence<double>(128), {128}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4393_0 = model.constant("Constant_4393", mv::utils::generateSequence<double>(512), {512}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4392_0 = model.constant("Constant_4392", mv::utils::generateSequence<double>(512), {512}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4391_0 = model.constant("Constant_4391", mv::utils::generateSequence<double>(128), {128}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4390_0 = model.constant("Constant_4390", mv::utils::generateSequence<double>(128), {128}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4389_0 = model.constant("Constant_4389", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4388_0 = model.constant("Constant_4388", mv::utils::generateSequence<double>(64), {64}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4387_0 = model.constant("Constant_4387", mv::utils::generateSequence<double>(64), {64}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4386_0 = model.constant("Constant_4386", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4385_0 = model.constant("Constant_4385", mv::utils::generateSequence<double>(64), {64}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4384_0 = model.constant("Constant_4384", mv::utils::generateSequence<double>(64), {64}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4383_0 = model.constant("Constant_4383", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4382_0 = model.constant("Constant_4382", mv::utils::generateSequence<double>(256), {256}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4381_0 = model.constant("Constant_4381", mv::utils::generateSequence<double>(64), {64}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4380_0 = model.constant("Constant_4380", mv::utils::generateSequence<double>(64), {64}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4379_0 = model.constant("Constant_4379", mv::utils::generateSequence<double>(64), {64}, mv::DType("Float32"), mv::Order("W"));
+    const auto Constant_4123_0 = model.constant("Constant_4123", mv::utils::generateSequence<double>(2048*1000), {2048, 1000}, mv::DType("Float32"), mv::Order("HW"));
+    const auto Constant_4122_0 = model.constant("Constant_4122", mv::utils::generateSequence<double>(1*1*512*2048), {1, 1, 512, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4121_0 = model.constant("Constant_4121", mv::utils::generateSequence<double>(3*3*512*512), {3, 3, 512, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4120_0 = model.constant("Constant_4120", mv::utils::generateSequence<double>(1*1*2048*512), {1, 1, 2048, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4119_0 = model.constant("Constant_4119", mv::utils::generateSequence<double>(1*1*512*2048), {1, 1, 512, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4118_0 = model.constant("Constant_4118", mv::utils::generateSequence<double>(3*3*512*512), {3, 3, 512, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4117_0 = model.constant("Constant_4117", mv::utils::generateSequence<double>(1*1*2048*512), {1, 1, 2048, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4116_0 = model.constant("Constant_4116", mv::utils::generateSequence<double>(1*1*1024*2048), {1, 1, 1024, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4115_0 = model.constant("Constant_4115", mv::utils::generateSequence<double>(1*1*512*2048), {1, 1, 512, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4114_0 = model.constant("Constant_4114", mv::utils::generateSequence<double>(3*3*512*512), {3, 3, 512, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4113_0 = model.constant("Constant_4113", mv::utils::generateSequence<double>(1*1*1024*512), {1, 1, 1024, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4112_0 = model.constant("Constant_4112", mv::utils::generateSequence<double>(1*1*256*1024), {1, 1, 256, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4111_0 = model.constant("Constant_4111", mv::utils::generateSequence<double>(3*3*256*256), {3, 3, 256, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4110_0 = model.constant("Constant_4110", mv::utils::generateSequence<double>(1*1*1024*256), {1, 1, 1024, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4109_0 = model.constant("Constant_4109", mv::utils::generateSequence<double>(1*1*256*1024), {1, 1, 256, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4108_0 = model.constant("Constant_4108", mv::utils::generateSequence<double>(3*3*256*256), {3, 3, 256, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4107_0 = model.constant("Constant_4107", mv::utils::generateSequence<double>(1*1*1024*256), {1, 1, 1024, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4106_0 = model.constant("Constant_4106", mv::utils::generateSequence<double>(1*1*256*1024), {1, 1, 256, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4105_0 = model.constant("Constant_4105", mv::utils::generateSequence<double>(3*3*256*256), {3, 3, 256, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4104_0 = model.constant("Constant_4104", mv::utils::generateSequence<double>(1*1*1024*256), {1, 1, 1024, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4103_0 = model.constant("Constant_4103", mv::utils::generateSequence<double>(1*1*256*1024), {1, 1, 256, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4102_0 = model.constant("Constant_4102", mv::utils::generateSequence<double>(3*3*256*256), {3, 3, 256, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4101_0 = model.constant("Constant_4101", mv::utils::generateSequence<double>(1*1*1024*256), {1, 1, 1024, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4100_0 = model.constant("Constant_4100", mv::utils::generateSequence<double>(1*1*256*1024), {1, 1, 256, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4099_0 = model.constant("Constant_4099", mv::utils::generateSequence<double>(3*3*256*256), {3, 3, 256, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4098_0 = model.constant("Constant_4098", mv::utils::generateSequence<double>(1*1*1024*256), {1, 1, 1024, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4097_0 = model.constant("Constant_4097", mv::utils::generateSequence<double>(1*1*512*1024), {1, 1, 512, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4096_0 = model.constant("Constant_4096", mv::utils::generateSequence<double>(1*1*256*1024), {1, 1, 256, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4095_0 = model.constant("Constant_4095", mv::utils::generateSequence<double>(3*3*256*256), {3, 3, 256, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4094_0 = model.constant("Constant_4094", mv::utils::generateSequence<double>(1*1*512*256), {1, 1, 512, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4093_0 = model.constant("Constant_4093", mv::utils::generateSequence<double>(1*1*128*512), {1, 1, 128, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4092_0 = model.constant("Constant_4092", mv::utils::generateSequence<double>(3*3*128*128), {3, 3, 128, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4091_0 = model.constant("Constant_4091", mv::utils::generateSequence<double>(1*1*512*128), {1, 1, 512, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4090_0 = model.constant("Constant_4090", mv::utils::generateSequence<double>(1*1*128*512), {1, 1, 128, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4089_0 = model.constant("Constant_4089", mv::utils::generateSequence<double>(3*3*128*128), {3, 3, 128, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4088_0 = model.constant("Constant_4088", mv::utils::generateSequence<double>(1*1*512*128), {1, 1, 512, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4087_0 = model.constant("Constant_4087", mv::utils::generateSequence<double>(1*1*128*512), {1, 1, 128, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4086_0 = model.constant("Constant_4086", mv::utils::generateSequence<double>(3*3*128*128), {3, 3, 128, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4085_0 = model.constant("Constant_4085", mv::utils::generateSequence<double>(1*1*512*128), {1, 1, 512, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4084_0 = model.constant("Constant_4084", mv::utils::generateSequence<double>(1*1*256*512), {1, 1, 256, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4083_0 = model.constant("Constant_4083", mv::utils::generateSequence<double>(1*1*128*512), {1, 1, 128, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4082_0 = model.constant("Constant_4082", mv::utils::generateSequence<double>(3*3*128*128), {3, 3, 128, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4081_0 = model.constant("Constant_4081", mv::utils::generateSequence<double>(1*1*256*128), {1, 1, 256, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4080_0 = model.constant("Constant_4080", mv::utils::generateSequence<double>(1*1*64*256), {1, 1, 64, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4079_0 = model.constant("Constant_4079", mv::utils::generateSequence<double>(3*3*64*64), {3, 3, 64, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4078_0 = model.constant("Constant_4078", mv::utils::generateSequence<double>(1*1*256*64), {1, 1, 256, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4077_0 = model.constant("Constant_4077", mv::utils::generateSequence<double>(1*1*64*256), {1, 1, 64, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4076_0 = model.constant("Constant_4076", mv::utils::generateSequence<double>(3*3*64*64), {3, 3, 64, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4075_0 = model.constant("Constant_4075", mv::utils::generateSequence<double>(1*1*256*64), {1, 1, 256, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4074_0 = model.constant("Constant_4074", mv::utils::generateSequence<double>(1*1*64*256), {1, 1, 64, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4073_0 = model.constant("Constant_4073", mv::utils::generateSequence<double>(1*1*64*256), {1, 1, 64, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4072_0 = model.constant("Constant_4072", mv::utils::generateSequence<double>(3*3*64*64), {3, 3, 64, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4071_0 = model.constant("Constant_4071", mv::utils::generateSequence<double>(1*1*64*64), {1, 1, 64, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_4070_0 = model.constant("Constant_4070", mv::utils::generateSequence<double>(7*7*3*64), {7, 7, 3, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto Constant_110_0 = model.constant("", {0.017426, 0.017502, 0.017120}, {3}, mv::DType("Float32"), mv::Order("W"));
+    const auto Add__Fused_Add__0 = model.scale("Add_/Fused_Add_", data_0, Constant_110_0);
+    const auto Constant_111_0 = model.constant("", {-1.804688, -2.035156, -2.117188}, {3}, mv::DType("Float32"), mv::Order("W"));
+    const auto Add__Fused_Add__bias_0 = model.bias("Add_/Fused_Add_:bias", Add__Fused_Add__0, Constant_111_0);
+    const auto _984988_const_0 = model.constant("984988_const", {3.457031}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _983987_const_0 = model.constant("983987_const", {-3.482422}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _982986_const_0 = model.constant("982986_const", {3.457031}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _981985_const_0 = model.constant("981985_const", {-3.482422}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _964968_const_0 = model.constant("964968_const", {2.271484}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _963967_const_0 = model.constant("963967_const", {-2.289062}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _962966_const_0 = model.constant("962966_const", {2.271484}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _961965_const_0 = model.constant("961965_const", {-2.289062}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _954958_const_0 = model.constant("954958_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _953957_const_0 = model.constant("953957_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _944948_const_0 = model.constant("944948_const", {1.287109}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _943947_const_0 = model.constant("943947_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _942946_const_0 = model.constant("942946_const", {1.287109}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _941945_const_0 = model.constant("941945_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _934938_const_0 = model.constant("934938_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _933937_const_0 = model.constant("933937_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _924928_const_0 = model.constant("924928_const", {1.306641}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _923927_const_0 = model.constant("923927_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _922926_const_0 = model.constant("922926_const", {1.306641}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _921925_const_0 = model.constant("921925_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _489_fq_weights_1_Copy_out_low4531_const_0 = model.constant("489/fq_weights_1/Copy/out_low4531_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _489_fq_weights_1_Copy_out_high4532_const_0 = model.constant("489/fq_weights_1/Copy/out_high4532_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _486_fq_weights_1_Copy_out_low4379_const_0 = model.constant("486/fq_weights_1/Copy/out_low4379_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _486_fq_weights_1_Copy_out_high4380_const_0 = model.constant("486/fq_weights_1/Copy/out_high4380_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _483_fq_weights_1_Copy_out_low4651_const_0 = model.constant("483/fq_weights_1/Copy/out_low4651_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _483_fq_weights_1_Copy_out_high4652_const_0 = model.constant("483/fq_weights_1/Copy/out_high4652_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _479_fq_weights_1_Copy_out_low4523_const_0 = model.constant("479/fq_weights_1/Copy/out_low4523_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _479_fq_weights_1_Copy_out_high4524_const_0 = model.constant("479/fq_weights_1/Copy/out_high4524_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _476_fq_weights_1_Copy_out_low4339_const_0 = model.constant("476/fq_weights_1/Copy/out_low4339_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _476_fq_weights_1_Copy_out_high4340_const_0 = model.constant("476/fq_weights_1/Copy/out_high4340_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _473_fq_weights_1_Copy_out_low4499_const_0 = model.constant("473/fq_weights_1/Copy/out_low4499_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _473_fq_weights_1_Copy_out_high4500_const_0 = model.constant("473/fq_weights_1/Copy/out_high4500_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _469_fq_weights_1_Copy_out_low4635_const_0 = model.constant("469/fq_weights_1/Copy/out_low4635_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _469_fq_weights_1_Copy_out_high4636_const_0 = model.constant("469/fq_weights_1/Copy/out_high4636_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _467_fq_weights_1_Copy_out_low4323_const_0 = model.constant("467/fq_weights_1/Copy/out_low4323_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _467_fq_weights_1_Copy_out_high4324_const_0 = model.constant("467/fq_weights_1/Copy/out_high4324_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _464_fq_weights_1_Copy_out_low4587_const_0 = model.constant("464/fq_weights_1/Copy/out_low4587_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _464_fq_weights_1_Copy_out_high4588_const_0 = model.constant("464/fq_weights_1/Copy/out_high4588_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _461_fq_weights_1_Copy_out_low4547_const_0 = model.constant("461/fq_weights_1/Copy/out_low4547_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _461_fq_weights_1_Copy_out_high4548_const_0 = model.constant("461/fq_weights_1/Copy/out_high4548_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _457_fq_weights_1_Copy_out_low4427_const_0 = model.constant("457/fq_weights_1/Copy/out_low4427_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _457_fq_weights_1_Copy_out_high4428_const_0 = model.constant("457/fq_weights_1/Copy/out_high4428_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _454_fq_weights_1_Copy_out_low4355_const_0 = model.constant("454/fq_weights_1/Copy/out_low4355_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _454_fq_weights_1_Copy_out_high4356_const_0 = model.constant("454/fq_weights_1/Copy/out_high4356_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _451_fq_weights_1_Copy_out_low4475_const_0 = model.constant("451/fq_weights_1/Copy/out_low4475_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _451_fq_weights_1_Copy_out_high4476_const_0 = model.constant("451/fq_weights_1/Copy/out_high4476_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _447_fq_weights_1_Copy_out_low4507_const_0 = model.constant("447/fq_weights_1/Copy/out_low4507_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _447_fq_weights_1_Copy_out_high4508_const_0 = model.constant("447/fq_weights_1/Copy/out_high4508_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _444_fq_weights_1_Copy_out_low4747_const_0 = model.constant("444/fq_weights_1/Copy/out_low4747_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _444_fq_weights_1_Copy_out_high4748_const_0 = model.constant("444/fq_weights_1/Copy/out_high4748_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _441_fq_weights_1_Copy_out_low4675_const_0 = model.constant("441/fq_weights_1/Copy/out_low4675_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _441_fq_weights_1_Copy_out_high4676_const_0 = model.constant("441/fq_weights_1/Copy/out_high4676_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _437_fq_weights_1_Copy_out_low4363_const_0 = model.constant("437/fq_weights_1/Copy/out_low4363_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _437_fq_weights_1_Copy_out_high4364_const_0 = model.constant("437/fq_weights_1/Copy/out_high4364_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _434_fq_weights_1_Copy_out_low4707_const_0 = model.constant("434/fq_weights_1/Copy/out_low4707_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _434_fq_weights_1_Copy_out_high4708_const_0 = model.constant("434/fq_weights_1/Copy/out_high4708_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _431_fq_weights_1_Copy_out_low4443_const_0 = model.constant("431/fq_weights_1/Copy/out_low4443_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _431_fq_weights_1_Copy_out_high4444_const_0 = model.constant("431/fq_weights_1/Copy/out_high4444_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _427_fq_weights_1_Copy_out_low4539_const_0 = model.constant("427/fq_weights_1/Copy/out_low4539_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _427_fq_weights_1_Copy_out_high4540_const_0 = model.constant("427/fq_weights_1/Copy/out_high4540_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _424_fq_weights_1_Copy_out_low4483_const_0 = model.constant("424/fq_weights_1/Copy/out_low4483_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _424_fq_weights_1_Copy_out_high4484_const_0 = model.constant("424/fq_weights_1/Copy/out_high4484_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _421_fq_weights_1_Copy_out_low4579_const_0 = model.constant("421/fq_weights_1/Copy/out_low4579_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _421_fq_weights_1_Copy_out_high4580_const_0 = model.constant("421/fq_weights_1/Copy/out_high4580_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _417_fq_weights_1_Copy_out_low4627_const_0 = model.constant("417/fq_weights_1/Copy/out_low4627_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _417_fq_weights_1_Copy_out_high4628_const_0 = model.constant("417/fq_weights_1/Copy/out_high4628_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _414_fq_weights_1_Copy_out_low4515_const_0 = model.constant("414/fq_weights_1/Copy/out_low4515_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _414_fq_weights_1_Copy_out_high4516_const_0 = model.constant("414/fq_weights_1/Copy/out_high4516_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _411_fq_weights_1_Copy_out_low4347_const_0 = model.constant("411/fq_weights_1/Copy/out_low4347_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _411_fq_weights_1_Copy_out_high4348_const_0 = model.constant("411/fq_weights_1/Copy/out_high4348_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _407_fq_weights_1_Copy_out_low4331_const_0 = model.constant("407/fq_weights_1/Copy/out_low4331_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _407_fq_weights_1_Copy_out_high4332_const_0 = model.constant("407/fq_weights_1/Copy/out_high4332_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _405_fq_weights_1_Copy_out_low4619_const_0 = model.constant("405/fq_weights_1/Copy/out_low4619_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _405_fq_weights_1_Copy_out_high4620_const_0 = model.constant("405/fq_weights_1/Copy/out_high4620_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _402_fq_weights_1_Copy_out_low4595_const_0 = model.constant("402/fq_weights_1/Copy/out_low4595_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _402_fq_weights_1_Copy_out_high4596_const_0 = model.constant("402/fq_weights_1/Copy/out_high4596_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _399_fq_weights_1_Copy_out_low4571_const_0 = model.constant("399/fq_weights_1/Copy/out_low4571_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _399_fq_weights_1_Copy_out_high4572_const_0 = model.constant("399/fq_weights_1/Copy/out_high4572_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _395_fq_weights_1_Copy_out_low4451_const_0 = model.constant("395/fq_weights_1/Copy/out_low4451_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _395_fq_weights_1_Copy_out_high4452_const_0 = model.constant("395/fq_weights_1/Copy/out_high4452_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _395_fq_weights_1_0 = model.fakeQuantize("395/fq_weights_1", Constant_4093_0, _395_fq_weights_1_Copy_out_low4451_const_0, _395_fq_weights_1_Copy_out_high4452_const_0, _933937_const_0, _934938_const_0, 255);
+    const auto _392_fq_weights_1_Copy_out_low4371_const_0 = model.constant("392/fq_weights_1/Copy/out_low4371_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _392_fq_weights_1_Copy_out_high4372_const_0 = model.constant("392/fq_weights_1/Copy/out_high4372_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _392_fq_weights_1_0 = model.fakeQuantize("392/fq_weights_1", Constant_4092_0, _392_fq_weights_1_Copy_out_low4371_const_0, _392_fq_weights_1_Copy_out_high4372_const_0, _953957_const_0, _954958_const_0, 255);
+    const auto _389_fq_weights_1_Copy_out_low4691_const_0 = model.constant("389/fq_weights_1/Copy/out_low4691_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _389_fq_weights_1_Copy_out_high4692_const_0 = model.constant("389/fq_weights_1/Copy/out_high4692_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _385_fq_weights_1_Copy_out_low4643_const_0 = model.constant("385/fq_weights_1/Copy/out_low4643_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _385_fq_weights_1_Copy_out_high4644_const_0 = model.constant("385/fq_weights_1/Copy/out_high4644_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _382_fq_weights_1_Copy_out_low4555_const_0 = model.constant("382/fq_weights_1/Copy/out_low4555_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _382_fq_weights_1_Copy_out_high4556_const_0 = model.constant("382/fq_weights_1/Copy/out_high4556_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _379_fq_weights_1_Copy_out_low4411_const_0 = model.constant("379/fq_weights_1/Copy/out_low4411_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _379_fq_weights_1_Copy_out_high4412_const_0 = model.constant("379/fq_weights_1/Copy/out_high4412_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _375_fq_weights_1_Copy_out_low4563_const_0 = model.constant("375/fq_weights_1/Copy/out_low4563_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _375_fq_weights_1_Copy_out_high4564_const_0 = model.constant("375/fq_weights_1/Copy/out_high4564_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _372_fq_weights_1_Copy_out_low4611_const_0 = model.constant("372/fq_weights_1/Copy/out_low4611_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _372_fq_weights_1_Copy_out_high4612_const_0 = model.constant("372/fq_weights_1/Copy/out_high4612_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _369_fq_weights_1_Copy_out_low4491_const_0 = model.constant("369/fq_weights_1/Copy/out_low4491_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _369_fq_weights_1_Copy_out_high4492_const_0 = model.constant("369/fq_weights_1/Copy/out_high4492_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _365_fq_weights_1_Copy_out_low4667_const_0 = model.constant("365/fq_weights_1/Copy/out_low4667_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _365_fq_weights_1_Copy_out_high4668_const_0 = model.constant("365/fq_weights_1/Copy/out_high4668_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _363_fq_weights_1_Copy_out_low4467_const_0 = model.constant("363/fq_weights_1/Copy/out_low4467_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _363_fq_weights_1_Copy_out_high4468_const_0 = model.constant("363/fq_weights_1/Copy/out_high4468_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _360_fq_weights_1_Copy_out_low4715_const_0 = model.constant("360/fq_weights_1/Copy/out_low4715_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _360_fq_weights_1_Copy_out_high4716_const_0 = model.constant("360/fq_weights_1/Copy/out_high4716_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _357_fq_weights_1_Copy_out_low4403_const_0 = model.constant("357/fq_weights_1/Copy/out_low4403_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _357_fq_weights_1_Copy_out_high4404_const_0 = model.constant("357/fq_weights_1/Copy/out_high4404_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _353_fq_weights_1_Copy_out_low4419_const_0 = model.constant("353/fq_weights_1/Copy/out_low4419_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _353_fq_weights_1_Copy_out_high4420_const_0 = model.constant("353/fq_weights_1/Copy/out_high4420_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _350_fq_weights_1_Copy_out_low4731_const_0 = model.constant("350/fq_weights_1/Copy/out_low4731_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _350_fq_weights_1_Copy_out_high4732_const_0 = model.constant("350/fq_weights_1/Copy/out_high4732_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _347_fq_weights_1_Copy_out_low4387_const_0 = model.constant("347/fq_weights_1/Copy/out_low4387_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _347_fq_weights_1_Copy_out_high4388_const_0 = model.constant("347/fq_weights_1/Copy/out_high4388_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _343_fq_weights_1_Copy_out_low4435_const_0 = model.constant("343/fq_weights_1/Copy/out_low4435_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _343_fq_weights_1_Copy_out_high4436_const_0 = model.constant("343/fq_weights_1/Copy/out_high4436_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _340_fq_weights_1_Copy_out_low4603_const_0 = model.constant("340/fq_weights_1/Copy/out_low4603_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _340_fq_weights_1_Copy_out_high4604_const_0 = model.constant("340/fq_weights_1/Copy/out_high4604_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _337_fq_weights_1_Copy_out_low4723_const_0 = model.constant("337/fq_weights_1/Copy/out_low4723_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _337_fq_weights_1_Copy_out_high4724_const_0 = model.constant("337/fq_weights_1/Copy/out_high4724_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _333_fq_weights_1_Copy_out_low4683_const_0 = model.constant("333/fq_weights_1/Copy/out_low4683_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _333_fq_weights_1_Copy_out_high4684_const_0 = model.constant("333/fq_weights_1/Copy/out_high4684_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _331_fq_weights_1_Copy_out_low4395_const_0 = model.constant("331/fq_weights_1/Copy/out_low4395_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _331_fq_weights_1_Copy_out_high4396_const_0 = model.constant("331/fq_weights_1/Copy/out_high4396_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _328_fq_weights_1_Copy_out_low4699_const_0 = model.constant("328/fq_weights_1/Copy/out_low4699_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _328_fq_weights_1_Copy_out_high4700_const_0 = model.constant("328/fq_weights_1/Copy/out_high4700_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _325_fq_weights_1_Copy_out_low4739_const_0 = model.constant("325/fq_weights_1/Copy/out_low4739_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _325_fq_weights_1_Copy_out_high4740_const_0 = model.constant("325/fq_weights_1/Copy/out_high4740_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _321_fq_weights_1_Copy_out_low4459_const_0 = model.constant("321/fq_weights_1/Copy/out_low4459_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _321_fq_weights_1_Copy_out_high4460_const_0 = model.constant("321/fq_weights_1/Copy/out_high4460_const", {254.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _30303034_const_0 = model.constant("30303034_const", {4.546875}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _30293033_const_0 = model.constant("30293033_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _30283032_const_0 = model.constant("30283032_const", {4.546875}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _30273031_const_0 = model.constant("30273031_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _30103014_const_0 = model.constant("30103014_const", {3.238281}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _30093013_const_0 = model.constant("30093013_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _30083012_const_0 = model.constant("30083012_const", {3.238281}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _30073011_const_0 = model.constant("30073011_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _23242328_const_0 = model.constant("23242328_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _23232327_const_0 = model.constant("23232327_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _379_fq_weights_1_0 = model.fakeQuantize("379/fq_weights_1", Constant_4088_0, _379_fq_weights_1_Copy_out_low4411_const_0, _379_fq_weights_1_Copy_out_high4412_const_0, _23232327_const_0, _23242328_const_0, 255);
+    const auto _23142318_const_0 = model.constant("23142318_const", {3.009766}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _23132317_const_0 = model.constant("23132317_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _23122316_const_0 = model.constant("23122316_const", {3.009766}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _23112315_const_0 = model.constant("23112315_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22942298_const_0 = model.constant("22942298_const", {1.434570}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22932297_const_0 = model.constant("22932297_const", {-1.446289}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22922296_const_0 = model.constant("22922296_const", {1.434570}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22912295_const_0 = model.constant("22912295_const", {-1.446289}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22842288_const_0 = model.constant("22842288_const", {2.583984}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22832287_const_0 = model.constant("22832287_const", {-2.603516}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22822286_const_0 = model.constant("22822286_const", {2.583984}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22812285_const_0 = model.constant("22812285_const", {-2.603516}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22742278_const_0 = model.constant("22742278_const", {2.583984}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22732277_const_0 = model.constant("22732277_const", {-2.603516}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22722276_const_0 = model.constant("22722276_const", {2.583984}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22712275_const_0 = model.constant("22712275_const", {-2.603516}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22642268_const_0 = model.constant("22642268_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _22632267_const_0 = model.constant("22632267_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _321_fq_weights_1_0 = model.fakeQuantize("321/fq_weights_1", Constant_4070_0, _321_fq_weights_1_Copy_out_low4459_const_0, _321_fq_weights_1_Copy_out_high4460_const_0, _22632267_const_0, _22642268_const_0, 255);
+    const auto _22542258_const_0 = model.constant("22542258_const", {2.507812}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22532257_const_0 = model.constant("22532257_const", {-2.529297}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22522256_const_0 = model.constant("22522256_const", {2.507812}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22512255_const_0 = model.constant("22512255_const", {-2.529297}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _321_fq_input_0_0 = model.fakeQuantize("321/fq_input_0", Add__Fused_Add__bias_0, _22512255_const_0, _22522256_const_0, _22532257_const_0, _22542258_const_0, 256);
+    const auto _322_variance_Fused_Add__0 = model.conv("322/variance/Fused_Add_", _321_fq_input_0_0, _321_fq_weights_1_0, {2, 2}, {3, 2, 3, 2}, 1, 1);
+    const auto _322_variance_Fused_Add__bias_0 = model.bias("322/variance/Fused_Add_:bias", _322_variance_Fused_Add__0, Constant_4379_0);
+    const auto _323_0 = model.relu("323", _322_variance_Fused_Add__bias_0);
+    const auto _324_fq_input_0_0 = model.fakeQuantize("324/fq_input_0", _323_0, _30073011_const_0, _30083012_const_0, _30093013_const_0, _30103014_const_0, 256);
+    const auto _324_0 = model.maxPool("324", _324_fq_input_0_0, {3, 3}, {2, 2}, {1, 0, 1, 0}, false);
+    const auto _22342238_const_0 = model.constant("22342238_const", {1.499023}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22332237_const_0 = model.constant("22332237_const", {-1.510742}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22322236_const_0 = model.constant("22322236_const", {1.499023}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22312235_const_0 = model.constant("22312235_const", {-1.510742}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22242228_const_0 = model.constant("22242228_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _22232227_const_0 = model.constant("22232227_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _405_fq_weights_1_0 = model.fakeQuantize("405/fq_weights_1", Constant_4096_0, _405_fq_weights_1_Copy_out_low4619_const_0, _405_fq_weights_1_Copy_out_high4620_const_0, _22232227_const_0, _22242228_const_0, 255);
+    const auto _22142218_const_0 = model.constant("22142218_const", {1.351562}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22132217_const_0 = model.constant("22132217_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22122216_const_0 = model.constant("22122216_const", {1.351562}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22112215_const_0 = model.constant("22112215_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _22042208_const_0 = model.constant("22042208_const", mv::utils::generateSequence<double>(1*1000), {1, 1000}, mv::DType("Float32"), mv::Order("HW"));
+    const auto _22032207_const_0 = model.constant("22032207_const", mv::utils::generateSequence<double>(1*1000), {1, 1000}, mv::DType("Float32"), mv::Order("HW"));
+    const auto prob_WithoutBiases_fq_weights_1_0 = model.fakeQuantize("prob/WithoutBiases/fq_weights_1", Constant_4123_0, prob_WithoutBiases_fq_weights_1_Copy_out_low4659_const_0, prob_WithoutBiases_fq_weights_1_Copy_out_high4660_const_0, _22032207_const_0, _22042208_const_0, 255);
+    const auto _21742178_const_0 = model.constant("21742178_const", {1.279297}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21732177_const_0 = model.constant("21732177_const", {-1.289062}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21722176_const_0 = model.constant("21722176_const", {1.279297}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21712175_const_0 = model.constant("21712175_const", {-1.289062}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21542158_const_0 = model.constant("21542158_const", {1.263672}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21532157_const_0 = model.constant("21532157_const", {-1.273438}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21522156_const_0 = model.constant("21522156_const", {1.263672}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21512155_const_0 = model.constant("21512155_const", {-1.273438}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21442148_const_0 = model.constant("21442148_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _21432147_const_0 = model.constant("21432147_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _424_fq_weights_1_0 = model.fakeQuantize("424/fq_weights_1", Constant_4102_0, _424_fq_weights_1_Copy_out_low4483_const_0, _424_fq_weights_1_Copy_out_high4484_const_0, _21432147_const_0, _21442148_const_0, 255);
+    const auto _21342138_const_0 = model.constant("21342138_const", {1.148438}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21332137_const_0 = model.constant("21332137_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21322136_const_0 = model.constant("21322136_const", {1.148438}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21312135_const_0 = model.constant("21312135_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21242128_const_0 = model.constant("21242128_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _21232127_const_0 = model.constant("21232127_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _399_fq_weights_1_0 = model.fakeQuantize("399/fq_weights_1", Constant_4094_0, _399_fq_weights_1_Copy_out_low4571_const_0, _399_fq_weights_1_Copy_out_high4572_const_0, _21232127_const_0, _21242128_const_0, 255);
+    const auto _21142118_const_0 = model.constant("21142118_const", {3.189453}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21132117_const_0 = model.constant("21132117_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21122116_const_0 = model.constant("21122116_const", {3.189453}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21112115_const_0 = model.constant("21112115_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21042108_const_0 = model.constant("21042108_const", {2.103516}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21032107_const_0 = model.constant("21032107_const", {-2.121094}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21022106_const_0 = model.constant("21022106_const", {2.103516}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _21012105_const_0 = model.constant("21012105_const", {-2.121094}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20942098_const_0 = model.constant("20942098_const", {2.103516}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20932097_const_0 = model.constant("20932097_const", {-2.121094}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20922096_const_0 = model.constant("20922096_const", {2.103516}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20912095_const_0 = model.constant("20912095_const", {-2.121094}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20742078_const_0 = model.constant("20742078_const", {1.572266}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20732077_const_0 = model.constant("20732077_const", {-1.583984}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20722076_const_0 = model.constant("20722076_const", {1.572266}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20712075_const_0 = model.constant("20712075_const", {-1.583984}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20642068_const_0 = model.constant("20642068_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _20632067_const_0 = model.constant("20632067_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _431_fq_weights_1_0 = model.fakeQuantize("431/fq_weights_1", Constant_4104_0, _431_fq_weights_1_Copy_out_low4443_const_0, _431_fq_weights_1_Copy_out_high4444_const_0, _20632067_const_0, _20642068_const_0, 255);
+    const auto _20542058_const_0 = model.constant("20542058_const", {2.880859}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20532057_const_0 = model.constant("20532057_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20522056_const_0 = model.constant("20522056_const", {2.880859}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20512055_const_0 = model.constant("20512055_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20442048_const_0 = model.constant("20442048_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _20432047_const_0 = model.constant("20432047_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _360_fq_weights_1_0 = model.fakeQuantize("360/fq_weights_1", Constant_4082_0, _360_fq_weights_1_Copy_out_low4715_const_0, _360_fq_weights_1_Copy_out_high4716_const_0, _20432047_const_0, _20442048_const_0, 255);
+    const auto _20342038_const_0 = model.constant("20342038_const", {2.205078}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20332037_const_0 = model.constant("20332037_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20322036_const_0 = model.constant("20322036_const", {2.205078}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20312035_const_0 = model.constant("20312035_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20242028_const_0 = model.constant("20242028_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _20232027_const_0 = model.constant("20232027_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _389_fq_weights_1_0 = model.fakeQuantize("389/fq_weights_1", Constant_4091_0, _389_fq_weights_1_Copy_out_low4691_const_0, _389_fq_weights_1_Copy_out_high4692_const_0, _20232027_const_0, _20242028_const_0, 255);
+    const auto _20142018_const_0 = model.constant("20142018_const", {3.156250}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20132017_const_0 = model.constant("20132017_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20122016_const_0 = model.constant("20122016_const", {3.156250}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20112015_const_0 = model.constant("20112015_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _20042008_const_0 = model.constant("20042008_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _20032007_const_0 = model.constant("20032007_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _385_fq_weights_1_0 = model.fakeQuantize("385/fq_weights_1", Constant_4090_0, _385_fq_weights_1_Copy_out_low4643_const_0, _385_fq_weights_1_Copy_out_high4644_const_0, _20032007_const_0, _20042008_const_0, 255);
+    const auto _19941998_const_0 = model.constant("19941998_const", {1.101562}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19931997_const_0 = model.constant("19931997_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19921996_const_0 = model.constant("19921996_const", {1.101562}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19911995_const_0 = model.constant("19911995_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19841988_const_0 = model.constant("19841988_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _19831987_const_0 = model.constant("19831987_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _347_fq_weights_1_0 = model.fakeQuantize("347/fq_weights_1", Constant_4078_0, _347_fq_weights_1_Copy_out_low4387_const_0, _347_fq_weights_1_Copy_out_high4388_const_0, _19831987_const_0, _19841988_const_0, 255);
+    const auto _19741978_const_0 = model.constant("19741978_const", {3.921875}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19731977_const_0 = model.constant("19731977_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19721976_const_0 = model.constant("19721976_const", {3.921875}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19711975_const_0 = model.constant("19711975_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19641968_const_0 = model.constant("19641968_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _19631967_const_0 = model.constant("19631967_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _325_fq_weights_1_0 = model.fakeQuantize("325/fq_weights_1", Constant_4071_0, _325_fq_weights_1_Copy_out_low4739_const_0, _325_fq_weights_1_Copy_out_high4740_const_0, _19631967_const_0, _19641968_const_0, 255);
+    const auto _326_variance_Fused_Add__0 = model.conv("326/variance/Fused_Add_", _324_0, _325_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _326_variance_Fused_Add__bias_0 = model.bias("326/variance/Fused_Add_:bias", _326_variance_Fused_Add__0, Constant_4380_0);
+    const auto _327_0 = model.relu("327", _326_variance_Fused_Add__bias_0);
+    const auto _19441948_const_0 = model.constant("19441948_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _19431947_const_0 = model.constant("19431947_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _421_fq_weights_1_0 = model.fakeQuantize("421/fq_weights_1", Constant_4101_0, _421_fq_weights_1_Copy_out_low4579_const_0, _421_fq_weights_1_Copy_out_high4580_const_0, _19431947_const_0, _19441948_const_0, 255);
+    const auto _19341938_const_0 = model.constant("19341938_const", {2.568359}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19331937_const_0 = model.constant("19331937_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19321936_const_0 = model.constant("19321936_const", {2.568359}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19311935_const_0 = model.constant("19311935_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19141918_const_0 = model.constant("19141918_const", {1.953125}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19131917_const_0 = model.constant("19131917_const", {-1.968750}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19121916_const_0 = model.constant("19121916_const", {1.953125}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19111915_const_0 = model.constant("19111915_const", {-1.968750}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _19041908_const_0 = model.constant("19041908_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _19031907_const_0 = model.constant("19031907_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _483_fq_weights_1_0 = model.fakeQuantize("483/fq_weights_1", Constant_4120_0, _483_fq_weights_1_Copy_out_low4651_const_0, _483_fq_weights_1_Copy_out_high4652_const_0, _19031907_const_0, _19041908_const_0, 255);
+    const auto _18941898_const_0 = model.constant("18941898_const", {17.140625}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18931897_const_0 = model.constant("18931897_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18921896_const_0 = model.constant("18921896_const", {17.140625}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18911895_const_0 = model.constant("18911895_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18841888_const_0 = model.constant("18841888_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _18831887_const_0 = model.constant("18831887_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _447_fq_weights_1_0 = model.fakeQuantize("447/fq_weights_1", Constant_4109_0, _447_fq_weights_1_Copy_out_low4507_const_0, _447_fq_weights_1_Copy_out_high4508_const_0, _18831887_const_0, _18841888_const_0, 255);
+    const auto _18741878_const_0 = model.constant("18741878_const", {1.066406}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18731877_const_0 = model.constant("18731877_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18721876_const_0 = model.constant("18721876_const", {1.066406}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18711875_const_0 = model.constant("18711875_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18641868_const_0 = model.constant("18641868_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _18631867_const_0 = model.constant("18631867_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _457_fq_weights_1_0 = model.fakeQuantize("457/fq_weights_1", Constant_4112_0, _457_fq_weights_1_Copy_out_low4427_const_0, _457_fq_weights_1_Copy_out_high4428_const_0, _18631867_const_0, _18641868_const_0, 255);
+    const auto _18541858_const_0 = model.constant("18541858_const", {1.511719}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18531857_const_0 = model.constant("18531857_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18521856_const_0 = model.constant("18521856_const", {1.511719}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18511855_const_0 = model.constant("18511855_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18441848_const_0 = model.constant("18441848_const", mv::utils::generateSequence<double>(1*1*1*2048), {1, 1, 1, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _18431847_const_0 = model.constant("18431847_const", mv::utils::generateSequence<double>(1*1*1*2048), {1, 1, 1, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _489_fq_weights_1_0 = model.fakeQuantize("489/fq_weights_1", Constant_4122_0, _489_fq_weights_1_Copy_out_low4531_const_0, _489_fq_weights_1_Copy_out_high4532_const_0, _18431847_const_0, _18441848_const_0, 255);
+    const auto _18341838_const_0 = model.constant("18341838_const", {1.129883}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18331837_const_0 = model.constant("18331837_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18321836_const_0 = model.constant("18321836_const", {1.129883}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18311835_const_0 = model.constant("18311835_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18241828_const_0 = model.constant("18241828_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _18231827_const_0 = model.constant("18231827_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _441_fq_weights_1_0 = model.fakeQuantize("441/fq_weights_1", Constant_4107_0, _441_fq_weights_1_Copy_out_low4675_const_0, _441_fq_weights_1_Copy_out_high4676_const_0, _18231827_const_0, _18241828_const_0, 255);
+    const auto _18141818_const_0 = model.constant("18141818_const", {2.794922}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18131817_const_0 = model.constant("18131817_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18121816_const_0 = model.constant("18121816_const", {2.794922}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18111815_const_0 = model.constant("18111815_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _18041808_const_0 = model.constant("18041808_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _18031807_const_0 = model.constant("18031807_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _363_fq_weights_1_0 = model.fakeQuantize("363/fq_weights_1", Constant_4083_0, _363_fq_weights_1_Copy_out_low4467_const_0, _363_fq_weights_1_Copy_out_high4468_const_0, _18031807_const_0, _18041808_const_0, 255);
+    const auto _17941798_const_0 = model.constant("17941798_const", {1.481445}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17931797_const_0 = model.constant("17931797_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17921796_const_0 = model.constant("17921796_const", {1.481445}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17911795_const_0 = model.constant("17911795_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17841788_const_0 = model.constant("17841788_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _17831787_const_0 = model.constant("17831787_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _331_fq_weights_1_0 = model.fakeQuantize("331/fq_weights_1", Constant_4073_0, _331_fq_weights_1_Copy_out_low4395_const_0, _331_fq_weights_1_Copy_out_high4396_const_0, _17831787_const_0, _17841788_const_0, 255);
+    const auto _17741778_const_0 = model.constant("17741778_const", {1.709961}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17731777_const_0 = model.constant("17731777_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17721776_const_0 = model.constant("17721776_const", {1.709961}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17711775_const_0 = model.constant("17711775_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17641768_const_0 = model.constant("17641768_const", {13.195312}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17631767_const_0 = model.constant("17631767_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17621766_const_0 = model.constant("17621766_const", {13.195312}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17611765_const_0 = model.constant("17611765_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17541758_const_0 = model.constant("17541758_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _17531757_const_0 = model.constant("17531757_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _476_fq_weights_1_0 = model.fakeQuantize("476/fq_weights_1", Constant_4118_0, _476_fq_weights_1_Copy_out_low4339_const_0, _476_fq_weights_1_Copy_out_high4340_const_0, _17531757_const_0, _17541758_const_0, 255);
+    const auto _17441748_const_0 = model.constant("17441748_const", {1.372070}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17431747_const_0 = model.constant("17431747_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17421746_const_0 = model.constant("17421746_const", {1.372070}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17411745_const_0 = model.constant("17411745_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17341738_const_0 = model.constant("17341738_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _17331737_const_0 = model.constant("17331737_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _337_fq_weights_1_0 = model.fakeQuantize("337/fq_weights_1", Constant_4075_0, _337_fq_weights_1_Copy_out_low4723_const_0, _337_fq_weights_1_Copy_out_high4724_const_0, _17331737_const_0, _17341738_const_0, 255);
+    const auto _17241728_const_0 = model.constant("17241728_const", {2.537109}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17231727_const_0 = model.constant("17231727_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17221726_const_0 = model.constant("17221726_const", {2.537109}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17211725_const_0 = model.constant("17211725_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17141718_const_0 = model.constant("17141718_const", {1.792969}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17131717_const_0 = model.constant("17131717_const", {-1.807617}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17121716_const_0 = model.constant("17121716_const", {1.792969}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17111715_const_0 = model.constant("17111715_const", {-1.807617}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17041708_const_0 = model.constant("17041708_const", {1.792969}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17031707_const_0 = model.constant("17031707_const", {-1.807617}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17021706_const_0 = model.constant("17021706_const", {1.792969}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _17011705_const_0 = model.constant("17011705_const", {-1.807617}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16941698_const_0 = model.constant("16941698_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _16931697_const_0 = model.constant("16931697_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _464_fq_weights_1_0 = model.fakeQuantize("464/fq_weights_1", Constant_4114_0, _464_fq_weights_1_Copy_out_low4587_const_0, _464_fq_weights_1_Copy_out_high4588_const_0, _16931697_const_0, _16941698_const_0, 255);
+    const auto _16841688_const_0 = model.constant("16841688_const", {1.685547}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16831687_const_0 = model.constant("16831687_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16821686_const_0 = model.constant("16821686_const", {1.685547}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16811685_const_0 = model.constant("16811685_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16741678_const_0 = model.constant("16741678_const", mv::utils::generateSequence<double>(1*1*1*2048), {1, 1, 1, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _16731677_const_0 = model.constant("16731677_const", mv::utils::generateSequence<double>(1*1*1*2048), {1, 1, 1, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _479_fq_weights_1_0 = model.fakeQuantize("479/fq_weights_1", Constant_4119_0, _479_fq_weights_1_Copy_out_low4523_const_0, _479_fq_weights_1_Copy_out_high4524_const_0, _16731677_const_0, _16741678_const_0, 255);
+    const auto _16641668_const_0 = model.constant("16641668_const", {1.040039}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16631667_const_0 = model.constant("16631667_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16621666_const_0 = model.constant("16621666_const", {1.040039}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16611665_const_0 = model.constant("16611665_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16541658_const_0 = model.constant("16541658_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _16531657_const_0 = model.constant("16531657_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _454_fq_weights_1_0 = model.fakeQuantize("454/fq_weights_1", Constant_4111_0, _454_fq_weights_1_Copy_out_low4355_const_0, _454_fq_weights_1_Copy_out_high4356_const_0, _16531657_const_0, _16541658_const_0, 255);
+    const auto _16441648_const_0 = model.constant("16441648_const", {1.572266}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16431647_const_0 = model.constant("16431647_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16421646_const_0 = model.constant("16421646_const", {1.572266}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16411645_const_0 = model.constant("16411645_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16341638_const_0 = model.constant("16341638_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _16331637_const_0 = model.constant("16331637_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _411_fq_weights_1_0 = model.fakeQuantize("411/fq_weights_1", Constant_4098_0, _411_fq_weights_1_Copy_out_low4347_const_0, _411_fq_weights_1_Copy_out_high4348_const_0, _16331637_const_0, _16341638_const_0, 255);
+    const auto _16241628_const_0 = model.constant("16241628_const", {3.587891}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16231627_const_0 = model.constant("16231627_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16221626_const_0 = model.constant("16221626_const", {3.587891}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16211625_const_0 = model.constant("16211625_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16141618_const_0 = model.constant("16141618_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _16131617_const_0 = model.constant("16131617_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _417_fq_weights_1_0 = model.fakeQuantize("417/fq_weights_1", Constant_4100_0, _417_fq_weights_1_Copy_out_low4627_const_0, _417_fq_weights_1_Copy_out_high4628_const_0, _16131617_const_0, _16141618_const_0, 255);
+    const auto _16041608_const_0 = model.constant("16041608_const", {1.150391}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16031607_const_0 = model.constant("16031607_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16021606_const_0 = model.constant("16021606_const", {1.150391}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _16011605_const_0 = model.constant("16011605_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15841588_const_0 = model.constant("15841588_const", {1.774414}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15831587_const_0 = model.constant("15831587_const", {-1.788086}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15821586_const_0 = model.constant("15821586_const", {1.774414}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15811585_const_0 = model.constant("15811585_const", {-1.788086}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15641568_const_0 = model.constant("15641568_const", {8.531250}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15631567_const_0 = model.constant("15631567_const", {-8.601562}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15621566_const_0 = model.constant("15621566_const", {8.531250}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15611565_const_0 = model.constant("15611565_const", {-8.601562}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15541558_const_0 = model.constant("15541558_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _15531557_const_0 = model.constant("15531557_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _357_fq_weights_1_0 = model.fakeQuantize("357/fq_weights_1", Constant_4081_0, _357_fq_weights_1_Copy_out_low4403_const_0, _357_fq_weights_1_Copy_out_high4404_const_0, _15531557_const_0, _15541558_const_0, 255);
+    const auto _15441548_const_0 = model.constant("15441548_const", {2.720703}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15431547_const_0 = model.constant("15431547_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15421546_const_0 = model.constant("15421546_const", {2.720703}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15411545_const_0 = model.constant("15411545_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15241528_const_0 = model.constant("15241528_const", {1.786133}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15231527_const_0 = model.constant("15231527_const", {-1.800781}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15221526_const_0 = model.constant("15221526_const", {1.786133}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15211525_const_0 = model.constant("15211525_const", {-1.800781}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15141518_const_0 = model.constant("15141518_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _15131517_const_0 = model.constant("15131517_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _486_fq_weights_1_0 = model.fakeQuantize("486/fq_weights_1", Constant_4121_0, _486_fq_weights_1_Copy_out_low4379_const_0, _486_fq_weights_1_Copy_out_high4380_const_0, _15131517_const_0, _15141518_const_0, 255);
+    const auto _15041508_const_0 = model.constant("15041508_const", {1.337891}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15031507_const_0 = model.constant("15031507_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15021506_const_0 = model.constant("15021506_const", {1.337891}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _15011505_const_0 = model.constant("15011505_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14941498_const_0 = model.constant("14941498_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _14931497_const_0 = model.constant("14931497_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _372_fq_weights_1_0 = model.fakeQuantize("372/fq_weights_1", Constant_4086_0, _372_fq_weights_1_Copy_out_low4611_const_0, _372_fq_weights_1_Copy_out_high4612_const_0, _14931497_const_0, _14941498_const_0, 255);
+    const auto _14841488_const_0 = model.constant("14841488_const", {0.777832}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14831487_const_0 = model.constant("14831487_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14821486_const_0 = model.constant("14821486_const", {0.777832}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14811485_const_0 = model.constant("14811485_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14741478_const_0 = model.constant("14741478_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _14731477_const_0 = model.constant("14731477_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _427_fq_weights_1_0 = model.fakeQuantize("427/fq_weights_1", Constant_4103_0, _427_fq_weights_1_Copy_out_low4539_const_0, _427_fq_weights_1_Copy_out_high4540_const_0, _14731477_const_0, _14741478_const_0, 255);
+    const auto _14641468_const_0 = model.constant("14641468_const", {0.928711}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14631467_const_0 = model.constant("14631467_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14621466_const_0 = model.constant("14621466_const", {0.928711}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14611465_const_0 = model.constant("14611465_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14541458_const_0 = model.constant("14541458_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _14531457_const_0 = model.constant("14531457_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _382_fq_weights_1_0 = model.fakeQuantize("382/fq_weights_1", Constant_4089_0, _382_fq_weights_1_Copy_out_low4555_const_0, _382_fq_weights_1_Copy_out_high4556_const_0, _14531457_const_0, _14541458_const_0, 255);
+    const auto _14441448_const_0 = model.constant("14441448_const", {1.197266}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14431447_const_0 = model.constant("14431447_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14421446_const_0 = model.constant("14421446_const", {1.197266}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14411445_const_0 = model.constant("14411445_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14341438_const_0 = model.constant("14341438_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _14331437_const_0 = model.constant("14331437_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _473_fq_weights_1_0 = model.fakeQuantize("473/fq_weights_1", Constant_4117_0, _473_fq_weights_1_Copy_out_low4499_const_0, _473_fq_weights_1_Copy_out_high4500_const_0, _14331437_const_0, _14341438_const_0, 255);
+    const auto _14241428_const_0 = model.constant("14241428_const", {6.941406}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14231427_const_0 = model.constant("14231427_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14221426_const_0 = model.constant("14221426_const", {6.941406}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14211425_const_0 = model.constant("14211425_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _14141418_const_0 = model.constant("14141418_const", mv::utils::generateSequence<double>(1*1*1*2048), {1, 1, 1, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _14131417_const_0 = model.constant("14131417_const", mv::utils::generateSequence<double>(1*1*1*2048), {1, 1, 1, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _469_fq_weights_1_0 = model.fakeQuantize("469/fq_weights_1", Constant_4116_0, _469_fq_weights_1_Copy_out_low4635_const_0, _469_fq_weights_1_Copy_out_high4636_const_0, _14131417_const_0, _14141418_const_0, 255);
+    const auto _13941398_const_0 = model.constant("13941398_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _13931397_const_0 = model.constant("13931397_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _343_fq_weights_1_0 = model.fakeQuantize("343/fq_weights_1", Constant_4077_0, _343_fq_weights_1_Copy_out_low4435_const_0, _343_fq_weights_1_Copy_out_high4436_const_0, _13931397_const_0, _13941398_const_0, 255);
+    const auto _13841388_const_0 = model.constant("13841388_const", {1.911133}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13831387_const_0 = model.constant("13831387_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13821386_const_0 = model.constant("13821386_const", {1.911133}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13811385_const_0 = model.constant("13811385_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13741378_const_0 = model.constant("13741378_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _13731377_const_0 = model.constant("13731377_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _350_fq_weights_1_0 = model.fakeQuantize("350/fq_weights_1", Constant_4079_0, _350_fq_weights_1_Copy_out_low4731_const_0, _350_fq_weights_1_Copy_out_high4732_const_0, _13731377_const_0, _13741378_const_0, 255);
+    const auto _13641368_const_0 = model.constant("13641368_const", {1.342773}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13631367_const_0 = model.constant("13631367_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13621366_const_0 = model.constant("13621366_const", {1.342773}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13611365_const_0 = model.constant("13611365_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13541358_const_0 = model.constant("13541358_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _13531357_const_0 = model.constant("13531357_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _407_fq_weights_1_0 = model.fakeQuantize("407/fq_weights_1", Constant_4097_0, _407_fq_weights_1_Copy_out_low4331_const_0, _407_fq_weights_1_Copy_out_high4332_const_0, _13531357_const_0, _13541358_const_0, 255);
+    const auto _13241328_const_0 = model.constant("13241328_const", {1.391602}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13231327_const_0 = model.constant("13231327_const", {-1.403320}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13221326_const_0 = model.constant("13221326_const", {1.391602}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13211325_const_0 = model.constant("13211325_const", {-1.403320}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13141318_const_0 = model.constant("13141318_const", {4.136719}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13131317_const_0 = model.constant("13131317_const", {-4.167969}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13121316_const_0 = model.constant("13121316_const", {4.136719}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13111315_const_0 = model.constant("13111315_const", {-4.167969}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13041308_const_0 = model.constant("13041308_const", {4.136719}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13031307_const_0 = model.constant("13031307_const", {-4.167969}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13021306_const_0 = model.constant("13021306_const", {4.136719}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _13011305_const_0 = model.constant("13011305_const", {-4.167969}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12941298_const_0 = model.constant("12941298_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _12931297_const_0 = model.constant("12931297_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _375_fq_weights_1_0 = model.fakeQuantize("375/fq_weights_1", Constant_4087_0, _375_fq_weights_1_Copy_out_low4563_const_0, _375_fq_weights_1_Copy_out_high4564_const_0, _12931297_const_0, _12941298_const_0, 255);
+    const auto _12841288_const_0 = model.constant("12841288_const", {1.354492}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12831287_const_0 = model.constant("12831287_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12821286_const_0 = model.constant("12821286_const", {1.354492}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12811285_const_0 = model.constant("12811285_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12741278_const_0 = model.constant("12741278_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _12731277_const_0 = model.constant("12731277_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _461_fq_weights_1_0 = model.fakeQuantize("461/fq_weights_1", Constant_4113_0, _461_fq_weights_1_Copy_out_low4547_const_0, _461_fq_weights_1_Copy_out_high4548_const_0, _12731277_const_0, _12741278_const_0, 255);
+    const auto _12641268_const_0 = model.constant("12641268_const", {2.396484}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12631267_const_0 = model.constant("12631267_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12621266_const_0 = model.constant("12621266_const", {2.396484}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12611265_const_0 = model.constant("12611265_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12541258_const_0 = model.constant("12541258_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _12531257_const_0 = model.constant("12531257_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _353_fq_weights_1_0 = model.fakeQuantize("353/fq_weights_1", Constant_4080_0, _353_fq_weights_1_Copy_out_low4419_const_0, _353_fq_weights_1_Copy_out_high4420_const_0, _12531257_const_0, _12541258_const_0, 255);
+    const auto _12441248_const_0 = model.constant("12441248_const", {2.300781}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12431247_const_0 = model.constant("12431247_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12421246_const_0 = model.constant("12421246_const", {2.300781}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12411245_const_0 = model.constant("12411245_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12341238_const_0 = model.constant("12341238_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _12331237_const_0 = model.constant("12331237_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _333_fq_weights_1_0 = model.fakeQuantize("333/fq_weights_1", Constant_4074_0, _333_fq_weights_1_Copy_out_low4683_const_0, _333_fq_weights_1_Copy_out_high4684_const_0, _12331237_const_0, _12341238_const_0, 255);
+    const auto _334_variance_Fused_Add__0 = model.conv("334/variance/Fused_Add_", _324_0, _333_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _334_variance_Fused_Add__bias_0 = model.bias("334/variance/Fused_Add_:bias", _334_variance_Fused_Add__0, Constant_4383_0);
+    const auto _335_fq_input_1_0 = model.fakeQuantize("335/fq_input_1", _334_variance_Fused_Add__bias_0, _22812285_const_0, _22822286_const_0, _22832287_const_0, _22842288_const_0, 256);
+    const auto _12141218_const_0 = model.constant("12141218_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _12131217_const_0 = model.constant("12131217_const", mv::utils::generateSequence<double>(1*1*1*128), {1, 1, 1, 128}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _369_fq_weights_1_0 = model.fakeQuantize("369/fq_weights_1", Constant_4085_0, _369_fq_weights_1_Copy_out_low4491_const_0, _369_fq_weights_1_Copy_out_high4492_const_0, _12131217_const_0, _12141218_const_0, 255);
+    const auto _12041208_const_0 = model.constant("12041208_const", {4.562500}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12031207_const_0 = model.constant("12031207_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12021206_const_0 = model.constant("12021206_const", {4.562500}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _12011205_const_0 = model.constant("12011205_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11941198_const_0 = model.constant("11941198_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _11931197_const_0 = model.constant("11931197_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _402_fq_weights_1_0 = model.fakeQuantize("402/fq_weights_1", Constant_4095_0, _402_fq_weights_1_Copy_out_low4595_const_0, _402_fq_weights_1_Copy_out_high4596_const_0, _11931197_const_0, _11941198_const_0, 255);
+    const auto _11841188_const_0 = model.constant("11841188_const", {2.287109}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11831187_const_0 = model.constant("11831187_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11821186_const_0 = model.constant("11821186_const", {2.287109}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11811185_const_0 = model.constant("11811185_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11741178_const_0 = model.constant("11741178_const", mv::utils::generateSequence<double>(1*1*1*2048), {1, 1, 1, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _11731177_const_0 = model.constant("11731177_const", mv::utils::generateSequence<double>(1*1*1*2048), {1, 1, 1, 2048}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _467_fq_weights_1_0 = model.fakeQuantize("467/fq_weights_1", Constant_4115_0, _467_fq_weights_1_Copy_out_low4323_const_0, _467_fq_weights_1_Copy_out_high4324_const_0, _11731177_const_0, _11741178_const_0, 255);
+    const auto _11641168_const_0 = model.constant("11641168_const", {1.498047}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11631167_const_0 = model.constant("11631167_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11621166_const_0 = model.constant("11621166_const", {1.498047}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11611165_const_0 = model.constant("11611165_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11541158_const_0 = model.constant("11541158_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _11531157_const_0 = model.constant("11531157_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _340_fq_weights_1_0 = model.fakeQuantize("340/fq_weights_1", Constant_4076_0, _340_fq_weights_1_Copy_out_low4603_const_0, _340_fq_weights_1_Copy_out_high4604_const_0, _11531157_const_0, _11541158_const_0, 255);
+    const auto _11441148_const_0 = model.constant("11441148_const", {1.284180}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11431147_const_0 = model.constant("11431147_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11421146_const_0 = model.constant("11421146_const", {1.284180}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11411145_const_0 = model.constant("11411145_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11341138_const_0 = model.constant("11341138_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _11331137_const_0 = model.constant("11331137_const", mv::utils::generateSequence<double>(1*1*1*64), {1, 1, 1, 64}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _328_fq_weights_1_0 = model.fakeQuantize("328/fq_weights_1", Constant_4072_0, _328_fq_weights_1_Copy_out_low4699_const_0, _328_fq_weights_1_Copy_out_high4700_const_0, _11331137_const_0, _11341138_const_0, 255);
+    const auto _11241128_const_0 = model.constant("11241128_const", {1.223633}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11231127_const_0 = model.constant("11231127_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11221126_const_0 = model.constant("11221126_const", {1.223633}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _11211125_const_0 = model.constant("11211125_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _328_fq_input_0_0 = model.fakeQuantize("328/fq_input_0", _327_0, _11211125_const_0, _11221126_const_0, _11231127_const_0, _11241128_const_0, 256);
+    const auto _329_variance_Fused_Add__0 = model.conv("329/variance/Fused_Add_", _328_fq_input_0_0, _328_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _329_variance_Fused_Add__bias_0 = model.bias("329/variance/Fused_Add_:bias", _329_variance_Fused_Add__0, Constant_4381_0);
+    const auto _330_0 = model.relu("330", _329_variance_Fused_Add__bias_0);
+    const auto _331_fq_input_0_0 = model.fakeQuantize("331/fq_input_0", _330_0, _17711775_const_0, _17721776_const_0, _17731777_const_0, _17741778_const_0, 256);
+    const auto _332_variance_Fused_Add__0 = model.conv("332/variance/Fused_Add_", _331_fq_input_0_0, _331_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _332_variance_Fused_Add__bias_0 = model.bias("332/variance/Fused_Add_:bias", _332_variance_Fused_Add__0, Constant_4382_0);
+    const auto _335_fq_input_0_0 = model.fakeQuantize("335/fq_input_0", _332_variance_Fused_Add__bias_0, _22712275_const_0, _22722276_const_0, _22732277_const_0, _22742278_const_0, 256);
+    const auto _335_0 = model.eltwise("335", {_335_fq_input_0_0, _335_fq_input_1_0}, "Add");
+    const auto _336_0 = model.relu("336", _335_0);
+    const auto _337_fq_input_0_0 = model.fakeQuantize("337/fq_input_0", _336_0, _17211725_const_0, _17221726_const_0, _17231727_const_0, _17241728_const_0, 256);
+    const auto _338_variance_Fused_Add__0 = model.conv("338/variance/Fused_Add_", _337_fq_input_0_0, _337_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _338_variance_Fused_Add__bias_0 = model.bias("338/variance/Fused_Add_:bias", _338_variance_Fused_Add__0, Constant_4384_0);
+    const auto _339_0 = model.relu("339", _338_variance_Fused_Add__bias_0);
+    const auto _340_fq_input_0_0 = model.fakeQuantize("340/fq_input_0", _339_0, _11411145_const_0, _11421146_const_0, _11431147_const_0, _11441148_const_0, 256);
+    const auto _341_variance_Fused_Add__0 = model.conv("341/variance/Fused_Add_", _340_fq_input_0_0, _340_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _341_variance_Fused_Add__bias_0 = model.bias("341/variance/Fused_Add_:bias", _341_variance_Fused_Add__0, Constant_4385_0);
+    const auto _342_0 = model.relu("342", _341_variance_Fused_Add__bias_0);
+    const auto _343_fq_input_0_0 = model.fakeQuantize("343/fq_input_0", _342_0, _13811385_const_0, _13821386_const_0, _13831387_const_0, _13841388_const_0, 256);
+    const auto _344_variance_Fused_Add__0 = model.conv("344/variance/Fused_Add_", _343_fq_input_0_0, _343_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _344_variance_Fused_Add__bias_0 = model.bias("344/variance/Fused_Add_:bias", _344_variance_Fused_Add__0, Constant_4386_0);
+    const auto _345_fq_input_0_0 = model.fakeQuantize("345/fq_input_0", _344_variance_Fused_Add__bias_0, _21512155_const_0, _21522156_const_0, _21532157_const_0, _21542158_const_0, 256);
+    const auto _345_0 = model.eltwise("345", {_345_fq_input_0_0, _337_fq_input_0_0}, "Add");
+    const auto _346_0 = model.relu("346", _345_0);
+    const auto _347_fq_input_0_0 = model.fakeQuantize("347/fq_input_0", _346_0, _19711975_const_0, _19721976_const_0, _19731977_const_0, _19741978_const_0, 256);
+    const auto _348_variance_Fused_Add__0 = model.conv("348/variance/Fused_Add_", _347_fq_input_0_0, _347_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _348_variance_Fused_Add__bias_0 = model.bias("348/variance/Fused_Add_:bias", _348_variance_Fused_Add__0, Constant_4387_0);
+    const auto _349_0 = model.relu("349", _348_variance_Fused_Add__bias_0);
+    const auto _350_fq_input_0_0 = model.fakeQuantize("350/fq_input_0", _349_0, _13611365_const_0, _13621366_const_0, _13631367_const_0, _13641368_const_0, 256);
+    const auto _351_variance_Fused_Add__0 = model.conv("351/variance/Fused_Add_", _350_fq_input_0_0, _350_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _351_variance_Fused_Add__bias_0 = model.bias("351/variance/Fused_Add_:bias", _351_variance_Fused_Add__0, Constant_4388_0);
+    const auto _352_0 = model.relu("352", _351_variance_Fused_Add__bias_0);
+    const auto _353_fq_input_0_0 = model.fakeQuantize("353/fq_input_0", _352_0, _12411245_const_0, _12421246_const_0, _12431247_const_0, _12441248_const_0, 256);
+    const auto _354_variance_Fused_Add__0 = model.conv("354/variance/Fused_Add_", _353_fq_input_0_0, _353_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _354_variance_Fused_Add__bias_0 = model.bias("354/variance/Fused_Add_:bias", _354_variance_Fused_Add__0, Constant_4389_0);
+    const auto _355_fq_input_0_0 = model.fakeQuantize("355/fq_input_0", _354_variance_Fused_Add__bias_0, _19111915_const_0, _19121916_const_0, _19131917_const_0, _19141918_const_0, 256);
+    const auto _355_0 = model.eltwise("355", {_355_fq_input_0_0, _347_fq_input_0_0}, "Add");
+    const auto _356_0 = model.relu("356", _355_0);
+    const auto _357_fq_input_0_0 = model.fakeQuantize("357/fq_input_0", _356_0, _15411545_const_0, _15421546_const_0, _15431547_const_0, _15441548_const_0, 256);
+    const auto _358_variance_Fused_Add__0 = model.conv("358/variance/Fused_Add_", _357_fq_input_0_0, _357_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _358_variance_Fused_Add__bias_0 = model.bias("358/variance/Fused_Add_:bias", _358_variance_Fused_Add__0, Constant_4390_0);
+    const auto _359_0 = model.relu("359", _358_variance_Fused_Add__bias_0);
+    const auto _360_fq_input_0_0 = model.fakeQuantize("360/fq_input_0", _359_0, _20312035_const_0, _20322036_const_0, _20332037_const_0, _20342038_const_0, 256);
+    const auto _361_variance_Fused_Add__0 = model.conv("361/variance/Fused_Add_", _360_fq_input_0_0, _360_fq_weights_1_0, {2, 2}, {1, 0, 1, 0}, 1, 1);
+    const auto _361_variance_Fused_Add__bias_0 = model.bias("361/variance/Fused_Add_:bias", _361_variance_Fused_Add__0, Constant_4391_0);
+    const auto _362_0 = model.relu("362", _361_variance_Fused_Add__bias_0);
+    const auto _363_fq_input_0_0 = model.fakeQuantize("363/fq_input_0", _362_0, _17911795_const_0, _17921796_const_0, _17931797_const_0, _17941798_const_0, 256);
+    const auto _364_variance_Fused_Add__0 = model.conv("364/variance/Fused_Add_", _363_fq_input_0_0, _363_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _364_variance_Fused_Add__bias_0 = model.bias("364/variance/Fused_Add_:bias", _364_variance_Fused_Add__0, Constant_4392_0);
+    const auto _367_fq_input_0_0 = model.fakeQuantize("367/fq_input_0", _364_variance_Fused_Add__bias_0, _20912095_const_0, _20922096_const_0, _20932097_const_0, _20942098_const_0, 256);
+    const auto _11141118_const_0 = model.constant("11141118_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _11131117_const_0 = model.constant("11131117_const", mv::utils::generateSequence<double>(1*1*1*512), {1, 1, 1, 512}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _365_fq_weights_1_0 = model.fakeQuantize("365/fq_weights_1", Constant_4084_0, _365_fq_weights_1_Copy_out_low4667_const_0, _365_fq_weights_1_Copy_out_high4668_const_0, _11131117_const_0, _11141118_const_0, 255);
+    const auto _366_variance_Fused_Add__0 = model.conv("366/variance/Fused_Add_", _357_fq_input_0_0, _365_fq_weights_1_0, {2, 2}, {0, 0, 0, 0}, 1, 1);
+    const auto _366_variance_Fused_Add__bias_0 = model.bias("366/variance/Fused_Add_:bias", _366_variance_Fused_Add__0, Constant_4393_0);
+    const auto _367_fq_input_1_0 = model.fakeQuantize("367/fq_input_1", _366_variance_Fused_Add__bias_0, _21012105_const_0, _21022106_const_0, _21032107_const_0, _21042108_const_0, 256);
+    const auto _367_0 = model.eltwise("367", {_367_fq_input_0_0, _367_fq_input_1_0}, "Add");
+    const auto _368_0 = model.relu("368", _367_0);
+    const auto _369_fq_input_0_0 = model.fakeQuantize("369/fq_input_0", _368_0, _12011205_const_0, _12021206_const_0, _12031207_const_0, _12041208_const_0, 256);
+    const auto _370_variance_Fused_Add__0 = model.conv("370/variance/Fused_Add_", _369_fq_input_0_0, _369_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _370_variance_Fused_Add__bias_0 = model.bias("370/variance/Fused_Add_:bias", _370_variance_Fused_Add__0, Constant_4394_0);
+    const auto _371_0 = model.relu("371", _370_variance_Fused_Add__bias_0);
+    const auto _372_fq_input_0_0 = model.fakeQuantize("372/fq_input_0", _371_0, _14811485_const_0, _14821486_const_0, _14831487_const_0, _14841488_const_0, 256);
+    const auto _373_variance_Fused_Add__0 = model.conv("373/variance/Fused_Add_", _372_fq_input_0_0, _372_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _373_variance_Fused_Add__bias_0 = model.bias("373/variance/Fused_Add_:bias", _373_variance_Fused_Add__0, Constant_4395_0);
+    const auto _374_0 = model.relu("374", _373_variance_Fused_Add__bias_0);
+    const auto _375_fq_input_0_0 = model.fakeQuantize("375/fq_input_0", _374_0, _12811285_const_0, _12821286_const_0, _12831287_const_0, _12841288_const_0, 256);
+    const auto _376_variance_Fused_Add__0 = model.conv("376/variance/Fused_Add_", _375_fq_input_0_0, _375_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _376_variance_Fused_Add__bias_0 = model.bias("376/variance/Fused_Add_:bias", _376_variance_Fused_Add__0, Constant_4396_0);
+    const auto _377_fq_input_0_0 = model.fakeQuantize("377/fq_input_0", _376_variance_Fused_Add__bias_0, _961965_const_0, _962966_const_0, _963967_const_0, _964968_const_0, 256);
+    const auto _377_0 = model.eltwise("377", {_377_fq_input_0_0, _369_fq_input_0_0}, "Add");
+    const auto _378_0 = model.relu("378", _377_0);
+    const auto _379_fq_input_0_0 = model.fakeQuantize("379/fq_input_0", _378_0, _23112315_const_0, _23122316_const_0, _23132317_const_0, _23142318_const_0, 256);
+    const auto _380_variance_Fused_Add__0 = model.conv("380/variance/Fused_Add_", _379_fq_input_0_0, _379_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _380_variance_Fused_Add__bias_0 = model.bias("380/variance/Fused_Add_:bias", _380_variance_Fused_Add__0, Constant_4397_0);
+    const auto _381_0 = model.relu("381", _380_variance_Fused_Add__bias_0);
+    const auto _382_fq_input_0_0 = model.fakeQuantize("382/fq_input_0", _381_0, _14411445_const_0, _14421446_const_0, _14431447_const_0, _14441448_const_0, 256);
+    const auto _383_variance_Fused_Add__0 = model.conv("383/variance/Fused_Add_", _382_fq_input_0_0, _382_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _383_variance_Fused_Add__bias_0 = model.bias("383/variance/Fused_Add_:bias", _383_variance_Fused_Add__0, Constant_4398_0);
+    const auto _384_0 = model.relu("384", _383_variance_Fused_Add__bias_0);
+    const auto _385_fq_input_0_0 = model.fakeQuantize("385/fq_input_0", _384_0, _19911995_const_0, _19921996_const_0, _19931997_const_0, _19941998_const_0, 256);
+    const auto _386_variance_Fused_Add__0 = model.conv("386/variance/Fused_Add_", _385_fq_input_0_0, _385_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _386_variance_Fused_Add__bias_0 = model.bias("386/variance/Fused_Add_:bias", _386_variance_Fused_Add__0, Constant_4399_0);
+    const auto _387_fq_input_0_0 = model.fakeQuantize("387/fq_input_0", _386_variance_Fused_Add__bias_0, _22312235_const_0, _22322236_const_0, _22332237_const_0, _22342238_const_0, 256);
+    const auto _387_0 = model.eltwise("387", {_387_fq_input_0_0, _379_fq_input_0_0}, "Add");
+    const auto _388_0 = model.relu("388", _387_0);
+    const auto _389_fq_input_0_0 = model.fakeQuantize("389/fq_input_0", _388_0, _20112015_const_0, _20122016_const_0, _20132017_const_0, _20142018_const_0, 256);
+    const auto _390_variance_Fused_Add__0 = model.conv("390/variance/Fused_Add_", _389_fq_input_0_0, _389_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _390_variance_Fused_Add__bias_0 = model.bias("390/variance/Fused_Add_:bias", _390_variance_Fused_Add__0, Constant_4400_0);
+    const auto _391_0 = model.relu("391", _390_variance_Fused_Add__bias_0);
+    const auto _392_fq_input_0_0 = model.fakeQuantize("392/fq_input_0", _391_0, _941945_const_0, _942946_const_0, _943947_const_0, _944948_const_0, 256);
+    const auto _393_variance_Fused_Add__0 = model.conv("393/variance/Fused_Add_", _392_fq_input_0_0, _392_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _393_variance_Fused_Add__bias_0 = model.bias("393/variance/Fused_Add_:bias", _393_variance_Fused_Add__0, Constant_4401_0);
+    const auto _394_0 = model.relu("394", _393_variance_Fused_Add__bias_0);
+    const auto _395_fq_input_0_0 = model.fakeQuantize("395/fq_input_0", _394_0, _921925_const_0, _922926_const_0, _923927_const_0, _924928_const_0, 256);
+    const auto _396_variance_Fused_Add__0 = model.conv("396/variance/Fused_Add_", _395_fq_input_0_0, _395_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _396_variance_Fused_Add__bias_0 = model.bias("396/variance/Fused_Add_:bias", _396_variance_Fused_Add__0, Constant_4402_0);
+    const auto _397_fq_input_0_0 = model.fakeQuantize("397/fq_input_0", _396_variance_Fused_Add__bias_0, _20712075_const_0, _20722076_const_0, _20732077_const_0, _20742078_const_0, 256);
+    const auto _397_0 = model.eltwise("397", {_397_fq_input_0_0, _389_fq_input_0_0}, "Add");
+    const auto _398_0 = model.relu("398", _397_0);
+    const auto _399_fq_input_0_0 = model.fakeQuantize("399/fq_input_0", _398_0, _21112115_const_0, _21122116_const_0, _21132117_const_0, _21142118_const_0, 256);
+    const auto _408_variance_Fused_Add__0 = model.conv("408/variance/Fused_Add_", _399_fq_input_0_0, _407_fq_weights_1_0, {2, 2}, {0, 0, 0, 0}, 1, 1);
+    const auto _408_variance_Fused_Add__bias_0 = model.bias("408/variance/Fused_Add_:bias", _408_variance_Fused_Add__0, Constant_4406_0);
+    const auto _409_fq_input_1_0 = model.fakeQuantize("409/fq_input_1", _408_variance_Fused_Add__bias_0, _17111715_const_0, _17121716_const_0, _17131717_const_0, _17141718_const_0, 256);
+    const auto _400_variance_Fused_Add__0 = model.conv("400/variance/Fused_Add_", _399_fq_input_0_0, _399_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _400_variance_Fused_Add__bias_0 = model.bias("400/variance/Fused_Add_:bias", _400_variance_Fused_Add__0, Constant_4403_0);
+    const auto _401_0 = model.relu("401", _400_variance_Fused_Add__bias_0);
+    const auto _402_fq_input_0_0 = model.fakeQuantize("402/fq_input_0", _401_0, _11811185_const_0, _11821186_const_0, _11831187_const_0, _11841188_const_0, 256);
+    const auto _403_variance_Fused_Add__0 = model.conv("403/variance/Fused_Add_", _402_fq_input_0_0, _402_fq_weights_1_0, {2, 2}, {1, 0, 1, 0}, 1, 1);
+    const auto _403_variance_Fused_Add__bias_0 = model.bias("403/variance/Fused_Add_:bias", _403_variance_Fused_Add__0, Constant_4404_0);
+    const auto _404_0 = model.relu("404", _403_variance_Fused_Add__bias_0);
+    const auto _405_fq_input_0_0 = model.fakeQuantize("405/fq_input_0", _404_0, _22112215_const_0, _22122216_const_0, _22132217_const_0, _22142218_const_0, 256);
+    const auto _406_variance_Fused_Add__0 = model.conv("406/variance/Fused_Add_", _405_fq_input_0_0, _405_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _406_variance_Fused_Add__bias_0 = model.bias("406/variance/Fused_Add_:bias", _406_variance_Fused_Add__0, Constant_4405_0);
+    const auto _409_fq_input_0_0 = model.fakeQuantize("409/fq_input_0", _406_variance_Fused_Add__bias_0, _17011705_const_0, _17021706_const_0, _17031707_const_0, _17041708_const_0, 256);
+    const auto _409_0 = model.eltwise("409", {_409_fq_input_0_0, _409_fq_input_1_0}, "Add");
+    const auto _410_0 = model.relu("410", _409_0);
+    const auto _411_fq_input_0_0 = model.fakeQuantize("411/fq_input_0", _410_0, _16211625_const_0, _16221626_const_0, _16231627_const_0, _16241628_const_0, 256);
+    const auto _412_variance_Fused_Add__0 = model.conv("412/variance/Fused_Add_", _411_fq_input_0_0, _411_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _412_variance_Fused_Add__bias_0 = model.bias("412/variance/Fused_Add_:bias", _412_variance_Fused_Add__0, Constant_4407_0);
+    const auto _413_0 = model.relu("413", _412_variance_Fused_Add__bias_0);
+    const auto _10941098_const_0 = model.constant("10941098_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _10931097_const_0 = model.constant("10931097_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _434_fq_weights_1_0 = model.fakeQuantize("434/fq_weights_1", Constant_4105_0, _434_fq_weights_1_Copy_out_low4707_const_0, _434_fq_weights_1_Copy_out_high4708_const_0, _10931097_const_0, _10941098_const_0, 255);
+    const auto _10841088_const_0 = model.constant("10841088_const", {1.280273}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10831087_const_0 = model.constant("10831087_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10821086_const_0 = model.constant("10821086_const", {1.280273}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10811085_const_0 = model.constant("10811085_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10741078_const_0 = model.constant("10741078_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _10731077_const_0 = model.constant("10731077_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _451_fq_weights_1_0 = model.fakeQuantize("451/fq_weights_1", Constant_4110_0, _451_fq_weights_1_Copy_out_low4475_const_0, _451_fq_weights_1_Copy_out_high4476_const_0, _10731077_const_0, _10741078_const_0, 255);
+    const auto _10641068_const_0 = model.constant("10641068_const", {3.562500}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10631067_const_0 = model.constant("10631067_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10621066_const_0 = model.constant("10621066_const", {3.562500}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10611065_const_0 = model.constant("10611065_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10541058_const_0 = model.constant("10541058_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _10531057_const_0 = model.constant("10531057_const", mv::utils::generateSequence<double>(1*1*1*1024), {1, 1, 1, 1024}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _437_fq_weights_1_0 = model.fakeQuantize("437/fq_weights_1", Constant_4106_0, _437_fq_weights_1_Copy_out_low4363_const_0, _437_fq_weights_1_Copy_out_high4364_const_0, _10531057_const_0, _10541058_const_0, 255);
+    const auto _10441048_const_0 = model.constant("10441048_const", {1.031250}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10431047_const_0 = model.constant("10431047_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10421046_const_0 = model.constant("10421046_const", {1.031250}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10411045_const_0 = model.constant("10411045_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10341038_const_0 = model.constant("10341038_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _10331037_const_0 = model.constant("10331037_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _414_fq_weights_1_0 = model.fakeQuantize("414/fq_weights_1", Constant_4099_0, _414_fq_weights_1_Copy_out_low4515_const_0, _414_fq_weights_1_Copy_out_high4516_const_0, _10331037_const_0, _10341038_const_0, 255);
+    const auto _10241028_const_0 = model.constant("10241028_const", {1.547852}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10231027_const_0 = model.constant("10231027_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10221026_const_0 = model.constant("10221026_const", {1.547852}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10211025_const_0 = model.constant("10211025_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _414_fq_input_0_0 = model.fakeQuantize("414/fq_input_0", _413_0, _10211025_const_0, _10221026_const_0, _10231027_const_0, _10241028_const_0, 256);
+    const auto _415_variance_Fused_Add__0 = model.conv("415/variance/Fused_Add_", _414_fq_input_0_0, _414_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _415_variance_Fused_Add__bias_0 = model.bias("415/variance/Fused_Add_:bias", _415_variance_Fused_Add__0, Constant_4408_0);
+    const auto _416_0 = model.relu("416", _415_variance_Fused_Add__bias_0);
+    const auto _417_fq_input_0_0 = model.fakeQuantize("417/fq_input_0", _416_0, _16011605_const_0, _16021606_const_0, _16031607_const_0, _16041608_const_0, 256);
+    const auto _418_variance_Fused_Add__0 = model.conv("418/variance/Fused_Add_", _417_fq_input_0_0, _417_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _418_variance_Fused_Add__bias_0 = model.bias("418/variance/Fused_Add_:bias", _418_variance_Fused_Add__0, Constant_4409_0);
+    const auto _419_fq_input_0_0 = model.fakeQuantize("419/fq_input_0", _418_variance_Fused_Add__bias_0, _15211525_const_0, _15221526_const_0, _15231527_const_0, _15241528_const_0, 256);
+    const auto _419_0 = model.eltwise("419", {_419_fq_input_0_0, _411_fq_input_0_0}, "Add");
+    const auto _420_0 = model.relu("420", _419_0);
+    const auto _421_fq_input_0_0 = model.fakeQuantize("421/fq_input_0", _420_0, _19311935_const_0, _19321936_const_0, _19331937_const_0, _19341938_const_0, 256);
+    const auto _422_variance_Fused_Add__0 = model.conv("422/variance/Fused_Add_", _421_fq_input_0_0, _421_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _422_variance_Fused_Add__bias_0 = model.bias("422/variance/Fused_Add_:bias", _422_variance_Fused_Add__0, Constant_4410_0);
+    const auto _423_0 = model.relu("423", _422_variance_Fused_Add__bias_0);
+    const auto _424_fq_input_0_0 = model.fakeQuantize("424/fq_input_0", _423_0, _21312135_const_0, _21322136_const_0, _21332137_const_0, _21342138_const_0, 256);
+    const auto _425_variance_Fused_Add__0 = model.conv("425/variance/Fused_Add_", _424_fq_input_0_0, _424_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _425_variance_Fused_Add__bias_0 = model.bias("425/variance/Fused_Add_:bias", _425_variance_Fused_Add__0, Constant_4411_0);
+    const auto _426_0 = model.relu("426", _425_variance_Fused_Add__bias_0);
+    const auto _427_fq_input_0_0 = model.fakeQuantize("427/fq_input_0", _426_0, _14611465_const_0, _14621466_const_0, _14631467_const_0, _14641468_const_0, 256);
+    const auto _428_variance_Fused_Add__0 = model.conv("428/variance/Fused_Add_", _427_fq_input_0_0, _427_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _428_variance_Fused_Add__bias_0 = model.bias("428/variance/Fused_Add_:bias", _428_variance_Fused_Add__0, Constant_4412_0);
+    const auto _429_fq_input_0_0 = model.fakeQuantize("429/fq_input_0", _428_variance_Fused_Add__bias_0, _21712175_const_0, _21722176_const_0, _21732177_const_0, _21742178_const_0, 256);
+    const auto _429_0 = model.eltwise("429", {_429_fq_input_0_0, _421_fq_input_0_0}, "Add");
+    const auto _430_0 = model.relu("430", _429_0);
+    const auto _431_fq_input_0_0 = model.fakeQuantize("431/fq_input_0", _430_0, _20512055_const_0, _20522056_const_0, _20532057_const_0, _20542058_const_0, 256);
+    const auto _432_variance_Fused_Add__0 = model.conv("432/variance/Fused_Add_", _431_fq_input_0_0, _431_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _432_variance_Fused_Add__bias_0 = model.bias("432/variance/Fused_Add_:bias", _432_variance_Fused_Add__0, Constant_4413_0);
+    const auto _433_0 = model.relu("433", _432_variance_Fused_Add__bias_0);
+    const auto _434_fq_input_0_0 = model.fakeQuantize("434/fq_input_0", _433_0, _10811085_const_0, _10821086_const_0, _10831087_const_0, _10841088_const_0, 256);
+    const auto _435_variance_Fused_Add__0 = model.conv("435/variance/Fused_Add_", _434_fq_input_0_0, _434_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _435_variance_Fused_Add__bias_0 = model.bias("435/variance/Fused_Add_:bias", _435_variance_Fused_Add__0, Constant_4414_0);
+    const auto _436_0 = model.relu("436", _435_variance_Fused_Add__bias_0);
+    const auto _437_fq_input_0_0 = model.fakeQuantize("437/fq_input_0", _436_0, _10411045_const_0, _10421046_const_0, _10431047_const_0, _10441048_const_0, 256);
+    const auto _438_variance_Fused_Add__0 = model.conv("438/variance/Fused_Add_", _437_fq_input_0_0, _437_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _438_variance_Fused_Add__bias_0 = model.bias("438/variance/Fused_Add_:bias", _438_variance_Fused_Add__0, Constant_4415_0);
+    const auto _439_fq_input_0_0 = model.fakeQuantize("439/fq_input_0", _438_variance_Fused_Add__bias_0, _22912295_const_0, _22922296_const_0, _22932297_const_0, _22942298_const_0, 256);
+    const auto _439_0 = model.eltwise("439", {_439_fq_input_0_0, _431_fq_input_0_0}, "Add");
+    const auto _440_0 = model.relu("440", _439_0);
+    const auto _441_fq_input_0_0 = model.fakeQuantize("441/fq_input_0", _440_0, _18111815_const_0, _18121816_const_0, _18131817_const_0, _18141818_const_0, 256);
+    const auto _442_variance_Fused_Add__0 = model.conv("442/variance/Fused_Add_", _441_fq_input_0_0, _441_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _442_variance_Fused_Add__bias_0 = model.bias("442/variance/Fused_Add_:bias", _442_variance_Fused_Add__0, Constant_4416_0);
+    const auto _443_0 = model.relu("443", _442_variance_Fused_Add__bias_0);
+    const auto _10141018_const_0 = model.constant("10141018_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _10131017_const_0 = model.constant("10131017_const", mv::utils::generateSequence<double>(1*1*1*256), {1, 1, 1, 256}, mv::DType("Float32"), mv::Order("NCHW"));
+    const auto _444_fq_weights_1_0 = model.fakeQuantize("444/fq_weights_1", Constant_4108_0, _444_fq_weights_1_Copy_out_low4747_const_0, _444_fq_weights_1_Copy_out_high4748_const_0, _10131017_const_0, _10141018_const_0, 255);
+    const auto _10041008_const_0 = model.constant("10041008_const", {1.291992}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10031007_const_0 = model.constant("10031007_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10021006_const_0 = model.constant("10021006_const", {1.291992}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _10011005_const_0 = model.constant("10011005_const", {0.000000}, {1}, mv::DType("Float32"), mv::Order("W"));
+    const auto _444_fq_input_0_0 = model.fakeQuantize("444/fq_input_0", _443_0, _10011005_const_0, _10021006_const_0, _10031007_const_0, _10041008_const_0, 256);
+    const auto _445_variance_Fused_Add__0 = model.conv("445/variance/Fused_Add_", _444_fq_input_0_0, _444_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _445_variance_Fused_Add__bias_0 = model.bias("445/variance/Fused_Add_:bias", _445_variance_Fused_Add__0, Constant_4417_0);
+    const auto _446_0 = model.relu("446", _445_variance_Fused_Add__bias_0);
+    const auto _447_fq_input_0_0 = model.fakeQuantize("447/fq_input_0", _446_0, _18711875_const_0, _18721876_const_0, _18731877_const_0, _18741878_const_0, 256);
+    const auto _448_variance_Fused_Add__0 = model.conv("448/variance/Fused_Add_", _447_fq_input_0_0, _447_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _448_variance_Fused_Add__bias_0 = model.bias("448/variance/Fused_Add_:bias", _448_variance_Fused_Add__0, Constant_4418_0);
+    const auto _449_fq_input_0_0 = model.fakeQuantize("449/fq_input_0", _448_variance_Fused_Add__bias_0, _13211325_const_0, _13221326_const_0, _13231327_const_0, _13241328_const_0, 256);
+    const auto _449_0 = model.eltwise("449", {_449_fq_input_0_0, _441_fq_input_0_0}, "Add");
+    const auto _450_0 = model.relu("450", _449_0);
+    const auto _451_fq_input_0_0 = model.fakeQuantize("451/fq_input_0", _450_0, _10611065_const_0, _10621066_const_0, _10631067_const_0, _10641068_const_0, 256);
+    const auto _452_variance_Fused_Add__0 = model.conv("452/variance/Fused_Add_", _451_fq_input_0_0, _451_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _452_variance_Fused_Add__bias_0 = model.bias("452/variance/Fused_Add_:bias", _452_variance_Fused_Add__0, Constant_4419_0);
+    const auto _453_0 = model.relu("453", _452_variance_Fused_Add__bias_0);
+    const auto _454_fq_input_0_0 = model.fakeQuantize("454/fq_input_0", _453_0, _16411645_const_0, _16421646_const_0, _16431647_const_0, _16441648_const_0, 256);
+    const auto _455_variance_Fused_Add__0 = model.conv("455/variance/Fused_Add_", _454_fq_input_0_0, _454_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _455_variance_Fused_Add__bias_0 = model.bias("455/variance/Fused_Add_:bias", _455_variance_Fused_Add__0, Constant_4420_0);
+    const auto _456_0 = model.relu("456", _455_variance_Fused_Add__bias_0);
+    const auto _457_fq_input_0_0 = model.fakeQuantize("457/fq_input_0", _456_0, _18511855_const_0, _18521856_const_0, _18531857_const_0, _18541858_const_0, 256);
+    const auto _458_variance_Fused_Add__0 = model.conv("458/variance/Fused_Add_", _457_fq_input_0_0, _457_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _458_variance_Fused_Add__bias_0 = model.bias("458/variance/Fused_Add_:bias", _458_variance_Fused_Add__0, Constant_4421_0);
+    const auto _459_fq_input_0_0 = model.fakeQuantize("459/fq_input_0", _458_variance_Fused_Add__bias_0, _15811585_const_0, _15821586_const_0, _15831587_const_0, _15841588_const_0, 256);
+    const auto _459_0 = model.eltwise("459", {_459_fq_input_0_0, _451_fq_input_0_0}, "Add");
+    const auto _460_0 = model.relu("460", _459_0);
+    const auto _461_fq_input_0_0 = model.fakeQuantize("461/fq_input_0", _460_0, _12611265_const_0, _12621266_const_0, _12631267_const_0, _12641268_const_0, 256);
+    const auto _470_variance_Fused_Add__0 = model.conv("470/variance/Fused_Add_", _461_fq_input_0_0, _469_fq_weights_1_0, {2, 2}, {0, 0, 0, 0}, 1, 1);
+    const auto _470_variance_Fused_Add__bias_0 = model.bias("470/variance/Fused_Add_:bias", _470_variance_Fused_Add__0, Constant_4425_0);
+    const auto _471_fq_input_1_0 = model.fakeQuantize("471/fq_input_1", _470_variance_Fused_Add__bias_0, _13111315_const_0, _13121316_const_0, _13131317_const_0, _13141318_const_0, 256);
+    const auto _462_variance_Fused_Add__0 = model.conv("462/variance/Fused_Add_", _461_fq_input_0_0, _461_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _462_variance_Fused_Add__bias_0 = model.bias("462/variance/Fused_Add_:bias", _462_variance_Fused_Add__0, Constant_4422_0);
+    const auto _463_0 = model.relu("463", _462_variance_Fused_Add__bias_0);
+    const auto _464_fq_input_0_0 = model.fakeQuantize("464/fq_input_0", _463_0, _16811685_const_0, _16821686_const_0, _16831687_const_0, _16841688_const_0, 256);
+    const auto _465_variance_Fused_Add__0 = model.conv("465/variance/Fused_Add_", _464_fq_input_0_0, _464_fq_weights_1_0, {2, 2}, {1, 0, 1, 0}, 1, 1);
+    const auto _465_variance_Fused_Add__bias_0 = model.bias("465/variance/Fused_Add_:bias", _465_variance_Fused_Add__0, Constant_4423_0);
+    const auto _466_0 = model.relu("466", _465_variance_Fused_Add__bias_0);
+    const auto _467_fq_input_0_0 = model.fakeQuantize("467/fq_input_0", _466_0, _11611165_const_0, _11621166_const_0, _11631167_const_0, _11641168_const_0, 256);
+    const auto _468_variance_Fused_Add__0 = model.conv("468/variance/Fused_Add_", _467_fq_input_0_0, _467_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _468_variance_Fused_Add__bias_0 = model.bias("468/variance/Fused_Add_:bias", _468_variance_Fused_Add__0, Constant_4424_0);
+    const auto _471_fq_input_0_0 = model.fakeQuantize("471/fq_input_0", _468_variance_Fused_Add__bias_0, _13011305_const_0, _13021306_const_0, _13031307_const_0, _13041308_const_0, 256);
+    const auto _471_0 = model.eltwise("471", {_471_fq_input_0_0, _471_fq_input_1_0}, "Add");
+    const auto _472_0 = model.relu("472", _471_0);
+    const auto _473_fq_input_0_0 = model.fakeQuantize("473/fq_input_0", _472_0, _14211425_const_0, _14221426_const_0, _14231427_const_0, _14241428_const_0, 256);
+    const auto _474_variance_Fused_Add__0 = model.conv("474/variance/Fused_Add_", _473_fq_input_0_0, _473_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _474_variance_Fused_Add__bias_0 = model.bias("474/variance/Fused_Add_:bias", _474_variance_Fused_Add__0, Constant_4426_0);
+    const auto _475_0 = model.relu("475", _474_variance_Fused_Add__bias_0);
+    const auto _476_fq_input_0_0 = model.fakeQuantize("476/fq_input_0", _475_0, _17411745_const_0, _17421746_const_0, _17431747_const_0, _17441748_const_0, 256);
+    const auto _477_variance_Fused_Add__0 = model.conv("477/variance/Fused_Add_", _476_fq_input_0_0, _476_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _477_variance_Fused_Add__bias_0 = model.bias("477/variance/Fused_Add_:bias", _477_variance_Fused_Add__0, Constant_4427_0);
+    const auto _478_0 = model.relu("478", _477_variance_Fused_Add__bias_0);
+    const auto _479_fq_input_0_0 = model.fakeQuantize("479/fq_input_0", _478_0, _16611665_const_0, _16621666_const_0, _16631667_const_0, _16641668_const_0, 256);
+    const auto _480_variance_Fused_Add__0 = model.conv("480/variance/Fused_Add_", _479_fq_input_0_0, _479_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _480_variance_Fused_Add__bias_0 = model.bias("480/variance/Fused_Add_:bias", _480_variance_Fused_Add__0, Constant_4428_0);
+    const auto _481_fq_input_0_0 = model.fakeQuantize("481/fq_input_0", _480_variance_Fused_Add__bias_0, _981985_const_0, _982986_const_0, _983987_const_0, _984988_const_0, 256);
+    const auto _481_0 = model.eltwise("481", {_481_fq_input_0_0, _473_fq_input_0_0}, "Add");
+    const auto _482_0 = model.relu("482", _481_0);
+    const auto _483_fq_input_0_0 = model.fakeQuantize("483/fq_input_0", _482_0, _18911895_const_0, _18921896_const_0, _18931897_const_0, _18941898_const_0, 256);
+    const auto _484_variance_Fused_Add__0 = model.conv("484/variance/Fused_Add_", _483_fq_input_0_0, _483_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _484_variance_Fused_Add__bias_0 = model.bias("484/variance/Fused_Add_:bias", _484_variance_Fused_Add__0, Constant_4429_0);
+    const auto _485_0 = model.relu("485", _484_variance_Fused_Add__bias_0);
+    const auto _486_fq_input_0_0 = model.fakeQuantize("486/fq_input_0", _485_0, _15011505_const_0, _15021506_const_0, _15031507_const_0, _15041508_const_0, 256);
+    const auto _487_variance_Fused_Add__0 = model.conv("487/variance/Fused_Add_", _486_fq_input_0_0, _486_fq_weights_1_0, {1, 1}, {1, 1, 1, 1}, 1, 1);
+    const auto _487_variance_Fused_Add__bias_0 = model.bias("487/variance/Fused_Add_:bias", _487_variance_Fused_Add__0, Constant_4430_0);
+    const auto _488_0 = model.relu("488", _487_variance_Fused_Add__bias_0);
+    const auto _489_fq_input_0_0 = model.fakeQuantize("489/fq_input_0", _488_0, _18311835_const_0, _18321836_const_0, _18331837_const_0, _18341838_const_0, 256);
+    const auto _490_variance_Fused_Add__0 = model.conv("490/variance/Fused_Add_", _489_fq_input_0_0, _489_fq_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto _490_variance_Fused_Add__bias_0 = model.bias("490/variance/Fused_Add_:bias", _490_variance_Fused_Add__0, Constant_4431_0);
+    const auto _491_fq_input_0_0 = model.fakeQuantize("491/fq_input_0", _490_variance_Fused_Add__bias_0, _15611565_const_0, _15621566_const_0, _15631567_const_0, _15641568_const_0, 256);
+    const auto _491_0 = model.eltwise("491", {_491_fq_input_0_0, _483_fq_input_0_0}, "Add");
+    const auto _492_0 = model.relu("492", _491_0);
+    const auto _493_reduce_fq_input_0_0 = model.fakeQuantize("493/reduce/fq_input_0", _492_0, _17611765_const_0, _17621766_const_0, _17631767_const_0, _17641768_const_0, 256);
+    const auto _493_reduce_0 = model.averagePool("493/reduce", _493_reduce_fq_input_0_0, {7, 7}, {1, 1}, {0, 0, 0, 0}, true);
+    const auto _501_fq_input_0_0 = model.fakeQuantize("501/fq_input_0", _493_reduce_0, _30273031_const_0, _30283032_const_0, _30293033_const_0, _30303034_const_0, 256);
+    const auto _501_0 = model.reshape("501", _501_fq_input_0_0, {1, 1, 2048, 1});
+    const auto prob_0 = model.fullyConnected("prob", _501_0, prob_WithoutBiases_fq_weights_1_0);
+    const auto prob_bias_0 = model.bias("prob:bias", prob_0, Constant_4433_0);
+    model.output("prob:bias:0", prob_bias_0, mv::DType("Float16"), true);
+}
 
 int main(int argc, char **argv)
 {
@@ -50,485 +969,16 @@ int main(int argc, char **argv)
 
     if (!params.parse_args(argc, argv)) { return -1; }
 
-    double inf = std::numeric_limits<double>::infinity();
-
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
-    auto input0 = om.input({224,224,3,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#180");
-
-    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (7*7*3*64);
-    auto weights0 = om.constantInt(weightsData0,{7,7,3,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{115},{0.002871257718652487},{-0.32948583364486694},{0.40268489718437195}}, "conv1#0_weights#1");
-    auto conv0 = om.conv(input0, weights0, {2, 2}, {2, 3, 2, 3}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "conv1#181");
-
-    std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (64);
-    auto biasWeights0 = om.constantInt(biasWeightsData0,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{2.2519669073517434e-05},{-inf},{inf}}, "conv1#0_bias#2");
-    auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    auto pool0 = om.maxPool(bias_c0, {3, 3}, {2, 2}, {0, 1, 0, 1}, true, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool1/max_pool#182");
-
-    std::vector<int64_t> weightsData1 = mv::utils::generateSequence<int64_t> (1*1*64*256);
-    auto weights1 = om.constantInt(weightsData1,{1,1,64,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{137},{0.0030952668748795986},{-0.42331647872924805},{0.36597657203674316}}, "res2a_branch1#4_weights#5");
-    auto conv1 = om.conv(pool0, weights1, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a_branch1#183");
-
-    std::vector<int64_t> biasWeightsData1 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights1 = om.constantInt(biasWeightsData1,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2138301826780662e-05},{-inf},{inf}}, "res2a_branch1#4_bias#6");
-    auto bias_c1 = om.bias(conv1, biasWeights1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData2 = mv::utils::generateSequence<int64_t> (1*1*64*64);
-    auto weights2 = om.constantInt(weightsData2,{1,1,64,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{138},{0.0029387609101831913},{-0.404168039560318},{0.34521597623825073}}, "res2a_branch2a#7_weights#8");
-    auto conv2 = om.conv(pool0, weights2, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a_branch2a#184");
-
-    std::vector<int64_t> biasWeightsData2 = mv::utils::generateSequence<int64_t> (64);
-    auto biasWeights2 = om.constantInt(biasWeightsData2,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.1524552064656746e-05},{-inf},{inf}}, "res2a_branch2a#7_bias#9");
-    auto bias_c2 = om.bias(conv2, biasWeights2, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData3 = mv::utils::generateSequence<int64_t> (3*3*64*64);
-    auto weights3 = om.constantInt(weightsData3,{3,3,64,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{133},{0.0032645531464368105},{-0.43268874287605286},{0.3997723162174225}}, "res2a_branch2b#10_weights#11");
-    auto conv3 = om.conv(bias_c2, weights3, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a_branch2b#185");
-
-    std::vector<int64_t> biasWeightsData3 = mv::utils::generateSequence<int64_t> (64);
-    auto biasWeights3 = om.constantInt(biasWeightsData3,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2802169294445775e-05},{-inf},{inf}}, "res2a_branch2b#10_bias#12");
-    auto bias_c3 = om.bias(conv3, biasWeights3, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData4 = mv::utils::generateSequence<int64_t> (1*1*64*256);
-    auto weights4 = om.constantInt(weightsData4,{1,1,64,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{130},{0.0032063836697489023},{-0.4181155264377594},{0.39951232075691223}}, "res2a_branch2c#13_weights#14");
-    auto conv4 = om.conv(bias_c3, weights4, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a_branch2c#186");
-
-    std::vector<int64_t> biasWeightsData4 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights4 = om.constantInt(biasWeightsData4,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2574053471325897e-05},{-inf},{inf}}, "res2a_branch2c#13_bias#15");
-    auto bias_c4 = om.bias(conv4, biasWeights4, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    auto eltwise0 = om.eltwise({bias_c1,bias_c4}, "Add", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a/Relu#187");
-
-    std::vector<int64_t> weightsData5 = mv::utils::generateSequence<int64_t> (1*1*256*64);
-    auto weights5 = om.constantInt(weightsData5,{1,1,256,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{119},{0.0032081177923828363},{-0.3820513188838959},{0.436018705368042}}, "res2b_branch2a#17_weights#18");
-    auto conv5 = om.conv(eltwise0, weights5, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2b_branch2a#188");
-
-    std::vector<int64_t> biasWeightsData5 = mv::utils::generateSequence<int64_t> (64);
-    auto biasWeights5 = om.constantInt(biasWeightsData5,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2580853763211053e-05},{-inf},{inf}}, "res2b_branch2a#17_bias#19");
-    auto bias_c5 = om.bias(conv5, biasWeights5, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData6 = mv::utils::generateSequence<int64_t> (3*3*64*64);
-    auto weights6 = om.constantInt(weightsData6,{3,3,64,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{123},{0.00342287658713758},{-0.41974323987960815},{0.45309028029441833}}, "res2b_branch2b#20_weights#21");
-    auto conv6 = om.conv(bias_c5, weights6, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2b_branch2b#189");
-
-    std::vector<int64_t> biasWeightsData6 = mv::utils::generateSequence<int64_t> (64);
-    auto biasWeights6 = om.constantInt(biasWeightsData6,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.3423044947558083e-05},{-inf},{inf}}, "res2b_branch2b#20_bias#22");
-    auto bias_c6 = om.bias(conv6, biasWeights6, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData7 = mv::utils::generateSequence<int64_t> (1*1*64*256);
-    auto weights7 = om.constantInt(weightsData7,{1,1,64,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{130},{0.0029558714013546705},{-0.38333263993263245},{0.3704145848751068}}, "res2b_branch2c#23_weights#24");
-    auto conv7 = om.conv(bias_c6, weights7, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2b_branch2c#190");
-
-    std::vector<int64_t> biasWeightsData7 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights7 = om.constantInt(biasWeightsData7,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.1591652764764149e-05},{-inf},{inf}}, "res2b_branch2c#23_bias#25");
-    auto bias_c7 = om.bias(conv7, biasWeights7, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    auto eltwise1 = om.eltwise({eltwise0,bias_c7}, "Add", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2b/Relu#191");
-
-    std::vector<int64_t> weightsData8 = mv::utils::generateSequence<int64_t> (1*1*256*64);
-    auto weights8 = om.constantInt(weightsData8,{1,1,256,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{127},{0.0031738088000565767},{-0.4021194577217102},{0.40720176696777344}}, "res2c_branch2a#27_weights#28");
-    auto conv8 = om.conv(eltwise1, weights8, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2c_branch2a#192");
-
-    std::vector<int64_t> biasWeightsData8 = mv::utils::generateSequence<int64_t> (64);
-    auto biasWeights8 = om.constantInt(biasWeightsData8,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2446308573998976e-05},{-inf},{inf}}, "res2c_branch2a#27_bias#29");
-    auto bias_c8 = om.bias(conv8, biasWeights8, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData9 = mv::utils::generateSequence<int64_t> (3*3*64*64);
-    auto weights9 = om.constantInt(weightsData9,{3,3,64,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{132},{0.0030720513314008713},{-0.4059349000453949},{0.3774382174015045}}, "res2c_branch2b#30_weights#31");
-    auto conv9 = om.conv(bias_c8, weights9, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2c_branch2b#193");
-
-    std::vector<int64_t> biasWeightsData9 = mv::utils::generateSequence<int64_t> (64);
-    auto biasWeights9 = om.constantInt(biasWeightsData9,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.204726049763849e-05},{-inf},{inf}}, "res2c_branch2b#30_bias#32");
-    auto bias_c9 = om.bias(conv9, biasWeights9, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData10 = mv::utils::generateSequence<int64_t> (1*1*64*256);
-    auto weights10 = om.constantInt(weightsData10,{1,1,64,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{143},{0.0032446521800011396},{-0.46311089396476746},{0.36427542567253113}}, "res2c_branch2c#33_weights#34");
-    auto conv10 = om.conv(bias_c9, weights10, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2c_branch2c#194");
-
-    std::vector<int64_t> biasWeightsData10 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights10 = om.constantInt(biasWeightsData10,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2724126463581342e-05},{-inf},{inf}}, "res2c_branch2c#33_bias#35");
-    auto bias_c10 = om.bias(conv10, biasWeights10, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    auto eltwise2 = om.eltwise({eltwise1,bias_c10}, "Add", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2c/Relu#195");
-
-    std::vector<int64_t> weightsData11 = mv::utils::generateSequence<int64_t> (1*1*256*512);
-    auto weights11 = om.constantInt(weightsData11,{1,1,256,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{122},{0.0034912910778075457},{-0.42566612362861633},{0.4646131098270416}}, "res3a_branch1#37_weights#38");
-    auto conv11 = om.conv(eltwise2, weights11, {2, 2}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res3a_branch1#196");
-
-    std::vector<int64_t> biasWeightsData11 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights11 = om.constantInt(biasWeightsData11,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.369133769912878e-05},{-inf},{inf}}, "res3a_branch1#37_bias#39");
-    auto bias_c11 = om.bias(conv11, biasWeights11, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData12 = mv::utils::generateSequence<int64_t> (1*1*256*128);
-    auto weights12 = om.constantInt(weightsData12,{1,1,256,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{135},{0.003216271521523595},{-0.43511319160461426},{0.38503605127334595}}, "res3a_branch2a#40_weights#41");
-    auto conv12 = om.conv(eltwise2, weights12, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res3a_branch2a#197");
-
-    std::vector<int64_t> biasWeightsData12 = mv::utils::generateSequence<int64_t> (128);
-    auto biasWeights12 = om.constantInt(biasWeightsData12,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2612829777935985e-05},{-inf},{inf}}, "res3a_branch2a#40_bias#42");
-    auto bias_c12 = om.bias(conv12, biasWeights12, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData13 = mv::utils::generateSequence<int64_t> (3*3*128*128);
-    auto weights13 = om.constantInt(weightsData13,{3,3,128,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{124},{0.003490086179226637},{-0.4312863051891327},{0.4586856961250305}}, "res3a_branch2b#43_weights#44");
-    auto conv13 = om.conv(bias_c12, weights13, {2, 2}, {0, 1, 0, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res3a_branch2b#198");
-
-    std::vector<int64_t> biasWeightsData13 = mv::utils::generateSequence<int64_t> (128);
-    auto biasWeights13 = om.constantInt(biasWeightsData13,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.368661287415307e-05},{-inf},{inf}}, "res3a_branch2b#43_bias#45");
-    auto bias_c13 = om.bias(conv13, biasWeights13, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData14 = mv::utils::generateSequence<int64_t> (1*1*128*512);
-    auto weights14 = om.constantInt(weightsData14,{1,1,128,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{127},{0.003184879431501031},{-0.4049041271209717},{0.4072401225566864}}, "res3a_branch2c#46_weights#47");
-    auto conv14 = om.conv(bias_c13, weights14, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res3a_branch2c#199");
-
-    std::vector<int64_t> biasWeightsData14 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights14 = om.constantInt(biasWeightsData14,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2489723303588107e-05},{-inf},{inf}}, "res3a_branch2c#46_bias#48");
-    auto bias_c14 = om.bias(conv14, biasWeights14, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    auto eltwise3 = om.eltwise({bias_c11,bias_c14}, "Add", mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3a/Relu#200");
-
-    std::vector<int64_t> weightsData15 = mv::utils::generateSequence<int64_t> (1*1*512*128);
-    auto weights15 = om.constantInt(weightsData15,{1,1,512,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.003236441407352686},{-0.4176654815673828},{0.4076271057128906}}, "res3b_branch2a#50_weights#51");
-    auto conv15 = om.conv(eltwise3, weights15, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res3b_branch2a#201");
-
-    std::vector<int64_t> biasWeightsData15 = mv::utils::generateSequence<int64_t> (128);
-    auto biasWeights15 = om.constantInt(biasWeightsData15,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0001015354209812358},{-inf},{inf}}, "res3b_branch2a#50_bias#52");
-    auto bias_c15 = om.bias(conv15, biasWeights15, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData16 = mv::utils::generateSequence<int64_t> (3*3*128*128);
-    auto weights16 = om.constantInt(weightsData16,{3,3,128,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{126},{0.003464744659140706},{-0.4370753765106201},{0.44643452763557434}}, "res3b_branch2b#53_weights#54");
-    auto conv16 = om.conv(bias_c15, weights16, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res3b_branch2b#202");
-
-    std::vector<int64_t> biasWeightsData16 = mv::utils::generateSequence<int64_t> (128);
-    auto biasWeights16 = om.constantInt(biasWeightsData16,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.3587234207079746e-05},{-inf},{inf}}, "res3b_branch2b#53_bias#55");
-    auto bias_c16 = om.bias(conv16, biasWeights16, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData17 = mv::utils::generateSequence<int64_t> (1*1*128*512);
-    auto weights17 = om.constantInt(weightsData17,{1,1,128,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{123},{0.003219595178961754},{-0.3963310420513153},{0.4246657192707062}}, "res3b_branch2c#56_weights#57");
-    auto conv17 = om.conv(bias_c16, weights17, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3b_branch2c#203");
-
-    std::vector<int64_t> biasWeightsData17 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights17 = om.constantInt(biasWeightsData17,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2625863746507093e-05},{-inf},{inf}}, "res3b_branch2c#56_bias#58");
-    auto bias_c17 = om.bias(conv17, biasWeights17, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
-
-    auto eltwise4 = om.eltwise({eltwise3,bias_c17}, "Add", mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3b/Relu#204");
-
-    std::vector<int64_t> weightsData18 = mv::utils::generateSequence<int64_t> (1*1*512*128);
-    auto weights18 = om.constantInt(weightsData18,{1,1,512,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{135},{0.003667778568342328},{-0.4963448643684387},{0.4389386773109436}}, "res3c_branch2a#60_weights#61");
-    auto conv18 = om.conv(eltwise4, weights18, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res3c_branch2a#205");
-
-    std::vector<int64_t> biasWeightsData18 = mv::utils::generateSequence<int64_t> (128);
-    auto biasWeights18 = om.constantInt(biasWeightsData18,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00011506756709422916},{-inf},{inf}}, "res3c_branch2a#60_bias#62");
-    auto bias_c18 = om.bias(conv18, biasWeights18, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData19 = mv::utils::generateSequence<int64_t> (3*3*128*128);
-    auto weights19 = om.constantInt(weightsData19,{3,3,128,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.0035618969704955816},{-0.46099328994750977},{0.44729045033454895}}, "res3c_branch2b#63_weights#64");
-    auto conv19 = om.conv(bias_c18, weights19, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res3c_branch2b#206");
-
-    std::vector<int64_t> biasWeightsData19 = mv::utils::generateSequence<int64_t> (128);
-    auto biasWeights19 = om.constantInt(biasWeightsData19,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.3968223356641829e-05},{-inf},{inf}}, "res3c_branch2b#63_bias#65");
-    auto bias_c19 = om.bias(conv19, biasWeights19, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData20 = mv::utils::generateSequence<int64_t> (1*1*128*512);
-    auto weights20 = om.constantInt(weightsData20,{1,1,128,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.0033087413758039474},{-0.42709609866142273},{0.4166329503059387}}, "res3c_branch2c#66_weights#67");
-    auto conv20 = om.conv(bias_c19, weights20, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3c_branch2c#207");
-
-    std::vector<int64_t> biasWeightsData20 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights20 = om.constantInt(biasWeightsData20,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2975456229469273e-05},{-inf},{inf}}, "res3c_branch2c#66_bias#68");
-    auto bias_c20 = om.bias(conv20, biasWeights20, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
-
-    auto eltwise5 = om.eltwise({eltwise4,bias_c20}, "Add", mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3c/Relu#208");
-
-    std::vector<int64_t> weightsData21 = mv::utils::generateSequence<int64_t> (1*1*512*128);
-    auto weights21 = om.constantInt(weightsData21,{1,1,512,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{130},{0.0033619359601289034},{-0.43593573570251465},{0.4213579595088959}}, "res3d_branch2a#70_weights#71");
-    auto conv21 = om.conv(eltwise5, weights21, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res3d_branch2a#209");
-
-    std::vector<int64_t> biasWeightsData21 = mv::utils::generateSequence<int64_t> (128);
-    auto biasWeights21 = om.constantInt(biasWeightsData21,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00010547250712988898},{-inf},{inf}}, "res3d_branch2a#70_bias#72");
-    auto bias_c21 = om.bias(conv21, biasWeights21, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData22 = mv::utils::generateSequence<int64_t> (3*3*128*128);
-    auto weights22 = om.constantInt(weightsData22,{3,3,128,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.003309462685137987},{-0.4247035086154938},{0.41920948028564453}}, "res3d_branch2b#73_weights#74");
-    auto conv22 = om.conv(bias_c21, weights22, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res3d_branch2b#210");
-
-    std::vector<int64_t> biasWeightsData22 = mv::utils::generateSequence<int64_t> (128);
-    auto biasWeights22 = om.constantInt(biasWeightsData22,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2978284757991787e-05},{-inf},{inf}}, "res3d_branch2b#73_bias#75");
-    auto bias_c22 = om.bias(conv22, biasWeights22, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData23 = mv::utils::generateSequence<int64_t> (1*1*128*512);
-    auto weights23 = om.constantInt(weightsData23,{1,1,128,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{134},{0.0036992442328482866},{-0.49393245577812195},{0.449374794960022}}, "res3d_branch2c#76_weights#77");
-    auto conv23 = om.conv(bias_c22, weights23, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3d_branch2c#211");
-
-    std::vector<int64_t> biasWeightsData23 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights23 = om.constantInt(biasWeightsData23,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.4506839761452284e-05},{-inf},{inf}}, "res3d_branch2c#76_bias#78");
-    auto bias_c23 = om.bias(conv23, biasWeights23, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
-
-    auto eltwise6 = om.eltwise({eltwise5,bias_c23}, "Add", mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3d/Relu#212");
-
-    std::vector<int64_t> weightsData24 = mv::utils::generateSequence<int64_t> (1*1*512*1024);
-    auto weights24 = om.constantInt(weightsData24,{1,1,512,1024}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{125},{0.0036697331815958023},{-0.459474116563797},{0.47630783915519714}}, "res4a_branch1#80_weights#81");
-    auto conv24 = om.conv(eltwise6, weights24, {2, 2}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res4a_branch1#213");
-
-    std::vector<int64_t> biasWeightsData24 = mv::utils::generateSequence<int64_t> (1024);
-    auto biasWeights24 = om.constantInt(biasWeightsData24,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00011512888158904389},{-inf},{inf}}, "res4a_branch1#80_bias#82");
-    auto bias_c24 = om.bias(conv24, biasWeights24, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
-
-    std::vector<int64_t> weightsData25 = mv::utils::generateSequence<int64_t> (1*1*512*256);
-    auto weights25 = om.constantInt(weightsData25,{1,1,512,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{125},{0.0034257101360708475},{-0.42701420187950134},{0.4465419054031372}}, "res4a_branch2a#83_weights#84");
-    auto conv25 = om.conv(eltwise6, weights25, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res4a_branch2a#214");
-
-    std::vector<int64_t> biasWeightsData25 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights25 = om.constantInt(biasWeightsData25,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00010747326450655237},{-inf},{inf}}, "res4a_branch2a#83_bias#85");
-    auto bias_c25 = om.bias(conv25, biasWeights25, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
-
-    std::vector<int64_t> weightsData26 = mv::utils::generateSequence<int64_t> (3*3*256*256);
-    auto weights26 = om.constantInt(weightsData26,{3,3,256,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{123},{0.0036150901578366756},{-0.4451659917831421},{0.47668200731277466}}, "res4a_branch2b#86_weights#87");
-    auto conv26 = om.conv(bias_c25, weights26, {2, 2}, {0, 1, 0, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res4a_branch2b#215");
-
-    std::vector<int64_t> biasWeightsData26 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights26 = om.constantInt(biasWeightsData26,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00011341459321556613},{-inf},{inf}}, "res4a_branch2b#86_bias#88");
-    auto bias_c26 = om.bias(conv26, biasWeights26, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData27 = mv::utils::generateSequence<int64_t> (1*1*256*1024);
-    auto weights27 = om.constantInt(weightsData27,{1,1,256,1024}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{130},{0.0033847768791019917},{-0.44039711356163025},{0.4227209985256195}}, "res4a_branch2c#89_weights#90");
-    auto conv27 = om.conv(bias_c26, weights27, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res4a_branch2c#216");
-
-    std::vector<int64_t> biasWeightsData27 = mv::utils::generateSequence<int64_t> (1024);
-    auto biasWeights27 = om.constantInt(biasWeightsData27,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.327363497694023e-05},{-inf},{inf}}, "res4a_branch2c#89_bias#91");
-    auto bias_c27 = om.bias(conv27, biasWeights27, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
-
-    auto eltwise7 = om.eltwise({bias_c24,bias_c27}, "Add", mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res4a/Relu#217");
-
-    std::vector<int64_t> weightsData28 = mv::utils::generateSequence<int64_t> (1*1*1024*256);
-    auto weights28 = om.constantInt(weightsData28,{1,1,1024,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.004124246072024107},{-0.5335013270378113},{0.5181813836097717}}, "res4b_branch2a#93_weights#94");
-    auto conv28 = om.conv(eltwise7, weights28, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}}, "res4b_branch2a#218");
-
-    std::vector<int64_t> biasWeightsData28 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights28 = om.constantInt(biasWeightsData28,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00012938810687046498},{-inf},{inf}}, "res4b_branch2a#93_bias#95");
-    auto bias_c28 = om.bias(conv28, biasWeights28, mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}});
-
-    std::vector<int64_t> weightsData29 = mv::utils::generateSequence<int64_t> (3*3*256*256);
-    auto weights29 = om.constantInt(weightsData29,{3,3,256,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.0037902493495494127},{-0.4906528890132904},{0.47586068511009216}}, "res4b_branch2b#96_weights#97");
-    auto conv29 = om.conv(bias_c28, weights29, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res4b_branch2b#219");
-
-    std::vector<int64_t> biasWeightsData29 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights29 = om.constantInt(biasWeightsData29,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.000237819564063102},{-inf},{inf}}, "res4b_branch2b#96_bias#98");
-    auto bias_c29 = om.bias(conv29, biasWeights29, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData30 = mv::utils::generateSequence<int64_t> (1*1*256*1024);
-    auto weights30 = om.constantInt(weightsData30,{1,1,256,1024}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{127},{0.003342666197568178},{-0.4256753921508789},{0.426704466342926}}, "res4b_branch2c#99_weights#100");
-    auto conv30 = om.conv(bias_c29, weights30, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res4b_branch2c#220");
-
-    std::vector<int64_t> biasWeightsData30 = mv::utils::generateSequence<int64_t> (1024);
-    auto biasWeights30 = om.constantInt(biasWeightsData30,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.3108494385960512e-05},{-inf},{inf}}, "res4b_branch2c#99_bias#101");
-    auto bias_c30 = om.bias(conv30, biasWeights30, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
-
-    auto eltwise8 = om.eltwise({eltwise7,bias_c30}, "Add", mv::DType("UInt8"), {{0},{0.0470588244497776},{0.0},{12.0}}, "res4b/Relu#221");
-
-    std::vector<int64_t> weightsData31 = mv::utils::generateSequence<int64_t> (1*1*1024*256);
-    auto weights31 = om.constantInt(weightsData31,{1,1,1024,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{123},{0.003458196995779872},{-0.4249594211578369},{0.4568808376789093}}, "res4c_branch2a#103_weights#104");
-    auto conv31 = om.conv(eltwise8, weights31, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}}, "res4c_branch2a#222");
-
-    std::vector<int64_t> biasWeightsData31 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights31 = om.constantInt(biasWeightsData31,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0001627386809559539},{-inf},{inf}}, "res4c_branch2a#103_bias#105");
-    auto bias_c31 = om.bias(conv31, biasWeights31, mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}});
-
-    std::vector<int64_t> weightsData32 = mv::utils::generateSequence<int64_t> (3*3*256*256);
-    auto weights32 = om.constantInt(weightsData32,{3,3,256,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{130},{0.003711913013830781},{-0.48257341980934143},{0.46396440267562866}}, "res4c_branch2b#106_weights#107");
-    auto conv32 = om.conv(bias_c31, weights32, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res4c_branch2b#223");
-
-    std::vector<int64_t> biasWeightsData32 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights32 = om.constantInt(biasWeightsData32,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0002329043491045013},{-inf},{inf}}, "res4c_branch2b#106_bias#108");
-    auto bias_c32 = om.bias(conv32, biasWeights32, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData33 = mv::utils::generateSequence<int64_t> (1*1*256*1024);
-    auto weights33 = om.constantInt(weightsData33,{1,1,256,1024}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{123},{0.003429228439927101},{-0.42193603515625},{0.45251724123954773}}, "res4c_branch2c#109_weights#110");
-    auto conv33 = om.conv(bias_c32, weights33, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0470588244497776},{0.0},{12.0}}, "res4c_branch2c#224");
-
-    std::vector<int64_t> biasWeightsData33 = mv::utils::generateSequence<int64_t> (1024);
-    auto biasWeights33 = om.constantInt(biasWeightsData33,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.3447955097944941e-05},{-inf},{inf}}, "res4c_branch2c#109_bias#111");
-    auto bias_c33 = om.bias(conv33, biasWeights33, mv::DType("UInt8"), {{0},{0.0470588244497776},{0.0},{12.0}});
-
-    auto eltwise9 = om.eltwise({eltwise8,bias_c33}, "Add", mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}}, "res4c/Relu#225");
-
-    std::vector<int64_t> weightsData34 = mv::utils::generateSequence<int64_t> (1*1*1024*256);
-    auto weights34 = om.constantInt(weightsData34,{1,1,1024,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{136},{0.0036149746738374233},{-0.49254778027534485},{0.42927077412605286}}, "res4d_branch2a#113_weights#114");
-    auto conv34 = om.conv(eltwise9, weights34, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}}, "res4d_branch2a#226");
-
-    std::vector<int64_t> biasWeightsData34 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights34 = om.constantInt(biasWeightsData34,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00022682193957734853},{-inf},{inf}}, "res4d_branch2a#113_bias#115");
-    auto bias_c34 = om.bias(conv34, biasWeights34, mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}});
-
-    std::vector<int64_t> weightsData35 = mv::utils::generateSequence<int64_t> (3*3*256*256);
-    auto weights35 = om.constantInt(weightsData35,{3,3,256,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{135},{0.00367855210788548},{-0.4958947002887726},{0.44213607907295227}}, "res4d_branch2b#116_weights#117");
-    auto conv35 = om.conv(bias_c34, weights35, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res4d_branch2b#227");
-
-    std::vector<int64_t> biasWeightsData35 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights35 = om.constantInt(biasWeightsData35,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00023081111430656165},{-inf},{inf}}, "res4d_branch2b#116_bias#118");
-    auto bias_c35 = om.bias(conv35, biasWeights35, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData36 = mv::utils::generateSequence<int64_t> (1*1*256*1024);
-    auto weights36 = om.constantInt(weightsData36,{1,1,256,1024}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{134},{0.003840783378109336},{-0.5160320401191711},{0.4633677005767822}}, "res4d_branch2c#119_weights#120");
-    auto conv36 = om.conv(bias_c35, weights36, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}}, "res4d_branch2c#228");
-
-    std::vector<int64_t> biasWeightsData36 = mv::utils::generateSequence<int64_t> (1024);
-    auto biasWeights36 = om.constantInt(biasWeightsData36,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.5061895282997284e-05},{-inf},{inf}}, "res4d_branch2c#119_bias#121");
-    auto bias_c36 = om.bias(conv36, biasWeights36, mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}});
-
-    auto eltwise10 = om.eltwise({eltwise9,bias_c36}, "Add", mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4d/Relu#229");
-
-    std::vector<int64_t> weightsData37 = mv::utils::generateSequence<int64_t> (1*1*1024*256);
-    auto weights37 = om.constantInt(weightsData37,{1,1,1024,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.0034344515297561884},{-0.43838825821876526},{0.4373968541622162}}, "res4e_branch2a#123_weights#124");
-    auto conv37 = om.conv(eltwise10, weights37, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4e_branch2a#230");
-
-    std::vector<int64_t> biasWeightsData37 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights37 = om.constantInt(biasWeightsData37,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0003232424787711352},{-inf},{inf}}, "res4e_branch2a#123_bias#125");
-    auto bias_c37 = om.bias(conv37, biasWeights37, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}});
-
-    std::vector<int64_t> weightsData38 = mv::utils::generateSequence<int64_t> (3*3*256*256);
-    auto weights38 = om.constantInt(weightsData38,{3,3,256,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{125},{0.003688796190544963},{-0.4599181115627289},{0.48072493076324463}}, "res4e_branch2b#126_weights#127");
-    auto conv38 = om.conv(bias_c37, weights38, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res4e_branch2b#231");
-
-    std::vector<int64_t> biasWeightsData38 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights38 = om.constantInt(biasWeightsData38,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00034718081587925553},{-inf},{inf}}, "res4e_branch2b#126_bias#128");
-    auto bias_c38 = om.bias(conv38, biasWeights38, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData39 = mv::utils::generateSequence<int64_t> (1*1*256*1024);
-    auto weights39 = om.constantInt(weightsData39,{1,1,256,1024}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{125},{0.0035333456471562386},{-0.44150012731552124},{0.4595029950141907}}, "res4e_branch2c#129_weights#130");
-    auto conv39 = om.conv(bias_c38, weights39, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4e_branch2c#232");
-
-    std::vector<int64_t> biasWeightsData39 = mv::utils::generateSequence<int64_t> (1024);
-    auto biasWeights39 = om.constantInt(biasWeightsData39,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.3856257282895967e-05},{-inf},{inf}}, "res4e_branch2c#129_bias#131");
-    auto bias_c39 = om.bias(conv39, biasWeights39, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}});
-
-    auto eltwise11 = om.eltwise({eltwise10,bias_c39}, "Add", mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4e/Relu#233");
-
-    std::vector<int64_t> weightsData40 = mv::utils::generateSequence<int64_t> (1*1*1024*256);
-    auto weights40 = om.constantInt(weightsData40,{1,1,1024,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{126},{0.0035140542313456535},{-0.4410395920276642},{0.4550442397594452}}, "res4f_branch2a#133_weights#134");
-    auto conv40 = om.conv(eltwise11, weights40, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4f_branch2a#234");
-
-    std::vector<int64_t> biasWeightsData40 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights40 = om.constantInt(biasWeightsData40,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00033073450322262943},{-inf},{inf}}, "res4f_branch2a#133_bias#135");
-    auto bias_c40 = om.bias(conv40, biasWeights40, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}});
-
-    std::vector<int64_t> weightsData41 = mv::utils::generateSequence<int64_t> (3*3*256*256);
-    auto weights41 = om.constantInt(weightsData41,{3,3,256,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{123},{0.0035706025082618},{-0.4375752806663513},{0.47292837500572205}}, "res4f_branch2b#136_weights#137");
-    auto conv41 = om.conv(bias_c40, weights41, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res4f_branch2b#235");
-
-    std::vector<int64_t> biasWeightsData41 = mv::utils::generateSequence<int64_t> (256);
-    auto biasWeights41 = om.constantInt(biasWeightsData41,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0003360567206982523},{-inf},{inf}}, "res4f_branch2b#136_bias#138");
-    auto bias_c41 = om.bias(conv41, biasWeights41, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData42 = mv::utils::generateSequence<int64_t> (1*1*256*1024);
-    auto weights42 = om.constantInt(weightsData42,{1,1,256,1024}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{122},{0.0037916346918791533},{-0.46117961406707764},{0.5056872367858887}}, "res4f_branch2c#139_weights#140");
-    auto conv42 = om.conv(bias_c41, weights42, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4f_branch2c#236");
-
-    std::vector<int64_t> biasWeightsData42 = mv::utils::generateSequence<int64_t> (1024);
-    auto biasWeights42 = om.constantInt(biasWeightsData42,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.4869156075292267e-05},{-inf},{inf}}, "res4f_branch2c#139_bias#141");
-    auto bias_c42 = om.bias(conv42, biasWeights42, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}});
-
-    auto eltwise12 = om.eltwise({eltwise11,bias_c42}, "Add", mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4f/Relu#237");
-
-    std::vector<int64_t> weightsData43 = mv::utils::generateSequence<int64_t> (1*1*1024*2048);
-    auto weights43 = om.constantInt(weightsData43,{1,1,1024,2048}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.003836166113615036},{-0.4922131896018982},{0.4860091507434845}}, "res5a_branch1#143_weights#144");
-    auto conv43 = om.conv(eltwise12, weights43, {2, 2}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.125490203499794},{0.0},{32.0}}, "res5a_branch1#238");
-
-    std::vector<int64_t> biasWeightsData43 = mv::utils::generateSequence<int64_t> (2048);
-    auto biasWeights43 = om.constantInt(biasWeightsData43,{2048}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0003610509156715125},{-inf},{inf}}, "res5a_branch1#143_bias#145");
-    auto bias_c43 = om.bias(conv43, biasWeights43, mv::DType("UInt8"), {{0},{0.125490203499794},{0.0},{32.0}});
-
-    std::vector<int64_t> weightsData44 = mv::utils::generateSequence<int64_t> (1*1*1024*512);
-    auto weights44 = om.constantInt(weightsData44,{1,1,1024,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{121},{0.0036368558648973703},{-0.4405672550201416},{0.48683100938796997}}, "res5a_branch2a#146_weights#147");
-    auto conv44 = om.conv(eltwise12, weights44, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.125490203499794},{0.0},{32.0}}, "res5a_branch2a#239");
-
-    std::vector<int64_t> biasWeightsData44 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights44 = om.constantInt(biasWeightsData44,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00034229233278892934},{-inf},{inf}}, "res5a_branch2a#146_bias#148");
-    auto bias_c44 = om.bias(conv44, biasWeights44, mv::DType("UInt8"), {{0},{0.125490203499794},{0.0},{32.0}});
-
-    std::vector<int64_t> weightsData45 = mv::utils::generateSequence<int64_t> (3*3*512*512);
-    auto weights45 = om.constantInt(weightsData45,{3,3,512,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{124},{0.004363630432635546},{-0.5415508151054382},{0.5711749792098999}}, "res5a_branch2b#149_weights#150");
-    auto conv45 = om.conv(bias_c44, weights45, {2, 2}, {0, 1, 0, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res5a_branch2b#240");
-
-    std::vector<int64_t> biasWeightsData45 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights45 = om.constantInt(biasWeightsData45,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0005475928774103522},{-inf},{inf}}, "res5a_branch2b#149_bias#151");
-    auto bias_c45 = om.bias(conv45, biasWeights45, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData46 = mv::utils::generateSequence<int64_t> (1*1*512*2048);
-    auto weights46 = om.constantInt(weightsData46,{1,1,512,2048}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{126},{0.003843836486339569},{-0.4861159026622772},{0.4940624237060547}}, "res5a_branch2c#152_weights#153");
-    auto conv46 = om.conv(bias_c45, weights46, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.125490203499794},{0.0},{32.0}}, "res5a_branch2c#241");
-
-    std::vector<int64_t> biasWeightsData46 = mv::utils::generateSequence<int64_t> (2048);
-    auto biasWeights46 = om.constantInt(biasWeightsData46,{2048}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.5073868780746125e-05},{-inf},{inf}}, "res5a_branch2c#152_bias#154");
-    auto bias_c46 = om.bias(conv46, biasWeights46, mv::DType("UInt8"), {{0},{0.125490203499794},{0.0},{32.0}});
-
-    auto eltwise13 = om.eltwise({bias_c43,bias_c46}, "Add", mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}}, "res5a/Relu#242");
-
-    std::vector<int64_t> weightsData47 = mv::utils::generateSequence<int64_t> (1*1*2048*512);
-    auto weights47 = om.constantInt(weightsData47,{1,1,2048,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.0038684855680912733},{-0.497765451669693},{0.48869839310646057}}, "res5b_branch2a#156_weights#157");
-    auto conv47 = om.conv(eltwise13, weights47, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}}, "res5b_branch2a#243");
-
-    std::vector<int64_t> biasWeightsData47 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights47 = om.constantInt(biasWeightsData47,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0006371623603627086},{-inf},{inf}}, "res5b_branch2a#156_bias#158");
-    auto bias_c47 = om.bias(conv47, biasWeights47, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}});
-
-    std::vector<int64_t> weightsData48 = mv::utils::generateSequence<int64_t> (3*3*512*512);
-    auto weights48 = om.constantInt(weightsData48,{3,3,512,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.004149848595261574},{-0.5362045764923096},{0.5220068097114563}}, "res5b_branch2b#159_weights#160");
-    auto conv48 = om.conv(bias_c47, weights48, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res5b_branch2b#244");
-
-    std::vector<int64_t> biasWeightsData48 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights48 = om.constantInt(biasWeightsData48,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0006835044478066266},{-inf},{inf}}, "res5b_branch2b#159_bias#161");
-    auto bias_c48 = om.bias(conv48, biasWeights48, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData49 = mv::utils::generateSequence<int64_t> (1*1*512*2048);
-    auto weights49 = om.constantInt(weightsData49,{1,1,512,2048}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{143},{0.004270848352462053},{-0.6119490265846252},{0.4771173298358917}}, "res5b_branch2c#162_weights#163");
-    auto conv49 = om.conv(bias_c48, weights49, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}}, "res5b_branch2c#245");
-
-    std::vector<int64_t> biasWeightsData49 = mv::utils::generateSequence<int64_t> (2048);
-    auto biasWeights49 = om.constantInt(biasWeightsData49,{2048}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.674842496868223e-05},{-inf},{inf}}, "res5b_branch2c#162_bias#164");
-    auto bias_c49 = om.bias(conv49, biasWeights49, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}});
-
-    auto eltwise14 = om.eltwise({eltwise13,bias_c49}, "Add", mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}}, "res5b/Relu#246");
-
-    std::vector<int64_t> weightsData50 = mv::utils::generateSequence<int64_t> (1*1*2048*512);
-    auto weights50 = om.constantInt(weightsData50,{1,1,2048,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.0037442538887262344},{-0.48447155952453613},{0.4703131914138794}}, "res5c_branch2a#166_weights#167");
-    auto conv50 = om.conv(eltwise14, weights50, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}}, "res5c_branch2a#247");
-
-    std::vector<int64_t> biasWeightsData50 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights50 = om.constantInt(biasWeightsData50,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0006167006213217974},{-inf},{inf}}, "res5c_branch2a#166_bias#168");
-    auto bias_c50 = om.bias(conv50, biasWeights50, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}});
-
-    std::vector<int64_t> weightsData51 = mv::utils::generateSequence<int64_t> (3*3*512*512);
-    auto weights51 = om.constantInt(weightsData51,{3,3,512,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{127},{0.004263573791831732},{-0.5423005819320679},{0.544910728931427}}, "res5c_branch2b#169_weights#170");
-    auto conv51 = om.conv(bias_c50, weights51, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res5c_branch2b#248");
-
-    std::vector<int64_t> biasWeightsData51 = mv::utils::generateSequence<int64_t> (512);
-    auto biasWeights51 = om.constantInt(biasWeightsData51,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0007022356730885804},{-inf},{inf}}, "res5c_branch2b#169_bias#171");
-    auto bias_c51 = om.bias(conv51, biasWeights51, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    std::vector<int64_t> weightsData52 = mv::utils::generateSequence<int64_t> (1*1*512*2048);
-    auto weights52 = om.constantInt(weightsData52,{1,1,512,2048}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{127},{0.0037484760396182537},{-0.47455498576164246},{0.48130640387535095}}, "res5c_branch2c#172_weights#173");
-    auto conv52 = om.conv(bias_c51, weights52, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}}, "res5c_branch2c#249");
-
-    std::vector<int64_t> biasWeightsData52 = mv::utils::generateSequence<int64_t> (2048);
-    auto biasWeights52 = om.constantInt(biasWeightsData52,{2048}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.4699906387249939e-05},{-inf},{inf}}, "res5c_branch2c#172_bias#174");
-    auto bias_c52 = om.bias(conv52, biasWeights52, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}});
-
-    auto eltwise15 = om.eltwise({eltwise14,bias_c52}, "Add", mv::DType("UInt8"), {{0},{0.250980406999588},{0.0},{64.0}}, "res5c/Relu#250");
-
-    auto pool1 = om.averagePool(eltwise15, {7, 7}, {1, 1}, {0, 0, 0, 0}, true, mv::DType("UInt8"), {{0},{0.250980406999588},{0.0},{64.0}}, "pool5/AvgPool#251");
-
-    std::vector<int64_t> weightsData53 = mv::utils::generateSequence<int64_t> (1*1*2048*1000);
-    auto weights53 = om.constantInt(weightsData53,{1,1,2048,1000}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{131},{0.0037790408823639154},{-0.49569910764694214},{0.4679563343524933}}, "fc1000/fc1000#177_weights#178");
-    auto conv53 = om.conv(pool1, weights53, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.3294117748737335},{0.0},{84.0}}, "fc1000/fc1000#252");
-
-    std::vector<int64_t> biasWeightsData53 = mv::utils::generateSequence<int64_t> (1000);
-    auto biasWeights53 = om.constantInt(biasWeightsData53,{1000}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.000948465196415782},{-inf},{inf}}, "fc1000/fc1000#177_bias#179");
-    auto bias_c53 = om.bias(conv53, biasWeights53, mv::DType("UInt8"), {{0},{0.3294117748737335},{0.0},{84.0}});
-
-    om.output(bias_c53);
+    build_resnet_50_pytorch(om);
 
     std::string compDescPath = params.comp_descriptor_;
     unit.loadCompilationDescriptor(compDescPath);
+
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
+
+    return 0;
 }

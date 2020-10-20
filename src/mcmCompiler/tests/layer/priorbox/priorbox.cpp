@@ -21,13 +21,19 @@ int main()
     auto priorboxesShape = mv::Shape({10,10,1,1});
 
     // Define tensors
-    auto image = om.input(imageShape, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "image");
+    auto image = om.input("image", imageShape, mv::DType("Float16"), mv::Order::getZMajorID(4));
     std::vector<int64_t> priorboxesData0 = mv::utils::generateSequence<int64_t> (priorboxesShape[0]*priorboxesShape[1]*priorboxesShape[2]*priorboxesShape[3]);
-    auto priorboxes = om.constantInt(priorboxesData0,priorboxesShape, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "priorboxes");
-    auto minSizes = om.constant(minSizesData,{minSizesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "minSizes");
-    auto maxSizes = om.constant(maxSizesData,{maxSizesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "maxSizes");
-    auto aspectRatios = om.constant(aspectRatiosData,{aspectRatiosData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "aspectRatios");
-    auto variances = om.constant(variancesData,{variancesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "variances");
+    auto priorboxes = om.constantInt("priorboxes", priorboxesData0,priorboxesShape, mv::DType("Float16"), mv::Order::getZMajorID(4));
+    auto minSizes = om.constant("minSizes", minSizesData,{minSizesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4));
+    auto maxSizes = om.constant("maxSizes", maxSizesData,{maxSizesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4));
+    auto aspectRatios = om.constant("aspectRatios", aspectRatiosData,{aspectRatiosData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4));
+    auto variances = om.constant("variances", variancesData,{variancesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4));
+    image->setQuantParams({{0},{1.0},{},{}});
+    priorboxes->setQuantParams({{0},{1.0},{},{}});
+    minSizes->setQuantParams({{0},{1.0},{},{}});
+    maxSizes->setQuantParams({{0},{1.0},{},{}});
+    aspectRatios->setQuantParams({{0},{1.0},{},{}});
+    variances->setQuantParams({{0},{1.0},{},{}});
 
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;
@@ -38,12 +44,11 @@ int main()
     inputs.push_back(aspectRatios);
     inputs.push_back(variances);
 
-    auto dtype = mv::DType("Float16");
-    auto quantParams = mv::QuantizationParams({{128},{0.007843137718737125},{-1.0},{1.0}});
-
     // Build Model
-    auto priorbox0 = om.priorbox(inputs, flip, clip, step_w, step_h, offset, dtype, quantParams, "priorbox");
-    om.output(priorbox0);
+    auto priorbox0 = om.priorbox("priorbox", inputs, flip, clip, step_w, step_h, offset);
+    priorbox0->setQuantParams({{128},{0.007843137718737125},{-1.0},{1.0}});
+
+    om.output("", priorbox0);
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);

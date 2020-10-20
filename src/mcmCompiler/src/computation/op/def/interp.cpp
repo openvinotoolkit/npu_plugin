@@ -27,9 +27,6 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
             auto factor = args.at("factor").get<double>();
             unsigned outHeight , outWidth;
             auto inputShape = inputs[0]->getShape();
@@ -63,11 +60,8 @@ namespace mv
                 }
             }
 
-             mv::Shape outputShape({outWidth, outHeight, inputShape[IO_CHANNEL_DIMENSION], inputShape[IO_BATCH_DIMENSION]});;
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+            mv::Shape outputShape({outWidth, outHeight, inputShape[IO_CHANNEL_DIMENSION], inputShape[IO_BATCH_DIMENSION]});;
+            outputs.emplace_back(":0",  outputShape, inputs[0]->getDType(), inputs[0]->getOrder());
         };
 
     }
@@ -82,8 +76,6 @@ namespace mv
         .setOptionalArg<unsigned>("height", 0)
         .setOptionalArg<unsigned>("width", 0)
         .setOptionalArg<bool>("align_corners", true)
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_interp::inputCheckFcn)
         .setOutputDef(op_interp::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

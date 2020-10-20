@@ -46,10 +46,10 @@ TEST_P(layers_reshape, dump_blob)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input(shape, dtype, order);
-    auto layer = om.reshape(input, shape_new, order_new);
+    auto input = om.input("", shape, dtype, order);
+    auto layer = om.reshape("", input, shape_new);
     auto layerOp = om.getSourceOp(layer);
-    auto output = om.output(layer);
+    auto output = om.output("", layer);
 
     ASSERT_TRUE(om.isValid(layer));
     ASSERT_TRUE(om.isValid(layerOp));

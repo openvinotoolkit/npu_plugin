@@ -25,13 +25,15 @@ mv::Data::OpListIterator portDepthwise(mv::ComputationModel& model, mv::Data::Te
 
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
     std::vector<int64_t> weightsData(inputShape[mv::IO_CHANNEL_DIMENSION], 0);
-    weights = om.constantInt(weightsData,
+    weights = om.constantInt("",
+                        weightsData,
                         {1, 1, inputShape[mv::IO_CHANNEL_DIMENSION], 1},
                         mv::DType("UInt8"),
-                        mv::Order::getZMajorID(4),
-                        weightsQuantParams);
-    auto depthwise_conv = om.depthwiseConv(inputTensor, weights, {1,1}, {0,0,0,0}, 1,
-                                           mv::DType("UInt8"), quantParams, name + "_PPEDepthwiseConv");
+                        mv::Order::getZMajorID(4));
+    weights->setQuantParams(weightsQuantParams);
+    auto depthwise_conv = om.depthwiseConv(name + "_PPEDepthwiseConv", inputTensor, weights, {1,1}, {0,0,0,0}, 1);
+    depthwise_conv->setDType(mv::DType("UInt8"));
+    depthwise_conv->setQuantParams(quantParams);
     auto depthwise_convOp = om.getSourceOp(depthwise_conv);
     auto weightsOp = om.getSourceOp(weights);
     unsigned currentOpId = task->get<unsigned>("opId");
@@ -119,22 +121,26 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
     }
 
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
-    mv::QuantizationParams quantParams = task->get<mv::QuantizationParams>("quantParams");
+    mv::QuantizationParams quantParams = task->getOutputTensor(0)->getQuantParams();
     std::string constantName = previousOp->getInputTensor()[1]->getName() + std::to_string(branch);
     std::string name = task->getName();
 
-    auto weights = om.constantInt(weightsData,
+    auto weights = om.constantInt(constantName,
+                        weightsData,
                         {weightsTensor->getShape()[mv::KERNEL_WIDTH], weightsTensor->getShape()[mv::KERNEL_HEIGHT],
                         weightsTensor->getShape()[mv::KERNEL_INPUT_CHANNELS], weightsTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]},
                         mv::DType("UInt8"),
-                        mv::Order("NCHW"),
-                        weightsQuantParams, constantName);
+                        mv::Order("NCHW"));
+    weights->setQuantParams(weightsQuantParams);
 
-    auto conv = om.conv(inputTensor, weights, previousOp->get<std::array<unsigned short, 2>>("stride"),
-                             previousOp->get<std::array<unsigned short, 4>>("padding"), previousOp->get<unsigned>("dilationFactor"),
-                             previousOp->get<unsigned>("group"),
-                        mv::DType("UInt8"), quantParams,
-                        name + std::to_string(branch) + "_PPEConv");
+    auto conv = om.conv(name + std::to_string(branch) + "_PPEConv",
+                        inputTensor, weights,
+                        previousOp->get<std::array<unsigned short, 2>>("stride"),
+                        previousOp->get<std::array<unsigned short, 4>>("padding"),
+                        previousOp->get<unsigned>("dilationFactor"),
+                        previousOp->get<unsigned>("group"));
+    conv->setDType(mv::DType("UInt8"));
+    conv->setQuantParams(quantParams);
     auto convOp = om.getSourceOp(conv);
 
     if (hasBias)
@@ -188,7 +194,9 @@ mv::Data::OpListIterator portRelu(mv::ComputationModel& model, mv::Data::TensorI
 {
     mv::OpModel om(model);
     std::string name = task->getName();
-    auto relu0 = om.relu(inputTensor, mv::DType("UInt8"), quantParams, name + "RELU");
+    auto relu0 = om.relu(name + "RELU", inputTensor);
+    relu0->setDType(mv::DType("UInt8"));
+    relu0->setQuantParams(quantParams);
     auto relu_op = om.getSourceOp(relu0);
     unsigned currentOpId = task->get<unsigned>("opId");
     relu_op->set<unsigned>("opId", currentOpId);
@@ -199,7 +207,9 @@ mv::Data::OpListIterator portAdd(mv::ComputationModel& model, std::vector <mv::D
 {
     mv::OpModel om(model);
     std::string name = task->getName();
-    auto eltwise = om.eltwise(inputs, "Add", mv::DType("UInt8"), quantParams, name + "PPEeltwise");
+    auto eltwise = om.eltwise(name + "PPEeltwise", inputs, "Add");
+    eltwise->setDType(mv::DType("UInt8"));
+    eltwise->setQuantParams(quantParams);
     auto eltwise_op = om.getSourceOp(eltwise);
     unsigned currentOpId = task->get<unsigned>("opId");
     eltwise_op->set<unsigned>("opId", currentOpId);
@@ -228,7 +238,7 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
         auto parentOp = om.getSourceOp(leakyReluOp->getInputTensor(0));
         auto leakyInputTensor = leakyReluOp->getInputTensor(0);
         auto leakyOutputTensor = leakyReluOp->getOutputTensor(0);
-        auto leakyReluQuantParams = leakyReluOp->get<mv::QuantizationParams>("quantParams");
+        auto leakyReluQuantParams = leakyOutputTensor->getQuantParams();
         uint8_t branch = 0;
         uint8_t branchEltwise = 0;
         std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, leakyOutputTensor);

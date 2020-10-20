@@ -25,17 +25,22 @@ TEST(populate_buffer_map, single_input)
         unit.loadCompilationDescriptor(compDescPath);
         unit.loadTargetDescriptor(mv::Target::ma2490);
 
-        auto input0 = om.input(inputShape, inputDType, inputOrder, {{128},{0.007843137718737125},{-1.0},{1.0}}, true, inputName);
+        auto input0 = om.input(inputName, inputShape, inputDType, inputOrder, true);
+        input0->setQuantParams({{128},{0.007843137718737125},{-1.0},{1.0}});
 
         std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (3*3*3*48);
-        auto weights0 = om.constantInt(weightsData0,{3,3,3,48}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{143},{0.04871978983283043},{-6.9027419090271},{5.472084999084473}}, "MobilenetV2/Conv/Relu6#0_weights#1");
-        auto conv0 = om.conv(input0, weights0, {2, 2}, {0, 1, 0, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}}, "MobilenetV2/Conv/Relu6#171");
+        auto weights0 = om.constantInt("MobilenetV2/Conv/Relu6#0_weights#1", weightsData0, {3,3,3,48}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+        auto conv0 = om.conv("MobilenetV2/Conv/Relu6#171", input0, weights0, {2, 2}, {0, 1, 0, 1}, 1, 1);
+        weights0->setQuantParams({{143},{0.04871978983283043},{-6.9027419090271},{5.472084999084473}});
+        conv0->setQuantParams({{0},{0.023528477177023888},{0.0},{5.999761581420898}});
 
         std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (48);
-        auto biasWeights0 = om.constantInt(biasWeightsData0,{48}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00038211600622162223},{-inf},{inf}}, "MobilenetV2/Conv/Relu6#0_bias#2");
-        auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}});
+        auto biasWeights0 = om.constantInt("MobilenetV2/Conv/Relu6#0_bias#2", biasWeightsData0,{48}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+        auto bias_c0 = om.bias("", conv0, biasWeights0);
+        biasWeights0->setQuantParams({{0},{0.00038211600622162223},{-inf},{inf}});
+        bias_c0->setQuantParams({{0},{0.023528477177023888},{0.0},{5.999761581420898}});
 
-        om.output(bias_c0);
+        om.output("", bias_c0);
         unit.initialize();
         unit.run();
     } 
@@ -83,16 +88,22 @@ TEST(populate_buffer_map, single_output)
         unit.loadCompilationDescriptor(compDescPath);
         unit.loadTargetDescriptor(mv::Target::ma2490);
 
-        auto input0 = om.input(inputShape, inputDType, inputOrder, {{128},{0.007843137718737125},{-1.0},{1.0}});
+        auto input0 = om.input("", inputShape, inputDType, inputOrder);
+        input0->setQuantParams({{128},{0.007843137718737125},{-1.0},{1.0}});
 
         std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (3*3*3*48);
-        auto weights0 = om.constantInt(weightsData0,{3,3,3,48}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{143},{0.04871978983283043},{-6.9027419090271},{5.472084999084473}}, "MobilenetV2/Conv/Relu6#0_weights#1");
-        auto conv0 = om.conv(input0, weights0, {2, 2}, {0, 1, 0, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}}, "MobilenetV2/Conv/Relu6#171");
+        auto weights0 = om.constantInt("MobilenetV2/Conv/Relu6#0_weights#1", weightsData0, {3,3,3,48}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+        auto conv0 = om.conv("MobilenetV2/Conv/Relu6#171", input0, weights0, {2, 2}, {0, 1, 0, 1}, 1, 1);
+        weights0->setQuantParams({{143},{0.04871978983283043},{-6.9027419090271},{5.472084999084473}});
+        conv0->setQuantParams({{0},{0.023528477177023888},{0.0},{5.999761581420898}});
 
         std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (48);
-        auto biasWeights0 = om.constantInt(biasWeightsData0,{48}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00038211600622162223},{-inf},{inf}}, "MobilenetV2/Conv/Relu6#0_bias#2");
-        auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}});
-        om.output(bias_c0, mv::DType("Default"), {{}, {}, {}, {}}, true, outputName);
+        auto biasWeights0 = om.constantInt("MobilenetV2/Conv/Relu6#0_bias#2", biasWeightsData0, {48}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
+        auto bias_c0 = om.bias("", conv0, biasWeights0);
+        biasWeights0->setQuantParams({{0},{0.00038211600622162223},{-inf},{inf}});
+        bias_c0->setQuantParams({{0},{0.023528477177023888},{0.0},{5.999761581420898}});
+
+        om.output(outputName, bias_c0, true);
         unit.initialize();
         unit.run();
     } 
@@ -150,33 +161,47 @@ TEST(populate_buffer_map, multiple_outputs)
         unit.loadCompilationDescriptor(compDescPath);
         unit.loadTargetDescriptor(mv::Target::ma2490);
 
-        auto input_6_0 = om.input(inputShape, inputDType, inputOrder, {{128},{0.007843137718737},{-1.000000000000000},{1.000000000000000},{0},{1}}, "input");
+        auto input_6_0 = om.input("input", inputShape, inputDType, inputOrder);
+        input_6_0->setQuantParams({{128},{0.007843137718737},{-1.000000000000000},{1.000000000000000},{0},{1}});
+
         auto conv1_0_weights_1_0_data = mv::utils::generateSequence<int64_t>(3 * 3 * 3 * 32);
-        auto conv1_0_weights_1_0 = om.constantInt(conv1_0_weights_1_0_data, {3, 3, 3, 32}, mv::DType("UInt8"), mv::Order("NCHW"), {{105},{0.002647720742971},{-0.279308497905731},{0.395860284566879},{0},{1}}, "conv1_weights");
-        auto conv1_7_0 = om.conv(input_6_0, conv1_0_weights_1_0, {2, 2}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859369},{0.000000000000000},{1.000000000000000},{0},{1}}, "conv1");
-        
+        auto conv1_0_weights_1_0 = om.constantInt("conv1_weights", conv1_0_weights_1_0_data, {3, 3, 3, 32}, mv::DType("UInt8"), mv::Order("NCHW"));
+        auto conv1_7_0 = om.conv("conv1", input_6_0, conv1_0_weights_1_0, {2, 2}, {0, 0, 0, 0}, 1, 1);
+        conv1_0_weights_1_0->setQuantParams({{105},{0.002647720742971},{-0.279308497905731},{0.395860284566879},{0},{1}});
+        conv1_7_0->setQuantParams({{0},{0.003921568859369},{0.000000000000000},{1.000000000000000},{0},{1}});
+
         auto conv1_0_bias_2weights_0_data = mv::utils::generateSequence<int64_t>(32);
-        auto conv1_0_bias_2weights_0 = om.constantInt(conv1_0_bias_2weights_0_data, {32}, mv::DType("UInt8"), mv::Order("W"), {{0},{0.000020766436137},{-inf},{inf},{0},{1}}, "conv1_bias_weights");
-        auto conv1_0_bias_2_0 = om.bias(conv1_7_0, conv1_0_bias_2weights_0, mv::DType("UInt8"), {{0},{0.000020766436137},{-inf},{inf},{0},{1}}, "conv1_bias");
+        auto conv1_0_bias_2weights_0 = om.constantInt("conv1_bias_weights", conv1_0_bias_2weights_0_data, {32}, mv::DType("UInt8"), mv::Order("W"));
+        auto conv1_0_bias_2_0 = om.bias("conv1_bias", conv1_7_0, conv1_0_bias_2weights_0);
+        conv1_0_bias_2weights_0->setQuantParams({{0},{0.000020766436137},{-inf},{inf},{0},{1}});
+        conv1_0_bias_2_0->setQuantParams({{0},{0.000020766436137},{-inf},{inf},{0},{1}});
 
         // Parallel branch 1
         auto conv1_1_conv1_3_weights_4_0_data = mv::utils::generateSequence<int64_t>(3 * 3 * 32 * 16);
-        auto conv1_1_conv1_3_weights_4_0 = om.constantInt(conv1_1_conv1_3_weights_4_0_data, {3, 3, 32, 16}, mv::DType("UInt8"), mv::Order("NCHW"), {{119},{0.002745436970145},{-0.326061517000198},{0.374024897813797},{0},{1}}, "conv2a_weights");
-        auto conv1_1_conv1_8_0 = om.conv(conv1_0_bias_2_0, conv1_1_conv1_3_weights_4_0, {2, 2}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859369},{0.000000000000000},{1.000000000000000},{0},{1}}, "conv2a");
+        auto conv1_1_conv1_3_weights_4_0 = om.constantInt("conv2a_weights", conv1_1_conv1_3_weights_4_0_data, {3, 3, 32, 16}, mv::DType("UInt8"), mv::Order("NCHW"));
+        auto conv1_1_conv1_8_0 = om.conv("conv2a", conv1_0_bias_2_0, conv1_1_conv1_3_weights_4_0, {2, 2}, {0, 0, 0, 0}, 1, 1);
         auto conv1_1_conv1_3_bias_5weights_0_data = mv::utils::generateSequence<int64_t>(16);
-        auto conv1_1_conv1_3_bias_5weights_0 = om.constantInt(conv1_1_conv1_3_bias_5weights_0_data, {16}, mv::DType("UInt8"), mv::Order("W"), {{0},{0.000010766419109},{-inf},{inf},{0},{1}}, "conv2a_bias_weights");
-        auto conv1_1_conv1_3_bias_5_0 = om.bias(conv1_1_conv1_8_0, conv1_1_conv1_3_bias_5weights_0, mv::DType("UInt8"), {{0},{0.000010766419109},{-inf},{inf},{0},{1}}, "conv2a_bias");
+        auto conv1_1_conv1_3_bias_5weights_0 = om.constantInt("conv2a_bias_weights", conv1_1_conv1_3_bias_5weights_0_data, {16}, mv::DType("UInt8"), mv::Order("W"));
+        auto conv1_1_conv1_3_bias_5_0 = om.bias("conv2a_bias", conv1_1_conv1_8_0, conv1_1_conv1_3_bias_5weights_0);
+        conv1_1_conv1_3_weights_4_0->setQuantParams({{119},{0.002745436970145},{-0.326061517000198},{0.374024897813797},{0},{1}});
+        conv1_1_conv1_8_0->setQuantParams({{0},{0.003921568859369},{0.000000000000000},{1.000000000000000},{0},{1}});
+        conv1_1_conv1_3_bias_5weights_0->setQuantParams({{0},{0.000010766419109},{-inf},{inf},{0},{1}});
+        conv1_1_conv1_3_bias_5_0->setQuantParams({{0},{0.000010766419109},{-inf},{inf},{0},{1}});
 
         // Parallel branch 2 with different size
         auto conv1_1_conv1_3_weights_4_1_data = mv::utils::generateSequence<int64_t>(5 * 5 * 32 * 16);
-        auto conv1_1_conv1_3_weights_4_1 = om.constantInt(conv1_1_conv1_3_weights_4_1_data, {5, 5, 32, 16}, mv::DType("UInt8"), mv::Order("NCHW"), {{121},{0.003013054607436},{-0.365644007921219},{0.402684897184372},{0},{1}}, "conv2b_weights");
-        auto conv1_1_conv1_8_1 = om.conv(conv1_0_bias_2_0, conv1_1_conv1_3_weights_4_1, {2, 2}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859369},{0.000000000000000},{1.000000000000000},{0},{1}}, "conv2b");
+        auto conv1_1_conv1_3_weights_4_1 = om.constantInt("conv2b_weights", conv1_1_conv1_3_weights_4_1_data, {5, 5, 32, 16}, mv::DType("UInt8"), mv::Order("NCHW"));
+        auto conv1_1_conv1_8_1 = om.conv("conv2b", conv1_0_bias_2_0, conv1_1_conv1_3_weights_4_1, {2, 2}, {0, 0, 0, 0}, 1, 1);
         auto conv1_1_conv1_3_bias_5weights_1_data = mv::utils::generateSequence<int64_t>(16);
-        auto conv1_1_conv1_3_bias_5weights_1 = om.constantInt(conv1_1_conv1_3_bias_5weights_1_data, {16}, mv::DType("UInt8"), mv::Order("W"), {{0},{0.000011815900507},{-inf},{inf},{0},{1}}, "conv2b_bias_weights");
-        auto conv1_1_conv1_3_bias_5_1 = om.bias(conv1_1_conv1_8_1, conv1_1_conv1_3_bias_5weights_1, mv::DType("UInt8"), {{0},{0.000011815900507},{-inf},{inf},{0},{1}}, "conv2b_bias");
+        auto conv1_1_conv1_3_bias_5weights_1 = om.constantInt("conv2b_bias_weights", conv1_1_conv1_3_bias_5weights_1_data, {16}, mv::DType("UInt8"), mv::Order("W"));
+        auto conv1_1_conv1_3_bias_5_1 = om.bias("conv2b_bias", conv1_1_conv1_8_1, conv1_1_conv1_3_bias_5weights_1);
+        conv1_1_conv1_3_weights_4_1->setQuantParams({{121},{0.003013054607436},{-0.365644007921219},{0.402684897184372},{0},{1}});
+        conv1_1_conv1_8_1->setQuantParams({{0},{0.003921568859369},{0.000000000000000},{1.000000000000000},{0},{1}});
+        conv1_1_conv1_3_bias_5weights_1->setQuantParams({{0},{0.000011815900507},{-inf},{inf},{0},{1}});
+        conv1_1_conv1_3_bias_5_1->setQuantParams({{0},{0.000011815900507},{-inf},{inf},{0},{1}});
 
-        auto output1 = om.output(conv1_1_conv1_3_bias_5_0, mv::DType("Default"), {{},{},{},{}}, true, output1Name);
-        auto output2 = om.output(conv1_1_conv1_3_bias_5_1, mv::DType("Default"), {{},{},{},{}}, true, output2Name);
+        auto output1 = om.output(output1Name, conv1_1_conv1_3_bias_5_0, true);
+        auto output2 = om.output(output2Name, conv1_1_conv1_3_bias_5_1, true);
         unit.initialize();
         unit.run();
     } 

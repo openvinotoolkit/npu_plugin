@@ -14,12 +14,12 @@ TEST(graph_coloring, single_conv)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({112, 224, 3, 1}, mv::DType("UInt8"), mv::Order("NCHW"));
+    auto input = om.input("", {112, 224, 3, 1}, mv::DType("UInt8"), mv::Order("NCHW"));
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(7*7*3*64);
-    auto weights = om.constantInt(weightsData, {7, 7, 3, 64}, mv::DType("UInt8"), mv::Order("NCWH"));
-    auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});
+    auto weights = om.constantInt("", weightsData, {7, 7, 3, 64}, mv::DType("UInt8"), mv::Order("NCWH"));
+    auto conv = om.conv("", input, weights, {2, 2}, {3, 3, 3, 3});
 
-    om.output(conv);
+    om.output("", conv);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
 
@@ -77,32 +77,32 @@ TEST(graph_coloring, three_conv)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({56, 56, 16, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
+    auto input = om.input("", {56, 56, 16, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*16*64);
-    auto weights = om.constantInt(weightsData, {1, 1, 16, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    auto weights = om.constantInt("", weightsData, {1, 1, 16, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
+    auto conv = om.conv("", input, weights, {1, 1}, {0, 0, 0, 0});
 
     std::vector<int64_t> biasesData =  mv::utils::generateSequence<int64_t>(conv->getShape()[mv::IO_CHANNEL_DIMENSION]);
-    auto biases = om.constantInt(biasesData, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Int32"), mv::Order("W"),{{},{},{},{}}, "biases");
-    auto bias = om.bias(conv, biases);
+    auto biases = om.constantInt("biases", biasesData, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Int32"), mv::Order("W"));
+    auto bias = om.bias("", conv, biases);
 
     std::vector<int64_t> weightsData1 = mv::utils::generateSequence<int64_t>(3*3*64*64);
-    auto weights1 = om.constantInt(weightsData1, {3, 3, 64, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
-    auto conv1 = om.conv(conv, weights1, {1, 1}, {1, 1, 1, 1});
+    auto weights1 = om.constantInt("", weightsData1, {3, 3, 64, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
+    auto conv1 = om.conv("", conv, weights1, {1, 1}, {1, 1, 1, 1});
 
     std::vector<int64_t> biasesData1 =  mv::utils::generateSequence<int64_t>(conv1->getShape()[mv::IO_CHANNEL_DIMENSION]);
-    auto biases1 = om.constantInt(biasesData1, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]},mv::DType("Int32"), mv::Order("W"),{{},{},{},{}}, "biases1");
-    auto bias1 = om.bias(conv1, biases1);
+    auto biases1 = om.constantInt("biases1", biasesData1, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]},mv::DType("Int32"), mv::Order("W"));
+    auto bias1 = om.bias("", conv1, biases1);
 
     std::vector<int64_t> weightsData2 = mv::utils::generateSequence<int64_t>(64*64*1*1);
-    auto weights2 = om.constantInt(weightsData2, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCWH"));
-    auto conv2 = om.conv(conv1, weights2, {1, 1}, {0, 0, 0, 0});
+    auto weights2 = om.constantInt("", weightsData2, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCWH"));
+    auto conv2 = om.conv("", conv1, weights2, {1, 1}, {0, 0, 0, 0});
     std::vector<int64_t> biasesData2 =  mv::utils::generateSequence<int64_t>(conv2->getShape()[mv::IO_CHANNEL_DIMENSION]);
-    auto biases2 = om.constantInt(biasesData2, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Int32"), mv::Order("W"),{{},{},{},{}}, "biases2");
-    auto bias2 = om.bias(conv2, biases2);
+    auto biases2 = om.constantInt("biases2", biasesData2, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Int32"), mv::Order("W"));
+    auto bias2 = om.bias("", conv2, biases2);
 
-    om.output(conv2);
+    om.output("", conv2);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);

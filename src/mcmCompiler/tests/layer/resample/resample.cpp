@@ -19,9 +19,9 @@ int main()
         output_shape[i] *= factor;
     }
 
-    auto input0 = om.input(input_shape, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input0");
-    auto resample0 = om.resample(input0, interpolation, antialias, output_shape, mv::DType("Default"));
-    om.output(resample0);
+    auto input0 = om.input("input0", input_shape, mv::DType("Float16"), mv::Order::getZMajorID(4));
+    auto resample0 = om.resample("", input0, interpolation, antialias, output_shape);
+    om.output("", resample0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

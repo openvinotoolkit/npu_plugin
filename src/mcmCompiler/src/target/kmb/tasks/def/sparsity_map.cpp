@@ -20,16 +20,8 @@ namespace mv
             std::vector<Tensor>&)> outputIntDefFcn =
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-            {
-                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
-                    args.at("order").get<mv::Order>(), args.at("data").get<std::vector<int64_t>>()));
-            }
-            else
-            {
-                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
-                    args.at("order").get<mv::Order>(), args.at("data").get<std::vector<int64_t>>(), args.at("quantParams").get<mv::QuantizationParams>()));
-            }
+            outputs.emplace_back(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                args.at("order").get<mv::Order>(), args.at("data").get<std::vector<int64_t>>());
         };
 
     }
@@ -41,7 +33,6 @@ namespace mv
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_sparsity_map::inputCheckFcn)
         .setOutputDef(op_sparsity_map::outputIntDefFcn);
     }

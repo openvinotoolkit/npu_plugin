@@ -8,9 +8,11 @@ int main()
     mv::CompilationUnit unit("InterpModel");
     mv::OpModel& om = unit.model();
 
-    auto input0 = om.input({20,20,3,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input0");
-    auto interp0 = om.interp(input0, 2.0, 0, 0 , 0, 0, false, mv::DType("Float16"), {{0},{1.0},{},{}});
-    om.output(interp0);
+    auto input0 = om.input("input0", {20,20,3,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
+    input0->setQuantParams({{0},{1.0},{},{}});
+    auto interp0 = om.interp("", input0, 2.0, 0, 0 , 0, 0, false);
+    interp0->setQuantParams({{0},{1.0},{},{}});
+    om.output("", interp0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

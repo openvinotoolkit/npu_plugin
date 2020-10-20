@@ -49,9 +49,9 @@ int main()
     //auto end_axis = -1;
 
 
-    auto input0 = om.input(inputShape, mv::DType("Float16"), inputOrder, {{0},{1.0},{},{}}, "input0");
-    auto flatten0 = om.flatten(input0, axis, end_axis, mv::DType("Float16"));
-    om.output(flatten0);
+    auto input0 = om.input("input0", inputShape, mv::DType("Float16"), inputOrder);
+    auto flatten0 = om.flatten("", input0, axis, end_axis);
+    om.output("", flatten0);
     
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

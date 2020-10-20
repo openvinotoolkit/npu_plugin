@@ -112,14 +112,12 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 {
                     //TODO:: QUant params inherited for concat
                     //TODO:: PRONE TO ERRORS! correlate with Class Direction
-                    mv::QuantizationParams inQuantParams = {{},{},{},{}};
-                    if(inputTensor->hasAttr("quantParams"))
-                        inQuantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
+                    mv::QuantizationParams inQuantParams = inputTensor->getQuantParams();
                     const std::string directionString = inputLocation.toString() + "2" + outputLocation.toString();
-                    auto compensatorOutput = om.dMATask(inputTensor,
+                    auto compensatorOutput = om.dMATask(opIt->getName() + "_copy" + std::to_string(ctr),
+                                                    inputTensor,
                                                     dmaDirectionStrings[directionString],
-                                                    0,
-                                                    opIt->getName() + "_copy" + std::to_string(ctr));
+                                                    0);
 
                     //NOTE: When the dilated convolution is streamed, the dmas could be placed between
                     //the dputtask and the concat which is designed for streaming so in that cases we
@@ -185,7 +183,8 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                         om.getSourceOp(compensatorOutput)->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
                     }
 
-                    compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(), inQuantParams.getMult());
+                    if (compensatorOutput->hasAttr("quantParams"))
+                        compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(), inQuantParams.getMult());
 
                     compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
                     auto sinkIdx = sourceFlow->get<std::size_t>("sinkInput");
@@ -244,13 +243,11 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     flowsToRemove.push_back(sinkFlow);
                 }
 
-                mv::QuantizationParams outQuantParams = {{},{},{},{}};
-                if(outputTensor->hasAttr("quantParams"))
-                    outQuantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
-                auto compensatorOutput = om.dMATask(outputTensor,
+                mv::QuantizationParams outQuantParams = outputTensor->getQuantParams();
+                auto compensatorOutput = om.dMATask(opIt->getName() + "_copy" + std::to_string(ctr),
+                                                        outputTensor,
                                                         dmaDirectionStrings[directionString],
-                                                        0,
-                                                        opIt->getName() + "_copy" + std::to_string(ctr));
+                                                        0);
 
                 if (compensatorOutput->hasAttr("quantParams"))
                     compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(outQuantParams.getShift(), outQuantParams.getMult());

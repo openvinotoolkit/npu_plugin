@@ -58,11 +58,11 @@ TEST_P(layers_avgmax_pool, dump_blob)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input(shape, dtype, order);
+    auto input = om.input("", shape, dtype, order);
     auto pool = func == AveragePooling ?
-                om.averagePool(input, ksize, stride, padding, exclude_pad) :
-                    om.maxPool(input, ksize, stride, padding, exclude_pad);
-    auto output = om.output(pool);
+                om.averagePool(input, "", ksize, stride, padding, exclude_pad) :
+                    om.maxPool("", input, ksize, stride, padding, exclude_pad);
+    auto output = om.output("", pool);
 
     ASSERT_TRUE(om.isValid(pool));
     ASSERT_TRUE(om.isValid(om.getSourceOp(pool)));

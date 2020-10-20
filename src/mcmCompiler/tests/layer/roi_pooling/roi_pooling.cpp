@@ -17,7 +17,7 @@ int main()
     std::vector<uint16_t> weightsData(5*5);
 
     // Define tensors
-    auto input0 = om.input({14,14,32,1}, mv::DType("Float16"), mv::Order::getColMajorID(4), {{0},{1.0},{},{}}, "input0");
+    auto input0 = om.input("input0", {14,14,32,1}, mv::DType("Float16"), mv::Order::getColMajorID(4));
 
     //Load weights from file
     std::string  weights_filename(mv::utils::projectRootPath() + "/tests/layer/roi_pooling/roi_pooling.in2");
@@ -28,15 +28,15 @@ int main()
     for(unsigned i = 0; i < weightsData.size(); ++i)
         weightsData_converted[i] = weightsData[i];
 
-    auto weights0 = om.constantInt(weightsData_converted,{1,1,5*5,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{},{},{},{}}, "weights0");
+    auto weights0 = om.constantInt("weights0", weightsData_converted,{1,1,5*5,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
 
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;
     inputs.push_back(input0);
     inputs.push_back(weights0);
     // Build Model
-    auto rOIPooling0 = om.rOIPooling(inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois, mv::DType("Float16"));
-    om.output(rOIPooling0);
+    auto rOIPooling0 = om.rOIPooling("", inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois);
+    om.output("", rOIPooling0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

@@ -51,11 +51,6 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-
             auto axis = args.at("axis").get<int64_t>();
             auto end_axis = args.at("end_axis").get<int64_t>();
             if (end_axis < 0)
@@ -93,11 +88,7 @@ namespace mv
             // Expand new shape to 4D
             outputShape = mv::Shape::augment_major(outputShape, 4);
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
-
+            outputs.emplace_back(":0",  outputShape, inputs[0]->getDType(), inputs[0]->getOrder());
         };
 
         static std::string empty;
@@ -111,8 +102,6 @@ namespace mv
         .setOutputs({"output"})
         .setOptionalArg<int64_t>("axis", 1)
         .setOptionalArg<int64_t>("end_axis", 3)
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_flatten::inputCheckFcn)
         .setOutputDef(op_flatten::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

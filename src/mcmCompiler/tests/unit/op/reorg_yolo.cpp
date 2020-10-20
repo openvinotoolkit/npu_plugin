@@ -13,9 +13,9 @@ TEST(ops, reorg_yolo)
     constexpr int W = 320; // width
 
     mv::OpModel om("testModel");
-    auto input = om.input({W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto reorg = om.reorgYolo(input, 2);
-    auto output = om.output(reorg);
+    auto input = om.input("", {W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto reorg = om.reorgYolo("", input, 2);
+    auto output = om.output("", reorg);
 
     auto reorgOp = om.getSourceOp(reorg);
 
@@ -24,7 +24,7 @@ TEST(ops, reorg_yolo)
     ASSERT_EQ(reorg->attrsCount(), 6);
 
     ASSERT_EQ(reorgOp->getOpType(), "ReorgYolo");
-    ASSERT_EQ(reorgOp->attrsCount(), 3);
+    ASSERT_EQ(reorgOp->attrsCount(), 2);
     ASSERT_EQ(reorgOp->inputSlots(), 1);
     ASSERT_EQ(reorgOp->outputSlots(), 1);
     ASSERT_TRUE(reorgOp->hasTypeTrait("executable"));

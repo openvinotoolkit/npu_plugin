@@ -45,17 +45,17 @@ void permuteAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             continue;
 
         // Replace permute op with implicit permute
-        auto dtype = input->get<mv::DType>("dType");
-        mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+        auto dtype = input->getDType();
         std::string splitStrategy;
         if(permute->hasAttr("splitStrategy"))
             splitStrategy = permute->get<std::string>("splitStrategy");
-        if(permute->hasAttr("quantParams"))
-            quantParams = permute->get<mv::QuantizationParams>("quantParams");
-        auto outputLocation = permute->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        auto quantParams = output->getQuantParams();
+        auto outputLocation = output->get<mv::Tensor::MemoryLocation>("Location");
         auto opId = permute->get<unsigned>("opId");
         auto outputFlows = mv::getOutputDataFlow(om, permute);
-        auto implicitPermute = om.implicitPermute(input, output_shape, dtype, quantParams);
+        auto implicitPermute = om.implicitPermute("", input, output_shape);
+        implicitPermute->setDType(dtype);
+        implicitPermute->setQuantParams(quantParams);
         om.getSourceOp(implicitPermute)->set<unsigned>("opId", opId);
         implicitPermute->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
         if(!splitStrategy.empty())

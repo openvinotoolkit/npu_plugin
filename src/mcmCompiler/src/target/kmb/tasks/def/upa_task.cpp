@@ -35,7 +35,6 @@ namespace mv
         MV_REGISTER_OP(UPATask)
         .setInputs({"inputs"})
         .setOutputs({"output"})
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_upa::inputCheckFcn)
         .skipInputCheck()
         .setOutputDef(op_upa::outputDefFcn)

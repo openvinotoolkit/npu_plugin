@@ -8,7 +8,7 @@ int main()
     mv::CompilationUnit unit("Fp16Input");
     mv::OpModel& om = unit.model();
 
-    auto input0 = om.input({4,4,16,1}, mv::DType("Float16"), mv::Order::getZMajorID(4),  {{0},{1.0},{},{}}, "input#01");
+    auto input0 = om.input("input#01", {4,4,16,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
 
     //Load weights from file
     std::string  weights_filename(mv::utils::projectRootPath() + "/tests/layer/depthwise_deconv_fp16/depthwise_deconv_fp16.in2");
@@ -20,11 +20,9 @@ int main()
     for(unsigned i = 0; i < weightsData.size(); ++i) {
         weightsData_converted[i] = weightsData[i];
     }
-    auto weights0 = om.constantInt(weightsData_converted, {2,2,16,1}, mv::DType("Float16"),
-                                   mv::Order::getZMajorID(4), {{0},{1.},{},{}}, "dw_deconv_weights");
-
-    auto deconv = om.deconv(input0, weights0, {2, 2}, {0, 0, 0, 0}, 1, 16, true, mv::DType("Float16"), {{0},{1.0},{},{}}, "deconv_upscaling");
-    om.output(deconv);
+    auto weights0 = om.constantInt("dw_deconv_weights", weightsData_converted, {2,2,16,1}, mv::DType("Float16"), mv::Order::getZMajorID(4));
+    auto deconv = om.deconv("deconv_upscaling", input0, weights0, {2, 2}, {0, 0, 0, 0}, 1, 16, true);
+    om.output("", deconv);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

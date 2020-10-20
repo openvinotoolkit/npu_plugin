@@ -85,20 +85,22 @@ void padInputTensor(mv::Data::OpListIterator opIt, mv::ComputationModel &model)
     auto bottomSize = inputTensorShape[mv::IO_WIDTH_DIMENSION] * originalPadding[3];
 
     std::vector<int64_t> topData(topSize * otherDimSize, zeroPoint[0]);
-    auto topPad = om.constantInt(topData, 
-                                {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[2], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]}, 
-                                mv::DType("UInt8"), 
-                                inputTensor->getOrder(), 
-                                inputTensorQPs);
+    auto topPad = om.constantInt("",
+                                 topData,
+                                 {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[2], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                                 mv::DType("UInt8"),
+                                 inputTensor->getOrder());
+    topPad->setQuantParams(inputTensorQPs);
     om.getSourceOp(topPad)->set<unsigned>("opId", opId);
     topPad->set<bool>("is_pad", true);
 
     std::vector<int64_t> bottomData(bottomSize * otherDimSize, zeroPoint[0]);
-    auto bottomPad = om.constantInt(bottomData, 
-                            {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[3], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]}, 
-                            mv::DType("UInt8"), 
-                            inputTensor->getOrder(), 
-                            inputTensorQPs);
+    auto bottomPad = om.constantInt("",
+                                    bottomData,
+                                    {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[3], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                                    mv::DType("UInt8"),
+                                    inputTensor->getOrder());
+    bottomPad->setQuantParams(inputTensorQPs);
     om.getSourceOp(bottomPad)->set<unsigned>("opId", opId);
     bottomPad->set<bool>("is_pad", true);
 
@@ -108,28 +110,34 @@ void padInputTensor(mv::Data::OpListIterator opIt, mv::ComputationModel &model)
     auto rightSize = newHeight * originalPadding[1];
 
     std::vector<int64_t> leftData(leftSize * otherDimSize, zeroPoint[0]);
-    auto leftPad = om.constantInt(leftData, 
-                                {originalPadding[0], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]}, 
-                                mv::DType("UInt8"), 
-                                inputTensor->getOrder(), 
-                                inputTensorQPs);
+    auto leftPad = om.constantInt("",
+                                  leftData,
+                                  {originalPadding[0], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                                  mv::DType("UInt8"),
+                                  inputTensor->getOrder());
+    leftPad->setQuantParams(inputTensorQPs);
     leftPad->set<bool>("is_pad", true);
 
     om.getSourceOp(leftPad)->set<unsigned>("opId", opId);
     std::vector<int64_t> rightData(rightSize * otherDimSize, zeroPoint[0]);
-    auto rightPad = om.constantInt(rightData, 
-                            {originalPadding[1], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]}, 
-                            mv::DType("UInt8"), 
-                            inputTensor->getOrder(), 
-                            inputTensorQPs);
+    auto rightPad = om.constantInt("",
+                                   rightData,
+                                   {originalPadding[1], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                                   mv::DType("UInt8"),
+                                   inputTensor->getOrder());
+    rightPad->setQuantParams(inputTensorQPs);
     om.getSourceOp(rightPad)->set<unsigned>("opId", opId);
     rightPad->set<bool>("is_pad", true);
 
 
     // Create concats and update flows
-    auto concatH = om.concat({topPad, inputTensor, bottomPad}, "H", mv::DType("UInt8"), inputTensorQPs, opIt->getName() + "_padH");
+    auto concatH = om.concat(opIt->getName() + "_padH", {topPad, inputTensor, bottomPad}, "H");
+    concatH->setDType(mv::DType("UInt8"));
+    concatH->setQuantParams(inputTensorQPs);
     om.getSourceOp(concatH)->set<unsigned>("opId", opId);
-    auto concatW = om.concat({leftPad, concatH, rightPad}, "W", mv::DType("UInt8"), inputTensorQPs, opIt->getName() + "_padW");
+    auto concatW = om.concat(opIt->getName() + "_padW", {leftPad, concatH, rightPad}, "W");
+    concatW->setDType(mv::DType("UInt8"));
+    concatW->setQuantParams(inputTensorQPs);
     om.getSourceOp(concatW)->set<unsigned>("opId", opId);
     
     auto sourceFlow = opIt.leftmostInput();
@@ -171,12 +179,13 @@ void replaceKernel(mv::Data::OpListIterator opIt, std::size_t newKernelSize, mv:
             }
         }
     }
-    auto weights = om.constantInt(weightsDataFull,
-                        {newKernelSize, newKernelSize,
-                        kernelShape[mv::KERNEL_INPUT_CHANNELS], kernelShape[mv::KERNEL_OUTPUT_CHANNELS]},
+    auto quantParams = weightsTensor->getQuantParams();
+    auto weights = om.constantInt(opIt->getName() + "newWeights",
+                        weightsDataFull,
+                        {newKernelSize, newKernelSize, kernelShape[mv::KERNEL_INPUT_CHANNELS], kernelShape[mv::KERNEL_OUTPUT_CHANNELS]},
                         mv::DType("UInt8"),
-                        weightsTensor->getOrder(),
-                        weightsTensor->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "newWeights");
+                        weightsTensor->getOrder());
+    weights->setQuantParams(quantParams);
     om.removeOp(om.getSourceOp(opIt->getInputTensor(1)));
     opIt->setInputTensor(weights, 1, false);
     om.defineFlow(weights, opIt, 1);
@@ -187,9 +196,10 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
-    auto inputTensor = opIt->getInputTensor(0);
+    auto inputTensor  = opIt->getInputTensor(0);
     auto weightTensor = opIt->getInputTensor(1);
-    auto initialStride = opIt->get<std::array<unsigned short, 2>>("stride");
+    auto outputTensor = opIt->getOutputTensor(0);
+    auto initialStride  = opIt->get<std::array<unsigned short, 2>>("stride");
     auto initialPadding = opIt->get<std::array<unsigned short, 4>>("padding");
     std::array<unsigned short, 4> padding = initialPadding;
     unsigned initialOpId = opIt->get<unsigned>("opId");
@@ -316,27 +326,30 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         branchInputSize = {branchWidth, branchHeight,
                             inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],1};
 
-        auto sliceInput = om.slice(inputTensor,
+        auto inputQuantParams = inputTensor->getQuantParams();
+        auto sliceInput = om.slice(opIt->getName() + "_slice_Input" + std::to_string(branchId),
+                                   inputTensor,
                                    beginInputShape,
-                                   branchInputSize,
-                                   inputTensor->get<mv::QuantizationParams>("quantParams"),
-                                   opIt->getName() + "_slice_Input" + std::to_string(branchId));
+                                   branchInputSize);
+        sliceInput->setQuantParams(inputQuantParams);
 
-        auto sliceWeight = om.slice(weightTensor,
+        auto weightQuantParams = weightTensor->getQuantParams();
+        auto sliceWeight = om.slice(opIt->getName() + "_slice_Weight" + std::to_string(branchId),
+                                   weightTensor,
                                    beginWeightShape,
-                                   branchWeightSize,
-                                   weightTensor->get<mv::QuantizationParams>("quantParams"),
-                                   opIt->getName() + "_slice_Weight" + std::to_string(branchId));
+                                   branchWeightSize);
+        sliceWeight->setQuantParams(weightQuantParams);
 
-        conv = om.conv(sliceInput,
-                            sliceWeight,
-                            initialStride,
-                            padding,
-                            GROUP_DILATION,
-                            GROUP_DILATION,
-                            opIt->getInputTensor(0)->get<mv::DType>("dType"),
-                            opIt->get<mv::QuantizationParams>("quantParams"),
-                            opIt->getName() + std::to_string(branchId));
+        auto outputQuantParams = outputTensor->getQuantParams();
+        conv = om.conv(opIt->getName() + std::to_string(branchId),
+                       sliceInput,
+                       sliceWeight,
+                       initialStride,
+                       padding,
+                       GROUP_DILATION,
+                       GROUP_DILATION);
+        conv->setDType(opIt->getInputTensor(0)->getDType());
+        conv->setQuantParams(outputQuantParams);
         convs.push_back(conv);
         auto convOp = om.getSourceOp(conv);
 
@@ -347,7 +360,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         {
             std::string biasName = mv::createBiasName(convOp->getName() + "_bias");
             newBias = dm.defineTensor(mv::Tensor(biasName, bias->getShape(),
-                                         inputTensor->get<mv::DType>("dType"), bias->getOrder(), bias->getData(), bias->get<mv::QuantizationParams>("quantParams")));
+                                         inputTensor->getDType(), bias->getOrder(), bias->getData(), bias->getQuantParams()));
             om.addAttr(convOp, "bias", biasName);
         }
 
@@ -360,22 +373,23 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         sliceWeightOp->set<unsigned>("opId", initialOpId);
 
     }
-    placeAdd0 = om.eltwise({convs[0], convs[1]}, "Add",
-                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition0");
-    placeAdd1 = om.eltwise({placeAdd0, convs[2]}, "Add",
-                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition1");
-    placeAdd2 = om.eltwise({placeAdd1, convs[3]}, "Add",
-                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition2");
-    placeAdd3 = om.eltwise({placeAdd2, convs[4]}, "Add",
-                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition3");
-    placeAdd4 = om.eltwise({placeAdd3, convs[5]}, "Add",
-                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition4");
-    placeAdd5 = om.eltwise({placeAdd4, convs[6]}, "Add",
-                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition5");
-    placeAdd6 = om.eltwise({placeAdd5, convs[7]}, "Add",
-                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition6");
-    placeAdd7 = om.eltwise({placeAdd6, convs[8]}, "Add",
-                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition7");
+    auto quantParams = opIt->getOutputTensor(0)->getQuantParams();
+    placeAdd0 = om.eltwise(opIt->getName() + "ADD_Partition0", {convs[0], convs[1]}, "Add");
+    placeAdd1 = om.eltwise(opIt->getName() + "ADD_Partition1", {placeAdd0, convs[2]}, "Add");
+    placeAdd2 = om.eltwise(opIt->getName() + "ADD_Partition2", {placeAdd1, convs[3]}, "Add");
+    placeAdd3 = om.eltwise(opIt->getName() + "ADD_Partition3", {placeAdd2, convs[4]}, "Add");
+    placeAdd4 = om.eltwise(opIt->getName() + "ADD_Partition4", {placeAdd3, convs[5]}, "Add");
+    placeAdd5 = om.eltwise(opIt->getName() + "ADD_Partition5", {placeAdd4, convs[6]}, "Add");
+    placeAdd6 = om.eltwise(opIt->getName() + "ADD_Partition6", {placeAdd5, convs[7]}, "Add");
+    placeAdd7 = om.eltwise(opIt->getName() + "ADD_Partition7", {placeAdd6, convs[8]}, "Add");
+    placeAdd0->setQuantParams(quantParams);
+    placeAdd1->setQuantParams(quantParams);
+    placeAdd2->setQuantParams(quantParams);
+    placeAdd3->setQuantParams(quantParams);
+    placeAdd4->setQuantParams(quantParams);
+    placeAdd5->setQuantParams(quantParams);
+    placeAdd6->setQuantParams(quantParams);
+    placeAdd7->setQuantParams(quantParams);
 
     nextOpIt->setInputTensor(placeAdd7, 0, false );
 

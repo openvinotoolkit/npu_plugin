@@ -134,8 +134,8 @@ public:
         auto layer_inputs = std::vector<mv::Data::TensorIterator>();
         layer_inputs.reserve(inputs.size() + constants.size());
 
-        const auto input = om.input(inputs[0].shape, inputs[0].dtype, inputs[0].order,
-                default_quant_params, "input0");
+        const auto input = om.input("input0", inputs[0].shape, inputs[0].dtype, inputs[0].order);
+        input->setQuantParams(default_quant_params);
         layer_inputs.push_back(input);
 
         for (size_t i = 0; i < constants.size(); i++) {
@@ -144,14 +144,16 @@ public:
             const auto& dtype = constants[i].tensor.dtype;
             const auto& order = constants[i].tensor.order;
 
-            auto constant = om.constantInt(data, shape, dtype, order, default_quant_params,
-                    "input_as_const" + std::to_string(i));
+            auto constant = om.constantInt("input_as_const" + std::to_string(i),
+                    data, shape, dtype, order);
+            constant->setQuantParams(default_quant_params);
 
             layer_inputs.push_back(constant);
         }
 
-        auto custom = om.custom(layer_inputs, kernel_data, param_data,
-                outputs[0].order, outputs[0].shape, outputs[0].dtype);
+        auto custom = om.custom("", layer_inputs, kernel_data, param_data,
+                outputs[0].order, outputs[0].shape);
+        custom->setDType(outputs[0].dtype);
         assert(custom->getShape() == outputs[0].shape);
         auto output = om.output(custom);
 

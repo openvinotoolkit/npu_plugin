@@ -9,12 +9,18 @@ void build_pySwigCU(mv::OpModel& model)
 
     static const auto inf = std::numeric_limits<double>::infinity();
 
-    const auto input_3_0 = model.input({2, 1, 64, 2}, mv::DType("UInt8"), mv::Order("NHWC"), {{128},{0.007843137718737},{-1.000000000000000},{1.000000000000000},{0},{1}}, "input#3");
-    const auto conv1_conv1_0_weights_1_0 = model.constantInt(conv1_conv1_0_weights_1_0_data, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCHW"), {{113},{0.002789004007354},{-0.315335750579834},{0.395860284566879},{0},{1}}, "conv1/conv1#0_weights#1");
-    const auto conv1_conv1_4_0 = model.conv(input_3_0, conv1_conv1_0_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859369},{0.000000000000000},{1.000000000000000},{0},{1}}, "conv1/conv1#4");
-    const auto conv1_conv1_0_bias_2weights_0 = model.constantInt(conv1_conv1_0_bias_2weights_0_data, {64}, mv::DType("UInt8"), mv::Order("W"), {{0},{0.000021874540835},{-inf},{inf},{0},{1}}, "conv1/conv1#0_bias#2weights");
-    const auto conv1_conv1_0_bias_2_0 = model.bias(conv1_conv1_4_0, conv1_conv1_0_bias_2weights_0, mv::DType("UInt8"), {{0},{0.000021874540835},{-inf},{inf},{0},{1}}, "conv1/conv1#0_bias#2");
-    const auto output = model.output(conv1_conv1_0_bias_2_0, mv::DType("Default"), {{},{},{},{}}, true, "");
+    const auto input_3_0 = model.input("input#3", {2, 1, 64, 2}, mv::DType("UInt8"), mv::Order("NHWC"));
+    const auto conv1_conv1_0_weights_1_0 = model.constantInt("conv1/conv1#0_weights#1", conv1_conv1_0_weights_1_0_data, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
+    const auto conv1_conv1_4_0 = model.conv("conv1/conv1#4", input_3_0, conv1_conv1_0_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1);
+    const auto conv1_conv1_0_bias_2weights_0 = model.constantInt("conv1/conv1#0_bias#2weights", conv1_conv1_0_bias_2weights_0_data, {64}, mv::DType("UInt8"), mv::Order("W"));
+    const auto conv1_conv1_0_bias_2_0 = model.bias("conv1/conv1#0_bias#2", conv1_conv1_4_0, conv1_conv1_0_bias_2weights_0);
+    const auto output = model.output("", conv1_conv1_0_bias_2_0, mv::DType("Default"), true);
+
+    input_3_0->setQuantParams({{128},{0.007843137718737},{-1.000000000000000},{1.000000000000000},{0},{1}});
+    conv1_conv1_0_weights_1_0->setQuantParams({{113},{0.002789004007354},{-0.315335750579834},{0.395860284566879},{0},{1}});
+    conv1_conv1_4_0->setQuantParams({{0},{0.003921568859369},{0.000000000000000},{1.000000000000000},{0},{1}});
+    conv1_conv1_0_bias_2weights_0->setQuantParams({{0},{0.000021874540835},{-inf},{inf},{0},{1}});
+    conv1_conv1_0_bias_2_0->setQuantParams({{0},{0.000021874540835},{-inf},{inf},{0},{1}} );
 }
 
 int main()

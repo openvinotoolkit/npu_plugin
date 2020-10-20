@@ -68,7 +68,6 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
                 auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
 
                 output->set<mv::QuantizationParams>("quantParams", inputQuantization);
-                opIt->set<mv::QuantizationParams>("quantParams", inputQuantization);
             }
         }
 
@@ -147,7 +146,6 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
 
             mv::QuantizationParams newOutputQuantization = {outZp,outScale,{outputMin},{outputMax}};
             output->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
-            opIt->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
         }
     }
 
@@ -233,7 +231,6 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
 
             mv::QuantizationParams newOutputQuantization = {outZp,outScale,{outputMin},{outputMax}};
             output->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
-            opIt->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
         }
     }
 }
@@ -290,8 +287,7 @@ void decidePrecision(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
             {
                 if (returnedParams->get<bool>("Int32Output"))
                 {
-                    opIt->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Int32"));
-                    opIt->set<mv::DType>("dType", mv::DType("Int32"));
+                    opIt->getOutputTensor()[0]->setDType(mv::DType("Int32"));
                 }
             }
             //NOTE: HW limitation, in mixed mode the grids of the MPEs are conflicting between
@@ -305,7 +301,7 @@ void decidePrecision(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
                      opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1)
                     {
                         opIt->set<bool>("mixedToFloat", true);
-                        opIt->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Float16"));
+                        opIt->getOutputTensor()[0]->setDType(mv::DType("Float16"));
                     }
                     else
                     {

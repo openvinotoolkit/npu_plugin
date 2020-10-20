@@ -22,14 +22,14 @@ void setSimpleModel(mv::CompilationUnit& unit)
     // Obtain compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
 
-    auto input = cm.input({24, 24, 20, 1}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto pool1It = cm.maxPool(input, {1, 1}, {1, 1}, {0, 0, 0, 0});
-    auto pool2It = cm.maxPool(pool1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
-    auto pool3It = cm.maxPool(pool1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
+    auto input = cm.input("", {24, 24, 20, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto pool1It = cm.maxPool(input, "", {1, 1}, {1, 1}, {0, 0, 0, 0});
+    auto pool2It = cm.maxPool(pool1It, "", {1, 1}, {1, 1}, {0, 0, 0, 0});
+    auto pool3It = cm.maxPool(pool1It, "", {1, 1}, {1, 1}, {0, 0, 0, 0});
 
-    auto concat1It = cm.add({pool3It, pool2It});
-    auto pool4It = cm.maxPool(concat1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
-    cm.output(pool4It);
+    auto concat1It = cm.eltwise("", {pool3It, pool2It}, "Add");
+    auto pool4It = cm.maxPool(concat1It, "", {1, 1}, {1, 1}, {0, 0, 0, 0});
+    cm.output("", pool4It);
 }
 
 void setModel(mv::CompilationUnit& unit)
@@ -45,16 +45,16 @@ void setModel(mv::CompilationUnit& unit)
     mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Info);
 
     // Compose model - use Composition API to create ops and obtain tensors
-    auto input = om.input({128, 128, 3,1}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto weights1 = om.constant(weights1Data, {3, 3, 3, 8}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto conv1 = om.conv(input, weights1, {2, 2}, {1, 1, 1, 1}, 1);
-    auto pool1 = om.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto weights2 = om.constant(weights2Data, {5, 5, 8, 16}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto conv2 = om.conv(pool1, weights2, {2, 2}, {2, 2, 2, 2}, 1);
-    auto pool2 = om.maxPool(conv2, {5, 5}, {4, 4}, {2, 2, 2, 2});
-    auto weights3 = om.constant(weights3Data, {4, 4, 16, 32}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto conv3 = om.conv(pool2, weights3, {1, 1}, {0, 0, 0, 0}, 1);
-    om.output(conv3);
+    auto input = om.input("", {128, 128, 3,1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto weights1 = om.constant("", weights1Data, {3, 3, 3, 8}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto conv1 = om.conv("", input, weights1, {2, 2}, {1, 1, 1, 1}, 1);
+    auto pool1 = om.maxPool(conv1, "", {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto weights2 = om.constant("", weights2Data, {5, 5, 8, 16}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto conv2 = om.conv("", pool1, weights2, {2, 2}, {2, 2, 2, 2}, 1);
+    auto pool2 = om.maxPool(conv2, "", {5, 5}, {4, 4}, {2, 2, 2, 2});
+    auto weights3 = om.constant("", weights3Data, {4, 4, 16, 32}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto conv3 = om.conv("", pool2, weights3, {1, 1}, {0, 0, 0, 0}, 1);
+    om.output("", conv3);
 
     // Load target descriptor for the selected target to the compilation unit
     if (!unit.loadTargetDescriptor(mv::Target::ma2490))

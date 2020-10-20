@@ -57,7 +57,6 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
                 auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
 
                 output->set<mv::QuantizationParams>("quantParams", inputQuantization);
-                opIt->set<mv::QuantizationParams>("quantParams", inputQuantization);
             }
         }
 
@@ -136,7 +135,6 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
 
             mv::QuantizationParams newOutputQuantization = {outZp,outScale,{outputMin},{outputMax}};
             output->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
-            opIt->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
         }
     }
 
@@ -228,7 +226,6 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
 
             mv::QuantizationParams newOutputQuantization = {outZp,outScale,{outputMin},{outputMax}};
             output->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
-            opIt->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
         }
     }
 }
@@ -270,8 +267,8 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
         if(kernelOp.outputsSize() > 0)
         {
             auto outputTensor = kernelOp->getOutputTensor(0);
-            if(outputTensor->get<mv::DType>("dType") == mv::DType("Float64") ||
-               outputTensor->get<mv::DType>("dType") == mv::DType("Float32"))
+            if(outputTensor->getDType() == mv::DType("Float64") ||
+               outputTensor->getDType() == mv::DType("Float32"))
             {
                 auto opId = kernelOp->get<unsigned>("opId");
                 if (outputTensor->isPopulated())
@@ -289,7 +286,7 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
                     //with data flows I am finding where the op was attached to attache the new one!!!
                     auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
 
-                    auto newKernel = om.constantInt(newData, kernelShape, mv::DType("Float16"), kernelOrder, {{},{},{},{}});
+                    auto newKernel = om.constantInt("", newData, kernelShape, mv::DType("Float16"), kernelOrder);
                     auto newKernelOp = om.getSourceOp(newKernel);
                     newKernelOp->set<unsigned>("opId", opId);
                     newKernelOp->set<mv::DType>("dType",  mv::DType("Float16"));
@@ -297,9 +294,7 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
                 }
                 else
                 {
-                    mv::DType newType = mv::DType("Float16");
-                    outputTensor->setDType(newType);
-                    kernelOp->set<mv::DType>("dType",  mv::DType("Float16"));
+                    outputTensor->setDType(mv::DType("Float16"));
                     ++kernelOp;
                 }
             }
@@ -331,7 +326,7 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
         if(kernelOp.outputsSize() > 0)
         {
             auto outputTensor = kernelOp->getOutputTensor(0);
-            auto outputTensorDType = outputTensor->get<mv::DType>("dType");
+            auto outputTensorDType = outputTensor->getDType();
             if(outputTensorDType == sourceDType)
             {
                 mv::DType newType = targetDType;
@@ -340,10 +335,8 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
                 for(auto& zp: quantParamsZp)
                     zp += zeroPointShift;
                 quantParams = mv::QuantizationParams(quantParamsZp, quantParams.getScale(),{},{});
+                outputTensor->setQuantParams(quantParams);
                 outputTensor->setDType(newType);
-                kernelOp->set<mv::DType>("dType",  newType);
-                outputTensor->set<mv::QuantizationParams>("quantParams", quantParams);
-                kernelOp->set<mv::QuantizationParams>("quantParams", quantParams);
                 if (outputTensor->isPopulated())
                     for(unsigned i = 0; i < outputTensor->size(); ++i)
                         outputTensor->at(i) += zeroPointShift;
@@ -389,7 +382,7 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                         !(op->getInputTensor(tidx)->get<mv::QuantizationParams>("quantParams").isNeutral() ||
                         op->getInputTensor(tidx)->get<mv::QuantizationParams>("quantParams").isEmpty());
 
-                if (op->getOutputTensor()[0]->get<mv::DType>("dType") ==  mv::DType("Float16"))
+                if (op->getOutputTensor()[0]->getDType() ==  mv::DType("Float16"))
                 {
                     if (returnedParams->hasAttr("FloatOutput"))
                     {
@@ -405,8 +398,7 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     {
                         if (returnedParams->get<bool>("Int32Output"))
                         {
-                            op->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Int32"));
-                            op->set<mv::DType>("dType", mv::DType("Int32"));
+                            op->getOutputTensor()[0]->setDType(mv::DType("Int32"));
                         }
                     }
                     //NOTE: HW limitation, in mixed mode the grids of the MPEs are conflicting between
@@ -420,7 +412,7 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             op->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1)
                             {
                                 op->set<bool>("mixedToFloat", true);
-                                op->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Float16"));
+                                op->getOutputTensor()[0]->setDType(mv::DType("Float16"));
                             }
                             else
                             {

@@ -107,15 +107,7 @@ namespace mv
                 out_shape = mv::Shape({new_w, 1, 1, 1});
             }
 
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = input->getDType();
-
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", out_shape, dTypeToUse, out_order));
-            else
-                outputs.push_back(mv::Tensor(":0", out_shape, dTypeToUse, out_order, args.at("quantParams").get<mv::QuantizationParams>()));
-
+            outputs.emplace_back(":0", out_shape, inputs[0]->getDType(), out_order);
         };
 
         static std::vector<unsigned> empty;
@@ -142,8 +134,6 @@ namespace mv
         .setArg<bool>("do_softmax")
         .setOptionalArg<unsigned>("num", 0)
         .setOptionalArg<std::vector<unsigned>>("mask", op_region_yolo::empty)
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_region_yolo::inputCheckFcn)
         .setOutputDef(op_region_yolo::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

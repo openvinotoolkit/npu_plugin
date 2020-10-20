@@ -254,7 +254,7 @@ void updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor)
 
         mv::QuantizationParams newTensorQuantization(tensorQuantization.getZeroPoint(),
                                                     tensorQuantization.getScale(),{minimumFloat},{maximumFloat});
-        tensor->set<mv::QuantizationParams>("quantParams", newTensorQuantization);
+        tensor->setQuantParams(newTensorQuantization);
     }
 }
 
@@ -279,7 +279,7 @@ void updateInfMinMaxPerChannel(mv::Data::TensorIterator tensor)
         }
         mv::QuantizationParams newTensorQuantization(tensorQuantization.getZeroPoint(),
                                                     tensorQuantization.getScale(),minimums, maximums);
-        tensor->set<mv::QuantizationParams>("quantParams", newTensorQuantization);
+        tensor->setQuantParams(newTensorQuantization);
     }
 }
 

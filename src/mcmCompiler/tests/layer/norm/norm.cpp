@@ -13,15 +13,15 @@ int main()
     mv::CompilationUnit unit("normOnlyModel");
     mv::OpModel& om = unit.model();
     //auto input0 = om.input({271,167,7,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input:0#4");
-    auto input0 = om.input({86,86,96,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input:0");
+    auto input0 = om.input("input:0", {86,86,96,1}, mv::DType("Float64"), mv::Order::getZMajorID(4));
     float alpha = 1;
     float beta = 0.75;
     //unsigned local_size = 5;
     unsigned local_size = 3;
     //std::string region = "across";
     std::string region = "same";
-    auto norm0 = om.norm(input0, alpha, beta, region, local_size);
-    om.output(norm0);
+    auto norm0 = om.norm("", input0, alpha, beta, region, local_size);
+    om.output("", norm0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

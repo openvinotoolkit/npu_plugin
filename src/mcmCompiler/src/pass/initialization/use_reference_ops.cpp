@@ -32,10 +32,10 @@ namespace
             const auto origOutput = origConvOp->getOutputTensor(0);
 
             auto newConvOutput = om.refConv(
+                    origName + "_ref",
                     origInput, weights,
-                    strides, padding, dilationFactor, group,
-                    mv::DType("Float16"), mv::QuantizationParams({},{},{},{}),
-                    origName + "_ref");
+                    strides, padding, dilationFactor, group);
+            newConvOutput->setDType(mv::DType("Float16"));
 
             const auto newConvOp = om.getSourceOp(newConvOutput);
             newConvOp->set<bool>("softwareExecuted", true);
@@ -73,12 +73,11 @@ namespace
             const auto inputShape = origInput->getShape();
 
             const auto newBiases = om.constant(
+                origBiasOp->getName() + "_reshaped",
                 biasesData,
                 {1, 1, inputShape[mv::IO_CHANNEL_DIMENSION], 1},
                 origBiases->getDType(),
-                mv::Order::getZMajorID(4),
-                mv::QuantizationParams({},{},{},{}),
-                origBiasOp->getName() + "_reshaped");
+                mv::Order::getZMajorID(4));
 
             if (origBiasOp->hasAttr("opId"))
             {

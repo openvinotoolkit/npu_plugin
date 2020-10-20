@@ -25,9 +25,9 @@ TEST(ops, permute)
     constexpr int W = 320; // width
 
     mv::OpModel om("testModel");
-    auto input = om.input({W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
-    auto permute = om.permute(input, mv::Order("NCWH")); // transpose W and H
-    auto output = om.output(permute);
+    auto input = om.input("", {W, H, C, N}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto permute = om.permute("", input, mv::Order("NCWH")); // transpose W and H
+    auto output = om.output("", permute);
 
     auto permuteOp = om.getSourceOp(permute);
 
@@ -36,7 +36,7 @@ TEST(ops, permute)
     ASSERT_EQ(permute->attrsCount(), 6);
 
     ASSERT_EQ(permuteOp->getOpType(), "Permute");
-    ASSERT_EQ(permuteOp->attrsCount(), 3);
+    ASSERT_EQ(permuteOp->attrsCount(), 2);
     ASSERT_EQ(permuteOp->inputSlots(), 1);
     ASSERT_EQ(permuteOp->outputSlots(), 1);
     ASSERT_TRUE(permuteOp->hasTypeTrait("executable"));

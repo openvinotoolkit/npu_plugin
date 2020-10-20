@@ -34,10 +34,6 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-
             mv::Order order(inputs[0]->getOrder());
 
             auto axis  = args.at("axis").get<unsigned>();
@@ -55,10 +51,7 @@ namespace mv
                 }
             }
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, order));
-            else
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, order, args.at("quantParams").get<mv::QuantizationParams>()));
+            outputs.emplace_back(":0",  outputShape, inputs[0]->getDType(), order);
         };
     }
 
@@ -71,8 +64,6 @@ namespace mv
         .setOutputs({"output"})
         .setArg<unsigned>("axis")
         .setArg<unsigned>("tiles")
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_tile::inputCheckFcn)
         .setOutputDef(op_tile::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

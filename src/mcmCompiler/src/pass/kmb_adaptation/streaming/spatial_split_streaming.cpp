@@ -115,9 +115,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     mv::Shape kernelShape  = kernelTensor->getShape();
     auto kernelOp = om.getSourceOp(kernelTensor);
 
-    mv::QuantizationParams inputQuantParams = {{},{},{},{}};
-    if(inputTensor->hasAttr("quantParams"))
-        inputQuantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
+    auto inputQuantParams  = inputTensor->getQuantParams();
+    auto outputQuantParams = outputTensor->getQuantParams();
 
     auto opId = op->get<unsigned>("opId");
     auto number_of_splits = tiling.childTiles().size();
@@ -147,11 +146,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     mv::Data::TensorIterator copyInput;
     if(om.getSourceOp(inputTensor)->getOpType() != "Slice")
     {
-        copyInput = om.slice(inputTensor,
-                                mv::Shape({0,0,0,0}),
-                                inputTensor->getShape(),
-                                inputQuantParams,
-                                inputTensor->getName() + op->getName() + "_KStreamCopyIn_");
+        copyInput = om.slice(inputTensor->getName() + op->getName() + "_KStreamCopyIn_",
+                             inputTensor,
+                             mv::Shape({0,0,0,0}),
+                             inputTensor->getShape());
+        copyInput->setQuantParams(inputQuantParams);
         auto copyInputOp = om.getSourceOp(copyInput);
         copyInputOp->set<unsigned>("opId", opId);
         copyInputOp->set<std::string>("splitStrategy", splitStrategy);
@@ -227,19 +226,18 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                                                 sliceQuantParams.getMax());
                 }
 
-                slice = om.slice(kernelTensor,
+                slice = om.slice(kernelTensor->getName() + inputTensor->getName() + "_sliceK" + std::to_string(split),
+                                kernelTensor,
                                 kernelSliceStart,
-                                kernelSliceShape,
-                                sliceQuantParams,
-                                kernelTensor->getName() + inputTensor->getName() + "_sliceK" + std::to_string(split));
+                                kernelSliceShape);
+                slice->setQuantParams(sliceQuantParams);
             }
             else
             {
-                slice = om.slice(kernelTensor,
+                slice = om.slice(kernelTensor->getName() + "_sliceK" + std::to_string(split),
+                                kernelTensor,
                                 kernelSliceStart,
-                                kernelSliceShape,
-                                {{}, {}, {}, {}},
-                                kernelTensor->getName() + "_sliceK" + std::to_string(split));
+                                kernelSliceShape);
             }
             om.getSourceOp(slice)->set<unsigned>("opId", opId);
 
@@ -256,15 +254,15 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         {
             //todo:: place it in a more generic location
 
-            newTensor = om.conv(copyInput,
-                                    slice,
-                                    op->get("stride"),
-                                    op->get("padding"),
-                                    op->get<unsigned>("dilationFactor"),
-                                    op->get<unsigned>("group"),
-                                    op->get<mv::DType>("dType"),
-                                    op->get<mv::QuantizationParams>("quantParams"),
-                                    streamingOpName);
+            newTensor = om.conv(streamingOpName,
+                                copyInput,
+                                slice,
+                                op->get("stride"),
+                                op->get("padding"),
+                                op->get<unsigned>("dilationFactor"),
+                                op->get<unsigned>("group"));
+            newTensor->setQuantParams(outputQuantParams);
+            newTensor->setDType(outputTensor->getDType());
             newTensor->setOrder(mv::Order("NHWC"));
 
             if (split != number_of_splits - 1)
@@ -282,20 +280,19 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             auto sliceShape = childTiles[split].getActivationShape();
             auto sliceStart = childTiles[split].getActivationStart();
 
-            mv::Data::TensorIterator sliceInput = om.slice(copyInput,
+            auto sliceInput = om.slice(op->getName() + "_sliceHK_" + std::to_string(split),
+                                copyInput,
                                 sliceStart,
-                                sliceShape,
-                                inputTensor->get<mv::QuantizationParams>("quantParams"),
-                                op->getName() + "_sliceHK_" + std::to_string(split));
+                                sliceShape);
+            sliceInput->setQuantParams(inputQuantParams);
 
-            newTensor = om.depthwiseConv(sliceInput,
+            newTensor = om.depthwiseConv(streamingOpName,
+                                sliceInput,
                                 slice,
                                 op->get("stride"),
                                 op->get("padding"),
-                                op->get<unsigned>("dilationFactor"),
-                                op->get<mv::DType>("dType"),
-                                op->get<mv::QuantizationParams>("quantParams"),
-                                streamingOpName);
+                                op->get<unsigned>("dilationFactor"));
+            newTensor->setQuantParams(outputQuantParams);
             if((op->hasAttr("asymmetricKernel")))
             {
                 om.getSourceOp(newTensor)->set<unsigned>("asymmetricKernel", op->get<unsigned>("asymmetricKernel"));
@@ -413,11 +410,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         final_outputs[split] = out;
     }
 
-    auto concat = om.concat(final_outputs,
-                    "C",
-                    op->get<mv::DType>("dType"),
-                    op->get<mv::QuantizationParams>("quantParams"),
-                    op->getName() + "concat_");
+    auto concat = om.concat(op->getName() + "concat_",
+                    final_outputs,
+                    "C");
+    concat->setDType(op->getOutputTensor(0)->getDType());
+    concat->setQuantParams(outputQuantParams);
 
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
@@ -510,50 +507,52 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         std::string streamingOpName = op->getName() + "_streamH" + std::to_string(split);
         if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv")
         {
-            auto inputTensor = op->getInputTensor(0);
+            auto inputTensor  = op->getInputTensor(0);
+            auto outputTensor = op->getOutputTensor(0);
+
+            auto inputQuantParams  = inputTensor->getQuantParams();
+            auto outputQuantParams = outputTensor->getQuantParams();
 
             auto sliceShape = childTiles[split].getActivationShape();
             auto sliceStart = childTiles[split].getActivationStart();
 
-            mv::Data::TensorIterator slice = om.slice(inputTensor,
+            auto slice = om.slice(op->getName() + "_sliceH" + std::to_string(split),
+                                inputTensor,
                                 sliceStart,
-                                sliceShape,
-                                inputTensor->get<mv::QuantizationParams>("quantParams"),
-                                op->getName() + "_sliceH" + std::to_string(split));
+                                sliceShape);
+            slice->setQuantParams(inputQuantParams);
             om.getSourceOp(slice)->set<unsigned>("opId", opId);
 
             if (opType == "MaxPool")
-                newTensor = om.maxPool(slice,
+                newTensor = om.maxPool(streamingOpName,
+                                slice,
                                 op->get<std::array<unsigned short, 2UL>>("kSize"),
                                 kernelStride,
                                 currentPad,
-                                op->get<const bool>("exclude_pad"),
-                                op->get<mv::DType>("dType"),
-                                op->get<mv::QuantizationParams>("quantParams"),
-                                streamingOpName);
+                                op->get<const bool>("exclude_pad"));
 
             if (opType == "DepthwiseConv")
-                newTensor = om.depthwiseConv(slice,
+                newTensor = om.depthwiseConv(streamingOpName,
+                                slice,
                                 op->getInputTensor(1),
                                 kernelStride,
                                 currentPad,
-                                op->get<unsigned>("dilationFactor"),
-                                op->get<mv::DType>("dType"),
-                                op->get<mv::QuantizationParams>("quantParams"),
-                                streamingOpName);
+                                op->get<unsigned>("dilationFactor"));
 
-            if (opType == "Conv"){
-                newTensor = om.conv(slice,
+            if (opType == "Conv") {
+                newTensor = om.conv(streamingOpName,
+                                slice,
                                 op->getInputTensor(1),
                                 kernelStride,
                                 currentPad,
                                 op->get<unsigned>("dilationFactor"),
-                                op->get<unsigned>("group"),
-                                op->get<mv::DType>("dType"),
-                                op->get<mv::QuantizationParams>("quantParams"),
-                                streamingOpName);
+                                op->get<unsigned>("group"));
                 newTensor->setOrder(mv::Order("NHWC"));
             }
+
+            newTensor->setDType(outputTensor->getDType());
+            newTensor->setQuantParams(outputQuantParams);
+
             if (split != number_of_splits - 1)
             {
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
@@ -574,29 +573,31 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
             auto inputSlots = op->inputSlots();
             std::vector<mv::Data::TensorIterator> eltwiseSlices;
             auto eltwiseType = op->get<std::string>("eltwiseType");
-            auto originalDType = op->get<mv::DType>("dType");
+            auto originalDType = op->getOutputTensor(0)->getDType();
             for (unsigned i = 0; i < inputSlots; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
+                auto inputQuantParams = inputTensor->getQuantParams();
 
                 auto sliceShape = childTiles[split].getActivationShape();
                 auto sliceStart = childTiles[split].getActivationStart();
 
-                auto slice = om.slice(inputTensor,
+                auto slice = om.slice(op->getName() + "_sliceH" + std::to_string(split) + "_" + std::to_string(i),
+                                inputTensor,
                                 sliceStart,
-                                sliceShape,
-                                inputTensor->get<mv::QuantizationParams>("quantParams"),
-                                op->getName() + "_sliceH" + std::to_string(split) + "_" + std::to_string(i));
+                                sliceShape);
+                slice->setQuantParams(inputQuantParams);
                 om.getSourceOp(slice)->set<unsigned>("opId", opId);
                 slices.push_back(slice);
                 eltwiseSlices.push_back(slice);
             }
 
-            newTensor = om.eltwise(eltwiseSlices,
-                                    eltwiseType,
-                                    originalDType,
-                                    op->get<mv::QuantizationParams>("quantParams"),
-                                    op->getName() + "_streamH" + std::to_string(split));
+            auto quantParams = op->getOutputTensor(0)->getQuantParams();
+            newTensor = om.eltwise(op->getName() + "_streamH" + std::to_string(split),
+                                eltwiseSlices,
+                                eltwiseType);
+            newTensor->setDType(originalDType);
+            newTensor->setQuantParams(quantParams);
         }
 
         // Restore original out dtype, to account for mixed precision cases
@@ -675,11 +676,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         final_outputs[split] = out;
     }
 
-    auto concat = om.concat(final_outputs,
-                    tiling.getAxis(),
-                    op->get<mv::DType>("dType"),
-                    op->get<mv::QuantizationParams>("quantParams"),
-                    op->getName() + "concat_");
+    auto quantParams = op->getOutputTensor(0)->getQuantParams();
+    auto concat = om.concat(op->getName() + "concat_",
+                    final_outputs,
+                    tiling.getAxis());
+    concat->setDType(op->getOutputTensor(0)->getDType());
+    concat->setQuantParams(quantParams);
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
     if(op->hasAttr("schedule_for_dpu_dma_overlap"))
@@ -734,76 +736,79 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
         std::string streamingOpName = op->getName() + "_stream" + tiling.getAxis() + std::to_string(split);
         if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv")
         {
-            auto inputTensor = op->getInputTensor(0);
+            auto inputTensor  = op->getInputTensor(0);
+            auto outputTensor = op->getOutputTensor(0);
+
+            auto inputQuantParams  = inputTensor->getQuantParams();
+            auto outputQuantParams = outputTensor->getQuantParams();
 
             auto sliceShape = childTiles[split].getActivationShape();
             auto sliceStart = childTiles[split].getActivationStart();
 
-            mv::Data::TensorIterator slice = om.slice(inputTensor,
+            auto slice = om.slice(op->getName() + "_slice" + tiling.getAxis() + std::to_string(split),
+                                inputTensor,
                                 sliceStart,
-                                sliceShape,
-                                inputTensor->get<mv::QuantizationParams>("quantParams"),
-                                op->getName() + "_slice" + tiling.getAxis() + std::to_string(split));
+                                sliceShape);
+            slice->setQuantParams(inputQuantParams);
             om.getSourceOp(slice)->set<unsigned>("opId", opId);
 
             if (opType == "MaxPool")
-                newTensor = om.maxPool(slice,
+                newTensor = om.maxPool(streamingOpName,
+                                slice,
                                 op->get<std::array<unsigned short, 2UL>>("kSize"),
                                 kernelStride,
                                 padding,
-                                op->get<const bool>("exclude_pad"),
-                                op->get<mv::DType>("dType"),
-                                op->get<mv::QuantizationParams>("quantParams"),
-                                streamingOpName);
+                                op->get<const bool>("exclude_pad"));
 
             if (opType == "DepthwiseConv")
-                newTensor = om.depthwiseConv(slice,
+                newTensor = om.depthwiseConv(streamingOpName,
+                                slice,
                                 op->getInputTensor(1),
                                 kernelStride,
                                 padding,
-                                op->get<unsigned>("dilationFactor"),
-                                op->get<mv::DType>("dType"),
-                                op->get<mv::QuantizationParams>("quantParams"),
-                                streamingOpName);
+                                op->get<unsigned>("dilationFactor"));
 
             if (opType == "Conv")
-                newTensor = om.conv(slice,
+                newTensor = om.conv(streamingOpName,
+                                slice,
                                 op->getInputTensor(1),
                                 kernelStride,
                                 padding,
                                 op->get<unsigned>("dilationFactor"),
-                                op->get<unsigned>("group"),
-                                op->get<mv::DType>("dType"),
-                                op->get<mv::QuantizationParams>("quantParams"),
-                                streamingOpName);
+                                op->get<unsigned>("group"));
+            newTensor->setDType(outputTensor->getDType());
+            newTensor->setQuantParams(outputQuantParams);
+
             slices.push_back(slice);
         }
         else if (opType == "Eltwise")
         {
             auto inputSlots = op->inputSlots();
             auto eltwiseType = op->get<std::string>("eltwiseType");
-            auto originalDType = op->get<mv::DType>("dType");
+            auto originalDType = op->getOutputTensor(0)->getDType();
             for (unsigned i = 0; i < inputSlots; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
+                auto inputQuantParams = inputTensor->getQuantParams();
 
                 auto sliceShape = childTiles[split].getActivationShape();
                 auto sliceStart = childTiles[split].getActivationStart();
 
-                auto slice = om.slice(inputTensor,
+                auto slice = om.slice(op->getName() + "_slice"  + tiling.getAxis() + std::to_string(split) + "_" + std::to_string(i),
+                                inputTensor,
                                 sliceStart,
-                                sliceShape,
-                                inputTensor->get<mv::QuantizationParams>("quantParams"),
-                                op->getName() + "_slice"  + tiling.getAxis() + std::to_string(split) + "_" + std::to_string(i));
+                                sliceShape);
+                slice->setQuantParams(inputQuantParams);
                 om.getSourceOp(slice)->set<unsigned>("opId", opId);
                 slices.push_back(slice);
             }
 
-            newTensor = om.eltwise(slices,
-                                    eltwiseType,
-                                    originalDType,
-                                    op->get<mv::QuantizationParams>("quantParams"),
-                                    op->getName() + "_stream" + tiling.getAxis() + std::to_string(split));
+            auto quantParams = op->getOutputTensor(0)->getQuantParams();
+            newTensor = om.eltwise(op->getName() + "_stream" + tiling.getAxis() + std::to_string(split),
+                                   slices,
+                                   eltwiseType);
+            newTensor->setDType(originalDType);
+            newTensor->setQuantParams(quantParams);
         }
 
         // Restore original out dtype, to account for mixed precision cases
@@ -872,12 +877,12 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
         final_outputs[split] = out;
     }
 
-    auto concat = om.concat(final_outputs,
-                    tiling.getAxis(),
-                    op->get<mv::DType>("dType"),
-                    op->get<mv::QuantizationParams>("quantParams"),
-                    op->getName() + "concat_");
-
+    auto quantParams = op->getOutputTensor(0)->getQuantParams();
+    auto concat = om.concat(op->getName() + "concat_",
+                    final_outputs,
+                    tiling.getAxis());
+    concat->setDType(op->getOutputTensor(0)->getDType());
+    concat->setQuantParams(quantParams);
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
@@ -1040,14 +1045,13 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
             removeConstantsSet.insert(om.getSourceOp(inTensorSlice)->getName());
             auto outTensorSlice = opIterator->getOutputTensor(0);
             auto parentOpIt = om.getSourceOp(opIterator->getInputTensor(0));
-            mv::QuantizationParams tensorQuantizationParams = {{},{},{},{}};
             auto shape = outTensorSlice->getShape();
-            if (outTensorSlice->isQuantized())
-                tensorQuantizationParams = outTensorSlice->get<mv::QuantizationParams>("quantParams");
+            auto quantParams = outTensorSlice->getQuantParams();
 
-            auto newConstant = om.constantDataElement(outTensorSlice->getData(), shape,
-                                                               outTensorSlice->getDType(), outTensorSlice->getOrder(),
-                                                               tensorQuantizationParams, opIterator->getName() + "_weights");
+            auto newConstant = om.constantDataElement(opIterator->getName() + "_weights",
+                                                      outTensorSlice->getData(), shape,
+                                                      outTensorSlice->getDType(), outTensorSlice->getOrder());
+            newConstant->setQuantParams(quantParams);
             newConstant->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::BLOB);
             auto constantOp = om.getSourceOp(newConstant);
             if(opIterator->hasAttr("opId"))

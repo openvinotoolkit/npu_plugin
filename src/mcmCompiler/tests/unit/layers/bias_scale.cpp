@@ -41,7 +41,7 @@ TEST_P(layers_bias_scale, dump_blob)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input(shape, dtype, order);
+    auto input = om.input("", shape, dtype, order);
 
     // which index is for channels (for "C")
     auto C_idx = order.toString().find("C");
@@ -54,15 +54,15 @@ TEST_P(layers_bias_scale, dump_blob)
     if (dtype == mv::DType("Float16"))
     {
         auto coefs = mv::utils::generateSequence<double>(C);
-        weights = om.constant(coefs, {C}, dtype, mv::Order("C"));
+        weights = om.constant("", coefs, {C}, dtype, mv::Order("C"));
     } else
     {
         auto coefs = mv::utils::generateSequence<int64_t>(C);
-        weights = om.constantInt(coefs, {C}, dtype, mv::Order("C"));
+        weights = om.constantInt("", coefs, {C}, dtype, mv::Order("C"));
     }
 
-    auto bias = om.bias(input, weights);
-    auto output = om.output(bias);
+    auto bias = om.bias("", input, weights);
+    auto output = om.output("", bias);
 
     ASSERT_TRUE(om.isValid(bias));
     ASSERT_TRUE(om.isValid(om.getSourceOp(bias)));

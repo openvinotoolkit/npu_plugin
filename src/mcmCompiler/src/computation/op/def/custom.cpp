@@ -20,7 +20,6 @@ namespace op_custom
     {
         // dType argument is ignored (output data type is stored in tensorInfo)
         const auto outputsInfo = args.at("outputsInfo").get<std::vector<mv::TensorInfo>>();
-        const auto quantParams = args.at("quantParams").get<mv::QuantizationParams>();
 
         for (size_t i = 0; i < outputsInfo.size(); i++) {
             auto dType = outputsInfo[i].type();
@@ -28,13 +27,8 @@ namespace op_custom
                 dType = inputs[0]->getDType();
             }
 
-            if (quantParams.isEmpty()) {
-                outputs.emplace_back(":" + std::to_string(i), outputsInfo[i].shape(), dType,
+            outputs.emplace_back(":" + std::to_string(i), outputsInfo[i].shape(), dType,
                                      outputsInfo[i].order());
-            } else {
-                outputs.emplace_back(":" + std::to_string(i), outputsInfo[i].shape(), dType,
-                                     outputsInfo[i].order(), quantParams);
-            }
         }
     };
 
@@ -49,8 +43,6 @@ namespace op {
             .setArg<std::vector<uint8_t>>("kernelData")
             .setArg<std::vector<uint8_t>>("paramData")
             .setArg<std::vector<mv::TensorInfo>>("outputsInfo")
-            .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-            .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({}, {}, {}, {}))
             .setInputCheck(op_custom::inputCheckFcn)
             .setOutputDef(op_custom::outputDefFcn)
             .setTypeTrait({"executable", "exposed"});

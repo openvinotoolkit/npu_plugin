@@ -66,10 +66,7 @@ namespace mv
                         dTypeToUse = inputDType;
             }
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShapeMax), dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShapeMax), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+            outputs.emplace_back(":0", mv::Shape(inputShapeMax), dTypeToUse, inputs[0]->getOrder());
         };
 
     }
@@ -80,7 +77,6 @@ namespace mv
         MV_REGISTER_OP(ImplicitInputSlice)
         .setInputs({"inputs"})
         .setOutputs({"output"})
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_implicit_input_slice::inputCheckFcn)
         .setOutputDef(op_implicit_input_slice::outputDefFcn);
 

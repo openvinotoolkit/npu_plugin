@@ -58,8 +58,7 @@ static void generateEltWiseConstantsFcn(const mv::pass::PassEntry& , mv::Computa
                     dm.undefineTensor(bias);
                     eltWiseDpuTaskOp->erase("bias");
 
-                    mv::QuantizationParams quantParams = {{},{},{},{}};
-                    auto constant = om.constantInt(constantData, shape, mv::DType("Int32"), mv::Order("NWCH"), quantParams, name);
+                    auto constant = om.constantInt(name, constantData, shape, mv::DType("Int32"), mv::Order("NWCH"));
                     om.getSourceOp(constant)->set<unsigned>("opId", eltWiseDpuTaskOp->get<unsigned>("opId"));
                     unsigned newSize = eltWiseDpuTaskOp->addInputTensor(constant);
                     om.defineFlow(constant, eltWiseDpuTaskOp, newSize - 1);

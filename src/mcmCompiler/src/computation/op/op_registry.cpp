@@ -186,10 +186,13 @@ namespace
         if (codeOut)
         {
             *codeOut << "    const auto " << outVarName << " = model." << opName << "(";
+            *codeOut << "\"" << name << "\"";
             const auto paramNames = splitStringList(paramStr, ',');
             const auto paramValues = std::forward_as_tuple(std::forward<Args>(args)...);
+            if (!paramNames.empty())
+                *codeOut << ", ";
             printParams(codeOut, dataOut, outVarName, paramNames, paramValues);
-            *codeOut << ", \"" << name << "\");" << std::endl;
+            *codeOut << ");" << std::endl;
         }
     }
 
@@ -618,24 +621,21 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
             else
                 outputOptionalArgList(optionalArgsList, opPtr, optionalArgsDef, types, defaultArgs);
 
-            output += inputsDef;
-            if (!inputsDef.empty())
-                output += ", ";
-
-            output += mandatoryArgsDef;
-            if (!mandatoryArgsDef.empty())
-                output += ", ";
-
-            output += optionalArgsDef;
-            if (!optionalArgsDef.empty())
-                output += ", ";
-
             if (types)
                 output += "const std::string& ";
             output += "name";
 
-            if (defaultArgs)
-                output += " = \"\"";
+            if (!inputsDef.empty())
+                output += ", ";
+            output += inputsDef;
+
+            if (!mandatoryArgsDef.empty())
+                output += ", ";
+            output += mandatoryArgsDef;
+
+            if (!optionalArgsDef.empty())
+                output += ", ";
+            output += optionalArgsDef;
 
             output += ")";
 

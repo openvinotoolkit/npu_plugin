@@ -45,20 +45,12 @@ namespace mv
             auto ndims = inputShape.ndims();
             mv::Shape outputShape(ndims);
 
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-
             // Calculate output shape
             auto keep_top_k = args.at("keep_top_k").get<int64_t>();
             long unsigned int max_detections = keep_top_k;
             outputShape = {7,max_detections,1,1};
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, outputOrder));
-            else
-                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, outputOrder, args.at("quantParams").get<mv::QuantizationParams>()));
-
+            outputs.emplace_back(":0",  outputShape, inputs[0]->getDType(), outputOrder);
         };
     }
 
@@ -83,8 +75,6 @@ namespace mv
         .setArg<int64_t>("input_height")
         .setArg<int64_t>("input_width")
         .setArg<double>("objectness_score")
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_detection_output::inputCheckFcn)
         .setOutputDef(op_detection_output::outputDefFcn)
         .setTypeTrait({"executable", "exposed"})

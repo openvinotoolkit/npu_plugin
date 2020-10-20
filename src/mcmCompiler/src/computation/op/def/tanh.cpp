@@ -21,7 +21,7 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
         {
 
-            outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
+            outputs.emplace_back(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder());
 
         };
     
@@ -31,8 +31,6 @@ namespace mv
         MV_REGISTER_OP(Tanh)
         .setInputs({"data"})
         .setOutputs({"output"})
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({}, {}, {}, {}))
         .setInputCheck(op_tanh::inputCheckFcn)
         .setOutputDef(op_tanh::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

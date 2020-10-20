@@ -80,23 +80,13 @@ namespace mv
                     dtypeIsMixed = true;
             }
 
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
+            auto dTypeToUse = mv::DType("UInt8");
+            if (!dtypeIsMixed) //all have the same dtype
             {
-                if (!dtypeIsMixed) //all have the same dtype
-                {
-                    dTypeToUse = inputs[0]->getDType();
-                }
-                else
-                {
-                    dTypeToUse = mv::DType("UInt8");
-                }
+                dTypeToUse = inputs[0]->getDType();
             }
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+            outputs.emplace_back(":0", mv::Shape(inputShape0), dTypeToUse, inputs[0]->getOrder());
         };
 
         // Default axis is channels (like for Intel Inference Engine)
@@ -111,8 +101,6 @@ namespace mv
         .setOutputs({"output"})
         .setVariableInputNum(true)
         .setOptionalArg<std::string>("axis", op_concat::channels)
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_concat::inputCheckFcn)
         .setOutputDef(op_concat::outputDefFcn)
         .setTypeTrait({"executable", "exposed", "optimizable"});

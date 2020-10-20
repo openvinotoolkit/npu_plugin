@@ -42,7 +42,7 @@ TEST_P(layers_fully_connected, dump_blob)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input(shape, dtype, order);
+    auto input = om.input("", shape, dtype, order);
 
     auto ndims = shape.ndims();
     auto order_str = order.toString();
@@ -76,17 +76,17 @@ TEST_P(layers_fully_connected, dump_blob)
     if (dtype == mv::DType("Float16"))
     {
         auto coefs = mv::utils::generateSequence<double>(w_shape.totalSize());
-        weights = om.constant(coefs, w_shape, dtype, w_order);
+        weights = om.constant("", coefs, w_shape, dtype, w_order);
     } else
     {
         auto coefs = mv::utils::generateSequence<int64_t>(w_shape.totalSize());
-        weights = om.constantInt(coefs, w_shape, dtype, w_order);
+        weights = om.constantInt("", coefs, w_shape, dtype, w_order);
     }
 
-    auto layer = om.fullyConnected(input, weights);
+    auto layer = om.fullyConnected("", input, weights);
     auto layerOp = om.getSourceOp(layer);
 
-    auto output = om.output(layer);
+    auto output = om.output("", layer);
 
     ASSERT_TRUE(om.isValid(layer));
     ASSERT_TRUE(om.isValid(layerOp));
