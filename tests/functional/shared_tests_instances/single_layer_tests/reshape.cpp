@@ -28,7 +28,10 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 // Test fails with message:
-// [NOT_FOUND] DYN_BATCH_ENABLED key is not supported for VPU
+// C++ exception with description "[NOT_FOUND] DYN_BATCH_ENABLED key is not supported for VPU
+// openvino/inference-engine/src/vpu/common/src/parsed_config_base.cpp:44
+// openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
+// [Track number: S#41220]
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ReshapeCheckDynBatch, KmbReshapeLayerTest,
                         ::testing::Combine(
                             ::testing::Values(true),
@@ -43,12 +46,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ReshapeCheckDynBatch, KmbReshapeLayerTest
                             ::testing::Values(std::map<std::string, std::string>({{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(YES)}}))),
                         ReshapeLayerTest::getTestCaseName);
 
-// Test fails with message:
-// C++ exception with description "Size of dims(3) and format(NHWC) are inconsistent.
-// It is possible to pass the test by setting data-member outLayout = InferenceEngine::Layout::ANY
-// in constructor KmbLayerTestsCommon::KmbLayerTestsCommon().
-// Please see file kmb-plugin/tests/functional/shared_tests_instances/kmb_layer_test.cpp:28
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ReshapeCheck, KmbReshapeLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck_pass_mcm, KmbReshapeLayerTest,
                         ::testing::Combine(
                             ::testing::Values(true),
                             ::testing::ValuesIn(netPrecisions),
@@ -62,7 +60,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ReshapeCheck, KmbReshapeLayerTest,
                             ::testing::Values(std::map<std::string, std::string>({}))),
                         ReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck4Dto4DTensor, KmbReshapeLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck4Dto4DTensor_pass_mcm, KmbReshapeLayerTest,
                         ::testing::Combine(
                             ::testing::Values(true),
                             ::testing::ValuesIn(netPrecisions),
