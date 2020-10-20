@@ -554,7 +554,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_152_caffe_dense_int8_IRv10_from_
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
             TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-            1, 0.05f);
+            1, 0.064f);
 }
 
 // C++ exception with description "Op:conv2 - OpError: Invalid input weights (1) -
@@ -685,7 +685,7 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v3_tf_dense_int8_IRv10_fp16_to_int8) {
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
             TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
-            1, 0.5f);
+            1, 0.6f);
 }
 
 TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8) {
