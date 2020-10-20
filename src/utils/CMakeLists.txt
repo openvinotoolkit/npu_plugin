@@ -25,11 +25,6 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 
-ie_faster_build(${TARGET_NAME}
-    UNITY
-    PCH PRIVATE "precomp.hpp"
-)
-
 enable_warnings_as_errors(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
@@ -49,10 +44,6 @@ link_system_libraries(${TARGET_NAME}
         IE::vpu_common_lib)
 
 if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${TARGET_NAME}
-        FOR_TARGETS ${TARGET_NAME}
-        EXCLUDE_PATTERNS ".*precomp.hpp"
-        ALL
-    )
+    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
     add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
 endif()

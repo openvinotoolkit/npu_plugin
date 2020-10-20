@@ -14,11 +14,6 @@ if(NOT ENABLE_LTO)
 endif()
 ie_dependent_option(ENABLE_LTO "Enable Link Time Optimization" ${ENABLE_LTO} "LINUX OR WIN32;NOT CMAKE_CROSSCOMPILING" OFF)
 
-if(NOT ENABLE_FASTER_BUILD)
-    set(ENABLE_FASTER_BUILD OFF)
-endif()
-ie_dependent_option(ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" ${ENABLE_FASTER_BUILD} "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)
-
 if(NOT ENABLE_CPPLINT)
     set(ENABLE_CPPLINT OFF)
 endif()
