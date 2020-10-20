@@ -179,13 +179,55 @@ void assignLayerNumber(mv::ControlModel& cm, const std::unordered_set<std::strin
 void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    mv::ControlModel cm(model);
+  MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+  mv::ControlModel cm(model);
 
-    unsigned initialLayerIndex = 0;
-    std::unordered_set<std::string> firstIteration;
-    firstIteration.insert(cm.getFirst()->getName());
-    assignLayerNumber(cm, firstIteration, initialLayerIndex);
+  typedef mv::Op const * operation_t;
+  std::list<operation_t> zero_in_degree_nodes[2UL];
+  std::unordered_map<operation_t, size_t> in_degree_map;
+  size_t curr_depth = 0;
+
+  // STEP-0: compute the in-degree's of all nodes //
+  for (auto op_itr = cm.opBegin(); op_itr != cm.opEnd(); ++op_itr) {
+    size_t in_degree = 0;
+    for (auto pitr = op_itr.leftmostParent(); pitr != cm.opEnd(); ++pitr) {
+      ++in_degree;
+    }
+    operation_t op = &(*op_itr);
+    in_degree_map[ op ] = in_degree;
+    if (!in_degree) {
+      zero_in_degree_nodes[0].push_back(op);
+      auto op_itr = cm.getOp(op->getName());
+      op_itr->set<unsigned>("layerNumber", (unsigned) curr_depth+1UL);
+    }
+  }
+
+  while (!zero_in_degree_nodes[curr_depth%2UL].empty()) {
+    bool parity = ((curr_depth%2UL) == 1UL);
+    for (auto zitr=zero_in_degree_nodes[parity].begin();
+          zitr != zero_in_degree_nodes[parity].end(); ++zitr) {
+
+      // update the in-degree //
+      mv::Control::OpListIterator zop_itr =
+          cm.switchContext( cm.getOp((*zitr)->getName()) ) ;
+      for (auto citr = zop_itr.leftmostChild(); citr != cm.opEnd(); ++citr) {
+        operation_t cop = &(*citr);
+        auto ditr = in_degree_map.find(cop);
+        if ( (ditr == in_degree_map.end()) || (ditr->second == 0UL) ) {
+          throw std::logic_error("Missing entry in the in-degree map (or)"
+              " invalid in-degree for op= " + cop->getName());
+        }
+        --(ditr->second);
+        if (!(ditr->second)) {
+          zero_in_degree_nodes[!parity].push_back(cop);
+          auto cop_itr = cm.getOp(cop->getName());
+          cop_itr->set<unsigned>("layerNumber", (unsigned) curr_depth+1UL);
+        }
+      }
+    }
+    zero_in_degree_nodes[parity].clear();
+    curr_depth++;
+  }
 }
 
 void addTaskControlFlowsAndRecursivelySkipImplicitOperationsDown(mv::OpModel& om, mv::Data::OpListIterator anchorOp, mv::Data::OpListIterator exploreOp)

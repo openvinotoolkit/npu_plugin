@@ -324,7 +324,7 @@
               "ddr_control_edges" : true
             },
             "SetSliceAddressesInCMX",
-            "LayerNumbering",                        
+            "LayerNumbering",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"
