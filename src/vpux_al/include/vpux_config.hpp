@@ -86,7 +86,7 @@ protected:
     // FIXME: Likely has to be true by default as well.
     // NB.: Currently applies to the detection use-case only
     bool _useM2I = false;
-    bool _useCoreNN = false;
+    bool _useCoreNN = true;
 
     std::string _deviceId = "VPU-0";
 
