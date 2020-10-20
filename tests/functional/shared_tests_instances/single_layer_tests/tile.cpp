@@ -45,7 +45,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_Tile, KmbTileLayerTest,
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({2, 3, 4})),
-                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbTileLayerTest::getTestCaseName);
 
 // Test fails with errors like this:
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_Tile6d, KmbTileLayerTest,
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({1, 4, 3, 1, 3, 1})),
-                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbTileLayerTest::getTestCaseName);
 
 // Test fails with error:
@@ -79,7 +79,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_Kmb_Specific_Tile, KmbTileLayerTest,
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({1, 1, 128, 1})),
-                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbTileLayerTest::getTestCaseName);
 
 }  // namespace

@@ -53,7 +53,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Basic, KmbSqueezeUnsqueezeLayerTest,
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         SqueezeUnsqueezeLayerTest::getTestCaseName);
 
 
@@ -81,7 +81,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Basic_unsqueeze_pass_mcm, KmbSqueezeUnsqueezeLayer
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         SqueezeUnsqueezeLayerTest::getTestCaseName);
 
 // End of parameters and test for Unsqueeze.
@@ -111,7 +111,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Basic_squeeze_pass_mcm, KmbSqueezeUnsqueezeLayerTe
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         SqueezeUnsqueezeLayerTest::getTestCaseName);
 
 // End of parameters and test for Squeeze.

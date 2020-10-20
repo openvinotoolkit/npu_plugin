@@ -42,7 +42,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ReshapeCheckDynBatch, KmbReshapeLayerTest
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
                             ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
-                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                             ::testing::Values(std::map<std::string, std::string>({{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(YES)}}))),
                         ReshapeLayerTest::getTestCaseName);
 
@@ -56,7 +56,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck_pass_mcm, KmbReshapeLayerTest,
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
                             ::testing::Values(std::vector<size_t>({10, 0, 100})),
-                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                             ::testing::Values(std::map<std::string, std::string>({}))),
                         ReshapeLayerTest::getTestCaseName);
 
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck4Dto4DTensor_pass_mcm, KmbReshapeLayer
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({1, 1, 1, 1000})),
                             ::testing::Values(std::vector<size_t>({1, 1000, 1, 1})),
-                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                             ::testing::Values(std::map<std::string, std::string>({}))),
                         ReshapeLayerTest::getTestCaseName);
 

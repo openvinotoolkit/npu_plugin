@@ -48,7 +48,7 @@ const auto params = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_KEEMBAY)
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
 // nGraph parser doesn't contain specific gather parser

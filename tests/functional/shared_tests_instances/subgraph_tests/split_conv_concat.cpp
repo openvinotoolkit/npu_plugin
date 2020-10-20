@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
+#include "kmb_layer_test.hpp"
 
 using namespace LayerTestsDefinitions;
 
@@ -18,6 +19,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_NoReshape, SplitConvConcat,
     ::testing::Combine(::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({1, 6, 40, 40})),
-        ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     SplitConvConcat::getTestCaseName);
 }  // namespace
