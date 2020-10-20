@@ -23,18 +23,17 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
-#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
-#include <transformations/op_conversions/reduce_l1_decomposition.hpp>
-#include <transformations/op_conversions/reduce_l2_decomposition.hpp>
-#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
-#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
-
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/convert_quantize_dequantize.hpp>
+#include <transformations/convert_reduce_to_pooling.hpp>
+#include <transformations/reduce_l1_decomposition.hpp>
+#include <transformations/reduce_l2_decomposition.hpp>
 // Plugin
 #include "vpux_async_infer_request.h"
 #include "vpux_exceptions.h"

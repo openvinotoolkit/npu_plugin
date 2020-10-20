@@ -31,19 +31,37 @@
 #include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
-
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
-#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
-#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <ngraph/pass/visualize_tree.hpp>
+#include <transformations/convert_reduce_to_pooling.hpp>
+#include <transformations/lin_op_sequence_fusoin.hpp>
+#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
 
+#include "transformations/common_optimizations/algebraic_simplification.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/depth_to_space_fusion.hpp"
+#include "transformations/optimize_strided_slice.hpp"
+#include "transformations/convert_scatter_elements_to_scatter.hpp"
+#include "transformations/convert_pad_to_group_conv.hpp"
+#include "transformations/remove_filtering_boxes_by_size.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/mish_fusion.hpp"
+#include "transformations/softplus_fusion.hpp"
+#include "transformations/softplus_to_mish_fusion.hpp"
+#include "transformations/swish_fusion.hpp"
+#include "transformations/hswish_fusion.hpp"
+#include "transformations/normalize_l2_fusion.hpp"
+#include "transformations/convert_quantize_dequantize.hpp"
+#include "transformations/bidirectional_sequences_decomposition.hpp"
 #include <generic_ie.hpp>
 
 #include <include/mcm/compiler/compilation_unit.hpp>
@@ -204,7 +222,7 @@ std::vector<char> compileNGraph(
 
         // TBD Should be ngraph::pass too in order to be applied in between other passes.
         const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
-        
+
         passManager.register_pass<FuseScaleShift>();
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
