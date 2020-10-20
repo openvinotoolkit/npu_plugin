@@ -966,6 +966,18 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_efficientnet_b0) {
         TestNetworkDesc("KMB_models/INT8/public/efficientnet-b0/efficientnet-b0.xml")
             .setUserInputPrecision("input", Precision::U8),
 	TestImageDesc("224x224/husky.bmp", ImageFormat::BGR),
+        1,
+        0.3f);
+}
+
+// C++ exception with description "Cannot convert layer "MobilenetV3/Conv/hard_swish/mul_1" 
+// due to unsupported layer type "HSwish"
+// [Track number: D#3775]
+TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_small) {
+    runTest(
+        TestNetworkDesc("KMB_models/FP16-INT8/private/mobilenet-v3-small-1.0-224/mobilenet-v3-small-1.0-224.xml")
+            .setUserInputPrecision("input", Precision::U8),
+	TestImageDesc("224x224/husky.bmp", ImageFormat::BGR),
 	1,
 	0.3f);
 }
