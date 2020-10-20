@@ -419,10 +419,7 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             1.f, 0.3f);
 }
 
-// Disabled due to accuracy regression with nGraph frontend
-// [Track number: S#40575]
 TEST_F(KmbSSDNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX","ngraph_parser_enabled bad infer results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8),
