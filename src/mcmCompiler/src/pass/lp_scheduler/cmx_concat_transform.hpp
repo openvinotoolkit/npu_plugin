@@ -452,7 +452,6 @@ class CMX_Concatenation {
     }
 
     bool has_no_cmx_concat_flag(const concat_subgraph_t& subgraph) const {
-      mv::OpModel &om = omodel_;
       mv::Data::OpListIterator concat_op =
           omodel_.getOp((subgraph.concat_root_)->getName());
       return concat_op->hasAttr("avoid_cmx_concat") && 
@@ -648,7 +647,6 @@ class CMX_Concatenation {
 
       size_t total_size = 0UL;
       for (auto ditr=driving_dpus.begin(); ditr!=driving_dpus.end(); ++ditr) {
-        operation_t dpu_op = *ditr;
         mv::Data::TensorIterator tensor_itr =
             const_cast<non_const_operation_t>(op)->getOutputTensor(0UL);
           total_size += tensor_itr->getClusterSize();
@@ -821,7 +819,6 @@ class CMX_Concatenation {
 
       mv::OpModel &om = omodel_;
       operation_t d_star = subgraph.representative_dpu_;
-      size_t cmx_concat_buffer_size = subgraph.master_buffer_size();
 
       op_list_t& reads = subgraph.reads_;
       op_list_t& writes = subgraph.writes_;

@@ -92,7 +92,6 @@ namespace mv
 
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
-            auto group = args.at("group").get<unsigned>();
 
             // TODO: dilation factor must be per kernel dimension
             auto dilationFactor = args.at("dilationFactor").get<unsigned>();

@@ -46,7 +46,6 @@ namespace mv
             auto num_max_sizes = max_sizes->getShape()[0];
             auto num_aspect_ratios = aspect_ratios->getShape()[0];
             auto flip = args.at("flip").get<unsigned>();
-            auto clip = args.at("clip").get<unsigned>();
             //width and height are the size of the priorboxes tensor (i.e. 5x5 or 10x10)
             auto width = priorboxes->getShape()[0];
             auto height = priorboxes->getShape()[1];

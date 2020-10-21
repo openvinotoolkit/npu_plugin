@@ -37,7 +37,7 @@ void buildGraphFileKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel& mode
     rm.buildGraphFile(model, passDesc);
 }
 
-void generateBlobKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&)
+void generateBlobKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&)
 {   
     MV_PROFILED_FUNCTION(MV_PROFILE_PHASE)
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(td);

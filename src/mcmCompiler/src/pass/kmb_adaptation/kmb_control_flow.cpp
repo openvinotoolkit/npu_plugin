@@ -9,7 +9,6 @@ static void taskControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel
 static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
 static void NNCMX2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
-static void activationTensorsControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -81,7 +80,7 @@ void NNCMX2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& 
 // Minimum (and most conservative approach) is 1
 
 // ASSUMPTION: This pass happens after the pass that assigns a layer number to each layer already in the control model
-void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -177,7 +176,7 @@ void assignLayerNumber(mv::ControlModel& cm, const std::unordered_set<std::strin
 // And possibly also to handle NNCMX2DDR output flows
 
 // ASSUMPTION: We need task control flows and transitive reduction to be run before this pass
-void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -219,7 +218,7 @@ void addTaskControlFlowsAndRecursivelySkipImplicitOperationsUp(mv::OpModel& om, 
 // This pass adds control flows relative to Task.
 // Rationale: Each Task should be connected via a ControlFlow to the same operations he is connected via a DataFlow
 // But implicit operations (e.g. Constants, Concat, Slice etc) must be skipped and/or avoided
-void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void taskControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

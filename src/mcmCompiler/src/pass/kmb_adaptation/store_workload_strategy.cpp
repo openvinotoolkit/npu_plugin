@@ -21,7 +21,7 @@ namespace mv
     }
 }
 
-void storeWorkloadStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv::Element>& strategyList)
+void storeWorkloadStrategy(mv::Data::OpListIterator& it, int, std::vector<mv::Element>& strategyList)
 {
     for (auto s: strategyList)
     {

@@ -93,6 +93,7 @@ class DAG_Address_Generator {
                 pitr != ops_scheduled_currently.end(); ++pitr) {
             bool status = rstate_.unassign_resources(pitr->op_);
             assert(status);
+            (void)status;
           }
           current_time = sop.time_;
           ops_scheduled_currently.clear();
@@ -108,6 +109,7 @@ class DAG_Address_Generator {
               traits::outgoing_operations_begin(*input_dag_ptr_, op),
               traits::outgoing_operations_end(*input_dag_ptr_, op) );
           assert(assign);
+          (void)assign;
           interval_info_t interval = rstate_.get_resource_usage_info(op);
           output = address_info_t(op, interval.begin_, interval.end_);
           high_water_mark_ = std::max(high_water_mark_, interval.end_);

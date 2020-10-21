@@ -90,8 +90,6 @@ namespace mv
 
             // TODO: dilation factor must be per kernel dimension
             auto dilationFactor = args.at("dilationFactor").get<unsigned>();
-            auto dilated_kernel_w = (kernelShape[KERNEL_WIDTH] - 1) * dilationFactor + 1;
-            auto dilated_kernel_h = (kernelShape[KERNEL_HEIGHT] - 1) * dilationFactor + 1;
 
             auto W = stride[0] * (dataShape[IO_WIDTH_DIMENSION] - 1) + ((kernelShape[KERNEL_WIDTH] - 1) * dilationFactor + 1) - padding[0] - padding[1];
             auto H = stride[1] * (dataShape[IO_HEIGHT_DIMENSION] - 1) + ((kernelShape[KERNEL_HEIGHT] - 1) * dilationFactor + 1) - padding[2] - padding[3];

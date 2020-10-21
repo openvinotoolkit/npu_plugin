@@ -306,7 +306,6 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 std::string name;
                 std::size_t numberOfHDEModules;
                 std::size_t bitPerSymbol;
-                std::size_t dataTypeSize;
                 std::size_t blockSize;
                 std::size_t maxNumberEncodedSymbols;
                 bool bypassMode;

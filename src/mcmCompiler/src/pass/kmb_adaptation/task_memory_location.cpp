@@ -105,6 +105,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                              inputConcatTensorIdx++)
                             if (sinkOp->getInputTensor()[inputConcatTensorIdx]->getName() == output->getName())
                                 slot = inputConcatTensorIdx;
+                        (void)slot;
                         //NOTE: only the tensor which goes to ddr, the dst should have the dilated strides
                         dpuCopyOut->set<bool>("dilatedWidthConcat", true);
                         dpuCopyOut->set<unsigned>("dilationFactor",

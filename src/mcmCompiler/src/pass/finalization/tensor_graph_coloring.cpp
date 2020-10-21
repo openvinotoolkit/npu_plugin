@@ -495,7 +495,7 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
 }
 
 
-size_t bestFitMemoryAllocation(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
+size_t bestFitMemoryAllocation(const mv::pass::PassEntry&, mv::ComputationModel& model,
                             std::queue<std::string>& order,
                             mv::TensorInterferenceGraph& g,
                             long long memorySize,

@@ -368,7 +368,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
 
         std::vector<mv::Data::TensorIterator> subConvs;
 
-        int strideFactor = opIt->get<std::array<unsigned short, 2>>("stride")[0];
+        auto strideFactor = opIt->get<std::array<unsigned short, 2>>("stride")[0];
         auto quantParams = opIt->getOutputTensor(0)->getQuantParams();
 
         size_t width = deconvKernelShape[mv::IO_WIDTH_DIMENSION];

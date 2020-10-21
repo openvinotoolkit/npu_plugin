@@ -205,6 +205,7 @@ class Barrier_Schedule_Generator {
         const barrier_info_t& binfo = itr->second;
         bool ret = state_.unassign_slots(binfo.bindex_, binfo.slot_count_);
         assert(ret);
+        (void)ret;
         barrier_map_.erase(itr);
         return true;
       }

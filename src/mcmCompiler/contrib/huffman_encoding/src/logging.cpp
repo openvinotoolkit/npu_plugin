@@ -38,8 +38,9 @@ string PrintToString(const char *fmt, ...)
    char *fmt_out = 0;
    va_list ap;
    va_start(ap, fmt);
-   VASPRINTF(&fmt_out, fmt, ap);
+   int ret = VASPRINTF(&fmt_out, fmt, ap);
    va_end(ap);
+   (void)ret;
 
    if (!fmt_out)
       return ("Error: PrintToString");
@@ -61,7 +62,7 @@ void Report(int level, std::stringstream &reportStream)
    reportStream.str("");
 }
 
-void Error(int level, std::stringstream &reportStream)
+void Error(int /*level*/, std::stringstream &reportStream)
 {
    // level is ignored here
    std::cerr << reportStream.str();
@@ -96,8 +97,9 @@ void Log(int level, const char *fmt, ...)
    char *fmt_out;
    va_list ap;
    va_start(ap, fmt);
-   VASPRINTF(&fmt_out, fmt, ap);
+   int ret = VASPRINTF(&fmt_out, fmt, ap);
    va_end(ap);
+   (void)ret;
 
    ostringstream outstr;
    outstr << "(LOG: " << timebuf << ": Log L" << level << ")     "
@@ -116,8 +118,9 @@ void AssertFail(const char *file, int line, const char *fmt, ...)
    char *fmt_out;
    va_list ap;
    va_start(ap, fmt);
-   VASPRINTF(&fmt_out, fmt, ap);
+   int ret = VASPRINTF(&fmt_out, fmt, ap);
    va_end(ap);
+   (void)ret;
 
    ostringstream outstr;
    outstr << "assertion failure at '" << file

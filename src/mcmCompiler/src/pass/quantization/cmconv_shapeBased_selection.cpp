@@ -21,7 +21,7 @@ namespace mv
 
 //CM Conv temporary fix. SSDs, VGG16, Yolov2 and Yolov3 failing or don't have support for CM Conv yet
 //So disabling CM Conv for these networks based on the network identiers
-void disableCMconvOpFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void disableCMconvOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     auto globalParams = model.getGlobalConfigParams();

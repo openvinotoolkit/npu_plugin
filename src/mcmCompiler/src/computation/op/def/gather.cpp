@@ -83,13 +83,13 @@ namespace mv
 
             // construct output dims
             std::vector<size_t> outputDims;
-            for (int i = 0; i < axis; i++) {
+            for (unsigned i = 0; i < axis; i++) {
                 outputDims.push_back(inputShape[i]);
             }
 
             outputDims.push_back(indicesShape.totalSize());
 
-            for (int i = axis + 1; i < inputShape.ndims(); i++) {
+            for (unsigned i = axis + 1; i < inputShape.ndims(); i++) {
                 outputDims.push_back(inputShape[i]);
             }
 

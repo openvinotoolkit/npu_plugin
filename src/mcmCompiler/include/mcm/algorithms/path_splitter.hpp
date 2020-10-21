@@ -40,13 +40,13 @@ struct OpModel_Path_Update_Traits {
   typedef typename dag_t::edge_list_iterator edge_iterator_t;
 
   struct implicit_op_selector_t {
-    bool operator()(node_iterator_t itr, const dag_t& dag) const {
+    bool operator()(node_iterator_t itr, const dag_t& /*dag*/) const {
       return (*itr).isImplicit();
     }
   }; // struct implicit_op_selector_t //
 
   struct all_op_selector_t {
-    bool operator()(node_iterator_t itr, const dag_t& dag) const {
+    bool operator()(node_iterator_t /*itr*/, const dag_t& /*dag*/) const {
       return true;
     }
   }; // struct implicit_op_selector_t //
@@ -119,7 +119,7 @@ class Path_Splitter {
     typedef std::list<node_iterator_t> node_iterators_t;
 
     struct default_node_selector_t {
-      bool operator()(node_iterator_t itr, const dag_t&) const { return true; }
+      bool operator()(node_iterator_t /*itr*/, const dag_t& /*dag*/) const { return true; }
     }; // struct default_node_selector_t //
     enum dfs_state_e { DFS_EXTEND_PATH=0, DFS_BACKTRACK_PATH=1};
 
@@ -135,7 +135,7 @@ class Path_Splitter {
         sink_ = sink.operator->();
       }
 
-      size_t operator()(const cloned_edge_t& o) const {
+      size_t operator()(const cloned_edge_t& /*o*/) const {
         std::hash<const_node_ptr_t> hasher;
         return hasher(src_) + hasher(sink_);
       }
@@ -280,7 +280,6 @@ class Path_Splitter {
       dfs_state_e dfs_state;
       dfs_stack_t dfs_stack;
       node_ptr_t v_node_ptr = v.operator->();
-      node_ptr_t u_node_ptr = u.operator->();
 
       dfs_stack.push_back(node_child_iterator_t(u));
       dfs_state = DFS_EXTEND_PATH;

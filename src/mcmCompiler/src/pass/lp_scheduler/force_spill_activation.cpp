@@ -137,7 +137,7 @@ namespace mv {
 } // namespace pass //
 
 void ForceSpillActivationPass(const mv::pass::PassEntry&,
-    mv::ComputationModel& model, mv::TargetDescriptor& target,
+    mv::ComputationModel& model, mv::TargetDescriptor&,
     mv::Element& passDesc, mv::Element&) {
 
   mv::OpModel om(model);
@@ -168,7 +168,7 @@ namespace mv {
 } // namespace pass //
 
 void ForceAddressSetterPass(const mv::pass::PassEntry&,
-    mv::ComputationModel& model, mv::TargetDescriptor& target,
+    mv::ComputationModel& model, mv::TargetDescriptor&,
     mv::Element& passDesc, mv::Element&) {
 
   std::string op_name = passDesc.get<std::string>("op_name");
@@ -197,7 +197,7 @@ namespace mv {
 } // namespace pass //
 
 void ForceSparseOutputPass(const mv::pass::PassEntry&,
-    mv::ComputationModel& model, mv::TargetDescriptor& target,
+    mv::ComputationModel& model, mv::TargetDescriptor&,
     mv::Element& passDesc, mv::Element&) {
 
   std::string op_name = passDesc.get<std::string>("op_name");
