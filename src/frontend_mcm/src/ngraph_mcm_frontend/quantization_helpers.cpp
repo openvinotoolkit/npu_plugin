@@ -146,7 +146,7 @@ std::vector<int64_t> quantizeData(
 }
 
 std::vector<std::shared_ptr<ngraph::Node>> getParents(std::shared_ptr<ngraph::Node> node) {
-    auto input_values = node->input_values();
+    const auto input_values = node->input_values();
     std::vector<std::shared_ptr<ngraph::Node>> result;
     for ( auto&& iv : input_values ) {
         result.emplace_back(iv.get_node_shared_ptr());
@@ -154,15 +154,12 @@ std::vector<std::shared_ptr<ngraph::Node>> getParents(std::shared_ptr<ngraph::No
     return result;
 }
 
-std::vector<std::shared_ptr<ngraph::Node>> getInputsFQ(std::shared_ptr<ngraph::Node> node) {
+std::vector<std::shared_ptr<ngraph::Node>> getAnyInputsFQ(std::shared_ptr<ngraph::Node> node) {
     std::vector<std::shared_ptr<ngraph::Node> > result;
     std::set<std::shared_ptr<ngraph::Node> > visited;
     std::stack<std::shared_ptr<ngraph::Node> > layers;
 
-    auto inputs = getParents(node);
-    for (auto& input : inputs) {
-        layers.push(input);
-    }
+    layers.push(node);
     while (!layers.empty()) {
         auto input = layers.top();
         layers.pop();
@@ -172,12 +169,27 @@ std::vector<std::shared_ptr<ngraph::Node>> getInputsFQ(std::shared_ptr<ngraph::N
             result.push_back(input);
         } else {
             auto inputs = getParents(input);
-            for (auto&& newInput : inputs) {
+            for (const auto& newInput : inputs) {
                 if (!visited.count(newInput)) {
                     layers.push(newInput);
                 }
             }
         }
+    }
+    return result;
+}
+
+std::vector<std::shared_ptr<ngraph::Node>> getInputsFQ(std::shared_ptr<ngraph::Node> node) {
+    const auto parents = getParents(node);
+    std::vector<std::shared_ptr<ngraph::Node>> result;
+    std::vector<std::shared_ptr<ngraph::Node>> tmp;
+    for ( const auto& input : parents ) {
+        tmp = getAnyInputsFQ(input);
+        if (tmp.size()) {
+            std::move(tmp.begin(), tmp.end(), std::back_inserter(result));
+            tmp.clear();
+        } else
+            return std::vector<std::shared_ptr<ngraph::Node>>();
     }
     return result;
 }
