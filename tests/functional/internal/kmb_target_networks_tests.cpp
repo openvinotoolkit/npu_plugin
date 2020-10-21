@@ -94,17 +94,14 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_MobileNet_V2) {
 // InceptionV1
 //
 
-// KMB : Op:pool5/7x7_s1 - OpError: Invalid input data (0) - Filter kernel width (7) exceeds the padded input width (6)
-// Unsupported operation: pool1/norm16960 with name LRN_IE_3845 with C++ type ngraph::op::LRN_IE
-// [Track number: D#40918]
-TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_Caffe_IRv10_Inception_V1) {
+TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_Inception_V1) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v1_caffe/googlenet-v1-caffe-from-icv-bench-cache.xml")
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
         TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        3, 1e-2f);
+        3, 0.05f);
 }
 
 //
@@ -554,8 +551,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_152_caffe_dense_int8_IRv10_from_
 // C++ exception with description "Op:conv2 - OpError: Invalid input weights (1) -
 // Does not match the channel dimension of input 96
 // [Track number: D#2799]
-// Unsupported operation: norm11198 with name LRN_IE_1388 with C++ type ngraph::op::LRN_IE
-// [Track number: D#40918]
+// "OpModel:AlexNet - ArgumentError: op:name slice0 - Duplicated op name
 TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_alexnet_caffe_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/alexnet/alexnet_caffe_dense_int8_IRv10_from_fp32.xml")

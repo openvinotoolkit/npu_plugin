@@ -85,6 +85,7 @@
 #include <ngraph_ops/interp.hpp>
 #include <ngraph_ops/prior_box_clustered_ie.hpp>
 #include <ngraph_ops/prior_box_ie.hpp>
+#include "ngraph_ops/lrn_ie.hpp"
 #include <ngraph_ops/normalize_ie.hpp>
 #include <ngraph_ops/topk_ie.hpp>
 #include <ngraph_ops/proposal_ie.hpp>
@@ -1276,6 +1277,15 @@ void convert(std::shared_ptr<ngraph::op::NormalizeIE> normalizeIE, mv::OpModel& 
     registerOutputs(normalizeIE, {mvNormalizeOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::LRN_IE> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmData = getMcmInputs(op, mcmOutputsMap).at(0);
+    auto mcmNorm = mcmModel.norm(op->get_friendly_name(), mcmData,
+        op->get_alpha(), op->get_beta(), op->get_region(), static_cast<unsigned>(op->get_nsize()));
+    mcmNorm->setQuantParams(initialQuantParams());
+
+    registerOutputs(op, {mcmNorm}, mcmOutputsMap);
+}
+
 void convert(std::shared_ptr<ngraph::op::ProposalIE> proposalIE, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(proposalIE, mcmOutputsMap);
     IE_ASSERT(mcmInputs.size() == 3u);
@@ -1393,6 +1403,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::Exp),
     MAP_ENTRY(ngraph::op::v0::Tanh),
     MAP_ENTRY(ngraph::op::v1::Multiply),
+    MAP_ENTRY(ngraph::op::LRN_IE),
     MAP_ENTRY(ngraph::op::NormalizeIE),
     MAP_ENTRY(ngraph::op::ProposalIE),
     MAP_ENTRY(ngraph::op::GatherIE),
