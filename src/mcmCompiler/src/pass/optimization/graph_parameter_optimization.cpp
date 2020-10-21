@@ -956,7 +956,7 @@ namespace mv
                 if (op.isHardwarizable() && clustering == "SplitOverH")
                 {
                     auto outputHeight = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
-                    auto estimatedClusterH = (int)floor((double)outputHeight/totalClusters);
+                    auto estimatedClusterH = (unsigned)floor((double)outputHeight/totalClusters);
                     if (estimatedClusterH < dpuPerCluster || (outputHeight - (totalClusters - 1) * estimatedClusterH) < dpuPerCluster)
                         return FailCause::SOHheight;
                 }
@@ -1027,7 +1027,7 @@ namespace mv
                     if ((originalH % numberOfStreamSplits) != 0)
                     {
                         auto newOutputSizes = tileSpatialOutputSize(originalH, numberOfStreamSplits);
-                        int remainderOutputSize = newOutputSizes.back();
+                        auto remainderOutputSize = newOutputSizes.back();
 
                         if (remainderOutputSize < totalClusters)
                         {
@@ -1151,7 +1151,7 @@ namespace mv
                     else
                         padding = {0, 0, 0, 0};
 
-                    int extraLines = 0;
+                    size_t extraLines = 0;
 
                     if(extraLines < kHeight-1)
                     {
@@ -1179,7 +1179,7 @@ namespace mv
                 {
                     streamedChannels =  div(fullTensorChannels, streamingPool["K"]);
 
-                    int remainderChannels = fullTensorChannels - (streamedChannels*(streamingPool["K"] -1));
+                    size_t remainderChannels = fullTensorChannels - (streamedChannels*(streamingPool["K"] -1));
                     if (remainderChannels > streamedChannels)
                         streamedChannels = remainderChannels;
 

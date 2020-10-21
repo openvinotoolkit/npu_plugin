@@ -140,7 +140,7 @@ static inline void flowDownUntilLastImplicit(mv::Data::OpListIterator op,
     }
 }
 // Pass role: Add deallocation tasks for each Tensor
-void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

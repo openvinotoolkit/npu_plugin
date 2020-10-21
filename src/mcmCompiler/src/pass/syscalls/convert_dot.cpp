@@ -33,6 +33,7 @@ void convertDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::
     if (convert)
     {
         std::string outputFile = passDesc.get<std::string>("input");
-        system(("dot -Tsvg " + outputFile + " -o " + outputFile+".svg").c_str());
+        int ret = system(("dot -Tsvg " + outputFile + " -o " + outputFile+".svg").c_str());
+        (void)ret;
     }
 }

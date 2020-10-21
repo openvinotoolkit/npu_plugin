@@ -412,6 +412,7 @@ static int writeToFile(const char *encodedValues, int len, const string &filenam
     int n = fwrite(encodedValues, 1, len, fout);
     fclose(fout);
     assert(n == len);
+    (void)n;
 
     return 0;
 }

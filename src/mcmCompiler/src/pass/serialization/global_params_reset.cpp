@@ -18,7 +18,7 @@ namespace mv
     }
 }
 
-static void GlobalParamsResetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&)
+static void GlobalParamsResetFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

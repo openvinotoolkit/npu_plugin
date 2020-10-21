@@ -19,7 +19,7 @@ namespace mv
     }
 }
 
-static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& compilationDescriptor, mv::Element&)
+static void computeMemoryFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

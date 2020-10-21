@@ -1209,7 +1209,6 @@ class Dynamic_Spill_Node_Inserter {
         cmx_concat_subgraph_t const *subgraph_ptr =
           input_dag_.does_this_dpu_have_cmx_concat_subgraph(sitr->first);
         if (subgraph_ptr) {
-          operation_t spilled_op = sitr->first;
           operation_t spilled_write_op = (sitr->second).spilled_write_op_;
 
           if (!spilled_write_op) {
@@ -1449,7 +1448,6 @@ class Dynamic_Spill_Node_Inserter {
         operation_t spilled_op, spilled_read_subtrees_t &read_subtrees) {
 
       bool atleast_one_subtree_refined = false;
-      const dag_t& dag = input_dag_;
       std::unordered_set<operation_t> direct_children;
 
       //STEP-0: determine directly connected children //
@@ -2838,6 +2836,7 @@ class Repack_Input_DMA_Tasks {
         operation_t repack_op = repack_info.original_op();
 
         assert(repack_op == ritr->first);
+        (void)repack_op;
 
         // Determine the smallest time which this op can be repacked by looking
         // at all the overlapping ops in the active address space.

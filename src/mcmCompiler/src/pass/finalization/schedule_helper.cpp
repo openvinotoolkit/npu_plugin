@@ -35,7 +35,7 @@ namespace mv
 
 }
 
-void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element &)
+void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element &)
 {
 
     mv::OpModel om(model);
@@ -77,7 +77,7 @@ void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     }
 }
 
-void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element &)
+void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element &)
 {
 
     mv::OpModel om(model);
@@ -111,7 +111,7 @@ void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationMo
 }
 
 
-void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&)
+void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);

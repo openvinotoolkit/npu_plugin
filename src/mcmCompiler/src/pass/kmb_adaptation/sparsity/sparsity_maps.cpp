@@ -512,7 +512,7 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
     }
 }
 
-static void generateSparsityMapsEltwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+static void generateSparsityMapsEltwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)

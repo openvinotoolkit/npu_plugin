@@ -162,7 +162,7 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
     }
 }
 
-void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void replacePermuteAsReshape(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
@@ -191,7 +191,7 @@ void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationMod
         if(inputRealShape.size() == outputRealShape.size())
         {
             bool match = true;
-            for(int i = 0; i < inputRealShape.size(); i++)
+            for(unsigned i = 0; i < inputRealShape.size(); i++)
             {
                 match &= (inputRealShape[i] == outputRealShape[i]);
             }
@@ -233,7 +233,7 @@ void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationMod
     }
 }
 
-void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -294,7 +294,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
 //NOTE: This pass will handle cases that we have Convs -> Eltwise for testing ResNet first of all....
 //General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
-void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -442,7 +442,7 @@ static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry&, mv::Comput
     permuteOp->set<bool>("ZMoutput", true);
 }
 
-void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void interpAsAvgPoolingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -554,7 +554,7 @@ void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     }
 }
 
-void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -639,7 +639,7 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
     }
 }
 
-void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void scaleAsDepthwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -699,7 +699,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
     }
 }
 
-void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void averageAsDepthWiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -784,7 +784,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     }
 }
 
-void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void topKAsArgMaxFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -835,7 +835,7 @@ void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     }
 }
 
-void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void flattenAsReshapeFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -1232,7 +1232,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                 }
                 else
                 {
-                    auto temp = padding[mv::PADDING_RIGHT]; //change the padding on the other dimensions as largeDim was not on the width dimension - PADD_RIGHT
+                    //change the padding on the other dimensions as largeDim was not on the width dimension - PADD_RIGHT
                     padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT];
                     padding[mv::PADDING_BOT] = padding[mv::PADDING_RIGHT];
                 }
@@ -1251,7 +1251,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                 }
                 else
                 {
-                    auto temp = padding[mv::PADDING_RIGHT]; //change the padding on the other dimensions as largeDim was not on the width dimension - PADD_RIGHT
+                    //change the padding on the other dimensions as largeDim was not on the width dimension - PADD_RIGHT
                     padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT];
                     padding[mv::PADDING_BOT] = padding[mv::PADDING_RIGHT];
                 }
@@ -1359,7 +1359,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 }
 
 // Replace concat of populated inputs with single populated input
-void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 

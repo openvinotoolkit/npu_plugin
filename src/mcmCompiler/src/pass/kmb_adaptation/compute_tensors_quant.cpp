@@ -297,7 +297,7 @@ void updatePWLQuantParams(mv::Data::OpListIterator& op,
     op->get<mv::QuantizationParams>("pwlQuantParams").quantize(reQuantShift, reQuantMult);
 }
 
-void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

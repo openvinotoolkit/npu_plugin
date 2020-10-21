@@ -209,7 +209,7 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     return splitPool;
 }
 
-std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::PassEntry &pass, mv::Workload &workload, std::vector<mv::Workload> &workloads_, mv::DPUMode &mpe_mode)
+std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::PassEntry &pass, mv::Workload &workload, std::vector<mv::Workload>& /*workloads*/, mv::DPUMode &mpe_mode)
 {
     /*------------------------------------------------------------------------------------------------------------
         1.Missing part of the rectangle could be at the vertex or/and along the edges.Note, current status is supporting only the 'points not in workload'
@@ -434,7 +434,6 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
     float min_range = 0;
     float max_range = 0;
     float sumExeCycles = 0;
-    float workload_sum_  = 0;
 
     if (nDPUxCluster < 1)
         throw mv::ArgumentError("Generate Workloads Pass", "nDPUxCluster", std::to_string(nDPUxCluster), "Invalid number of DPUs");
@@ -446,7 +445,6 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         min_range = 0;
         max_range = 0;
         sumExeCycles = 0;
-        workload_sum_  = 0;
 
         /*Calculate the cost for each of the individual workloads (rectangles) */
         for(auto itworkload = itWorkloads->workloads_.begin(); itworkload != itWorkloads->workloads_.end(); ++itworkload) {
@@ -578,6 +576,7 @@ static size_t getTensorSize(const  mv::Shape & shape,
     // FIXME: analyze tensor's order to find which is 'N'
     //    (now assume order is "NCHW", or "CHW", or "HW")
     assert(order == "NCHW" || order == "CHW" || order == "HW" || order == "");
+    (void)order;
 
     size_t size = 1;
     for (unsigned i=0; i < shape.ndims() && i < 3; i++)
@@ -994,7 +993,7 @@ namespace mv {
     }
 
     using  WorkloadList = std::vector<Workload>;
-    static WorkloadList generateWorkloadsFromSlices(const mv::DPUModeList& mode_list, const SplitSliceList& slice_list,
+    static WorkloadList generateWorkloadsFromSlices(const mv::DPUModeList& /*mode_list*/, const SplitSliceList& slice_list,
                                                     const PaddingVariant& padding, const size_t nWorkloads,
                                                     unsigned Z=0)
     {

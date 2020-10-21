@@ -30,7 +30,8 @@ void convertFlatbufferFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     if (stat (outputFile.c_str(), &buffer) == 0)
     {
         std::string flatbufferCommand("flatc -t " + mv::utils::projectRootPath() + "/schema/graphfile/src/schema/graphfile.fbs --strict-json -- " + outputFile);
-        system(flatbufferCommand.c_str());
+        int ret = system(flatbufferCommand.c_str());
+        (void)ret;
     }
     else
         pass.log(mv::Logger::MessageType::Error, outputFile + " not found");

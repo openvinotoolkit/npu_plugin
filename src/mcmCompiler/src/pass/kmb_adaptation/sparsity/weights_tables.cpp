@@ -362,7 +362,7 @@ void populateActivationStorageElementMap(
         mv::Data::OpListIterator, size_t, clusterSolverFunc, size_t)>;
 
     const std::vector<clusterSolverFunc> clusterSolversFunctors = {
-        [](mv::Data::OpListIterator op, size_t tidx, size_t clidx)
+        [](mv::Data::OpListIterator op, size_t tidx, size_t)
         {
             return &*op->getInputTensor(tidx);
         },
@@ -440,7 +440,7 @@ void populateActivationStorageElementMap(
                 model.getGlobalConfigParams()->get<int>("Number_of_Clusters");
             auto running_index = 0;
 
-            for (size_t cl = 0; cl < numClusters; cl++) {
+            for (int cl = 0; cl < numClusters; cl++) {
                 auto disp = dispFunctor->second(op, inputTensorIdx, clusterSolversFunctors[1], cl);
                 auto clTotalSize =
                     storageElementTable->getSubTensor(cl).getShape().totalSize();
@@ -458,7 +458,7 @@ void populateActivationStorageElementMap(
 
 // Sub function to generate storage element pointer for dilated convolution
 
-void populateActivationStorageElementMapForDilatedConvolution(mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
+void populateActivationStorageElementMapForDilatedConvolution(mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel&)
 {
     auto input = dpuTaskOp->getInputTensor(0);
     auto subConvIndex = dpuTaskOp->get<unsigned>("subConvIndex");
