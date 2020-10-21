@@ -31,6 +31,7 @@
 #include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
 #include "ngraph_mcm_frontend/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
+#include "ngraph_mcm_frontend/passes/replace_onnx_pattern_to_reorg.hpp"
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -208,6 +209,7 @@ std::vector<char> compileNGraph(
         // TBD Should be ngraph::pass too in order to be applied in between other passes.
         const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
 
+        passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();        
         passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
         passManager.register_pass<FuseScaleShift>();
         passManager.register_pass<ConvertToMcmConv>();
