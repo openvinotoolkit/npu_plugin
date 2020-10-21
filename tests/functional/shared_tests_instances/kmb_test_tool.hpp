@@ -19,10 +19,10 @@ public:
 public:
     explicit KmbTestTool(const KmbTestEnvConfig& envCfg);
 
-    void exportNetwork(InferenceEngine::ExecutableNetwork& exeNet, const std::string& testName);
-    InferenceEngine::ExecutableNetwork importNetwork(const std::shared_ptr<InferenceEngine::Core>& core, const std::string& testName);
+    void exportNetwork(InferenceEngine::ExecutableNetwork& exeNet, const std::string& fsName);
+    InferenceEngine::ExecutableNetwork importNetwork(const std::shared_ptr<InferenceEngine::Core>& core, const std::string& fsName);
 };
 
-std::string filesysTestName(const testing::TestInfo*);
+std::string filesysName(const testing::TestInfo*);
 
 }  // namespace LayerTestsUtils

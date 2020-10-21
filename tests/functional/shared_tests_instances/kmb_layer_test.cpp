@@ -36,11 +36,11 @@ void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
 
 void KmbLayerTestsCommon::ImportNetwork() {
     executableNetwork = kmbTestTool.importNetwork(getCore(),
-        filesysTestName(testing::UnitTest::GetInstance()->current_test_info()));
+        filesysName(testing::UnitTest::GetInstance()->current_test_info()));
 }
 
 void KmbLayerTestsCommon::ExportNetwork() {
-    kmbTestTool.exportNetwork(executableNetwork, filesysTestName(testing::UnitTest::GetInstance()->current_test_info()));
+    kmbTestTool.exportNetwork(executableNetwork, filesysName(testing::UnitTest::GetInstance()->current_test_info()));
 }
 
 void KmbLayerTestsCommon::Validate() {
