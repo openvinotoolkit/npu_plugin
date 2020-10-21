@@ -2057,14 +2057,14 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
     for (const auto& kernel : customLayer->kernels()) {
         const auto sortedKernelBindings = [&] {
             auto bindings = std::vector<CustomKernel::BindingParameter>{};
-            bindings.reserve(kernel.arguments().size());
+            bindings.reserve(kernel->arguments().size());
 
-            for (const auto& arg : kernel.arguments()) {
-                const auto& binding = kernel.bindings().find(arg.name);
-                VPU_THROW_UNLESS(binding != kernel.bindings().end(),
+            for (const auto& arg : kernel->arguments()) {
+                const auto& binding = kernel->bindings().find(arg);
+                VPU_THROW_UNLESS(binding != kernel->bindings().end(),
                                  "Failed to bind '%s' custom layer. "
                                  "Can't find kernel argument '%s' in binding list.",
-                                 customLayer->layerName(), arg.name);
+                                 customLayer->layerName(), arg);
                 bindings.push_back(binding->second);
             }
 
@@ -2073,12 +2073,16 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
 
         const auto stage = parser.parseKernelArguments(sortedKernelBindings);
 
-        const auto kernelData = parser.resolveKernelArguments(kernel, stage.arguments);
-        const auto stageOutputs = parser.resolveStageOutputs(kernel, *customLayer, stage.outputs);
+        const auto kernelData = parser.resolveKernelArguments(*kernel, stage.arguments);
+        const auto stageOutputs = parser.resolveStageOutputs(*customLayer, stage.outputs);
 
-        const auto layerName = layer->name + "_Custom:" + std::to_string(stageIdx);
+        vpu::OperationFactory opFactory {
+            stageIdx, _modelMcm, kernelData,
+            stage.inputs, stageOutputs, layer->name
+        };
+        kernel->accept(opFactory);
 
-        auto custom = _modelMcm.custom(layerName, stage.inputs, kernel.kernelBinary(), kernelData, stageOutputs);
+        auto custom = opFactory.result();
         custom->setQuantParams(initialQuantParams());
 
         const auto sourceOp = _modelMcm.getSourceOp(custom);
@@ -2098,8 +2102,10 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
         if (customLayer->kernels().size() == 1) {
             _logger->debug(FINISH_PARSING_STR, custom->getName());
         } else {
-            _logger->debug(FINISH_PARSING_STR, custom->getName() + "_stage#" + std::to_string(stageIdx++));
+            _logger->debug(FINISH_PARSING_STR, custom->getName() + "_stage#" + std::to_string(stageIdx));
         }
+
+        stageIdx++;
     }
 }
 
@@ -2295,29 +2301,10 @@ std::vector<CustomLayer::Ptr> FrontEndMcm::getSuitableCustomLayers(const std::ve
             return false;
         }
 
+        SizeRuleValidator validator{customLayer, cnnLayer->params, _logger};
         for (const auto& kernel : customLayer->kernels()) {
-            const auto& gws = kernel.globalGridSizeRules();
-            const auto& lws = kernel.localGridSizeRules();
-
-            const auto validSizeRule = [&](const std::string& rule) {
-                return CustomLayer::isLegalSizeRule(rule, cnnLayer->params);
-            };
-
-            const auto validGridSizes = std::all_of(begin(gws), end(gws), validSizeRule) &&
-                                        std::all_of(begin(lws), end(lws), validSizeRule);
-
-            const auto workGroupDims = 3;
-            VPU_THROW_UNLESS(lws.size() <= workGroupDims,
-                             "Failed to parse '%s' custom layer binding list. Local work group size count "
-                             "is greater than 3.",
-                             customLayer->layerName());
-            VPU_THROW_UNLESS(gws.size() <= workGroupDims,
-                             "Failed to parse '%s' custom layer binding list. Global work group size count "
-                             "is greater than 3.",
-                             customLayer->layerName());
-
-            if (!validGridSizes) {
-                _logger->debug("Not suitable: Work group grid sizes are not valid");
+            kernel->accept(validator);
+            if (!validator.result()) {
                 return false;
             }
         }

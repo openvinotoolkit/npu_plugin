@@ -114,6 +114,7 @@
 #include <include/mcm/tensor/tiling.hpp>
 #include <vpu/utils/error.hpp>
 #include <converters.hpp>
+#include <custom_layer/custom_layer.hpp>
 
 namespace {
 
@@ -1598,14 +1599,13 @@ void ConvertToMcmModel::parseCustom(std::shared_ptr<ngraph::Node> node, mv::OpMo
     for (const auto& kernel : customLayer->kernels()) {
         const auto sortedKernelBindings = [&] {
             auto bindings = std::vector<vpu::CustomKernel::BindingParameter>{};
-            bindings.reserve(kernel.arguments().size());
-
-            for (const auto& arg : kernel.arguments()) {
-                const auto& binding = kernel.bindings().find(arg.name);
-                VPU_THROW_UNLESS(binding != kernel.bindings().end(),
+            bindings.reserve(kernel->arguments().size());
+            for (const auto& arg : kernel->arguments()) {
+                const auto& binding = kernel->bindings().find(arg);
+                VPU_THROW_UNLESS(binding != kernel->bindings().end(),
                                  "Failed to bind '%s' custom layer. "
                                  "Can't find kernel argument '%s' in binding list.",
-                                 customLayer->layerName(), arg.name);
+                                 customLayer->layerName(), arg);
                 bindings.push_back(binding->second);
             }
 
@@ -1614,14 +1614,18 @@ void ConvertToMcmModel::parseCustom(std::shared_ptr<ngraph::Node> node, mv::OpMo
 
         const auto stage = parser.parseKernelArguments(sortedKernelBindings);
 
-        const auto kernelData = parser.resolveKernelArguments(kernel, stage.arguments);
-        const auto stageOutputs = parser.resolveStageOutputs(kernel, *customLayer, stage.outputs);
+        const auto kernelData = parser.resolveKernelArguments(*kernel, stage.arguments);
+        const auto stageOutputs = parser.resolveStageOutputs(*customLayer, stage.outputs);
 
-        const auto layerName = node->get_friendly_name() + "_custom" +
-                               (customLayer->kernels().size() > 1 ? (":" + std::to_string(stageIdx)) : (""));
+        vpu::OperationFactory opFactory {
+            stageIdx, mcmModel, kernelData,
+            stage.inputs, stageOutputs, node->get_friendly_name()
+        };
+
+        kernel->accept(opFactory);
+        auto custom = opFactory.result();
+
         stageIdx++;
-
-        auto custom = mcmModel.custom(layerName, stage.inputs, kernel.kernelBinary(), kernelData, stageOutputs);
 
         const auto sourceOp = mcmModel.getSourceOp(custom);
         const auto mcmOutputTensors = sourceOp->getOutputTensor();
