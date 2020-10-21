@@ -481,12 +481,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_facenet_20180408_102900_tf_dense_int8_I
             1, 0.05f);
 }
 
-// C++ exception with description "Caught exception during unit run:
-// propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams
 // [Track number: D#3675]
-// Unsupported operation: bottleneck1_1/dim_red/fn with name Elu_4549 with C++ type ngraph::op::v0::Elu (MR1176)
-// Caught exception during unit run: propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams
-// TODO Check after 1176 and 1377
+// ngraph and legacy parsers:
+// Op:bottleneck4_2/dim_inc/bn/variance/Fused_Add_ - ArgumentError: attribute identifer splitStrategy - Undefined identifier
 TEST_F(KmbDetectionNetworkTest, DISABLED_precommit_person_vehicle_bike_detection_crossroad_0078_caffe_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/person-vehicle-bike-detection-crossroad-0078/person_vehicle_bike_detection_crossroad_0078_caffe_dense_int8_IRv10_from_fp32.xml")
@@ -726,13 +723,12 @@ TEST_F(KmbClassifyNetworkTest, resnet_152_caffe_dense_int8_IRv10_fp16_to_int8) {
             1, 0.5f);
 }
 
-// Compilation fails with exception:
-// "Caught exception during unit run: propagateParameters ERROR:
-// inputs of the Eltwise/Concat do not have the same QuantParams"
 // [Track number: D#3453]
-// TODO CHECK [Track number: S#3331]
-// C++ exception with description "Proposal layer doesn't support framework: " thrown in the test body.
-// TOO Create ticket
+// [Track number: S#3331]
+// Ngraph parser compilation failed: "Proposal layer doesn't support framework: "
+// Legacy parser compilation failed: "Caught exception during unit run:
+// GraphOptimizer-StrategyManager - LogicError: No strategies created for layer data:0_implicit. 
+// Layer possibly unsupported."
 TEST_F(KmbRFCNNetworkTest, DISABLED_rfcn_resnet50_caffe_IRV10_fp16_int8) {
     const std::string data_name    = "data";
     const std::string im_info_name = "im_info";
