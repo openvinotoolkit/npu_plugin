@@ -43,6 +43,13 @@ Blob::Ptr genBlobNormal(const TensorDesc& desc, std::default_random_engine& rd, 
 
 enum class CompareMethod { Absolute, Relative, Combined };
 
+inline std::ostream& operator<<(std::ostream& os, CompareMethod method) {
+    os << (method == CompareMethod::Absolute ? "CompareMethod::Absolute" :
+           method == CompareMethod::Relative ? "CompareMethod::Relative" :
+                                               "CompareMethod::Combined");
+    return os;
+}
+
 void compareBlobs(
         const Blob::Ptr& actual,
         const Blob::Ptr& expected,

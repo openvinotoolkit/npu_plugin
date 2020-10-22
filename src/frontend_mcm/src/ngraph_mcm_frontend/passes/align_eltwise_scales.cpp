@@ -26,7 +26,7 @@
 #include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
 
-#include <ngraph_ops/eltwise.hpp>
+#include <legacy/ngraph_ops/eltwise.hpp>
 
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
 

@@ -200,13 +200,13 @@ if(ENABLE_HDDL2)
             HINTS "${HDDL_UNITE}/thirdparty/XLink/lib"
             NO_DEFAULT_PATH)
 
-        add_library(XLink SHARED IMPORTED GLOBAL)
+        add_library(HDDLUniteXLink SHARED IMPORTED GLOBAL)
 
-        set_target_properties(XLink PROPERTIES
+        set_target_properties(HDDLUniteXLink PROPERTIES
             IMPORTED_LOCATION ${XLINK_LIBRARY}
             IMPORTED_NO_SONAME TRUE)
 
-        set(XLINK_LIB XLink CACHE INTERNAL "")
+        set(XLINK_LIB HDDLUniteXLink CACHE INTERNAL "")
     else()
         set(XLINK_LIB "" CACHE INTERNAL "")
     endif()

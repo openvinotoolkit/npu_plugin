@@ -28,7 +28,7 @@
 #include "ngraph/op/max_pool.hpp"
 #include "ngraph/op/relu.hpp"
 #include "ngraph/op/reshape.hpp"
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 #include "ngraph/op/reduce_mean.hpp"
 #include "ngraph/op/clamp.hpp"
 #include "ngraph/op/sigmoid.hpp"
@@ -47,10 +47,10 @@
 #include "ngraph/op/reorg_yolo.hpp"
 
 #include <ngraph/op/power.hpp>
-#include <ngraph_ops/relu_ie.hpp>
-#include <ngraph_ops/eltwise.hpp>
-#include <ngraph_ops/gather_ie.hpp>
-#include <ngraph_ops/power.hpp>
+#include <legacy/ngraph_ops/relu_ie.hpp>
+#include <legacy/ngraph_ops/eltwise.hpp>
+#include <legacy/ngraph_ops/gather_ie.hpp>
+#include <legacy/ngraph_ops/power.hpp>
 #include <ngraph/op/normalize_l2.hpp>
 
 #include "ngraph_mcm_frontend/ops/mcm_scale.hpp"
@@ -60,9 +60,9 @@
 #include <ngraph/op/fake_quantize.hpp>
 
 #include <ngraph_ops/convolution_ie.hpp>
-#include <ngraph_ops/crop_ie.hpp>
+#include <legacy/ngraph_ops/crop_ie.hpp>
 #include <ngraph_ops/deconvolution_ie.hpp>
-#include <ngraph_ops/scaleshift.hpp>
+#include <legacy/ngraph_ops/scaleshift.hpp>
 
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/op/result.hpp>
@@ -82,13 +82,13 @@
 #include <ngraph/op/prior_box_clustered.hpp>
 #include <ngraph/op/detection_output.hpp>
 
-#include <ngraph_ops/interp.hpp>
-#include <ngraph_ops/prior_box_clustered_ie.hpp>
-#include <ngraph_ops/prior_box_ie.hpp>
-#include "ngraph_ops/lrn_ie.hpp"
-#include <ngraph_ops/normalize_ie.hpp>
-#include <ngraph_ops/topk_ie.hpp>
-#include <ngraph_ops/proposal_ie.hpp>
+#include <legacy/ngraph_ops/interp.hpp>
+#include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
+#include <legacy/ngraph_ops/prior_box_ie.hpp>
+#include "legacy/ngraph_ops/lrn_ie.hpp"
+#include <legacy/ngraph_ops/normalize_ie.hpp>
+#include <legacy/ngraph_ops/topk_ie.hpp>
+#include <legacy/ngraph_ops/proposal_ie.hpp>
 
 #include <parse_layers_helpers.hpp>
 #include <dims_parser.hpp>
