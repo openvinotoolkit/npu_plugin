@@ -284,7 +284,10 @@ TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser)
         0.6, 0.4, 0.4, false);
 }
 
+// Wrong detection results
+// [Track number: S#41494]
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_pytorch_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong detection results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/private/yolo_v2_pytorch/yolov2_pytorch_dense_int8_IRv10.xml")
                     .setUserInputPrecision("input", Precision::U8)
