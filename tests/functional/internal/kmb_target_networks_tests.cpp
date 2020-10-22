@@ -892,9 +892,7 @@ TEST_F(HeadPoseEstimationNetworkTest, head_pose_estimation_adas_0001) {
         0.1f);
 }
 
-// TODO: Need to fix bad check in gather layer parser in runtime
 TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0234) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     const std::string input_name = "input";
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0234.xml")
@@ -904,9 +902,9 @@ TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0234) {
         TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR), 0.2f);
 }
 
-// TODO: Need to fix bad check in gather layer parser in runtime
+// [Track number: D#40011]
 TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0238) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     const std::string input_name = "input";
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml")
