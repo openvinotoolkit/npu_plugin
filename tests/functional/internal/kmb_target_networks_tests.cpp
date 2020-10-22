@@ -284,6 +284,16 @@ TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser)
         0.6, 0.4, 0.4, false);
 }
 
+TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_pytorch_dense_int8_IRv10_fp16_to_int8) {
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/private/yolo_v2_pytorch/yolov2_pytorch_dense_int8_IRv10.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPrecision("output", Precision::FP32),
+            TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
+            0.6, 0.4, 0.4, false);
+}
+
 class KmbClassifyNetworkTestWithSpecificLayout : public KmbClassifyNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 
 TEST_P(KmbClassifyNetworkTestWithSpecificLayout, precommit_resnet_50_pytorch_dense_int8_IRv10_from_fp32) {
