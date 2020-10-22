@@ -104,8 +104,6 @@ PreprocessorPool& PreprocPool::getPool(
                                   << "-" << lastShave << " SHAVEs, last SHAVE index must be less than 16";
 
         _preprocPools[preprocPoolId].reset(new PreprocessorPool(firstFreeShave, lastShave, pipesPerPool, lpi, ppPath));
-    } else if (_preprocPools.size() > maxPools) {
-        THROW_IE_EXCEPTION << "Error: max pool number exceeded!";
     }
     lock.unlock();
 
