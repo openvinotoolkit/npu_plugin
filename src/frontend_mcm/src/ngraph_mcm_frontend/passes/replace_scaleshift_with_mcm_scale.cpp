@@ -21,7 +21,7 @@
 #include <details/ie_exception.hpp>
 #include <memory>
 //#include <ngraph/pass/pass.hpp>
-#include <ngraph_ops/scaleshift.hpp>
+#include <legacy/ngraph_ops/scaleshift.hpp>
 
 #include "ngraph_mcm_frontend/ops/mcm_bias.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_scale.hpp"

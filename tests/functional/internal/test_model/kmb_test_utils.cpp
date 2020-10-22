@@ -186,6 +186,8 @@ void compareBlobs(const Blob::Ptr& actual, const Blob::Ptr& expected, float tole
     case CompareMethod::Combined:
         compareType = FuncTestUtils::ABS_AND_REL;
         break;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported compare method " << method;
     }
 
     FuncTestUtils::compareRawBuffers(
