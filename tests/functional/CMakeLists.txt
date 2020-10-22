@@ -11,12 +11,11 @@ addIeTargetTest(
     INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/tests/functional/shared_tests_instances"
         "${CMAKE_CURRENT_SOURCE_DIR}/internal"
     DEPENDENCIES
         VPUXPlugin
     LINK_LIBRARIES
-        IE::funcSharedTests
+        IE::funcTestUtils
         IE::vpu_common_lib
         IE::ngraph
         IE::ngraph_reference
