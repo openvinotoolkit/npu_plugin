@@ -35,24 +35,13 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
-
-#include <legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_power_to_power_ie.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/utils/utils.hpp>
 
-#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
-#include <transformations/common_optimizations/conv_bias_fusion.hpp>
-
-#include <transformations/op_conversions/convert_convolutions.hpp>
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
 
 #include <generic_ie.hpp>
@@ -210,26 +199,12 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         passManager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         passManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-
         passManager.register_pass<ngraph::pass::ConstantFolding>();
-        passManager.register_pass<ngraph::pass::ConvertConvolutions>();
-        passManager.register_pass<ngraph::pass::LinOpSequenceFusion>();
-        passManager.register_pass<ngraph::pass::ConvertMatMulToFCorGemm>();
-        passManager.register_pass<ngraph::pass::ConvFusion>();
-        passManager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();
-        passManager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
-        passManager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
         passManager.register_pass<ngraph::pass::ConvertReduceToPooling>();
-        passManager.register_pass<ngraph::pass::ConvertPReLUToReLUIE>();
-        passManager.register_pass<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
-
-        passManager.register_pass<ngraph::pass::ConvertPowerToPowerIEMatcher>();
-        passManager.register_pass<ngraph::pass::ConstantFolding>();
 
         // TBD Should be ngraph::pass too in order to be applied in between other passes.
         const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
-
-
+        
         passManager.register_pass<FuseScaleShift>();
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
@@ -237,6 +212,7 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ReplaceAddWithMcmEltwise>();
         passManager.register_pass<AlignEltwiseScales>();
         passManager.register_pass<AlignConcatScales>();
+        passManager.register_pass<ngraph::pass::ConstantFolding>();
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap);
 
         const auto start = std::chrono::high_resolution_clock::now();
