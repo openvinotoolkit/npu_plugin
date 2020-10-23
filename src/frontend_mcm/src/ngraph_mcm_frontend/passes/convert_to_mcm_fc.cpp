@@ -21,7 +21,7 @@
 #include "ngraph_mcm_frontend/ops/mcm_bias.hpp"
 
 #include <details/ie_exception.hpp>
-#include <legacy/ngraph_ops/fully_connected.hpp>
+#include <ngraph_ops/fully_connected.hpp>
 #include <memory>
 
 bool ConvertToMcmFC::run_on_node(std::shared_ptr<ngraph::Node> node) {

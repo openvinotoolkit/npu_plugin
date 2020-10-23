@@ -24,7 +24,7 @@
 #include <ngraph/op/constant.hpp>
 #include <ngraph/type/element_type.hpp>
 #include "ngraph/op/concat.hpp"
-#include <legacy/ngraph_ops/prior_box_ie.hpp>
+#include <ngraph_ops/prior_box_ie.hpp>
 
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
 
