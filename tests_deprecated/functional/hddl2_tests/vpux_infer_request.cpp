@@ -263,7 +263,8 @@ void InferenceWithPerfCount::SetUp() {
     network = squeezenetV11Helper.getNetwork();
 }
 
-TEST_F(InferenceWithPerfCount, precommit_SyncInferenceWithPerfCount) {
+// [Track number: S#41541]
+TEST_F(InferenceWithPerfCount, DISABLED_precommit_SyncInferenceWithPerfCount) {
     // ---- Load inference engine instance
     IE::Core ie;
     std::map<std::string, std::string> _config = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};

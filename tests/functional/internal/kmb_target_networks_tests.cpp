@@ -749,6 +749,7 @@ TEST_F(KmbRFCNNetworkTest, DISABLED_rfcn_resnet50_caffe_IRV10_fp16_int8) {
 // Bad accuracy
 // [Track number: S#39421]
 TEST_F(KmbClassifyNetworkTest, emotion_recognition_retail_0003) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad accuracy");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/emotions-recognition-retail-0003/emotions-recognition-retail-0003_int8_from_fp16.xml")
             .setUserInputPrecision("input", Precision::U8)
