@@ -1312,10 +1312,11 @@ void convert(std::shared_ptr<ngraph::op::ProposalIE> proposalIE, mv::OpModel& mc
     float pre_nms_thresh = 0.0f;
 
     std::string framework = attrs.framework;
-    if (attrs.framework == "tensorflow" || framework == "caffe") {
+    if (framework == "") framework = "caffe"; // IE assumes empty is "caffe" like.
+    if (framework == "tensorflow" || framework == "caffe") {
         std::transform(framework.begin(), framework.end(), framework.begin(), ::toupper);
     } else {
-        THROW_IE_EXCEPTION << "Proposal layer doesn't support framework: " << framework;
+        THROW_IE_EXCEPTION << "Proposal layer doesn't support framework: \'" << framework << "\'";
     }
 
     auto mcmProposal = mcmModel.proposal(opName, mcmInputs, attrs.scale, attrs.ratio, attrs.base_size, attrs.pre_nms_topn,

@@ -720,11 +720,11 @@ TEST_F(KmbClassifyNetworkTest, resnet_152_caffe_dense_int8_IRv10_fp16_to_int8) {
 }
 
 // [Track number: D#3453]
+// GraphOptimizer-StrategyManager - LogicError: No strategies created for layer data:0_implicit. Layer possibly unsupported.
 // [Track number: S#3331]
-// Ngraph parser compilation failed: "Proposal layer doesn't support framework: "
-// Legacy parser compilation failed: "Caught exception during unit run:
-// GraphOptimizer-StrategyManager - LogicError: No strategies created for layer data:0_implicit. 
-// Layer possibly unsupported."
+// Hang on execution
+// [Track number: D#41406]
+// Unsupported operation: psroipooled_cls_rois with name PSROIPooling_3288 with C++ type ngraph::op::v0::PSROIPooling
 TEST_F(KmbRFCNNetworkTest, DISABLED_rfcn_resnet50_caffe_IRV10_fp16_int8) {
     const std::string data_name    = "data";
     const std::string im_info_name = "im_info";
