@@ -43,7 +43,8 @@ TEST_F(LoadNetwork_Tests, CannotCreateWithNullContext) {
     ASSERT_ANY_THROW(auto executableNetwork = ie.LoadNetwork(network, remoteContext, {}));
 }
 
-TEST_F(LoadNetwork_Tests, CanSetCSRAMSize) {
+// [Track number: S#41541]
+TEST_F(LoadNetwork_Tests, DISABLED_CanSetCSRAMSize) {
     // TODO We need some way to distinguish KMB/TBH cases
     const uint64_t csram_size = 6 * 1024 * 1024;
     std::map<std::string, std::string> _config = {{VPU_HDDL2_CONFIG_KEY(CSRAM_SIZE), std::to_string(csram_size)}};
