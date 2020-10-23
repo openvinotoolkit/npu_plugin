@@ -54,7 +54,7 @@ public:
     /** @brief Provide a list of names of all devices, with which user can work directly */
     virtual const std::vector<std::string> getDeviceNames() const;
     /** @brief Get name of backend */
-    virtual const std::string getName() const;
+    virtual const std::string getName() const = 0;
 
     void Release() noexcept override { delete this; }
 };

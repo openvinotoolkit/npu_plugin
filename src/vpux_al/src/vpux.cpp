@@ -18,6 +18,7 @@
 
 #include <file_utils.h>
 
+#include <cstdlib>
 #include <details/ie_exception.hpp>
 #include <details/ie_so_pointer.hpp>
 #include <memory>
@@ -32,17 +33,14 @@ inline std::string getLibPostfix() {
 #endif
 }
 
-enum class EngineBackendType : uint8_t {
-    VPUAL = 1,
-    HDDL2 = 2,
-};
+enum class EngineBackendType : uint8_t { VPUAL = 1, HDDL2 = 2, ZeroApi = 3 };
 
 //------------------------------------------------------------------------------
 // TODO Deprecated
 const std::map<std::string, std::shared_ptr<Device>> EngineBackend::createDeviceMap() {
     std::map<std::string, std::shared_ptr<Device>> devices;
 
-    if (_impl->getName() == "VPUAL") {
+    if (_impl->getName() == "VPUAL" || _impl->getName() == "ZERO") {
         const auto& concreteDevices = _impl->getDevices();
         for (const auto& device : concreteDevices) {
             devices.insert({device.first, std::make_shared<Device>(device.second, _impl)});
@@ -74,7 +72,8 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
 #if defined(__arm__) || defined(__aarch64__)
     const auto type = EngineBackendType::VPUAL;
 #else
-    const auto type = EngineBackendType::HDDL2;
+    const char* const env_p = std::getenv("IE_PLUGIN_USE_ZERO_BACKEND");
+    const auto type = (env_p && env_p[0] == '1') ? EngineBackendType::ZeroApi : EngineBackendType::HDDL2;
 #endif
     switch (type) {
     case EngineBackendType::VPUAL: {
@@ -86,7 +85,10 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
         std::string so_path = root + "/libhddl2_backend" + getLibPostfix();
         return std::shared_ptr<EngineBackend>(new EngineBackend(so_path));
     }
-
+    case EngineBackendType::ZeroApi: {
+        const std::string library_path = root + "/zero_backend" IE_BUILD_POSTFIX + getLibPostfix();
+        return std::shared_ptr<EngineBackend>(new EngineBackend(library_path));
+    }
     default:
         return std::shared_ptr<EngineBackend>(new EngineBackend());
     }
@@ -101,7 +103,6 @@ const std::shared_ptr<IDevice> IEngineBackend::getDevice(const InferenceEngine::
     THROW_IE_EXCEPTION << "Not implemented";
 }
 const std::vector<std::string> IEngineBackend::getDeviceNames() const { THROW_IE_EXCEPTION << "Not implemented"; }
-const std::string IEngineBackend::getName() const { THROW_IE_EXCEPTION << "Not implemented"; }
 const std::map<std::string, std::shared_ptr<IDevice>>& IEngineBackend::getDevices() const {
     THROW_IE_EXCEPTION << "Not implemented";
 }
