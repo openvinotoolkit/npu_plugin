@@ -367,7 +367,8 @@ void InferenceCheckPortsNetwork::SetUp() {
     inputPath = "cat3.bmp";
 }
 
-TEST_P(InferenceCheckPortsNetwork, common) {
+// [Track number: S#41541]
+TEST_P(InferenceCheckPortsNetwork, DISABLED_common) {
     const auto& testParam = GetParam();
     const auto inputLayout = std::get<0>(testParam);
     const auto blobInputLayout = std::get<1>(testParam);
@@ -463,7 +464,8 @@ void InferenceCheckPortsYoloV3Network::SetUp() {
     inputPath = "person.bmp";
 }
 
-TEST_P(InferenceCheckPortsYoloV3Network, common) {
+// [Track number: S#41541]
+TEST_P(InferenceCheckPortsYoloV3Network, DISABLED_common) {
     const auto blobInputLayout = GetParam();
     std::cout << "Parameters: blob input layout = " << blobInputLayout <<std::endl;
 

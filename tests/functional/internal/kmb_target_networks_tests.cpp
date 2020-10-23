@@ -545,7 +545,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_152_caffe_dense_int8_IRv10_from_
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
             TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-            1, 0.064f);
+            1, 0.065f);
 }
 
 // C++ exception with description "Op:conv2 - OpError: Invalid input weights (1) -
@@ -948,7 +948,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_densenet_121) {
         0.3f);
 }
 
-// C++ exception with description "Cannot convert layer "efficientnet-b0/model/stem/swish_f32" 
+// C++ exception with description "Cannot convert layer "efficientnet-b0/model/stem/swish_f32"
 // due to unsupported layer type "Swish"
 // [Track number: D#3769]
 TEST_F(KmbClassifyNetworkTest, DISABLED_efficientnet_b0) {
@@ -960,7 +960,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_efficientnet_b0) {
         0.3f);
 }
 
-// C++ exception with description "Cannot convert layer "MobilenetV3/Conv/hard_swish/mul_1" 
+// C++ exception with description "Cannot convert layer "MobilenetV3/Conv/hard_swish/mul_1"
 // due to unsupported layer type "HSwish"
 // [Track number: D#3775]
 TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_small) {
