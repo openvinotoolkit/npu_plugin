@@ -29,6 +29,7 @@
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 #include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
+#include "ngraph_mcm_frontend/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -200,11 +201,13 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         passManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         passManager.register_pass<ngraph::pass::ConstantFolding>();
+
         passManager.register_pass<ngraph::pass::ConvertReduceToPooling>();
 
         // TBD Should be ngraph::pass too in order to be applied in between other passes.
         const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
-        
+
+        passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
         passManager.register_pass<FuseScaleShift>();
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
