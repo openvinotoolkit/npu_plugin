@@ -37,11 +37,20 @@ OnnxReorgPatternToDarkNetReorg::OnnxReorgPatternToDarkNetReorg() {
         auto reorg_input = pattern_to_output.at(input);
 
         auto first_reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(pattern_to_output.at(reshape1).get_node_shared_ptr());
+        if (first_reshape == nullptr) {
+            return false;
+        }
+
         auto last_reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(pattern_to_output.at(reshape4).get_node_shared_ptr());
+        if (last_reshape == nullptr) {
+            return false;
+        }
 
         std::vector<size_t> first_reshape_in_dims = first_reshape->get_input_shape(0);
         std::vector<size_t> last_reshape_out_dims = last_reshape->get_output_shape(0);
 
+        // Input\Output shapes for Reorg layer from original YoloV2 network
+        // Expectations that this pass will only work on the "classic" version of the network
         std::vector<size_t> expected_in_shape = {1, 64, 26, 26};
         std::vector<size_t> expected_out_shape = {1, 256, 13, 13};
 
