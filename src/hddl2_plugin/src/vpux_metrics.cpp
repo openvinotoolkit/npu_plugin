@@ -18,6 +18,7 @@
 #include <ie_metric_helpers.hpp>
 // Plugin
 #include "vpux_metrics.h"
+#include "vpux_private_config.hpp"
 
 namespace vpux {
 
@@ -33,9 +34,12 @@ Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
     };
 
     _supportedConfigKeys = {
-        VPU_KMB_CONFIG_KEY(PLATFORM),
-        CONFIG_KEY(DEVICE_ID),
         CONFIG_KEY(LOG_LEVEL),
+        CONFIG_KEY(PERF_COUNT),
+        CONFIG_KEY(DEVICE_ID),
+        VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
+        KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+        VPUX_CONFIG_KEY(PLATFORM),
     };
 }
 

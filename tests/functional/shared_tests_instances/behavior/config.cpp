@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <vector>
-#include <vpu/kmb_plugin_config.hpp>
-#include <vpu/vpu_compiler_config.hpp>
+#include <vpux/vpux_plugin_config.hpp>
+#include <vpux/vpux_compiler_config.hpp>
 #include "ie_plugin_config.hpp"
 #include "vpu/vpu_plugin_config.hpp"
 #include "behavior/config.hpp"
@@ -18,33 +18,22 @@ const std::vector<std::map<std::string, std::string>> configs = {};
 
 const std::vector<std::map<std::string, std::string>> Configs = {
     {},
-    {{InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::NO}},
-    {{InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, InferenceEngine::PluginConfigParams::YES}},
-    {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, InferenceEngine::PluginConfigParams::YES}},
-    {{InferenceEngine::MYRIAD_NONE_LAYERS, "Tile"}},
-    {{InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "5"}, {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES, "5"}},
-    {{InferenceEngine::MYRIAD_HW_INJECT_STAGES, "YES"}},
-    {{InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE, "YES"}},
-    {{"VPU_KMB_PREPROCESSING_SHAVES", "6"}},
-    {{"VPU_KMB_PREPROCESSING_LPI", "8"}},
-    {{VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), InferenceEngine::PluginConfigParams::YES}},
-    {{VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT), InferenceEngine::PluginConfigParams::YES}},
-    {{VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT), InferenceEngine::PluginConfigParams::YES}},
-    {{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}},
-    {{"VPU_KMB_FORCE_NCHW_TO_NHWC", InferenceEngine::PluginConfigParams::YES}}
+    {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}},
+    {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}},
+    {{CONFIG_KEY(DEVICE_ID), "VPU-0"}},
+    {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
+    {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
+    {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(MA2490)}}
 };
 
 const std::vector<std::map<std::string, std::string>> InConfigs = {
-    {{InferenceEngine::MYRIAD_COPY_OPTIMIZATION, "ON"}},
-    {{InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, "ON"}},
-    {{"VPU_KMB_PREPROCESSING_SHAVES", "SIX"}},
-    {{"VPU_KMB_PREPROCESSING_LPI", "EIGHT"}},
-    {{VPU_COMPILER_CONFIG_KEY(LOG_LEVEL), "debug"}},
-    {{VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), "NOP"}},
-    {{VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT), "NOOOO"}},
-    {{VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT), "YEP"}},
-    {{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "NV12"}},
-    {{"VPU_KMB_FORCE_NCHW_TO_NHWC", "YEP"}}
+    {{CONFIG_KEY(LOG_LEVEL), "SOME_LEVEL"}},
+    {{CONFIG_KEY(PERF_COUNT), "YEP"}},
+    //TODO Currently we can use any value
+    // {{CONFIG_KEY(DEVICE_ID), "SOME_DEVICE_ID"}},
+    {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
+    {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
+    {{VPUX_CONFIG_KEY(PLATFORM), "SOME_PLATFORM"}}
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigTests,
@@ -61,17 +50,18 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigTests,
     ::testing::ValuesIn(InConfigs)),
     IncorrectConfigTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
-    ::testing::Combine(
-    ::testing::ValuesIn(netPrecisions),
-    ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
-    ::testing::ValuesIn(configs)),
-    IncorrectConfigAPITests::getTestCaseName);
-
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigAPITests,
     ::testing::Combine(
     ::testing::ValuesIn(netPrecisions),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
-    ::testing::ValuesIn(configs)),
+    ::testing::ValuesIn(Configs)),
     CorrectConfigAPITests::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
+    ::testing::Combine(
+    ::testing::ValuesIn(netPrecisions),
+    ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+    ::testing::ValuesIn(InConfigs)),
+    IncorrectConfigAPITests::getTestCaseName);
+
 } // namespace

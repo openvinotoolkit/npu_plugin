@@ -18,7 +18,7 @@
 
 #include <blob_factory.hpp>
 #include <conv_ref.hpp>
-#include <vpu/kmb_plugin_config.hpp>
+#include <vpux/vpux_plugin_config.hpp>
 
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"

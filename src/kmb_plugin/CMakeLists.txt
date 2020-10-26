@@ -61,6 +61,7 @@ target_link_libraries(${KMB_PLUGIN_OBJS_TARGET}
         kmb_utils
         vpux_al)
 
+add_dependencies(${KMB_PLUGIN_OBJS_TARGET} vpual_backend)
 add_cpplint_target(${KMB_PLUGIN_OBJS_TARGET}_cpplint FOR_TARGETS ${KMB_PLUGIN_OBJS_TARGET})
 
 if(ENABLE_CLANG_FORMAT)

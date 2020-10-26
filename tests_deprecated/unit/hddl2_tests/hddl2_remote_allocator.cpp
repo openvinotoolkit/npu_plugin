@@ -35,7 +35,7 @@ public:
 
     HddlUnite::WorkloadContext::Ptr workloadContextPtr = nullptr;
     const size_t correctSize = 1024 * 1024 * 1;
-    const vpu::HDDL2Config config = vpu::HDDL2Config();
+    const vpux::VPUXConfig config = vpux::VPUXConfig();
 
 protected:
     WorkloadContext_Helper::Ptr _workloadContextHelperPtr = nullptr;

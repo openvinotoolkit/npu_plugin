@@ -19,7 +19,7 @@
 #include <memory>
 #include <string>
 
-#include "vpu/kmb_params.hpp"
+#include "vpux/kmb_params.hpp"
 
 using namespace vpu::KmbPlugin;
 

@@ -20,8 +20,8 @@
 #include <string>
 #include <tuple>
 #include <vector>
-#include <vpu/kmb_params.hpp>
 #include <vpux.hpp>
+#include <vpux/kmb_params.hpp>
 
 using RangeType = std::tuple<unsigned int, unsigned int, unsigned int>;
 

@@ -35,6 +35,7 @@ public:
     HddlUnite::WorkloadContext::Ptr getWorkloadContext();
 
     vpux::VPUXRemoteContext::Ptr remoteContextPtr = nullptr;
+    const vpux::VPUXConfig config;
 
 protected:
     // TODO Use stub instead of creating "default" _workloadContext

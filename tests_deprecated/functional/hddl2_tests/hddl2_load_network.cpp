@@ -15,14 +15,14 @@
 //
 
 #include "hddl2_load_network.h"
-#include <hddl2/hddl2_plugin_config.hpp>
+#include <vpux_private_config.hpp>
 
 #include <thread>
 
 #include "helper_remote_context.h"
 
 using namespace InferenceEngine;
-using namespace InferenceEngine::HDDL2ConfigParams;
+using namespace InferenceEngine::VPUXConfigParams;
 
 TEST_F(LoadNetwork_Tests, CanCreateExecutableNetwork) {
     ASSERT_NO_THROW(auto executableNetwork = ie.LoadNetwork(network, pluginName));
@@ -47,7 +47,7 @@ TEST_F(LoadNetwork_Tests, CannotCreateWithNullContext) {
 TEST_F(LoadNetwork_Tests, DISABLED_CanSetCSRAMSize) {
     // TODO We need some way to distinguish KMB/TBH cases
     const uint64_t csram_size = 6 * 1024 * 1024;
-    std::map<std::string, std::string> _config = {{VPU_HDDL2_CONFIG_KEY(CSRAM_SIZE), std::to_string(csram_size)}};
+    std::map<std::string, std::string> _config = {{VPUX_CONFIG_KEY(CSRAM_SIZE), std::to_string(csram_size)}};
 
     ASSERT_NO_THROW(auto executableNetwork = ie.LoadNetwork(network, pluginName, _config));
 }

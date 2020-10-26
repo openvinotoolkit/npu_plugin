@@ -10,9 +10,7 @@
 std::vector<std::string> disabledTestPatterns() {
     return {
         ".*ActivationLayerTest.*",
-        ".*CorrectConfigTests.*",
-        ".*IncorrectConfigTests.*",
-        ".*IncorrectConfigAPITests.*",
+        // TODO Tests failed due to starting infer on IA side
         ".*CorrectConfigAPITests.*",
 
         // double free detected

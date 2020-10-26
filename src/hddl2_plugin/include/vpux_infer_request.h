@@ -20,6 +20,7 @@
 #include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 // Plugin
 #include <vpux.hpp>
+#include <vpux_config.hpp>
 
 namespace vpux {
 

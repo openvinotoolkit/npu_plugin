@@ -20,26 +20,27 @@
 #include <map>
 #include <string>
 #include <unordered_set>
-#include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/numeric.hpp>
+#include <vpux/vpux_plugin_config.hpp>
 
 #include "vpual_private_config.hpp"
 
 namespace vpux {
 
-const std::unordered_set<std::string>& VpualConfig::getRunTimeOptions() const {
-    static const std::unordered_set<std::string> options =
-        merge(vpux::VPUXConfig::getCompileOptions(), {
-                                                         VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC),
-                                                     });
-
-    return options;
+VpualConfig::VpualConfig() {
+    _runTimeOptions = merge(vpux::VPUXConfig::getRunTimeOptions(), {
+                                                                       VPUX_VPUAL_CONFIG_KEY(REPACK_INPUT_LAYOUT),
+                                                                       VPUX_VPUAL_CONFIG_KEY(USE_CORE_NN),
+                                                                       VPU_KMB_CONFIG_KEY(USE_CORE_NN),
+                                                                   });
 }
 
 void VpualConfig::parse(const std::map<std::string, std::string>& config) {
     vpux::VPUXConfig::parse(config);
 
-    setOption(_forceNCHWToNHWC, switches, config, VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC));
+    setOption(_repackInputLayout, switches, config, VPUX_VPUAL_CONFIG_KEY(REPACK_INPUT_LAYOUT));
+    setOption(_useCoreNN, switches, config, VPUX_VPUAL_CONFIG_KEY(USE_CORE_NN));
+    setOption(_useCoreNN, switches, config, VPU_KMB_CONFIG_KEY(USE_CORE_NN));
 }
 
 }  // namespace vpux

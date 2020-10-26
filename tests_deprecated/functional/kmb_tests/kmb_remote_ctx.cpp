@@ -23,7 +23,7 @@
 #include <ie_compound_blob.h>
 #include <ie_utils.hpp>
 
-#include "vpu/kmb_params.hpp"
+#include "vpux/kmb_params.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;

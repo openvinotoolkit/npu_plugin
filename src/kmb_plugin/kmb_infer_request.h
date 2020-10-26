@@ -29,7 +29,7 @@
 #include <vpux.hpp>
 
 #include "kmb_preproc.hpp"
-#include "vpu/kmb_params.hpp"
+#include "vpux/kmb_params.hpp"
 
 namespace vpu {
 namespace KmbPlugin {

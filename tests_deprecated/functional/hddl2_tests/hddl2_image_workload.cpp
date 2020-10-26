@@ -18,7 +18,7 @@
 #include <helper_ie_core.h>
 
 #include <blob_factory.hpp>
-#include <hddl2_plugin_config.hpp>
+#include <vpux_private_config.hpp>
 
 #include "comparators.h"
 #include "creators/creator_blob_nv12.h"

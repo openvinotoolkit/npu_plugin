@@ -27,7 +27,7 @@
 #include <legacy/cnn_network_impl.hpp>
 #include <legacy/ie_util_internal.hpp>
 
-#include <vpu/kmb_plugin_config.hpp>
+#include <vpux/vpux_plugin_config.hpp>
 #include <kmb_remote_context.h>
 
 #include "file_reader.h"
@@ -109,7 +109,8 @@ Engine::Engine()
       _defaultContextMap({}) {
     _pluginName = DEVICE_NAME;  //"KMB";
     _compiler = vpux::Compiler::create(vpux::CompilerType::MCMCompiler);
-    _parsedConfig.expandSupportedOptions(_compiler->getSupportedOptions());
+    _parsedConfig.expandSupportedCompileOptions(_compiler->getSupportedOptions());
+    _parsedConfig.expandSupportedRunTimeOptions(_backend->getSupportedOptions());
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetwork(

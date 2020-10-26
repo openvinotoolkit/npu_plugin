@@ -24,7 +24,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <regression_tests.hpp>
-#include <vpu/kmb_plugin_config.hpp>
+#include <vpux/vpux_plugin_config.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu_layers_tests.hpp>
 #include <ie_utils.hpp>
