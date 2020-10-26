@@ -127,3 +127,9 @@ if(ENABLE_ZEROAPI_BACKEND)
     set_target_properties(zeroApi PROPERTIES IMPORTED_LOCATION ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/zePackage/lib/ze_loader_vpu64.lib)
     set_target_properties(zeroApi PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/zePackage/inc)
 endif()
+
+#
+# MCM Emulator
+#
+
+add_subdirectory(mcm-emulator)

@@ -317,6 +317,7 @@ if(MSVC)
 endif()
 
 add_dependencies(mcmCompiler mcmCompilerGenSchema mcmCompilerGenCompAPI)
+add_dependencies(mcm_emulator mcmCompilerGenCompAPI)
 
 target_include_directories(mcmCompiler
     PUBLIC
@@ -335,6 +336,7 @@ target_include_directories(mcmCompiler
 target_link_libraries(mcmCompiler
     PRIVATE
         flatbuffers
+        mcm_emulator
 )
 
 #############################################################################################
