@@ -232,7 +232,7 @@ class Pipelining_Transform {
 
       void print() const {
         printf("=====================================\n");
-        printf("pipeline_subgraph_id : %lu root: %s\n", id_,
+        printf("pipeline_subgraph_id : %zu root: %s\n", id_,
               concat_root_->getName().c_str());
 
         for (auto itr=dpus_.begin(); itr!=dpus_.end(); ++itr) {
@@ -253,11 +253,11 @@ class Pipelining_Transform {
         for (auto sitr=stream_map_.begin(); sitr!=stream_map_.end(); ++sitr) {
           printf("=================\n");
           printf("dpu = %s\n", (sitr->first).c_str());
-          printf("non_read_input_size=%lu\n",
+          printf("non_read_input_size=%zu\n",
                 (sitr->second).compute_non_read_input_size(om));
-          printf("read_input_size=%lu\n",
+          printf("read_input_size=%zu\n",
                 (sitr->second).compute_read_input_size(om));
-          printf("output_size=%lu\n", (sitr->second).compute_output_size(om) );
+          printf("output_size=%zu\n", (sitr->second).compute_output_size(om) );
           printf("reads = ");
           for (auto ritr=(sitr->second).weight_reads_.begin();
               ritr!=(sitr->second).weight_reads_.end(); ++ritr) {
@@ -389,7 +389,7 @@ class Pipelining_Transform {
         }
       }
 
-      printf("pipeline_id = %lu is_valid=%s\n", id,
+      printf("pipeline_id = %zu is_valid=%s\n", id,
             (pipeline_subgraph.is_valid()) ? "YES" : "NO");
 
       return pipeline_subgraph;

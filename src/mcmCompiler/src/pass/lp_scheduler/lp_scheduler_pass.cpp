@@ -161,7 +161,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     }
 
     if (!exceeding_ops.empty()) {
-      fprintf(stderr, "exceeding ops %lu\n", exceeding_ops.size());
+      fprintf(stderr, "exceeding ops %zu\n", exceeding_ops.size());
       fflush(stderr);
       throw "Exceeding ops ";
     }
@@ -255,13 +255,13 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
       //////////////////////////////////debug///////////////////////////////////
       if (fptr) {
-        fprintf(fptr, "op = %-20s  type = %-15s  time = %lu",
+        fprintf(fptr, "op = %-20s  type = %-15s  time = %zu",
             (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
               scheduled_op.schedule_time_);
         fflush(fptr);
 
         if (scheduled_op.has_active_resource()) {
-          fprintf(fptr, " resource=[%lu %lu] size=%lu\n",
+          fprintf(fptr, " resource=[%zu %zu] size=%zu\n",
               scheduled_op.cmx_address_start_, scheduled_op.cmx_address_end_,
          (scheduled_op.cmx_address_end_ - scheduled_op.cmx_address_start_)+1UL);
         } else {
@@ -327,12 +327,12 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       const scheduled_op_t& scheduled_op = *sitr;
       assert( scheduled_op.is_original_op() );
       if (fptr) {
-        fprintf(fptr, "[updated] op = %-20s  type = %-15s  time = %lu ",
+        fprintf(fptr, "[updated] op = %-20s  type = %-15s  time = %zu ",
             (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
             scheduled_op.schedule_time_);
 
         if (scheduled_op.has_valid_address()) {
-          fprintf(fptr, " resource=[%lu %lu] \n", scheduled_op.cmx_address_start_,
+          fprintf(fptr, " resource=[%zu %zu] \n", scheduled_op.cmx_address_start_,
               scheduled_op.cmx_address_end_);
         } else {
           fprintf(fptr, " resource=<none> \n");

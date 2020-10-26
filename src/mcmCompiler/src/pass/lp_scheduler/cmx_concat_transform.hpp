@@ -152,23 +152,23 @@ class CMX_Concatenation {
         if (!is_valid()) { return; }
 
         size_t mbuffer_size = master_buffer_size();
-        fprintf(fptr, "[root_concat]: %s mbuffer_size=%lu\n",
+        fprintf(fptr, "[root_concat]: %s mbuffer_size=%zu\n",
               concat_root_->getName().c_str(), mbuffer_size); 
 
         size_t total_cmx_memory = 0UL;
         for (auto itr=dpu_in_.begin(); itr!=dpu_in_.end(); ++itr) {
-          fprintf(fptr, "[dpu]: %s inputs=%lu\n", ((*itr)->getName()).c_str(),
+          fprintf(fptr, "[dpu]: %s inputs=%zu\n", ((*itr)->getName()).c_str(),
               total_input_cmx_memory(*itr));
           total_cmx_memory += total_input_cmx_memory(*itr);
         }
         size_t max_input_size_across_all_dpus = max_input_size_across_streams();
-        fprintf(fptr, "[is_cmx_concatable]:%s max_input_size=%lu "
-              " mbuffer_size=%lu\n",
+        fprintf(fptr, "[is_cmx_concatable]:%s max_input_size=%zu "
+              " mbuffer_size=%zu\n",
               is_concatable_in_cmx(max_input_size_across_all_dpus,
                   mbuffer_size) ? "YES" : "NO",
               max_input_size_across_all_dpus, mbuffer_size);
-        fprintf(fptr, "[is_fully_cmx_concatable]:%s total_input_size=%lu"
-            " mbuffer_size=%lu\n",
+        fprintf(fptr, "[is_fully_cmx_concatable]:%s total_input_size=%zu"
+            " mbuffer_size=%zu\n",
             is_concatable_in_cmx(total_cmx_memory, mbuffer_size)
               ? "YES" : "NO", total_cmx_memory, mbuffer_size);
 
@@ -176,7 +176,7 @@ class CMX_Concatenation {
         dump_op_list(dpu_out_.begin(), dpu_out_.end(), fptr, "D_out");
         dump_op_list(reads_.begin(), reads_.end(), fptr, "R");
         dump_op_list(writes_.begin(), writes_.end(), fptr, "W");
-        fprintf(fptr, "[DPU_IN_REP] dpu_rep=%s depth=%lu",
+        fprintf(fptr, "[DPU_IN_REP] dpu_rep=%s depth=%zu",
             representative_dpu_->getName().c_str(),
             representative_dpu_depth_);
         fprintf(fptr, "\n\n\n");

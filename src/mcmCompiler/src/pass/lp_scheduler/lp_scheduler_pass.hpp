@@ -2181,7 +2181,7 @@ class DDR_Address_Generator {
         tensor_itr->setAddress( address );
         tensor_itr->set<bool>("lp_scheduler_ddr_address", true);
         if (fptr_) {
-          fprintf(fptr_, " op=%s ddr=[%lu %lu]\n", (op_ptr->getName()).c_str(),
+          fprintf(fptr_, " op=%s ddr=[%zu %zu]\n", (op_ptr->getName()).c_str(),
                 address_info.address_begin_, address_info.address_end_);
         }
 
@@ -2379,7 +2379,7 @@ class DDR_Address_Generator {
 
 
       if (fptr) {
-        fprintf(fptr, "[DDR_Address_Generator] high_watermark=%lu\n",
+        fprintf(fptr, "[DDR_Address_Generator] high_watermark=%zu\n",
               high_watermark_);
         fclose(fptr);
       }
