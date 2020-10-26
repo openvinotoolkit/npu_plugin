@@ -174,7 +174,7 @@ void ForceAddressSetterPass(const mv::pass::PassEntry&,
   std::string op_name = passDesc.get<std::string>("op_name");
   size_t address = passDesc.get<int>("address");
 
-  printf("Setting address = %lu\n", address);
+  printf("Setting address = %zu\n", address);
   mv::OpModel om(model);
   mv::Data::OpListIterator op_itr = om.getOp(op_name);
   mv::Data::TensorIterator op_output_tensor_itr = op_itr->getOutputTensor(0UL);

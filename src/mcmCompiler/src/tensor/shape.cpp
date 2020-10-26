@@ -86,17 +86,15 @@ mv::Shape::operator std::vector<unsigned>() const
     return std::vector<unsigned>(dims_.begin(), dims_.end());
 }
 
-std::size_t& mv::Shape::operator[](int ndim)
+std::size_t& mv::Shape::operator[](long long int ndim)
 {
-
     return const_cast<std::size_t&>(static_cast<const Shape*>(this)->operator[](ndim));
-
 }
 
-const std::size_t& mv::Shape::operator[](int ndim) const
+const std::size_t& mv::Shape::operator[](long long int ndim) const
 {
 
-    if (ndim >= static_cast<int>(dims_.size()) || static_cast<int>(dims_.size()) + ndim < 0)
+    if (ndim >= static_cast<long long int>(dims_.size()) || static_cast<long long int>(dims_.size()) + ndim < 0)
         throw ArgumentError(*this, "index subscript", std::to_string(ndim),
             "Exceeds the dimensionality " + std::to_string(ndims()));
 
@@ -104,7 +102,6 @@ const std::size_t& mv::Shape::operator[](int ndim) const
         return dims_[dims_.size() + ndim];
 
     return dims_[ndim];
-
 }
 
 const std::size_t& mv::Shape::operator[](const std::string& ndim) const

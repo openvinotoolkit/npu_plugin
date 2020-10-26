@@ -24,8 +24,8 @@ using namespace InferenceEngine;
 
 struct xmlPriorBoxClusteredParam {
     xmlPriorBoxClusteredParam(float offset, int clip, float step, float step_w, float step_h, int img_size, int img_w,
-        int img_h, int flip, const std::vector<float> width, const std::vector<float> height,
-        const std::vector<float> variance, const InferenceEngine::SizeVector& data_dims,
+        int img_h, int flip, const std::vector<float>& width, const std::vector<float>& height,
+        const std::vector<float>& variance, const InferenceEngine::SizeVector& data_dims,
         const InferenceEngine::SizeVector& image_dims, const InferenceEngine::SizeVector& out_dims)
         : _offset(offset),
           _clip(clip),

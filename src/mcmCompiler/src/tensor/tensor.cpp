@@ -168,7 +168,7 @@ mv::Tensor::~Tensor()
     data_.clear();
 }
 
-std::vector<std::size_t> mv::Tensor::indToSub_(const Shape& s, unsigned index) const
+std::vector<std::size_t> mv::Tensor::indToSub_(const Shape& s, size_t index) const
 {
     return internalOrder_.indToSub(s, index);
 }

@@ -64,7 +64,7 @@ void dumpBlob(const Blob::Ptr& inputBlobPtr, const std::string& dst) {
 }
 
 template <class T_data>
-std::vector<T_data> generateSequence(std::size_t dataSize, std::string dtype) {
+std::vector<T_data> generateSequence(std::size_t dataSize, const std::string& dtype) {
     std::vector<T_data> result(dataSize);
     if (dtype == "U8") {
     for (std::size_t i = 0; i < result.size(); ++i)

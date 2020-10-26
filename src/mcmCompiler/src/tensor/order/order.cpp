@@ -110,10 +110,10 @@ std::size_t mv::Order::subToInd(const Shape &s, const std::vector<std::size_t>& 
         throw ShapeError(*this, "subToInd: Mismatch between subscript vector (length " + std::to_string(sub.size()) +
             ") and number of dimensions in shape (" + std::to_string(s.ndims()) + ")");
 
-    unsigned currentMul = 1;
-    unsigned currentResult = 0;
+    size_t currentMul = 1;
+    size_t currentResult = 0;
 
-    for (unsigned i = 0; i < contVector_.size(); ++i)
+    for (size_t i = 0; i < contVector_.size(); ++i)
     {
 
         if (sub[contVector_[i]] >=  s[contVector_[i]])
@@ -137,8 +137,8 @@ std::vector<std::size_t> mv::Order::indToSub(const Shape &s, std::size_t idx) co
 
     std::vector<std::size_t> sub(s.ndims());
     sub[contVector_[0]] =  idx % s[contVector_[0]];
-    int offset = -sub[contVector_[0]];
-    int scale = s[contVector_[0]];
+    long long offset = -sub[contVector_[0]];
+    long long scale = s[contVector_[0]];
     for (unsigned i = 1; i < contVector_.size(); ++i)
     {
         sub[contVector_[i]] = (idx + offset) / scale % s[contVector_[i]];
@@ -153,10 +153,10 @@ std::vector<std::size_t> mv::Order::indToSub(const Shape &s, std::size_t idx) co
 
 std::vector<unsigned> mv::Order::computeWordStrides(const Shape &shape) const
 {
-    unsigned n = shape.ndims();
+    size_t n = shape.ndims();
     std::vector<unsigned> realStrides(n, 1);
 
-    for(unsigned i = 1; i < n; ++i)
+    for(size_t i = 1; i < n; ++i)
         realStrides[contVector_[i]] = realStrides[contVector_[i-1]] * shape[contVector_[i-1]];
 
     return realStrides;
