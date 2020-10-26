@@ -971,3 +971,12 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_small) {
 	1,
 	0.3f);
 }
+
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128) {
+    runTest(
+	TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
+	    .setUserInputPrecision("input", Precision::U8),
+	TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+        1,
+        0.3f);
+}
