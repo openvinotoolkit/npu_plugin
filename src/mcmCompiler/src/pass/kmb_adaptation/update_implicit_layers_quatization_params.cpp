@@ -34,12 +34,82 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
     {
         if (opIt->isImplicit())
         {
+            if (opIt->getOpType() == "ImplicitConcat" || opIt->getOpType() == "Concat")
+            {
+                auto inputs = opIt->getInputTensor();
+                auto output = opIt->getOutputTensor(0);
+
+                if (inputs[0]->hasAttr("quantParams"))
+                {
+                    // Initilize concat output quant parameters with first input
+                    mv::QuantizationParams outputQuantParamsFull = inputs[0]->getQuantParams();
+
+                    // If concatenation is along channel axis quantization parameters need to be also
+                    // concatenated if they are per channel
+                    if (opIt->get<std::string>("axis") == "C")
+                    {
+                        auto output_zp_vec = outputQuantParamsFull.getZeroPoint();
+                        auto output_scale_vec = outputQuantParamsFull.getScale();
+                        auto output_min_vec = outputQuantParamsFull.getMin();
+                        auto output_max_vec = outputQuantParamsFull.getMax();
+                        std::vector<unsigned> output_shift_vec;
+                        std::vector<unsigned> output_mult_vec;
+                        if (outputQuantParamsFull.hasAttr("shift") && outputQuantParamsFull.hasAttr("mult"))
+                        {
+                            output_shift_vec = outputQuantParamsFull.getShift();
+                            output_mult_vec = outputQuantParamsFull.getMult();
+                        }
+
+                        // Iterate through rest of inputs and concatenate quant parameters, but only
+                        // if they are per channel and not for whole tensor
+                        for (std::size_t idx = 1; idx < inputs.size(); idx++)
+                        {
+                            mv::QuantizationParams inputQuantParams  = inputs[idx]->getQuantParams();
+                            auto zp_vec = inputQuantParams.getZeroPoint();
+                            auto scale_vec = inputQuantParams.getScale();
+                            auto min_vec = inputQuantParams.getMin();
+                            auto max_vec = inputQuantParams.getMax();
+
+                            if(output_zp_vec.size() > 1)
+                                output_zp_vec.insert(output_zp_vec.end(), zp_vec.begin(), zp_vec.end());
+                            if(output_scale_vec.size() > 1)
+                                output_scale_vec.insert(output_scale_vec.end(), scale_vec.begin(), scale_vec.end());
+                            if(output_min_vec.size() > 1)
+                                output_min_vec.insert(output_min_vec.end(), min_vec.begin(), min_vec.end());
+                            if(output_max_vec.size() > 1)
+                                output_max_vec.insert(output_max_vec.end(), max_vec.begin(), max_vec.end());
+
+                            if (outputQuantParamsFull.hasAttr("shift") && outputQuantParamsFull.hasAttr("mult"))
+                            {
+                                auto shift_vec = inputQuantParams.getShift();
+                                auto mult_vec = inputQuantParams.getMult();
+
+                                if(output_shift_vec.size() > 1)
+                                    output_shift_vec.insert(output_shift_vec.end(), shift_vec.begin(), shift_vec.end());
+                                if(output_mult_vec.size() > 1)
+                                    output_mult_vec.insert(output_mult_vec.end(), mult_vec.begin(), mult_vec.end());
+                            }
+                        }
+
+                        // Build the whole quant params with new concatenated vectors
+                        if (outputQuantParamsFull.hasAttr("shift") && outputQuantParamsFull.hasAttr("mult"))
+                            outputQuantParamsFull = mv::QuantizationParams(output_zp_vec, output_scale_vec, output_min_vec, output_max_vec, output_shift_vec, output_mult_vec);
+                        else
+                            outputQuantParamsFull = mv::QuantizationParams(output_zp_vec, output_scale_vec, output_min_vec, output_max_vec);
+                    }
+
+                    output->setQuantParams(outputQuantParamsFull);
+                }
+            }
+            else
+            {
             auto input = opIt->getInputTensor(0);
             auto output = opIt->getOutputTensor(0);
             if (input->hasAttr("quantParams"))
             {
                 mv::QuantizationParams &inputQuantization = input->get<mv::QuantizationParams>("quantParams");
                 output->set<mv::QuantizationParams>("quantParams", inputQuantization);
+            }
             }
         }
     }
