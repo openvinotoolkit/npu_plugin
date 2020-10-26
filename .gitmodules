@@ -10,3 +10,6 @@
 [submodule "thirdparty/llvm-project"]
 	path = thirdparty/llvm-project
 	url = ../llvm-project.git
+[submodule "mcm-emulator"]
+	path = thirdparty/mcm-emulator
+	url = ssh://git@gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git
