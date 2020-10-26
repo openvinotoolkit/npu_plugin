@@ -2,6 +2,7 @@
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "pass/lp_scheduler/pipeline_transform.hpp"
 #include "pass/lp_scheduler/pipeline_chains_transform.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 
 static void LocatePipeLinedOps(
     const mv::pass::PassEntry& , mv::ComputationModel&, mv::TargetDescriptor&,
@@ -79,6 +80,8 @@ void ChainPipeliningTransform(const mv::pass::PassEntry&,
   //mv::GenerateDotFromModel(om, "OpModel",
    //     "before_pipeline_chain_transform.dot");
   FILE *pipeline_report_fptr = fopen("chain_pipeline_report.txt", "w");
+  if (!pipeline_report_fptr)
+    throw mv::RuntimeError("ChainPipeliningTransform", "Cannot open chain_pipeline_report.txt for write");
   pipeliner.transform_op_model(pipeline_report_fptr, pipeline_stages);
   fclose(pipeline_report_fptr);
   //mv::GenerateDotFromModel(om, "OpModel",
@@ -97,6 +100,8 @@ void ChainPipeliningInverseTransform(const mv::pass::PassEntry&,
   mv::GenerateDotFromModel(om, "OpModel",
             "before_pipeline_chain_inverse_transform.dot");
   FILE *pipeline_report_fptr = fopen("chain_pipeline_report.txt", "w");
+  if (!pipeline_report_fptr)
+    throw mv::RuntimeError("ChainPipeliningInverseTransform", "Cannot open chain_pipeline_report.txt for write");
 
   std::list<mv::Data::OpListIterator> ops_to_remove;
   for (mv::Data::OpListIterator oitr=om.opBegin(); oitr!=om.opEnd();
@@ -112,6 +117,7 @@ void ChainPipeliningInverseTransform(const mv::pass::PassEntry&,
 
   mv::GenerateDotFromModel(om, "OpModel",
       "after_pipeline_chain_inverse_transform.dot");
+  fclose(pipeline_report_fptr);
 }
 
 namespace mv {

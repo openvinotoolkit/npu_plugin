@@ -9,6 +9,7 @@
 #include <iostream>
 #include <iomanip>
 #include <unordered_set>
+#include <memory>
 
 const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMapping_ =
 {
@@ -1207,7 +1208,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
                                bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, std::uint8_t port, const std::string& srcAllocator, const std::string& dstAllocator)
 {
     std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-    auto tmp = new MVCNN::NNDMATaskT();
+    std::unique_ptr<MVCNN::NNDMATaskT> tmp = std::unique_ptr<MVCNN::NNDMATaskT>(new MVCNN::NNDMATaskT());
     toPush->task.type = MVCNN::SpecificTask_NNDMATask;
 
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, srcAllocator);
@@ -1232,14 +1233,16 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
         tmp->dst->locale_index = locale_index;
 
     // Passing -1 as subtensor index, will have us get the full tensor
-    if (!checkUnstridedDMA(src, -1, tmp))
+    if (!checkUnstridedDMA(src, -1, tmp.get()))
+    {
         return;
+    }
 
     // Check if the HDE engine compressed the weights
     if(tmp->src->dimensions[0] != tmp->dst->dimensions[0] && !(src->hasAttr("is_pad") && src->get<bool>("is_pad")))
         tmp->compression =  true;
 
-    toPush->task.value = tmp;
+    toPush->task.value = tmp.release();
 
     toReturn.push_back(std::move(toPush));
 }
@@ -1253,7 +1256,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
     for(unsigned i = 0; i < numTasks; ++i)
     {
         std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-        auto tmp = new MVCNN::NNDMATaskT();
+        std::unique_ptr<MVCNN::NNDMATaskT> tmp = std::unique_ptr<MVCNN::NNDMATaskT>(new MVCNN::NNDMATaskT());
         toPush->task.type = MVCNN::SpecificTask_NNDMATask;
         tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, i, dstAllocator);
         tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, i, srcAllocator);
@@ -1290,14 +1293,16 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
 
 
 
-        if (!checkUnstridedDMA(src, i, tmp))
+        if (!checkUnstridedDMA(src, i, tmp.get()))
+        {
             continue;
+        }
 
         // Check if the HDE engine compressed the weights
         if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
             tmp->compression =  true;
 
-        toPush->task.value = tmp;
+        toPush->task.value = tmp.release();
         toReturn.push_back(std::move(toPush));
     }
 }

@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/flow/implicit_flow.hpp"
-#include "include/mcm/base/exception/argument_error.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 
 static void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passArg, mv::Element&);
 static void allocateCMXTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -810,7 +810,9 @@ void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& pass, mv::Computation
                 auto outputTensor = *outputIt;
 
                 auto tensorAllocators = outputTensor->get<std::set<std::string>>("allocators");
-
+                if (tensorAllocators.empty())
+                    throw mv::RuntimeError("setSliceAddressesInCMXFunc", "Tensor Allocators empty");
+                    
                 auto tensorAllocatorName = tensorAllocators.begin();
                 auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
                 mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor); // 0 is the only stage for now, but this will probably change in the future
