@@ -16,10 +16,10 @@
 
 #pragma once
 
-#include <vpu/vpu_compiler_config.hpp>
+#include <vpux/vpux_compiler_config.hpp>
 
 namespace InferenceEngine {
-namespace VPUConfigParams {
+namespace VPUXConfigParams {
 
 /**
  * @brief [Only for vpu compiler]
@@ -59,5 +59,5 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(GENERATE_JSON);
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(GENERATE_DOT);
 
-}  // namespace VPUConfigParams
+}  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

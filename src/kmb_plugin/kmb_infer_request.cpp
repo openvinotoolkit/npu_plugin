@@ -25,8 +25,8 @@
 #include <dims_parser.hpp>
 #include <dumper.hpp>
 #include <ie_itt.hpp>
-#include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/perf_report.hpp>
+#include <vpux/vpux_plugin_config.hpp>
 
 #include "kmb_infer_request.h"
 
@@ -116,7 +116,7 @@ void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "execPreprocessing");
     if ((_config.useSIPP() || _config.useM2I()) && KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecKmbDataPreprocessing(
-            inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
+            inputs, _networkInputs, _config.graphColorFormat(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
         _logger->warning("SIPP/M2I is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);

@@ -24,7 +24,7 @@ using namespace vpux::HDDL2;
 class Executor_UnitTests: public ::testing::Test {
 public:
     vpux::NetworkDescription::Ptr networkDescPtr = nullptr;
-    const vpu::HDDL2Config config;
+    const vpux::VPUXConfig config;
 protected:
     void SetUp() override;
 };

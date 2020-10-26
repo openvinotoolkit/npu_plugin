@@ -30,7 +30,7 @@
 #include "ie_compound_blob.h"
 #include "ie_core.hpp"
 #include "models/precompiled_resnet.h"
-#include "kmb_params.hpp"
+#include <vpux/kmb_params.hpp>
 
 namespace IE = InferenceEngine;
 

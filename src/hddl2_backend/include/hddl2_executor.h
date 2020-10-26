@@ -16,10 +16,11 @@
 
 #pragma once
 // Plugin
-#include "hddl2_config.h"
-#include "hddl_unite/hddl2_unite_graph.h"
 #include "vpux.hpp"
+#include "vpux_config.hpp"
 #include "vpux_remote_context.h"
+// Low-level
+#include "hddl_unite/hddl2_unite_graph.h"
 
 namespace vpux {
 namespace HDDL2 {
@@ -53,7 +54,7 @@ private:
     void loadGraphToDevice();
 
 private:
-    vpu::HDDL2Config _config;
+    vpux::VPUXConfig _config;
     const vpu::Logger::Ptr _logger;
 
     NetworkDescription::CPtr _network;

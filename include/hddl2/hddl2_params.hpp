@@ -60,10 +60,5 @@ namespace HDDL2ContextParams {
      */
     DECLARE_HDDL2_PARAM_KEY(COLOR_FORMAT, InferenceEngine::ColorFormat);
 
-    /**
-     * @brief CSRAM size
-     */
-    DECLARE_HDDL2_PARAM_KEY(CSRAM_SIZE, uint64_t);
-
 }  // namespace HDDL2ContextParams
 }  // namespace InferenceEngine

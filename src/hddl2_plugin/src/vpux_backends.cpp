@@ -66,6 +66,8 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const IE::RemoteContext::Ptr& co
 
 std::vector<std::string> VPUXBackends::getAvailableDevicesNames() const { return _backend->getDeviceNames(); }
 
+std::unordered_set<std::string> VPUXBackends::getSupportedOptions() const { return _backend->getSupportedOptions(); }
+
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below
 void VPUXBackends::setup(const VPUXConfig& config) const { _logger->setLevel(config.logLevel()); }
 

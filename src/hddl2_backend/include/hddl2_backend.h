@@ -17,6 +17,7 @@
 #pragma once
 // Plugin
 #include <vpux.hpp>
+#include <vpux_config.hpp>
 
 namespace vpux {
 namespace HDDL2 {
@@ -32,6 +33,7 @@ public:
     const std::shared_ptr<IDevice> getDevice(const InferenceEngine::ParamMap& map) const override;
     const std::vector<std::string> getDeviceNames() const override;
     const std::string getName() const override { return "HDDL2"; }
+    std::unordered_set<std::string> getSupportedOptions() const override { return _config.getRunTimeOptions(); }
 
     // TODO remove static and make them private
     static bool isServiceAvailable(const vpu::Logger::Ptr& logger = nullptr);
@@ -41,6 +43,7 @@ private:
     vpu::Logger::Ptr _logger = nullptr;
     const std::map<std::string, std::shared_ptr<IDevice>> _devices;
     std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();
+    VPUXConfig _config;
 };
 }  // namespace HDDL2
 }  // namespace vpux

@@ -21,6 +21,8 @@
 #include <memory>
 #include <vpux.hpp>
 
+#include "vpual_config.hpp"
+
 namespace vpux {
 
 class VpualEngineBackend final : public vpux::IEngineBackend {
@@ -31,9 +33,11 @@ public:
     VpualEngineBackend();
     const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const override;
     const std::string getName() const override { return "VPUAL"; }
+    std::unordered_set<std::string> getSupportedOptions() const override { return _config.getRunTimeOptions(); }
 
 private:
     const std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();
+    VpualConfig _config;
 };
 
 }  // namespace vpux

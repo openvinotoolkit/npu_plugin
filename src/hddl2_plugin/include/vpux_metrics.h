@@ -24,7 +24,7 @@
 // Plugin
 #include "vpux_backends.h"
 // TODO should not be here
-#include "vpu/kmb_plugin_config.hpp"
+#include <vpux/vpux_plugin_config.hpp>
 
 namespace vpux {
 

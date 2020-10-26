@@ -23,6 +23,7 @@
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 // Plugin
 #include "vpux.hpp"
+#include "vpux_config.hpp"
 
 namespace vpux {
 

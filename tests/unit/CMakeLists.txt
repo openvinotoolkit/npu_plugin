@@ -20,6 +20,8 @@ addIeTargetTest(
         kmb_utils
         vpux_al
         frontend_mcm_static
+        vpual_backend_static
+
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\"

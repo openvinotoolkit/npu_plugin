@@ -3,8 +3,8 @@
 //
 
 #include <vector>
-#include <vpu/kmb_plugin_config.hpp>
-#include <vpu/vpu_compiler_config.hpp>
+#include <vpux/vpux_plugin_config.hpp>
+#include <vpux/vpux_compiler_config.hpp>
 #include "behavior/infer_request_config.hpp"
 #include "ie_plugin_config.hpp"
 
@@ -14,24 +14,58 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32
 };
 
-const std::vector<std::map<std::string, std::string>> configs = {};
+const std::vector<std::map<std::string, std::string>> configs = {
+    {},
+    // Public options
+    {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}},
+    {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}},
+    {{CONFIG_KEY(DEVICE_ID), "VPU-0"}},
+    {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
+    {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
+    {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(MA2490)}},
+
+    // Private options
+    {{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}},
+    {{"VPUX_GRAPH_COLOR_FORMAT", "RGB"}},
+    {{"VPUX_CSRAM_SIZE", "2097152"}},
+    {{"VPUX_USE_M2I", CONFIG_VALUE(YES)}},
+    {{"VPU_KMB_USE_M2I", CONFIG_VALUE(NO)}},
+    {{"VPUX_USE_SIPP", CONFIG_VALUE(YES)}},
+    {{"VPU_KMB_USE_SIPP", CONFIG_VALUE(NO)}},
+    {{"VPUX_PREPROCESSING_SHAVES", "4"}},
+    {{"VPUX_PREPROCESSING_LPI", "8"}},
+    {{"VPUX_VPUAL_REPACK_INPUT_LAYOUT", CONFIG_VALUE(YES)}},
+    {{"VPUX_VPUAL_USE_CORE_NN", CONFIG_VALUE(YES)}},
+    {{"VPU_KMB_USE_CORE_NN", CONFIG_VALUE(NO)}},
+    {{"VPUX_EXECUTOR_STREAMS", "2"}},
+    {{"VPU_KMB_EXECUTOR_STREAMS", "1"}}
+};
 
 const std::vector<std::map<std::string, std::string>> Inconfigs = {
-    {},
-    {{InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::NO}},
-    {{InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, InferenceEngine::PluginConfigParams::YES}},
-    {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, InferenceEngine::PluginConfigParams::YES}},
-    {{InferenceEngine::MYRIAD_NONE_LAYERS, "Tile"}},
-    {{InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "5"}, {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES, "5"}},
-    {{InferenceEngine::MYRIAD_HW_INJECT_STAGES, "YES"}},
-    {{InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE, "YES"}},
-    {{"VPU_KMB_PREPROCESSING_SHAVES", "6"}},
-    {{"VPU_KMB_PREPROCESSING_LPI", "8"}},
-    {{VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), InferenceEngine::PluginConfigParams::YES}},
-    {{VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT), InferenceEngine::PluginConfigParams::YES}},
-    {{VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT), InferenceEngine::PluginConfigParams::YES}},
-    {{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}},
-    {{"VPU_KMB_FORCE_NCHW_TO_NHWC", InferenceEngine::PluginConfigParams::YES}}
+    // Public options
+    {{CONFIG_KEY(LOG_LEVEL), "SOME_LEVEL"}},
+    {{CONFIG_KEY(PERF_COUNT), "YEP"}},
+    //TODO Currently we can use any value
+    // {{CONFIG_KEY(DEVICE_ID), "SOME_DEVICE_ID"}},
+    {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
+    {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
+    {{VPUX_CONFIG_KEY(PLATFORM), "SOME_PLATFORM"}},
+
+    // Private options
+    {{"VPU_COMPILER_USE_NGRAPH_PARSER", "YEP"}},
+    {{"VPUX_GRAPH_COLOR_FORMAT", "NV12"}},
+    {{"VPUX_CSRAM_SIZE", "ABC-1"}},
+    {{"VPUX_USE_M2I", "YEP"}},
+    {{"VPU_KMB_USE_M2I", "NOP"}},
+    {{"VPUX_USE_SIPP", "NOP"}},
+    {{"VPU_KMB_USE_SIPP", "NOP"}},
+    {{"VPUX_PREPROCESSING_SHAVES", "FOUR"}},
+    {{"VPUX_PREPROCESSING_LPI", "EIGHT"}},
+    {{"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "YEP"}},
+    {{"VPUX_VPUAL_USE_CORE_NN", "YEP"}},
+    {{"VPU_KMB_USE_CORE_NN", "NOP"}},
+    {{"VPUX_EXECUTOR_STREAMS", "ONE"}},
+    {{"VPU_KMB_EXECUTOR_STREAMS", "TWO"}}
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferConfigTests,

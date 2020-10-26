@@ -17,52 +17,86 @@
 #pragma once
 
 #include <string>
-#include <vpu/kmb_plugin_config.hpp>
+#include <vpux/vpux_plugin_config.hpp>
 
 namespace InferenceEngine {
-namespace VPUConfigParams {
+namespace VPUXConfigParams {
 
 /**
- * @brief [Only for VPUX on aarch64]
+ * @brief [Only for VPUX Plugin]
  * Type: "RGB", "BGR", default is "BGR"
  * This option allows to specify output format of image after SIPP preprocessing.
  * Does not affect preprocessing running on CPU. If a wrong value specified an exception will be thrown
  */
-DECLARE_VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT);
+DECLARE_VPUX_CONFIG_KEY(GRAPH_COLOR_FORMAT);
+DECLARE_VPUX_CONFIG_VALUE(BGR);
+DECLARE_VPUX_CONFIG_VALUE(RGB);
 
 /**
- * @brief [Only for VPUX on aarch64]
+ * @brief [Only for VPUX Plugin]
+ * Type: Arbitrary string.
+ * This option allows to specify CSRAM size
+ */
+DECLARE_VPUX_CONFIG_KEY(CSRAM_SIZE);
+
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: integer, default is 4.
+ * Number of shaves to be used by SIPP during preprocessing
+ */
+DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_SHAVES);
+
+/**
+ * @brief [Only for VPUAL Subplugin]
+ * Type: integer, default is 8.
+ * Lines per iteration value to be used by SIPP during preprocessing
+ */
+DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_LPI);
+
+/**
+ * @brief [Only for VPUAL Subplugin]
  * Type: "YES", "NO", default is "NO"
+ * This option allows to use Media-to-Inference (M2I) module for image pre-processing
+ */
+DECLARE_VPUX_CONFIG_KEY(USE_M2I);
+
+/**
+ * @deprecated Use VPUX_USE_M2I instead
+ * @brief [Only for VPUAL Subplugin]
+ * Type: "YES", "NO", default is "NO"
+ * This option allows to use Media-to-Inference (M2I) module for image pre-processing
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(USE_M2I);
+
+/**
+ * @brief [Only for VPUAL Subplugin]
+ * Type: "YES", "NO", default is "YES"
+ * This option allows to use Streaming Image Processing Pipeline (SIPP) for image pre-processing
+ */
+DECLARE_VPUX_CONFIG_KEY(USE_SIPP);
+
+/**
+ * @deprecated Use VPUX_USE_SIPP instead
+ * @brief [Only for VPUAL Subplugin]
+ * Type: "YES", "NO", default is "YES"
  * This option allows to use Streaming Image Processing Pipeline (SIPP) for image pre-processing
  */
 DECLARE_VPU_KMB_CONFIG_KEY(USE_SIPP);
 
 /**
- * @brief [Only for VPUX on aarch64]
- * Type: integer, default is 4.
- * Number of shaves to be used by SIPP during preprocessing
- */
-DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES);
-
-/**
- * @brief [Only for VPUX on aarch64]
- * Type: integer, default is 8.
- * Lines per iteration value to be used by SIPP during preprocessing
- */
-DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI);
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: "YES/NO", default is "YES".
- */
-DECLARE_VPU_KMB_CONFIG_KEY(KMB_EXECUTOR);
-
-/**
- * @brief [Only for kmbPlugin]
+ * @brief [Only for VPUAL Subplugin]
  * Type: integer, default is 1.
- * This option allows to specify the number of executor streams
+ * Number of executor streams
+ */
+DECLARE_VPUX_CONFIG_KEY(EXECUTOR_STREAMS);
+
+/**
+ * @deprecated Use VPUX_EXECUTOR_STREAMS instead
+ * @brief [Only for VPUAL Subplugin]
+ * Type: integer, default is 1.
+ * Number of executor streams
  */
 DECLARE_VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS);
 
-}  // namespace VPUConfigParams
+}  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

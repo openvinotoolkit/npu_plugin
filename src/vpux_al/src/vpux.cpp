@@ -106,6 +106,9 @@ const std::vector<std::string> IEngineBackend::getDeviceNames() const { THROW_IE
 const std::map<std::string, std::shared_ptr<IDevice>>& IEngineBackend::getDevices() const {
     THROW_IE_EXCEPTION << "Not implemented";
 }
+
+std::unordered_set<std::string> IEngineBackend::getSupportedOptions() const { return {}; }
+
 void* Allocator::wrapRemoteMemory(const InferenceEngine::ParamMap&) noexcept {
     std::cerr << "Not implemented" << std::endl;
     return nullptr;

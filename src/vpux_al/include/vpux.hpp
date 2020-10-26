@@ -31,7 +31,7 @@
 #include <ie_icnn_network.hpp>
 
 #include "vpux_compiler.hpp"
-#include "vpux_config.hpp"
+#include <vpux_config.hpp>
 
 namespace vpux {
 
@@ -55,6 +55,8 @@ public:
     virtual const std::vector<std::string> getDeviceNames() const;
     /** @brief Get name of backend */
     virtual const std::string getName() const = 0;
+    /** @brief Get a list of supported options */
+    virtual std::unordered_set<std::string> getSupportedOptions() const;
 
     void Release() noexcept override { delete this; }
 };
@@ -70,6 +72,7 @@ public:
     virtual const std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
     virtual const std::vector<std::string> getDeviceNames() const { return _impl->getDeviceNames(); }
     virtual const std::string getName() const { return _impl->getName(); }
+    virtual const std::unordered_set<std::string> getSupportedOptions() const { return _impl->getSupportedOptions(); }
 
 private:
     friend class EngineBackendConfigurator;
