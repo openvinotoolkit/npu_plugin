@@ -67,7 +67,6 @@ public:
 // If there is no free Preprocessor at the moment, infer request waits until some of preprocessors free.
 
 class PreprocPool {
-    static constexpr unsigned int maxPools = 2;
     static constexpr unsigned int pipesPerPool = 1;
 
     friend PreprocPool& preprocPool();

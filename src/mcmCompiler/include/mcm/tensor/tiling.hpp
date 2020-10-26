@@ -68,7 +68,7 @@ namespace mv
         {
         }
 
-        Tiling(const Shape& start, Shape& size, std::string axis, std::size_t childTiles)
+        Tiling(const Shape& start, Shape& size, const std::string& axis, std::size_t childTiles)
                 : start_(start), size_(size), axis_(axis), childTiles_(childTiles),
                 alignment_(1)
         {
@@ -101,7 +101,7 @@ namespace mv
         // getChildTiles().
         std::vector<Tiling>& childTiles() { return childTiles_; }
         const std::vector<Tiling>& getChildTiles() const { return childTiles_; }
-        void setChildTile(const Tiling& tile, unsigned index) { childTiles_[index] = tile; }
+        void setChildTile(const Tiling& tile, std::size_t index) { childTiles_[index] = tile; }
 
         void resizeNumberOfTiles(std::size_t children) { childTiles_.resize(children); }
 
@@ -122,15 +122,15 @@ namespace mv
             return mv::Shape({0,0,start_[TILE_DIM_C],start_[TILE_DIM_K]});
         }
 
-        static inline int inferInputSize(int outputSize, int padding_start, int padding_end, int kernel_size, int kernel_stride)
+        static inline std::size_t inferInputSize(std::size_t outputSize, std::size_t padding_start, std::size_t padding_end, std::size_t kernel_size, std::size_t kernel_stride)
         {
-            int inputSize =  ((outputSize -1) * kernel_stride)  -padding_start - padding_end + kernel_size;
+            const std::size_t inputSize = ((outputSize -1) * kernel_stride) - padding_start - padding_end + kernel_size;
             return inputSize;
         }
 
-        static inline int inferOutputSize(int inputSize, int padding_start, int padding_end, int kernel_size, int kernel_stride)
+        static inline std::size_t inferOutputSize(std::size_t inputSize, std::size_t padding_start, std::size_t padding_end, std::size_t kernel_size, std::size_t kernel_stride)
         {
-            int outputSize = ( inputSize + padding_start + padding_end - kernel_size) / kernel_stride + 1;
+            const std::size_t outputSize = ( inputSize + padding_start + padding_end - kernel_size) / kernel_stride + 1;
             return outputSize;
         }
 
@@ -141,7 +141,7 @@ namespace mv
             auto axisToSplit = mv::Shape::getAxis(getAxis());
             int newSize = ceil(((double)parentTileShape[axisToSplit]) / ((double)numberOfSplits));
             newSize = round_up(newSize, alignment_);
-            int remainderSize = parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1));
+            size_t remainderSize = parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1));
 
             if(remainderSize == 0)
             {
@@ -167,8 +167,8 @@ namespace mv
                     tileSize[axisToSplit] = remainderSize;
                 else
                     tileSize[axisToSplit] = newSize;
-                mv::Tiling newTile(tileStart,tileSize);
-                setChildTile(newTile,split);
+                mv::Tiling newTile(tileStart, tileSize);
+                setChildTile(newTile, split);
             }
         }
 
@@ -224,7 +224,7 @@ namespace mv
             int outputSize =  inferOutputSize(inputShape[axisToSplit],padStart,padEnd,kernelSize,kernelStride);
             auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
 
-            unsigned startCoord = 0;
+            size_t startCoord = 0;
             for (std::size_t split = 0; split < numberOfSplits; split++)
             {
                 TileShape tileStart({0,0,0,0,0});
@@ -261,7 +261,7 @@ namespace mv
 
             auto newInputSizes = tileSpatialOutputSize(inputShape[axisToSplit], numberOfSplits);
 
-            unsigned startCoord = 0;
+            size_t startCoord = 0;
             for (std::size_t split = 0; split < numberOfSplits; split++)
             {
                 TileShape tileStart({0,0,0,0,0});

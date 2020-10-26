@@ -581,7 +581,7 @@ namespace mv
                 //Find max split
                 auto maxSplit = alignedOutputChannelSize/16;
 
-                for(unsigned split = startSplit+1; split <= maxSplit; split++)
+                for(size_t split = startSplit+1; split <= maxSplit; split++)
                 {
                     //TODO can we steal some logic from nested streaming to jump to the next "best" K
                     // would be useful for when many streams over K are needed just to fit and we
@@ -1095,7 +1095,7 @@ namespace mv
                     auto numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
 
                     auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-                    int newOutputSize = newOutputSizes.front();
+                    auto newOutputSize = newOutputSizes.front();
 
                     auto worstNumberOfSplits = outputSize/newOutputSize;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
@@ -1797,7 +1797,7 @@ namespace mv
                 if(pipelineable && prefetchable)
                 {
                     //TODO for now, we only pipeline over K. reenable over H!
-                    unsigned streams = childStreamShape["K"];
+                    auto streams = childStreamShape["K"];
 
                     auto cStreamComp = ((double) cFullComp / streams);
                     // In this case the pipeline overlap does not include read of first weights, because that
@@ -1810,7 +1810,7 @@ namespace mv
                 else if(pipelineable)
                 {
                     //TODO for now, we only pipeline over K. reenable over H!
-                    unsigned streams = childStreamShape["K"];
+                    auto streams = childStreamShape["K"];
 
                     // In pipelining, we can overlap the compute and dma (except the first dma and the last compute)
                     auto cStreamComp = ((double) cFullComp / streams);
@@ -1819,7 +1819,7 @@ namespace mv
                 }
                 else if(prefetchable)
                 {
-                    unsigned streams = childStreamShape["K"];// we only prefetch weights
+                    auto streams = childStreamShape["K"];// we only prefetch weights
 
                     // If we can prefetch, overlap first stream over child weights with parent compute
                     // To be prefetchable, parent doesn't spill so pOutDma=0, cInDma=0, cWeightDma > 0
@@ -2055,7 +2055,7 @@ namespace mv
                 if(opType == "Conv" || opType == "DepthwiseConv")
                 {
                     auto weightsSize = op.getInputTensor(1)->computeTotalSize(); // approx for now
-                    unsigned stream = 1;
+                    size_t stream = 1;
 
                     if(opType == "Conv")
                     {
@@ -2073,7 +2073,7 @@ namespace mv
                 if(parentSpilling)
                 {
                     auto inputSize = op.getInputTensor(0)->computeTotalSize();
-                    unsigned stream = 1;
+                    size_t stream = 1;
                     if(streamShape["H"] > 1)
                         stream = streamShape["H"];
                     else if(streamShape["C"] > 1)
@@ -2094,7 +2094,7 @@ namespace mv
                     else
                         outputSize = op.getInputTensor(0)->computeTotalSize();
 
-                    unsigned stream = 1;
+                    size_t stream = 1;
 
                     if(streamShape["H"] > 1 && streamShape["K"] > 1) // Nested streaming!
                         stream = streamShape["H"] * streamShape["K"];
@@ -2117,7 +2117,7 @@ namespace mv
                 if(parentSpilling)
                 {
                     auto inputSize = op.getInputTensor(0)->computeTotalSize();
-                    unsigned stream = 1;
+                    size_t stream = 1;
                     if(streamShape["H"] > 1)
                         stream = streamShape["H"];
                     else if(streamShape["C"] > 1)
@@ -2138,7 +2138,7 @@ namespace mv
                 if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
                     auto weightsSize = op.getInputTensor(1)->computeTotalSize(); // approx for now
-                    unsigned stream = 1;
+                    size_t stream = 1;
 
                     if(op.getOpType() == "Conv")
                     {
@@ -2169,7 +2169,7 @@ namespace mv
                     else
                         outputSize = op.getInputTensor(0)->computeTotalSize();
 
-                    unsigned stream = 1;
+                    size_t stream = 1;
 
                     if(streamShape["H"] > 1 && streamShape["K"] > 1) // Nested streaming!
                         stream = streamShape["H"] * streamShape["K"];
@@ -2201,7 +2201,7 @@ namespace mv
                 auto clustering = strategySet["clustering"].get<std::string>();
                 auto streaming = strategySet["streaming"].get<Shape>();
 
-                unsigned baseKernelCost;
+                size_t baseKernelCost;
 
                 if ((opType == "Eltwise" && !(software)) || (opType == "Concat"))
                 {
@@ -2233,8 +2233,8 @@ namespace mv
                     baseKernelCost *= weightsShape[KERNEL_INPUT_CHANNELS];
                 }
 
-                auto totalStreams = 1;
-                for (unsigned i = 0; i < streaming.ndims(); i++)
+                size_t totalStreams = 1;
+                for (size_t i = 0; i < streaming.ndims(); i++)
                     totalStreams *= streaming[i];
 
                 auto isiDecay = 1.0;

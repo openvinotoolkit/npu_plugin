@@ -40,7 +40,7 @@ namespace mv
           return (MaxX - MinX + 1) * (MaxY - MinY + 1);
         }
         std::vector<std::pair<int16_t, int16_t>> points;
-        int16_t pointsTotal()
+        size_t pointsTotal()
         {
          return points.size();
         }
