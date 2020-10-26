@@ -1086,8 +1086,8 @@ std::vector<utils::BoundingBox> KmbDetectionNetworkTest::parseOutput(
 
 void KmbDetectionNetworkTest::checkBBoxOutputs(std::vector<utils::BoundingBox> &actualOutput,
         std::vector<utils::BoundingBox> &refOutput,
-        const int imgWidth,
-        const int imgHeight,
+        const size_t imgWidth,
+        const size_t imgHeight,
         const float boxTolerance,
         const float probTolerance) {
     std::cout << "Ref Top:" << std::endl;

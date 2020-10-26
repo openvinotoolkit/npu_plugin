@@ -441,8 +441,8 @@ protected:
             const float confThresh);
 
     void checkBBoxOutputs(std::vector<utils::BoundingBox> &actual, std::vector<utils::BoundingBox> &ref,
-            const int imgWidth,
-            const int imgHeight,
+            const size_t imgWidth,
+            const size_t imgHeight,
             const float boxTolerance,
             const float probTolerance);
 };

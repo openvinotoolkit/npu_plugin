@@ -110,7 +110,7 @@ namespace mv
         void elementWiseInt_(const Tensor& other, const std::function<int64_t(int64_t, int64_t)>& opFunc);
 
 
-        std::vector<std::size_t> indToSub_(const Shape& s, unsigned index) const;
+        std::vector<std::size_t> indToSub_(const Shape& s, size_t index) const;
         unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const;
         void populateSparsityMapTensor_();
         void setSubtensorsOrder_(Order order);
@@ -257,17 +257,17 @@ namespace mv
                 !hasAttr("dilatedSubConvSE");
         }
 
-        inline unsigned size() const
+        inline size_t size() const
         {
             return shape_.totalSize();
         }
 
-        inline unsigned dataPackedSize() const
+        inline size_t dataPackedSize() const
         {
             return noneZeroElements_;
         }
 
-        inline std::vector<std::size_t> indToSub(unsigned index) const
+        inline std::vector<std::size_t> indToSub(size_t index) const
         {
             return indToSub_(shape_, index);
         }

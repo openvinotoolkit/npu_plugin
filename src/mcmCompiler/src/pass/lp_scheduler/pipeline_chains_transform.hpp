@@ -65,7 +65,7 @@ class Pipeline_Chains {
 
         for (;dpu_op_itr!= dpu_chain_.end(); ++dpu_op_itr) {
           operation_t dpu_op = *dpu_op_itr;
-          fprintf(fptr, "%s :  reads=%lu output=%lu",
+          fprintf(fptr, "%s :  reads=%zu output=%zu",
               (dpu_op->getName()).c_str(),
               total_read_size_map_[dpu_op], cmx_size(dpu_op));
           fprintf(fptr, "\n");
@@ -80,7 +80,7 @@ class Pipeline_Chains {
           }
           ++index;
         }
-        fprintf(fptr, "max_read_size=%lu max_output_size=%lu total=%lu\n",
+        fprintf(fptr, "max_read_size=%zu max_output_size=%zu total=%zu\n",
             max_read_size, max_output_size, max_read_size+max_output_size);
         fprintf(fptr, "\n===========================\n");
       }
@@ -699,7 +699,7 @@ MOVE_TO_NEXT_SUBGRAPH:
           }
           prev_non_zero_weight = curr_read_memory;
         }
-        printf("max_read_memory: %lu\n", max_read_memory_demand);
+        printf("max_read_memory: %zu\n", max_read_memory_demand);
         fflush(stdout);
       }
 
@@ -723,12 +723,12 @@ MOVE_TO_NEXT_SUBGRAPH:
           }
           prev_dpu_memory = op_memory_demand(*dpu_itr);
         }
-        printf("max_dpu_memory: %lu\n", max_dpu_demand);
+        printf("max_dpu_memory: %zu\n", max_dpu_demand);
       }
 
       size_t working_memory = (max_dpu_demand + max_read_memory_demand);
 
-      printf("[CHAIN_WORKING_MEMORY]: %lu \n", working_memory);
+      printf("[CHAIN_WORKING_MEMORY]: %zu \n", working_memory);
       return working_memory;
     }
 
