@@ -28,7 +28,7 @@ class NnCorePlg : public PluginStub{
     MSender<NnExecResponseMsg>  resultOut;
 
     /** Constructor. */
-    NnCorePlg() : PluginStub("NnCorePlg"){};
+    NnCorePlg(uint32_t device_id) : PluginStub("NnCorePlg",device_id), resultOut{device_id} {};
 
     MvNCIErrorCode Create(const BlobHandle_t * Blhdl, unsigned int numExecutors);
     MvNCIErrorCode PrepareNetwork();
