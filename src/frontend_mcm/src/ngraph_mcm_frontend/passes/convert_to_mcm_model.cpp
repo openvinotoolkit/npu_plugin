@@ -84,6 +84,8 @@
 #include <ngraph/op/prior_box_clustered.hpp>
 #include <ngraph/op/detection_output.hpp>
 
+#include <ngraph/op/split.hpp>
+
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
 #include <legacy/ngraph_ops/prior_box_ie.hpp>
@@ -286,9 +288,9 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
     auto mvDType = cvtElemTypeToMCM(constant->get_element_type());
     std::string opName = constant->get_friendly_name();
     // MCM compiler can't work with constant blob with dims {1} and i64 precision
-    // TODO: remove this workaround when this case will be handled on mcm compiler side
+    // TODO: remove these workarounds when this case will be handled on mcm compiler side
     if (mvShape.ndims() == 1) {
-        for (auto&& consumerNode : constant->get_users())
+        for (auto&& consumerNode : constant->get_users()) {
             if (ngraph::op::GatherIE::type_info == consumerNode->get_type_info()) {
                 mvShape = mv::Shape::augment_major(mvShape, 4);
                 // int64 precision for indices is not supported by runtime yet
@@ -298,6 +300,14 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
                 }
                 break;
             }
+            if (ngraph::op::v1::Split::type_info == consumerNode->get_type_info()) {
+                mvShape = mv::Shape::augment_major(mvShape, 4);
+                if (ngraph::element::i64 == constant->get_element_type()) {
+                    mvDType == mv::DType("Int32");
+                    opName += "_indices_i32";
+                }
+            }
+        }
     }
     // end of workaround
 
@@ -1360,6 +1370,29 @@ void convert(std::shared_ptr<ngraph::op::v1::Minimum> minimum, mv::OpModel& mcmM
     registerOutputs(minimum, {mcmMin}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto& opName = split->get_friendly_name();
+    const auto mcmInputs = getMcmInputs(split, mcmOutputsMap);
+    assert(mcmInputs.size() == 1);
+
+    // Find axis.
+    const auto axis_node = split->input_value(1).get_node_shared_ptr();
+    const auto axis_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(axis_node);
+    auto axis = axis_node_const->get_data_ptr<int64_t>()[0];
+
+    std::vector<size_t> startCoords(mcmInputs.at(0)->getShape().ndims());
+    std::vector<mv::Data::TensorIterator> mcmOutputs;
+    auto outDimSize = split->get_output_shape(0).size();
+    for (size_t i = 0; i < split->get_output_size(); ++i) {
+        mv::Shape beginShape(startCoords);
+        mv::Shape sizeShape(getWHCN(split->get_output_shape(i)));
+        auto mcmSplit = mcmModel.slice(opName + ":" + std::to_string(i), mcmInputs.at(0), beginShape, sizeShape);
+        mcmOutputs.push_back(mcmSplit);
+        startCoords[outDimSize - 1 - axis] += split->get_output_shape(i)[axis];
+    }
+    registerOutputs(split, mcmOutputs, mcmOutputsMap);
+}
+
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
 template <typename T>
@@ -1429,7 +1462,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::GatherIE),
     MAP_ENTRY(ngraph::op::v0::Elu),
     MAP_ENTRY(ngraph::op::v1::Maximum),
-    MAP_ENTRY(ngraph::op::v1::Minimum)
+    MAP_ENTRY(ngraph::op::v1::Minimum),
+    MAP_ENTRY(ngraph::op::v1::Split)
 };
 
 #undef MAP_ENTRY

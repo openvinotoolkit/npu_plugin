@@ -16,6 +16,24 @@
 
 #include "test_model/kmb_test_base.hpp"
 
+TEST_F(KmbNetworkTestBase, split_conv_concat) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results due to precision issues"); // TODO: create JIRA ticket
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage("28x28/image_1_28x28.bmp", inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    const auto check = [=](const BlobMap& actualBlobs, const BlobMap& refBlobs, const ConstInputsDataMap&) {
+        compareWithReference(actualBlobs, refBlobs, 1e-2f, CompareMethod::Absolute);
+    };
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/customnets/split_conv_concat.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32),
+        init_input, check);
+}
+
 TEST_F(KmbClassifyNetworkTest, precommit_customnet1_tf_int8_dense_grayscale_fashionmnist) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet1_tf_int8_dense_grayscale_fashionmnist.xml")
