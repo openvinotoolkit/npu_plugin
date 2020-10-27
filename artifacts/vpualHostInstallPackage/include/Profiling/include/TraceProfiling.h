@@ -92,7 +92,7 @@ class TraceProfiling : private VpualStub {
     uint16_t profilingChannelId = XLINK_INVALID_CHANNEL_ID;
 
   public:
-    TraceProfiling() : VpualStub("TraceProfiling"), buffer0{0, nullptr, 0}, buffer1{0, nullptr, 0} {};
+    TraceProfiling(uint32_t device_id) : VpualStub("TraceProfiling", device_id) {};
 
     void Create(uint32_t pBaseAddr0, uint32_t size, uint32_t pBaseAddr1, uint32_t size1, uint8_t *vAddr0, uint8_t *vAddr1, uint32_t alignment = 64);
     void Delete();

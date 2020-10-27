@@ -18,26 +18,15 @@
 
 #include <memory>
 
+#include "ie_utils.hpp"
 #include "vpual_core_nn_executor.hpp"
 #include "vpual_flic_nn_executor.hpp"
 #include "vpusmm_allocator.hpp"
 
 namespace vpux {
 
-namespace {
-// expected format VPU-#, where # is device id
-int extractIdFromDeviceName(const std::string& name) {
-    const std::size_t expectedSize = 5;
-    if (name.size() != expectedSize) {
-        THROW_IE_EXCEPTION << "Unexpected device name: " << name;
-    }
-
-    return name[expectedSize - 1] - '0';
-}
-}  // namespace
-
 VpualDevice::VpualDevice(const std::string& name): _name(name) {
-    const auto id = extractIdFromDeviceName(name);
+    const auto id = utils::extractIdFromDeviceName(name);
     _allocator = std::make_shared<VpusmmAllocator>(id);
 }
 
@@ -51,10 +40,11 @@ std::shared_ptr<Executor> VpualDevice::createExecutor(
     _config.parseFrom(config);
 
     std::shared_ptr<Executor> executor = nullptr;
+    const auto id = utils::extractIdFromDeviceName(_name);
     if (_config.useCoreNN()) {
-        executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, _config);
+        executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _config);
     } else {
-        executor = std::make_shared<VpualFlicNNExecutor>(networkDescription, vpusmmAllocator, _config);
+        executor = std::make_shared<VpualFlicNNExecutor>(networkDescription, vpusmmAllocator, id, _config);
     }
 
     return executor;

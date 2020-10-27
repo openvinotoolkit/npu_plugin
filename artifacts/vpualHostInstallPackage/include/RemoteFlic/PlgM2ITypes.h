@@ -8,6 +8,7 @@
 #include "VpuData.h"
 
 #define M2I_MAX_SUPPORTED_INPUT_WIDTH  (1920)
+#define M2I_MAX_SUPPORTED_INPUT_HEIGHT (1080)
 
 namespace vpum2i
 {
