@@ -64,8 +64,8 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
     if(opType == "Conv")
         sink->set<bool>("alignment", true);
 
-    if(opType == "Eltwise" ||
-       opType == "DepthwiseConv" || opType == "MaxPool")
+    if (opType == "Eltwise" ||
+        opType == "DepthwiseConv" || opType == "MaxPool" || opType == "Copy")
     {
         auto inputTensor = flow->getTensor();
         auto inputShape = inputTensor->getShape();
@@ -81,9 +81,8 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
             outputTensor->set<mv::Shape>("oldDimensions", outputTensor->getShape());
 
         outputTensor->setShape({outputShape[mv::IO_WIDTH_DIMENSION], outputShape[mv::IO_HEIGHT_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION], outputShape[mv::IO_BATCH_DIMENSION]});
-        auto flows = outputTensor->get<std::set<std::string>>("flows");
-        for(auto& flowStri: flows)
-            propagateShapeChange(om, flowStri);
+        for (const auto& flowName : outputTensor->getFlowNames())
+            propagateShapeChange(om, flowName);
     }
 }
 
@@ -212,14 +211,12 @@ void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel&
 
         auto outputTensor = layer->getOutputTensor(0);
         auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
-        auto flows = outputTensor->get<std::set<std::string>>("flows");
         auto removeCrop = true;
         auto inputTensor = layer->getInputTensor(0);
         auto parentOpIt = om.getSourceOp(inputTensor);
-        for(auto& flowStr: flows)
+        for (const auto& flowName : outputTensor->getFlowNames())
         {
-            auto flow = om.getDataFlow(flowStr);
-            auto sink = flow.sink();
+            auto sink = om.getDataFlow(flowName).sink();
 
             std::string opType = sink->getOpType();
             if (opType == "Align" &&
@@ -404,9 +401,10 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                         opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
                         opsToLink[op]->set<bool>("alignment", true);
                         om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
-                        // If Copy follows Align, cascade aligned output shape
-                        if(opsToLink[op]->getOpType() == "Copy")
-                            opsToLink[op]->getOutputTensor(0)->setShape(alignedTensor->getShape());
+
+                        for (const auto& flowName : alignedTensor->getFlowNames()) {
+                            propagateShapeChange(om, flowName);
+                        }
                     }
                 }
             }
@@ -446,8 +444,7 @@ void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationMode
             outputTensor->setShape(mv::Shape({outputTensorShape[mv::IO_WIDTH_DIMENSION], outputTensorShape[mv::IO_HEIGHT_DIMENSION],
                                               outputChannelsPadded, outputTensorShape[mv::IO_BATCH_DIMENSION]}));
 
-            auto flows = outputTensor->get<std::set<std::string>>("flows");
-            for(auto& flowStr: flows)
+            for (const auto& flowStr: outputTensor->getFlowNames())
                 propagateShapeChange(om, flowStr);
             addCropNode(om, opIt, outputTensor, outputTensorChannels);
         }
