@@ -37,8 +37,8 @@ class PlgOutM2I : public PluginStub
     SReceiver<vpum2i::M2IObj> in;
 
     /** Constructor. */
-    PlgOutM2I() : PluginStub("PlgOutM2I"),
-                  channelID(XLINK_INVALID_CHANNEL_ID)
+    PlgOutM2I(uint32_t device_id = 0) : PluginStub("PlgOutM2I", device_id)
+                  //channelID(XLINK_INVALID_CHANNEL_ID)
                   {};
 
     /** Destructor. */

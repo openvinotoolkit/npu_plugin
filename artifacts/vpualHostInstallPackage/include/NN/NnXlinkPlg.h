@@ -28,7 +28,7 @@ class NnXlinkPlg : public PluginStub{
     SReceiver<NnExecResponseMsg> resultIn;
 
     /** Constructor. */
-    NnXlinkPlg() : PluginStub("NnXlinkPlg") {};
+    NnXlinkPlg(uint32_t device_id) : PluginStub("NnXlinkPlg",device_id), requestOut{device_id} {};
 
     ~NnXlinkPlg() { Delete(); }; // Ensure delete is called to close channel.
 

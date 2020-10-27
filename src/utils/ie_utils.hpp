@@ -32,6 +32,7 @@ bool isBlobAllocatedByAllocator(
 ie::Blob::Ptr reallocateBlob(const ie::Blob::Ptr& blob, const std::shared_ptr<ie::IAllocator>& allocator);
 
 std::size_t getByteSize(const ie::TensorDesc& desc);
+int extractIdFromDeviceName(const std::string& name);
 
 }  // namespace utils
 

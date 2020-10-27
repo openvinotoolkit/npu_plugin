@@ -50,6 +50,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
       _netUniqueId(netName),
+      _deviceId(utils::extractIdFromDeviceName(kmbConfig.deviceId())),
       _preprocBuffer(nullptr,
           [this](uint8_t* buffer) {
               _allocator->free(buffer);
@@ -193,7 +194,7 @@ void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     IE_ASSERT(_config.useSIPP() || _config.useM2I());
     const KmbPreproc::Path ppPath = _config.useM2I() ? KmbPreproc::Path::M2I : KmbPreproc::Path::SIPP;
     KmbPreproc::execDataPreprocessing(
-        inputs, preprocData, networkInputs, out_format, numShaves, lpi, _netUniqueId, ppPath);
+        inputs, preprocData, networkInputs, out_format, numShaves, lpi, _netUniqueId, _deviceId, ppPath);
 }
 
 void KmbInferRequest::GetResult() {

@@ -42,20 +42,20 @@ constexpr uint32_t POOL_SIZE = 30 * 1024 * 1024;
 #endif
 
 VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-    const VpusmmAllocator::Ptr& allocator, const VpualConfig& config)
+    const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId, const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
       _config(config),
       _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
 #if defined(__arm__) || defined(__aarch64__)
-      _nnXlinkPlg(new NnXlinkPlg()),
-      _nnCorePlg(new NnCorePlg(),
+      _nnXlinkPlg(new NnXlinkPlg(deviceId)),
+      _nnCorePlg(new NnCorePlg(deviceId),
           [](NnCorePlg* nnCorePlgPtr) {
               if (nnCorePlgPtr != nullptr) {
                   nnCorePlgPtr->Delete();
               }
           }),
-      _pipe(new Pipeline(),
+      _pipe(new Pipeline(MAX_PLUGS_PER_PIPE, deviceId),
           [](Pipeline* pipePtr) {
               if (pipePtr != nullptr) {
                   pipePtr->Stop();
@@ -90,6 +90,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     _logger->debug("Allocated buffer for output with the size: %d", POOL_SIZE);
 
     allocateGraph(_networkDescription->getCompiledNetwork());
+#else
+    UNUSED(deviceId);
 #endif
 }
 
