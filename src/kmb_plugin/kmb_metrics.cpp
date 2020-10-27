@@ -17,12 +17,12 @@
 #include "kmb_metrics.h"
 
 #include <algorithm>
-#include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/error.hpp>
 #include <vpux.hpp>
+#include <vpux_private_config.hpp>
 
 using namespace vpu::KmbPlugin;
-using namespace InferenceEngine::VPUConfigParams;
+using namespace InferenceEngine::VPUXConfigParams;
 using namespace InferenceEngine::PluginConfigParams;
 
 //------------------------------------------------------------------------------
@@ -41,12 +41,12 @@ KmbMetrics::KmbMetrics(const std::map<std::string, std::shared_ptr<vpux::Device>
     };
 
     _supportedConfigKeys = {
-        VPU_KMB_CONFIG_KEY(PLATFORM),
-        CONFIG_KEY(DEVICE_ID),
         CONFIG_KEY(LOG_LEVEL),
+        CONFIG_KEY(PERF_COUNT),
+        CONFIG_KEY(DEVICE_ID),
+        VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
         KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
-        VPU_KMB_CONFIG_KEY(USE_M2I),
-        VPU_KMB_CONFIG_KEY(USE_CORE_NN),
+        VPUX_CONFIG_KEY(PLATFORM),
     };
 
     for (const auto& elem : devices) {

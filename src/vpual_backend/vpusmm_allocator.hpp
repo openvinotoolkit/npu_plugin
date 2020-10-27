@@ -20,7 +20,7 @@
 #include <unordered_map>
 #include <vpux.hpp>
 
-#include "vpu/kmb_params.hpp"
+#include "vpux/kmb_params.hpp"
 
 namespace vpux {
 

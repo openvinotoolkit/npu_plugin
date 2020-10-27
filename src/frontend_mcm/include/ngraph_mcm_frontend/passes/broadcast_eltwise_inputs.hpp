@@ -14,22 +14,11 @@
 // stated in the License.
 //
 
-/**
- * @brief Represent private params options, which should not be exposed to user and used only inside plugin
- */
-
 #pragma once
 
-#include <vpux/kmb_params.hpp>
-// TODO Refactor namespace and names in configs/params activity
-namespace InferenceEngine {
-namespace KmbContextParams {
+#include <ngraph/pass/pass.hpp>
 
-/** @brief Memory handle stored inside blob */
-DECLARE_KMB_PARAM_KEY(BLOB_MEMORY_HANDLE, void*);
-
-/** @brief Allow to store ROI provided by user on createROI call */
-DECLARE_KMB_PARAM_KEY(ROI_PTR, std::shared_ptr<InferenceEngine::ROI>);
-
-}  // namespace KmbContextParams
-}  // namespace InferenceEngine
+class BroadcastEltwiseInputs final : public ngraph::pass::NodePass {
+public:
+    bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
+};

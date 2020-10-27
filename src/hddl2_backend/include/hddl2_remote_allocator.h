@@ -25,8 +25,9 @@
 #include "ie_allocator.hpp"
 #include "ie_remote_context.hpp"
 // Plugin
-#include "hddl2_config.h"
 #include "vpux.hpp"
+#include "vpux_config.hpp"
+// Subplugin
 // Low-level
 #include <HddlUnite.h>
 #include <RemoteMemory.h>

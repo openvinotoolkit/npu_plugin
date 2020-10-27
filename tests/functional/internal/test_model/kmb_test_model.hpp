@@ -18,7 +18,7 @@
 
 #include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
-#include <vpu/vpu_compiler_config.hpp>
+#include <vpux/vpux_compiler_config.hpp>
 
 #include "kmb_test_utils.hpp"
 

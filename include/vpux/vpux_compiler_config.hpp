@@ -26,14 +26,14 @@
 
 #include <vpu/vpu_plugin_config.hpp>
 
-#define VPU_COMPILER_CONFIG_KEY(name) InferenceEngine::VPUConfigParams::_CONFIG_KEY(VPU_COMPILER_##name)
-#define VPU_COMPILER_CONFIG_VALUE(name) InferenceEngine::VPUConfigParams::VPU_COMPILER_##name
+#define VPU_COMPILER_CONFIG_KEY(name) InferenceEngine::VPUXConfigParams::_CONFIG_KEY(VPU_COMPILER_##name)
+#define VPU_COMPILER_CONFIG_VALUE(name) InferenceEngine::VPUXConfigParams::VPU_COMPILER_##name
 
 #define DECLARE_VPU_COMPILER_CONFIG_KEY(name) DECLARE_CONFIG_KEY(VPU_COMPILER_##name)
 #define DECLARE_VPU_COMPILER_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(VPU_COMPILER_##name)
 
 namespace InferenceEngine {
-namespace VPUConfigParams {
+namespace VPUXConfigParams {
 
 /**
  * @brief [Only for vpu compiler]
@@ -126,5 +126,5 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(SCALE_FUSE_INPUT);
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT);
 
-}  // namespace VPUConfigParams
+}  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

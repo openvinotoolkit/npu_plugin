@@ -7,8 +7,8 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
-#include <vpu/kmb_plugin_config.hpp>
-#include <vpu/vpu_compiler_config.hpp>
+#include <vpux/vpux_plugin_config.hpp>
+#include <vpux/vpux_compiler_config.hpp>
 
 #include "blob_factory.hpp"
 #include "functional_test_utils/plugin_cache.hpp"

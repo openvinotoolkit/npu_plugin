@@ -416,8 +416,8 @@ ie::Blob::Ptr VpualFlicNNExecutor::prepareInputForInference(
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "prepareInputForInference");
 
     // HACK: to overcome inability python API to pass a blob of NHWC layout
-    if (_config.forceNCHWToNHWC()) {
-        _logger->warning("VPU_KMB_FORCE_NCHW_TO_NHWC is enabled. Need to do re-layout.");
+    if (_config.repackInputLayout()) {
+        _logger->warning("VPUX_VPUAL_REPACK_INPUT_LAYOUT is enabled. Need to do re-layout.");
         return reallocateBlobToLayoutIgnoringOriginalLayout(
             actualInput, ie::Layout::NCHW, ie::Layout::NHWC, _allocator);
     }

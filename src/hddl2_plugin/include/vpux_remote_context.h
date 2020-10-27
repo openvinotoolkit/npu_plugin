@@ -23,6 +23,8 @@
 #include "ie_blob.h"
 #include "ie_remote_context.hpp"
 // Plugin
+#include <vpux_config.hpp>
+// Subplugin
 #include "vpux.hpp"
 namespace vpux {
 

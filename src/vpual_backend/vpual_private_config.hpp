@@ -17,17 +17,38 @@
 #pragma once
 
 #include <string>
-#include <vpu/kmb_plugin_config.hpp>
+#include <vpux/vpux_plugin_config.hpp>
 
 namespace InferenceEngine {
-namespace VPUConfigParams {
+namespace VPUXConfigParams {
+
+#define VPUX_VPUAL_CONFIG_KEY(name) InferenceEngine::VPUXConfigParams::_CONFIG_KEY(VPUX_VPUAL_##name)
+#define VPUX_VPUAL_CONFIG_VALUE(name) InferenceEngine::VPUXConfigParams::VPUX_VPUAL_##name
+
+#define DECLARE_VPUX_VPUAL_CONFIG_KEY(name) DECLARE_CONFIG_KEY(VPUX_VPUAL_##name)
+#define DECLARE_VPUX_VPUAL_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(VPUX_VPUAL_##name)
 
 /**
- * @brief [Only for kmbPlugin]
+ * @brief [Only for VPUAL Subplugin]
  * Type: "YES", "NO", default is "NO"
  * This option allows to force conversion of input from NCHW to NHWC ignoring TensorDesc info
  */
-DECLARE_VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC);
+DECLARE_VPUX_VPUAL_CONFIG_KEY(REPACK_INPUT_LAYOUT);
 
-}  // namespace VPUConfigParams
+/**
+ * @brief [Only for VPUAL Subplugin]
+ * Type: "YES", "NO", default is "NO"
+ * This option allows to use CoreNN plug-in for inference
+ */
+DECLARE_VPUX_VPUAL_CONFIG_KEY(USE_CORE_NN);
+
+/**
+ * @deprecated Use VPUX_VPUAL_USE_CORE_NN instead
+ * @brief [Only for VPUAL Subplugin]
+ * Type: "YES", "NO", default is "NO"
+ * This option allows to use CoreNN plug-in for inference
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(USE_CORE_NN);
+
+}  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

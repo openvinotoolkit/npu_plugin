@@ -61,7 +61,8 @@ Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)), _met
     _pluginName = DEVICE_NAME;  // "VPUX"
     // TODO Different backends can require different compilers in future
     _compiler = Compiler::create(CompilerType::MCMCompiler);
-    _parsedConfig.expandSupportedOptions(_compiler->getSupportedOptions());
+    _parsedConfig.expandSupportedCompileOptions(_compiler->getSupportedOptions());
+    _parsedConfig.expandSupportedRunTimeOptions(_backends->getSupportedOptions());
 }
 
 //------------------------------------------------------------------------------

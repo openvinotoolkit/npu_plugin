@@ -299,6 +299,7 @@ namespace mv
         void shareAcrossClusters(std::vector<Workload>, unsigned int numClusters, bool clustering = true);
         void cleanSubtensors();
         int computeAppropriatePadding() const;
+        std::set<std::string> getFlowNames() const;
     };
 
 }

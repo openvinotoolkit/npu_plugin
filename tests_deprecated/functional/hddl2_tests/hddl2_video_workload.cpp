@@ -19,6 +19,7 @@
 
 #include <blob_factory.hpp>
 #include <fstream>
+#include <vpux_private_config.hpp>
 
 #include <creators/creator_blob_nv12.h>
 #include <tests_common.hpp>
@@ -36,7 +37,7 @@
 #include <helper_calc_cpu_ref.h>
 #include "models/precompiled_resnet.h"
 #include <vpu/utils/ie_helpers.hpp>
-#include "kmb_params.hpp"
+#include <vpux/kmb_params.hpp>
 
 namespace IE = InferenceEngine;
 
