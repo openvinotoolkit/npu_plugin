@@ -184,7 +184,7 @@ class Inference_onSpecificDevice : public CoreAPI_Tests {
 public:
     int amountOfDevices = 0;
 
-    const size_t numberOfTopClassesToCompare = 5;
+    const size_t numberOfTopClassesToCompare = 3;
 
 protected:
     void SetUp() override;
@@ -252,7 +252,7 @@ static void dumpPerformance(const std::map<std::string, IE::InferenceEngineProfi
 //------------------------------------------------------------------------------
 class InferenceWithPerfCount : public CoreAPI_Tests {
 public:
-    const size_t numberOfTopClassesToCompare = 5;
+    const size_t numberOfTopClassesToCompare = 3;
 
 protected:
     void SetUp() override;
@@ -353,7 +353,7 @@ public:
     std::string inputPath;
     const size_t inputWidth = 227;
     const size_t inputHeight = 227;
-    const size_t numberOfTopClassesToCompare = 4;
+    const size_t numberOfTopClassesToCompare = 3;
     const bool orderedClasses = false;
     const IE::Precision inputPrecision = IE::Precision::U8;
 

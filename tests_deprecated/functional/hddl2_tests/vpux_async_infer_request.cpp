@@ -41,7 +41,7 @@ public:
 
     const size_t inputWidth = 224;
     const size_t inputHeight = 224;
-    const size_t numberOfTopClassesToCompare = 4;
+    const size_t numberOfTopClassesToCompare = 3;
 
 protected:
     void SetUp() override;

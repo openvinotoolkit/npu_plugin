@@ -51,7 +51,7 @@ public:
     const size_t inputWidth = 224;
     const size_t inputHeight = 224;
     const size_t nv12Size = inputWidth * inputHeight * 3 / 2;
-    const size_t numberOfTopClassesToCompare = 4;
+    const size_t numberOfTopClassesToCompare = 3;
 
     HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(
         const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize);

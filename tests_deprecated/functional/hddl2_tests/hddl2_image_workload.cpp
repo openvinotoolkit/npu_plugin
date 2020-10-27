@@ -39,7 +39,7 @@ public:
 
     const size_t inputWidth = 224;
     const size_t inputHeight = 224;
-    const size_t numberOfTopClassesToCompare = 4;
+    const size_t numberOfTopClassesToCompare = 3;
 
 protected:
     void SetUp() override;
@@ -119,7 +119,7 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInferenceNCHWInput) {
 //------------------------------------------------------------------------------
 class ImageWorkload_WithPreprocessing : public ImageWorkload_Tests {
 public:
-    const size_t numberOfTopClassesToCompare = 4;
+    const size_t numberOfTopClassesToCompare = 3;
 
     std::string inputNV12Path;
 
