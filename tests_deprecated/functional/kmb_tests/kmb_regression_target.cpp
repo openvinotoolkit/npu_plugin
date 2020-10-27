@@ -31,7 +31,6 @@
 
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
-#include "low_precision_transformations/transformer.hpp"
 #include "tests_timeout.hpp"
 
 using namespace ::testing;

@@ -26,10 +26,10 @@
 #include <legacy/graph_tools.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <limits>
-#include <low_precision_transformations/network_helper.hpp>
-#include <low_precision_transformations/transformer.hpp>
 #include <memory>
+#include <network_helper.hpp>
 #include <parse_layers_helpers.hpp>
+#include <quantization_details.hpp>
 #include <quantization_helpers.hpp>
 #include <set>
 #include <string>
@@ -43,7 +43,7 @@
 #include "ie_macro.hpp"
 
 using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+using namespace vpu::details;
 namespace vpu {
 
 namespace {

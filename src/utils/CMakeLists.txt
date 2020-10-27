@@ -44,7 +44,6 @@ link_system_libraries(${TARGET_NAME}
     PRIVATE
         ${VPUSMM_LIBRARY}
     PUBLIC
-        IE::inference_engine_lp_transformations
         IE::inference_engine_legacy
         IE::vpu_common_lib)
 

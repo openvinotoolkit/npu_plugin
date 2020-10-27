@@ -16,8 +16,6 @@
 
 #pragma once
 #include <legacy/ie_layers_internal.hpp>
-#include <low_precision_transformations/network_helper.hpp>
-#include <low_precision_transformations/quantization_details.hpp>
 #include <mcm/tensor/quantization_params.hpp>
 #include <string>
 #include <vector>
