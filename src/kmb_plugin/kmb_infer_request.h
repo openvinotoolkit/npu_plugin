@@ -29,7 +29,7 @@
 #include <vpux.hpp>
 
 #include "kmb_preproc.hpp"
-#include "vpu/kmb_params.hpp"
+#include "vpux/kmb_params.hpp"
 
 namespace vpu {
 namespace KmbPlugin {
@@ -40,6 +40,7 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     std::vector<StageMetaInfo> _stagesMetaData;
     vpux::VPUXConfig _config;
     const std::string _netUniqueId;
+    const int _deviceId;
     // the buffer is used when non-shareable memory passed for preprocessing
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preprocBuffer;
     Logger::Ptr _logger;

@@ -55,7 +55,7 @@ public:
 
     virtual ~VpualFlicNNExecutor();
     VpualFlicNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
-        const VpualConfig& config);
+        const uint32_t deviceId, const VpualConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
     void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;
@@ -91,7 +91,7 @@ private:
 
     std::shared_ptr<Pipeline> pipe;
 #endif
-    void initVpualObjects();
+    void initVpualObjects(const uint32_t deviceId);
     void allocateGraph(const std::vector<char>& compiledNetwork);
     void deallocateGraph();
 

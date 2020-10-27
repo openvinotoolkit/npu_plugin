@@ -42,7 +42,7 @@ const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 #endif
 
 VpualFlicNNExecutor::VpualFlicNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-    const VpusmmAllocator::Ptr& allocator, const VpualConfig& config)
+    const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId, const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
       _config(config),
@@ -74,55 +74,60 @@ VpualFlicNNExecutor::VpualFlicNNExecutor(const vpux::NetworkDescription::Ptr& ne
     _outputBuffer.reset(reinterpret_cast<uint8_t*>(allocator->alloc(POOL_SIZE)));
     _logger->debug("Allocated buffer for output with the size: %d", POOL_SIZE);
 
-    initVpualObjects();
+    initVpualObjects(deviceId);
     allocateGraph(_networkDescription->getCompiledNetwork());
+#else
+    UNUSED(deviceId);
 #endif
 }
 
 VpualFlicNNExecutor::~VpualFlicNNExecutor() { deallocateGraph(); }
 
-void VpualFlicNNExecutor::initVpualObjects() {
+void VpualFlicNNExecutor::initVpualObjects(const uint32_t deviceId) {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "initVpualObjects");
     if (!RgnAlloc) {
-        RgnAlloc = std::make_shared<RgnAllocator>();
+        RgnAlloc = std::make_shared<RgnAllocator>(deviceId);
     }
     if (!HeapAlloc) {
-        HeapAlloc = std::make_shared<HeapAllocator>();
+        constexpr uint32_t HEAP_ALIGNMENT = 64;
+        HeapAlloc = std::make_shared<HeapAllocator>(HEAP_ALIGNMENT, deviceId);
     }
     if (!nnPl) {
-        nnPl = std::make_shared<NNFlicPlg>();
+        nnPl = std::make_shared<NNFlicPlg>(deviceId);
     }
     if (!gg) {
-        gg = std::make_shared<GraphManagerPlg>();
+        gg = std::make_shared<GraphManagerPlg>(deviceId);
     }
     if (!plgTensorInput_) {
-        plgTensorInput_ = std::make_shared<PlgTensorSource>();
+        plgTensorInput_ = std::make_shared<PlgTensorSource>(deviceId);
     }
     if (!plgTensorOutput_) {
-        plgTensorOutput_ = std::make_shared<PlgStreamResult>();
+        plgTensorOutput_ = std::make_shared<PlgStreamResult>(deviceId);
     }
     if (!plgInferenceInput_) {
-        plgInferenceInput_ = std::make_shared<PlgInferenceInput>();
+        plgInferenceInput_ = std::make_shared<PlgInferenceInput>(deviceId);
     }
     if (!plgInferenceOutput_) {
-        plgInferenceOutput_ = std::make_shared<PlgInferenceOutput>();
+        plgInferenceOutput_ = std::make_shared<PlgInferenceOutput>(deviceId);
     }
     if (!plgPoolOutputs) {
-        plgPoolOutputs = std::make_shared<PlgPool<TensorMsg>>();
+        plgPoolOutputs = std::make_shared<PlgPool<TensorMsg>>(deviceId);
     }
     if (!plgPoolInferenceMsg) {
-        plgPoolInferenceMsg = std::make_shared<PlgPool<InferenceMsg>>();
+        plgPoolInferenceMsg = std::make_shared<PlgPool<InferenceMsg>>(deviceId);
     }
     if (!BHandle) {
         BHandle = std::make_shared<BlobHandle_t>();
     }
     if (!pipe) {
-        pipe = std::make_shared<Pipeline>();
+        pipe = std::make_shared<Pipeline>(MAX_PLUGS_PER_PIPE, deviceId);
     }
     if (!_inferenceId) {
         _inferenceId.reset(reinterpret_cast<uint32_t*>(_allocator->alloc(sizeof(uint32_t))));
     }
+#else
+    UNUSED(deviceId);
 #endif
 }
 
@@ -175,7 +180,6 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
 void VpualFlicNNExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "allocateGraph");
-    initVpualObjects();
     static int graphId_main = 1;
     int nThreads = _config.throughputStreams();
     int nShaves = 16;
@@ -416,8 +420,8 @@ ie::Blob::Ptr VpualFlicNNExecutor::prepareInputForInference(
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "prepareInputForInference");
 
     // HACK: to overcome inability python API to pass a blob of NHWC layout
-    if (_config.forceNCHWToNHWC()) {
-        _logger->warning("VPU_KMB_FORCE_NCHW_TO_NHWC is enabled. Need to do re-layout.");
+    if (_config.repackInputLayout()) {
+        _logger->warning("VPUX_VPUAL_REPACK_INPUT_LAYOUT is enabled. Need to do re-layout.");
         return reallocateBlobToLayoutIgnoringOriginalLayout(
             actualInput, ie::Layout::NCHW, ie::Layout::NHWC, _allocator);
     }

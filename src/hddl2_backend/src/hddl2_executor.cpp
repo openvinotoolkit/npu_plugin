@@ -201,7 +201,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
     // TODO Create HddlUniteInferData inside constructor of executor [Track number: S#37397]
     std::call_once(_onceFlagInferData, [&] {
         _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteInferData>(needUnitePreProcessing, _workloadContext,
-            _config.getGraphColorFormat(), _network->getDeviceOutputsInfo().size());
+            _config.graphColorFormat(), _network->getDeviceOutputsInfo().size());
     });
 
     // TODO Should we use deviceInputs instead of networkInputs here?
@@ -331,7 +331,7 @@ InferenceEngine::Parameter HDDL2Executor::getParameter(const std::string& paramN
 
 void HDDL2Executor::loadGraphToDevice() {
     std::unordered_map<std::string, std::string> hddlUniteConfig = {};
-    const auto csram_size = _config.getCSRAMSize();
+    const auto csram_size = _config.CSRAMSize();
     if (csram_size) {
         hddlUniteConfig.insert(std::make_pair("CSRAM_SIZE", std::to_string(csram_size)));
     }

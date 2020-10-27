@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <utility>
 #include "include/mcm/utils/warning_manager.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 
 namespace mv {
 namespace lp_scheduler { 
@@ -324,7 +325,8 @@ class Runtime_Barrier_Simulation_Checker {
 
       // remove the last level if its empty //
       litr = level_sets_.find(level);
-      assert( litr != level_sets_.end());
+      if (litr == level_sets_.end())
+        throw RuntimeError("LpScheduler", "Runtime_Barrier_Simulation_Checker::build_level_sets(): level not found");
       if ((litr->second).empty()) {
         level_sets_.erase(litr);
       }

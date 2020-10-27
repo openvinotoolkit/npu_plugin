@@ -27,14 +27,17 @@ namespace vpux {
 
 class VpualConfig final : public vpux::VPUXConfig {
 public:
-    bool forceNCHWToNHWC() const { return _forceNCHWToNHWC; }
+    VpualConfig();
+
+    bool repackInputLayout() const { return _repackInputLayout; }
+    bool useCoreNN() const { return _useCoreNN; }
 
 protected:
-    const std::unordered_set<std::string>& getRunTimeOptions() const override;
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:
-    bool _forceNCHWToNHWC = false;
+    bool _repackInputLayout = false;
+    bool _useCoreNN = true;
 };
 
 }  // namespace vpux

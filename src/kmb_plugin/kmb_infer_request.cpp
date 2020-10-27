@@ -25,8 +25,8 @@
 #include <dims_parser.hpp>
 #include <dumper.hpp>
 #include <ie_itt.hpp>
-#include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/perf_report.hpp>
+#include <vpux/vpux_plugin_config.hpp>
 
 #include "kmb_infer_request.h"
 
@@ -50,6 +50,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
       _netUniqueId(netName),
+      _deviceId(utils::extractIdFromDeviceName(kmbConfig.deviceId())),
       _preprocBuffer(nullptr,
           [this](uint8_t* buffer) {
               _allocator->free(buffer);
@@ -116,7 +117,7 @@ void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "execPreprocessing");
     if ((_config.useSIPP() || _config.useM2I()) && KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecKmbDataPreprocessing(
-            inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
+            inputs, _networkInputs, _config.graphColorFormat(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
         _logger->warning("SIPP/M2I is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
@@ -193,7 +194,7 @@ void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     IE_ASSERT(_config.useSIPP() || _config.useM2I());
     const KmbPreproc::Path ppPath = _config.useM2I() ? KmbPreproc::Path::M2I : KmbPreproc::Path::SIPP;
     KmbPreproc::execDataPreprocessing(
-        inputs, preprocData, networkInputs, out_format, numShaves, lpi, _netUniqueId, ppPath);
+        inputs, preprocData, networkInputs, out_format, numShaves, lpi, _netUniqueId, _deviceId, ppPath);
 }
 
 void KmbInferRequest::GetResult() {

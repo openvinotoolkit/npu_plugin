@@ -19,6 +19,7 @@
 
 #include <vpux.hpp>
 #include <vpux_private_config.hpp>
+#include <vpual_config.hpp>
 
 #include "creators/creator_blob.h"
 #include "creators/creator_blob_nv12.h"
@@ -123,7 +124,7 @@ private:
 };
 
 TEST_F(kmbInferRequestConstructionUnitTests, cannotCreateInferRequestWithEmptyInputAndOutput) {
-    vpux::VPUXConfig config;
+    vpux::VpualConfig config;
 
     auto executor = std::make_shared<MockExecutor>();
     KmbInferRequest::Ptr inferRequest;
@@ -135,7 +136,7 @@ TEST_F(kmbInferRequestConstructionUnitTests, cannotCreateInferRequestWithEmptyIn
 }
 
 TEST_F(kmbInferRequestConstructionUnitTests, canCreateInferRequestWithValidParameters) {
-    vpux::VPUXConfig config;
+    vpux::VpualConfig config;
     auto executor = std::make_shared<MockExecutor>();
     auto inputs = setupInputsWithSingleElement();
     auto outputs = setupOutputsWithSingleElement();
@@ -148,7 +149,7 @@ TEST_F(kmbInferRequestConstructionUnitTests, canCreateInferRequestWithValidParam
 class TestableKmbInferRequest : public KmbInferRequest {
 public:
     TestableKmbInferRequest(const ie::InputsDataMap& networkInputs, const ie::OutputsDataMap& networkOutputs,
-        const std::vector<vpu::StageMetaInfo>& blobMetaData, const vpux::VPUXConfig& kmbConfig,
+        const std::vector<vpu::StageMetaInfo>& blobMetaData, const vpux::VpualConfig& kmbConfig,
         const std::shared_ptr<vpux::Executor>& executor, const std::shared_ptr<ie::IAllocator>& allocator)
         : KmbInferRequest(networkInputs, networkOutputs, blobMetaData, kmbConfig, executor, allocator, "networkName"){};
 
@@ -172,7 +173,7 @@ protected:
 
 protected:
     void SetUp() override {
-        vpux::VPUXConfig config;
+        vpux::VpualConfig config;
 
         _executor = std::make_shared<MockExecutor>();
 
@@ -370,9 +371,9 @@ class kmbInferRequestOutColorFormatSIPPUnitTests :
     public testing::WithParamInterface<const char*> {};
 
 TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, preprocessingUseRGBIfConfigIsSet) {
-    vpux::VPUXConfig config;
+    vpux::VpualConfig config;
     const auto configValue = GetParam();
-    config.update({{VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT), configValue}});
+    config.update({{VPUX_CONFIG_KEY(GRAPH_COLOR_FORMAT), configValue}});
 
     auto allocator = std::make_shared<MockAllocator>();
     _inferRequest = std::make_shared<TestableKmbInferRequest>(
@@ -409,8 +410,8 @@ class kmbInferRequestSIPPPreprocessing :
     public testing::WithParamInterface<std::string> {};
 
 TEST_F(kmbInferRequestSIPPPreprocessing, DISABLED_canDisableSIPP) {
-    vpux::VPUXConfig config;
-    config.update({{"VPU_KMB_USE_SIPP", CONFIG_VALUE(NO)}});
+    vpux::VpualConfig config;
+    config.update({{"VPUX_USE_SIPP", CONFIG_VALUE(NO)}});
 
     auto allocator = std::make_shared<MockAllocator>();
     _inferRequest = std::make_shared<TestableKmbInferRequest>(

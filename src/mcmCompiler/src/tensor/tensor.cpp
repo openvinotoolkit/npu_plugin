@@ -1572,3 +1572,7 @@ int mv::Tensor::computeAppropriatePadding() const
         throw DTypeError(*this, "Incorrect DType");
     return pad;
 }
+
+std::set<std::string> mv::Tensor::getFlowNames() const {
+    return get<std::set<std::string>>("flows");
+}

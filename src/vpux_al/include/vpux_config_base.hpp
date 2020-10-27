@@ -1,5 +1,5 @@
 //
-// Copyright 2019-2020 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,32 +16,28 @@
 
 #pragma once
 
-// System
-#include <map>
-#include <string>
-#include <unordered_set>
-// IE
 #include <ie_common.h>
-// Plugin
-#include <hddl2/hddl2_plugin_config.hpp>
-#include <vpux_config.hpp>
 
-namespace vpu {
+#include <vpu/parsed_config_base.hpp>
 
-class HDDL2Config final : public vpux::VPUXConfig {
+namespace vpux {
+
+class VPUXConfigBase : public vpu::ParsedConfigBase {
 public:
-    InferenceEngine::ColorFormat getGraphColorFormat() const { return _graph_color_format; }
-    uint64_t getCSRAMSize() const { return _csram_size; }
-
-    void parse(const std::map<std::string, std::string>& config) override;
-
-protected:
+    VPUXConfigBase();
+    const std::map<std::string, std::string>& getConfig() const { return _config; }
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
+    void expandSupportedCompileOptions(const std::unordered_set<std::string>& options);
+    void expandSupportedRunTimeOptions(const std::unordered_set<std::string>& options);
+
+protected:
+    void parse(const std::map<std::string, std::string>& config) override;
+    std::unordered_set<std::string> _compileOptions;
+    std::unordered_set<std::string> _runTimeOptions;
 
 private:
-    InferenceEngine::ColorFormat _graph_color_format = InferenceEngine::ColorFormat::BGR;
-    uint64_t _csram_size = 0;
+    std::map<std::string, std::string> _config;
 };
 
-}  // namespace vpu
+}  // namespace vpux

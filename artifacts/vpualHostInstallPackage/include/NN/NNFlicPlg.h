@@ -49,7 +49,7 @@ class NNFlicPlg : public PluginStub{
   public:
 
     /** Constructor. */
-    NNFlicPlg() : PluginStub("NNFlicDecoder"){};
+    NNFlicPlg(uint32_t device_id = 0) : PluginStub("NNFlicDecoder", device_id), output{device_id}, inferenceOutput{device_id} {}
 
     void Create(BlobHandle_t * Blhdl);
     // void Delete();

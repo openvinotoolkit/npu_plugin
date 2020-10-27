@@ -209,13 +209,13 @@ TEST_P(KmbPrivateConfigTests, IE_VPU_KMB_PRIVATE_CONFIG_COMMON) {
 
 const std::vector<PrivateConfigTestParams> privateConfigParams {
     PrivateConfigTestParams()
-        .testDescription("IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT")
+        .testDescription("IE_VPUX_GRAPH_COLOR_FORMAT")
         .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
         .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-bgr-nv12.bin")
         .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
         .preProc(true)
         .checkSIPP(true)
-        .privateConfig({{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}})
+        .privateConfig({{"VPUX_GRAPH_COLOR_FORMAT", "RGB"}})
         .inputWidth(228)
         .inputHeight(228)
         .nClasses(4),
@@ -226,20 +226,20 @@ const std::vector<PrivateConfigTestParams> privateConfigParams {
         .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
         .preProc(true)
         .checkSIPP(false)
-        .privateConfig({{"VPU_KMB_USE_SIPP", CONFIG_VALUE(YES)}})
+        .privateConfig({{"VPUX_USE_SIPP", CONFIG_VALUE(YES)}})
         .inputWidth(228)
         .inputHeight(228)
         .nClasses(2)};
 
 const std::vector<PrivateConfigTestParams> privateConfigParamsBrokenTests {
     PrivateConfigTestParams()
-        .testDescription("FORCE_NCHW_TO_NHWC")
+        .testDescription("REPACK_INPUT_LAYOUT")
         .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
         .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin")
         .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin")
         .preProc(false)
         .checkSIPP(false)
-        .privateConfig({{"VPU_KMB_FORCE_NCHW_TO_NHWC", CONFIG_VALUE(YES)}})
+        .privateConfig({{"VPUX_VPUAL_REPACK_INPUT_LAYOUT", CONFIG_VALUE(YES)}})
         .inputWidth(228)
         .inputHeight(228)
         .nClasses(5),
@@ -250,18 +250,7 @@ const std::vector<PrivateConfigTestParams> privateConfigParamsBrokenTests {
         .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
         .preProc(true)
         .checkSIPP(false)
-        .privateConfig({{"VPU_KMB_USE_CORE_NN", CONFIG_VALUE(YES)}})
-        .inputWidth(228)
-        .inputHeight(228)
-        .nClasses(2),
-    PrivateConfigTestParams()
-        .testDescription("executor streams")
-        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
-        .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin")
-        .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
-        .preProc(true)
-        .checkSIPP(false)
-        .privateConfig({{"EXCLUSIVE_ASYNC_REQUESTS", CONFIG_VALUE(NO)}, {"VPU_KMB_EXECUTOR_STREAMS", "3"}})
+        .privateConfig({{"VPUX_VPUAL_USE_CORE_NN", CONFIG_VALUE(YES)}})
         .inputWidth(228)
         .inputHeight(228)
         .nClasses(2)};
@@ -269,34 +258,6 @@ const std::vector<PrivateConfigTestParams> privateConfigParamsBrokenTests {
 INSTANTIATE_TEST_CASE_P(precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParamsBrokenTests));
-
-TEST_F(KmbPrivateConfigTests, DISABLED_precommit_SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
-#if defined(__arm__) || defined(__aarch64__)
-    SKIP();
-#endif
-
-    InferenceEngine::ExecutableNetwork network;
-    ModelPooling_Helper modelPoolingHelper;
-    InferenceEngine::CNNNetwork poolingNetwork = modelPoolingHelper.getNetwork();
-    const std::string testFileName = "tmp_test.xml";
-    std::remove(testFileName.c_str());
-    for (auto&& input : poolingNetwork.getInputsInfo()) {
-        input.second->setLayout(InferenceEngine::Layout::NHWC);
-        input.second->setPrecision(InferenceEngine::Precision::U8);
-    }
-    for (auto&& output : poolingNetwork.getOutputsInfo()) {
-        output.second->setLayout(InferenceEngine::Layout::NHWC);
-        output.second->setPrecision(InferenceEngine::Precision::FP16);
-    }
-    network = core->LoadNetwork(poolingNetwork, deviceName);
-    std::ifstream notExist(testFileName);
-    ASSERT_FALSE(notExist.good());
-    network = core->LoadNetwork(poolingNetwork, deviceName,
-        {{"VPU_COMPILER_SERIALIZE_CNN_BEFORE_COMPILE_FILE", testFileName.c_str()}});
-    std::ifstream exists(testFileName);
-    ASSERT_TRUE(exists.good());
-    std::remove(testFileName.c_str());
-}
 
 class KmbConfigTestsWithParams :
     public vpuLayersTests, public testing::WithParamInterface<std::string> {};

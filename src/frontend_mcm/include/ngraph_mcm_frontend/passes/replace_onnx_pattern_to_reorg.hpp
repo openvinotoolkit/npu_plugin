@@ -13,31 +13,17 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
+
 #pragma once
 
-#include <ie_common.h>
+// clang-format off
 
-#include <map>
+#include <ngraph/pass/pass.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 #include <memory>
-#include <vpux.hpp>
 
-#include "vpual_config.hpp"
-
-namespace vpux {
-
-class VpualEngineBackend final : public vpux::IEngineBackend {
-    std::unique_ptr<vpu::Logger> _logger;
-    std::map<std::string, std::shared_ptr<IDevice>> _devices;
-
+class OnnxReorgPatternToDarkNetReorg: public ngraph::pass::MatcherPass {
 public:
-    VpualEngineBackend();
-    const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const override;
-    const std::string getName() const override { return "VPUAL"; }
-    std::unordered_set<std::string> getSupportedOptions() const override { return _config.getRunTimeOptions(); }
-
-private:
-    const std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();
-    VpualConfig _config;
+    OnnxReorgPatternToDarkNetReorg();
 };
-
-}  // namespace vpux
+// clang-format on

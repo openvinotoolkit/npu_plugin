@@ -16,79 +16,54 @@
 
 #pragma once
 
-#include <ie_common.h>
+#include <vpux/vpux_plugin_config.hpp>
 
-#include <vpu/parsed_config_base.hpp>
+#include "vpux_config_base.hpp"
 
 namespace vpux {
-
-class VPUXConfigBase : public vpu::ParsedConfigBase {
-public:
-    VPUXConfigBase();
-    const std::map<std::string, std::string>& getConfig() const { return _config; }
-    const std::unordered_set<std::string>& getCompileOptions() const override;
-    const std::unordered_set<std::string>& getRunTimeOptions() const override;
-    void expandSupportedOptions(const std::unordered_set<std::string>& options);
-
-protected:
-    void parse(const std::map<std::string, std::string>& config) override;
-    std::unordered_set<std::string> _options;
-
-private:
-    std::map<std::string, std::string> _config;
-};
 
 class VPUXConfig : public VPUXConfigBase {
 public:
     VPUXConfig();
-    bool useNGraphParser() const { return _useNGraphParser; }
 
-    int throughputStreams() const { return _throughputStreams; }
-    int executorStreams() const { return _executorStreams; }
-
-    const std::string& platform() const { return _platform; }
-
-    int numberOfSIPPShaves() const { return _numberOfSIPPShaves; }
-
-    int SIPPLpi() const { return _SIPPLpi; }
-
-    // FIXME: drop SIPP from the method name
-    InferenceEngine::ColorFormat outColorFmtSIPP() const { return _outColorFmtSIPP; }
-
-    bool useSIPP() const { return _useSIPP; }
-
-    bool useM2I() const { return _useM2I; }
-
-    bool useCoreNN() const { return _useCoreNN; }
-
+    // Public options
     bool performanceCounting() const { return _performanceCounting; }
-
     std::string deviceId() const { return _deviceId; }
+    int throughputStreams() const { return _throughputStreams; }
+    InferenceEngine::VPUXConfigParams::VPUXPlatform platform() const { return _platform; }
+
+    // Private options
+    bool useNGraphParser() const { return _useNGraphParser; }
+    InferenceEngine::ColorFormat graphColorFormat() const { return _graphColorFormat; }
+    uint64_t CSRAMSize() const { return _csramSize; }
+    bool useM2I() const { return _useM2I; }
+    bool useSIPP() const { return _useSIPP; }
+    int numberOfSIPPShaves() const { return _numberOfSIPPShaves; }
+    int SIPPLpi() const { return _SIPPLpi; }
+    int executorStreams() const { return _executorStreams; }
 
     void parseFrom(const VPUXConfig& other);
 
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
-    bool _useNGraphParser = true;
-
-    int _throughputStreams = 1;
-    int _executorStreams = 1;
-
-    std::string _platform = "VPU_2490";
-
-    int _numberOfSIPPShaves = 4;
-    int _SIPPLpi = 8;
-    InferenceEngine::ColorFormat _outColorFmtSIPP = InferenceEngine::ColorFormat::BGR;
+    // Public options
     bool _performanceCounting = false;
-    bool _useSIPP = true;
+    std::string _deviceId = "VPU-0";
+    int _throughputStreams = 1;
+    InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::MA2490;
 
+    // Private options
+    bool _useNGraphParser = true;
+    InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;
+    uint64_t _csramSize = 0;
     // FIXME: Likely has to be true by default as well.
     // NB.: Currently applies to the detection use-case only
     bool _useM2I = false;
-    bool _useCoreNN = true;
-
-    std::string _deviceId = "VPU-0";
+    bool _useSIPP = true;
+    int _numberOfSIPPShaves = 4;
+    int _SIPPLpi = 8;
+    int _executorStreams = 1;
 
 private:
     void parseEnvironment();

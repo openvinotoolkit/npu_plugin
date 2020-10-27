@@ -28,7 +28,7 @@
 class IAllocator : public VpualStub {
   public:
     /** Constructor just invokes the parent constructor. */
-    IAllocator(std::string type) : VpualStub(type){};
+    IAllocator(std::string type, uint32_t device_id) : VpualStub(type, device_id){};
 };
 
 //##############################################################
@@ -36,7 +36,7 @@ class IAllocator : public VpualStub {
 class RgnAllocator: public IAllocator {
   public:
   //some of the VideoEncode buffs require 32Byte alignment
-   RgnAllocator() : IAllocator("RgnAllocator") {};
+   RgnAllocator(uint32_t device_id = 0) : IAllocator("RgnAllocator", device_id) {};
    // Note the Create function takes a physical base address (uint32_t) rather than (void *)
    void  Create(uint32_t pBaseAddr, uint32_t sz, uint32_t alignment = 64);
    void  Delete();
@@ -51,7 +51,7 @@ class RgnAllocator: public IAllocator {
 class HeapAllocator : public IAllocator {
  public:
     // Note we have explicitly listed the datatype as uint32_t, rather than size_t
-    HeapAllocator(uint32_t alignment = 64);
+    HeapAllocator(uint32_t alignment = 64, uint32_t device_id = 0);
 
     // The following functions won't be exposed on the Host.
     //    void *Alloc(size_t size);

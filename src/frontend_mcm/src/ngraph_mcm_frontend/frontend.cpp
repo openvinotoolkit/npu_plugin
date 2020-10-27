@@ -30,6 +30,8 @@
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 #include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
 #include "ngraph_mcm_frontend/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
+#include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
+#include "ngraph_mcm_frontend/passes/replace_onnx_pattern_to_reorg.hpp"
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -225,6 +227,7 @@ std::vector<char> compileNGraph(
         // TBD Should be ngraph::pass too in order to be applied in between other passes.
         const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
 
+        passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();        
         passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
         passManager.register_pass<FuseScaleShift>();
         passManager.register_pass<ConvertToMcmConv>();
@@ -234,6 +237,7 @@ std::vector<char> compileNGraph(
         passManager.register_pass<AlignEltwiseScales>();
         passManager.register_pass<AlignConcatScales>();
         passManager.register_pass<ngraph::pass::ConstantFolding>();
+        passManager.register_pass<BroadcastEltwiseInputs>();
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap);
 
         const auto start = std::chrono::high_resolution_clock::now();

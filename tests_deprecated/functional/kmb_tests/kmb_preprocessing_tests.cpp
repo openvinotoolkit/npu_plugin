@@ -30,7 +30,7 @@
 #include <mutex>
 #include <regression_tests.hpp>
 #include <ie_utils.hpp>
-#include <vpu/kmb_plugin_config.hpp>
+#include <vpux/vpux_plugin_config.hpp>
 #include <vpu_layers_tests.hpp>
 
 using namespace ::testing;
@@ -709,7 +709,7 @@ class VpuPreprocessingConfigAndInferTestsSipp : public VpuPreprocessingConfigAnd
 public:
     VpuPreprocessingConfigAndInferTestsSipp() {
         // All Sipp-related config options require Sipp to be enabled
-        _config["VPU_KMB_USE_SIPP"] = "YES";
+        _config["VPUX_USE_SIPP"] = "YES";
     }
 };
 TEST_P(VpuPreprocessingConfigAndInferTestsSipp, setConfigAndInfer) { setConfigAndInfer(); }
@@ -739,15 +739,15 @@ TEST_F(VpuPreprocessingTests, setConfigForTwoNetworks) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
     std::map<std::string, std::string> config1;
-    config1["VPU_KMB_PREPROCESSING_SHAVES"] = "4";
-    config1["VPU_KMB_PREPROCESSING_LPI"] = "4";
+    config1["VPUX_PREPROCESSING_SHAVES"] = "4";
+    config1["VPUX_PREPROCESSING_LPI"] = "4";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, config1));
 
     InferenceEngine::ExecutableNetwork network2;
     std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
     std::map<std::string, std::string> config2;
-    config2["VPU_KMB_PREPROCESSING_SHAVES"] = "2";
-    config2["VPU_KMB_PREPROCESSING_LPI"] = "8";
+    config2["VPUX_PREPROCESSING_SHAVES"] = "2";
+    config2["VPUX_PREPROCESSING_LPI"] = "8";
     ASSERT_NO_THROW(network2 = core->ImportNetwork(network2Path, deviceName, config2));
 
     std::cout << "Created networks\n";
@@ -830,15 +830,15 @@ TEST_F(VpuPreprocessingTests, setConfigAndCheckNumShaves) {
     InferenceEngine::ExecutableNetwork importedNetwork;
 
     std::map<std::string, std::string> config;
-    config["VPU_KMB_PREPROCESSING_SHAVES"] = "8";
-    config["VPU_KMB_PREPROCESSING_LPI"] = "4";
+    config["VPUX_PREPROCESSING_SHAVES"] = "8";
+    config["VPUX_PREPROCESSING_LPI"] = "4";
 
     ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName, config));
-    importedNetwork.SetConfig({{"VPU_KMB_PREPROCESSING_SHAVES", "6"}, {"VPU_KMB_PREPROCESSING_LPI", "2"}});
-    InferenceEngine::Parameter param1 = importedNetwork.GetConfig("VPU_KMB_PREPROCESSING_SHAVES");
-    InferenceEngine::Parameter param2 = importedNetwork.GetConfig("VPU_KMB_PREPROCESSING_LPI");
-    std::cout << "Config key: VPU_KMB_PREPROCESSING_SHAVES; value: " << param1.as<std::string>() << std::endl;
-    std::cout << "Config key: VPU_KMB_PREPROCESSING_LPI; value: " << param2.as<std::string>() << std::endl;
+    importedNetwork.SetConfig({{"VPUX_PREPROCESSING_SHAVES", "6"}, {"VPUX_PREPROCESSING_LPI", "2"}});
+    InferenceEngine::Parameter param1 = importedNetwork.GetConfig("VPUX_PREPROCESSING_SHAVES");
+    InferenceEngine::Parameter param2 = importedNetwork.GetConfig("VPUX_PREPROCESSING_LPI");
+    std::cout << "Config key: VPUX_PREPROCESSING_SHAVES; value: " << param1.as<std::string>() << std::endl;
+    std::cout << "Config key: VPUX_PREPROCESSING_LPI; value: " << param2.as<std::string>() << std::endl;
 }
 
 const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};
@@ -846,25 +846,22 @@ const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};
 INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingTestsWithParam, ::testing::ValuesIn(preprocTypes));
 
 using namespace testing;
-// [Track number: H#18013271822]
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit_preprocessing_shaves, VpuPreprocessingConfigAndInferTestsSipp,
-    Combine(Values("VPU_KMB_PREPROCESSING_SHAVES"), Values("4", "6")));
+INSTANTIATE_TEST_CASE_P(precommit_preprocessing_shaves, VpuPreprocessingConfigAndInferTestsSipp,
+    Combine(Values("VPUX_PREPROCESSING_SHAVES"), Values("4", "6")));
 
-// [Track number: H#18013271822]
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit_preprocessing_lpi, VpuPreprocessingConfigAndInferTestsSipp,
-    Combine(Values("VPU_KMB_PREPROCESSING_LPI"), Values("4", "8")));
+INSTANTIATE_TEST_CASE_P(precommit_preprocessing_lpi, VpuPreprocessingConfigAndInferTestsSipp,
+    Combine(Values("VPUX_PREPROCESSING_LPI"), Values("4", "8")));
 
 // [Track number: H#18013271822]
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_precommit, VpuPreprocessingConfigAndInferTests, Combine(Values("VPU_KMB_USE_M2I"), Values("YES", "NO")));
+    DISABLED_precommit, VpuPreprocessingConfigAndInferTests, Combine(Values("VPUX_USE_M2I"), Values("YES", "NO")));
 
-// [Track number: H#18013271822]
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit, VpuPreprocessingConfigTests,
-    Values(std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "8", true),
-        std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "seventy one", false),
-        std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "16", true),
-        std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "3", false),
-        std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "seventeen", false),
-        std::make_tuple("VPU_KMB_USE_M2I", "YES", true), std::make_tuple("VPU_KMB_USE_M2I", "USE", false)));
+INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingConfigTests,
+    Values(std::make_tuple("VPUX_PREPROCESSING_SHAVES", "8", true),
+        std::make_tuple("VPUX_PREPROCESSING_SHAVES", "seventy one", false),
+        std::make_tuple("VPUX_PREPROCESSING_LPI", "16", true),
+        std::make_tuple("VPUX_PREPROCESSING_LPI", "3", false),
+        std::make_tuple("VPUX_PREPROCESSING_LPI", "seventeen", false),
+        std::make_tuple("VPUX_USE_M2I", "YES", true), std::make_tuple("VPUX_USE_M2I", "USE", false)));
 
 #endif

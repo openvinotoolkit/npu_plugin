@@ -24,7 +24,7 @@
 
 #include "ie_remote_context.hpp"
 #include "kmb_remote_context.h"
-#include "vpu/kmb_params.hpp"
+#include "vpux/kmb_params.hpp"
 
 namespace vpu {
 namespace KmbPlugin {
