@@ -25,7 +25,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32
 };
 
-const std::vector<std::vector<size_t>> repeats = {
+const std::vector<std::vector<int64_t>> repeats = {
     {1, 2, 3},
     {2, 1, 1},
     {2, 3, 1},
@@ -54,7 +54,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_Tile, KmbTileLayerTest,
 // [Track number: S#40116]
 INSTANTIATE_TEST_CASE_P(DISABLED_Tile6d, KmbTileLayerTest,
                         ::testing::Combine(
-                            ::testing::Values(std::vector<size_t>({1, 1, 1, 2, 1, 2})),
+                            ::testing::Values(std::vector<int64_t>({1, 1, 1, 2, 1, 2})),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -72,7 +72,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_Tile6d, KmbTileLayerTest,
 // [Track number: S#40116]
 INSTANTIATE_TEST_CASE_P(DISABLED_Kmb_Specific_Tile, KmbTileLayerTest,
                         ::testing::Combine(
-                            ::testing::Values(std::vector<size_t>({1, 1, 1, 88})),
+                            ::testing::Values(std::vector<int64_t>({1, 1, 88})),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
