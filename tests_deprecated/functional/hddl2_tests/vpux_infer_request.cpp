@@ -282,7 +282,7 @@ TEST_F(InferenceWithPerfCount, DISABLED_precommit_SyncInferenceWithPerfCount) {
     dumpPerformance(perfCounts);
 
     ASSERT_GT(perfCounts.size(), 0);
-    auto totalTime = perfCounts.find("Total")->second;
+    auto totalTime = perfCounts.find("Total scoring time")->second;
     ASSERT_GT(totalTime.realTime_uSec, 0);
 }
 
