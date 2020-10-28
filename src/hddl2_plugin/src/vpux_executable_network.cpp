@@ -49,40 +49,33 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static Executor::Ptr createExecutor(
-    const NetworkDescription::Ptr& network, const VPUXConfig& config, std::shared_ptr<Device>& device) {
-    if (network == nullptr) {
-        THROW_IE_EXCEPTION << "Network is null!";
-    }
-    // Default executor is nullptr, allow only perform export
-    Executor::Ptr executor = nullptr;
-    if (device != nullptr) {
-        executor = device->createExecutor(network, config);
-    }
-    return executor;
-}
-
 static Executor::Ptr getExecutorForInference(const Executor::Ptr& executor) {
     if (executor == nullptr) {
         THROW_IE_EXCEPTION << NO_EXECUTOR_FOR_INFERENCE;
     }
+    // TODO Clone method implementation required [Track number: C#36225]
+#ifdef __aarch64__
+    return executor;
+#else
     return executor->clone();
+#endif
 }
+
 //------------------------------------------------------------------------------
 //      Shared init ctor
 //------------------------------------------------------------------------------
-ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config)
+ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr& device)
     : _config(config),
       _logger(std::make_shared<vpu::Logger>("ExecutableNetwork", config.logLevel(), vpu::consoleOutput())),
-      _compiler(Compiler::create(CompilerType::MCMCompiler)) {}
+      _device(device),
+      _compiler(Compiler::create(CompilerType::MCMCompiler)),
+      _supportedMetrics({METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)}) {}
 
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
-ExecutableNetwork::ExecutableNetwork(
-    IE::ICNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& config)
-    : ExecutableNetwork(config) {
-    _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
+ExecutableNetwork::ExecutableNetwork(IE::ICNNNetwork& network, const Device::Ptr& device, const VPUXConfig& config)
+    : ExecutableNetwork(config, device) {
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
     if (_config.useNGraphParser()) {
@@ -141,10 +134,10 @@ ExecutableNetwork::ExecutableNetwork(
 //------------------------------------------------------------------------------
 //      Import network
 //------------------------------------------------------------------------------
-ExecutableNetwork::ExecutableNetwork(
-    std::istream& networkModel, std::shared_ptr<Device>& device, const VPUXConfig& config)
-    : ExecutableNetwork(config) {
-    _networkPtr = _compiler->parse(networkModel, _config);
+ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const VPUXConfig& config)
+    : ExecutableNetwork(config, device) {
+    const std::string networkName = "net" + std::to_string(loadBlobCounter);
+    _networkPtr = _compiler->parse(networkModel, _config, networkName);
     _executorPtr = createExecutor(_networkPtr, config, device);
     _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
     _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
@@ -155,13 +148,27 @@ ExecutableNetwork::ExecutableNetwork(
 //------------------------------------------------------------------------------
 IE::InferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(
     const IE::InputsDataMap networkInputs, const IE::OutputsDataMap networkOutputs) {
-    auto inferExecutor = getExecutorForInference(_executorPtr);
-    return std::make_shared<InferRequest>(networkInputs, networkOutputs, inferExecutor, _config);
+    const auto inferExecutor = getExecutorForInference(_executorPtr);
+#ifdef __aarch64__
+    const auto allocator = _device->getAllocator();
+#else
+    // TODO Default allocator always should be used for HDDL2 [Track number: S#41601]
+    const auto allocator = nullptr;
+#endif
+    return std::make_shared<InferRequest>(
+        networkInputs, networkOutputs, inferExecutor, _config, _networkName, allocator);
 }
 
 void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) {
-    auto inferExecutor = getExecutorForInference(_executorPtr);
-    auto syncRequestImpl = std::make_shared<InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config);
+    const auto inferExecutor = getExecutorForInference(_executorPtr);
+#ifdef __aarch64__
+    const auto allocator = _device->getAllocator();
+#else
+    // TODO Default allocator always should be used for HDDL2 [Track number: S#41601]
+    const auto allocator = nullptr;
+#endif
+    auto syncRequestImpl = std::make_shared<InferRequest>(
+        _networkInputs, _networkOutputs, inferExecutor, _config, _networkName, allocator);
 
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
@@ -209,6 +216,25 @@ void ExecutableNetwork::GetMetric(
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
+}
+
+//------------------------------------------------------------------------------
+std::atomic<int> ExecutableNetwork::loadBlobCounter{1};
+
+Executor::Ptr ExecutableNetwork::createExecutor(
+    const NetworkDescription::Ptr& network, const VPUXConfig& config, const Device::Ptr& device) {
+    loadBlobCounter++;  // increment blob static counter to make unique network ID
+    if (network == nullptr) {
+        THROW_IE_EXCEPTION << "Network is null!";
+    }
+
+    // Default executor is nullptr, allow only perform export
+    Executor::Ptr executor = nullptr;
+    if (device != nullptr) {
+        executor = device->createExecutor(network, config);
+    }
+    _networkName = _networkPtr->getName();
+    return executor;
 }
 
 }  // namespace vpux

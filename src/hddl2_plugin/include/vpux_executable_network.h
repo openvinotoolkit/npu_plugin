@@ -32,35 +32,40 @@ public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
     explicit ExecutableNetwork(
-        InferenceEngine::ICNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& config);
-
-    explicit ExecutableNetwork(std::istream& networkModel, std::shared_ptr<Device>& device, const VPUXConfig& config);
+        InferenceEngine::ICNNNetwork& network, const Device::Ptr& device, const VPUXConfig& config);
+    explicit ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const VPUXConfig& config);
     ~ExecutableNetwork() override = default;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
         const InferenceEngine::InputsDataMap networkInputs,
         const InferenceEngine::OutputsDataMap networkOutputs) override;
-    void ExportImpl(std::ostream& model) override;
-    void Export(std::ostream& networkModel) override { ExportImpl(networkModel); }
+    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
 
     using InferenceEngine::ExecutableNetworkInternal::Export;
+    void ExportImpl(std::ostream& model) override;
+    void Export(std::ostream& networkModel) override { ExportImpl(networkModel); }
     void Export(const std::string& modelFileName) override;
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
     void GetMetric(const std::string& name, InferenceEngine::Parameter& result,
         InferenceEngine::ResponseDesc* resp) const override;
 
 private:
-    explicit ExecutableNetwork(const VPUXConfig& config);
+    explicit ExecutableNetwork(const VPUXConfig& config, const Device::Ptr& device);
+    Executor::Ptr createExecutor(
+        const NetworkDescription::Ptr& network, const VPUXConfig& config, const Device::Ptr& device);
 
 private:
     const VPUXConfig _config;
     const vpu::Logger::Ptr _logger;
+    const Device::Ptr _device;
+    std::string _networkName;
 
     Compiler::Ptr _compiler = nullptr;
     NetworkDescription::Ptr _networkPtr = nullptr;
     Executor::Ptr _executorPtr;
     std::vector<std::string> _supportedMetrics;
+
+    static std::atomic<int> loadBlobCounter;
 };
 
 }  //  namespace vpux

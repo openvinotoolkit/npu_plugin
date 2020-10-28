@@ -45,21 +45,17 @@ target_include_directories(${KMB_PLUGIN_OBJS_TARGET}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/vpu"
         ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(${KMB_PLUGIN_OBJS_TARGET}
-    SYSTEM PRIVATE
-        ${GAPI_SIPP_INCLUDES}
-        ${GAPI_M2I_INCLUDES})
 
 link_system_libraries(${KMB_PLUGIN_OBJS_TARGET}
-    PUBLIC
+    PUBLIC 
         IE::inference_engine_plugin_api
-        IE::vpu_common_lib
-        ${GAPI_SIPP_LIBRARY}
-        ${GAPI_M2I_LIBRARY})
+        IE::vpu_common_lib)
+
 target_link_libraries(${KMB_PLUGIN_OBJS_TARGET}
     PUBLIC
-        kmb_utils
-        vpux_al)
+        ${GAPI_LIB}
+        vpux_al
+        kmb_utils)
 
 add_dependencies(${KMB_PLUGIN_OBJS_TARGET} vpual_backend)
 add_cpplint_target(${KMB_PLUGIN_OBJS_TARGET}_cpplint FOR_TARGETS ${KMB_PLUGIN_OBJS_TARGET})
@@ -94,33 +90,3 @@ install(TARGETS ${KMB_PLUGIN_TARGET}
     RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${KMB_DEVICE_NAME}
     ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${KMB_DEVICE_NAME}
     LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${KMB_DEVICE_NAME})
-
-#
-# Static library
-#
-
-add_library(${KMB_PLUGIN_STATIC_TARGET} STATIC
-    $<TARGET_OBJECTS:${KMB_PLUGIN_OBJS_TARGET}>
-    ${KMB_PLUGIN_ENGINE_SOURCE_FILE})
-
-target_compile_definitions(${KMB_PLUGIN_STATIC_TARGET}
-    PRIVATE
-        IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-        "DEVICE_NAME=\"${KMB_DEVICE_NAME}\"")
-
-target_include_directories(${KMB_PLUGIN_STATIC_TARGET}
-    PUBLIC
-        $<TARGET_PROPERTY:${KMB_PLUGIN_OBJS_TARGET},INTERFACE_INCLUDE_DIRECTORIES>)
-
-link_system_libraries(${KMB_PLUGIN_STATIC_TARGET}
-    PUBLIC
-        IE::inference_engine_plugin_api
-        IE::vpu_common_lib
-    PRIVATE
-        ${GAPI_SIPP_LIBRARY}
-        ${GAPI_M2I_LIBRARY})
-target_link_libraries(${KMB_PLUGIN_STATIC_TARGET}
-    PUBLIC
-        kmb_utils
-    PRIVATE
-        vpux_al)

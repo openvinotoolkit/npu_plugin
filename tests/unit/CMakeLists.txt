@@ -16,7 +16,7 @@ addIeTargetTest(
         IE::gmock
         ${VPUSMM_LIB}
         common_tests_helpers
-        ${KMB_PLUGIN_STATIC_TARGET}
+        ${HDDL2_PLUGIN_STATIC_TARGET}
         kmb_utils
         vpux_al
         frontend_mcm_static

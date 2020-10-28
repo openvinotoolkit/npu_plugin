@@ -17,6 +17,7 @@
 #pragma once
 
 #include <ie_allocator.hpp>
+#include <mutex>
 #include <unordered_map>
 #include <vpux.hpp>
 
@@ -32,9 +33,9 @@ public:
 
     void unlock(void* handle) noexcept override;
 
-    virtual void* alloc(const size_t size) noexcept;
+    virtual void* alloc(const size_t size) noexcept override;
 
-    virtual bool free(void* handle) noexcept;
+    virtual bool free(void* handle) noexcept override;
 
     void Release() noexcept override {}
 
@@ -44,17 +45,21 @@ public:
 
     virtual ~VpusmmAllocator();
 
+    void* wrapRemoteMemory(const InferenceEngine::ParamMap& map) noexcept override;
+    // TODO Deprecated, remove when will be possible
     void* wrapRemoteMemoryHandle(
         const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept override;
     void* wrapRemoteMemoryOffset(
         const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, const KmbOffsetParam& memOffset) noexcept override;
 
 protected:
+    std::mutex wrapMemoryMutex;
+
     struct MemoryDescriptor {
         size_t size;
         int fd;
         unsigned long physAddr;
-        bool isAllocated;
+        bool isMemoryOwner;
     };
     std::unordered_map<void*, MemoryDescriptor> _allocatedMemory;
     int _deviceId = 0;  // signed integer to be consistent with vpurm API
