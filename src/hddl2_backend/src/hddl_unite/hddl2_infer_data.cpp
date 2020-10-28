@@ -142,11 +142,9 @@ std::map<std::string, IE::InferenceEngineProfileInfo> HddlUniteInferData::getHDD
     info.realTime_uSec = 0;
 
     info.realTime_uSec = static_cast<long long>(_profileData.infer.time);
-    IE_ASSERT(info.realTime_uSec != 0);
     perfCounts["Total scoring time"] = info;
 
     info.realTime_uSec = static_cast<long long>(_profileData.nn.time);
-    IE_ASSERT(info.realTime_uSec != 0);
     perfCounts["Total scoring time on inference"] = info;
 
     info.realTime_uSec = static_cast<long long>(_profileData.pp.time);
