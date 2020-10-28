@@ -25,14 +25,6 @@
 
 namespace vpux {
 
-inline std::string getLibPostfix() {
-#ifdef __unix__
-    return ".so";
-#else
-    return ".dll";
-#endif
-}
-
 enum class EngineBackendType : uint8_t { VPUAL = 1, HDDL2 = 2, ZeroApi = 3 };
 
 //------------------------------------------------------------------------------
@@ -73,26 +65,22 @@ const std::shared_ptr<Device> EngineBackend::getDevice(const InferenceEngine::Pa
 
 //------------------------------------------------------------------------------
 std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const InferenceEngine::ParamMap& /*params*/) {
-    const auto root = InferenceEngine::getIELibraryPath();
 #if defined(__arm__) || defined(__aarch64__)
     const auto type = EngineBackendType::VPUAL;
 #else
     const char* const env_p = std::getenv("IE_PLUGIN_USE_ZERO_BACKEND");
     const auto type = (env_p && env_p[0] == '1') ? EngineBackendType::ZeroApi : EngineBackendType::HDDL2;
 #endif
+
     switch (type) {
     case EngineBackendType::VPUAL: {
-        // TODO: fix name if VPUAL works for Windows
-        std::string so_path = root + "/libvpual_backend" + getLibPostfix();
-        return std::shared_ptr<EngineBackend>(new EngineBackend(so_path));
+        return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("vpual_backend")));
     }
     case EngineBackendType::HDDL2: {
-        std::string so_path = root + "/libhddl2_backend" + getLibPostfix();
-        return std::shared_ptr<EngineBackend>(new EngineBackend(so_path));
+        return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("hddl2_backend")));
     }
     case EngineBackendType::ZeroApi: {
-        const std::string library_path = root + "/zero_backend" IE_BUILD_POSTFIX + getLibPostfix();
-        return std::shared_ptr<EngineBackend>(new EngineBackend(library_path));
+        return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("zero_backend")));
     }
     default:
         return std::shared_ptr<EngineBackend>(new EngineBackend());
