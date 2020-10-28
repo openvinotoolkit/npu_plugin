@@ -54,16 +54,21 @@ const std::map<std::string, std::shared_ptr<Device>> EngineBackend::createDevice
 // TODO _devices lists should not be forced initialized here
 EngineBackend::EngineBackend(std::string pathToLib): _impl(pathToLib), _devices(std::move(createDeviceMap())) {}
 
-const std::shared_ptr<Device> EngineBackend::getDevice() const {
-    return std::make_shared<Device>(_impl->getDevice(), _impl);
+inline const std::shared_ptr<Device> wrapDeviceWithImpl(
+    const std::shared_ptr<IDevice>& device, const InferenceEngine::details::SOPointer<IEngineBackend>& backendPtr) {
+    if (device == nullptr) {
+        return nullptr;
+    }
+    return std::make_shared<Device>(device, backendPtr);
 }
+const std::shared_ptr<Device> EngineBackend::getDevice() const { return wrapDeviceWithImpl(_impl->getDevice(), _impl); }
 
 const std::shared_ptr<Device> EngineBackend::getDevice(const std::string& specificDeviceName) const {
-    return std::make_shared<Device>(_impl->getDevice(specificDeviceName), _impl);
+    return wrapDeviceWithImpl(_impl->getDevice(specificDeviceName), _impl);
 }
 
 const std::shared_ptr<Device> EngineBackend::getDevice(const InferenceEngine::ParamMap& paramMap) const {
-    return std::make_shared<Device>(_impl->getDevice(paramMap), _impl);
+    return wrapDeviceWithImpl(_impl->getDevice(paramMap), _impl);
 }
 
 //------------------------------------------------------------------------------
@@ -95,14 +100,18 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
 
     return nullptr;
 }
-const std::shared_ptr<IDevice> IEngineBackend::getDevice() const { THROW_IE_EXCEPTION << "Not implemented"; }
+const std::shared_ptr<IDevice> IEngineBackend::getDevice() const {
+    THROW_IE_EXCEPTION << "Default getDevice() not implemented";
+}
 const std::shared_ptr<IDevice> IEngineBackend::getDevice(const std::string&) const {
-    THROW_IE_EXCEPTION << "Not implemented";
+    THROW_IE_EXCEPTION << "Specific device search not implemented";
 }
 const std::shared_ptr<IDevice> IEngineBackend::getDevice(const InferenceEngine::ParamMap&) const {
-    THROW_IE_EXCEPTION << "Not implemented";
+    THROW_IE_EXCEPTION << "Get device based on params not implemented";
 }
-const std::vector<std::string> IEngineBackend::getDeviceNames() const { THROW_IE_EXCEPTION << "Not implemented"; }
+const std::vector<std::string> IEngineBackend::getDeviceNames() const {
+    THROW_IE_EXCEPTION << "Get all device names not implemented";
+}
 const std::map<std::string, std::shared_ptr<IDevice>>& IEngineBackend::getDevices() const {
     THROW_IE_EXCEPTION << "Not implemented";
 }
@@ -110,7 +119,7 @@ const std::map<std::string, std::shared_ptr<IDevice>>& IEngineBackend::getDevice
 std::unordered_set<std::string> IEngineBackend::getSupportedOptions() const { return {}; }
 
 void* Allocator::wrapRemoteMemory(const InferenceEngine::ParamMap&) noexcept {
-    std::cerr << "Not implemented" << std::endl;
+    std::cerr << "Wrapping remote memory not implemented" << std::endl;
     return nullptr;
 }
 }  // namespace vpux

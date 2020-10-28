@@ -31,5 +31,7 @@ DECLARE_KMB_PARAM_KEY(BLOB_MEMORY_HANDLE, void*);
 /** @brief Allow to store ROI provided by user on createROI call */
 DECLARE_KMB_PARAM_KEY(ROI_PTR, std::shared_ptr<InferenceEngine::ROI>);
 
+/** @brief VPUSMM allocator need to know size of allocation */
+DECLARE_KMB_PARAM_KEY(ALLOCATION_SIZE, size_t);
 }  // namespace KmbContextParams
 }  // namespace InferenceEngine

@@ -18,7 +18,10 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+file(GLOB SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 list(FILTER SOURCES EXCLUDE REGEX "vpux_plugin.cpp")
@@ -43,7 +46,9 @@ target_compile_definitions(${HDDL2_PLUGIN_OBJS_TARGET}
 target_include_directories(${HDDL2_PLUGIN_OBJS_TARGET}
     PUBLIC
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/include")
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/preproc_gapi"
+        )
 
 link_system_libraries(${HDDL2_PLUGIN_OBJS_TARGET}
     PUBLIC
@@ -56,9 +61,10 @@ target_link_libraries(${HDDL2_PLUGIN_OBJS_TARGET}
     PUBLIC
         kmb_utils
         vpux_al
+    PRIVATE
+        ${GAPI_LIB}
         )
 
-add_dependencies(${HDDL2_PLUGIN_OBJS_TARGET} hddl2_backend)
 add_cpplint_target(${HDDL2_PLUGIN_OBJS_TARGET}_cpplint FOR_TARGETS ${HDDL2_PLUGIN_OBJS_TARGET})
 
 if(ENABLE_CLANG_FORMAT)
@@ -83,14 +89,17 @@ target_include_directories(${HDDL2_PLUGIN_STATIC_TARGET}
     PUBLIC
         $<TARGET_PROPERTY:${HDDL2_PLUGIN_OBJS_TARGET},INTERFACE_INCLUDE_DIRECTORIES>)
 
+
 link_system_libraries(${HDDL2_PLUGIN_STATIC_TARGET}
     PUBLIC
-        IE::inference_engine
         IE::inference_engine_plugin_api
         IE::vpu_common_lib
         )
+
 target_link_libraries(${HDDL2_PLUGIN_STATIC_TARGET}
     PUBLIC
         kmb_utils
     PRIVATE
-        vpux_al)
+        vpux_al
+        ${GAPI_LIB}
+    )

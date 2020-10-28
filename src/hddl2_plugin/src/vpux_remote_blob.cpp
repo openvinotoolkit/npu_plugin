@@ -38,9 +38,11 @@ VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemot
     _parsedParams.update(params);
     _logger->trace("VPUXRemoteBlob wrapping %d size\n", static_cast<int>(this->size()));
 
+    auto updatedParams = IE::ParamMap(params);
+    updatedParams.insert({{IE::KMB_PARAM_KEY(ALLOCATION_SIZE), this->size()}});
     // TODO since we can't use _allocatorPtr to wrap remote memory (instead, we are using input allocator)
     //  this shown design flaw in RemoteBlob + IE:Allocator concept
-    _memoryHandle = allocator->wrapRemoteMemory(params);
+    _memoryHandle = allocator->wrapRemoteMemory(updatedParams);
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Allocation error";
     }
@@ -65,7 +67,7 @@ static std::shared_ptr<IE::ROI> makeROIOverROI(const std::shared_ptr<const IE::R
 }
 
 VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& regionOfInterest)
-    : RemoteBlob(origBlob.getTensorDesc()),
+    : RemoteBlob(make_roi_desc(origBlob.getTensorDesc(), regionOfInterest, true)),
       _parsedParams(origBlob._parsedParams),
       _remoteContextPtr(origBlob._remoteContextPtr),
       _allocatorPtr(origBlob._allocatorPtr),
@@ -74,19 +76,29 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set allocator";
     }
 
-    if (tensorDesc.getDims().size() < 4) {
+    if (tensorDesc.getDims().size() != 4) {
         THROW_IE_EXCEPTION << "Unsupported layout for VPUXRemoteBlob";
     }
-    const auto W = tensorDesc.getDims()[3];
-    const auto H = tensorDesc.getDims()[2];
-    auto newROI = makeROIOverROI(_parsedParams.getROIPtr(), regionOfInterest, W, H);
+    const auto origBlobTensorDesc = origBlob.getTensorDesc();
+    const auto orig_W = origBlobTensorDesc.getDims()[3];
+    const auto orig_H = origBlobTensorDesc.getDims()[2];
+    auto newROI = makeROIOverROI(_parsedParams.getROIPtr(), regionOfInterest, orig_W, orig_H);
     IE::ParamMap updatedROIPtrParam = {{IE::KMB_PARAM_KEY(ROI_PTR), newROI}};
     _parsedParams.update(updatedROIPtrParam);
 
     // TODO Remove this cast
     const auto privateAllocator = std::static_pointer_cast<Allocator>(_allocatorPtr);
-    IE::ParamMap memoryHandleParam = {{IE::KMB_PARAM_KEY(BLOB_MEMORY_HANDLE), origBlob._memoryHandle}};
-    _memoryHandle = privateAllocator->wrapRemoteMemory(memoryHandleParam);
+    IE::ParamMap params = {{IE::KMB_PARAM_KEY(BLOB_MEMORY_HANDLE), origBlob._memoryHandle},
+        {IE::KMB_PARAM_KEY(ALLOCATION_SIZE), origBlob.size()}};
+
+    try {
+        auto origParams = origBlob.getParams();
+        params.insert(origParams.begin(), origParams.end());
+    } catch (std::exception& ex) {
+        THROW_IE_EXCEPTION << "VPUXRemoteBlob: Failed to use original blob params" << ex.what();
+    }
+
+    _memoryHandle = privateAllocator->wrapRemoteMemory(params);
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to copy remote memory handle";
     }
