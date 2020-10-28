@@ -14,6 +14,8 @@
 // stated in the License.
 //
 
+#include <file_utils.h>
+
 #include <vpu/utils/numeric.hpp>
 #include <vpux/vpux_compiler_config.hpp>
 #include <vpux/vpux_plugin_config.hpp>
@@ -94,4 +96,8 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_executorStreams, config, VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS), parseInt);
 
     parseEnvironment();
+}
+
+std::string vpux::getLibFilePath(const std::string& baseName) {
+    return FileUtils::makeSharedLibraryName(InferenceEngine::getIELibraryPath(), baseName + IE_BUILD_POSTFIX);
 }
