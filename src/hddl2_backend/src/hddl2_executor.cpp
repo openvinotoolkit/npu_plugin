@@ -142,7 +142,7 @@ HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, cons
       _workloadContext(workloadContext) {
     _config.parseFrom(config);
     loadGraphToDevice();
-    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteInferData>(
+    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(
         _workloadContext, _config.graphColorFormat(), _network->getDeviceOutputsInfo().size());
 }
 
@@ -153,7 +153,7 @@ HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
       _uniteGraphPtr(ex._uniteGraphPtr),
       _allocatorPtr(ex._allocatorPtr),
       _workloadContext(ex._workloadContext) {
-    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteInferData>(
+    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(
         _workloadContext, _config.graphColorFormat(), _network->getDeviceOutputsInfo().size());
 }
 

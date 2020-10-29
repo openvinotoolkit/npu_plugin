@@ -61,7 +61,7 @@ private:
     NetworkDescription::CPtr _network;
 
     vpu::HDDL2Plugin::HddlUniteGraph::Ptr _uniteGraphPtr = nullptr;
-    vpu::HDDL2Plugin::HddlUniteInferData::Ptr _inferDataPtr = nullptr;
+    vpu::HDDL2Plugin::InferDataAdapter::Ptr _inferDataPtr = nullptr;
 
     // Variables below might be not required for executor
     std::shared_ptr<vpux::Allocator> _allocatorPtr = nullptr;

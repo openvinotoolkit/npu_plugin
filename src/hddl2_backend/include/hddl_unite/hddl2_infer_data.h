@@ -36,13 +36,14 @@ namespace vpu {
 namespace HDDL2Plugin {
 
 /**
- * Carries information necessary for invoking infer request on Unite
+ * @brief Carries information necessary for invoking infer request on HddlUnite
+ * @details Wrap HddlUnite::InferData method
  */
-class HddlUniteInferData final {
+class InferDataAdapter final {
 public:
-    using Ptr = std::shared_ptr<HddlUniteInferData>;
+    using Ptr = std::shared_ptr<InferDataAdapter>;
 
-    explicit HddlUniteInferData(const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
+    explicit InferDataAdapter(const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
         const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR,
         const size_t numOutputs = 1);
 
@@ -52,9 +53,9 @@ public:
     void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const InferenceEngine::DataPtr& desc);
     void prepareUniteOutput(const InferenceEngine::DataPtr& desc);
 
-    HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() { return _inferDataPtr; }
     void waitInferDone() const;
 
+    HddlUnite::Inference::InferData::Ptr& getHDDLUniteInferData() { return _inferDataPtr; }
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getHDDLUnitePerfCounters() const;
 
     /**

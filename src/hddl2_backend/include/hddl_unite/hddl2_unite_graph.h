@@ -44,7 +44,7 @@ public:
         const std::unordered_map<std::string, std::string>& config = {}, const LogLevel logLevel = LogLevel::Error);
 
     ~HddlUniteGraph();
-    void InferAsync(const HddlUniteInferData::Ptr& data) const;
+    void InferAsync(const InferDataAdapter::Ptr& data) const;
 
 private:
     HddlUnite::Inference::Graph::Ptr _uniteGraphPtr = nullptr;

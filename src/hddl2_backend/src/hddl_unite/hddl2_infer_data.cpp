@@ -39,7 +39,7 @@ static void checkData(const IE::DataPtr& desc) {
 }
 
 //------------------------------------------------------------------------------
-HddlUniteInferData::HddlUniteInferData(const HddlUnite::WorkloadContext::Ptr& workloadContext,
+InferDataAdapter::InferDataAdapter(const HddlUnite::WorkloadContext::Ptr& workloadContext,
     const InferenceEngine::ColorFormat colorFormat, const size_t numOutputs)
     : _workloadContext(workloadContext),
       _haveRemoteContext(workloadContext != nullptr),
@@ -56,14 +56,14 @@ HddlUniteInferData::HddlUniteInferData(const HddlUnite::WorkloadContext::Ptr& wo
     }
 }
 
-void HddlUniteInferData::setPreprocessFlag(const bool preprocessingRequired) {
+void InferDataAdapter::setPreprocessFlag(const bool preprocessingRequired) {
     _needUnitePreProcessing = preprocessingRequired;
     if (_needUnitePreProcessing != preprocessingRequired) {
         _inferDataPtr->setPPFlag(_needUnitePreProcessing);
     }
 }
 
-void HddlUniteInferData::prepareUniteInput(const IE::Blob::CPtr& blob, const IE::DataPtr& desc) {
+void InferDataAdapter::prepareUniteInput(const IE::Blob::CPtr& blob, const IE::DataPtr& desc) {
     checkData(desc);
     if (blob == nullptr) {
         THROW_IE_EXCEPTION << "Blob for input is null";
@@ -100,7 +100,7 @@ void HddlUniteInferData::prepareUniteInput(const IE::Blob::CPtr& blob, const IE:
     _inputs[name] = blobDescriptorPtr;
 }
 
-void HddlUniteInferData::prepareUniteOutput(const IE::DataPtr& desc) {
+void InferDataAdapter::prepareUniteOutput(const IE::DataPtr& desc) {
     checkData(desc);
     const auto name = desc->getName();
 
@@ -122,7 +122,7 @@ void HddlUniteInferData::prepareUniteOutput(const IE::DataPtr& desc) {
     }
 }
 
-std::string HddlUniteInferData::getOutputData(const std::string& outputName) {
+std::string InferDataAdapter::getOutputData(const std::string& outputName) {
     // TODO send roiIndex (second parameter)
     auto outputData = _inferDataPtr->getOutputData(outputName);
     if (outputData.empty()) {
@@ -132,14 +132,14 @@ std::string HddlUniteInferData::getOutputData(const std::string& outputName) {
     return outputData;
 }
 
-void HddlUniteInferData::waitInferDone() const {
+void InferDataAdapter::waitInferDone() const {
     auto status = _inferDataPtr->waitInferDone(_asyncInferenceWaitTimeoutMs);
     if (status != HDDL_OK) {
         THROW_IE_EXCEPTION << "Failed to wait for inference result with error: " << status;
     }
 }
 
-std::map<std::string, IE::InferenceEngineProfileInfo> HddlUniteInferData::getHDDLUnitePerfCounters() const {
+std::map<std::string, IE::InferenceEngineProfileInfo> InferDataAdapter::getHDDLUnitePerfCounters() const {
     std::map<std::string, IE::InferenceEngineProfileInfo> perfCounts;
     IE::InferenceEngineProfileInfo info;
     info.status = IE::InferenceEngineProfileInfo::EXECUTED;

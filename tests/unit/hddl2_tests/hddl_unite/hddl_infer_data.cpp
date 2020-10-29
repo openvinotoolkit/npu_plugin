@@ -42,23 +42,23 @@ void InferData_UnitTests::SetUp() {
 
 //------------------------------------------------------------------------------
 using InferData_constructor = InferData_UnitTests;
-TEST_F(InferData_constructor, default_NoThrow) { ASSERT_NO_THROW(HddlUniteInferData inferData); }
+TEST_F(InferData_constructor, default_NoThrow) { ASSERT_NO_THROW(InferDataAdapter inferData); }
 
 TEST_F(InferData_constructor, withNullContext_NoThrow) {
     auto context = nullptr;
-    ASSERT_NO_THROW(HddlUniteInferData inferData(enablePreProcessing, context));
+    ASSERT_NO_THROW(InferDataAdapter inferData(enablePreProcessing, context));
 }
 
 //------------------------------------------------------------------------------
 using InferData_prepareUniteInput = InferData_UnitTests;
 TEST_F(InferData_prepareUniteInput, monkey_nullBlob_Throw) {
-    HddlUniteInferData inferData;
+    InferDataAdapter inferData;
 
     ASSERT_ANY_THROW(inferData.prepareUniteInput(nullptr, inputInfo));
 }
 
 TEST_F(InferData_prepareUniteInput, monkey_nullDesc_Throw) {
-    HddlUniteInferData inferData;
+    InferDataAdapter inferData;
 
     ASSERT_ANY_THROW(inferData.prepareUniteInput(blob, nullptr));
 }
@@ -66,7 +66,7 @@ TEST_F(InferData_prepareUniteInput, monkey_nullDesc_Throw) {
 //------------------------------------------------------------------------------
 using InferData_prepareUniteOutput = InferData_UnitTests;
 TEST_F(InferData_prepareUniteOutput, monkey_nullDesc_Throw) {
-    HddlUniteInferData inferData;
+    InferDataAdapter inferData;
 
     ASSERT_ANY_THROW(inferData.prepareUniteOutput(nullptr));
 }
