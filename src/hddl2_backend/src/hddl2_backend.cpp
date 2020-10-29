@@ -35,7 +35,9 @@ HDDL2Backend::HDDL2Backend(const VPUXConfig& config)
       _devices(createDeviceMap()) {}
 
 /** Generic device */
-const std::shared_ptr<IDevice> HDDL2Backend::getDevice() const { return std::make_shared<HDDLUniteDevice>(); }
+const std::shared_ptr<IDevice> HDDL2Backend::getDevice() const {
+    return getDeviceNames().empty() ? nullptr : std::make_shared<HDDLUniteDevice>();
+}
 
 /** Specific device */
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const std::string& specificDeviceName) const {
