@@ -34,8 +34,8 @@ std::ostream& operator<<(std::ostream& os, const ConvertTestParams &p) {
 
 class KmbConvertLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<ConvertTestParams> {};
 
-// ngraph_parser_enabled custom layers support not implemented
-// [Track number: S#40571]
+// After migrating to ngraph parser, need to add a way of disabling other covert stages/passes
+// [Track number: S#41542]
 TEST_P(KmbConvertLayerTests, DISABLED_accuracy) {
     const auto &p = GetParam();
 
@@ -77,4 +77,4 @@ const std::vector<ConvertTestParams> convertParams = {
             .destination_type(ngraph::element::Type_t::f16)
 };
 
-INSTANTIATE_TEST_CASE_P(precommit_SomeCase, KmbConvertLayerTests, testing::ValuesIn(convertParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbConvertLayerTests, testing::ValuesIn(convertParams));

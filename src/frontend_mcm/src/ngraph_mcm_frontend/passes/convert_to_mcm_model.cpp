@@ -16,6 +16,8 @@
 
 // clang-format off
 
+#include "ie_macro.hpp"
+#include "debug.h"
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_model.hpp"
 #include "ngraph_mcm_frontend/mcm_attrs.hpp"
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
@@ -79,6 +81,7 @@
 #include <ngraph/op/elu.hpp>
 #include <ngraph/op/maximum.hpp>
 #include <ngraph/op/minimum.hpp>
+#include <ngraph/op/hswish.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -94,6 +97,8 @@
 #include <legacy/ngraph_ops/topk_ie.hpp>
 #include <legacy/ngraph_ops/proposal_ie.hpp>
 
+#include <ngraph/variant.hpp>
+
 #include <parse_layers_helpers.hpp>
 #include <dims_parser.hpp>
 #include "ngraph_mcm_frontend/ie_helpers.hpp"
@@ -103,11 +108,13 @@
 #include <map>
 
 #include <include/mcm/tensor/tiling.hpp>
+#include <vpu/utils/error.hpp>
+#include <converters.hpp>
 
 namespace {
 
 using Callback = void (*)(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-InferenceEngine::DataPtr);
+InferenceEngine::DataPtr, bool);
 using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
 std::vector<mv::Data::TensorIterator> getMcmInputs(std::shared_ptr<ngraph::Node> node, const NodeOutputToMcmMap& mcmOutputsMap) {
@@ -179,7 +186,7 @@ static const mv::QuantizationParams& initialQuantParams() {
 };
 
 void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-    InferenceEngine::DataPtr ieData) {
+    InferenceEngine::DataPtr ieData, bool allowNCHWInput) {
     auto mvShape = getWHCN(param->get_shape());
     // Use data from InputInfo DataPtr
     // const auto mvDType = mv::DType("UInt8"); // Test framework sets fp32, cvtElemTypeToMCM(param->get_element_type());
@@ -200,9 +207,12 @@ void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel
         THROW_IE_EXCEPTION << "Input data type is not supported: " << ieData->getTensorDesc().getPrecision();
     }
 
-    // TBD
-    // const auto mvOrder = (inputLayout == ie::Layout::NCHW /*&& _config.allowNCHWLayoutForMcmModelInput()*/) ? mv::Order("NCHW") : mv::Order("NHWC");
-    const auto mvOrder = mv::Order("NHWC");
+    const auto mvOrder = [&] {
+        if (inputLayout == InferenceEngine::Layout::NCHW && allowNCHWInput) {
+            return layoutToOrder(InferenceEngine::Layout::NCHW);
+        }
+        return layoutToOrder(InferenceEngine::Layout::NHWC);
+    }();
     const auto mvDType = cvtElemTypeToMCM(cvtPrecisionToElemType(inputPrecision));
     // MCM Compiler requirements
     // IE_ASSERT(mv::DType("Float16") == mvDType || mv::DType("UInt8") == mvDType);
@@ -522,6 +532,13 @@ void convert(std::shared_ptr<ngraph::op::v0::Elu> elu, mv::OpModel& mcmModel, No
     const auto mcmEluOutput = mcmModel.elu(opName, mcmData, alpha);
 
     registerOutputs(elu, {mcmEluOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v4::HSwish> hswish, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(hswish, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto mcmOpOutput = mcmModel.hSwish(hswish->get_friendly_name(), mcmInputs.at(0));
+    registerOutputs(hswish, {mcmOpOutput}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<McmEltwise> eltwise, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -1397,20 +1414,20 @@ void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel
 
 template <typename T>
 void convertDispatch(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-    InferenceEngine::DataPtr /*unused*/) {
+    InferenceEngine::DataPtr /*unused*/, bool /*unused*/) {
     convert(std::dynamic_pointer_cast<T>(node), mcmModel, mcmOutputsMap);
 }
 
 // Propagate ieData precision to MCM in order to perform conversion on hardware
 template<>
 void convertDispatch<ngraph::op::Parameter>(std::shared_ptr<ngraph::Node> node,
-    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr ieData) {
-    convert(std::dynamic_pointer_cast<ngraph::op::Parameter>(node), mcmModel, mcmOutputsMap, ieData);
+    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr ieData, bool allowNCHWInput) {
+    convert(std::dynamic_pointer_cast<ngraph::op::Parameter>(node), mcmModel, mcmOutputsMap, ieData, allowNCHWInput);
 }
 
 template<>
 void convertDispatch<ngraph::op::Result>(std::shared_ptr<ngraph::Node> node,
-    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr ieData) {
+    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr ieData, bool /*unused*/) {
     convert(std::dynamic_pointer_cast<ngraph::op::Result>(node), mcmModel, mcmOutputsMap, ieData);
 }
 
@@ -1463,83 +1480,157 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::Elu),
     MAP_ENTRY(ngraph::op::v1::Maximum),
     MAP_ENTRY(ngraph::op::v1::Minimum),
-    MAP_ENTRY(ngraph::op::v1::Split)
+    MAP_ENTRY(ngraph::op::v1::Split),
+    MAP_ENTRY(ngraph::op::v4::HSwish)
 };
 
 #undef MAP_ENTRY
 
 void ConvertNode(const std::shared_ptr<ngraph::Node> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-    InferenceEngine::DataPtr ieData) {
+    InferenceEngine::DataPtr ieData, bool allowNCHWInput) {
     const auto dispatchIt = dispatchMap.find(op->get_type_info());
     if (dispatchIt != dispatchMap.end()) {
         const auto convertor = dispatchIt->second;
         if (convertor != nullptr) {
             try {
-                convertor(op, mcmModel, mcmOutputsMap, ieData);
+                convertor(op, mcmModel, mcmOutputsMap, ieData, allowNCHWInput);
             } catch (const std::runtime_error& ex) {
                 THROW_IE_EXCEPTION << "Convertor for operation " << op->get_friendly_name()
-                    << " failed due to runtime error " << ex.what();
+                                   << " failed due to runtime error " << ex.what();
             }
         } else {
             THROW_IE_EXCEPTION << "Convertor not found for operation: " << op->get_friendly_name();
         }
     } else {
-        THROW_IE_EXCEPTION << "Unsupported operation: " << op->get_friendly_name()
-                    << " with name " << op->get_name()
-                    << " with type " << op->get_type_name()
-                    << " with C++ type " << typeid(*op.get()).name();
+        THROW_IE_EXCEPTION << "Unsupported operation: " << op->get_friendly_name() << " with name " << op->get_name()
+                           << " with type " << op->get_type_name() << " with C++ type " << typeid(*op.get()).name();
     }
 }
 
 }  // namespace
 
+// clang-format on
+
+void ConvertToMcmModel::parseCustom(
+    std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(node, mcmOutputsMap);
+
+    auto parser = vpu::CustomLayerParserNGraph(node, mcmInputs);
+
+    const auto customLayer = [&] {
+        const auto customLayersForType = _customLayers.find(node->description());
+        IE_ASSERT(customLayersForType != _customLayers.end());
+        const auto suitableLayers = vpu::getSuitableCustomLayers(customLayersForType->second, node);
+        IE_ASSERT(!suitableLayers.empty());
+        return vpu::findMatchingCustomLayer(suitableLayers, mcmInputs);
+    }();
+
+    int stageIdx = 0;
+    for (const auto& kernel : customLayer->kernels()) {
+        const auto sortedKernelBindings = [&] {
+            auto bindings = std::vector<vpu::CustomKernel::BindingParameter>{};
+            bindings.reserve(kernel.arguments().size());
+
+            for (const auto& arg : kernel.arguments()) {
+                const auto& binding = kernel.bindings().find(arg.name);
+                VPU_THROW_UNLESS(binding != kernel.bindings().end(),
+                    "Failed to bind '%s' custom layer. "
+                    "Can't find kernel argument '%s' in binding list.",
+                    customLayer->layerName(), arg.name);
+                bindings.push_back(binding->second);
+            }
+
+            return bindings;
+        }();
+
+        const auto stage = parser.parseKernelArguments(sortedKernelBindings);
+
+        const auto kernelData = parser.resolveKernelArguments(kernel, stage.arguments);
+        const auto stageOutputs = parser.resolveStageOutputs(kernel, *customLayer, stage.outputs);
+
+        const auto layerName = node->get_friendly_name() + "_custom" +
+                               (customLayer->kernels().size() > 1 ? (":" + std::to_string(stageIdx)) : (""));
+        stageIdx++;
+
+        auto custom = mcmModel.custom(layerName, stage.inputs, kernel.kernelBinary(), kernelData, stageOutputs);
+
+        const auto sourceOp = mcmModel.getSourceOp(custom);
+        const auto mcmOutputTensors = sourceOp->getOutputTensor();
+
+        IE_ASSERT(stage.outputs.size() == mcmOutputTensors.size());
+
+        for (size_t i = 0; i < stage.outputs.size(); i++) {
+            const auto& output = stage.outputs[i];
+            if (output.isBuffer) {
+                parser.addBuffer(output.portIndex, mcmOutputTensors[i]);
+            } else {
+                registerOutputs(node, {custom}, mcmOutputsMap);
+            }
+        }
+    }
+}
+
 bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) {
     // Ngraph representation and IE CNNNetwork may have inputs and outpus in different order.
     // MCM compiler processes inputs and outputs by add-to-model order, not by their name.
     // Therefore plugin must reorder them manually to follow IE CNNNetwork
-    // Also propagate IE input/output precision/layout to MCM, so conversion will be done on hardware.
+    // Also propagate IE input/output precision/layout to MCM, so conversion will be done on
+    // hardware.
+
+    // FIXME
+    // McmModel hard-codes NHWC layout for all of its inputs
+    // Provide an opportunity to use NCHW layout for McmModel inputs
+    const auto allowNCHWInput = _config.allowNCHWLayoutForMcmModelInput();
 
     for (const auto& inputInfo : _networkInputs) {
         bool isFound = false;
         for (const auto& op : func->get_parameters()) {
             if (op->get_friendly_name() == _ioMap.at(inputInfo.first)) {
-                ConvertNode(op, _mcmModel, _mcmOutputsMap, inputInfo.second->getInputData());
+                ConvertNode(op, _mcmModel, _mcmOutputsMap, inputInfo.second->getInputData(), allowNCHWInput);
                 isFound = true;
             }
         }
-        if (!isFound)
-            THROW_IE_EXCEPTION << "Input not found: " << inputInfo.first;
+        if (!isFound) THROW_IE_EXCEPTION << "Input not found: " << inputInfo.first;
     }
 
-    for (const auto& op: func->get_ordered_ops()) {
+    if (!_config.customLayers().empty()) {
+        _customLayers = vpu::CustomLayer::loadFromFile(_config.customLayers());
+    }
+
+    for (const auto& op : func->get_ordered_ops()) {
         if (ngraph::op::Constant::type_info == op->get_type_info()) {
-            ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr);
+            ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr, false);
         }
     }
 
     for (const auto& op : func->get_ordered_ops()) {
-        if (ngraph::op::Parameter::type_info == op->get_type_info())
-            continue;
-        if (ngraph::op::Result::type_info == op->get_type_info())
-            continue;
-        if (ngraph::op::Constant::type_info == op->get_type_info())
-            continue;
-        ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr);
+        if (ngraph::op::Parameter::type_info == op->get_type_info()) continue;
+        if (ngraph::op::Result::type_info == op->get_type_info()) continue;
+        if (ngraph::op::Constant::type_info == op->get_type_info()) continue;
+
+        const auto customLayersForType = _customLayers.find(op->description());
+
+        if (customLayersForType != _customLayers.end()) {
+            const auto suitableLayers = getSuitableCustomLayers(customLayersForType->second, op);
+            if (!suitableLayers.empty()) {
+                parseCustom(op, _mcmModel, _mcmOutputsMap);
+                continue;
+            }
+        }
+
+        ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr, false);
     }
 
     for (const auto& outputInfo : _networkOutputs) {
         bool isFound = false;
         for (const auto& op : func->get_results()) {
             if (op->get_friendly_name() == _ioMap.at(outputInfo.first)) {
-                ConvertNode(op, _mcmModel, _mcmOutputsMap, outputInfo.second);
+                ConvertNode(op, _mcmModel, _mcmOutputsMap, outputInfo.second, false);
                 isFound = true;
             }
         }
-        if (!isFound)
-            THROW_IE_EXCEPTION << "Ouput not found: " << outputInfo.first;
+        if (!isFound) THROW_IE_EXCEPTION << "Output not found: " << outputInfo.first;
     }
 
     return false;
 }
-
-// clang-format on

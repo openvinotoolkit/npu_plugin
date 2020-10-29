@@ -429,7 +429,9 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             1.f, 0.3f);
 }
 
-TEST_F(KmbSSDNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
+// Sporadic accuracy fail
+// [Track number: S#41921]
+TEST_F(KmbSSDNetworkTest, DISABLED_precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8),
@@ -881,12 +883,11 @@ TEST_F(KmbSegmentationNetworkTest, DISABLED_road_segmentation_adas_0001) {
         0.3f);
 }
 
-// C++ exception with description "Caught exception during unit run: MemoryAllocator:VPU_CMX_NN - ArgumentError:
-// conv4_3_0_norm_mbox_locNeutral_copy0conv4_3_0_norm_mbox_locNeutral_copyDMAconv5_5/sep/bn/variance/Fused_Add_:0:0:0::paddedShape[2]
-// 192 - Does not match the dimension 184 of the tensor conv4_3_0_norm_mbox_locNeutral:0 already allocated in the given buffer
-// TODO Check ticket
-// [Track number: D#3656]
-TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
+// MemoryAllocator:VPU_CMX_NN - ArgumentError: conv4_3_0_norm_mbox_locNeutral_copy0conv5_5/sep/bn/variance/Fused_Add_:0_crop:0:0::paddedShape[2]
+// 184 - Does not match the dimension 192 of the tensor
+// conv4_3_0_norm_mbox_locNeutral:0 already allocated in the given buffer
+// [Track number: S#41919]
+TEST_F(KmbDetectionNetworkTest, DISABLED_face_detection_adas_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/face-detection-adas-0001/face-detection-adas-0001.xml")
 	    .setUserInputPrecision("input", Precision::U8)

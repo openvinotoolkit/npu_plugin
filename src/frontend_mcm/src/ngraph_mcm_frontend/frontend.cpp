@@ -209,7 +209,7 @@ std::vector<char> compileNGraph(
         // TBD Should be ngraph::pass too in order to be applied in between other passes.
         const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
 
-        passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();        
+        passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
         passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
         passManager.register_pass<FuseScaleShift>();
         passManager.register_pass<ConvertToMcmConv>();
@@ -220,7 +220,7 @@ std::vector<char> compileNGraph(
         passManager.register_pass<AlignConcatScales>();
         passManager.register_pass<ngraph::pass::ConstantFolding>();
         passManager.register_pass<BroadcastEltwiseInputs>();
-        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap);
+        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config);
 
         const auto start = std::chrono::high_resolution_clock::now();
         passManager.run_passes(func);

@@ -16,20 +16,18 @@
 
 #pragma once
 
-// clang-format off
-
-#include <vpu/utils/logger.hpp>
-#include <ngraph/shape.hpp>
-#include <ngraph/partial_shape.hpp>
-#include <ngraph/type/element_type.hpp>
-#include <ngraph/node.hpp>
+#include <include/mcm/computation/model/iterator/tensor.hpp>
+#include <include/mcm/tensor/dtype/dtype.hpp>
 #include <include/mcm/tensor/quantization_params.hpp>
 #include <include/mcm/tensor/shape.hpp>
-#include <include/mcm/tensor/dtype/dtype.hpp>
-#include <include/mcm/computation/model/iterator/tensor.hpp>
+#include <ngraph/node.hpp>
+#include <ngraph/partial_shape.hpp>
+#include <ngraph/shape.hpp>
+#include <ngraph/type/element_type.hpp>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
+#include <vpu/utils/logger.hpp>
 
 std::string cvtLogLevelToMCM(vpu::LogLevel lvl);
 
@@ -51,5 +49,3 @@ struct NodeOutputHash final {
 };
 
 using NodeOutputToMcmMap = std::unordered_map<ngraph::Output<ngraph::Node>, mv::Data::TensorIterator, NodeOutputHash>;
-
-// clang-format on

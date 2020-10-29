@@ -494,10 +494,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
 
-        auto quantScale = quantizationParams.getScale();
-
-        toBuild->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
-
         std::vector<unsigned> quantMult = {};
         if (quantizationParams.hasAttr("mult"))
             quantMult = quantizationParams.getMult();
@@ -776,9 +772,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-
-        auto quantScale = quantizationParams.getScale();
-        toBuild->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
 
         std::vector<unsigned> quantMult = {};
         if (quantizationParams.hasAttr("mult"))
@@ -1678,9 +1671,6 @@ void mv::RuntimeModel::updatePWLTaskT(std::unique_ptr<MVCNN::NCEInvariantFieldsT
     auto quantZero = pwlQuant.getZeroPoint();
     toBuild->output_data->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
     toBuild->parent_output_tensor->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-    auto quantScale = pwlQuant.getScale();
-    toBuild->output_data->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
-    toBuild->parent_output_tensor->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
     auto quantPostShift = pwlQuant.getPostShift();
     toBuild->output_data->quant_post_shift_right = quantPostShift;
     toBuild->parent_output_tensor->quant_post_shift_right = quantPostShift;
@@ -3106,6 +3096,24 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAGatherTask(mv::ComputationModel 
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAHSwishTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_HSwishParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
@@ -3172,6 +3180,9 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAFakeQuantizeTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Gather")
         toReturn[0]->task.value = buildUPAGatherTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "HSwish")
+        toReturn[0]->task.value = buildUPAHSwishTask(cm, compilationDescriptor, opIt);
+
     // TODO: Add other UPA layers
 
     if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))

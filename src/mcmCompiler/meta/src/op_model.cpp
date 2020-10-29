@@ -965,6 +965,28 @@ mv::Data::TensorIterator mv::OpModel::gather(const std::string& name, Data::Tens
     return output;
 }
 
+mv::Data::TensorIterator mv::OpModel::hSwish(const std::string& name, Data::TensorIterator data)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
+    auto output = defineOp(
+        "HSwish",
+        {
+            data
+        },
+        {
+        },
+        name
+    
+    
+    );
+    if (recordModel_) { 
+
+        const auto outputName = output != tensorEnd() ? varName(output->getName()) : (!name.empty() ? name : "hSwish");
+        printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, "hSwish", name, "data", data);
+    }
+    return output;
+}
+
 mv::Data::TensorIterator mv::OpModel::identity(const std::string& name, Data::TensorIterator data)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
@@ -2532,6 +2554,22 @@ mv::Data::TensorIterator mv::OpModel::uPATaskGather(const std::string& name, con
         {
             { "taskOp", std::string("Gather") },
             { "axis", axis }
+        },
+        name,
+        false,
+        false
+    );
+    return output;
+}
+
+mv::Data::TensorIterator mv::OpModel::uPATaskHSwish(const std::string& name, const std::vector< Data::TensorIterator >& inputs)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
+    auto output = defineOp(
+        "UPATask",
+        inputs,
+        {
+            { "taskOp", std::string("HSwish") },
         },
         name,
         false,

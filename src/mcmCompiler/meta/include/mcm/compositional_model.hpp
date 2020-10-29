@@ -48,6 +48,7 @@ namespace mv
         virtual mv::Data::TensorIterator flatten(const std::string& name, Data::TensorIterator input, const int64_t& axis = 1, const int64_t& end_axis = 3) = 0;
         virtual mv::Data::TensorIterator fullyConnected(const std::string& name, Data::TensorIterator data, Data::TensorIterator weights) = 0;
         virtual mv::Data::TensorIterator gather(const std::string& name, Data::TensorIterator data, Data::TensorIterator indices, const unsigned& axis) = 0;
+        virtual mv::Data::TensorIterator hSwish(const std::string& name, Data::TensorIterator data) = 0;
         virtual mv::Data::TensorIterator identity(const std::string& name, Data::TensorIterator data) = 0;
         virtual mv::Data::TensorIterator implicitInput(const std::string& name, Data::TensorIterator data, const Shape& shape, const DType& dType, const Order& order) = 0;
         virtual mv::Data::TensorIterator implicitOutput(const std::string& name, Data::TensorIterator data) = 0;

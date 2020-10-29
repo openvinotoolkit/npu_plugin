@@ -237,6 +237,14 @@
                 ]
             }
         },
+        "HSwish":{
+            "MvTensor":{
+                "serial_description":[
+                    "Tensor:0:0",
+                    "Tensor:1:0"
+                ]
+            }
+        },
         "LocalResponseNormalization":{
             "MvTensor":{
                 "serial_description":[

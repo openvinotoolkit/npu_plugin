@@ -660,6 +660,19 @@ mv::Data::TensorIterator convertFakeQuantizeToUPATask(mv::OpModel& om, const std
     return fakeQuantize;
 }
 
+mv::Data::TensorIterator convertHSwishToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name, bool /*software*/ = false,
+                                                const mv::QuantizationParams& quantParams = mv::QuantizationParams::empty(),
+                                                const mv::DType& outputTensorType = mv::DType("Default"))
+{
+    auto hswish = om.uPATaskHSwish(name, inputs);
+    hswish->setDType(outputTensorType);
+    hswish->setQuantParams(quantParams);
+    return hswish;
+}
+
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -673,7 +686,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
-                                                       "RefConv", "Gather"};
+                                                       "RefConv", "Gather", "HSwish"};
 
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
@@ -711,7 +724,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"CTCDecoder", convertCTCDecoderToUPATask},
     {"RefConv", convertRefConvToUPATask},
     {"FakeQuantize", convertFakeQuantizeToUPATask},
-    {"Gather", convertGatherToUPATask}
+    {"Gather", convertGatherToUPATask},
+    {"HSwish", convertHSwishToUPATask}
     };
 
     for(auto& opType: opsTypesToConvert)

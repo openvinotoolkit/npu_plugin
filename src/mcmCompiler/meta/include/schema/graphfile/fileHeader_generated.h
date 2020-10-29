@@ -6,6 +6,7 @@
 
 #include "flatbuffers/flatbuffers.h"
 
+#include "device_generated.h"
 #include "memoryManagement_generated.h"
 #include "structure_generated.h"
 
@@ -62,6 +63,7 @@ struct VersionT : public flatbuffers::NativeTable {
   uint32_t minorV;
   uint32_t patchV;
   std::string hash;
+  std::string context;
   VersionT()
       : majorV(0),
         minorV(0),
@@ -76,7 +78,8 @@ struct Version FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_MAJORV = 4,
     VT_MINORV = 6,
     VT_PATCHV = 8,
-    VT_HASH = 10
+    VT_HASH = 10,
+    VT_CONTEXT = 12
   };
   /// Version of the schema that the graphfile was generated with.
   /// Major Version: Sigificant Architectural Change (This will probably require design documentation and such)
@@ -96,6 +99,9 @@ struct Version FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const flatbuffers::String *hash() const {
     return GetPointer<const flatbuffers::String *>(VT_HASH);
   }
+  const flatbuffers::String *context() const {
+    return GetPointer<const flatbuffers::String *>(VT_CONTEXT);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint32_t>(verifier, VT_MAJORV) &&
@@ -103,6 +109,8 @@ struct Version FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            VerifyField<uint32_t>(verifier, VT_PATCHV) &&
            VerifyOffset(verifier, VT_HASH) &&
            verifier.VerifyString(hash()) &&
+           VerifyOffset(verifier, VT_CONTEXT) &&
+           verifier.VerifyString(context()) &&
            verifier.EndTable();
   }
   VersionT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -126,6 +134,9 @@ struct VersionBuilder {
   void add_hash(flatbuffers::Offset<flatbuffers::String> hash) {
     fbb_.AddOffset(Version::VT_HASH, hash);
   }
+  void add_context(flatbuffers::Offset<flatbuffers::String> context) {
+    fbb_.AddOffset(Version::VT_CONTEXT, context);
+  }
   explicit VersionBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -143,8 +154,10 @@ inline flatbuffers::Offset<Version> CreateVersion(
     uint32_t majorV = 0,
     uint32_t minorV = 0,
     uint32_t patchV = 0,
-    flatbuffers::Offset<flatbuffers::String> hash = 0) {
+    flatbuffers::Offset<flatbuffers::String> hash = 0,
+    flatbuffers::Offset<flatbuffers::String> context = 0) {
   VersionBuilder builder_(_fbb);
+  builder_.add_context(context);
   builder_.add_hash(hash);
   builder_.add_patchV(patchV);
   builder_.add_minorV(minorV);
@@ -157,14 +170,17 @@ inline flatbuffers::Offset<Version> CreateVersionDirect(
     uint32_t majorV = 0,
     uint32_t minorV = 0,
     uint32_t patchV = 0,
-    const char *hash = nullptr) {
+    const char *hash = nullptr,
+    const char *context = nullptr) {
   auto hash__ = hash ? _fbb.CreateString(hash) : 0;
+  auto context__ = context ? _fbb.CreateString(context) : 0;
   return MVCNN::CreateVersion(
       _fbb,
       majorV,
       minorV,
       patchV,
-      hash__);
+      hash__,
+      context__);
 }
 
 flatbuffers::Offset<Version> CreateVersion(flatbuffers::FlatBufferBuilder &_fbb, const VersionT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -668,6 +684,7 @@ inline void Version::UnPackTo(VersionT *_o, const flatbuffers::resolver_function
   { auto _e = minorV(); _o->minorV = _e; }
   { auto _e = patchV(); _o->patchV = _e; }
   { auto _e = hash(); if (_e) _o->hash = _e->str(); }
+  { auto _e = context(); if (_e) _o->context = _e->str(); }
 }
 
 inline flatbuffers::Offset<Version> Version::Pack(flatbuffers::FlatBufferBuilder &_fbb, const VersionT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -682,12 +699,14 @@ inline flatbuffers::Offset<Version> CreateVersion(flatbuffers::FlatBufferBuilder
   auto _minorV = _o->minorV;
   auto _patchV = _o->patchV;
   auto _hash = _o->hash.empty() ? _fbb.CreateSharedString("") : _fbb.CreateString(_o->hash);
+  auto _context = _o->context.empty() ? _fbb.CreateSharedString("") : _fbb.CreateString(_o->context);
   return MVCNN::CreateVersion(
       _fbb,
       _majorV,
       _minorV,
       _patchV,
-      _hash);
+      _hash,
+      _context);
 }
 
 inline ResourcesT *Resources::UnPack(const flatbuffers::resolver_function_t *_resolver) const {

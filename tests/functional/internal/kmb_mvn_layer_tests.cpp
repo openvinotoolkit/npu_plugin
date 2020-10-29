@@ -36,9 +36,7 @@ std::ostream& operator<<(std::ostream& os, const MVNTestParams& p) {
 
 class KmbMVNLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<MVNTestParams> {};
 
-// ngraph_parser_enabled custom layers support not implemented
-// [Track number: S#40571]
-TEST_P(KmbMVNLayerTests, DISABLED_accuracy) {
+TEST_P(KmbMVNLayerTests, accuracy) {
     const auto &p = GetParam();
 
     const auto& dims = p.dims();
