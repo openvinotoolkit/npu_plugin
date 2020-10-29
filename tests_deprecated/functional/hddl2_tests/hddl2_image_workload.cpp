@@ -222,57 +222,73 @@ public:
 };
 
 /** @brief Execute inference with preprocessing and after that without preprocessing */
-TEST_F(ImageWorkload_SpecificCases, PreprocessingAfterWoPreprocessing) {
+TEST_F(ImageWorkload_SpecificCases, precommit_WithoutPreprocessingAndPreprocessing) {
     IE::Core ie;
+    auto executableNetwork = ie.ImportNetwork(graphPath, "VPUX");
+    IE::InferRequest inferRequest = executableNetwork.CreateInferRequest();
 
-    // ---- Import or load network
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "VPUX");
-
-    // ---- Create infer request
-    IE::InferRequest inferRequest;
-    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
-
-    // ---- Set input - without preprocessing
+    // ---- Without preprocessing - set blob
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
     auto inputBlob = IE_Core_Helper::loadCatImage(IE::Layout::NHWC);
     ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
-    // ---- Run the request synchronously
+    // ---- Without preprocessing - Infer and compare result
     ASSERT_NO_THROW(inferRequest.Infer());
-
-    // --- Get output
     auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
-
-    // --- Reference Blob
     IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
-
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(
         Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
 
-    // ---- Load NV12 Image and create blob from it
+
+    // ---- With preprocessing - set blob
     auto inputName = executableNetwork.GetInputsInfo().begin()->first;
-
-    // ----- Load NV12 input
     IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(inputNV12Path, inputWidth, inputHeight);
-
-    // Preprocessing
     IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
     preprocInfo.setColorFormat(IE::ColorFormat::NV12);
-
-    // ---- Set NV12 blob with preprocessing information
     inferRequest.SetBlob(inputName, nv12InputBlob, preprocInfo);
 
-    // ---- Run the request synchronously
+    // ---- With preprocessing - Infer and compare result
     ASSERT_NO_THROW(inferRequest.Infer());
-
-    // --- Get output
     outputBlob = inferRequest.GetBlob(outputBlobName);
-
-    // --- Reference Blob
     refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, nv12InputBlob, &preprocInfo);
-
     ASSERT_NO_THROW(
         Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));;
+}
+
+/** @brief Execute inference without preprocessing and after that with preprocessing  */
+TEST_F(ImageWorkload_SpecificCases, precommit_PreprocessingAndWithoutPreprocessing) {
+    IE::Core ie;
+    auto executableNetwork = ie.ImportNetwork(graphPath, "VPUX");
+    IE::InferRequest inferRequest = executableNetwork.CreateInferRequest();
+
+    // ---- With preprocessing - set blob
+    auto inputName = executableNetwork.GetInputsInfo().begin()->first;
+    IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(inputNV12Path, inputWidth, inputHeight);
+    IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
+    preprocInfo.setColorFormat(IE::ColorFormat::NV12);
+    inferRequest.SetBlob(inputName, nv12InputBlob, preprocInfo);
+
+    // ---- With preprocessing - Infer and compare result
+    ASSERT_NO_THROW(inferRequest.Infer());
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+    auto refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, nv12InputBlob, &preprocInfo);
+    ASSERT_NO_THROW(
+        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));;
+
+    // ---- Without preprocessing - set blob
+    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    auto inputBlob = IE_Core_Helper::loadCatImage(IE::Layout::NHWC);
+    IE::PreProcessInfo preprocInfoDefault;
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob, preprocInfoDefault));
+
+    // ---- Without preprocessing - Infer and compare result
+    ASSERT_NO_THROW(inferRequest.Infer());
+    outputBlob = inferRequest.GetBlob(outputBlobName);
+    refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
+    ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
+    ASSERT_NO_THROW(
+        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
 }
