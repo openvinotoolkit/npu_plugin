@@ -16,14 +16,16 @@
 
 #pragma once
 
-// clang-format off
+#include <caseless.hpp>
+#include <custom_layer/custom_layer.hpp>
+#include <custom_layer/custom_parser_ngraph.hpp>
+#include <ie_icnn_network.hpp>
+#include <ie_input_info.hpp>
+#include <include/mcm/op_model.hpp>
+#include <memory>
+#include <ngraph/pass/pass.hpp>
 
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
-#include <ngraph/pass/pass.hpp>
-#include <include/mcm/op_model.hpp>
-#include <ie_input_info.hpp>
-#include <ie_icnn_network.hpp>
-#include <memory>
 
 //
 // Convert nGraph Function to MCM OpModel.
@@ -32,14 +34,20 @@
 class ConvertToMcmModel final : public ngraph::pass::FunctionPass {
 public:
     ConvertToMcmModel(mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-                      const InferenceEngine::InputsDataMap& networkInputs,
-                      const InferenceEngine::OutputsDataMap& networkOutputs,
-                      const std::map<std::string, std::string>& ioMap) :
-            _mcmModel(mcmModel), _mcmOutputsMap(mcmOutputsMap),
-            _networkInputs(networkInputs), _networkOutputs(networkOutputs), _ioMap(ioMap) {
-    }
+        const InferenceEngine::InputsDataMap& networkInputs, const InferenceEngine::OutputsDataMap& networkOutputs,
+        const std::map<std::string, std::string>& ioMap, const vpu::MCMConfig& config)
+        : _mcmModel(mcmModel),
+          _mcmOutputsMap(mcmOutputsMap),
+          _networkInputs(networkInputs),
+          _networkOutputs(networkOutputs),
+          _ioMap(ioMap),
+          _config(config) {}
 
     bool run_on_function(std::shared_ptr<ngraph::Function> func) override;
+
+    void parseCustom(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap);
+
+    InferenceEngine::details::caseless_map<std::string, std::vector<vpu::CustomLayer::Ptr>> _customLayers;
 
 private:
     mv::OpModel& _mcmModel;
@@ -47,6 +55,5 @@ private:
     InferenceEngine::InputsDataMap _networkInputs;
     InferenceEngine::OutputsDataMap _networkOutputs;
     std::map<std::string, std::string> _ioMap;
+    vpu::MCMConfig _config;
 };
-
-// clang-format on
