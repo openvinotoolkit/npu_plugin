@@ -35,9 +35,7 @@ class KmbGRNLayerTests :
     public KmbLayerTestBase,
     public testing::WithParamInterface<std::tuple<GRNTestParams, UseCustomLayers>> {};
 
-// ngraph_parser_enabled custom layers support not implemented
-// [Track number: S#40571]
-TEST_P(KmbGRNLayerTests, DISABLED_accuracy) {
+TEST_P(KmbGRNLayerTests, accuracy) {
     const auto& p = std::get<0>(GetParam());
     const auto& useCustomLayers = std::get<1>(GetParam());
 
