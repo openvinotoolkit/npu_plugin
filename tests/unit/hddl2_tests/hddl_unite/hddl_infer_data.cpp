@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 #include <hddl2_helpers/helper_tensor_description.h>
 
-#include "hddl_unite/hddl2_infer_data.h"
+#include "hddl_unite/infer_data_adapter.h"
 
 using namespace vpu::HDDL2Plugin;
 class InferData_UnitTests : public ::testing::Test {

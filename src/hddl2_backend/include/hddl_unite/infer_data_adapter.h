@@ -49,7 +49,6 @@ public:
 
     void setPreprocessFlag(const bool preprocessingRequired);
 
-    // TODO Now similar to prepareUniteOutput, make one for all?
     void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const InferenceEngine::DataPtr& desc);
     void prepareUniteOutput(const InferenceEngine::DataPtr& desc);
 
@@ -58,9 +57,6 @@ public:
     HddlUnite::Inference::InferData::Ptr& getHDDLUniteInferData() { return _inferDataPtr; }
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getHDDLUnitePerfCounters() const;
 
-    /**
-     * @brief Wait when inference is done and get result from HddlUnite
-     */
     std::string getOutputData(const std::string& outputName);
 
 private:
@@ -75,13 +71,15 @@ private:
     const bool _haveRemoteContext;
     bool _needUnitePreProcessing;
 
-    // TODO [Workaround] Avoid allocation buffer each time
-    std::once_flag _onceFlagInputAllocations;
-
-    std::vector<std::string> _onceFlagOutputAllocations;
-
     HddlUnite::Inference::InferData::ProfileData _profileData = {};
     InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;
+
+private:  // Workarounds
+    // TODO Use maxRoiNum
+    const size_t maxRoiNum = 1;
+    // TODO [Workaround] Avoid allocation buffer each time
+    std::once_flag _onceFlagInputAllocations;
+    std::vector<std::string> _onceFlagOutputAllocations;
 };
 
 }  // namespace HDDL2Plugin

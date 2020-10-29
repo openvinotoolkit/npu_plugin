@@ -21,7 +21,7 @@
 #include "ie_compound_blob.h"
 #include "ie_preprocess_data.hpp"
 // Plugin
-#include "hddl_unite/hddl2_infer_data.h"
+#include "hddl_unite/infer_data_adapter.h"
 // Low-level
 #include "Inference.h"
 
@@ -32,7 +32,7 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static void checkData(const IE::DataPtr& desc) {
+static void checkDataNotNull(const IE::DataPtr& desc) {
     if (!desc) {
         THROW_IE_EXCEPTION << "Data is null";
     }
@@ -47,12 +47,11 @@ InferDataAdapter::InferDataAdapter(const HddlUnite::WorkloadContext::Ptr& worklo
       _graphColorFormat(colorFormat) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
 
-    // TODO Use maxRoiNum
-    const size_t maxRoiNum = 1;
     _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, _workloadContext, maxRoiNum, numOutputs);
 
     if (_inferDataPtr.get() == nullptr) {
-        THROW_IE_EXCEPTION << "Failed to create Unite inferData";
+        THROW_IE_EXCEPTION << "InferDataAdapter: "
+                           << "Failed to create Unite inferData";
     }
 }
 
@@ -64,7 +63,7 @@ void InferDataAdapter::setPreprocessFlag(const bool preprocessingRequired) {
 }
 
 void InferDataAdapter::prepareUniteInput(const IE::Blob::CPtr& blob, const IE::DataPtr& desc) {
-    checkData(desc);
+    checkDataNotNull(desc);
     if (blob == nullptr) {
         THROW_IE_EXCEPTION << "Blob for input is null";
     }
@@ -101,7 +100,7 @@ void InferDataAdapter::prepareUniteInput(const IE::Blob::CPtr& blob, const IE::D
 }
 
 void InferDataAdapter::prepareUniteOutput(const IE::DataPtr& desc) {
-    checkData(desc);
+    checkDataNotNull(desc);
     const auto name = desc->getName();
 
     auto findIt = std::find(_onceFlagOutputAllocations.begin(), _onceFlagOutputAllocations.end(), name);
