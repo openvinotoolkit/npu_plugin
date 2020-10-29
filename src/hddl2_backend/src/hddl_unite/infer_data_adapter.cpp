@@ -69,12 +69,8 @@ void InferDataAdapter::prepareUniteInput(const IE::Blob::CPtr& blob, const IE::D
     }
     const std::string name = desc->getName();
 
-    BlobDescriptor::Ptr blobDescriptorPtr;
-    if (_haveRemoteContext) {
-        blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(desc, blob);
-    } else {
-        blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, blob);
-    }
+    const auto blobType = _haveRemoteContext ? BlobDescType::VideoWorkload : BlobDescType::ImageWorkload;
+    std::unique_ptr<BlobDescriptorAdapter> blobDescriptorPtr(new BlobDescriptorAdapter(blobType, desc, blob));
 
     const bool isInput = true;
     auto blobDesc = blobDescriptorPtr->createUniteBlobDesc(isInput, _graphColorFormat);
@@ -96,7 +92,7 @@ void InferDataAdapter::prepareUniteInput(const IE::Blob::CPtr& blob, const IE::D
     if (!_inferDataPtr->getInputBlob(name)->updateBlob(blobDesc)) {
         THROW_IE_EXCEPTION << "Error updating Unite Blob";
     }
-    _inputs[name] = blobDescriptorPtr;
+    _inputs[name] = std::move(blobDescriptorPtr);
 }
 
 void InferDataAdapter::prepareUniteOutput(const IE::DataPtr& desc) {
@@ -107,17 +103,13 @@ void InferDataAdapter::prepareUniteOutput(const IE::DataPtr& desc) {
     if (findIt == _onceFlagOutputAllocations.end()) {
         _onceFlagOutputAllocations.push_back(name);
 
-        BlobDescriptor::Ptr blobDescriptorPtr;
-        if (_haveRemoteContext) {
-            blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(desc, nullptr);
-        } else {
-            blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, nullptr);
-        }
+        const auto blobType = _haveRemoteContext ? BlobDescType::VideoWorkload : BlobDescType::ImageWorkload;
+        std::unique_ptr<BlobDescriptorAdapter> blobDescriptorPtr(new BlobDescriptorAdapter(blobType, desc, nullptr));
 
         const bool isInput = false;
         _inferDataPtr->createBlob(name, blobDescriptorPtr->createUniteBlobDesc(isInput, _graphColorFormat), isInput);
 
-        _outputs[name] = blobDescriptorPtr;
+        _outputs[name] = std::move(blobDescriptorPtr);
     }
 }
 

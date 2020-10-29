@@ -41,12 +41,16 @@ namespace HDDL2Plugin {
  */
 class InferDataAdapter final {
 public:
-    using Ptr = std::shared_ptr<InferDataAdapter>;
-
+    InferDataAdapter(const InferDataAdapter&) = delete;
+    InferDataAdapter(const InferDataAdapter&&) = delete;
+    InferDataAdapter& operator=(const InferDataAdapter&) = delete;
+    InferDataAdapter& operator=(const InferDataAdapter&&) = delete;
     explicit InferDataAdapter(const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
         const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR,
         const size_t numOutputs = 1);
 
+public:
+    using Ptr = std::shared_ptr<InferDataAdapter>;
     void setPreprocessFlag(const bool preprocessingRequired);
 
     void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const InferenceEngine::DataPtr& desc);
@@ -65,8 +69,8 @@ private:
     HddlUnite::WorkloadContext::Ptr _workloadContext = nullptr;
     HddlUnite::Inference::InferData::Ptr _inferDataPtr = nullptr;
 
-    std::map<std::string, BlobDescriptor::Ptr> _inputs;
-    std::map<std::string, BlobDescriptor::Ptr> _outputs;
+    std::map<std::string, std::unique_ptr<BlobDescriptorAdapter>> _inputs;
+    std::map<std::string, std::unique_ptr<BlobDescriptorAdapter>> _outputs;
 
     const bool _haveRemoteContext;
     bool _needUnitePreProcessing;

@@ -22,8 +22,6 @@
 using namespace vpu::HDDL2Plugin;
 class InferData_UnitTests : public ::testing::Test {
 public:
-    const bool enablePreProcessing = false;
-
     InferenceEngine::DataPtr inputInfo;
     InferenceEngine::DataPtr outputInfo;
 
@@ -46,7 +44,7 @@ TEST_F(InferData_constructor, default_NoThrow) { ASSERT_NO_THROW(InferDataAdapte
 
 TEST_F(InferData_constructor, withNullContext_NoThrow) {
     auto context = nullptr;
-    ASSERT_NO_THROW(InferDataAdapter inferData(enablePreProcessing, context));
+    ASSERT_NO_THROW(InferDataAdapter inferData(context));
 }
 
 //------------------------------------------------------------------------------

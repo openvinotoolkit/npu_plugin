@@ -29,26 +29,27 @@
 namespace vpu {
 namespace HDDL2Plugin {
 
-/**
- * @brief HDDL2 Blob descriptor in term of HddlUnite BlobDesc
- */
-class BlobDescriptor {
+/** @brief Blobs for image workload have different was of creation */
+enum class BlobDescType { VideoWorkload = 1, ImageWorkload = 2 };
+
+/**  * @brief HDDL2 Blob descriptor in term of HddlUnite BlobDesc */
+class BlobDescriptorAdapter final {
 public:
-    using Ptr = std::shared_ptr<BlobDescriptor>;
+    BlobDescriptorAdapter() = delete;
+    BlobDescriptorAdapter(const BlobDescriptorAdapter&) = delete;
+    BlobDescriptorAdapter(const BlobDescriptorAdapter&&) = delete;
+    BlobDescriptorAdapter& operator=(const BlobDescriptorAdapter&) = delete;
+    BlobDescriptorAdapter& operator=(const BlobDescriptorAdapter&&) = delete;
+    explicit BlobDescriptorAdapter(
+        BlobDescType typeOfBlob, const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::CPtr& blob);
+    virtual ~BlobDescriptorAdapter() = default;
 
-    BlobDescriptor(const BlobDescriptor&) = delete;
-    BlobDescriptor(const BlobDescriptor&&) = delete;
-    BlobDescriptor& operator=(const BlobDescriptor&) = delete;
-    BlobDescriptor& operator=(const BlobDescriptor&&) = delete;
-
-    explicit BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::CPtr& blob,
-        bool createRemoteMemoryDescriptor, bool isNeedAllocation, bool isOutput);
-    virtual ~BlobDescriptor() = default;
-
-    virtual HddlUnite::Inference::BlobDesc createUniteBlobDesc(
+public:
+    /** @brief Create BlobDesc in terms of HddlUnite. Will have information only  */
+    HddlUnite::Inference::BlobDesc createUniteBlobDesc(
         const bool& isInput, const InferenceEngine::ColorFormat& colorFormat);
-    virtual void initUniteBlobDesc(HddlUnite::Inference::BlobDesc&);
-    virtual HddlUnite::Inference::NNInputDesc createNNDesc();
+    void initUniteBlobDesc(HddlUnite::Inference::BlobDesc&);
+    HddlUnite::Inference::NNInputDesc createNNDesc();
 
     std::shared_ptr<const InferenceEngine::ROI> getROIPtr() const { return _parsedBlobParamsPtr->getROIPtr(); }
     std::shared_ptr<const InferenceEngine::TensorDesc> getOriginalTensorDesc() const {
@@ -56,15 +57,15 @@ public:
     };
 
 protected:
-    const bool _createRemoteMemoryDescriptor;
-    const bool _isNeedAllocation = true;
+    const BlobDescType _blobType;
+    bool _isNeedAllocation;
 
     InferenceEngine::Blob::CPtr _blobPtr = nullptr;
     std::shared_ptr<vpux::ParsedRemoteBlobParams> _parsedBlobParamsPtr = nullptr;
 
     InferenceEngine::DataPtr _desc = nullptr;
 
-    virtual void setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDesc);
+    void setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDesc);
     // TODO [Workaround] Find suitable approach for IE::NV12 & HddlUnite::NV12 handling
     /**
      * @brief Workaround to provide to HddlUnite one sequence of raw data
@@ -74,19 +75,8 @@ protected:
     InferenceEngine::Blob::Ptr _repackedBlob;  //!< Repacked NV12 Blob if specified
 
     // TODO To be removed
-    const bool _isOutput = true;
+    bool _isOutput = true;
 };
 
-//------------------------------------------------------------------------------
-class LocalBlobDescriptor : public BlobDescriptor {
-public:
-    explicit LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::CPtr& blob);
-};
-
-//------------------------------------------------------------------------------
-class RemoteBlobDescriptor : public BlobDescriptor {
-public:
-    explicit RemoteBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::CPtr& blob);
-};
 }  // namespace HDDL2Plugin
 }  // namespace vpu
