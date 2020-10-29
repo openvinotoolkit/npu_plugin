@@ -1,2 +1,0 @@
-Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
-None,cong_mpool5,MaxPooling,26x26x256,13x13x256,3x3,2,UINT8,No,0
