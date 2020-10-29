@@ -139,6 +139,7 @@ public:
     void parseConst(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
     void parseExp(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
     void parseGather(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseHSwish(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
 
     //
     // Utility

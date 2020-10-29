@@ -378,16 +378,21 @@ struct TensorReferenceT : public flatbuffers::NativeTable {
   std::vector<uint32_t> locale_index;
   MVCNN::DType data_dtype;
   std::vector<uint8_t> quant_zero;
-  std::vector<float> quant_scale;
   std::vector<uint16_t> quant_mult;
   std::vector<uint8_t> quant_shift;
   int8_t quant_post_shift_right;
+  uint64_t order;
+  float density_rate;
+  uint8_t swizzling_key;
   TensorReferenceT()
       : leading_offset(0),
         trailing_offset(0),
         locale(MVCNN::MemoryLocation_NULL),
         data_dtype(MVCNN::DType_NOT_SET),
-        quant_post_shift_right(0) {
+        quant_post_shift_right(0),
+        order(0),
+        density_rate(1.0f),
+        swizzling_key(0) {
   }
 };
 
@@ -405,10 +410,12 @@ struct TensorReference FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_LOCALE_INDEX = 18,
     VT_DATA_DTYPE = 20,
     VT_QUANT_ZERO = 22,
-    VT_QUANT_SCALE = 24,
     VT_QUANT_MULT = 26,
     VT_QUANT_SHIFT = 28,
-    VT_QUANT_POST_SHIFT_RIGHT = 30
+    VT_QUANT_POST_SHIFT_RIGHT = 30,
+    VT_ORDER = 32,
+    VT_DENSITY_RATE = 34,
+    VT_SWIZZLING_KEY = 36
   };
   /// Information on how to access a Tensor
   const flatbuffers::String *name() const {
@@ -441,9 +448,6 @@ struct TensorReference FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const flatbuffers::Vector<uint8_t> *quant_zero() const {
     return GetPointer<const flatbuffers::Vector<uint8_t> *>(VT_QUANT_ZERO);
   }
-  const flatbuffers::Vector<float> *quant_scale() const {
-    return GetPointer<const flatbuffers::Vector<float> *>(VT_QUANT_SCALE);
-  }
   const flatbuffers::Vector<uint16_t> *quant_mult() const {
     return GetPointer<const flatbuffers::Vector<uint16_t> *>(VT_QUANT_MULT);
   }
@@ -452,6 +456,15 @@ struct TensorReference FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   int8_t quant_post_shift_right() const {
     return GetField<int8_t>(VT_QUANT_POST_SHIFT_RIGHT, 0);
+  }
+  uint64_t order() const {
+    return GetField<uint64_t>(VT_ORDER, 0);
+  }
+  float density_rate() const {
+    return GetField<float>(VT_DENSITY_RATE, 1.0f);
+  }
+  uint8_t swizzling_key() const {
+    return GetField<uint8_t>(VT_SWIZZLING_KEY, 0);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -471,13 +484,14 @@ struct TensorReference FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            VerifyField<int8_t>(verifier, VT_DATA_DTYPE) &&
            VerifyOffset(verifier, VT_QUANT_ZERO) &&
            verifier.VerifyVector(quant_zero()) &&
-           VerifyOffset(verifier, VT_QUANT_SCALE) &&
-           verifier.VerifyVector(quant_scale()) &&
            VerifyOffset(verifier, VT_QUANT_MULT) &&
            verifier.VerifyVector(quant_mult()) &&
            VerifyOffset(verifier, VT_QUANT_SHIFT) &&
            verifier.VerifyVector(quant_shift()) &&
            VerifyField<int8_t>(verifier, VT_QUANT_POST_SHIFT_RIGHT) &&
+           VerifyField<uint64_t>(verifier, VT_ORDER) &&
+           VerifyField<float>(verifier, VT_DENSITY_RATE) &&
+           VerifyField<uint8_t>(verifier, VT_SWIZZLING_KEY) &&
            verifier.EndTable();
   }
   TensorReferenceT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -519,9 +533,6 @@ struct TensorReferenceBuilder {
   void add_quant_zero(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> quant_zero) {
     fbb_.AddOffset(TensorReference::VT_QUANT_ZERO, quant_zero);
   }
-  void add_quant_scale(flatbuffers::Offset<flatbuffers::Vector<float>> quant_scale) {
-    fbb_.AddOffset(TensorReference::VT_QUANT_SCALE, quant_scale);
-  }
   void add_quant_mult(flatbuffers::Offset<flatbuffers::Vector<uint16_t>> quant_mult) {
     fbb_.AddOffset(TensorReference::VT_QUANT_MULT, quant_mult);
   }
@@ -530,6 +541,15 @@ struct TensorReferenceBuilder {
   }
   void add_quant_post_shift_right(int8_t quant_post_shift_right) {
     fbb_.AddElement<int8_t>(TensorReference::VT_QUANT_POST_SHIFT_RIGHT, quant_post_shift_right, 0);
+  }
+  void add_order(uint64_t order) {
+    fbb_.AddElement<uint64_t>(TensorReference::VT_ORDER, order, 0);
+  }
+  void add_density_rate(float density_rate) {
+    fbb_.AddElement<float>(TensorReference::VT_DENSITY_RATE, density_rate, 1.0f);
+  }
+  void add_swizzling_key(uint8_t swizzling_key) {
+    fbb_.AddElement<uint8_t>(TensorReference::VT_SWIZZLING_KEY, swizzling_key, 0);
   }
   explicit TensorReferenceBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -555,14 +575,17 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReference(
     flatbuffers::Offset<flatbuffers::Vector<uint32_t>> locale_index = 0,
     MVCNN::DType data_dtype = MVCNN::DType_NOT_SET,
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> quant_zero = 0,
-    flatbuffers::Offset<flatbuffers::Vector<float>> quant_scale = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint16_t>> quant_mult = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> quant_shift = 0,
-    int8_t quant_post_shift_right = 0) {
+    int8_t quant_post_shift_right = 0,
+    uint64_t order = 0,
+    float density_rate = 1.0f,
+    uint8_t swizzling_key = 0) {
   TensorReferenceBuilder builder_(_fbb);
+  builder_.add_order(order);
+  builder_.add_density_rate(density_rate);
   builder_.add_quant_shift(quant_shift);
   builder_.add_quant_mult(quant_mult);
-  builder_.add_quant_scale(quant_scale);
   builder_.add_quant_zero(quant_zero);
   builder_.add_locale_index(locale_index);
   builder_.add_data(data);
@@ -571,6 +594,7 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReference(
   builder_.add_strides(strides);
   builder_.add_dimensions(dimensions);
   builder_.add_name(name);
+  builder_.add_swizzling_key(swizzling_key);
   builder_.add_quant_post_shift_right(quant_post_shift_right);
   builder_.add_data_dtype(data_dtype);
   builder_.add_locale(locale);
@@ -589,16 +613,17 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReferenceDirect(
     const std::vector<uint32_t> *locale_index = nullptr,
     MVCNN::DType data_dtype = MVCNN::DType_NOT_SET,
     const std::vector<uint8_t> *quant_zero = nullptr,
-    const std::vector<float> *quant_scale = nullptr,
     const std::vector<uint16_t> *quant_mult = nullptr,
     const std::vector<uint8_t> *quant_shift = nullptr,
-    int8_t quant_post_shift_right = 0) {
+    int8_t quant_post_shift_right = 0,
+    uint64_t order = 0,
+    float density_rate = 1.0f,
+    uint8_t swizzling_key = 0) {
   auto name__ = name ? _fbb.CreateString(name) : 0;
   auto dimensions__ = dimensions ? _fbb.CreateVector<uint32_t>(*dimensions) : 0;
   auto strides__ = strides ? _fbb.CreateVector<uint32_t>(*strides) : 0;
   auto locale_index__ = locale_index ? _fbb.CreateVector<uint32_t>(*locale_index) : 0;
   auto quant_zero__ = quant_zero ? _fbb.CreateVector<uint8_t>(*quant_zero) : 0;
-  auto quant_scale__ = quant_scale ? _fbb.CreateVector<float>(*quant_scale) : 0;
   auto quant_mult__ = quant_mult ? _fbb.CreateVector<uint16_t>(*quant_mult) : 0;
   auto quant_shift__ = quant_shift ? _fbb.CreateVector<uint8_t>(*quant_shift) : 0;
   return MVCNN::CreateTensorReference(
@@ -613,10 +638,12 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReferenceDirect(
       locale_index__,
       data_dtype,
       quant_zero__,
-      quant_scale__,
       quant_mult__,
       quant_shift__,
-      quant_post_shift_right);
+      quant_post_shift_right,
+      order,
+      density_rate,
+      swizzling_key);
 }
 
 flatbuffers::Offset<TensorReference> CreateTensorReference(flatbuffers::FlatBufferBuilder &_fbb, const TensorReferenceT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -710,10 +737,12 @@ inline void TensorReference::UnPackTo(TensorReferenceT *_o, const flatbuffers::r
   { auto _e = locale_index(); if (_e) { _o->locale_index.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->locale_index[_i] = _e->Get(_i); } } }
   { auto _e = data_dtype(); _o->data_dtype = _e; }
   { auto _e = quant_zero(); if (_e) { _o->quant_zero.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->quant_zero[_i] = _e->Get(_i); } } }
-  { auto _e = quant_scale(); if (_e) { _o->quant_scale.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->quant_scale[_i] = _e->Get(_i); } } }
   { auto _e = quant_mult(); if (_e) { _o->quant_mult.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->quant_mult[_i] = _e->Get(_i); } } }
   { auto _e = quant_shift(); if (_e) { _o->quant_shift.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->quant_shift[_i] = _e->Get(_i); } } }
   { auto _e = quant_post_shift_right(); _o->quant_post_shift_right = _e; }
+  { auto _e = order(); _o->order = _e; }
+  { auto _e = density_rate(); _o->density_rate = _e; }
+  { auto _e = swizzling_key(); _o->swizzling_key = _e; }
 }
 
 inline flatbuffers::Offset<TensorReference> TensorReference::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TensorReferenceT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -734,10 +763,12 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReference(flatbuffers::F
   auto _locale_index = _fbb.CreateVector(_o->locale_index);
   auto _data_dtype = _o->data_dtype;
   auto _quant_zero = _fbb.CreateVector(_o->quant_zero);
-  auto _quant_scale = _fbb.CreateVector(_o->quant_scale);
   auto _quant_mult = _fbb.CreateVector(_o->quant_mult);
   auto _quant_shift = _fbb.CreateVector(_o->quant_shift);
   auto _quant_post_shift_right = _o->quant_post_shift_right;
+  auto _order = _o->order;
+  auto _density_rate = _o->density_rate;
+  auto _swizzling_key = _o->swizzling_key;
   return MVCNN::CreateTensorReference(
       _fbb,
       _name,
@@ -750,10 +781,12 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReference(flatbuffers::F
       _locale_index,
       _data_dtype,
       _quant_zero,
-      _quant_scale,
       _quant_mult,
       _quant_shift,
-      _quant_post_shift_right);
+      _quant_post_shift_right,
+      _order,
+      _density_rate,
+      _swizzling_key);
 }
 
 }  // namespace MVCNN
