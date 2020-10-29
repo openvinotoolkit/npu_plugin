@@ -26,6 +26,7 @@
 #include <xlink_uapi.h>
 #endif
 
+#include "vpux/kmb_params.hpp"
 #include "vpual_device.hpp"
 
 namespace vpux {
@@ -126,6 +127,33 @@ const std::map<std::string, std::shared_ptr<IDevice>> VpualEngineBackend::create
 }
 
 const std::map<std::string, std::shared_ptr<IDevice>>& VpualEngineBackend::getDevices() const { return _devices; }
+
+const std::shared_ptr<IDevice> VpualEngineBackend::getDevice() const { return _devices.begin()->second; }
+
+const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const InferenceEngine::ParamMap& map) const {
+    std::string deviceId;
+    try {
+        deviceId = map.at(InferenceEngine::KMB_PARAM_KEY(DEVICE_ID)).as<std::string>();
+    } catch (...) {
+        THROW_IE_EXCEPTION << "Device ID is not provided!";
+    }
+    try {
+        return getDevices().at(deviceId);
+    } catch (...) {
+        _logger->warning("Device %s not found", deviceId);
+    }
+    return nullptr;
+}
+
+const std::vector<std::string> VpualEngineBackend::getDeviceNames() const {
+    std::vector<std::string> availableDevices;
+    const auto& devices = getDevices();
+    for (const auto& elem : devices) {
+        const auto& device = elem.second;
+        availableDevices.emplace_back(device->getName());
+    }
+    return availableDevices;
+}
 
 }  // namespace vpux
 

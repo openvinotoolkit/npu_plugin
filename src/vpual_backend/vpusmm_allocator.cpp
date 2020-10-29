@@ -19,6 +19,8 @@
 #include <iostream>
 #include <memory>
 
+#include "vpux_params_private_options.h"
+
 #if defined(__arm__) || defined(__aarch64__)
 #include <sys/mman.h>
 #include <unistd.h>
@@ -42,6 +44,78 @@ static size_t alignMemorySize(const size_t size) {
 }
 #endif
 
+// TODO Cut copy of KmbBlobParams (wo config, _logger). Refactor to avoid duplication.
+class VPUSMMAllocatorParams {
+public:
+    explicit VPUSMMAllocatorParams(const InferenceEngine::ParamMap& paramMap);
+
+    InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
+    KmbRemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
+    KmbHandleParam getRemoteMemoryHandle() const { return _remoteMemoryHandle; }
+    KmbOffsetParam getRemoteMemoryOffset() const { return _remoteMemoryOffset; }
+    size_t getSize() const { return _size; }
+
+protected:
+    InferenceEngine::ParamMap _paramMap;
+    KmbRemoteMemoryFD _remoteMemoryFd;
+    KmbHandleParam _remoteMemoryHandle;
+    KmbOffsetParam _remoteMemoryOffset;
+    size_t _size;
+};
+
+VPUSMMAllocatorParams::VPUSMMAllocatorParams(const InferenceEngine::ParamMap& params): _paramMap(params) {
+    if (params.empty()) {
+        THROW_IE_EXCEPTION << "VPUSMMAllocatorParams: Param map for blob is empty.";
+    }
+
+    auto sizeIter = params.find(InferenceEngine::KMB_PARAM_KEY(ALLOCATION_SIZE));
+    if (sizeIter == params.end()) {
+        THROW_IE_EXCEPTION << "VPUSMMAllocatorParams: Size of allocation is not provided.";
+    }
+    try {
+        _size = params.at(InferenceEngine::KMB_PARAM_KEY(ALLOCATION_SIZE)).as<size_t>();
+    } catch (...) {
+        THROW_IE_EXCEPTION << "VPUSMMAllocatorParams: Failed to get size of allocation.";
+    }
+
+    auto remoteMemoryFdIter = params.find(InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD));
+    if (remoteMemoryFdIter == params.end()) {
+        THROW_IE_EXCEPTION << "VPUSMMAllocatorParams: "
+                           << "Param map does not contain remote memory file descriptor "
+                              "information";
+    }
+    try {
+        _remoteMemoryFd = remoteMemoryFdIter->second.as<KmbRemoteMemoryFD>();
+    } catch (...) {
+        THROW_IE_EXCEPTION << "VPUSMMAllocatorParams: Remote memory fd param has incorrect type";
+    }
+
+    auto remoteMemoryHandleIter = params.find(InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE));
+    auto remoteMemoryOffsetIter = params.find(InferenceEngine::KMB_PARAM_KEY(MEM_OFFSET));
+
+    // memory handle is preferable
+    if (remoteMemoryHandleIter != params.end()) {
+        try {
+            _remoteMemoryHandle = remoteMemoryHandleIter->second.as<KmbHandleParam>();
+            _remoteMemoryOffset = 0;
+        } catch (...) {
+            THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Remote memory handle param has incorrect type";
+        }
+    } else if (remoteMemoryOffsetIter != params.end()) {
+        try {
+            _remoteMemoryHandle = nullptr;
+            _remoteMemoryOffset = remoteMemoryOffsetIter->second.as<KmbOffsetParam>();
+        } catch (...) {
+            THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Remote memory offset param has incorrect type";
+        }
+    } else {
+        THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: "
+                           << "Param map should contain either remote memory handle "
+                           << "or remote memory offset.";
+    }
+}
+
+//------------------------------------------------------------------------------
 VpusmmAllocator::VpusmmAllocator(const int deviceId): _deviceId(deviceId) {}
 
 void* VpusmmAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
@@ -160,6 +234,9 @@ bool VpusmmAllocator::free(void* handle) noexcept {
     if (memoryIt == _allocatedMemory.end()) {
         return false;
     }
+    if (!memoryIt->second.isMemoryOwner) {
+        return true;
+    }
 
     auto memoryDesc = memoryIt->second;
 
@@ -186,7 +263,7 @@ VpusmmAllocator::~VpusmmAllocator() {
         std::size_t amount = 0;
         for (const auto& p : _allocatedMemory) {
             // count only allocated chunks, skip imported chunks
-            if (p.second.isAllocated) {
+            if (p.second.isMemoryOwner) {
                 allocatedChunksCount++;
                 amount += p.second.size;
             }
@@ -195,6 +272,18 @@ VpusmmAllocator::~VpusmmAllocator() {
             std::cerr << "Error: " << allocatedChunksCount << " memory chunks ";
             std::cerr << amount << " bytes amount were not freed!" << std::endl;
         }
+    }
+}
+void* VpusmmAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& map) noexcept {
+    std::lock_guard<std::mutex> lock(wrapMemoryMutex);
+    VPUSMMAllocatorParams params(map);
+    const auto& remoteMemoryFd = params.getRemoteMemoryFD();
+    const auto& size = params.getSize();
+    if (params.getRemoteMemoryHandle() != nullptr) {
+        return wrapRemoteMemoryHandle(remoteMemoryFd, size, params.getRemoteMemoryHandle());
+    } else {
+        // fallback to offsets when memory handle is not specified
+        return wrapRemoteMemoryOffset(remoteMemoryFd, size, params.getRemoteMemoryOffset());
     }
 }
 

@@ -142,6 +142,9 @@ IE::QueryNetworkResult Engine::QueryNetwork(
 RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
     // Device in this case will be searched inside RemoteContext creation
     const auto device = _backends->getDevice(map);
+    if (device == nullptr) {
+        THROW_IE_EXCEPTION << "CreateContext: Failed to find suitable device to use";
+    }
     return std::make_shared<VPUXRemoteContext>(device, map, _parsedConfig);
 }
 

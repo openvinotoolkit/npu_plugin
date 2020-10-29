@@ -17,13 +17,14 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <vpux_infer_request.h>
+#include <vpu/utils/perf_report.hpp>
 #include <vpux.hpp>
 #include <vpux_private_config.hpp>
 #include <vpual_config.hpp>
 
 #include "creators/creator_blob.h"
 #include "creators/creator_blob_nv12.h"
-#include "kmb_infer_request.h"
 
 namespace ie = InferenceEngine;
 
@@ -98,9 +99,9 @@ public:
 
     void unlock(void* /*handle*/) noexcept override {}
 
-    virtual void* alloc(size_t /*size*/) noexcept { return reinterpret_cast<uint8_t*>(buffer); }
+    virtual void* alloc(size_t /*size*/) noexcept override { return reinterpret_cast<uint8_t*>(buffer); }
 
-    virtual bool free(void* /*handle*/) noexcept { return true; }
+    virtual bool free(void* /*handle*/) noexcept override { return true; }
 
     void Release() noexcept override {}
 
@@ -111,11 +112,11 @@ public:
     virtual ~MockAllocator() = default;
 
     void* wrapRemoteMemoryHandle(
-        const KmbRemoteMemoryFD& /*remoteMemoryFd*/, const size_t /*size*/, void* /*memHandle*/) noexcept override {
+        const int& /*remoteMemoryFd*/, const size_t /*size*/, void* /*memHandle*/) noexcept override {
         return nullptr;
     }
-    void* wrapRemoteMemoryOffset(const KmbRemoteMemoryFD& /*remoteMemoryFd*/, const size_t /*size*/,
-        const KmbOffsetParam& /*memOffset*/) noexcept override {
+    void* wrapRemoteMemoryOffset(const int& /*remoteMemoryFd*/, const size_t /*size*/,
+        const size_t& /*memOffset*/) noexcept override {
         return nullptr;
     }
 
@@ -127,11 +128,11 @@ TEST_F(kmbInferRequestConstructionUnitTests, cannotCreateInferRequestWithEmptyIn
     vpux::VpualConfig config;
 
     auto executor = std::make_shared<MockExecutor>();
-    KmbInferRequest::Ptr inferRequest;
+    vpux::InferRequest::Ptr inferRequest;
 
     auto allocator = std::make_shared<MockAllocator>();
-    ASSERT_THROW(inferRequest = std::make_shared<KmbInferRequest>(ie::InputsDataMap(), ie::OutputsDataMap(),
-                     std::vector<vpu::StageMetaInfo>(), config, executor, allocator, "networkName"),
+    ASSERT_THROW(inferRequest = std::make_shared<vpux::InferRequest>(ie::InputsDataMap(), ie::OutputsDataMap(),
+                     executor, config, "networkName", allocator),
         ie::details::InferenceEngineException);
 }
 
@@ -142,16 +143,17 @@ TEST_F(kmbInferRequestConstructionUnitTests, canCreateInferRequestWithValidParam
     auto outputs = setupOutputsWithSingleElement();
 
     auto allocator = std::make_shared<MockAllocator>();
-    KmbInferRequest::Ptr inferRequest;
-    ASSERT_NO_THROW(inferRequest = std::make_shared<KmbInferRequest>(inputs, outputs, std::vector<vpu::StageMetaInfo>(),
-                        config, executor, allocator, "networkName"));
+    vpux::InferRequest::Ptr inferRequest;
+    ASSERT_NO_THROW(inferRequest = std::make_shared<vpux::InferRequest>(inputs, outputs,
+                        executor, config, "networkName", allocator));
 }
-class TestableKmbInferRequest : public KmbInferRequest {
+class TestableKmbInferRequest : public vpux::InferRequest {
 public:
     TestableKmbInferRequest(const ie::InputsDataMap& networkInputs, const ie::OutputsDataMap& networkOutputs,
-        const std::vector<vpu::StageMetaInfo>& blobMetaData, const vpux::VpualConfig& kmbConfig,
+        const std::vector<vpu::StageMetaInfo>& /*blobMetaData*/, const vpux::VpualConfig& kmbConfig,
         const std::shared_ptr<vpux::Executor>& executor, const std::shared_ptr<ie::IAllocator>& allocator)
-        : KmbInferRequest(networkInputs, networkOutputs, blobMetaData, kmbConfig, executor, allocator, "networkName"){};
+        // TODO blobMetaData removed - investigate usage [Track number: C#41602]
+        : vpux::InferRequest(networkInputs, networkOutputs, executor, kmbConfig, "networkName", allocator){};
 
 public:
     MOCK_METHOD6(execKmbDataPreprocessing, void(ie::BlobMap&, std::map<std::string, ie::PreProcessDataPtr>&,
@@ -166,6 +168,7 @@ public:
 #if defined(__arm__) || defined(__aarch64__)
 class kmbInferRequestUseCasesUnitTests : public kmbInferRequestConstructionUnitTests {
 protected:
+    vpux::VpualConfig config;
     ie::InputsDataMap _inputs;
     ie::OutputsDataMap _outputs;
     std::shared_ptr<MockExecutor> _executor;
@@ -173,8 +176,6 @@ protected:
 
 protected:
     void SetUp() override {
-        vpux::VpualConfig config;
-
         _executor = std::make_shared<MockExecutor>();
 
         _inputs = setupInputsWithSingleElement();

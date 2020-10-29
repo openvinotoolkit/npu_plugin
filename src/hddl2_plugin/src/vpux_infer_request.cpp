@@ -14,18 +14,23 @@
 // stated in the License.
 //
 
-#include "vpux_infer_request.h"
-
-#include <ie_blob.h>
-#include <ie_layouts.h>
-
-#include <ie_itt.hpp>
+// System
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-
+// IE
+#include <ie_blob.h>
+#include <ie_layouts.h>
+// Plugin
+#include "ie_itt.hpp"
+#include "ie_utils.hpp"
+#include "vpux_infer_request.h"
 #include "vpux_remote_blob.h"
+// Low-level
+#ifdef __aarch64__
+#include <kmb_preproc.hpp>
+#endif
 
 namespace vpux {
 namespace IE = InferenceEngine;
@@ -41,10 +46,16 @@ static void checkNetworkPrecision(const IE::Precision& precision) {
     }
 }
 
-static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc) {
+static IE::Blob::Ptr allocateLocalBlob(
+    const IE::TensorDesc& tensorDesc, const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
     checkNetworkPrecision(tensorDesc.getPrecision());
 
-    IE::Blob::Ptr blob = make_blob_with_precision(tensorDesc);
+    IE::Blob::Ptr blob;
+    if (allocator == nullptr) {
+        blob = make_blob_with_precision(tensorDesc);
+    } else {
+        blob = make_blob_with_precision(tensorDesc, allocator);
+    }
     if (blob == nullptr) {
         THROW_IE_EXCEPTION << "InputBlob is nullptr.";
     }
@@ -54,23 +65,34 @@ static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc) {
 
 //------------------------------------------------------------------------------
 InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
-    const Executor::Ptr& executor, const VPUXConfig& config)
+    const Executor::Ptr& executor, const VPUXConfig& config, const std::string& netName,
+    const std::shared_ptr<InferenceEngine::IAllocator>& allocator)
     : InferRequestInternal(networkInputs, networkOutputs),
       _executorPtr(executor),
       _config(config),
-      _logger(std::make_shared<vpu::Logger>("InferRequest", config.logLevel(), vpu::consoleOutput())) {
+      _logger(std::make_shared<vpu::Logger>("InferRequest", config.logLevel(), vpu::consoleOutput())),
+      _allocator(allocator),
+      _deviceId(utils::extractIdFromDeviceName(config.deviceId())),
+      _netUniqueId(netName),
+      _preprocBuffer(nullptr, [this](uint8_t* buffer) {
+          _allocator->free(buffer);
+      }) {
+    if (_networkOutputs.empty() || _networkInputs.empty()) {
+        THROW_IE_EXCEPTION << "No information about network's output/input.";
+    }
+
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
         const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
 
-        _inputs[inputName] = allocateLocalBlob(inputTensorDesc);
+        _inputs[inputName] = allocateLocalBlob(inputTensorDesc, _allocator);
     }
 
     for (auto& networkOutput : _networkOutputs) {
         const std::string outputName = networkOutput.first;
         const IE::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
 
-        _outputs[outputName] = allocateLocalBlob(outputTensorDesc);
+        _outputs[outputName] = allocateLocalBlob(outputTensorDesc, _allocator);
     }
 }
 
@@ -110,11 +132,103 @@ PreprocMap InferRequest::preparePreProcessing(IE::BlobMap& inputs, const IE::Inp
     return preProcMap;
 }
 
+#ifdef __aarch64__
+void InferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
+    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "execPreprocessing");
+    if ((_config.useSIPP() || _config.useM2I()) && IE::KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
+        relocationAndExecKmbDataPreprocessing(
+            inputs, _networkInputs, _config.graphColorFormat(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
+    } else {
+        _logger->warning("SIPP/M2I is enabled but configuration is not supported.");
+        execDataPreprocessing(inputs);
+    }
+}
+
+// TODO: SIPP preprocessing usage can be merged to common preprocessing pipeline
+void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
+    InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
+    unsigned int lpi) {
+    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "relocationAndExecKmbDataPreprocessing");
+    std::map<std::string, IE::PreProcessDataPtr> preprocDataRealloc;
+    for (const auto& input : inputs) {
+        const std::string& inputName = input.first;
+        auto preProcDataIter = _preProcData.find(inputName);
+        if (preProcDataIter == _preProcData.end()) {
+            continue;
+        }
+
+        preprocDataRealloc[preProcDataIter->first] = IE::CreatePreprocDataHelper();
+        IE::Blob::Ptr blobData = preProcDataIter->second->getRoiBlob();
+        if (blobData->is<IE::NV12Blob>()) {
+            IE::NV12Blob::Ptr origNV12Blob = IE::as<IE::NV12Blob>(blobData);
+            IE::Blob::Ptr& origYBlob = origNV12Blob->y();
+            IE::Blob::Ptr& origUVBlob = origNV12Blob->uv();
+
+            IE::Blob::Ptr kmbYBlob = origYBlob;
+            IE::Blob::Ptr kmbUVBlob = origUVBlob;
+            if (!utils::isBlobAllocatedByAllocator(origYBlob, _allocator) ||
+                !utils::isBlobAllocatedByAllocator(origUVBlob, _allocator)) {
+                _logger->warning("NV12 Blob located in memory not managed by plugin. Need to re-allocate the blob.");
+                _preprocBuffer.reset(
+                    reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
+
+                auto memoryBlobY = IE::as<IE::MemoryBlob>(origYBlob);
+                IE_ASSERT(memoryBlobY != nullptr);
+                auto y_offset_pad = memoryBlobY->getTensorDesc().getBlockingDesc().getOffsetPadding();
+                auto memoryHolderYPlane = memoryBlobY->rmap();
+                ie_memcpy(_preprocBuffer.get(), origYBlob->byteSize(), memoryHolderYPlane.as<uint8_t*>() + y_offset_pad,
+                    origYBlob->byteSize());
+                // explicitly ignore blocking descriptor
+                // memory has already been cropped properly
+                // just copy precision, dimensions and layout
+                InferenceEngine::TensorDesc croppedYTensorDesc = {origYBlob->getTensorDesc().getPrecision(),
+                    origYBlob->getTensorDesc().getDims(), origYBlob->getTensorDesc().getLayout()};
+                kmbYBlob = ie::make_shared_blob<uint8_t>(croppedYTensorDesc, _preprocBuffer.get());
+
+                auto memoryBlobUV = IE::as<IE::MemoryBlob>(origUVBlob);
+                IE_ASSERT(memoryBlobUV != nullptr);
+                auto uv_offset_pad = memoryBlobUV->getTensorDesc().getBlockingDesc().getOffsetPadding();
+                auto memoryHolderUVPlane = memoryBlobUV->rmap();
+                ie_memcpy(_preprocBuffer.get() + origYBlob->byteSize(), origUVBlob->byteSize(),
+                    memoryHolderUVPlane.as<uint8_t*>() + uv_offset_pad, origUVBlob->byteSize());
+                InferenceEngine::TensorDesc croppedUVTensorDesc = {origUVBlob->getTensorDesc().getPrecision(),
+                    origUVBlob->getTensorDesc().getDims(), origUVBlob->getTensorDesc().getLayout()};
+                kmbUVBlob =
+                    ie::make_shared_blob<uint8_t>(croppedUVTensorDesc, _preprocBuffer.get() + origYBlob->byteSize());
+            }
+
+            InferenceEngine::Blob::Ptr nv12Blob =
+                InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(kmbYBlob, kmbUVBlob);
+            preprocDataRealloc[preProcDataIter->first]->setRoiBlob(nv12Blob);
+        } else {
+            THROW_IE_EXCEPTION << "Attempt to pass non-NV12 image to Kmb preprocessing.";
+        }
+    }
+    this->execKmbDataPreprocessing(inputs, preprocDataRealloc, networkInputs, out_format, numShaves, lpi);
+}
+
+void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
+    std::map<std::string, IE::PreProcessDataPtr>& preprocData, InferenceEngine::InputsDataMap& networkInputs,
+    InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi) {
+    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "execKmbDataPreprocessing");
+    IE_ASSERT(_config.useSIPP() || _config.useM2I());
+    const IE::KmbPreproc::Path ppPath = _config.useM2I() ? IE::KmbPreproc::Path::M2I : IE::KmbPreproc::Path::SIPP;
+    IE::KmbPreproc::execDataPreprocessing(
+        inputs, preprocData, networkInputs, out_format, numShaves, lpi, _netUniqueId, _deviceId, ppPath);
+}
+#endif
+
 void InferRequest::InferAsync() {
     // TODO [Track number: S#36866]
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "InferAsync");
+    // TODO Ask if preprocessing supported before push [Track number: S#41375]
+#ifdef __aarch64__
+    execPreprocessing(_inputs);
+    _executorPtr->push(_inputs);
+#else
     const auto preProcMap = preparePreProcessing(_inputs, _networkInputs, _preProcData);
     _executorPtr->push(_inputs, preProcMap);
+#endif
 }
 
 void InferRequest::GetResult() {
@@ -139,7 +253,7 @@ void InferRequest::SetBlob(const char* name, const IE::Blob::Ptr& data) {
         THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
     }
     if (!data) THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
-    const bool compoundBlobPassed = data->is<IE::CompoundBlob>();
+    const bool isCompoundBlob = data->is<IE::CompoundBlob>();
 
     IE::InputInfo::Ptr foundInput;
     IE::DataPtr foundOutput;
@@ -151,9 +265,9 @@ void InferRequest::SetBlob(const char* name, const IE::Blob::Ptr& data) {
         }
 
         const bool preProcRequired = preProcessingRequired(foundInput, data);
-        if (compoundBlobPassed && !preProcRequired) {
+        if (isCompoundBlob && !preProcRequired) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
-                               << "cannot set compound blob: supported only for input pre-processing";
+                               << "Cannot set compound blob: supported only for input pre-processing";
         }
 
         if (preProcRequired) {
@@ -163,15 +277,18 @@ void InferRequest::SetBlob(const char* name, const IE::Blob::Ptr& data) {
             _preProcData[name]->isApplicable(data, _inputs[name]);
             _preProcData[name]->setRoiBlob(data);
         } else {
+            // TODO In ROI case in might be not true. How to handle this?
+            /*
             size_t inputSize = IE::details::product(foundInput->getTensorDesc().getDims());
             if (dataSize != inputSize) {
                 THROW_IE_EXCEPTION << "Input blob size is not equal network input size (" << dataSize
                                    << "!=" << inputSize << ").";
             }
+             */
             _inputs[name] = data;
         }
     } else {
-        if (compoundBlobPassed) {
+        if (isCompoundBlob) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                                << "cannot set compound blob: supported only for input pre-processing";
         }

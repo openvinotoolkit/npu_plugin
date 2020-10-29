@@ -40,6 +40,10 @@
 using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
 
+#ifndef UNUSED
+#define UNUSED(var) (void)var
+#endif
+
 KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
     const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<vpu::StageMetaInfo>& blobMetaData,
     const vpux::VPUXConfig& kmbConfig, const std::shared_ptr<vpux::Executor>& executor,
@@ -114,20 +118,26 @@ void KmbInferRequest::InferAsync() {
 }
 
 void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
+#ifdef __aarch64__
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "execPreprocessing");
-    if ((_config.useSIPP() || _config.useM2I()) && KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
+    if ((_config.useSIPP() || _config.useM2I()) &&
+        InferenceEngine::KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecKmbDataPreprocessing(
             inputs, _networkInputs, _config.graphColorFormat(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
         _logger->warning("SIPP/M2I is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
     }
+#else
+    UNUSED(inputs);
+#endif
 }
 
 // TODO: SIPP preprocessing usage can be merged to common preprocessing pipeline
 void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
     unsigned int lpi) {
+#ifdef __aarch64__
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "relocationAndExecKmbDataPreprocessing");
     std::map<std::string, PreProcessDataPtr> preprocDataRealloc;
     for (const auto& input : inputs) {
@@ -185,16 +195,32 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
         }
     }
     this->execKmbDataPreprocessing(inputs, preprocDataRealloc, networkInputs, out_format, numShaves, lpi);
+#else
+    UNUSED(inputs);
+    UNUSED(networkInputs);
+    UNUSED(out_format);
+    UNUSED(numShaves);
+    UNUSED(lpi);
+#endif
 }
 
 void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     std::map<std::string, PreProcessDataPtr>& preprocData, InferenceEngine::InputsDataMap& networkInputs,
     InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi) {
+#ifdef __aarch64__
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "execKmbDataPreprocessing");
     IE_ASSERT(_config.useSIPP() || _config.useM2I());
     const KmbPreproc::Path ppPath = _config.useM2I() ? KmbPreproc::Path::M2I : KmbPreproc::Path::SIPP;
     KmbPreproc::execDataPreprocessing(
         inputs, preprocData, networkInputs, out_format, numShaves, lpi, _netUniqueId, _deviceId, ppPath);
+#else
+    UNUSED(inputs);
+    UNUSED(preprocData);
+    UNUSED(networkInputs);
+    UNUSED(out_format);
+    UNUSED(numShaves);
+    UNUSED(lpi);
+#endif
 }
 
 void KmbInferRequest::GetResult() {

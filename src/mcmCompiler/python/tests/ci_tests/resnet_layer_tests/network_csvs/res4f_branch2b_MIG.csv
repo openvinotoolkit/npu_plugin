@@ -1,2 +1,0 @@
-Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
-Resnet 50, res4f_branch2b,Convolution, 14x14x256, 14x14x256, 3x3,1,UINT8,No,0.5

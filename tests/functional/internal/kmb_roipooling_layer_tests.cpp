@@ -84,9 +84,7 @@ class KmbROIPoolingLayerTests : public KmbLayerTestBase,
                                 public testing::WithParamInterface<ROIPoolingTestParams> {};
 
 // [Track number: D#36225]
-// [Track number: S#41097]
 TEST_P(KmbROIPoolingLayerTests, AccuracyTest) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
 
     const auto& p = GetParam();

@@ -69,4 +69,6 @@ private:
     void parseEnvironment();
 };
 
+std::string getLibFilePath(const std::string& baseName);
+
 }  // namespace vpux
