@@ -142,6 +142,8 @@ HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, cons
       _workloadContext(workloadContext) {
     _config.parseFrom(config);
     loadGraphToDevice();
+    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteInferData>(
+        _workloadContext, _config.graphColorFormat(), _network->getDeviceOutputsInfo().size());
 }
 
 HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
@@ -150,7 +152,10 @@ HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
       _network(ex._network),
       _uniteGraphPtr(ex._uniteGraphPtr),
       _allocatorPtr(ex._allocatorPtr),
-      _workloadContext(ex._workloadContext) {}
+      _workloadContext(ex._workloadContext) {
+    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteInferData>(
+        _workloadContext, _config.graphColorFormat(), _network->getDeviceOutputsInfo().size());
+}
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
     UNUSED(params);
@@ -198,11 +203,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         updatedInputs[foundInputBlob->first] = prepareInputForInference(foundInputBlob->second, deviceInputLayout);
     }
 
-    // TODO Create HddlUniteInferData inside constructor of executor [Track number: S#37397]
-    std::call_once(_onceFlagInferData, [&] {
-        _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteInferData>(needUnitePreProcessing, _workloadContext,
-            _config.graphColorFormat(), _network->getDeviceOutputsInfo().size());
-    });
+    _inferDataPtr->setPreprocessFlag(needUnitePreProcessing);
 
     // TODO Should we use deviceInputs instead of networkInputs here?
     for (const auto& networkInput : networkInputs) {

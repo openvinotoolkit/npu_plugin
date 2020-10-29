@@ -39,12 +39,11 @@ static void checkData(const IE::DataPtr& desc) {
 }
 
 //------------------------------------------------------------------------------
-HddlUniteInferData::HddlUniteInferData(const bool& needPreProcessing,
-    const HddlUnite::WorkloadContext::Ptr& workloadContext, const InferenceEngine::ColorFormat colorFormat,
-    const size_t numOutputs)
+HddlUniteInferData::HddlUniteInferData(const HddlUnite::WorkloadContext::Ptr& workloadContext,
+    const InferenceEngine::ColorFormat colorFormat, const size_t numOutputs)
     : _workloadContext(workloadContext),
       _haveRemoteContext(workloadContext != nullptr),
-      _needUnitePreProcessing(needPreProcessing),
+      _needUnitePreProcessing(true),
       _graphColorFormat(colorFormat) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
 
@@ -54,6 +53,13 @@ HddlUniteInferData::HddlUniteInferData(const bool& needPreProcessing,
 
     if (_inferDataPtr.get() == nullptr) {
         THROW_IE_EXCEPTION << "Failed to create Unite inferData";
+    }
+}
+
+void HddlUniteInferData::setPreprocessFlag(const bool preprocessingRequired) {
+    _needUnitePreProcessing = preprocessingRequired;
+    if (_needUnitePreProcessing != preprocessingRequired) {
+        _inferDataPtr->setPPFlag(_needUnitePreProcessing);
     }
 }
 

@@ -42,11 +42,11 @@ class HddlUniteInferData final {
 public:
     using Ptr = std::shared_ptr<HddlUniteInferData>;
 
-    // TODO refactor this mess
-    explicit HddlUniteInferData(const bool& needPreProcessing = false,
-        const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
+    explicit HddlUniteInferData(const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
         const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR,
         const size_t numOutputs = 1);
+
+    void setPreprocessFlag(const bool preprocessingRequired);
 
     // TODO Now similar to prepareUniteOutput, make one for all?
     void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const InferenceEngine::DataPtr& desc);
@@ -72,7 +72,7 @@ private:
     std::map<std::string, BlobDescriptor::Ptr> _outputs;
 
     const bool _haveRemoteContext;
-    const bool _needUnitePreProcessing;
+    bool _needUnitePreProcessing;
 
     // TODO [Workaround] Avoid allocation buffer each time
     std::once_flag _onceFlagInputAllocations;
