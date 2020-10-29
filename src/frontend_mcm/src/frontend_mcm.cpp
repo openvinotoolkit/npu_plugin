@@ -754,7 +754,7 @@ void logParsingStartHelper(
     if (inputs.empty()) {
         logger->debug("Layer has no input");
     } else {
-        for (size_t i = 0; i < inputs.size(); ++i)
+        for (decltype(inputs.size()) i = 0; i < inputs.size(); ++i)
             logger->debug("Layer input %d: '%s'", i, inputs[i]->getMcmNode()->getName());
     }
 }
@@ -1326,7 +1326,7 @@ void FrontEndMcm::parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    for (size_t i = 1; i < inputs.size(); i++) {
+    for (decltype(inputs.size()) i = 1; i < inputs.size(); i++) {
         _modelMcm.removeOp(_modelMcm.getSourceOp(inputs[i]->getMcmNode()));
     }
 

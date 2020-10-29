@@ -108,7 +108,7 @@ public:
         kernelParams.reserve(workGroupDims * 3 + 2 + kernelArgs.size());
 
         std::copy(begin(lwgs), end(lwgs), back_inserter(kernelParams));
-        for (size_t i = 0; i < lwgs.size(); i++) {
+        for (decltype(lwgs.size()) i = 0; i < lwgs.size(); i++) {
             IE_ASSERT(gwgs[i] % lwgs[i] == 0);
             kernelParams.push_back(gwgs[i] / lwgs[i]);
         }
@@ -224,7 +224,7 @@ public:
             }
             case CustomParamType::Data:
             case CustomParamType::Input: {
-                VPU_THROW_UNLESS((uint32_t)binding.portIndex < layerInputs.size(),
+                VPU_THROW_UNLESS(static_cast<decltype(layerInputs.size())>(binding.portIndex) < layerInputs.size(),
                     "Unable to deduce parameter '%s' for '%s' layer. "
                     "Can't find layer input with port-index=%d.",
                     binding.argName, cnnLayer->type, binding.portIndex);
