@@ -47,7 +47,13 @@ MCMNetworkDescription::MCMNetworkDescription(
     const ie::InputsDataMap& deserializedInputs = metaInfo._inputs;
     const ie::OutputsDataMap& deserializedOutputs = metaInfo._outputs;
     const std::string& networkName = metaInfo._networkName;
-    const bool newFormat = (deserializedInputs.size() > 0) && (deserializedOutputs.size() > 0);
+    if (deserializedInputs.empty()) {
+        THROW_IE_EXCEPTION << "MCMNetworkDescription: meta-data does not contain inputs.";
+    }
+
+    if (deserializedOutputs.empty()) {
+        THROW_IE_EXCEPTION << "MCMNetworkDescription: meta-data does not contain outputs.";
+    }
 
     // FIXME: the code below does matching of actual device in/outs with meta data to give
     // the device in/outs proper names and to be able identify them.
@@ -65,13 +71,8 @@ MCMNetworkDescription::MCMNetworkDescription(
     auto outputsNames = extractKeys(deserializedOutputs);
     _deviceOutputs = createDeviceMapWithCorrectNames(_deviceOutputs, outputsNames);
 
-    if (newFormat) {
-        _networkInputs = inputsDataMapToDataMap(deserializedInputs);
-        _networkOutputs = outputsDataMapToDataMap(deserializedOutputs);
-    } else {
-        _networkInputs = _deviceInputs;
-        _networkOutputs = _deviceOutputs;
-    }
+    _networkInputs = inputsDataMapToDataMap(deserializedInputs);
+    _networkOutputs = outputsDataMapToDataMap(deserializedOutputs);
 
     // network name is preferable
     // override default name 'net#' if flatbuffer contains the name
