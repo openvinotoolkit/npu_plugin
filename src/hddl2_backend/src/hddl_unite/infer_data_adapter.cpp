@@ -38,78 +38,116 @@ static void checkDataNotNull(const IE::DataPtr& desc) {
     }
 }
 
-//------------------------------------------------------------------------------
-InferDataAdapter::InferDataAdapter(const HddlUnite::WorkloadContext::Ptr& workloadContext,
-    const InferenceEngine::ColorFormat colorFormat, const size_t numOutputs)
-    : _workloadContext(workloadContext),
-      _haveRemoteContext(workloadContext != nullptr),
-      _needUnitePreProcessing(true),
-      _graphColorFormat(colorFormat) {
-    _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
-
-    _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, _workloadContext, maxRoiNum, numOutputs);
-
+// TODO [Workaround] Until we will be able to reset input blobs and call createBlob for same name again
+//  It useful for if user set NV12 blob, run inference, and after call set blob with BGR blob, not NV
+//  This will require recreating of BlobDesc due to different color format / size;
+void InferDataAdapter::createInferData() {
+    _inferDataPtr = HddlUnite::Inference::makeInferData(
+        _auxBlob, _workloadContext, maxRoiNum, _networkDescription->getDeviceOutputsInfo().size());
     if (_inferDataPtr.get() == nullptr) {
-        THROW_IE_EXCEPTION << "InferDataAdapter: "
-                           << "Failed to create Unite inferData";
+        THROW_IE_EXCEPTION << "InferDataAdapter: Failed to create Unite inferData";
     }
+
+    for (const auto& deviceInput : _networkDescription->getDeviceInputsInfo()) {
+        const auto& inputName = deviceInput.first;
+        const auto& blobDesc = deviceInput.second;
+        checkDataNotNull(blobDesc);
+
+        const bool isInput = true;
+        std::shared_ptr<BlobDescriptorAdapter> blobDescriptorPtr(
+            new BlobDescriptorAdapter(getBlobType(_haveRemoteContext), blobDesc, _graphColorFormat, isInput));
+
+        _inputs[inputName] = std::move(blobDescriptorPtr);
+    }
+
+    for (const auto& networkOutput : _networkDescription->getDeviceOutputsInfo()) {
+        const auto& outputName = networkOutput.first;
+        const auto& blobDesc = networkOutput.second;
+        checkDataNotNull(blobDesc);
+
+        const bool isInput = false;
+        std::shared_ptr<BlobDescriptorAdapter> blobDescriptorPtr(
+            new BlobDescriptorAdapter(getBlobType(_haveRemoteContext), blobDesc, _graphColorFormat, isInput));
+
+        const auto HDDLUniteBlobDesc = blobDescriptorPtr->createUniteBlobDesc(isInput);
+        _inferDataPtr->createBlob(outputName, HDDLUniteBlobDesc, isInput);
+
+        _outputs[outputName] = std::move(blobDescriptorPtr);
+    }
+}
+//------------------------------------------------------------------------------
+InferDataAdapter::InferDataAdapter(const vpux::NetworkDescription::CPtr& networkDescription,
+    const HddlUnite::WorkloadContext::Ptr& workloadContext, const InferenceEngine::ColorFormat colorFormat)
+    : _networkDescription(networkDescription),
+      _workloadContext(workloadContext),
+      _graphColorFormat(colorFormat),
+      _haveRemoteContext(workloadContext != nullptr),
+      _needUnitePreProcessing(true) {
+    _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
+    createInferData();
 }
 
 void InferDataAdapter::setPreprocessFlag(const bool preprocessingRequired) {
     _needUnitePreProcessing = preprocessingRequired;
-    if (_needUnitePreProcessing != preprocessingRequired) {
-        _inferDataPtr->setPPFlag(_needUnitePreProcessing);
-    }
 }
 
-void InferDataAdapter::prepareUniteInput(const IE::Blob::CPtr& blob, const IE::DataPtr& desc) {
-    checkDataNotNull(desc);
-    if (blob == nullptr) {
-        THROW_IE_EXCEPTION << "Blob for input is null";
-    }
-    const std::string name = desc->getName();
+static bool isInputBlobDescAlreadyCreated(
+    const HddlUnite::Inference::InferData::Ptr& inferDataPtr, const std::string inputBlobName) {
+    const auto& inputBlobs = inferDataPtr->getInBlobs();
+    auto result = std::find_if(inputBlobs.begin(), inputBlobs.end(),
+        [&inputBlobName](const std::pair<std::string, HddlUnite::Inference::InBlob::Ptr>& element) {
+            return element.first == inputBlobName;
+        });
+    return result != inputBlobs.end();
+}
 
-    const auto blobType = _haveRemoteContext ? BlobDescType::VideoWorkload : BlobDescType::ImageWorkload;
-    std::unique_ptr<BlobDescriptorAdapter> blobDescriptorPtr(new BlobDescriptorAdapter(blobType, desc, blob));
+void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const std::string& inputName) {
+    if (blob == nullptr) {
+        THROW_IE_EXCEPTION << "InferDataAdapter: Blob for input is null";
+    }
+    if (_inputs.find(inputName) == _inputs.end()) {
+        THROW_IE_EXCEPTION << "InferDataAdapter: Failed to find BlobDesc for: " << inputName;
+    }
+
+    auto blobDescriptorPtr = _inputs.at(inputName);
+
+    // Check that created blob description is suitable for input blob
+    const auto blobDescSuitable = blobDescriptorPtr->isBlobDescSuitableForBlob(blob);
+    if (!blobDescSuitable) {
+        const auto& deviceInputInfo = _networkDescription->getDeviceInputsInfo().at(inputName);
+        std::shared_ptr<BlobDescriptorAdapter> newBlobDescriptorPtr(
+            new BlobDescriptorAdapter(blob, _graphColorFormat, deviceInputInfo));
+
+        _inputs[inputName] = newBlobDescriptorPtr;
+        blobDescriptorPtr = newBlobDescriptorPtr;
+
+        // TODO [Worklaround] !!! Check if blob already exists. If so, well, create inferRequest again
+        if (isInputBlobDescAlreadyCreated(_inferDataPtr, inputName)) {
+            createInferData();
+        }
+    }
 
     const bool isInput = true;
-    auto blobDesc = blobDescriptorPtr->createUniteBlobDesc(isInput, _graphColorFormat);
-    std::call_once(_onceFlagInputAllocations, [&] {
-        if (!_inferDataPtr->createBlob(name, blobDesc, isInput)) {
-            THROW_IE_EXCEPTION << "Error creating Unite Blob";
-        }
+    const auto& HDDLUniteBlobDesc = blobDescriptorPtr->createUniteBlobDesc(isInput);
 
-        if ((_needUnitePreProcessing || blobDescriptorPtr->getROIPtr() != nullptr) && _haveRemoteContext) {
+    // Postponed blob creation
+    if (!isInputBlobDescAlreadyCreated(_inferDataPtr, inputName)) {
+        const auto success = _inferDataPtr->createBlob(inputName, HDDLUniteBlobDesc, isInput);
+        if (!success) {
+            THROW_IE_EXCEPTION << "InferDataAdapter: Error creating HDDLUnite Blob";
+        }
+        /** setPPFlag should be called after inferData->createBLob call but before updateBlob **/
+        _inferDataPtr->setPPFlag(_needUnitePreProcessing);
+
+        if ((_needUnitePreProcessing || blobDescriptorPtr->isROIPreprocessingRequired()) && _haveRemoteContext) {
             auto nnBlobDesc = blobDescriptorPtr->createNNDesc();
             _inferDataPtr->setNNInputDesc(nnBlobDesc);
         }
-    });
-
-    // needUnitePreProcessing on Unite includes existence of roi currently
-    _inferDataPtr->setPPFlag(_needUnitePreProcessing);
-
-    blobDescriptorPtr->initUniteBlobDesc(blobDesc);
-    if (!_inferDataPtr->getInputBlob(name)->updateBlob(blobDesc)) {
-        THROW_IE_EXCEPTION << "Error updating Unite Blob";
     }
-    _inputs[name] = std::move(blobDescriptorPtr);
-}
 
-void InferDataAdapter::prepareUniteOutput(const IE::DataPtr& desc) {
-    checkDataNotNull(desc);
-    const auto name = desc->getName();
-
-    auto findIt = std::find(_onceFlagOutputAllocations.begin(), _onceFlagOutputAllocations.end(), name);
-    if (findIt == _onceFlagOutputAllocations.end()) {
-        _onceFlagOutputAllocations.push_back(name);
-
-        const auto blobType = _haveRemoteContext ? BlobDescType::VideoWorkload : BlobDescType::ImageWorkload;
-        std::unique_ptr<BlobDescriptorAdapter> blobDescriptorPtr(new BlobDescriptorAdapter(blobType, desc, nullptr));
-
-        const bool isInput = false;
-        _inferDataPtr->createBlob(name, blobDescriptorPtr->createUniteBlobDesc(isInput, _graphColorFormat), isInput);
-
-        _outputs[name] = std::move(blobDescriptorPtr);
+    const auto updatedHDDLUniteBlobDesc = blobDescriptorPtr->updateUniteBlobDesc(blob);
+    if (!_inferDataPtr->getInputBlob(inputName)->updateBlob(updatedHDDLUniteBlobDesc)) {
+        THROW_IE_EXCEPTION << "InferDataAdapter: Error updating Unite Blob";
     }
 }
 
@@ -148,6 +186,5 @@ std::map<std::string, IE::InferenceEngineProfileInfo> InferDataAdapter::getHDDLU
     perfCounts["Total scoring time on preprocess"] = info;
     return perfCounts;
 }
-
 }  // namespace HDDL2Plugin
 }  // namespace vpu

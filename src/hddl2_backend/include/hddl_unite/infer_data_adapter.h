@@ -26,7 +26,7 @@
 #include "ie_input_info.hpp"
 #include "ie_preprocess_data.hpp"
 // Plugin
-#include "blob_descriptor.h"
+#include "blob_descriptor_adapter.h"
 #include "vpux_remote_context.h"
 // Low-level
 #include "InferData.h"
@@ -41,20 +41,20 @@ namespace HDDL2Plugin {
  */
 class InferDataAdapter final {
 public:
+    InferDataAdapter() = delete;
     InferDataAdapter(const InferDataAdapter&) = delete;
     InferDataAdapter(const InferDataAdapter&&) = delete;
     InferDataAdapter& operator=(const InferDataAdapter&) = delete;
     InferDataAdapter& operator=(const InferDataAdapter&&) = delete;
-    explicit InferDataAdapter(const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
-        const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR,
-        const size_t numOutputs = 1);
+    explicit InferDataAdapter(const vpux::NetworkDescription::CPtr& networkDescription,
+        const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
+        const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR);
 
 public:
     using Ptr = std::shared_ptr<InferDataAdapter>;
     void setPreprocessFlag(const bool preprocessingRequired);
 
-    void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const InferenceEngine::DataPtr& desc);
-    void prepareUniteOutput(const InferenceEngine::DataPtr& desc);
+    void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const std::string& inputName);
 
     void waitInferDone() const;
 
@@ -64,19 +64,24 @@ public:
     std::string getOutputData(const std::string& outputName);
 
 private:
+    void createInferData();
+
+private:
+    const vpux::NetworkDescription::CPtr& _networkDescription;
+
     const int _asyncInferenceWaitTimeoutMs = 10000;
     std::vector<HddlUnite::Inference::AuxBlob::Type> _auxBlob;
     HddlUnite::WorkloadContext::Ptr _workloadContext = nullptr;
     HddlUnite::Inference::InferData::Ptr _inferDataPtr = nullptr;
+    InferenceEngine::ColorFormat _graphColorFormat;
 
-    std::map<std::string, std::unique_ptr<BlobDescriptorAdapter>> _inputs;
-    std::map<std::string, std::unique_ptr<BlobDescriptorAdapter>> _outputs;
+    std::map<std::string, std::shared_ptr<BlobDescriptorAdapter>> _inputs;
+    std::map<std::string, std::shared_ptr<BlobDescriptorAdapter>> _outputs;
 
     const bool _haveRemoteContext;
     bool _needUnitePreProcessing;
 
     HddlUnite::Inference::InferData::ProfileData _profileData = {};
-    InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;
 
 private:  // Workarounds
     // TODO Use maxRoiNum
