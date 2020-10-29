@@ -1060,6 +1060,43 @@ TEST (generate_blob_WDDM, DISABLED_blob_tanh)
     EXPECT_EQ (684LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
+TEST (generate_blob_WDDM, DISABLED_blob_hswish)
+{
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input as 1 64x64x3 image
+    auto inIt6 = test_cm.input("", {64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
+    // define first convolution  3D conv
+    std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
+    auto weightsIt61 = test_cm.constant("", weightsData61, {5, 5, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));   // kh, kw, ins, outs
+    auto convIt61 = test_cm.conv("", inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0}, 1);
+
+    auto hswish = test_cm.hswish("", convIt61);
+    // define output
+    auto output = test_cm.output("", hswish);
+
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
+    std::string blobName = "test_hswish.blob";
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
+
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+    unit.initialize();
+
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (684LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
+}
+
+
 TEST (generate_blob_WDDM, DISABLED_blob_lrn)
 {
 

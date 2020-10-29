@@ -58,6 +58,7 @@ mv::Data::TensorIterator dPUTaskEltwise(const std::string& name, const std::vect
         mv::Data::TensorIterator flatten(const std::string& name, Data::TensorIterator input, const int64_t& axis = 1, const int64_t& end_axis = 3) override;
         mv::Data::TensorIterator fullyConnected(const std::string& name, Data::TensorIterator data, Data::TensorIterator weights) override;
         mv::Data::TensorIterator gather(const std::string& name, Data::TensorIterator data, Data::TensorIterator indices, const unsigned& axis) override;
+        mv::Data::TensorIterator hSwish(const std::string& name, Data::TensorIterator data) override;
         mv::Data::TensorIterator identity(const std::string& name, Data::TensorIterator data) override;
         mv::Data::TensorIterator implicitConcat(const std::string& name, const std::vector< Data::TensorIterator >& inputs, const std::string& axis = "C");
         mv::Data::TensorIterator implicitInput(const std::string& name, Data::TensorIterator data, const Shape& shape, const DType& dType, const Order& order) override;
@@ -131,6 +132,7 @@ mv::Data::TensorIterator uPATaskTile(const std::string& name, const std::vector<
 mv::Data::TensorIterator uPATaskCTCDecoder(const std::string& name, const std::vector< Data::TensorIterator >& inputs, const bool& ctc_merge_repeated);
 mv::Data::TensorIterator uPATaskRefConv(const std::string& name, const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor = 1, const unsigned& group = 1);
 mv::Data::TensorIterator uPATaskGather(const std::string& name, const std::vector< Data::TensorIterator >& inputs, const unsigned& axis);
+mv::Data::TensorIterator uPATaskHSwish(const std::string& name, const std::vector< Data::TensorIterator >& inputs);
         mv::Data::TensorIterator weightsTable(const std::string& name, const std::vector<int64_t>& data, const Shape& shape, const DType& dType, const Order& order);
 
         Data::OpListIterator getSourceOp(Data::TensorIterator tensor) override;

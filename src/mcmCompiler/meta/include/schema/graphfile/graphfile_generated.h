@@ -6,6 +6,7 @@
 
 #include "flatbuffers/flatbuffers.h"
 
+#include "device_generated.h"
 #include "dma_generated.h"
 #include "fileHeader_generated.h"
 #include "memoryManagement_generated.h"
@@ -29,6 +30,10 @@ struct Task;
 struct TaskBuilder;
 struct TaskT;
 
+struct GenericTask;
+struct GenericTaskBuilder;
+struct GenericTaskT;
+
 enum SpecificTask {
   SpecificTask_NONE = 0,
   SpecificTask_MvTensorTask = 1,
@@ -40,11 +45,12 @@ enum SpecificTask {
   SpecificTask_ControllerTask = 7,
   SpecificTask_UPALayerTask = 8,
   SpecificTask_SNNLayerTask = 9,
+  SpecificTask_GenericTask = 10,
   SpecificTask_MIN = SpecificTask_NONE,
-  SpecificTask_MAX = SpecificTask_SNNLayerTask
+  SpecificTask_MAX = SpecificTask_GenericTask
 };
 
-inline const SpecificTask (&EnumValuesSpecificTask())[10] {
+inline const SpecificTask (&EnumValuesSpecificTask())[11] {
   static const SpecificTask values[] = {
     SpecificTask_NONE,
     SpecificTask_MvTensorTask,
@@ -55,13 +61,14 @@ inline const SpecificTask (&EnumValuesSpecificTask())[10] {
     SpecificTask_NNTensorTask,
     SpecificTask_ControllerTask,
     SpecificTask_UPALayerTask,
-    SpecificTask_SNNLayerTask
+    SpecificTask_SNNLayerTask,
+    SpecificTask_GenericTask
   };
   return values;
 }
 
 inline const char * const *EnumNamesSpecificTask() {
-  static const char * const names[11] = {
+  static const char * const names[12] = {
     "NONE",
     "MvTensorTask",
     "UPADMATask",
@@ -72,13 +79,14 @@ inline const char * const *EnumNamesSpecificTask() {
     "ControllerTask",
     "UPALayerTask",
     "SNNLayerTask",
+    "GenericTask",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSpecificTask(SpecificTask e) {
-  if (flatbuffers::IsOutRange(e, SpecificTask_NONE, SpecificTask_SNNLayerTask)) return "";
+  if (flatbuffers::IsOutRange(e, SpecificTask_NONE, SpecificTask_GenericTask)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSpecificTask()[index];
 }
@@ -121,6 +129,10 @@ template<> struct SpecificTaskTraits<MVCNN::UPALayerTask> {
 
 template<> struct SpecificTaskTraits<MVCNN::SNNLayerTask> {
   static const SpecificTask enum_value = SpecificTask_SNNLayerTask;
+};
+
+template<> struct SpecificTaskTraits<MVCNN::GenericTask> {
+  static const SpecificTask enum_value = SpecificTask_GenericTask;
 };
 
 struct SpecificTaskUnion {
@@ -226,6 +238,14 @@ struct SpecificTaskUnion {
   const MVCNN::SNNLayerTaskT *AsSNNLayerTask() const {
     return type == SpecificTask_SNNLayerTask ?
       reinterpret_cast<const MVCNN::SNNLayerTaskT *>(value) : nullptr;
+  }
+  MVCNN::GenericTaskT *AsGenericTask() {
+    return type == SpecificTask_GenericTask ?
+      reinterpret_cast<MVCNN::GenericTaskT *>(value) : nullptr;
+  }
+  const MVCNN::GenericTaskT *AsGenericTask() const {
+    return type == SpecificTask_GenericTask ?
+      reinterpret_cast<const MVCNN::GenericTaskT *>(value) : nullptr;
   }
 };
 
@@ -356,7 +376,9 @@ flatbuffers::Offset<GraphFile> CreateGraphFile(flatbuffers::FlatBufferBuilder &_
 struct TaskListT : public flatbuffers::NativeTable {
   typedef TaskList TableType;
   std::vector<std::unique_ptr<MVCNN::TaskT>> content;
-  TaskListT() {
+  uint32_t groupIdentifier;
+  TaskListT()
+      : groupIdentifier(0) {
   }
 };
 
@@ -364,16 +386,21 @@ struct TaskList FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef TaskListT NativeTableType;
   typedef TaskListBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_CONTENT = 4
+    VT_CONTENT = 4,
+    VT_GROUPIDENTIFIER = 6
   };
   const flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>> *content() const {
     return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>> *>(VT_CONTENT);
+  }
+  uint32_t groupIdentifier() const {
+    return GetField<uint32_t>(VT_GROUPIDENTIFIER, 0);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_CONTENT) &&
            verifier.VerifyVector(content()) &&
            verifier.VerifyVectorOfTables(content()) &&
+           VerifyField<uint32_t>(verifier, VT_GROUPIDENTIFIER) &&
            verifier.EndTable();
   }
   TaskListT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -387,6 +414,9 @@ struct TaskListBuilder {
   flatbuffers::uoffset_t start_;
   void add_content(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>>> content) {
     fbb_.AddOffset(TaskList::VT_CONTENT, content);
+  }
+  void add_groupIdentifier(uint32_t groupIdentifier) {
+    fbb_.AddElement<uint32_t>(TaskList::VT_GROUPIDENTIFIER, groupIdentifier, 0);
   }
   explicit TaskListBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -402,19 +432,23 @@ struct TaskListBuilder {
 
 inline flatbuffers::Offset<TaskList> CreateTaskList(
     flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>>> content = 0) {
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>>> content = 0,
+    uint32_t groupIdentifier = 0) {
   TaskListBuilder builder_(_fbb);
+  builder_.add_groupIdentifier(groupIdentifier);
   builder_.add_content(content);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<TaskList> CreateTaskListDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<flatbuffers::Offset<MVCNN::Task>> *content = nullptr) {
+    const std::vector<flatbuffers::Offset<MVCNN::Task>> *content = nullptr,
+    uint32_t groupIdentifier = 0) {
   auto content__ = content ? _fbb.CreateVector<flatbuffers::Offset<MVCNN::Task>>(*content) : 0;
   return MVCNN::CreateTaskList(
       _fbb,
-      content__);
+      content__,
+      groupIdentifier);
 }
 
 flatbuffers::Offset<TaskList> CreateTaskList(flatbuffers::FlatBufferBuilder &_fbb, const TaskListT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -488,6 +522,9 @@ struct Task FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const MVCNN::SNNLayerTask *task_as_SNNLayerTask() const {
     return task_type() == MVCNN::SpecificTask_SNNLayerTask ? static_cast<const MVCNN::SNNLayerTask *>(task()) : nullptr;
   }
+  const MVCNN::GenericTask *task_as_GenericTask() const {
+    return task_type() == MVCNN::SpecificTask_GenericTask ? static_cast<const MVCNN::GenericTask *>(task()) : nullptr;
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_NAME) &&
@@ -541,6 +578,10 @@ template<> inline const MVCNN::UPALayerTask *Task::task_as<MVCNN::UPALayerTask>(
 
 template<> inline const MVCNN::SNNLayerTask *Task::task_as<MVCNN::SNNLayerTask>() const {
   return task_as_SNNLayerTask();
+}
+
+template<> inline const MVCNN::GenericTask *Task::task_as<MVCNN::GenericTask>() const {
+  return task_as_GenericTask();
 }
 
 struct TaskBuilder {
@@ -617,6 +658,74 @@ inline flatbuffers::Offset<Task> CreateTaskDirect(
 
 flatbuffers::Offset<Task> CreateTask(flatbuffers::FlatBufferBuilder &_fbb, const TaskT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct GenericTaskT : public flatbuffers::NativeTable {
+  typedef GenericTask TableType;
+  int64_t cost;
+  int64_t clock;
+  GenericTaskT()
+      : cost(0),
+        clock(0) {
+  }
+};
+
+struct GenericTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef GenericTaskT NativeTableType;
+  typedef GenericTaskBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_COST = 4,
+    VT_CLOCK = 6
+  };
+  int64_t cost() const {
+    return GetField<int64_t>(VT_COST, 0);
+  }
+  int64_t clock() const {
+    return GetField<int64_t>(VT_CLOCK, 0);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int64_t>(verifier, VT_COST) &&
+           VerifyField<int64_t>(verifier, VT_CLOCK) &&
+           verifier.EndTable();
+  }
+  GenericTaskT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(GenericTaskT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<GenericTask> Pack(flatbuffers::FlatBufferBuilder &_fbb, const GenericTaskT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct GenericTaskBuilder {
+  typedef GenericTask Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_cost(int64_t cost) {
+    fbb_.AddElement<int64_t>(GenericTask::VT_COST, cost, 0);
+  }
+  void add_clock(int64_t clock) {
+    fbb_.AddElement<int64_t>(GenericTask::VT_CLOCK, clock, 0);
+  }
+  explicit GenericTaskBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  GenericTaskBuilder &operator=(const GenericTaskBuilder &);
+  flatbuffers::Offset<GenericTask> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<GenericTask>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<GenericTask> CreateGenericTask(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    int64_t cost = 0,
+    int64_t clock = 0) {
+  GenericTaskBuilder builder_(_fbb);
+  builder_.add_clock(clock);
+  builder_.add_cost(cost);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<GenericTask> CreateGenericTask(flatbuffers::FlatBufferBuilder &_fbb, const GenericTaskT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 inline GraphFileT *GraphFile::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   std::unique_ptr<MVCNN::GraphFileT> _o = std::unique_ptr<MVCNN::GraphFileT>(new GraphFileT());
   UnPackTo(_o.get(), _resolver);
@@ -663,6 +772,7 @@ inline void TaskList::UnPackTo(TaskListT *_o, const flatbuffers::resolver_functi
   (void)_o;
   (void)_resolver;
   { auto _e = content(); if (_e) { _o->content.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->content[_i] = std::unique_ptr<MVCNN::TaskT>(_e->Get(_i)->UnPack(_resolver)); } } }
+  { auto _e = groupIdentifier(); _o->groupIdentifier = _e; }
 }
 
 inline flatbuffers::Offset<TaskList> TaskList::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TaskListT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -674,9 +784,11 @@ inline flatbuffers::Offset<TaskList> CreateTaskList(flatbuffers::FlatBufferBuild
   (void)_o;
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const TaskListT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _content = _fbb.CreateVector<flatbuffers::Offset<MVCNN::Task>> (_o->content.size(), [](size_t i, _VectorArgs *__va) { return CreateTask(*__va->__fbb, __va->__o->content[i].get(), __va->__rehasher); }, &_va );
+  auto _groupIdentifier = _o->groupIdentifier;
   return MVCNN::CreateTaskList(
       _fbb,
-      _content);
+      _content,
+      _groupIdentifier);
 }
 
 inline TaskT *Task::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
@@ -720,6 +832,35 @@ inline flatbuffers::Offset<Task> CreateTask(flatbuffers::FlatBufferBuilder &_fbb
       _task);
 }
 
+inline GenericTaskT *GenericTask::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  std::unique_ptr<MVCNN::GenericTaskT> _o = std::unique_ptr<MVCNN::GenericTaskT>(new GenericTaskT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void GenericTask::UnPackTo(GenericTaskT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = cost(); _o->cost = _e; }
+  { auto _e = clock(); _o->clock = _e; }
+}
+
+inline flatbuffers::Offset<GenericTask> GenericTask::Pack(flatbuffers::FlatBufferBuilder &_fbb, const GenericTaskT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateGenericTask(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<GenericTask> CreateGenericTask(flatbuffers::FlatBufferBuilder &_fbb, const GenericTaskT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const GenericTaskT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _cost = _o->cost;
+  auto _clock = _o->clock;
+  return MVCNN::CreateGenericTask(
+      _fbb,
+      _cost,
+      _clock);
+}
+
 inline bool VerifySpecificTask(flatbuffers::Verifier &verifier, const void *obj, SpecificTask type) {
   switch (type) {
     case SpecificTask_NONE: {
@@ -759,6 +900,10 @@ inline bool VerifySpecificTask(flatbuffers::Verifier &verifier, const void *obj,
     }
     case SpecificTask_SNNLayerTask: {
       auto ptr = reinterpret_cast<const MVCNN::SNNLayerTask *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case SpecificTask_GenericTask: {
+      auto ptr = reinterpret_cast<const MVCNN::GenericTask *>(obj);
       return verifier.VerifyTable(ptr);
     }
     default: return true;
@@ -815,6 +960,10 @@ inline void *SpecificTaskUnion::UnPack(const void *obj, SpecificTask type, const
       auto ptr = reinterpret_cast<const MVCNN::SNNLayerTask *>(obj);
       return ptr->UnPack(resolver);
     }
+    case SpecificTask_GenericTask: {
+      auto ptr = reinterpret_cast<const MVCNN::GenericTask *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -857,6 +1006,10 @@ inline flatbuffers::Offset<void> SpecificTaskUnion::Pack(flatbuffers::FlatBuffer
       auto ptr = reinterpret_cast<const MVCNN::SNNLayerTaskT *>(value);
       return CreateSNNLayerTask(_fbb, ptr, _rehasher).Union();
     }
+    case SpecificTask_GenericTask: {
+      auto ptr = reinterpret_cast<const MVCNN::GenericTaskT *>(value);
+      return CreateGenericTask(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -897,6 +1050,10 @@ inline SpecificTaskUnion::SpecificTaskUnion(const SpecificTaskUnion &u) : type(u
     }
     case SpecificTask_SNNLayerTask: {
       value = new MVCNN::SNNLayerTaskT(*reinterpret_cast<MVCNN::SNNLayerTaskT *>(u.value));
+      break;
+    }
+    case SpecificTask_GenericTask: {
+      value = new MVCNN::GenericTaskT(*reinterpret_cast<MVCNN::GenericTaskT *>(u.value));
       break;
     }
     default:
@@ -948,6 +1105,11 @@ inline void SpecificTaskUnion::Reset() {
     }
     case SpecificTask_SNNLayerTask: {
       auto ptr = reinterpret_cast<MVCNN::SNNLayerTaskT *>(value);
+      delete ptr;
+      break;
+    }
+    case SpecificTask_GenericTask: {
+      auto ptr = reinterpret_cast<MVCNN::GenericTaskT *>(value);
       delete ptr;
       break;
     }

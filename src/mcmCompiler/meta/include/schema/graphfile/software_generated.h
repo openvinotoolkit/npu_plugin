@@ -232,6 +232,10 @@ struct ScaleShiftParams;
 struct ScaleShiftParamsBuilder;
 struct ScaleShiftParamsT;
 
+struct HSwishParams;
+struct HSwishParamsBuilder;
+struct HSwishParamsT;
+
 struct PostOpsParams;
 struct PostOpsParamsBuilder;
 struct PostOpsParamsT;
@@ -239,6 +243,10 @@ struct PostOpsParamsT;
 struct UnaryOpParams;
 struct UnaryOpParamsBuilder;
 struct UnaryOpParamsT;
+
+struct ConvertParams;
+struct ConvertParamsBuilder;
+struct ConvertParamsT;
 
 struct UPALayerTask;
 struct UPALayerTaskBuilder;
@@ -628,11 +636,12 @@ enum PostOpsNestedParams {
   PostOpsNestedParams_PReluParams = 11,
   PostOpsNestedParams_SigmoidParams = 12,
   PostOpsNestedParams_TanhParams = 13,
+  PostOpsNestedParams_HSwishParams = 14,
   PostOpsNestedParams_MIN = PostOpsNestedParams_NONE,
-  PostOpsNestedParams_MAX = PostOpsNestedParams_TanhParams
+  PostOpsNestedParams_MAX = PostOpsNestedParams_HSwishParams
 };
 
-inline const PostOpsNestedParams (&EnumValuesPostOpsNestedParams())[14] {
+inline const PostOpsNestedParams (&EnumValuesPostOpsNestedParams())[15] {
   static const PostOpsNestedParams values[] = {
     PostOpsNestedParams_NONE,
     PostOpsNestedParams_BiasParams,
@@ -647,13 +656,14 @@ inline const PostOpsNestedParams (&EnumValuesPostOpsNestedParams())[14] {
     PostOpsNestedParams_ReluParams,
     PostOpsNestedParams_PReluParams,
     PostOpsNestedParams_SigmoidParams,
-    PostOpsNestedParams_TanhParams
+    PostOpsNestedParams_TanhParams,
+    PostOpsNestedParams_HSwishParams
   };
   return values;
 }
 
 inline const char * const *EnumNamesPostOpsNestedParams() {
-  static const char * const names[15] = {
+  static const char * const names[16] = {
     "NONE",
     "BiasParams",
     "ScaleParams",
@@ -668,13 +678,14 @@ inline const char * const *EnumNamesPostOpsNestedParams() {
     "PReluParams",
     "SigmoidParams",
     "TanhParams",
+    "HSwishParams",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNamePostOpsNestedParams(PostOpsNestedParams e) {
-  if (flatbuffers::IsOutRange(e, PostOpsNestedParams_NONE, PostOpsNestedParams_TanhParams)) return "";
+  if (flatbuffers::IsOutRange(e, PostOpsNestedParams_NONE, PostOpsNestedParams_HSwishParams)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesPostOpsNestedParams()[index];
 }
@@ -733,6 +744,10 @@ template<> struct PostOpsNestedParamsTraits<MVCNN::SigmoidParams> {
 
 template<> struct PostOpsNestedParamsTraits<MVCNN::TanhParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_TanhParams;
+};
+
+template<> struct PostOpsNestedParamsTraits<MVCNN::HSwishParams> {
+  static const PostOpsNestedParams enum_value = PostOpsNestedParams_HSwishParams;
 };
 
 struct PostOpsNestedParamsUnion {
@@ -870,6 +885,14 @@ struct PostOpsNestedParamsUnion {
   const MVCNN::TanhParamsT *AsTanhParams() const {
     return type == PostOpsNestedParams_TanhParams ?
       reinterpret_cast<const MVCNN::TanhParamsT *>(value) : nullptr;
+  }
+  MVCNN::HSwishParamsT *AsHSwishParams() {
+    return type == PostOpsNestedParams_HSwishParams ?
+      reinterpret_cast<MVCNN::HSwishParamsT *>(value) : nullptr;
+  }
+  const MVCNN::HSwishParamsT *AsHSwishParams() const {
+    return type == PostOpsNestedParams_HSwishParams ?
+      reinterpret_cast<const MVCNN::HSwishParamsT *>(value) : nullptr;
   }
 };
 
@@ -1028,11 +1051,12 @@ enum SoftwareLayerParams {
   SoftwareLayerParams_GatherParams = 35,
   SoftwareLayerParams_PostOpsParams = 36,
   SoftwareLayerParams_NegativeParams = 37,
+  SoftwareLayerParams_ConvertParams = 38,
   SoftwareLayerParams_MIN = SoftwareLayerParams_NONE,
-  SoftwareLayerParams_MAX = SoftwareLayerParams_NegativeParams
+  SoftwareLayerParams_MAX = SoftwareLayerParams_ConvertParams
 };
 
-inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[38] {
+inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[39] {
   static const SoftwareLayerParams values[] = {
     SoftwareLayerParams_NONE,
     SoftwareLayerParams_DummyParams,
@@ -1071,13 +1095,14 @@ inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[38] {
     SoftwareLayerParams_ConvolutionParams,
     SoftwareLayerParams_GatherParams,
     SoftwareLayerParams_PostOpsParams,
-    SoftwareLayerParams_NegativeParams
+    SoftwareLayerParams_NegativeParams,
+    SoftwareLayerParams_ConvertParams
   };
   return values;
 }
 
 inline const char * const *EnumNamesSoftwareLayerParams() {
-  static const char * const names[39] = {
+  static const char * const names[40] = {
     "NONE",
     "DummyParams",
     "DetectionOutputParams",
@@ -1116,13 +1141,14 @@ inline const char * const *EnumNamesSoftwareLayerParams() {
     "GatherParams",
     "PostOpsParams",
     "NegativeParams",
+    "ConvertParams",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSoftwareLayerParams(SoftwareLayerParams e) {
-  if (flatbuffers::IsOutRange(e, SoftwareLayerParams_NONE, SoftwareLayerParams_NegativeParams)) return "";
+  if (flatbuffers::IsOutRange(e, SoftwareLayerParams_NONE, SoftwareLayerParams_ConvertParams)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSoftwareLayerParams()[index];
 }
@@ -1277,6 +1303,10 @@ template<> struct SoftwareLayerParamsTraits<MVCNN::PostOpsParams> {
 
 template<> struct SoftwareLayerParamsTraits<MVCNN::NegativeParams> {
   static const SoftwareLayerParams enum_value = SoftwareLayerParams_NegativeParams;
+};
+
+template<> struct SoftwareLayerParamsTraits<MVCNN::ConvertParams> {
+  static const SoftwareLayerParams enum_value = SoftwareLayerParams_ConvertParams;
 };
 
 struct SoftwareLayerParamsUnion {
@@ -1606,6 +1636,14 @@ struct SoftwareLayerParamsUnion {
   const MVCNN::NegativeParamsT *AsNegativeParams() const {
     return type == SoftwareLayerParams_NegativeParams ?
       reinterpret_cast<const MVCNN::NegativeParamsT *>(value) : nullptr;
+  }
+  MVCNN::ConvertParamsT *AsConvertParams() {
+    return type == SoftwareLayerParams_ConvertParams ?
+      reinterpret_cast<MVCNN::ConvertParamsT *>(value) : nullptr;
+  }
+  const MVCNN::ConvertParamsT *AsConvertParams() const {
+    return type == SoftwareLayerParams_ConvertParams ?
+      reinterpret_cast<const MVCNN::ConvertParamsT *>(value) : nullptr;
   }
 };
 
@@ -6703,6 +6741,48 @@ inline flatbuffers::Offset<ScaleShiftParams> CreateScaleShiftParams(
 
 flatbuffers::Offset<ScaleShiftParams> CreateScaleShiftParams(flatbuffers::FlatBufferBuilder &_fbb, const ScaleShiftParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct HSwishParamsT : public flatbuffers::NativeTable {
+  typedef HSwishParams TableType;
+  HSwishParamsT() {
+  }
+};
+
+struct HSwishParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef HSwishParamsT NativeTableType;
+  typedef HSwishParamsBuilder Builder;
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           verifier.EndTable();
+  }
+  HSwishParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(HSwishParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<HSwishParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const HSwishParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct HSwishParamsBuilder {
+  typedef HSwishParams Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  explicit HSwishParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  HSwishParamsBuilder &operator=(const HSwishParamsBuilder &);
+  flatbuffers::Offset<HSwishParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<HSwishParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<HSwishParams> CreateHSwishParams(
+    flatbuffers::FlatBufferBuilder &_fbb) {
+  HSwishParamsBuilder builder_(_fbb);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<HSwishParams> CreateHSwishParams(flatbuffers::FlatBufferBuilder &_fbb, const HSwishParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct PostOpsParamsT : public flatbuffers::NativeTable {
   typedef PostOpsParams TableType;
   bool has_weights;
@@ -6775,6 +6855,9 @@ struct PostOpsParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const MVCNN::TanhParams *nested_params_as_TanhParams() const {
     return nested_params_type() == MVCNN::PostOpsNestedParams_TanhParams ? static_cast<const MVCNN::TanhParams *>(nested_params()) : nullptr;
   }
+  const MVCNN::HSwishParams *nested_params_as_HSwishParams() const {
+    return nested_params_type() == MVCNN::PostOpsNestedParams_HSwishParams ? static_cast<const MVCNN::HSwishParams *>(nested_params()) : nullptr;
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_HAS_WEIGHTS) &&
@@ -6839,6 +6922,10 @@ template<> inline const MVCNN::SigmoidParams *PostOpsParams::nested_params_as<MV
 
 template<> inline const MVCNN::TanhParams *PostOpsParams::nested_params_as<MVCNN::TanhParams>() const {
   return nested_params_as_TanhParams();
+}
+
+template<> inline const MVCNN::HSwishParams *PostOpsParams::nested_params_as<MVCNN::HSwishParams>() const {
+  return nested_params_as_HSwishParams();
 }
 
 struct PostOpsParamsBuilder {
@@ -6972,6 +7059,110 @@ inline flatbuffers::Offset<UnaryOpParams> CreateUnaryOpParams(
 }
 
 flatbuffers::Offset<UnaryOpParams> CreateUnaryOpParams(flatbuffers::FlatBufferBuilder &_fbb, const UnaryOpParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct ConvertParamsT : public flatbuffers::NativeTable {
+  typedef ConvertParams TableType;
+  float scale;
+  float bias;
+  bool from_detection_output;
+  bool have_batch;
+  int32_t batch_id;
+  ConvertParamsT()
+      : scale(0.0f),
+        bias(0.0f),
+        from_detection_output(false),
+        have_batch(false),
+        batch_id(0) {
+  }
+};
+
+struct ConvertParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef ConvertParamsT NativeTableType;
+  typedef ConvertParamsBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_SCALE = 4,
+    VT_BIAS = 6,
+    VT_FROM_DETECTION_OUTPUT = 8,
+    VT_HAVE_BATCH = 10,
+    VT_BATCH_ID = 12
+  };
+  float scale() const {
+    return GetField<float>(VT_SCALE, 0.0f);
+  }
+  float bias() const {
+    return GetField<float>(VT_BIAS, 0.0f);
+  }
+  bool from_detection_output() const {
+    return GetField<uint8_t>(VT_FROM_DETECTION_OUTPUT, 0) != 0;
+  }
+  bool have_batch() const {
+    return GetField<uint8_t>(VT_HAVE_BATCH, 0) != 0;
+  }
+  int32_t batch_id() const {
+    return GetField<int32_t>(VT_BATCH_ID, 0);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<float>(verifier, VT_SCALE) &&
+           VerifyField<float>(verifier, VT_BIAS) &&
+           VerifyField<uint8_t>(verifier, VT_FROM_DETECTION_OUTPUT) &&
+           VerifyField<uint8_t>(verifier, VT_HAVE_BATCH) &&
+           VerifyField<int32_t>(verifier, VT_BATCH_ID) &&
+           verifier.EndTable();
+  }
+  ConvertParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(ConvertParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<ConvertParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const ConvertParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct ConvertParamsBuilder {
+  typedef ConvertParams Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_scale(float scale) {
+    fbb_.AddElement<float>(ConvertParams::VT_SCALE, scale, 0.0f);
+  }
+  void add_bias(float bias) {
+    fbb_.AddElement<float>(ConvertParams::VT_BIAS, bias, 0.0f);
+  }
+  void add_from_detection_output(bool from_detection_output) {
+    fbb_.AddElement<uint8_t>(ConvertParams::VT_FROM_DETECTION_OUTPUT, static_cast<uint8_t>(from_detection_output), 0);
+  }
+  void add_have_batch(bool have_batch) {
+    fbb_.AddElement<uint8_t>(ConvertParams::VT_HAVE_BATCH, static_cast<uint8_t>(have_batch), 0);
+  }
+  void add_batch_id(int32_t batch_id) {
+    fbb_.AddElement<int32_t>(ConvertParams::VT_BATCH_ID, batch_id, 0);
+  }
+  explicit ConvertParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ConvertParamsBuilder &operator=(const ConvertParamsBuilder &);
+  flatbuffers::Offset<ConvertParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<ConvertParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<ConvertParams> CreateConvertParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    float scale = 0.0f,
+    float bias = 0.0f,
+    bool from_detection_output = false,
+    bool have_batch = false,
+    int32_t batch_id = 0) {
+  ConvertParamsBuilder builder_(_fbb);
+  builder_.add_batch_id(batch_id);
+  builder_.add_bias(bias);
+  builder_.add_scale(scale);
+  builder_.add_have_batch(have_batch);
+  builder_.add_from_detection_output(from_detection_output);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<ConvertParams> CreateConvertParams(flatbuffers::FlatBufferBuilder &_fbb, const ConvertParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct UPALayerTaskT : public flatbuffers::NativeTable {
   typedef UPALayerTask TableType;
@@ -7125,6 +7316,9 @@ struct UPALayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   const MVCNN::NegativeParams *softLayerParams_as_NegativeParams() const {
     return softLayerParams_type() == MVCNN::SoftwareLayerParams_NegativeParams ? static_cast<const MVCNN::NegativeParams *>(softLayerParams()) : nullptr;
+  }
+  const MVCNN::ConvertParams *softLayerParams_as_ConvertParams() const {
+    return softLayerParams_type() == MVCNN::SoftwareLayerParams_ConvertParams ? static_cast<const MVCNN::ConvertParams *>(softLayerParams()) : nullptr;
   }
   const MVCNN::TensorReference *input_data() const {
     return GetPointer<const MVCNN::TensorReference *>(VT_INPUT_DATA);
@@ -7321,6 +7515,10 @@ template<> inline const MVCNN::PostOpsParams *UPALayerTask::softLayerParams_as<M
 
 template<> inline const MVCNN::NegativeParams *UPALayerTask::softLayerParams_as<MVCNN::NegativeParams>() const {
   return softLayerParams_as_NegativeParams();
+}
+
+template<> inline const MVCNN::ConvertParams *UPALayerTask::softLayerParams_as<MVCNN::ConvertParams>() const {
+  return softLayerParams_as_ConvertParams();
 }
 
 struct UPALayerTaskBuilder {
@@ -7557,6 +7755,9 @@ struct SNNLayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const MVCNN::NegativeParams *softLayerParams_as_NegativeParams() const {
     return softLayerParams_type() == MVCNN::SoftwareLayerParams_NegativeParams ? static_cast<const MVCNN::NegativeParams *>(softLayerParams()) : nullptr;
   }
+  const MVCNN::ConvertParams *softLayerParams_as_ConvertParams() const {
+    return softLayerParams_type() == MVCNN::SoftwareLayerParams_ConvertParams ? static_cast<const MVCNN::ConvertParams *>(softLayerParams()) : nullptr;
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_SOFTLAYERPARAMS_TYPE) &&
@@ -7715,6 +7916,10 @@ template<> inline const MVCNN::PostOpsParams *SNNLayerTask::softLayerParams_as<M
 
 template<> inline const MVCNN::NegativeParams *SNNLayerTask::softLayerParams_as<MVCNN::NegativeParams>() const {
   return softLayerParams_as_NegativeParams();
+}
+
+template<> inline const MVCNN::ConvertParams *SNNLayerTask::softLayerParams_as<MVCNN::ConvertParams>() const {
+  return softLayerParams_as_ConvertParams();
 }
 
 struct SNNLayerTaskBuilder {
@@ -10589,6 +10794,29 @@ inline flatbuffers::Offset<ScaleShiftParams> CreateScaleShiftParams(flatbuffers:
       _fbb);
 }
 
+inline HSwishParamsT *HSwishParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  std::unique_ptr<MVCNN::HSwishParamsT> _o = std::unique_ptr<MVCNN::HSwishParamsT>(new HSwishParamsT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void HSwishParams::UnPackTo(HSwishParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+}
+
+inline flatbuffers::Offset<HSwishParams> HSwishParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const HSwishParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateHSwishParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<HSwishParams> CreateHSwishParams(flatbuffers::FlatBufferBuilder &_fbb, const HSwishParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const HSwishParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  return MVCNN::CreateHSwishParams(
+      _fbb);
+}
+
 inline PostOpsParamsT *PostOpsParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   std::unique_ptr<MVCNN::PostOpsParamsT> _o = std::unique_ptr<MVCNN::PostOpsParamsT>(new PostOpsParamsT());
   UnPackTo(_o.get(), _resolver);
@@ -10651,6 +10879,44 @@ inline flatbuffers::Offset<UnaryOpParams> CreateUnaryOpParams(flatbuffers::FlatB
       _fbb,
       _nested_params_type,
       _nested_params);
+}
+
+inline ConvertParamsT *ConvertParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  std::unique_ptr<MVCNN::ConvertParamsT> _o = std::unique_ptr<MVCNN::ConvertParamsT>(new ConvertParamsT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void ConvertParams::UnPackTo(ConvertParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = scale(); _o->scale = _e; }
+  { auto _e = bias(); _o->bias = _e; }
+  { auto _e = from_detection_output(); _o->from_detection_output = _e; }
+  { auto _e = have_batch(); _o->have_batch = _e; }
+  { auto _e = batch_id(); _o->batch_id = _e; }
+}
+
+inline flatbuffers::Offset<ConvertParams> ConvertParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ConvertParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateConvertParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<ConvertParams> CreateConvertParams(flatbuffers::FlatBufferBuilder &_fbb, const ConvertParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const ConvertParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _scale = _o->scale;
+  auto _bias = _o->bias;
+  auto _from_detection_output = _o->from_detection_output;
+  auto _have_batch = _o->have_batch;
+  auto _batch_id = _o->batch_id;
+  return MVCNN::CreateConvertParams(
+      _fbb,
+      _scale,
+      _bias,
+      _from_detection_output,
+      _have_batch,
+      _batch_id);
 }
 
 inline UPALayerTaskT *UPALayerTask::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
@@ -11346,6 +11612,10 @@ inline bool VerifyPostOpsNestedParams(flatbuffers::Verifier &verifier, const voi
       auto ptr = reinterpret_cast<const MVCNN::TanhParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case PostOpsNestedParams_HSwishParams: {
+      auto ptr = reinterpret_cast<const MVCNN::HSwishParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     default: return true;
   }
 }
@@ -11416,6 +11686,10 @@ inline void *PostOpsNestedParamsUnion::UnPack(const void *obj, PostOpsNestedPara
       auto ptr = reinterpret_cast<const MVCNN::TanhParams *>(obj);
       return ptr->UnPack(resolver);
     }
+    case PostOpsNestedParams_HSwishParams: {
+      auto ptr = reinterpret_cast<const MVCNN::HSwishParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -11474,6 +11748,10 @@ inline flatbuffers::Offset<void> PostOpsNestedParamsUnion::Pack(flatbuffers::Fla
       auto ptr = reinterpret_cast<const MVCNN::TanhParamsT *>(value);
       return CreateTanhParams(_fbb, ptr, _rehasher).Union();
     }
+    case PostOpsNestedParams_HSwishParams: {
+      auto ptr = reinterpret_cast<const MVCNN::HSwishParamsT *>(value);
+      return CreateHSwishParams(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -11530,6 +11808,10 @@ inline PostOpsNestedParamsUnion::PostOpsNestedParamsUnion(const PostOpsNestedPar
     }
     case PostOpsNestedParams_TanhParams: {
       value = new MVCNN::TanhParamsT(*reinterpret_cast<MVCNN::TanhParamsT *>(u.value));
+      break;
+    }
+    case PostOpsNestedParams_HSwishParams: {
+      value = new MVCNN::HSwishParamsT(*reinterpret_cast<MVCNN::HSwishParamsT *>(u.value));
       break;
     }
     default:
@@ -11601,6 +11883,11 @@ inline void PostOpsNestedParamsUnion::Reset() {
     }
     case PostOpsNestedParams_TanhParams: {
       auto ptr = reinterpret_cast<MVCNN::TanhParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case PostOpsNestedParams_HSwishParams: {
+      auto ptr = reinterpret_cast<MVCNN::HSwishParamsT *>(value);
       delete ptr;
       break;
     }
@@ -11874,6 +12161,10 @@ inline bool VerifySoftwareLayerParams(flatbuffers::Verifier &verifier, const voi
       auto ptr = reinterpret_cast<const MVCNN::NegativeParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case SoftwareLayerParams_ConvertParams: {
+      auto ptr = reinterpret_cast<const MVCNN::ConvertParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     default: return true;
   }
 }
@@ -12040,6 +12331,10 @@ inline void *SoftwareLayerParamsUnion::UnPack(const void *obj, SoftwareLayerPara
       auto ptr = reinterpret_cast<const MVCNN::NegativeParams *>(obj);
       return ptr->UnPack(resolver);
     }
+    case SoftwareLayerParams_ConvertParams: {
+      auto ptr = reinterpret_cast<const MVCNN::ConvertParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -12194,6 +12489,10 @@ inline flatbuffers::Offset<void> SoftwareLayerParamsUnion::Pack(flatbuffers::Fla
       auto ptr = reinterpret_cast<const MVCNN::NegativeParamsT *>(value);
       return CreateNegativeParams(_fbb, ptr, _rehasher).Union();
     }
+    case SoftwareLayerParams_ConvertParams: {
+      auto ptr = reinterpret_cast<const MVCNN::ConvertParamsT *>(value);
+      return CreateConvertParams(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -12346,6 +12645,10 @@ inline SoftwareLayerParamsUnion::SoftwareLayerParamsUnion(const SoftwareLayerPar
     }
     case SoftwareLayerParams_NegativeParams: {
       value = new MVCNN::NegativeParamsT(*reinterpret_cast<MVCNN::NegativeParamsT *>(u.value));
+      break;
+    }
+    case SoftwareLayerParams_ConvertParams: {
+      value = new MVCNN::ConvertParamsT(*reinterpret_cast<MVCNN::ConvertParamsT *>(u.value));
       break;
     }
     default:
@@ -12537,6 +12840,11 @@ inline void SoftwareLayerParamsUnion::Reset() {
     }
     case SoftwareLayerParams_NegativeParams: {
       auto ptr = reinterpret_cast<MVCNN::NegativeParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case SoftwareLayerParams_ConvertParams: {
+      auto ptr = reinterpret_cast<MVCNN::ConvertParamsT *>(value);
       delete ptr;
       break;
     }

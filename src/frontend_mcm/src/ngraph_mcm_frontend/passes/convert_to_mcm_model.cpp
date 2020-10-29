@@ -79,6 +79,7 @@
 #include <ngraph/op/elu.hpp>
 #include <ngraph/op/maximum.hpp>
 #include <ngraph/op/minimum.hpp>
+#include <ngraph/op/hswish.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -522,6 +523,13 @@ void convert(std::shared_ptr<ngraph::op::v0::Elu> elu, mv::OpModel& mcmModel, No
     const auto mcmEluOutput = mcmModel.elu(opName, mcmData, alpha);
 
     registerOutputs(elu, {mcmEluOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v4::HSwish> hswish, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(hswish, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto mcmOpOutput = mcmModel.hSwish(hswish->get_friendly_name(), mcmInputs.at(0));
+    registerOutputs(hswish, {mcmOpOutput}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<McmEltwise> eltwise, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -1463,7 +1471,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::Elu),
     MAP_ENTRY(ngraph::op::v1::Maximum),
     MAP_ENTRY(ngraph::op::v1::Minimum),
-    MAP_ENTRY(ngraph::op::v1::Split)
+    MAP_ENTRY(ngraph::op::v1::Split),
+    MAP_ENTRY(ngraph::op::v4::HSwish)
 };
 
 #undef MAP_ENTRY

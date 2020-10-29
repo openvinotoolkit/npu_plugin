@@ -260,6 +260,42 @@ inline const char *EnumNameMPE_Mode(MPE_Mode e) {
   return EnumNamesMPE_Mode()[index];
 }
 
+enum PPERoundingMode {
+  PPERoundingMode_RNE = 0,
+  PPERoundingMode_RNTZ = 1,
+  PPERoundingMode_RNAZ = 2,
+  PPERoundingMode_RUP = 3,
+  PPERoundingMode_MIN = PPERoundingMode_RNE,
+  PPERoundingMode_MAX = PPERoundingMode_RUP
+};
+
+inline const PPERoundingMode (&EnumValuesPPERoundingMode())[4] {
+  static const PPERoundingMode values[] = {
+    PPERoundingMode_RNE,
+    PPERoundingMode_RNTZ,
+    PPERoundingMode_RNAZ,
+    PPERoundingMode_RUP
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesPPERoundingMode() {
+  static const char * const names[5] = {
+    "RNE",
+    "RNTZ",
+    "RNAZ",
+    "RUP",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNamePPERoundingMode(PPERoundingMode e) {
+  if (flatbuffers::IsOutRange(e, PPERoundingMode_RNE, PPERoundingMode_RUP)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesPPERoundingMode()[index];
+}
+
 struct PPEFixedFunctionT : public flatbuffers::NativeTable {
   typedef PPEFixedFunction TableType;
   std::vector<MVCNN::PPELayerType> Ops;
