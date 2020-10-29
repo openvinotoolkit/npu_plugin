@@ -36,7 +36,9 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName)
     const std::string ignoredDeviceName("VPU-0");
 
     if (specificName.empty() || specificName == ignoredDeviceName) {
-        deviceToUse = _backend->getDevice();
+        if (_backend != nullptr) {
+            deviceToUse = _backend->getDevice();
+        }
     } else {
         deviceToUse = _backend->getDevice(specificName);
     }
@@ -66,7 +68,9 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const IE::RemoteContext::Ptr& co
 
 std::vector<std::string> VPUXBackends::getAvailableDevicesNames() const { return _backend->getDeviceNames(); }
 
-std::unordered_set<std::string> VPUXBackends::getSupportedOptions() const { return _backend->getSupportedOptions(); }
+std::unordered_set<std::string> VPUXBackends::getSupportedOptions() const {
+    return _backend == nullptr ? std::unordered_set<std::string>() : _backend->getSupportedOptions();
+}
 
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below
 void VPUXBackends::setup(const VPUXConfig& config) const { _logger->setLevel(config.logLevel()); }
