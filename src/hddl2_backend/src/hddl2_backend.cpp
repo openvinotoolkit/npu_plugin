@@ -55,8 +55,10 @@ const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const InferenceEngine::Pa
 }
 
 const std::vector<std::string> HDDL2Backend::getDeviceNames() const {
-    if (!isServiceAvailable()) {
-        // return empty device list if service is not available
+    // TODO: [Track number: S#42053]
+    if (!isServiceAvailable() || !isServiceRunning()) {
+        // return empty device list if service is not available or service is not running
+        _logger->warning("HDDL2 service is not available or service is not running!");
         return std::vector<std::string>();
     }
 
