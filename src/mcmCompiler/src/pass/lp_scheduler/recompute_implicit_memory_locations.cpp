@@ -11,13 +11,6 @@ class Recompute_Memory_Locations {
     typedef mv::Tensor::MemoryLocation mem_location_t;
     typedef std::unordered_map<operation_t, mem_location_t>
         mem_location_table_t;
-
-    class exception_t : std::string {
-      public:
-        exception_t(const std::string& msg) : std::string(msg) {}
-        exception_t(const char *msg) : std::string(msg) {}
-        const std::string& getMessage() const { return  *this; }
-    }; // class exception_t //
     ////////////////////////////////////////////////////////////////////////////
 
     Recompute_Memory_Locations(mv::OpModel& om) : omodel_(om) {}
@@ -72,8 +65,8 @@ class Recompute_Memory_Locations {
         if (!in_degree) {
           zero_in_degree_nodes[0UL].push_back(op);
           if (op->isImplicit()) {
-            throw exception_t("Implicit Ops cannot have zero in degree " +
-                  op->getName());
+            throw mv::RuntimeError("LpScheduler", 
+                "Implicit Ops cannot have zero in degree " + op->getName());
           }
         }
         in_degree_map[op] = in_degree;
@@ -106,7 +99,7 @@ class Recompute_Memory_Locations {
             auto ditr = in_degree_map.find(cop);
 
             if ((ditr == in_degree_map.end()) || (ditr->second == 0)) {
-              throw exception_t("in_degree_map invariant violation\n");
+              throw mv::RuntimeError("LpScheduler", "in_degree_map invariant violation");
             }
 
             // maintain the inductive invariant //
@@ -117,8 +110,8 @@ class Recompute_Memory_Locations {
                 mitr = implicit_op_mem_table.insert(
                     std::make_pair(cop, zop_mem_location)).first;
               } else if (!(mitr->second  == zop_mem_location) ) {
-                throw exception_t("Implicit op " + cop->getName() +
-                      " has memory location un-resolved");
+                throw mv::RuntimeError("LpScheduler",
+                    "Implicit op " + cop->getName() + " has memory location un-resolved");
               }
             }
 

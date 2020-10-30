@@ -17,15 +17,6 @@ class CMX_Concatenation {
     typedef mv::Op* non_const_operation_t;
     typedef std::list<operation_t> op_list_t;
 
-
-    class exception_t : std::string {
-      public:
-        exception_t(const std::string& msg) : std::string(msg) {}
-        exception_t(const char *msg) : std::string(msg) {}
-        const std::string& getMessage() const { return  *this; }
-    }; // class exception_t //
-
-
     struct op_selector_t {
 
       op_selector_t(bool select_reads=false)
@@ -250,7 +241,7 @@ class CMX_Concatenation {
       // Precondition:  model must be a DAG //
       size_t compute_representative_dpu_task_using_depth(mv::OpModel& model) {
         if (!is_valid()){
-          throw exception_t("Invalid concat subgraph");
+          throw RuntimeError("LpScheduler", "Invalid concat subgraph");
         }
 
         std::list<operation_t> zero_in_degree_nodes[2UL];
@@ -293,7 +284,7 @@ class CMX_Concatenation {
               operation_t cop = &(*citr);
               auto ditr = in_degree_map.find(cop);
               if ( (ditr == in_degree_map.end()) || (ditr->second == 0UL) ) {
-                throw exception_t("Missing entry in the in-degree map (or)"
+                throw RuntimeError("LpScheduler", "Missing entry in the in-degree map (or)"
                     " invalid in-degree for op= " + cop->getName() );
               }
               --(ditr->second);
@@ -316,7 +307,7 @@ class CMX_Concatenation {
         }
 
         if (!representative_dpu_) {
-          throw exception_t("Unable identify a canonical DPU task.");
+          throw RuntimeError("LpScheduler", "Unable identify a canonical DPU task.");
         }
 
         return representative_dpu_depth_;
@@ -488,7 +479,7 @@ class CMX_Concatenation {
       operation_t dpu_rep = subgraph.representative_dpu_;
       auto itr = dpu_depth_map_.find(dpu_rep);
       if (itr == dpu_depth_map_.end()) {
-        throw exception_t("DPU missing in depth map");
+        throw RuntimeError("LpScheduler", "DPU missing in depth map");
       }
       size_t dpu_rep_depth = itr->second;
 
@@ -636,7 +627,7 @@ class CMX_Concatenation {
 
     size_t total_input_cmx_memory_for_cmx_concat(operation_t op) const {
       if (!(op->getOpType() == "ImplicitConcat")) {
-        throw exception_t("The input operation must be an ImplicitConcat");
+        throw RuntimeError("LpScheduler", "The input operation must be an ImplicitConcat");
       }
 
 
@@ -692,7 +683,7 @@ class CMX_Concatenation {
     template<typename T>
     size_t get_cmx_concat_buffer_size_driven_by_this_dpu(T op) const {
       if (!is_this_dpu_op_writing_into_cmx_concat(op)) {
-        throw exception_t("Invalid DPU op for this function");
+        throw RuntimeError("LpScheduler", "Invalid DPU op for this function");
       }
 
       mv::Data::OpListIterator op_itr = omodel_.getOp(op->getName());
@@ -814,7 +805,7 @@ class CMX_Concatenation {
     void transform(concat_subgraph_t& subgraph, size_t cmx_size=917504UL) {
 
       if (!is_cmx_concateable_in_current_opmodel(subgraph, cmx_size)) {
-        throw exception_t("Precondition violation: ");
+        throw RuntimeError("LpScheduler", "Precondition violation: ");
       }
 
       mv::OpModel &om = omodel_;
@@ -963,8 +954,8 @@ class CMX_Concatenation {
         printf("short_circuit_read_or_write(%s) must be unit-indegree\n",
               op->getName().c_str());
         fflush(stdout);
-        throw exception_t("Read/Write must have unit "
-              "indegree and unit outdegree");
+        throw RuntimeError("LpScheduler", 
+            "Read/Write must have unit indegree and unit outdegree");
       }
 
       // outputIdx: parent->op

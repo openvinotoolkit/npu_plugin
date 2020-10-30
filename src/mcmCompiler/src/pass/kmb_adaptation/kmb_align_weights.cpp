@@ -58,7 +58,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                 if(dpuTaskType.empty())
                     dpuTaskType = opIt->get<std::string>("taskOp");
                 else if(dpuTaskType != opIt->get<std::string>("taskOp"))
-                    throw "Assumption violated!";
+                    throw mv::RuntimeError("AlignTaskWeights", "DPU op type mismatch");
             }
             else if(opIt->getOpType() == "UPATask")
             {
@@ -69,7 +69,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                 hasSliceOp = true;
             }
             else if(hasAtLeastOneDPUTask)
-                throw "Assumption violated!";
+                throw mv::RuntimeError("AlignTaskWeights", "Assumption violated: hasAtLeastOneDPUTask");
         }
 
         if(hasAtLeastOneDPUTask || hasSliceOp)

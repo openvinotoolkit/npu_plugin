@@ -7,6 +7,7 @@
 #include <vector>
 #include <algorithm>
 #include "include/mcm/compiler/compilation_profiler.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 
 namespace mv
 {
@@ -44,7 +45,7 @@ namespace mv
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
 
         if(!isDAG(g))
-            throw std::string("Trying to execute topologicalSort on a graph that is not a DAG");
+            throw RuntimeError("Algorithm", "Trying to execute topologicalSort on a graph that is not a DAG");
 
         std::set<typename graph<T_node, T_edge>::node_list_iterator, OpItComparatorTemplate2<typename graph<T_node, T_edge>::node_list_iterator>> unmarkedNodes;
         for(auto node = g.node_begin(); node != g.node_end(); ++node)

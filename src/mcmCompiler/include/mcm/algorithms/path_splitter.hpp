@@ -62,7 +62,7 @@ struct OpModel_Path_Update_Traits {
       node_iterator_t source_itr, node_iterator_t sink_itr,
       edge_iterator_t original_edge) {
     if (!((*original_edge).hasAttr("sinkInput"))) {
-      throw "Original edge must have sinkInput attribute";
+      throw RuntimeError("Algorithm", "Original edge must have sinkInput attribute");
     }
 
     size_t sinkInputIdx = (*original_edge).get<std::size_t>("sinkInput");
@@ -342,7 +342,7 @@ class Path_Splitter {
       const_node_ptr_t original_node_ptr = original_node_itr.operator->();
       auto citr = cloned_nodes_.find(original_node_ptr);
       if (citr == cloned_nodes_.end()){
-        throw "Uncloned original node access";
+        throw RuntimeError("Algorithm", "Uncloned original node access");
       }
       node_iterator_t cloned_node_itr = (citr->second).cloned_node_itr_;
       return cloned_node_itr.operator->();
@@ -407,7 +407,7 @@ class Path_Splitter {
 
         if (!original_edge_found) {
           // the original DAG must not change during path splitting //
-          throw "Invalid Path Edge: edge missing in the orignal dag\n";
+          throw RuntimeError("Algorithm", "Invalid Path Edge: edge missing in the orignal DAG");
         }
       }
 
