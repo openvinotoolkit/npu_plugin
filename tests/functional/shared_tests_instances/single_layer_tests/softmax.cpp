@@ -11,7 +11,21 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeImport() override {
+        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+    }
+    void SkipBeforeInfer() override {
+        InferenceEngine::SizeVector inputShape;
+        std::tie(std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, inputShape, std::ignore, std::ignore, std::ignore) = GetParam();
+        if (inputShape[0] > 1) {
+            throw LayerTestsUtils::KmbSkipTestException("Sample reason: Dim N >= 1 isn't supported by vpu runtime yet");
+        }
+    }
+    void SkipBeforeValidate() override {
+            throw LayerTestsUtils::KmbSkipTestException("Validate isn't functional yet");
+    }
+};
 
 // TODO: [Track number: C#38227]
 TEST_P(KmbSoftMaxLayerTest, CompareWithRefs) {

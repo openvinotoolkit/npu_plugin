@@ -9,7 +9,11 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeImport() override {
+        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+    }
+};
 
 TEST_P(KmbGatherLayerTest, CompareWithRefs) {
     Run();

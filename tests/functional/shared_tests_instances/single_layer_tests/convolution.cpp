@@ -11,12 +11,15 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbConvolutionLayerTest: public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class KmbConvolutionLayerTest: public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeImport() override {
+        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+    }
+};
 
-TEST_P(KmbConvolutionLayerTest, CompareWithRefs) {
-    Run();
-}
-
+    TEST_P(KmbConvolutionLayerTest, CompareWithRefs) {
+        Run();
+    }
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
