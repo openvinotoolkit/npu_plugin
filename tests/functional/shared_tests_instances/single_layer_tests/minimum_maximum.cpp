@@ -11,7 +11,11 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbMaxMinLayerTest: public MaxMinLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class KmbMaxMinLayerTest: public MaxMinLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeImport() override {
+        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+    }
+};
 
 TEST_P(KmbMaxMinLayerTest, CompareWithRefs) {
     Run();

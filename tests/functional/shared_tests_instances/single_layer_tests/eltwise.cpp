@@ -9,7 +9,11 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbEltwiseLayerTest: public EltwiseLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class KmbEltwiseLayerTest: public EltwiseLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeImport() override {
+        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+    }
+};
 
 TEST_P(KmbEltwiseLayerTest, CompareWithRefs) {
     Run();

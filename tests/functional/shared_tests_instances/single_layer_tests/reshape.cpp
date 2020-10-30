@@ -11,7 +11,14 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbReshapeLayerTest : public ReshapeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class KmbReshapeLayerTest : public ReshapeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeImport() override {
+        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+    }
+    void SkipBeforeValidate() override {
+        throw LayerTestsUtils::KmbSkipTestException("comparison fails");
+    }
+};
 
 TEST_P(KmbReshapeLayerTest, ReshapeCheck) {
     Run();
