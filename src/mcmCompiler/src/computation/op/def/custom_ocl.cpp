@@ -3,7 +3,7 @@
 namespace mv
 {
 
-namespace op_custom
+namespace op_custom_ocl
 {
     static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
         const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
@@ -28,7 +28,7 @@ namespace op_custom
             }
 
             outputs.emplace_back(":" + std::to_string(i), outputsInfo[i].shape(), dType,
-                                     outputsInfo[i].order());
+                                 outputsInfo[i].order());
         }
     };
 
@@ -36,15 +36,15 @@ namespace op_custom
 
 namespace op {
 
-    MV_REGISTER_OP(Custom)
+    MV_REGISTER_OP(CustomOcl)
             .setInputs({"inputs"})
             .setOutputs({"outputs"})
             .setVariableInputNum(true)
             .setArg<std::vector<uint8_t>>("kernelData")
             .setArg<std::vector<uint8_t>>("paramData")
             .setArg<std::vector<mv::TensorInfo>>("outputsInfo")
-            .setInputCheck(op_custom::inputCheckFcn)
-            .setOutputDef(op_custom::outputDefFcn)
+            .setInputCheck(op_custom_ocl::inputCheckFcn)
+            .setOutputDef(op_custom_ocl::outputDefFcn)
             .setTypeTrait({"executable", "exposed"});
 
 }

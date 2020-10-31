@@ -311,7 +311,7 @@ bool mv::Op::isUPA() const
     std::vector<std::string> upaTypes = {"Normalize", "Identity", "Softmax", "Proposal", "ROIPooling",
                                         "PSROIPooling", "Resample", "Quantize", "Resample", "Reshape",
                                         "RegionYolo", "ReorgYolo", "DetectionOutput", "Interp", "Norm",
-                                        "Priorbox","Argmax","Permute","Custom","Sigmoid","Deconv","Tile",
+                                        "Priorbox","Argmax","Permute","CustomOcl","CustomCpp","Sigmoid","Deconv","Tile",
                                         "RefConv", "Gather", "HSwish"};
     log(Logger::MessageType::Debug, "isUPA method is called for:" + getOpType());
     if (std::count(upaTypes.begin(), upaTypes.end(), getOpType()))
