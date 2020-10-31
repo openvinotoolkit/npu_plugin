@@ -30,7 +30,7 @@
 #include <cpp_interfaces/exception2status.hpp>
 #include <description_buffer.hpp>
 #include <details/ie_exception.hpp>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_compound_blob.h>
@@ -41,11 +41,11 @@
 #include <ie_layouts.h>
 #include <ie_parallel.hpp>
 #include <ie_precision.hpp>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <ie_utils.hpp>
 #include <low_precision_transformations/network_helper.hpp>
 #include <low_precision_transformations/transformer.hpp>
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 #include <openvino/itt.hpp>
 #include <parse_layers_helpers.hpp>
 #include <precision_utils.h>
