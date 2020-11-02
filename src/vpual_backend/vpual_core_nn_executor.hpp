@@ -48,7 +48,7 @@ public:
 
     virtual ~VpualCoreNNExecutor();
     VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
-        const uint32_t deviceId, const VpualConfig& config);
+        const VpusmmAllocator::Ptr& csramAllocator, const uint32_t deviceId, const VpualConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
     void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;
@@ -62,6 +62,7 @@ public:
 private:
     vpux::NetworkDescription::Ptr _networkDescription;
     VpusmmAllocator::Ptr _allocator;
+    VpusmmAllocator::Ptr _csramAllocator;
     const VpualConfig& _config;
     vpu::Logger::Ptr _logger;
 
@@ -86,6 +87,7 @@ private:
         const InferenceEngine ::BlobMap& deviceOutputs, InferenceEngine::BlobMap& networkOutputs);
 
     std::vector<void*> _scratchBuffers;
+    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preFetchBuffer;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _inputBuffer;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _outputBuffer;
 
