@@ -46,6 +46,7 @@ vpux::VPUXConfig::VPUXConfig() {
                                                                            VPUX_CONFIG_KEY(PREPROCESSING_LPI),
                                                                            VPUX_CONFIG_KEY(EXECUTOR_STREAMS),
                                                                            VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS),
+                                                                           VPUX_CONFIG_KEY(INFERENCE_SHAVES),
                                                                        });
 }
 
@@ -94,6 +95,10 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
         << "',  valid values are 1, 2, 4, 8, 16";
     setOption(_executorStreams, config, VPUX_CONFIG_KEY(EXECUTOR_STREAMS), parseInt);
     setOption(_executorStreams, config, VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS), parseInt);
+    setOption(_numberOfNnCoreShaves, config, VPUX_CONFIG_KEY(INFERENCE_SHAVES), parseInt);
+    IE_ASSERT(0 <= _numberOfNnCoreShaves && _numberOfNnCoreShaves <= 16)
+        << "VPUXConfig::parse attempt to set invalid number of shaves for NnCore: '" << _numberOfNnCoreShaves
+        << "', valid numbers are from 0 to 16";
 
     parseEnvironment();
 }
