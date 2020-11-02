@@ -578,24 +578,10 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_alexnet_caffe_dense_int8_IRv10
 }
 
 // Compilation time is about 10 minutes
-// [Track number: D#3640]
-TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");  // TODO Create Ticket
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_from_fp32.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-            1, 0.05f);
-}
-
-
-// Compilation time is about 10 minutes
-// [Track number: D#3640]
-TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
-    // [Track number: S#39223]
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+// Required > 13 GB DDR
+// [Track number: S#42011]
+// [Track number: S#39223]
+TEST_F(KmbClassifyNetworkTest, DISABLED_vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPrecision("input", Precision::U8)

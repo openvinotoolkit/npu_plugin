@@ -572,7 +572,7 @@ class Control_Model_Barrier_Scheduler {
       if(mv::isDebugFilesEnabled()) {
         fptr = fopen("redundant_barriers.txt", "w");
         if(nullptr == fptr) {
-          throw std::string("Cannot open file for writing");
+          throw RuntimeError("LpScheduler", "Cannot open file for writing");
         }
       }
       size_t total = 0;

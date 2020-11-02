@@ -147,7 +147,8 @@ void ForceSpillActivationPass(const mv::pass::PassEntry&,
 
   bool spilled = spiller.spill_at(spill_op_name);
   if (!spilled) {
-    throw "[ForceSpillActivationPass]: failed to spill at specified op";
+    throw mv::RuntimeError("LpScheduler",
+        "[ForceSpillActivationPass]: failed to spill at specified op");
   }
 }
 

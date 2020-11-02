@@ -424,7 +424,7 @@ void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
     std::vector<std::string> scheduling;
     std::unordered_set<std::string> barriersInMemory;
     if(!availableTasks.empty() && !generateSchedulingRecursively(model, availableTasks, scheduling, barriersInMemory))
-        throw "Impossible to schedule";
+        throw mv::RuntimeError("GenerateExecutionSchedule", "Impossible to schedule");
 
     unsigned i = 0;
     for(auto& task : scheduling)

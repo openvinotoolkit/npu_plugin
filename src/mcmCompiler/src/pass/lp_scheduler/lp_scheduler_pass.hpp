@@ -168,7 +168,8 @@ class ImplicitConcat_Connected_Component {
       auto itr = union_find_array_.find(op);
       if (itr == union_find_array_.end()) { 
         dump_exception("[ImplicitConcatRoot]\n");
-        throw "[ImplicitConcatRoot] missing operation: " + op->getName();
+        throw RuntimeError("LpScheduler", "[ImplicitConcatRoot] missing operation: "
+                               + op->getName());
       }
       return itr->second;
     }
@@ -179,7 +180,8 @@ class ImplicitConcat_Connected_Component {
           slave_concat_reads_.find(op);
       if (itr == slave_concat_reads_.end()) {
         dump_exception("[ImplicitConcatInvariant]: invalid master concat\n");
-        throw "[ImplicitConcatInvariant]: invalid master concat ";
+        throw RuntimeError("LpScheduler",
+            "[ImplicitConcatInvariant]: invalid master concat ");
       }
       return itr->second;
     }
@@ -229,8 +231,8 @@ class ImplicitConcat_Connected_Component {
 
         if (uitr == union_find_array_.end()) {
           dump_exception("build_slave_concat_reads\n");
-          throw "[build_slave_concat_reads] : "
-              "Invalid concat union-find state\n";
+          throw RuntimeError("LpScheduler",
+              "[build_slave_concat_reads]: Invalid concat union-find state");
         }
 
         // add all reads from this concat to the slave_read table of the
@@ -264,8 +266,9 @@ class ImplicitConcat_Connected_Component {
             fclose(fptr);
 
             dump_exception("[ImplictConcatInvariant]: implict concat reads\n");
-            throw "[ImplicitConcatInvariant] : implict concat should only have"
-              " dataflow to either concats or reads\n";
+            throw RuntimeError("LpScheduler",
+                "[ImplicitConcatInvariant] : implict concat should only have"
+                " dataflow to either concats or reads");
           }
 
           if (is_read_or_upa) {
@@ -633,7 +636,7 @@ class Control_Edge_Set {
           printfInfo("LpScheduler:",
               "[cycle : edge (sink<-source) = (%s <- %s)]\n",
               sink->getName().c_str(), source->getName().c_str());
-          throw "[LpScheduler] unexpected cycle in the control DAG ";
+          throw RuntimeError("LpScheduler", "unexpected cycle in the control DAG ");
         }
         cmodel.defineFlow(oitr_source, oitr_sink);
         edge_added = true;
@@ -964,9 +967,9 @@ class Dynamic_Spill_Node_Inserter {
         : read_op_(), consumer_list_(), implicit_sub_structure_(substr) {}
 
       spilled_read_subtree_t(const spilled_read_subtree_t& o)
-        : read_op_(o.read_op_), consumer_list_(o.consumer_list_), 
-          effective_children_(o.effective_children_), 
-          effective_child_map_(o.effective_child_map_) {}
+        : read_op_(o.read_op_), consumer_list_(o.consumer_list_),
+          effective_child_map_(o.effective_child_map_),
+          effective_children_(o.effective_children_) {}
 
       spilled_read_subtree_t& operator=(const spilled_read_subtree_t& o) {
         read_op_ = o.read_op_; consumer_list_ = o.consumer_list_;
@@ -1212,7 +1215,7 @@ class Dynamic_Spill_Node_Inserter {
           operation_t spilled_write_op = (sitr->second).spilled_write_op_;
 
           if (!spilled_write_op) {
-            throw "SpilledWriteOp cannot be NULL";
+            throw RuntimeError("LpScheduler", "SpilledWriteOp cannot be NULL");
           }
 
           // add control edges from all the dpu_in_.ops() to the write op in 
@@ -1400,8 +1403,9 @@ class Dynamic_Spill_Node_Inserter {
             om.getImplicitPath(spilled_op_itr, *ichild, implicit_path);
 
             if (implicit_path.empty()){
-              throw "Implicit path between " + spilled_op_itr->getName() +
-                  " and " + (*ichild)->getName() + " cannot be empty";
+              throw RuntimeError("LpScheduler",
+                  "Implicit path between " + spilled_op_itr->getName()
+                  + " and " + (*ichild)->getName() + " cannot be empty");
             }
 
             operation_t child = &(*(*ichild));
@@ -1501,8 +1505,9 @@ class Dynamic_Spill_Node_Inserter {
             om.getImplicitPath(spilled_op_itr, *ichild, implicit_path);
 
             if (implicit_path.empty()){
-              throw "Implicit path between " + spilled_op_itr->getName() +
-                  " and " + (*ichild)->getName() + " cannot be empty";
+              throw RuntimeError("LpScheduler", "Implicit path between "
+                  + spilled_op_itr->getName() + " and " + (*ichild)->getName()
+                  + " cannot be empty");
             }
 
             operation_t child = &(*(*ichild));
@@ -1614,7 +1619,7 @@ class Dynamic_Spill_Node_Inserter {
       }
 
       if (input_tensor_index_map.find(head) == input_tensor_index_map.end()) {
-        throw std::string("[ImplicitSubtree] invalid implicit substructure");
+        throw RuntimeError("LpScheduler", "[ImplicitSubtree] invalid implicit substructure");
       }
 
 
@@ -1638,8 +1643,8 @@ class Dynamic_Spill_Node_Inserter {
       }
 
       if (input_tensor_index_map.size() != (children.size() + 1UL) ) {
-        throw std::string("[ImplicitSubstructure] unable to locate dataflows"
-              " forall childrent");
+        throw RuntimeError("LpScheduler",
+            "[ImplicitSubstructure] unable to locate dataflows forall children");
       }
       
       for (auto flow : data_flows_to_erase) om.undefineFlow(flow);
@@ -1674,8 +1679,8 @@ class Dynamic_Spill_Node_Inserter {
 
         if (input_tensor_index_map.find(child_op) ==
               input_tensor_index_map.end()) {
-          throw std::string("[ImplicitSpillStructure]: cannot find  " +
-                child_op->getName() + " in the input tensor index map");
+          throw RuntimeError("LpScheduler", "[ImplicitSpillStructure]: cannot find "
+              + child_op->getName() + " in the input tensor index map");
         }
 
 
@@ -1740,7 +1745,8 @@ class Dynamic_Spill_Node_Inserter {
         // find the input index in the original spilled op //
         auto idx_itr = input_tensor_index_map.find(child_op);
         if (idx_itr == input_tensor_index_map.end()) {
-          throw std::string("[RefinementInvariant]: failed effective children "
+          throw RuntimeError("LpScheduler",
+              "[RefinementInvariant]: failed effective children "
               " must have a input_tensor_index_map entry");
         }
         size_t idx = idx_itr->second;

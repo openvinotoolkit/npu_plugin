@@ -302,7 +302,7 @@ class DAG_Transitive_Reducer {
       sprintf(buf, "./input_dag_%lu.txt", ++graph_id);
       FILE *fptr = fopen(buf, "w");
       if (!fptr) {
-        throw std::string("unable to open file\n");
+        throw std::runtime_error("unable to open file");
       }
 
       dag_t &g = dag_;
