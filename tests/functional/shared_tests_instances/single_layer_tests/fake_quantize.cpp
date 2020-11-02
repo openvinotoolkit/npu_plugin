@@ -10,9 +10,9 @@
 namespace LayerTestsDefinitions {
 
 class KmbFakeQuantizeLayerTest : public FakeQuantizeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeImport() override {
-        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
-    }
+//    void SkipBeforeImport() override {
+//        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+//    }
     void SkipBeforeValidate() override {
         throw LayerTestsUtils::KmbSkipTestException("comparison fails");
     }
