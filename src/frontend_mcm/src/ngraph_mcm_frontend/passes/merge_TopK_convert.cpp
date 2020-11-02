@@ -20,7 +20,7 @@
 #include <details/ie_exception.hpp>
 #include <ngraph/op/convert.hpp>
 #include <ngraph/op/result.hpp>
-#include <ngraph_ops/topk_ie.hpp>
+#include <legacy/ngraph_ops/topk_ie.hpp>
 #include <memory>
 
 bool MergeTopKConvert::run_on_function(std::shared_ptr<ngraph::Function> f) {
