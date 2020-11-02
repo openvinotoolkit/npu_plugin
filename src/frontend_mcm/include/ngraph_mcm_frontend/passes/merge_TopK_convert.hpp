@@ -21,12 +21,12 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 //
-// Merge [Op] -> [Convert] -> [Result] into [Op] -> [Result].
+// Merge [Topk] -> [Convert] -> [Result] into [TopK] -> [Result].
 //
 
-class MergeResultConvert final : public ngraph::pass::GraphRewrite {
+class MergeTopKConvert : public ngraph::pass::FunctionPass  {
 public:
-    MergeResultConvert();
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 
 // clang-format on
