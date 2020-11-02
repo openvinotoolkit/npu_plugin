@@ -42,9 +42,10 @@ constexpr uint32_t POOL_SIZE = 30 * 1024 * 1024;
 #endif
 
 VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-    const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId, const VpualConfig& config)
+    const VpusmmAllocator::Ptr& allocator, const VpusmmAllocator::Ptr& csramAllocator, const uint32_t deviceId, const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
+      _csramAllocator(csramAllocator),
       _config(config),
       _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
 #if defined(__arm__) || defined(__aarch64__)
@@ -69,6 +70,10 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
           }),
       _blobHandle(new BlobHandle_t()),
 #endif
+      _preFetchBuffer(nullptr,
+          [this](uint8_t* buffer) {
+              _csramAllocator->free(buffer);
+          }),
       _inputBuffer(nullptr,
           [this](uint8_t* buffer) {
               _allocator->free(buffer);
@@ -147,6 +152,25 @@ static std::vector<void*> setScratchHelper(const std::unique_ptr<NnCorePlg, std:
     nnCorePtr->SetScratchBuffers(physAddrVec);
     return virtAddrVec;
 }
+
+static uint8_t* setPrefetchHelper(const std::unique_ptr<NnCorePlg, std::function<void(NnCorePlg*)>>& nnCorePtr,
+    const std::shared_ptr<vpux::Allocator>& allocatorPtr, const std::shared_ptr<vpu::Logger>& logger) {
+    uint8_t* preFetchVirtAddr = nullptr;
+    const uint32_t preFetchSize = nnCorePtr->GetPrefetchBufferSize();
+    if (preFetchSize > 0) {
+        preFetchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(preFetchSize));
+        if (preFetchVirtAddr == nullptr) {
+            THROW_IE_EXCEPTION << "prefetchHelper: failed to allocate " << preFetchSize << " bytes of memory";
+        }
+        unsigned long preFetchPhysAddr = allocatorPtr->getPhysicalAddress(preFetchVirtAddr);
+        uint32_t preFetchAddrLower32Bits = preFetchPhysAddr & 0xffffffff;
+        nnCorePtr->SetPrefetchBuffer(preFetchAddrLower32Bits);
+    } else {
+        logger->info("prefetchHelper: trying to set prefeth buffer with zero size. Skip.");
+    }
+
+    return preFetchVirtAddr;
+}
 }  // namespace
 #endif
 
@@ -214,6 +238,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     _logger->info("Blob Version: %d %d %d", static_cast<int>(blobVersion.major), static_cast<int>(blobVersion.minor),
         static_cast<int>(blobVersion.patch));
     _scratchBuffers = setScratchHelper(_nnCorePlg, nThreads, _allocator, _logger);
+    _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, _csramAllocator, _logger));
 
     auto tensor_deserializer = [&](const flicTensorDescriptor_t& descriptor) -> void {
         _logger->info(

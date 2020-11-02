@@ -25,6 +25,8 @@
 
 namespace vpux {
 
+static const int VPU_CSRAM_DEVICE_ID = 32;
+
 VpualDevice::VpualDevice(const std::string& name): _name(name) {
     const auto id = utils::extractIdFromDeviceName(name);
     _allocator = std::make_shared<VpusmmAllocator>(id);
@@ -42,7 +44,12 @@ std::shared_ptr<Executor> VpualDevice::createExecutor(
     std::shared_ptr<Executor> executor = nullptr;
     const auto id = utils::extractIdFromDeviceName(_name);
     if (_config.useCoreNN()) {
-        executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _config);
+        _csramAllocator = std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID);
+        const auto& csramAllocator = std::dynamic_pointer_cast<VpusmmAllocator>(_csramAllocator);
+        if (csramAllocator == nullptr) {
+            THROW_IE_EXCEPTION << "Incompatible CSRAM allocator";
+        }
+        executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, csramAllocator, id, _config);
     } else {
         executor = std::make_shared<VpualFlicNNExecutor>(networkDescription, vpusmmAllocator, id, _config);
     }
