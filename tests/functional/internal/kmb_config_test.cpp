@@ -17,7 +17,7 @@
 #include "test_model/kmb_test_base.hpp"
 
 using ConfigMap = std::map<std::string, std::string>;
-using ConfigTestParams = std::tuple<ConfigMap, ConfigMap, ConfigMap, ConfigMap, ConfigMap>;
+using ConfigTestParams = std::tuple<ConfigMap, ConfigMap, ConfigMap, ConfigMap, ConfigMap, ConfigMap>;
 
 class KmbConfigTest : public KmbNetworkTestBase, public testing::WithParamInterface<ConfigTestParams> {
 public:
@@ -62,11 +62,13 @@ TEST_P(KmbConfigTest, setConfig) {
     const auto& colorFormatConfig = std::get<2>(param);
     const auto& preProcConfig = std::get<3>(param);
     const auto& preProcParamConfig = std::get<4>(param);
+    const auto& inferShavesConfig = std::get<5>(param);
     ConfigMap inferConfig;
     inferConfig.insert(baseInferConfig.cbegin(), baseInferConfig.cend());
     inferConfig.insert(colorFormatConfig.cbegin(), colorFormatConfig.cend());
     inferConfig.insert(preProcConfig.cbegin(), preProcConfig.cend());
     inferConfig.insert(preProcParamConfig.cbegin(), preProcParamConfig.cend());
+    inferConfig.insert(inferShavesConfig.cbegin(), inferShavesConfig.cend());
 
     runTest(compileConfig, inferConfig);
 }
@@ -116,9 +118,16 @@ static const std::vector<ConfigMap> preProcParamConfigs = {
     { {"VPUX_PREPROCESSING_SHAVES", "2"}, {"VPUX_PREPROCESSING_LPI", "4"} }
 };
 
+static const std::vector<ConfigMap> inferShavesConfigs = {
+    { },
+    { {"VPUX_INFERENCE_SHAVES", "2"} },
+    { {"VPUX_INFERENCE_SHAVES", "4"} },
+};
+
 static const auto allBaseConfigurations = ::testing::Combine(
     ::testing::ValuesIn(compileConfigs),
     ::testing::ValuesIn(baseInferConfigs),
+    ::testing::ValuesIn(emptyConfigs),
     ::testing::ValuesIn(emptyConfigs),
     ::testing::ValuesIn(emptyConfigs),
     ::testing::ValuesIn(emptyConfigs));
@@ -130,6 +139,7 @@ static const auto allPreProcConfigurations = ::testing::Combine(
     ::testing::ValuesIn(emptyConfigs),
     ::testing::ValuesIn(colorFormatConfigs),
     ::testing::ValuesIn(preProcConfigs),
-    ::testing::ValuesIn(preProcParamConfigs));
+    ::testing::ValuesIn(preProcParamConfigs),
+    ::testing::ValuesIn(inferShavesConfigs));
 
 INSTANTIATE_TEST_CASE_P(SomeCase2, KmbConfigTest, allPreProcConfigurations);
