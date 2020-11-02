@@ -21,7 +21,9 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_NumSplitsCheck, SplitLayerTest,
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::SizeVector({30, 30, 30, 30})),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::SizeVector({30, 30, 30, 30})),
+        ::testing::Values(InferenceEngine::SizeVector({})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     SplitLayerTest::getTestCaseName);
 }  // namespace
