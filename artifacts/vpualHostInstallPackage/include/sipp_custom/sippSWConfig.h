@@ -958,7 +958,7 @@ RandNoiseFp16Param;
  */
 typedef struct
 {
-    UInt8 dMat[49];
+    UInt8 eMat[49];
 }
 Erode7x7Param;
 
