@@ -109,21 +109,23 @@ void KmbLayerTestsCommon::Run() {
     std::cout << "KmbLayerTestsCommon::ExportNetwork()" << std::endl;
     ASSERT_NO_THROW(ExportNetwork());
 #else
-    if (envConfig.IE_KMB_TESTS_RUN_IMPORT) {
+    try {
         std::cout << "KmbLayerTestsCommon::ImportNetwork()" << std::endl;
-        ASSERT_NO_THROW(ImportNetwork());
-    } else {
-        std::cout << "Skip KmbLayerTestsCommon::ImportNetwork()" << std::endl;
-    }
-    if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-        // todo: infers are not run forcefully; layer test networks hang the board
-        SKIP() << "Skip infer due to layer test networks hang the board";
-        std::cout << "KmbLayerTestsCommon::Infer()" << std::endl;
-        Infer();
-        std::cout << "KmbLayerTestsCommon::Validate()" << std::endl;
-        Validate();
-    } else {
-        std::cout << "Skip KmbLayerTestsCommon::Infer()" << std::endl;
+        SkipBeforeImport();
+        ImportNetwork();
+        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+            std::cout << "KmbLayerTestsCommon::Infer()" << std::endl;
+            SkipBeforeInfer();
+            Infer();
+            std::cout << "KmbLayerTestsCommon::Validate()" << std::endl;
+            SkipBeforeValidate();
+            Validate();
+        } else {
+            std::cout << "Skip KmbLayerTestsCommon::Infer()" << std::endl;
+        }
+    } catch (const KmbSkipTestException &e) {
+        std::cout << "Skipping the test due to: " << e.what() << std::endl;
+        SKIP() << "Skipping the test due to: " << e.what();
     }
 #endif
 }

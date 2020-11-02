@@ -9,7 +9,11 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbSqueezeUnsqueezeLayerTest: public SqueezeUnsqueezeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class KmbSqueezeUnsqueezeLayerTest: public SqueezeUnsqueezeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeImport() override {
+        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+    }
+};
 
 TEST_P(KmbSqueezeUnsqueezeLayerTest, BasicTest) {
     Run();
@@ -70,7 +74,6 @@ std::map<std::vector<size_t>, std::vector<std::vector<int>>> axesVectors_unsquee
 const std::vector<ngraph::helpers::SqueezeOpType> opTypes_unsqueeze_pass_mcm = {
     ngraph::helpers::SqueezeOpType::UNSQUEEZE
 };
-
 
 INSTANTIATE_TEST_CASE_P(smoke_Basic_unsqueeze_pass_mcm, KmbSqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
