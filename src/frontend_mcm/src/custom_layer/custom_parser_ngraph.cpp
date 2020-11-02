@@ -444,7 +444,7 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
 
                 uint32_t number = 0;
                 if (binding.type == CustomParamType::Int) {
-                    const auto val =  parseNumber<int>(binding.irSource);
+                    const auto val = parseNumber<int>(binding.irSource);
 
                     VPU_THROW_UNLESS(val.hasValue(),
                         "Unable to deduce parameter '%s' for '%s' layer. "
@@ -453,7 +453,7 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
 
                     number = val.get();
                 } else {
-                    const auto val =  parseNumber<float>(binding.irSource);
+                    const auto val = parseNumber<float>(binding.irSource);
 
                     VPU_THROW_UNLESS(val.hasValue(),
                         "Unable to deduce parameter '%s' for '%s' layer. "
