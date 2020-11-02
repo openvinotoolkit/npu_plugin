@@ -37,8 +37,9 @@ class NnCorePlg : public PluginStub{
     unsigned int GetNumberOfOutputs() const;
     unsigned int GetScratchBufferSize() const;
     unsigned int GetPrefetchBufferSize() const;
-    void SetScratchBuffers(const std::vector<uint32_t> &physAddrs) const;
-    void SetPrefetchBuffer(uint32_t physAddr) const;
+    void SetScratchBuffers(const std::vector<uint32_t> &physAddrs);
+    void SetPrefetchBuffer(uint32_t physAddr);
+    void SetNumUpaShaves(uint32_t num_upa_shaves);
 
     MvNCIErrorCode GetBlobVersion(MvNCIVersion *version)  const;
     flicTensorDescriptor_t GetInputTensorDescriptor(unsigned int index) const;
