@@ -32,6 +32,7 @@ public:
     HDDL2Executor(const HDDL2Executor& ex);
     explicit HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
         const std::shared_ptr<vpux::Allocator>& allocator, const HddlUnite::WorkloadContext::Ptr& workloadContext);
+    HDDL2Executor& operator=(const HDDL2Executor& ex) = delete;
     static HDDL2Executor::Ptr prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
         const VPUXConfig& config, const std::shared_ptr<vpux::Allocator>& allocator = nullptr,
         const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr);

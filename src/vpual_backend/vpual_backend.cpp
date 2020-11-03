@@ -26,8 +26,8 @@
 #include <xlink_uapi.h>
 #endif
 
-#include "vpux/kmb_params.hpp"
 #include "vpual_device.hpp"
+#include "vpux/kmb_params.hpp"
 
 namespace vpux {
 
@@ -128,7 +128,12 @@ const std::map<std::string, std::shared_ptr<IDevice>> VpualEngineBackend::create
 
 const std::map<std::string, std::shared_ptr<IDevice>>& VpualEngineBackend::getDevices() const { return _devices; }
 
-const std::shared_ptr<IDevice> VpualEngineBackend::getDevice() const { return _devices.begin()->second; }
+const std::shared_ptr<IDevice> VpualEngineBackend::getDevice() const {
+    if (_devices.empty()) {
+        THROW_IE_EXCEPTION << "There are no any devices!";
+    }
+    return _devices.begin()->second;
+}
 
 const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const InferenceEngine::ParamMap& map) const {
     std::string deviceId;
