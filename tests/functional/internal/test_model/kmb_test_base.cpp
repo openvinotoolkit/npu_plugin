@@ -973,9 +973,11 @@ void KmbClassifyNetworkTest::runTest(
 
             const auto& actualElem = *actualIt;
 
-            const auto probDiff = std::fabs(refElem.second - actualElem.second);
-            EXPECT_LE(probDiff, probTolerance)
-                << refElem.first << " : " << refElem.second << " vs " << actualElem.second;
+            if(refElem.second > actualElem.second) {
+                const auto probDiff = std::fabs(refElem.second - actualElem.second);
+                EXPECT_LE(probDiff, probTolerance)
+                    << refElem.first << " : " << refElem.second << " vs " << actualElem.second;
+            }
         }
     };
 
