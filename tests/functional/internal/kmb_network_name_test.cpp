@@ -16,28 +16,69 @@
 
 #include "test_model/kmb_test_base.hpp"
 
-class KmbNetworkNameTest : public KmbNetworkTestBase {
+class KmbNetworkNameTest : public KmbLayerTestBase {
 public:
-    void runTest(const TestNetworkDesc& netDesc);
+    TestNetwork buildPowerLayer(const std::string& netName);
+    std::string runTest(const TestNetwork& netDesc, const std::string& netName);
 };
 
-void KmbNetworkNameTest::runTest(const TestNetworkDesc& netDesc) {
+TestNetwork KmbNetworkNameTest::buildPowerLayer(const std::string& netName) {
+    const Precision precision = Precision::FP16;
+    const std::vector<size_t> dims = {1, 3, 224, 224};
+    const Layout layout = Layout::NCHW;
+    const auto userInDesc = TensorDesc(precision, dims, layout);
+    registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {
+        return makeSingleValueBlob(desc, 1.0f);
+    });
+
+    const auto powerTensorDesc = TensorDesc(Precision::FP32, {1, 1, 1, 1}, Layout::NCHW);
+    registerBlobGenerator("scale", powerTensorDesc, [&](const TensorDesc& desc) {
+        return makeSingleValueBlob(desc, 1.0f);
+    });
+
+    TestNetwork testNet;
+    testNet
+        .setUserInput("input", precision, layout)
+        .addNetInput("input", dims, Precision::FP32)
+        .addLayer<PowerLayerDef>("power")
+            .input1("input")
+            .input2(getBlobByName("scale"))
+            .build()
+        .setUserOutput(PortInfo("power"), precision, layout)
+        .addNetOutput(PortInfo("power"))
+        .finalize(netName);
+
+    return testNet;
+}
+
+std::string KmbNetworkNameTest::runTest(const TestNetwork& netDesc, const std::string& netFileName) {
+    const auto blobFileName = vpu::formatString("%v/%v.net", DUMP_PATH, netFileName);
     if (RUN_COMPILER) {
-        CNNNetwork cnnNet = KmbNetworkTestBase::readNetwork(netDesc, true);
+        CNNNetwork cnnNet = netDesc.getCNNNetwork();
         ExecutableNetwork exeNet = core->LoadNetwork(cnnNet, DEVICE_NAME, netDesc.compileConfig());
-        KmbTestBase::exportNetwork(exeNet);
+        exeNet.Export(blobFileName);
     }
-    ExecutableNetwork importedNet = KmbTestBase::importNetwork();
+    ExecutableNetwork importedNet = core->ImportNetwork(blobFileName, DEVICE_NAME, {});
     const std::string netName = importedNet.GetMetric(EXEC_NETWORK_METRIC_KEY(NETWORK_NAME));
-    ASSERT_EQ(netName, "squeezenet1.1");
+
+    return netName;
 }
 
 TEST_F(KmbNetworkNameTest, fetchNetworkName) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setUserOutputLayout("output", Layout::NHWC));
+    const std::string expectedNetName = "singleLayerNet";
+    TestNetwork testNet = buildPowerLayer(expectedNetName);
+    std::string netName = runTest(testNet, expectedNetName);
+
+    ASSERT_EQ(netName, expectedNetName);
 }
 
+TEST_F(KmbNetworkNameTest, checkUniqueId) {
+    const std::string firstExpectedNetName = "firstNet";
+    const std::string secondExpectedNetName = "secondNet";
+    TestNetwork firstNetDesc = buildPowerLayer(firstExpectedNetName);
+    TestNetwork secondNetDesc = buildPowerLayer(secondExpectedNetName);
+    std::string squeezeNetName = runTest(firstNetDesc, firstExpectedNetName);
+    std::string googleNetName = runTest(secondNetDesc, secondExpectedNetName);
+
+    ASSERT_NE(squeezeNetName, googleNetName);
+}

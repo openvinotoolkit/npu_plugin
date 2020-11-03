@@ -104,8 +104,8 @@ public:
         return *this;
     }
 
-    void finalize() {
-        _func = std::make_shared<ngraph::Function>(_results, _params);
+    void finalize(const std::string& netName = "") {
+        _func = std::make_shared<ngraph::Function>(_results, _params, netName);
     }
 
     CNNNetwork getCNNNetwork() const;
