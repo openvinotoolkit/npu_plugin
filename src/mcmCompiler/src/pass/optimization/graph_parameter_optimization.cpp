@@ -407,6 +407,8 @@ namespace mv
                                         bool wSparsity, bool fSparsity, bool spilling, bool pipelined = false, bool parentSpilling = true)
             {
                 size_t input, output, weights;
+                // in case initialization in memorySize fails
+                input = output = weights = 0;
                 std::tie(input, output, weights) = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,streams,fSparsity,spilling,parentSpilling);
                 auto activationsSize = input + output;
                 auto weightsSize = weights;
@@ -858,6 +860,8 @@ namespace mv
                 if(opInCMX(op, strategy))
                 {
                     size_t input, output, weights;
+                    // in case initialization in memorySize fails
+                    input = output = weights = 0;
                     std::tie(input, output, weights) = memorySize(op,
                                                                     clustering,
                                                                     strategy["inputSparsity"],
@@ -1642,6 +1646,8 @@ namespace mv
                 if(!parentSpilling && childActivationStreaming)
                 {
                     size_t input, output, weights;
+                    // in case initialization in memorySize fails
+                    input = output = weights = 0;
                     std::tie(input, output, weights) = memorySize(childOp, childClustering,
                                                                 child["inputSparsity"].get<bool>(),
                                                                 child["outputSparsity"].get<bool>(),
@@ -2304,6 +2310,8 @@ namespace mv
                     return false;
 
                 size_t input, output, weights;
+                // in case initialization in memorySize fails
+                input = output = weights = 0;
                 std::tie(input, output, weights) = memorySize(op,
                                                                 clustering,
                                                                 inputSparsity,
@@ -2369,6 +2377,8 @@ namespace mv
                                                         child["clustering"].get<std::string>());
 
                 size_t parentInput, parentOutput, parentWeight;
+                // in case initialization in memorySize fails
+                parentInput = parentOutput = parentWeight = 0;
                 std::tie(parentInput, parentOutput, parentWeight) = memorySize( parentOp,
                                                                                 parent["clustering"].get<std::string>(),
                                                                                 parent["inputSparsity"].get<bool>(),
