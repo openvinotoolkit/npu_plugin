@@ -672,6 +672,16 @@ mv::Data::TensorIterator convertHSwishToUPATask(mv::OpModel& om, const std::vect
     return hswish;
 }
 
+mv::Data::TensorIterator convertConversionToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name, bool /*software*/ = false,
+                                                const mv::QuantizationParams& /*quantParams*/ = mv::QuantizationParams::empty(),
+                                                const mv::DType& /*outputTensorType*/ = mv::DType("Default"))
+{
+    const auto dType = attrs.at("dType").get<mv::DType>();
+
+    return om.uPATaskConversion(name, inputs, dType);
+}
 
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -686,7 +696,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
-                                                       "RefConv", "Gather", "HSwish"};
+                                                       "RefConv", "Gather", "HSwish", "Conversion"};
 
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
@@ -725,7 +735,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"RefConv", convertRefConvToUPATask},
     {"FakeQuantize", convertFakeQuantizeToUPATask},
     {"Gather", convertGatherToUPATask},
-    {"HSwish", convertHSwishToUPATask}
+    {"HSwish", convertHSwishToUPATask},
+    {"Conversion", convertConversionToUPATask}
     };
 
     for(auto& opType: opsTypesToConvert)

@@ -48,6 +48,7 @@ void assignOutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
         // Save op name to seprate attribute to avoid conflicts and renaming
         om.getSourceOp(implicitOutput)->set<std::string>("networkOutputName", networkOutputs[i]->getName());
         om.getSourceOp(implicitOutput)->set<uint8_t>("outputIndex", i);
+        om.getSourceOp(implicitOutput)->set<mv::DType>("precision", networkOutputs[i]->get<mv::DType>("precision"));
         outputTensors.push_back(implicitOutput);
         outputTensors[i]->set<uint8_t>("outputIndex", i);
         auto inputFlow = networkOutputs[i].leftmostInput();
