@@ -42,6 +42,7 @@ static void checkBlobIsValid(const IE::Blob::CPtr& blob) {
 }
 
 static void checkBlobCompatibility(const IE::Blob::CPtr& blob, const BlobDescType blobType) {
+    checkBlobIsValid(blob);
     if (blob->is<IE::RemoteBlob>()) {
         if (blobType == BlobDescType::ImageWorkload) {
             THROW_IE_EXCEPTION << "Remote blob not supported for ImageWorkload! Context required.";
@@ -81,7 +82,7 @@ static IE::SizeVector getNV12ImageDims(const IE::Blob::CPtr& blobPtr) {
 }
 
 using matchColorFormats_t = std::unordered_map<int, HddlUnite::Inference::FourCC>;
-static HddlUnite::Inference::FourCC covertColorFormat(IE::ColorFormat colorFormat) {
+static HddlUnite::Inference::FourCC covertColorFormat(const IE::ColorFormat colorFormat) {
     static const matchColorFormats_t matchColorFormats = {
         {static_cast<int>(IE::ColorFormat::BGR), HddlUnite::Inference::FourCC::BGR},
         {static_cast<int>(IE::ColorFormat::RGB), HddlUnite::Inference::FourCC::RGB}};
@@ -116,7 +117,7 @@ static bool isBlobContainsNV12Data(
     return false;
 }
 
-static inline bool isRemoteBlob(const InferenceEngine::Blob::CPtr& blob) { return blob->is<IE::RemoteBlob>(); }
+static inline bool isRemoteBlob(const InferenceEngine::Blob::CPtr& blob) { return blob && blob->is<IE::RemoteBlob>(); }
 
 //------------------------------------------------------------------------------
 AllocationInfo::AllocationInfo(const BlobDescType typeOfBlob, const IE::DataPtr& blobDesc,
@@ -148,8 +149,8 @@ bool AllocationInfo::operator==(const AllocationInfo& rhs) const {
 bool AllocationInfo::operator!=(const AllocationInfo& rhs) const { return !(rhs == *this); }
 
 static void validateAllocatorInfoFields(const AllocationInfo& allocationInfo) {
-    if (allocationInfo.dataSize <= 0) {
-        THROW_IE_EXCEPTION << "BlobDescriptorAdapter: dataSize is zero or less!";
+    if (allocationInfo.dataSize == 0) {
+        THROW_IE_EXCEPTION << "BlobDescriptorAdapter: dataSize is zero!";
     }
 }
 //------------------------------------------------------------------------------
@@ -200,7 +201,7 @@ const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::updateUniteBlobDesc
     auto parsedBlobParamsPtr = std::make_shared<vpux::ParsedRemoteBlobParams>();
     if (blobPtr->is<IE::RemoteBlob>()) {
         const auto remoteBlob = std::dynamic_pointer_cast<const InferenceEngine::RemoteBlob>(blobPtr);
-        checkBlobIsValid(blobPtr);
+        checkBlobIsValid(remoteBlob);
         parsedBlobParamsPtr->update(remoteBlob->getParams());
         const auto memoryDesc = vpux::HDDL2::getRemoteMemoryFromParams(remoteBlob->getParams());
         if (memoryDesc == nullptr) {
@@ -212,7 +213,7 @@ const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::updateUniteBlobDesc
             // TODO Double repacked blob creation
             createRepackedNV12Blob(blobPtr);
             checkBlobIsValid(_repackedBlob);
-            _sourceInfo.localMemoryPtr = _repackedBlob->buffer().as<void*>();
+            _sourceInfo.localMemoryPtr = _repackedBlob->cbuffer().as<void*>();
         } else {
             _sourceInfo.localMemoryPtr = blobPtr->cbuffer().as<void*>();
         }

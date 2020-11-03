@@ -29,7 +29,7 @@
 namespace vpu {
 namespace HDDL2Plugin {
 
-/** @brief Blobs for image workload have different was of creation */
+/** @brief Blobs for image workload have different ways of creation */
 enum class BlobDescType { VideoWorkload = 1, ImageWorkload = 2 };
 
 /** @brief If we have workload context, we are working with VideoWorkload */
@@ -40,7 +40,6 @@ inline BlobDescType getBlobType(const bool haveRemoteContext) {
 //------------------------------------------------------------------------------
 /** @brief Allocation information for BlobDesc */
 struct AllocationInfo {
-public:
     explicit AllocationInfo(const BlobDescType typeOfBlob, const InferenceEngine::DataPtr& blobDesc,
         const InferenceEngine::ColorFormat& graphColorFormat, const bool isInput);
     explicit AllocationInfo(
@@ -48,7 +47,6 @@ public:
     bool operator==(const AllocationInfo& rhs) const;
     bool operator!=(const AllocationInfo& rhs) const;
 
-public:
     // Size
     const HddlUnite::Inference::Precision precision;
     // TODO Due to NV12 conversion workaround not to make const
@@ -77,7 +75,7 @@ struct SourceInfo {
 };
 
 /** @brief Info for intermediate buffer for preprocessing result
- * @details AllocationInfo might be changed if blob require preprocessing. NNInputInfo always the same */
+ *  @details AllocationInfo should be created again if blob require preprocessing. NNInputInfo always the same */
 struct NNInputInfo {
     NNInputInfo(const BlobDescType typeOfBlob, const InferenceEngine::DataPtr& blobDesc);
     // Size
@@ -91,9 +89,11 @@ struct NNInputInfo {
 };
 
 //------------------------------------------------------------------------------
-/**  * @brief HDDL2 Blob descriptor in term of HddlUnite BlobDesc */
+/**  @brief HDDL2 Blob descriptor in term of HddlUnite BlobDesc */
 class BlobDescriptorAdapter final {
 public:
+    using Ptr = std::shared_ptr<BlobDescriptorAdapter>;
+
     BlobDescriptorAdapter() = delete;
     BlobDescriptorAdapter(const BlobDescriptorAdapter&) = delete;
     BlobDescriptorAdapter(const BlobDescriptorAdapter&&) = delete;
@@ -123,7 +123,7 @@ public:
 
     bool isROIPreprocessingRequired() const;
 
-protected:
+private:
     const BlobDescType _blobType;
     // TODO make const
     AllocationInfo _allocationInfo;

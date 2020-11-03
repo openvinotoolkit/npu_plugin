@@ -57,7 +57,7 @@ void InferDataAdapter::createInferData() {
         std::shared_ptr<BlobDescriptorAdapter> blobDescriptorPtr(
             new BlobDescriptorAdapter(getBlobType(_haveRemoteContext), blobDesc, _graphColorFormat, isInput));
 
-        _inputs[inputName] = std::move(blobDescriptorPtr);
+        _inputs[inputName] = blobDescriptorPtr;
     }
 
     for (const auto& networkOutput : _networkDescription->getDeviceOutputsInfo()) {
@@ -72,7 +72,7 @@ void InferDataAdapter::createInferData() {
         const auto HDDLUniteBlobDesc = blobDescriptorPtr->createUniteBlobDesc(isInput);
         _inferDataPtr->createBlob(outputName, HDDLUniteBlobDesc, isInput);
 
-        _outputs[outputName] = std::move(blobDescriptorPtr);
+        _outputs[outputName] = blobDescriptorPtr;
     }
 }
 //------------------------------------------------------------------------------
@@ -84,6 +84,9 @@ InferDataAdapter::InferDataAdapter(const vpux::NetworkDescription::CPtr& network
       _haveRemoteContext(workloadContext != nullptr),
       _needUnitePreProcessing(true) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
+    if (networkDescription == nullptr) {
+        THROW_IE_EXCEPTION << "InferDataAdapter: NetworkDescription is null";
+    }
     createInferData();
 }
 

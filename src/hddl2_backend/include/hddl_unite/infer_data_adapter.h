@@ -75,8 +75,8 @@ private:
     HddlUnite::Inference::InferData::Ptr _inferDataPtr = nullptr;
     InferenceEngine::ColorFormat _graphColorFormat;
 
-    std::map<std::string, std::shared_ptr<BlobDescriptorAdapter>> _inputs;
-    std::map<std::string, std::shared_ptr<BlobDescriptorAdapter>> _outputs;
+    std::map<std::string, BlobDescriptorAdapter::Ptr> _inputs;
+    std::map<std::string, BlobDescriptorAdapter::Ptr> _outputs;
 
     const bool _haveRemoteContext;
     bool _needUnitePreProcessing;
