@@ -206,7 +206,7 @@ uint32_t huffmanCodec::huffmanCodecCompressArray(uint32_t &inputDataLength,
 
     memcpy(reinterpret_cast<void *>(outputData), reinterpret_cast<void *>(lvvOutputDataBuffer.data()), outputDataLength);
 
-    lvfCompressRatio = (100.0 * lviOutputDataTallyBits / lviInputDataTallyBits);
+    lvfCompressRatio = (lviInputDataTallyBits != 0) ? (100.0 * lviOutputDataTallyBits / lviInputDataTallyBits) : 0;
 
     rptStream << "*************************************************************" << endl;
     rptStream << "huffmanCodecCompress: OVERALL TOTALS" << endl;
