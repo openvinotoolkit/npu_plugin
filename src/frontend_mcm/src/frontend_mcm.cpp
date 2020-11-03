@@ -780,7 +780,8 @@ bool isInputLayoutSupported(const ie::Layout& inputLayout) {
 }
 
 bool isOutputPrecisionSupported(const ie::Precision& outputPrecision) {
-    std::set<ie::Precision> supportedOutPrecisions = {ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32};
+    std::set<ie::Precision> supportedOutPrecisions = {
+        ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32, ie::Precision::I32};
     return supportedOutPrecisions.find(outputPrecision) != supportedOutPrecisions.end();
 }
 

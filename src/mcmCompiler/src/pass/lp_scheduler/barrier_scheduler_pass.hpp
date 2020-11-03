@@ -545,13 +545,11 @@ class Control_Model_Barrier_Scheduler {
         if ((parent_itr != unit_in_degree_parent.end()) &&
               (parent_itr->second != NULL)) {
           tail = op; 
-          break;
+          output = tail;
         }
       }
 
       if (tail == NULL) { return; } 
-
-      output = tail; 
 
       operation_t curr_op = tail;
       auto parent_itr = unit_in_degree_parent.find(curr_op);
