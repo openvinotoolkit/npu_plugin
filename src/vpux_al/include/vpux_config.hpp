@@ -41,7 +41,6 @@ public:
     int numberOfSIPPShaves() const { return _numberOfSIPPShaves; }
     int SIPPLpi() const { return _SIPPLpi; }
     int executorStreams() const { return _executorStreams; }
-    int numberOfNnCoreShaves() const { return _numberOfNnCoreShaves; }
 
     void parseFrom(const VPUXConfig& other);
 
@@ -65,7 +64,6 @@ protected:
     int _numberOfSIPPShaves = 4;
     int _SIPPLpi = 8;
     int _executorStreams = 1;
-    int _numberOfNnCoreShaves = 0;
 
 private:
     void parseEnvironment();
