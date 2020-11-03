@@ -993,3 +993,13 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128) {
         1,
         0.3f);
 }
+
+// Compilation time is about 18 minutes
+TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
+    runTest(
+        TestNetworkDesc("KMB_models/FP16-INT8/public/ssd_mobilenet_v2_coco/ssd_mobilenet_v2_coco.xml")
+            .setUserInputPrecision("input", Precision::U8),
+        TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
+        0.3f,
+        0.1f, 0.3f);
+}
