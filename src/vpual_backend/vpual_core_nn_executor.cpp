@@ -205,6 +205,12 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
         THROW_IE_EXCEPTION << "VpualCoreNNExecutor::allocateGraph: failed to get blob version: " << status;
     }
 
+    const uint32_t upaShaves = _config.numberOfNnCoreShaves();
+    if (upaShaves > 0) {
+        _logger->debug("VpualCoreNNExecutor::allocateGraph: SetNumUpaShaves to %d", upaShaves);
+        _nnCorePlg->SetNumUpaShaves(upaShaves);
+    }
+
     _logger->info("Blob Version: %d %d %d", static_cast<int>(blobVersion.major), static_cast<int>(blobVersion.minor),
         static_cast<int>(blobVersion.patch));
     _scratchBuffers = setScratchHelper(_nnCorePlg, nThreads, _allocator, _logger);

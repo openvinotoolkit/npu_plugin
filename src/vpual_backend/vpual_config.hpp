@@ -31,6 +31,7 @@ public:
 
     bool repackInputLayout() const { return _repackInputLayout; }
     bool useCoreNN() const { return _useCoreNN; }
+    int numberOfNnCoreShaves() const { return _numberOfNnCoreShaves; }
 
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
@@ -38,6 +39,7 @@ protected:
 private:
     bool _repackInputLayout = false;
     bool _useCoreNN = true;
+    int _numberOfNnCoreShaves = 0;
 };
 
 }  // namespace vpux
