@@ -34,6 +34,16 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
         3, 0.05);
 }
 
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_dense_IRv10_fp16) {
+    runTest(
+            TestNetworkDesc("KMB_models/FP16/MobileNet_v2_pytorch/mobilenet-v2_pytorch_dense_fp16_ww34.xml")
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPrecision("output", Precision::FP16),
+            TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
+            3, 2.5f);
+}
+
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet-50-pytorch-from-icv-bench-cache.xml")

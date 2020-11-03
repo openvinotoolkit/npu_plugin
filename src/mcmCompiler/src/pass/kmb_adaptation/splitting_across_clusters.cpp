@@ -647,12 +647,13 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                             {
                                 // Update Clustering H-axis offsets based on SoH splits
                                 auto leading_offset = 0;
+                                auto bpp = inputTensor->getDType().getSizeInBytes();
                                 for (unsigned i=0; i<numClusters; ++i)
                                 {
                                     auto offset = inputTensor->getSubTensor(i).get<std::vector<std::size_t>>("offset");
                                     offset[mv::IO_HEIGHT_DIMENSION] = leading_offset;
                                     inputTensor->getSubTensor(i).set<std::vector<std::size_t>>("offset", offset);
-                                    leading_offset += splitShapes[i][mv::IO_HEIGHT_DIMENSION];
+                                    leading_offset += splitShapes[i][mv::IO_HEIGHT_DIMENSION] * bpp;
                                 }
                             }
                         }
