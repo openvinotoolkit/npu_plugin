@@ -44,6 +44,7 @@ void Huffman::reset()
 {
     sumOfBits = sumOfBitsOptimal = originalSize = 0;
     maxLevel = nrOfDistSyms = 0;
+    dataSize = mode = headerBits = 0;
     SIZE_OF_SYMBOL = 8;
     RLE_BLOCKS_PADDED_TO_32_BYTES = false;
     RLE_AS_HUFFMAN = true;
