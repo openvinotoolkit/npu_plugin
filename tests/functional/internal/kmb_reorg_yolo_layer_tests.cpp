@@ -39,7 +39,7 @@ TEST_P(KmbReorgYoloLayerTests, accuracy) {
     const auto& layout = std::get<1>(GetParam());
     const auto& useCustomLayers = std::get<2>(GetParam());
 
-    const auto tolerance = 0.0f;
+    const auto tolerance = 0.05f;
 
     const auto stride = p.stride();
 

@@ -468,7 +468,7 @@ mv::Data::TensorIterator mv::OpModel::conv(const std::string& name, Data::Tensor
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::conversion(const std::string& name, Data::TensorIterator data, const Order& order)
+mv::Data::TensorIterator mv::OpModel::conversion(const std::string& name, Data::TensorIterator data, const DType& dType)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -477,7 +477,7 @@ mv::Data::TensorIterator mv::OpModel::conversion(const std::string& name, Data::
             data
         },
         {
-            { "order", order }
+            { "dType", dType }
         },
         name
     
@@ -2570,6 +2570,23 @@ mv::Data::TensorIterator mv::OpModel::uPATaskHSwish(const std::string& name, con
         inputs,
         {
             { "taskOp", std::string("HSwish") },
+        },
+        name,
+        false,
+        false
+    );
+    return output;
+}
+
+mv::Data::TensorIterator mv::OpModel::uPATaskConversion(const std::string& name, const std::vector< Data::TensorIterator >& inputs, const DType& dType)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
+    auto output = defineOp(
+        "UPATask",
+        inputs,
+        {
+            { "taskOp", std::string("Conversion") },
+            { "dType", dType }
         },
         name,
         false,

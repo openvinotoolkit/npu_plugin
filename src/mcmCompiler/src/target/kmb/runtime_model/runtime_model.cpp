@@ -3114,6 +3114,39 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAHSwishTask(mv::ComputationModel 
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ConvertParams;
+    auto softLayerParamsValue = new MVCNN::ConvertParamsT();
+    softLayerParamsValue->scale = 1;
+    softLayerParamsValue->bias  = 0;
+
+    if (input->getDType() == mv::DType("UInt8") &&
+       (output->getDType() == mv::DType("Float16") || output->getDType() == mv::DType("Float32")))
+    {
+        softLayerParamsValue->scale = input->getQuantParams().getScale()[0];
+        softLayerParamsValue->bias  = -input->getQuantParams().getZeroPoint()[0] / input->getQuantParams().getScale()[0];
+    }
+    else if ((output->getDType() == mv::DType("Float16") || output->getDType() == mv::DType("Float32")) &&
+              input->getDType() == mv::DType("UInt8"))
+    {
+        softLayerParamsValue->scale = 1.0 / input->getQuantParams().getScale()[0];
+        softLayerParamsValue->bias  = input->getQuantParams().getZeroPoint()[0];
+    }
+
+    // TODO: set DetectionOutput-specific attributes when necessary
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
 
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
@@ -3182,6 +3215,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAGatherTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "HSwish")
         toReturn[0]->task.value = buildUPAHSwishTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Conversion")
+        toReturn[0]->task.value = buildUPAConversionTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 

@@ -169,7 +169,7 @@ bool isInputLayoutSupported(const ie::Layout& inputLayout) {
 }
 
 bool isOutputPrecisionSupported(const ie::Precision& outputPrecision) {
-    std::set<ie::Precision> supportedOutPrecisions = {ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32};
+    std::set<ie::Precision> supportedOutPrecisions = {ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32, ie::Precision::I32};
     return supportedOutPrecisions.find(outputPrecision) != supportedOutPrecisions.end();
 }
 
@@ -255,7 +255,10 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
         outputType = mv::DType("Float16");
         break;
     case ie::Precision::FP32:
-        outputType = mv::DType("Float16");
+        outputType = mv::DType("Float32");
+        break;
+    case ie::Precision::I32:
+        outputType = mv::DType("Int32");
         break;
     default:
         THROW_IE_EXCEPTION << "Data type handling is not implemented" << outputPrecision.name();
@@ -279,8 +282,6 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
     // end of workaround
 
     // MCM Compiler requirements
-    // IE_ASSERT(mv::DType("Float16") == mvDType || mv::DType("UInt8") == mvDType);
-    IE_ASSERT(mv::DType("Float16") == outputType || mv::DType("UInt8") == outputType);
     mcmModel.output("", mcmInputs.at(0), outputType);
 }
 

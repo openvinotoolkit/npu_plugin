@@ -21,7 +21,7 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
 
-            outputs.emplace_back(":0", inputs[0]->getShape(), inputs[0]->getDType(), args.at("order").get<Order>());
+            outputs.emplace_back(":0", inputs[0]->getShape(), args.at("dType").get<mv::DType>(), inputs[0]->getOrder());
 
         };
 
@@ -31,7 +31,7 @@ namespace mv
         MV_REGISTER_OP(Conversion)
         .setInputs({"data"})
         .setOutputs({"output"})
-        .setArg<mv::Order>("order")
+        .setArg<mv::DType>("dType")
         .setInputCheck(op_conversion::inputCheckFcn)
         .setOutputDef(op_conversion::outputDefFcn)
         .setTypeTrait({"executable"});
