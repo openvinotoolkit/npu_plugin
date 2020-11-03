@@ -136,7 +136,12 @@ class Pipelining_Transform {
       size_t max_input_size_;
 
       pipeline_subgraph_t() : dpus_(), weight_reads_(), writes_(), id_(),
-        concat_root_() {}
+        concat_root_() {
+
+          max_weight_size_ = std::numeric_limits<size_t>::min();
+          max_output_size_ = std::numeric_limits<size_t>::min();
+          max_input_size_ = std::numeric_limits<size_t>::min();
+      }
 
 
       bool is_valid() const {
