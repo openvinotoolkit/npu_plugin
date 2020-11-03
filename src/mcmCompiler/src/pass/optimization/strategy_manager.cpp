@@ -863,16 +863,18 @@ std::shared_ptr<MetaGraph> StrategyManager::recursiveGraphSolver(mv::Data::OpLis
         vector<std::shared_ptr<MetaGraph>> childMetas;
         auto masterMeta = make_shared<MetaGraph>();
 
-        for( auto sGraph : *(subGraphs.get()) )
-        {
-            auto& sGraphStart = get<0>(sGraph);
-            auto& sGraphEnd   = get<1>(sGraph);
-            auto& sGraphChildren = get<2>(sGraph);
+	if (subGraphs != nullptr) {
+            for( auto sGraph : *(subGraphs.get()) )
+            {
+                auto& sGraphStart = get<0>(sGraph);
+                auto& sGraphEnd   = get<1>(sGraph);
+                auto& sGraphChildren = get<2>(sGraph);
 
-            auto meta = recursiveGraphSolver(sGraphStart,sGraphEnd,sGraphChildren);
-            //TODO Complexgraph solver here if no children
-            childMetas.push_back(meta);
-        }
+                auto meta = recursiveGraphSolver(sGraphStart,sGraphEnd,sGraphChildren);
+                //TODO Complexgraph solver here if no children
+                childMetas.push_back(meta);
+            }
+	}
 
         for(const auto& meta : childMetas)
         {
