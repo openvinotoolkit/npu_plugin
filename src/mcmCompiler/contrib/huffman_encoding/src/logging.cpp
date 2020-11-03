@@ -139,6 +139,8 @@ void AssertFail(const char *file, int line, const char *fmt, ...)
 static void syslog(string const &str)
 {
    FILE *ofile = fopen(LOGFILE.c_str(), "a");
+   if (!ofile)
+      throw Exception("Cannot open c_model.log for write");
    fprintf(ofile, "%s", str.c_str());
    fclose(ofile);
 } // syslog()
