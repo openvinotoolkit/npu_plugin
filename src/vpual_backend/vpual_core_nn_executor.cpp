@@ -295,6 +295,10 @@ static ie::Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(const ie::Blob
 
     ie::TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), dstLayout};
     ie::Blob::Ptr dstBlob = make_blob_with_precision(dstTensorDesc, allocator);
+    if (dstBlob == nullptr) {
+        THROW_IE_EXCEPTION
+            << "reallocateBlobToLayoutIgnoringOriginalLayout: can't make_blob_with_precision with given params";
+    }
     dstBlob->allocate();
 
     vpu::copyBlob(srcBlob, dstBlob);
@@ -305,6 +309,9 @@ static ie::Blob::Ptr reallocateBlobToLayout(
     const ie::Blob::Ptr& blob, const ie::Layout& layout, const VpusmmAllocator::Ptr& allocator) {
     ie::TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout};
     ie::Blob::Ptr kmbBlob = make_blob_with_precision(dstTensorDesc, allocator);
+    if (kmbBlob == nullptr) {
+        THROW_IE_EXCEPTION << "reallocateBlobToLayout: can't make_blob_with_precision with given params";
+    }
     kmbBlob->allocate();
 
     vpu::copyBlob(blob, kmbBlob);

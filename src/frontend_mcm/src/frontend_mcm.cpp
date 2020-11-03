@@ -2234,7 +2234,9 @@ void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const Mcm
 
 void FrontEndMcm::parseSplit(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     auto splitLayer = std::dynamic_pointer_cast<ie::SplitLayer>(layer);
-
+    if (splitLayer == nullptr) {
+        THROW_IE_EXCEPTION << "parseSplit: can't cast layer to ie::SplitLayer";
+    }
     auto axis = splitLayer->_axis;
     SizeVector startCoords(inputs[0]->getMcmNode()->getShape().ndims());
 
