@@ -106,7 +106,8 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
                 {"FakeQuantize",       &FrontEndMcm::parseFakeQuantize},
                 {"Const",              &FrontEndMcm::parseConst},
                 {"Exp",                &FrontEndMcm::parseExp},
-                {"Gather",             &FrontEndMcm::parseGather}
+                {"Gather",             &FrontEndMcm::parseGather},
+                {"HSwish",             &FrontEndMcm::parseHSwish}
         };
 
 // clang-format on
@@ -2359,6 +2360,20 @@ void FrontEndMcm::parseExp(const ie::CNNLayerPtr& layer, const McmNodeVector& in
     bindOutput(exp_result, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, exp_result->getName());
+}
+
+void FrontEndMcm::parseHSwish(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    logParsingStartHelper(_logger, layer, inputs);
+
+    IE_ASSERT(inputs.size() == 1);
+    auto layerOutput = layer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+
+    auto hswish_result = _modelMcm.hSwish(layer->name, inputs[0]->getMcmNode());
+
+    bindOutput(hswish_result, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, hswish_result->getName());
 }
 
 }  // namespace vpu

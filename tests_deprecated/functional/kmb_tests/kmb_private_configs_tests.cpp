@@ -290,6 +290,6 @@ TEST_P(KmbConfigTestsWithParams, PERF_COUNT) {
     ASSERT_ANY_THROW(perfMap = request.GetPerformanceCounts());
 }
 
-const static std::vector<std::string> perfCountModes = {CONFIG_VALUE(YES), CONFIG_VALUE(NO)};
+const static std::vector<std::string> perfCountModes = {CONFIG_VALUE(YES)};
 
 INSTANTIATE_TEST_CASE_P(perfCount, KmbConfigTestsWithParams, ::testing::ValuesIn(perfCountModes));

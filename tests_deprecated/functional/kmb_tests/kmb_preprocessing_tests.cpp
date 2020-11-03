@@ -218,14 +218,9 @@ TEST_P(VpuPreprocessingTestsWithParam,
 
 using VpuPreprocessingTests = vpuLayersTests;
 
-// [Track number: S#27548]
 TEST_F(VpuPreprocessingTests, preprocResizeAndCSC) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
-#else
-    if (useSIPP()) {
-        SKIP();
-    }
 #endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
@@ -270,14 +265,9 @@ TEST_F(VpuPreprocessingTests, preprocResizeAndCSC) {
     }
 }
 
-// [Track number: S#27548]
 TEST_F(VpuPreprocessingTests, multiThreadPreprocResizeAndCSC) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
-#else
-    if (useSIPP()) {
-        SKIP();
-    }
 #endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
@@ -331,14 +321,9 @@ TEST_F(VpuPreprocessingTests, multiThreadPreprocResizeAndCSC) {
     }
 }
 
-// [Track number: S#27548]
 TEST_F(VpuPreprocessingTests, twoRequestsWithPreprocessing) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
-#else
-    if (useSIPP()) {
-        SKIP();
-    }
 #endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
@@ -824,7 +809,8 @@ TEST_F(VpuPreprocessingTests, setConfigForTwoNetworks) {
     });
 }
 
-TEST_F(VpuPreprocessingTests, setConfigAndCheckNumShaves) {
+// [Track number: S#41588]
+TEST_F(VpuPreprocessingTests, DISABLED_setConfigAndCheckNumShaves) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
 
     InferenceEngine::ExecutableNetwork importedNetwork;

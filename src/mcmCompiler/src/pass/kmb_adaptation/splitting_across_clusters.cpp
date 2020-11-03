@@ -402,7 +402,8 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
                 remainingSlice = quantumofAlignedChannels%nWorkloads;
             }
             else
-                throw std::string("Trying to compute SubTensors for an unaligned Tensor");
+                throw mv::RuntimeError("SplittingTensorsAcrossClusters",
+                    "Trying to compute SubTensors for an unaligned Tensor");
             for (int n = 0; n < nWorkloads; n++)
             {
                 mv::Workload subTensor;

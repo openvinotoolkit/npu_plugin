@@ -23,7 +23,7 @@
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_model.hpp"
 #include "ngraph_mcm_frontend/passes/collapse_concat_chain.hpp"
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_fc.hpp"
-#include "ngraph_mcm_frontend/passes/merge_result_convert.hpp"
+#include "ngraph_mcm_frontend/passes/merge_TopK_convert.hpp"
 #include "ngraph_mcm_frontend/passes/replace_add_with_eltwise.hpp"
 #include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
@@ -209,7 +209,7 @@ std::vector<char> compileNGraph(
         // TBD Should be ngraph::pass too in order to be applied in between other passes.
         const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
 
-        passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();        
+        passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
         passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
         passManager.register_pass<FuseScaleShift>();
         passManager.register_pass<ConvertToMcmConv>();
@@ -220,7 +220,8 @@ std::vector<char> compileNGraph(
         passManager.register_pass<AlignConcatScales>();
         passManager.register_pass<ngraph::pass::ConstantFolding>();
         passManager.register_pass<BroadcastEltwiseInputs>();
-        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap);
+        passManager.register_pass<MergeTopKConvert>();
+        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config);
 
         const auto start = std::chrono::high_resolution_clock::now();
         passManager.run_passes(func);

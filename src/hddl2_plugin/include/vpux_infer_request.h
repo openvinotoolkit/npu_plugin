@@ -24,12 +24,13 @@
 
 namespace vpux {
 
-class InferRequest final : public InferenceEngine::InferRequestInternal {
+class InferRequest : public InferenceEngine::InferRequestInternal {
 public:
     using Ptr = std::shared_ptr<InferRequest>;
 
     explicit InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-        const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor, const VPUXConfig& config);
+        const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor, const VPUXConfig& config,
+        const std::string& netName, const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
 
     void Infer() override;
     void InferImpl() override;
@@ -39,17 +40,36 @@ public:
 
     void GetResult();
 
+    using InferenceEngine::InferRequestInternal::SetBlob;
+    void SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) override;
+
 protected:
     void checkBlobs() override;
 
     PreprocMap preparePreProcessing(InferenceEngine::BlobMap& inputs,
         const InferenceEngine::InputsDataMap& networkInputs,
         const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
-    void SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) override;
 
+#ifdef __aarch64__
+    void execPreprocessing(InferenceEngine::BlobMap& inputs);
+    void relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
+        InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
+        unsigned int lpi);
+    virtual void execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
+        std::map<std::string, InferenceEngine::PreProcessDataPtr>& preprocData,
+        InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
+        unsigned int lpi);
+#endif
+
+protected:
     const Executor::Ptr _executorPtr;
     const VPUXConfig& _config;
     const vpu::Logger::Ptr _logger;
+    std::shared_ptr<InferenceEngine::IAllocator> _allocator;
+    const int _deviceId;
+    const std::string _netUniqueId;
+    // the buffer is used when non-shareable memory passed for preprocessing
+    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preprocBuffer;
 };
 
 }  //  namespace vpux

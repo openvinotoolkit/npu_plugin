@@ -14,12 +14,10 @@
 // stated in the License.
 //
 
-// clang-format off
-
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
-#include <details/ie_exception.hpp>
-#include <limits>
+
 #include <algorithm>
+#include <details/ie_exception.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -48,11 +46,10 @@ std::string cvtLogLevelToMCM(vpu::LogLevel lvl) {
     }
 }
 
-mv::DType cvtOutputType(const ngraph::element::Type& elemType)
-{
+mv::DType cvtOutputType(const ngraph::element::Type& elemType) {
     if (ngraph::element::f32 == elemType)
         return mv::DType("Float16");
-    else if(ngraph::element::f16 == elemType)
+    else if (ngraph::element::f16 == elemType)
         return mv::DType("Float16");
     else if (ngraph::element::u8 == elemType)
         return mv::DType("UInt8");
@@ -64,16 +61,13 @@ mv::DType cvtOutputType(const ngraph::element::Type& elemType)
     }
 }
 
-
 mv::Shape cvtShapeToMCM(const ngraph::Shape& shape) {
     std::vector<size_t> dims = shape;
     std::reverse(dims.begin(), dims.end());
     return mv::Shape(dims);
 }
 
-mv::Shape cvtShapeToMCM(const ngraph::PartialShape& pshape) {
-    return cvtShapeToMCM(pshape.to_shape());
-}
+mv::Shape cvtShapeToMCM(const ngraph::PartialShape& pshape) { return cvtShapeToMCM(pshape.to_shape()); }
 
 mv::DType cvtElemTypeToMCM(const ngraph::element::Type& elemType) {
     std::ostringstream mcmTypeName;
@@ -90,5 +84,3 @@ mv::DType cvtElemTypeToMCM(const ngraph::element::Type& elemType) {
 
     return mv::DType(mcmTypeName.str());
 }
-
-// clang-format on

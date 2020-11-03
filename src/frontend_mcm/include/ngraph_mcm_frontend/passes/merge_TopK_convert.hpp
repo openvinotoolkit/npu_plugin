@@ -14,24 +14,19 @@
 // stated in the License.
 //
 
-/**
- * @brief Represent private params options, which should not be exposed to user and used only inside plugin
- */
-
 #pragma once
 
-#include <vpux/kmb_params.hpp>
-// TODO Refactor namespace and names in configs/params activity
-namespace InferenceEngine {
-namespace KmbContextParams {
+// clang-format off
 
-/** @brief Memory handle stored inside blob */
-DECLARE_KMB_PARAM_KEY(BLOB_MEMORY_HANDLE, void*);
+#include <ngraph/pass/graph_rewrite.hpp>
 
-/** @brief Allow to store ROI provided by user on createROI call */
-DECLARE_KMB_PARAM_KEY(ROI_PTR, std::shared_ptr<InferenceEngine::ROI>);
+//
+// Merge [Topk] -> [Convert] -> [Result] into [TopK] -> [Result].
+//
 
-/** @brief VPUSMM allocator need to know size of allocation */
-DECLARE_KMB_PARAM_KEY(ALLOCATION_SIZE, size_t);
-}  // namespace KmbContextParams
-}  // namespace InferenceEngine
+class MergeTopKConvert : public ngraph::pass::FunctionPass  {
+public:
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+};
+
+// clang-format on

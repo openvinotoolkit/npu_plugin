@@ -31,9 +31,6 @@ addIeTargetTest(
     LINK_LIBRARIES
         IE::IESharedTests
         IE::vpu_common_lib
-        HddlUnite
-        hddl2_backend_static
-        ${XLINK_LIB}
         kmb_utils
         frontend_mcm_static
         common_tests_helpers
@@ -42,5 +39,5 @@ addIeTargetTest(
     LABELS
         VPUX
 )
-add_dependencies(${TARGET_NAME} ${VPUX_PLUGIN_TARGET})
+add_dependencies(${TARGET_NAME} ${VPUX_PLUGIN_TARGET} hddl2_backend)
 enable_warnings_as_errors(${TARGET_NAME})

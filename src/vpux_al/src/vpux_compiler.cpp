@@ -56,15 +56,9 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(
 }
 
 vpux::Compiler::Ptr vpux::Compiler::create(vpux::CompilerType t) {
-    const auto root = InferenceEngine::getIELibraryPath();
     switch (t) {
     case vpux::CompilerType::MCMCompiler: {
-#ifdef __unix__
-        const std::string lib_name = "/libfrontend_mcm.so";
-#else
-        const std::string lib_name = vpu::formatString("/frontend_mcm%v.dll", IE_BUILD_POSTFIX);
-#endif
-        return std::make_shared<Compiler>(root + lib_name);
+        return std::make_shared<Compiler>(getLibFilePath("frontend_mcm"));
     }
     default:
         THROW_IE_EXCEPTION << "Compiler type not found";

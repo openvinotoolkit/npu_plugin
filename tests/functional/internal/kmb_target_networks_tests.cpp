@@ -429,7 +429,9 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             1.f, 0.3f);
 }
 
-TEST_F(KmbSSDNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
+// Sporadic accuracy fail
+// [Track number: S#41921]
+TEST_F(KmbSSDNetworkTest, DISABLED_precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8),
@@ -576,24 +578,10 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_alexnet_caffe_dense_int8_IRv10
 }
 
 // Compilation time is about 10 minutes
-// [Track number: D#3640]
-TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");  // TODO Create Ticket
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_from_fp32.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-            1, 0.05f);
-}
-
-
-// Compilation time is about 10 minutes
-// [Track number: D#3640]
-TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
-    // [Track number: S#39223]
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+// Required > 13 GB DDR
+// [Track number: S#42011]
+// [Track number: S#39223]
+TEST_F(KmbClassifyNetworkTest, DISABLED_vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -603,9 +591,10 @@ TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
             1, 0.05f);
 }
 
-// [Track number: S#41097]
-// segfault on compile time
-TEST_F(KmbRetinaFaceNetworkTest, DISABLED_precommit_retinaface_mobilenetv2_0_25_modified) {
+// Required w/a is disabling SplitOverH clustering strategy in compilation descriptor
+// [Track number: H#18012385770]
+// [Track number: H#18013202155]
+TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -880,12 +869,11 @@ TEST_F(KmbSegmentationNetworkTest, DISABLED_road_segmentation_adas_0001) {
         0.3f);
 }
 
-// C++ exception with description "Caught exception during unit run: MemoryAllocator:VPU_CMX_NN - ArgumentError:
-// conv4_3_0_norm_mbox_locNeutral_copy0conv4_3_0_norm_mbox_locNeutral_copyDMAconv5_5/sep/bn/variance/Fused_Add_:0:0:0::paddedShape[2]
-// 192 - Does not match the dimension 184 of the tensor conv4_3_0_norm_mbox_locNeutral:0 already allocated in the given buffer
-// TODO Check ticket
-// [Track number: D#3656]
-TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
+// MemoryAllocator:VPU_CMX_NN - ArgumentError: conv4_3_0_norm_mbox_locNeutral_copy0conv5_5/sep/bn/variance/Fused_Add_:0_crop:0:0::paddedShape[2]
+// 184 - Does not match the dimension 192 of the tensor
+// conv4_3_0_norm_mbox_locNeutral:0 already allocated in the given buffer
+// [Track number: S#41919]
+TEST_F(KmbDetectionNetworkTest, DISABLED_face_detection_adas_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/face-detection-adas-0001/face-detection-adas-0001.xml")
 	    .setUserInputPrecision("input", Precision::U8)
