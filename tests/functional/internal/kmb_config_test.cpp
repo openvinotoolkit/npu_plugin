@@ -120,8 +120,8 @@ static const std::vector<ConfigMap> preProcParamConfigs = {
 
 static const std::vector<ConfigMap> inferShavesConfigs = {
     { },
-    { {"VPUX_INFERENCE_SHAVES", "2"} },
-    { {"VPUX_INFERENCE_SHAVES", "4"} },
+    { {"VPUX_VPUAL_INFERENCE_SHAVES", "2"} },
+    { {"VPUX_VPUAL_INFERENCE_SHAVES", "4"} },
 };
 
 static const auto allBaseConfigurations = ::testing::Combine(

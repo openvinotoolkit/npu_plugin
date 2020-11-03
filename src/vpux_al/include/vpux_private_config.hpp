@@ -98,12 +98,5 @@ DECLARE_VPUX_CONFIG_KEY(EXECUTOR_STREAMS);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS);
 
-/**
- * @brief [Only for VPUAL Subplugin]
- * Type: integer, default is 0. SetNumUpaShaves is not called in that case.
- * Number of shaves to be used by NNCore plug-in during inference
- */
-DECLARE_VPUX_CONFIG_KEY(INFERENCE_SHAVES);
-
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine
