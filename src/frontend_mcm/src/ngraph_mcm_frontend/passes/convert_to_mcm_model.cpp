@@ -1274,7 +1274,12 @@ void convert(std::shared_ptr<ngraph::op::v0::Tanh> op, mv::OpModel& mcmModel, No
 void convert(std::shared_ptr<ngraph::op::v1::Multiply> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
     IE_ASSERT(2u == mcmInputs.size());
-    const auto mcmOpOutput = mcmModel.eltwise(op->get_friendly_name(), mcmInputs, "Multiply");
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    if (1u == op->input(1).get_shape().size())
+        mcmOpOutput = mcmModel.scale(opName, mcmInputs.at(0), mcmInputs.at(1));
+    else
+        mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "Multiply");
     mcmOpOutput->setQuantParams(initialQuantParams());
     registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
 }
