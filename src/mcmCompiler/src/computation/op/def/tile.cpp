@@ -4,6 +4,8 @@ namespace mv
 {
     namespace op_tile
     {
+        // Only 4D tensors is supported right now, so axis value should be in range [0,3]
+        #define MAX_AXIS_VALUE 3
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
@@ -13,7 +15,7 @@ namespace mv
             auto input = inputs[0];
             auto inputShape = input->getShape();
 
-            auto axis  = args.at("axis").get<unsigned>();
+            auto axis = MAX_AXIS_VALUE - args.at("axis").get<unsigned>();
             auto tiles = args.at("tiles").get<unsigned>();
 
             if (axis >= inputShape.ndims()) {
@@ -36,7 +38,7 @@ namespace mv
         {
             mv::Order order(inputs[0]->getOrder());
 
-            auto axis  = args.at("axis").get<unsigned>();
+            auto axis = MAX_AXIS_VALUE - args.at("axis").get<unsigned>();
             auto tiles = args.at("tiles").get<unsigned>();
 
             // calculate output shape from input shape and params

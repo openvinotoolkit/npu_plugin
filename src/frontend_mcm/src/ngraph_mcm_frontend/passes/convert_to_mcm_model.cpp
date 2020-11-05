@@ -99,6 +99,7 @@
 
 #include <ngraph/variant.hpp>
 
+#include <legacy/ngraph_ops/tile_ie.hpp>
 #include <parse_layers_helpers.hpp>
 #include <dims_parser.hpp>
 #include "ngraph_mcm_frontend/ie_helpers.hpp"
@@ -1410,6 +1411,17 @@ void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel
     registerOutputs(split, mcmOutputs, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::TileIE> tileIE, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(tileIE, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto& opName = tileIE->get_friendly_name();
+    const int64_t axis = tileIE->axis;
+    const int64_t tiles = tileIE->tiles;
+    auto mcmTile = mcmModel.tile(opName, mcmInputs.at(0), axis, tiles);
+
+    registerOutputs(tileIE, {mcmTile}, mcmOutputsMap);
+}
+
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
 template <typename T>
@@ -1481,7 +1493,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::Maximum),
     MAP_ENTRY(ngraph::op::v1::Minimum),
     MAP_ENTRY(ngraph::op::v1::Split),
-    MAP_ENTRY(ngraph::op::v4::HSwish)
+    MAP_ENTRY(ngraph::op::v4::HSwish),
+    MAP_ENTRY(ngraph::op::TileIE)
 };
 
 #undef MAP_ENTRY
