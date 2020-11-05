@@ -72,7 +72,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_Tile6d, KmbTileLayerTest,
 // [Track number: S#40116]
 INSTANTIATE_TEST_CASE_P(DISABLED_Kmb_Specific_Tile, KmbTileLayerTest,
                         ::testing::Combine(
-                            ::testing::Values(std::vector<size_t>({1, 1, 88})),
+                            ::testing::Values(std::vector<size_t>({1, 1, 1, 88})),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
