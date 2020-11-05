@@ -81,5 +81,7 @@ const std::vector<CTCDecoderTestParams> ctcParams = {
             .layout(Layout::NCHW)
 };
 
+#ifdef KMB_HAS_CUSTOM_KERNELS
 INSTANTIATE_TEST_CASE_P(precommit, KmbCTCDecoderLayerTests,
     testing::Combine(testing::ValuesIn(ctcParams), testing::Values<UseCustomLayers>(true)));
+#endif
