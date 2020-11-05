@@ -773,12 +773,8 @@ TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
         0.3f);  // mean intersection over union tolerance
 }
 
-// [Track number: S#25636]
-// Segmentation fault in MCM replacement_passes.cpp:303
-// [Track number: S#39621]
-// [Track number: D#40921]
 class UnetNetworkTestWithSpecificLayout : public UnetNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
-TEST_P(UnetNetworkTestWithSpecificLayout, DISABLED_unet_camvid_ava_0001) {
+TEST_P(UnetNetworkTestWithSpecificLayout, unet_camvid_ava_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
             .setUserInputPrecision("input", Precision::U8)
