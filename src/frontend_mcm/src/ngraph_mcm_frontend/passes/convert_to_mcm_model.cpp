@@ -1396,7 +1396,7 @@ void convert(std::shared_ptr<ngraph::op::v1::Minimum> minimum, mv::OpModel& mcmM
 void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto& opName = split->get_friendly_name();
     const auto mcmInputs = getMcmInputs(split, mcmOutputsMap);
-    assert(mcmInputs.size() == 1);
+    IE_ASSERT(mcmInputs.size() == 2);
 
     // Find axis.
     const auto axis_node = split->input_value(1).get_node_shared_ptr();
