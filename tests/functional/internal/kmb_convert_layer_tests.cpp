@@ -77,4 +77,6 @@ const std::vector<ConvertTestParams> convertParams = {
             .destination_type(ngraph::element::Type_t::f16)
 };
 
+#ifdef KMB_HAS_CUSTOM_KERNELS
 INSTANTIATE_TEST_CASE_P(precommit, KmbConvertLayerTests, testing::ValuesIn(convertParams));
+#endif

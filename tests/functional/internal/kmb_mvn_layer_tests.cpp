@@ -74,4 +74,6 @@ const std::vector<MVNTestParams> convertParams = {
             .across_channels(true)
 };
 
+#ifdef KMB_HAS_CUSTOM_KERNELS
 INSTANTIATE_TEST_CASE_P(precommit, KmbMVNLayerTests, testing::ValuesIn(convertParams));
+#endif

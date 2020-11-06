@@ -76,5 +76,7 @@ const std::vector<GRNTestParams> grnParams = {
             .layout(Layout::NCHW)
 };
 
+#ifdef KMB_HAS_CUSTOM_KERNELS
 INSTANTIATE_TEST_CASE_P(precommit, KmbGRNLayerTests,
     testing::Combine(testing::ValuesIn(grnParams), testing::Values<UseCustomLayers>(true)));
+#endif
