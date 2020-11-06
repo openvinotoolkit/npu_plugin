@@ -153,10 +153,11 @@ endif()
 
 if(ENABLE_HDDL2)
     if(UNIX)
-        set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww42)
+        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww44)
+        set(HDDLUNITE_TBH_ARCHIVE_VERSION RELEASE_TBH_ww44)
         set(ARCH_FORMAT ".tgz")
     else()
-        set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww42_Windows)
+        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww44_Windows)
         set(ARCH_FORMAT ".zip")
     endif()
 
@@ -172,9 +173,15 @@ if(ENABLE_HDDL2)
         reset_deps_cache(HDDL_UNITE)
 
         RESOLVE_DEPENDENCY(HDDL_UNITE
-                ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_ARCHIVE_VERSION}${ARCH_FORMAT}"
+                ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"
                 ENVIRONMENT "HDDL_UNITE"
                 TARGET_PATH "${TEMP}/hddl_unite")
+        if(UNIX)
+            RESOLVE_DEPENDENCY(HDDL_UNITE_TBH
+                    ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_TBH_ARCHIVE_VERSION}${ARCH_FORMAT}"
+                    ENVIRONMENT "HDDL_UNITE_TBH"
+                    TARGET_PATH "${TEMP}/tbh/hddl_unite")
+        endif()
 
         unset(IE_PATH_TO_DEPS)
     endif()

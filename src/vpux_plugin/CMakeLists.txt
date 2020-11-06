@@ -105,6 +105,14 @@ if(ENABLE_HDDL2)
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${HDDL_UNITE}/thirdparty/XLink/lib/"
                 "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>"
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/tbh"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${HDDL_UNITE_TBH}/lib/"
+                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/tbh/"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${HDDL_UNITE_TBH}/thirdparty/XLink/lib/"
+                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/tbh/"
             COMMENT "[HDDL Unite] Copy libraries"
         )
     endif()
