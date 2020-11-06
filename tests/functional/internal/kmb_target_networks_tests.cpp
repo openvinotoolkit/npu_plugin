@@ -63,9 +63,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
         1, 2.5f);
 }
 
-// [Track number: S#40780]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v2) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
         TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v2_caffe2_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)

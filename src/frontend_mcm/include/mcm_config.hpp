@@ -99,7 +99,7 @@ private:
 
     std::string _mcmCompilationPassBanList = "";
 
-    bool _scaleFuseInput = true;
+    bool _scaleFuseInput = false;
 
     bool _referenceMode = false;
 
