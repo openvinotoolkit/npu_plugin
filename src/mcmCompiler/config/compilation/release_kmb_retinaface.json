@@ -24,8 +24,8 @@
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "PWLUsage": true,
-                "ScaleFuseInput": true,
                 "ReferenceMode": false,
+                "ScaleFuseInput": false,
                 "split_strategy" :
                 [
                     {
@@ -142,6 +142,7 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
+
                         {"name" : "referenceDevice", "value" : "A0"},
                         {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },

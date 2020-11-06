@@ -658,10 +658,14 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
             setQuantizationParams(current_op, findOutputQuantParams(om, current_op));
 
             // Quantize input bias
-            current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0);
-            if (current_op->getOpType() == "Bias" && current_op->getInputTensor(1)->isFloatingPointType()) {
-                auto bias_op = quantizeBias(model, current_op, initial_quant_params(), scalesQuantParams);
-                setQuantizationParams(bias_op, getParentQuantParams(om, bias_op));
+            // olny if scale-fuse starts
+            std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+            if(globalParams->hasAttr("ScaleFuseInput") ? globalParams->get<bool>("ScaleFuseInput") : false){
+                current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0);
+                if (current_op->getOpType() == "Bias" && current_op->getInputTensor(1)->isFloatingPointType()) {
+                    auto bias_op = quantizeBias(model, current_op, initial_quant_params(), scalesQuantParams);
+                    setQuantizationParams(bias_op, getParentQuantParams(om, bias_op));
+                }
             }
         }
     }
