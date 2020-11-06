@@ -32,7 +32,9 @@ namespace HDDL2 {
 
 HDDL2Backend::HDDL2Backend(const VPUXConfig& config)
     : _logger(std::make_shared<vpu::Logger>("HDDL2Backend", config.logLevel(), vpu::consoleOutput())),
-      _devices(createDeviceMap()) {}
+      _devices(createDeviceMap()) {
+    if (_devices.empty()) THROW_IE_EXCEPTION << "Device map is empty.";
+}
 
 /** Generic device */
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice() const {
