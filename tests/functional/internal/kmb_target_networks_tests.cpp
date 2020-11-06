@@ -878,11 +878,7 @@ TEST_F(KmbSegmentationNetworkTest, DISABLED_road_segmentation_adas_0001) {
         0.3f);
 }
 
-// MemoryAllocator:VPU_CMX_NN - ArgumentError: conv4_3_0_norm_mbox_locNeutral_copy0conv5_5/sep/bn/variance/Fused_Add_:0_crop:0:0::paddedShape[2]
-// 184 - Does not match the dimension 192 of the tensor
-// conv4_3_0_norm_mbox_locNeutral:0 already allocated in the given buffer
-// [Track number: S#41919]
-TEST_F(KmbDetectionNetworkTest, DISABLED_face_detection_adas_0001) {
+TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/face-detection-adas-0001/face-detection-adas-0001.xml")
 	    .setUserInputPrecision("input", Precision::U8)
