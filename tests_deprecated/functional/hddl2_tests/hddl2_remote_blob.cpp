@@ -56,7 +56,12 @@ void HDDL2_Remote_Blob_Tests::TearDown() {
 }
 
 //------------------------------------------------------------------------------
-TEST_F(HDDL2_Remote_Blob_Tests, CanCreateRemoteBlobUsingContext) {
+// Test shows error for memory allocation:
+// [ RUN      ] HDDL2_Remote_Blob_Tests.CanCreateRemoteBlobUsingContext
+// ERROR[RemoteMemoryObject.cpp:300] Error: allocate remote memory failed: statusCode(-4)[0m
+// ERROR[RemoteMemory.cpp:144] Error: invalid remote memory object[0m
+// [Track number: S#42491]
+TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanCreateRemoteBlobUsingContext) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     ASSERT_NO_THROW(remoteContextPtr->CreateBlob(tensorDesc, blobParams));
@@ -74,7 +79,13 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_RemoteBlobFromRemoteMem_WillNotDestroyR
     ASSERT_TRUE(remoteMemoryHelper.isRemoteTheSame(memoryData));
 }
 
-TEST_F(HDDL2_Remote_Blob_Tests, CanGetParams) {
+// Test fails with segmentation fault
+// [ RUN      ] HDDL2_Remote_Blob_Tests.CanGetParams
+// ERROR[RemoteMemoryObject.cpp:300] Error: allocate remote memory failed: statusCode(-4)[0m
+// ERROR[RemoteMemory.cpp:144] Error: invalid remote memory object[0m
+// Segmentation fault (core dumped)
+// [Track number: S#42493]
+TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetParams) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
