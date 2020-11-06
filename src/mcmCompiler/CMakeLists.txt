@@ -312,6 +312,11 @@ set_target_properties(mcmCompiler PROPERTIES
     SOVERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
 )
 
+#
+# MCM Emulator
+#
+add_subdirectory(contrib/mcm-emulator)
+
 if(MSVC)
     set_target_properties(mcmCompiler PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 endif()
