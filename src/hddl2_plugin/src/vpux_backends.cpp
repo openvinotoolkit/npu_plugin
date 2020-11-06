@@ -66,7 +66,9 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const IE::RemoteContext::Ptr& co
     return device;
 }
 
-std::vector<std::string> VPUXBackends::getAvailableDevicesNames() const { return _backend->getDeviceNames(); }
+std::vector<std::string> VPUXBackends::getAvailableDevicesNames() const {
+    return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
+}
 
 std::unordered_set<std::string> VPUXBackends::getSupportedOptions() const {
     return _backend == nullptr ? std::unordered_set<std::string>() : _backend->getSupportedOptions();
