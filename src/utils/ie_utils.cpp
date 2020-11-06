@@ -486,7 +486,11 @@ std::size_t getByteSize(const ie::TensorDesc& desc) {
 int extractIdFromDeviceName(const std::string& name) {
     const std::size_t expectedSize = 5;
     if (name.size() != expectedSize) {
+#ifdef __aarch64__
         THROW_IE_EXCEPTION << "Unexpected device name: " << name;
+#else
+        return -1;
+#endif
     }
 
     return name[expectedSize - 1] - '0';
