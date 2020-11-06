@@ -68,6 +68,14 @@ void ExecutableNetwork_Tests::SetUp() {
     executableNetworkPtr = _cacheExecNetwork;
 }
 
-TEST_F(ExecutableNetwork_Tests, CanCreateInferRequest) {
+// Test fails with error:
+// [ RUN      ] ExecutableNetwork_Tests.CanCreateInferRequest
+// kmb-plugin/tests_deprecated/functional/hddl2_tests/hddl2_load_network.cpp:72: Failure
+// Expected: inferRequest = executableNetworkPtr->CreateInferRequest() doesn't throw an exception.
+// Actual: it throws:Can't create infer request!
+// Please make sure that the device is available. Only exports can be made.
+// [  FAILED  ] ExecutableNetwork_Tests.CanCreateInferRequest (3306 ms)
+// [Track number: S#42490]
+TEST_F(ExecutableNetwork_Tests, DISABLED_CanCreateInferRequest) {
     ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 }
