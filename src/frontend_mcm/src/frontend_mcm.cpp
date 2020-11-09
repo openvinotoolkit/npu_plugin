@@ -650,6 +650,7 @@ void FrontEndMcm::alignZeroPointsOnWeights(ie::CNNNetwork& network) {
                 // re-calculate ZP for weights, we use U8 for weights
                 sumOfZeroPoints += x;
             }
+            IE_ASSERT(numberOfQuantParams != 0);
             auto avgZeroPoints = std::round(sumOfZeroPoints / numberOfQuantParams);
 
             // NOTE: ol is always negative value
