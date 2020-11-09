@@ -65,7 +65,7 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
         sink->set<bool>("alignment", true);
 
     if (opType == "Eltwise" ||
-        opType == "DepthwiseConv" || opType == "MaxPool" || opType == "Copy")
+        opType == "DepthwiseConv" || opType == "MaxPool")
     {
         auto inputTensor = flow->getTensor();
         auto inputShape = inputTensor->getShape();
@@ -402,9 +402,10 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                         opsToLink[op]->set<bool>("alignment", true);
                         om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
 
-                        for (const auto& flowName : alignedTensor->getFlowNames()) {
-                            propagateShapeChange(om, flowName);
-                        }
+                        // If Copy follows Align, cascade aligned output shape
+                        if (opsToLink[op]->getOpType() == "Copy")
+                            opsToLink[op]->getOutputTensor(0)->setShape(alignedTensor->getShape());
+
                     }
                 }
             }
