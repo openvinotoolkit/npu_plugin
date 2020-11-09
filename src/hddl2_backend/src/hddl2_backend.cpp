@@ -30,9 +30,12 @@ using namespace vpux::HDDL2;
 namespace vpux {
 namespace HDDL2 {
 
+// TODO Use config from VPUX Plugin, not default. [Track number: S#42840]
 HDDL2Backend::HDDL2Backend(const VPUXConfig& config)
-    : _logger(std::make_shared<vpu::Logger>("HDDL2Backend", config.logLevel(), vpu::consoleOutput())),
-      _devices(createDeviceMap()) {
+    : _config(config),
+      _logger(std::make_shared<vpu::Logger>("HDDL2Backend", _config.logLevel(), vpu::consoleOutput())) {
+    setUniteLogLevel(_config.logLevel());
+    _devices = createDeviceMap();
     if (_devices.empty()) THROW_IE_EXCEPTION << "Device map is empty.";
 }
 
@@ -105,6 +108,34 @@ bool HDDL2Backend::isServiceAvailable(const vpu::Logger::Ptr& logger) {
 }
 
 bool HDDL2Backend::isServiceRunning() { return HddlUnite::isServiceRunning(); }
+
+HddlUnite::clientLogLevel convertIELogLevelToUnite(vpu::LogLevel ieLogLevel) {
+    switch (ieLogLevel) {
+    case vpu::LogLevel::None:
+        return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;
+    case vpu::LogLevel::Fatal:
+        return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;
+    case vpu::LogLevel::Error:
+        return HddlUnite::clientLogLevel::LOGLEVEL_ERROR;
+    case vpu::LogLevel::Warning:
+        return HddlUnite::clientLogLevel::LOGLEVEL_WARN;
+    case vpu::LogLevel::Info:
+        return HddlUnite::clientLogLevel::LOGLEVEL_INFO;
+    case vpu::LogLevel::Debug:
+        return HddlUnite::clientLogLevel::LOGLEVEL_DEBUG;
+    case vpu::LogLevel::Trace:
+        return HddlUnite::clientLogLevel::LOGLEVEL_PROCESS;
+    default:
+        return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;
+    }
+}
+
+void HDDL2Backend::setUniteLogLevel(const vpu::LogLevel logLevel) {
+    const auto status = HddlUnite::setClientLogLevel(convertIELogLevelToUnite(logLevel));
+    if (status != HddlStatusCode::HDDL_OK) {
+        _logger->warning("Failed to set client log level for HddlUnite");
+    }
+}
 
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
 CreateVPUXEngineBackend(vpux::IEngineBackend*& backend, InferenceEngine::ResponseDesc* resp) noexcept {
