@@ -1992,22 +1992,14 @@ std::array<unsigned short, 4> mv::RuntimeModel::getNewPadding(std::array<unsigne
 {
         if (clusterId == 0)
         {
-            padding[0] = padding[0];
-            padding[1] = padding[1];
-            padding[2] = padding[2];
             padding[3] = 0;
         }
         else if (clusterId == numClusters - 1)
         {
-            padding[0] = padding[0];
-            padding[1] = padding[1];
-            padding[3] = padding[3];
             padding[2] = 0;
         }
         else
         {
-            padding[0] = padding[0];
-            padding[1] = padding[1];
             padding[2] = 0;
             padding[3] = 0;
         }
