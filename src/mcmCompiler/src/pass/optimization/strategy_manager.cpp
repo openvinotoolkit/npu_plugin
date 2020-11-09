@@ -294,14 +294,14 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(Cri
     { 
         clusteringStrategyList = compDesc->get<std::vector<mv::Element>>("split_strategy");
         //determine if node already has clustering strategy from JSON text, do not override text specification
-        std::vector<std::string> hasClusterSpec;
+        std::vector<std::string> hasClusterSpec ;
         for (auto s : clusteringStrategyList)
         {
             std::string nodeName = s.get<std::string>("name_filter");
             std::string strategyName = s.get<std::string>("strategy");
-            if ((strategyName=="SplitOverH") or
-                (strategyName=="SplitOverK") or
-                (strategyName=="SplitOverHOverlapped") or
+            if ((strategyName=="SplitOverH") ||
+                (strategyName=="SplitOverK") ||
+                (strategyName=="SplitOverHOverlapped") ||
                 (strategyName=="HKSwitch"))
             {
                 hasClusterSpec.push_back(nodeName);
@@ -312,8 +312,11 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(Cri
         for (auto elem : strategiesToConvert)
         {
             auto& strategy = *elem;
-            std::string newStrategy = strategy["clustering"];
-            std::string newName = strategy["name"];
+            std::string newStrategy = strategy["clustering"].get<std::string>();
+            std::string newName = strategy["name"].get<std::string>();
+            auto op = model_.getOp(newName);
+            if(op->getOpType() == "Concat")
+                newStrategy = std::string("Clustering");
             if ( std::find(hasClusterSpec.begin(), hasClusterSpec.end(), newName) == hasClusterSpec.end())
             {
                 clusteringStrategyList.push_back(convertToClusteringElement(newStrategy,newName));
