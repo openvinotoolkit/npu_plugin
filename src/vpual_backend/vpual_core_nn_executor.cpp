@@ -40,12 +40,13 @@ namespace vpux {
 #if defined(__arm__) || defined(__aarch64__)
 constexpr uint32_t POOL_SIZE = 30 * 1024 * 1024;
 #endif
+constexpr int VPU_CSRAM_DEVICE_ID = 32;
 
 VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-    const VpusmmAllocator::Ptr& allocator, const VpusmmAllocator::Ptr& csramAllocator, const uint32_t deviceId, const VpualConfig& config)
+    const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId, const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
-      _csramAllocator(csramAllocator),
+      _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
       _config(config),
       _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
 #if defined(__arm__) || defined(__aarch64__)
@@ -158,6 +159,9 @@ static uint8_t* setPrefetchHelper(const std::unique_ptr<NnCorePlg, std::function
     uint8_t* preFetchVirtAddr = nullptr;
     const uint32_t preFetchSize = nnCorePtr->GetPrefetchBufferSize();
     if (preFetchSize > 0) {
+        if (allocatorPtr == nullptr) {
+            THROW_IE_EXCEPTION << "prefetchHelper: allocator points to null";
+        }
         preFetchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(preFetchSize));
         if (preFetchVirtAddr == nullptr) {
             THROW_IE_EXCEPTION << "prefetchHelper: failed to allocate " << preFetchSize << " bytes of memory";

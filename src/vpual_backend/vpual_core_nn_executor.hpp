@@ -48,7 +48,7 @@ public:
 
     virtual ~VpualCoreNNExecutor();
     VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
-        const VpusmmAllocator::Ptr& csramAllocator, const uint32_t deviceId, const VpualConfig& config);
+        const uint32_t deviceId, const VpualConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
     void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;

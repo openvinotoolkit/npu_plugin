@@ -36,7 +36,6 @@ public:
 
 private:
     std::shared_ptr<Allocator> _allocator;
-    std::shared_ptr<Allocator> _csramAllocator = nullptr;
     const std::string _name;
     // TODO: config is used in executor only
     // it makes sense to store it only there
