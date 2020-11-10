@@ -74,7 +74,25 @@ private:
             const auto inSz = vec.size() * sizeof(T);
             resize(inSz);
             if (0 != ie_memcpy(mem, sz, vec.data(), inSz))
+                THROW_IE_EXCEPTION << "hostMem::copyFrom::ie_memcpy return != 0";
+        }
+        void copyFrom(const InferenceEngine::Blob::Ptr& blob) {
+            const InferenceEngine::MemoryBlob::CPtr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+            if (!mblob)
+                THROW_IE_EXCEPTION << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
+
+            resize(mblob->byteSize());
+            if (0 != ie_memcpy(mem, sz, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
                 THROW_IE_EXCEPTION << "hostMem::copyFrom::ie_memcpy* return != 0";
+        }
+        void copyTo(InferenceEngine::Blob::Ptr& blob) const {
+            InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+            if (!mblob)
+                THROW_IE_EXCEPTION << "deviceMem::copyTo failing of casting blob to MemoryBlob";
+
+            if (mblob->byteSize() != sz) THROW_IE_EXCEPTION << "deviceMem::copyTo sizes mismatch";
+            if (0 != ie_memcpy(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), mem, sz))
+                THROW_IE_EXCEPTION << "hostMem::copyTo::ie_memcpy return != 0";
         }
         void free();
         ~hostMem() {
@@ -114,12 +132,27 @@ private:
         // actually it puts command to copy in a command_list afaiu
         // for KMB we must copy through hostMem! real copy will appear when sync on fence!
         void copyFrom(const InferenceEngine::Blob::Ptr& blob) {
-            resize(blob->byteSize());
-            copyFromImpl(blob->cbuffer().as<const uint8_t*>());
+            const InferenceEngine::MemoryBlob::CPtr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+            if (!mblob)
+                THROW_IE_EXCEPTION << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
+
+            resize(mblob->byteSize());
+            copyFromImpl(mblob->rmap().as<const uint8_t*>());
+        }
+        void copyFrom(const hostMem& hm) {
+            resize(hm.size());
+            copyFromImpl(hm.data());
         }
         void copyTo(InferenceEngine::Blob::Ptr& blob) {
-            if (blob->byteSize() != sz) THROW_IE_EXCEPTION << "deviceMem::copyTo sizes mismatch";
-            copyToImpl(blob->buffer().as<uint8_t*>());
+            InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+            if (!mblob)
+                THROW_IE_EXCEPTION << "deviceMem::copyTo failing of casting blob to MemoryBlob";
+            if (mblob->byteSize() != sz) THROW_IE_EXCEPTION << "deviceMem::copyTo sizes mismatch";
+            copyToImpl(mblob->wmap().as<uint8_t*>());
+        }
+        void copyTo(hostMem& hm) {
+            hm.resize(sz);
+            copyToImpl(hm.data());
         }
         void free();
         ~deviceMem() { free(); }

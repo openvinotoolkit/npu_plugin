@@ -16,6 +16,7 @@
 #pragma once
 
 #include <ie_allocator.hpp>
+#include <unordered_set>
 #include <vpux.hpp>
 
 #include "ze_api.h"
@@ -24,6 +25,8 @@ namespace vpux {
 class ZeroAllocator : public Allocator {
     ze_driver_handle_t driver_handle = nullptr;
     const static size_t alignment = 4096;
+
+    static std::unordered_set<const void*> our_pointers;
 
 public:
     explicit ZeroAllocator(ze_driver_handle_t driver): driver_handle(driver) {}
@@ -44,7 +47,7 @@ public:
      *
      * @param handle Handle to the locked memory to unlock
      */
-    void unlock(void* handle) noexcept override { (void)handle; }
+    void unlock(void*) noexcept override {}
     /**
      * @brief Allocates memory
      *
@@ -65,13 +68,8 @@ public:
     void Release() noexcept override {}
 
     // TODO: need update methods to remove Kmb from parameters
-    void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept override {
-        return 0;
-    }
-    void* wrapRemoteMemoryOffset(
-        const int& remoteMemoryFd, const size_t size, const size_t& memOffset) noexcept override {
-        return 0;
-    }
+    void* wrapRemoteMemoryHandle(const int&, const size_t, void*) noexcept override { return 0; }
+    void* wrapRemoteMemoryOffset(const int&, const size_t, const size_t&) noexcept override { return 0; }
 
     // FIXME: temporary exposed to allow executor to use vpux::Allocator
     unsigned long getPhysicalAddress(void* handle) noexcept override { return 0; }
@@ -79,6 +77,8 @@ public:
     ZeroAllocator(const ZeroAllocator&) = default;
     ZeroAllocator& operator=(const ZeroAllocator&) = default;
     ~ZeroAllocator() = default;
+
+    static bool isZeroPtr(const void*);
 };
 
 }  // namespace vpux

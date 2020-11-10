@@ -16,9 +16,12 @@
 
 #include "zero_executor.h"
 
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include <string>
+
+#include "zero_allocator.h"
 
 using namespace vpux;
 
@@ -264,6 +267,9 @@ void ZeroExecutor::commit() {
 void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
     _logger->info("ZeroExecutor::push started");
 
+    // we should repack input args to zero-allocated host memory if it's regular memory
+    std::vector<hostMem> hm;
+
     // we should copy through host-memory but it's a deferred operation so we should be carefull with lifetime of
     // objects (for KMB, on MTL will be shared memory) InferenceEngine::BlobMap& inputs -> (deferred)deviceMemory
     for (const auto& inferInput : inputs) {
@@ -274,7 +280,19 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
         if (!twoApiLayoutCouplingCheck(arg.info.layout, input->getTensorDesc().getLayout()))
             THROW_IE_EXCEPTION << "Layouts is different for push blobs";
         if (input->byteSize() != getSizeIOBytes(arg.info)) THROW_IE_EXCEPTION << "Sizes are different for push blobs";
-        arg.memory.copyFrom(input);
+
+        // we could use (base) Blob* here cause we just need check pointer value;
+        // temporary LockedMemory (result of cbuffer) object be alive till the end of expression
+        if (ZeroAllocator::isZeroPtr(input->cbuffer().as<const uint8_t*>())) {
+            arg.memory.copyFrom(input);
+        } else {
+            _logger->info("[Performance] inputs passed in non-zero api allocated memory. Memory repacking are performed");
+            hm.emplace_back(_driver_handle);
+            auto& currentHostMem = hm.back();
+            currentHostMem.copyFrom(input);  // copy from regular to host memory
+            arg.memory.copyFrom(currentHostMem);
+        }
+
         _graph_handle.setArgumentValue(arg.idx, arg.memory.data());
     }
 
@@ -295,6 +313,10 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
 void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
     _logger->info("ZeroExecutor::pull started");
 
+    // we should transfer output args from device memory to zero-allocated host memory if it's regular memory
+    std::vector<hostMem> hostmemTransfer;
+    std::vector<std::reference_wrapper<InferenceEngine::Blob::Ptr>> outputBlobTarget;
+
     // we should copy through host_memory but it's a deferred operation soo we should be carefull with lifetime of
     // objects (for KMB, on MTL will be shared memory)
     // copy from device memory to outputs(which should be allocated /w zero api)
@@ -307,9 +329,26 @@ void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
             THROW_IE_EXCEPTION << "Layouts is different for pull blobs";
         if (output->byteSize() != getSizeIOBytes(copyFromDeviceMem.info))
             THROW_IE_EXCEPTION << "Sizes are different for pull blobs";
-        copyFromDeviceMem.memory.copyTo(output);
+
+        // check comment in push method
+        if (ZeroAllocator::isZeroPtr(output->cbuffer().as<const uint8_t*>())) {
+            copyFromDeviceMem.memory.copyTo(output);
+        } else {
+            _logger->info("[Performance] output passed in non-zero api allocated memory. Memory repacking are performed");
+            hostmemTransfer.emplace_back(_driver_handle);
+            outputBlobTarget.emplace_back(output);
+
+            copyFromDeviceMem.memory.copyTo(hostmemTransfer.back());
+        }
     }
     commit();
+
+    IE_ASSERT(hostmemTransfer.size() == outputBlobTarget.size());
+
+    for (std::size_t i = 0; i < hostmemTransfer.size(); ++i) {
+        hostmemTransfer[i].copyTo(outputBlobTarget[i]);
+    }
+
     _logger->info("ZeroExecutor::pull finished");
 }
 
