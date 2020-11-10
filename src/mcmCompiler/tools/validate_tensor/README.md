@@ -12,7 +12,7 @@ Utility to test a network.
 pip3 install opencv-python
 
 Environmental variables
-- DLDT_HOME path to the dldt repo
+- OPENVINO_HOME path to the openvino repo
 
 - VPUIP_HOME path to the vpuip_2 repo
 

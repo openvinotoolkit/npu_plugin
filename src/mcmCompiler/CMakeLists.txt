@@ -271,6 +271,7 @@ set(syscalls
 )
 
 add_subdirectory(meta)
+add_subdirectory(tools)
 
 add_library(mcmCompiler SHARED
     ${base} ${model} ${logger} ${pass} ${compiler} ${syscalls}

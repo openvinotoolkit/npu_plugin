@@ -51,6 +51,9 @@ static const char precision_message[] = "Optional. U8, FP32 or FP16 ";
 /// @brief message for layout
 static const char layout_message[] = "Optional. NHWC or NCHW (default) ";
 
+/// @brief message for debug
+static const char debug_message[] = "Optional. Build in debug mode ";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -99,6 +102,9 @@ DEFINE_string(ip, "", precision_message);
 /// It is an optional parameter
 DEFINE_string(il, "", layout_message);
 
+/// @brief Define flag for building in debug mode.
+DEFINE_bool(d, false, debug_message);
+
 /**
 * @brief This function show a help message
 */
@@ -112,6 +118,7 @@ static void showUsage() {
     std::cout << "    -k <ip address>     " << evm_message << std::endl;
     std::cout << "    -i <path>           " << image_message << std::endl;
     std::cout << "    -t <float>          " << tolerence_message << std::endl;
+    std::cout << "    -d                  " << debug_message << std::endl;
     //std::cout << "    -b <path>           " << blob_message << std::endl;
     //std::cout << "    -a <path>           " << a_tensor_message << std::endl;
     //std::cout << "    -e <path>           " << e_tensor_message << std::endl;

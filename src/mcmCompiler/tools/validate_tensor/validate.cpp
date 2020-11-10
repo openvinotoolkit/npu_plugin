@@ -16,7 +16,7 @@
 /**
  * Required environmental variables
  * VPUIP_HOME = <path to vpuip_2 repo>
- * DLDT_HOME  = <path to DLDT repo>
+ * OPENVINO_HOME  = <path to openvino repo>
  *
  * All the filenames are hardcoded. This should be updated.
  *
@@ -40,7 +40,7 @@ const std::string FILE_CPU_INPUT_NCHW_RGB   = "input_cpu_nchw_rgb.bin";
 const std::string FILE_CPU_INPUT_NHWC_RGB   = "input_cpu_nhwc_rgb.bin";
 const std::string FILE_CPU_INPUT_NCHW_BGR   = "input_cpu_nchw_bgr.bin";
 const std::string FILE_CPU_INPUT_NHWC_BGR   = "input_cpu_nhwc_bgr.bin";
-const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
+      std::string OPENVINO_BIN_FOLDER   = "/bin/intel64/Release/";
 const std::string FILE_BLOB_NAME        = "mcm.blob";
 const std::string TEST_RUNTIME          = "application/demo/InferenceManagerDemo";
 
@@ -60,6 +60,11 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
     {
         showUsage();
         return false;
+    }
+
+    if (FLAGS_d)
+    {
+      OPENVINO_BIN_FOLDER = "/bin/intel64/Debug/";
     }
 
     if (FLAGS_mode == "validate")
@@ -272,18 +277,20 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         if(relative_error > maxRelErr) maxRelErr = relative_error;
 
         std::string result = "\t\033[1;32mPass\033[0m";
-        if (!fp and (abs_error > allowedDeviation))
+        if ((!fp) && (abs_error > allowedDeviation))
         {
             countErrs++;
             result = "\t\033[1;31mfail\033[0m";
         }
-        if (fp and ((relative_error*100) > (tolerance/2)))
+        if ((fp) && ((relative_error*100) > (tolerance/2)))
         {
             countErrs++;
             result = "\t\033[1;31mfail\033[0m";
         }
-        if (idx < 50) // print first 50 rows
+        if (idx < 50)
+        {   // print first 50 rows
             std::cout << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << abs_error << std::setw(12) << relative_error << std::setw(18)  << result  << std::endl;
+        }
     };
 
     std::cout << "Printing first 50 rows...\nExpected\tActual\tDifference  Relative Err\tResult" << std::endl;
@@ -339,13 +346,13 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     // Clean any old files
     std::cout << std::endl << "====== Generate blob ======" << std::endl;
     std::cout << "Deleting old emulator results files... " << std::endl;
-    std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
+    std::string binFolder = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER;
     std::vector<std::string> filesDelete = {FILE_CPU_OUTPUT, FILE_CPU_INPUT_NCHW_RGB, FILE_CPU_INPUT_NHWC_RGB, FILE_CPU_INPUT_NCHW_BGR, FILE_CPU_INPUT_NHWC_BGR};
     for (std::string fDelete : filesDelete)
         remove((binFolder + fDelete).c_str());
 
     //delete any previous blobs (different names each time)
-    std::string fullBlobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_BLOB_NAME;
+    std::string fullBlobPath = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_BLOB_NAME;
     std::cout << "Removing: " << fullBlobPath << std::endl;
     remove(fullBlobPath.c_str());
 
@@ -369,7 +376,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
 
     // execute the classification sample async (CPU-plugin)
     std::cout << "Generating reference results... " << std::endl;
-    std::string commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "  && " +
+    std::string commandline = std::string("cd ") + std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + "  && " +
         "./test_classification -m " + pathXMLvector[0] + " -d CPU";
     if (! FLAGS_i.empty() )
         commandline += (" -i " + pathImage);
@@ -388,25 +395,25 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         std::cout << std::endl << "Error occurred running the test_classification (CPU mode)!" << std::endl;
         return FAIL_ERROR;
     }
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_OUTPUT} ))
+    if (!checkFilesExist( {std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_OUTPUT} ))
         return FAIL_CPU_PLUGIN;
 
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR} ))
+    if (!checkFilesExist( {std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR} ))
         return FAIL_CPU_PLUGIN;
 
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_BGR} ))
+    if (!checkFilesExist( {std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT_NHWC_BGR} ))
         return FAIL_CPU_PLUGIN;
 
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_RGB} ))
+    if (!checkFilesExist( {std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT_NCHW_RGB} ))
         return FAIL_CPU_PLUGIN;
 
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_RGB} ))
+    if (!checkFilesExist( {std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT_NHWC_RGB} ))
         return FAIL_CPU_PLUGIN;
 
     // execute the compile_tool (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
 
-    commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
+    commandline = std::string("cd ") + std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + " && " +
         "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB -o " + FILE_BLOB_NAME;
 
     // if exists, reads the input layout from commandline. Otherwise use env var
@@ -441,10 +448,10 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         return FAIL_ERROR;
     }
 
-    blobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_BLOB_NAME;
+    blobPath = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_BLOB_NAME;
     if (!checkFilesExist( {blobPath} ))
     {
-        std::cout << "Error! Couldn't find the generated blob in " << std::getenv("DLDT_HOME") << DLDT_BIN_FOLDER  << std::endl;
+        std::cout << "Error! Couldn't find the generated blob in " << std::getenv("OPENVINO_HOME") << OPENVINO_BIN_FOLDER  << std::endl;
         return FAIL_COMPILER;
     }
     return RESULT_SUCCESS;
@@ -473,7 +480,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     remove(outputFile.c_str());
 
     // copy the required files to InferenceManagerDemo folder
-    std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
+    std::string inputCPU = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/input-0.bin");
     
     // hardcoded for AclNet.
@@ -488,7 +495,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     // switch to fp16 input bin if fp16 network
     if ((!FLAGS_ip.empty()) && (FLAGS_ip == "FP16")){
         std::cout << "FP16 mode: using image " << FILE_CPU_INPUT_FP16 << std::endl;
-        inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_FP16;
+        inputCPU = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT_FP16;
     }
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
@@ -608,7 +615,7 @@ bool validate(std::string blobPath, std::vector<std::string> expectedPaths, std:
         if (dtype == MVCNN::DType::DType_U8)
         {
             int qZero = graphFile.header->net_output[outIndex]->quant_zero[0];
-            double qScale = graphFile.header->net_output[outIndex]->quant_scale[0]; // was quant_real_scale[0];
+            double qScale = graphFile.header->net_output[outIndex]->quant_mult[0]; // was quant_real_scale[0];
             int qShift = graphFile.header->net_output[outIndex]->quant_shift[0];
             std::cout << "Querying quantization values... " << std::endl;
             std::cout << "  Datatype: " << dtype << std::endl;
@@ -761,7 +768,7 @@ int copyImage(std::string imagePath, std::string blobPath)
 
     if (!(imagePath.find("bin") != std::string::npos) || (imagePath.find("dat") != std::string::npos))
     {
-        std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
+        std::string binFolder = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER;
         if(zMajor)
         {
             std::cout << "Using Z-Major image... " << std::endl;
@@ -798,8 +805,8 @@ int copyImage(std::string imagePath, std::string blobPath)
         if (dtype == MVCNN::DType::DType_FP16)
         {
             std::cout << "Creating FP16 image from: " << FILE_CPU_INPUT << std::endl;
-            std::string inputDest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_FP16;
-            std::string inputSource = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
+            std::string inputDest = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT_FP16;
+            std::string inputSource = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT;
 
             std::ofstream fileOut(inputDest, std::ios::out | std::ios::binary);
             std::ifstream fileIn(inputSource, std::ios::in | std::ios::binary);
@@ -827,11 +834,11 @@ int copyImage(std::string imagePath, std::string blobPath)
         // as of compiler v2.2.2, all input must be in NHWC order
         std::string inNHWC;
         if(FLAGS_r)
-            inNHWC = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_RGB;
+            inNHWC = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT_NHWC_RGB;
         else
-            inNHWC = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_BGR;
+            inNHWC = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT_NHWC_BGR;
 
-        std::string inNHWC_dest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
+        std::string inNHWC_dest = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT;
         copyFile(inNHWC, inNHWC_dest);
     }
 
@@ -913,7 +920,7 @@ bool checkInference(std::string actualResults, std::string expectedResults, std:
     int result = std::system(commandline.c_str());
 
     // read in expected inference results
-    std::string expectedInferencePath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + std::string("/inference_results.txt");
+    std::string expectedInferencePath = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + std::string("/inference_results.txt");
     std::ifstream inExpected(expectedInferencePath);
     std::vector<std::string> expectedInferenceResults;
     std::string str;
@@ -947,9 +954,9 @@ bool checkInference(std::string actualResults, std::string expectedResults, std:
 
 int main(int argc, char *argv[])
 {
-    if(std::getenv("DLDT_HOME") == NULL)
+    if(std::getenv("OPENVINO_HOME") == NULL)
     {
-        std::cout << "ERROR! Environmental variable DLDT_HOME must be set with path to DLDT repo" << std::endl << std::endl;
+        std::cout << "ERROR! Environmental variable OPENVINO_HOME must be set with path to OPENVINO repo" << std::endl << std::endl;
         return FAIL_GENERAL;
     }
 
@@ -1006,7 +1013,7 @@ int main(int argc, char *argv[])
     // Normal operation
     int result = 0;
 
-    std::string blobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "mcm.blob";
+    std::string blobPath = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_BLOB_NAME;
     result = runEmulator(FLAGS_m, FLAGS_i, blobPath);
     if ( result > 0 ) return result;
 
@@ -1018,7 +1025,7 @@ int main(int argc, char *argv[])
     else
     {
         // both Zmajor and Cmajor inputs available. So passing any one is ok to check and delete the unwanted one
-        std::string binPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR;
+        std::string binPath = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR;
         result = copyImage(binPath, blobPath);
     }
 
@@ -1028,7 +1035,7 @@ int main(int argc, char *argv[])
     MVCNN::GraphFileT graphFile;
     generateGraphFile(blobPath, graphFile);
     int32_t countOutputs = graphFile.header->net_output.size();
-    std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu0.bin");
+    std::string expectedPath = std::getenv("OPENVINO_HOME") + std::string(OPENVINO_BIN_FOLDER + FILE_CPU_OUTPUT);
     std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/") + getEnvVarDefault("TEST_RUNTIME", TEST_RUNTIME) + std::string("/output-0.bin");
 
     for (auto count=0; count<countOutputs; ++count)

@@ -1,0 +1,2 @@
+Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
+Mobilenet V2,ap1,AvgPooling,7x7x1280,1x1x1280,7x7,1,UINT8,No,0
