@@ -222,6 +222,10 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
     if (isBlobContainsNV12Data(_blobPtr, _parsedBlobParamsPtr)) {
         dims = getNV12ImageDims(_blobPtr);
     }
+    // For RemoteBlob with ROI we should use original tensor desc, since ROI blob have modified description
+    if (getROIPtr() != nullptr && getOriginalTensorDesc() != nullptr) {
+        dims = getOriginalTensorDesc()->getDims();
+    }
 
     // Dims stored in NCHW format
     const int H_index = 2;

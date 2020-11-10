@@ -51,6 +51,9 @@ public:
     virtual HddlUnite::Inference::NNInputDesc createNNDesc();
 
     std::shared_ptr<const InferenceEngine::ROI> getROIPtr() const { return _parsedBlobParamsPtr->getROIPtr(); }
+    std::shared_ptr<const InferenceEngine::TensorDesc> getOriginalTensorDesc() const {
+        return _parsedBlobParamsPtr->getOriginalTensorDesc();
+    };
 
 protected:
     const bool _createRemoteMemoryDescriptor;
