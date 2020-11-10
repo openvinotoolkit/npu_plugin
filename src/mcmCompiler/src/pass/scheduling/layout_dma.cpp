@@ -149,6 +149,10 @@ std::uint64_t simRunModel(const mv::LogSender& logger,
                           std::vector<BarrierInfo>* barrierInfos,
                           std::vector<PortInfo>* portInfos)
 {
+    assert(opInfos != nullptr);
+    assert(barrierInfos != nullptr);
+    assert(portInfos != nullptr);
+
     for (auto& portInfo : *portInfos)
     {
         portInfo = PortInfo{0};
@@ -316,6 +320,9 @@ Benefit computeBenefit(const mv::LogSender& logger,
     logger.log(mv::Logger::MessageType::Debug,
                "Computing benefit; initial slack=" + to_string(benefit.slackNS));
 
+    assert(tensorInfo != nullptr);
+    assert(barrierInfos != nullptr);
+    assert(portInfos != nullptr);
     for (auto* opInfo : tensorInfo->readers)
     {
         for (auto& portInfo : *portInfos)
