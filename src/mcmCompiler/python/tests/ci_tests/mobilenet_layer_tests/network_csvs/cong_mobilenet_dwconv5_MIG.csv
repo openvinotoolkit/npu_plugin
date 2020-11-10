@@ -1,0 +1,2 @@
+Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
+Mobilenet V2,cong_dwconv1,DWConv,7x7x960,7x7x960,3x3,1,UINT8,No,0

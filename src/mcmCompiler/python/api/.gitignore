@@ -1,0 +1,10 @@
+<<<<<<< HEAD
+_*
+*.so
+*.py
+=======
+#Generated files
+composition_api.py
+*.so
+__pycache__/
+>>>>>>> e2fac11c8071506ad9bf23eccf3c5754984bef49

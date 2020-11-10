@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(validateTensor VERSION 0.0.1)
 
-add_subdirectory(contrib/gflags)
+find_package(gflags QUIET)
 
+include_directories(${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/flatbuffers/include)
 add_executable(validate 
     "validate.cpp"
 )
 
-target_link_libraries(validate gflags cm)
+target_link_libraries(validate gflags mcmCompiler)
+add_dependencies(validate mcmCompiler)
