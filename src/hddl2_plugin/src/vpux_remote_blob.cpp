@@ -48,6 +48,12 @@ VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemot
     }
 }
 
+VPUXRemoteBlob::~VPUXRemoteBlob() {
+    if (_allocatorPtr != nullptr) {
+        _allocatorPtr->free(_memoryHandle);
+    }
+}
+
 static std::shared_ptr<IE::ROI> makeROIOverROI(const std::shared_ptr<const IE::ROI>& origROIPtr,
     const IE::ROI& appliedROI, const size_t width, const size_t height) {
     std::shared_ptr<IE::ROI> resultROI = nullptr;
@@ -102,13 +108,6 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to copy remote memory handle";
     }
-}
-
-bool VPUXRemoteBlob::deallocate() noexcept {
-    if (_allocatorPtr == nullptr) {
-        return false;
-    }
-    return _allocatorPtr->free(_memoryHandle);
 }
 
 IE::LockedMemory<void> VPUXRemoteBlob::buffer() noexcept {

@@ -101,11 +101,10 @@ KmbRemoteBlob::KmbRemoteBlob(const KmbRemoteBlob& origBlob, const InferenceEngin
       _logger(std::make_shared<Logger>("KmbRemoteBlob", origBlob._config.logLevel(), consoleOutput())),
       _allocator(origBlob._allocator) {}
 
-bool KmbRemoteBlob::deallocate() noexcept {
-    if (_allocator == nullptr) {
-        return false;
+KmbRemoteBlob::~KmbRemoteBlob() {
+    if (_allocator != nullptr) {
+        _allocator->free(_memoryHandle);
     }
-    return _allocator->free(_memoryHandle);
 }
 
 InferenceEngine::LockedMemory<void> KmbRemoteBlob::buffer() noexcept {

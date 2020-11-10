@@ -38,12 +38,13 @@ public:
     explicit VPUXRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const VPUXRemoteContext::Ptr& contextPtr,
         const std::shared_ptr<Allocator>& allocator, const InferenceEngine::ParamMap& params,
         const vpu::LogLevel logLevel = vpu::LogLevel::None);
-    ~VPUXRemoteBlob() override { VPUXRemoteBlob::deallocate(); }
+    ~VPUXRemoteBlob() override;
 
-    /** @details Since Remote blob just wrap remote memory, allocation is not required */
+    /** @details Since Remote blob just wraps remote memory, allocation is not required */
     void allocate() noexcept override {}
 
-    bool deallocate() noexcept override;
+    /** @details Since Remote blob just wraps remote memory, deallocation does nothing */
+    bool deallocate() noexcept override { return false; }
     InferenceEngine::LockedMemory<void> buffer() noexcept override;
 
     InferenceEngine::LockedMemory<const void> cbuffer() const noexcept override;
