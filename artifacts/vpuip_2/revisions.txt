@@ -1,3 +1,3 @@
 
-VPUIP2: c50db8f8fac34121a7a2b1388e208fe02e1f44e8 tag: vpu_nightly_20201030
+VPUIP2: d1a4912f45970791d25bca2bb82f7d36c5261d7b tag: tbh_release_ER6.1a
 
