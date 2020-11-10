@@ -54,7 +54,7 @@ public:
         const InferenceEngine::ParamMap& params, const vpux::VPUXConfig& config,
         const std::shared_ptr<vpux::Allocator>& allocator);
     explicit KmbRemoteBlob(const KmbRemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
-    ~KmbRemoteBlob() override = default;
+    ~KmbRemoteBlob() override;
 
     /**
      * @details Since Remote blob just wraps remote memory, allocation is not required
@@ -62,10 +62,10 @@ public:
     void allocate() noexcept override {}
 
     /**
-     * @brief Deallocate local memory
-     * @return True if allocation is done, False if deallocation is failed.
+     * @brief Remote memory deallocation is impossible, so this does nothing
+     * @return always returns false. Must never be called directly.
      */
-    bool deallocate() noexcept override;
+    bool deallocate() noexcept override { return false; }
 
     InferenceEngine::LockedMemory<void> buffer() noexcept override;
 
