@@ -31,6 +31,9 @@ DECLARE_KMB_PARAM_KEY(BLOB_MEMORY_HANDLE, void*);
 /** @brief Allow to store ROI provided by user on createROI call */
 DECLARE_KMB_PARAM_KEY(ROI_PTR, std::shared_ptr<InferenceEngine::ROI>);
 
+/** @brief Information about original tensor desc, used with ROI to keep full frame information */
+DECLARE_KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC, std::shared_ptr<InferenceEngine::TensorDesc>);
+
 /** @brief VPUSMM allocator need to know size of allocation */
 DECLARE_KMB_PARAM_KEY(ALLOCATION_SIZE, size_t);
 }  // namespace KmbContextParams
