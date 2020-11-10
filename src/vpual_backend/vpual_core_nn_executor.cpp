@@ -155,9 +155,9 @@ static std::vector<void*> setScratchHelper(const std::unique_ptr<NnCorePlg, std:
 }
 
 static uint8_t* setPrefetchHelper(const std::unique_ptr<NnCorePlg, std::function<void(NnCorePlg*)>>& nnCorePtr,
-    const std::shared_ptr<vpux::Allocator>& allocatorPtr, const std::shared_ptr<vpu::Logger>& logger) {
+    const uint32_t preFetchSize, const std::shared_ptr<vpux::Allocator>& allocatorPtr,
+    const std::shared_ptr<vpu::Logger>& logger) {
     uint8_t* preFetchVirtAddr = nullptr;
-    const uint32_t preFetchSize = nnCorePtr->GetPrefetchBufferSize();
     if (preFetchSize > 0) {
         if (allocatorPtr == nullptr) {
             THROW_IE_EXCEPTION << "prefetchHelper: allocator points to null";
@@ -242,7 +242,15 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     _logger->info("Blob Version: %d %d %d", static_cast<int>(blobVersion.major), static_cast<int>(blobVersion.minor),
         static_cast<int>(blobVersion.patch));
     _scratchBuffers = setScratchHelper(_nnCorePlg, nThreads, _allocator, _logger);
-    _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, _csramAllocator, _logger));
+    const uint32_t csramUserSize = _config.CSRAMSize();
+    if (csramUserSize != 0) {
+        // if user set the size manually, use that amount
+        _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, csramUserSize, _csramAllocator, _logger));
+    } else {
+        // otherwise, get the size from NN Core plug-in
+        const uint32_t preFetchSize = _nnCorePlg->GetPrefetchBufferSize();
+        _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, preFetchSize, _csramAllocator, _logger));
+    }
 
     auto tensor_deserializer = [&](const flicTensorDescriptor_t& descriptor) -> void {
         _logger->info(
