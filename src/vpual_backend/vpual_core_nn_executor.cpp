@@ -67,20 +67,28 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
           }),
       blob_file(nullptr,
           [this](void* blobFilePtr) {
-              _allocator->free(blobFilePtr);
+              if (_allocator != nullptr) {
+                  _allocator->free(blobFilePtr);
+              }
           }),
       _blobHandle(new BlobHandle_t()),
 #endif
       _preFetchBuffer(nullptr,
           [this](uint8_t* buffer) {
-              _csramAllocator->free(buffer);
+              if (_csramAllocator != nullptr) {
+                  _csramAllocator->free(buffer);
+              }
           }),
       _inputBuffer(nullptr,
           [this](uint8_t* buffer) {
-              _allocator->free(buffer);
+              if (_allocator != nullptr) {
+                  _allocator->free(buffer);
+              }
           }),
       _outputBuffer(nullptr, [this](uint8_t* buffer) {
-          _allocator->free(buffer);
+          if (_allocator != nullptr) {
+              _allocator->free(buffer);
+          }
       }) {
 #if defined(__arm__) || defined(__aarch64__)
     std::size_t inputsTotalSize = 0;
@@ -103,8 +111,10 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
 
 VpualCoreNNExecutor::~VpualCoreNNExecutor() {
 #if defined(__arm__) || defined(__aarch64__)
-    for (const auto& scratchPtr : _scratchBuffers) {
-        _allocator->free(scratchPtr);
+    if (_allocator != nullptr) {
+        for (const auto& scratchPtr : _scratchBuffers) {
+            _allocator->free(scratchPtr);
+        }
     }
 #endif
 }
