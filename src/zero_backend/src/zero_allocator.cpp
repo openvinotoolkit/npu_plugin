@@ -16,8 +16,6 @@
 
 #include "zero_allocator.h"
 
-#include <iostream>
-
 using namespace vpux;
 
 /**
@@ -32,6 +30,7 @@ void* ZeroAllocator::alloc(size_t size) noexcept {
     if (ZE_RESULT_SUCCESS != zeDriverAllocHostMem(driver_handle, &desc, size, alignment, &mem)) {
         return nullptr;
     }
+    our_pointers.insert(mem);
     return mem;
 }
 
@@ -42,10 +41,14 @@ void* ZeroAllocator::alloc(size_t size) noexcept {
  */
 bool ZeroAllocator::free(void* handle) noexcept {
     if (handle) {
+        our_pointers.erase(handle);
         if (ZE_RESULT_SUCCESS != zeDriverFreeMem(driver_handle, handle)) {
-            std::cerr << "zeDriverFreeMem hostMem" << std::endl;
             return false;
         }
     }
     return true;
 }
+
+bool ZeroAllocator::isZeroPtr(const void* ptr) { return our_pointers.count(ptr); }
+
+std::unordered_set<const void*> ZeroAllocator::our_pointers;
