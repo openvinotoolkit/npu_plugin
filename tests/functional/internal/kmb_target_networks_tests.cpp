@@ -54,7 +54,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
         1, 2.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
+TEST_F(KmbClassifyNetworkTest, precommit_INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v1_caffe2_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -63,7 +63,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
         1, 2.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v2) {
+TEST_F(KmbClassifyNetworkTest, precommit_INT8_Dense_Caffe2_IRv10_ResNet_50_v2) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v2_caffe2_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
