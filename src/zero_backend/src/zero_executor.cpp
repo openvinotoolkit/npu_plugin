@@ -211,7 +211,7 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
       _device_handle(device_handle) {
     // Create our command queue
     ze_command_queue_desc_t queue_desc = {ZE_COMMAND_QUEUE_DESC_VERSION_CURRENT, ZE_COMMAND_QUEUE_FLAG_NONE,
-        ZE_COMMAND_QUEUE_MODE_SYNCHRONOUS, ZE_COMMAND_QUEUE_PRIORITY_NORMAL};
+        ZE_COMMAND_QUEUE_MODE_DEFAULT, ZE_COMMAND_QUEUE_PRIORITY_NORMAL};
     throwOnFail("zeCommandQueueCreate", zeCommandQueueCreate(_device_handle, &queue_desc, &_command_queue_handle));
 
     // Create our command list
@@ -286,7 +286,8 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
         if (ZeroAllocator::isZeroPtr(input->cbuffer().as<const uint8_t*>())) {
             arg.memory.copyFrom(input);
         } else {
-            _logger->info("[Performance] inputs passed in non-zero api allocated memory. Memory repacking are performed");
+            _logger->info(
+                "[Performance] inputs passed in non-zero api allocated memory. Memory repacking are performed");
             hm.emplace_back(_driver_handle);
             auto& currentHostMem = hm.back();
             currentHostMem.copyFrom(input);  // copy from regular to host memory
@@ -334,7 +335,8 @@ void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
         if (ZeroAllocator::isZeroPtr(output->cbuffer().as<const uint8_t*>())) {
             copyFromDeviceMem.memory.copyTo(output);
         } else {
-            _logger->info("[Performance] output passed in non-zero api allocated memory. Memory repacking are performed");
+            _logger->info(
+                "[Performance] output passed in non-zero api allocated memory. Memory repacking are performed");
             hostmemTransfer.emplace_back(_driver_handle);
             outputBlobTarget.emplace_back(output);
 
