@@ -17,6 +17,7 @@
 #pragma once
 // System
 #include <memory>
+#include <queue>
 #include <string>
 #include <vector>
 // IE
@@ -55,6 +56,9 @@ private:
         const NetworkDescription::Ptr& network, const VPUXConfig& config, const Device::Ptr& device);
 
 private:
+    void ConfigureStreamsExecutor(const std::string& networkName);
+    InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor();
+
     const VPUXConfig _config;
     const vpu::Logger::Ptr _logger;
     const Device::Ptr _device;
@@ -66,6 +70,7 @@ private:
     std::vector<std::string> _supportedMetrics;
 
     static std::atomic<int> loadBlobCounter;
+    std::queue<std::string> _taskExecutorGetResultIds;
 };
 
 }  //  namespace vpux
