@@ -388,6 +388,18 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
         1, 2.0f);
 }
 
+TEST_F(KmbClassifyNetworkTest, squeezenet1_1_caffe2_force_compilation) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32)
+            .setUserOutputLayout("output", Layout::NHWC)
+            .enableForcedCompilation(),
+        TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
+        1, 2.0f);
+}
+
 //////////////////////////////////////////
 // End of test-set for KMB-alpha IRv10
 //////////////////////////////////////////
