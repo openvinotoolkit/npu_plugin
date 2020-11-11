@@ -7,6 +7,32 @@ namespace {
 typedef mv::Tensor::MemoryLocation mem_location_t;
 typedef mv::Op const * operation_t;
 typedef mv::Op * operation_non_const_t;
+typedef std::list<operation_t> op_list_t;
+typedef std::unordered_map<operation_t, size_t> degree_map_t;
+
+size_t get_in_degree(mv::Data::OpListIterator op, mv::OpModel &om) {
+  size_t in_degree = 0UL;
+  for (auto pitr = op.leftmostParent(); pitr != om.opEnd(); ++pitr) {
+    ++in_degree;
+  }
+  return in_degree;
+}
+
+void compute_ops_in_degree(mv::OpModel &om, op_list_t& zero_in_degree_nodes, degree_map_t& in_degree_map) {
+  for (auto itr = om.opBegin(); itr != om.opEnd(); ++itr) {
+    size_t in_degree = get_in_degree(itr, om);
+    operation_t op = &(*itr);
+
+    if (!in_degree) {
+      zero_in_degree_nodes.push_back(op);
+      if (op->isImplicit()) {
+        throw mv::RuntimeError("LpScheduler", 
+            "Implicit Ops cannot have zero in degree " + op->getName());
+      }
+    }
+    in_degree_map[op] = in_degree;
+  }
+}
 
 }
 
@@ -15,71 +41,123 @@ class Attrs {
   public:
     typedef std::unordered_map<operation_t, T> table_t;
     
-    Attrs(std::string name) : attr_name_(name) { attr_table_.clear(); }
+    Attrs(std::string name, mv::OpModel& om, op_list_t& zero_in_degree, degree_map_t in_degree_map) :
+      attr_name_(name),
+      omodel_(om),
+      zero_in_degree_nodes_(zero_in_degree),
+      in_degree_map_(in_degree_map) {
+      attr_table_.clear();
+    }
+
     virtual ~Attrs() {};
 
-    void propagate_attr_to_child(operation_t child_op, T const& parent_attr) {
-      // maintain the inductive invariant //
-      if (child_op->isImplicit()) {
-        propagate_attr_to_child_impl(child_op, parent_attr);
-      }
-    }
-
-    T get_attr_of_real_op(operation_t op_in) const {
-      operation_non_const_t op = const_cast<operation_non_const_t>(op_in);
-      if (!op->outputSlots()) { return T(); }
-      mv::Data::TensorIterator tensor_itr = op->getOutputTensor(mv::IO_TENSOR_OUTPUT);
-      return tensor_itr->get<T>(attr_name_);
-    }
-
-    T get_attr(operation_t op) const {
-      // inductive argument: any implicit op should have a valid attr
-      if (op->isImplicit() &&
-          (attr_table_.find(op) == attr_table_.end()) ) {
-        throw mv::RuntimeError("LpScheduler", "Inductive invariant violation.");
-      }
-
-      return op->isImplicit() ?
-        (attr_table_.find(op))->second :
-        get_attr_of_real_op(op);
-    }
-
-    void set_recomputed_attr(mv::OpModel &omodel_) {
+    void set_recomputed_attr() {
       for (const auto& itr : attr_table_) {
         mv::Data::OpListIterator op_itr =
             omodel_.getOp((itr.first)->getName());
         mv::Data::TensorIterator tensor_itr = op_itr->getOutputTensor(mv::IO_TENSOR_OUTPUT);
-        tensor_itr->set<T>(attr_name_, itr.second);
+        set_attr(tensor_itr, itr.second);
       }
     }
 
-    void dump(FILE *fptr = stdout) const {
-      std::string message = "op=%s " + attr_name_ + "=%s\n";
+    void dump(std::string const& file_name) const {
+      FILE *fptr = fopen(file_name.c_str(), "w");
+      if(fptr == nullptr) {
+        throw mv::RuntimeError("RecomputeImplicitOpMemoryLocations",
+          "Can't open file " + file_name);
+      }
+
+      std::string const message = "op=%s " + attr_name_ + "=%s\n";
       for (const auto& itr : attr_table_) {
         fprintf(fptr, message.c_str(),
               (itr.first)->getName().c_str(),
               attr_val_to_string(itr.second).c_str());
       }
+
+      fclose(fptr);
     }
 
-    std::size_t table_size() const {
+    size_t recompute() {
+      op_list_t zid_nodes[2UL];
+      zid_nodes[0UL] = zero_in_degree_nodes_;
+
+      bool parity = false;
+      while (!zid_nodes[parity].empty()) {
+        op_list_t& curr_level = zid_nodes[parity];
+        op_list_t& next_level = zid_nodes[!parity];
+
+        for (const auto& zop : curr_level) {
+          mv::Data::OpListIterator zop_itr = omodel_.getOp(zop->getName());
+          for (auto citr = zop_itr.leftmostChild(); citr != omodel_.opEnd(); ++citr)
+          {
+            operation_t cop = &(*citr);
+            auto ditr = in_degree_map_.find(cop);
+
+            if ((ditr == in_degree_map_.end()) || (ditr->second == 0)) {
+              throw mv::RuntimeError("LpScheduler", "in_degree_map_ invariant violation");
+            }
+
+            // maintain the inductive invariant //
+            if (is_required_op_type(cop)) {
+              auto const parent_attr = get_attr(zop);
+              propagate_attr_to_child(cop, parent_attr);
+            }
+
+            --(ditr->second);
+            if (!(ditr->second)) {
+              next_level.push_back(ditr->first);
+            }
+          }
+        }
+        curr_level.clear();
+        parity = !parity;
+      }
+
       return attr_table_.size();
     }
 
   protected:
-    std::string attr_name_;
+    std::string attr_name_; 
+    mv::OpModel &omodel_;
+    op_list_t& zero_in_degree_nodes_;
+    degree_map_t in_degree_map_;
     table_t attr_table_;
 
+    T get_attr_of_real_op(operation_t op_in) const {
+      operation_non_const_t op = const_cast<operation_non_const_t>(op_in);
+      if (!op->outputSlots()) { return T(); }
+      mv::Data::TensorIterator tensor_itr = op->getOutputTensor(0UL);
+      return tensor_itr->get<T>(attr_name_);
+    }
+
+    T get_attr(operation_t op) const {
+      // inductive argument: any implicit op should have a valid attr
+      if (is_required_op_type(op) &&
+          (attr_table_.find(op) == attr_table_.end()) ) {
+        throw mv::RuntimeError("LpScheduler", "Inductive invariant violation.");
+      }
+
+      return is_required_op_type(op) ?
+        (attr_table_.find(op))->second :
+        get_attr_of_real_op(op);
+    }
+
+    virtual void set_attr(mv::Data::TensorIterator tensor_itr, T const& val) const {
+      tensor_itr->set<T>(attr_name_, val);
+    };
+
     virtual std::string attr_val_to_string(T const&) const = 0;
-    virtual void propagate_attr_to_child_impl(operation_t, T const&) = 0;
+    virtual bool is_required_op_type(operation_t const&) const = 0;
+    virtual void propagate_attr_to_child(operation_t, T const&) = 0;
 }; // class Attrs<T> //
 
 class Mem_Loc_Attr final: public Attrs<mem_location_t> {
   public:
-    Mem_Loc_Attr() : Attrs<mem_location_t>("Location") {}
+    Mem_Loc_Attr(mv::OpModel& om, op_list_t& zero_in_degree, degree_map_t in_degree_map) :
+      Attrs<mem_location_t>("Location", om, zero_in_degree, in_degree_map) {}
 
   private:
-    void propagate_attr_to_child_impl(operation_t child_op, mem_location_t const& parent_mem_loc) override {
+    void propagate_attr_to_child(operation_t child_op, mem_location_t const& parent_mem_loc) override {
       // if already has an entry make sure the memory location uniform.
       auto mitr = attr_table_.find(child_op);
       if (mitr == attr_table_.end()) {
@@ -94,88 +172,43 @@ class Mem_Loc_Attr final: public Attrs<mem_location_t> {
     std::string attr_val_to_string(mem_location_t const& val) const override {
       return val.toString();
     }
+
+    bool is_required_op_type(operation_t const& op) const override {
+      return op->isImplicit();
+    }
+
 }; // class Mem_Loc_Attr //
 
-class Recompute_Attrs {
+class Addr_Attr final: public Attrs<std::size_t> {
   public:
-    ////////////////////////////////////////////////////////////////////////////
-
-    typedef std::list<operation_t> op_list_t;
-
-    ////////////////////////////////////////////////////////////////////////////
-
-    Recompute_Attrs(mv::OpModel& om) : omodel_(om) {
-      compute_ops_in_degree();
-    }
-
-    template<typename T>
-    size_t recompute(Attrs<T> &attr) {
-      op_list_t zid_nodes[2UL];
-      zid_nodes[0UL] = zero_in_degree_nodes_;
-
-      bool parity = false;
-      while (!zid_nodes[parity].empty()) {
-        op_list_t& curr_level = zid_nodes[parity];
-        op_list_t& next_level = zid_nodes[!parity];
-
-        for (const auto& zop : curr_level) {
-          auto zop_attr = attr.get_attr(zop);
-
-          mv::Data::OpListIterator zop_itr = omodel_.getOp(zop->getName());
-          for (auto citr = zop_itr.leftmostChild(); citr != omodel_.opEnd(); ++citr)
-          {
-            operation_t cop = &(*citr);
-            auto ditr = in_degree_map_.find(cop);
-
-            if ((ditr == in_degree_map_.end()) || (ditr->second == 0)) {
-              throw mv::RuntimeError("LpScheduler", "in_degree_map invariant violation\n");
-            }
-
-            attr.propagate_attr_to_child(cop, zop_attr);
-            --(ditr->second);
-            if (!(ditr->second)) {
-              next_level.push_back(ditr->first);
-            }
-          }
-        }
-        curr_level.clear();
-        parity = !parity;
-      }
-
-      return attr.table_size();
-    }
+    Addr_Attr(mv::OpModel& om, op_list_t& zero_in_degree, degree_map_t in_degree_map) :
+      Attrs<std::size_t>("address", om, zero_in_degree, in_degree_map) {}
 
   private:
-    mv::OpModel &omodel_;
-    std::unordered_map<operation_t, size_t> in_degree_map_;
-    op_list_t zero_in_degree_nodes_;
-
-    size_t get_in_degree(mv::Data::OpListIterator op) const {
-      size_t in_degree = 0UL;
-      for (auto pitr = op.leftmostParent(); pitr != omodel_.opEnd(); ++pitr) {
-        ++in_degree;
-      }
-      return in_degree;
-    }
-
-    void compute_ops_in_degree() {
-      mv::OpModel &om=omodel_;
-      for (auto itr = om.opBegin(); itr != om.opEnd(); ++itr) {
-        size_t in_degree = get_in_degree(itr);
-        operation_t op = &(*itr);
-
-        if (!in_degree) {
-          zero_in_degree_nodes_.push_back(op);
-          if (op->isImplicit()) {
-            throw mv::RuntimeError("LpScheduler", "Implicit Ops cannot have zero in degree " +
-                  op->getName());
-          }
-        }
-        in_degree_map_[op] = in_degree;
+    void propagate_attr_to_child(operation_t child_op, std::size_t const& parent_addr) override {
+      // if already has an entry (for implicit ops with multiple inputs, ex. Concat)
+      // make sure the address of the child is the lowest one 
+      auto aitr = attr_table_.find(child_op);
+      if (aitr == attr_table_.end()) {
+        aitr = attr_table_.insert(
+            std::make_pair(child_op, parent_addr)).first;
+      } else if (aitr->second > parent_addr) {
+        aitr->second = parent_addr;
       }
     }
-}; // class Recompute_Attrs //
 
+    std::string attr_val_to_string(std::size_t const& val) const override {
+      return std::to_string(val);
+    }
+
+    virtual bool is_required_op_type(operation_t const& op) const override {
+      return op->getOpType() == "Align";
+    }
+
+    virtual void set_attr(mv::Data::TensorIterator tensor_itr, std::size_t const& val) const override {
+      tensor_itr->setAddress(val);
+    };
+}; // class Addr_Attr //
 
 static void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
     mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -193,19 +226,22 @@ void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
     mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc,
       mv::Element&) {
   mv::OpModel om(model);
-  Recompute_Attrs computer(om);
+  op_list_t zero_in_degree_nodes;
+  degree_map_t initial_in_degree_map;
 
-  Mem_Loc_Attr memLocationAttribute;
-  computer.recompute<mem_location_t>(memLocationAttribute);
-  memLocationAttribute.set_recomputed_attr(om);
+  compute_ops_in_degree(om, zero_in_degree_nodes, initial_in_degree_map);
 
-  if (passDesc.hasAttr("output")) {
-    std::string output_file = passDesc.get<std::string>("output");
-    FILE *fptr = fopen(output_file.c_str(), "w");
-    if(fptr == nullptr) {
-      throw mv::RuntimeError("LpScheduler", "Can't open file " + output_file);
-    }
-    memLocationAttribute.dump(fptr);
-    fclose(fptr);
+  Mem_Loc_Attr memLocationAttribute(om, zero_in_degree_nodes, initial_in_degree_map);
+  memLocationAttribute.recompute();
+  memLocationAttribute.set_recomputed_attr();
+
+  Addr_Attr addressAttribute(om, zero_in_degree_nodes, initial_in_degree_map);
+  addressAttribute.recompute();
+  addressAttribute.set_recomputed_attr();
+
+  if (passDesc.hasAttr("output_dir")) {
+    std::string output_dir = passDesc.get<std::string>("output_dir");
+    memLocationAttribute.dump(output_dir + "/recompute_mem_loc.txt");
+    addressAttribute.dump(output_dir + "/recompute_address.txt");
   }
 }
