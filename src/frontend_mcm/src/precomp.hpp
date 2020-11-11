@@ -43,8 +43,6 @@
 #include <ie_precision.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <ie_utils.hpp>
-#include <low_precision_transformations/network_helper.hpp>
-#include <low_precision_transformations/transformer.hpp>
 #include <legacy/net_pass.h>
 #include <openvino/itt.hpp>
 #include <parse_layers_helpers.hpp>
