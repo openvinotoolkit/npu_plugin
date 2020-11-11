@@ -78,8 +78,7 @@ private:
         }
         void copyFrom(const InferenceEngine::Blob::Ptr& blob) {
             const InferenceEngine::MemoryBlob::CPtr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!mblob)
-                THROW_IE_EXCEPTION << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
+            if (!mblob) THROW_IE_EXCEPTION << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
 
             resize(mblob->byteSize());
             if (0 != ie_memcpy(mem, sz, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
@@ -87,8 +86,7 @@ private:
         }
         void copyTo(InferenceEngine::Blob::Ptr& blob) const {
             InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!mblob)
-                THROW_IE_EXCEPTION << "deviceMem::copyTo failing of casting blob to MemoryBlob";
+            if (!mblob) THROW_IE_EXCEPTION << "deviceMem::copyTo failing of casting blob to MemoryBlob";
 
             if (mblob->byteSize() != sz) THROW_IE_EXCEPTION << "deviceMem::copyTo sizes mismatch";
             if (0 != ie_memcpy(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), mem, sz))
@@ -133,8 +131,7 @@ private:
         // for KMB we must copy through hostMem! real copy will appear when sync on fence!
         void copyFrom(const InferenceEngine::Blob::Ptr& blob) {
             const InferenceEngine::MemoryBlob::CPtr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!mblob)
-                THROW_IE_EXCEPTION << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
+            if (!mblob) THROW_IE_EXCEPTION << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
 
             resize(mblob->byteSize());
             copyFromImpl(mblob->rmap().as<const uint8_t*>());
@@ -145,8 +142,7 @@ private:
         }
         void copyTo(InferenceEngine::Blob::Ptr& blob) {
             InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!mblob)
-                THROW_IE_EXCEPTION << "deviceMem::copyTo failing of casting blob to MemoryBlob";
+            if (!mblob) THROW_IE_EXCEPTION << "deviceMem::copyTo failing of casting blob to MemoryBlob";
             if (mblob->byteSize() != sz) THROW_IE_EXCEPTION << "deviceMem::copyTo sizes mismatch";
             copyToImpl(mblob->wmap().as<uint8_t*>());
         }
