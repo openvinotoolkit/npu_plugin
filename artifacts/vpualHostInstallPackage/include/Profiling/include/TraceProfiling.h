@@ -72,8 +72,9 @@ enum class sm_event {
 };
 
 struct statistics {
-    int32_t utilisation;
+    float utilisation;
     int32_t timestamp;
+    int32_t num_active_resources;
     sm_event last_action;
 };
 
