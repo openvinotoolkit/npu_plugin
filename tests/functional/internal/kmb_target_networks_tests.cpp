@@ -621,11 +621,9 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_vgg16_caffe_dense_int8_IRv10_fp16_to_int
 TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_kmb_retinaface"}}),
+                    .setUserInputPrecision("input", Precision::U8),
             "data",
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB));
+            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", ImageFormat::RGB));
 }
 
 //////////////////////////////////////////
