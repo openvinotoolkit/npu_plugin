@@ -34,6 +34,16 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
         3, 0.05);
 }
 
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_dense_IRv10_fp16) {
+    runTest(
+            TestNetworkDesc("KMB_models/FP16/MobileNet_v2_pytorch/mobilenet-v2_pytorch_dense_fp16_ww34.xml")
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPrecision("output", Precision::FP16),
+            TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
+            3, 2.5f);
+}
+
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet-50-pytorch-from-icv-bench-cache.xml")
@@ -53,9 +63,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
         1, 2.5f);
 }
 
-// [Track number: S#40780]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v2) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
         TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v2_caffe2_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -772,12 +780,8 @@ TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
         0.3f);  // mean intersection over union tolerance
 }
 
-// [Track number: S#25636]
-// Segmentation fault in MCM replacement_passes.cpp:303
-// [Track number: S#39621]
-// [Track number: D#40921]
 class UnetNetworkTestWithSpecificLayout : public UnetNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
-TEST_P(UnetNetworkTestWithSpecificLayout, DISABLED_unet_camvid_ava_0001) {
+TEST_P(UnetNetworkTestWithSpecificLayout, unet_camvid_ava_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
             .setUserInputPrecision("input", Precision::U8)

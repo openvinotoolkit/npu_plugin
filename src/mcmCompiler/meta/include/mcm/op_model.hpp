@@ -36,7 +36,7 @@ namespace mv
         mv::Data::TensorIterator constantDataElement(const std::string& name, const std::vector<mv::DataElement>& data, const Shape& shape, const DType& dType, const Order& order);
         mv::Data::TensorIterator constantInt(const std::string& name, const std::vector<int64_t>& data, const Shape& shape, const DType& dType, const Order& order) override;
         mv::Data::TensorIterator conv(const std::string& name, Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor = 1, const unsigned& group = 1) override;
-        mv::Data::TensorIterator conversion(const std::string& name, Data::TensorIterator data, const Order& order);
+        mv::Data::TensorIterator conversion(const std::string& name, Data::TensorIterator data, const DType& dType);
         mv::Data::TensorIterator copy(const std::string& name, Data::TensorIterator data) override;
         mv::Data::TensorIterator crop(const std::string& name, Data::TensorIterator data, const std::size_t& cropVal, const std::size_t& dimension = 2) override;
         mv::Data::TensorIterator custom(const std::string& name, const std::vector< Data::TensorIterator >& inputs, const std::vector<uint8_t>& kernelData, const std::vector<uint8_t>& paramData, const std::vector<mv::TensorInfo>& outputsInfo) override;
@@ -133,6 +133,7 @@ mv::Data::TensorIterator uPATaskCTCDecoder(const std::string& name, const std::v
 mv::Data::TensorIterator uPATaskRefConv(const std::string& name, const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor = 1, const unsigned& group = 1);
 mv::Data::TensorIterator uPATaskGather(const std::string& name, const std::vector< Data::TensorIterator >& inputs, const unsigned& axis);
 mv::Data::TensorIterator uPATaskHSwish(const std::string& name, const std::vector< Data::TensorIterator >& inputs);
+mv::Data::TensorIterator uPATaskConversion(const std::string& name, const std::vector< Data::TensorIterator >& inputs, const DType& dType);
         mv::Data::TensorIterator weightsTable(const std::string& name, const std::vector<int64_t>& data, const Shape& shape, const DType& dType, const Order& order);
 
         Data::OpListIterator getSourceOp(Data::TensorIterator tensor) override;

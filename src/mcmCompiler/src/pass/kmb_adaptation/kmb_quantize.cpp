@@ -287,39 +287,79 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
 static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    //Note: The idea is that this pass is used mainly for validation when different precision is needed, so no problem
-    //to do always the type conversion with quantize
     mv::OpModel om(model);
-    //Note: Always a vector of one element
-    auto outputOp = om.getOps("Output");
-    if (outputOp[0]->hasAttr("precision") && outputOp[0]->get<mv::DType>("precision") != mv::DType("Default"))
-    {
-        auto inputTypeofOutput = outputOp[0]->getInputTensor(0)->getDType();
-        auto wantedPrecision = outputOp[0]->get<mv::DType>("precision");
-        if (inputTypeofOutput != wantedPrecision)
+
+    auto multipleOutputs = [&om](const mv::Data::OpListIterator& outputOp) {
+        return om.getSourceOp(outputOp->getInputTensor(0))->getOpType() == "ImplicitUnion";
+    };
+
+    auto requiresQuantize = [](const mv::DType& type1, const mv::DType& type2) {
+        return (type1 == mv::DType("Float16") && type2 == mv::DType("UInt8")) ||
+               (type1 == mv::DType("UInt8") && type2 == mv::DType("Float16"));
+    };
+
+    auto supportedConversion = [](const mv::DType& type1, const mv::DType& type2) {
+        return (type1 == mv::DType("Float16") && type2 == mv::DType("Float32")) ||
+               (type1 == mv::DType("Float32") && type2 == mv::DType("Float16")) ||
+               (type1 == mv::DType("Float16") && type2 == mv::DType("Int32")) ||
+               (type1 == mv::DType("Int32") && type2 == mv::DType("Float16")) ||
+               (type1 == mv::DType("UInt8") && type2 == mv::DType("Float32")) ||
+               (type1 == mv::DType("Float32") && type2 == mv::DType("UInt8")) ||
+               (type1 == mv::DType("Int32") && type2 == mv::DType("UInt8"));
+    };
+
+    auto processOutput = [&](mv::Data::OpListIterator& outputOp) {
+        auto inputTensor = outputOp->getInputTensor(0);
+
+        auto inputPrecision  = inputTensor->getDType();
+        auto targetPrecision = outputOp->get<mv::DType>("precision");
+        if (targetPrecision == mv::DType("Default") || targetPrecision == inputPrecision)
+            return;
+
+        mv::Data::TensorIterator tensor;
+        if (requiresQuantize(inputPrecision, targetPrecision))
+            tensor = om.uPATaskQuantize(outputOp->getName() + "_quantize", {inputTensor});
+        else if (supportedConversion(inputPrecision, targetPrecision))
+            tensor = om.uPATaskConversion(outputOp->getName() + "_conversion", {inputTensor}, targetPrecision);
+        else
+            throw std::runtime_error("Unsupported output conversion: " +
+                  inputPrecision.toString() + " to " + targetPrecision.toString());
+
+        tensor->setQuantParams(inputTensor->getQuantParams());
+        tensor->setDType(targetPrecision);
+        if (outputOp->outputSlots() > 0)
+            outputOp->getOutputTensor(0)->setDType(targetPrecision);
+
+        if (inputTensor->hasAttr("splitStrategy"))
+            tensor->set<std::string>("splitStrategy", inputTensor->get<std::string>("splitStrategy"));
+        tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+        inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+        while (om.getSourceOp(inputTensor)->isImplicit())
         {
-            if (om.getSourceOp(outputOp[0]->getInputTensor(0))->isImplicit())
+            inputTensor = om.getSourceOp(inputTensor)->getInputTensor(0);
+            inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+        }
+
+        om.getSourceOp(tensor)->set<unsigned>("opId", outputOp->get<unsigned>("opId") - 1);
+        om.undefineFlow(outputOp.leftmostInput());
+        outputOp->setInputTensor(tensor, 0, false);
+        om.defineFlow(tensor, outputOp, 0);
+    };
+
+    for (auto outputOp : om.getOps("Output"))
+    {
+        if (multipleOutputs(outputOp))
+        {
+            auto implicitUnionOp = om.getSourceOp(outputOp->getInputTensor(0));
+            for (auto& implicitOutput : implicitUnionOp->getInputTensor())
             {
-                for (std::size_t i = 0; i < om.getSourceOp(outputOp[0]->getInputTensor(0))->getInputTensor().size(); i++)
-                    om.getSourceOp(outputOp[0]->getInputTensor(0))->getInputTensor(i)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+                auto implicitOutputOp = om.getSourceOp(implicitOutput);
+                processOutput(implicitOutputOp);
             }
-            auto quantParams = outputOp[0]->getInputTensor(0)->getQuantParams();
-            auto quantize = om.uPATaskQuantize("Precision" + outputOp[0]->getName(), {outputOp[0]->getInputTensor(0)});
-            quantize->setDType(wantedPrecision);
-            quantize->setQuantParams(quantParams);
-            if (outputOp[0]->getInputTensor(0)->hasAttr("splitStrategy"))
-                quantize->set<std::string>("splitStrategy", outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
-            quantize->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::OUTPUT);
-            outputOp[0]->getInputTensor(0)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
-            outputOp[0]->getInputTensor(0)->set<mv::QuantizationParams>("quantParams",
-                                outputOp[0]->getInputTensor(0)->get<mv::QuantizationParams>("quantParams"));
-            auto quantizeOp = om.getSourceOp(quantize);
-            quantizeOp->set<unsigned>("opId", outputOp[0]->get<unsigned>("opId") - 1);
-            om.undefineFlow(outputOp[0].leftmostInput());
-            outputOp[0]->setInputTensor(quantize, 0, false);
-            om.defineFlow(quantize, outputOp[0], 0);
+        }
+        else
+        {
+            processOutput(outputOp);
         }
     }
-    else
-        return;
 }

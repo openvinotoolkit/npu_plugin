@@ -24,6 +24,7 @@
 
 #include <ngraph/op/fake_quantize.hpp>
 #include <legacy/ngraph_ops/scaleshift.hpp>
+#include <legacy/ngraph_ops/power.hpp>
 #include <vector>
 #include <memory>
 #include <limits>
@@ -38,17 +39,40 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
     if (input_fq_node == nullptr)
         return false;
 
-    const auto scaleshift_node = std::dynamic_pointer_cast<ngraph::op::ScaleShiftIE>(input_fq_node->input_value(0).get_node_shared_ptr());
-    if (scaleshift_node == nullptr)
+
+    const auto scaleshift_node = input_fq_node->input_value(0).get_node_shared_ptr();
+    if (!scaleshift_node)
         return false;
 
-    const auto scaleshift_scales = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_node->input_value(1).get_node_shared_ptr());
-    const auto scaleshift_shifts = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_node->input_value(2).get_node_shared_ptr());
-    if (!scaleshift_scales || !scaleshift_shifts)
-        return false;
+    std::vector<double> scaleshift_scale_data;
+    std::vector<double> scaleshift_bias_data;
 
-    const auto scaleshift_scale_data = scaleshift_scales->cast_vector<double>();
-    const auto scaleshift_bias_data = scaleshift_shifts->cast_vector<double>();
+    // in case Multiply + Add was converted to ScaleShift node
+    if (scaleshift_node->get_type_info() == ngraph::op::ScaleShiftIE::type_info) {
+        const auto scaleshift_scales = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_node->input_value(1).get_node_shared_ptr());
+        const auto scaleshift_shifts = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_node->input_value(2).get_node_shared_ptr());
+        if (!scaleshift_scales || !scaleshift_shifts)
+            return false;
+
+        scaleshift_scale_data = scaleshift_scales->cast_vector<double>();
+        scaleshift_bias_data = scaleshift_shifts->cast_vector<double>();
+    }
+    else if (scaleshift_node->get_type_info() == ngraph::op::PowerIE::type_info) {
+        // in some cases Multiply + Add layers might be converted in PowerIE node in graph
+        auto power_node = std::dynamic_pointer_cast<ngraph::op::PowerIE>(scaleshift_node);
+        // if we find PowerIE with power = 1, use it as if it was scale shift node
+        if (!power_node || power_node->power != 1)
+            return false;
+
+        auto input_dims = power_node->get_input_shape(0);
+
+        if (input_dims.size() < 2)
+            return false;
+        scaleshift_scale_data.assign(input_dims[1], power_node->scale);
+        scaleshift_bias_data.assign(input_dims[1], power_node->shift);
+    }
+    else
+        return false;
 
     auto input_fq_node1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(input_fq_node->input_value(1).get_node_shared_ptr());
     auto input_fq_node2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(input_fq_node->input_value(2).get_node_shared_ptr());

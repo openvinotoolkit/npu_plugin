@@ -1000,8 +1000,10 @@ namespace mv {
         WorkloadList workload_list;
 
         // FIXME: probably map W, H to Y, X (POC maps to X, Y)
-        unsigned x_coef = std::ceil(static_cast<double>(padding.padded.W) / padding.reduced.W);
-        unsigned y_coef = std::ceil(static_cast<double>(padding.padded.H) / padding.reduced.H);
+	unsigned x_coef = 0;
+	unsigned y_coef = 0;
+	x_coef = (padding.reduced.W != 0) ? std::ceil(static_cast<double>(padding.padded.W) / padding.reduced.W) : 0;
+	y_coef = (padding.reduced.H != 0) ? std::ceil(static_cast<double>(padding.padded.H) / padding.reduced.H) : 0;
 
         for (auto slice : slice_list)
         {

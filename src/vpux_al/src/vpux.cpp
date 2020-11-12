@@ -77,7 +77,11 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
         return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("vpual_backend")));
     }
     case EngineBackendType::HDDL2: {
-        return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("hddl2_backend")));
+        try {
+            return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("hddl2_backend")));
+        } catch (...) {
+            return nullptr;
+        }
     }
     case EngineBackendType::ZeroApi: {
         return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("zero_backend")));

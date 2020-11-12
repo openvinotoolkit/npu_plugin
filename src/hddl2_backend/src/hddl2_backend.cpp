@@ -35,7 +35,9 @@ HDDL2Backend::HDDL2Backend(const VPUXConfig& config)
       _devices(createDeviceMap()) {}
 
 /** Generic device */
-const std::shared_ptr<IDevice> HDDL2Backend::getDevice() const { return std::make_shared<HDDLUniteDevice>(); }
+const std::shared_ptr<IDevice> HDDL2Backend::getDevice() const {
+    return getDeviceNames().empty() ? nullptr : std::make_shared<HDDLUniteDevice>();
+}
 
 /** Specific device */
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const std::string& specificDeviceName) const {
@@ -53,8 +55,10 @@ const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const InferenceEngine::Pa
 }
 
 const std::vector<std::string> HDDL2Backend::getDeviceNames() const {
-    if (!isServiceAvailable()) {
-        // return empty device list if service is not available
+    // TODO: [Track number: S#42053]
+    if (!isServiceAvailable() || !isServiceRunning()) {
+        // return empty device list if service is not available or service is not running
+        _logger->warning("HDDL2 service is not available or service is not running!");
         return std::vector<std::string>();
     }
 

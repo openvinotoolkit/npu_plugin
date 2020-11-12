@@ -1,3 +1,3 @@
 
-VPUIP2: 47ec4637c8d62a127835ad79c60e447ada99dfa4 tag: vpu_nightly_20201022
+VPUIP2: c50db8f8fac34121a7a2b1388e208fe02e1f44e8 tag: vpu_nightly_20201030
 

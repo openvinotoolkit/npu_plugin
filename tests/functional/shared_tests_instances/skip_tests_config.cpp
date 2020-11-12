@@ -23,5 +23,11 @@ std::vector<std::string> disabledTestPatterns() {
         ".*BehaviorTests.*",
         ".*BehaviorTestInput.*",
         ".*BehaviorTestOutput.*",
+
+        // [Track number: S#42747]
+        ".*KmbFakeQuantizeLayerTest\\.FakeQuantizeCheck.*",
+
+        // [Track number: S#42749]
+        ".*KmbSqueezeUnsqueezeLayerTest\\.BasicTest.*",
     };
 }
