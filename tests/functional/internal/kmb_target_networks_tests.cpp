@@ -54,7 +54,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
         1, 2.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
+TEST_F(KmbClassifyNetworkTest, precommit_INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v1_caffe2_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -63,7 +63,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
         1, 2.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v2) {
+TEST_F(KmbClassifyNetworkTest, precommit_INT8_Dense_Caffe2_IRv10_ResNet_50_v2) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v2_caffe2_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -233,6 +233,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
         0.6, 0.4, 0.4, false);
 }
 
+#ifdef KMB_HAS_CUSTOM_KERNELS
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
         getIELibraryPath() + "/kmb_custom_kernels/yolov2.xml");
@@ -245,6 +246,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
         TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
+#endif  // KMB_HAS_CUSTOM_KERNELS
 
 // KMB : Bad inference results. Possible bug in test system.
 // [Track number: S#28790]
@@ -268,6 +270,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
         0.6, 0.4, 0.4, false);
 }
 
+#ifdef KMB_HAS_CUSTOM_KERNELS
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
         getIELibraryPath() + "/kmb_custom_kernels/yolov2.xml");
@@ -280,6 +283,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
         TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
+#endif  // KMB_HAS_CUSTOM_KERNELS
 
 TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
     runTest(
@@ -380,6 +384,18 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
             .setUserOutputLayout("output", Layout::NHWC),
+        TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
+        1, 2.0f);
+}
+
+TEST_F(KmbClassifyNetworkTest, squeezenet1_1_caffe2_force_compilation) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32)
+            .setUserOutputLayout("output", Layout::NHWC)
+            .enableForcedCompilation(),
         TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
         1, 2.0f);
 }
@@ -605,11 +621,9 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_vgg16_caffe_dense_int8_IRv10_fp16_to_int
 TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_kmb_retinaface"}}),
+                    .setUserInputPrecision("input", Precision::U8),
             "data",
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB));
+            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", ImageFormat::RGB));
 }
 
 //////////////////////////////////////////
@@ -780,8 +794,10 @@ TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
         0.3f);  // mean intersection over union tolerance
 }
 
+// 10Gb Memory allocation failed
+// [Track number: S#42880]
 class UnetNetworkTestWithSpecificLayout : public UnetNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
-TEST_P(UnetNetworkTestWithSpecificLayout, unet_camvid_ava_0001) {
+TEST_P(UnetNetworkTestWithSpecificLayout, DISABLED_unet_camvid_ava_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -873,11 +889,7 @@ TEST_F(KmbSegmentationNetworkTest, DISABLED_road_segmentation_adas_0001) {
         0.3f);
 }
 
-// MemoryAllocator:VPU_CMX_NN - ArgumentError: conv4_3_0_norm_mbox_locNeutral_copy0conv5_5/sep/bn/variance/Fused_Add_:0_crop:0:0::paddedShape[2]
-// 184 - Does not match the dimension 192 of the tensor
-// conv4_3_0_norm_mbox_locNeutral:0 already allocated in the given buffer
-// [Track number: S#41919]
-TEST_F(KmbDetectionNetworkTest, DISABLED_face_detection_adas_0001) {
+TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/face-detection-adas-0001/face-detection-adas-0001.xml")
 	    .setUserInputPrecision("input", Precision::U8)

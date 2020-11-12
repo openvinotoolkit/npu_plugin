@@ -89,6 +89,7 @@
 
 #include <ngraph/op/split.hpp>
 
+<<<<<<< HEAD
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
 #include <legacy/ngraph_ops/prior_box_ie.hpp>
@@ -96,6 +97,16 @@
 #include <legacy/ngraph_ops/normalize_ie.hpp>
 #include <legacy/ngraph_ops/topk_ie.hpp>
 #include <legacy/ngraph_ops/proposal_ie.hpp>
+=======
+#include <ngraph_ops/interp.hpp>
+#include <ngraph_ops/prior_box_clustered_ie.hpp>
+#include <ngraph_ops/prior_box_ie.hpp>
+#include "ngraph_ops/lrn_ie.hpp"
+#include <ngraph_ops/normalize_ie.hpp>
+#include <ngraph_ops/topk_ie.hpp>
+#include <ngraph_ops/proposal_ie.hpp>
+#include <ngraph_ops/tile_ie.hpp>
+>>>>>>> releases/2020/kmb/er47
 
 #include <ngraph/variant.hpp>
 
@@ -1397,7 +1408,7 @@ void convert(std::shared_ptr<ngraph::op::v1::Minimum> minimum, mv::OpModel& mcmM
 void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto& opName = split->get_friendly_name();
     const auto mcmInputs = getMcmInputs(split, mcmOutputsMap);
-    assert(mcmInputs.size() == 1);
+    IE_ASSERT(mcmInputs.size() == 2);
 
     // Find axis.
     const auto axis_node = split->input_value(1).get_node_shared_ptr();

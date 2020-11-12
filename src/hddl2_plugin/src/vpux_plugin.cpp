@@ -59,7 +59,7 @@ Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)), _met
     // TODO Different backends can require different compilers in future
     _compiler = Compiler::create(CompilerType::MCMCompiler);
     _parsedConfig.expandSupportedCompileOptions(_compiler->getSupportedOptions());
-    _parsedConfig.expandSupportedRunTimeOptions(_backends->getSupportedOptions());
+    _parsedConfig.expandSupportedRunTimeOptions(_backends == nullptr ? std::unordered_set<std::string>() : _backends->getSupportedOptions());
 }
 
 //------------------------------------------------------------------------------
@@ -125,7 +125,7 @@ IE::ExecutableNetwork Engine::ImportNetworkImpl(
 //------------------------------------------------------------------------------
 void Engine::SetConfig(const std::map<std::string, std::string>& config) {
     _parsedConfig.update(config);
-    _backends->setup(_parsedConfig);
+    if (_backends != nullptr) _backends->setup(_parsedConfig);
     for (const auto& entry : config) {
         _config[entry.first] = entry.second;
     }

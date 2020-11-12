@@ -82,6 +82,7 @@ static float calculateMeanIntersectionOverUnion(
         totalIoU += classIoU;
     }
 
+    IE_ASSERT(nonZeroUnions != 0);
     float meanIoU = totalIoU / nonZeroUnions;
     return meanIoU;
 }
@@ -148,7 +149,9 @@ std::vector<std::pair<int, float>> getTopK(std::vector<float> probs, size_t topK
 
 std::vector<long> perPixelLabel(Blob::Ptr blob) {
     auto blobLock = as<MemoryBlob>(blob)->rmap();
+    IE_ASSERT(blobLock != nullptr);
     auto data = blobLock.as<const float*>();
+    IE_ASSERT(data != nullptr);
 
     auto dims = blob->getTensorDesc().getDims();
     IE_ASSERT(dims.size() == 4 && dims[0] == 1);

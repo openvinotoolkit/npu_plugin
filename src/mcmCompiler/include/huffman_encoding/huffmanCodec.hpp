@@ -48,6 +48,10 @@ public:
         bool pBypass = false,
         set<char> pExclusions = {});
     ~huffmanCodec();
+
+    huffmanCodec(const huffmanCodec&) = delete;
+    huffmanCodec& operator=(const huffmanCodec&) = delete;
+
     void huffmanCodecConfigDefaults();
 
     uint32_t huffmanCodecCompressArray(unsigned char *inputData,

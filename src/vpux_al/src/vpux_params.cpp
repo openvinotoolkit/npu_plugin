@@ -61,6 +61,15 @@ void ParsedRemoteBlobParams::parse() {
         } catch (...) {
             THROW_IE_EXCEPTION << "ROI param is incorrect!";
         }
+        // If we working with ROI, also need information about original tensor
+        if (_paramMap.find(IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC)) != _paramMap.end()) {
+            try {
+                _originalTensorDesc =
+                    _paramMap.at(IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC)).as<std::shared_ptr<IE::TensorDesc>>();
+            } catch (...) {
+                THROW_IE_EXCEPTION << "Original tensor desc have incorrect type information";
+            }
+        }
     } else {
         _roiPtr = nullptr;
     }

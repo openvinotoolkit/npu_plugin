@@ -62,6 +62,7 @@ public:
 private:
     vpux::NetworkDescription::Ptr _networkDescription;
     VpusmmAllocator::Ptr _allocator;
+    VpusmmAllocator::Ptr _csramAllocator;
     const VpualConfig& _config;
     vpu::Logger::Ptr _logger;
 
@@ -86,6 +87,7 @@ private:
         const InferenceEngine ::BlobMap& deviceOutputs, InferenceEngine::BlobMap& networkOutputs);
 
     std::vector<void*> _scratchBuffers;
+    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preFetchBuffer;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _inputBuffer;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _outputBuffer;
 

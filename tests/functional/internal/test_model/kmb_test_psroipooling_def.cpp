@@ -32,6 +32,7 @@ BlobVector refPSROIPooling(const TestNetwork::NodePtr& layer, const BlobVector& 
     output->allocate();
 
     const auto psroi = std::dynamic_pointer_cast<ngraph::op::PSROIPooling>(layer);
+    IE_ASSERT(psroi != nullptr);
 
     const auto& in_desc = inputs[0]->getTensorDesc();
     const int channels  = in_desc.getDims()[1];

@@ -60,6 +60,7 @@ TEST_P(KmbReorgYoloLayerTests, accuracy) {
     registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {
         auto blob = genBlobUniform(desc, rd, inputRange.first, inputRange.second);
         auto data = blob->buffer().as<uint8_t *>();
+        IE_ASSERT(data != nullptr);
         data[0] = 0;
         data[1] = 1;
         data[2] = 2;
@@ -89,8 +90,10 @@ const std::vector<ReorgYoloTestParams> reorgYoloParams = {
             .stride(2)
 };
 
+#ifdef KMB_HAS_CUSTOM_KERNELS
 INSTANTIATE_TEST_CASE_P(precommit, KmbReorgYoloLayerTests,
     testing::Combine(
         testing::ValuesIn(reorgYoloParams),
         testing::Values<Layout>(NCHW, NHWC),
         testing::Values<UseCustomLayers>(true)));
+#endif

@@ -22,6 +22,7 @@ addIeTargetTest(
         IE::ngraph_reference
         IE::format_reader
         kmb_utils
+        kmb_custom_kernels
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\"

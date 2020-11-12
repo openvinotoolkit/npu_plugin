@@ -78,12 +78,17 @@ private:
 
     const vpu::Logger::Ptr _logger;
 
+    /** @brief After creation ROI blob information about original tensor will be lost.
+     * Since it's not possible to restore information about full tensor, keep it in separate variable */
+    const InferenceEngine::TensorDesc _originalTensorDesc;
+
 private:
     /** @details Remote ROI blob can be created only based on full frame Remote blob.
      *  IE API assume, that Remote ROI blob can be created only by using blob->createROI call on RemoteBlob
      *  This will not allow to create ROI blob using paramMap, which is not API approach. */
     explicit VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
 
+    InferenceEngine::TensorDesc getOriginalTensorDesc() const { return _originalTensorDesc; }
     void* getHandle() const noexcept override { return _memoryHandle; }
     const std::shared_ptr<InferenceEngine::IAllocator>& getAllocator() const noexcept override;
 };

@@ -72,6 +72,7 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
     const auto type = (env_p && env_p[0] == '1') ? EngineBackendType::ZeroApi : EngineBackendType::HDDL2;
 #endif
 
+<<<<<<< HEAD
     switch (type) {
     case EngineBackendType::VPUAL: {
         return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("vpual_backend")));
@@ -88,9 +89,26 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
     }
     default:
         return std::shared_ptr<EngineBackend>(new EngineBackend());
+=======
+    try {
+        switch (type) {
+        case EngineBackendType::VPUAL: {
+            return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("vpual_backend")));
+        }
+        case EngineBackendType::HDDL2: {
+            return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("hddl2_backend")));
+        }
+        case EngineBackendType::ZeroApi: {
+            return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("zero_backend")));
+        }
+        default:
+            return std::shared_ptr<EngineBackend>(new EngineBackend());
+        }
+    } catch (...) {
+        std::cout << "Could not find a suitable backend. Will be used null backend" << std::endl;
+        return nullptr;
+>>>>>>> releases/2020/kmb/er47
     }
-
-    return nullptr;
 }
 const std::shared_ptr<IDevice> IEngineBackend::getDevice() const {
     THROW_IE_EXCEPTION << "Default getDevice() not implemented";
