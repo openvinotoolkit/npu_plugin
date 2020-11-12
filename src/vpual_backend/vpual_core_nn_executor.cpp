@@ -339,7 +339,6 @@ static ie::Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(const ie::Blob
     // and then call srcTensorDesc.setLayout(srcLayout) but copyBlob does work in that case
     ie::TensorDesc srcTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), srcLayout};
     ie::Blob::Ptr srcBlob = make_blob_with_precision(srcTensorDesc, blob->buffer());
-
     ie::TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), dstLayout};
     ie::Blob::Ptr dstBlob = make_blob_with_precision(dstTensorDesc, allocator);
     if (dstBlob == nullptr) {
@@ -396,35 +395,43 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
     const ie::Blob::Ptr& actualInput, const ie::TensorDesc& deviceDesc) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "prepareInputForInference");
 
+    ie::Blob::Ptr inputForInference = actualInput;
+    const auto& actualDesc = actualInput->getTensorDesc();
+    const auto& actualInputPrecision = actualDesc.getPrecision();
+    const auto& devicePrecision = deviceDesc.getPrecision();
+    if (actualInputPrecision != devicePrecision) {
+        _logger->warning("Input blob is inconsistent with network input. "
+                         "Need to do convert precision from %d to %d.",
+                         actualInputPrecision, devicePrecision);
+        inputForInference = toPrecision(actualInput, devicePrecision, _allocator);
+    }
+
     // HACK: to overcome inability python API to pass a blob of NHWC layout
     if (_config.repackInputLayout()) {
         _logger->warning("VPUX_VPUAL_REPACK_INPUT_LAYOUT is enabled. Need to do re-layout.");
         return reallocateBlobToLayoutIgnoringOriginalLayout(
-            actualInput, ie::Layout::NCHW, ie::Layout::NHWC, _allocator);
+                inputForInference, ie::Layout::NCHW, ie::Layout::NHWC, _allocator);
     }
 
-    ie::Blob::Ptr inputForInference;
-    if (!utils::isBlobAllocatedByAllocator(actualInput, _allocator)) {
+    if (!utils::isBlobAllocatedByAllocator(inputForInference, _allocator)) {
         _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
-        inputForInference = utils::reallocateBlob(actualInput, _allocator);
-    } else {
-        inputForInference = actualInput;
+        auto inputForInferenceReAlloc = utils::reallocateBlob(inputForInference, _allocator);
+        inputForInference = inputForInferenceReAlloc;
     }
 
-    const auto& actualDesc = actualInput->getTensorDesc();
     const auto& deviceLayout = deviceDesc.getLayout();
 
     if (needRepackForNHWC(actualDesc) && deviceLayout == ie::Layout::NHWC) {
         _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
         // NB: It's possible to make repack data only with the same number of dimensions
         // So just make a view without any copy
-        const auto outputMemoryBlob = ie::as<ie::MemoryBlob>(actualInput);
+        const auto outputMemoryBlob = ie::as<ie::MemoryBlob>(inputForInference);
         IE_ASSERT(outputMemoryBlob != nullptr);
         const auto outputMemory = outputMemoryBlob->rmap();
         IE_ASSERT(outputMemory != nullptr);
         const auto outputPtr = outputMemory.as<void*>();
         IE_ASSERT(outputPtr != nullptr);
-        ie::Blob::Ptr actualView4D = make_blob_with_precision(vpu::getNCHW(actualInput->getTensorDesc()), outputPtr);
+        ie::Blob::Ptr actualView4D = make_blob_with_precision(vpu::getNCHW(inputForInference->getTensorDesc()), outputPtr);
         inputForInference = reallocateBlobToLayout(actualView4D, deviceLayout, _allocator);
     }
 
