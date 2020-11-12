@@ -135,6 +135,15 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice() const {
     return _devices.begin()->second;
 }
 
+const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const std::string& deviceId) const {
+    try {
+        return getDevices().at(deviceId);
+    } catch (...) {
+        _logger->warning("Device %s not found", deviceId);
+    }
+    return nullptr;
+}
+
 const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const InferenceEngine::ParamMap& map) const {
     std::string deviceId;
     try {
