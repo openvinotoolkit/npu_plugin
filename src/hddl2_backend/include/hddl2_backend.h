@@ -40,10 +40,13 @@ public:
     static bool isServiceRunning();
 
 private:
-    vpu::Logger::Ptr _logger = nullptr;
-    const std::map<std::string, std::shared_ptr<IDevice>> _devices;
-    std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();
+    void setUniteLogLevel(const vpu::LogLevel logLevel);
+
+private:
     VPUXConfig _config;
+    vpu::Logger::Ptr _logger = nullptr;
+    std::map<std::string, std::shared_ptr<IDevice>> _devices;
+    std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();
 };
 }  // namespace HDDL2
 }  // namespace vpux
