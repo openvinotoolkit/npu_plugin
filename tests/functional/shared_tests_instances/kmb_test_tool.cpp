@@ -82,7 +82,7 @@ std::string cleanName(std::string name) {
 std::string filesysName(const testing::TestInfo* testInfo) {
 
     constexpr char ext[] = ".net";
-    constexpr size_t maxFileNameLen = 256, extLen = sizeof(ext) / sizeof(ext[0]),
+    constexpr size_t maxExpectedDirLen = 100, maxFileNameLen = 256 - maxExpectedDirLen, extLen = sizeof(ext) / sizeof(ext[0]),
         maxNoExtLen = maxFileNameLen - extLen, maxNoExtShortenedLen = maxNoExtLen - 20 - 1;
     const auto testName = vpu::formatString("%v_%v", testInfo->test_case_name(), testInfo->name());
     auto fnameNoExt = (testName.size() < maxNoExtLen) ? testName : vpu::formatString("%v_%v", testName.substr(0, maxNoExtShortenedLen), FNV_hash(testName));
