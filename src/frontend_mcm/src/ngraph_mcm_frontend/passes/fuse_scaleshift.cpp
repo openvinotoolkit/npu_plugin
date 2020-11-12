@@ -23,14 +23,8 @@
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
 
 #include <ngraph/op/fake_quantize.hpp>
-<<<<<<< HEAD
 #include <legacy/ngraph_ops/scaleshift.hpp>
 #include <legacy/ngraph_ops/power.hpp>
-=======
-
-#include <ngraph_ops/scaleshift.hpp>
-#include <ngraph_ops/power.hpp>
->>>>>>> releases/2020/kmb/er47
 #include <vector>
 #include <memory>
 #include <limits>

@@ -89,24 +89,14 @@
 
 #include <ngraph/op/split.hpp>
 
-<<<<<<< HEAD
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
 #include <legacy/ngraph_ops/prior_box_ie.hpp>
-#include "legacy/ngraph_ops/lrn_ie.hpp"
+#include <legacy/ngraph_ops/lrn_ie.hpp>
 #include <legacy/ngraph_ops/normalize_ie.hpp>
 #include <legacy/ngraph_ops/topk_ie.hpp>
 #include <legacy/ngraph_ops/proposal_ie.hpp>
-=======
-#include <ngraph_ops/interp.hpp>
-#include <ngraph_ops/prior_box_clustered_ie.hpp>
-#include <ngraph_ops/prior_box_ie.hpp>
-#include "ngraph_ops/lrn_ie.hpp"
-#include <ngraph_ops/normalize_ie.hpp>
-#include <ngraph_ops/topk_ie.hpp>
-#include <ngraph_ops/proposal_ie.hpp>
-#include <ngraph_ops/tile_ie.hpp>
->>>>>>> releases/2020/kmb/er47
+#include <legacy/ngraph_ops/tile_ie.hpp>
 
 #include <ngraph/variant.hpp>
 

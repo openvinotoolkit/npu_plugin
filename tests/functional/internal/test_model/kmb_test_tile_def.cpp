@@ -55,7 +55,7 @@ BlobVector refTile(const TestNetwork::NodePtr& layer, const BlobVector& inputs, 
     auto outputPtr = output->buffer().as<char*>();
     IE_ASSERT(outputPtr != nullptr);
 
-    runtime::reference::tile(inputPtr, outputPtr, inputShape, outShape, sizeof(float));
+    runtime::reference::tile(inputPtr, outputPtr, inputShape, outShape, sizeof(float), repeats);
 
     return {output};
 };
