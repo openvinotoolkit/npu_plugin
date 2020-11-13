@@ -109,12 +109,14 @@ QueryNetworkResult Engine::QueryNetwork(
 
 Engine::Engine()
     : _backend(vpux::EngineBackendConfigurator::findBackend()),
-      _metrics(_backend == nullptr ? std::map<std::string, std::shared_ptr<vpux::Device>>() : KmbMetrics(_backend->getDevices())),
+      _metrics(KmbMetrics(_backend.get() != nullptr ? _backend->getDevices() : std::map<std::string, std::shared_ptr<vpux::Device>>())),
       _defaultContextMap({}) {
     _pluginName = DEVICE_NAME;  //"KMB";
     _compiler = vpux::Compiler::create(vpux::CompilerType::MCMCompiler);
     _parsedConfig.expandSupportedCompileOptions(_compiler->getSupportedOptions());
-    _parsedConfig.expandSupportedRunTimeOptions(_backend == nullptr ? std::unordered_set<std::string>() : _backend->getSupportedOptions());
+
+    if (_backend.get() != nullptr)
+        _parsedConfig.expandSupportedRunTimeOptions(_backend->getSupportedOptions());
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
