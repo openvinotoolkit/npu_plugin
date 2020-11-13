@@ -190,3 +190,42 @@ TEST_F(ImageWorkload_WithPreprocessing, DISABLED_precommit_SyncInference) {
     ASSERT_NO_THROW(
         Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
 }
+
+TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference_RGBToBGR) {
+    // ---- Load inference engine instance
+    IE::Core ie;
+
+    // ---- Import or load network
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "VPUX");
+
+    // ---- Create infer request
+    IE::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+
+    // ---- Set RGB input
+    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    const auto isBGR = false;
+    auto inputBlob = IE_Core_Helper::loadImage("cat3.bmp", 224, 224, IE::NCHW, isBGR);
+
+    // Preprocessing
+    auto inputName = executableNetwork.GetInputsInfo().begin()->first;
+    IE::PreProcessInfo preProcInfo = inferRequest.GetPreProcess(inputName);
+    preProcInfo.setColorFormat(IE::ColorFormat::RGB);
+
+    // ---- Set RGB blob with preprocessing information
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob, preProcInfo));
+
+    // ---- Run the request synchronously
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    // --- Get output
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    // --- Reference Blob
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
+
+    ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
+    ASSERT_NO_THROW(
+        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+}
