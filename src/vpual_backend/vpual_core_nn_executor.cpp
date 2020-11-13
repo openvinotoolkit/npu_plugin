@@ -541,7 +541,7 @@ void VpualCoreNNExecutor::repackDeviceOutputsToNetworkOutputs(
 
 void VpualCoreNNExecutor::setup(const ie::ParamMap&) { THROW_IE_EXCEPTION << "Not implemented"; }
 
-bool VpualCoreNNExecutor::isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) const { return false; }
+bool VpualCoreNNExecutor::isPreProcessingSupported(const PreprocMap&) const { return false; }
 
 std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLayerStatistics() {
     THROW_IE_EXCEPTION << "Not implemented";

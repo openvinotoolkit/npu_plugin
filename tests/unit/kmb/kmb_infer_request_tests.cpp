@@ -83,7 +83,7 @@ public:
 
     void setup(const InferenceEngine::ParamMap&) {}
 
-    bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) const { return false; }
+    bool isPreProcessingSupported(const vpux::PreprocMap&) const { return false; }
     std::map<std::string, ie::InferenceEngineProfileInfo> getLayerStatistics() {
         return std::map<std::string, ie::InferenceEngineProfileInfo>();
     }

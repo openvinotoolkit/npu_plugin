@@ -606,7 +606,7 @@ void VpualFlicNNExecutor::repackDeviceOutputsToNetworkOutputs(
 
 void VpualFlicNNExecutor::setup(const ie::ParamMap&) { THROW_IE_EXCEPTION << "Not implemented"; }
 
-bool VpualFlicNNExecutor::isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) const { return false; }
+bool VpualFlicNNExecutor::isPreProcessingSupported(const PreprocMap&) const { return false; }
 
 std::map<std::string, ie::InferenceEngineProfileInfo> VpualFlicNNExecutor::getLayerStatistics() {
     THROW_IE_EXCEPTION << "Not implemented";

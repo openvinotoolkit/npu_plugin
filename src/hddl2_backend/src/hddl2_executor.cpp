@@ -315,9 +315,25 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
     }
 }  // namespace HDDL2
 
-bool HDDL2Executor::isPreProcessingSupported(const InferenceEngine::PreProcessInfo& preProcessInfo) const {
-    UNUSED(preProcessInfo);
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+static bool preProcSupported(const IE::ResizeAlgorithm resizeAlgo, const IE::ColorFormat colorFormat) {
+    return ((resizeAlgo == IE::RESIZE_BILINEAR) && (colorFormat == IE::ColorFormat::NV12)) ||
+           (colorFormat == IE::ColorFormat::NV12);
+}
+
+bool HDDL2Executor::isPreProcessingSupported(const PreprocMap& preProcMap) const {
+    if (preProcMap.empty()) {
+        return true;
+    }
+    auto isPreProcSupported = true;
+    for (const auto& input : preProcMap) {
+        const auto& preProcInfo = input.second;
+        const auto preProcessingSupported =
+            preProcSupported(preProcInfo.getResizeAlgorithm(), preProcInfo.getColorFormat());
+        _logger->debug("Preprocessing for color format '{}' resize algorithm '{}' is {}.", preProcInfo.getColorFormat(),
+            preProcInfo.getResizeAlgorithm(), isPreProcSupported ? "supported" : "not supported");
+        isPreProcSupported &= preProcessingSupported;
+    }
+    return isPreProcSupported;
 }
 
 std::map<std::string, IE::InferenceEngineProfileInfo> HDDL2Executor::getLayerStatistics() {

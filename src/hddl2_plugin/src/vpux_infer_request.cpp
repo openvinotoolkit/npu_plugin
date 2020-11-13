@@ -221,14 +221,20 @@ void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
 void InferRequest::InferAsync() {
     // TODO [Track number: S#36866]
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "InferAsync");
-    // TODO Ask if preprocessing supported before push [Track number: S#41375]
-#ifdef __aarch64__
-    execPreprocessing(_inputs);
-    _executorPtr->push(_inputs);
-#else
+
     const auto preProcMap = preparePreProcessing(_inputs, _networkInputs, _preProcData);
-    _executorPtr->push(_inputs, preProcMap);
+    if (_executorPtr->isPreProcessingSupported(preProcMap)) {
+        _executorPtr->push(_inputs, preProcMap);
+    } else {
+        // TODO [Track number: S#43193] KMB preprocessing should be moved from plugin level to backend.
+#ifdef __aarch64__
+        execPreprocessing(_inputs);
+#else
+        _logger->info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
+        execDataPreprocessing(_inputs);
 #endif
+        _executorPtr->push(_inputs);
+    }
 }
 
 void InferRequest::GetResult() {

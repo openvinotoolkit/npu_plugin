@@ -207,7 +207,7 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference_RGBToBGR) {
     const auto isBGR = false;
     auto inputBlob = IE_Core_Helper::loadImage("cat3.bmp", 224, 224, IE::NCHW, isBGR);
 
-    // Preprocessing
+    // ---- Preprocessing
     auto inputName = executableNetwork.GetInputsInfo().begin()->first;
     IE::PreProcessInfo preProcInfo = inferRequest.GetPreProcess(inputName);
     preProcInfo.setColorFormat(IE::ColorFormat::RGB);

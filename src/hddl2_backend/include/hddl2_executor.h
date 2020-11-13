@@ -42,7 +42,7 @@ public:
     void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;
     void pull(InferenceEngine::BlobMap& outputs) override;
 
-    bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo& preProcessInfo) const override;
+    bool isPreProcessingSupported(const PreprocMap& preProcMap) const override;
 
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
 
