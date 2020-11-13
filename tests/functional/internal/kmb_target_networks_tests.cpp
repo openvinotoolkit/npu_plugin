@@ -404,34 +404,26 @@ TEST_P(KmbDetectionNetworkTestWithSpecificLayout, face_detection_retail_caffe_IR
             1.f, 0.3f);
 }
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, ::testing::ValuesIn({Layout::NHWC}));
-// [Track number: S#41097]
-// Wrong strategy generated: tensor fire3/squeeze1x1:0_crop:0_align:0 needs sparsity but it can't be sparsified
-// INSTANTIATE_TEST_CASE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
-// TODO Check [Track number: D#3467]
+INSTANTIATE_TEST_CASE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
+
 // TODO 4 similar tests face_detection_retail_caffe_IRV10_fp16_int8_*
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw_fuse_scale_input_accuracy_drop) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC),
+            .setUserInputLayout("input", Layout::NCHW),
             TestImageDesc("300x300/0_Parade_marchingband_1_1004.jpg", ImageFormat::RGB),
             0.3f,
             1.f, 0.3f);
 }
 
 // [Track number: S#41097]
-// [Track number: S#40935]
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc_fuse_scale_input_accuracy_drop) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Accuracy regression");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            // [Track number: D#3634]
-            .setCompileConfig({{"VPU_COMPILER_SCALE_FUSE_INPUT", CONFIG_VALUE(NO)}}),
+            .setUserInputLayout("input", Layout::NHWC),
             TestImageDesc("300x300/0_Parade_marchingband_1_1004.jpg", ImageFormat::RGB),
             0.3f,
             1.f, 0.3f);
