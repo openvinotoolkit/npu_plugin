@@ -16,6 +16,9 @@ endif()
 
 set_temp_directory(TEMP "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}")
 
+# FIXME: Create empty file to avoid errors on CI
+file(TOUCH "${CMAKE_BINARY_DIR}/ld_library_rpath_64.txt")
+
 #
 # Models and Images for tests
 #
