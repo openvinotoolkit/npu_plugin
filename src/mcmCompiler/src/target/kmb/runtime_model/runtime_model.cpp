@@ -3552,6 +3552,8 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
 
     auto globalConfigurationParameters = cm.getGlobalConfigParams();
     auto huffmanCompression = globalConfigurationParameters->get<bool>("HuffmanCompression");
+    bool hasCSRAM = (globalConfigurationParameters->hasAttr("csramLimit") &&
+                        globalConfigurationParameters->get<int>("csramLimit") != 0);
 
     graphFile_.header = buildSummaryHeaderT(cm, td, compilationDescriptor, std::move(graphFile_.header));
 
@@ -3596,7 +3598,8 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
             // including program inputs and spilled tensors.  This is fine; the cacheable info will only be
             // accessed for tensors that we're actually adding to the output.
             auto direction = opIterator->get<mv::DmaDirection>("direction");
-            if (direction != mv::DmaDirectionEnum::NNCMX2UPACMX &&
+            if (hasCSRAM &&
+                direction != mv::DmaDirectionEnum::NNCMX2UPACMX &&
                 direction != mv::DmaDirectionEnum::UPACMX2NNCMX &&
                 direction != mv::DmaDirectionEnum::DDR2UPACMX   &&
                 direction != mv::DmaDirectionEnum::UPACMX2DDR)
