@@ -29,7 +29,7 @@ void convertFlatbufferFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     struct stat buffer;
     if (stat (outputFile.c_str(), &buffer) == 0)
     {
-        std::string flatbufferCommand("flatc -t " + mv::utils::projectRootPath() + "/schema/graphfile/src/schema/graphfile.fbs --strict-json -- " + outputFile);
+        std::string flatbufferCommand("flatc -t " + mv::utils::projectRootPath() + "/../../thirdparty/graphFile-schema/src/schema/graphfile.fbs --strict-json  --defaults-json -- " + outputFile);
         int ret = system(flatbufferCommand.c_str());
         (void)ret;
     }
