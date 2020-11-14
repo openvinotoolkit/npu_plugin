@@ -952,8 +952,7 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     std::unique_ptr<MVCNN::ProcessorMappingT> NNClusterProcessor =
         std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
     NNClusterProcessor->item= MVCNN::PhysicalProcessor_NCE_Cluster ;
-     //"clusters" is min between NumberOfClusters from CD and max number of clusters per target
-    setIfPresent<double, unsigned>(NNClusterProcessor->number, *globalConfigurationParams , "clusters");
+    setIfPresent<double, int>(NNClusterProcessor->number, *globalConfigurationParams , "Number_of_Clusters");
 
     //dpus
     auto totalDPUs = static_cast<int>(td.nceDefs().at("DPUs").totalNumber);
