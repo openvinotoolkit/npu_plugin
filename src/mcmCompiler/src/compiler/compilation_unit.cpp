@@ -12,7 +12,7 @@ const std::string mv::CompilationUnit::ma3600DefTargetDescPath_ = "/config/targe
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
 const std::string mv::CompilationUnit::ma3100DefCompDescPath_ = "/config/compilation/release_kmb.json";
-const std::string mv::CompilationUnit::ma3600DefCompDescPath_ = "/config/compilation/release_kmb-sc.json"; //TODO need to change
+const std::string mv::CompilationUnit::ma3600DefCompDescPath_ = "/config/compilation/release_mtl-sc.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
