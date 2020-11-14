@@ -172,7 +172,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobOutOfBoundsThrow) {
     ASSERT_ANY_THROW(remoteROIBlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteBlobPtr->createROI(roi)));
 }
 
-TEST_F(HDDL2_RemoteBlob_UnitTests, CascadeROIBlobCorrect) {
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_CascadeROIBlobCorrect) {
     SKIP_IF_NO_DEVICE();
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);
     uint8_t *bDataBefore = remoteBlobPtr->rmap().as<uint8_t*>();
