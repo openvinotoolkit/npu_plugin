@@ -67,6 +67,8 @@
 #include "transformations/bidirectional_sequences_decomposition.hpp"
 #include <generic_ie.hpp>
 
+#include <ngraph/op/hswish.hpp>
+
 #include <include/mcm/compiler/compilation_unit.hpp>
 #include <memory>
 #include <string>
@@ -242,6 +244,15 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config);
 
         const auto start = std::chrono::high_resolution_clock::now();
+
+        const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+            const bool skipLayers =
+                (std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node) != nullptr);
+            return skipLayers;
+        };
+
+        passManager.set_callback(transformationsPredicate);
+
         passManager.run_passes(func);
         const auto end = std::chrono::high_resolution_clock::now();
         const auto process_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
