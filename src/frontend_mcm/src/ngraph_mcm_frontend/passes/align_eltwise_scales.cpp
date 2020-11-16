@@ -104,19 +104,19 @@ void setFakeQuantizeScales(
 
     auto newInputLow = std::make_shared<ngraph::op::v0::Constant>(
         ngraph::element::f64,
-        ngraph::Shape({scaledInputLowValues.size()}),
+        inputLow->get_output_partial_shape(0).to_shape(),
         scaledInputLowValues.data());
     auto newInputHigh = std::make_shared<ngraph::op::v0::Constant>(
         ngraph::element::f64,
-        ngraph::Shape({scaledInputHighValues.size()}),
+        inputHigh->get_output_partial_shape(0).to_shape(),
         scaledInputHighValues.data());
     auto newOutputLow = std::make_shared<ngraph::op::v0::Constant>(
         ngraph::element::f64,
-        ngraph::Shape({scaledOutputLowValues.size()}),
+        outputLow->get_output_partial_shape(0).to_shape(),
         scaledOutputLowValues.data());
     auto newOutputHigh = std::make_shared<ngraph::op::v0::Constant>(
         ngraph::element::f64,
-        ngraph::Shape({scaledOutputHighValues.size()}),
+        outputHigh->get_output_partial_shape(0).to_shape(),
         scaledOutputHighValues.data());
 
     newInputLow->set_friendly_name(inputLow->get_friendly_name() + "_aligned");
