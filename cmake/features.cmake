@@ -4,6 +4,11 @@
 
 include(options)
 
+include(linux_name)
+if(COMMAND get_linux_name)
+    get_linux_name(LINUX_OS_NAME)
+endif()
+
 if(NOT ENABLE_TESTS)
     set(ENABLE_TESTS OFF)
 endif()
@@ -31,7 +36,17 @@ ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${EN
 
 ie_dependent_option(ENABLE_KMB_SAMPLES "Enable KMB samples" ON "AARCH64" OFF)
 
-ie_dependent_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON "LINUX OR WIN32;X86_64" OFF)
+set(HAVE_HDDL_UNITE_PACKAGE FALSE)
+if(X86_64)
+    if(WIN32)
+        set(HAVE_HDDL_UNITE_PACKAGE TRUE)
+    elseif(LINUX)
+        if(LINUX_OS_NAME STREQUAL "Ubuntu 18.04")
+            set(HAVE_HDDL_UNITE_PACKAGE TRUE)
+        endif()
+    endif()
+endif()
+ie_dependent_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON "HAVE_HDDL_UNITE_PACKAGE" OFF)
 ie_dependent_option(ENABLE_HDDL2_TESTS "Enable Unit and Functional tests for HDDL2 Plugin" ON "ENABLE_HDDL2;ENABLE_TESTS" OFF)
 
 ie_dependent_option(ENABLE_MODELS "download all models required for functional testing" ON "ENABLE_FUNCTIONAL_TESTS" OFF)

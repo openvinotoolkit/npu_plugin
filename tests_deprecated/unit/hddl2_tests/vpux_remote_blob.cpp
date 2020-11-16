@@ -126,7 +126,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, parentBlobCorrectAfterDeletingROI) {
     ASSERT_NO_THROW(bSizeAfter = remoteBlobPtr->byteSize());
     ASSERT_NO_THROW(blobDataAfter.assign(bDataAfter, bDataAfter + bSizeAfter));
     ASSERT_TRUE(blobDataBefore == blobDataAfter);
-    ASSERT_TRUE(remoteBlobPtr->deallocate());
+    ASSERT_NO_THROW(remoteBlobPtr.reset());
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobCorrectAfterDeletingParent) {
@@ -152,8 +152,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobCorrectAfterDeletingParent) {
     ASSERT_NO_THROW(bDataAfter = remoteROIBlobPtr->rmap().as<uint8_t*>());
     ASSERT_NO_THROW(bSizeAfter = remoteROIBlobPtr->byteSize());
     ASSERT_NO_THROW(blobDataAfter.assign(bDataAfter, bDataAfter + bSizeAfter));
-    ASSERT_TRUE(blobDataBefore == blobDataAfter); 
-    ASSERT_TRUE(remoteROIBlobPtr->deallocate());
+    ASSERT_TRUE(blobDataBefore == blobDataAfter);
+    ASSERT_NO_THROW(remoteROIBlobPtr.reset());
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobIntoBoundsNoThrow) {
@@ -266,8 +266,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, defaultBlobFromContext_isRemoteBlob_True) {
     ASSERT_TRUE(remoteBlobPtr->is<IE::RemoteBlob>());
 }
 
-//------------------------------------------------------------------------------
-//      class HDDL2_RemoteBlob_UnitTests Initiations allocate
+/** Allocation method doing nothing */
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteBlob_UnitTests, allocate_Default_Works) {
     SKIP_IF_NO_DEVICE();
@@ -276,15 +275,14 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, allocate_Default_Works) {
     ASSERT_NO_FATAL_FAILURE(remoteBlobPtr->allocate());
 }
 
+/** Symmetric to allocation, no action should be done */
 //------------------------------------------------------------------------------
-//      class HDDL2_RemoteBlob_UnitTests Initiations deallocate
-//------------------------------------------------------------------------------
-TEST_F(HDDL2_RemoteBlob_UnitTests, deallocate_AllocatedBlob_ReturnTrue) {
+TEST_F(HDDL2_RemoteBlob_UnitTests, deallocate_AllocatedBlob_ReturnFalse) {
     SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<vpux::VPUXRemoteBlob>(tensorDesc, remoteContextPtr, allocator, blobParamMap);
     remoteBlobPtr->allocate();
 
-    ASSERT_TRUE(remoteBlobPtr->deallocate());
+    ASSERT_EQ(remoteBlobPtr->deallocate(), false);
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, getDeviceName_DeviceAssigned_CorrectName) {
