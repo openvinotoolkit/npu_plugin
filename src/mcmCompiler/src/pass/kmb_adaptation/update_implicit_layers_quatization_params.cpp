@@ -101,15 +101,41 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
                     output->setQuantParams(outputQuantParamsFull);
                 }
             }
+            else if(opIt->getOpType() == "ImplicitSlice" || opIt->getOpType() == "Slice")
+            {
+                auto input = opIt->getInputTensor(0);
+                if (input->hasAttr("quantParams"))
+                {
+                    auto output = opIt->getOutputTensor(0);
+                    auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
+                    auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+
+                    auto numOfSlices = inputChannels / outputChannels;
+
+                    mv::QuantizationParams inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
+                    if (numOfSlices > 1)
+                    {
+                        // If slicing is done along channel axis, quantization parameters need to also be
+                        // correctly partitioned
+                        auto sliceId = (opIt->get<mv::Shape>("begin")[mv::IO_CHANNEL_DIMENSION])/outputChannels;
+                        output->set<mv::QuantizationParams>("quantParams", inputQuantParams.getSlice(sliceId, numOfSlices));
+                    }
+                    else
+                    {
+                        // Otherwise just populate quant params from input
+                        output->set<mv::QuantizationParams>("quantParams", inputQuantParams);
+                    }
+                }
+            }
             else
             {
-            auto input = opIt->getInputTensor(0);
-            auto output = opIt->getOutputTensor(0);
-            if (input->hasAttr("quantParams"))
-            {
-                mv::QuantizationParams &inputQuantization = input->get<mv::QuantizationParams>("quantParams");
-                output->set<mv::QuantizationParams>("quantParams", inputQuantization);
-            }
+                auto input = opIt->getInputTensor(0);
+                if (input->hasAttr("quantParams"))
+                {
+                    auto output = opIt->getOutputTensor(0);
+                    mv::QuantizationParams &inputQuantization = input->get<mv::QuantizationParams>("quantParams");
+                    output->set<mv::QuantizationParams>("quantParams", inputQuantization);
+                }
             }
         }
     }
