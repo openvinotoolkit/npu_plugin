@@ -89,8 +89,23 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
         inputForInference = make_blob_with_precision(TensorDesc);
         inputForInference->allocate();
 
-        ie_memcpy(inputForInference->buffer(), inputForInference->byteSize(), actualInput->buffer(),
-                  actualInput->byteSize());
+        auto src_mem_blob_ptr = IE::as<IE::MemoryBlob>(actualInput);
+        if (src_mem_blob_ptr == nullptr)
+            THROW_IE_EXCEPTION << "Memory blob ptr is null";
+        auto src_lock_mem = src_mem_blob_ptr->rmap();
+        auto src_mem_ptr = src_lock_mem.as<float*>();
+        if (src_mem_ptr == nullptr)
+            THROW_IE_EXCEPTION << "Blob memory is null";
+
+        auto dst_mem_blob_ptr = IE::as<IE::MemoryBlob>(inputForInference);
+        if (dst_mem_blob_ptr == nullptr)
+            THROW_IE_EXCEPTION << "Memory blob ptr is null";
+        auto dst_lock_mem = dst_mem_blob_ptr->wmap();
+        auto dst_mem_ptr = dst_lock_mem.as<float*>();
+        if (dst_mem_ptr == nullptr)
+            THROW_IE_EXCEPTION << "Blob memory is null";
+
+        ie_memcpy(dst_mem_ptr, inputForInference->byteSize(), src_mem_ptr, actualInput->byteSize());
     } else {
         if (actualInput->getTensorDesc().getDims().size() == 3) {
             // 3D CHW input
@@ -99,13 +114,26 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
             IE::TensorDesc tensorDesc = {actualInput->getTensorDesc().getPrecision(), tensorDims, IE::Layout::NCHW};
             IE::Blob::Ptr tmpBlobPtr = make_blob_with_precision(tensorDesc);
             tmpBlobPtr->allocate();
-            auto memBlobTmp = IE::as<IE::MemoryBlob>(tmpBlobPtr);
-            IE_ASSERT(memBlobTmp != nullptr);
-            auto memBlobActualInput = IE::as<IE::MemoryBlob>(actualInput);
-            IE_ASSERT(memBlobActualInput != nullptr);
-            std::memcpy(memBlobTmp->wmap().as<uint8_t*>(), memBlobActualInput->rmap().as<uint8_t*>(),
-                        actualInput->byteSize());
-            inputForInference = toLayout(memBlobTmp, expectedLayout);
+
+            auto src_mem_blob_ptr = IE::as<IE::MemoryBlob>(actualInput);
+            if (src_mem_blob_ptr == nullptr)
+                THROW_IE_EXCEPTION << "Memory blob ptr is null";
+            auto src_lock_mem = src_mem_blob_ptr->rmap();
+            auto src_mem_ptr = src_lock_mem.as<float*>();
+            if (src_mem_ptr == nullptr)
+                THROW_IE_EXCEPTION << "Blob memory is null";
+
+            auto dst_mem_blob_ptr = IE::as<IE::MemoryBlob>(tmpBlobPtr);
+            if (dst_mem_blob_ptr == nullptr)
+                THROW_IE_EXCEPTION << "Memory blob ptr is null";
+            auto dst_lock_mem = dst_mem_blob_ptr->wmap();
+            auto dst_mem_ptr = dst_lock_mem.as<float*>();
+            if (dst_mem_ptr == nullptr)
+                THROW_IE_EXCEPTION << "Blob memory is null";
+
+            ie_memcpy(dst_mem_ptr, tmpBlobPtr->byteSize(), src_mem_ptr, actualInput->byteSize());
+
+            inputForInference = toLayout(IE::as<IE::MemoryBlob>(tmpBlobPtr), expectedLayout);
         } else {
             // 4D to 4D input conversion
             inputForInference = toLayout(IE::as<IE::MemoryBlob>(actualInput), expectedLayout);
