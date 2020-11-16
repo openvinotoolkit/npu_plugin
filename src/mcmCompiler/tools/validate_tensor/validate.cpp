@@ -414,7 +414,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
 
     commandline = std::string("cd ") + std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + " && " +
-        "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB -o " + FILE_BLOB_NAME;
+        "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d VPUX -o " + FILE_BLOB_NAME;
 
     // if exists, reads the input layout from commandline. Otherwise use env var
     if (! FLAGS_il.empty() )
@@ -438,7 +438,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         FLAGS_ip = inputPrecision;
     }
 
-    commandline += " -op FP32";
+    commandline += " -op FP16";
 
     std::cout << commandline << std::endl;
     std::system(commandline.c_str());
