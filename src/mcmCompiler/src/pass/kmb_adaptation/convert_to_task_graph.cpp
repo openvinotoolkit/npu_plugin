@@ -806,7 +806,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(newTensorOp->getOpType() == "UPATask")
             {
                 auto outputOp = newTensorOp.leftmostOutput().sink();
-                while(outputOp->getOpType() == "ImplicitOutput" || outputOp->getOpType() == "ImplicitUnion")
+                while(outputOp->getOpType() == "ImplicitOutput"
+                      || outputOp->getOpType() == "ImplicitUnion"
+                      || outputOp->getOpType() == "ImplicitReshape")
                 {
                     outputOp->getOutputTensor()[0]->setDType(mv::DType("Float16"));
                     outputOp = outputOp.leftmostOutput().sink();
