@@ -16,6 +16,7 @@ public:
     bool IE_KMB_TESTS_RAW_EXPORT;
     bool IE_KMB_TESTS_RUN_INFER;
     bool IE_KMB_TESTS_RUN_IMPORT;
+    bool IE_KMB_TESTS_LONG_FILE_NAME;
 public:
     explicit KmbTestEnvConfig();
 };
