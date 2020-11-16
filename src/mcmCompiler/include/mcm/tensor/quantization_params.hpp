@@ -86,6 +86,10 @@ namespace mv
 
         static QuantizationParams empty();
         static QuantizationParams initial();
+        // Return QuantizationParams which are created from an equally divided parts of each quantization parameter
+        // in case it is a vector per channel. In case quant parameter is per tensor (vector size = 1) it is populated
+        // without any change
+        QuantizationParams getSlice(std::size_t slice_idx, std::size_t total_slices_number);
     };
 
 }
