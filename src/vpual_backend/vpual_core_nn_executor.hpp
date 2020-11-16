@@ -50,6 +50,15 @@ public:
     VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
         const uint32_t deviceId, const VpualConfig& config);
 
+#if defined(__arm__) || defined(__aarch64__)
+    VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
+        const VpusmmAllocator::Ptr& allocator,
+        const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
+        const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
+        const std::shared_ptr<Pipeline>& other_pipe,
+        const VpualConfig& config);
+#endif
+
     void push(const InferenceEngine::BlobMap& inputs) override;
     void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;
     void pull(InferenceEngine::BlobMap& outputs) override;
@@ -58,6 +67,7 @@ public:
     bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo& preProcessInfo) const override;
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
     InferenceEngine::Parameter getParameter(const std::string& paramName) const override;
+    vpux::Executor::Ptr clone() const override;
 
 private:
     vpux::NetworkDescription::Ptr _networkDescription;
@@ -67,11 +77,11 @@ private:
     vpu::Logger::Ptr _logger;
 
 #if defined(__arm__) || defined(__aarch64__)
-    std::unique_ptr<NnXlinkPlg> _nnXlinkPlg = nullptr;
-    std::unique_ptr<NnCorePlg, std::function<void(NnCorePlg*)>> _nnCorePlg = nullptr;
+    std::shared_ptr<NnXlinkPlg> _nnXlinkPlg = nullptr;
+    std::shared_ptr<NnCorePlg> _nnCorePlg = nullptr;
     // pipeline has to be deleted before NNCore plug-in
     // otherwise it leads to 'Bus error'
-    std::unique_ptr<Pipeline, std::function<void(Pipeline*)>> _pipe = nullptr;
+    std::shared_ptr<Pipeline> _pipe = nullptr;
     std::unique_ptr<void, std::function<void(void*)>> blob_file = nullptr;
     std::unique_ptr<BlobHandle_t> _blobHandle = nullptr;
 
