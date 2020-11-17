@@ -106,16 +106,24 @@ void InferRequest::InferImpl() {
     GetResult();
 }
 
-/**
- * @brief Create map with preProcessing info and move all preProcessing blobs to inputs BlobMap
- * @param[in/out] inputs Map with NN blobs. PP blobs should be placed instead for some inputs.
- * @param[in] networkInputs Contains information of pre-processing, which should be done
- * @param[in] preProcData Container with blobs, which should be preprocessed
- * @return Map with preprocess information
- */
-PreprocMap InferRequest::preparePreProcessing(IE::BlobMap& inputs, const IE::InputsDataMap& networkInputs,
+PreprocMap InferRequest::preparePreProcessing(const IE::InputsDataMap& networkInputs,
     const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData) {
     PreprocMap preProcMap;
+    for (auto& input : networkInputs) {
+        const std::string inputName = input.second->name();
+        const auto& preProcDataIt = preProcData.find(inputName);
+        if (preProcDataIt != preProcData.end()) {
+            const IE::Blob::Ptr& blobForPreProcessing = preProcDataIt->second->getRoiBlob();
+            if (preProcessingRequired(input.second, blobForPreProcessing)) {
+                preProcMap.emplace(input.first, input.second->getPreProcess());
+            }
+        }
+    }
+    return preProcMap;
+}
+
+void InferRequest::moveBlobForPreprocessingToInputs(IE::BlobMap& inputs, const IE::InputsDataMap& networkInputs,
+    const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData) {
     for (auto& input : networkInputs) {
         const std::string inputName = input.second->name();
         const auto& preProcDataIt = preProcData.find(inputName);
@@ -125,11 +133,9 @@ PreprocMap InferRequest::preparePreProcessing(IE::BlobMap& inputs, const IE::Inp
                 IE::Blob::Ptr blobForPreProc = preProcDataIt->second->getRoiBlob();
                 /// If pre-processing required, we need use PP blobs instead of NN for inputs
                 inputs.at(inputName) = blobForPreProcessing;
-                preProcMap.emplace(input.first, input.second->getPreProcess());
             }
         }
     }
-    return preProcMap;
 }
 
 #ifdef __aarch64__
@@ -222,8 +228,9 @@ void InferRequest::InferAsync() {
     // TODO [Track number: S#36866]
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "InferAsync");
 
-    const auto preProcMap = preparePreProcessing(_inputs, _networkInputs, _preProcData);
+    const auto preProcMap = preparePreProcessing(_networkInputs, _preProcData);
     if (_executorPtr->isPreProcessingSupported(preProcMap)) {
+        moveBlobForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
         _executorPtr->push(_inputs, preProcMap);
     } else {
         // TODO [Track number: S#43193] KMB preprocessing should be moved from plugin level to backend.

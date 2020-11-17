@@ -330,7 +330,7 @@ bool HDDL2Executor::isPreProcessingSupported(const PreprocMap& preProcMap) const
         const auto preProcessingSupported =
             preProcSupported(preProcInfo.getResizeAlgorithm(), preProcInfo.getColorFormat());
         _logger->debug("Preprocessing for color format '{}' resize algorithm '{}' is {}.", preProcInfo.getColorFormat(),
-            preProcInfo.getResizeAlgorithm(), isPreProcSupported ? "supported" : "not supported");
+            preProcInfo.getResizeAlgorithm(), preProcessingSupported ? "supported" : "not supported");
         isPreProcSupported &= preProcessingSupported;
     }
     return isPreProcSupported;

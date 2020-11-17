@@ -222,8 +222,10 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference_RGBToBGR) {
     auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
-    // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
+    // --- Reference Blob - Same image, BGR instead of RGB
+    const bool isBGRforCPU = true;
+    auto inputBlobCPU = IE_Core_Helper::loadImage("cat3.bmp", 224, 224, IE::NCHW, isBGRforCPU);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlobCPU);
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(
