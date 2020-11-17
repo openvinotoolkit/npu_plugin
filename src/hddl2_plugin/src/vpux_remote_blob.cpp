@@ -81,7 +81,7 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
     if (tensorDesc.getDims().size() != 4) {
         THROW_IE_EXCEPTION << "Unsupported layout for VPUXRemoteBlob";
     }
-    const auto origBlobTensorDesc = origBlob.getTensorDesc();
+    const auto origBlobTensorDesc = origBlob.getOriginalTensorDesc();
     const auto orig_W = origBlobTensorDesc.getDims()[3];
     const auto orig_H = origBlobTensorDesc.getDims()[2];
     auto newROI = makeROIOverROI(_parsedParams.getROIPtr(), regionOfInterest, orig_W, orig_H);
