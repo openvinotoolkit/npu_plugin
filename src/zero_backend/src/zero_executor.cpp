@@ -354,6 +354,12 @@ void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
     _logger->info("ZeroExecutor::pull finished");
 }
 
+ZeroExecutor::~ZeroExecutor() {
+    zeCommandQueueDestroy(_command_queue_handle);
+    zeCommandListDestroy(_command_list_handle);
+    zeFenceDestroy(_fence_handle);
+}
+
 InferenceEngine::Parameter ZeroExecutor::getParameter(const std::string&) const { return InferenceEngine::Parameter(); }
 void ZeroExecutor::setup(const InferenceEngine::ParamMap&) { THROW_IE_EXCEPTION << "Not implemented"; }
 bool ZeroExecutor::isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) const { return false; }
