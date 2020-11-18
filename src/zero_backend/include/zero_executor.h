@@ -47,7 +47,7 @@ public:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
     InferenceEngine::Parameter getParameter(const std::string& paramName) const override;
 
-    ~ZeroExecutor() = default;
+    ~ZeroExecutor();
 
 private:
     void memory_init();

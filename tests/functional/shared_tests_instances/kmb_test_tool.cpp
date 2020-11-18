@@ -79,13 +79,14 @@ std::string cleanName(std::string name) {
     return name;
 }
 
-std::string filesysName(const testing::TestInfo* testInfo) {
+std::string filesysName(const testing::TestInfo* testInfo, bool limitAbsPathLength) {
 
     constexpr char ext[] = ".net";
-    constexpr size_t maxFileNameLen = 256, extLen = sizeof(ext) / sizeof(ext[0]),
+    constexpr size_t maxExpectedFileNameLen = 256, maxExpectedDirLen = 100, extLen = sizeof(ext) / sizeof(ext[0]);
+    const size_t maxFileNameLen = (limitAbsPathLength ? maxExpectedFileNameLen - maxExpectedDirLen : maxExpectedFileNameLen),
         maxNoExtLen = maxFileNameLen - extLen, maxNoExtShortenedLen = maxNoExtLen - 20 - 1;
     const auto testName = vpu::formatString("%v_%v", testInfo->test_case_name(), testInfo->name());
-    auto fnameNoExt = (testName.size() < maxNoExtLen) ? testName : vpu::formatString("%v_%v", testName.substr(0, maxNoExtShortenedLen), FNV_hash(testName));
+    const auto fnameNoExt = (testName.size() < maxNoExtLen) ? testName : vpu::formatString("%v_%v", testName.substr(0, maxNoExtShortenedLen), FNV_hash(testName));
 
     return cleanName(fnameNoExt).append(ext);
 }

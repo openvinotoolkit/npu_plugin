@@ -14,7 +14,19 @@
 # stated in the License.
 #
 
-set(OECORE_BASE_DIR                 "/usr/local/oecore-x86_64")
+if(DEFINED OECORE_BASE_DIR)
+    # OECORE_BASE_DIR was passed via CMake command line, nothing to do
+elseif(DEFINED ENV{OECORE_BASE_DIR})
+    # User sets OECORE_BASE_DIR environment variable
+    set(OECORE_BASE_DIR $ENV{OECORE_BASE_DIR})
+elseif(DEFINED ENV{OECORE_NATIVE_SYSROOT})
+    # OECORE_NATIVE_SYSROOT is a default environment variable for the ORCore toolchain
+    set(OECORE_BASE_DIR "$ENV{OECORE_NATIVE_SYSROOT}/../..")
+else()
+    # Use default value
+    set(OECORE_BASE_DIR "/usr/local/oecore-x86_64")
+endif()
+
 set(OECORE_TARGET_NAME              "aarch64-ese-linux")
 set(OECORE_TARGET_SYSROOT           "${OECORE_BASE_DIR}/sysroots/${OECORE_TARGET_NAME}")
 set(OECORE_HOST_SYSROOT             "${OECORE_BASE_DIR}/sysroots/x86_64-esesdk-linux")

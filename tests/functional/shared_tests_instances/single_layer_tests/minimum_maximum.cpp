@@ -55,7 +55,7 @@ INSTANTIATE_TEST_CASE_P(maximum, KmbMaxMinLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputType),
-                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbMaxMinLayerTest::getTestCaseName);
 
 }  // namespace

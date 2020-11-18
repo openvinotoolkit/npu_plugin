@@ -23,6 +23,6 @@ public:
     InferenceEngine::ExecutableNetwork importNetwork(const std::shared_ptr<InferenceEngine::Core>& core, const std::string& fsName);
 };
 
-std::string filesysName(const testing::TestInfo*);
+std::string filesysName(const testing::TestInfo* testInfo, bool limitAbsPathLength);
 
 }  // namespace LayerTestsUtils
