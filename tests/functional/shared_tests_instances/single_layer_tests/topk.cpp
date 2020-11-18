@@ -53,6 +53,6 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_TopK, KmbTopKLayerTest,
                 ::testing::Values(InferenceEngine::Precision::FP16),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({10, 10, 10})),
-                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
         TopKLayerTest::getTestCaseName);
 }  // namespace
