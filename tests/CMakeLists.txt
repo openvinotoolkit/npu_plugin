@@ -9,3 +9,7 @@ add_subdirectory(unit)
 if(ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)
 endif()
+
+if(ENABLE_EXPERIMENTAL_MLIR)
+    add_subdirectory(experimental)
+endif()
