@@ -205,22 +205,20 @@ void StrategyManager::updateDefaultValues()
 
 }
 
-mv::Element convertToStreamingElement(mv::Element element, mv::Shape strategy , std::string name)
+void convertToStreamingElement(mv::Element& element, mv::Shape strategy , std::string name)
 {
     element.set("name_filter",name);
 
-    std::vector<mv::Element> copySplits;
-    for(int i=0;i<5;i++)
-        copySplits.emplace_back("");
-
-    copySplits[0].set<int>("W", strategy[0]);
-    copySplits[1].set<int>("H", strategy[1]);
-    copySplits[2].set<int>("C", strategy[2]);
-    copySplits[3].set<int>("K", strategy[3]);
-    copySplits[4].set<int>("N", strategy[4]);
+    std::vector<mv::Element> copySplits(strategy.ndims(),mv::Element(""));
+    if(strategy.ndims()!= 0 ){
+        copySplits[0].set<int>("W", strategy[0]);
+        copySplits[1].set<int>("H", strategy[1]);
+        copySplits[2].set<int>("C", strategy[2]);
+        copySplits[3].set<int>("K", strategy[3]);
+        copySplits[4].set<int>("N", strategy[4]);
+    }
     element.set("splits",copySplits);
 
-    return element;
 }
 
 std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(CriticalPathNodes &strategiesToConvert, std::shared_ptr<mv::Element> compDesc)
@@ -233,21 +231,23 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
         streamingStrategyList = compDesc->get<std::vector<mv::Element>>("streaming_strategy");
         //determine if node already has streaming strategy from JSON text, do not override text specification
         std::vector<std::string> hasSpec;
-        for (auto s : streamingStrategyList)
+        for (const auto& s : streamingStrategyList)
         {
             std::string nodeName = s.get<std::string>("name_filter");
             auto splitList = s.get<std::vector<mv::Element>>("splits");
             for (unsigned i = 0; i < splitList.size(); i++)
             {
-                if ((splitList[i].hasAttr("C"))||(splitList[i].hasAttr("H"))||(splitList[i].hasAttr("W"))||(splitList[i].hasAttr("K"))||(splitList[i].hasAttr("N")))
+                if ((splitList[i].hasAttr("C")) ||
+                    (splitList[i].hasAttr("H")) ||
+                    (splitList[i].hasAttr("W")) ||
+                    (splitList[i].hasAttr("K")) ||
+                    (splitList[i].hasAttr("N")))
                     hasSpec.push_back(nodeName);
             }
         }
         
         //cast streaming strategy into Element
         mv::Element copyElement("");
-        if(streamingStrategyList.size() != 0)
-            copyElement = streamingStrategyList[0];
 
         for (auto elem : strategiesToConvert)
         {
@@ -256,7 +256,8 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
             std::string newName = strategy["name"] ;
             if ( std::find(hasSpec.begin(), hasSpec.end(), newName) == hasSpec.end())
             {
-                streamingStrategyList.push_back(convertToStreamingElement(copyElement,newStrategy,newName));
+                convertToStreamingElement(copyElement,newStrategy,newName);
+                streamingStrategyList.push_back(copyElement);
             }
         }
         return streamingStrategyList;
@@ -270,7 +271,8 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
             std::string newName = strategy["name"];
             
             mv::Element copyElement(""); 
-            streamingStrategyList.emplace_back(std::move(convertToStreamingElement(copyElement,newStrategy,newName)));            
+            convertToStreamingElement(copyElement,newStrategy,newName);
+            streamingStrategyList.emplace_back(std::move(copyElement));            
         }
         return streamingStrategyList;
     }
