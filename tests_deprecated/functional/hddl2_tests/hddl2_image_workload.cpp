@@ -52,11 +52,7 @@ void ImageWorkload_Tests::SetUp() {
 
 //------------------------------------------------------------------------------
 using ImageWorkload_WithoutPreprocessing = ImageWorkload_Tests;
-// Test fails with error:
-// C++ exception with description "[PARAMETER_MISMATCH] Failed to set input blob.
-// Blocking descriptor mismatch." thrown in the test body.
-// [Track number: S#42277]
-TEST_F(ImageWorkload_WithoutPreprocessing, DISABLED_precommit_SyncInference) {
+TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInference) {
     // ---- Load inference engine instance
     IE::Core ie;
 
@@ -87,13 +83,7 @@ TEST_F(ImageWorkload_WithoutPreprocessing, DISABLED_precommit_SyncInference) {
         Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
 }
 
-// Test fails with error:
-// kmb-plugin/tests_deprecated/functional/hddl2_tests/hddl2_image_workload.cpp:95: Failure
-// Expected: inferRequest = executableNetwork.CreateInferRequest() doesn't throw an exception.
-// Actual: it throws:Can't create infer request!
-// Please make sure that the device is available. Only exports can be made.
-// [Track number: S#42484]
-TEST_F(ImageWorkload_WithoutPreprocessing, DISABLED_precommit_SyncInferenceNCHWInput) {
+TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInferenceNCHWInput) {
     // ---- Load inference engine instance
     IE::Core ie;
 
@@ -142,15 +132,7 @@ void ImageWorkload_WithPreprocessing::SetUp() {
     inputNV12Path = TestDataHelpers::get_data_path() + "/" + std::to_string(inputWidth) + "x" + std::to_string(inputHeight) + "/cat3.yuv";
 }
 
-// Test fails with error:
-// [ RUN      ] ImageWorkload_WithPreprocessing.precommit_SyncInference
-// kmb-plugin/tests_deprecated/functional/hddl2_tests/hddl2_image_workload.cpp:144: Failure
-// Expected: inferRequest = executableNetwork.CreateInferRequest() doesn't throw an exception.
-// Actual: it throws:Can't create infer request!
-// Please make sure that the device is available. Only exports can be made.
-// [  FAILED  ] ImageWorkload_WithPreprocessing.precommit_SyncInference (260 ms)
-// [Track number: S#42486]
-TEST_F(ImageWorkload_WithPreprocessing, DISABLED_precommit_SyncInference) {
+TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference) {
     // ---- Load inference engine instance
     IE::Core ie;
 
