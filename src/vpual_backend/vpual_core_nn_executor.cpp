@@ -40,11 +40,13 @@ namespace vpux {
 #if defined(__arm__) || defined(__aarch64__)
 constexpr uint32_t POOL_SIZE = 30 * 1024 * 1024;
 #endif
+constexpr int VPU_CSRAM_DEVICE_ID = 32;
 
 VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
     const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId, const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
+      _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
       _config(config),
       _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
 #if defined(__arm__) || defined(__aarch64__)
@@ -65,16 +67,28 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
           }),
       blob_file(nullptr,
           [this](void* blobFilePtr) {
-              _allocator->free(blobFilePtr);
+              if (_allocator != nullptr) {
+                  _allocator->free(blobFilePtr);
+              }
           }),
       _blobHandle(new BlobHandle_t()),
 #endif
+      _preFetchBuffer(nullptr,
+          [this](uint8_t* buffer) {
+              if (_csramAllocator != nullptr) {
+                  _csramAllocator->free(buffer);
+              }
+          }),
       _inputBuffer(nullptr,
           [this](uint8_t* buffer) {
-              _allocator->free(buffer);
+              if (_allocator != nullptr) {
+                  _allocator->free(buffer);
+              }
           }),
       _outputBuffer(nullptr, [this](uint8_t* buffer) {
-          _allocator->free(buffer);
+          if (_allocator != nullptr) {
+              _allocator->free(buffer);
+          }
       }) {
 #if defined(__arm__) || defined(__aarch64__)
     std::size_t inputsTotalSize = 0;
@@ -97,8 +111,10 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
 
 VpualCoreNNExecutor::~VpualCoreNNExecutor() {
 #if defined(__arm__) || defined(__aarch64__)
-    for (const auto& scratchPtr : _scratchBuffers) {
-        _allocator->free(scratchPtr);
+    if (_allocator != nullptr) {
+        for (const auto& scratchPtr : _scratchBuffers) {
+            _allocator->free(scratchPtr);
+        }
     }
 #endif
 }
@@ -146,6 +162,28 @@ static std::vector<void*> setScratchHelper(const std::unique_ptr<NnCorePlg, std:
 
     nnCorePtr->SetScratchBuffers(physAddrVec);
     return virtAddrVec;
+}
+
+static uint8_t* setPrefetchHelper(const std::unique_ptr<NnCorePlg, std::function<void(NnCorePlg*)>>& nnCorePtr,
+    const uint32_t preFetchSize, const std::shared_ptr<vpux::Allocator>& allocatorPtr,
+    const std::shared_ptr<vpu::Logger>& logger) {
+    uint8_t* preFetchVirtAddr = nullptr;
+    if (preFetchSize > 0) {
+        if (allocatorPtr == nullptr) {
+            THROW_IE_EXCEPTION << "prefetchHelper: allocator points to null";
+        }
+        preFetchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(preFetchSize));
+        if (preFetchVirtAddr == nullptr) {
+            THROW_IE_EXCEPTION << "prefetchHelper: failed to allocate " << preFetchSize << " bytes of memory";
+        }
+        unsigned long preFetchPhysAddr = allocatorPtr->getPhysicalAddress(preFetchVirtAddr);
+        uint32_t preFetchAddrLower32Bits = preFetchPhysAddr & 0xffffffff;
+        nnCorePtr->SetPrefetchBuffer(preFetchAddrLower32Bits);
+    } else {
+        logger->info("prefetchHelper: trying to set prefeth buffer with zero size. Skip.");
+    }
+
+    return preFetchVirtAddr;
 }
 }  // namespace
 #endif
@@ -214,6 +252,15 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     _logger->info("Blob Version: %d %d %d", static_cast<int>(blobVersion.major), static_cast<int>(blobVersion.minor),
         static_cast<int>(blobVersion.patch));
     _scratchBuffers = setScratchHelper(_nnCorePlg, nThreads, _allocator, _logger);
+    const uint32_t csramUserSize = _config.CSRAMSize();
+    if (csramUserSize != 0) {
+        // if user set the size manually, use that amount
+        _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, csramUserSize, _csramAllocator, _logger));
+    } else {
+        // otherwise, get the size from NN Core plug-in
+        const uint32_t preFetchSize = _nnCorePlg->GetPrefetchBufferSize();
+        _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, preFetchSize, _csramAllocator, _logger));
+    }
 
     auto tensor_deserializer = [&](const flicTensorDescriptor_t& descriptor) -> void {
         _logger->info(

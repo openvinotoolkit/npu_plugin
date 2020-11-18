@@ -34,8 +34,9 @@ DECLARE_VPUX_CONFIG_VALUE(RGB);
 
 /**
  * @brief [Only for VPUX Plugin]
- * Type: Arbitrary string.
- * This option allows to specify CSRAM size
+ * Type: Arbitrary string. Default is "0".
+ * This option allows to specify CSRAM size.
+ * When the size is 0, GetPrefetchBufferSize is called to determine the required amount of CSRAM.
  */
 DECLARE_VPUX_CONFIG_KEY(CSRAM_SIZE);
 

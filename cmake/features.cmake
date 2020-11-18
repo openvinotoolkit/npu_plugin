@@ -12,7 +12,7 @@ endif()
 if(NOT ENABLE_TESTS)
     set(ENABLE_TESTS OFF)
 endif()
-ie_dependent_option(ENABLE_TESTS "Unit, behavior and functional tests" ${ENABLE_TESTS} "TRUE" OFF)
+ie_option(ENABLE_TESTS "Unit, behavior and functional tests" ${ENABLE_TESTS})
 
 if(NOT ENABLE_LTO)
     set(ENABLE_LTO OFF)
@@ -32,7 +32,7 @@ ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ${EN
 if(NOT ENABLE_CLANG_FORMAT)
     set(ENABLE_CLANG_FORMAT OFF)
 endif()
-ie_dependent_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${ENABLE_CLANG_FORMAT} "TRUE" OFF)
+ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${ENABLE_CLANG_FORMAT})
 
 ie_dependent_option(ENABLE_KMB_SAMPLES "Enable KMB samples" ON "AARCH64" OFF)
 

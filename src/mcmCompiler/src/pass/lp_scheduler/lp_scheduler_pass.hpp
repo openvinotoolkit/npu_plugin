@@ -2499,6 +2499,7 @@ struct Schedule_Reader_Writer {
         }
 
         Schedule_Read_Iterator(const Schedule_Read_Iterator&) = default;
+        Schedule_Read_Iterator& operator=(const Schedule_Read_Iterator&) = default;
 
         const scheduled_op_t& operator*() const { return current_record_; }
 
@@ -2694,6 +2695,8 @@ class Repack_Input_DMA_Tasks {
         }
         (itr->second).add_to_overlap_list(a);
       }
+
+      update_repack_map_t& operator=(const update_repack_map_t&) = delete;
 
       repack_map_t *repack_ptr_;
       const data_op_selector_t *data_op_selector_ptr_;

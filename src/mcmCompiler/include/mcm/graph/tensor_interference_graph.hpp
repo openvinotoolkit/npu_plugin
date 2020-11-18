@@ -127,6 +127,7 @@ namespace mv
                 const mv::OpIteratorFilter& taskFilter = nullptr, const SinkOpIteratorFilter& sinkFilter = nullptr, bool isCompleteTig = false, bool isDMA = false);
 
             TensorInterferenceGraph(const mv::TensorInterferenceGraph& g);
+            TensorInterferenceGraph& operator=(const TensorInterferenceGraph& g) = delete;
             void drawGraph(std::string outputFile);
             void printGraph(std::string name);
     };

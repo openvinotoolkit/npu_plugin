@@ -92,9 +92,16 @@ const std::vector<RegionYoloTestParams> RegionYoloParams = {
         .mask({0, 1, 2})
     };
 
+const std::vector<UseCustomLayers> RegionYoloCustomLayersParams = {
+    UseCustomLayers(false),
+#ifdef KMB_HAS_CUSTOM_KERNELS
+    UseCustomLayers(true)
+#endif
+};
+
 INSTANTIATE_TEST_CASE_P(precommit, KmbRegionYoloLayerTests,
     testing::Combine(
         testing::ValuesIn(RegionYoloParams),
         testing::Values<DoSoftmax>(true, false),
         testing::Values<Layout>(Layout::NHWC, Layout::NCHW),
-        testing::Values<UseCustomLayers>(false, true)));
+        testing::ValuesIn(RegionYoloCustomLayersParams)));

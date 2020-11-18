@@ -31,7 +31,8 @@ VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemot
     : RemoteBlob(tensorDesc),
       _remoteContextPtr(contextPtr),
       _allocatorPtr(allocator),
-      _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", logLevel, vpu::consoleOutput())) {
+      _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", logLevel, vpu::consoleOutput())),
+      _originalTensorDesc(tensorDesc) {
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << CONTEXT_ERROR_str << "Remote context is null.";
     }
@@ -77,7 +78,8 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
       _parsedParams(origBlob._parsedParams),
       _remoteContextPtr(origBlob._remoteContextPtr),
       _allocatorPtr(origBlob._allocatorPtr),
-      _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", origBlob._logger->level(), vpu::consoleOutput())) {
+      _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", origBlob._logger->level(), vpu::consoleOutput())),
+      _originalTensorDesc(origBlob.getOriginalTensorDesc()) {
     if (_allocatorPtr == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set allocator";
     }
@@ -89,7 +91,9 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
     const auto orig_W = origBlobTensorDesc.getDims()[3];
     const auto orig_H = origBlobTensorDesc.getDims()[2];
     auto newROI = makeROIOverROI(_parsedParams.getROIPtr(), regionOfInterest, orig_W, orig_H);
-    IE::ParamMap updatedROIPtrParam = {{IE::KMB_PARAM_KEY(ROI_PTR), newROI}};
+    // With ROI param full tensor desc also should be stored to be able to get full frame information
+    IE::ParamMap updatedROIPtrParam = {{IE::KMB_PARAM_KEY(ROI_PTR), newROI},
+        {IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC), std::make_shared<IE::TensorDesc>(origBlob.getOriginalTensorDesc())}};
     _parsedParams.update(updatedROIPtrParam);
 
     // TODO Remove this cast

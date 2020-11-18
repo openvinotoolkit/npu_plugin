@@ -561,6 +561,7 @@ class Pipeline_Chains {
       for (chain_subgraph_t chain_subgraph : chain_subgraphs) {
         const std::list<op_list_t>& weight_reads = chain_subgraph.weight_reads_;
         const op_list_t& dpu_chain = chain_subgraph.dpu_chain_;
+        assert(!dpu_chain.empty() && "dpu_chain is empty");
 
         chain_subgraph.print(fptr);
         //compute_working_memory_for_eltwise_chain(chain_subgraph);

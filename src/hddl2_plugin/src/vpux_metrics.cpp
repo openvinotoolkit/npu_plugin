@@ -43,7 +43,9 @@ Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
     };
 }
 
-std::vector<std::string> Metrics::GetAvailableDevicesNames() const { return _backends->getAvailableDevicesNames(); }
+std::vector<std::string> Metrics::GetAvailableDevicesNames() const {
+    return _backends == nullptr ? std::vector<std::string>() : _backends->getAvailableDevicesNames();
+}
 
 // TODO each backend may support different metrics
 const std::vector<std::string>& Metrics::SupportedMetrics() const { return _supportedMetrics; }

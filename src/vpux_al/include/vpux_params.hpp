@@ -31,6 +31,7 @@ public:
     InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
     InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
     std::shared_ptr<const InferenceEngine::ROI> getROIPtr() const { return _roiPtr; }
+    std::shared_ptr<const InferenceEngine::TensorDesc> getOriginalTensorDesc() const { return _originalTensorDesc; }
 
 public:
     /** @brief Override current parameters with new options, not specified keep the same */
@@ -45,6 +46,7 @@ private:
     /** @brief Since RemoteMemory represent black box, we need some way to understand that it's NV12 blob*/
     InferenceEngine::ColorFormat _colorFormat = InferenceEngine::ColorFormat::BGR;
     std::shared_ptr<const InferenceEngine::ROI> _roiPtr = nullptr;
+    std::shared_ptr<const InferenceEngine::TensorDesc> _originalTensorDesc = nullptr;
 };
 
 }  // namespace vpux

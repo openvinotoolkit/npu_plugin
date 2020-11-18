@@ -8,6 +8,7 @@
 #include <cfloat>
 #include <csignal>
 #include <ctime>
+#include <details/ie_exception.hpp>
 #include <map>
 #include <numeric>
 #include <string>
@@ -308,6 +309,7 @@ bool ProjectBBox_GetRatio(
     ClipBBox(*proj_bbox, proj_bbox);
 
     float area_after_clipping = BBoxSize(*proj_bbox);
+    IE_ASSERT(area_before_clipping != 0);
     ratio = area_after_clipping / area_before_clipping;
 
     if (BBoxSize(*proj_bbox) > 0) {
@@ -654,6 +656,7 @@ void GetMaxConfidenceScores(const Dtype* conf_data, const int num, const int num
                 for (int label_index = 0; label_index < num_classes; ++label_index) {
                     sum += std::exp(conf_data[start_idx + label_index] - maxval);
                 }
+                IE_ASSERT(sum != 0);
                 maxval_pos = std::exp(maxval_pos - maxval) / sum;
             } else if (loss_type == ConfLossType::HINGE) {
             } else if (loss_type == ConfLossType::LOGISTIC) {
