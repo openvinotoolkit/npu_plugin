@@ -50,16 +50,20 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static Executor::Ptr getExecutorForInference(const Executor::Ptr& executor) {
+static Executor::Ptr getExecutorForInference(const Executor::Ptr& executor, const vpu::Logger::Ptr& logger) {
     if (executor == nullptr) {
         THROW_IE_EXCEPTION << NO_EXECUTOR_FOR_INFERENCE;
     }
-    // TODO Clone method implementation required [Track number: C#36225]
-#ifdef __aarch64__
-    return executor;
-#else
-    return executor->clone();
-#endif
+
+    try {
+        return executor->clone();
+    } catch (const std::exception& exc) {
+        logger->warning("getExecutorForInference: executor threw an exception: %s", exc.what());
+        return executor;
+    } catch (...) {
+        logger->warning("getExecutorForInference: executor threw an unknown exception");
+        return executor;
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -182,7 +186,7 @@ IE::ITaskExecutor::Ptr ExecutableNetwork::getNextTaskExecutor() {
 //------------------------------------------------------------------------------
 IE::InferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(
     const IE::InputsDataMap networkInputs, const IE::OutputsDataMap networkOutputs) {
-    const auto inferExecutor = getExecutorForInference(_executorPtr);
+    const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
 #ifdef __aarch64__
     const auto allocator = _device->getAllocator();
 #else
@@ -194,7 +198,7 @@ IE::InferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(
 }
 
 InferenceEngine::IInferRequest::Ptr ExecutableNetwork::CreateInferRequest() {
-    const auto inferExecutor = getExecutorForInference(_executorPtr);
+    const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
 #ifdef __aarch64__
     const auto allocator = _device->getAllocator();
 #else

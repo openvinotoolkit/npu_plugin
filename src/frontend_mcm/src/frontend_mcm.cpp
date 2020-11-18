@@ -1869,6 +1869,7 @@ void FrontEndMcm::parseTile(const ie::CNNLayerPtr& layer, const McmNodeVector& i
     logParsingStartHelper(_logger, layer, inputs);
 
     auto tileLayer = std::dynamic_pointer_cast<ie::TileLayer>(layer);
+    IE_ASSERT(tileLayer != nullptr);
     uint64_t axis = tileLayer->axis;
     uint64_t tiles = tileLayer->tiles;
 

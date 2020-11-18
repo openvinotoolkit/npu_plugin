@@ -2775,6 +2775,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAEltwiseFP16Task(ComputationMode
     std::string operation = opIt->get<std::string>("eltwiseType");
     if (operation.compare(std::string("Add")) == 0)
         softLayerParamsValue->operation = "sum";
+    else if (operation.compare(std::string("Multiply")) == 0)
+        softLayerParamsValue->operation = "prod";
+    else
+        throw std::runtime_error("buildUPAEltwiseFP16Task: unsupported SW Eltwise Operation, check implementation.");
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
