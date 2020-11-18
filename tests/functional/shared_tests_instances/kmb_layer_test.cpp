@@ -16,9 +16,9 @@ namespace LayerTestsUtils {
 
 #ifndef __aarch64__
 // might need to use CommonTestUtils::DEVICE_CPU for ref calc
-const TargetDevice testPlatformTargetDevice("KMB");
+const TargetDevice testPlatformTargetDevice("VPUX");
 #else
-const TargetDevice testPlatformTargetDevice("KMB");
+const TargetDevice testPlatformTargetDevice("VPUX");
 #endif
 
 const KmbTestEnvConfig KmbLayerTestsCommon::envConfig;
