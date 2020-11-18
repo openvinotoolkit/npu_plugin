@@ -29,5 +29,8 @@ std::vector<std::string> disabledTestPatterns() {
 
         // [Track number: S#42749]
         ".*KmbSqueezeUnsqueezeLayerTest\\.BasicTest.*",
+
+        // [Track number: S#43484]
+        ".*KmbMaxMinLayerTest.*",
     };
 }
