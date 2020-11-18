@@ -2621,7 +2621,7 @@ mv::Data::OpListIterator mv::OpModel::getSourceOp(Data::TensorIterator tensor)
 }
 void mv::OpModel::addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr)
 {
-    return BaseOpModel::addAttr(op, name, attr);
+    BaseOpModel::addAttr(op, name, attr);
 }
 bool mv::OpModel::isValid() const
 {
