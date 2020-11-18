@@ -1294,22 +1294,21 @@ void convert(std::shared_ptr<ngraph::op::NormalizeIE> normalizeIE, mv::OpModel& 
     const auto mcmData = mcmInputs.at(0);
     const auto& opName = normalizeIE->get_friendly_name();
 
-    const double eps = normalizeIE->get_eps();
-    auto const_axis = std::dynamic_pointer_cast<ngraph::op::Constant> (normalizeIE->input(1).get_source_output().get_node_shared_ptr());
-    IE_ASSERT(nullptr != const_axis);
-    const auto& axis = const_axis->cast_vector<size_t>();
-    const bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
+    auto weights_node = std::dynamic_pointer_cast<ngraph::op::Constant> (normalizeIE->input(1).get_source_output().get_node_shared_ptr());
+    IE_ASSERT(nullptr != weights_node);
+    const auto weights_shape = weights_node->get_shape();
+    std::vector<double> weights = weights_node->cast_vector<double>();
+    mv::Shape weights_shape_4d = (weights_shape.size() == 4) ? weights_shape : mv::Shape {1, weights_shape[0], 1, 1};
 
-    const size_t weightsSize = mcmData->getShape()[2];
-    const mv::Shape weightsShape = {1, weightsSize, 1, 1};
-    std::vector<double> weightsData (weightsSize, 1.0); // see convert_normalizel2_to_normalize_ie.cpp
-    bool channel_shared = false;
+    const bool channel_shared = normalizeIE->get_channel_shared();
+    const bool across_spatial = normalizeIE->get_across_spatial();
+    const double eps = normalizeIE->get_eps();
 
     for (size_t i = 1; i < mcmInputs.size(); i++) {
         mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
     }
 
-    auto mvWeightsValues = mcmModel.constant("", weightsData, weightsShape, mv::DType("Float32"), mv::Order::getZMajorID(4));
+    auto mvWeightsValues = mcmModel.constant("", weights, weights_shape_4d, mv::DType("Float32"), mv::Order::getZMajorID(4));
 
     auto mvNormalizeOutput = mcmModel.normalize(opName, mcmData, mvWeightsValues, eps, across_spatial, channel_shared);
     mvNormalizeOutput->setQuantParams(initialQuantParams());
