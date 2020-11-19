@@ -177,7 +177,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobOutOfBoundsThrow) {
 // These blobs use common data from parent blob
 // Every ROI blob has its own InferenceEngine::ROI data which keep information about ROI frame geometry (offset from parent and sizes)
 // When we are using cascade ROI, ROI offsets are calculated according to the superposition principle
-TEST_F(HDDL2_RemoteBlob_UnitTests, CascadeROIBlobCorrect) {
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_CascadeROIBlobCorrect) {
     SKIP_IF_NO_DEVICE();
     IE::TensorDesc expectedTensorDesc = {tensorDesc.getPrecision(), tensorDesc.getDims(), IE::Layout::NHWC};
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(expectedTensorDesc, blobParamMap);
