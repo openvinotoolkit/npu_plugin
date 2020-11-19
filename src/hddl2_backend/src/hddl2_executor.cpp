@@ -255,8 +255,6 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
 
         const auto deviceOutputPrecision = deviceTensorDesc.getPrecision();
         const auto blobOutputPrecision = outputBlobTensorDesc.getPrecision();
-        const auto deviceOutputLayout = deviceTensorDesc.getLayout();
-        const auto blobOutputLayout = outputBlobTensorDesc.getLayout();
 
         if (deviceOutputPrecision == IE::Precision::FP32 || blobOutputPrecision == IE::Precision::FP32) {
             if (deviceOutputPrecision == IE::Precision::U8 || blobOutputPrecision == IE::Precision::U8) {
@@ -278,40 +276,24 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
         copyDataToBlob(deviceOutputBlob, outputUniteData.data(), outputUniteData.size());
         outputBlobPtr = toPrecision(deviceOutputBlob, blobOutputPrecision);
 
-        // Currently we have outputBlob with device layout and user precision
-        if (blobOutputLayout == deviceOutputLayout) {
-            outputs[outputName] = outputBlobPtr;
+        if (deviceTensorDesc.getDims().size() == outputBlobTensorDesc.getDims().size()) {
+            outputBlobPtr = toLayout(outputBlobPtr, outputBlobTensorDesc.getLayout());
         } else {
-            IE::Blob::Ptr rightOutputBlobPtr = nullptr;
-            if (is2DTensor(outputBlobTensorDesc.getDims()) || is2DTensor(deviceTensorDesc.getDims())) {
-                rightOutputBlobPtr = make_blob_with_precision(outputBlobTensorDesc);
-                rightOutputBlobPtr->allocate();
-                auto memBlobRightOut = IE::as<IE::MemoryBlob>(rightOutputBlobPtr);
-                IE_ASSERT(memBlobRightOut != nullptr);
-                auto memBlobOut = IE::as<IE::MemoryBlob>(outputBlobPtr);
-                IE_ASSERT(memBlobOut != nullptr);
-                std::memcpy(memBlobRightOut->wmap().as<uint8_t*>(), memBlobOut->rmap().as<uint8_t*>(),
-                    outputBlobPtr->byteSize());
-            } else {
-                // Both of them are not 2D
-                if (outputBlobTensorDesc.getDims().size() == 3) {
-                    // 3D CHW output
-                    IE::Blob::Ptr tmpBlobPtr = toLayout(outputBlobPtr, IE::Layout::NCHW);
-                    rightOutputBlobPtr = make_blob_with_precision(outputBlobTensorDesc);
-                    rightOutputBlobPtr->allocate();
-                    auto memBlobRightOut = IE::as<IE::MemoryBlob>(rightOutputBlobPtr);
-                    IE_ASSERT(memBlobRightOut != nullptr);
-                    auto memBlobTmp = IE::as<IE::MemoryBlob>(tmpBlobPtr);
-                    IE_ASSERT(memBlobTmp != nullptr);
-                    std::memcpy(memBlobRightOut->wmap().as<uint8_t*>(), memBlobTmp->rmap().as<uint8_t*>(),
-                        tmpBlobPtr->byteSize());
-                } else {
-                    // 4D to 4D
-                    rightOutputBlobPtr = toLayout(outputBlobPtr, blobOutputLayout);
-                }
+            // FIXME If device and output layout dims are different, we do plain copy (see below)
+            // Will be different behavior with channel minor and channel major layouts
+            if (deviceTensorDesc.getLayout() == IE::Layout::NHWC &&
+                outputBlobTensorDesc.getLayout() == IE::Layout::CHW) {
+                outputBlobPtr = toLayout(outputBlobPtr, IE::Layout::NCHW);
             }
-            outputs[outputName] = rightOutputBlobPtr;
         }
+
+        auto memOutputBlob = IE::as<IE::MemoryBlob>(foundOutputBlob->second);
+        IE_ASSERT(memOutputBlob != nullptr);
+        auto memDeviceBlob = IE::as<IE::MemoryBlob>(outputBlobPtr);
+        IE_ASSERT(memDeviceBlob != nullptr);
+        auto memOutputLock = memOutputBlob->wmap();
+        auto memDeviceLock = memDeviceBlob->rmap();
+        std::memcpy(memOutputLock.as<uint8_t*>(), memDeviceLock.as<uint8_t*>(), outputBlobPtr->byteSize());
     }
 }  // namespace HDDL2
 
