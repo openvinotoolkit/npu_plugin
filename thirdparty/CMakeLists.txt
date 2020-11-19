@@ -23,6 +23,8 @@ foreach(flag IN ITEMS "-Werror" "-fvisibility=hidden" "-fvisibility-inlines-hidd
     string(REPLACE ${flag} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 endforeach()
 
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
 #
 # LLVM/MLIR
 #
@@ -119,6 +121,10 @@ else()
     set(GAPI_M2I_LIBRARY "" CACHE INTERNAL "")
     set(GAPI_M2I_INCLUDES "" CACHE INTERNAL "")
 endif()
+
+#
+# zeroApi
+#
 
 if(ENABLE_ZEROAPI_BACKEND)
     add_library(zeroApi STATIC IMPORTED GLOBAL)
