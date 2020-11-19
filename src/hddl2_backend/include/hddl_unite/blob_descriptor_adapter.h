@@ -99,7 +99,7 @@ public:
     BlobDescriptorAdapter(const BlobDescriptorAdapter&&) = delete;
     BlobDescriptorAdapter& operator=(const BlobDescriptorAdapter&) = delete;
     BlobDescriptorAdapter& operator=(const BlobDescriptorAdapter&&) = delete;
-    explicit BlobDescriptorAdapter(BlobDescType typeOfBlob, const InferenceEngine::DataPtr& desc,
+    explicit BlobDescriptorAdapter(BlobDescType typeOfBlob, const InferenceEngine::DataPtr& blobDesc,
         const InferenceEngine::ColorFormat& graphColorFormat, const bool isInput);
     /** @brief If blob allocation data is different from networkDesc, recreation of blob desc required */
     explicit BlobDescriptorAdapter(const InferenceEngine::Blob::CPtr& blobPtr,

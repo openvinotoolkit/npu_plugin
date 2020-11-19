@@ -302,6 +302,11 @@ void BlobDescriptorAdapter::prepareImageFormatInfo(
         dims = getNV12ImageDims(blobPtr);
     }
 
+    // For RemoteBlob with ROI we should use original tensor desc, since ROI blob have modified description
+    if (blobParams->getROIPtr() != nullptr && blobParams->getOriginalTensorDesc() != nullptr) {
+        dims = blobParams->getOriginalTensorDesc()->getDims();
+    }
+
     if (dims.size() != 4) {
         THROW_IE_EXCEPTION << "BlobDescriptorAdapter: Format with dims != 4 not supported";
     }
