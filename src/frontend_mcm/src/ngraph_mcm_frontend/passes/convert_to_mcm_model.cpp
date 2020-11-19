@@ -49,6 +49,8 @@
 
 #include "ngraph/op/reorg_yolo.hpp"
 
+#include "ngraph/op/ctc_greedy_decoder.hpp"
+
 #include <ngraph/op/power.hpp>
 #include <legacy/ngraph_ops/relu_ie.hpp>
 #include <legacy/ngraph_ops/eltwise.hpp>
@@ -1509,6 +1511,18 @@ void convert(std::shared_ptr<ngraph::op::v1::VariadicSplit> variadicSplit,
     registerOutputs(variadicSplit, mcmOutputs, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::CTCGreedyDecoder> CTCGreedyDecoder, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(CTCGreedyDecoder, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+
+    auto mcmCTCGreedyDecoder = mcmModel.cTCDecoder(CTCGreedyDecoder->get_friendly_name(),
+                                                   mcmInputs.at(0), mcmInputs.at(1),
+                                                   CTCGreedyDecoder->get_ctc_merge_repeated());
+
+    registerOutputs(CTCGreedyDecoder, {mcmCTCGreedyDecoder}, mcmOutputsMap);
+}
+
+
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
 template <typename T>
@@ -1586,7 +1600,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::StridedSlice),
     MAP_ENTRY(ngraph::op::v4::HSwish),
     MAP_ENTRY(ngraph::op::TileIE),
-    MAP_ENTRY(ngraph::op::v1::VariadicSplit)
+    MAP_ENTRY(ngraph::op::v1::VariadicSplit),
+    MAP_ENTRY(ngraph::op::CTCGreedyDecoder)
 };
 
 #undef MAP_ENTRY
