@@ -181,7 +181,7 @@ public:
 
     virtual void pull(InferenceEngine::BlobMap& outputs) = 0;
 
-    virtual bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo& preProcessInfo) const = 0;
+    virtual bool isPreProcessingSupported(const PreprocMap& preProcMap) const = 0;
     virtual std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() = 0;
     virtual InferenceEngine::Parameter getParameter(const std::string& paramName) const = 0;
 

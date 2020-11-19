@@ -18,6 +18,7 @@
 
 // IE
 #include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
+#include <ie_input_info.hpp>
 // Plugin
 #include <vpux.hpp>
 #include <vpux_config.hpp>
@@ -46,7 +47,21 @@ public:
 protected:
     void checkBlobs() override;
 
-    PreprocMap preparePreProcessing(InferenceEngine::BlobMap& inputs,
+    /**
+     * @brief Create map with preProcessing info
+     * @param[in] networkInputs Contains information of pre-processing, which should be done
+     * @param[in] preProcData Container with blobs, which should be preprocessed
+     * @return Map with preprocess information
+     */
+    PreprocMap preparePreProcessing(const InferenceEngine::InputsDataMap& networkInputs,
+        const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
+
+    /**
+     * @brief Move all preProcessing blobs to inputs BlobMap
+     * @param[in/out] inputs Map with NN blobs. PP blobs should be placed instead for some inputs.
+     * @details This should be done as separate step, if device cannot handle such preprocessing, input should not be
+     * replaced  */
+    void moveBlobForPreprocessingToInputs(InferenceEngine::BlobMap& inputs,
         const InferenceEngine::InputsDataMap& networkInputs,
         const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
 

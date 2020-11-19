@@ -362,7 +362,7 @@ ZeroExecutor::~ZeroExecutor() {
 
 InferenceEngine::Parameter ZeroExecutor::getParameter(const std::string&) const { return InferenceEngine::Parameter(); }
 void ZeroExecutor::setup(const InferenceEngine::ParamMap&) { THROW_IE_EXCEPTION << "Not implemented"; }
-bool ZeroExecutor::isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) const { return false; }
+bool ZeroExecutor::isPreProcessingSupported(const PreprocMap& preProcMap) const { return false; }
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ZeroExecutor::getLayerStatistics() {
     THROW_IE_EXCEPTION << "Not implemented";
     return std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>();
