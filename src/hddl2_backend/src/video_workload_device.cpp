@@ -15,11 +15,13 @@
 //
 
 // Plugin
+#include <hddl2_helper.h>
+
 #include "hddl2/hddl2_params.hpp"
 #include "hddl2_exceptions.h"
 #include "hddl2_executor.h"
 // Subplugin
-#include "hddl2_context_device.h"
+#include "video_workload_device.h"
 
 namespace vpux {
 namespace HDDL2 {
@@ -34,7 +36,11 @@ ParsedContextParams::ParsedContextParams(const InferenceEngine::ParamMap& paramM
     if (_paramMap.find(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)) == paramMap.end()) {
         THROW_IE_EXCEPTION << PARAMS_ERROR_str << "Param map does not contain workload id information";
     }
-    _workloadId = _paramMap.at(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID));
+    try {
+        _workloadId = _paramMap.at(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)).as<uint64_t>();
+    } catch (...) {
+        THROW_IE_EXCEPTION << PARAMS_ERROR_str << "ParsedContextParams: Incorrect type of WORKLOAD_CONTEXT_ID.";
+    }
 }
 
 InferenceEngine::ParamMap ParsedContextParams::getParamMap() const { return _paramMap; }
@@ -42,7 +48,7 @@ InferenceEngine::ParamMap ParsedContextParams::getParamMap() const { return _par
 WorkloadID ParsedContextParams::getWorkloadId() const { return _workloadId; }
 
 //------------------------------------------------------------------------------
-HDDLUniteContextDevice::HDDLUniteContextDevice(const InferenceEngine::ParamMap& paramMap, const VPUXConfig& config)
+VideoWorkloadDevice::VideoWorkloadDevice(const InferenceEngine::ParamMap& paramMap, const VPUXConfig& config)
     : _contextParams(paramMap) {
     // TODO Create logger for context device
     _workloadContext = HddlUnite::queryWorkloadContext(_contextParams.getWorkloadId());
@@ -56,9 +62,21 @@ HDDLUniteContextDevice::HDDLUniteContextDevice(const InferenceEngine::ParamMap& 
     _allocatorPtr = std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteAllocator>(_workloadContext, config.logLevel());
 }
 
-vpux::Executor::Ptr HDDLUniteContextDevice::createExecutor(
+vpux::Executor::Ptr VideoWorkloadDevice::createExecutor(
     const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
     return vpux::HDDL2::HDDL2Executor::prepareExecutor(networkDescription, config, _allocatorPtr, _workloadContext);
+}
+std::shared_ptr<Allocator> VideoWorkloadDevice::getAllocator(const InferenceEngine::ParamMap& paramMap) const {
+    try {
+        // VideoWorkload allocator only suitable for HddlUnite::RemoteMemory. Will throw, if not found.
+        const auto remoteMemory = vpux::HDDL2::getRemoteMemoryFromParams(paramMap);
+        if (remoteMemory != nullptr) {
+            return _allocatorPtr;
+        }
+    } catch (...) {
+        // TODO Add log message that allocator for such params not found.
+    }
+    THROW_IE_EXCEPTION << "VideoWorkloadDevice: Appropriate allocator for provided params cannot be found.";
 }
 }  // namespace HDDL2
 }  // namespace vpux

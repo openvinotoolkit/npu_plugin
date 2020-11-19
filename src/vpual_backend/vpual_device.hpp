@@ -28,6 +28,7 @@ class VpualDevice final : public IDevice {
 public:
     VpualDevice(const std::string& name);
     std::shared_ptr<Allocator> getAllocator() const override;
+    std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) const override;
 
     std::shared_ptr<Executor> createExecutor(
         const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;

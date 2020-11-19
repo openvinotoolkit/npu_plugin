@@ -18,18 +18,22 @@
 #include "hddl2_exceptions.h"
 #include "hddl2_executor.h"
 // Subplugin
-#include "hddl2_device.h"
+#include "image_workload_device.h"
 
 namespace vpux {
 namespace HDDL2 {
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-HDDLUniteDevice::HDDLUniteDevice(const std::string& name): _name(name) {}
+ImageWorkloadDevice::ImageWorkloadDevice(const std::string& name): _name(name) {}
 
-vpux::Executor::Ptr HDDLUniteDevice::createExecutor(
+vpux::Executor::Ptr ImageWorkloadDevice::createExecutor(
     const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
     return HDDL2Executor::prepareExecutor(networkDescription, config);
+}
+std::shared_ptr<Allocator> ImageWorkloadDevice::getAllocator(const InferenceEngine::ParamMap& paramMap) const {
+    if (paramMap.empty()) return _allocatorPtr;
+    THROW_IE_EXCEPTION << "ImageWorkloadDevice: ImageWorkload device doesn't have allocators for any params.";
 }
 }  // namespace HDDL2
 }  // namespace vpux

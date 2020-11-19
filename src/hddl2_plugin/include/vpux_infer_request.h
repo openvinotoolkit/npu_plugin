@@ -50,6 +50,7 @@ protected:
         const InferenceEngine::InputsDataMap& networkInputs,
         const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
 
+    // TODO Preprocessing should be moved into backend [Track number: S#43193]
 #ifdef __aarch64__
     void execPreprocessing(InferenceEngine::BlobMap& inputs);
     void relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
@@ -68,6 +69,8 @@ protected:
     std::shared_ptr<InferenceEngine::IAllocator> _allocator;
     const int _deviceId;
     const std::string _netUniqueId;
+
+    // TODO Specific details for KMB-standalone preprocessing [Track number: S#43193]
     // the buffer is used when non-shareable memory passed for preprocessing
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preprocBuffer;
 };

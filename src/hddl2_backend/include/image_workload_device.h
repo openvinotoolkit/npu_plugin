@@ -30,10 +30,13 @@ namespace HDDL2 {
  * @brief General device, for ImageWorkload.
  * If specific name not provided, device selection will be postponed until inference
  */
-class HDDLUniteDevice final : public IDevice {
+class ImageWorkloadDevice final : public IDevice {
 public:
-    explicit HDDLUniteDevice(const std::string& name = "");
-    std::shared_ptr<Allocator> getAllocator() const override { return _allocatorPtr; }
+    explicit ImageWorkloadDevice(const std::string& name = "");
+    std::shared_ptr<Allocator> getAllocator() const override { return nullptr; }
+    // For generic device no specific allocator can be provided
+    std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) const override;
+
     std::string getName() const override { return _name; }
 
     Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;

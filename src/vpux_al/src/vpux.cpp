@@ -113,4 +113,7 @@ void* Allocator::wrapRemoteMemory(const InferenceEngine::ParamMap&) noexcept {
     std::cerr << "Wrapping remote memory not implemented" << std::endl;
     return nullptr;
 }
+std::shared_ptr<Allocator> IDevice::getAllocator(const InferenceEngine::ParamMap&) const {
+    THROW_IE_EXCEPTION << "Not supported";
+}
 }  // namespace vpux

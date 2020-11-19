@@ -51,6 +51,10 @@ std::shared_ptr<Executor> VpualDevice::createExecutor(
 }
 
 std::shared_ptr<Allocator> VpualDevice::getAllocator() const { return _allocator; }
+std::shared_ptr<Allocator> VpualDevice::getAllocator(const InferenceEngine::ParamMap&) const {
+    // TODO Add validation that input param map can be handled by allocator
+    return getAllocator();
+}
 
 std::string VpualDevice::getName() const { return _name; }
 }  // namespace vpux
