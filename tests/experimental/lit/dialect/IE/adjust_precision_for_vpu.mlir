@@ -1,12 +1,12 @@
 // RUN: vpux-opt -split-input-file -adjust-precision-for-vpu %s | FileCheck %s
 
-IE.CNNNetwork {
-    entryPoint = @main, netName = "FP32toFP16"
-} inputsInfo {
-    IE.DataInfo {layout = #IE<"Layout:NC">, name = "data", precision = f32}
-} outputsInfo {
-    IE.DataInfo {layout = #IE<"Layout:NC">, name = "prob", precision = f32}
-}
+IE.CNNNetwork "FP32toFP16" at @main
+    inputsInfo : {
+        IE.DataInfo "data", f32, "NC"
+    }
+    outputsInfo : {
+        IE.DataInfo "prob", f32, "NC"
+    }
 
 // CHECK: func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16>
 func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {

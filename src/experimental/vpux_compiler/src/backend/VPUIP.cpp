@@ -131,21 +131,13 @@ flatbuffers::Offset<MVCNN::SummaryHeader>
                                     0));
     }
 
-    const auto serializedOptions = writer.createVector(
-            graphOp.options().getAsRange<VPUIP::ExecutionFlagAttr>() |
-            transformed([](VPUIP::ExecutionFlagAttr flag) {
-                switch (flag.getValue()) {
-                case VPUIP::ExecutionFlag::DynamicBarriers:
-                    return static_cast<int8_t>(
-                            MVCNN::ExecutionFlag_DynamicBarriers);
-                case VPUIP::ExecutionFlag::Compiled_For_VPU3:
-                    return static_cast<int8_t>(
-                            MVCNN::ExecutionFlag_Compiled_For_VPU3);
-                default:
-                    VPUX_THROW("Unsupported ExecutionFlag {0}",
-                               flag.getValue());
-                }
-            }));
+    SmallVector<int8_t, 1> options;
+    if (VPUIP::bitEnumContains(graphOp.options(),
+                               VPUIP::ExecutionFlag::DynamicBarriers)) {
+        options.push_back(
+                static_cast<int8_t>(MVCNN::ExecutionFlag_DynamicBarriers));
+    }
+    const auto serializedOptions = writer.createVector(options);
 
     const auto serializedVersion = createVersion(writer);
     const auto serializedName = writer.createString(graphOp.identifier());

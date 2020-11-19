@@ -83,7 +83,7 @@ AddressType
 
     VPUX_THROW_UNLESS(producerOp != nullptr,
                       "Can allocate only DeclareTensorOp results");
-    VPUX_THROW_UNLESS(producerOp.locationAttr().toPhysicalMemory() ==
+    VPUX_THROW_UNLESS(getPhysicalMemory(producerOp.location()) ==
                               VPUIP::PhysicalMemory::DDR,
                       "Can allocate only DDR memory");
     VPUX_THROW_UNLESS(producerOp.offset().hasValue(),
@@ -102,7 +102,7 @@ void AssignTensorOffsetsDDRPass::Handler::allocated(mlir::Value val,
 
     VPUX_THROW_UNLESS(producerOp != nullptr,
                       "Can allocate only DeclareTensorOp results");
-    VPUX_THROW_UNLESS(producerOp.locationAttr().toPhysicalMemory() ==
+    VPUX_THROW_UNLESS(getPhysicalMemory(producerOp.location()) ==
                               VPUIP::PhysicalMemory::DDR,
                       "Can allocate only DDR memory");
     VPUX_THROW_UNLESS(!producerOp.offset().hasValue(),
@@ -156,7 +156,7 @@ void AssignTensorOffsetsDDRPass::passBody() {
 
     auto callback = [&](mlir::Operation* op) -> mlir::WalkResult {
         if (auto allocOp = mlir::dyn_cast<VPUIP::DeclareTensorOp>(op)) {
-            if (allocOp.locationAttr().toPhysicalMemory() ==
+            if (getPhysicalMemory(allocOp.location()) ==
                 VPUIP::PhysicalMemory::DDR) {
                 auto memVal = allocOp.memory();
 

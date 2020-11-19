@@ -139,9 +139,7 @@ mlir::LogicalResult ConvertPass::allocateResults(
         auto allocOp = builder.create<VPUIP::DeclareTensorOp>(
                 loc,
                 memrefType,
-                VPUIP::MemoryLocationAttr::get(
-                        loc.getContext(),
-                        VPUIP::MemoryLocation::VPU_DDR_Heap),
+                VPUIP::MemoryLocation::VPU_DDR_Heap,
                 nullptr);
 
         allocatedBufs.push_back(allocOp.memory());
@@ -288,13 +286,15 @@ mlir::LogicalResult ConvertPass::removeCnnNetworkOp() {
         _inputsInfo.push_back(TensorInfo{
                 dataInfo.nameAttr(),
                 dataInfo.precisionAttr(),
-                mlir::AffineMapAttr::get(dataInfo.layoutAttr().toAffineMap())});
+                mlir::AffineMapAttr::get(
+                        getAffineMap(module.getContext(), dataInfo.layout()))});
     }
     for (auto dataInfo : netOp.outputsInfo().getOps<IE::DataInfoOp>()) {
         _outputsInfo.push_back(TensorInfo{
                 dataInfo.nameAttr(),
                 dataInfo.precisionAttr(),
-                mlir::AffineMapAttr::get(dataInfo.layoutAttr().toAffineMap())});
+                mlir::AffineMapAttr::get(
+                        getAffineMap(module.getContext(), dataInfo.layout()))});
     }
 
     netOp.erase();
@@ -331,7 +331,8 @@ mlir::LogicalResult ConvertPass::addGraphOp() {
     auto& ctx = getContext();
     auto module = getOperation();
 
-    const auto options = mlir::ArrayAttr::get({}, &ctx);
+    const auto options =
+            VPUIP::ExecutionFlagAttr::get(&ctx, VPUIP::ExecutionFlag::NONE);
 
     // We have to reserve at least 1 nn_cmx_slice to allow runtime work
     const auto resources = VPUIP::ResourcesAttr::get(

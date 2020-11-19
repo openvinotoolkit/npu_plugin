@@ -16,9 +16,41 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include <llvm/ADT/TypeSwitch.h>
+#include "vpux/compiler/core/dims_order.hpp"
+
+#include <mlir/IR/Attributes.h>
+#include <mlir/IR/OpImplementation.h>
 
 using namespace vpux;
+
+namespace {
+
+class VPUIPDialectAsmHooks final : public mlir::OpAsmDialectInterface {
+public:
+    using mlir::OpAsmDialectInterface::OpAsmDialectInterface;
+
+public:
+    mlir::LogicalResult getAlias(mlir::Attribute attr,
+                                 llvm::raw_ostream& os) const final;
+};
+
+mlir::LogicalResult
+        VPUIPDialectAsmHooks::getAlias(mlir::Attribute attr,
+                                       llvm::raw_ostream& os) const {
+    if (const auto affineMapAttr = attr.dyn_cast<mlir::AffineMapAttr>()) {
+        if (const auto dimsOrder =
+                    DimsOrder::fromAffineMap(affineMapAttr.getValue())) {
+            if (const auto name = dimsOrder->getCanonicalName()) {
+                os << name.getValue();
+                return mlir::success();
+            }
+        }
+    }
+
+    return mlir::failure();
+}
+
+}  // namespace
 
 void vpux::VPUIP::VPUIPDialect::initialize() {
     addOperations<
@@ -33,72 +65,7 @@ void vpux::VPUIP::VPUIPDialect::initialize() {
 #undef GET_TYPEDEF_LIST
             >();
 
-    addAttributes<PhysicalProcessorAttr,
-                  DMAEngineAttr,
-                  PhysicalMemoryAttr,
-                  ArchKindAttr,
-                  MemoryLocationAttr,
-                  ExecutionFlagAttr,
-                  TaskTypeAttr>();
-}
-
-mlir::Attribute vpux::VPUIP::VPUIPDialect::parseAttribute(
-        mlir::DialectAsmParser& parser,
-        mlir::Type) const {
-    StringRef mnenomic;
-    if (mlir::failed(parser.parseKeyword(&mnenomic))) {
-        printTo(parser.emitError(parser.getCurrentLocation()),
-                "Failed to get VPUIP Attribute mnenomic");
-        return nullptr;
-    }
-
-    if (mnenomic == PhysicalProcessorAttr::getMnemonic()) {
-        return PhysicalProcessorAttr::parse(parser);
-    } else if (mnenomic == DMAEngineAttr::getMnemonic()) {
-        return DMAEngineAttr::parse(parser);
-    } else if (mnenomic == PhysicalMemoryAttr::getMnemonic()) {
-        return PhysicalMemoryAttr::parse(parser);
-    } else if (mnenomic == ArchKindAttr::getMnemonic()) {
-        return ArchKindAttr::parse(parser);
-    } else if (mnenomic == MemoryLocationAttr::getMnemonic()) {
-        return MemoryLocationAttr::parse(parser);
-    } else if (mnenomic == ExecutionFlagAttr::getMnemonic()) {
-        return ExecutionFlagAttr::parse(parser);
-    } else if (mnenomic == TaskTypeAttr::getMnemonic()) {
-        return TaskTypeAttr::parse(parser);
-    }
-
-    printTo(parser.emitError(parser.getCurrentLocation()),
-            "Unknown VPUIP Attribute '{0}'",
-            mnenomic);
-    return nullptr;
-}
-
-void vpux::VPUIP::VPUIPDialect::printAttribute(
-        mlir::Attribute attr,
-        mlir::DialectAsmPrinter& os) const {
-    llvm::TypeSwitch<mlir::Attribute>(attr)
-            .Case<PhysicalProcessorAttr>([&os](PhysicalProcessorAttr proc) {
-                proc.print(os);
-            })
-            .Case<DMAEngineAttr>([&os](DMAEngineAttr dma) {
-                dma.print(os);
-            })
-            .Case<PhysicalMemoryAttr>([&os](PhysicalMemoryAttr mem) {
-                mem.print(os);
-            })
-            .Case<ArchKindAttr>([&os](ArchKindAttr arch) {
-                arch.print(os);
-            })
-            .Case<MemoryLocationAttr>([&os](MemoryLocationAttr attr) {
-                attr.print(os);
-            })
-            .Case<ExecutionFlagAttr>([&os](ExecutionFlagAttr attr) {
-                attr.print(os);
-            })
-            .Case<TaskTypeAttr>([&os](TaskTypeAttr attr) {
-                attr.print(os);
-            });
+    addInterfaces<VPUIPDialectAsmHooks>();
 }
 
 mlir::Type vpux::VPUIP::VPUIPDialect::parseType(

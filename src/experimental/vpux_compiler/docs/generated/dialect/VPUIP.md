@@ -71,7 +71,7 @@ MemRef value declaration
 Syntax:
 
 ```
-operation ::= `VPUIP.DeclareTensor` attr-dict `->` type(results)
+operation ::= `VPUIP.DeclareTensor` $location (`,` $offset^)? attr-dict `->` type(results)
 ```
 
 
@@ -79,7 +79,7 @@ operation ::= `VPUIP.DeclareTensor` attr-dict `->` type(results)
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`location` | vpux::VPUIP::MemoryLocationAttr | Values indicating which type of memory a tensor resides in
+`location` | ::mlir::IntegerAttr | Values indicating which type of memory a tensor resides in
 `offset` | ::mlir::IntegerAttr | 64-bit signless integer attribute
 
 #### Results:
@@ -109,8 +109,11 @@ Syntax:
 
 ```
 operation ::= `VPUIP.Graph` attr-dict
-              `inputsInfo` $inputsInfo
-              `outputsInfo` $outputsInfo
+              $identifier `at` $entryPoint
+              `options` `:` $options
+              `resources` `:` $resources
+              `inputsInfo` `:` $inputsInfo
+              `outputsInfo` `:` $outputsInfo
 ```
 
 
@@ -120,7 +123,7 @@ operation ::= `VPUIP.Graph` attr-dict
 | :-------: | :-------: | ----------- |
 `identifier` | ::mlir::StringAttr | string attribute
 `entryPoint` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
-`options` | ::mlir::ArrayAttr | Array attribute of VPUIP ExecutionFlag
+`options` | ::mlir::IntegerAttr | Each of these enums' presence informs how the current schedule is configured
 `resources` | vpux::VPUIP::ResourcesAttr | DictionaryAttr with field(s): 'upa_shaves', 'nce2_blocks', 'upa_shared_cmx', 'nn_cmx_per_slice', 'nn_cmx_slice_amount', 'ddr_scratch', 'csram_storage' (each field having its own constraints)
 
 ### `VPUIP.SoftMaxUPA` (vpux::VPUIP::SoftMaxUPAOp)
@@ -165,6 +168,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.TensorInfo` attr-dict
+              $name `,` $precision `,` $layout
 ```
 
 

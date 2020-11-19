@@ -23,6 +23,7 @@
 using namespace vpux;
 
 namespace {
+
 std::vector<DimsOrder> getOrders() {
     return std::vector<DimsOrder>{vpux::DimsOrder::C,
                                   vpux::DimsOrder::NC,
@@ -87,7 +88,23 @@ std::vector<std::pair<DimsOrder::StorageType, DimsOrder>> getCode2Order() {
             std::make_pair(0x13452, DimsOrder::NDHWC)};
 }
 
+std::vector<std::pair<DimsOrder, StringRef>> getOrders2Name() {
+    return std::vector<std::pair<DimsOrder, StringRef>>{
+            std::make_pair(vpux::DimsOrder(), "SCALAR"),
+            std::make_pair(vpux::DimsOrder::C, "C"),
+            std::make_pair(vpux::DimsOrder::NC, "NC"),
+            std::make_pair(vpux::DimsOrder::CHW, "CHW"),
+            std::make_pair(vpux::DimsOrder::HWC, "HWC"),
+            std::make_pair(vpux::DimsOrder::HCW, "HCW"),
+            std::make_pair(vpux::DimsOrder::NCHW, "NCHW"),
+            std::make_pair(vpux::DimsOrder::NHWC, "NHWC"),
+            std::make_pair(vpux::DimsOrder::NHCW, "NHCW"),
+            std::make_pair(vpux::DimsOrder::NCDHW, "NCDHW"),
+            std::make_pair(vpux::DimsOrder::NDHWC, "NDHWC")};
+}
+
 }  // namespace
+
 TEST(DimsOrderTest, ValidateCodeTest) {
     auto orders = getOrders();
 
@@ -396,4 +413,19 @@ TEST(DimsOrderTest, toIETest) {
 TEST(DimsOrderTest, TryToSetIncorrectDimIndx) {
     EXPECT_ANY_THROW(Dim(-1));
     EXPECT_ANY_THROW(Dim(-123456));
+}
+
+TEST(DimsOrderTest, getCanonicalName) {
+    auto orders2name = getOrders2Name();
+
+    std::for_each(orders2name.begin(),
+                  orders2name.end(),
+                  [](const std::pair<DimsOrder, StringRef>& order2name) {
+                      const auto name = order2name.first.getCanonicalName();
+                      ASSERT_TRUE(name.hasValue()) << order2name.second.data();
+                      ASSERT_EQ(name.getValue(), order2name.second);
+                  });
+
+    const auto nonDefault = DimsOrder::fromNumDims(7).getCanonicalName();
+    ASSERT_FALSE(nonDefault.hasValue());
 }

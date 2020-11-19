@@ -367,6 +367,34 @@ InferenceEngine::Layout vpux::DimsOrder::toIE() const {
     }
 }
 
+Optional<StringRef> vpux::DimsOrder::getCanonicalName() const {
+    if (*this == DimsOrder()) {
+        return StringRef("SCALAR");
+    } else if (*this == DimsOrder::C) {
+        return StringRef("C");
+    } else if (*this == DimsOrder::NC) {
+        return StringRef("NC");
+    } else if (*this == DimsOrder::CHW) {
+        return StringRef("CHW");
+    } else if (*this == DimsOrder::HWC) {
+        return StringRef("HWC");
+    } else if (*this == DimsOrder::HCW) {
+        return StringRef("HCW");
+    } else if (*this == DimsOrder::NCHW) {
+        return StringRef("NCHW");
+    } else if (*this == DimsOrder::NHWC) {
+        return StringRef("NHWC");
+    } else if (*this == DimsOrder::NHCW) {
+        return StringRef("NHCW");
+    } else if (*this == DimsOrder::NCDHW) {
+        return StringRef("NCDHW");
+    } else if (*this == DimsOrder::NDHWC) {
+        return StringRef("NDHWC");
+    } else {
+        return None;
+    }
+}
+
 void vpux::DimsOrder::printFormat(llvm::raw_ostream& stream) const {
     printTo(stream, "{0}", toPermutation());
 }

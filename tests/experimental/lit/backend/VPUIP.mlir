@@ -1,24 +1,23 @@
 // RUN: vpux-translate -export-VPUIP -o %t %s && flatc --raw-binary --json %vpuip_schema_file% -- %t && FileCheck %s --input-file %basename_t.json
 
-#map = affine_map<(d0, d1) -> (d0, d1)>
+#NC = affine_map<(d0, d1) -> (d0, d1)>
 
-VPUIP.Graph {
-    entryPoint = @main, identifier = "Test",
-    options = [#VPUIP<"ExecutionFlag:DynamicBarriers">],
-    resources = {
+VPUIP.Graph "Test" at @main
+    options : "DynamicBarriers"
+    resources : {
         ddr_scratch = 2048 : i64,
         nn_cmx_slice_amount = 1 : i32,
         upa_shaves = 1 : i32
     }
-} inputsInfo  {
-    VPUIP.TensorInfo {layout = #map, name = "input", precision = f32}
-}
-outputsInfo  {
-    VPUIP.TensorInfo {layout = #map, name = "softmax", precision = f32}
-}
+    inputsInfo : {
+        VPUIP.TensorInfo "input", f32, #NC
+    }
+    outputsInfo : {
+        VPUIP.TensorInfo "softmax", f32, #NC
+    }
 
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
-    %0 = VPUIP.DeclareTensor {location = #VPUIP<"MemoryLocation:VPU_DDR_Heap">, offset = 0 : i64} -> memref<1x1000xf16>
+    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap", 0 -> memref<1x1000xf16>
     %1 = VPUIP.ConfigureBarrier -> !VPUIP.Barrier
     VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>) updates(%1 : !VPUIP.Barrier)
     VPUIP.UPADMA inputs(%0 : memref<1x1000xf16>) outputs(%arg1 : memref<1x1000xf16>) waits(%1 : !VPUIP.Barrier)

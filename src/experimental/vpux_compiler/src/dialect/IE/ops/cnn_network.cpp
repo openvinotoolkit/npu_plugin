@@ -66,9 +66,9 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(
                            ind);
         }
 
-        const auto userLayout = inputsInfo[ind].layoutAttr();
+        const auto userLayout = inputsInfo[ind].layout();
 
-        if (userLayout.getRank() != inType.getRank()) {
+        if (getRank(userLayout) != inType.getRank()) {
             return printTo(
                     emitError(),
                     "'{0}' entryPoint '@{1}' input #{2} is not compatible "
@@ -76,7 +76,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(
                     CNNNetworkOp::getOperationName(),
                     entryPoint(),
                     ind,
-                    userLayout.getValue());
+                    userLayout);
         }
     }
 
@@ -104,9 +104,9 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(
                            ind);
         }
 
-        const auto userLayout = outputsInfo[ind].layoutAttr();
+        const auto userLayout = outputsInfo[ind].layout();
 
-        if (userLayout.getRank() != outType.getRank()) {
+        if (getRank(userLayout) != outType.getRank()) {
             return printTo(
                     emitError(),
                     "'{0}' entryPoint '@{1}' output #{2} is not compatible "
@@ -114,7 +114,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(
                     CNNNetworkOp::getOperationName(),
                     entryPoint(),
                     ind,
-                    userLayout.getValue());
+                    userLayout);
         }
     }
 

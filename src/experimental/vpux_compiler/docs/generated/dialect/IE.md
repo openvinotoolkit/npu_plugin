@@ -19,8 +19,9 @@ Syntax:
 
 ```
 operation ::= `IE.CNNNetwork` attr-dict
-              `inputsInfo` $inputsInfo
-              `outputsInfo` $outputsInfo
+              $netName `at` $entryPoint
+              `inputsInfo` `:` $inputsInfo
+              `outputsInfo` `:` $outputsInfo
 ```
 
 This operation is bound to MLIR Module and holds extra information about InferenceEngine CNN Network:
@@ -75,6 +76,7 @@ Syntax:
 
 ```
 operation ::= `IE.DataInfo` attr-dict
+              $name `,` $precision `,` $layout
 ```
 
 This operation is bound to `IE.CNNNetwork` Operation and holds information about Data object:
@@ -89,7 +91,7 @@ This operation is bound to `IE.CNNNetwork` Operation and holds information about
 | :-------: | :-------: | ----------- |
 `name` | ::mlir::StringAttr | string attribute
 `precision` | ::mlir::TypeAttr | any type attribute
-`layout` | vpux::IE::LayoutAttr | Layouts that the InferenceEngine supports
+`layout` | ::mlir::IntegerAttr | Layouts that the InferenceEngine supports
 
 ### `IE.End` (vpux::IE::EndOp)
 

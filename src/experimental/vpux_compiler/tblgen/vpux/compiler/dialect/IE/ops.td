@@ -91,8 +91,9 @@ def IE_CNNNetworkOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputsInfo` $inputsInfo
-        `outputsInfo` $outputsInfo
+        $netName `at` $entryPoint
+        `inputsInfo` `:` $inputsInfo
+        `outputsInfo` `:` $outputsInfo
     }];
 
     let extraClassDeclaration = [{
@@ -121,11 +122,12 @@ def IE_DataInfoOp :
     let arguments = (ins
         StrAttr:$name,
         TypeAttr:$precision,
-        IE_LayoutAttr:$layout
+        IE_Layout:$layout
     );
 
     let assemblyFormat = [{
         attr-dict
+        $name `,` $precision `,` $layout
     }];
 }
 

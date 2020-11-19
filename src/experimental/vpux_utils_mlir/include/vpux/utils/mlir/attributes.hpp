@@ -61,104 +61,68 @@ mlir::IntegerAttr getUInt64Attr(mlir::MLIRContext* ctx, uint64_t val);
 mlir::FloatAttr getFP32Attr(mlir::MLIRContext* ctx, float val);
 
 //
-// EnumAttr
+// IntEnumAttr
 //
 
-namespace details {
-
 template <typename Enum>
-class EnumAttrStorage final : public mlir::AttributeStorage {
-public:
-    using KeyTy = Enum;
-
-public:
-    static auto construct(mlir::AttributeStorageAllocator& allocator,
-                          Enum key) {
-        const auto storage =
-                new (allocator.allocate<EnumAttrStorage>()) EnumAttrStorage;
-
-        storage->_key = key;
-
-        return storage;
-    }
-
-public:
-    auto getValue() const {
-        return _key;
-    }
-
-public:
-    bool operator==(Enum key) const {
-        return _key == key;
-    }
-
-    static llvm::hash_code hashKey(Enum key) {
-        return getHash(key);
-    }
-
-private:
-    KeyTy _key = {};
-};
-
-}  // namespace details
-
-template <class ConcreateAttr, typename Enum>
-class EnumAttrBase
-        : public mlir::Attribute::AttrBase<ConcreateAttr,
-                                           mlir::Attribute,
-                                           details::EnumAttrStorage<Enum>> {
+class IntEnumAttr : public mlir::IntegerAttr {
 public:
     using ValueType = Enum;
 
 public:
-    using EnumAttrBase::Base::Base;
+    using mlir::IntegerAttr::IntegerAttr;
 
-    static ConcreateAttr get(mlir::MLIRContext* ctx, Enum val) {
-        return EnumAttrBase::Base::get(ctx, val);
-    }
-
-    static ConcreateAttr getChecked(mlir::Location loc, Enum val) {
-        return EnumAttrBase::Base::getChecked(loc, val);
+public:
+    static bool classof(mlir::Attribute attr) {
+        return attr.isa<mlir::IntegerAttr>() &&
+               attr.getType().isSignlessInteger() &&
+               EnumTraits<Enum>::isValidVal(
+                       attr.cast<mlir::IntegerAttr>().getInt());
     }
 
 public:
-    Enum getValue() const {
-        return this->getImpl()->getValue();
-    }
-
-    operator Enum() const {
-        return getValue();
+    static auto get(mlir::MLIRContext* ctx, Enum val) {
+        return getInt32Attr(ctx, static_cast<uint32_t>(val))
+                .cast<IntEnumAttr>();
     }
 
 public:
-    static mlir::Attribute parse(mlir::DialectAsmParser& parser) {
-        return SimpleParser::parseAttr<ConcreateAttr>(parser);
+    auto getValue() const {
+        return static_cast<Enum>(mlir::IntegerAttr::getInt());
+    }
+};
+
+//
+// StrEnumAttr
+//
+
+template <typename Enum>
+class StrEnumAttr : public mlir::StringAttr {
+public:
+    using ValueType = Enum;
+
+public:
+    using mlir::StringAttr::StringAttr;
+
+public:
+    static bool classof(mlir::Attribute attr) {
+        return attr.isa<mlir::StringAttr>() &&
+               EnumTraits<Enum>::parseValue(
+                       attr.cast<mlir::StringAttr>().getValue())
+                       .hasValue();
     }
 
-    void print(mlir::DialectAsmPrinter& os) const {
-        printTo(os, "{0}:{1}", ConcreateAttr::getMnemonic(), getValue());
+public:
+    static auto get(mlir::MLIRContext* ctx, Enum val) {
+        return mlir::StringAttr::get(EnumTraits<Enum>::getEnumValueName(val),
+                                     ctx)
+                .template cast<StrEnumAttr>();
     }
 
-private:
-    friend SimpleParser;
-
-    static mlir::LogicalResult parseValue(mlir::DialectAsmParser& parser,
-                                          Enum& val) {
-        StringRef keyword;
-        if (mlir::failed(parser.parseKeyword(&keyword))) {
-            return mlir::failure();
-        }
-
-        const auto parsed = EnumTraits<Enum>::parseValue(keyword);
-        if (!parsed.hasValue()) {
-            return printTo(parser.emitError(parser.getCurrentLocation()),
-                           "Got invalid '{0}' case value : '{1}'",
-                           ConcreateAttr::getMnemonic(),
-                           keyword);
-        }
-
-        val = parsed.getValue();
-        return mlir::success();
+public:
+    auto getValue() const {
+        return EnumTraits<Enum>::parseValue(mlir::StringAttr::getValue())
+                .getValue();
     }
 };
 

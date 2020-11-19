@@ -99,12 +99,10 @@ void AddLinearSchedulingPass::passBody() {
 
     graphFunc.walk(callback);
 
-    const auto newOptions = mlir::ArrayAttr::get(
-            {VPUIP::ExecutionFlagAttr::get(
-                    module.getContext(),
-                    VPUIP::ExecutionFlag::DynamicBarriers)},
-            module.getContext());
-    graphOp.optionsAttr(newOptions);
+    auto options = graphOp.options();
+    options = options | VPUIP::ExecutionFlag::DynamicBarriers;
+    graphOp.optionsAttr(
+            VPUIP::ExecutionFlagAttr::get(module.getContext(), options));
 }
 
 void AddLinearSchedulingPass::collectTrailingSwTasks(mlir::FuncOp graphFunc) {
