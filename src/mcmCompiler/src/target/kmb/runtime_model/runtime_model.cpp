@@ -922,6 +922,17 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
         setIfPresent<double, int>(NNClusterProcessor->number, *globalConfigurationParams , "Number_of_Clusters");
         toBuild->processor_allocation.push_back(std::move(NNClusterProcessor));
     }
+    if(globalConfigurationParams->hasAttr("Number_of_DPUs")){
+        std::unique_ptr<MVCNN::ProcessorMappingT> NNDPUProcessor =
+            std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
+        NNDPUProcessor->item= MVCNN::PhysicalProcessor_NCE_PerClusterDPU;
+        setIfPresent<double, int>(NNDPUProcessor->number, *globalConfigurationParams , "Number_of_DPUs");
+        if(globalConfigurationParams->hasAttr("Number_of_Clusters")){
+            int clusterNumber = globalConfigurationParams->get<int>("Number_of_Clusters");
+            NNDPUProcessor->number = NNDPUProcessor->number / (double)clusterNumber;
+        }
+        toBuild->processor_allocation.push_back(std::move(NNDPUProcessor));
+    }
 
     toBuild->memory_sizes = std::vector<std::unique_ptr<MVCNN::MemoryMappingT>>();
     if(globalConfigurationParams->hasAttr("cmx")){
@@ -941,7 +952,6 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
 
     toBuild->memory_bandwidth = std::vector<std::unique_ptr<MVCNN::MemoryRelationshipMappingT>>();
     if(globalConfigurationParams->hasAttr("memoryBandwidth")){
-        cout<<"000"<<endl;
         std::unique_ptr<MVCNN::MemoryRelationshipMappingT> ddrToCMX =
             std::unique_ptr<MVCNN::MemoryRelationshipMappingT>(new MVCNN::MemoryRelationshipMappingT());
         ddrToCMX->from_item= MVCNN::PhysicalMem_DDR;
