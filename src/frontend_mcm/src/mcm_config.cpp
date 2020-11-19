@@ -47,6 +47,7 @@ const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
                                                          VPU_COMPILER_CONFIG_KEY(SCALE_FUSE_INPUT),
                                                          VPU_COMPILER_CONFIG_KEY(REFERENCE_MODE),
                                                          VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT),
+                                                         VPU_COMPILER_CONFIG_KEY(ALLOW_U8_INPUT_FOR_FP16_MODELS),
                                                      });
 
     return options;
@@ -91,4 +92,6 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_referenceMode, switches, config, VPU_COMPILER_CONFIG_KEY(REFERENCE_MODE));
 
     setOption(_allowNCHWLayoutForMcmModelInput, switches, config, VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT));
+
+    setOption(_allowU8InputForFp16Models, switches, config, VPU_COMPILER_CONFIG_KEY(ALLOW_U8_INPUT_FOR_FP16_MODELS));
 }

@@ -34,6 +34,17 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
         3, 0.05);
 }
 
+TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10_u8_input) {
+    runTest(
+            TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP16)
+                    .setCompileConfig({{"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "YES"}}),
+            "224x224/cat3.bmp",
+            3, 0.05);
+}
+
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_dense_IRv10_fp16) {
     runTest(
             TestNetworkDesc("KMB_models/FP16/MobileNet_v2_pytorch/mobilenet-v2_pytorch_dense_fp16_ww34.xml")
@@ -972,7 +983,8 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_efficientnet_b0) {
 // C++ exception with description "Cannot convert layer "MobilenetV3/Conv/hard_swish/mul_1"
 // due to unsupported layer type "HSwish"
 // [Track number: D#3775]
-TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_small) {
+TEST_F(KmbClassifyNetworkTest, mobilenet_v3_small) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     runTest(
         TestNetworkDesc("KMB_models/FP16-INT8/private/mobilenet-v3-small-1.0-224/mobilenet-v3-small-1.0-224.xml")
             .setUserInputPrecision("input", Precision::U8),

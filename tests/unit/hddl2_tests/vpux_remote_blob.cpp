@@ -172,20 +172,42 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobOutOfBoundsThrow) {
     ASSERT_ANY_THROW(remoteROIBlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteBlobPtr->createROI(roi)));
 }
 
+// This test is intended for checking cascade ROI case:
+// Parent (non-ROI) blob -> ROI blob -> ROI-in-ROI blob
+// These blobs use common data from parent blob
+// Every ROI blob has its own InferenceEngine::ROI data which keep information about ROI frame geometry (offset from parent and sizes)
+// When we are using cascade ROI, ROI offsets are calculated according to the superposition principle
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_CascadeROIBlobCorrect) {
     SKIP_IF_NO_DEVICE();
-    IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);
-    uint8_t *bDataBefore = remoteBlobPtr->rmap().as<uint8_t*>();
-    size_t bSizeBefore = remoteBlobPtr->byteSize();
-    std::vector<uint8_t> blobDataBefore{bDataBefore, bDataBefore + bSizeBefore};
+    IE::TensorDesc expectedTensorDesc = {tensorDesc.getPrecision(), tensorDesc.getDims(), IE::Layout::NHWC};
+    IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(expectedTensorDesc, blobParamMap);
 
+    size_t fullFrameByteSize = remoteBlobPtr->byteSize();
+    uint8_t* fullFrameRawData = nullptr;
+    std::vector<uint8_t> fullFrameData = {};
     {
-        IE::ROI roi {0, 2, 2, 221, 221};
-        IE::ROI roi2 {0, 5, 5, 100, 100};
-        IE::RemoteBlob::Ptr remoteROIBlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteBlobPtr->createROI(roi));
+        auto memoryHolder = remoteBlobPtr->rwmap();
+        fullFrameRawData = memoryHolder.as<uint8_t*>();
+        const size_t BYTE_BASE = 256;
+        std::generate(fullFrameRawData, fullFrameRawData + fullFrameByteSize, [BYTE_BASE]() {
+            return std::rand() % BYTE_BASE;
+        });
+        fullFrameData.assign(fullFrameRawData, fullFrameRawData + fullFrameByteSize);
+    }
+
+    const auto origW = tensorDesc.getDims()[3];
+    const auto origH = tensorDesc.getDims()[2];
+    {
+        // ROI2 geometry should be {0 + 0, 1 + 1, origW, origH - 2}
+        // We are using NWHC layout for simply checking ROI-in-ROI blob - it has common part of data
+        // with parent (fullFrame) blob from the begin with some offset to the end
+        IE::ROI roi{0, 0, 1, origW, origH - 1};
+        IE::ROI roi2{0, 0, 1, origW, origH - 2};
+        IE::RemoteBlob::Ptr remoteROIBlobPtr = std::static_pointer_cast<IE::RemoteBlob>(remoteBlobPtr->createROI(roi));
 
         {
-            IE::RemoteBlob::Ptr remoteROI2BlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteROIBlobPtr->createROI(roi2));
+            IE::RemoteBlob::Ptr remoteROI2BlobPtr =
+                std::static_pointer_cast<IE::RemoteBlob>(remoteROIBlobPtr->createROI(roi2));
             vpux::ParsedRemoteBlobParams parsedRemoteBlobParams;
             parsedRemoteBlobParams.update(remoteROI2BlobPtr->getParams());
             auto roi2Ptr = parsedRemoteBlobParams.getROIPtr();
@@ -194,20 +216,31 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_CascadeROIBlobCorrect) {
             ASSERT_TRUE(roi2Ptr->posY == roi.posY + roi2.posY);
             ASSERT_TRUE(roi2Ptr->sizeX == roi2.sizeX);
             ASSERT_TRUE(roi2Ptr->sizeY == roi2.sizeY);
-            uint8_t *bROIData = remoteROI2BlobPtr->rmap().as<uint8_t*>();
-            size_t bROISize = remoteROI2BlobPtr->byteSize();
-            std::vector<uint8_t> blobROIData{bROIData, bROIData + bROISize};
-            ASSERT_TRUE(blobDataBefore == blobROIData);
+
+            size_t ROIFrameByteSize = remoteROI2BlobPtr->byteSize();
+            auto checkROIFrameData = fullFrameData;
+            checkROIFrameData.erase(checkROIFrameData.cbegin(), checkROIFrameData.cbegin() + (fullFrameByteSize - ROIFrameByteSize));
+            uint8_t* ROIFrameRawData = nullptr;
+            std::vector<uint8_t> ROIFrameData = {};
+            {
+                auto memoryHolder = remoteROI2BlobPtr->rmap();
+                ROIFrameRawData = memoryHolder.as<uint8_t*>() + (fullFrameByteSize - ROIFrameByteSize);
+                ROIFrameData.assign(ROIFrameRawData, ROIFrameRawData + ROIFrameByteSize);
+            }
+            ASSERT_TRUE(checkROIFrameData == ROIFrameData);
         }
     }
 
-    uint8_t *bDataAfter = nullptr;
-    size_t bSizeAfter = 0;
-    std::vector<uint8_t> blobDataAfter = {};
-    ASSERT_NO_THROW(bDataAfter = remoteBlobPtr->rmap().as<uint8_t*>());
-    ASSERT_NO_THROW(bSizeAfter = remoteBlobPtr->byteSize());
-    ASSERT_NO_THROW(blobDataAfter.assign(bDataAfter, bDataAfter + bSizeAfter));
-    ASSERT_TRUE(blobDataBefore == blobDataAfter);
+    size_t checkFullFrameByteSize = remoteBlobPtr->byteSize();
+    uint8_t* checkFullFrameRawData = nullptr;
+    std::vector<uint8_t> checkFullFrameData= {};
+    {
+        auto memoryHolder = remoteBlobPtr->rmap();
+        checkFullFrameRawData = memoryHolder.as<uint8_t*>();
+        checkFullFrameData.assign(checkFullFrameRawData, checkFullFrameRawData + checkFullFrameByteSize);
+    }
+
+    ASSERT_TRUE(checkFullFrameData == fullFrameData);
     ASSERT_TRUE(remoteBlobPtr->deallocate());
 }
 

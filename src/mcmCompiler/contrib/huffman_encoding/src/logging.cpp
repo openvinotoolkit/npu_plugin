@@ -88,25 +88,30 @@ void Log(int level, const char *fmt, ...)
       return; // exclude unimportant messages
 
    // the current time
-   char timebuf[128];
+   char timebuf[128] = "undefined_time";
    time_t curtime = time(0);
    struct tm *loctime = localtime(&curtime);
-   strftime(timebuf, 128, "%F %T", loctime);
+   if(loctime != nullptr) {
+      strftime(timebuf, 128, "%F %T", loctime);
+   }
 
    // get the formatted output
-   char *fmt_out;
+   char *fmt_out = nullptr;
    va_list ap;
    va_start(ap, fmt);
    int ret = VASPRINTF(&fmt_out, fmt, ap);
    va_end(ap);
    (void)ret;
 
-   ostringstream outstr;
-   outstr << "(LOG: " << timebuf << ": Log L" << level << ")     "
-          << fmt_out << '\n';
-   syslog(outstr.str());
-   if (fmt_out)
+   if (fmt_out) {
+      ostringstream outstr;
+      outstr << "(LOG: " << timebuf << ": Log L" << level << ")     "
+             << fmt_out << '\n';
+      syslog(outstr.str());
       free(fmt_out);
+   } else {
+       throw Exception("Cannot determine log message");
+   }
 } // Log()
 
 /**
@@ -115,22 +120,24 @@ void Log(int level, const char *fmt, ...)
 void AssertFail(const char *file, int line, const char *fmt, ...)
 {
    // get the formatted output first
-   char *fmt_out;
+   char *fmt_out = nullptr;
    va_list ap;
    va_start(ap, fmt);
    int ret = VASPRINTF(&fmt_out, fmt, ap);
    va_end(ap);
    (void)ret;
 
-   ostringstream outstr;
-   outstr << "assertion failure at '" << file
-          << "', line " << line << " (" << fmt_out << ")\n";
-   // logging is handled at the catch
-   // syslog(outstr.str());
-   if (fmt_out)
+   if (fmt_out) {
+       ostringstream outstr;
+       outstr << "assertion failure at '" << file
+              << "', line " << line << " (" << fmt_out << ")\n";
+       // logging is handled at the catch
+       // syslog(outstr.str());
       free(fmt_out);
-
-   throw Exception(outstr.str());
+      throw Exception(outstr.str());
+    } else {
+       throw Exception("Cannot determine assert message");
+    }
 } // AssertFail()
 
 /**

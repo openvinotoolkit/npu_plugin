@@ -65,6 +65,7 @@ class EngineBackendConfigurator;
 
 class EngineBackend final {
 public:
+    virtual ~EngineBackend() = default;
     /** @deprecated Will be replaced with methods below */
     const std::map<std::string, std::shared_ptr<Device>>& getDevices() const { return _devices; }
     virtual const std::shared_ptr<Device> getDevice() const;
@@ -130,6 +131,9 @@ public:
     virtual std::string getName() const = 0;
 
     void Release() noexcept override { delete this; }
+
+protected:
+    virtual ~IDevice() override = default;
 };
 
 class Device final {
