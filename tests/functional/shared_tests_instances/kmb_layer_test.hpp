@@ -32,9 +32,10 @@ protected:
     void Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;
     std::vector<std::vector<std::uint8_t>> CalculateRefs() override;
 
-    virtual void SkipBeforeImport() {};
-    virtual void SkipBeforeInfer() {};
-    virtual void SkipBeforeValidate() {};
+    virtual void SkipBeforeLoad() {}
+    virtual void SkipBeforeImport() {}
+    virtual void SkipBeforeInfer() {}
+    virtual void SkipBeforeValidate() {}
 };
 
 class KmbSkipTestException: public std::runtime_error {
