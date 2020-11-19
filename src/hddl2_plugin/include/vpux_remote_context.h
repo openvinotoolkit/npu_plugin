@@ -39,19 +39,19 @@ public:
         const VPUXConfig& config = {});
 
     InferenceEngine::RemoteBlob::Ptr CreateBlob(
-        const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) noexcept override;
+        const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& blobParams) noexcept override;
     std::shared_ptr<Device> getDevice() const { return _devicePtr; }
 
     /** @brief Provide device name attached to current context.
      * Format: {plugin prefix}.{device name} */
     std::string getDeviceName() const noexcept override { return "VPUX." + _devicePtr->getName(); }
-    InferenceEngine::ParamMap getParams() const override { return _paramMap; }
+    InferenceEngine::ParamMap getParams() const override { return _contextParams; }
 
 protected:
     std::shared_ptr<Device> _devicePtr = nullptr;
     const VPUXConfig _config;
     const vpu::Logger::Ptr _logger;
-    const InferenceEngine::ParamMap _paramMap;
+    const InferenceEngine::ParamMap _contextParams;
 };
 
 }  // namespace vpux

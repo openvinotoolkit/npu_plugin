@@ -17,6 +17,7 @@
 #include "helper_calc_cpu_ref.h"
 
 #include <ie_utils.hpp>
+#include <vpu/utils/ie_helpers.hpp>
 #include <blob_factory.hpp>
 
 namespace {
@@ -32,11 +33,22 @@ IE::BlobMap CalcCpuReferenceCommon(IE::CNNNetwork& network, const IE::Blob::Ptr&
     IE::ExecutableNetwork executableNetwork = ie.LoadNetwork(network, "CPU");
     IE::InferRequest inferRequest = executableNetwork.CreateInferRequest();
 
+    auto block_desc_network = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getBlockingDesc();
+    IE::Blob::Ptr correct_input_blob = nullptr;
+    if (preproc_info == nullptr && input_blob->getTensorDesc().getBlockingDesc() != block_desc_network) {
+        IE::TensorDesc correct_tensor_desc(input_blob->getTensorDesc().getPrecision(), input_blob->getTensorDesc().getDims(), block_desc_network);
+        correct_input_blob = make_blob_with_precision(correct_tensor_desc);
+        correct_input_blob->allocate();
+        vpu::copyBlob(input_blob, correct_input_blob);
+    } else {
+        correct_input_blob = input_blob;
+    }
+
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
     if (preproc_info != nullptr) {
-        inferRequest.SetBlob(inputBlobName, input_blob, *preproc_info);
+        inferRequest.SetBlob(inputBlobName, correct_input_blob, *preproc_info);
     } else {
-        inferRequest.SetBlob(inputBlobName, input_blob);
+        inferRequest.SetBlob(inputBlobName, correct_input_blob);
     }
 
     IE::ConstOutputsDataMap output_info = executableNetwork.GetOutputsInfo();

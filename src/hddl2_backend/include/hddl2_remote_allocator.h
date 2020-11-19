@@ -27,7 +27,6 @@
 // Plugin
 #include "vpux.hpp"
 #include "vpux_config.hpp"
-// Subplugin
 // Low-level
 #include <HddlUnite.h>
 #include <RemoteMemory.h>

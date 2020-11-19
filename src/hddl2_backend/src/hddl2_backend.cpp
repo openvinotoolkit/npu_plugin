@@ -21,8 +21,8 @@
 #include "hddl2_exceptions.h"
 // Subplugin
 #include "hddl2_backend.h"
-#include "hddl2_context_device.h"
-#include "hddl2_device.h"
+#include "image_workload_device.h"
+#include "video_workload_device.h"
 // Low-level
 #include <HddlUnite.h>
 
@@ -41,7 +41,7 @@ HDDL2Backend::HDDL2Backend(const VPUXConfig& config)
 
 /** Generic device */
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice() const {
-    return getDeviceNames().empty() ? nullptr : std::make_shared<HDDLUniteDevice>();
+    return getDeviceNames().empty() ? nullptr : std::make_shared<ImageWorkloadDevice>();
 }
 
 /** Specific device */
@@ -49,14 +49,14 @@ const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const std::string& specif
     const auto devices = getDeviceNames();
     const auto it = std::find(devices.cbegin(), devices.cend(), specificDeviceName);
     if (it != devices.end()) {
-        return std::make_shared<HDDLUniteDevice>(*it);
+        return std::make_shared<ImageWorkloadDevice>(*it);
     } else {
         return nullptr;
     }
 }
 
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const InferenceEngine::ParamMap& paramMap) const {
-    return std::make_shared<HDDLUniteContextDevice>(paramMap);
+    return std::make_shared<VideoWorkloadDevice>(paramMap);
 }
 
 const std::vector<std::string> HDDL2Backend::getDeviceNames() const {
@@ -85,7 +85,7 @@ std::map<std::string, std::shared_ptr<vpux::IDevice>> HDDL2Backend::createDevice
     std::map<std::string, std::shared_ptr<IDevice>> devices;
     // TODO Add more logs and cases handling
     if (isServiceAvailable(_logger) && !getDeviceNames().empty()) {
-        devices.insert({"HDDL2", std::make_shared<HDDLUniteDevice>()});
+        devices.insert({"HDDL2", std::make_shared<ImageWorkloadDevice>()});
         _logger->debug("HDDL2 devices found for execution.");
     } else {
         _logger->debug("HDDL2 devices not found for execution.");

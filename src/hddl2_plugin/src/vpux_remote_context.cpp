@@ -30,10 +30,10 @@ VPUXRemoteContext::VPUXRemoteContext(
     : _devicePtr(device),
       _config(config),
       _logger(std::make_shared<vpu::Logger>("VPUXRemoteContext", config.logLevel(), vpu::consoleOutput())),
-      _paramMap(paramMap) {}
+      _contextParams(paramMap) {}
 
 IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(
-    const IE::TensorDesc& tensorDesc, const IE::ParamMap& params) noexcept {
+    const IE::TensorDesc& tensorDesc, const IE::ParamMap& blobParams) noexcept {
     try {
         auto smart_this = shared_from_this();
     } catch (...) {
@@ -41,8 +41,9 @@ IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(
         return nullptr;
     }
     try {
-        auto allocator = _devicePtr->getAllocator();
-        return std::make_shared<VPUXRemoteBlob>(tensorDesc, shared_from_this(), allocator, params, _config.logLevel());
+        auto allocator = _devicePtr->getAllocator(blobParams);
+        return std::make_shared<VPUXRemoteBlob>(
+            tensorDesc, shared_from_this(), allocator, blobParams, _config.logLevel());
     } catch (const std::exception& ex) {
         _logger->warning("Incorrect parameters for CreateBlob call.\n"
                          "Please make sure remote memory is correct.\nError: %s\n",

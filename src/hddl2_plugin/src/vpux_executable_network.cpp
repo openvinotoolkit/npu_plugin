@@ -187,24 +187,14 @@ IE::ITaskExecutor::Ptr ExecutableNetwork::getNextTaskExecutor() {
 IE::InferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(
     const IE::InputsDataMap networkInputs, const IE::OutputsDataMap networkOutputs) {
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
-#ifdef __aarch64__
     const auto allocator = _device->getAllocator();
-#else
-    // TODO Default allocator always should be used for HDDL2 [Track number: S#41601]
-    const auto allocator = nullptr;
-#endif
     return std::make_shared<InferRequest>(
         networkInputs, networkOutputs, inferExecutor, _config, _networkName, allocator);
 }
 
 InferenceEngine::IInferRequest::Ptr ExecutableNetwork::CreateInferRequest() {
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
-#ifdef __aarch64__
     const auto allocator = _device->getAllocator();
-#else
-    // TODO Default allocator always should be used for HDDL2 [Track number: S#41601]
-    const auto allocator = nullptr;
-#endif
     auto syncRequestImpl = std::make_shared<InferRequest>(
         _networkInputs, _networkOutputs, inferExecutor, _config, _networkName, allocator);
 

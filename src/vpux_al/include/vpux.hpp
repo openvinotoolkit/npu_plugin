@@ -48,9 +48,9 @@ public:
     /** @brief Get device, which can be used for inference. Backend responsible for selection. */
     virtual const std::shared_ptr<IDevice> getDevice() const;
     /** @brief Search for a specific device by name */
-    virtual const std::shared_ptr<IDevice> getDevice(const std::string& /*specificDeviceName*/) const;
+    virtual const std::shared_ptr<IDevice> getDevice(const std::string& specificDeviceName) const;
     /** @brief Get device, which is configured/suitable for provided params */
-    virtual const std::shared_ptr<IDevice> getDevice(const InferenceEngine::ParamMap& /*paramMap*/) const;
+    virtual const std::shared_ptr<IDevice> getDevice(const InferenceEngine::ParamMap& paramMap) const;
     /** @brief Provide a list of names of all devices, with which user can work directly */
     virtual const std::vector<std::string> getDeviceNames() const;
     /** @brief Get name of backend */
@@ -104,7 +104,7 @@ public:
     using CPtr = std::shared_ptr<const Allocator>;
 
     /** @brief Wrap remote memory. Backend should get all required data from paramMap */
-    virtual void* wrapRemoteMemory(const InferenceEngine::ParamMap& /*paramMap*/) noexcept;
+    virtual void* wrapRemoteMemory(const InferenceEngine::ParamMap& paramMap) noexcept;
     // TODO: need update methods to remove Kmb from parameters
     /** @deprecated These functions below should not be used */
     virtual void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept = 0;
@@ -121,6 +121,9 @@ class Executor;
 class IDevice : public InferenceEngine::details::IRelease {
 public:
     virtual std::shared_ptr<Allocator> getAllocator() const = 0;
+    /** @brief Get allocator, which is configured/suitable for provided params
+     * @example Each backend may have many allocators, each of which suitable for different RemoteMemory param */
+    virtual std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) const;
 
     virtual std::shared_ptr<Executor> createExecutor(
         const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) = 0;
@@ -147,7 +150,11 @@ public:
 
     Device(const std::shared_ptr<IDevice> device, InferenceEngine::details::SharedObjectLoader::Ptr plg)
         : _actual(device), _plg(plg) {}
+
     std::shared_ptr<Allocator> getAllocator() const { return _actual->getAllocator(); }
+    std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) {
+        return _actual->getAllocator(paramMap);
+    }
 
     virtual std::shared_ptr<Executor> createExecutor(
         const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {

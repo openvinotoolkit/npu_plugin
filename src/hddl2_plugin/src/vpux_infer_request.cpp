@@ -27,6 +27,7 @@
 #include "ie_utils.hpp"
 #include "vpux_infer_request.h"
 #include "vpux_remote_blob.h"
+// TODO KMB-standalone preprocessing details should be not exposed to plugin [Track number: S#43193]
 // Low-level
 #ifdef __aarch64__
 #include <kmb_preproc.hpp>
@@ -131,7 +132,7 @@ PreprocMap InferRequest::preparePreProcessing(IE::BlobMap& inputs, const IE::Inp
     }
     return preProcMap;
 }
-
+// TODO [Track number: S#43193]
 #ifdef __aarch64__
 void InferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "execPreprocessing");
