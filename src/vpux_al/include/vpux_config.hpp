@@ -41,6 +41,7 @@ public:
     int numberOfSIPPShaves() const { return _numberOfSIPPShaves; }
     int SIPPLpi() const { return _SIPPLpi; }
     int executorStreams() const { return _executorStreams; }
+    uint32_t inferenceTimeoutMs() const noexcept { return _inferenceTimeoutMs; }
 
     void parseFrom(const VPUXConfig& other);
 
@@ -64,6 +65,8 @@ protected:
     int _numberOfSIPPShaves = 4;
     int _SIPPLpi = 8;
     int _executorStreams = 1;
+    // backend pull timeout - turned off by default
+    uint32_t _inferenceTimeoutMs = 0;
 
 private:
     void parseEnvironment();
