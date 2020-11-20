@@ -10,7 +10,6 @@ if(ENABLE_HDDL2_TESTS)
     set(HDDL2_INCLUDES
             "hddl2_tests/helpers"
             "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
-            CACHE INTERNAL ""
         )
 
     set(HDDL2_LIBS
@@ -20,10 +19,9 @@ if(ENABLE_HDDL2_TESTS)
             HddlUnite
             hddl2_backend_static
             ${XLINK_LIB}
-            CACHE INTERNAL ""
         )
 else()
-    set(EXCLUDED_HDDL2_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hddl2_tests" CACHE INTERNAL "")
+    set(EXCLUDED_HDDL2_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hddl2_tests")
 endif()
 
 addIeTargetTest(
