@@ -580,9 +580,6 @@ class Operation_Dag {
     }
 
     resource_t resource_utility(model_t& model, const char* op_name) {
-      typedef model_traits<model_t> mtraits;
-      typedef typename mtraits::const_operation_iterator_t op_itr_t;
-
       op_itr_t itr = model.getOp(op_name);
       return itr == mtraits::end_operations(model) ?
           resource_t() : resource_utility(&(*itr));
@@ -1120,9 +1117,6 @@ class Operation_Dag {
     }
 
     bool is_aligned_dma_op(model_t& model, const char* op_name) const {
-      typedef model_traits<model_t> mtraits;
-      typedef typename mtraits::const_operation_iterator_t op_itr_t;
-
       op_itr_t itr = model.getOp(op_name);
       return itr == mtraits::end_operations(model) ? false :
           is_aligned_dma_op(model, &(*itr));
@@ -1133,23 +1127,25 @@ class Operation_Dag {
 
     template<typename model_t>
     bool is_aligned_dma_op(model_t& model, operation_t op) const {
-      typedef model_traits<model_t> mtraits;
-      typedef typename mtraits::const_child_operation_iterator_t cop_itr_t;
+      //TODO
+      // check reason for having templarte param
+      typedef model_traits<model_t> this_mtraits;
+      typedef typename this_mtraits::const_child_operation_iterator_t cop_itr_t;
 
       if (is_dma_op_moving_data_from_cmx_to_ddr(op)) { return false; }
 
-      typename mtraits::const_operation_iterator_t pop_itr =
-        mtraits::get_iterator(model, op->getName());
+      typename this_mtraits::const_operation_iterator_t pop_itr =
+        this_mtraits::get_iterator(model, op->getName());
 
       // out degree should be one //
       size_t out_degree = 0UL;
-      for (cop_itr_t cop_itr=mtraits::begin_child_operations(pop_itr);
-            (cop_itr != mtraits::end_operations(model)) && (out_degree <= 1UL);
+      for (cop_itr_t cop_itr=this_mtraits::begin_child_operations(pop_itr);
+            (cop_itr != this_mtraits::end_operations(model)) && (out_degree <= 1UL);
             ++cop_itr, ++out_degree) { }
 
       if (out_degree != 1UL) { return false; }
 
-      op_itr_t cop_itr = mtraits::begin_child_operations(pop_itr);
+      op_itr_t cop_itr = this_mtraits::begin_child_operations(pop_itr);
 
 
       return (cop_itr->getOpType() == "Align");
@@ -1158,10 +1154,6 @@ class Operation_Dag {
     // Precondition: is_aligned_dma_op() //
     size_t get_aligned_dma_op_resource_utility(mv::OpModel& model,
           operation_t op) const {
-      typedef model_traits<model_t> mtraits;
-      typedef typename mtraits::const_operation_iterator_t op_itr_t;
-
-
       assert(is_aligned_dma_op(model, op));
 
       op_itr_t pop_itr = model.getOp(op->getName());

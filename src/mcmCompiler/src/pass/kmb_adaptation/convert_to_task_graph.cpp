@@ -10,11 +10,16 @@
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void setUpPPETasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void convert_chw_to_index(std::string order, std::vector<unsigned>& permute_order);
 static void correct_order_string(std::string& s, bool reverse=false);
 static void calculate_permutation_from_orders(std::vector<unsigned>& permute_order, std::string old_order, std::string new_order);
 static void calculate_permutation_from_permutes(std::vector<unsigned> &P, std::vector<unsigned> &permute_order);
+
+// TODO
+// Check whether this function will be used in the future
+#if defined(DISABLE_UNUSED_FUNCTIONS_REMOVAL)
+static void convert_chw_to_index(std::string order, std::vector<unsigned>& permute_order);
 static void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_xyz, std::vector<unsigned>& permute_order);
+#endif
 
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0);
 int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex);
@@ -661,7 +666,7 @@ mv::Data::TensorIterator convertFakeQuantizeToUPATask(mv::OpModel& om, const std
 }
 
 mv::Data::TensorIterator convertHSwishToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::map<std::string, mv::Attribute>& /*attrs*/,
                                                 const std::string& name, bool /*software*/ = false,
                                                 const mv::QuantizationParams& quantParams = mv::QuantizationParams::empty(),
                                                 const mv::DType& outputTensorType = mv::DType("Default"))
@@ -1039,6 +1044,9 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
     return clamp;
 }
 
+// TODO
+// Check whether this function will be used in the future
+#if defined(DISABLE_UNUSED_FUNCTIONS_REMOVAL)
 // Calculate the permute_order
 void convert_chw_to_index(std::string order, std::vector<unsigned>& permute_order)
 {
@@ -1053,6 +1061,7 @@ void convert_chw_to_index(std::string order, std::vector<unsigned>& permute_orde
         permute_order.at(i) = chw_to_index[order[i + 1]];
     }
 }
+#endif
 
 // Reverse order string if necessary
 // e.g., reverse=false; in=CWHN; out=NHWC
@@ -1092,6 +1101,9 @@ void calculate_permutation_from_permutes(std::vector<unsigned> &P, std::vector<u
     }
 }
 
+// TODO
+// Check whether the function is required as it is used nowhere
+#if defined(DISABLE_UNUSED_FUNCTIONS_REMOVAL)
 // Calculates positions of X, Y, & Z from permute_order
 void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_xyz, std::vector<unsigned>& permute_order)
 {
@@ -1104,3 +1116,4 @@ void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_xyz, st
         }
     }
 }
+#endif

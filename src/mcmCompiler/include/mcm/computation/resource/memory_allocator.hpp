@@ -176,7 +176,7 @@ namespace mv
         /**
          * @brief Total size of the memory block represented by the allocator
          */
-        long long unsigned size_;
+        unsigned long long size_;
 
         /**
          * @brief Global memory alignment (offset value must be divisible), 0 means none
@@ -253,8 +253,8 @@ namespace mv
         void padLeft(BufferIterator buffer, const std::vector<std::size_t>& padding);
         void padRight(BufferIterator buffer, const std::vector<std::size_t>& padding);
 
-        long long unsigned freeSpace(std::size_t stageIdx) const;
-        long long unsigned usedSpace(std::size_t stageIdx) const;
+        unsigned long long freeSpace(std::size_t stageIdx) const;
+        unsigned long long usedSpace(std::size_t stageIdx) const;
 
         std::string toString() const override;
         //mv::json::Value toJSON() const override;

@@ -26,7 +26,7 @@ static bool does_this_op_generate_sparse_output(mv::OpModel& model, T op) {
   return output_tensor_itr->isSparse();
 }
 void LocatePipeLinedOps(const mv::pass::PassEntry&,
-    mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc,
+    mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& /*passDesc*/,
     mv::Element&) {
   mv::OpModel om(model);
   typedef mv::scheduler::Pipelining_Transform pipeliner_t;
@@ -58,7 +58,6 @@ void ChainPipeliningTransform(const mv::pass::PassEntry&,
     mv::Element&) {
   mv::OpModel om(model);
   typedef mv::scheduler::Pipeline_Chains pipeline_chains_t;
-  typedef typename pipeline_chains_t::chain_subgraph_t subgraph_t;
 
   pipeline_chains_t pipeliner(om);
 
@@ -89,11 +88,10 @@ void ChainPipeliningTransform(const mv::pass::PassEntry&,
 }
 
 void ChainPipeliningInverseTransform(const mv::pass::PassEntry&,
-    mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc,
+    mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& /*passDesc*/,
     mv::Element&) {
   mv::OpModel om(model);
   typedef mv::scheduler::Pipeline_Chains pipeline_chains_t;
-  typedef typename pipeline_chains_t::chain_subgraph_t subgraph_t;
 
   pipeline_chains_t pipeliner(om);
 
@@ -140,8 +138,6 @@ void AddPseudoDependency(const mv::pass::PassEntry&,
     mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc,
     mv::Element&) {
 
-  bool has_source = passDesc.hasAttr("source");
-  bool has_sink = passDesc.hasAttr("sink");
   bool add_flow_source_attribute =
       passDesc.hasAttr("add_flow_attribute_source");
   bool add_flow_sink_attribute = passDesc.hasAttr("add_flow_attribute_sink");
@@ -243,7 +239,6 @@ void LocateInplaceEltwiseOps(const mv::pass::PassEntry&,
       continue;
     }
 
-    operation_t eltwise_op = &(*op_itr);
     {
       // if parent and this eltwise don't have the same strategy we cannot
       // overwrite parent input with eltwise output

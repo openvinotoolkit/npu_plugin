@@ -603,7 +603,7 @@ void mv::MemoryAllocator::padRight(BufferIterator buffer, const std::vector<std:
 
 }
 
-long long unsigned mv::MemoryAllocator::usedSpace(std::size_t stageIdx) const
+unsigned long long mv::MemoryAllocator::usedSpace(std::size_t stageIdx) const
 {
 
     if (entries_.find(stageIdx) == entries_.cend())
@@ -613,7 +613,7 @@ long long unsigned mv::MemoryAllocator::usedSpace(std::size_t stageIdx) const
 
 }
 
-long long unsigned mv::MemoryAllocator::freeSpace(std::size_t stageIdx) const
+unsigned long long mv::MemoryAllocator::freeSpace(std::size_t stageIdx) const
 {
 
     if (entries_.find(stageIdx) == entries_.cend())

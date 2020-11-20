@@ -69,7 +69,7 @@ void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
             tensorBufferIt->setOffset(address);
         }
-        catch (mv::ArgumentError error)
+        catch (const mv::ArgumentError& error)
         {
             pass.log(mv::Logger::MessageType::Debug, error.what());
         }
@@ -102,7 +102,7 @@ void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationMo
             auto t = dm.getTensor(name);
             t->set<unsigned>("graphFileIndex", address);
         }
-        catch (mv::ArgumentError error)
+        catch (const mv::ArgumentError& error)
         {
             pass.log(mv::Logger::MessageType::Debug, error.what());
         }

@@ -477,11 +477,14 @@ class CMX_Concatenation {
     bool does_rep_dpu_has_lower_depth_than_others(
         const concat_subgraph_t& subgraph) const {
       operation_t dpu_rep = subgraph.representative_dpu_;
-      auto itr = dpu_depth_map_.find(dpu_rep);
-      if (itr == dpu_depth_map_.end()) {
-        throw RuntimeError("LpScheduler", "DPU missing in depth map");
+      size_t dpu_rep_depth;
+      {
+        auto itr = dpu_depth_map_.find(dpu_rep);
+        if (itr == dpu_depth_map_.end()) {
+          throw RuntimeError("LpScheduler", "DPU missing in depth map");
+	}
+        dpu_rep_depth = itr->second;
       }
-      size_t dpu_rep_depth = itr->second;
 
       for (operation_t dpu : subgraph.dpu_in_) {
         auto itr = dpu_depth_map_.find(dpu);
@@ -712,7 +715,7 @@ class CMX_Concatenation {
 
     bool is_cmx_concateable_in_current_opmodel(
         const concat_subgraph_t& subgraph, size_t cmx_size,
-        FILE *fptr=NULL) const {
+        FILE* /*fptr */=NULL) const {
 
       if (is_this_an_unsupported_concat(subgraph)) { return false; }
 

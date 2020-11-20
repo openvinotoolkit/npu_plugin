@@ -129,13 +129,14 @@ namespace mv
 
         MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
-        std::priority_queue<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, double>, std::vector<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, double>>, std::greater<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, double>>> minHeap;
+        std::priority_queue<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, T_value>, std::vector<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, T_value>>, std::greater<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, T_value>>> minHeap;
         std::map<typename graph<T_node, T_edge>::node_list_iterator, T_value, T_nodeItComp> distances;
         std::set<typename graph<T_node, T_edge>::node_list_iterator, T_nodeItComp> seen;
         std::map<typename graph<T_node, T_edge>::node_list_iterator, typename graph<T_node, T_edge>::node_list_iterator, T_nodeItComp> previous;
 
         T_value zeroCost(0);
-        T_value infiniteCost(std::numeric_limits<double>::infinity());
+	// note: T_value is unsigned interger
+        T_value infiniteCost(std::numeric_limits<T_value>::infinity());
 
         // Inserting the source into heap and graph
         for(auto nodeIt = g.node_begin(); nodeIt != g.node_end(); ++nodeIt)
@@ -145,13 +146,13 @@ namespace mv
         distances[source] = zeroCost;
         previous[source] = source;
 
-        HeapContent<typename graph<T_node, T_edge>::node_list_iterator, double> sourceHeap = {source, distances[source]};
+        HeapContent<typename graph<T_node, T_edge>::node_list_iterator, T_value> sourceHeap = {source, distances[source]};
         minHeap.push(sourceHeap);
 
         while(!minHeap.empty())
         {
 
-           HeapContent<typename graph<T_node, T_edge>::node_list_iterator,double> top = minHeap.top();
+           HeapContent<typename graph<T_node, T_edge>::node_list_iterator,T_value> top = minHeap.top();
            auto uIt = top.id;
 
            minHeap.pop();
@@ -171,7 +172,7 @@ namespace mv
                {
                    distances[vIt] = distance;
                    previous[vIt] = uIt;
-                   HeapContent<typename graph<T_node, T_edge>::node_list_iterator, double> toPush = {vIt, distances[vIt]};
+                   HeapContent<typename graph<T_node, T_edge>::node_list_iterator, T_value> toPush = {vIt, distances[vIt]};
                    minHeap.push(toPush);
                }
 

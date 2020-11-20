@@ -41,7 +41,7 @@ std::pair<std::vector<int64_t>, uint32_t> Hde::hdeCompress(std::vector<int64_t>&
     }
 }
 
-std::pair<std::vector<int64_t>, uint32_t> Hde::hdeCompress(std::vector<int64_t>& data, mv::Data::TensorIterator& t)
+std::pair<std::vector<int64_t>, uint32_t> Hde::hdeCompress(std::vector<int64_t>& data, mv::Data::TensorIterator& /*t*/)
 {
     if(data.empty()) {
         throw mv::ArgumentError("hde", "hdeCompress", "0", "Empty data vector");

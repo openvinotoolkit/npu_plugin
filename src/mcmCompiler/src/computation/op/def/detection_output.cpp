@@ -47,7 +47,7 @@ namespace mv
 
             // Calculate output shape
             auto keep_top_k = args.at("keep_top_k").get<int64_t>();
-            long unsigned int max_detections = keep_top_k;
+            unsigned long int max_detections = keep_top_k;
             outputShape = {7,max_detections,1,1};
 
             outputs.emplace_back(":0",  outputShape, inputs[0]->getDType(), outputOrder);

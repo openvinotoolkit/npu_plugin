@@ -51,19 +51,13 @@ class Pipeline_Chains {
 
         fprintf(fptr, "\n===========================\n");
         compute_total_read_sizes();
-        size_t prev_read_size = 0UL;
-        size_t prev_output_size = 0UL;
 
         size_t max_read_size = std::numeric_limits<size_t>::min();
         size_t max_output_size = std::numeric_limits<size_t>::min();
 
         size_t index = 0UL;
-        size_t last_read_size, last_output_size;
-
 
         auto dpu_op_itr = dpu_chain_.begin();
-        size_t max_dpu_demand = 0UL;
-        size_t max_read_demand = 0UL;
 
         for (;dpu_op_itr!= dpu_chain_.end(); ++dpu_op_itr) {
           operation_t dpu_op = *dpu_op_itr;
@@ -176,7 +170,6 @@ class Pipeline_Chains {
     template<typename T, typename OutputIterator>
     void get_weight_read_inputs(T dpu_op, OutputIterator output) const {
       mv::Data::OpListIterator oitr = omodel_.getOp(dpu_op->getName());
-      operation_t single_input_op = NULL;
 
       for (auto pitr=oitr.leftmostParent(); pitr!=omodel_.opEnd(); ++pitr) {
         if (is_weight_read(pitr)) {
@@ -287,10 +280,8 @@ class Pipeline_Chains {
         /// try to create a chain subgraph ////
         auto next_level_itr = level_itr;
         op_list_t dpu_chain;
-        size_t prev_level = level_itr->first, curr_level;
 
         do{
-          curr_level = next_level_itr->first;
           operation_t current_dpu_op = (next_level_itr->second).front();
           if (!is_this_dpu_selectable_into_the_chain(current_dpu_op)) { break; }
           //TODO(vamsikku): also avoid chains with breaks and pivots //
@@ -298,7 +289,6 @@ class Pipeline_Chains {
           //in the chain. 
 
           dpu_chain.push_back(current_dpu_op);
-          prev_level = curr_level;
           ++next_level_itr;
         }
         while ((next_level_itr != dpu_levels.end()) &&
@@ -544,7 +534,7 @@ class Pipeline_Chains {
     }
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
-    void transform_op_model(ControlEdgeOutput output,
+    void transform_op_model(ControlEdgeOutput /*output*/,
         SubGraphContainer& chain_subgraphs, size_t select_stages=0UL,
         FILE *fptr=stdout) {
 
@@ -552,12 +542,10 @@ class Pipeline_Chains {
             typename SubGraphContainer::value_type>::value,
               "Invalid container for chain subgraphs");
 
-      mv::OpModel &om = omodel_;
       chain_subgraphs.clear();
       locate_longer_chains(std::back_inserter(chain_subgraphs));
 
 
-      static size_t pseudo_op_id = 0UL;
       for (chain_subgraph_t chain_subgraph : chain_subgraphs) {
         const std::list<op_list_t>& weight_reads = chain_subgraph.weight_reads_;
         const op_list_t& dpu_chain = chain_subgraph.dpu_chain_;
@@ -572,9 +560,6 @@ class Pipeline_Chains {
         auto pprev_dpu_itr = curr_dpu_itr;
 
         auto pprev_itr = curr_itr;
-      
-        const op_list_t & weight_reads_start_list = weight_reads.front();
-
 
         if (curr_itr == weight_reads.end()) { continue; }
         ++curr_itr;
@@ -672,7 +657,7 @@ MOVE_TO_NEXT_SUBGRAPH:
 
     }
 
-    void transform_inplace_eltwise_chain(const chain_subgraph_t& eltwise_chain){
+    void transform_inplace_eltwise_chain(const chain_subgraph_t& /*eltwise_chain*/){
     }
 
     size_t compute_working_memory_for_eltwise_chain(
@@ -687,7 +672,7 @@ MOVE_TO_NEXT_SUBGRAPH:
       eltwise_chain.compute_total_read_sizes();
       read_size_map_t &read_size_map = eltwise_chain.total_read_size_map_;
 
-      size_t max_read_memory_demand = 0UL, curr_read_memory;
+      size_t max_read_memory_demand = 0UL;
       op_list_t dpu_chain = eltwise_chain.dpu_chain_;
       {
         size_t prev_non_zero_weight = 0UL;
@@ -716,7 +701,7 @@ MOVE_TO_NEXT_SUBGRAPH:
       //assumes that all dpus have non-zero memory //
       size_t max_dpu_demand = 0UL;
       {
-        auto dpu_itr = dpu_chain.begin(), dpu_itr_end = dpu_chain.end();
+        auto dpu_itr = dpu_chain.begin();
         auto prev_dpu_itr = dpu_itr; 
         ++dpu_itr;
 

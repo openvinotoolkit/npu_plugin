@@ -21,6 +21,8 @@ namespace mv
                     case shape1D: return shape2D;
                     case shape2D: return shape3D;
                     case shape3D: return shape4D;
+                    default:
+                        return shapeOverflow;
                 }
                 return shapeOverflow;
             }

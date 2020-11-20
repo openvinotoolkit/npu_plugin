@@ -11,6 +11,7 @@
 #include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/computation/model/iterator/tensor.hpp"
 #include "include/mcm/computation/op/op_registry.hpp"
+#include "include/mcm/utils/warning_manager.hpp"
 
 namespace mv
 {

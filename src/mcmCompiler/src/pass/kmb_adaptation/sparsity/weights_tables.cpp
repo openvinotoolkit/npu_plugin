@@ -362,13 +362,13 @@ void populateActivationStorageElementMap(
         mv::Data::OpListIterator, size_t, clusterSolverFunc, size_t)>;
 
     const std::vector<clusterSolverFunc> clusterSolversFunctors = {
-        [](mv::Data::OpListIterator op, size_t tidx, size_t)
+        [](mv::Data::OpListIterator op1, size_t tidx, size_t)
         {
-            return &*op->getInputTensor(tidx);
+            return &*op1->getInputTensor(tidx);
         },
-        [](mv::Data::OpListIterator op, size_t tidx, size_t clidx)
+        [](mv::Data::OpListIterator op1, size_t tidx, size_t clidx)
         {
-            return &op->getInputTensor(tidx)->getSubTensor(clidx);
+            return &op1->getInputTensor(tidx)->getSubTensor(clidx);
         }
     };
 
@@ -376,26 +376,26 @@ void populateActivationStorageElementMap(
     {
         {
             "Conv",
-            [](mv::Data::OpListIterator op,
+            [](mv::Data::OpListIterator op1,
                 size_t inputTensorIdx,
                 clusterSolverFunc clSolver,
                 size_t clIdx){
                 std::vector<std::pair<long int, long int>> displacements;
                 auto offset = 0;
                 auto increment =
-                    clSolver(op, inputTensorIdx, clIdx)->getShape()[mv::IO_CHANNEL_DIMENSION] *
-                    (clSolver(op, inputTensorIdx, clIdx)->getDType().getSizeInBytes());
+                    clSolver(op1, inputTensorIdx, clIdx)->getShape()[mv::IO_CHANNEL_DIMENSION] *
+                    (clSolver(op1, inputTensorIdx, clIdx)->getDType().getSizeInBytes());
                 return std::make_pair(offset, increment);
             }
         },
         {
             "Eltwise",
-            [](mv::Data::OpListIterator op,
+            [](mv::Data::OpListIterator op1,
                 size_t inputTensorIdx,
                 clusterSolverFunc clSolver,
                 size_t clIdx){
-                auto in0 = clSolver(op, 0, clIdx);
-                auto in1 = clSolver(op, 1, clIdx);
+                auto in0 = clSolver(op1, 0, clIdx);
+                auto in1 = clSolver(op1, 1, clIdx);
                 auto in0_addr = in0->hasAttr("address") ? in0->getAddress() : in0->get<std::size_t>("sliceAddress");
                 auto in1_addr = in1->hasAttr("address") ? in1->getAddress() : in1->get<std::size_t>("sliceAddress");
                 auto base_addr =std::min(

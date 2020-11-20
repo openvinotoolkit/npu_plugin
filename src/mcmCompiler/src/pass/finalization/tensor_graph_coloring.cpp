@@ -445,7 +445,7 @@ void printGraph(std::string name, mv::graph<std::string, int>& g)
 
 }
 
-std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, long long memorySize, size_t chromaticNumber,
+std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, size_t memorySize, size_t chromaticNumber,
     mv::graph<std::string, int>& directedGraph, std::size_t& directedGraphMaxEdgeId)
 {
     auto ni = g.node_find(name);
@@ -484,7 +484,9 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
         }
     }
 
-    if (insertionChromaticNumbersMin > memorySize)
+    // TODO
+    // check the type casting is valid? or, the type of memorySize should be changed
+    if (insertionChromaticNumbersMin > ((size_t) memorySize))
         //Actual Spill will be handled in runtime
         //eventually, the exception is just to indicate that currently it's not handled
         throw mv::ArgumentError("bestFitSelect", "insertionChromaticNumbersMin > memorySize", "", "trying to allocate " + name + std::to_string(memorySize) + " < " + std::to_string(insertionChromaticNumbersMin));
@@ -498,7 +500,7 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
 size_t bestFitMemoryAllocation(const mv::pass::PassEntry&, mv::ComputationModel& model,
                             std::queue<std::string>& order,
                             mv::TensorInterferenceGraph& g,
-                            long long memorySize,
+                            size_t memorySize,
                             bool isHeap)
 {
     size_t chromaticNumber = 0;
