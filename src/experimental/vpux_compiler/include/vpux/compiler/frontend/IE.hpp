@@ -18,7 +18,7 @@
 
 #include "vpux/utils/core/logger.hpp"
 
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
 
 #include <cpp/ie_cnn_network.h>

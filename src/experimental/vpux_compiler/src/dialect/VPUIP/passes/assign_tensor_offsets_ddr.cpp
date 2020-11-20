@@ -27,7 +27,7 @@
 
 #include <mlir/Analysis/BufferAliasAnalysis.h>
 #include <mlir/Analysis/Liveness.h>
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 
 using namespace vpux;
 

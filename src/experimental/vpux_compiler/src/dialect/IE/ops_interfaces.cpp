@@ -18,7 +18,7 @@
 
 #include "vpux/utils/core/format.hpp"
 
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/SymbolTable.h>
 
 using namespace vpux;

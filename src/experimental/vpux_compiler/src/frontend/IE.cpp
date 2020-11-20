@@ -29,7 +29,7 @@
 #include "vpux/utils/mlir/logging.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Verifier.h>
 
 #include <ie_common.h>
