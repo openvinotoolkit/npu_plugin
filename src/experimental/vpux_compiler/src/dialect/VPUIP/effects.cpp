@@ -22,25 +22,22 @@
 using namespace vpux;
 
 mlir::SideEffects::Resource*
-        vpux::VPUIP::getMemoryResource(MemoryLocation location) {
-    switch (location) {
-    case MemoryLocation::VPU_DDR_Heap:
-        return MemoryResource<MemoryLocation::VPU_DDR_Heap>::get();
-    case MemoryLocation::VPU_CMX_NN:
-        return MemoryResource<MemoryLocation::VPU_CMX_NN>::get();
-    case MemoryLocation::VPU_CMX_UPA:
-        return MemoryResource<MemoryLocation::VPU_CMX_UPA>::get();
-    case MemoryLocation::VPU_DDR_BSS:
-        return MemoryResource<MemoryLocation::VPU_DDR_BSS>::get();
-    case MemoryLocation::VPU_CSRAM:
-        return MemoryResource<MemoryLocation::VPU_CSRAM>::get();
+        vpux::VPUIP::getMemoryResource(PhysicalMemory mem) {
+    switch (mem) {
+    case PhysicalMemory::DDR:
+        return MemoryResource<PhysicalMemory::DDR>::get();
+    case PhysicalMemory::CSRAM:
+        return MemoryResource<PhysicalMemory::CSRAM>::get();
+    case PhysicalMemory::CMX_UPA:
+        return MemoryResource<PhysicalMemory::CMX_UPA>::get();
+    case PhysicalMemory::CMX_NN:
+        return MemoryResource<PhysicalMemory::CMX_NN>::get();
     default:
-        VPUX_THROW("Unsupported MemoryLocation '{0}' for MemoryResource",
-                   location);
+        VPUX_THROW("Unsupported PhysicalMemory '{0}' for MemoryResource", mem);
     }
 }
 
 mlir::SideEffects::Resource*
         vpux::VPUIP::getMemoryResource(mlir::MemRefType memref) {
-    return getMemoryResource(MemoryLocationAttr::fromMemRef(memref));
+    return getMemoryResource(getPhysicalMemory(memref));
 }

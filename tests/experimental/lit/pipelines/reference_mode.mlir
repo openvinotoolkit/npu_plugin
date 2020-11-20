@@ -1,28 +1,20 @@
 // RUN: vpux-opt -split-input-file -reference-mode %s | FileCheck %s
 
-// CHECK: #[[MAP:.*]] = affine_map<(d0, d1) -> (d0, d1)>
+// CHECK: #NC = affine_map<(d0, d1) -> (d0, d1)>
 
-// CHECK:       VPUIP.Graph
-// CHECK-SAME:      entryPoint = @main, identifier = "SingleLayer"
-// CHECK-SAME:      options = [#VPUIP<"ExecutionFlag:DynamicBarriers">]
+// CHECK:       VPUIP.Graph "SingleLayer" at @main
+// CHECK-SAME:      options : "DynamicBarriers"
 // CHECK-SAME:      nn_cmx_slice_amount = 1
 // CHECK-SAME:      upa_shaves = 1
-IE.CNNNetwork {
-    entryPoint = @main, netName = "SingleLayer"
-} inputsInfo {
-    // CHECK:       VPUIP.TensorInfo
-    // CHECK-SAME:      layout = #[[MAP]]
-    // CHECK-SAME:      name = "input"
-    // CHECK-SAME:      precision = f32
-    IE.DataInfo {name = "input", precision = f32, layout = #IE<"Layout:NC">}
-}
-outputsInfo {
-    // CHECK:       VPUIP.TensorInfo
-    // CHECK-SAME:      layout = #[[MAP]]
-    // CHECK-SAME:      name = "softmax"
-    // CHECK-SAME:      precision = f32
-    IE.DataInfo {name = "softmax", precision = f32, layout = #IE<"Layout:NC">}
-}
+IE.CNNNetwork "SingleLayer" at @main
+    inputsInfo : {
+        // CHECK: VPUIP.TensorInfo "input", f32, #NC
+        IE.DataInfo "input", f32, "NC"
+    }
+    outputsInfo : {
+        // CHECK: VPUIP.TensorInfo "softmax", f32, #NC
+        IE.DataInfo "softmax", f32, "NC"
+    }
 
 // CHECK: func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {

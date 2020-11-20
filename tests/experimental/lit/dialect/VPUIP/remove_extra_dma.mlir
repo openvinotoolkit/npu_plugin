@@ -16,9 +16,9 @@ func @copy_block_args(%arg0:  memref<8x8xf16>, %arg1: memref<8x8xf16>) {
 // CHECK-LABEL: different_types
 
 func @different_types() {
-    %0 = VPUIP.DeclareTensor {location = #VPUIP<"MemoryLocation:VPU_DDR_Heap">} -> memref<8x8xf16>
-    %1 = VPUIP.DeclareTensor {location = #VPUIP<"MemoryLocation:VPU_DDR_Heap">} -> memref<8x8xf16, #map>
-    %2 = VPUIP.DeclareTensor {location = #VPUIP<"MemoryLocation:VPU_CMX_UPA">} -> memref<8x8xf16, 2>
+    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<8x8xf16>
+    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<8x8xf16, #map>
+    %2 = VPUIP.DeclareTensor "VPU_CMX_UPA" -> memref<8x8xf16, 2>
 
     VPUIP.UPADMA inputs(%0 : memref<8x8xf16>) outputs(%1 : memref<8x8xf16, #map>)
     // CHECK: VPUIP.UPADMA inputs(%0 : memref<8x8xf16>) outputs(%1 : memref<8x8xf16, #map>)
@@ -34,7 +34,7 @@ func @different_types() {
 // CHECK-LABEL: copy_to_argument
 
 func @copy_to_argument(%arg0:  memref<8x8xf16>, %arg1:  memref<8x8xf16>) {
-    %0 = VPUIP.DeclareTensor {location = #VPUIP<"MemoryLocation:VPU_DDR_Heap">} -> memref<8x8xf16>
+    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<8x8xf16>
     VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%arg0 : memref<8x8xf16>) outputs(%0 : memref<8x8xf16>)
     VPUIP.UPADMA inputs(%0 : memref<8x8xf16>) outputs(%arg1 : memref<8x8xf16>)
     return
@@ -48,9 +48,9 @@ func @copy_to_argument(%arg0:  memref<8x8xf16>, %arg1:  memref<8x8xf16>) {
 // CHECK-LABEL: redirect_dst_users
 
 func @redirect_dst_users(%arg0:  memref<8x8xf16>, %arg1:  memref<8x8xf16>) {
-    %0 = VPUIP.DeclareTensor {location = #VPUIP<"MemoryLocation:VPU_DDR_Heap">} -> memref<8x8xf16>
+    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<8x8xf16>
     VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%arg0 : memref<8x8xf16>) outputs(%0 : memref<8x8xf16>)
-    %1 = VPUIP.DeclareTensor {location = #VPUIP<"MemoryLocation:VPU_DDR_Heap">} -> memref<8x8xf16>
+    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<8x8xf16>
     VPUIP.UPADMA inputs(%0 : memref<8x8xf16>) outputs(%1 : memref<8x8xf16>)
     VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%1 : memref<8x8xf16>) outputs(%arg1 : memref<8x8xf16>)
     return

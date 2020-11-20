@@ -18,13 +18,11 @@
 
 #include <mlir/IR/OpImplementation.h>
 
-#include <llvm/ADT/TypeSwitch.h>
-
 using namespace vpux;
 
 namespace {
 
-class IEDialectOpAsmHooks final : public mlir::OpAsmDialectInterface {
+class IEDialectAsmHooks final : public mlir::OpAsmDialectInterface {
 public:
     using mlir::OpAsmDialectInterface::OpAsmDialectInterface;
 
@@ -33,7 +31,7 @@ public:
                            mlir::OpAsmSetValueNameFn setNameFn) const final;
 };
 
-void IEDialectOpAsmHooks::getAsmResultNames(
+void IEDialectAsmHooks::getAsmResultNames(
         mlir::Operation* op,
         mlir::OpAsmSetValueNameFn setNameFn) const {
     if (const auto nameLoc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
@@ -50,37 +48,7 @@ void vpux::IE::IEDialect::initialize() {
 #undef GET_OP_LIST
             >();
 
-    addAttributes<LayoutAttr>();
-
-    addInterfaces<IEDialectOpAsmHooks>();
-}
-
-mlir::Attribute
-        vpux::IE::IEDialect::parseAttribute(mlir::DialectAsmParser& parser,
-                                            mlir::Type) const {
-    StringRef mnenomic;
-    if (mlir::failed(parser.parseKeyword(&mnenomic))) {
-        printTo(parser.emitError(parser.getCurrentLocation()),
-                "Failed to get IE Attribute mnenomic");
-        return nullptr;
-    }
-
-    if (mnenomic == LayoutAttr::getMnemonic()) {
-        return LayoutAttr::parse(parser);
-    }
-
-    printTo(parser.emitError(parser.getCurrentLocation()),
-            "Unknown IE Attribute '{0}'",
-            mnenomic);
-    return nullptr;
-}
-
-void vpux::IE::IEDialect::printAttribute(mlir::Attribute attr,
-                                         mlir::DialectAsmPrinter& os) const {
-    llvm::TypeSwitch<mlir::Attribute>(attr).Case<LayoutAttr>(
-            [&os](LayoutAttr layout) {
-                layout.print(os);
-            });
+    addInterfaces<IEDialectAsmHooks>();
 }
 
 //

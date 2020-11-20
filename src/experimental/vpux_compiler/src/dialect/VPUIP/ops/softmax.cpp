@@ -41,8 +41,8 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(SoftMaxUPAOp op) {
     const auto srcType = src.getType().cast<mlir::MemRefType>();
     const auto dstType = dst.getType().cast<mlir::MemRefType>();
 
-    const auto srcMem = MemoryLocationAttr::toPhysicalMemory(srcType);
-    const auto dstMem = MemoryLocationAttr::toPhysicalMemory(dstType);
+    const auto srcMem = getPhysicalMemory(srcType);
+    const auto dstMem = getPhysicalMemory(dstType);
 
     if (srcMem != PhysicalMemory::DDR && srcMem != PhysicalMemory::CSRAM) {
         return printTo(op.emitError(),

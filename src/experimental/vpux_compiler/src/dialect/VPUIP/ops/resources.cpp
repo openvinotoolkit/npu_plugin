@@ -25,20 +25,20 @@ using namespace vpux;
 //
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
-    const auto location = op.locationAttr();
+    const auto location = op.location();
 
-    if (location.getValue() == MemoryLocation::ProgrammableInput ||
-        location.getValue() == MemoryLocation::ProgrammableOutput ||
-        location.getValue() == MemoryLocation::GraphFile) {
+    if (location == MemoryLocation::ProgrammableInput ||
+        location == MemoryLocation::ProgrammableOutput ||
+        location == MemoryLocation::GraphFile) {
         return printTo(op.emitError(),
                        "MemoryLocation '{0}' can't be used in '{1}'",
-                       location.getValue(),
+                       location,
                        DeclareTensorOp::getOperationName());
     }
 
     const auto memref = op.memory().getType().cast<mlir::MemRefType>();
 
-    if (!location.isCompatibleWith(memref)) {
+    if (!isMemoryCompatible(location, memref)) {
         return printTo(
                 op.emitError(),
                 "'{0}' location '{1}' is not compatible with memory Type '{2}'",

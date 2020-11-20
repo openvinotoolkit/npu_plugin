@@ -75,12 +75,6 @@ class VPUIP_TaskOp<string mnemonic, VPUIP_TaskTypeVal taskType, list<OpTrait> tr
 // GraphOp
 //
 
-def VPUIP_ExecutionFlagArrayAttr :
-        TypedArrayAttrBase<
-            VPUIP_ExecutionFlagAttr,
-            "Array attribute of VPUIP ExecutionFlag"
-        >;
-
 def VPUIP_GraphOp :
         VPUIP_Op<
             "Graph",
@@ -98,7 +92,7 @@ def VPUIP_GraphOp :
     let arguments = (ins
         StrAttr:$identifier,
         FlatSymbolRefAttr:$entryPoint,
-        VPUIP_ExecutionFlagArrayAttr:$options,
+        VPUIP_ExecutionFlag:$options,
         VPUIP_ResourcesAttr:$resources
     );
 
@@ -113,8 +107,11 @@ def VPUIP_GraphOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputsInfo` $inputsInfo
-        `outputsInfo` $outputsInfo
+        $identifier `at` $entryPoint
+        `options` `:` $options
+        `resources` `:` $resources
+        `inputsInfo` `:` $inputsInfo
+        `outputsInfo` `:` $outputsInfo
     }];
 
     let extraClassDeclaration = [{
@@ -140,6 +137,7 @@ def VPUIP_TensorInfoOp :
 
     let assemblyFormat = [{
         attr-dict
+        $name `,` $precision `,` $layout
     }];
 }
 
@@ -171,7 +169,7 @@ def VPUIP_DeclareTensorOp :
     let summary = "MemRef value declaration";
 
     let arguments = (ins
-        VPUIP_MemoryLocationAttr:$location,
+        VPUIP_MemoryLocation:$location,
         OptionalAttr<I64Attr>:$offset
     );
 
@@ -184,7 +182,7 @@ def VPUIP_DeclareTensorOp :
     }];
 
     let assemblyFormat = [{
-        attr-dict `->` type(results)
+        $location (`,` $offset^)? attr-dict `->` type(results)
     }];
 }
 

@@ -114,6 +114,9 @@ public:
     InferenceEngine::Layout toIE() const;
 
 public:
+    Optional<StringRef> getCanonicalName() const;
+
+public:
     template <typename T, template <class> class Tag>
     auto toMemoryOrder(details::DimValuesRef<Dim, T, Tag> values) const
             -> details::DimValues<MemDim, T, Tag> {

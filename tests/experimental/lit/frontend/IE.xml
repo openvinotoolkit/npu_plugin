@@ -47,10 +47,10 @@ RUN: vpux-translate -import-IE %s | FileCheck %s
 
 <!--
 CHECK:      module {
-CHECK-NEXT:   IE.CNNNetwork {entryPoint = @main, netName = "SoftMax"} inputsInfo  {
-CHECK-NEXT:     IE.DataInfo {layout = #IE<"Layout:NC">, name = "data", precision = f32}
-CHECK-NEXT:   } outputsInfo  {
-CHECK-NEXT:     IE.DataInfo {layout = #IE<"Layout:NC">, name = "prob", precision = f32}
+CHECK-NEXT:   IE.CNNNetwork "SoftMax" at @main inputsInfo : {
+CHECK-NEXT:     IE.DataInfo "data", f32, "NC"
+CHECK-NEXT:   } outputsInfo : {
+CHECK-NEXT:     IE.DataInfo "prob", f32, "NC"
 CHECK-NEXT:   }
 CHECK-NEXT:   func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
 CHECK-NEXT:     %prob = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf32> -> tensor<1x1000xf32>
