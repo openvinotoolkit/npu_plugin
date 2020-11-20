@@ -2,6 +2,7 @@
 #include "tuple"
 #include "chrono"
 #include <utility>
+#include <unordered_set>
 
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyRegistry.hpp"
@@ -218,7 +219,6 @@ void convertToStreamingElement(mv::Element& element, mv::Shape strategy , std::s
         copySplits[4].set<int>("N", strategy[4]);
     }
     element.set("splits",copySplits);
-
 }
 
 std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(CriticalPathNodes &strategiesToConvert, std::shared_ptr<mv::Element> compDesc)
@@ -226,45 +226,9 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
 
     std::vector<mv::Element> streamingStrategyList;
 
-    if(compDesc->hasAttr("streaming_strategy"))
+    if(!compDesc->hasAttr("streaming_strategy"))
     { 
-        streamingStrategyList = compDesc->get<std::vector<mv::Element>>("streaming_strategy");
-        //determine if node already has streaming strategy from JSON text, do not override text specification
-        std::vector<std::string> hasSpec;
-        for (const auto& s : streamingStrategyList)
-        {
-            std::string nodeName = s.get<std::string>("name_filter");
-            auto splitList = s.get<std::vector<mv::Element>>("splits");
-            for (unsigned i = 0; i < splitList.size(); i++)
-            {
-                if ((splitList[i].hasAttr("C")) ||
-                    (splitList[i].hasAttr("H")) ||
-                    (splitList[i].hasAttr("W")) ||
-                    (splitList[i].hasAttr("K")) ||
-                    (splitList[i].hasAttr("N")))
-                    hasSpec.push_back(nodeName);
-            }
-        }
-        
-        //cast streaming strategy into Element
-        mv::Element copyElement("");
-
-        for (auto elem : strategiesToConvert)
-        {
-            auto& strategy = *elem;
-            mv::Shape newStrategy = strategy["streaming"];
-            std::string newName = strategy["name"] ;
-            if ( std::find(hasSpec.begin(), hasSpec.end(), newName) == hasSpec.end())
-            {
-                convertToStreamingElement(copyElement,newStrategy,newName);
-                streamingStrategyList.push_back(copyElement);
-            }
-        }
-        return streamingStrategyList;
-    }
-    else
-    {
-        for(auto elem : strategiesToConvert)
+        for(const auto& elem : strategiesToConvert)
         {
             auto& strategy = *elem;
             mv::Shape newStrategy = strategy["streaming"];
@@ -276,6 +240,40 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
         }
         return streamingStrategyList;
     }
+
+    streamingStrategyList = compDesc->get<std::vector<mv::Element>>("streaming_strategy");
+    //determine if node already has streaming strategy from JSON text, do not override text specification
+    std::unordered_set<std::string> hasSpec;
+    for (const auto& s : streamingStrategyList)
+    {
+        auto splitList = s.get<std::vector<mv::Element>>("splits");
+        for (unsigned i = 0; i < splitList.size(); i++)
+        {
+            if ((splitList[i].hasAttr("C")) ||
+                (splitList[i].hasAttr("H")) ||
+                (splitList[i].hasAttr("W")) ||
+                (splitList[i].hasAttr("K")) ||
+                (splitList[i].hasAttr("N")))
+                hasSpec.emplace(s.get<std::string>("name_filter"));
+        }
+    }
+    
+    //cast streaming strategy into Element
+    mv::Element copyElement("");
+
+    for (const auto& elem : strategiesToConvert)
+    {
+        auto& strategy = *elem;
+        const mv::Shape& newStrategy = strategy["streaming"];
+        const std::string& newName = strategy["name"] ;
+        if ( hasSpec.find(newName) == hasSpec.cend())
+        {
+            convertToStreamingElement(copyElement,newStrategy,newName);
+            streamingStrategyList.emplace_back(copyElement);
+        }
+    }
+    return streamingStrategyList;
+   
 }
 
 mv::Element convertToClusteringElement(std::string strategy , std::string name)
@@ -292,52 +290,49 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(Cri
 {
     std::vector<mv::Element> clusteringStrategyList;
 
-    if(compDesc->hasAttr("split_strategy"))
+    if(!compDesc->hasAttr("split_strategy"))
     { 
-        clusteringStrategyList = compDesc->get<std::vector<mv::Element>>("split_strategy");
-        //determine if node already has clustering strategy from JSON text, do not override text specification
-        std::vector<std::string> hasClusterSpec ;
-        for (auto s : clusteringStrategyList)
-        {
-            std::string nodeName = s.get<std::string>("name_filter");
-            std::string strategyName = s.get<std::string>("strategy");
-            if ((strategyName=="SplitOverH") ||
-                (strategyName=="SplitOverK") ||
-                (strategyName=="SplitOverHOverlapped") ||
-                (strategyName=="HKSwitch"))
-            {
-                hasClusterSpec.push_back(nodeName);
-            }
-        }
-
-        //save clustering strategy into compilation descriptor
-        for (auto elem : strategiesToConvert)
+        for (const auto& elem : strategiesToConvert)
         {
             auto& strategy = *elem;
-            std::string newStrategy = strategy["clustering"].get<std::string>();
-            std::string newName = strategy["name"].get<std::string>();
-            auto op = model_.getOp(newName);
-            if(op->getOpType() == "Concat")
-                newStrategy = std::string("Clustering");
-            if ( std::find(hasClusterSpec.begin(), hasClusterSpec.end(), newName) == hasClusterSpec.end())
-            {
-                clusteringStrategyList.push_back(convertToClusteringElement(newStrategy,newName));
-            }
-        }
-        return clusteringStrategyList;
-    }
-    else
-    {
-        for (auto elem : strategiesToConvert)
-        {
-            auto& strategy = *elem;
-            std::string newStrategy = strategy["clustering"];
-            std::string newName = strategy["name"];
+            const std::string& newStrategy = strategy["clustering"];
+            const std::string& newName = strategy["name"];
     
-            clusteringStrategyList.push_back(convertToClusteringElement(newStrategy,newName));
+            clusteringStrategyList.emplace_back(convertToClusteringElement(newStrategy,newName));
         }
         return clusteringStrategyList;
     }
+    
+    clusteringStrategyList = compDesc->get<std::vector<mv::Element>>("split_strategy");
+    //determine if node already has clustering strategy from JSON text, do not override text specification
+    std::unordered_set<std::string> hasClusterSpec ;
+    for (const auto& s : clusteringStrategyList)
+    {
+        const std::string& strategyName = s.get<std::string>("strategy");
+        if (strategyName=="SplitOverH" ||
+            strategyName=="SplitOverK" ||
+            strategyName=="SplitOverHOverlapped" ||
+            strategyName=="HKSwitch")
+        {
+            hasClusterSpec.emplace(s.get<std::string>("name_filter"));
+        }
+    }
+
+    //save clustering strategy into compilation descriptor
+    for (const auto& elem : strategiesToConvert)
+    {
+        auto& strategy = *elem;
+        const std::string newName = strategy["name"].get<std::string>();
+        const std::string newStrategy = model_.getOp(newName)->getOpType() == "Concat"
+                                        ? "Clustering" : strategy["clustering"].get<std::string>();
+
+        if ( hasClusterSpec.find(newName) == hasClusterSpec.cend())
+        {
+            clusteringStrategyList.emplace_back(convertToClusteringElement(newStrategy,newName));
+        }
+    }
+    return clusteringStrategyList;
+
 }
 
 std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(CriticalPathNodes &strategiesToConvert)
