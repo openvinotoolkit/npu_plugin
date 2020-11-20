@@ -19,11 +19,11 @@
 #include "vpux/compiler/allocator/linear_scan.hpp"
 #include "vpux/compiler/core/strides.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/utils/scalars.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/numeric.hpp"
-#include "vpux/utils/mlir/attributes.hpp"
 
 #include <mlir/Analysis/BufferAliasAnalysis.h>
 #include <mlir/Analysis/Liveness.h>

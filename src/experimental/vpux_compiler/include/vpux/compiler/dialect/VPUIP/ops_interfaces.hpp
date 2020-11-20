@@ -18,9 +18,9 @@
 
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
+#include "vpux/compiler/utils/scalars.hpp"
 
 #include "vpux/utils/core/small_vector.hpp"
-#include "vpux/utils/mlir/attributes.hpp"
 
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Operation.h>

@@ -16,6 +16,7 @@
 
 set(TARGET_NAME "vpux_compiler")
 set(TBLGEN_TARGET_NAME "${TARGET_NAME}_tblgen")
+set(SCHEMA_TARGET_NAME "${TARGET_NAME}_schema")
 set(OBJ_TARGET_NAME "${TARGET_NAME}_obj")
 set(STATIC_TARGET_NAME "${TARGET_NAME}_static")
 
@@ -191,7 +192,18 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TBLGEN_SOURCES})
 vpux_add_tblgen_target(${TBLGEN_TARGET_NAME} ${TBLGEN_SOURCES})
 set_target_properties(${TBLGEN_TARGET_NAME} PROPERTIES FOLDER "src")
 
-add_dependencies(${TBLGEN_TARGET_NAME} vpux_utils_mlir)
+add_dependencies(${TBLGEN_TARGET_NAME} mlir-headers mlir-generic-headers)
+
+#
+# SCHEMA target
+#
+
+vpux_add_flatc_target(${SCHEMA_TARGET_NAME}
+    SRC_DIR "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/graphFile-schema/src/schema"
+    DST_DIR "${gen_base_dst_include_dir}/dialect/VPUIP/generated/schema"
+    ARGS "--gen-name-strings"
+)
+set_target_properties(${SCHEMA_TARGET_NAME} PROPERTIES FOLDER "src")
 
 #
 # OBJECT target
@@ -203,10 +215,14 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES})
 set_target_properties(${OBJ_TARGET_NAME} PROPERTIES FOLDER "src")
 
-add_dependencies(${OBJ_TARGET_NAME} ${TBLGEN_TARGET_NAME})
+add_dependencies(${OBJ_TARGET_NAME}
+    ${TBLGEN_TARGET_NAME}
+    ${SCHEMA_TARGET_NAME}
+)
 
 ie_faster_build(${OBJ_TARGET_NAME}
     UNITY
+    PCH PUBLIC "src/precomp.hpp"
 )
 
 enable_warnings_as_errors(${OBJ_TARGET_NAME} WIN_STRICT)
@@ -221,23 +237,31 @@ target_include_directories(${OBJ_TARGET_NAME}
     SYSTEM PUBLIC
         "${CMAKE_CURRENT_BINARY_DIR}/include"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
+        ${MLIR_INCLUDE_DIRS}
 )
 target_include_directories(${OBJ_TARGET_NAME}
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
-# TODO: get rid of this dependency
 link_system_libraries(${OBJ_TARGET_NAME}
     PUBLIC
+        MLIRIR
+        MLIROptLib
+        MLIRPass
+        MLIRQuant
+        MLIRStandard
+        MLIRTransforms
+        MLIRTranslation
+        MLIRStandardOpsTransforms
+        MLIRLinalg
+        flatbuffers
+        # TODO: get rid of this dependency
         IE::vpu_common_lib
 )
 target_link_libraries(${OBJ_TARGET_NAME}
     PUBLIC
-        vpux_utils_core
-        vpux_utils_ie
-        vpux_utils_mlir
-        vpux_utils_vpuip
+        vpux_utils
         vpux_al
 )
 

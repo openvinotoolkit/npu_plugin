@@ -17,11 +17,11 @@
 #pragma once
 
 #include "vpux/compiler/core/dims_order.hpp"
+#include "vpux/compiler/utils/enums.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
-#include "vpux/utils/mlir/attributes.hpp"
 
 #include <mlir/IR/AffineMap.h>
 

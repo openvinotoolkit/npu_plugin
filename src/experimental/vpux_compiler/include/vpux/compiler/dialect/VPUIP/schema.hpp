@@ -21,7 +21,7 @@
 
 #include <flatbuffers/flatbuffers.h>
 
-#include <vpux/utils/VPUIP/schema/generated/graphfile_generated.h>
+#include <vpux/compiler/dialect/VPUIP/generated/schema/graphfile_generated.h>
 
 //
 // EnumTraits

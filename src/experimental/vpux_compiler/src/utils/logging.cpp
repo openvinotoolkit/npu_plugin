@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/utils/mlir/logging.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 
 #include <mlir/IR/Operation.h>
 #include <mlir/Pass/Pass.h>

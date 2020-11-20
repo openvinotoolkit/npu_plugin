@@ -17,10 +17,10 @@
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
-#include "vpux/utils/mlir/logging.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
 

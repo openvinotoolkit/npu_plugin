@@ -51,3 +51,5 @@
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include <mlir/Transforms/Passes.h>
 #include <mlir/Translation.h>
+
+#include <flatbuffers/flatbuffers.h>

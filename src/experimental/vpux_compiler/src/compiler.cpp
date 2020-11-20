@@ -22,10 +22,10 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/pipelines.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
-#include "vpux/utils/mlir/logging.hpp"
 
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/MLIRContext.h>

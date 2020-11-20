@@ -19,8 +19,8 @@
 #include "vpux/compiler/core/shape.hpp"
 #include "vpux/compiler/core/strides.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPUIP/schema.hpp"
 
-#include "vpux/utils/VPUIP/schema.hpp"
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/range.hpp"

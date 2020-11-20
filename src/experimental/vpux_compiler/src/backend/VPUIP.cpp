@@ -18,8 +18,8 @@
 
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/schema.hpp"
 
-#include "vpux/utils/VPUIP/schema.hpp"
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"

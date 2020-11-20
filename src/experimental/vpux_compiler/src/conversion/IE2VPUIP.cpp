@@ -20,10 +20,10 @@
 #include "vpux/compiler/core/stride_reqs.hpp"
 #include "vpux/compiler/core/strides.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/scalars.hpp"
 
 #include "vpux/utils/core/range.hpp"
-#include "vpux/utils/mlir/attributes.hpp"
-#include "vpux/utils/mlir/logging.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Dialect/StandardOps/Transforms/Passes.h>

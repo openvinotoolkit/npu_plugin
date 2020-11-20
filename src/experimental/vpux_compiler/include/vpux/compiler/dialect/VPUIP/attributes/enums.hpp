@@ -16,10 +16,12 @@
 
 #pragma once
 
+#include "vpux/compiler/utils/enums.hpp"
+
+#include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
-#include "vpux/utils/mlir/attributes.hpp"
 
 #include <mlir/IR/StandardTypes.h>
 

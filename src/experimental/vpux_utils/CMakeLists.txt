@@ -14,7 +14,7 @@
 # stated in the License.
 #
 
-set(TARGET_NAME "vpux_utils_core")
+set(TARGET_NAME "vpux_utils")
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -32,6 +32,7 @@ vpux_enable_clang_format(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
     SYSTEM PUBLIC
+        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
         ${LLVM_INCLUDE_DIRS}
 )
 target_include_directories(${TARGET_NAME}
@@ -41,5 +42,7 @@ target_include_directories(${TARGET_NAME}
 
 link_system_libraries(${TARGET_NAME}
     PUBLIC
+        IE::inference_engine
+        IE::ngraph
         LLVMSupport
 )

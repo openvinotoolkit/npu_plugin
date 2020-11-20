@@ -17,11 +17,11 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/scalars.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
-#include "vpux/utils/mlir/attributes.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>

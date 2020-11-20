@@ -14,12 +14,12 @@
 // stated in the License.
 //
 
-#include "vpux/utils/mlir/attributes.hpp"
+#include "vpux/compiler/utils/scalars.hpp"
 
 using namespace vpux;
 
 //
-// get*Type
+// get<scalar>Type
 //
 
 mlir::IntegerType vpux::getInt32Type(mlir::MLIRContext* ctx) {
@@ -63,7 +63,7 @@ mlir::IntegerType vpux::getUInt64Type(mlir::MLIRContext* ctx) {
 }
 
 //
-// get*Attr
+// get<scalar>Attr
 //
 
 mlir::IntegerAttr vpux::getInt32Attr(mlir::MLIRContext* ctx, uint32_t val) {

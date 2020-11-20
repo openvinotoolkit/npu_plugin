@@ -14,9 +14,5 @@
 # stated in the License.
 #
 
-add_subdirectory(vpux_utils_core)
-add_subdirectory(vpux_utils_ie)
-add_subdirectory(vpux_utils_mlir)
-add_subdirectory(vpux_utils_vpuip)
-
+add_subdirectory(vpux_utils)
 add_subdirectory(vpux_compiler)

@@ -21,7 +21,7 @@ addIeTargetTest(
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     LINK_LIBRARIES
         IE::commonTestUtils
-        vpux_utils_core
+        vpux_utils
         vpux_compiler_static
     LABELS
         ${VPUX_DEVICE_NAME}

@@ -16,49 +16,13 @@
 
 #pragma once
 
+#include "vpux/compiler/utils/scalars.hpp"
+
 #include "vpux/utils/core/enums.hpp"
-#include "vpux/utils/core/format.hpp"
-#include "vpux/utils/core/hash.hpp"
-#include "vpux/utils/mlir/parser.hpp"
 
 #include <mlir/IR/Attributes.h>
-#include <mlir/IR/DialectImplementation.h>
-#include <mlir/IR/Location.h>
-#include <mlir/IR/StandardTypes.h>
 
 namespace vpux {
-
-//
-// get*Type
-//
-
-mlir::IntegerType getInt32Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getInt64Type(mlir::MLIRContext* ctx);
-
-mlir::IntegerType getSInt8Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getSInt16Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getSInt32Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getSInt64Type(mlir::MLIRContext* ctx);
-
-mlir::IntegerType getUInt8Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getUInt16Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getUInt32Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getUInt64Type(mlir::MLIRContext* ctx);
-
-//
-// get*Attr
-//
-
-mlir::IntegerAttr getInt32Attr(mlir::MLIRContext* ctx, uint32_t val);
-mlir::IntegerAttr getInt64Attr(mlir::MLIRContext* ctx, uint64_t val);
-
-mlir::IntegerAttr getSInt32Attr(mlir::MLIRContext* ctx, int32_t val);
-mlir::IntegerAttr getSInt64Attr(mlir::MLIRContext* ctx, int64_t val);
-
-mlir::IntegerAttr getUInt32Attr(mlir::MLIRContext* ctx, uint32_t val);
-mlir::IntegerAttr getUInt64Attr(mlir::MLIRContext* ctx, uint64_t val);
-
-mlir::FloatAttr getFP32Attr(mlir::MLIRContext* ctx, float val);
 
 //
 // IntEnumAttr
