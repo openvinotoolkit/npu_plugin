@@ -142,6 +142,8 @@ HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, cons
       _workloadContext(workloadContext) {
     _config.parseFrom(config);
     loadGraphToDevice();
+    _inferDataPtr =
+        std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
 }
 
 HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
@@ -150,7 +152,10 @@ HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
       _network(ex._network),
       _uniteGraphPtr(ex._uniteGraphPtr),
       _allocatorPtr(ex._allocatorPtr),
-      _workloadContext(ex._workloadContext) {}
+      _workloadContext(ex._workloadContext) {
+    _inferDataPtr =
+        std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
+}
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
     UNUSED(params);
@@ -198,11 +203,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         updatedInputs[foundInputBlob->first] = prepareInputForInference(foundInputBlob->second, deviceInputLayout);
     }
 
-    // TODO Create HddlUniteInferData inside constructor of executor [Track number: S#37397]
-    std::call_once(_onceFlagInferData, [&] {
-        _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteInferData>(needUnitePreProcessing, _workloadContext,
-            _config.graphColorFormat(), _network->getDeviceOutputsInfo().size());
-    });
+    _inferDataPtr->setPreprocessFlag(needUnitePreProcessing);
 
     // TODO Should we use deviceInputs instead of networkInputs here?
     for (const auto& networkInput : networkInputs) {
@@ -220,13 +221,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
             THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
         }
         const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
-        _inferDataPtr->prepareUniteInput(inputBlobPtr, inputDesc);
-    }
-
-    /// Use what expected on device instead of what expected on IE side
-    const auto& deviceOutputs = _network->getDeviceOutputsInfo();
-    for (const auto& deviceOutput : deviceOutputs) {
-        _inferDataPtr->prepareUniteOutput(deviceOutput.second);
+        _inferDataPtr->prepareUniteInput(inputBlobPtr, inputName);
     }
 
     _uniteGraphPtr->InferAsync(_inferDataPtr);

@@ -19,7 +19,7 @@
 // System
 #include <memory>
 // Plugin
-#include "hddl2_infer_data.h"
+#include "infer_data_adapter.h"
 #include "vpux_remote_context.h"
 // Subplugin
 #include "vpux.hpp"
@@ -44,7 +44,7 @@ public:
         const std::unordered_map<std::string, std::string>& config = {}, const LogLevel logLevel = LogLevel::Error);
 
     ~HddlUniteGraph();
-    void InferAsync(const HddlUniteInferData::Ptr& data) const;
+    void InferAsync(const InferDataAdapter::Ptr& data) const;
 
 private:
     HddlUnite::Inference::Graph::Ptr _uniteGraphPtr = nullptr;

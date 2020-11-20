@@ -26,7 +26,7 @@
 #include "ie_input_info.hpp"
 #include "ie_preprocess_data.hpp"
 // Plugin
-#include "blob_descriptor.h"
+#include "blob_descriptor_adapter.h"
 #include "vpux_remote_context.h"
 // Low-level
 #include "InferData.h"
@@ -36,51 +36,59 @@ namespace vpu {
 namespace HDDL2Plugin {
 
 /**
- * Carries information necessary for invoking infer request on Unite
+ * @brief Carries information necessary for invoking infer request on HddlUnite
+ * @details Wrap HddlUnite::InferData method
  */
-class HddlUniteInferData final {
+class InferDataAdapter final {
 public:
-    using Ptr = std::shared_ptr<HddlUniteInferData>;
-
-    // TODO refactor this mess
-    explicit HddlUniteInferData(const bool& needPreProcessing = false,
+    InferDataAdapter() = delete;
+    InferDataAdapter(const InferDataAdapter&) = delete;
+    InferDataAdapter(const InferDataAdapter&&) = delete;
+    InferDataAdapter& operator=(const InferDataAdapter&) = delete;
+    InferDataAdapter& operator=(const InferDataAdapter&&) = delete;
+    explicit InferDataAdapter(const vpux::NetworkDescription::CPtr& networkDescription,
         const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
-        const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR,
-        const size_t numOutputs = 1);
+        const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR);
 
-    // TODO Now similar to prepareUniteOutput, make one for all?
-    void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const InferenceEngine::DataPtr& desc);
-    void prepareUniteOutput(const InferenceEngine::DataPtr& desc);
+public:
+    using Ptr = std::shared_ptr<InferDataAdapter>;
+    void setPreprocessFlag(const bool preprocessingRequired);
 
-    HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() { return _inferDataPtr; }
+    void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const std::string& inputName);
+
     void waitInferDone() const;
 
+    HddlUnite::Inference::InferData::Ptr& getHDDLUniteInferData() { return _inferDataPtr; }
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getHDDLUnitePerfCounters() const;
 
-    /**
-     * @brief Wait when inference is done and get result from HddlUnite
-     */
     std::string getOutputData(const std::string& outputName);
 
 private:
+    void createInferData();
+
+private:
+    const vpux::NetworkDescription::CPtr& _networkDescription;
+
     const int _asyncInferenceWaitTimeoutMs = 10000;
     std::vector<HddlUnite::Inference::AuxBlob::Type> _auxBlob;
     HddlUnite::WorkloadContext::Ptr _workloadContext = nullptr;
     HddlUnite::Inference::InferData::Ptr _inferDataPtr = nullptr;
+    InferenceEngine::ColorFormat _graphColorFormat;
 
-    std::map<std::string, BlobDescriptor::Ptr> _inputs;
-    std::map<std::string, BlobDescriptor::Ptr> _outputs;
+    std::map<std::string, BlobDescriptorAdapter::Ptr> _inputs;
+    std::map<std::string, BlobDescriptorAdapter::Ptr> _outputs;
 
     const bool _haveRemoteContext;
-    const bool _needUnitePreProcessing;
-
-    // TODO [Workaround] Avoid allocation buffer each time
-    std::once_flag _onceFlagInputAllocations;
-
-    std::vector<std::string> _onceFlagOutputAllocations;
+    bool _needUnitePreProcessing;
 
     HddlUnite::Inference::InferData::ProfileData _profileData = {};
-    InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;
+
+private:  // Workarounds
+    // TODO Use maxRoiNum
+    const size_t maxRoiNum = 1;
+    // TODO [Workaround] Avoid allocation buffer each time
+    std::once_flag _onceFlagInputAllocations;
+    std::vector<std::string> _onceFlagOutputAllocations;
 };
 
 }  // namespace HDDL2Plugin

@@ -115,7 +115,7 @@ HddlUniteGraph::~HddlUniteGraph() {
     }
 }
 
-void HddlUniteGraph::InferAsync(const HddlUniteInferData::Ptr& data) const {
+void HddlUniteGraph::InferAsync(const InferDataAdapter::Ptr& data) const {
     if (data == nullptr) {
         THROW_IE_EXCEPTION << "Data for inference is null!";
     }
@@ -123,7 +123,7 @@ void HddlUniteGraph::InferAsync(const HddlUniteInferData::Ptr& data) const {
         THROW_IE_EXCEPTION << "Graph is null!";
     }
 
-    HddlStatusCode inferStatus = HddlUnite::Inference::inferAsync(*_uniteGraphPtr, data->getHddlUniteInferData());
+    HddlStatusCode inferStatus = HddlUnite::Inference::inferAsync(*_uniteGraphPtr, data->getHDDLUniteInferData());
 
     if (inferStatus != HddlStatusCode::HDDL_OK) {
         THROW_IE_EXCEPTION << "InferAsync FAILED! return code:" << inferStatus;
