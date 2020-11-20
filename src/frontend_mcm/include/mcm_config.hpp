@@ -69,6 +69,10 @@ public:
 
     bool allowNCHWLayoutForMcmModelInput() const { return _allowNCHWLayoutForMcmModelInput; }
 
+    bool allowU8InputForFp16Models() const { return _allowU8InputForFp16Models; }
+
+    bool scaleShiftFusing() const { return _scaleShiftFusing; }
+
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
@@ -104,6 +108,10 @@ private:
     bool _referenceMode = false;
 
     bool _allowNCHWLayoutForMcmModelInput = false;
+
+    bool _allowU8InputForFp16Models = false;
+
+    bool _scaleShiftFusing = true;
 };
 
 }  //  namespace vpu

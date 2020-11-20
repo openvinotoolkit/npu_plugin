@@ -161,7 +161,8 @@ void cvtBlobPrecision_<float, ie::ie_fp16>(const ie::Blob::Ptr& in, const ie::Bl
 
 }  // namespace
 
-ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precision) {
+ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precision,
+    const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
     IE_ASSERT(in != nullptr);
 
     const auto& inDesc = in->getTensorDesc();
@@ -171,7 +172,12 @@ ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precisio
     }
 
     const auto outDesc = ie::TensorDesc(precision, inDesc.getDims(), inDesc.getLayout());
-    const auto out = make_blob_with_precision(outDesc);
+    InferenceEngine::Blob::Ptr out;
+    if (alloc != nullptr) {
+        out = make_blob_with_precision(outDesc, alloc);
+    } else {
+        out = make_blob_with_precision(outDesc);
+    }
     out->allocate();
 
     IE_ASSERT(in->getTensorDesc().getDims() == out->getTensorDesc().getDims());

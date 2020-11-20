@@ -67,9 +67,13 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         transformator.fullTrim();
     }
 
-    const auto& devices = _backend->getDevices();
-    bool isDeviceExist = devices.find(parsedConfigCopy.deviceId()) != devices.end();
-    const std::shared_ptr<vpux::Device> device = isDeviceExist ? devices.at(parsedConfigCopy.deviceId()) : nullptr;
+    std::shared_ptr<vpux::Device> device = nullptr;
+    if (_backend) {
+        const auto& devices = _backend->getDevices();
+        const bool isDeviceExist = devices.find(parsedConfigCopy.deviceId()) != devices.end();
+        if (isDeviceExist)
+            device = devices.at(parsedConfigCopy.deviceId());
+    }
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork, parsedConfigCopy, device);
 }

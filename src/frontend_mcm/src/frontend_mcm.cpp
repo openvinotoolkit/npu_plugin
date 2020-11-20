@@ -650,6 +650,7 @@ void FrontEndMcm::alignZeroPointsOnWeights(ie::CNNNetwork& network) {
                 // re-calculate ZP for weights, we use U8 for weights
                 sumOfZeroPoints += x;
             }
+            IE_ASSERT(numberOfQuantParams != 0);
             auto avgZeroPoints = std::round(sumOfZeroPoints / numberOfQuantParams);
 
             // NOTE: ol is always negative value
@@ -1861,8 +1862,20 @@ void FrontEndMcm::parseCrop(const ie::CNNLayerPtr& layer, const McmNodeVector& i
     _logger->debug(FINISH_PARSING_STR, mvSlice->getName());
 }
 
-void FrontEndMcm::parseTile(const ie::CNNLayerPtr&, const McmNodeVector&) {
-    VPU_THROW_EXCEPTION << "Tile layer is not supported by kmbPlugin";
+void FrontEndMcm::parseTile(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    IE_ASSERT(inputs.size() == 1);
+    auto layerOutput = layer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+    logParsingStartHelper(_logger, layer, inputs);
+
+    auto tileLayer = std::dynamic_pointer_cast<ie::TileLayer>(layer);
+    IE_ASSERT(tileLayer != nullptr);
+    uint64_t axis = tileLayer->axis;
+    uint64_t tiles = tileLayer->tiles;
+
+    auto mvTile = _modelMcm.tile(layer->name, inputs[0]->getMcmNode(), axis, tiles);
+    bindOutput(mvTile, layer->outData[0]);
+    _logger->debug(FINISH_PARSING_STR, mvTile->getName());
 }
 
 void FrontEndMcm::parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {

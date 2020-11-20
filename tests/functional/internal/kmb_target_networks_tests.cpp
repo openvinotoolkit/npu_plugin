@@ -34,6 +34,17 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
         3, 0.05);
 }
 
+TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10_u8_input) {
+    runTest(
+            TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP16)
+                    .setCompileConfig({{"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "YES"}}),
+            "224x224/cat3.bmp",
+            3, 0.05);
+}
+
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_dense_IRv10_fp16) {
     runTest(
             TestNetworkDesc("KMB_models/FP16/MobileNet_v2_pytorch/mobilenet-v2_pytorch_dense_fp16_ww34.xml")
@@ -54,7 +65,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
         1, 2.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
+TEST_F(KmbClassifyNetworkTest, precommit_INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v1_caffe2_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -63,7 +74,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
         1, 2.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe2_IRv10_ResNet_50_v2) {
+TEST_F(KmbClassifyNetworkTest, precommit_INT8_Dense_Caffe2_IRv10_ResNet_50_v2) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v2_caffe2_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -388,6 +399,18 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
         1, 2.0f);
 }
 
+TEST_F(KmbClassifyNetworkTest, squeezenet1_1_caffe2_force_compilation) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32)
+            .setUserOutputLayout("output", Layout::NHWC)
+            .enableForcedCompilation(),
+        TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
+        1, 2.0f);
+}
+
 //////////////////////////////////////////
 // End of test-set for KMB-alpha IRv10
 //////////////////////////////////////////
@@ -408,34 +431,26 @@ TEST_P(KmbDetectionNetworkTestWithSpecificLayout, face_detection_retail_caffe_IR
             1.f, 0.3f);
 }
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, ::testing::ValuesIn({Layout::NHWC}));
-// [Track number: S#41097]
-// Wrong strategy generated: tensor fire3/squeeze1x1:0_crop:0_align:0 needs sparsity but it can't be sparsified
-// INSTANTIATE_TEST_CASE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
-// TODO Check [Track number: D#3467]
+INSTANTIATE_TEST_CASE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
+
 // TODO 4 similar tests face_detection_retail_caffe_IRV10_fp16_int8_*
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw_fuse_scale_input_accuracy_drop) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC),
+            .setUserInputLayout("input", Layout::NCHW),
             TestImageDesc("300x300/0_Parade_marchingband_1_1004.jpg", ImageFormat::RGB),
             0.3f,
             1.f, 0.3f);
 }
 
 // [Track number: S#41097]
-// [Track number: S#40935]
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc_fuse_scale_input_accuracy_drop) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Accuracy regression");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            // [Track number: D#3634]
-            .setCompileConfig({{"VPU_COMPILER_SCALE_FUSE_INPUT", CONFIG_VALUE(NO)}}),
+            .setUserInputLayout("input", Layout::NHWC),
             TestImageDesc("300x300/0_Parade_marchingband_1_1004.jpg", ImageFormat::RGB),
             0.3f,
             1.f, 0.3f);
@@ -609,11 +624,9 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_vgg16_caffe_dense_int8_IRv10_fp16_to_int
 TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_kmb_retinaface"}}),
+                    .setUserInputPrecision("input", Precision::U8),
             "data",
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB));
+            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", ImageFormat::RGB));
 }
 
 //////////////////////////////////////////
@@ -785,8 +798,10 @@ TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
         0.3f);  // mean intersection over union tolerance
 }
 
+// 10Gb Memory allocation failed
+// [Track number: S#42880]
 class UnetNetworkTestWithSpecificLayout : public UnetNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
-TEST_P(UnetNetworkTestWithSpecificLayout, unet_camvid_ava_0001) {
+TEST_P(UnetNetworkTestWithSpecificLayout, DISABLED_unet_camvid_ava_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -969,7 +984,8 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_efficientnet_b0) {
 // C++ exception with description "Cannot convert layer "MobilenetV3/Conv/hard_swish/mul_1"
 // due to unsupported layer type "HSwish"
 // [Track number: D#3775]
-TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_small) {
+TEST_F(KmbClassifyNetworkTest, mobilenet_v3_small) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     runTest(
         TestNetworkDesc("KMB_models/FP16-INT8/private/mobilenet-v3-small-1.0-224/mobilenet-v3-small-1.0-224.xml")
             .setUserInputPrecision("input", Precision::U8),

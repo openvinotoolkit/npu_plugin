@@ -2775,6 +2775,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAEltwiseFP16Task(ComputationMode
     std::string operation = opIt->get<std::string>("eltwiseType");
     if (operation.compare(std::string("Add")) == 0)
         softLayerParamsValue->operation = "sum";
+    else if (operation.compare(std::string("Multiply")) == 0)
+        softLayerParamsValue->operation = "prod";
+    else
+        throw std::runtime_error("buildUPAEltwiseFP16Task: unsupported SW Eltwise Operation, check implementation.");
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
@@ -2795,7 +2799,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATileTask(ComputationModel& cm, 
 
     // Fill in required params
     // reverse axis position  since buildTensorReferenceT reverses shape order
-    softLayerParamsValue->axis = (input->getShape().ndims() - 1) - opIt->get<unsigned>("axis");
+    softLayerParamsValue->axis = opIt->get<unsigned>("axis");
     softLayerParamsValue->tiles = opIt->get<unsigned>("tiles");
 
     toBuild->softLayerParams.value = softLayerParamsValue;

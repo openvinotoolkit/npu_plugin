@@ -362,14 +362,14 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
     IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputTensor, blobParamMap);
     ASSERT_NE(nullptr, remoteBlobPtr);
     IE::RemoteBlob::Ptr remoteROIBlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteBlobPtr->createROI(roi));
-    ASSERT_NE(nullptr, remoteROIBlobPtr);    
+    ASSERT_NE(nullptr, remoteROIBlobPtr);
 
     // Preprocessing
     IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
     preprocInfo.setColorFormat(IE::ColorFormat::NV12);
 
     // ---- Set remote NV12 blob with preprocessing information
-    inferRequest.SetBlob(inputName, remoteBlobPtr, preprocInfo);
+    inferRequest.SetBlob(inputName, remoteROIBlobPtr, preprocInfo);
 
     // ---- Run the request synchronously
     ASSERT_NO_THROW(inferRequest.Infer());
