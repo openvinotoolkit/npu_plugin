@@ -37,7 +37,7 @@ namespace mv
         bool operator==(const double& rhs) const;
         bool operator==(const int& rhs) const;
         bool operator==(const unsigned int& rhs) const;
-        bool operator==(const long unsigned int& rhs) const;
+        bool operator==(const unsigned long& rhs) const;
         bool operator==(const int64_t& rhs) const;
         bool operator==(const float& rhs) const;
         operator int64_t() const;
@@ -47,6 +47,5 @@ namespace mv
         operator std::string() const;
         bool isDouble() const {return isDouble_;}
     };
-
 }
 #endif // DATA_ELEMENT_HPP_

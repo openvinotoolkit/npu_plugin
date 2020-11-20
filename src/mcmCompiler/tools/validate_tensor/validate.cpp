@@ -1,6 +1,7 @@
 #include "validate.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/utils/warning_manager.hpp"
 #include "flatbuffers/flatbuffers.h"
 #include "schema/graphfile/graphfile_generated.h"
 #include <fstream>
@@ -150,7 +151,9 @@ static float calculateMeanIntersectionOverUnion(const std::vector<int32_t>& vpuO
         totalIoU += classIoU;
     }
 
-    float meanIoU = totalIoU / nonZeroUnions;
+    float meanIoU = 0.0f;
+    if (nonZeroUnions > 0) 
+        meanIoU = totalIoU / nonZeroUnions;
     return meanIoU;
 }
 
@@ -441,7 +444,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     commandline += " -op FP16";
 
     std::cout << commandline << std::endl;
-    std::system(commandline.c_str());
+    returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
     {
         std::cout << std::endl << "Error occurred running the test_classification (KMB mode)!" << std::endl;
@@ -586,7 +589,7 @@ bool validate(std::string blobPath, std::vector<std::string> expectedPaths, std:
     generateGraphFile(blobPath, graphFile);
     std::vector<bool> allResults;
 
-    for (auto outIndex=0; outIndex<graphFile.header->net_output.size(); ++outIndex)
+    for (auto outIndex=0U; outIndex<graphFile.header->net_output.size(); ++outIndex)
     {
         MVCNN::DType dtype = graphFile.header->net_output[outIndex]->data_dtype;
 
@@ -690,7 +693,7 @@ bool validate(std::string blobPath, std::vector<std::string> expectedPaths, std:
         else
         {   // Segmentation network comparison - ICnet CPU results are int32
             // Segmentation network comparison - Unet CPU results are float32
-            float meanIoU;
+            float meanIoU = 0.0f;
             if (networkType == "icnet")
             {
                 auto totalExpected = infile.tellg() / sizeof(int32_t);
@@ -848,15 +851,17 @@ int copyImage(std::string imagePath, std::string blobPath)
 int postProcessActualResults(std::vector<std::string>& actualResults, std::string blobPath, std::vector<std::string>& actualResultsProcessed)
 {
     // Clean old file
-    std::cout << "Deleting old output... " << std::endl;
-    std::string outputFile = "./output_transposed.dat";
-    remove(outputFile.c_str());
+    {
+        std::cout << "Deleting old output... " << std::endl;
+        std::string outputFile = "./output_transposed.dat";
+        remove(outputFile.c_str());
+    }
 
     MVCNN::GraphFileT graphFile;
     generateGraphFile(blobPath, graphFile);
 
     std::cout << "Post Processing results... " << std::endl;
-    for (auto i=0; i<graphFile.header->net_output.size(); ++i)
+    for (auto i=0U; i<graphFile.header->net_output.size(); ++i)
     {
         MVCNN::DType dtype = graphFile.header->net_output[i]->data_dtype;
         std::cout << "Datatype: " << MVCNN::EnumNameDType(dtype) << std::endl;
@@ -917,7 +922,12 @@ bool checkInference(std::string actualResults, std::string expectedResults, std:
 
 
     std::cout << commandline << std::endl;
-    int result = std::system(commandline.c_str());
+    int returnVal = std::system(commandline.c_str());
+    if (returnVal == -1)
+    {
+        std::cout << std::endl << "Error occurred running the inference!" << std::endl;
+        return FAIL_ERROR;
+    }
 
     // read in expected inference results
     std::string expectedInferencePath = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + std::string("/inference_results.txt");

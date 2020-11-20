@@ -20,7 +20,10 @@ namespace mv
 };*/
 
 namespace
-{
+{ 
+    // TODO
+    // Check whether the function will be used in the future?
+#if defined(DISABLE_UNUSED_FUNCTIONS_REMOVAL)
     void setTemplParam(std::string& str, const std::string& paramName, const std::string& paramValue)
     {
         auto pos = std::string::npos;
@@ -29,6 +32,7 @@ namespace
             str.replace(pos, paramName.length(), paramValue);
         }
     }
+#endif
 
 const std::string RECORDED_OP_MODEL_CPP_BODY = R"cpptempl(
 namespace

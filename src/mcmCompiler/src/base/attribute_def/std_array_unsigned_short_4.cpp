@@ -63,7 +63,7 @@ namespace mv
             for(auto v: vec)
             {
                 Tmp tmp = {v};
-                for(unsigned j = 0; j < sizeof(unsigned); ++j)
+                for(size_t j = 0; j < sizeof(unsigned short); ++j)
                     toReturn[i++] = tmp.bytes[j];
             }
             return toReturn;

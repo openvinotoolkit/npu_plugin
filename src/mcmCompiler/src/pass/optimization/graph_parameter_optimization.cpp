@@ -637,7 +637,7 @@ namespace mv
             }
 
             unsigned getMinStreamOverC(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity,
-                                                bool wSparsity, bool fSparsity, bool spilling, bool pipelined = false)
+                                                bool wSparsity, bool fSparsity, bool spilling, bool /*pipelined*/ = false)
             {
                 auto inputShape = op.getInputTensor(0)->getShape();
                 size_t inputChannelSize = inputShape[IO_CHANNEL_DIMENSION];
@@ -839,7 +839,6 @@ namespace mv
                 auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
                 auto streamShape = strategy["streaming"].get<Shape>();
                 auto spilling = strategy["spilling"].get<bool>();
-                auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
 
                 //NOTE: funny part you can spill even if you are not streaming, fasten your seatbelts!!
                 bool isStreaming = ((streamShape["W"] * streamShape["H"] * streamShape["C"]
@@ -2401,7 +2400,7 @@ namespace mv
 static void GraphParameterOptimizationFcn(
     const mv::pass::PassEntry& ,
     mv::ComputationModel& model,
-    mv::TargetDescriptor& td, mv::Element& passDesc,
+    mv::TargetDescriptor& /*td*/, mv::Element& passDesc,
     mv::Element&
 )
 {

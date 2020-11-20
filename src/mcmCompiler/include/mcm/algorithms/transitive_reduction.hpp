@@ -344,7 +344,6 @@ class DAG_Transitive_Reducer {
 
       //STEP-1.2: compute 
 
-      size_t curr_level=0;
       for (auto litr=ordered_edges.begin(); litr!=ordered_edges.end();
             ++litr) {
         for (auto eitr=litr->second.begin(); eitr!=litr->second.end();
@@ -382,12 +381,13 @@ class DAG_Transitive_Reducer {
       std::list<node_iterator_t> bfs_list;
 
       size_t sink_level;
-      auto level_itr = level_map_.find(sink);
-      if (level_itr == level_map_.end()) { 
-        throw "missing level entry";
+      {
+        auto level_itr = level_map_.find(sink);
+        if (level_itr == level_map_.end()) {
+          throw "missing level entry";
+        }
+        sink_level = level_itr->second;
       }
-      sink_level = level_itr->second;
-
 
       //TODO(vamsikku): while doing DFS don't add nodes which exceed the
       //level of the sink into the bfs_list //

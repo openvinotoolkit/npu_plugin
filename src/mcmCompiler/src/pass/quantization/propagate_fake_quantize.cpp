@@ -203,7 +203,7 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     return outQuantParams[0];
 }
 
-mv::QuantizationParams getParentQuantParams(mv::OpModel& om, const mv::Data::OpListIterator& op, size_t parent_idx = 0) {
+mv::QuantizationParams getParentQuantParams(mv::OpModel& /*om*/, const mv::Data::OpListIterator& op, size_t parent_idx = 0) {
     assert(op->getInputTensor().size() > 0);
     auto inputTensor = op->getInputTensor(parent_idx);
     assert(inputTensor->hasAttr("quantParams"));

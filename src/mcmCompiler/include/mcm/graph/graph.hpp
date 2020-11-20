@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "include/mcm/utils/warning_manager.hpp"
 
 namespace mv
 {
@@ -242,9 +243,8 @@ namespace mv
 
             }
 
-            void remove_parent_(const std::weak_ptr<T_iterable>& parent, const std::weak_ptr<T_iterable>& child)
+            void remove_parent_(const std::weak_ptr<T_iterable>& parent, const std::weak_ptr<T_iterable>& /*child*/)
             {
-                
                 if (parent.expired())
                     throw std::runtime_error("Expired std::weak_ptr to child passed to iterable " + std::to_string(getID()) + " parent deletion");
 
@@ -826,6 +826,11 @@ namespace mv
 
             }
 
+	    /**
+	     * @brief copy constructor
+	     * @note this is added to resolve "depricated-copy" warning
+	     */
+	    search_iterator(const search_iterator& other) = default;
         };
 
         template <class T_iterable, class T_content>
@@ -905,6 +910,11 @@ namespace mv
 
             }
 
+	    /**
+	     * @brief copy constructor
+	     * @note this is added to resolve "depricated-copy" warning
+	     */
+	    dfs_iterator(const dfs_iterator& other) = default;
         };
 
         template <class T_iterable, class T_content>
@@ -1017,6 +1027,12 @@ namespace mv
 
             }
 
+	    /**
+	     * @brief copy constructor
+	     * @note this is added to resolve "depricated-copy" warning
+	     */
+	    relative_iterator(const relative_iterator& other) = default;
+
             virtual ~relative_iterator()
             {
 
@@ -1072,6 +1088,7 @@ namespace mv
                 return *this;
 
             }
+
 
         };
 
@@ -1199,7 +1216,8 @@ namespace mv
 
                 //if the leftmost child ,of leftmost parent, is same as calling node, return next sibling
                 //For ex:     a
-                //           /|\
+                //          +-|-+
+                //          | | |
                 //          x y z
                 //  sibling_iterator(x) points to y
                 while(!reached_end())
@@ -1214,7 +1232,7 @@ namespace mv
 
                if(current_parent_child_ != current_parent_children_end_)
              	{
-                 auto result = visited_sibling_.insert((*current_parent_child_).lock()->getID());
+                 result = visited_sibling_.insert((*current_parent_child_).lock()->getID());
                  if (!result.second)
                      throw std::runtime_error("Unable to insert sibling");
 

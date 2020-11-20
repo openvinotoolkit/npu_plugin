@@ -187,7 +187,6 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
         for (auto& tensor : tensors)
         {
             int success;
-            UNUSED(success);
             auto needs_sparse = (tensor->hasAttr("needs_sparse")) ? tensor->get<bool>("needs_sparse") : false;
             auto needs_splits_aligned = (tensor->hasAttr("needs_splits_aligned")) ? tensor->get<bool>("needs_splits_aligned") : false;
             mv::Workloads Tensor(tensor->getName(), tensor->getShape(), needs_sparse | needs_splits_aligned);

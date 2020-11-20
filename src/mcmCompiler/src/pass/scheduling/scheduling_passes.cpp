@@ -201,7 +201,7 @@ void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
             auto opIt = model.getOp(name);
             opIt->set<unsigned>("schedulingNumber", address);
         }
-        catch (mv::ArgumentError error)
+        catch (const mv::ArgumentError& error)
         {
             pass.log(mv::Logger::MessageType::Error, error.what());
         }

@@ -56,7 +56,7 @@ class Control_Model_Barrier_Scheduler {
 
         barrier_transition_structure_t(mv::OpModel *om_ptr=NULL,
             schedule_time_t time=std::numeric_limits<schedule_time_t>::max())
-          : om_ptr_(NULL), time_(time), curr_barrier_task_(),
+          : om_ptr_(om_ptr), time_(time), curr_barrier_task_(),
             prev_barrier_task_(), producers_() {}
 
         barrier_transition_structure_t(

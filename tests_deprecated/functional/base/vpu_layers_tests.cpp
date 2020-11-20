@@ -2,6 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// TODO
+// warning: ‘WeightableLayer’ is deprecated: Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+//  -Wdeprecated-declarations]
+#ifdef __GNUC__
+#pragma GCC diagnostic push 
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 #include "vpu_layers_tests.hpp"
 
 #include <chrono>
@@ -14,6 +22,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "ie_memcpy.h"
+
 
 using namespace InferenceEngine;
 
@@ -759,4 +768,8 @@ bool useSIPP() {
     std::map<std::string, std::string> config {std::make_pair("USE_SIPP", CONFIG_VALUE(YES))};
     return (config == getCommonConfig());
 }
+#endif
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
 #endif

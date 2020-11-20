@@ -43,6 +43,9 @@ namespace mv
             return output;
         }
 
+	// TODO
+	// Check whether the function will be used. currently, it is not used
+#if defined(DISABLE_UNUSED_FUNCTIONS_REMOVAL)
         static std::string toLongString(const Attribute& a)
         {
             auto vec = a.get<std::vector<uint8_t>>();
@@ -53,7 +56,7 @@ namespace mv
             output += "}";
             return output;
         }
-
+#endif
     }
 
     namespace attr {

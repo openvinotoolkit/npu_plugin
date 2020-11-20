@@ -9,7 +9,7 @@ namespace mv
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& /*args*/,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
             if (inputs[0]->getShape().ndims() != 4)
@@ -18,9 +18,6 @@ namespace mv
                     " has " + std::to_string(inputs[0]->getShape().ndims());
                 return {false, 0};
             }
-
-            auto alpha = args.at("alpha").get<unsigned>();
-            UNUSED(alpha);
 
             return {true, 0};
         };

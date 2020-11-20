@@ -119,11 +119,11 @@ public:
     MetaGraph() :
         internalGraph_(),
         edgeCostMap(),
+        levels(0),
+        levelContainer_(0),
         childMetaGraphs(0),
         firstLevelIdx_(0),
         lastLevelIdx_(0),
-        levels(0),
-        levelContainer_(0),
         name("unnamed"),
         solved_(false)
     {

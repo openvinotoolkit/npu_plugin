@@ -197,8 +197,8 @@ void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, 
     in_degree_map[ op ] = in_degree;
     if (!in_degree) {
       zero_in_degree_nodes[0].push_back(op);
-      auto op_itr = cm.getOp(op->getName());
-      op_itr->set<unsigned>("layerNumber", (unsigned) curr_depth+1UL);
+      auto data_op_itr = cm.getOp(op->getName());
+      data_op_itr->set<unsigned>("layerNumber", (unsigned) curr_depth+1UL);
     }
   }
 

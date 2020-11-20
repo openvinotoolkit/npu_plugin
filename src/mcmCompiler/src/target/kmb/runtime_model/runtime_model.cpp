@@ -310,7 +310,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         toBuild->data->data_index = 0;
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
 
         if ((*masterBuffer)->getData()->hasAttr("inputIndex"))
             toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("inputIndex");
@@ -598,7 +597,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     auto numericStrides = t->computeNumericStrides();
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
 
-    if(*tensorAllocatorName == "VPU_CMX_NN" || *tensorAllocatorName == "ProgrammableOutput" || *tensorAllocatorName == "VPU_DDR_Heap"  && !subtensor.getOrder().isColMajor())
+    // TODO
+    // Double check whether the change is correct
+    if(*tensorAllocatorName == "VPU_CMX_NN" || *tensorAllocatorName == "ProgrammableOutput" ||
+		    (*tensorAllocatorName == "VPU_DDR_Heap" && !subtensor.getOrder().isColMajor()))
     {
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
         numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
@@ -900,10 +902,9 @@ std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT(ComputationMode
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel& cm, mv::Element& compilationDescriptor)
+std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel& cm, mv::Element& /*compilationDescriptor*/)
 {
     std::unique_ptr<MVCNN::ResourcesT> toBuild = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
-    UNUSED(compilationDescriptor);
     auto globalConfigurationParams = cm.getGlobalConfigParams();
 
     setIfPresent<uint32_t, int>(toBuild->upa_shaves, *globalConfigurationParams , "UpaShaves");
@@ -949,11 +950,11 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
 
     if(huffmanCompression && t.isPopulatedTensor() && t.getDType() != mv::DType("Float16"))
     {
-        auto dataPacked = t.getDataPacked();
         auto weightSizeKb = t.computeTotalSize() / 1024;
 
         //Minimum size that can be compressed is 4kB
         if(weightSizeKb > 4) {
+            auto dataPacked = t.getDataPacked();
             auto compressedData = hde_->hdeCompress(dataPacked, t);
             toBuild->data = packToInt64(compressedData.first, t.getDType());
 
@@ -1128,11 +1129,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
     return toBuild;
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildMvTensorTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildMvTensorTaskT(ComputationModel& /*cm*/, mv::Element& /*compilationDescriptor*/, Control::OpListIterator /*opIt*/)
 {
-    UNUSED(cm);
-    UNUSED(compilationDescriptor);
-    UNUSED(opIt);
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
     return toReturn;
 }
@@ -1474,11 +1472,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     }
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE1TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE1TaskT(ComputationModel& /*cm*/, mv::Element& /*compilationDescriptor*/, Control::OpListIterator /*opIt*/)
 {
-    UNUSED(cm);
-    UNUSED(compilationDescriptor);
-    UNUSED(opIt);
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
     return toReturn;
 }
@@ -1555,36 +1550,36 @@ void mv::RuntimeModel::adaptFakeSparsityIndex(
         {
             "Conv",
             [seTensorIdx, smTensorIdx, clusterId](
-                    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
-                    Control::OpListIterator opIt) {
-                inv->input_data->data->storage_element_index =
-                    opIt->getInputTensor(seTensorIdx[0])
+                    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv1,
+                    Control::OpListIterator opIt1) {
+                inv1->input_data->data->storage_element_index =
+                    opIt1->getInputTensor(seTensorIdx[0])
                         ->getAddress();
-                inv->input_data->data->sparsity_index =
-                    opIt->getInputTensor(smTensorIdx[0])
+                inv1->input_data->data->sparsity_index =
+                    opIt1->getInputTensor(smTensorIdx[0])
                         ->getAddress();
             }
         },
         {
             "Eltwise",
             [seTensorIdx, smTensorIdx, clusterId](
-                    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
-                    Control::OpListIterator opIt) {
-                inv->input_data->data->storage_element_index =
-                    opIt->getInputTensor(seTensorIdx[0])
+                    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv1,
+                    Control::OpListIterator opIt1) {
+                inv1->input_data->data->storage_element_index =
+                    opIt1->getInputTensor(seTensorIdx[0])
                         ->getSubTensor(clusterId)
                         .getAddress();
-                inv->weights_data->data->storage_element_index =
-                    opIt->getInputTensor(seTensorIdx[1])
+                inv1->weights_data->data->storage_element_index =
+                    opIt1->getInputTensor(seTensorIdx[1])
                         ->getSubTensor(clusterId)
                         .getAddress();
 
-                inv->input_data->data->sparsity_index =
-                    opIt->getInputTensor(smTensorIdx[0])
+                inv1->input_data->data->sparsity_index =
+                    opIt1->getInputTensor(smTensorIdx[0])
                         ->getSubTensor(clusterId)
                         .getAddress();
-                inv->weights_data->data->sparsity_index =
-                    opIt->getInputTensor(smTensorIdx[1])
+                inv1->weights_data->data->sparsity_index =
+                    opIt1->getInputTensor(smTensorIdx[1])
                         ->getSubTensor(clusterId)
                         .getAddress();
             }
@@ -1615,32 +1610,32 @@ void mv::RuntimeModel::adaptFakeSparsityIndex(
     {
         {
             "Conv",
-            [seTensorIdx, smTensorIdx](std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
-                     Control::OpListIterator opIt) {
-                inv->input_data->data->storage_element_index =
-                    opIt->getInputTensor(seTensorIdx[0])
+            [seTensorIdx, smTensorIdx](std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv1,
+                     Control::OpListIterator opIt1) {
+                inv1->input_data->data->storage_element_index =
+                    opIt1->getInputTensor(seTensorIdx[0])
                         ->getAddress();
-                inv->input_data->data->sparsity_index =
-                    opIt->getInputTensor(smTensorIdx[0])
+                inv1->input_data->data->sparsity_index =
+                    opIt1->getInputTensor(smTensorIdx[0])
                         ->getAddress();
             }
         },
         {
             "Eltwise",
-            [seTensorIdx, smTensorIdx](std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
-                     Control::OpListIterator opIt) {
-                inv->input_data->data->storage_element_index =
-                    opIt->getInputTensor(seTensorIdx[0])
+            [seTensorIdx, smTensorIdx](std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv1,
+                     Control::OpListIterator opIt1) {
+                inv1->input_data->data->storage_element_index =
+                    opIt1->getInputTensor(seTensorIdx[0])
                         ->getAddress();
-                inv->weights_data->data->storage_element_index =
-                    opIt->getInputTensor(seTensorIdx[1])
+                inv1->weights_data->data->storage_element_index =
+                    opIt1->getInputTensor(seTensorIdx[1])
                         ->getAddress();
 
-                inv->input_data->data->sparsity_index =
-                    opIt->getInputTensor(smTensorIdx[0])
+                inv1->input_data->data->sparsity_index =
+                    opIt1->getInputTensor(smTensorIdx[0])
                         ->getAddress();
-                inv->weights_data->data->sparsity_index =
-                    opIt->getInputTensor(smTensorIdx[1])
+                inv1->weights_data->data->sparsity_index =
+                    opIt1->getInputTensor(smTensorIdx[1])
                         ->getAddress();
             }
         }
@@ -2068,9 +2063,8 @@ std::array <unsigned short, 4>  mv::RuntimeModel::getPadding(Control::OpListIter
     return padding;
 }
 
-std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload, unsigned clusterId, std::string strategy)
+std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element& /*compilationDescriptor*/, Control::OpListIterator opIt, Workload workload, unsigned clusterId, std::string strategy)
 {
-    UNUSED (compilationDescriptor);
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
 
     toBuild->mpe_mode = convertMPEMode(workload.MPEMode);
@@ -2840,11 +2834,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACTCDecoderTask(ComputationModel
     return toBuild;
 }
 
-MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& /*cm*/, Element& /*compilationDescriptor*/, Control::OpListIterator /*opIt*/)
 {
-    UNUSED(cm);
-    UNUSED(compilationDescriptor);
-    UNUSED(opIt);
     auto toBuild = new MVCNN::UPALayerTaskT();
     //toBuild->maxShaves = ;
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_DummyParams;
@@ -3222,11 +3213,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
     return toReturn;
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildControllerTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildControllerTaskT(ComputationModel& /*cm*/, mv::Element& /*compilationDescriptor*/, Control::OpListIterator /*opIt*/)
 {
-    UNUSED(cm);
-    UNUSED(compilationDescriptor);
-    UNUSED(opIt);
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
     return toReturn;
 }

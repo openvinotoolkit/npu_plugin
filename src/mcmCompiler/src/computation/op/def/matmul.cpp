@@ -40,7 +40,7 @@ namespace mv
 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& /*args*/, std::vector<Tensor>& outputs)
         {
             const Shape shape = {inputs[0]->getShape()[0], inputs[1]->getShape()[1]};
             outputs.emplace_back(":0", shape, inputs[0]->getDType(), inputs[0]->getOrder());
