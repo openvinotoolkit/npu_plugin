@@ -49,16 +49,20 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static Executor::Ptr getExecutorForInference(const Executor::Ptr& executor) {
+static Executor::Ptr getExecutorForInference(const Executor::Ptr& executor, const vpu::Logger::Ptr& logger) {
     if (executor == nullptr) {
         THROW_IE_EXCEPTION << NO_EXECUTOR_FOR_INFERENCE;
     }
-    // TODO Clone method implementation required [Track number: C#36225]
-#ifdef __aarch64__
-    return executor;
-#else
-    return executor->clone();
-#endif
+
+    try {
+        return executor->clone();
+    } catch (const std::exception& exc) {
+        logger->warning("getExecutorForInference: executor threw an exception: %s", exc.what());
+        return executor;
+    } catch (...) {
+        logger->warning("getExecutorForInference: executor threw an unknown exception");
+        return executor;
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -129,6 +133,7 @@ ExecutableNetwork::ExecutableNetwork(IE::ICNNNetwork& network, const Device::Ptr
         _networkPtr = _compiler->compile(*actualNetwork, _config);
     }
     _executorPtr = createExecutor(_networkPtr, config, device);
+    ConfigureStreamsExecutor(network.getName());
 }
 
 //------------------------------------------------------------------------------
@@ -141,6 +146,38 @@ ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::P
     _executorPtr = createExecutor(_networkPtr, config, device);
     _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
     _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
+    ConfigureStreamsExecutor(networkName);
+}
+
+void ExecutableNetwork::ConfigureStreamsExecutor(const std::string& networkName) {
+    size_t maxTaskExecutorGetResultCount = 1;
+    if (_config.exclusiveAsyncRequests()) {
+        IE::ExecutorManager* executorManager = IE::ExecutorManager::getInstance();
+        _taskExecutor = executorManager->getExecutor("VPUX");
+        maxTaskExecutorGetResultCount = 1;
+    } else {
+        _taskExecutor = std::make_shared<IE::CPUStreamsExecutor>(
+            IE::IStreamsExecutor::Config{"VPUXPlugin executor", _config.executorStreams()});
+        maxTaskExecutorGetResultCount = _config.executorStreams();
+    }
+
+    for (size_t i = 0; i < maxTaskExecutorGetResultCount; i++) {
+        std::stringstream idStream;
+        idStream << networkName << "_VPUXResultExecutor" << i;
+        _taskExecutorGetResultIds.emplace(idStream.str());
+    }
+}
+
+IE::ITaskExecutor::Ptr ExecutableNetwork::getNextTaskExecutor() {
+    std::string id = _taskExecutorGetResultIds.front();
+
+    _taskExecutorGetResultIds.pop();
+    _taskExecutorGetResultIds.push(id);
+
+    IE::ExecutorManager* executorManager = IE::ExecutorManager::getInstance();
+    IE::ITaskExecutor::Ptr taskExecutor = executorManager->getExecutor(id);
+
+    return taskExecutor;
 }
 
 //------------------------------------------------------------------------------
@@ -148,7 +185,7 @@ ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::P
 //------------------------------------------------------------------------------
 IE::InferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(
     const IE::InputsDataMap networkInputs, const IE::OutputsDataMap networkOutputs) {
-    const auto inferExecutor = getExecutorForInference(_executorPtr);
+    const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
 #ifdef __aarch64__
     const auto allocator = _device->getAllocator();
 #else
@@ -160,7 +197,7 @@ IE::InferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(
 }
 
 void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) {
-    const auto inferExecutor = getExecutorForInference(_executorPtr);
+    const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
 #ifdef __aarch64__
     const auto allocator = _device->getAllocator();
 #else
@@ -172,8 +209,7 @@ void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& 
 
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
-    const std::string resultExecutorName = "VPUXResultExecutor";
-    auto resultExecutor = IE::ExecutorManager::getInstance()->getExecutor(resultExecutorName);
+    auto resultExecutor = getNextTaskExecutor();
 
     auto asyncThreadSafeImpl =
         std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, resultExecutor, _callbackExecutor);

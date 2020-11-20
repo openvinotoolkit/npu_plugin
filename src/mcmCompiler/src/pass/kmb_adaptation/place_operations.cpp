@@ -123,7 +123,19 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
             {
                 auto previousOpIt = om.getSourceOp(opIt->getInputTensor(0));
                 std::vector<double> inputScale = opIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
-                placeEltwiseDequantize(om, opIt);
+                bool isHSwish = false;
+                if (previousOpIt->getOpType() == "HSwish") {
+                    isHSwish = true;
+                    placeEltwiseDequantize(om, previousOpIt);
+                    auto oldInputFlow = previousOpIt.leftmostInput();
+                    while(oldInputFlow != om.flowEnd()) {
+                        om.undefineFlow(oldInputFlow);
+                        ++oldInputFlow;
+                    }
+                    // do not set FP16 for HSwish since it is UPA Taks and precision will be set later
+                } else {
+                    placeEltwiseDequantize(om, opIt);
+                }
                 //NOTE: For now take for granted that the next guy is a convolution
                 opIt->set<bool>("floatPrecision", true);
                 opIt->getOutputTensor(0)->setDType(mv::DType("Float16"));
@@ -154,8 +166,13 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                     std::vector<double> scale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale();
                     std::vector<int64_t> zp = weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint();
                     auto kernelShape = opIt->getInputTensor(1)->getShape();
-                    scale = extendToK(kernelShape[mv::KERNEL_OUTPUT_CHANNELS], scale, weightsTensor->getName());
-                    zp = extendToK(kernelShape[mv::KERNEL_OUTPUT_CHANNELS], zp, weightsTensor->getName());
+
+                    size_t extend_dim = mv::KERNEL_OUTPUT_CHANNELS;
+                    if (opIt->getOpType() == "DepthwiseConv" ) {
+                        extend_dim = mv::KERNEL_INPUT_CHANNELS;
+                    }
+                    scale = extendToK(kernelShape[extend_dim], scale, weightsTensor->getName());
+                    zp = extendToK(kernelShape[extend_dim], zp, weightsTensor->getName());
 
                     for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
                     {
@@ -208,10 +225,12 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                         om.addAttr(opIt, "bias", floatBiasName);
                         bias->setDType(mv::DType("Float16"));
                     }
-                    for (auto sourceFlow = opIt.leftmostInput(); sourceFlow != om.flowEnd(); ++sourceFlow)
-                    {
-                        if (sourceFlow.source()->getName() == previousOpIt->getName())
-                            om.undefineFlow(sourceFlow);
+                    if (!isHSwish) {
+                        for (auto sourceFlow = opIt.leftmostInput(); sourceFlow != om.flowEnd(); ++sourceFlow)
+                        {
+                            if (sourceFlow.source()->getName() == previousOpIt->getName())
+                                om.undefineFlow(sourceFlow);
+                        }
                     }
                     om.removeOp(om.getSourceOp(opIt->getInputTensor(1)));
                     opIt->setInputTensor(weights, 1, false);

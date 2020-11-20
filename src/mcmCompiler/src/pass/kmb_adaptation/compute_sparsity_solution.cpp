@@ -58,7 +58,9 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
         if (opsMap.count("Conv")) {
             auto new_end = std::remove_if(opsMap.at("Conv").begin(), opsMap.at("Conv").end(),
                                           [](const mv::Data::OpListIterator op) {
-                                              return op->getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16;
+                                              // exclude here only CM Convs
+                                              return op->supportsCMConv()
+                                                     && op->getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16;
                                           });
             opsMap.at("Conv").erase(new_end, opsMap.at("Conv").end());
         }
@@ -78,11 +80,22 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
     // Decide wheter convolution sparsity is runtime or compiler solved
     for (auto convOp : opsMap["Conv"])
     {
+        bool conv_input_sparsity = convOp->hasAttr("inputActivationSparsity")
+                && convOp->get<bool>("inputActivationSparsity");
+
+        if (!conv_input_sparsity)
+            continue;
+
         auto parentOp = om.getSourceOp(convOp->getInputTensor(0));
-        if((!parentOp->hasAttr("outputActivationSparsity") ||
-            !parentOp->get<bool>("outputActivationSparsity")) &&
-            (convOp->hasAttr("inputActivationSparsity") &&
-            convOp->get<bool>("inputActivationSparsity")))
+
+        bool parent_output_sparsity = parentOp->hasAttr("outputActivationSparsity")
+                && parentOp->get<bool>("outputActivationSparsity");
+
+        // we try to resolve here situations when
+        // parent op has no output sparsity
+        // or parent op is not on DPU && conv is not aligned
+        if (!parent_output_sparsity || ( !parentOp->isHardwarizable()
+                                         && convOp->getInputTensor(1)->getShape()[mv::IO_CHANNEL_DIMENSION] % 16 != 0))
             propagateRealSparsityLoss(om, parentOp);
     }
 

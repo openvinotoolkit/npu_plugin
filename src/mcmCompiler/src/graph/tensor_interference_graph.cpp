@@ -397,6 +397,10 @@ void mv::TensorInterferenceGraph::drawGraph(std::string outputFileName)
     std::ofstream ostream;
 
     ostream.open(outputFileName, std::ios::trunc | std::ios::out);
+    if (!ostream.is_open()) {
+        throw mv::ArgumentError("drawGraph", "filename", outputFileName, "Unable to open output filename");
+    }
+
     ostream << "graph G {\n\tgraph [splines=spline]\n";
 
     for (auto it = this->node_begin(); it != this->node_end(); ++it)

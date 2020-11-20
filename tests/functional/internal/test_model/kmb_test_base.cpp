@@ -266,10 +266,11 @@ Blob::Ptr KmbTestBase::getBlobByName(const std::string& blobName) {
 
 ExecutableNetwork KmbTestBase::getExecNetwork(
         const std::function<CNNNetwork()>& netCreator,
-        const std::function<CompileConfig()>& configCreator) {
+        const std::function<CompileConfig()>& configCreator,
+        const bool forceCompilation) {
     ExecutableNetwork exeNet;
 
-    if (RUN_COMPILER) {
+    if (RUN_COMPILER || forceCompilation) {
         std::cout << "=== COMPILE NETWORK" << std::endl;
 
         exeNet = core->LoadNetwork(netCreator(), DEVICE_NAME, configCreator());
@@ -790,7 +791,8 @@ ExecutableNetwork KmbNetworkTestBase::getExecNetwork(
         },
         [&netDesc]() {
             return netDesc.compileConfig();
-        });
+        },
+        netDesc.isCompilationForced());
 }
 
 BlobMap KmbNetworkTestBase::calcRefOutput(

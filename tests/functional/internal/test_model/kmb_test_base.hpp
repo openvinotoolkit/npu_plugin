@@ -45,6 +45,7 @@
 #include "kmb_test_grn_def.hpp"
 #include "kmb_test_ctc_greedy_decoder_def.hpp"
 #include "kmb_test_gather_def.hpp"
+#include "kmb_test_tile_def.hpp"
 
 #include <vpux/vpux_plugin_config.hpp>
 
@@ -205,7 +206,8 @@ protected:
 protected:
     ExecutableNetwork getExecNetwork(
             const std::function<CNNNetwork()>& netCreator,
-            const std::function<CompileConfig()>& configCreator);
+            const std::function<CompileConfig()>& configCreator,
+            const bool forceCompilation = false);
 
     void compareWithReference(
             const BlobMap& actualOutputs,
@@ -320,6 +322,20 @@ public:
         return _compileConfig;
     }
 
+    bool isCompilationForced() const {
+        return _forceCompilation;
+    }
+
+    TestNetworkDesc& enableForcedCompilation() {
+        _forceCompilation = true;
+        return *this;
+    }
+
+    TestNetworkDesc& disableForcedCompilation() {
+        _forceCompilation = false;
+        return *this;
+    }
+
 private:
     std::string _irFileName;
 
@@ -330,6 +346,7 @@ private:
     std::unordered_map<std::string, Layout> _outputLayouts;
 
     std::map<std::string, std::string> _compileConfig;
+    bool _forceCompilation = false;
 };
 
 //

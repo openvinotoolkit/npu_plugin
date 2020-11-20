@@ -153,11 +153,11 @@ endif()
 
 if(ENABLE_HDDL2)
     if(UNIX)
-        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww44)
+        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww45)
         set(HDDLUNITE_TBH_ARCHIVE_VERSION RELEASE_TBH_ww44)
         set(ARCH_FORMAT ".tgz")
     else()
-        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww44_Windows)
+        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww45_Windows)
         set(ARCH_FORMAT ".zip")
     endif()
 

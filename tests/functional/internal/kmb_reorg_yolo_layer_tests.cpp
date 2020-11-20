@@ -60,6 +60,7 @@ TEST_P(KmbReorgYoloLayerTests, accuracy) {
     registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {
         auto blob = genBlobUniform(desc, rd, inputRange.first, inputRange.second);
         auto data = blob->buffer().as<uint8_t *>();
+        IE_ASSERT(data != nullptr);
         data[0] = 0;
         data[1] = 1;
         data[2] = 2;

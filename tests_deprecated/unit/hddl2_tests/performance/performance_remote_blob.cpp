@@ -96,7 +96,8 @@ TEST_F(HDDL2_RemoteBlob_PerformanceTests, createRemoteBlobPerformance) {
     ASSERT_LE(elapsed_seconds.count(), MAX_SPENT_TIME);
 }
 
-TEST_F(HDDL2_RemoteBlob_PerformanceTests, createROIBlobPerformance) {
+// TODO Investigate performance degradation on blob creation Track: #-40443
+TEST_F(HDDL2_RemoteBlob_PerformanceTests, DISABLED_createROIBlobPerformance) {
     SKIP_IF_NO_DEVICE();
     IE::ROI roi {0, 2, 2, 221, 221};
     const size_t BLOBS_COUNT = 1000000;
