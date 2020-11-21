@@ -20,7 +20,7 @@
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/SymbolTable.h>

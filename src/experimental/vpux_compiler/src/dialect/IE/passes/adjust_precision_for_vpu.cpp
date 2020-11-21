@@ -25,7 +25,7 @@
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/StandardTypes.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>

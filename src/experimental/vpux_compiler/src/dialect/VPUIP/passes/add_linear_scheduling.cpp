@@ -22,7 +22,7 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/mlir/logging.hpp"
 
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 
 #include <unordered_set>
 

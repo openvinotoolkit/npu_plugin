@@ -28,7 +28,7 @@
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/StandardTypes.h>
 

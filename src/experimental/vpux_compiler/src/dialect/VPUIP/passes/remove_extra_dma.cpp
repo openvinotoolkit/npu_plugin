@@ -18,7 +18,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 
