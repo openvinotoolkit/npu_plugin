@@ -22,6 +22,7 @@
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
@@ -63,6 +64,10 @@ public:
 
     template <typename T>
     using Vector = flatbuffers::Offset<flatbuffers::Vector<T>>;
+
+public:
+    explicit BlobWriter(Logger log): _log(log) {
+    }
 
 public:
     Task createTask(mlir::Operation* op);
@@ -128,6 +133,7 @@ private:
     using BarrierMap = mlir::DenseMap<mlir::Value, Barrier>;
 
 private:
+    Logger _log;
     flatbuffers::FlatBufferBuilder _impl;
     TaskMap _tasks;
     TensorReferenceMap _tensors;

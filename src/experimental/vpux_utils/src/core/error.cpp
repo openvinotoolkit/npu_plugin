@@ -32,9 +32,9 @@ using namespace vpux;
     VPUX_UNUSED(line);
 
 #ifdef NDEBUG
-    VPUX_GLOG_ERROR("Got exception : {0}", message);
+    Logger::global().error("Got exception : {0}", message);
 #else
-    VPUX_GLOG_ERROR("Got exception in {0}:{1} : {2}", file, line, message);
+    Logger::global().error("Got exception in {0}:{1} : {2}", file, line, message);
 #endif
 
     throw std::runtime_error(message);

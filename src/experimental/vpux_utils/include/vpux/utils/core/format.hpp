@@ -32,6 +32,7 @@
 #include "vpux/utils/core/type_traits.hpp"
 
 #include <llvm/Support/FormatVariadic.h>
+#include <llvm/Support/raw_os_ostream.h>
 
 #include <array>
 #include <iostream>
@@ -58,6 +59,12 @@ namespace vpux {
 template <typename... Args>
 auto& printTo(llvm::raw_ostream& stream, StringRef format, Args&&... args) {
     return stream << llvm::formatv(format.data(), std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+auto& printTo(std::ostream& stream, StringRef format, Args&&... args) {
+    llvm::raw_os_ostream(stream) << llvm::formatv(format.data(), std::forward<Args>(args)...);
+    return stream;
 }
 
 template <class Stream, typename... Args>

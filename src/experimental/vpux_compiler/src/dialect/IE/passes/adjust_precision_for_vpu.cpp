@@ -37,7 +37,7 @@ namespace {
 
 class AdjustPrecisionForVPUPass final : public IE::AdjustPrecisionForVPUBase<AdjustPrecisionForVPUPass> {
 public:
-    AdjustPrecisionForVPUPass();
+    explicit AdjustPrecisionForVPUPass(Logger log);
 
 public:
     void runOnOperation() final;
@@ -50,11 +50,14 @@ private:
     void passBody();
 
 private:
+    Logger _log;
     mlir::OpPassManager _cleanUpIR;
 };
 
-AdjustPrecisionForVPUPass::AdjustPrecisionForVPUPass()
-    : _cleanUpIR(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
+AdjustPrecisionForVPUPass::AdjustPrecisionForVPUPass(Logger log)
+    : _log(log), _cleanUpIR(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
+    _log.setName("AdjustPrecisionForVPUPass");
+
     _cleanUpIR.addPass(mlir::createCanonicalizerPass());
 }
 
@@ -210,6 +213,6 @@ void AdjustPrecisionForVPUPass::passBody() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IE::createAdjustPrecisionForVPUPass() {
-    return std::make_unique<AdjustPrecisionForVPUPass>();
+std::unique_ptr<mlir::Pass> vpux::IE::createAdjustPrecisionForVPUPass(Logger log) {
+    return std::make_unique<AdjustPrecisionForVPUPass>(log);
 }

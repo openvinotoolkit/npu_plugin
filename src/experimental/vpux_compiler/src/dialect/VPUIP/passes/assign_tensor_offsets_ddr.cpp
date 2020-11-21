@@ -35,6 +35,11 @@ namespace {
 
 class AssignTensorOffsetsDDRPass final : public VPUIP::AssignTensorOffsetsDDRBase<AssignTensorOffsetsDDRPass> {
 public:
+    explicit AssignTensorOffsetsDDRPass(Logger log): _log(log) {
+        _log.setName("AssignTensorOffsetsDDRPass");
+    }
+
+public:
     void runOnOperation() final;
 
 private:
@@ -55,6 +60,9 @@ private:
 
 private:
     void passBody();
+
+private:
+    Logger _log;
 };
 
 bool AssignTensorOffsetsDDRPass::Handler::isAlive(mlir::Value val) const {
@@ -190,6 +198,6 @@ void AssignTensorOffsetsDDRPass::passBody() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createAssignTensorOffsetsDDRPass() {
-    return std::make_unique<AssignTensorOffsetsDDRPass>();
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createAssignTensorOffsetsDDRPass(Logger log) {
+    return std::make_unique<AssignTensorOffsetsDDRPass>(log);
 }

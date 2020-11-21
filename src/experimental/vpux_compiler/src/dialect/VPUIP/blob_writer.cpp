@@ -30,6 +30,8 @@
 using namespace vpux;
 
 VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op) {
+    _log.trace("Create BLOB Task for {0}", *op);
+
     auto task = mlir::cast<VPUIP::TaskOpInterface>(op);
 
     VPUX_THROW_UNLESS(_tasks.count(op) == 0, "Operation {0} was already serialized", *op);

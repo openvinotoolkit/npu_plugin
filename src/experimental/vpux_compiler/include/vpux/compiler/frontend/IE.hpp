@@ -28,7 +28,7 @@ namespace IE {
 
 class FrontEnd final {
 public:
-    FrontEnd(mlir::MLIRContext* ctx, LogLevel level);
+    explicit FrontEnd(mlir::MLIRContext* ctx, Logger log = Logger::global());
 
 public:
     mlir::OwningModuleRef importNetwork(InferenceEngine::CNNNetwork cnnNet) const;

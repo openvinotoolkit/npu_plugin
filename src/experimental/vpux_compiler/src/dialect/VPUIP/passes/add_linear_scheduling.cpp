@@ -32,6 +32,11 @@ namespace {
 
 class AddLinearSchedulingPass final : public VPUIP::AddLinearSchedulingBase<AddLinearSchedulingPass> {
 public:
+    explicit AddLinearSchedulingPass(Logger log): _log(log) {
+        _log.setName("AddLinearSchedulingPass");
+    }
+
+public:
     void runOnOperation() final;
 
 private:
@@ -43,6 +48,7 @@ private:
     static VPUIP::TaskOpInterface getNextTask(mlir::Operation* op);
 
 private:
+    Logger _log;
     std::unordered_set<mlir::Operation*> _trailingSwTasks;
 };
 
@@ -153,6 +159,6 @@ VPUIP::TaskOpInterface AddLinearSchedulingPass::getNextTask(mlir::Operation* op)
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createAddLinearSchedulingPass() {
-    return std::make_unique<AddLinearSchedulingPass>();
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createAddLinearSchedulingPass(Logger log) {
+    return std::make_unique<AddLinearSchedulingPass>(log);
 }

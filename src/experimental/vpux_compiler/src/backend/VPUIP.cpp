@@ -127,13 +127,16 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
 }  // namespace
 
-flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module) {
+flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Logger log) {
+    log.setName("VPUIP::BackEnd");
+
+    log.trace("Extract {0} from Module", VPUIP::GraphOp::getOperationName());
     VPUIP::GraphOp graphOp;
     mlir::FuncOp graphFunc;
     VPUX_THROW_UNLESS(mlir::succeeded(VPUIP::GraphOp::getFromModule(module, graphOp, graphFunc)),
                       "Invalid VPUIP Dialect IR");
 
-    BlobWriter writer;
+    BlobWriter writer(log.nest());
 
     const auto allTasks = graphFunc.getOps<VPUIP::TaskOpInterface>();
     const auto taskCount = std::distance(allTasks.begin(), allTasks.end());

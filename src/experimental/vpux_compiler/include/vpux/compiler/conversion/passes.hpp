@@ -18,6 +18,8 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include "vpux/utils/core/logger.hpp"
+
 #include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -31,7 +33,7 @@ namespace vpux {
 // IE2VPUIP
 //
 
-std::unique_ptr<mlir::Pass> createConvertIE2VPUIPPass(uint32_t maxUPAShaves = 1);
+std::unique_ptr<mlir::Pass> createConvertIE2VPUIPPass(uint32_t maxUPAShaves = 1, Logger log = Logger::global());
 
 //
 // Generated

@@ -35,7 +35,6 @@
 
 using namespace vpux;
 
-namespace IE2VPUIP {
 namespace {
 
 //
@@ -45,12 +44,12 @@ namespace {
 #include <vpux/compiler/conversion/rewriters/generated/IE2VPUIP.hpp.inc>
 
 //
-// ConvertPass
+// ConvertIE2VPUIPPass
 //
 
-class ConvertPass final : public ConvertIE2VPUIPBase<ConvertPass> {
+class ConvertIE2VPUIPPass final : public ConvertIE2VPUIPBase<ConvertIE2VPUIPPass> {
 public:
-    explicit ConvertPass(uint32_t maxUPAShaves);
+    ConvertIE2VPUIPPass(uint32_t maxUPAShaves, Logger log);
 
 public:
     void runOnOperation() final;
@@ -79,6 +78,8 @@ private:
     mlir::LogicalResult addGraphOp();
 
 private:
+    Logger _log;
+
     mlir::BufferizeTypeConverter _typeConverter;
     mlir::OpPassManager _convertFuncs;
 
@@ -89,8 +90,10 @@ private:
     SmallVector<TensorInfo, 1> _outputsInfo;
 };
 
-ConvertPass::ConvertPass(uint32_t maxUPAShaves)
-    : _convertFuncs(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
+ConvertIE2VPUIPPass::ConvertIE2VPUIPPass(uint32_t maxUPAShaves, Logger log)
+    : _log(log), _convertFuncs(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
+    _log.setName("ConvertIE2VPUIPPass");
+
     this->maxUPAShaves = maxUPAShaves;
 
     _convertFuncs.addPass(mlir::createFuncBufferizePass());
@@ -101,9 +104,10 @@ ConvertPass::ConvertPass(uint32_t maxUPAShaves)
 // allocateResults
 //
 
-mlir::LogicalResult ConvertPass::allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
-                                                 mlir::TypeConverter& typeConverter, mlir::ValueRange origResults,
-                                                 SmallVectorImpl<mlir::Value>& allocatedBufs) {
+mlir::LogicalResult ConvertIE2VPUIPPass::allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
+                                                         mlir::TypeConverter& typeConverter,
+                                                         mlir::ValueRange origResults,
+                                                         SmallVectorImpl<mlir::Value>& allocatedBufs) {
     allocatedBufs.reserve(origResults.size());
 
     for (const auto& origVal : origResults) {
@@ -135,7 +139,7 @@ mlir::LogicalResult ConvertPass::allocateResults(mlir::Location loc, mlir::OpBui
 // SoftMaxRewrite
 //
 
-class ConvertPass::SoftMaxRewrite final : public mlir::OpConversionPattern<IE::SoftMaxOp> {
+class ConvertIE2VPUIPPass::SoftMaxRewrite final : public mlir::OpConversionPattern<IE::SoftMaxOp> {
 public:
     SoftMaxRewrite(uint32_t maxUPAShaves, mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx)
         : mlir::OpConversionPattern<IE::SoftMaxOp>(typeConverter, ctx), _maxUPAShaves(maxUPAShaves) {
@@ -149,9 +153,8 @@ private:
     uint32_t _maxUPAShaves = 1;
 };
 
-mlir::LogicalResult ConvertPass::SoftMaxRewrite::matchAndRewrite(IE::SoftMaxOp origOp,
-                                                                 ArrayRef<mlir::Value> newOperands,
-                                                                 mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertIE2VPUIPPass::SoftMaxRewrite::matchAndRewrite(
+        IE::SoftMaxOp origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
     VPUX_THROW_UNLESS(newOperands.size() == 1, "Got wrong newOperands size : {0}", newOperands.size());
 
     auto* typeConverter = getTypeConverter();
@@ -173,19 +176,19 @@ mlir::LogicalResult ConvertPass::SoftMaxRewrite::matchAndRewrite(IE::SoftMaxOp o
 }
 
 //
-// ConvertPass
+// ConvertIE2VPUIPPass
 //
 
-void ConvertPass::runOnOperation() {
+void ConvertIE2VPUIPPass::runOnOperation() {
     try {
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "ConvertPass failed : {0}", e.what());
+        printTo(getOperation().emitError(), "ConvertIE2VPUIPPass failed : {0}", e.what());
         signalPassFailure();
     }
 }
 
-void ConvertPass::passBody() {
+void ConvertIE2VPUIPPass::passBody() {
     auto module = getOperation();
 
     if (mlir::failed(convertRegions())) {
@@ -214,7 +217,7 @@ void ConvertPass::passBody() {
     }
 }
 
-mlir::LogicalResult ConvertPass::convertRegions() {
+mlir::LogicalResult ConvertIE2VPUIPPass::convertRegions() {
     auto& ctx = getContext();
     auto module = getOperation();
 
@@ -233,7 +236,7 @@ mlir::LogicalResult ConvertPass::convertRegions() {
     return mlir::applyFullConversion(module, target, std::move(patterns));
 }
 
-mlir::LogicalResult ConvertPass::removeCnnNetworkOp() {
+mlir::LogicalResult ConvertIE2VPUIPPass::removeCnnNetworkOp() {
     auto module = getOperation();
 
     IE::CNNNetworkOp netOp;
@@ -262,7 +265,7 @@ mlir::LogicalResult ConvertPass::removeCnnNetworkOp() {
     return mlir::success();
 }
 
-mlir::LogicalResult ConvertPass::replaceCopyOps() {
+mlir::LogicalResult ConvertIE2VPUIPPass::replaceCopyOps() {
     auto& ctx = getContext();
     auto module = getOperation();
 
@@ -286,7 +289,7 @@ mlir::LogicalResult ConvertPass::replaceCopyOps() {
     return mlir::applyFullConversion(module, target, std::move(patterns));
 }
 
-mlir::LogicalResult ConvertPass::addGraphOp() {
+mlir::LogicalResult ConvertIE2VPUIPPass::addGraphOp() {
     auto& ctx = getContext();
     auto module = getOperation();
 
@@ -324,8 +327,7 @@ mlir::LogicalResult ConvertPass::addGraphOp() {
 }
 
 }  // namespace
-}  // namespace IE2VPUIP
 
-std::unique_ptr<mlir::Pass> vpux::createConvertIE2VPUIPPass(uint32_t maxUPAShaves) {
-    return std::make_unique<IE2VPUIP::ConvertPass>(maxUPAShaves);
+std::unique_ptr<mlir::Pass> vpux::createConvertIE2VPUIPPass(uint32_t maxUPAShaves, Logger log) {
+    return std::make_unique<ConvertIE2VPUIPPass>(maxUPAShaves, log);
 }

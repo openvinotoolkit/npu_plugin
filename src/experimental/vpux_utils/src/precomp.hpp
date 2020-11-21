@@ -55,8 +55,10 @@
 #include <llvm/ADT/StringSwitch.h>
 #include <llvm/ADT/TypeSwitch.h>
 #include <llvm/ADT/iterator_range.h>
+#include <llvm/Support/Debug.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/TypeName.h>
+#include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>

@@ -69,12 +69,23 @@ public:
     static Logger& global();
 
 public:
-    Logger() = default;
-    explicit Logger(LogLevel lvl): _logLevel(lvl) {
+    explicit Logger(StringLiteral name, LogLevel lvl);
+
+public:
+    Logger nest() const;
+    Logger nest(StringLiteral name) const;
+
+public:
+    auto name() const {
+        return _name;
+    }
+
+    void setName(StringLiteral name) {
+        _name = name;
     }
 
 public:
-    LogLevel level() const {
+    auto level() const {
         return _logLevel;
     }
 
@@ -127,25 +138,9 @@ private:
     void addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_base& msg) const;
 
 private:
+    StringLiteral _name;
     LogLevel _logLevel = LogLevel::None;
+    size_t _indentLevel = 0;
 };
-
-#define VPUX_LOG(_log_, _level_, ...)            \
-    if (_log_.isActive(vpux::LogLevel::_level_)) \
-    _log_.addEntry(vpux::LogLevel::_level_, __VA_ARGS__)
-
-#define VPUX_LOG_FATAL(_log_, ...) VPUX_LOG(_log_, Fatal, __VA_ARGS__)
-#define VPUX_LOG_ERROR(_log_, ...) VPUX_LOG(_log_, Error, __VA_ARGS__)
-#define VPUX_LOG_WARNING(_log_, ...) VPUX_LOG(_log_, Warning, __VA_ARGS__)
-#define VPUX_LOG_INFO(_log_, ...) VPUX_LOG(_log_, Info, __VA_ARGS__)
-#define VPUX_LOG_DEBUG(_log_, ...) VPUX_LOG(_log_, Debug, __VA_ARGS__)
-#define VPUX_LOG_TRACE(_log_, ...) VPUX_LOG(_log_, Trace, __VA_ARGS__)
-
-#define VPUX_GLOG_FATAL(...) VPUX_LOG_FATAL(vpux::Logger::global(), __VA_ARGS__)
-#define VPUX_GLOG_ERROR(...) VPUX_LOG_ERROR(vpux::Logger::global(), __VA_ARGS__)
-#define VPUX_GLOG_WARNING(...) VPUX_LOG_WARNING(vpux::Logger::global(), __VA_ARGS__)
-#define VPUX_GLOG_INFO(...) VPUX_LOG_INFO(vpux::Logger::global(), __VA_ARGS__)
-#define VPUX_GLOG_DEBUG(...) VPUX_LOG_DEBUG(vpux::Logger::global(), __VA_ARGS__)
-#define VPUX_GLOG_TRACE(...) VPUX_LOG_TRACE(vpux::Logger::global(), __VA_ARGS__)
 
 }  // namespace vpux

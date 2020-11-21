@@ -47,7 +47,7 @@ namespace {
 
 class NGraphImporter final {
 public:
-    NGraphImporter(mlir::MLIRContext* ctx, const std::shared_ptr<const ngraph::Function>& netGraph, const Logger& log)
+    NGraphImporter(mlir::MLIRContext* ctx, const std::shared_ptr<const ngraph::Function>& netGraph, Logger log)
         : _ctx(ctx), _netGraph(netGraph), _log(log) {
     }
 
@@ -122,21 +122,21 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
 
     auto func = mlir::FuncOp::create(mlir::UnknownLoc::get(_ctx), funcName, funcType);
 
-    OpBuilderLogger builderLog(_log.level());
+    OpBuilderLogger builderLog(_log.nest());
     auto builder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), &builderLog);
 
     for (const auto& p : _netGraph->get_parameters() | indexed) {
         const auto& paramNode = p.value();
         const auto paramIndex = p.index();
 
-        VPUX_LOG_TRACE(_log, "Convert network Parameter {0}", paramNode->get_friendly_name());
+        _log.trace("Convert network Parameter {0}", paramNode->get_friendly_name());
 
         const auto funcInputVal = func.getArgument(paramIndex);
         addOutputs(paramNode, {funcInputVal});
     }
 
     for (const auto& origNode : _netGraph->get_ordered_ops()) {
-        VPUX_LOG_TRACE(_log, "Convert {0} layer {1}", origNode->get_type_name(), origNode->get_friendly_name());
+        _log.trace("Convert {0} layer {1}", origNode->get_type_name(), origNode->get_friendly_name());
 
         const auto dispatchIt = dispatchMap.find(origNode->get_type_info());
         VPUX_THROW_UNLESS(dispatchIt != dispatchMap.end(), "Unsupported operation {0} with type {1}",
@@ -152,7 +152,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
     for (const auto& p : _netGraph->get_results() | indexed) {
         const auto& resultNode = p.value();
 
-        VPUX_LOG_TRACE(_log, "Convert network Result {0}", resultNode->get_friendly_name());
+        _log.trace("Convert network Result {0}", resultNode->get_friendly_name());
 
         const auto resultInputs = getInputs(resultNode);
         VPUX_THROW_UNLESS(resultInputs.size() == 1, "nGraph Result {0} has unsupported number of inputs {1}",
@@ -293,11 +293,11 @@ mlir::TypeAttr importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Pr
 
 }  // namespace
 
-vpux::IE::FrontEnd::FrontEnd(mlir::MLIRContext* ctx, LogLevel level): _ctx(ctx), _log(level) {
-    VPUX_LOG_TRACE(_log, "Load IE::FrontEnd dependent Dialects");
+vpux::IE::FrontEnd::FrontEnd(mlir::MLIRContext* ctx, Logger log): _ctx(ctx), _log(log) {
+    _log.setName("IE::FrontEnd");
 
+    _log.trace("Load IE::FrontEnd dependent Dialects");
     _ctx->loadDialect<IE::IEDialect>();
-    _ctx->loadDialect<mlir::StandardOpsDialect>();
 }
 
 mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetwork cnnNet) const {
@@ -311,7 +311,7 @@ mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetw
 
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(_ctx));
 
-    OpBuilderLogger builderLog(_log.level());
+    OpBuilderLogger builderLog(_log.nest());
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
 
     auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(_ctx),

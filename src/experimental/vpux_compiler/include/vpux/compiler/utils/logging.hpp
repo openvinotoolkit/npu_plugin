@@ -24,12 +24,12 @@
 
 namespace vpux {
 
-void addLogging(mlir::MLIRContext& ctx, LogLevel level);
-void addLogging(mlir::PassManager& pm, LogLevel level);
+void addLogging(mlir::MLIRContext& ctx, Logger log);
+void addLogging(mlir::PassManager& pm, Logger log);
 
 class OpBuilderLogger final : public mlir::OpBuilder::Listener {
 public:
-    explicit OpBuilderLogger(LogLevel level): _log(level) {
+    explicit OpBuilderLogger(Logger log): _log(log) {
     }
 
 public:

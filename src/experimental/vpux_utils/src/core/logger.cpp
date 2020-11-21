@@ -16,6 +16,7 @@
 
 #include "vpux/utils/core/logger.hpp"
 
+#include <llvm/Support/Debug.h>
 #include <llvm/Support/WithColor.h>
 
 #include <cstdio>
@@ -53,12 +54,25 @@ StringRef vpux::EnumTraits<LogLevel>::getEnumValueName(LogLevel val) {
 
 Logger& vpux::Logger::global() {
 #ifdef NDEBUG
-    static Logger log(LogLevel::None);
+    static Logger log("global", LogLevel::None);
 #else
-    static Logger log(LogLevel::Warning);
+    static Logger log("global", LogLevel::Warning);
 #endif
 
     return log;
+}
+
+vpux::Logger::Logger(StringLiteral name, LogLevel lvl): _name(name), _logLevel(lvl) {
+}
+
+Logger vpux::Logger::nest() const {
+    return nest(name());
+}
+
+Logger vpux::Logger::nest(StringLiteral name) const {
+    Logger nested(name, level());
+    nested._indentLevel = _indentLevel + 1;
+    return nested;
 }
 
 namespace {
@@ -83,13 +97,23 @@ llvm::raw_ostream& getStream(LogLevel msgLevel) {
 }  // namespace
 
 void vpux::Logger::addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_base& msg) const {
+#ifdef NDEBUG
     if (!isActive(msgLevel)) {
         return;
     }
+#else
+    if (!isActive(msgLevel) && !(llvm::DebugFlag && ::llvm::isCurrentDebugType(name().data()))) {
+        return;
+    }
+#endif
 
     auto& stream = getStream(msgLevel);
 
     printTo(stream, "[{0}] ", msgLevel);
+
+    for (size_t i = 0; i < _indentLevel; ++i)
+        stream << "  ";
+
     msg.format(stream);
     stream << "\n";
 
