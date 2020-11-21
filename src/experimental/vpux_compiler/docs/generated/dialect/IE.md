@@ -91,7 +91,7 @@ This operation is bound to `IE.CNNNetwork` Operation and holds information about
 | :-------: | :-------: | ----------- |
 `name` | ::mlir::StringAttr | string attribute
 `precision` | ::mlir::TypeAttr | any type attribute
-`layout` | ::mlir::IntegerAttr | Layouts that the InferenceEngine supports
+`layout` | LayoutAttr | Layouts that the InferenceEngine supports
 
 ### `IE.End` (vpux::IE::EndOp)
 

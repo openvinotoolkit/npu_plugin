@@ -27,7 +27,7 @@ using namespace vpux;
 // LogLevel
 //
 
-StringRef vpux::EnumTraits<LogLevel>::getEnumValueName(LogLevel val) {
+StringLiteral vpux::stringifyEnum(LogLevel val) {
     switch (val) {
     case LogLevel::None:
         return "None";
@@ -81,9 +81,9 @@ llvm::raw_ostream& getStream(LogLevel msgLevel) {
     switch (msgLevel) {
     case LogLevel::Fatal:
     case LogLevel::Error:
-        return llvm::WithColor(llvm::errs(), llvm::HighlightColor::Error).get();
+        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Error).get();
     case LogLevel::Warning:
-        return llvm::WithColor(llvm::errs(), llvm::HighlightColor::Warning).get();
+        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Warning).get();
     case LogLevel::Info:
         return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Note).get();
     case LogLevel::Debug:

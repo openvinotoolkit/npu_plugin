@@ -21,6 +21,7 @@
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/numeric.hpp"

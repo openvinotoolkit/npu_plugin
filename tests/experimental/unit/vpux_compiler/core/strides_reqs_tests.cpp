@@ -61,14 +61,13 @@ std::vector<std::tuple<MemShape, size_t, MemStrides>> getIncorrectShapes2Strides
 }
 
 }  //  namespace
-TEST(EnumTraitsTest, EnumTraitsConvertionTest) {
+TEST(EnumTraitsTest, StringifyEnumTest) {
     std::vector<std::pair<StrideReqKind, std::string>> enum2StrView{std::make_pair(StrideReqKind::Compact, "Compact"),
                                                                     std::make_pair(StrideReqKind::Aligned, "Aligned"),
                                                                     std::make_pair(StrideReqKind::Fixed, "Fixed")};
 
     std::for_each(enum2StrView.begin(), enum2StrView.end(), [](const std::pair<StrideReqKind, std::string>& enum2str) {
-        EXPECT_EQ(EnumTraits<StrideReqKind>::getEnumValueName(enum2str.first), enum2str.second);
-        EXPECT_EQ(enum2str.first, EnumTraits<StrideReqKind>::parseEnumValue(enum2str.second));
+        EXPECT_EQ(stringifyEnum(enum2str.first), enum2str.second);
     });
 }
 

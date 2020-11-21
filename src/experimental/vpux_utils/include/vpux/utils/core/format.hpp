@@ -21,7 +21,6 @@
 #pragma once
 
 #include "vpux/utils/core/array_ref.hpp"
-#include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/mask.hpp"
 #include "vpux/utils/core/optional.hpp"
@@ -119,24 +118,6 @@ struct MapFormatter {
 };
 
 //
-// `EnumTraits` handling.
-//
-
-namespace details {
-
-template <class Enum, typename = char>
-struct HasEnumTraits {
-    static constexpr bool value = false;
-};
-
-template <class Enum>
-struct HasEnumTraits<Enum, decltype(EnumTraits<Enum>::getEnumValueName(std::declval<Enum>())[0])> {
-    static constexpr bool value = true;
-};
-
-}  // namespace details
-
-//
 // `printFormat` method handling.
 //
 // It allows to implement `printFormat` method in class without creating
@@ -230,9 +211,9 @@ template <typename T>
 struct format_provider<vpux::details::IntegerValuesRange<T>> final : vpux::ContainerFormatter {};
 
 template <typename Enum>
-struct format_provider<Enum, vpux::require_t<std::is_enum<Enum>, vpux::details::HasEnumTraits<Enum>>> final {
+struct format_provider<Enum, vpux::require_t<std::is_enum<Enum>>> final {
     static void format(const Enum& val, llvm::raw_ostream& stream, StringRef style) {
-        auto adapter = llvm::detail::build_format_adapter(vpux::EnumTraits<Enum>::getEnumValueName(val));
+        auto adapter = llvm::detail::build_format_adapter(stringifyEnum(val));
         adapter.format(stream, style);
     }
 };

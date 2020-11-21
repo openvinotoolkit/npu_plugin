@@ -56,7 +56,7 @@ private:
 
 AdjustPrecisionForVPUPass::AdjustPrecisionForVPUPass(Logger log)
     : _log(log), _cleanUpIR(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
-    _log.setName("AdjustPrecisionForVPUPass");
+    _log.setName(Base::getArgumentName());
 
     _cleanUpIR.addPass(mlir::createCanonicalizerPass());
 }

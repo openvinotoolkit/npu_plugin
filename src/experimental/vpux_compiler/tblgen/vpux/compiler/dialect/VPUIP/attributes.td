@@ -34,16 +34,16 @@ class VPUIP_Attr<Pred pred, string descr> :
 // PhysicalProcessor
 //
 
-def VPUIP_PhysicalProcessor_ARM                  : I32EnumAttrCase<"ARM",               0>;
-def VPUIP_PhysicalProcessor_Leon_RT              : I32EnumAttrCase<"Leon_RT",           1>;
-def VPUIP_PhysicalProcessor_Leon_NN              : I32EnumAttrCase<"Leon_NN",           2>;
-def VPUIP_PhysicalProcessor_SHAVE_UPA            : I32EnumAttrCase<"SHAVE_UPA",         3>;
-def VPUIP_PhysicalProcessor_SHAVE_NN             : I32EnumAttrCase<"SHAVE_NN",          4>;
-def VPUIP_PhysicalProcessor_NCE_Cluster          : I32EnumAttrCase<"NCE_Cluster",       5>;
-def VPUIP_PhysicalProcessor_NCE_PerClusterDPU    : I32EnumAttrCase<"NCE_PerClusterDPU", 6>;
+def VPUIP_PhysicalProcessor_ARM                  : StrEnumAttrCase<"ARM">;
+def VPUIP_PhysicalProcessor_Leon_RT              : StrEnumAttrCase<"Leon_RT">;
+def VPUIP_PhysicalProcessor_Leon_NN              : StrEnumAttrCase<"Leon_NN">;
+def VPUIP_PhysicalProcessor_SHAVE_UPA            : StrEnumAttrCase<"SHAVE_UPA">;
+def VPUIP_PhysicalProcessor_SHAVE_NN             : StrEnumAttrCase<"SHAVE_NN">;
+def VPUIP_PhysicalProcessor_NCE_Cluster          : StrEnumAttrCase<"NCE_Cluster">;
+def VPUIP_PhysicalProcessor_NCE_PerClusterDPU    : StrEnumAttrCase<"NCE_PerClusterDPU">;
 
 def VPUIP_PhysicalProcessor :
-        I32EnumAttr<
+        StrEnumAttr<
             "PhysicalProcessor",
             "Enum for describing processor resources",
             [
@@ -63,11 +63,11 @@ def VPUIP_PhysicalProcessor :
 // DMAEngine
 //
 
-def VPUIP_DMAEngine_UPA  : I32EnumAttrCase<"UPA",   0>;
-def VPUIP_DMAEngine_NN   : I32EnumAttrCase<"NN",    1>;
+def VPUIP_DMAEngine_UPA  : StrEnumAttrCase<"UPA">;
+def VPUIP_DMAEngine_NN   : StrEnumAttrCase<"NN">;
 
 def VPUIP_DMAEngine :
-        I32EnumAttr<
+        StrEnumAttr<
             "DMAEngine",
             "DMA engine kind",
             [
@@ -82,13 +82,13 @@ def VPUIP_DMAEngine :
 // PhysicalMemory
 //
 
-def VPUIP_PhysicalMemory_DDR     : I32EnumAttrCase<"DDR",       0>;
-def VPUIP_PhysicalMemory_CSRAM   : I32EnumAttrCase<"CSRAM",     1>;
-def VPUIP_PhysicalMemory_CMX_UPA : I32EnumAttrCase<"CMX_UPA",   2>;
-def VPUIP_PhysicalMemory_CMX_NN  : I32EnumAttrCase<"CMX_NN",    3>;
+def VPUIP_PhysicalMemory_DDR     : StrEnumAttrCase<"DDR">;
+def VPUIP_PhysicalMemory_CSRAM   : StrEnumAttrCase<"CSRAM">;
+def VPUIP_PhysicalMemory_CMX_UPA : StrEnumAttrCase<"CMX_UPA">;
+def VPUIP_PhysicalMemory_CMX_NN  : StrEnumAttrCase<"CMX_NN">;
 
 def VPUIP_PhysicalMemory :
-        I32EnumAttr<
+        StrEnumAttr<
             "PhysicalMemory",
             "Represents the actual hardware memory hierarchy",
             [
@@ -105,10 +105,10 @@ def VPUIP_PhysicalMemory :
 // ArchKind
 //
 
-def VPUIP_ArchKind_KMB : I32EnumAttrCase<"KMB", 0>;
+def VPUIP_ArchKind_KMB : StrEnumAttrCase<"KMB">;
 
 def VPUIP_ArchKind :
-        I32EnumAttr<
+        StrEnumAttr<
             "ArchKind",
             "Represents VPU architecture generation",
             [
@@ -122,17 +122,17 @@ def VPUIP_ArchKind :
 // MemoryLocation
 //
 
-def VPUIP_MemoryLocation_ProgrammableInput  : I32EnumAttrCase<"ProgrammableInput",  0>;
-def VPUIP_MemoryLocation_ProgrammableOutput : I32EnumAttrCase<"ProgrammableOutput", 1>;
-def VPUIP_MemoryLocation_VPU_DDR_Heap       : I32EnumAttrCase<"VPU_DDR_Heap",       2>;
-def VPUIP_MemoryLocation_GraphFile          : I32EnumAttrCase<"GraphFile",          3>;
-def VPUIP_MemoryLocation_VPU_CMX_NN         : I32EnumAttrCase<"VPU_CMX_NN",         4>;
-def VPUIP_MemoryLocation_VPU_CMX_UPA        : I32EnumAttrCase<"VPU_CMX_UPA",        5>;
-def VPUIP_MemoryLocation_VPU_DDR_BSS        : I32EnumAttrCase<"VPU_DDR_BSS",        6>;
-def VPUIP_MemoryLocation_VPU_CSRAM          : I32EnumAttrCase<"VPU_CSRAM",          7>;
+def VPUIP_MemoryLocation_ProgrammableInput  : StrEnumAttrCase<"ProgrammableInput">;
+def VPUIP_MemoryLocation_ProgrammableOutput : StrEnumAttrCase<"ProgrammableOutput">;
+def VPUIP_MemoryLocation_VPU_DDR_Heap       : StrEnumAttrCase<"VPU_DDR_Heap">;
+def VPUIP_MemoryLocation_GraphFile          : StrEnumAttrCase<"GraphFile">;
+def VPUIP_MemoryLocation_VPU_CMX_NN         : StrEnumAttrCase<"VPU_CMX_NN">;
+def VPUIP_MemoryLocation_VPU_CMX_UPA        : StrEnumAttrCase<"VPU_CMX_UPA">;
+def VPUIP_MemoryLocation_VPU_DDR_BSS        : StrEnumAttrCase<"VPU_DDR_BSS">;
+def VPUIP_MemoryLocation_VPU_CSRAM          : StrEnumAttrCase<"VPU_CSRAM">;
 
 def VPUIP_MemoryLocation :
-        I32EnumAttr<
+        StrEnumAttr<
             "MemoryLocation",
             "Values indicating which type of memory a tensor resides in",
             [
@@ -153,19 +153,19 @@ def VPUIP_MemoryLocation :
 // TaskType
 //
 
-class VPUIP_TaskTypeVal<string sym, int val> : I32EnumAttrCase<sym, val> {
+class VPUIP_TaskTypeVal<string sym> : StrEnumAttrCase<sym> {
     string enumVal = "vpux::VPUIP::TaskType::" # sym;
 }
 
-def VPUIP_TaskType_UPADMA       : VPUIP_TaskTypeVal<"UPADMA",       0>;
-def VPUIP_TaskType_NNDMA        : VPUIP_TaskTypeVal<"NNDMA",        1>;
-def VPUIP_TaskType_NCE2         : VPUIP_TaskTypeVal<"NCE2",         2>;
-def VPUIP_TaskType_Controller   : VPUIP_TaskTypeVal<"Controller",   3>;
-def VPUIP_TaskType_UPA          : VPUIP_TaskTypeVal<"UPA",          4>;
-def VPUIP_TaskType_SNN          : VPUIP_TaskTypeVal<"SNN",          5>;
+def VPUIP_TaskType_UPADMA       : VPUIP_TaskTypeVal<"UPADMA">;
+def VPUIP_TaskType_NNDMA        : VPUIP_TaskTypeVal<"NNDMA">;
+def VPUIP_TaskType_NCE2         : VPUIP_TaskTypeVal<"NCE2">;
+def VPUIP_TaskType_Controller   : VPUIP_TaskTypeVal<"Controller">;
+def VPUIP_TaskType_UPA          : VPUIP_TaskTypeVal<"UPA">;
+def VPUIP_TaskType_SNN          : VPUIP_TaskTypeVal<"SNN">;
 
 def VPUIP_TaskType :
-        I32EnumAttr<
+        StrEnumAttr<
             "TaskType",
             "The type of the relevant processing code of the VPU for the task",
             [

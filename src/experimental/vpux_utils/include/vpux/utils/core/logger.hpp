@@ -20,7 +20,6 @@
 
 #pragma once
 
-#include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
 #include "vpux/utils/core/optional.hpp"
@@ -55,10 +54,7 @@ enum class LogLevel {
                   // trace the execution flow, produces huge output
 };
 
-template <>
-struct EnumTraits<LogLevel> {
-    static StringRef getEnumValueName(LogLevel val);
-};
+StringLiteral stringifyEnum(LogLevel val);
 
 //
 // Logger

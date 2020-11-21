@@ -16,7 +16,6 @@
 
 #include "vpux/utils/core/error.hpp"
 
-#include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/logger.hpp"
 
 #include <stdexcept>

@@ -22,27 +22,20 @@
 
 enum class TestEnum { A, B };
 
-namespace vpux {
-
-template <>
-struct EnumTraits<TestEnum> {
-    static StringRef getEnumValueName(TestEnum val) {
+vpux::StringLiteral stringifyEnum(TestEnum val) {
 #define CASE(_val_)       \
     case TestEnum::_val_: \
         return #_val_
 
-        switch (val) {
-            CASE(A);
-            CASE(B);
-        default:
-            return "<UNKNOWN>";
-        }
+    switch (val) {
+        CASE(A);
+        CASE(B);
+    default:
+        return "<UNKNOWN>";
+    }
 
 #undef CASE
-    }
-};
-
-}  // namespace vpux
+}
 
 TEST(PlainEnumTest, Format) {
     EXPECT_EQ(llvm::formatv("{0}", TestEnum::A).str(), "A");

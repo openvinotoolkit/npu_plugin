@@ -36,7 +36,7 @@ namespace {
 class AssignTensorOffsetsDDRPass final : public VPUIP::AssignTensorOffsetsDDRBase<AssignTensorOffsetsDDRPass> {
 public:
     explicit AssignTensorOffsetsDDRPass(Logger log): _log(log) {
-        _log.setName("AssignTensorOffsetsDDRPass");
+        _log.setName(Base::getArgumentName());
     }
 
 public:

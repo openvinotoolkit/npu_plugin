@@ -21,7 +21,6 @@
 #include "vpux/compiler/core/strides.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
-#include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/numeric.hpp"
@@ -45,12 +44,7 @@ enum class StrideReqKind : int32_t {
     Fixed = 2,    // Stride will have fixed value
 };
 
-template <>
-struct EnumTraits<StrideReqKind> {
-    static StringRef getEnumClassName();
-    static StringRef getEnumValueName(StrideReqKind val);
-    static Optional<StrideReqKind> parseEnumValue(StringRef valStr);
-};
+StringLiteral stringifyEnum(StrideReqKind val);
 
 //
 // DimStrideReq

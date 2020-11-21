@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <flatbuffers/flatbuffers.h>
@@ -24,142 +23,85 @@
 #include <vpux/compiler/dialect/VPUIP/generated/schema/graphfile_generated.h>
 
 //
-// EnumTraits
+// stringifyEnum
 //
 
-namespace vpux {
+namespace MVCNN {
 
-template <>
-struct EnumTraits<MVCNN::PSROIPoolingMode> {
-    static StringRef getEnumValueName(MVCNN::PSROIPoolingMode val) {
-        return MVCNN::EnumNamePSROIPoolingMode(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(PSROIPoolingMode val) {
+    return EnumNamePSROIPoolingMode(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::DataType> {
-    static StringRef getEnumValueName(MVCNN::DataType val) {
-        return MVCNN::EnumNameDataType(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(DataType val) {
+    return EnumNameDataType(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::InterpolationMethod> {
-    static StringRef getEnumValueName(MVCNN::InterpolationMethod val) {
-        return MVCNN::EnumNameInterpolationMethod(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(InterpolationMethod val) {
+    return EnumNameInterpolationMethod(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::SoftwareLayer> {
-    static StringRef getEnumValueName(MVCNN::SoftwareLayer val) {
-        return MVCNN::EnumNameSoftwareLayer(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(SoftwareLayer val) {
+    return EnumNameSoftwareLayer(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::NNHelper> {
-    static StringRef getEnumValueName(MVCNN::NNHelper val) {
-        return MVCNN::EnumNameNNHelper(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(NNHelper val) {
+    return EnumNameNNHelper(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::EltwiseParam> {
-    static StringRef getEnumValueName(MVCNN::EltwiseParam val) {
-        return MVCNN::EnumNameEltwiseParam(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(EltwiseParam val) {
+    return EnumNameEltwiseParam(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::EltwisePostOpsNestedParams> {
-    static StringRef getEnumValueName(MVCNN::EltwisePostOpsNestedParams val) {
-        return MVCNN::EnumNameEltwisePostOpsNestedParams(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(EltwisePostOpsNestedParams val) {
+    return EnumNameEltwisePostOpsNestedParams(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::PostOpsNestedParams> {
-    static StringRef getEnumValueName(MVCNN::PostOpsNestedParams val) {
-        return MVCNN::EnumNamePostOpsNestedParams(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(PostOpsNestedParams val) {
+    return EnumNamePostOpsNestedParams(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::UnaryOpNestedParams> {
-    static StringRef getEnumValueName(MVCNN::UnaryOpNestedParams val) {
-        return MVCNN::EnumNameUnaryOpNestedParams(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(UnaryOpNestedParams val) {
+    return EnumNameUnaryOpNestedParams(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::SoftwareLayerParams> {
-    static StringRef getEnumValueName(MVCNN::SoftwareLayerParams val) {
-        return MVCNN::EnumNameSoftwareLayerParams(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(SoftwareLayerParams val) {
+    return EnumNameSoftwareLayerParams(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::NN2Optimization> {
-    static StringRef getEnumValueName(MVCNN::NN2Optimization val) {
-        return MVCNN::EnumNameNN2Optimization(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(NN2Optimization val) {
+    return EnumNameNN2Optimization(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::DPULayerType> {
-    static StringRef getEnumValueName(MVCNN::DPULayerType val) {
-        return MVCNN::EnumNameDPULayerType(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(DPULayerType val) {
+    return EnumNameDPULayerType(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::PPELayerType> {
-    static StringRef getEnumValueName(MVCNN::PPELayerType val) {
-        return MVCNN::EnumNamePPELayerType(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(PPELayerType val) {
+    return EnumNamePPELayerType(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::MPE_Mode> {
-    static StringRef getEnumValueName(MVCNN::MPE_Mode val) {
-        return MVCNN::EnumNameMPE_Mode(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(MPE_Mode val) {
+    return EnumNameMPE_Mode(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::ControllerSubTask> {
-    static StringRef getEnumValueName(MVCNN::ControllerSubTask val) {
-        return MVCNN::EnumNameControllerSubTask(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(ControllerSubTask val) {
+    return EnumNameControllerSubTask(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::MemoryLocation> {
-    static StringRef getEnumValueName(MVCNN::MemoryLocation val) {
-        return MVCNN::EnumNameMemoryLocation(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(MemoryLocation val) {
+    return EnumNameMemoryLocation(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::DType> {
-    static StringRef getEnumValueName(MVCNN::DType val) {
-        return MVCNN::EnumNameDType(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(DType val) {
+    return EnumNameDType(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::ExecutionFlag> {
-    static StringRef getEnumValueName(MVCNN::ExecutionFlag val) {
-        return MVCNN::EnumNameExecutionFlag(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(ExecutionFlag val) {
+    return EnumNameExecutionFlag(val);
+}
 
-template <>
-struct EnumTraits<MVCNN::SpecificTask> {
-    static StringRef getEnumValueName(MVCNN::SpecificTask val) {
-        return MVCNN::EnumNameSpecificTask(val);
-    }
-};
+inline vpux::StringRef stringifyEnum(SpecificTask val) {
+    return EnumNameSpecificTask(val);
+}
 
-}  // namespace vpux
+}  // namespace MVCNN

@@ -248,7 +248,7 @@ mlir::RankedTensorType NGraphImporter::importTensor(const ngraph::PartialShape& 
 IE::LayoutAttr importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout) {
 #define CASE(_l_)                      \
     case InferenceEngine::Layout::_l_: \
-        return IE::LayoutAttr::get(ctx, IE::Layout::_l_)
+        return IE::LayoutAttr::get(IE::Layout::_l_, ctx)
 
     switch (layout) {
         CASE(ANY);

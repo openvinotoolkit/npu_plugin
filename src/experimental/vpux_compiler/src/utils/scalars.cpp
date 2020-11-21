@@ -23,11 +23,11 @@ using namespace vpux;
 //
 
 mlir::IntegerType vpux::getInt32Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(32, mlir::IntegerType::Signless, ctx);
+    return mlir::IntegerType::get(32, ctx);
 }
 
 mlir::IntegerType vpux::getInt64Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(64, mlir::IntegerType::Signless, ctx);
+    return mlir::IntegerType::get(64, ctx);
 }
 
 mlir::IntegerType vpux::getSInt8Type(mlir::MLIRContext* ctx) {

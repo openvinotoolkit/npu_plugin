@@ -33,7 +33,7 @@ namespace {
 class AddLinearSchedulingPass final : public VPUIP::AddLinearSchedulingBase<AddLinearSchedulingPass> {
 public:
     explicit AddLinearSchedulingPass(Logger log): _log(log) {
-        _log.setName("AddLinearSchedulingPass");
+        _log.setName(Base::getArgumentName());
     }
 
 public:
@@ -101,7 +101,7 @@ void AddLinearSchedulingPass::passBody() {
 
     auto options = graphOp.options();
     options = options | VPUIP::ExecutionFlag::DynamicBarriers;
-    graphOp.optionsAttr(VPUIP::ExecutionFlagAttr::get(module.getContext(), options));
+    graphOp.optionsAttr(VPUIP::ExecutionFlagAttr::get(options, module.getContext()));
 }
 
 void AddLinearSchedulingPass::collectTrailingSwTasks(mlir::FuncOp graphFunc) {

@@ -20,19 +20,10 @@
 
 #pragma once
 
-#include "vpux/utils/core/type_traits.hpp"
-
 #include <unordered_map>
 #include <unordered_set>
 
 namespace vpux {
-
-//
-// EnumTraits
-//
-
-template <typename Enum>
-struct EnumTraits;
 
 //
 // EnumSet/EnumMap

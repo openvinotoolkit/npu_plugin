@@ -79,7 +79,7 @@ operation ::= `VPUIP.DeclareTensor` $location (`,` $offset^)? attr-dict `->` typ
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`location` | ::mlir::IntegerAttr | Values indicating which type of memory a tensor resides in
+`location` | MemoryLocationAttr | Values indicating which type of memory a tensor resides in
 `offset` | ::mlir::IntegerAttr | 64-bit signless integer attribute
 
 #### Results:
@@ -123,7 +123,7 @@ operation ::= `VPUIP.Graph` attr-dict
 | :-------: | :-------: | ----------- |
 `identifier` | ::mlir::StringAttr | string attribute
 `entryPoint` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
-`options` | ::mlir::IntegerAttr | Each of these enums' presence informs how the current schedule is configured
+`options` | ExecutionFlagAttr | Each of these enums' presence informs how the current schedule is configured
 `resources` | vpux::VPUIP::ResourcesAttr | DictionaryAttr with field(s): 'upa_shaves', 'nce2_blocks', 'upa_shared_cmx', 'nn_cmx_per_slice', 'nn_cmx_slice_amount', 'ddr_scratch', 'csram_storage' (each field having its own constraints)
 
 ### `VPUIP.SoftMaxUPA` (vpux::VPUIP::SoftMaxUPAOp)

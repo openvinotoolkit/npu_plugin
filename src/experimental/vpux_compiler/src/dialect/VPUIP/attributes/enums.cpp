@@ -67,18 +67,17 @@ VPUIP::PhysicalMemory vpux::VPUIP::getPhysicalMemory(MemoryLocation location) {
 VPUIP::PhysicalMemory vpux::VPUIP::getPhysicalMemory(mlir::MemRefType memref) {
     const auto memSpace = memref.getMemorySpace();
 
-    switch (memSpace) {
-    case 0:
+    if (memSpace == nullptr) {
         return PhysicalMemory::DDR;
-    case 1:
-        return PhysicalMemory::CSRAM;
-    case 2:
-        return PhysicalMemory::CMX_UPA;
-    case 3:
-        return PhysicalMemory::CMX_NN;
-    default:
-        VPUX_THROW("Unsupported MemRef memory space : {0}", memSpace);
     }
+
+    if (memSpace.isa<VPUIP::PhysicalMemoryAttr>()) {
+        return memSpace.cast<VPUIP::PhysicalMemoryAttr>().getValue();
+    }
+
+    VPUX_THROW_UNLESS(memSpace.isa<VPUIP::MemoryLocationAttr>(), "Unsupported memory space {0}", memSpace);
+
+    return getPhysicalMemory(memSpace.cast<VPUIP::MemoryLocationAttr>().getValue());
 }
 
 bool vpux::VPUIP::isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref) {
