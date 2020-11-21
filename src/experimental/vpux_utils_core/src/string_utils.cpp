@@ -24,9 +24,7 @@ using namespace vpux;
 // splitStringList
 //
 
-void vpux::splitStringList(StringRef str,
-                           char delim,
-                           FuncRef<void(StringRef)> callback) {
+void vpux::splitStringList(StringRef str, char delim, FuncRef<void(StringRef)> callback) {
     const auto begin = str.begin();
     const auto end = str.end();
 
@@ -60,9 +58,7 @@ std::string vpux::removeCharFromString(StringRef str, char ch) {
 // eraseSubString
 //
 
-std::string vpux::eraseSubString(StringRef str,
-                                 StringRef strToRemove,
-                                 bool removeAllAfterSubstr) {
+std::string vpux::eraseSubString(StringRef str, StringRef strToRemove, bool removeAllAfterSubstr) {
     auto out = str.str();
 
     const auto pos = str.find(strToRemove);

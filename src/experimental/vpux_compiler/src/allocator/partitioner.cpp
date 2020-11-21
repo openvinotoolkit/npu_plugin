@@ -32,7 +32,7 @@ namespace {
 
 class PartitionerValidator final {
 public:
-    explicit PartitionerValidator(const Partitioner& p) : _p(p) {
+    explicit PartitionerValidator(const Partitioner& p): _p(p) {
         validate();
     }
 
@@ -74,14 +74,12 @@ private:
 
 }  // namespace
 
-vpux::Partitioner::Partitioner(AddressType totalSize) : _totalSize(totalSize) {
+vpux::Partitioner::Partitioner(AddressType totalSize): _totalSize(totalSize) {
     assert(_totalSize > 0);
     _gaps.push_back({0, _totalSize});
 }
 
-AddressType vpux::Partitioner::alloc(AddressType size,
-                                     AddressType alignment,
-                                     Direction dir) {
+AddressType vpux::Partitioner::alloc(AddressType size, AddressType alignment, Direction dir) {
     assert(size > 0);
     assert(alignment > 0);
 
@@ -98,12 +96,9 @@ void vpux::Partitioner::allocFixed(AddressType addr, AddressType size) {
 
     const PartitionerValidator v(*this);
 
-    auto it = std::lower_bound(_gaps.begin(),
-                               _gaps.end(),
-                               Gap{addr, 0},
-                               [](const Gap& g1, const Gap& g2) {
-                                   return g1.begin < g2.begin;
-                               });
+    auto it = std::lower_bound(_gaps.begin(), _gaps.end(), Gap{addr, 0}, [](const Gap& g1, const Gap& g2) {
+        return g1.begin < g2.begin;
+    });
 
     const bool hasEq = (it != _gaps.end() && it->begin == addr);
 
@@ -188,16 +183,14 @@ void vpux::Partitioner::free(AddressType addr, AddressType size) {
                 if (addr == gap.end) {
                     if (end == nextGap.begin) {
                         append(gap, addr, size + nextGap.size());
-                        _gaps.erase(_gaps.begin() +
-                                    static_cast<ptrdiff_t>(i + 1));
+                        _gaps.erase(_gaps.begin() + static_cast<ptrdiff_t>(i + 1));
                     } else {
                         append(gap, addr, size);
                     }
                 } else if (end == nextGap.begin) {
                     prepend(nextGap, addr, size);
                 } else {
-                    _gaps.insert(_gaps.begin() + static_cast<ptrdiff_t>(i + 1),
-                                 Gap{addr, end});
+                    _gaps.insert(_gaps.begin() + static_cast<ptrdiff_t>(i + 1), Gap{addr, end});
                 }
 
                 return;
@@ -207,8 +200,7 @@ void vpux::Partitioner::free(AddressType addr, AddressType size) {
 
     auto& lastGap = _gaps.back();
     if (end < lastGap.begin) {
-        _gaps.insert(_gaps.begin() + static_cast<ptrdiff_t>(_gaps.size() - 1),
-                     Gap{addr, end});
+        _gaps.insert(_gaps.begin() + static_cast<ptrdiff_t>(_gaps.size() - 1), Gap{addr, end});
     } else if (end == lastGap.begin) {
         prepend(lastGap, addr, size);
     } else if (addr == lastGap.end) {
@@ -219,27 +211,18 @@ void vpux::Partitioner::free(AddressType addr, AddressType size) {
 }
 
 AddressType vpux::Partitioner::totalFreeSize() const {
-    return std::accumulate(_gaps.begin(),
-                           _gaps.end(),
-                           AddressType{0},
-                           [](AddressType res, const Gap& g) {
-                               return res + g.size();
-                           });
+    return std::accumulate(_gaps.begin(), _gaps.end(), AddressType{0}, [](AddressType res, const Gap& g) {
+        return res + g.size();
+    });
 }
 
 AddressType vpux::Partitioner::maxFreeSize() const {
-    return std::accumulate(_gaps.begin(),
-                           _gaps.end(),
-                           AddressType{0},
-                           [](AddressType res, const Gap& g) {
-                               return std::max(res, g.size());
-                           });
+    return std::accumulate(_gaps.begin(), _gaps.end(), AddressType{0}, [](AddressType res, const Gap& g) {
+        return std::max(res, g.size());
+    });
 }
 
-AddressType vpux::Partitioner::getAddrFromGap(size_t pos,
-                                              AddressType size,
-                                              AddressType alignment,
-                                              Direction dir) {
+AddressType vpux::Partitioner::getAddrFromGap(size_t pos, AddressType size, AddressType alignment, Direction dir) {
     const auto& g = _gaps[pos];
 
     if (g.size() < size) {
@@ -273,9 +256,7 @@ AddressType vpux::Partitioner::getAddrFromGap(size_t pos,
     }
 }
 
-AddressType vpux::Partitioner::useGap(size_t pos,
-                                      AddressType alignedBegin,
-                                      AddressType size) {
+AddressType vpux::Partitioner::useGap(size_t pos, AddressType alignedBegin, AddressType size) {
     auto& g = _gaps[pos];
 
     assert(alignedBegin >= g.begin);
@@ -293,16 +274,13 @@ AddressType vpux::Partitioner::useGap(size_t pos,
     } else {
         const auto origBegin = g.begin;
         g.begin = alignedBegin + size;
-        _gaps.insert(_gaps.begin() + static_cast<ptrdiff_t>(pos),
-                     Gap{origBegin, alignedBegin});
+        _gaps.insert(_gaps.begin() + static_cast<ptrdiff_t>(pos), Gap{origBegin, alignedBegin});
     }
 
     return alignedBegin;
 }
 
-AddressType vpux::Partitioner::chooseMinimalGap(AddressType size,
-                                                AddressType alignment,
-                                                Direction dir) {
+AddressType vpux::Partitioner::chooseMinimalGap(AddressType size, AddressType alignment, Direction dir) {
     if (_gaps.empty()) {
         return InvalidAddress;
     }
@@ -327,8 +305,7 @@ AddressType vpux::Partitioner::chooseMinimalGap(AddressType size,
         }
 
         if (minGapInd == -1) {
-            const auto alignedBegin =
-                    getAddrFromGap(numGaps - 1, size, alignment, dir);
+            const auto alignedBegin = getAddrFromGap(numGaps - 1, size, alignment, dir);
             if (alignedBegin != InvalidAddress) {
                 minGapInd = static_cast<int>(numGaps - 1);
             }
@@ -353,31 +330,24 @@ AddressType vpux::Partitioner::chooseMinimalGap(AddressType size,
     }
 
     if (minGapInd != -1) {
-        const auto alignedBegin = getAddrFromGap(static_cast<size_t>(minGapInd),
-                                                 size,
-                                                 alignment,
-                                                 dir);
+        const auto alignedBegin = getAddrFromGap(static_cast<size_t>(minGapInd), size, alignment, dir);
         return useGap(static_cast<size_t>(minGapInd), alignedBegin, size);
     }
 
     return InvalidAddress;
 }
 
-bool vpux::Partitioner::intersects(AddressType addr1,
-                                   AddressType size1,
-                                   AddressType addr2,
-                                   AddressType size2) {
+bool vpux::Partitioner::intersects(AddressType addr1, AddressType size1, AddressType addr2, AddressType size2) {
     assert(size1 > 0);
     assert(size2 > 0);
 
     const auto end1 = addr1 + size1;
     const auto end2 = addr2 + size2;
 
-    const auto inRange =
-            [](AddressType begin, AddressType end, AddressType val) {
-                return val >= begin && val < end;
-            };
+    const auto inRange = [](AddressType begin, AddressType end, AddressType val) {
+        return val >= begin && val < end;
+    };
 
-    return inRange(addr1, end1, addr2) || inRange(addr1, end1, end2 - 1) ||
-           inRange(addr2, end2, addr1) || inRange(addr2, end2, end1 - 1);
+    return inRange(addr1, end1, addr2) || inRange(addr1, end1, end2 - 1) || inRange(addr2, end2, addr1) ||
+           inRange(addr2, end2, end1 - 1);
 }

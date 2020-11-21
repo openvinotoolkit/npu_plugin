@@ -58,8 +58,7 @@ void vpux::DimsOrder::validateCode(StorageType code) {
     size_t numDims = 0;
     auto codeCopy = code;
 
-    for (size_t i = 0; i < MAX_NUM_DIMS;
-         ++i, ++numDims, codeCopy >>= DimsOrder::BITS_PER_DIM) {
+    for (size_t i = 0; i < MAX_NUM_DIMS; ++i, ++numDims, codeCopy >>= DimsOrder::BITS_PER_DIM) {
         auto dimInd = codeCopy & INDEX_MASK;
         if (dimInd == 0) {
             break;
@@ -68,10 +67,7 @@ void vpux::DimsOrder::validateCode(StorageType code) {
         --dimInd;
 
         // Check if dimension was used more than once.
-        VPUX_THROW_UNLESS(!dimUsed[dimInd],
-                          "Dimension {0} was used twice in DimsOrder code {1}",
-                          dimInd,
-                          code);
+        VPUX_THROW_UNLESS(!dimUsed[dimInd], "Dimension {0} was used twice in DimsOrder code {1}", dimInd, code);
 
         dimUsed[dimInd] = true;
     }
@@ -83,12 +79,8 @@ void vpux::DimsOrder::validateCode(StorageType code) {
             break;
         }
 
-        VPUX_THROW_UNLESS(
-                dimInd < numDims,
-                "Dimension {0} in DimsOrder code {1} is out of range [0, {2})",
-                dimInd,
-                code,
-                numDims);
+        VPUX_THROW_UNLESS(dimInd < numDims, "Dimension {0} in DimsOrder code {1} is out of range [0, {2})", dimInd,
+                          code, numDims);
     }
 
     // All digits on positions upper or equal to the order length should be
@@ -96,12 +88,9 @@ void vpux::DimsOrder::validateCode(StorageType code) {
 
     codeCopy = code >> (DimsOrder::BITS_PER_DIM * numDims);
 
-    for (size_t i = numDims; i < MAX_NUM_DIMS;
-         ++i, codeCopy >>= DimsOrder::BITS_PER_DIM) {
+    for (size_t i = numDims; i < MAX_NUM_DIMS; ++i, codeCopy >>= DimsOrder::BITS_PER_DIM) {
         auto dimInd = codeCopy & INDEX_MASK;
-        VPUX_THROW_UNLESS(dimInd == 0,
-                          "DimsOrder code {0} is not contigous",
-                          code);
+        VPUX_THROW_UNLESS(dimInd == 0, "DimsOrder code {0} is not contigous", code);
     }
 }
 
@@ -115,8 +104,7 @@ void vpux::DimsOrder::validateNumDims(size_t numDims) {
     VPUX_THROW_UNLESS(numDims <= MAX_NUM_DIMS,
                       "Number of Dims {0} in DimsOrder exceeds maximal "
                       "supported value {1}",
-                      numDims,
-                      MAX_NUM_DIMS);
+                      numDims, MAX_NUM_DIMS);
 }
 
 DimsOrder::StorageType vpux::DimsOrder::getCodeFromNumDims(size_t numDims) {
@@ -145,25 +133,18 @@ void vpux::DimsOrder::validatePermutation(DimArrRef perm) {
     for (const auto& p : perm | indexed) {
         const auto& d = p.value();
 
-        VPUX_THROW_UNLESS(
-                static_cast<StorageType>(d.ind()) <= MAX_DIM_IND,
-                "Dim {0} is too large to be used in DimsOrder permutation {1}, "
-                "supported only up to {2}",
-                d,
-                perm,
-                MAX_DIM_IND);
+        VPUX_THROW_UNLESS(static_cast<StorageType>(d.ind()) <= MAX_DIM_IND,
+                          "Dim {0} is too large to be used in DimsOrder permutation {1}, "
+                          "supported only up to {2}",
+                          d, perm, MAX_DIM_IND);
 
         // The perm should contain dimensions in range [0, perm.size()).
         VPUX_THROW_UNLESS(static_cast<StorageType>(d.ind()) < perm.size(),
-                          "Dim {0} is out of DimsOrder permutation range {1}",
-                          d,
-                          perm);
+                          "Dim {0} is out of DimsOrder permutation range {1}", d, perm);
 
         // Check if dimension was used more than once.
-        VPUX_THROW_UNLESS(!dimUsed[static_cast<size_t>(d.ind())],
-                          "Dim {0} was used twice in DimsOrder permutation {1}",
-                          d,
-                          perm);
+        VPUX_THROW_UNLESS(!dimUsed[static_cast<size_t>(d.ind())], "Dim {0} was used twice in DimsOrder permutation {1}",
+                          d, perm);
 
         dimUsed[static_cast<size_t>(d.ind())] = true;
     }
@@ -176,8 +157,7 @@ DimsOrder::StorageType vpux::DimsOrder::getCodeFromPermutation(DimArrRef perm) {
     for (const auto& p : perm | indexed) {
         const auto& d = p.value();
         const auto dimDigit = static_cast<StorageType>(d.ind() + 1);
-        const auto shift =
-                static_cast<StorageType>(DimsOrder::BITS_PER_DIM * p.index());
+        const auto shift = static_cast<StorageType>(DimsOrder::BITS_PER_DIM * p.index());
         code |= (dimDigit << shift);
     }
 
@@ -248,10 +228,7 @@ Dim vpux::DimsOrder::dimAt(int32_t pos) const {
     code >>= checked_cast<size_t>(pos) * BITS_PER_DIM;
 
     const auto curDigit = code & INDEX_MASK;
-    VPUX_THROW_UNLESS(curDigit > 0,
-                      "DimsOrder {0} doesn't have Dim at pos {1}",
-                      *this,
-                      pos);
+    VPUX_THROW_UNLESS(curDigit > 0, "DimsOrder {0} doesn't have Dim at pos {1}", *this, pos);
 
     return Dim(curDigit - 1);
 }
@@ -286,23 +263,19 @@ Optional<DimsOrder> vpux::DimsOrder::fromAffineMap(mlir::AffineMap map) {
         return None;
     }
 
-    const auto perm =
-            to_container<DimArr>(map.getResults() | reversed |
-                                 transformed([](mlir::AffineExpr expr) {
-                                     const auto dim =
-                                             expr.cast<mlir::AffineDimExpr>();
-                                     const auto dimPos = dim.getPosition();
-                                     return Dim(dimPos);
-                                 }));
+    const auto perm = to_container<DimArr>(map.getResults() | reversed | transformed([](mlir::AffineExpr expr) {
+                                               const auto dim = expr.cast<mlir::AffineDimExpr>();
+                                               const auto dimPos = dim.getPosition();
+                                               return Dim(dimPos);
+                                           }));
 
     return fromPermutation(perm);
 }
 
 mlir::AffineMap vpux::DimsOrder::toAffineMap(mlir::MLIRContext* ctx) const {
-    const auto permutation =
-            to_vector<4>(toPermutation() | reversed | transformed([](Dim d) {
-                             return static_cast<unsigned>(d.ind());
-                         }));
+    const auto permutation = to_vector<4>(toPermutation() | reversed | transformed([](Dim d) {
+                                              return static_cast<unsigned>(d.ind());
+                                          }));
 
     return mlir::AffineMap::getPermutationMap(permutation, ctx);
 }
@@ -362,8 +335,7 @@ InferenceEngine::Layout vpux::DimsOrder::toIE() const {
     } else if (*this == DimsOrder::NDHWC) {
         return InferenceEngine::Layout::NDHWC;
     } else {
-        VPUX_THROW("Can't convert DimsOrder {0} to InferenceEngine Layout",
-                   *this);
+        VPUX_THROW("Can't convert DimsOrder {0} to InferenceEngine Layout", *this);
     }
 }
 

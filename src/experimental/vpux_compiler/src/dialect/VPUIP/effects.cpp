@@ -21,8 +21,7 @@
 
 using namespace vpux;
 
-mlir::SideEffects::Resource*
-        vpux::VPUIP::getMemoryResource(PhysicalMemory mem) {
+mlir::SideEffects::Resource* vpux::VPUIP::getMemoryResource(PhysicalMemory mem) {
     switch (mem) {
     case PhysicalMemory::DDR:
         return MemoryResource<PhysicalMemory::DDR>::get();
@@ -37,7 +36,6 @@ mlir::SideEffects::Resource*
     }
 }
 
-mlir::SideEffects::Resource*
-        vpux::VPUIP::getMemoryResource(mlir::MemRefType memref) {
+mlir::SideEffects::Resource* vpux::VPUIP::getMemoryResource(mlir::MemRefType memref) {
     return getMemoryResource(getPhysicalMemory(memref));
 }

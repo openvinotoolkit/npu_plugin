@@ -26,8 +26,7 @@
 using namespace vpux;
 
 template <class Range>
-void cmpArrayRefWithRange(const Range& range,
-                          ArrayRef<typename Range::value_type> arr) {
+void cmpArrayRefWithRange(const Range& range, ArrayRef<typename Range::value_type> arr) {
     size_t ind = 0;
     for (const auto& v : range) {
         ASSERT_LT(ind, arr.size());
@@ -73,11 +72,8 @@ public:
     }
 };
 
-using ArrayRefContTestTypes = testing::Types<std::vector<int>,
-                                             std::array<int, 5>,
-                                             SmallVector<int, 10>,
-                                             SmallVector<int, 2>,
-                                             std::initializer_list<int>>;
+using ArrayRefContTestTypes = testing::Types<std::vector<int>, std::array<int, 5>, SmallVector<int, 10>,
+                                             SmallVector<int, 2>, std::initializer_list<int>>;
 TYPED_TEST_CASE(ArrayRefContTest, ArrayRefContTestTypes);
 
 TYPED_TEST(ArrayRefContTest, FromContainer) {

@@ -35,16 +35,10 @@ bool vpux::details::isDynamicDimValues(ArrayRef<int64_t> shape) {
 }
 
 int64_t vpux::details::calcTotalShapeSize(ArrayRef<int64_t> shape) {
-    return std::accumulate(
-            shape.begin(),
-            shape.end(),
-            int64_t{1},
-            [](int64_t acc, int64_t d) {
-                VPUX_THROW_UNLESS(
-                        d > 0,
-                        "Can't compute total shape size on dynamic shape");
-                return acc * d;
-            });
+    return std::accumulate(shape.begin(), shape.end(), int64_t{1}, [](int64_t acc, int64_t d) {
+        VPUX_THROW_UNLESS(d > 0, "Can't compute total shape size on dynamic shape");
+        return acc * d;
+    });
 }
 
 //

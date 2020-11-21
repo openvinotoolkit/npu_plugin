@@ -29,8 +29,7 @@ using namespace vpux;
 void vpux::addLogging(mlir::MLIRContext& ctx, LogLevel level) {
     auto& diagEngine = ctx.getDiagEngine();
 
-    diagEngine.registerHandler([level](mlir::Diagnostic& diag)
-                                       -> mlir::LogicalResult {
+    diagEngine.registerHandler([level](mlir::Diagnostic& diag) -> mlir::LogicalResult {
         Logger log(level);
 
         const auto severity = diag.getSeverity();
@@ -68,52 +67,35 @@ namespace {
 
 class PassLogging final : public mlir::PassInstrumentation {
 public:
-    explicit PassLogging(LogLevel level) : _log(level) {
+    explicit PassLogging(LogLevel level): _log(level) {
     }
 
-    void runBeforePipeline(mlir::Identifier name,
-                           const PipelineParentInfo&) final {
+    void runBeforePipeline(mlir::Identifier name, const PipelineParentInfo&) final {
         VPUX_LOG_TRACE(_log, "Start Pass Pipeline {0}", name);
     }
 
-    void runAfterPipeline(mlir::Identifier name,
-                          const PipelineParentInfo&) final {
+    void runAfterPipeline(mlir::Identifier name, const PipelineParentInfo&) final {
         VPUX_LOG_TRACE(_log, "End Pass Pipeline {0}", name);
     }
 
     void runBeforePass(mlir::Pass* pass, mlir::Operation* op) final {
-        VPUX_LOG_TRACE(_log,
-                       "Start Pass {0} on Operation {1}",
-                       pass->getName(),
-                       op->getName());
+        VPUX_LOG_TRACE(_log, "Start Pass {0} on Operation {1}", pass->getName(), op->getName());
     }
 
     void runAfterPass(mlir::Pass* pass, mlir::Operation* op) {
-        VPUX_LOG_TRACE(_log,
-                       "End Pass {0} on Operation {1}",
-                       pass->getName(),
-                       op->getName());
+        VPUX_LOG_TRACE(_log, "End Pass {0} on Operation {1}", pass->getName(), op->getName());
     }
 
     void runAfterPassFailed(mlir::Pass* pass, mlir::Operation* op) {
-        VPUX_LOG_ERROR(_log,
-                       "Failed Pass {0} on Operation {1}",
-                       pass->getName(),
-                       op->getName());
+        VPUX_LOG_ERROR(_log, "Failed Pass {0} on Operation {1}", pass->getName(), op->getName());
     }
 
     void runBeforeAnalysis(StringRef name, mlir::TypeID, mlir::Operation* op) {
-        VPUX_LOG_TRACE(_log,
-                       "Start Analysis {0} on Operation {1}",
-                       name,
-                       op->getName());
+        VPUX_LOG_TRACE(_log, "Start Analysis {0} on Operation {1}", name, op->getName());
     }
 
     void runAfterAnalysis(StringRef name, mlir::TypeID, mlir::Operation* op) {
-        VPUX_LOG_TRACE(_log,
-                       "End Analysis {0} on Operation {1}",
-                       name,
-                       op->getName());
+        VPUX_LOG_TRACE(_log, "End Analysis {0} on Operation {1}", name, op->getName());
     }
 
 private:
@@ -135,7 +117,5 @@ void vpux::OpBuilderLogger::notifyOperationInserted(mlir::Operation* op) {
 }
 
 void vpux::OpBuilderLogger::notifyBlockCreated(mlir::Block* block) {
-    VPUX_LOG_TRACE(_log,
-                   "Add new Blob for Operation {0}",
-                   *block->getParentOp());
+    VPUX_LOG_TRACE(_log, "Add new Blob for Operation {0}", *block->getParentOp());
 }

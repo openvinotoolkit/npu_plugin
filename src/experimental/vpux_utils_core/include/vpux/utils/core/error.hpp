@@ -36,13 +36,10 @@ namespace details {
 
 }  // namespace details
 
-#define VPUX_THROW(...)                                                        \
-    vpux::details::throwFormat(__FILE__,                                       \
-                               __LINE__,                                       \
-                               llvm::formatv(__VA_ARGS__).str())
+#define VPUX_THROW(...) vpux::details::throwFormat(__FILE__, __LINE__, llvm::formatv(__VA_ARGS__).str())
 
-#define VPUX_THROW_UNLESS(_condition_, ...)                                    \
-    if (!(_condition_))                                                        \
-        VPUX_THROW(__VA_ARGS__)
+#define VPUX_THROW_UNLESS(_condition_, ...) \
+    if (!(_condition_))                     \
+    VPUX_THROW(__VA_ARGS__)
 
 }  // namespace vpux

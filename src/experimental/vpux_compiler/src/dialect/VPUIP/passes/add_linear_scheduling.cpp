@@ -30,8 +30,7 @@ using namespace vpux;
 
 namespace {
 
-class AddLinearSchedulingPass final
-        : public VPUIP::AddLinearSchedulingBase<AddLinearSchedulingPass> {
+class AddLinearSchedulingPass final : public VPUIP::AddLinearSchedulingBase<AddLinearSchedulingPass> {
 public:
     void runOnOperation() final;
 
@@ -51,9 +50,7 @@ void AddLinearSchedulingPass::runOnOperation() {
     try {
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(),
-                "AddLinearSchedulingPass failed : {0}",
-                e.what());
+        printTo(getOperation().emitError(), "AddLinearSchedulingPass failed : {0}", e.what());
         signalPassFailure();
     }
 }
@@ -63,8 +60,7 @@ void AddLinearSchedulingPass::passBody() {
 
     VPUIP::GraphOp graphOp;
     mlir::FuncOp graphFunc;
-    if (mlir::failed(
-                VPUIP::GraphOp::getFromModule(module, graphOp, graphFunc))) {
+    if (mlir::failed(VPUIP::GraphOp::getFromModule(module, graphOp, graphFunc))) {
         signalPassFailure();
         return;
     }
@@ -90,10 +86,8 @@ void AddLinearSchedulingPass::passBody() {
 
         if (getNextTask(op) != nullptr) {
             mlir::OpBuilder builder(op);
-            auto newBarrierOp =
-                    builder.create<VPUIP::ConfigureBarrierOp>(op->getLoc());
-            curTask.updateBarriersMutable().append(
-                    mlir::ValueRange{newBarrierOp.barrier()});
+            auto newBarrierOp = builder.create<VPUIP::ConfigureBarrierOp>(op->getLoc());
+            curTask.updateBarriersMutable().append(mlir::ValueRange{newBarrierOp.barrier()});
         }
     };
 
@@ -101,8 +95,7 @@ void AddLinearSchedulingPass::passBody() {
 
     auto options = graphOp.options();
     options = options | VPUIP::ExecutionFlag::DynamicBarriers;
-    graphOp.optionsAttr(
-            VPUIP::ExecutionFlagAttr::get(module.getContext(), options));
+    graphOp.optionsAttr(VPUIP::ExecutionFlagAttr::get(module.getContext(), options));
 }
 
 void AddLinearSchedulingPass::collectTrailingSwTasks(mlir::FuncOp graphFunc) {
@@ -142,21 +135,17 @@ void AddLinearSchedulingPass::collectTrailingSwTasks(mlir::FuncOp graphFunc) {
     }
 }
 
-VPUIP::TaskOpInterface
-        AddLinearSchedulingPass::getPrevTask(mlir::Operation* op) {
+VPUIP::TaskOpInterface AddLinearSchedulingPass::getPrevTask(mlir::Operation* op) {
     auto* prevOp = op->getPrevNode();
-    while (prevOp != nullptr &&
-           mlir::dyn_cast<VPUIP::TaskOpInterface>(prevOp) == nullptr) {
+    while (prevOp != nullptr && mlir::dyn_cast<VPUIP::TaskOpInterface>(prevOp) == nullptr) {
         prevOp = prevOp->getPrevNode();
     }
     return mlir::dyn_cast_or_null<VPUIP::TaskOpInterface>(prevOp);
 }
 
-VPUIP::TaskOpInterface
-        AddLinearSchedulingPass::getNextTask(mlir::Operation* op) {
+VPUIP::TaskOpInterface AddLinearSchedulingPass::getNextTask(mlir::Operation* op) {
     auto* nextOp = op->getNextNode();
-    while (nextOp != nullptr &&
-           mlir::dyn_cast<VPUIP::TaskOpInterface>(nextOp) == nullptr) {
+    while (nextOp != nullptr && mlir::dyn_cast<VPUIP::TaskOpInterface>(nextOp) == nullptr) {
         nextOp = nextOp->getNextNode();
     }
     return mlir::dyn_cast_or_null<VPUIP::TaskOpInterface>(nextOp);

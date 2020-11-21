@@ -35,16 +35,11 @@ namespace {
 
 InferenceEngine::Precision extractPrecisionFromDType(MVCNN::DType dtype) {
     static const EnumMap<MVCNN::DType, Precision> dataTypeMapping = {
-            {MVCNN::DType_FP32, Precision::FP32},
-            {MVCNN::DType_FP16, Precision::FP16},
-            {MVCNN::DType_U64, Precision::U64},
-            {MVCNN::DType_U16, Precision::U16},
-            {MVCNN::DType_U8, Precision::U8},
-            {MVCNN::DType_I64, Precision::I64},
-            {MVCNN::DType_I32, Precision::I32},
-            {MVCNN::DType_I16, Precision::I16},
-            {MVCNN::DType_I8, Precision::I8},
-            {MVCNN::DType_BIN, Precision::BIN},
+            {MVCNN::DType_FP32, Precision::FP32}, {MVCNN::DType_FP16, Precision::FP16},
+            {MVCNN::DType_U64, Precision::U64},   {MVCNN::DType_U16, Precision::U16},
+            {MVCNN::DType_U8, Precision::U8},     {MVCNN::DType_I64, Precision::I64},
+            {MVCNN::DType_I32, Precision::I32},   {MVCNN::DType_I16, Precision::I16},
+            {MVCNN::DType_I8, Precision::I8},     {MVCNN::DType_BIN, Precision::BIN},
     };
 
     return dataTypeMapping.at(dtype);
@@ -58,9 +53,7 @@ Data deserializeTensor(const MVCNN::TensorReference* tensor) {
     std::copy_n(dims->data(), dims->size(), dataDims.data());
 
     const auto dimsOrder = DimsOrder::fromCode(tensor->order());
-    VPUX_THROW_UNLESS(dimsOrder.numDims() == dims->size(),
-                      "DimsOrder {0} doesn't match to dims {1}",
-                      dimsOrder,
+    VPUX_THROW_UNLESS(dimsOrder.numDims() == dims->size(), "DimsOrder {0} doesn't match to dims {1}", dimsOrder,
                       dataDims);
 
     const auto dataLayout = dimsOrder.toIE();
@@ -71,8 +64,7 @@ Data deserializeTensor(const MVCNN::TensorReference* tensor) {
     return Data(tensor->name()->str(), dataDesc);
 }
 
-using TensorReferenceVector =
-        flatbuffers::Vector<flatbuffers::Offset<MVCNN::TensorReference>>;
+using TensorReferenceVector = flatbuffers::Vector<flatbuffers::Offset<MVCNN::TensorReference>>;
 
 DataMap deserializeDataMap(const TensorReferenceVector* tensors) {
     DataMap out;
@@ -90,15 +82,11 @@ DataMap deserializeDataMap(const TensorReferenceVector* tensors) {
 
 }  // namespace
 
-vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
-        : _compiledNetwork(std::move(blob)) {
+vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob): _compiledNetwork(std::move(blob)) {
     VPUX_THROW_UNLESS(!_compiledNetwork.empty(), "Got NULL pointer");
 
-    flatbuffers::Verifier verifier(
-            reinterpret_cast<const uint8_t*>(_compiledNetwork.data()),
-            _compiledNetwork.size());
-    VPUX_THROW_UNLESS(MVCNN::VerifyGraphFileBuffer(verifier),
-                      "Got invalid VPUIP blob");
+    flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(_compiledNetwork.data()), _compiledNetwork.size());
+    VPUX_THROW_UNLESS(MVCNN::VerifyGraphFileBuffer(verifier), "Got invalid VPUIP blob");
 
     const auto* graphFile = MVCNN::GetGraphFile(_compiledNetwork.data());
     const auto* header = graphFile->header();
@@ -113,13 +101,9 @@ vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
     _deviceInputs = deserializeDataMap(header->net_input());
     _deviceOutputs = deserializeDataMap(header->net_output());
 
-    VPUX_THROW_UNLESS(!_networkInputs.empty(),
-                      "VPUIP blob does not contain network inputs");
-    VPUX_THROW_UNLESS(!_networkOutputs.empty(),
-                      "VPUIP blob does not contain network outputs");
+    VPUX_THROW_UNLESS(!_networkInputs.empty(), "VPUIP blob does not contain network inputs");
+    VPUX_THROW_UNLESS(!_networkOutputs.empty(), "VPUIP blob does not contain network outputs");
 
-    VPUX_THROW_UNLESS(!_deviceInputs.empty(),
-                      "VPUIP blob does not contain device inputs");
-    VPUX_THROW_UNLESS(!_deviceOutputs.empty(),
-                      "VPUIP blob does not contain device outputs");
+    VPUX_THROW_UNLESS(!_deviceInputs.empty(), "VPUIP blob does not contain device inputs");
+    VPUX_THROW_UNLESS(!_deviceOutputs.empty(), "VPUIP blob does not contain device outputs");
 }

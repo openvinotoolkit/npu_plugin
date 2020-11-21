@@ -56,16 +56,13 @@ public:
     using Direction = Partitioner::Direction;
     using LiveRangeVector = SmallVector<LiveRange, 16>;
     using LiveRangeIter = typename LiveRangeVector::iterator;
-    using AllocatedAddrs =
-            std::unordered_map<const LiveRange*,
-                               std::pair<AddressType, AddressType>>;
+    using AllocatedAddrs = std::unordered_map<const LiveRange*, std::pair<AddressType, AddressType>>;
 
 public:
-    explicit LinearScan(AddressType size) : _par{size} {
+    explicit LinearScan(AddressType size): _par{size} {
     }
     template <typename... Args>
-    explicit LinearScan(AddressType size, Args&&... args)
-            : _par{size}, _handler{std::forward<Args>(args)...} {
+    explicit LinearScan(AddressType size, Args&&... args): _par{size}, _handler{std::forward<Args>(args)...} {
     }
 
 public:
@@ -89,17 +86,14 @@ public:
     // otherwise.
     //
     template <class LiveRanges>
-    bool alloc(const LiveRanges& newLiveRanges,
-               bool allowSpills = true,
-               Direction dir = Direction::Up) {
+    bool alloc(const LiveRanges& newLiveRanges, bool allowSpills = true, Direction dir = Direction::Up) {
         AllocatedAddrs allocatedAddrs;
 
         //
         // First try to allocate fixed live ranges.
         //
 
-        for (auto curIt = newLiveRanges.begin(); curIt != newLiveRanges.end();
-             ++curIt) {
+        for (auto curIt = newLiveRanges.begin(); curIt != newLiveRanges.end(); ++curIt) {
             const auto& newRange = *curIt;
 
             if (!_handler.isFixedAlloc(newRange)) {
@@ -115,8 +109,7 @@ public:
         // Find room for new non-fixed ranges.
         //
 
-        for (auto curIt = newLiveRanges.begin(); curIt != newLiveRanges.end();
-             ++curIt) {
+        for (auto curIt = newLiveRanges.begin(); curIt != newLiveRanges.end(); ++curIt) {
             const auto& newRange = *curIt;
 
             if (_handler.isFixedAlloc(newRange)) {
@@ -132,8 +125,7 @@ public:
         // All requested live ranges are allocated now.
         //
 
-        for (auto curIt = newLiveRanges.begin(); curIt != newLiveRanges.end();
-             ++curIt) {
+        for (auto curIt = newLiveRanges.begin(); curIt != newLiveRanges.end(); ++curIt) {
             const auto& newRange = *curIt;
 
             const auto addr = allocatedAddrs.at(&newRange).first;
@@ -146,12 +138,8 @@ public:
         return true;
     }
 
-    bool alloc(std::initializer_list<LiveRange> newLiveRanges,
-               bool allowSpills = true,
-               Direction dir = Direction::Up) {
-        return this->alloc<std::initializer_list<LiveRange>>(newLiveRanges,
-                                                             allowSpills,
-                                                             dir);
+    bool alloc(std::initializer_list<LiveRange> newLiveRanges, bool allowSpills = true, Direction dir = Direction::Up) {
+        return this->alloc<std::initializer_list<LiveRange>>(newLiveRanges, allowSpills, dir);
     }
 
 public:
@@ -183,9 +171,7 @@ public:
     }
 
 private:
-    bool allocFixedRange(const LiveRange& newRange,
-                         bool allowSpills,
-                         AllocatedAddrs& allocatedAddrs) {
+    bool allocFixedRange(const LiveRange& newRange, bool allowSpills, AllocatedAddrs& allocatedAddrs) {
         assert(_handler.isFixedAlloc(newRange));
 
         const auto newRangeAddr = _handler.getAddress(newRange);
@@ -197,10 +183,7 @@ private:
                 const auto prevRangeAddr = _handler.getAddress(prevRange);
                 const auto prevRangeSize = _handler.getSize(prevRange);
 
-                if (Partitioner::intersects(newRangeAddr,
-                                            newRangeSize,
-                                            prevRangeAddr,
-                                            prevRangeSize)) {
+                if (Partitioner::intersects(newRangeAddr, newRangeSize, prevRangeAddr, prevRangeSize)) {
                     return false;
                 }
             }
@@ -241,10 +224,7 @@ private:
         return true;
     }
 
-    bool allocPlainRange(const LiveRange& newRange,
-                         bool allowSpills,
-                         Direction dir,
-                         AllocatedAddrs& allocatedAddrs) {
+    bool allocPlainRange(const LiveRange& newRange, bool allowSpills, Direction dir, AllocatedAddrs& allocatedAddrs) {
         assert(!_handler.isFixedAlloc(newRange));
 
         const auto newRangeSize = _handler.getSize(newRange);
@@ -303,13 +283,10 @@ private:
     }
 
     Optional<LiveRange> getSpillCandidate() {
-        const auto it = std::min_element(
-                _liveRanges.begin(),
-                _liveRanges.end(),
-                [this](const LiveRange& r1, const LiveRange& r2) {
-                    return _handler.getSpillWeight(r1) <
-                           _handler.getSpillWeight(r2);
-                });
+        const auto it = std::min_element(_liveRanges.begin(), _liveRanges.end(),
+                                         [this](const LiveRange& r1, const LiveRange& r2) {
+                                             return _handler.getSpillWeight(r1) < _handler.getSpillWeight(r2);
+                                         });
 
         if (it == _liveRanges.end()) {
             return None;
@@ -328,18 +305,14 @@ private:
         return spillCandidate;
     }
 
-    bool performActualSpill(const LiveRangeVector& spillCandidates,
-                            AddressType newRangeAddr,
+    bool performActualSpill(const LiveRangeVector& spillCandidates, AddressType newRangeAddr,
                             AddressType newRangeSize) {
         // Spill only those ranges which really conflict with the allocated one.
         for (const auto& spillCandidate : spillCandidates) {
             const auto spilledAddr = _handler.getAddress(spillCandidate);
             const auto spilledSize = _handler.getSize(spillCandidate);
 
-            if (Partitioner::intersects(spilledAddr,
-                                        spilledSize,
-                                        newRangeAddr,
-                                        newRangeSize)) {
+            if (Partitioner::intersects(spilledAddr, spilledSize, newRangeAddr, newRangeSize)) {
                 if (!_handler.spilled(spillCandidate)) {
                     return false;
                 }

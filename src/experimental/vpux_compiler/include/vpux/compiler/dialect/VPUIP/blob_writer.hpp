@@ -55,8 +55,7 @@ public:
     using TensorReference = flatbuffers::Offset<MVCNN::TensorReference>;
     using Barrier = flatbuffers::Offset<MVCNN::Barrier>;
 
-    using IndirectDataReference =
-            flatbuffers::Offset<MVCNN::IndirectDataReference>;
+    using IndirectDataReference = flatbuffers::Offset<MVCNN::IndirectDataReference>;
 
     using BinaryData = flatbuffers::Offset<MVCNN::BinaryData>;
 
@@ -69,20 +68,12 @@ public:
     Task createTask(mlir::Operation* op);
 
 public:
-    SpecificTask createUPALayerTask(mlir::Operation* op,
-                                    const SoftwareLayerParams& params,
-                                    int32_t maxShaves,
+    SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params, int32_t maxShaves,
                                     bool isTrailingSWLayer);
 
 public:
-    TensorReference createTensor(StringRef name,
-                                 mlir::MemRefType type,
-                                 MemoryLocation location,
-                                 uint64_t offset);
-    TensorReference createTensor(mlir::Value val,
-                                 StringRef name,
-                                 MemoryLocation location,
-                                 uint64_t offset);
+    TensorReference createTensor(StringRef name, mlir::MemRefType type, MemoryLocation location, uint64_t offset);
+    TensorReference createTensor(mlir::Value val, StringRef name, MemoryLocation location, uint64_t offset);
     TensorReference getTensor(mlir::Value val) const;
 
     Barrier createBarrier(mlir::Value val);
@@ -104,8 +95,7 @@ public:
     static MVCNN::MemoryLocation createMemoryLocation(MemoryLocation location);
     IndirectDataReference createIndirectDataReference(uint64_t offset);
 
-    BinaryData createBinaryData(mlir::DenseElementsAttr content,
-                                bool csram_cacheable);
+    BinaryData createBinaryData(mlir::DenseElementsAttr content, bool csram_cacheable);
 
 public:
     auto createString(StringRef str) {

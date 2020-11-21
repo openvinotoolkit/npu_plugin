@@ -39,8 +39,6 @@ auto operator<<(ScopeExitTag, Func&& func) {
 
 }  // namespace details
 
-#define VPUX_SCOPE_EXIT                                                        \
-    const auto VPUX_UNIQUE_NAME(scopeExit) = vpux::details::ScopeExitTag{}     \
-                                             << [&]()
+#define VPUX_SCOPE_EXIT const auto VPUX_UNIQUE_NAME(scopeExit) = vpux::details::ScopeExitTag{} << [&]()
 
 }  // namespace vpux

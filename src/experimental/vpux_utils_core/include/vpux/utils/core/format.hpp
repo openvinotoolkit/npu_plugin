@@ -62,8 +62,7 @@ auto& printTo(llvm::raw_ostream& stream, StringRef format, Args&&... args) {
 
 template <class Stream, typename... Args>
 auto&& printTo(Stream&& stream, StringRef format, Args&&... args) {
-    return stream
-           << llvm::formatv(format.data(), std::forward<Args>(args)...).str();
+    return stream << llvm::formatv(format.data(), std::forward<Args>(args)...).str();
 }
 
 //
@@ -72,9 +71,7 @@ auto&& printTo(Stream&& stream, StringRef format, Args&&... args) {
 
 struct ContainerFormatter {
     template <class Container>
-    static void format(const Container& cont,
-                       llvm::raw_ostream& stream,
-                       StringRef style) {
+    static void format(const Container& cont, llvm::raw_ostream& stream, StringRef style) {
         stream << '[';
 
         using IterT = typename Container::const_iterator;
@@ -89,8 +86,7 @@ struct ContainerFormatter {
 
 struct MapFormatter {
     template <class Map>
-    static void
-            format(const Map& map, llvm::raw_ostream& stream, StringRef style) {
+    static void format(const Map& map, llvm::raw_ostream& stream, StringRef style) {
         stream << '<';
 
         ptrdiff_t ind = 0;
@@ -127,9 +123,7 @@ struct HasEnumTraits {
 };
 
 template <class Enum>
-struct HasEnumTraits<Enum,
-                     decltype(EnumTraits<Enum>::getEnumValueName(
-                             std::declval<Enum>())[0])> {
+struct HasEnumTraits<Enum, decltype(EnumTraits<Enum>::getEnumValueName(std::declval<Enum>())[0])> {
     static constexpr bool value = true;
 };
 
@@ -150,9 +144,7 @@ struct HasPrintFormat {
 };
 
 template <class Obj>
-struct HasPrintFormat<Obj,
-                      decltype(std::declval<Obj>().printFormat(
-                              std::declval<llvm::raw_ostream&>()))> {
+struct HasPrintFormat<Obj, decltype(std::declval<Obj>().printFormat(std::declval<llvm::raw_ostream&>()))> {
     static constexpr bool value = true;
 };
 
@@ -168,9 +160,7 @@ namespace llvm {
 
 template <>
 struct format_provider<std::error_code> final {
-    static void format(const std::error_code& err,
-                       llvm::raw_ostream& stream,
-                       StringRef style) {
+    static void format(const std::error_code& err, llvm::raw_ostream& stream, StringRef style) {
         auto adapter = llvm::detail::build_format_adapter(err.message());
         adapter.format(stream, style);
     }
@@ -178,9 +168,7 @@ struct format_provider<std::error_code> final {
 
 template <typename T1, typename T2>
 struct format_provider<std::pair<T1, T2>> final {
-    static void format(const std::pair<T1, T2>& val,
-                       llvm::raw_ostream& stream,
-                       StringRef style) {
+    static void format(const std::pair<T1, T2>& val, llvm::raw_ostream& stream, StringRef style) {
         stream << '(';
 
         auto adapter1 = llvm::detail::build_format_adapter(val.first);
@@ -196,8 +184,7 @@ struct format_provider<std::pair<T1, T2>> final {
 };
 
 template <typename T, size_t Count>
-struct format_provider<std::array<T, Count>> final : vpux::ContainerFormatter {
-};
+struct format_provider<std::array<T, Count>> final : vpux::ContainerFormatter {};
 
 template <typename T, class A>
 struct format_provider<std::vector<T, A>> final : vpux::ContainerFormatter {};
@@ -209,15 +196,13 @@ template <typename T, class C, class A>
 struct format_provider<std::set<T, C, A>> final : vpux::ContainerFormatter {};
 
 template <typename T, class H, class P, class A>
-struct format_provider<std::unordered_set<T, H, P, A>> final
-        : vpux::ContainerFormatter {};
+struct format_provider<std::unordered_set<T, H, P, A>> final : vpux::ContainerFormatter {};
 
 template <typename K, typename V, class C, class A>
 struct format_provider<std::map<K, V, C, A>> final : vpux::MapFormatter {};
 
 template <typename K, typename V, class H, class P, class A>
-struct format_provider<std::unordered_map<K, V, H, P, A>> final
-        : vpux::MapFormatter {};
+struct format_provider<std::unordered_map<K, V, H, P, A>> final : vpux::MapFormatter {};
 
 template <typename T>
 struct format_provider<ArrayRef<T>> final : vpux::ContainerFormatter {};
@@ -232,32 +217,22 @@ template <typename T, unsigned N>
 struct format_provider<SmallVector<T, N>> final : vpux::ContainerFormatter {};
 
 template <class Range>
-struct format_provider<detail::enumerator<Range>> final
-        : vpux::ContainerFormatter {};
+struct format_provider<detail::enumerator<Range>> final : vpux::ContainerFormatter {};
 
 template <typename T>
-struct format_provider<vpux::details::IntegerValuesRange<T>> final
-        : vpux::ContainerFormatter {};
+struct format_provider<vpux::details::IntegerValuesRange<T>> final : vpux::ContainerFormatter {};
 
 template <typename Enum>
-struct format_provider<
-        Enum,
-        vpux::require_t<std::is_enum<Enum>, vpux::details::HasEnumTraits<Enum>>>
-        final {
-    static void format(const Enum& val,
-                       llvm::raw_ostream& stream,
-                       StringRef style) {
-        auto adapter = llvm::detail::build_format_adapter(
-                vpux::EnumTraits<Enum>::getEnumValueName(val));
+struct format_provider<Enum, vpux::require_t<std::is_enum<Enum>, vpux::details::HasEnumTraits<Enum>>> final {
+    static void format(const Enum& val, llvm::raw_ostream& stream, StringRef style) {
+        auto adapter = llvm::detail::build_format_adapter(vpux::EnumTraits<Enum>::getEnumValueName(val));
         adapter.format(stream, style);
     }
 };
 
 template <>
 struct format_provider<vpux::Mask> final {
-    static void format(const vpux::Mask& mask,
-                       llvm::raw_ostream& stream,
-                       StringRef style) {
+    static void format(const vpux::Mask& mask, llvm::raw_ostream& stream, StringRef style) {
         auto adapter = llvm::detail::build_format_adapter(mask.asRange());
         adapter.format(stream, style);
     }
@@ -265,9 +240,7 @@ struct format_provider<vpux::Mask> final {
 
 template <>
 struct format_provider<vpux::Slice> final {
-    static void format(const vpux::Slice& slice,
-                       llvm::raw_ostream& stream,
-                       StringRef style) {
+    static void format(const vpux::Slice& slice, llvm::raw_ostream& stream, StringRef style) {
         stream << '[';
 
         auto adapter1 = llvm::detail::build_format_adapter(slice.begin());
@@ -284,9 +257,7 @@ struct format_provider<vpux::Slice> final {
 
 template <typename T>
 struct format_provider<Optional<T>> final {
-    static void format(const Optional<T>& opt,
-                       llvm::raw_ostream& stream,
-                       StringRef style) {
+    static void format(const Optional<T>& opt, llvm::raw_ostream& stream, StringRef style) {
         if (opt.hasValue()) {
             auto adapter = llvm::detail::build_format_adapter(opt.getValue());
             adapter.format(stream, style);
@@ -297,8 +268,7 @@ struct format_provider<Optional<T>> final {
 };
 
 template <class Obj>
-struct format_provider<Obj, vpux::require_t<vpux::details::HasPrintFormat<Obj>>>
-        final {
+struct format_provider<Obj, vpux::require_t<vpux::details::HasPrintFormat<Obj>>> final {
     static void format(const Obj& obj, llvm::raw_ostream& stream, StringRef) {
         obj.printFormat(stream);
     }
@@ -306,9 +276,7 @@ struct format_provider<Obj, vpux::require_t<vpux::details::HasPrintFormat<Obj>>>
 
 template <typename... Args>
 struct format_provider<std::tuple<Args...>> final {
-    static void format(const std::tuple<Args...>& val,
-                       llvm::raw_ostream& stream,
-                       StringRef style) {
+    static void format(const std::tuple<Args...>& val, llvm::raw_ostream& stream, StringRef style) {
         stream << '<';
         printItems(val, stream, style);
         stream << '>';
@@ -316,18 +284,14 @@ struct format_provider<std::tuple<Args...>> final {
 
 private:
     template <size_t Index = 0>
-    static auto printItems(const std::tuple<Args...>& val,
-                           llvm::raw_ostream& stream,
-                           StringRef style)
+    static auto printItems(const std::tuple<Args...>& val, llvm::raw_ostream& stream, StringRef style)
             -> vpux::enable_if_t<Index + 1 == sizeof...(Args)> {
         auto adapter = llvm::detail::build_format_adapter(std::get<Index>(val));
         adapter.format(stream, style);
     }
 
     template <size_t Index = 0>
-    static auto printItems(const std::tuple<Args...>& val,
-                           llvm::raw_ostream& stream,
-                           StringRef style)
+    static auto printItems(const std::tuple<Args...>& val, llvm::raw_ostream& stream, StringRef style)
             -> vpux::enable_if_t<Index + 1 < sizeof...(Args)> {
         auto adapter = llvm::detail::build_format_adapter(std::get<Index>(val));
         adapter.format(stream, style);

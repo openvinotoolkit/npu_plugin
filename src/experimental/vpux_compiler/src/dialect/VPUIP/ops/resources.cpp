@@ -27,32 +27,23 @@ using namespace vpux;
 mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
     const auto location = op.location();
 
-    if (location == MemoryLocation::ProgrammableInput ||
-        location == MemoryLocation::ProgrammableOutput ||
+    if (location == MemoryLocation::ProgrammableInput || location == MemoryLocation::ProgrammableOutput ||
         location == MemoryLocation::GraphFile) {
-        return printTo(op.emitError(),
-                       "MemoryLocation '{0}' can't be used in '{1}'",
-                       location,
+        return printTo(op.emitError(), "MemoryLocation '{0}' can't be used in '{1}'", location,
                        DeclareTensorOp::getOperationName());
     }
 
     const auto memref = op.memory().getType().cast<mlir::MemRefType>();
 
     if (!isMemoryCompatible(location, memref)) {
-        return printTo(
-                op.emitError(),
-                "'{0}' location '{1}' is not compatible with memory Type '{2}'",
-                DeclareTensorOp::getOperationName(),
-                location,
-                memref);
+        return printTo(op.emitError(), "'{0}' location '{1}' is not compatible with memory Type '{2}'",
+                       DeclareTensorOp::getOperationName(), location, memref);
     }
 
     if (const auto offsetAttr = op.offsetAttr()) {
         const auto offset = offsetAttr.getValue().getSExtValue();
         if (offset < 0) {
-            return printTo(op.emitError(),
-                           "Got negative offset '{0}' for '{1}'",
-                           offset,
+            return printTo(op.emitError(), "Got negative offset '{0}' for '{1}'", offset,
                            DeclareTensorOp::getOperationName());
         }
 
@@ -66,8 +57,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
 // ConfigureBarrierOp
 //
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConfigureBarrierOp::serialize(
-        vpux::VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConfigureBarrierOp::serialize(vpux::VPUIP::BlobWriter& writer) {
     const auto barrier = writer.createBarrier(this->barrier());
 
     MVCNN::BarrierConfigurationTaskBuilder subBuilder(writer);
@@ -83,17 +73,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConfigureBarrierOp::serialize(
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(ConfigureBarrierOp op) {
     if (!op.inputTensors().empty()) {
-        return printTo(op.emitError(),
-                       "'{0}' must not have input tensors, got {1}",
-                       ConfigureBarrierOp::getOperationName(),
-                       op.inputTensors().size());
+        return printTo(op.emitError(), "'{0}' must not have input tensors, got {1}",
+                       ConfigureBarrierOp::getOperationName(), op.inputTensors().size());
     }
 
     if (!op.outputTensors().empty()) {
-        return printTo(op.emitError(),
-                       "'{0}' must not have output tensors, got {1}",
-                       ConfigureBarrierOp::getOperationName(),
-                       op.outputTensors().size());
+        return printTo(op.emitError(), "'{0}' must not have output tensors, got {1}",
+                       ConfigureBarrierOp::getOperationName(), op.outputTensors().size());
     }
 
     return mlir::success();

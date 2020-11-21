@@ -22,24 +22,18 @@ namespace vpux {
 
 class CompilerImpl final : public ICompiler {
 public:
-    std::shared_ptr<INetworkDescription>
-            compile(InferenceEngine::ICNNNetwork& network,
-                    const VPUXConfig& config) final;
+    std::shared_ptr<INetworkDescription> compile(InferenceEngine::ICNNNetwork& network, const VPUXConfig& config) final;
 
-    std::shared_ptr<INetworkDescription>
-            compile(const std::shared_ptr<ngraph::Function>& func,
-                    const std::string& netName,
-                    const InferenceEngine::InputsDataMap& inputsInfo,
-                    const InferenceEngine::OutputsDataMap& outputsInfo,
-                    const VPUXConfig& config) final;
+    std::shared_ptr<INetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
+                                                 const std::string& netName,
+                                                 const InferenceEngine::InputsDataMap& inputsInfo,
+                                                 const InferenceEngine::OutputsDataMap& outputsInfo,
+                                                 const VPUXConfig& config) final;
 
-    std::shared_ptr<INetworkDescription>
-            parse(const std::vector<char>& network,
-                  const VPUXConfig& config,
-                  const std::string& graphName = "") final;
+    std::shared_ptr<INetworkDescription> parse(const std::vector<char>& network, const VPUXConfig& config,
+                                               const std::string& graphName = "") final;
 
-    std::set<std::string>
-            getSupportedLayers(InferenceEngine::ICNNNetwork& network) final;
+    std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network) final;
     std::unordered_set<std::string> getSupportedOptions() final;
 };
 

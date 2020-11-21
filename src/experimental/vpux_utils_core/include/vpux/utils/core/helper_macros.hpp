@@ -33,9 +33,9 @@ namespace vpux {
 //
 
 #ifdef __COUNTER__
-#    define VPUX_UNIQUE_NAME(_BaseName_) VPUX_COMBINE(_BaseName_, __COUNTER__)
+#define VPUX_UNIQUE_NAME(_BaseName_) VPUX_COMBINE(_BaseName_, __COUNTER__)
 #else
-#    define VPUX_UNIQUE_NAME(_BaseName_) VPUX_COMBINE(_BaseName_, __LINE__)
+#define VPUX_UNIQUE_NAME(_BaseName_) VPUX_COMBINE(_BaseName_, __LINE__)
 #endif
 
 //
@@ -49,9 +49,9 @@ namespace vpux {
 //
 
 #if defined(__GNUC__)
-#    define VPUX_PACKED __attribute__((packed))
+#define VPUX_PACKED __attribute__((packed))
 #else
-#    define VPUX_PACKED
+#define VPUX_PACKED
 #endif
 
 //

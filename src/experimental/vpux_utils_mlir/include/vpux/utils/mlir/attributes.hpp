@@ -74,16 +74,13 @@ public:
 
 public:
     static bool classof(mlir::Attribute attr) {
-        return attr.isa<mlir::IntegerAttr>() &&
-               attr.getType().isSignlessInteger() &&
-               EnumTraits<Enum>::isValidVal(
-                       attr.cast<mlir::IntegerAttr>().getInt());
+        return attr.isa<mlir::IntegerAttr>() && attr.getType().isSignlessInteger() &&
+               EnumTraits<Enum>::isValidVal(attr.cast<mlir::IntegerAttr>().getInt());
     }
 
 public:
     static auto get(mlir::MLIRContext* ctx, Enum val) {
-        return getInt32Attr(ctx, static_cast<uint32_t>(val))
-                .cast<IntEnumAttr>();
+        return getInt32Attr(ctx, static_cast<uint32_t>(val)).cast<IntEnumAttr>();
     }
 
 public:
@@ -107,22 +104,17 @@ public:
 public:
     static bool classof(mlir::Attribute attr) {
         return attr.isa<mlir::StringAttr>() &&
-               EnumTraits<Enum>::parseValue(
-                       attr.cast<mlir::StringAttr>().getValue())
-                       .hasValue();
+               EnumTraits<Enum>::parseValue(attr.cast<mlir::StringAttr>().getValue()).hasValue();
     }
 
 public:
     static auto get(mlir::MLIRContext* ctx, Enum val) {
-        return mlir::StringAttr::get(EnumTraits<Enum>::getEnumValueName(val),
-                                     ctx)
-                .template cast<StrEnumAttr>();
+        return mlir::StringAttr::get(EnumTraits<Enum>::getEnumValueName(val), ctx).template cast<StrEnumAttr>();
     }
 
 public:
     auto getValue() const {
-        return EnumTraits<Enum>::parseValue(mlir::StringAttr::getValue())
-                .getValue();
+        return EnumTraits<Enum>::parseValue(mlir::StringAttr::getValue()).getValue();
     }
 };
 

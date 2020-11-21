@@ -30,12 +30,10 @@ StringRef vpux::VPUIP::ArchTraits<VPUIP::ArchKind::KMB>::getArchGenName() {
 // Run-time information
 //
 
-int32_t vpux::VPUIP::getProcessorUnitCount(ArchKind arch,
-                                           PhysicalProcessor kind) {
-#define CASE(_arch_, _proc_)                                                   \
-    case PhysicalProcessor::_proc_:                                            \
-        return ArchTraits<ArchKind::_arch_>::ProcessorTraits<                  \
-                PhysicalProcessor::_proc_>::COUNT
+int32_t vpux::VPUIP::getProcessorUnitCount(ArchKind arch, PhysicalProcessor kind) {
+#define CASE(_arch_, _proc_)        \
+    case PhysicalProcessor::_proc_: \
+        return ArchTraits<ArchKind::_arch_>::ProcessorTraits<PhysicalProcessor::_proc_>::COUNT
 
     switch (arch) {
     case ArchKind::KMB:
@@ -58,8 +56,8 @@ int32_t vpux::VPUIP::getProcessorUnitCount(ArchKind arch,
 }
 
 int32_t vpux::VPUIP::getDmaEngineCount(ArchKind arch, DMAEngine kind) {
-#define CASE(_arch_, _dma_)                                                    \
-    case DMAEngine::_dma_:                                                     \
+#define CASE(_arch_, _dma_) \
+    case DMAEngine::_dma_:  \
         return ArchTraits<ArchKind::_arch_>::DMATraits<DMAEngine::_dma_>::COUNT
 
     switch (arch) {
@@ -77,12 +75,10 @@ int32_t vpux::VPUIP::getDmaEngineCount(ArchKind arch, DMAEngine kind) {
 #undef CASE
 }
 
-int32_t vpux::VPUIP::getMemoryClustersCount(ArchKind arch,
-                                            PhysicalMemory kind) {
-#define CASE(_arch_, _mem_)                                                    \
-    case PhysicalMemory::_mem_:                                                \
-        return ArchTraits<ArchKind::_arch_>::MemoryTraits<                     \
-                PhysicalMemory::_mem_>::CLUSTERS_COUNT
+int32_t vpux::VPUIP::getMemoryClustersCount(ArchKind arch, PhysicalMemory kind) {
+#define CASE(_arch_, _mem_)     \
+    case PhysicalMemory::_mem_: \
+        return ArchTraits<ArchKind::_arch_>::MemoryTraits<PhysicalMemory::_mem_>::CLUSTERS_COUNT
 
     switch (arch) {
     case ArchKind::KMB:
@@ -101,12 +97,10 @@ int32_t vpux::VPUIP::getMemoryClustersCount(ArchKind arch,
 #undef CASE
 }
 
-int32_t vpux::VPUIP::getMemoryClusterSizeKB(ArchKind arch,
-                                            PhysicalMemory kind) {
-#define CASE(_arch_, _mem_)                                                    \
-    case PhysicalMemory::_mem_:                                                \
-        return ArchTraits<ArchKind::_arch_>::MemoryTraits<                     \
-                PhysicalMemory::_mem_>::CLUSTER_SIZE_KB
+int32_t vpux::VPUIP::getMemoryClusterSizeKB(ArchKind arch, PhysicalMemory kind) {
+#define CASE(_arch_, _mem_)     \
+    case PhysicalMemory::_mem_: \
+        return ArchTraits<ArchKind::_arch_>::MemoryTraits<PhysicalMemory::_mem_>::CLUSTER_SIZE_KB
 
     switch (arch) {
     case ArchKind::KMB:
@@ -126,10 +120,9 @@ int32_t vpux::VPUIP::getMemoryClusterSizeKB(ArchKind arch,
 }
 
 float vpux::VPUIP::getMemoryDerateFactor(ArchKind arch, PhysicalMemory kind) {
-#define CASE(_arch_, _mem_)                                                    \
-    case PhysicalMemory::_mem_:                                                \
-        return ArchTraits<ArchKind::_arch_>::MemoryTraits<                     \
-                PhysicalMemory::_mem_>::DERATE_FACTOR
+#define CASE(_arch_, _mem_)     \
+    case PhysicalMemory::_mem_: \
+        return ArchTraits<ArchKind::_arch_>::MemoryTraits<PhysicalMemory::_mem_>::DERATE_FACTOR
 
     switch (arch) {
     case ArchKind::KMB:
@@ -149,10 +142,9 @@ float vpux::VPUIP::getMemoryDerateFactor(ArchKind arch, PhysicalMemory kind) {
 }
 
 int32_t vpux::VPUIP::getMemoryBandwidth(ArchKind arch, PhysicalMemory kind) {
-#define CASE(_arch_, _mem_)                                                    \
-    case PhysicalMemory::_mem_:                                                \
-        return ArchTraits<ArchKind::_arch_>::MemoryTraits<                     \
-                PhysicalMemory::_mem_>::BANDWIDTH
+#define CASE(_arch_, _mem_)     \
+    case PhysicalMemory::_mem_: \
+        return ArchTraits<ArchKind::_arch_>::MemoryTraits<PhysicalMemory::_mem_>::BANDWIDTH
 
     switch (arch) {
     case ArchKind::KMB:
