@@ -27,13 +27,10 @@ public:
     using mlir::OpAsmDialectInterface::OpAsmDialectInterface;
 
 public:
-    void getAsmResultNames(mlir::Operation* op,
-                           mlir::OpAsmSetValueNameFn setNameFn) const final;
+    void getAsmResultNames(mlir::Operation* op, mlir::OpAsmSetValueNameFn setNameFn) const final;
 };
 
-void IEDialectAsmHooks::getAsmResultNames(
-        mlir::Operation* op,
-        mlir::OpAsmSetValueNameFn setNameFn) const {
+void IEDialectAsmHooks::getAsmResultNames(mlir::Operation* op, mlir::OpAsmSetValueNameFn setNameFn) const {
     if (const auto nameLoc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
         setNameFn(op->getResult(0), nameLoc.getName());
     }

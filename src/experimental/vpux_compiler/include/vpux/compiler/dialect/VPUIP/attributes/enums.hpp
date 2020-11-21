@@ -46,8 +46,7 @@ struct EnumTraits<VPUIP::PhysicalProcessor> final {
     }
 
     static bool isValidVal(int64_t val) {
-        return val >= 0 && static_cast<uint64_t>(val) <=
-                                   VPUIP::getMaxEnumValForPhysicalProcessor();
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForPhysicalProcessor();
     }
 };
 
@@ -62,8 +61,7 @@ struct EnumTraits<VPUIP::DMAEngine> final {
     }
 
     static bool isValidVal(int64_t val) {
-        return val >= 0 &&
-               static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForDMAEngine();
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForDMAEngine();
     }
 };
 
@@ -78,8 +76,7 @@ struct EnumTraits<VPUIP::PhysicalMemory> final {
     }
 
     static bool isValidVal(int64_t val) {
-        return val >= 0 && static_cast<uint64_t>(val) <=
-                                   VPUIP::getMaxEnumValForPhysicalMemory();
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForPhysicalMemory();
     }
 };
 
@@ -94,8 +91,7 @@ struct EnumTraits<VPUIP::ArchKind> final {
     }
 
     static bool isValidVal(int64_t val) {
-        return val >= 0 &&
-               static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForArchKind();
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForArchKind();
     }
 };
 
@@ -110,8 +106,7 @@ struct EnumTraits<VPUIP::MemoryLocation> final {
     }
 
     static bool isValidVal(int64_t val) {
-        return val >= 0 && static_cast<uint64_t>(val) <=
-                                   VPUIP::getMaxEnumValForMemoryLocation();
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForMemoryLocation();
     }
 };
 
@@ -126,8 +121,7 @@ struct EnumTraits<VPUIP::TaskType> final {
     }
 
     static bool isValidVal(int64_t val) {
-        return val >= 0 &&
-               static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForTaskType();
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForTaskType();
     }
 };
 
@@ -142,9 +136,7 @@ struct EnumTraits<VPUIP::ExecutionFlag> final {
     }
 
     static bool isValidVal(int64_t val) {
-        return val >= 0 &&
-               VPUIP::symbolizeExecutionFlag(checked_cast<uint32_t>(val))
-                       .hasValue();
+        return val >= 0 && VPUIP::symbolizeExecutionFlag(checked_cast<uint32_t>(val)).hasValue();
     }
 };
 

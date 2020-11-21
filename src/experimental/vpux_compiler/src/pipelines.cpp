@@ -22,8 +22,7 @@
 
 using namespace vpux;
 
-void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm,
-                                      uint32_t maxUPAShaves) {
+void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, uint32_t maxUPAShaves) {
     pm.addPass(IE::createAdjustPrecisionForVPUPass());
     pm.addPass(createConvertIE2VPUIPPass(maxUPAShaves));
     pm.addPass(VPUIP::createRemoveExtraDMAPass());
@@ -33,9 +32,7 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm,
 
 void vpux::registerAllPipelines() {
     mlir::PassPipelineRegistration<> referenceMode(
-            "reference-mode",
-            "Compile IE Network in Reference mode (SW only execution)",
-            [](mlir::OpPassManager& pm) {
+            "reference-mode", "Compile IE Network in Reference mode (SW only execution)", [](mlir::OpPassManager& pm) {
                 buildReferenceModePipeline(pm);
             });
 }

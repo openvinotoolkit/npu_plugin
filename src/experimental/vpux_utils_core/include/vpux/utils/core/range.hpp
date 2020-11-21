@@ -40,8 +40,7 @@ using llvm::make_range;
 
 template <class Range>
 auto make_range(Range&& range) {
-    return make_range(std::begin(std::forward<Range>(range)),
-                      std::end(std::forward<Range>(range)));
+    return make_range(std::begin(std::forward<Range>(range)), std::end(std::forward<Range>(range)));
 }
 
 namespace details {
@@ -85,8 +84,7 @@ auto operator|(Range&& range, MapRangeTag<FuncTy>&& tag) {
 
 template <class FuncTy>
 auto transformed(FuncTy&& func) {
-    return details::MapRangeTag<std::remove_reference_t<FuncTy>>{
-            std::forward<FuncTy>(func)};
+    return details::MapRangeTag<std::remove_reference_t<FuncTy>>{std::forward<FuncTy>(func)};
 }
 
 //
@@ -130,8 +128,7 @@ auto operator|(Range&& range, FilterRangeTag<PredicateT>&& tag) {
 
 template <class PredicateT>
 auto filtered(PredicateT&& pred) {
-    return details::FilterRangeTag<std::remove_reference_t<PredicateT>>{
-            std::forward<PredicateT>(pred)};
+    return details::FilterRangeTag<std::remove_reference_t<PredicateT>>{std::forward<PredicateT>(pred)};
 }
 
 //
@@ -199,18 +196,9 @@ constexpr details::EnumerateTag indexed;
 namespace details {
 
 template <class T, typename = require_t<std::is_integral<T>>>
-class IntegerValuesRange final
-        : public llvm::indexed_accessor_range<IntegerValuesRange<T>,
-                                              llvm::NoneType,
-                                              T,
-                                              T*,
-                                              T> {
+class IntegerValuesRange final : public llvm::indexed_accessor_range<IntegerValuesRange<T>, llvm::NoneType, T, T*, T> {
 public:
-    using llvm::indexed_accessor_range<IntegerValuesRange<T>,
-                                       llvm::NoneType,
-                                       T,
-                                       T*,
-                                       T>::indexed_accessor_range;
+    using llvm::indexed_accessor_range<IntegerValuesRange<T>, llvm::NoneType, T, T*, T>::indexed_accessor_range;
 
 public:
     static T dereference(const llvm::NoneType&, ptrdiff_t index) {

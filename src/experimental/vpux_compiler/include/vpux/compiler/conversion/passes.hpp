@@ -31,8 +31,7 @@ namespace vpux {
 // IE2VPUIP
 //
 
-std::unique_ptr<mlir::Pass>
-        createConvertIE2VPUIPPass(uint32_t maxUPAShaves = 1);
+std::unique_ptr<mlir::Pass> createConvertIE2VPUIPPass(uint32_t maxUPAShaves = 1);
 
 //
 // Generated

@@ -34,9 +34,7 @@ namespace vpux {
 
 // Splits the `str` string onto separate elements using `delim` as delimiter and
 // call `callback` for each element.
-void splitStringList(StringRef str,
-                     char delim,
-                     FuncRef<void(StringRef)> callback);
+void splitStringList(StringRef str, char delim, FuncRef<void(StringRef)> callback);
 
 // Splits the string into container.
 template <class Container>
@@ -61,8 +59,6 @@ std::string removeCharFromString(StringRef str, char ch);
 // eraseSubString
 //
 
-std::string eraseSubString(StringRef str,
-                           StringRef strToRemove,
-                           bool removeAllAfterSubstr = false);
+std::string eraseSubString(StringRef str, StringRef strToRemove, bool removeAllAfterSubstr = false);
 
 }  // namespace vpux

@@ -47,8 +47,7 @@ StringRef vpux::EnumTraits<StrideReqKind>::getEnumValueName(StrideReqKind val) {
     }
 }
 
-Optional<StrideReqKind>
-        vpux::EnumTraits<StrideReqKind>::parseEnumValue(StringRef valStr) {
+Optional<StrideReqKind> vpux::EnumTraits<StrideReqKind>::parseEnumValue(StringRef valStr) {
     if (valStr == "Compact") {
         return StrideReqKind::Compact;
     }
@@ -67,25 +66,16 @@ Optional<StrideReqKind>
 
 void vpux::DimStrideReq::verifyAttrs(StrideReqKind kind, int64_t extraValue) {
     if (kind == StrideReqKind::Compact) {
-        VPUX_THROW_UNLESS(extraValue == 0,
-                          "Got non zero extraValue {0} for {1} DimStrideReq",
-                          extraValue,
-                          kind);
+        VPUX_THROW_UNLESS(extraValue == 0, "Got non zero extraValue {0} for {1} DimStrideReq", extraValue, kind);
 
         return;
     }
 
-    VPUX_THROW_UNLESS(extraValue > 0,
-                      "Got negative or zero extraValue {0} in {1} DimStrideReq",
-                      extraValue,
-                      kind);
+    VPUX_THROW_UNLESS(extraValue > 0, "Got negative or zero extraValue {0} in {1} DimStrideReq", extraValue, kind);
 
     if (kind == StrideReqKind::Aligned) {
-        VPUX_THROW_UNLESS(
-                isPowerOfTwo(extraValue),
-                "Alignment value {0} is not a power-of-two in {1} DimStrideReq",
-                extraValue,
-                kind);
+        VPUX_THROW_UNLESS(isPowerOfTwo(extraValue), "Alignment value {0} is not a power-of-two in {1} DimStrideReq",
+                          extraValue, kind);
     }
 }
 
@@ -104,8 +94,7 @@ void vpux::DimStrideReq::printFormat(llvm::raw_ostream& stream) const {
 }
 
 bool vpux::operator==(const DimStrideReq& req1, const DimStrideReq& req2) {
-    return req1.memDim() == req2.memDim() && req1.kind() == req2.kind() &&
-           req1.extraValue() == req2.extraValue();
+    return req1.memDim() == req2.memDim() && req1.kind() == req2.kind() && req1.extraValue() == req2.extraValue();
 }
 
 bool vpux::operator!=(const DimStrideReq& req1, const DimStrideReq& req2) {
@@ -148,11 +137,9 @@ StrideReqs& vpux::StrideReqs::add(const DimStrideReq& req) {
 }
 
 StrideReqs& vpux::StrideReqs::remove(MemDim memDim) {
-    const auto it = std::remove_if(_cont.begin(),
-                                   _cont.end(),
-                                   [memDim](const DimStrideReq& req) {
-                                       return req.memDim() == memDim;
-                                   });
+    const auto it = std::remove_if(_cont.begin(), _cont.end(), [memDim](const DimStrideReq& req) {
+        return req.memDim() == memDim;
+    });
     _cont.erase(it, _cont.end());
     return *this;
 }
@@ -165,28 +152,19 @@ Optional<DimStrideReq> vpux::StrideReqs::operator[](MemDim memDim) const {
     return StrideReqsRef(*this)[memDim];
 }
 
-void vpux::StrideReqs::calcStrides(MemStrides& memStrides,
-                                   int64_t elemByteSize,
-                                   MemShapeRef memShape) const {
+void vpux::StrideReqs::calcStrides(MemStrides& memStrides, int64_t elemByteSize, MemShapeRef memShape) const {
     StrideReqsRef(*this).calcStrides(memStrides, elemByteSize, memShape);
 }
 
-MemStrides vpux::StrideReqs::calcStrides(int64_t elemByteSize,
-                                         MemShapeRef memShape) const {
+MemStrides vpux::StrideReqs::calcStrides(int64_t elemByteSize, MemShapeRef memShape) const {
     return StrideReqsRef(*this).calcStrides(elemByteSize, memShape);
 }
 
-bool vpux::StrideReqs::checkStrides(MemStridesRef memStrides,
-                                    int64_t elemByteSize,
-                                    MemShapeRef memShape) const {
-    return StrideReqsRef(*this).checkStrides(memStrides,
-                                             elemByteSize,
-                                             memShape);
+bool vpux::StrideReqs::checkStrides(MemStridesRef memStrides, int64_t elemByteSize, MemShapeRef memShape) const {
+    return StrideReqsRef(*this).checkStrides(memStrides, elemByteSize, memShape);
 }
 
-StrideReqs vpux::StrideReqs::join(StrideReqsRef other,
-                                  int64_t elemByteSize,
-                                  MemShapeRef memShape) const {
+StrideReqs vpux::StrideReqs::join(StrideReqsRef other, int64_t elemByteSize, MemShapeRef memShape) const {
     return StrideReqsRef(*this).join(other, elemByteSize, memShape);
 }
 
@@ -203,11 +181,9 @@ bool vpux::StrideReqsRef::hasReqFor(MemDim memDim) const {
 }
 
 Optional<DimStrideReq> vpux::StrideReqsRef::operator[](MemDim memDim) const {
-    const auto it = std::find_if(_ref.begin(),
-                                 _ref.end(),
-                                 [memDim](const DimStrideReq& req) {
-                                     return req.memDim() == memDim;
-                                 });
+    const auto it = std::find_if(_ref.begin(), _ref.end(), [memDim](const DimStrideReq& req) {
+        return req.memDim() == memDim;
+    });
 
     if (it != _ref.end()) {
         return *it;
@@ -232,9 +208,7 @@ int64_t applyStrideReq(int64_t baseStride, const DimStrideReq& req) {
 
 }  // namespace
 
-void vpux::StrideReqsRef::calcStrides(MemStrides& memStrides,
-                                      int64_t elemByteSize,
-                                      MemShapeRef memShape) const {
+void vpux::StrideReqsRef::calcStrides(MemStrides& memStrides, int64_t elemByteSize, MemShapeRef memShape) const {
     assert(memShape.isStatic());
 
     memStrides.resize(memShape.size());
@@ -255,22 +229,18 @@ void vpux::StrideReqsRef::calcStrides(MemStrides& memStrides,
         }
 
         if (req.hasValue()) {
-            memStrides[memDim] =
-                    applyStrideReq(memStrides[memDim], req.getValue());
+            memStrides[memDim] = applyStrideReq(memStrides[memDim], req.getValue());
         }
     }
 }
 
-MemStrides vpux::StrideReqsRef::calcStrides(int64_t elemByteSize,
-                                            MemShapeRef memShape) const {
+MemStrides vpux::StrideReqsRef::calcStrides(int64_t elemByteSize, MemShapeRef memShape) const {
     MemStrides memStrides;
     calcStrides(memStrides, elemByteSize, memShape);
     return memStrides;
 }
 
-bool vpux::StrideReqsRef::checkStrides(MemStridesRef memStrides,
-                                       int64_t elemByteSize,
-                                       MemShapeRef memShape) const {
+bool vpux::StrideReqsRef::checkStrides(MemStridesRef memStrides, int64_t elemByteSize, MemShapeRef memShape) const {
     assert(memShape.isStatic());
     assert(memStrides.isStatic());
     assert(memStrides.size() == memShape.size());
@@ -310,8 +280,7 @@ bool vpux::StrideReqsRef::checkStrides(MemStridesRef memStrides,
             } else {
                 const auto prevMemDim = MemDim(ind - 1);
 
-                if (strideVal !=
-                    memStrides[prevMemDim] * memShape[prevMemDim]) {
+                if (strideVal != memStrides[prevMemDim] * memShape[prevMemDim]) {
                     return false;
                 }
             }
@@ -323,24 +292,18 @@ bool vpux::StrideReqsRef::checkStrides(MemStridesRef memStrides,
     return true;
 }
 
-StrideReqs vpux::StrideReqsRef::join(StrideReqsRef other,
-                                     int64_t elemByteSize,
-                                     MemShapeRef memShape) const {
+StrideReqs vpux::StrideReqsRef::join(StrideReqsRef other, int64_t elemByteSize, MemShapeRef memShape) const {
     StrideReqs merged;
 
-    const auto mergeReq = [&merged](const DimStrideReq& curReq,
-                                    const DimStrideReq& otherReq) {
+    const auto mergeReq = [&merged](const DimStrideReq& curReq, const DimStrideReq& otherReq) {
         assert(curReq.memDim() == otherReq.memDim());
 
-        if (curReq.kind() == StrideReqKind::Fixed &&
-            otherReq.kind() == StrideReqKind::Fixed) {
+        if (curReq.kind() == StrideReqKind::Fixed && otherReq.kind() == StrideReqKind::Fixed) {
             VPUX_THROW_UNLESS(curReq.fixedValue() == otherReq.fixedValue(),
                               "StrideReqs::join : got fixed strides with "
                               "different values at MemDim {0} : "
                               "{1} and {2}",
-                              curReq.memDim(),
-                              curReq.fixedValue(),
-                              otherReq.fixedValue());
+                              curReq.memDim(), curReq.fixedValue(), otherReq.fixedValue());
         }
 
         if (otherReq.kind() == StrideReqKind::Fixed) {
@@ -372,22 +335,14 @@ StrideReqs vpux::StrideReqsRef::join(StrideReqsRef other,
 
     const auto mergedStrides = merged.calcStrides(elemByteSize, memShape);
 
-    VPUX_THROW_UNLESS(
-            checkStrides(mergedStrides, elemByteSize, memShape),
-            "StrideReqs::join : mergedStrides {0} doesn't satisfy original "
-            "StrideReqs {1} (elemByteSize {2}, memShape {3})",
-            mergedStrides,
-            *this,
-            elemByteSize,
-            memShape);
-    VPUX_THROW_UNLESS(
-            other.checkStrides(mergedStrides, elemByteSize, memShape),
-            "StrideReqs::join : mergedStrides {0} doesn't satisfy original "
-            "StrideReqs {1} (elemByteSize {2}, memShape {3})",
-            mergedStrides,
-            other,
-            elemByteSize,
-            memShape);
+    VPUX_THROW_UNLESS(checkStrides(mergedStrides, elemByteSize, memShape),
+                      "StrideReqs::join : mergedStrides {0} doesn't satisfy original "
+                      "StrideReqs {1} (elemByteSize {2}, memShape {3})",
+                      mergedStrides, *this, elemByteSize, memShape);
+    VPUX_THROW_UNLESS(other.checkStrides(mergedStrides, elemByteSize, memShape),
+                      "StrideReqs::join : mergedStrides {0} doesn't satisfy original "
+                      "StrideReqs {1} (elemByteSize {2}, memShape {3})",
+                      mergedStrides, other, elemByteSize, memShape);
 
     return merged;
 }

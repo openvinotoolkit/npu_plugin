@@ -48,9 +48,8 @@ class DimBase {
 public:
     DimBase() = default;
 
-    template <typename IndexType,
-              typename = require_t<std::is_integral<IndexType>>>
-    explicit DimBase(IndexType ind) : _ind(checked_cast<int32_t>(ind)) {
+    template <typename IndexType, typename = require_t<std::is_integral<IndexType>>>
+    explicit DimBase(IndexType ind): _ind(checked_cast<int32_t>(ind)) {
         validateDimAttrs(ConcreteDim::getClassName(), _ind);
     }
 
@@ -69,13 +68,11 @@ private:
 };
 
 template <class ConcreteDim>
-bool operator==(const DimBase<ConcreteDim>& d1,
-                const DimBase<ConcreteDim>& d2) {
+bool operator==(const DimBase<ConcreteDim>& d1, const DimBase<ConcreteDim>& d2) {
     return d1.ind() == d2.ind();
 }
 template <class ConcreteDim>
-bool operator!=(const DimBase<ConcreteDim>& d1,
-                const DimBase<ConcreteDim>& d2) {
+bool operator!=(const DimBase<ConcreteDim>& d1, const DimBase<ConcreteDim>& d2) {
     return d1.ind() != d2.ind();
 }
 

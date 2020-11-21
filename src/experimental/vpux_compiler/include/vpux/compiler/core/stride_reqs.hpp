@@ -41,9 +41,8 @@ namespace vpux {
 
 enum class StrideReqKind : int32_t {
     Compact = 0,  // Stride must be compact for specified Dimension
-    Aligned =
-            1,  // Stride must be aligned by some value for specified Dimension
-    Fixed = 2,  // Stride will have fixed value
+    Aligned = 1,  // Stride must be aligned by some value for specified Dimension
+    Fixed = 2,    // Stride will have fixed value
 };
 
 template <>
@@ -65,7 +64,7 @@ public:
     DimStrideReq() = default;
 
     DimStrideReq(MemDim memDim, StrideReqKind kind, int64_t extraValue)
-            : _memDim(memDim), _kind(kind), _extraValue(extraValue) {
+        : _memDim(memDim), _kind(kind), _extraValue(extraValue) {
         verifyAttrs(_kind, _extraValue);
     }
 
@@ -135,15 +134,14 @@ public:
     using reverse_iterator = typename ContainerType::reverse_iterator;
 
     using const_iterator = typename ContainerType::const_iterator;
-    using const_reverse_iterator =
-            typename ContainerType::const_reverse_iterator;
+    using const_reverse_iterator = typename ContainerType::const_reverse_iterator;
 
     using size_type = typename ContainerType::size_type;
 
 public:
     StrideReqs() = default;
 
-    explicit StrideReqs(ContainerType&& cont) : _cont(std::move(cont)) {
+    explicit StrideReqs(ContainerType&& cont): _cont(std::move(cont)) {
     }
 
 public:
@@ -160,21 +158,15 @@ public:
     Optional<DimStrideReq> operator[](MemDim memDim) const;
 
 public:
-    void calcStrides(MemStrides& memStrides,
-                     int64_t elemByteSize,
-                     MemShapeRef memShape) const;
+    void calcStrides(MemStrides& memStrides, int64_t elemByteSize, MemShapeRef memShape) const;
 
     MemStrides calcStrides(int64_t elemByteSize, MemShapeRef memShape) const;
 
 public:
-    bool checkStrides(MemStridesRef memStrides,
-                      int64_t elemByteSize,
-                      MemShapeRef memShape) const;
+    bool checkStrides(MemStridesRef memStrides, int64_t elemByteSize, MemShapeRef memShape) const;
 
 public:
-    StrideReqs join(StrideReqsRef other,
-                    int64_t elemByteSize,
-                    MemShapeRef memShape) const;
+    StrideReqs join(StrideReqsRef other, int64_t elemByteSize, MemShapeRef memShape) const;
 
 public:
     size_t size() const {
@@ -255,10 +247,10 @@ public:
 public:
     StrideReqsRef() = default;
 
-    StrideReqsRef(const StrideReqs& reqs) : _ref(reqs.raw()) {
+    StrideReqsRef(const StrideReqs& reqs): _ref(reqs.raw()) {
     }
 
-    explicit StrideReqsRef(BaseRef ref) : _ref(ref) {
+    explicit StrideReqsRef(BaseRef ref): _ref(ref) {
     }
 
 public:
@@ -266,21 +258,15 @@ public:
     Optional<DimStrideReq> operator[](MemDim memDim) const;
 
 public:
-    void calcStrides(MemStrides& memStrides,
-                     int64_t elemByteSize,
-                     MemShapeRef memShape) const;
+    void calcStrides(MemStrides& memStrides, int64_t elemByteSize, MemShapeRef memShape) const;
 
     MemStrides calcStrides(int64_t elemByteSize, MemShapeRef memShape) const;
 
 public:
-    bool checkStrides(MemStridesRef memStrides,
-                      int64_t elemByteSize,
-                      MemShapeRef memShape) const;
+    bool checkStrides(MemStridesRef memStrides, int64_t elemByteSize, MemShapeRef memShape) const;
 
 public:
-    StrideReqs join(StrideReqsRef other,
-                    int64_t elemByteSize,
-                    MemShapeRef memShape) const;
+    StrideReqs join(StrideReqsRef other, int64_t elemByteSize, MemShapeRef memShape) const;
 
 public:
     size_t size() const {

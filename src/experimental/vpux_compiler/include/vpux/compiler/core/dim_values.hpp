@@ -45,8 +45,7 @@ public:
     using reverse_iterator = typename ContainerType::reverse_iterator;
 
     using const_iterator = typename ContainerType::const_iterator;
-    using const_reverse_iterator =
-            typename ContainerType::const_reverse_iterator;
+    using const_reverse_iterator = typename ContainerType::const_reverse_iterator;
 
     using size_type = typename ContainerType::size_type;
 
@@ -74,9 +73,9 @@ public:
         assign(size, initVal);
     }
 
-    explicit DimValuesBase(const ContainerType& cont) : _cont(cont) {
+    explicit DimValuesBase(const ContainerType& cont): _cont(cont) {
     }
-    explicit DimValuesBase(ContainerType&& cont) : _cont(std::move(cont)) {
+    explicit DimValuesBase(ContainerType&& cont): _cont(std::move(cont)) {
     }
 
 public:
@@ -271,11 +270,10 @@ public:
 public:
     DimValuesRefBase() = default;
 
-    DimValuesRefBase(const std::initializer_list<ValueType>& vals)
-            : _ref(vals) {
+    DimValuesRefBase(const std::initializer_list<ValueType>& vals): _ref(vals) {
     }
 
-    explicit DimValuesRefBase(BaseRef ref) : _ref(std::move(ref)) {
+    explicit DimValuesRefBase(BaseRef ref): _ref(std::move(ref)) {
     }
 
 public:
@@ -342,13 +340,11 @@ public:
     DimValuesRef& operator=(DimValuesRef<D, T, Tag>&& other) = default;
 
     template <typename U, typename = require_t<std::is_convertible<U*, T*>>>
-    DimValuesRef(const DimValuesRef<D, U, Tag>& values)
-            : Tag<DimValuesRefBase<T>>(values.raw()) {
+    DimValuesRef(const DimValuesRef<D, U, Tag>& values): Tag<DimValuesRefBase<T>>(values.raw()) {
     }
 
     template <typename U, typename = require_t<std::is_convertible<U*, T*>>>
-    DimValuesRef(const DimValues<D, U, Tag>& values)
-            : Tag<DimValuesRefBase<T>>(values.raw()) {
+    DimValuesRef(const DimValues<D, U, Tag>& values): Tag<DimValuesRefBase<T>>(values.raw()) {
     }
 
 public:
@@ -366,10 +362,8 @@ public:
     }
 
 public:
-    auto toValues() const
-            -> DimValues<D, typename std::remove_const<T>::type, Tag> {
-        using ResultType =
-                DimValues<D, typename std::remove_const<T>::type, Tag>;
+    auto toValues() const -> DimValues<D, typename std::remove_const<T>::type, Tag> {
+        using ResultType = DimValues<D, typename std::remove_const<T>::type, Tag>;
         return ResultType(this->begin(), this->end());
     }
 };

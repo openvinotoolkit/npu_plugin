@@ -62,7 +62,6 @@ int64_t getTypeByteSize(mlir::MemRefType type);
 //
 
 using MemStrides = details::DimValues<MemDim, int64_t, details::StridesTag>;
-using MemStridesRef =
-        details::DimValuesRef<MemDim, int64_t, details::StridesTag>;
+using MemStridesRef = details::DimValuesRef<MemDim, int64_t, details::StridesTag>;
 
 }  // namespace vpux

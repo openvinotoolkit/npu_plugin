@@ -39,28 +39,22 @@
 using namespace vpux;
 using namespace InferenceEngine;
 
-std::shared_ptr<INetworkDescription>
-        vpux::CompilerImpl::compile(ICNNNetwork&, const VPUXConfig&) {
+std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(ICNNNetwork&, const VPUXConfig&) {
     VPUX_THROW("VPUX Compiler doesn't support InferenceEngine IR prior to v10 "
                "version");
 }
 
-std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(
-        const std::shared_ptr<ngraph::Function>& func,
-        const std::string&,
-        const InputsDataMap& inputsInfo,
-        const OutputsDataMap& outputsInfo,
-        const VPUXConfig&) {
+std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shared_ptr<ngraph::Function>& func,
+                                                                 const std::string&, const InputsDataMap& inputsInfo,
+                                                                 const OutputsDataMap& outputsInfo, const VPUXConfig&) {
     CNNNetwork cnnNet(func);
 
     for (const auto& p : inputsInfo) {
-        cnnNet.getInputsInfo().at(p.first)->setPrecision(
-                p.second->getPrecision());
+        cnnNet.getInputsInfo().at(p.first)->setPrecision(p.second->getPrecision());
         cnnNet.getInputsInfo().at(p.first)->setLayout(p.second->getLayout());
     }
     for (const auto& p : outputsInfo) {
-        cnnNet.getOutputsInfo().at(p.first)->setPrecision(
-                p.second->getPrecision());
+        cnnNet.getOutputsInfo().at(p.first)->setPrecision(p.second->getPrecision());
         cnnNet.getOutputsInfo().at(p.first)->setLayout(p.second->getLayout());
     }
 
@@ -77,29 +71,22 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(
 
     buildReferenceModePipeline(pm);
 
-    VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module.get())),
-                      "Compilation failed");
+    VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module.get())), "Compilation failed");
 
     const auto blob = VPUIP::exportToBlob(module.get());
 
     std::vector<char> compiledNetwork(blob.size());
-    std::copy_n(reinterpret_cast<const char*>(blob.data()),
-                blob.size(),
-                compiledNetwork.data());
+    std::copy_n(reinterpret_cast<const char*>(blob.data()), blob.size(), compiledNetwork.data());
 
-    return std::make_shared<VPUIP::NetworkDescription>(
-            std::move(compiledNetwork));
+    return std::make_shared<VPUIP::NetworkDescription>(std::move(compiledNetwork));
 }
 
-std::shared_ptr<vpux::INetworkDescription>
-        vpux::CompilerImpl::parse(const std::vector<char>& compiledNetwork,
-                                  const vpux::VPUXConfig&,
-                                  const std::string&) {
+std::shared_ptr<vpux::INetworkDescription> vpux::CompilerImpl::parse(const std::vector<char>& compiledNetwork,
+                                                                     const vpux::VPUXConfig&, const std::string&) {
     return std::make_shared<VPUIP::NetworkDescription>(compiledNetwork);
 }
 
-std::set<std::string>
-        vpux::CompilerImpl::getSupportedLayers(InferenceEngine::ICNNNetwork&) {
+std::set<std::string> vpux::CompilerImpl::getSupportedLayers(InferenceEngine::ICNNNetwork&) {
     VPUX_THROW("VPUX Compiler doesn't support HETERO mode");
 }
 

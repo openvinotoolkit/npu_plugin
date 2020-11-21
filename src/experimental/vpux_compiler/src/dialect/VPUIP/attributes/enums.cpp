@@ -26,8 +26,7 @@ using namespace vpux;
 // MemoryLocation utilities
 //
 
-VPUIP::MemoryLocation
-        vpux::VPUIP::getDefaultMemoryLocation(PhysicalMemory mem) {
+VPUIP::MemoryLocation vpux::VPUIP::getDefaultMemoryLocation(PhysicalMemory mem) {
     switch (mem) {
     case PhysicalMemory::DDR:
         return MemoryLocation::VPU_DDR_Heap;
@@ -42,8 +41,7 @@ VPUIP::MemoryLocation
     }
 }
 
-VPUIP::MemoryLocation
-        vpux::VPUIP::getDefaultMemoryLocation(mlir::MemRefType memref) {
+VPUIP::MemoryLocation vpux::VPUIP::getDefaultMemoryLocation(mlir::MemRefType memref) {
     return getDefaultMemoryLocation(getPhysicalMemory(memref));
 }
 
@@ -83,8 +81,7 @@ VPUIP::PhysicalMemory vpux::VPUIP::getPhysicalMemory(mlir::MemRefType memref) {
     }
 }
 
-bool vpux::VPUIP::isMemoryCompatible(MemoryLocation location,
-                                     mlir::MemRefType memref) {
+bool vpux::VPUIP::isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref) {
     return getPhysicalMemory(location) == getPhysicalMemory(memref);
 }
 

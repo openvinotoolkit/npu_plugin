@@ -33,8 +33,7 @@ using namespace vpux;
 
 namespace {
 
-class AssignTensorOffsetsDDRPass final
-        : public VPUIP::AssignTensorOffsetsDDRBase<AssignTensorOffsetsDDRPass> {
+class AssignTensorOffsetsDDRPass final : public VPUIP::AssignTensorOffsetsDDRBase<AssignTensorOffsetsDDRPass> {
 public:
     void runOnOperation() final;
 
@@ -66,52 +65,38 @@ bool AssignTensorOffsetsDDRPass::Handler::isFixedAlloc(mlir::Value) const {
     return false;
 }
 
-AddressType
-        AssignTensorOffsetsDDRPass::Handler::getSize(mlir::Value val) const {
+AddressType AssignTensorOffsetsDDRPass::Handler::getSize(mlir::Value val) const {
     return getTypeByteSize(val.getType().cast<mlir::MemRefType>());
 }
 
-AddressType
-        AssignTensorOffsetsDDRPass::Handler::getAlignment(mlir::Value) const {
+AddressType AssignTensorOffsetsDDRPass::Handler::getAlignment(mlir::Value) const {
     return 64;
 }
 
-AddressType
-        AssignTensorOffsetsDDRPass::Handler::getAddress(mlir::Value val) const {
-    auto producerOp =
-            mlir::dyn_cast<VPUIP::DeclareTensorOp>(val.getDefiningOp());
+AddressType AssignTensorOffsetsDDRPass::Handler::getAddress(mlir::Value val) const {
+    auto producerOp = mlir::dyn_cast<VPUIP::DeclareTensorOp>(val.getDefiningOp());
 
-    VPUX_THROW_UNLESS(producerOp != nullptr,
-                      "Can allocate only DeclareTensorOp results");
-    VPUX_THROW_UNLESS(getPhysicalMemory(producerOp.location()) ==
-                              VPUIP::PhysicalMemory::DDR,
+    VPUX_THROW_UNLESS(producerOp != nullptr, "Can allocate only DeclareTensorOp results");
+    VPUX_THROW_UNLESS(getPhysicalMemory(producerOp.location()) == VPUIP::PhysicalMemory::DDR,
                       "Can allocate only DDR memory");
-    VPUX_THROW_UNLESS(producerOp.offset().hasValue(),
-                      "DeclareTensorOp offset was not set");
+    VPUX_THROW_UNLESS(producerOp.offset().hasValue(), "DeclareTensorOp offset was not set");
 
     return producerOp.offset().getValue();
 }
 
-void AssignTensorOffsetsDDRPass::Handler::allocated(mlir::Value val,
-                                                    AddressType addr) {
-    VPUX_THROW_UNLESS(addr != InvalidAddress,
-                      "Trying to assign invalid address");
+void AssignTensorOffsetsDDRPass::Handler::allocated(mlir::Value val, AddressType addr) {
+    VPUX_THROW_UNLESS(addr != InvalidAddress, "Trying to assign invalid address");
 
-    auto producerOp =
-            mlir::dyn_cast<VPUIP::DeclareTensorOp>(val.getDefiningOp());
+    auto producerOp = mlir::dyn_cast<VPUIP::DeclareTensorOp>(val.getDefiningOp());
 
-    VPUX_THROW_UNLESS(producerOp != nullptr,
-                      "Can allocate only DeclareTensorOp results");
-    VPUX_THROW_UNLESS(getPhysicalMemory(producerOp.location()) ==
-                              VPUIP::PhysicalMemory::DDR,
+    VPUX_THROW_UNLESS(producerOp != nullptr, "Can allocate only DeclareTensorOp results");
+    VPUX_THROW_UNLESS(getPhysicalMemory(producerOp.location()) == VPUIP::PhysicalMemory::DDR,
                       "Can allocate only DDR memory");
-    VPUX_THROW_UNLESS(!producerOp.offset().hasValue(),
-                      "DeclareTensorOp offset was already set");
+    VPUX_THROW_UNLESS(!producerOp.offset().hasValue(), "DeclareTensorOp offset was already set");
 
     producerOp.offsetAttr(getInt64Attr(val.getContext(), addr));
 
-    maxAllocatedSize = std::max(maxAllocatedSize,
-                                alignVal<AddressType>(addr + getSize(val), 64));
+    maxAllocatedSize = std::max(maxAllocatedSize, alignVal<AddressType>(addr + getSize(val), 64));
 }
 
 void AssignTensorOffsetsDDRPass::Handler::freed(mlir::Value) const {
@@ -129,9 +114,7 @@ void AssignTensorOffsetsDDRPass::runOnOperation() {
     try {
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(),
-                "AssignTensorOffsetsDDRPass failed : {0}",
-                e.what());
+        printTo(getOperation().emitError(), "AssignTensorOffsetsDDRPass failed : {0}", e.what());
         signalPassFailure();
     }
 }
@@ -141,8 +124,7 @@ void AssignTensorOffsetsDDRPass::passBody() {
 
     VPUIP::GraphOp graphOp;
     mlir::FuncOp graphFunc;
-    if (mlir::failed(
-                VPUIP::GraphOp::getFromModule(module, graphOp, graphFunc))) {
+    if (mlir::failed(VPUIP::GraphOp::getFromModule(module, graphOp, graphFunc))) {
         signalPassFailure();
         return;
     }
@@ -156,8 +138,7 @@ void AssignTensorOffsetsDDRPass::passBody() {
 
     auto callback = [&](mlir::Operation* op) -> mlir::WalkResult {
         if (auto allocOp = mlir::dyn_cast<VPUIP::DeclareTensorOp>(op)) {
-            if (getPhysicalMemory(allocOp.location()) ==
-                VPUIP::PhysicalMemory::DDR) {
+            if (getPhysicalMemory(allocOp.location()) == VPUIP::PhysicalMemory::DDR) {
                 auto memVal = allocOp.memory();
 
                 if (!scan.alloc({memVal}, /*allowSpills*/ false)) {
@@ -199,15 +180,11 @@ void AssignTensorOffsetsDDRPass::passBody() {
     graphFunc.walk(std::move(callback));
 
     const auto newResources = VPUIP::ResourcesAttr::get(
-            graphOp.resources().upa_shaves(),
-            graphOp.resources().nce2_blocks(),
-            graphOp.resources().upa_shared_cmx(),
-            graphOp.resources().nn_cmx_per_slice(),
-            graphOp.resources().nn_cmx_slice_amount(),
+            graphOp.resources().upa_shaves(), graphOp.resources().nce2_blocks(), graphOp.resources().upa_shared_cmx(),
+            graphOp.resources().nn_cmx_per_slice(), graphOp.resources().nn_cmx_slice_amount(),
             getInt64Attr(module.getContext(),
                          scan.handler().maxAllocatedSize),  // ddr_scratch
-            graphOp.resources().csram_storage(),
-            module.getContext());
+            graphOp.resources().csram_storage(), module.getContext());
     graphOp.resourcesAttr(newResources);
 }
 

@@ -31,8 +31,7 @@ public:
     FrontEnd(mlir::MLIRContext* ctx, LogLevel level);
 
 public:
-    mlir::OwningModuleRef
-            importNetwork(InferenceEngine::CNNNetwork cnnNet) const;
+    mlir::OwningModuleRef importNetwork(InferenceEngine::CNNNetwork cnnNet) const;
 
 private:
     mlir::MLIRContext* _ctx = nullptr;

@@ -35,8 +35,7 @@ using namespace vpux;
 
 namespace {
 
-class AdjustPrecisionForVPUPass final
-        : public IE::AdjustPrecisionForVPUBase<AdjustPrecisionForVPUPass> {
+class AdjustPrecisionForVPUPass final : public IE::AdjustPrecisionForVPUBase<AdjustPrecisionForVPUPass> {
 public:
     AdjustPrecisionForVPUPass();
 
@@ -55,8 +54,7 @@ private:
 };
 
 AdjustPrecisionForVPUPass::AdjustPrecisionForVPUPass()
-        : _cleanUpIR(mlir::ModuleOp::getOperationName(),
-                     mlir::OpPassManager::Nesting::Implicit) {
+    : _cleanUpIR(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _cleanUpIR.addPass(mlir::createCanonicalizerPass());
 }
 
@@ -64,29 +62,23 @@ AdjustPrecisionForVPUPass::AdjustPrecisionForVPUPass()
 // FuncOpConverter
 //
 
-class AdjustPrecisionForVPUPass::FuncOpConverter final
-        : public mlir::OpConversionPattern<mlir::FuncOp> {
+class AdjustPrecisionForVPUPass::FuncOpConverter final : public mlir::OpConversionPattern<mlir::FuncOp> {
 public:
     using mlir::OpConversionPattern<mlir::FuncOp>::OpConversionPattern;
 
 public:
-    mlir::LogicalResult matchAndRewrite(
-            mlir::FuncOp funcOp,
-            ArrayRef<mlir::Value> operands,
-            mlir::ConversionPatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(mlir::FuncOp funcOp, ArrayRef<mlir::Value> operands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
 };
 
 mlir::LogicalResult AdjustPrecisionForVPUPass::FuncOpConverter::matchAndRewrite(
-        mlir::FuncOp funcOp,
-        ArrayRef<mlir::Value>,
-        mlir::ConversionPatternRewriter& rewriter) const {
+        mlir::FuncOp funcOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
     const auto funcType = funcOp.getType();
 
-    mlir::TypeConverter::SignatureConversion conversion(
-            funcType.getNumInputs());
+    mlir::TypeConverter::SignatureConversion conversion(funcType.getNumInputs());
     for (const auto& p : funcType.getInputs() | indexed) {
         const auto newType = converter->convertType(p.value());
         conversion.addInputs(checked_cast<uint32_t>(p.index()), newType);
@@ -98,16 +90,12 @@ mlir::LogicalResult AdjustPrecisionForVPUPass::FuncOpConverter::matchAndRewrite(
         newResultTypes.push_back(converter->convertType(outType));
     }
 
-    if (mlir::failed(rewriter.convertRegionTypes(&funcOp.getBody(),
-                                                 *converter,
-                                                 &conversion))) {
-        return printTo(funcOp.emitError(),
-                       "Failed to convert Function arguments");
+    if (mlir::failed(rewriter.convertRegionTypes(&funcOp.getBody(), *converter, &conversion))) {
+        return printTo(funcOp.emitError(), "Failed to convert Function arguments");
     }
 
     rewriter.updateRootInPlace(funcOp, [&]() {
-        funcOp.setType(rewriter.getFunctionType(conversion.getConvertedTypes(),
-                                                newResultTypes));
+        funcOp.setType(rewriter.getFunctionType(conversion.getConvertedTypes(), newResultTypes));
     });
 
     return mlir::success();
@@ -117,34 +105,24 @@ mlir::LogicalResult AdjustPrecisionForVPUPass::FuncOpConverter::matchAndRewrite(
 // OpConverter
 //
 
-class AdjustPrecisionForVPUPass::OpConverter final
-        : public mlir::ConversionPattern {
+class AdjustPrecisionForVPUPass::OpConverter final : public mlir::ConversionPattern {
 public:
-    OpConverter(mlir::TypeConverter& typeConverter,
-                mlir::PatternBenefit benefit = 1)
-            : mlir::ConversionPattern(benefit,
-                                      typeConverter,
-                                      MatchAnyOpTypeTag{}) {
+    OpConverter(mlir::TypeConverter& typeConverter, mlir::PatternBenefit benefit = 1)
+        : mlir::ConversionPattern(benefit, typeConverter, MatchAnyOpTypeTag{}) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(
-            mlir::Operation* origOp,
-            ArrayRef<mlir::Value> operands,
-            mlir::ConversionPatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> operands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
 };
 
 mlir::LogicalResult AdjustPrecisionForVPUPass::OpConverter::matchAndRewrite(
-        mlir::Operation* origOp,
-        ArrayRef<mlir::Value> operands,
-        mlir::ConversionPatternRewriter& rewriter) const {
+        mlir::Operation* origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
     const auto origOperands = origOp->getOperands();
-    VPUX_THROW_UNLESS(origOperands.size() == operands.size(),
-                      "Wrong operands size : {0}",
-                      operands.size());
+    VPUX_THROW_UNLESS(origOperands.size() == operands.size(), "Wrong operands size : {0}", operands.size());
 
     mlir::BlockAndValueMapping mapper;
     mapper.map(origOperands, operands);
@@ -167,9 +145,7 @@ void AdjustPrecisionForVPUPass::runOnOperation() {
     try {
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(),
-                "AdjustPrecisionForVPUPass failed : {0}",
-                e.what());
+        printTo(getOperation().emitError(), "AdjustPrecisionForVPUPass failed : {0}", e.what());
         signalPassFailure();
     }
 }
@@ -180,43 +156,23 @@ void AdjustPrecisionForVPUPass::passBody() {
     mlir::TypeConverter typeConverter;
     typeConverter.addConversion([](mlir::RankedTensorType tensor) {
         if (tensor.getElementType().isF32()) {
-            return mlir::RankedTensorType::get(
-                    tensor.getShape(),
-                    mlir::Float16Type::get(tensor.getContext()));
+            return mlir::RankedTensorType::get(tensor.getShape(), mlir::Float16Type::get(tensor.getContext()));
         } else if (tensor.getElementType().isIntOrIndex()) {
-            return mlir::RankedTensorType::get(
-                    tensor.getShape(),
-                    getSInt32Type(tensor.getContext()));
+            return mlir::RankedTensorType::get(tensor.getShape(), getSInt32Type(tensor.getContext()));
         } else {
             return tensor;
         }
     });
-    typeConverter.addSourceMaterialization(
-            [](mlir::OpBuilder& builder,
-               mlir::RankedTensorType type,
-               mlir::ValueRange inputs,
-               mlir::Location loc) -> mlir::Value {
-                VPUX_THROW_UNLESS(inputs.size() == 1,
-                                  "Got wrong number of inputs : {0}",
-                                  inputs.size());
-                return builder.createOrFold<IE::ConvertOp>(
-                        loc,
-                        inputs[0],
-                        mlir::TypeAttr::get(type.getElementType()));
-            });
-    typeConverter.addTargetMaterialization(
-            [](mlir::OpBuilder& builder,
-               mlir::RankedTensorType type,
-               mlir::ValueRange inputs,
-               mlir::Location loc) -> mlir::Value {
-                VPUX_THROW_UNLESS(inputs.size() == 1,
-                                  "Got wrong number of inputs : {0}",
-                                  inputs.size());
-                return builder.createOrFold<IE::ConvertOp>(
-                        loc,
-                        inputs[0],
-                        mlir::TypeAttr::get(type.getElementType()));
-            });
+    typeConverter.addSourceMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
+                                              mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
+        VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
+        return builder.createOrFold<IE::ConvertOp>(loc, inputs[0], mlir::TypeAttr::get(type.getElementType()));
+    });
+    typeConverter.addTargetMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
+                                              mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
+        VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
+        return builder.createOrFold<IE::ConvertOp>(loc, inputs[0], mlir::TypeAttr::get(type.getElementType()));
+    });
 
     const auto isLegalOp = [&](mlir::Operation* op) {
         return llvm::all_of(op->getOperandTypes(),
@@ -235,8 +191,7 @@ void AdjustPrecisionForVPUPass::passBody() {
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
-        return typeConverter.isSignatureLegal(funcOp.getType()) &&
-               typeConverter.isLegal(&funcOp.getBody());
+        return typeConverter.isSignatureLegal(funcOp.getType()) && typeConverter.isLegal(&funcOp.getBody());
     });
 
     mlir::OwningRewritePatternList patterns;
@@ -244,9 +199,7 @@ void AdjustPrecisionForVPUPass::passBody() {
     patterns.insert<OpConverter>(typeConverter);
 
     auto module = getOperation();
-    if (mlir::failed(mlir::applyFullConversion(module.getOperation(),
-                                               target,
-                                               std::move(patterns)))) {
+    if (mlir::failed(mlir::applyFullConversion(module.getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
     }
 

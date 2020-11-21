@@ -18,8 +18,7 @@
 
 using namespace vpux;
 
-mlir::Type vpux::VPUIP::BarrierType::parse(mlir::MLIRContext* ctxt,
-                                           mlir::DialectAsmParser& /*parser*/) {
+mlir::Type vpux::VPUIP::BarrierType::parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& /*parser*/) {
     return BarrierType::get(ctxt);
 }
 

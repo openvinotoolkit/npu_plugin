@@ -20,8 +20,7 @@
 
 namespace vpux {
 
-void buildReferenceModePipeline(mlir::OpPassManager& pm,
-                                uint32_t maxUPAShaves = 1);
+void buildReferenceModePipeline(mlir::OpPassManager& pm, uint32_t maxUPAShaves = 1);
 
 void registerAllPipelines();
 

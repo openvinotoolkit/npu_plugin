@@ -43,8 +43,7 @@ size_t getHash(const T& val) {
 
 template <typename T, typename... Args>
 size_t getHash(const T& val, Args&&... args) {
-    return details::combineHashVals(getHash(val),
-                                    getHash(std::forward<Args>(args)...));
+    return details::combineHashVals(getHash(val), getHash(std::forward<Args>(args)...));
 }
 
 template <class Range>
@@ -96,15 +95,12 @@ struct hash<tuple<Args...>> final {
 
 private:
     template <size_t Index = 0>
-    static auto hashItems(const tuple<Args...>&, size_t&)
-            -> enable_if_t<Index == sizeof...(Args)> {
+    static auto hashItems(const tuple<Args...>&, size_t&) -> enable_if_t<Index == sizeof...(Args)> {
     }
 
     template <size_t Index = 0>
-            static auto hashItems(const tuple<Args...>& val, size_t& seed)
-                    -> enable_if_t < Index<sizeof...(Args)> {
-        seed = vpux::details::combineHashVals(seed,
-                                              vpux::getHash(get<Index>(val)));
+            static auto hashItems(const tuple<Args...>& val, size_t& seed) -> enable_if_t < Index<sizeof...(Args)> {
+        seed = vpux::details::combineHashVals(seed, vpux::getHash(get<Index>(val)));
         hashItems<Index + 1>(val, seed);
     }
 };

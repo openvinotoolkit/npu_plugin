@@ -51,9 +51,7 @@ public:
     explicit Partitioner(AddressType totalSize);
 
 public:
-    AddressType alloc(AddressType size,
-                      AddressType alignment = 1,
-                      Direction dir = Direction::Up);
+    AddressType alloc(AddressType size, AddressType alignment = 1, Direction dir = Direction::Up);
 
     // Called when client is certain about ability to allocate at the specified
     // addr
@@ -75,20 +73,12 @@ public:
     }
 
 public:
-    static bool intersects(AddressType addr1,
-                           AddressType size1,
-                           AddressType addr2,
-                           AddressType size2);
+    static bool intersects(AddressType addr1, AddressType size1, AddressType addr2, AddressType size2);
 
 private:
-    AddressType getAddrFromGap(size_t pos,
-                               AddressType size,
-                               AddressType alignment,
-                               Direction dir);
+    AddressType getAddrFromGap(size_t pos, AddressType size, AddressType alignment, Direction dir);
     AddressType useGap(size_t pos, AddressType alignedBegin, AddressType size);
-    AddressType chooseMinimalGap(AddressType size,
-                                 AddressType alignment,
-                                 Direction dir);
+    AddressType chooseMinimalGap(AddressType size, AddressType alignment, Direction dir);
 
 private:
     std::vector<Gap> _gaps;

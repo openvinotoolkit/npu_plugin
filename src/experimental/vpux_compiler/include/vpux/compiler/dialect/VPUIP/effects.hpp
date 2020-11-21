@@ -27,8 +27,7 @@ namespace vpux {
 namespace VPUIP {
 
 template <PhysicalMemory mem>
-class MemoryResource final
-        : public mlir::SideEffects::Resource::Base<MemoryResource<mem>> {
+class MemoryResource final : public mlir::SideEffects::Resource::Base<MemoryResource<mem>> {
 public:
     StringRef getName() final {
         return _name;
@@ -48,8 +47,7 @@ private:
 mlir::SideEffects::Resource* getMemoryResource(PhysicalMemory mem);
 mlir::SideEffects::Resource* getMemoryResource(mlir::MemRefType memref);
 
-struct BarrierResource final
-        : public mlir::SideEffects::Resource::Base<BarrierResource> {
+struct BarrierResource final : public mlir::SideEffects::Resource::Base<BarrierResource> {
     StringRef getName() final {
         return "VPUIP::Barrier";
     }

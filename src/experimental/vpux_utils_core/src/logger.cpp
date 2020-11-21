@@ -69,14 +69,12 @@ llvm::raw_ostream& getStream(LogLevel msgLevel) {
     case LogLevel::Error:
         return llvm::WithColor(llvm::errs(), llvm::HighlightColor::Error).get();
     case LogLevel::Warning:
-        return llvm::WithColor(llvm::errs(), llvm::HighlightColor::Warning)
-                .get();
+        return llvm::WithColor(llvm::errs(), llvm::HighlightColor::Warning).get();
     case LogLevel::Info:
         return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Note).get();
     case LogLevel::Debug:
     case LogLevel::Trace:
-        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Remark)
-                .get();
+        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Remark).get();
     default:
         return llvm::outs();
     }
@@ -84,8 +82,7 @@ llvm::raw_ostream& getStream(LogLevel msgLevel) {
 
 }  // namespace
 
-void vpux::Logger::addEntryPacked(LogLevel msgLevel,
-                                  const llvm::formatv_object_base& msg) const {
+void vpux::Logger::addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_base& msg) const {
     if (!isActive(msgLevel)) {
         return;
     }

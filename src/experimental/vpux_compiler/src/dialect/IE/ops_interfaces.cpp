@@ -29,16 +29,11 @@ using namespace vpux;
 
 mlir::LogicalResult vpux::IE::verifyNetworkInformation(mlir::Operation* op) {
     if (!op->hasTrait<mlir::OpTrait::IsIsolatedFromAbove>()) {
-        return printTo(op->emitError(),
-                       "NetworkInformation Operation '{0}' is not Isolated",
-                       *op);
+        return printTo(op->emitError(), "NetworkInformation Operation '{0}' is not Isolated", *op);
     }
 
     if (!op->hasTrait<mlir::OpTrait::HasParent<mlir::ModuleOp>::Impl>()) {
-        return printTo(
-                op->emitError(),
-                "NetworkInformation Operation '{0}' is not attached to Module",
-                *op);
+        return printTo(op->emitError(), "NetworkInformation Operation '{0}' is not attached to Module", *op);
     }
 
     if (op->getRegions().size() != 2) {
@@ -49,36 +44,29 @@ mlir::LogicalResult vpux::IE::verifyNetworkInformation(mlir::Operation* op) {
     }
 
     if (!op->hasTrait<mlir::OpTrait::NoRegionArguments>()) {
-        return printTo(
-                op->emitError(),
-                "NetworkInformation Operation '{0}' Regions must have no "
-                "arguments",
-                *op);
+        return printTo(op->emitError(),
+                       "NetworkInformation Operation '{0}' Regions must have no "
+                       "arguments",
+                       *op);
     }
 
     if (mlir::dyn_cast<mlir::SymbolUserOpInterface>(op) == nullptr) {
-        return printTo(
-                op->emitError(),
-                "NetworkInformation Operation '{0}' is not a Symbol User",
-                *op);
+        return printTo(op->emitError(), "NetworkInformation Operation '{0}' is not a Symbol User", *op);
     }
 
-    const auto entryPointAttrName =
-            mlir::Identifier::get("entryPoint", op->getContext());
+    const auto entryPointAttrName = mlir::Identifier::get("entryPoint", op->getContext());
     const auto entryPointAttr = op->getAttr(entryPointAttrName);
     if (entryPointAttr == nullptr) {
         return printTo(op->emitError(),
                        "NetworkInformation Operation '{0}' doesn't have '{1}' "
                        "attribute",
-                       *op,
-                       entryPointAttrName);
+                       *op, entryPointAttrName);
     }
     if (!entryPointAttr.isa<mlir::FlatSymbolRefAttr>()) {
         return printTo(op->emitError(),
                        "NetworkInformation Operation '{0}' attribute '{1}' is "
                        "not a Symbol Reference",
-                       *op,
-                       entryPointAttrName);
+                       *op, entryPointAttrName);
     }
 
     return mlir::success();

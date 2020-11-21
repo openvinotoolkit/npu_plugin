@@ -29,7 +29,7 @@ void addLogging(mlir::PassManager& pm, LogLevel level);
 
 class OpBuilderLogger final : public mlir::OpBuilder::Listener {
 public:
-    explicit OpBuilderLogger(LogLevel level) : _log(level) {
+    explicit OpBuilderLogger(LogLevel level): _log(level) {
     }
 
 public:

@@ -27,8 +27,8 @@ namespace vpux {
 template <>
 struct EnumTraits<TestEnum> {
     static StringRef getEnumValueName(TestEnum val) {
-#define CASE(_val_)                                                            \
-    case TestEnum::_val_:                                                      \
+#define CASE(_val_)       \
+    case TestEnum::_val_: \
         return #_val_
 
         switch (val) {

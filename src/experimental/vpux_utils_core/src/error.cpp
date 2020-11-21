@@ -27,9 +27,7 @@ using namespace vpux;
 // Exceptions
 //
 
-[[noreturn]] void vpux::details::throwFormat(StringRef file,
-                                             int line,
-                                             std::string message) {
+[[noreturn]] void vpux::details::throwFormat(StringRef file, int line, std::string message) {
     VPUX_UNUSED(file);
     VPUX_UNUSED(line);
 

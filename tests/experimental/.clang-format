@@ -1,4 +1,4 @@
-﻿BasedOnStyle: LLVM
+﻿BasedOnStyle: Google
 
 Language: Cpp
 Standard: Cpp11
@@ -6,23 +6,23 @@ Standard: Cpp11
 AccessModifierOffset: -4
 AlignAfterOpenBracket: Align
 AllowAllArgumentsOnNextLine: false
-AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllConstructorInitializersOnNextLine: true
 AllowShortBlocksOnASingleLine: false
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: Never
-AllowShortLambdasOnASingleLine: None
+AllowShortLambdasOnASingleLine: Empty
 AllowShortLoopsOnASingleLine: false
-AlwaysBreakAfterReturnType: None
-AlwaysBreakTemplateDeclarations: Yes
-BinPackArguments: false
-BinPackParameters: false
-ConstructorInitializerIndentWidth: 8
+AlwaysBreakBeforeMultilineStrings: false
+BreakInheritanceList:  AfterColon
+ColumnLimit: 120
 ContinuationIndentWidth: 8
-IndentPPDirectives: AfterHash
+DerivePointerAlignment: false
+FixNamespaceComments: true
+IncludeBlocks: Preserve
+IndentCaseLabels: false
 IndentWidth: 4
-IndentWrappedFunctionNames: true
 PointerAlignment: Left
-SpacesBeforeTrailingComments: 2
-StatementMacros: [VPUX_THROW, VPUX_THROW_UNLESS]
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: false
 UseTab: Never

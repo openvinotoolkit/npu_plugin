@@ -48,8 +48,7 @@ struct EnumTraits<IE::Layout> final {
     }
 
     static bool isValidVal(int64_t val) {
-        return val >= 0 &&
-               static_cast<uint64_t>(val) <= IE::getMaxEnumValForLayout();
+        return val >= 0 && static_cast<uint64_t>(val) <= IE::getMaxEnumValForLayout();
     }
 };
 

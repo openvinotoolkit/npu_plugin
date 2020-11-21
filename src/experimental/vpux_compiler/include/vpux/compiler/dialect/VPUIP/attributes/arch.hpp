@@ -45,46 +45,37 @@ struct ArchTraits<ArchKind::KMB> final {
 };
 
 template <>
-struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::ARM>
-        final {
+struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::ARM> final {
     static constexpr int32_t COUNT = 1;
 };
 
 template <>
-struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::Leon_RT>
-        final {
+struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::Leon_RT> final {
     static constexpr int32_t COUNT = 1;
 };
 
 template <>
-struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::Leon_NN>
-        final {
+struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::Leon_NN> final {
     static constexpr int32_t COUNT = 1;
 };
 
 template <>
-struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::SHAVE_UPA>
-        final {
+struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::SHAVE_UPA> final {
     static constexpr int32_t COUNT = 16;
 };
 
 template <>
-struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::SHAVE_NN>
-        final {
+struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::SHAVE_NN> final {
     static constexpr int32_t COUNT = 20;
 };
 
 template <>
-struct ArchTraits<ArchKind::KMB>::ProcessorTraits<
-        PhysicalProcessor::NCE_Cluster>
-        final {
+struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::NCE_Cluster> final {
     static constexpr int32_t COUNT = 4;
 };
 
 template <>
-struct ArchTraits<ArchKind::KMB>::ProcessorTraits<
-        PhysicalProcessor::NCE_PerClusterDPU>
-        final {
+struct ArchTraits<ArchKind::KMB>::ProcessorTraits<PhysicalProcessor::NCE_PerClusterDPU> final {
     static constexpr int32_t COUNT = 5;
 };
 
@@ -102,27 +93,24 @@ template <>
 struct ArchTraits<ArchKind::KMB>::MemoryTraits<PhysicalMemory::DDR> final {
     static constexpr int32_t CLUSTERS_COUNT = 1;
     static constexpr int32_t CLUSTER_SIZE_KB = 32760;
-    static constexpr float DERATE_FACTOR =
-            0.6f;  // Derate factor for bandwidth (due to MMU/NoC loss)
-    static constexpr int32_t BANDWIDTH = 8;  // Bandwidth in Bytes/cycles
+    static constexpr float DERATE_FACTOR = 0.6f;  // Derate factor for bandwidth (due to MMU/NoC loss)
+    static constexpr int32_t BANDWIDTH = 8;       // Bandwidth in Bytes/cycles
 };
 
 template <>
 struct ArchTraits<ArchKind::KMB>::MemoryTraits<PhysicalMemory::CSRAM> final {
     static constexpr int32_t CLUSTERS_COUNT = 0;
     static constexpr int32_t CLUSTER_SIZE_KB = 0;
-    static constexpr float DERATE_FACTOR =
-            0.85f;                            // Derate factor for bandwidth
-    static constexpr int32_t BANDWIDTH = 64;  // Bandwidth in Bytes/cycles
+    static constexpr float DERATE_FACTOR = 0.85f;  // Derate factor for bandwidth
+    static constexpr int32_t BANDWIDTH = 64;       // Bandwidth in Bytes/cycles
 };
 
 template <>
 struct ArchTraits<ArchKind::KMB>::MemoryTraits<PhysicalMemory::CMX_UPA> final {
     static constexpr int32_t CLUSTERS_COUNT = 1;
     static constexpr int32_t CLUSTER_SIZE_KB = 4096;
-    static constexpr float DERATE_FACTOR =
-            0.85f;                            // Derate factor for bandwidth
-    static constexpr int32_t BANDWIDTH = 16;  // Bandwidth in Bytes/cycles
+    static constexpr float DERATE_FACTOR = 0.85f;  // Derate factor for bandwidth
+    static constexpr int32_t BANDWIDTH = 16;       // Bandwidth in Bytes/cycles
 };
 
 template <>

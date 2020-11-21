@@ -24,22 +24,16 @@ using namespace vpux;
 // SimpleParser
 //
 
-mlir::LogicalResult vpux::SimpleParser::parseValue(
-        mlir::DialectAsmParser& parser,
-        StringRef baseClass,
-        StringRef mnemonic,
-        FuncRef<mlir::LogicalResult()> valueParser) {
+mlir::LogicalResult vpux::SimpleParser::parseValue(mlir::DialectAsmParser& parser, StringRef baseClass,
+                                                   StringRef mnemonic, FuncRef<mlir::LogicalResult()> valueParser) {
     if (mlir::failed(parser.parseColon())) {
-        return printTo(parser.emitError(parser.getCurrentLocation()),
-                       "{0} should be followed by ':' symbol",
+        return printTo(parser.emitError(parser.getCurrentLocation()), "{0} should be followed by ':' symbol",
                        baseClass);
     }
 
     if (mlir::failed(valueParser())) {
-        return printTo(parser.emitError(parser.getCurrentLocation()),
-                       "Failed to parse inner part for {0} {1}",
-                       mnemonic,
-                       baseClass);
+        return printTo(parser.emitError(parser.getCurrentLocation()), "Failed to parse inner part for {0} {1}",
+                       mnemonic, baseClass);
     }
 
     return mlir::success();
@@ -49,12 +43,10 @@ mlir::LogicalResult vpux::SimpleParser::parseValue(
 // ArrayParser
 //
 
-mlir::LogicalResult vpux::ArrayParser::parseArray(
-        mlir::DialectAsmParser& parser,
-        FuncRef<mlir::LogicalResult()> itemParser) {
+mlir::LogicalResult vpux::ArrayParser::parseArray(mlir::DialectAsmParser& parser,
+                                                  FuncRef<mlir::LogicalResult()> itemParser) {
     if (mlir::failed(parser.parseLSquare())) {
-        return parser.emitError(parser.getCurrentLocation(),
-                                "Array should be started with '[' symbol");
+        return parser.emitError(parser.getCurrentLocation(), "Array should be started with '[' symbol");
     }
 
     if (mlir::succeeded(parser.parseOptionalRSquare())) {
@@ -63,14 +55,12 @@ mlir::LogicalResult vpux::ArrayParser::parseArray(
 
     do {
         if (mlir::failed(itemParser())) {
-            return parser.emitError(parser.getCurrentLocation(),
-                                    "Failed to parse array item");
+            return parser.emitError(parser.getCurrentLocation(), "Failed to parse array item");
         }
     } while (mlir::succeeded(parser.parseOptionalComma()));
 
     if (mlir::failed(parser.parseRSquare())) {
-        return parser.emitError(parser.getCurrentLocation(),
-                                "Array should be ended with ']' symbol");
+        return parser.emitError(parser.getCurrentLocation(), "Array should be ended with ']' symbol");
     }
 
     return mlir::success();
@@ -80,12 +70,10 @@ mlir::LogicalResult vpux::ArrayParser::parseArray(
 // TupleParser
 //
 
-mlir::LogicalResult vpux::TupleParser::parseTuple(
-        mlir::DialectAsmParser& parser,
-        FuncRef<mlir::LogicalResult()> tupleItemsParser) {
+mlir::LogicalResult vpux::TupleParser::parseTuple(mlir::DialectAsmParser& parser,
+                                                  FuncRef<mlir::LogicalResult()> tupleItemsParser) {
     if (mlir::failed(parser.parseLess())) {
-        return parser.emitError(parser.getCurrentLocation(),
-                                "Tuple should be started with '<' symbol");
+        return parser.emitError(parser.getCurrentLocation(), "Tuple should be started with '<' symbol");
     }
 
     if (mlir::failed(tupleItemsParser())) {
@@ -93,30 +81,21 @@ mlir::LogicalResult vpux::TupleParser::parseTuple(
     }
 
     if (mlir::failed(parser.parseGreater())) {
-        return parser.emitError(parser.getCurrentLocation(),
-                                "Tuple should be ended with '>' symbol");
+        return parser.emitError(parser.getCurrentLocation(), "Tuple should be ended with '>' symbol");
     }
 
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::TupleParser::parseItem(
-        mlir::DialectAsmParser& parser,
-        StringRef mnemonic,
-        StringRef itemName,
-        FuncRef<mlir::LogicalResult()> itemParser) {
+mlir::LogicalResult vpux::TupleParser::parseItem(mlir::DialectAsmParser& parser, StringRef mnemonic, StringRef itemName,
+                                                 FuncRef<mlir::LogicalResult()> itemParser) {
     if (mlir::failed(parser.parseKeyword(itemName))) {
-        return printTo(parser.emitError(parser.getCurrentLocation()),
-                       "Missing '{0}' item for {1}",
-                       itemName,
-                       mnemonic);
+        return printTo(parser.emitError(parser.getCurrentLocation()), "Missing '{0}' item for {1}", itemName, mnemonic);
     }
 
     if (mlir::failed(parser.parseColon())) {
-        return printTo(parser.emitError(parser.getCurrentLocation()),
-                       "{0} '{1}' item should be followed by ':' symbol",
-                       mnemonic,
-                       itemName);
+        return printTo(parser.emitError(parser.getCurrentLocation()), "{0} '{1}' item should be followed by ':' symbol",
+                       mnemonic, itemName);
     }
 
     return itemParser();
