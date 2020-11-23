@@ -36,7 +36,6 @@
 #include <vpux_config.hpp>
 
 #include "vpual_config.hpp"
-#include "vpual_core_nn_watchdog.hpp"
 #include "vpusmm_allocator.hpp"
 
 namespace ie = InferenceEngine;
@@ -78,7 +77,6 @@ private:
     vpu::Logger::Ptr _logger;
 
 #if defined(__arm__) || defined(__aarch64__)
-    std::unique_ptr<WatchDog> _wd;
     std::shared_ptr<NnXlinkPlg> _nnXlinkPlg = nullptr;
     std::shared_ptr<NnCorePlg> _nnCorePlg = nullptr;
     // pipeline has to be deleted before NNCore plug-in
@@ -87,10 +85,7 @@ private:
     std::unique_ptr<void, std::function<void(void*)>> blob_file = nullptr;
     std::unique_ptr<BlobHandle_t> _blobHandle = nullptr;
 
-    void initWatchDog();
 #endif
-
-    VpualCoreNNExecutor();
     void allocateGraph(const std::vector<char>& compiledNetwork);
 
     ie::Blob::Ptr prepareInputForInference(

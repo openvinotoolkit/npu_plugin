@@ -151,9 +151,10 @@ static float calculateMeanIntersectionOverUnion(const std::vector<int32_t>& vpuO
         totalIoU += classIoU;
     }
 
-    float meanIoU = 0.0f;
-    if (nonZeroUnions > 0) 
-        meanIoU = totalIoU / nonZeroUnions;
+    if(nonZeroUnions == 0) {
+        throw std::logic_error("calculateMeanIntersectionOverUnion: nonZeroUnions equal zero");
+    }
+    float meanIoU = totalIoU / nonZeroUnions;
     return meanIoU;
 }
 
@@ -236,7 +237,9 @@ std::vector<float> softmaxResults(std::vector<float>& results)
         normalized.push_back(val);
         sum += val;
     }
-
+    if(sum == 0) {
+        throw std::logic_error("softmaxResults: sum of inputs array elements equal zero");
+    }
     for(size_t i = 0; i < normalized.size(); i++)
     {
         normalized[i] = normalized[i] / sum;
@@ -693,7 +696,7 @@ bool validate(std::string blobPath, std::vector<std::string> expectedPaths, std:
         else
         {   // Segmentation network comparison - ICnet CPU results are int32
             // Segmentation network comparison - Unet CPU results are float32
-            float meanIoU = 0.0f;
+            float meanIoU = 0.f;
             if (networkType == "icnet")
             {
                 auto totalExpected = infile.tellg() / sizeof(int32_t);

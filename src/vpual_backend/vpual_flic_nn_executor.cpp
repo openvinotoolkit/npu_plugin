@@ -537,22 +537,11 @@ void VpualFlicNNExecutor::pull(ie::BlobMap& outputs) {
     _logger->info("VpualFlicNNExecutor::pull started");
     uint32_t idPhysAddr = 0;
     uint32_t idLength = 0;
-    // TODO: pass inference timeout from config
-    auto result = plgInferenceOutput_->PullInferenceID(&idPhysAddr, &idLength/*,  _config->inferenceTimeoutMs()*/);
-    if (0 != result) {
-        _logger->error("VpualFlicNNExecutor::pull: failed");
-        THROW_IE_EXCEPTION << "VpualFlicNNExecutor::pull: PullInferenceID failed" << result;
-    }
+    plgInferenceOutput_->PullInferenceID(&idPhysAddr, &idLength);
 
     uint32_t outputBufferPhysAddr = 0;
     uint32_t outputBufferLength = 0;
-    result = plgTensorOutput_->Pull(&outputBufferPhysAddr, &outputBufferLength/*,  _config->inferenceTimeoutMs()*/);
-
-    if (0 != result) {
-        _logger->error("VpualFlicNNExecutor::pull: failed");
-        THROW_IE_EXCEPTION << "VpualFlicNNExecutor::pull: WaitForResponse failed" << 0;
-    }
-
+    plgTensorOutput_->Pull(&outputBufferPhysAddr, &outputBufferLength);
     // FIXME output->Pull gives only the length of the first tensor
     // need to check if we get buffer of expected size
     ie::BlobMap deviceOutputs = extractOutputsFromPhysAddr(outputBufferPhysAddr);
