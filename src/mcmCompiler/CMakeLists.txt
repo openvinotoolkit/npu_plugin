@@ -302,6 +302,7 @@ set_source_files_properties(
 
 add_library(mcmCompiler SHARED
     ${base} ${model} ${logger} ${pass} ${compiler} ${syscalls}
+    $<TARGET_OBJECTS:mcm_emulator>
     "${META_DIR_PATH}/src/compositional_model.cpp"
     "${META_DIR_PATH}/src/op_model.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"

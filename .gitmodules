@@ -12,4 +12,4 @@
 	url = ../llvm-project.git
 [submodule "mcm-emulator"]
 	path = src/mcmCompiler/contrib/mcm-emulator
-	url = ssh://git@gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git
+	url = ../../kmb-emulator/mcm-emulator.git
