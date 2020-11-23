@@ -946,7 +946,9 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
         std::unique_ptr<MVCNN::MemoryMappingT> DDRMemorySize =
             std::unique_ptr<MVCNN::MemoryMappingT>(new MVCNN::MemoryMappingT());
         DDRMemorySize->item= MVCNN::PhysicalMem_DDR;
-        setIfPresent<double, int>(DDRMemorySize->number, *globalConfigurationParams , "DDRScratch");
+        // Set DDR scratch value to high watermark, which is saved in BufferMap
+        // Actually globalConfigParams in cm is also reset by high watermark so they're the same
+        DDRMemorySize->number= (cm.bufferMap().getScratch()) ? cm.bufferMap().getScratch()->getSize() : 0;
         toBuild->memory_sizes.push_back(std::move(DDRMemorySize));
     }
 
