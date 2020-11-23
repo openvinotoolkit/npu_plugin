@@ -935,7 +935,7 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     }
 
     toBuild->memory_sizes = std::vector<std::unique_ptr<MVCNN::MemoryMappingT>>();
-    if(globalConfigurationParams->hasAttr("cmx")){
+    if(globalConfigurationParams->hasAttr("totalcmx")){
         std::unique_ptr<MVCNN::MemoryMappingT> cmxMemorySize =
             std::unique_ptr<MVCNN::MemoryMappingT>(new MVCNN::MemoryMappingT());
         cmxMemorySize->item= MVCNN::PhysicalMem_NN_CMX;
