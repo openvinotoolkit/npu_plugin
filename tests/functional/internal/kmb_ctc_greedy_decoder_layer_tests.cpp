@@ -35,7 +35,8 @@ class KmbCTCDecoderLayerTests :
     public KmbLayerTestBase,
     public testing::WithParamInterface<std::tuple<CTCDecoderTestParams, UseCustomLayers>> {};
 
-TEST_P(KmbCTCDecoderLayerTests, accuracy) {
+// [Track number: S#43632]
+TEST_P(KmbCTCDecoderLayerTests, DISABLED_accuracy) {
     const auto &p = std::get<0>(GetParam());
     const auto &useCustomLayers = std::get<1>(GetParam());
 
