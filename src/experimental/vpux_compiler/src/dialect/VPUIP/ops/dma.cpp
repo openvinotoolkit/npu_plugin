@@ -22,16 +22,12 @@ using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(UPADMAOp op) {
     if (op.inputTensors().size() != 1) {
-        return printTo(op.emitError(),
-                       "'{0}' must have 1 input tensor, got {1}",
-                       UPADMAOp::getOperationName(),
+        return printTo(op.emitError(), "'{0}' must have 1 input tensor, got {1}", UPADMAOp::getOperationName(),
                        op.inputTensors().size());
     }
 
     if (op.outputTensors().size() != 1) {
-        return printTo(op.emitError(),
-                       "'{0}' must have 1 output tensor, got {1}",
-                       UPADMAOp::getOperationName(),
+        return printTo(op.emitError(), "'{0}' must have 1 output tensor, got {1}", UPADMAOp::getOperationName(),
                        op.outputTensors().size());
     }
 
@@ -41,22 +37,18 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(UPADMAOp op) {
     const auto srcType = src.getType().cast<mlir::MemRefType>();
     const auto dstType = dst.getType().cast<mlir::MemRefType>();
 
-    const auto srcMem = MemoryLocationAttr::toPhysicalMemory(srcType);
-    const auto dstMem = MemoryLocationAttr::toPhysicalMemory(dstType);
+    const auto srcMem = getPhysicalMemory(srcType);
+    const auto dstMem = getPhysicalMemory(dstType);
 
     if (srcMem == PhysicalMemory::CMX_NN || dstMem == PhysicalMemory::CMX_NN) {
-        return printTo(op.emitError(),
-                       "'{0}' can't copy from '{1}' to '{2}'",
-                       UPADMAOp::getOperationName(),
-                       srcMem,
+        return printTo(op.emitError(), "'{0}' can't copy from '{1}' to '{2}'", UPADMAOp::getOperationName(), srcMem,
                        dstMem);
     }
 
     return mlir::success();
 }
 
-VPUIP::BlobWriter::SpecificTask
-        vpux::VPUIP::UPADMAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
     const auto src = inputTensors().front();
     const auto dst = outputTensors().front();
 

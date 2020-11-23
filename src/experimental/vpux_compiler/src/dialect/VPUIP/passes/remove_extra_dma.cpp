@@ -18,7 +18,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 
@@ -30,8 +30,7 @@ using namespace vpux;
 
 namespace {
 
-class RemoveExtraDMAPass final
-        : public VPUIP::RemoveExtraDMABase<RemoveExtraDMAPass> {
+class RemoveExtraDMAPass final : public VPUIP::RemoveExtraDMABase<RemoveExtraDMAPass> {
 public:
     RemoveExtraDMAPass();
 
@@ -46,8 +45,7 @@ private:
 };
 
 RemoveExtraDMAPass::RemoveExtraDMAPass()
-        : _cleanUpIR(mlir::FuncOp::getOperationName(),
-                     mlir::OpPassManager::Nesting::Implicit) {
+    : _cleanUpIR(mlir::FuncOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _cleanUpIR.addPass(mlir::createCanonicalizerPass());
 }
 
@@ -55,9 +53,7 @@ void RemoveExtraDMAPass::runOnFunction() {
     try {
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(),
-                "RemoveExtraDMAPass failed : {0}",
-                e.what());
+        printTo(getOperation().emitError(), "RemoveExtraDMAPass failed : {0}", e.what());
         signalPassFailure();
     }
 }
@@ -66,13 +62,11 @@ void RemoveExtraDMAPass::passBody() {
     auto func = getFunction();
 
     const auto callback = [](VPUIP::TaskOpInterface dmaTask) {
-        using MemEffect =
-                mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
+        using MemEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
 
         auto* dmaTaskOp = dmaTask.getOperation();
 
-        if (dmaTask.getTaskType() != VPUIP::TaskType::UPADMA &&
-            dmaTask.getTaskType() != VPUIP::TaskType::NNDMA) {
+        if (dmaTask.getTaskType() != VPUIP::TaskType::UPADMA && dmaTask.getTaskType() != VPUIP::TaskType::NNDMA) {
             return;
         }
 
@@ -82,9 +76,7 @@ void RemoveExtraDMAPass::passBody() {
         auto dmaDst = dmaTask.outputTensors().front();
 
         if (dmaSrc.getType() != dmaDst.getType()) {
-            LLVM_DEBUG(
-                    printTo(llvm::dbgs(),
-                            "Source and destination types are different \n"));
+            LLVM_DEBUG(printTo(llvm::dbgs(), "Source and destination types are different \n"));
 
             return;
         }
@@ -100,21 +92,15 @@ void RemoveExtraDMAPass::passBody() {
             }
 
             if (!srcUserOp->isBeforeInBlock(dmaTaskOp)) {
-                LLVM_DEBUG(printTo(
-                        llvm::dbgs(),
-                        "There are source users after DMA task : {0} \n",
-                        *srcUserOp));
+                LLVM_DEBUG(printTo(llvm::dbgs(), "There are source users after DMA task : {0} \n", *srcUserOp));
 
                 return;
             }
 
-            auto opEffects =
-                    mlir::dyn_cast<mlir::MemoryEffectOpInterface>(srcUserOp);
+            auto opEffects = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(srcUserOp);
 
             if (opEffects == nullptr) {
-                LLVM_DEBUG(printTo(llvm::dbgs(),
-                                   "Unknown source user : {0} \n",
-                                   *srcUserOp));
+                LLVM_DEBUG(printTo(llvm::dbgs(), "Unknown source user : {0} \n", *srcUserOp));
 
                 return;
             }
@@ -134,10 +120,7 @@ void RemoveExtraDMAPass::passBody() {
             const auto& effect = valEffects.front();
 
             if (effect.getEffect() != mlir::MemoryEffects::Write::get()) {
-                LLVM_DEBUG(printTo(
-                        llvm::dbgs(),
-                        "Source user {0} has unsupported memory effect \n",
-                        *srcUserOp));
+                LLVM_DEBUG(printTo(llvm::dbgs(), "Source user {0} has unsupported memory effect \n", *srcUserOp));
 
                 return;
             }
@@ -153,21 +136,15 @@ void RemoveExtraDMAPass::passBody() {
             }
 
             if (dstUserOp->isBeforeInBlock(dmaTaskOp)) {
-                LLVM_DEBUG(printTo(
-                        llvm::dbgs(),
-                        "There are destination users before DMA task : {0} \n",
-                        *dstUserOp));
+                LLVM_DEBUG(printTo(llvm::dbgs(), "There are destination users before DMA task : {0} \n", *dstUserOp));
 
                 return;
             }
 
-            auto opEffects =
-                    mlir::dyn_cast<mlir::MemoryEffectOpInterface>(dstUserOp);
+            auto opEffects = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(dstUserOp);
 
             if (opEffects == nullptr) {
-                LLVM_DEBUG(printTo(llvm::dbgs(),
-                                   "Unknown destination user : {0} \n",
-                                   *dstUserOp));
+                LLVM_DEBUG(printTo(llvm::dbgs(), "Unknown destination user : {0} \n", *dstUserOp));
 
                 return;
             }
@@ -176,11 +153,10 @@ void RemoveExtraDMAPass::passBody() {
             opEffects.getEffectsOnValue(dmaDst, valEffects);
 
             if (valEffects.size() != 1) {
-                LLVM_DEBUG(
-                        printTo(llvm::dbgs(),
-                                "Destination user {0} has unsupported memory "
-                                "effects count \n",
-                                *dstUserOp));
+                LLVM_DEBUG(printTo(llvm::dbgs(),
+                                   "Destination user {0} has unsupported memory "
+                                   "effects count \n",
+                                   *dstUserOp));
 
                 return;
             }
@@ -188,10 +164,7 @@ void RemoveExtraDMAPass::passBody() {
             const auto& effect = valEffects.front();
 
             if (effect.getEffect() != mlir::MemoryEffects::Read::get()) {
-                LLVM_DEBUG(printTo(
-                        llvm::dbgs(),
-                        "Destination user {0} has unsupported memory effect \n",
-                        *dstUserOp));
+                LLVM_DEBUG(printTo(llvm::dbgs(), "Destination user {0} has unsupported memory effect \n", *dstUserOp));
 
                 return;
             }
@@ -216,10 +189,7 @@ void RemoveExtraDMAPass::passBody() {
 
             dmaTaskOp->erase();
         } else {
-            LLVM_DEBUG(printTo(
-                    llvm::dbgs(),
-                    "Redirect destination users and remove DMA task {0} \n",
-                    *dmaTaskOp));
+            LLVM_DEBUG(printTo(llvm::dbgs(), "Redirect destination users and remove DMA task {0} \n", *dmaTaskOp));
 
             for (auto* dstUse : dstConsumers) {
                 dstUse->set(dmaSrc);

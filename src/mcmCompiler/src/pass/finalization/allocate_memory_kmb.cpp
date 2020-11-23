@@ -790,7 +790,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
     }
 }
 
-void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);

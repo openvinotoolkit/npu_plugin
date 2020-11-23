@@ -527,7 +527,7 @@ void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
         if ((inputShape == outputShape) && !(isEqual(inQuantParams, outQuantParams) || outQuantParams.isNeutral()))
         {
 
-            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
             pass.log(mv::Logger::MessageType::Debug, "Replacing with DW requanitze");
@@ -1690,7 +1690,7 @@ bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListItera
     return true;
 }
 
-void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
@@ -1752,7 +1752,7 @@ void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::Computat
     }
 }
 
-void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void detectEltWiseUpaInputs(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 

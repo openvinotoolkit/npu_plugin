@@ -50,9 +50,8 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
     }
 }
 
-void removeSimpleOp(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType)
+void removeSimpleOp(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string /*opType*/)
 { //removeIdentityOps, removeDropOut, 
-    UNUSED(opType);
     mv::OpModel om(model);
     auto sourceTensor = opIt->getInputTensor(0);
     auto parentOpIt = om.getSourceOp(sourceTensor);
@@ -78,9 +77,8 @@ void removeShapeRelevant(mv::Data::OpListIterator &opIt, mv::ComputationModel &m
     }
 }
 
-void removeInterp(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType)
+void removeInterp(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string /*opType*/)
 {
-    UNUSED(opType);
     mv::OpModel om(model);
     auto inputShape = opIt->getInputTensor(0)->getShape();
     auto outputShape = opIt->getOutputTensor(0)->getShape();

@@ -86,14 +86,13 @@ mv::Data::OpListIterator findChildDPUorUPATaskOp(mv::ComputationModel& model, mv
     return om.getOp(childOp->getName());
 }
 
-static void DMAOrderingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&)
+static void DMAOrderingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& /*td*/, mv::Element& /*passDesc*/, mv::Element&)
 { 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS) 
     mv::OpModel om(model);
     mv::ControlModel cm(model); 
     mv::Data::OpListIterator dputask; 
     unsigned dpuTaskschedulingNumber = 0;
-    unsigned dmaTasklayernumber = 0;
     unsigned dpulevel = 0;
     auto sortedOps = cm.topologicalSort();
     std::vector<unsigned> dpuTaskschedulingNumbers;

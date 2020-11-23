@@ -34,16 +34,16 @@ class VPUIP_Attr<Pred pred, string descr> :
 // PhysicalProcessor
 //
 
-def VPUIP_PhysicalProcessor_ARM                  : StrEnumAttrCase<"ARM">;
-def VPUIP_PhysicalProcessor_Leon_RT              : StrEnumAttrCase<"Leon_RT">;
-def VPUIP_PhysicalProcessor_Leon_NN              : StrEnumAttrCase<"Leon_NN">;
-def VPUIP_PhysicalProcessor_SHAVE_UPA            : StrEnumAttrCase<"SHAVE_UPA">;
-def VPUIP_PhysicalProcessor_SHAVE_NN             : StrEnumAttrCase<"SHAVE_NN">;
-def VPUIP_PhysicalProcessor_NCE_Cluster          : StrEnumAttrCase<"NCE_Cluster">;
-def VPUIP_PhysicalProcessor_NCE_PerClusterDPU    : StrEnumAttrCase<"NCE_PerClusterDPU">;
+def VPUIP_PhysicalProcessor_ARM                  : I32EnumAttrCase<"ARM",               0>;
+def VPUIP_PhysicalProcessor_Leon_RT              : I32EnumAttrCase<"Leon_RT",           1>;
+def VPUIP_PhysicalProcessor_Leon_NN              : I32EnumAttrCase<"Leon_NN",           2>;
+def VPUIP_PhysicalProcessor_SHAVE_UPA            : I32EnumAttrCase<"SHAVE_UPA",         3>;
+def VPUIP_PhysicalProcessor_SHAVE_NN             : I32EnumAttrCase<"SHAVE_NN",          4>;
+def VPUIP_PhysicalProcessor_NCE_Cluster          : I32EnumAttrCase<"NCE_Cluster",       5>;
+def VPUIP_PhysicalProcessor_NCE_PerClusterDPU    : I32EnumAttrCase<"NCE_PerClusterDPU", 6>;
 
-def VPUIP_PhysicalProcessorEnum :
-        StrEnumAttr<
+def VPUIP_PhysicalProcessor :
+        I32EnumAttr<
             "PhysicalProcessor",
             "Enum for describing processor resources",
             [
@@ -59,26 +59,15 @@ def VPUIP_PhysicalProcessorEnum :
     let cppNamespace = "vpux::VPUIP";
 }
 
-def VPUIP_PhysicalProcessorAttr :
-        VPUIP_Attr<
-            CPred<"$_self.isa<vpux::VPUIP::PhysicalProcessorAttr>()">,
-            "Attribute for describing processor resources"
-        > {
-    let storageType = "vpux::VPUIP::PhysicalProcessorAttr";
-    let returnType = "vpux::VPUIP::PhysicalProcessor";
-
-    let constBuilderCall = "vpux::VPUIP::PhysicalProcessorAttr::get($_builder.getContext(), $0)";
-}
-
 //
 // DMAEngine
 //
 
-def VPUIP_DMAEngine_UPA  : StrEnumAttrCase<"UPA">;
-def VPUIP_DMAEngine_NN   : StrEnumAttrCase<"NN">;
+def VPUIP_DMAEngine_UPA  : I32EnumAttrCase<"UPA",   0>;
+def VPUIP_DMAEngine_NN   : I32EnumAttrCase<"NN",    1>;
 
-def VPUIP_DMAEngineEnum :
-        StrEnumAttr<
+def VPUIP_DMAEngine :
+        I32EnumAttr<
             "DMAEngine",
             "DMA engine kind",
             [
@@ -89,28 +78,17 @@ def VPUIP_DMAEngineEnum :
     let cppNamespace = "vpux::VPUIP";
 }
 
-def VPUIP_DMAEngineAttr :
-        VPUIP_Attr<
-            CPred<"$_self.isa<vpux::VPUIP::DMAEngineAttr>()">,
-            "DMA engine kind"
-        > {
-    let storageType = "vpux::VPUIP::DMAEngineAttr";
-    let returnType = "vpux::VPUIP::DMAEngine";
-
-    let constBuilderCall = "vpux::VPUIP::DMAEngineAttr::get($_builder.getContext(), $0)";
-}
-
 //
 // PhysicalMemory
 //
 
-def VPUIP_PhysicalMemory_DDR     : StrEnumAttrCase<"DDR">;
-def VPUIP_PhysicalMemory_CSRAM   : StrEnumAttrCase<"CSRAM">;
-def VPUIP_PhysicalMemory_CMX_UPA : StrEnumAttrCase<"CMX_UPA">;
-def VPUIP_PhysicalMemory_CMX_NN  : StrEnumAttrCase<"CMX_NN">;
+def VPUIP_PhysicalMemory_DDR     : I32EnumAttrCase<"DDR",       0>;
+def VPUIP_PhysicalMemory_CSRAM   : I32EnumAttrCase<"CSRAM",     1>;
+def VPUIP_PhysicalMemory_CMX_UPA : I32EnumAttrCase<"CMX_UPA",   2>;
+def VPUIP_PhysicalMemory_CMX_NN  : I32EnumAttrCase<"CMX_NN",    3>;
 
-def VPUIP_PhysicalMemoryEnum :
-        StrEnumAttr<
+def VPUIP_PhysicalMemory :
+        I32EnumAttr<
             "PhysicalMemory",
             "Represents the actual hardware memory hierarchy",
             [
@@ -123,25 +101,14 @@ def VPUIP_PhysicalMemoryEnum :
     let cppNamespace = "vpux::VPUIP";
 }
 
-def VPUIP_PhysicalMemoryAttr :
-        VPUIP_Attr<
-            CPred<"$_self.isa<vpux::VPUIP::PhysicalMemoryAttr>()">,
-            "Represents the actual hardware memory hierarchy"
-        > {
-    let storageType = "vpux::VPUIP::PhysicalMemoryAttr";
-    let returnType = "vpux::VPUIP::PhysicalMemory";
-
-    let constBuilderCall = "vpux::VPUIP::PhysicalMemoryAttr::get($_builder.getContext(), $0)";
-}
-
 //
 // ArchKind
 //
 
-def VPUIP_ArchKind_KMB : StrEnumAttrCase<"KMB">;
+def VPUIP_ArchKind_KMB : I32EnumAttrCase<"KMB", 0>;
 
-def VPUIP_ArchKindEnum :
-        StrEnumAttr<
+def VPUIP_ArchKind :
+        I32EnumAttr<
             "ArchKind",
             "Represents VPU architecture generation",
             [
@@ -151,32 +118,21 @@ def VPUIP_ArchKindEnum :
     let cppNamespace = "vpux::VPUIP";
 }
 
-def VPUIP_ArchKindAttr :
-        VPUIP_Attr<
-            CPred<"$_self.isa<vpux::VPUIP::ArchKindAttr>()">,
-            "Represents VPU architecture generation"
-        > {
-    let storageType = "vpux::VPUIP::ArchKindAttr";
-    let returnType = "vpux::VPUIP::ArchKind";
-
-    let constBuilderCall = "vpux::VPUIP::ArchKindAttr::get($_builder.getContext(), $0)";
-}
-
 //
 // MemoryLocation
 //
 
-def VPUIP_MemoryLocation_ProgrammableInput  : StrEnumAttrCase<"ProgrammableInput">;
-def VPUIP_MemoryLocation_ProgrammableOutput : StrEnumAttrCase<"ProgrammableOutput">;
-def VPUIP_MemoryLocation_VPU_DDR_Heap       : StrEnumAttrCase<"VPU_DDR_Heap">;
-def VPUIP_MemoryLocation_GraphFile          : StrEnumAttrCase<"GraphFile">;
-def VPUIP_MemoryLocation_VPU_CMX_NN         : StrEnumAttrCase<"VPU_CMX_NN">;
-def VPUIP_MemoryLocation_VPU_CMX_UPA        : StrEnumAttrCase<"VPU_CMX_UPA">;
-def VPUIP_MemoryLocation_VPU_DDR_BSS        : StrEnumAttrCase<"VPU_DDR_BSS">;
-def VPUIP_MemoryLocation_VPU_CSRAM          : StrEnumAttrCase<"VPU_CSRAM">;
+def VPUIP_MemoryLocation_ProgrammableInput  : I32EnumAttrCase<"ProgrammableInput",  0>;
+def VPUIP_MemoryLocation_ProgrammableOutput : I32EnumAttrCase<"ProgrammableOutput", 1>;
+def VPUIP_MemoryLocation_VPU_DDR_Heap       : I32EnumAttrCase<"VPU_DDR_Heap",       2>;
+def VPUIP_MemoryLocation_GraphFile          : I32EnumAttrCase<"GraphFile",          3>;
+def VPUIP_MemoryLocation_VPU_CMX_NN         : I32EnumAttrCase<"VPU_CMX_NN",         4>;
+def VPUIP_MemoryLocation_VPU_CMX_UPA        : I32EnumAttrCase<"VPU_CMX_UPA",        5>;
+def VPUIP_MemoryLocation_VPU_DDR_BSS        : I32EnumAttrCase<"VPU_DDR_BSS",        6>;
+def VPUIP_MemoryLocation_VPU_CSRAM          : I32EnumAttrCase<"VPU_CSRAM",          7>;
 
-def VPUIP_MemoryLocationEnum :
-        StrEnumAttr<
+def VPUIP_MemoryLocation :
+        I32EnumAttr<
             "MemoryLocation",
             "Values indicating which type of memory a tensor resides in",
             [
@@ -193,64 +149,23 @@ def VPUIP_MemoryLocationEnum :
     let cppNamespace = "vpux::VPUIP";
 }
 
-def VPUIP_MemoryLocationAttr :
-        VPUIP_Attr<
-            CPred<"$_self.isa<vpux::VPUIP::MemoryLocationAttr>()">,
-            "Values indicating which type of memory a tensor resides in"
-        > {
-    let storageType = "vpux::VPUIP::MemoryLocationAttr";
-    let returnType = "vpux::VPUIP::MemoryLocation";
-
-    let constBuilderCall = "vpux::VPUIP::MemoryLocationAttr::get($_builder.getContext(), $0)";
-}
-
-//
-// ExecutionFlag
-//
-
-def VPUIP_ExecutionFlag_DynamicBarriers     : StrEnumAttrCase<"DynamicBarriers">;
-def VPUIP_ExecutionFlag_Compiled_For_VPU3   : StrEnumAttrCase<"Compiled_For_VPU3">;
-
-def VPUIP_ExecutionFlagEnum :
-        StrEnumAttr<
-            "ExecutionFlag",
-            "Each of these enums' presence informs how the current schedule is configured",
-            [
-                VPUIP_ExecutionFlag_DynamicBarriers,
-                VPUIP_ExecutionFlag_Compiled_For_VPU3,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIP";
-}
-
-def VPUIP_ExecutionFlagAttr :
-        VPUIP_Attr<
-            CPred<"$_self.isa<vpux::VPUIP::ExecutionFlagAttr>()">,
-            "Each of these enums' presence informs how the current schedule is configured"
-        > {
-    let storageType = "vpux::VPUIP::ExecutionFlagAttr";
-    let returnType = "vpux::VPUIP::ExecutionFlag";
-
-    let constBuilderCall = "vpux::VPUIP::ExecutionFlagAttr::get($_builder.getContext(), $0)";
-}
-
 //
 // TaskType
 //
 
-class VPUIP_TaskTypeVal<string sym> : StrEnumAttrCase<sym> {
+class VPUIP_TaskTypeVal<string sym, int val> : I32EnumAttrCase<sym, val> {
     string enumVal = "vpux::VPUIP::TaskType::" # sym;
 }
 
-def VPUIP_TaskType_UPADMA       : VPUIP_TaskTypeVal<"UPADMA">;
-def VPUIP_TaskType_NNDMA        : VPUIP_TaskTypeVal<"NNDMA">;
-def VPUIP_TaskType_NCE2         : VPUIP_TaskTypeVal<"NCE2">;
-def VPUIP_TaskType_Controller   : VPUIP_TaskTypeVal<"Controller">;
-def VPUIP_TaskType_UPA          : VPUIP_TaskTypeVal<"UPA">;
-def VPUIP_TaskType_SNN          : VPUIP_TaskTypeVal<"SNN">;
+def VPUIP_TaskType_UPADMA       : VPUIP_TaskTypeVal<"UPADMA",       0>;
+def VPUIP_TaskType_NNDMA        : VPUIP_TaskTypeVal<"NNDMA",        1>;
+def VPUIP_TaskType_NCE2         : VPUIP_TaskTypeVal<"NCE2",         2>;
+def VPUIP_TaskType_Controller   : VPUIP_TaskTypeVal<"Controller",   3>;
+def VPUIP_TaskType_UPA          : VPUIP_TaskTypeVal<"UPA",          4>;
+def VPUIP_TaskType_SNN          : VPUIP_TaskTypeVal<"SNN",          5>;
 
-def VPUIP_TaskTypeEnum :
-        StrEnumAttr<
+def VPUIP_TaskType :
+        I32EnumAttr<
             "TaskType",
             "The type of the relevant processing code of the VPU for the task",
             [
@@ -265,15 +180,23 @@ def VPUIP_TaskTypeEnum :
     let cppNamespace = "vpux::VPUIP";
 }
 
-def VPUIP_TaskTypeAttr :
-        VPUIP_Attr<
-            CPred<"$_self.isa<vpux::VPUIP::TaskTypeAttr>()">,
-            "Each of these enums' presence informs how the current schedule is configured"
-        > {
-    let storageType = "vpux::VPUIP::TaskTypeAttr";
-    let returnType = "vpux::VPUIP::TaskType";
+//
+// ExecutionFlag
+//
 
-    let constBuilderCall = "vpux::VPUIP::TaskTypeAttr::get($_builder.getContext(), $0)";
+def VPUIP_ExecutionFlag_NONE :              BitEnumAttrCase<"NONE",             0x0000>;
+def VPUIP_ExecutionFlag_DynamicBarriers :   BitEnumAttrCase<"DynamicBarriers",  0x0001>;
+
+def VPUIP_ExecutionFlag:
+        BitEnumAttr<
+            "ExecutionFlag",
+            "Each of these enums' presence informs how the current schedule is configured",
+            [
+                VPUIP_ExecutionFlag_NONE,
+                VPUIP_ExecutionFlag_DynamicBarriers,
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
 }
 
 //

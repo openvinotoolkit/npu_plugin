@@ -414,7 +414,7 @@ mv::Data::OpListIterator mv::ComputationModel::getOp(const std::string& name)
     auto it = ops_->find(name);
 
     if (it == ops_->end())
-        throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
+        throw ArgumentError(*this, "op name", name, "Attempt of finding an undefined op");
 
     return it->second;
 }

@@ -7,13 +7,13 @@
 #include "include/mcm/pass/pass_utils.hpp"
 #include <functional>
 
-void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel& model, std::string opType);
-void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType);
-void fuseMinimumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
-void fuseMaximumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
-void fuseEltwiseFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
-void fuseScaleFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
-void fuseBatchNormFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
+void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel& model, const std::string& opType);
+void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& opType);
+void fuseMinimumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, const std::string& opType);
+void fuseMaximumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, const std::string& opType);
+void fuseEltwiseFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, const std::string& opType);
+void fuseScaleFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, const std::string& opType);
+void fuseBatchNormFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, const std::string& opType);
 static void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
@@ -34,7 +34,7 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 {
     mv::OpModel om(model);
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
-    std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseTaskMap =
+    std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , const std::string &)>> fuseTaskMap =
                                     {{"Bias", fuseBiasFcn},
                                     {"Sigmoid", fuseUsualPPEFcn},
                                     {"Tanh", fuseUsualPPEFcn},
@@ -114,9 +114,8 @@ mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOp
     return opIt;
 }
 
-void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType)
+void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
 {
-    UNUSED(opType);
     mv::OpModel om(model);
     mv::DataModel dm(model);
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
@@ -150,9 +149,8 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, st
     }
 }
 
-void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType)
+void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
 {
-    UNUSED(opType);
     mv::OpModel om(model);
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
     auto scaleOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
@@ -172,7 +170,7 @@ void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, s
     }
 }
 
-void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType)
+void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& opType)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -206,9 +204,8 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);
 }
 
-void fuseEltwiseFcn(mv::Data::OpListIterator &opIt1, mv::ComputationModel &model, std::string opType)
+void fuseEltwiseFcn(mv::Data::OpListIterator &opIt1, mv::ComputationModel &model, const std::string& /*opType*/)
 {
-    UNUSED(opType);
     std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseEltwiseMap =
                                        {{"Minimum", fuseMinimumFcn},
                                         {"Maximum", fuseMaximumFcn},
@@ -220,9 +217,8 @@ void fuseEltwiseFcn(mv::Data::OpListIterator &opIt1, mv::ComputationModel &model
         functor->second(opIt1, model, eltwiseType);
 }
 
-void fuseMinimumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType)
+void fuseMinimumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
 {
-    UNUSED(opType);
     mv::OpModel om(model);
 
     auto minimumOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
@@ -237,9 +233,8 @@ void fuseMinimumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model,
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", minimumOutputMemoryLocation);
 }
 
-void fuseMaximumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType)
+void fuseMaximumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
 {
-    UNUSED(opType);
     mv::OpModel om(model);
 
     auto maximumOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
@@ -254,9 +249,8 @@ void fuseMaximumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model,
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", maximumOutputMemoryLocation);
 }
 
-void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType)
+void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
 {
-    UNUSED(opType);
     mv::OpModel om(model);
     auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
     auto batchNormName = opIt->getName();

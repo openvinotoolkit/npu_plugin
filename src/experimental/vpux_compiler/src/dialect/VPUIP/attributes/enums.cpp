@@ -18,85 +18,34 @@
 
 #include "vpux/utils/core/error.hpp"
 
+#include <llvm/ADT/StringExtras.h>
+
 using namespace vpux;
 
 //
-// PhysicalProcessorAttr
+// MemoryLocation utilities
 //
 
-StringRef vpux::VPUIP::PhysicalProcessorAttr::getMnemonic() {
-    return "PhysicalProcessor";
-}
-
-//
-// DMAEngineAttr
-//
-
-StringRef vpux::VPUIP::DMAEngineAttr::getMnemonic() {
-    return "DMAEngine";
-}
-
-//
-// PhysicalMemoryAttr
-//
-
-StringRef vpux::VPUIP::PhysicalMemoryAttr::getMnemonic() {
-    return "PhysicalMemory";
-}
-
-//
-// ArchKindAttr
-//
-
-StringRef vpux::VPUIP::ArchKindAttr::getMnemonic() {
-    return "ArchKind";
-}
-
-//
-// MemoryLocationAttr
-//
-
-StringRef vpux::VPUIP::MemoryLocationAttr::getMnemonic() {
-    return "MemoryLocation";
-}
-
-VPUIP::MemoryLocationAttr vpux::VPUIP::MemoryLocationAttr::fromPhysicalMemory(
-        mlir::MLIRContext* ctx,
-        PhysicalMemory mem) {
+VPUIP::MemoryLocation vpux::VPUIP::getDefaultMemoryLocation(PhysicalMemory mem) {
     switch (mem) {
     case PhysicalMemory::DDR:
-        return get(ctx, MemoryLocation::VPU_DDR_Heap);
+        return MemoryLocation::VPU_DDR_Heap;
     case PhysicalMemory::CSRAM:
-        return get(ctx, MemoryLocation::VPU_CSRAM);
+        return MemoryLocation::VPU_CSRAM;
     case PhysicalMemory::CMX_UPA:
-        return get(ctx, MemoryLocation::VPU_CMX_UPA);
+        return MemoryLocation::VPU_CMX_UPA;
     case PhysicalMemory::CMX_NN:
-        return get(ctx, MemoryLocation::VPU_CMX_NN);
+        return MemoryLocation::VPU_CMX_NN;
     default:
         VPUX_THROW("Unsupported PhysicalMemory : {0}", mem);
     }
 }
 
-VPUIP::PhysicalMemory vpux::VPUIP::MemoryLocationAttr::toPhysicalMemory(
-        mlir::MemRefType memref) {
-    const auto memSpace = memref.getMemorySpace();
-
-    switch (memSpace) {
-    case 0:
-        return PhysicalMemory::DDR;
-    case 1:
-        return PhysicalMemory::CSRAM;
-    case 2:
-        return PhysicalMemory::CMX_UPA;
-    case 3:
-        return PhysicalMemory::CMX_NN;
-    default:
-        VPUX_THROW("Unsupported MemRef memory space : {0}", memSpace);
-    }
+VPUIP::MemoryLocation vpux::VPUIP::getDefaultMemoryLocation(mlir::MemRefType memref) {
+    return getDefaultMemoryLocation(getPhysicalMemory(memref));
 }
 
-VPUIP::PhysicalMemory vpux::VPUIP::MemoryLocationAttr::toPhysicalMemory(
-        MemoryLocation location) {
+VPUIP::PhysicalMemory vpux::VPUIP::getPhysicalMemory(MemoryLocation location) {
     switch (location) {
     case MemoryLocation::ProgrammableInput:
     case MemoryLocation::ProgrammableOutput:
@@ -115,41 +64,25 @@ VPUIP::PhysicalMemory vpux::VPUIP::MemoryLocationAttr::toPhysicalMemory(
     }
 }
 
-VPUIP::PhysicalMemory
-        vpux::VPUIP::MemoryLocationAttr::toPhysicalMemory() const {
-    return toPhysicalMemory(getValue());
+VPUIP::PhysicalMemory vpux::VPUIP::getPhysicalMemory(mlir::MemRefType memref) {
+    const auto memSpace = memref.getMemorySpace();
+
+    switch (memSpace) {
+    case 0:
+        return PhysicalMemory::DDR;
+    case 1:
+        return PhysicalMemory::CSRAM;
+    case 2:
+        return PhysicalMemory::CMX_UPA;
+    case 3:
+        return PhysicalMemory::CMX_NN;
+    default:
+        VPUX_THROW("Unsupported MemRef memory space : {0}", memSpace);
+    }
 }
 
-VPUIP::MemoryLocationAttr
-        vpux::VPUIP::MemoryLocationAttr::fromMemRef(mlir::MemRefType memref) {
-    return fromPhysicalMemory(memref.getContext(), toPhysicalMemory(memref));
-}
-
-bool vpux::VPUIP::MemoryLocationAttr::isCompatibleWith(
-        MemoryLocation location,
-        mlir::MemRefType memref) {
-    return toPhysicalMemory(location) == toPhysicalMemory(memref);
-}
-
-bool vpux::VPUIP::MemoryLocationAttr::isCompatibleWith(
-        mlir::MemRefType memref) const {
-    return isCompatibleWith(getValue(), memref);
-}
-
-//
-// ExecutionFlagAttr
-//
-
-StringRef vpux::VPUIP::ExecutionFlagAttr::getMnemonic() {
-    return "ExecutionFlag";
-}
-
-//
-// TaskTypeAttr
-//
-
-StringRef vpux::VPUIP::TaskTypeAttr::getMnemonic() {
-    return "TaskType";
+bool vpux::VPUIP::isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref) {
+    return getPhysicalMemory(location) == getPhysicalMemory(memref);
 }
 
 //

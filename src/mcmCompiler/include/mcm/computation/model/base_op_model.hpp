@@ -154,7 +154,7 @@ namespace mv
         std::size_t opsCount(const std::string& opType) const;
         std::size_t dataFlowsCount() const;
 
-        long long unsigned parametersCount() const;
+        unsigned long long parametersCount() const;
 
         void setTemplParam(std::string& str, const std::string& paramName, const std::string& paramValue);
         std::string removeFileExt(const std::string& filePath);

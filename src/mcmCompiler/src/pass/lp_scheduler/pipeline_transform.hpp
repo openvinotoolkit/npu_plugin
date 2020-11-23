@@ -91,7 +91,6 @@ class Pipelining_Transform {
           weight_map.insert((*itr)->getName());
         }
 
-        size_t input_size = 0UL;
         mv::Data::OpListIterator dpu_itr = om.getOp(dpu_->getName());
         for (auto pitr=dpu_itr.leftmostParent(); pitr!=om.opEnd(); ++pitr) {
           if (weight_map.find(pitr->getName()) != weight_map.end()) {
@@ -135,14 +134,13 @@ class Pipelining_Transform {
       size_t max_output_size_;
       size_t max_input_size_;
 
-      pipeline_subgraph_t() : dpus_(), weight_reads_(), writes_(), id_(),
-        concat_root_() {
+      pipeline_subgraph_t() : dpus_(), weight_reads_(), writes_(), concat_root_(),
+	id_() {
 
           max_weight_size_ = std::numeric_limits<size_t>::min();
           max_output_size_ = std::numeric_limits<size_t>::min();
           max_input_size_ = std::numeric_limits<size_t>::min();
       }
-
 
       bool is_valid() const {
         return !dpus_.empty() && !weight_reads_.empty() &&
@@ -525,9 +523,9 @@ class Pipelining_Transform {
         for (++stream_itr; stream_itr != stream_map.end();
               ++stream_itr, ++curr_stream_idx) {
 
-          const stream_operation_t& stream_op = stream_itr->second;
+          const stream_operation_t& curr_stream_op = stream_itr->second;
           const stream_operation_t& prev_stream_op = prev_stream_itr->second;
-          auto dpu_itr = omodel_.getOp(stream_op.dpu_->getName());
+          auto dpu_itr = omodel_.getOp(curr_stream_op.dpu_->getName());
          
           // DPU RESOURCE SETTING //
           dpu_itr->set<std::string>(pipeline_dpu_representative_attribute(),
@@ -536,12 +534,12 @@ class Pipelining_Transform {
 
 
           // OFFSETS: //
-          const op_list_t& curr_reads = stream_op.weight_reads_;
-          auto weight_reads_itr = curr_reads.begin();
+          const op_list_t& curr_reads = curr_stream_op.weight_reads_;
+          auto curr_weight_reads_itr = curr_reads.begin();
           size_t read_offset = (curr_stream_idx)%2UL ? rep_read_offset : 0UL;
-          while (weight_reads_itr != curr_reads.end()) {
+          while (curr_weight_reads_itr != curr_reads.end()) {
             auto weight_read_itr =
-              omodel_.getOp((*weight_reads_itr)->getName());
+              omodel_.getOp((*curr_weight_reads_itr)->getName());
             weight_read_itr->set<std::string>(
                 pipeline_read_representative_attribute(), weight_read_rep_name);
             weight_read_itr->set<size_t>(pipeline_resource_attribute(), 0UL);
@@ -549,7 +547,7 @@ class Pipelining_Transform {
                   read_offset);
             read_offset +=
               (weight_read_itr->getOutputTensor(0UL))->getClusterSize();
-            ++weight_reads_itr;
+            ++curr_weight_reads_itr;
           }
 
           // READ_CONTROL_EDGES: add control edges (odd->odd) and (even->even)
@@ -618,7 +616,7 @@ class Pipelining_Transform {
 
     }
 
-    size_t set_pipelined_operation_addresses() {
+    void set_pipelined_operation_addresses() {
       std::unordered_map<std::string, size_t> pipeline_dpu_reps;
       std::unordered_map<std::string, size_t> pipeline_read_reps;
 
@@ -666,6 +664,7 @@ class Pipelining_Transform {
           }
         }
       } // foreach //
+      
     }
 
   private:
@@ -748,6 +747,10 @@ class Pipelining_Transform {
 
     bool is_pipelineable_in_current_opmodel(
           const pipeline_subgraph_t& subgraph) const {
+        UNUSED( subgraph );
+        // TODO
+	// Check if the return value is correct
+	return false;
     }
 
     mv::OpModel& omodel_;

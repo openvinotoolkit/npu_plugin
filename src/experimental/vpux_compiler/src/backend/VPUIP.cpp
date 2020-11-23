@@ -28,7 +28,7 @@
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/StandardTypes.h>
 
@@ -47,36 +47,22 @@ flatbuffers::Offset<MVCNN::Version> createVersion(VPUIP::BlobWriter& writer) {
     return builder.Finish();
 }
 
-flatbuffers::Offset<MVCNN::Resources>
-        serializeResources(VPUIP::BlobWriter& writer,
-                           VPUIP::ResourcesAttr resources) {
+flatbuffers::Offset<MVCNN::Resources> serializeResources(VPUIP::BlobWriter& writer, VPUIP::ResourcesAttr resources) {
     MVCNN::ResourcesBuilder builder(writer);
-    builder.add_upa_shaves(
-            checked_cast<uint32_t>(resources.upa_shaves().getInt()));
-    builder.add_nce2_blocks(
-            checked_cast<uint32_t>(resources.nce2_blocks().getInt()));
-    builder.add_upa_shared_cmx(
-            checked_cast<uint32_t>(resources.upa_shared_cmx().getInt()));
-    builder.add_nn_cmx_per_slice(
-            checked_cast<uint32_t>(resources.nn_cmx_per_slice().getInt()));
-    builder.add_nn_cmx_slice_amount(
-            checked_cast<uint32_t>(resources.nn_cmx_slice_amount().getInt()));
-    builder.add_ddr_scratch(
-            checked_cast<uint32_t>(resources.ddr_scratch().getInt()));
-    builder.add_csram_storage(
-            checked_cast<uint32_t>(resources.csram_storage().getInt()));
+    builder.add_upa_shaves(checked_cast<uint32_t>(resources.upa_shaves().getInt()));
+    builder.add_nce2_blocks(checked_cast<uint32_t>(resources.nce2_blocks().getInt()));
+    builder.add_upa_shared_cmx(checked_cast<uint32_t>(resources.upa_shared_cmx().getInt()));
+    builder.add_nn_cmx_per_slice(checked_cast<uint32_t>(resources.nn_cmx_per_slice().getInt()));
+    builder.add_nn_cmx_slice_amount(checked_cast<uint32_t>(resources.nn_cmx_slice_amount().getInt()));
+    builder.add_ddr_scratch(checked_cast<uint32_t>(resources.ddr_scratch().getInt()));
+    builder.add_csram_storage(checked_cast<uint32_t>(resources.csram_storage().getInt()));
     return builder.Finish();
 }
 
-flatbuffers::Offset<MVCNN::SummaryHeader>
-        createSummaryHeader(VPUIP::BlobWriter& writer,
-                            VPUIP::GraphOp graphOp,
-                            mlir::FuncOp graphFunc,
-                            ptrdiff_t taskCount) {
-    auto inputsInfo =
-            to_vector<1>(graphOp.inputsInfo().getOps<VPUIP::TensorInfoOp>());
-    auto outputsInfo =
-            to_vector<1>(graphOp.outputsInfo().getOps<VPUIP::TensorInfoOp>());
+flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, VPUIP::GraphOp graphOp,
+                                                              mlir::FuncOp graphFunc, ptrdiff_t taskCount) {
+    auto inputsInfo = to_vector<1>(graphOp.inputsInfo().getOps<VPUIP::TensorInfoOp>());
+    auto outputsInfo = to_vector<1>(graphOp.outputsInfo().getOps<VPUIP::TensorInfoOp>());
 
     SmallVector<VPUIP::BlobWriter::TensorReference, 1> graphInputs, userInputs;
     graphInputs.reserve(inputsInfo.size());
@@ -87,24 +73,14 @@ flatbuffers::Offset<MVCNN::SummaryHeader>
         auto val = graphFunc.getArgument(checked_cast<uint32_t>(p.index()));
 
         const auto graphType = val.getType().cast<mlir::MemRefType>();
-        const auto userType = mlir::MemRefType::get(graphType.getShape(),
-                                                    userInfo.precision(),
-                                                    {userInfo.layout()});
+        const auto userType = mlir::MemRefType::get(graphType.getShape(), userInfo.precision(), {userInfo.layout()});
 
-        graphInputs.push_back(
-                writer.createTensor(val,
-                                    userInfo.name(),
-                                    VPUIP::MemoryLocation::ProgrammableInput,
-                                    0));
+        graphInputs.push_back(writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableInput, 0));
         userInputs.push_back(
-                writer.createTensor(userInfo.name(),
-                                    userType,
-                                    VPUIP::MemoryLocation::ProgrammableInput,
-                                    0));
+                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableInput, 0));
     }
 
-    SmallVector<VPUIP::BlobWriter::TensorReference, 1> graphOutputs,
-            userOutputs;
+    SmallVector<VPUIP::BlobWriter::TensorReference, 1> graphOutputs, userOutputs;
     graphOutputs.reserve(outputsInfo.size());
     userOutputs.reserve(outputsInfo.size());
 
@@ -115,37 +91,18 @@ flatbuffers::Offset<MVCNN::SummaryHeader>
         auto val = graphFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
         const auto graphType = val.getType().cast<mlir::MemRefType>();
-        const auto userType = mlir::MemRefType::get(graphType.getShape(),
-                                                    userInfo.precision(),
-                                                    {userInfo.layout()});
+        const auto userType = mlir::MemRefType::get(graphType.getShape(), userInfo.precision(), {userInfo.layout()});
 
-        graphOutputs.push_back(
-                writer.createTensor(val,
-                                    userInfo.name(),
-                                    VPUIP::MemoryLocation::ProgrammableOutput,
-                                    0));
+        graphOutputs.push_back(writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableOutput, 0));
         userOutputs.push_back(
-                writer.createTensor(userInfo.name(),
-                                    userType,
-                                    VPUIP::MemoryLocation::ProgrammableOutput,
-                                    0));
+                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableOutput, 0));
     }
 
-    const auto serializedOptions = writer.createVector(
-            graphOp.options().getAsRange<VPUIP::ExecutionFlagAttr>() |
-            transformed([](VPUIP::ExecutionFlagAttr flag) {
-                switch (flag.getValue()) {
-                case VPUIP::ExecutionFlag::DynamicBarriers:
-                    return static_cast<int8_t>(
-                            MVCNN::ExecutionFlag_DynamicBarriers);
-                case VPUIP::ExecutionFlag::Compiled_For_VPU3:
-                    return static_cast<int8_t>(
-                            MVCNN::ExecutionFlag_Compiled_For_VPU3);
-                default:
-                    VPUX_THROW("Unsupported ExecutionFlag {0}",
-                               flag.getValue());
-                }
-            }));
+    SmallVector<int8_t, 1> options;
+    if (VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers)) {
+        options.push_back(static_cast<int8_t>(MVCNN::ExecutionFlag_DynamicBarriers));
+    }
+    const auto serializedOptions = writer.createVector(options);
 
     const auto serializedVersion = createVersion(writer);
     const auto serializedName = writer.createString(graphOp.identifier());
@@ -153,8 +110,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader>
     const auto serializedUserInputs = writer.createVector(userInputs);
     const auto serializedGraphOutputs = writer.createVector(graphOutputs);
     const auto serializedUserOutputs = writer.createVector(userOutputs);
-    const auto serializedResources =
-            serializeResources(writer, graphOp.resources());
+    const auto serializedResources = serializeResources(writer, graphOp.resources());
 
     MVCNN::SummaryHeaderBuilder builder(writer);
     builder.add_version(serializedVersion);
@@ -174,18 +130,15 @@ flatbuffers::Offset<MVCNN::SummaryHeader>
 flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module) {
     VPUIP::GraphOp graphOp;
     mlir::FuncOp graphFunc;
-    VPUX_THROW_UNLESS(
-            mlir::succeeded(
-                    VPUIP::GraphOp::getFromModule(module, graphOp, graphFunc)),
-            "Invalid VPUIP Dialect IR");
+    VPUX_THROW_UNLESS(mlir::succeeded(VPUIP::GraphOp::getFromModule(module, graphOp, graphFunc)),
+                      "Invalid VPUIP Dialect IR");
 
     BlobWriter writer;
 
     const auto allTasks = graphFunc.getOps<VPUIP::TaskOpInterface>();
     const auto taskCount = std::distance(allTasks.begin(), allTasks.end());
 
-    const auto header =
-            createSummaryHeader(writer, graphOp, graphFunc, taskCount);
+    const auto header = createSummaryHeader(writer, graphOp, graphFunc, taskCount);
 
     using TaskList = std::vector<BlobWriter::Task>;
     using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
@@ -197,18 +150,12 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module) {
         if (auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op)) {
             tasksMap[task.getTaskType()].push_back(writer.createTask(task));
         } else if (auto tensorOp = mlir::dyn_cast<DeclareTensorOp>(op)) {
-            VPUX_THROW_UNLESS(tensorOp.offset().hasValue(),
-                              "Memory for Operation {0} was not allocated",
-                              *op);
+            VPUX_THROW_UNLESS(tensorOp.offset().hasValue(), "Memory for Operation {0} was not allocated", *op);
 
-            writer.createTensor(tensorOp.memory(),
-                                "",
-                                tensorOp.location(),
-                                tensorOp.offset().getValue());
+            writer.createTensor(tensorOp.memory(), "", tensorOp.location(), tensorOp.offset().getValue());
         } else if (auto barrierOp = mlir::dyn_cast<DeclareBarrierOp>(op)) {
             writer.createBarrier(barrierOp.barrier());
-        } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr ||
-                   op == graphFunc.getOperation()) {
+        } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == graphFunc.getOperation()) {
             // do nothing
         } else {
             VPUX_THROW("Unknown Operation {0}", *op);

@@ -182,7 +182,6 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   typedef typename scheduled_op_list_t::iterator scheduled_op_list_iterator_t;
   scheduled_op_list_t scheduled_ops;
 
-  clock_t scheduler_algo_start_time = clock();
   std::string scheduled_op_type; 
   while (scheduler != scheduler_end) { // collect original schedule //
     const scheduled_op_info_t &scheduled_op = *scheduler;
@@ -388,10 +387,6 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     params->set<std::string>(writer_t::ddr_address_attribute(),
           schedule_state.str());
   }
-  //////////////////////////////////////////////////////////////////////////////
-  clock_t scheduler_algo_end_time = clock();
-  double runtime = double( double(scheduler_algo_end_time) -
-            double(scheduler_algo_start_time) ) / double(CLOCKS_PER_SEC);
   
   ////////////////////// Control Edge Generation ///////////////////////////////
   mv::ControlModel cmodel(model);

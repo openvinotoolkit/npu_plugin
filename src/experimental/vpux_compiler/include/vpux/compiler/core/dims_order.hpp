@@ -45,8 +45,7 @@ public:
 
     static_assert(sizeof(StorageType) * 8 / BITS_PER_DIM >= MAX_NUM_DIMS,
                   "StorageType is not enough to hold MAX_NUM_DIMS dimensions");
-    static_assert(MAX_DIM_IND >= MAX_NUM_DIMS,
-                  "StorageType is not enough to hold MAX_NUM_DIMS dimensions");
+    static_assert(MAX_DIM_IND >= MAX_NUM_DIMS, "StorageType is not enough to hold MAX_NUM_DIMS dimensions");
 
 public:
     static const DimsOrder C;
@@ -114,15 +113,16 @@ public:
     InferenceEngine::Layout toIE() const;
 
 public:
+    Optional<StringRef> getCanonicalName() const;
+
+public:
     template <typename T, template <class> class Tag>
-    auto toMemoryOrder(details::DimValuesRef<Dim, T, Tag> values) const
-            -> details::DimValues<MemDim, T, Tag> {
+    auto toMemoryOrder(details::DimValuesRef<Dim, T, Tag> values) const -> details::DimValues<MemDim, T, Tag> {
         assert(values.size() == numDims());
 
-        return to_container<details::DimValues<MemDim, T, Tag>>(
-                toPermutation() | transformed([values](Dim d) {
-                    return values[d];
-                }));
+        return to_container<details::DimValues<MemDim, T, Tag>>(toPermutation() | transformed([values](Dim d) {
+                                                                    return values[d];
+                                                                }));
     }
     template <typename T, template <class> class Tag>
     auto toMemoryOrder(const details::DimValues<Dim, T, Tag>& values) const {
@@ -130,21 +130,18 @@ public:
     }
 
     template <typename T, template <class> class Tag>
-    auto toLogicalOrder(details::DimValuesRef<MemDim, T, Tag> values) const
-            -> details::DimValues<Dim, T, Tag> {
+    auto toLogicalOrder(details::DimValuesRef<MemDim, T, Tag> values) const -> details::DimValues<Dim, T, Tag> {
         assert(values.size() == numDims());
 
-        return to_container<details::DimValues<Dim, T, Tag>>(
-                irange(values.size()) |
-                transformed([this, values](size_t dimInd) {
-                    const auto dim = Dim(dimInd);
-                    const auto memDim = this->toMemDim(dim);
-                    return values[memDim];
-                }));
+        return to_container<details::DimValues<Dim, T, Tag>>(irange(values.size()) |
+                                                             transformed([this, values](size_t dimInd) {
+                                                                 const auto dim = Dim(dimInd);
+                                                                 const auto memDim = this->toMemDim(dim);
+                                                                 return values[memDim];
+                                                             }));
     }
     template <typename T, template <class> class Tag>
-    auto toLogicalOrder(
-            const details::DimValues<MemDim, T, Tag>& values) const {
+    auto toLogicalOrder(const details::DimValues<MemDim, T, Tag>& values) const {
         return toLogicalOrder(details::DimValuesRef<MemDim, T, Tag>(values));
     }
 
@@ -152,7 +149,7 @@ public:
     void printFormat(llvm::raw_ostream& streams) const;
 
 private:
-    explicit DimsOrder(StorageType code) : _code(code) {
+    explicit DimsOrder(StorageType code): _code(code) {
     }
 
 private:

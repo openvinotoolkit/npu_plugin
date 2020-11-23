@@ -25,7 +25,7 @@ class Slice final {
 public:
     Slice() = default;
 
-    Slice(int64_t begin, int64_t end) : _begin(begin), _end(end) {
+    Slice(int64_t begin, int64_t end): _begin(begin), _end(end) {
         assert(end >= begin);
     }
 

@@ -27,38 +27,27 @@ using namespace vpux;
 //
 
 void vpux::VPUIP::getTaskEffects(
-        mlir::Operation* op,
-        SmallVectorImpl<
-                mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>&
-                effects) {
+        mlir::Operation* op, SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
     auto task = mlir::cast<TaskOpInterface>(op);
 
     for (const auto input : task.inputTensors()) {
         const auto inputType = input.getType().cast<mlir::MemRefType>();
 
-        effects.emplace_back(mlir::MemoryEffects::Read::get(),
-                             input,
-                             getMemoryResource(inputType));
+        effects.emplace_back(mlir::MemoryEffects::Read::get(), input, getMemoryResource(inputType));
     }
 
     for (const auto output : task.outputTensors()) {
         const auto outputType = output.getType().cast<mlir::MemRefType>();
 
-        effects.emplace_back(mlir::MemoryEffects::Write::get(),
-                             output,
-                             getMemoryResource(outputType));
+        effects.emplace_back(mlir::MemoryEffects::Write::get(), output, getMemoryResource(outputType));
     }
 
     for (const auto waitBarrier : task.waitBarriers()) {
-        effects.emplace_back(mlir::MemoryEffects::Read::get(),
-                             waitBarrier,
-                             VPUIP::BarrierResource::get());
+        effects.emplace_back(mlir::MemoryEffects::Read::get(), waitBarrier, VPUIP::BarrierResource::get());
     }
 
     for (const auto updateBarrier : task.updateBarriers()) {
-        effects.emplace_back(mlir::MemoryEffects::Write::get(),
-                             updateBarrier,
-                             VPUIP::BarrierResource::get());
+        effects.emplace_back(mlir::MemoryEffects::Write::get(), updateBarrier, VPUIP::BarrierResource::get());
     }
 }
 
@@ -71,16 +60,11 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
 
     auto task = mlir::dyn_cast<TaskOpInterface>(op);
     if (task == nullptr) {
-        return printTo(op->emitError(),
-                       "UPA Task {0} doesn't have TaskOpInterface",
-                       op->getName());
+        return printTo(op->emitError(), "UPA Task {0} doesn't have TaskOpInterface", op->getName());
     }
 
     if (task.getTaskType() != VPUIP::TaskType::UPA) {
-        return printTo(op->emitError(),
-                       "UPA Task {0} has wrong TaskType {1}",
-                       op->getName(),
-                       task.getTaskType());
+        return printTo(op->emitError(), "UPA Task {0} has wrong TaskType {1}", op->getName(), task.getTaskType());
     }
 
     if (upaTask.isTrailingSWLayer()) {
@@ -89,17 +73,11 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
                 auto depTask = mlir::dyn_cast<VPUIP::TaskOpInterface>(depOp);
 
                 if (depTask == nullptr) {
-                    return printTo(
-                            op->emitError(),
-                            "Trailing UPA Task has non-SW dependency : {0}",
-                            *depOp);
+                    return printTo(op->emitError(), "Trailing UPA Task has non-SW dependency : {0}", *depOp);
                 }
 
                 if (depTask.getTaskType() != VPUIP::TaskType::UPA) {
-                    return printTo(
-                            op->emitError(),
-                            "Trailing UPA Task has non-SW dependency : {0}",
-                            *depOp);
+                    return printTo(op->emitError(), "Trailing UPA Task has non-SW dependency : {0}", *depOp);
                 }
             }
         }

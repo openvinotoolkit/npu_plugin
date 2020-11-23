@@ -49,10 +49,10 @@ enum class LogLevel {
     Warning = 3,  // Indicating events which are not usual and might lead to
                   // errors later
     Info = 4,     // Short enough messages about ongoing activity in the process
-    Debug = 5,  // More fine-grained messages with references to particular data
-                // and explanations
-    Trace = 6,  // Involved and detailed information about execution, helps to
-                // trace the execution flow, produces huge output
+    Debug = 5,    // More fine-grained messages with references to particular data
+                  // and explanations
+    Trace = 6,    // Involved and detailed information about execution, helps to
+                  // trace the execution flow, produces huge output
 };
 
 template <>
@@ -70,7 +70,7 @@ public:
 
 public:
     Logger() = default;
-    explicit Logger(LogLevel lvl) : _logLevel(lvl) {
+    explicit Logger(LogLevel lvl): _logLevel(lvl) {
     }
 
 public:
@@ -83,71 +83,55 @@ public:
     }
 
     bool isActive(LogLevel msgLevel) const {
-        return static_cast<int32_t>(msgLevel) <=
-               static_cast<int32_t>(_logLevel);
+        return static_cast<int32_t>(msgLevel) <= static_cast<int32_t>(_logLevel);
     }
 
 public:
     template <typename... Args>
     void fatal(StringRef format, Args&&... args) const {
-        addEntryPacked(
-                LogLevel::Fatal,
-                llvm::formatv(format.data(), std::forward<Args>(args)...));
+        addEntryPacked(LogLevel::Fatal, llvm::formatv(format.data(), std::forward<Args>(args)...));
     }
 
     template <typename... Args>
     void error(StringRef format, Args&&... args) const {
-        addEntryPacked(
-                LogLevel::Error,
-                llvm::formatv(format.data(), std::forward<Args>(args)...));
+        addEntryPacked(LogLevel::Error, llvm::formatv(format.data(), std::forward<Args>(args)...));
     }
 
     template <typename... Args>
     void warning(StringRef format, Args&&... args) const {
-        addEntryPacked(
-                LogLevel::Warning,
-                llvm::formatv(format.data(), std::forward<Args>(args)...));
+        addEntryPacked(LogLevel::Warning, llvm::formatv(format.data(), std::forward<Args>(args)...));
     }
 
     template <typename... Args>
     void info(StringRef format, Args&&... args) const {
-        addEntryPacked(
-                LogLevel::Info,
-                llvm::formatv(format.data(), std::forward<Args>(args)...));
+        addEntryPacked(LogLevel::Info, llvm::formatv(format.data(), std::forward<Args>(args)...));
     }
 
     template <typename... Args>
     void debug(StringRef format, Args&&... args) const {
-        addEntryPacked(
-                LogLevel::Debug,
-                llvm::formatv(format.data(), std::forward<Args>(args)...));
+        addEntryPacked(LogLevel::Debug, llvm::formatv(format.data(), std::forward<Args>(args)...));
     }
 
     template <typename... Args>
     void trace(StringRef format, Args&&... args) const {
-        addEntryPacked(
-                LogLevel::Trace,
-                llvm::formatv(format.data(), std::forward<Args>(args)...));
+        addEntryPacked(LogLevel::Trace, llvm::formatv(format.data(), std::forward<Args>(args)...));
     }
 
 public:
     template <typename... Args>
     void addEntry(LogLevel msgLevel, StringRef format, Args&&... args) const {
-        addEntryPacked(
-                msgLevel,
-                llvm::formatv(format.data(), std::forward<Args>(args)...));
+        addEntryPacked(msgLevel, llvm::formatv(format.data(), std::forward<Args>(args)...));
     }
 
 private:
-    void addEntryPacked(LogLevel msgLevel,
-                        const llvm::formatv_object_base& msg) const;
+    void addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_base& msg) const;
 
 private:
     LogLevel _logLevel = LogLevel::None;
 };
 
-#define VPUX_LOG(_log_, _level_, ...)                                          \
-    if (_log_.isActive(vpux::LogLevel::_level_))                               \
+#define VPUX_LOG(_log_, _level_, ...)            \
+    if (_log_.isActive(vpux::LogLevel::_level_)) \
     _log_.addEntry(vpux::LogLevel::_level_, __VA_ARGS__)
 
 #define VPUX_LOG_FATAL(_log_, ...) VPUX_LOG(_log_, Fatal, __VA_ARGS__)
@@ -159,8 +143,7 @@ private:
 
 #define VPUX_GLOG_FATAL(...) VPUX_LOG_FATAL(vpux::Logger::global(), __VA_ARGS__)
 #define VPUX_GLOG_ERROR(...) VPUX_LOG_ERROR(vpux::Logger::global(), __VA_ARGS__)
-#define VPUX_GLOG_WARNING(...)                                                 \
-    VPUX_LOG_WARNING(vpux::Logger::global(), __VA_ARGS__)
+#define VPUX_GLOG_WARNING(...) VPUX_LOG_WARNING(vpux::Logger::global(), __VA_ARGS__)
 #define VPUX_GLOG_INFO(...) VPUX_LOG_INFO(vpux::Logger::global(), __VA_ARGS__)
 #define VPUX_GLOG_DEBUG(...) VPUX_LOG_DEBUG(vpux::Logger::global(), __VA_ARGS__)
 #define VPUX_GLOG_TRACE(...) VPUX_LOG_TRACE(vpux::Logger::global(), __VA_ARGS__)

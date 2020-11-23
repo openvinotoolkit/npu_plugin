@@ -20,22 +20,16 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
 
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::GraphOp::verifySymbolUses(
-        mlir::SymbolTableCollection& symbolTable) {
-    auto netFunc =
-            symbolTable.lookupNearestSymbolFrom<mlir::FuncOp>(*this,
-                                                              entryPointAttr());
+mlir::LogicalResult vpux::VPUIP::GraphOp::verifySymbolUses(mlir::SymbolTableCollection& symbolTable) {
+    auto netFunc = symbolTable.lookupNearestSymbolFrom<mlir::FuncOp>(*this, entryPointAttr());
 
     if (netFunc == nullptr) {
-        return printTo(
-                emitError(),
-                "'{0}' entryPoint '@{1}' doesn't refer to existing Function",
-                GraphOp::getOperationName(),
-                entryPoint());
+        return printTo(emitError(), "'{0}' entryPoint '@{1}' doesn't refer to existing Function",
+                       GraphOp::getOperationName(), entryPoint());
     }
 
     auto inputsInfo = to_vector<1>(this->inputsInfo().getOps<TensorInfoOp>());
@@ -44,69 +38,45 @@ mlir::LogicalResult vpux::VPUIP::GraphOp::verifySymbolUses(
     const auto netFuncType = netFunc.getType();
 
     if (netFuncType.getNumInputs() != inputsInfo.size() + outputsInfo.size()) {
-        return printTo(
-                emitError(),
-                "'{0}' entryPoint '@{1}' inputs count '{2}' doesn't match "
-                "userInputs count '{3}' and userOutputs count '{4}'",
-                GraphOp::getOperationName(),
-                entryPoint(),
-                netFuncType.getNumInputs(),
-                inputsInfo.size(),
-                outputsInfo.size());
+        return printTo(emitError(),
+                       "'{0}' entryPoint '@{1}' inputs count '{2}' doesn't match "
+                       "userInputs count '{3}' and userOutputs count '{4}'",
+                       GraphOp::getOperationName(), entryPoint(), netFuncType.getNumInputs(), inputsInfo.size(),
+                       outputsInfo.size());
     }
     if (netFuncType.getNumResults() != 0) {
-        return printTo(emitError(),
-                       "'{0}' entryPoint '@{1}' can't have results, got '{2}'",
-                       GraphOp::getOperationName(),
-                       entryPoint(),
-                       netFuncType.getNumResults());
+        return printTo(emitError(), "'{0}' entryPoint '@{1}' can't have results, got '{2}'",
+                       GraphOp::getOperationName(), entryPoint(), netFuncType.getNumResults());
     }
 
-    for (const auto& p : zip(netFuncType.getInputs(),
-                             concat<TensorInfoOp>(inputsInfo, outputsInfo)) |
-                                 indexed) {
-        const auto runtimeType =
-                std::get<0>(p.value()).dyn_cast<mlir::MemRefType>();
+    for (const auto& p : zip(netFuncType.getInputs(), concat<TensorInfoOp>(inputsInfo, outputsInfo)) | indexed) {
+        const auto runtimeType = std::get<0>(p.value()).dyn_cast<mlir::MemRefType>();
 
         if (runtimeType == nullptr) {
-            return printTo(
-                    emitError(),
-                    "'{0}' entryPoint '@{1}' input #{2} is not a 'MemRefType'",
-                    GraphOp::getOperationName(),
-                    entryPoint(),
-                    p.index());
+            return printTo(emitError(), "'{0}' entryPoint '@{1}' input #{2} is not a 'MemRefType'",
+                           GraphOp::getOperationName(), entryPoint(), p.index());
         }
 
         auto userInfo = std::get<1>(p.value());
         const auto userLayout = userInfo.layout();
 
-        if (checked_cast<unsigned>(runtimeType.getRank()) !=
-            userLayout.getNumDims()) {
-            return printTo(
-                    emitError(),
-                    "'{0}' entryPoint '@{1} input #{2} is not compatible "
-                    "with {3} '{4}'",
-                    GraphOp::getOperationName(),
-                    entryPoint(),
-                    p.index(),
-                    p.index() < inputsInfo.size() ? "user layout"
-                                                  : "user layout",
-                    userLayout);
+        if (checked_cast<unsigned>(runtimeType.getRank()) != userLayout.getNumDims()) {
+            return printTo(emitError(),
+                           "'{0}' entryPoint '@{1} input #{2} is not compatible "
+                           "with {3} '{4}'",
+                           GraphOp::getOperationName(), entryPoint(), p.index(),
+                           p.index() < inputsInfo.size() ? "user layout" : "user layout", userLayout);
         }
     }
 
     return mlir::success();
 }
 
-mlir::LogicalResult
-        vpux::VPUIP::GraphOp::getFromModule(mlir::ModuleOp module,
-                                            GraphOp& graphOp,
-                                            mlir::FuncOp& graphFunc) {
+mlir::LogicalResult vpux::VPUIP::GraphOp::getFromModule(mlir::ModuleOp module, GraphOp& graphOp,
+                                                        mlir::FuncOp& graphFunc) {
     auto graphOps = to_vector<1>(module.getOps<GraphOp>());
     if (graphOps.size() != 1) {
-        return printTo(module.emitError(),
-                       "Module {0} doesn't contain VPUIP.{1} Operation",
-                       module.getName(),
+        return printTo(module.emitError(), "Module {0} doesn't contain VPUIP.{1} Operation", module.getName(),
                        GraphOp::getOperationName());
     }
 
@@ -117,19 +87,13 @@ mlir::LogicalResult
 }
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(GraphOp op) {
-    if (mlir::failed(
-                IE::checkNetworkDataInfoBlock<GraphOp, TensorInfoOp, EndOp>(
-                        op,
-                        op.inputsInfo().front().getOperations(),
-                        "inputInfo"))) {
+    if (mlir::failed(IE::checkNetworkDataInfoBlock<GraphOp, TensorInfoOp, EndOp>(
+                op, op.inputsInfo().front().getOperations(), "inputInfo"))) {
         return mlir::failure();
     }
 
-    if (mlir::failed(
-                IE::checkNetworkDataInfoBlock<GraphOp, TensorInfoOp, EndOp>(
-                        op,
-                        op.outputsInfo().front().getOperations(),
-                        "outputsInfo"))) {
+    if (mlir::failed(IE::checkNetworkDataInfoBlock<GraphOp, TensorInfoOp, EndOp>(
+                op, op.outputsInfo().front().getOperations(), "outputsInfo"))) {
         return mlir::failure();
     }
 

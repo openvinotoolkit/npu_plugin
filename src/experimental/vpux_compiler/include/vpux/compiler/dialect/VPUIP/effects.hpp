@@ -26,9 +26,8 @@
 namespace vpux {
 namespace VPUIP {
 
-template <MemoryLocation location>
-class MemoryResource final
-        : public mlir::SideEffects::Resource::Base<MemoryResource<location>> {
+template <PhysicalMemory mem>
+class MemoryResource final : public mlir::SideEffects::Resource::Base<MemoryResource<mem>> {
 public:
     StringRef getName() final {
         return _name;
@@ -38,18 +37,17 @@ private:
     friend typename MemoryResource::BaseT;
 
     MemoryResource() {
-        _name = llvm::formatv("VPUIP::Memory::{0}", location);
+        _name = llvm::formatv("VPUIP::PhysicalMemory::{0}", mem);
     }
 
 private:
     std::string _name;
 };
 
-mlir::SideEffects::Resource* getMemoryResource(MemoryLocation location);
+mlir::SideEffects::Resource* getMemoryResource(PhysicalMemory mem);
 mlir::SideEffects::Resource* getMemoryResource(mlir::MemRefType memref);
 
-struct BarrierResource final
-        : public mlir::SideEffects::Resource::Base<BarrierResource> {
+struct BarrierResource final : public mlir::SideEffects::Resource::Base<BarrierResource> {
     StringRef getName() final {
         return "VPUIP::Barrier";
     }

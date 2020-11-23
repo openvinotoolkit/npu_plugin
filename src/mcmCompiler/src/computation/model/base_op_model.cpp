@@ -685,7 +685,7 @@ std::size_t mv::BaseOpModel::dataFlowsCount() const
     return dataGraph_.edge_size();
 }
 
-long long unsigned mv::BaseOpModel::parametersCount() const
+unsigned long long mv::BaseOpModel::parametersCount() const
 {
 
     unsigned result = 0;

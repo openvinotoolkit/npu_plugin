@@ -234,6 +234,8 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 size = jsonDescriptor["resources"]["memory"][i]["size"].get<long long>();
                 alignment = jsonDescriptor["resources"]["memory"][i]["alignment"].get<long long>();
 
+                // TODO
+                // is it required as comparison of unsigned expression < 0 is always false
                 if (size < 0)
                 {
                     reset();
@@ -279,7 +281,9 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                     name = jsonDescriptor["resources"]["nce_block"][i]["name"].get<std::string>();
                     totalNumber = jsonDescriptor["resources"]["nce_block"][i]["totalNumber"].get<long long>();
 
-                    if (totalNumber < 0)
+                    // TODO
+                    // is it required as comparison of unsigned expression < 0 is always false
+                    if (std::less<size_t>()(totalNumber, 0U))
                     {
                         reset();
                         return false;
@@ -340,7 +344,9 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 maxNumberEncodedSymbols = jsonDescriptor["resources"]["huffman_decode_engine"][i]["maxNumberEncodedSymbols"].get<long long>();
                 bypassMode = jsonDescriptor["resources"]["huffman_decode_engine"][i]["bypassMode"].get<bool>();
 
-                if (numberOfHDEModules < 0)
+                // TODO
+                // is it required as comparison of unsigned expression < 0 is always false
+                if (std::less<size_t>()(numberOfHDEModules, 0U))
                 {
                     reset();
                     return false;

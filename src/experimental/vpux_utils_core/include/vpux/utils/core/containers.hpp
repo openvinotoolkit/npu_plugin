@@ -31,14 +31,12 @@ namespace vpux {
 namespace details {
 
 template <class Container, typename T>
-auto addToContainerImpl(Container& cont, T&& val, int)
-        -> decltype(cont.push_back(std::forward<T>(val))) {
+auto addToContainerImpl(Container& cont, T&& val, int) -> decltype(cont.push_back(std::forward<T>(val))) {
     return cont.push_back(std::forward<T>(val));
 }
 
 template <class Container, typename T>
-auto addToContainerImpl(Container& cont, T&& val, ...)
-        -> decltype(cont.insert(std::forward<T>(val))) {
+auto addToContainerImpl(Container& cont, T&& val, ...) -> decltype(cont.insert(std::forward<T>(val))) {
     return cont.insert(std::forward<T>(val));
 }
 

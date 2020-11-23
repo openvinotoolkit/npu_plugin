@@ -40,8 +40,7 @@ class BlobWriter;
 //
 
 void getTaskEffects(mlir::Operation* op,
-                    SmallVectorImpl<mlir::SideEffects::EffectInstance<
-                            mlir::MemoryEffects::Effect>>& effects);
+                    SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 //
 // UPATaskOpInterface

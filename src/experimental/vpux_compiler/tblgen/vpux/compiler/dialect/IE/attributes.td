@@ -34,18 +34,18 @@ class IE_Attr<Pred pred, string descr> :
 // Layout
 //
 
-def IE_Layout_ANY       : StrEnumAttrCase<"ANY">;
-def IE_Layout_SCALAR    : StrEnumAttrCase<"SCALAR">;
-def IE_Layout_C         : StrEnumAttrCase<"C">;
-def IE_Layout_NC        : StrEnumAttrCase<"NC">;
-def IE_Layout_CHW       : StrEnumAttrCase<"CHW">;
-def IE_Layout_NCHW      : StrEnumAttrCase<"NCHW">;
-def IE_Layout_NHWC      : StrEnumAttrCase<"NHWC">;
-def IE_Layout_NCDHW     : StrEnumAttrCase<"NCDHW">;
-def IE_Layout_NDHWC     : StrEnumAttrCase<"NDHWC">;
+def IE_Layout_ANY       : I32EnumAttrCase<"ANY",    0>;
+def IE_Layout_SCALAR    : I32EnumAttrCase<"SCALAR", 1>;
+def IE_Layout_C         : I32EnumAttrCase<"C",      2>;
+def IE_Layout_NC        : I32EnumAttrCase<"NC",     3>;
+def IE_Layout_CHW       : I32EnumAttrCase<"CHW",    4>;
+def IE_Layout_NCHW      : I32EnumAttrCase<"NCHW",   5>;
+def IE_Layout_NHWC      : I32EnumAttrCase<"NHWC",   6>;
+def IE_Layout_NCDHW     : I32EnumAttrCase<"NCDHW",  7>;
+def IE_Layout_NDHWC     : I32EnumAttrCase<"NDHWC",  8>;
 
-def IE_LayoutEnum :
-        StrEnumAttr<
+def IE_Layout :
+        I32EnumAttr<
             "Layout",
             "Layouts that the InferenceEngine supports",
             [
@@ -61,17 +61,6 @@ def IE_LayoutEnum :
             ]
         > {
     let cppNamespace = "vpux::IE";
-}
-
-def IE_LayoutAttr :
-        IE_Attr<
-            CPred<"$_self.isa<vpux::IE::LayoutAttr>()">,
-            "Layouts that the InferenceEngine supports"
-        > {
-    let storageType = "vpux::IE::LayoutAttr";
-    let returnType = "vpux::IE::Layout";
-
-    let constBuilderCall = "vpux::IE::LayoutAttr::get($_builder.getContext(), $0)";
 }
 
 #endif

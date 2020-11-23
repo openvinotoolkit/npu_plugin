@@ -444,7 +444,6 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    auto outputTensor = op->getOutputTensor("output");
     auto opId = op->get<unsigned>("opId");
     auto number_of_splits = tiling.childTiles().size();
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
@@ -623,6 +622,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     // Unlike Kstream, we may have different number of "newOutputs" than slices, since Ops can have multiple inputs
     // and the concept of stream is per OP not per tensor // todo:: find way with less duplication of code&logic
 
+    auto outputTensor = op->getOutputTensor("output");
     auto numChildStreames = tiling.childTiles().size();
     for (auto newTensor : newTensors)
     {
@@ -703,7 +703,6 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    auto outputTensor = op->getOutputTensor("output");
     auto opId = op->get<unsigned>("opId");
     auto number_of_splits = tiling.childTiles().size();
     auto childTiles = tiling.childTiles();
@@ -834,6 +833,7 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
     // Unlike Kstream, we may have different number of "newOutputs" than slices, since Ops can have multiple inputs
     // and the concept of stream is per OP not per tensor // todo:: find way with less duplication of code&logic
 
+    auto outputTensor = op->getOutputTensor("output");
     auto numChildStreames = tiling.childTiles().size();
     for (auto newTensor : newTensors)
     {

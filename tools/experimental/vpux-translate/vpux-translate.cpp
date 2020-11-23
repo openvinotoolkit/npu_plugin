@@ -39,8 +39,7 @@ namespace {
 // import-IE
 //
 
-mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr,
-                               mlir::MLIRContext* ctx) {
+mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ctx) {
     if (sourceMgr.getNumBuffers() != 1) {
         printTo(llvm::errs(),
                 "Invalid source file for IE IR, it has unsupported number of "
@@ -49,8 +48,7 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr,
         return nullptr;
     }
 
-    const auto netFileName =
-            sourceMgr.getMemoryBuffer(1)->getBufferIdentifier();
+    const auto netFileName = sourceMgr.getMemoryBuffer(1)->getBufferIdentifier();
     if (netFileName.empty()) {
         printTo(llvm::errs(), "Invalid source file for IE IR, not a file");
         return nullptr;
@@ -62,10 +60,7 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr,
     try {
         cnnNet = ieCore.ReadNetwork(netFileName.str());
     } catch (const std::exception& ex) {
-        printTo(llvm::errs(),
-                "Failed to open IE IR {0} : {1}",
-                netFileName,
-                ex.what());
+        printTo(llvm::errs(), "Failed to open IE IR {0} : {1}", netFileName, ex.what());
         return nullptr;
     }
 
@@ -75,10 +70,7 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr,
         IE::FrontEnd frontEnd(ctx, LogLevel::Warning);
         module = frontEnd.importNetwork(cnnNet);
     } catch (const std::exception& ex) {
-        printTo(llvm::errs(),
-                "Failed to translate IE IR {0} to MLIR : {1}",
-                netFileName,
-                ex.what());
+        printTo(llvm::errs(), "Failed to translate IE IR {0} to MLIR : {1}", netFileName, ex.what());
         return nullptr;
     }
 
@@ -89,8 +81,7 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr,
 // export-VPUIP
 //
 
-mlir::LogicalResult exportVPUIP(mlir::ModuleOp module,
-                                llvm::raw_ostream& output) {
+mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output) {
     const auto buf = VPUIP::exportToBlob(module);
     output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
     return mlir::success();
@@ -107,14 +98,9 @@ void registerDialects(mlir::DialectRegistry& registry) {
 int main(int argc, char* argv[]) {
     try {
         mlir::TranslateToMLIRRegistration("import-IE", importIE);
-        mlir::TranslateFromMLIRRegistration("export-VPUIP",
-                                            exportVPUIP,
-                                            registerDialects);
+        mlir::TranslateFromMLIRRegistration("export-VPUIP", exportVPUIP, registerDialects);
 
-        const auto res =
-                mlir::mlirTranslateMain(argc,
-                                        argv,
-                                        "VPUX Translation Testing Tool");
+        const auto res = mlir::mlirTranslateMain(argc, argv, "VPUX Translation Testing Tool");
 
         return mlir::succeeded(res) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception& e) {

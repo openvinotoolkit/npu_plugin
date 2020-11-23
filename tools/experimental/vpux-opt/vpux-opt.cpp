@@ -42,11 +42,7 @@ int main(int argc, char* argv[]) {
         registerConversionPasses();
         registerAllPipelines();
 
-        const auto res = mlir::MlirOptMain(argc,
-                                           argv,
-                                           "VPUX Optimizer Testing Tool",
-                                           registry,
-                                           true);
+        const auto res = mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, true);
 
         return mlir::succeeded(res) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception& e) {

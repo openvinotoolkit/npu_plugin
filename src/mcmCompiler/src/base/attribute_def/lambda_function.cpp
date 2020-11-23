@@ -15,7 +15,7 @@ static Attribute fromJSON(const json::Value&) {
     return 0;
 }
 
-static std::string toString(const Attribute& a) {
+static std::string toString(const Attribute& /*a*/) {
     return "std::function<void(MVCNN::GraphFileT&)>()";
 }
 

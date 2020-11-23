@@ -19,14 +19,10 @@
 using namespace vpux;
 
 //
-// LayoutAttr
+// Layout utilities
 //
 
-StringRef vpux::IE::LayoutAttr::getMnemonic() {
-    return "Layout";
-}
-
-int32_t vpux::IE::LayoutAttr::getRank(Layout layout) {
+int32_t vpux::IE::getRank(Layout layout) {
     switch (layout) {
     case IE::Layout::C:
         return 1;
@@ -50,11 +46,7 @@ int32_t vpux::IE::LayoutAttr::getRank(Layout layout) {
     }
 }
 
-int32_t vpux::IE::LayoutAttr::getRank() const {
-    return getRank(getValue());
-}
-
-DimsOrder vpux::IE::LayoutAttr::toDimsOrder(Layout layout) {
+DimsOrder vpux::IE::getDimsOrder(Layout layout) {
     switch (layout) {
     case IE::Layout::SCALAR:
         return DimsOrder::fromNumDims(0);
@@ -77,17 +69,8 @@ DimsOrder vpux::IE::LayoutAttr::toDimsOrder(Layout layout) {
     }
 }
 
-DimsOrder vpux::IE::LayoutAttr::toDimsOrder() const {
-    return toDimsOrder(getValue());
-}
-
-mlir::AffineMap vpux::IE::LayoutAttr::toAffineMap(mlir::MLIRContext* ctx,
-                                                  Layout layout) {
-    return toDimsOrder(layout).toAffineMap(ctx);
-}
-
-mlir::AffineMap vpux::IE::LayoutAttr::toAffineMap() const {
-    return toAffineMap(getContext(), getValue());
+mlir::AffineMap vpux::IE::getAffineMap(mlir::MLIRContext* ctx, Layout layout) {
+    return getDimsOrder(layout).toAffineMap(ctx);
 }
 
 //

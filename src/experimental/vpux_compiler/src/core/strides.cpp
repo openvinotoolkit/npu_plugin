@@ -37,14 +37,10 @@ Strides vpux::getStrides(mlir::MemRefType type) {
 
     Strides strides;
     int64_t offset = 0;
-    VPUX_THROW_UNLESS(
-            mlir::succeeded(
-                    mlir::getStridesAndOffset(type, strides.raw(), offset)),
-            "Only strided/simple MemRef Types are supported");
-    VPUX_THROW_UNLESS(!strides.empty(),
+    VPUX_THROW_UNLESS(mlir::succeeded(mlir::getStridesAndOffset(type, strides.raw(), offset)),
                       "Only strided/simple MemRef Types are supported");
-    VPUX_THROW_UNLESS(offset == 0,
-                      "Only strided/simple MemRef Types are supported");
+    VPUX_THROW_UNLESS(!strides.empty(), "Only strided/simple MemRef Types are supported");
+    VPUX_THROW_UNLESS(offset == 0, "Only strided/simple MemRef Types are supported");
 
     for (auto& val : strides) {
         val *= elemByteSize;
@@ -61,8 +57,7 @@ int64_t vpux::getTypeByteSize(mlir::MemRefType type) {
     }
 
     const auto dimsOrder = DimsOrder::fromType(type);
-    VPUX_THROW_UNLESS(dimsOrder.hasValue(),
-                      "Only strided/simple MemRef Types are supported");
+    VPUX_THROW_UNLESS(dimsOrder.hasValue(), "Only strided/simple MemRef Types are supported");
 
     const auto shape = getShape(type);
     const auto strides = getStrides(type);
@@ -70,9 +65,7 @@ int64_t vpux::getTypeByteSize(mlir::MemRefType type) {
     const auto memShape = dimsOrder->toMemoryOrder(shape);
     const auto memStrides = dimsOrder->toMemoryOrder(strides);
 
-    VPUX_THROW_UNLESS(memShape.size() == memStrides.size(),
-                      "Size and strides mismatch : {0} vs {1}",
-                      memShape,
+    VPUX_THROW_UNLESS(memShape.size() == memStrides.size(), "Size and strides mismatch : {0} vs {1}", memShape,
                       memStrides);
 
     return memStrides.back() * memShape.back();

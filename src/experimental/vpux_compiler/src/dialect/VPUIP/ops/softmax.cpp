@@ -22,16 +22,12 @@ using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(SoftMaxUPAOp op) {
     if (op.inputTensors().size() != 1) {
-        return printTo(op.emitError(),
-                       "'{0}' must have 1 input tensor, got {1}",
-                       SoftMaxUPAOp::getOperationName(),
+        return printTo(op.emitError(), "'{0}' must have 1 input tensor, got {1}", SoftMaxUPAOp::getOperationName(),
                        op.inputTensors().size());
     }
 
     if (op.outputTensors().size() != 1) {
-        return printTo(op.emitError(),
-                       "'{0}' must have 1 output tensor, got {1}",
-                       SoftMaxUPAOp::getOperationName(),
+        return printTo(op.emitError(), "'{0}' must have 1 output tensor, got {1}", SoftMaxUPAOp::getOperationName(),
                        op.outputTensors().size());
     }
 
@@ -41,20 +37,16 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(SoftMaxUPAOp op) {
     const auto srcType = src.getType().cast<mlir::MemRefType>();
     const auto dstType = dst.getType().cast<mlir::MemRefType>();
 
-    const auto srcMem = MemoryLocationAttr::toPhysicalMemory(srcType);
-    const auto dstMem = MemoryLocationAttr::toPhysicalMemory(dstType);
+    const auto srcMem = getPhysicalMemory(srcType);
+    const auto dstMem = getPhysicalMemory(dstType);
 
     if (srcMem != PhysicalMemory::DDR && srcMem != PhysicalMemory::CSRAM) {
-        return printTo(op.emitError(),
-                       "'{0}' can't operate with '{1}' PhysicalMemory",
-                       SoftMaxUPAOp::getOperationName(),
-                       srcMem);
+        return printTo(op.emitError(), "'{0}' can't operate with '{1}' PhysicalMemory",
+                       SoftMaxUPAOp::getOperationName(), srcMem);
     }
     if (srcMem != PhysicalMemory::DDR && srcMem != PhysicalMemory::CSRAM) {
-        return printTo(op.emitError(),
-                       "'{0}' can't operate with '{1}' PhysicalMemory",
-                       SoftMaxUPAOp::getOperationName(),
-                       dstMem);
+        return printTo(op.emitError(), "'{0}' can't operate with '{1}' PhysicalMemory",
+                       SoftMaxUPAOp::getOperationName(), dstMem);
     }
 
     return mlir::success();
@@ -70,17 +62,13 @@ Dim vpux::VPUIP::SoftMaxUPAOp::getAxisDim() {
     return Dim(axisInd());
 }
 
-VPUIP::BlobWriter::SpecificTask
-        vpux::VPUIP::SoftMaxUPAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftMaxUPAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
     const auto axisDim = getAxisDim();
 
     MVCNN::SoftmaxParamsBuilder builder(writer);
     builder.add_axis(checked_cast<uint32_t>(axisDim.ind()));
     const auto paramsOff = builder.Finish();
 
-    return writer.createUPALayerTask(
-            getOperation(),
-            {paramsOff.Union(), MVCNN::SoftwareLayerParams_SoftmaxParams},
-            checked_cast<int32_t>(maxShaves()),
-            isTrailingSWLayer());
+    return writer.createUPALayerTask(getOperation(), {paramsOff.Union(), MVCNN::SoftwareLayerParams_SoftmaxParams},
+                                     checked_cast<int32_t>(maxShaves()), isTrailingSWLayer());
 }

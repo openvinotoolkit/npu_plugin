@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 
 #include <flatbuffers/flatbuffers.h>
 

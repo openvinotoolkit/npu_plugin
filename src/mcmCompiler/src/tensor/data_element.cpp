@@ -35,56 +35,59 @@ bool mv::DataElement::operator==(DataElement& rhs) const
 
     if (isDouble_)
         return this->operator double() == static_cast<double>(rhs);
-    //else
-    return this->operator int64_t() == static_cast<int64_t>(rhs);
+    else
+        return this->operator int64_t() == static_cast<int64_t>(rhs);
 }
 
 bool mv::DataElement::operator==(const double& rhs) const
 {
     if (isDouble_)
         return  data_.fp64_ == rhs;
-    //else
-    return data_.i64_ == rhs;
+    else
+        return data_.i64_ == rhs;
 }
 
 bool mv::DataElement::operator==(const int& rhs) const
 {
     if (isDouble_)
         return  data_.fp64_ == rhs;
-    //else
-    return data_.i64_ == rhs;
+    else
+        return data_.i64_ == rhs;
 }
 
 bool mv::DataElement::operator==(const unsigned int& rhs) const
 {
-        return  data_.fp64_ == rhs;
+    //TODO
+    //Is this true??
+    return  data_.fp64_ == rhs;
+
     //else
     if (isDouble_)
     return data_.i64_ == rhs;
 }
 
-bool mv::DataElement::operator==(const long unsigned int& rhs) const
+bool mv::DataElement::operator==(const unsigned long& rhs) const
 {
     if (isDouble_)
         return  (data_.fp64_ == rhs);
-    //else
-    return data_.i64_ == rhs;
+
+    return static_cast<unsigned long>(data_.i64_) == rhs;
 }
 
 bool mv::DataElement::operator==(const int64_t& rhs) const
 {
     if (isDouble_)
         return  data_.fp64_ == rhs;
-    //else
-    return data_.i64_ == rhs;
+    else
+        return data_.i64_ == rhs;
 }
 
 bool mv::DataElement::operator==(const float& rhs) const
 {
     if (isDouble_)
         return  data_.fp64_ == rhs;
-    //else
-    return data_.i64_ == rhs;
+    else
+        return data_.i64_ == rhs;
 }
 
 mv::DataElement& mv::DataElement::operator=(int64_t i)
@@ -210,6 +213,6 @@ mv::DataElement::operator std::string() const
 {
     if (isDouble_)
         return std::to_string(data_.fp64_);
-    //else
-    return std::to_string(data_.i64_);
+    else
+        return std::to_string(data_.i64_);
 }

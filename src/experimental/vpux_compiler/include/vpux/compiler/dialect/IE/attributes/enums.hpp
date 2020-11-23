@@ -46,34 +46,28 @@ struct EnumTraits<IE::Layout> final {
     static auto parseValue(StringRef valStr) {
         return IE::symbolizeEnum<IE::Layout>(valStr);
     }
+
+    static bool isValidVal(int64_t val) {
+        return val >= 0 && static_cast<uint64_t>(val) <= IE::getMaxEnumValForLayout();
+    }
 };
 
 }  // namespace vpux
 
 //
-// LayoutAttr
+// Layout utilities
 //
 
 namespace vpux {
 namespace IE {
 
-class LayoutAttr final : public EnumAttrBase<LayoutAttr, Layout> {
-public:
-    using EnumAttrBase<LayoutAttr, Layout>::EnumAttrBase;
+using LayoutAttr = IntEnumAttr<Layout>;
 
-public:
-    static StringRef getMnemonic();
+int32_t getRank(Layout layout);
 
-public:
-    static int32_t getRank(Layout layout);
-    int32_t getRank() const;
+DimsOrder getDimsOrder(Layout layout);
 
-    static DimsOrder toDimsOrder(Layout layout);
-    DimsOrder toDimsOrder() const;
-
-    static mlir::AffineMap toAffineMap(mlir::MLIRContext* ctx, Layout layout);
-    mlir::AffineMap toAffineMap() const;
-};
+mlir::AffineMap getAffineMap(mlir::MLIRContext* ctx, Layout layout);
 
 }  // namespace IE
 }  // namespace vpux

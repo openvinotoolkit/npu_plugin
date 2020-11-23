@@ -29,13 +29,10 @@
 
 using namespace vpux;
 
-VPUIP::BlobWriter::Task
-        vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op) {
+VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op) {
     auto task = mlir::cast<VPUIP::TaskOpInterface>(op);
 
-    VPUX_THROW_UNLESS(_tasks.count(op) == 0,
-                      "Operation {0} was already serialized",
-                      *op);
+    VPUX_THROW_UNLESS(_tasks.count(op) == 0, "Operation {0} was already serialized", *op);
 
     const auto curID = _tasks.size();
 
@@ -44,20 +41,16 @@ VPUIP::BlobWriter::Task
         name = createString(nameLoc.getName().strref());
     }
 
-    const auto waitBarriers = createVector(
-            task.waitBarriers() | transformed([this](mlir::Value val) {
-                const auto* barrier =
-                        flatbuffers::GetTemporaryPointer(_impl,
-                                                         getBarrier(val));
-                return checked_cast<uint32_t>(barrier->barrier_id());
-            }));
-    const auto updateBarriers = createVector(
-            task.updateBarriers() | transformed([this](mlir::Value val) {
-                const auto* barrier =
-                        flatbuffers::GetTemporaryPointer(_impl,
-                                                         getBarrier(val));
-                return checked_cast<uint32_t>(barrier->barrier_id());
-            }));
+    const auto waitBarriers = createVector(task.waitBarriers() | transformed([this](mlir::Value val) {
+                                               const auto* barrier =
+                                                       flatbuffers::GetTemporaryPointer(_impl, getBarrier(val));
+                                               return checked_cast<uint32_t>(barrier->barrier_id());
+                                           }));
+    const auto updateBarriers = createVector(task.updateBarriers() | transformed([this](mlir::Value val) {
+                                                 const auto* barrier =
+                                                         flatbuffers::GetTemporaryPointer(_impl, getBarrier(val));
+                                                 return checked_cast<uint32_t>(barrier->barrier_id());
+                                             }));
 
     MVCNN::BarrierReferenceBuilder barriersBuilder(_impl);
     barriersBuilder.add_wait_barriers(waitBarriers);
@@ -81,21 +74,17 @@ VPUIP::BlobWriter::Task
     return off;
 }
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(
-        mlir::Operation* op,
-        const SoftwareLayerParams& params,
-        int32_t maxShaves,
-        bool isTrailingSWLayer) {
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir::Operation* op,
+                                                                            const SoftwareLayerParams& params,
+                                                                            int32_t maxShaves, bool isTrailingSWLayer) {
     auto task = mlir::cast<VPUIP::TaskOpInterface>(op);
 
     const auto getTensorCb = [this](mlir::Value val) {
         return getTensor(val);
     };
 
-    const auto inputs =
-            createVector(task.inputTensors() | transformed(getTensorCb));
-    const auto outputs =
-            createVector(task.outputTensors() | transformed(getTensorCb));
+    const auto inputs = createVector(task.inputTensors() | transformed(getTensorCb));
+    const auto outputs = createVector(task.outputTensors() | transformed(getTensorCb));
 
     MVCNN::UPALayerTaskBuilder builder(_impl);
     builder.add_maxShaves(checked_cast<uint8_t>(maxShaves));
@@ -107,11 +96,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(
     return {builder.Finish().Union(), MVCNN::SpecificTask_UPALayerTask};
 }
 
-VPUIP::BlobWriter::TensorReference
-        vpux::VPUIP::BlobWriter::createTensor(StringRef name,
-                                              mlir::MemRefType type,
-                                              MemoryLocation location,
-                                              uint64_t offset) {
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(StringRef name, mlir::MemRefType type,
+                                                                         MemoryLocation location, uint64_t offset) {
     const auto serializedName = createString(name);
     const auto serializedDataType = createDType(type.getElementType());
     const auto serializedDims = createDims(type);
@@ -125,9 +111,7 @@ VPUIP::BlobWriter::TensorReference
     const auto quantShift = createVector(makeArrayRef<uint8_t>({0}));
 
     const auto dimsOrder = DimsOrder::fromType(type);
-    VPUX_THROW_UNLESS(dimsOrder.hasValue(),
-                      "Can't get DimsOrder from MemRef Type {0}",
-                      type);
+    VPUX_THROW_UNLESS(dimsOrder.hasValue(), "Can't get DimsOrder from MemRef Type {0}", type);
 
     MVCNN::TensorReferenceBuilder builder(_impl);
     builder.add_name(serializedName);
@@ -144,39 +128,25 @@ VPUIP::BlobWriter::TensorReference
     return builder.Finish();
 }
 
-VPUIP::BlobWriter::TensorReference
-        vpux::VPUIP::BlobWriter::createTensor(mlir::Value val,
-                                              StringRef name,
-                                              MemoryLocation location,
-                                              uint64_t offset) {
-    VPUX_THROW_UNLESS(_tensors.count(val) == 0,
-                      "Value {0} was already serialized",
-                      val);
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(mlir::Value val, StringRef name,
+                                                                         MemoryLocation location, uint64_t offset) {
+    VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value {0} was already serialized", val);
 
-    const auto off = createTensor(name,
-                                  val.getType().cast<mlir::MemRefType>(),
-                                  location,
-                                  offset);
+    const auto off = createTensor(name, val.getType().cast<mlir::MemRefType>(), location, offset);
 
     _tensors.insert({val, off});
 
     return off;
 }
 
-VPUIP::BlobWriter::TensorReference
-        vpux::VPUIP::BlobWriter::getTensor(mlir::Value val) const {
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::getTensor(mlir::Value val) const {
     const auto it = _tensors.find(val);
-    VPUX_THROW_UNLESS(it != _tensors.end(),
-                      "Value {0} wasn't serialized yet",
-                      val);
+    VPUX_THROW_UNLESS(it != _tensors.end(), "Value {0} wasn't serialized yet", val);
     return it->second;
 }
 
-VPUIP::BlobWriter::Barrier
-        vpux::VPUIP::BlobWriter::createBarrier(mlir::Value val) {
-    VPUX_THROW_UNLESS(_barriers.count(val) == 0,
-                      "Value {0} was already serialized",
-                      val);
+VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value val) {
+    VPUX_THROW_UNLESS(_barriers.count(val) == 0, "Value {0} was already serialized", val);
 
     const auto curID = _barriers.size();
 
@@ -187,37 +157,27 @@ VPUIP::BlobWriter::Barrier
         VPUX_THROW_UNLESS(opEffects != nullptr,
                           "Barrier Value {0} is used by Operation {1} without "
                           "MemoryEffects interface",
-                          val,
-                          *userOp);
+                          val, *userOp);
 
-        using MemEffect =
-                mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
+        using MemEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
         SmallVector<MemEffect, 1> valEffects;
 
         opEffects.getEffectsOnValue(val, valEffects);
         VPUX_THROW_UNLESS(valEffects.size() == 1,
                           "Barrier Value {0} must have exactly 1 MemoryEffect "
                           "per Operation, got {1} for Operation {2}",
-                          val,
-                          valEffects.size(),
-                          *userOp);
+                          val, valEffects.size(), *userOp);
 
         const auto& effect = valEffects.front();
-        VPUX_THROW_UNLESS(
-                effect.getResource() == BarrierResource::get(),
-                "Barrier Value {0} has non Barrier Resource for Operation {1}",
-                val,
-                *userOp);
+        VPUX_THROW_UNLESS(effect.getResource() == BarrierResource::get(),
+                          "Barrier Value {0} has non Barrier Resource for Operation {1}", val, *userOp);
 
         if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
             ++numConsumers;
         } else if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
             ++numProducers;
         } else {
-            VPUX_THROW(
-                    "Barrier Value {0} has unsupported Effect in Operation {1}",
-                    val,
-                    *userOp);
+            VPUX_THROW("Barrier Value {0} has unsupported Effect in Operation {1}", val, *userOp);
         }
     }
 
@@ -232,12 +192,9 @@ VPUIP::BlobWriter::Barrier
     return off;
 }
 
-VPUIP::BlobWriter::Barrier
-        vpux::VPUIP::BlobWriter::getBarrier(mlir::Value val) const {
+VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::getBarrier(mlir::Value val) const {
     const auto it = _barriers.find(val);
-    VPUX_THROW_UNLESS(it != _barriers.end(),
-                      "Value {0} wasn't serialized yet",
-                      val);
+    VPUX_THROW_UNLESS(it != _barriers.end(), "Value {0} wasn't serialized yet", val);
     return it->second;
 }
 
@@ -277,21 +234,17 @@ MVCNN::DType vpux::VPUIP::BlobWriter::createDType(mlir::Type type) {
     }
 }
 
-VPUIP::BlobWriter::Vector<uint32_t>
-        vpux::VPUIP::BlobWriter::createDims(ShapeRef shape) {
+VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(ShapeRef shape) {
     return createVector(shape | transformed([](int64_t val) {
                             return checked_cast<uint32_t>(val);
                         }));
 }
 
-VPUIP::BlobWriter::Vector<uint32_t>
-        vpux::VPUIP::BlobWriter::createDims(mlir::MemRefType type) {
+VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(mlir::MemRefType type) {
     return createDims(getShape(type));
 }
 
-VPUIP::BlobWriter::Vector<uint32_t>
-        vpux::VPUIP::BlobWriter::createStrides(StridesRef strides,
-                                               int64_t elemByteSize) {
+VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createStrides(StridesRef strides, int64_t elemByteSize) {
     Strides temp{elemByteSize};
     temp.append(strides.begin(), strides.end());
 
@@ -300,15 +253,13 @@ VPUIP::BlobWriter::Vector<uint32_t>
                         }));
 }
 
-VPUIP::BlobWriter::Vector<uint32_t>
-        vpux::VPUIP::BlobWriter::createStrides(mlir::MemRefType type) {
+VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createStrides(mlir::MemRefType type) {
     return createStrides(getStrides(type), type.getElementTypeBitWidth() / 8);
 }
 
-MVCNN::MemoryLocation
-        vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocation location) {
-#define CASE(_val_)                                                            \
-    case MemoryLocation::_val_:                                                \
+MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocation location) {
+#define CASE(_val_)             \
+    case MemoryLocation::_val_: \
         return VPUX_COMBINE(MVCNN::MemoryLocation_, _val_)
 
     switch (location) {
@@ -327,16 +278,14 @@ MVCNN::MemoryLocation
 #undef CASE
 }
 
-VPUIP::BlobWriter::IndirectDataReference
-        vpux::VPUIP::BlobWriter::createIndirectDataReference(uint64_t offset) {
+VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirectDataReference(uint64_t offset) {
     MVCNN::IndirectDataReferenceBuilder builder(_impl);
     builder.add_data_index(offset);
     return builder.Finish();
 }
 
-VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(
-        mlir::DenseElementsAttr content,
-        bool csram_cacheable) {
+VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(mlir::DenseElementsAttr content,
+                                                                        bool csram_cacheable) {
     auto type = content.getType().cast<mlir::ShapedType>();
 
     auto elemType = type.getElementType();
@@ -345,17 +294,13 @@ VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(
     const size_t totalNumElements = type.getNumElements();
     const size_t totalByteSize = totalNumElements * elemTypeByteSize;
 
-    std::vector<uint64_t> alignedContent(
-            alignVal(totalByteSize, sizeof(uint64_t)));
+    std::vector<uint64_t> alignedContent(alignVal(totalByteSize, sizeof(uint64_t)));
 
     const auto rawData = content.getRawData();
-    VPUX_THROW_UNLESS(rawData.size() == totalByteSize,
-                      "Raw Size mismatch for const content : {0} vs {1}",
-                      rawData.size(),
-                      totalByteSize);
+    VPUX_THROW_UNLESS(rawData.size() == totalByteSize, "Raw Size mismatch for const content : {0} vs {1}",
+                      rawData.size(), totalByteSize);
 
-    std::copy_n(reinterpret_cast<const uint8_t*>(rawData.data()),
-                totalByteSize,
+    std::copy_n(reinterpret_cast<const uint8_t*>(rawData.data()), totalByteSize,
                 reinterpret_cast<uint8_t*>(alignedContent.data()));
 
     const auto serializedDataType = createDType(elemType);

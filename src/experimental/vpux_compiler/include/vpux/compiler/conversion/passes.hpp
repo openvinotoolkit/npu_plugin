@@ -20,7 +20,7 @@
 
 #include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
 
 #include <memory>
@@ -31,8 +31,7 @@ namespace vpux {
 // IE2VPUIP
 //
 
-std::unique_ptr<mlir::Pass>
-        createConvertIE2VPUIPPass(uint32_t maxUPAShaves = 1);
+std::unique_ptr<mlir::Pass> createConvertIE2VPUIPPass(uint32_t maxUPAShaves = 1);
 
 //
 // Generated

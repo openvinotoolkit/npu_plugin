@@ -44,6 +44,10 @@ struct EnumTraits<VPUIP::PhysicalProcessor> final {
     static auto parseValue(StringRef valStr) {
         return VPUIP::symbolizeEnum<VPUIP::PhysicalProcessor>(valStr);
     }
+
+    static bool isValidVal(int64_t val) {
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForPhysicalProcessor();
+    }
 };
 
 template <>
@@ -54,6 +58,10 @@ struct EnumTraits<VPUIP::DMAEngine> final {
 
     static auto parseValue(StringRef valStr) {
         return VPUIP::symbolizeEnum<VPUIP::DMAEngine>(valStr);
+    }
+
+    static bool isValidVal(int64_t val) {
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForDMAEngine();
     }
 };
 
@@ -66,6 +74,10 @@ struct EnumTraits<VPUIP::PhysicalMemory> final {
     static auto parseValue(StringRef valStr) {
         return VPUIP::symbolizeEnum<VPUIP::PhysicalMemory>(valStr);
     }
+
+    static bool isValidVal(int64_t val) {
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForPhysicalMemory();
+    }
 };
 
 template <>
@@ -76,6 +88,10 @@ struct EnumTraits<VPUIP::ArchKind> final {
 
     static auto parseValue(StringRef valStr) {
         return VPUIP::symbolizeEnum<VPUIP::ArchKind>(valStr);
+    }
+
+    static bool isValidVal(int64_t val) {
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForArchKind();
     }
 };
 
@@ -88,16 +104,9 @@ struct EnumTraits<VPUIP::MemoryLocation> final {
     static auto parseValue(StringRef valStr) {
         return VPUIP::symbolizeEnum<VPUIP::MemoryLocation>(valStr);
     }
-};
 
-template <>
-struct EnumTraits<VPUIP::ExecutionFlag> final {
-    static auto getEnumValueName(VPUIP::ExecutionFlag val) {
-        return VPUIP::stringifyEnum(val);
-    }
-
-    static auto parseValue(StringRef valStr) {
-        return VPUIP::symbolizeEnum<VPUIP::ExecutionFlag>(valStr);
+    static bool isValidVal(int64_t val) {
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForMemoryLocation();
     }
 };
 
@@ -110,6 +119,25 @@ struct EnumTraits<VPUIP::TaskType> final {
     static auto parseValue(StringRef valStr) {
         return VPUIP::symbolizeEnum<VPUIP::TaskType>(valStr);
     }
+
+    static bool isValidVal(int64_t val) {
+        return val >= 0 && static_cast<uint64_t>(val) <= VPUIP::getMaxEnumValForTaskType();
+    }
+};
+
+template <>
+struct EnumTraits<VPUIP::ExecutionFlag> final {
+    static auto getEnumValueName(VPUIP::ExecutionFlag val) {
+        return VPUIP::stringifyEnum(val);
+    }
+
+    static auto parseValue(StringRef valStr) {
+        return VPUIP::symbolizeEnum<VPUIP::ExecutionFlag>(valStr);
+    }
+
+    static bool isValidVal(int64_t val) {
+        return val >= 0 && VPUIP::symbolizeExecutionFlag(checked_cast<uint32_t>(val)).hasValue();
+    }
 };
 
 }  // namespace vpux
@@ -117,108 +145,25 @@ struct EnumTraits<VPUIP::TaskType> final {
 namespace vpux {
 namespace VPUIP {
 
-//
-// PhysicalProcessorAttr
-//
-
-class PhysicalProcessorAttr final
-        : public EnumAttrBase<PhysicalProcessorAttr, PhysicalProcessor> {
-public:
-    using EnumAttrBase<PhysicalProcessorAttr, PhysicalProcessor>::EnumAttrBase;
-
-public:
-    static StringRef getMnemonic();
-};
+using PhysicalProcessorAttr = IntEnumAttr<PhysicalProcessor>;
+using DMAEngineAttr = IntEnumAttr<DMAEngine>;
+using PhysicalMemoryAttr = IntEnumAttr<PhysicalMemory>;
+using ArchKindAttr = IntEnumAttr<ArchKind>;
+using MemoryLocationAttr = IntEnumAttr<MemoryLocation>;
+using TaskTypeAttr = IntEnumAttr<TaskType>;
+using ExecutionFlagAttr = IntEnumAttr<ExecutionFlag>;
 
 //
-// DMAEngineAttr
+// MemoryLocation utilities
 //
 
-class DMAEngineAttr final : public EnumAttrBase<DMAEngineAttr, DMAEngine> {
-public:
-    using EnumAttrBase<DMAEngineAttr, DMAEngine>::EnumAttrBase;
+MemoryLocation getDefaultMemoryLocation(PhysicalMemory mem);
+MemoryLocation getDefaultMemoryLocation(mlir::MemRefType memref);
 
-public:
-    static StringRef getMnemonic();
-};
+PhysicalMemory getPhysicalMemory(MemoryLocation location);
+PhysicalMemory getPhysicalMemory(mlir::MemRefType memref);
 
-//
-// PhysicalMemoryAttr
-//
-
-class PhysicalMemoryAttr final
-        : public EnumAttrBase<PhysicalMemoryAttr, PhysicalMemory> {
-public:
-    using EnumAttrBase<PhysicalMemoryAttr, PhysicalMemory>::EnumAttrBase;
-
-public:
-    static StringRef getMnemonic();
-};
-
-//
-// ArchKindAttr
-//
-
-class ArchKindAttr final : public EnumAttrBase<ArchKindAttr, ArchKind> {
-public:
-    using EnumAttrBase<ArchKindAttr, ArchKind>::EnumAttrBase;
-
-public:
-    static StringRef getMnemonic();
-};
-
-//
-// MemoryLocationAttr
-//
-
-class MemoryLocationAttr final
-        : public EnumAttrBase<MemoryLocationAttr, MemoryLocation> {
-public:
-    using EnumAttrBase<MemoryLocationAttr, MemoryLocation>::EnumAttrBase;
-
-public:
-    static StringRef getMnemonic();
-
-public:
-    static MemoryLocationAttr fromPhysicalMemory(mlir::MLIRContext* ctx,
-                                                 PhysicalMemory mem);
-
-    static PhysicalMemory toPhysicalMemory(mlir::MemRefType memref);
-    static PhysicalMemory toPhysicalMemory(MemoryLocation location);
-    PhysicalMemory toPhysicalMemory() const;
-
-public:
-    static MemoryLocationAttr fromMemRef(mlir::MemRefType memref);
-
-    static bool isCompatibleWith(MemoryLocation location,
-                                 mlir::MemRefType memref);
-    bool isCompatibleWith(mlir::MemRefType memref) const;
-};
-
-//
-// ExecutionFlagAttr
-//
-
-class ExecutionFlagAttr final
-        : public EnumAttrBase<ExecutionFlagAttr, ExecutionFlag> {
-public:
-    using EnumAttrBase<ExecutionFlagAttr, ExecutionFlag>::EnumAttrBase;
-
-public:
-    static StringRef getMnemonic();
-};
-
-//
-// TaskTypeAttr
-//
-
-class TaskTypeAttr final : public EnumAttrBase<TaskTypeAttr, TaskType> {
-public:
-    using EnumAttrBase<TaskTypeAttr, TaskType>::EnumAttrBase;
-
-public:
-    static StringRef getMnemonic();
-};
+bool isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref);
 
 }  // namespace VPUIP
 }  // namespace vpux

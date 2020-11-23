@@ -1275,9 +1275,6 @@ class Dynamic_Spill_Node_Inserter {
     template<typename ScheduledOpIterator>
     void compute_spill_subtrees(ScheduledOpIterator sbegin,
           ScheduledOpIterator send) {
-      typedef typename OpDag::const_operation_iterator_t
-          const_operation_iterator_t;
-
       static_assert(std::is_same<typename ScheduledOpIterator::value_type,
             scheduled_op_t>::value, "Invalid ScheduledOpIterator");
 
