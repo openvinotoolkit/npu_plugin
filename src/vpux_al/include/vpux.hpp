@@ -59,6 +59,9 @@ public:
     virtual std::unordered_set<std::string> getSupportedOptions() const;
 
     void Release() noexcept override { delete this; }
+
+protected:
+    virtual ~IEngineBackend() override = default;
 };
 
 class EngineBackendConfigurator;
