@@ -54,11 +54,11 @@ protected:
     void execPreprocessing(InferenceEngine::BlobMap& inputs);
     void relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
         InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
-        unsigned int lpi);
+        unsigned int lpi, unsigned int numPipes);
     virtual void execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
         std::map<std::string, InferenceEngine::PreProcessDataPtr>& preprocData,
         InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
-        unsigned int lpi);
+        unsigned int lpi, unsigned int numPipes);
 #endif
 
 protected:

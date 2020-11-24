@@ -55,6 +55,15 @@ DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_SHAVES);
 DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_LPI);
 
 /**
+ * @brief [Only for VPUX Plugin]
+ * Type: integer, default is 1.
+ * Number of preprocessing pipelines to be used by particular network,
+ * these pipelines will work in parallel and make preprocessing
+ * for all infer requests of this network
+ */
+DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_PIPES);
+
+/**
  * @brief [Only for VPUAL Subplugin]
  * Type: "YES", "NO", default is "NO"
  * This option allows to use Media-to-Inference (M2I) module for image pre-processing
