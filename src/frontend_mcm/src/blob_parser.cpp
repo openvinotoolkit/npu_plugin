@@ -34,7 +34,7 @@ namespace vpu {
 namespace MCMAdapter {
 // FIXME: inconsistency with how we extract layout info from meta data
 // we need a single way how to extract layout from compiled network
-static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<uint32_t>& strides) {
+static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<float>& strides) {
     const std::size_t MAX_DIM_COUNT = 5;
     const std::size_t /*DIM_X = 0, DIM_N = 1,*/ DIM_C = 2, DIM_H = 3, DIM_W = 4;
 

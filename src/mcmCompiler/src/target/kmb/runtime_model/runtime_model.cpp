@@ -88,8 +88,8 @@ const std::unordered_map<mv::PPELayerTypeEnum, MVCNN::PPELayerType, mv::EnumClas
    {PPELayerType_ADD, MVCNN::PPELayerType::PPELayerType_ADD},
    {PPELayerType_SUB, MVCNN::PPELayerType::PPELayerType_SUB},
    {PPELayerType_MULT, MVCNN::PPELayerType::PPELayerType_MULT},
-   {PPELayerType_RELU, MVCNN::PPELayerType::PPELayerType_RELU},
-   {PPELayerType_RELUX, MVCNN::PPELayerType::PPELayerType_RELUX},
+   {PPELayerType_RELU, MVCNN::PPELayerType::PPELayerType_LRELU},
+   {PPELayerType_RELUX, MVCNN::PPELayerType::PPELayerType_LRELUX},
    {PPELayerType_LPRELU, MVCNN::PPELayerType::PPELayerType_LPRELU},
    {PPELayerType_MAXIMUM, MVCNN::PPELayerType::PPELayerType_MAXIMUM},
    {PPELayerType_MINIMUM, MVCNN::PPELayerType::PPELayerType_MINIMUM},
@@ -261,11 +261,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     auto underlyingTensor = tensorBufferIt->getData();
     std::vector<uint32_t> dimensions = underlyingTensor->getShape();
     //NOTE: the buffer strides are used only for changing between the normal strides and the buffer strides
-    std::vector<unsigned> dilatedStrides(4, 0);
-    std::vector<unsigned> bufferStrides(4, 0);
+    std::vector<float> dilatedStrides(4, 0);
+    std::vector<float> bufferStrides(4, 0);
 
     auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-    std::vector<uint32_t> numericStrides;
+    std::vector<float> numericStrides;
     if ((t->hasAttr("leadingOffset") && *tensorAllocatorName == "VPU_CMX_NN" ) ||
             (t->hasAttr("dilatedSlice") && *tensorAllocatorName == "VPU_CMX_NN" ))
         numericStrides = tensorBufferIt->getData()->computeNumericStrides();
@@ -907,16 +907,37 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     std::unique_ptr<MVCNN::ResourcesT> toBuild = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
     auto globalConfigurationParams = cm.getGlobalConfigParams();
 
-    setIfPresent<uint32_t, int>(toBuild->upa_shaves, *globalConfigurationParams , "UpaShaves");
-    setIfPresent<int8_t, int>(toBuild->nce1_blocks, *globalConfigurationParams, "NCE1Mask");
-    setIfPresent<uint32_t, int>(toBuild->nce2_blocks, *globalConfigurationParams, "Number_of_DPUs");
-    setIfPresent<uint32_t, int>(toBuild->upa_shared_cmx, *globalConfigurationParams, "UPASharedCMX");
-    uint32_t nn_cmx_per_slice=0;
-    setIfPresent<uint32_t, unsigned>(nn_cmx_per_slice, *globalConfigurationParams, "totalCmx");
-    toBuild->nn_cmx_per_slice = nn_cmx_per_slice;
-    setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_slice_amount, *globalConfigurationParams, "clusters");
-    // Set DDR scratch value to high watermark, which is saved in BufferMap
-    toBuild->ddr_scratch = (cm.bufferMap().getScratch()) ? cm.bufferMap().getScratch()->getSize() : 0;
+    toBuild->processor_allocation = std::vector<std::unique_ptr<MVCNN::ProcessorMappingT>>();
+    if(globalConfigurationParams->hasAttr("UpaShaves")){
+        std::unique_ptr<MVCNN::ProcessorMappingT> upaSHVProcessor =
+            std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
+        upaSHVProcessor->item= MVCNN::PhysicalProcessor_UPA_SHV;
+        setIfPresent<double, int>(upaSHVProcessor->number, *globalConfigurationParams , "UpaShaves");
+        toBuild->processor_allocation.push_back(std::move(upaSHVProcessor));
+    }
+    if(globalConfigurationParams->hasAttr("Number_of_Clusters")){
+        std::unique_ptr<MVCNN::ProcessorMappingT> NNClusterProcessor =
+            std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
+        NNClusterProcessor->item= MVCNN::PhysicalProcessor_NCE_Cluster ;
+        setIfPresent<double, int>(NNClusterProcessor->number, *globalConfigurationParams , "Number_of_Clusters");
+        toBuild->processor_allocation.push_back(std::move(NNClusterProcessor));
+    }
+
+    toBuild->memory_sizes = std::vector<std::unique_ptr<MVCNN::MemoryMappingT>>();
+    if(globalConfigurationParams->hasAttr("cmx")){
+        std::unique_ptr<MVCNN::MemoryMappingT> cmxMemorySize =
+            std::unique_ptr<MVCNN::MemoryMappingT>(new MVCNN::MemoryMappingT());
+        cmxMemorySize->item= MVCNN::PhysicalMem_NN_CMX;
+        setIfPresent<double, unsigned>(cmxMemorySize->number, *globalConfigurationParams , "cmx");
+        toBuild->memory_sizes.push_back(std::move(cmxMemorySize));
+    }
+    if(globalConfigurationParams->hasAttr("DDRScratch")){
+        std::unique_ptr<MVCNN::MemoryMappingT> DDRMemorySize =
+            std::unique_ptr<MVCNN::MemoryMappingT>(new MVCNN::MemoryMappingT());
+        DDRMemorySize->item= MVCNN::PhysicalMem_DDR;
+        setIfPresent<double, int>(DDRMemorySize->number, *globalConfigurationParams , "DDRScratch");
+        toBuild->memory_sizes.push_back(std::move(DDRMemorySize));
+    }
     return toBuild;
 }
 
@@ -1176,7 +1197,7 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
         totalSizeDst *= src->getDType().getSizeInBits() / 8;
         std::vector<uint32_t> dimensionsdst = {totalSizeDst, 1, 1, 1};
-        std::vector<uint32_t> strides = {1, 1, 1, 1, 1};
+        std::vector<float> strides = {1, 1, 1, 1, 1};
         auto dtype = MVCNN::DType::DType_U8;
 
         tmp->src->dimensions = dimensions;
@@ -3537,7 +3558,7 @@ void mv::RuntimeModel::clear()
     binaryData_->clear();
 }
 
-mv::Order mv::RuntimeModel::stridesToOrder(std::vector<unsigned> strides, std::vector<unsigned> dims)
+mv::Order mv::RuntimeModel::stridesToOrder(std::vector<float> strides, std::vector<unsigned> dims)
 {
 
     std::vector<std::size_t> contVector;

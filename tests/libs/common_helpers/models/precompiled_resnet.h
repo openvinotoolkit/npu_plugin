@@ -31,7 +31,7 @@ struct modelTensors {
 };
 
 namespace PrecompiledResNet_Helper {
-    const std::string resnet_50_folder = ModelLoader_Helper::getTestModelsPath() + "/KMB_models/BLOBS/resnet-50/";
+    const std::string resnet_50_folder = ModelLoader_Helper::getTestModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/";
     const std::string resnet_50_IR_folder = ModelLoader_Helper::getTestModelsPath() + "/KMB_models/INT8/public/ResNet-50/";
 
     // Actual version, fp16 output
@@ -44,7 +44,6 @@ namespace PrecompiledResNet_Helper {
                 resnet_50_folder + "output-228x228-nv12.bin",
                 "input-cat-1080x1080-nv12.bin",
                 "output-cat-1080x1080-nv12.bin",
-                resnet_50_IR_folder + "resnet50_uint8_int8_weights_pertensor.xml"
+                resnet_50_IR_folder + "resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8.xml"
             };
 };
-

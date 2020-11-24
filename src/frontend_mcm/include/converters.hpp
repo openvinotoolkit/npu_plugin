@@ -22,14 +22,14 @@
 
 #include <ie_precision.hpp>
 
-InferenceEngine::Layout orderVectorToLayout(const std::vector<uint32_t>& tensorOrder);
+InferenceEngine::Layout orderVectorToLayout(const std::vector<float>& tensorOrder);
 InferenceEngine::Precision MvcnnDTypeToPrecision(const MVCNN::DType& dtype);
 
 #include <mcm/tensor/dtype/dtype.hpp>
 #include <mcm/tensor/order/order.hpp>
 #include <mcm/tensor/shape.hpp>
 
-std::vector<uint32_t> layoutToOrderVector(const InferenceEngine::Layout& tensorLayout);
+std::vector<float> layoutToOrderVector(const InferenceEngine::Layout& tensorLayout);
 MVCNN::DType precisionToMvcnnDType(const InferenceEngine::Precision& tensorPrecision);
 mv::DType precisionToDType(const InferenceEngine::Precision& iePrecision);
 mv::Order layoutToOrder(const InferenceEngine::Layout& ieLayout);

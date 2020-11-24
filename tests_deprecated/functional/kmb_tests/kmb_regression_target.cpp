@@ -32,6 +32,7 @@
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
 #include "tests_timeout.hpp"
+#include "yolo_helpers.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -101,17 +102,17 @@ TEST_F(kmbLayersTestsConvolution, DISABLED_compilationLoadNetworkAndInfer) {
 
 const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
     {
-        ._graphPath = "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob",
+        ._graphPath = "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob",
         ._inputPath = "/KMB_models/BLOBS/mobilenet-v2/input.bin",
         ._outputPath = "/KMB_models/BLOBS/mobilenet-v2/output.bin",
     },
     {
-        ._graphPath = "/KMB_models/BLOBS/resnet-50/resnet-50.blob",
+        ._graphPath = "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob",
         ._inputPath = "/KMB_models/BLOBS/resnet-50/input.bin",
         ._outputPath = "/KMB_models/BLOBS/resnet-50/output.bin",
     },
     {
-        ._graphPath = "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob",
+        ._graphPath = "/KMB_models/BLOBS/tiny-yolo-v2/schema-3.24.3/tiny-yolo-v2.blob",
         ._inputPath = "/KMB_models/BLOBS/tiny-yolo-v2/input.bin",
         ._outputPath = "/KMB_models/BLOBS/tiny-yolo-v2/output.bin",
     }};
@@ -120,6 +121,41 @@ class VpuNoRegressionInference : public Regression::RegressionTests {
 public:
     std::string getDeviceName() const override { return ""; }
 };
+
+void printTopResults(const Blob::Ptr& referenceOutputBlob, const Blob::Ptr& outputBlob, const std::string& graphSuffix) {
+    Blob::Ptr refFP32 = toFP32(referenceOutputBlob);
+    Blob::Ptr outputFP32 = toFP32(outputBlob);
+    if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+        const auto imgWidth = outputFP32->getTensorDesc().getDims()[3];
+        const auto imgHeight = outputFP32->getTensorDesc().getDims()[2];
+
+        bool isTiny = true;
+        float confThresh = 0.4;
+        auto referenceResult = utils::parseYoloOutput(refFP32, imgWidth, imgHeight, confThresh, isTiny);
+        auto actualResult = utils::parseYoloOutput(outputFP32, imgWidth, imgHeight, confThresh, isTiny);
+
+        std::ostringstream outString;
+        utils::printDetectionBBoxOutputs(actualResult, outString, {});
+        std::cout << "out: " << std::endl << outString.str() << std::endl;
+
+        std::ostringstream refString;
+        utils::printDetectionBBoxOutputs(referenceResult, refString, {});
+        std::cout << "ref: " << std::endl << refString.str() << std::endl;
+    } else {
+        auto refTopClasses = Comparators::yieldTopClasses<float>(refFP32, NUMBER_OF_TOP_CLASSES);
+        auto outTopClasses = Comparators::yieldTopClasses<float>(outputFP32, NUMBER_OF_TOP_CLASSES);
+        std::cout << "out:";
+        for (auto classId : outTopClasses) {
+            std::cout << " " << classId;
+        }
+        std::cout << std::endl;
+        std::cout << "ref:";
+        for (auto classId : refTopClasses) {
+            std::cout << " " << classId;
+        }
+        std::cout << std::endl;
+    }
+}
 
 TEST_P(VpuInferWithPath, canDoInferenceOnImportedBlob) {
     modelBlobsInfo blobsInfo = GetParam();
@@ -178,7 +214,6 @@ TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
             referenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
         Blob::Ptr refFP32 = toFP32(referenceOutputBlob);
         Blob::Ptr outputFP32 = toFP32(outputBlob);
-        Compare(refFP32, outputFP32, 0.0f);
         if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
             Compare(refFP32, outputFP32, 0.0f);
         } else {
@@ -501,11 +536,11 @@ TEST_P(VpuInferWithPath, compareOutputsTwoNetworks) {
     if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
         Blob::Ptr blobFP32 = toFP32(outputBlob2);
         Blob::Ptr expectedBlobFP32 = toFP32(outputBlob1);
-        Compare(blobFP32, expectedBlobFP32, 0.0f);
+        printTopResults(expectedBlobFP32, blobFP32, graphSuffix);
 
         blobFP32 = toFP32(outputBlob2);
         expectedBlobFP32 = toFP32(fileOutputBlob);
-        Compare(blobFP32, expectedBlobFP32, 0.0f);
+        printTopResults(expectedBlobFP32, blobFP32, graphSuffix);
     } else {
         Blob::Ptr outputBlob2FP32 = toFP32(outputBlob2);
         ASSERT_NO_THROW(compareTopClasses(outputBlob2FP32, toFP32(outputBlob1), NUMBER_OF_TOP_CLASSES));
@@ -520,19 +555,19 @@ struct TopNetTest {
 
 const static std::vector<TopNetTest> pathToTop3PreCompiledGraph = {
     {{
-         ._graphPath = "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob",
+         ._graphPath = "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob",
          ._inputPath = "/KMB_models/BLOBS/mobilenet-v2/input.bin",
          ._outputPath = "/KMB_models/BLOBS/mobilenet-v2/output.bin",
      },
         true},
     {{
-         ._graphPath = "/KMB_models/BLOBS/resnet-50/resnet-50.blob",
+         ._graphPath = "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob",
          ._inputPath = "/KMB_models/BLOBS/resnet-50/input.bin",
          ._outputPath = "/KMB_models/BLOBS/resnet-50/output.bin",
      },
         true},
     {{
-         ._graphPath = "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob",
+         ._graphPath = "/KMB_models/BLOBS/tiny-yolo-v2/schema-3.24.3/tiny-yolo-v2.blob",
          ._inputPath = "/KMB_models/BLOBS/tiny-yolo-v2/input.bin",
          ._outputPath = "/KMB_models/BLOBS/tiny-yolo-v2/output.bin",
      },

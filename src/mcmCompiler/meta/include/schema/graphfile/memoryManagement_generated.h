@@ -159,11 +159,67 @@ struct BinaryDataT : public flatbuffers::NativeTable {
   typedef BinaryData TableType;
   MVCNN::DType underlying_type;
   uint64_t length;
+  uint64_t padding;
+  uint64_t padding2;
+  uint64_t padding3;
+  uint64_t padding4;
+  uint64_t padding5;
+  uint64_t padding6;
+  uint64_t padding7;
+  uint64_t padding8;
+  uint64_t padding9;
+  uint64_t padding10;
+  uint64_t padding11;
+  uint64_t padding12;
+  uint64_t padding13;
+  uint64_t padding14;
+  uint64_t padding15;
+  uint64_t padding16;
+  uint64_t padding17;
+  uint64_t padding18;
+  uint64_t padding19;
+  uint64_t padding20;
+  uint64_t padding21;
+  uint64_t padding22;
+  uint64_t padding23;
+  uint64_t padding24;
+  uint64_t padding25;
+  uint64_t padding26;
+  uint64_t padding27;
+  uint64_t padding28;
   std::vector<uint64_t> data;
   bool csram_cacheable;
   BinaryDataT()
       : underlying_type(MVCNN::DType_NOT_SET),
         length(0),
+        padding(0),
+        padding2(0),
+        padding3(0),
+        padding4(0),
+        padding5(0),
+        padding6(0),
+        padding7(0),
+        padding8(0),
+        padding9(0),
+        padding10(0),
+        padding11(0),
+        padding12(0),
+        padding13(0),
+        padding14(0),
+        padding15(0),
+        padding16(0),
+        padding17(0),
+        padding18(0),
+        padding19(0),
+        padding20(0),
+        padding21(0),
+        padding22(0),
+        padding23(0),
+        padding24(0),
+        padding25(0),
+        padding26(0),
+        padding27(0),
+        padding28(0),
         csram_cacheable(false) {
   }
 };
@@ -174,14 +230,126 @@ struct BinaryData FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_UNDERLYING_TYPE = 4,
     VT_LENGTH = 6,
-    VT_DATA = 8,
-    VT_CSRAM_CACHEABLE = 10
+    VT_PADDING = 8,
+    VT_PADDING2 = 10,
+    VT_PADDING3 = 12,
+    VT_PADDING4 = 14,
+    VT_PADDING5 = 16,
+    VT_PADDING6 = 18,
+    VT_PADDING7 = 20,
+    VT_PADDING8 = 22,
+    VT_PADDING9 = 24,
+    VT_PADDING10 = 26,
+    VT_PADDING11 = 28,
+    VT_PADDING12 = 30,
+    VT_PADDING13 = 32,
+    VT_PADDING14 = 34,
+    VT_PADDING15 = 36,
+    VT_PADDING16 = 38,
+    VT_PADDING17 = 40,
+    VT_PADDING18 = 42,
+    VT_PADDING19 = 44,
+    VT_PADDING20 = 46,
+    VT_PADDING21 = 48,
+    VT_PADDING22 = 50,
+    VT_PADDING23 = 52,
+    VT_PADDING24 = 54,
+    VT_PADDING25 = 56,
+    VT_PADDING26 = 58,
+    VT_PADDING27 = 60,
+    VT_PADDING28 = 62,
+    VT_DATA = 64,
+    VT_CSRAM_CACHEABLE = 66
   };
   MVCNN::DType underlying_type() const {
     return static_cast<MVCNN::DType>(GetField<int8_t>(VT_UNDERLYING_TYPE, 0));
   }
   uint64_t length() const {
     return GetField<uint64_t>(VT_LENGTH, 0);
+  }
+  uint64_t padding() const {
+    return GetField<uint64_t>(VT_PADDING, 0);
+  }
+  uint64_t padding2() const {
+    return GetField<uint64_t>(VT_PADDING2, 0);
+  }
+  uint64_t padding3() const {
+    return GetField<uint64_t>(VT_PADDING3, 0);
+  }
+  uint64_t padding4() const {
+    return GetField<uint64_t>(VT_PADDING4, 0);
+  }
+  uint64_t padding5() const {
+    return GetField<uint64_t>(VT_PADDING5, 0);
+  }
+  uint64_t padding6() const {
+    return GetField<uint64_t>(VT_PADDING6, 0);
+  }
+  uint64_t padding7() const {
+    return GetField<uint64_t>(VT_PADDING7, 0);
+  }
+  uint64_t padding8() const {
+    return GetField<uint64_t>(VT_PADDING8, 0);
+  }
+  uint64_t padding9() const {
+    return GetField<uint64_t>(VT_PADDING9, 0);
+  }
+  uint64_t padding10() const {
+    return GetField<uint64_t>(VT_PADDING10, 0);
+  }
+  uint64_t padding11() const {
+    return GetField<uint64_t>(VT_PADDING11, 0);
+  }
+  uint64_t padding12() const {
+    return GetField<uint64_t>(VT_PADDING12, 0);
+  }
+  uint64_t padding13() const {
+    return GetField<uint64_t>(VT_PADDING13, 0);
+  }
+  uint64_t padding14() const {
+    return GetField<uint64_t>(VT_PADDING14, 0);
+  }
+  uint64_t padding15() const {
+    return GetField<uint64_t>(VT_PADDING15, 0);
+  }
+  uint64_t padding16() const {
+    return GetField<uint64_t>(VT_PADDING16, 0);
+  }
+  uint64_t padding17() const {
+    return GetField<uint64_t>(VT_PADDING17, 0);
+  }
+  uint64_t padding18() const {
+    return GetField<uint64_t>(VT_PADDING18, 0);
+  }
+  uint64_t padding19() const {
+    return GetField<uint64_t>(VT_PADDING19, 0);
+  }
+  uint64_t padding20() const {
+    return GetField<uint64_t>(VT_PADDING20, 0);
+  }
+  uint64_t padding21() const {
+    return GetField<uint64_t>(VT_PADDING21, 0);
+  }
+  uint64_t padding22() const {
+    return GetField<uint64_t>(VT_PADDING22, 0);
+  }
+  uint64_t padding23() const {
+    return GetField<uint64_t>(VT_PADDING23, 0);
+  }
+  uint64_t padding24() const {
+    return GetField<uint64_t>(VT_PADDING24, 0);
+  }
+  uint64_t padding25() const {
+    return GetField<uint64_t>(VT_PADDING25, 0);
+  }
+  uint64_t padding26() const {
+    return GetField<uint64_t>(VT_PADDING26, 0);
+  }
+  uint64_t padding27() const {
+    return GetField<uint64_t>(VT_PADDING27, 0);
+  }
+  uint64_t padding28() const {
+    return GetField<uint64_t>(VT_PADDING28, 0);
   }
   const flatbuffers::Vector<uint64_t> *data() const {
     return GetPointer<const flatbuffers::Vector<uint64_t> *>(VT_DATA);
@@ -193,6 +361,34 @@ struct BinaryData FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     return VerifyTableStart(verifier) &&
            VerifyField<int8_t>(verifier, VT_UNDERLYING_TYPE) &&
            VerifyField<uint64_t>(verifier, VT_LENGTH) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING2) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING3) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING4) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING5) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING6) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING7) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING8) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING9) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING10) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING11) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING12) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING13) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING14) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING15) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING16) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING17) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING18) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING19) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING20) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING21) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING22) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING23) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING24) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING25) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING26) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING27) &&
+           VerifyField<uint64_t>(verifier, VT_PADDING28) &&
            VerifyOffset(verifier, VT_DATA) &&
            verifier.VerifyVector(data()) &&
            VerifyField<uint8_t>(verifier, VT_CSRAM_CACHEABLE) &&
@@ -212,6 +408,90 @@ struct BinaryDataBuilder {
   }
   void add_length(uint64_t length) {
     fbb_.AddElement<uint64_t>(BinaryData::VT_LENGTH, length, 0);
+  }
+  void add_padding(uint64_t padding) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING, padding, 0);
+  }
+  void add_padding2(uint64_t padding2) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING2, padding2, 0);
+  }
+  void add_padding3(uint64_t padding3) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING3, padding3, 0);
+  }
+  void add_padding4(uint64_t padding4) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING4, padding4, 0);
+  }
+  void add_padding5(uint64_t padding5) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING5, padding5, 0);
+  }
+  void add_padding6(uint64_t padding6) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING6, padding6, 0);
+  }
+  void add_padding7(uint64_t padding7) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING7, padding7, 0);
+  }
+  void add_padding8(uint64_t padding8) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING8, padding8, 0);
+  }
+  void add_padding9(uint64_t padding9) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING9, padding9, 0);
+  }
+  void add_padding10(uint64_t padding10) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING10, padding10, 0);
+  }
+  void add_padding11(uint64_t padding11) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING11, padding11, 0);
+  }
+  void add_padding12(uint64_t padding12) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING12, padding12, 0);
+  }
+  void add_padding13(uint64_t padding13) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING13, padding13, 0);
+  }
+  void add_padding14(uint64_t padding14) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING14, padding14, 0);
+  }
+  void add_padding15(uint64_t padding15) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING15, padding15, 0);
+  }
+  void add_padding16(uint64_t padding16) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING16, padding16, 0);
+  }
+  void add_padding17(uint64_t padding17) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING17, padding17, 0);
+  }
+  void add_padding18(uint64_t padding18) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING18, padding18, 0);
+  }
+  void add_padding19(uint64_t padding19) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING19, padding19, 0);
+  }
+  void add_padding20(uint64_t padding20) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING20, padding20, 0);
+  }
+  void add_padding21(uint64_t padding21) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING21, padding21, 0);
+  }
+  void add_padding22(uint64_t padding22) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING22, padding22, 0);
+  }
+  void add_padding23(uint64_t padding23) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING23, padding23, 0);
+  }
+  void add_padding24(uint64_t padding24) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING24, padding24, 0);
+  }
+  void add_padding25(uint64_t padding25) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING25, padding25, 0);
+  }
+  void add_padding26(uint64_t padding26) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING26, padding26, 0);
+  }
+  void add_padding27(uint64_t padding27) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING27, padding27, 0);
+  }
+  void add_padding28(uint64_t padding28) {
+    fbb_.AddElement<uint64_t>(BinaryData::VT_PADDING28, padding28, 0);
   }
   void add_data(flatbuffers::Offset<flatbuffers::Vector<uint64_t>> data) {
     fbb_.AddOffset(BinaryData::VT_DATA, data);
@@ -235,9 +515,65 @@ inline flatbuffers::Offset<BinaryData> CreateBinaryData(
     flatbuffers::FlatBufferBuilder &_fbb,
     MVCNN::DType underlying_type = MVCNN::DType_NOT_SET,
     uint64_t length = 0,
+    uint64_t padding = 0,
+    uint64_t padding2 = 0,
+    uint64_t padding3 = 0,
+    uint64_t padding4 = 0,
+    uint64_t padding5 = 0,
+    uint64_t padding6 = 0,
+    uint64_t padding7 = 0,
+    uint64_t padding8 = 0,
+    uint64_t padding9 = 0,
+    uint64_t padding10 = 0,
+    uint64_t padding11 = 0,
+    uint64_t padding12 = 0,
+    uint64_t padding13 = 0,
+    uint64_t padding14 = 0,
+    uint64_t padding15 = 0,
+    uint64_t padding16 = 0,
+    uint64_t padding17 = 0,
+    uint64_t padding18 = 0,
+    uint64_t padding19 = 0,
+    uint64_t padding20 = 0,
+    uint64_t padding21 = 0,
+    uint64_t padding22 = 0,
+    uint64_t padding23 = 0,
+    uint64_t padding24 = 0,
+    uint64_t padding25 = 0,
+    uint64_t padding26 = 0,
+    uint64_t padding27 = 0,
+    uint64_t padding28 = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint64_t>> data = 0,
     bool csram_cacheable = false) {
   BinaryDataBuilder builder_(_fbb);
+  builder_.add_padding28(padding28);
+  builder_.add_padding27(padding27);
+  builder_.add_padding26(padding26);
+  builder_.add_padding25(padding25);
+  builder_.add_padding24(padding24);
+  builder_.add_padding23(padding23);
+  builder_.add_padding22(padding22);
+  builder_.add_padding21(padding21);
+  builder_.add_padding20(padding20);
+  builder_.add_padding19(padding19);
+  builder_.add_padding18(padding18);
+  builder_.add_padding17(padding17);
+  builder_.add_padding16(padding16);
+  builder_.add_padding15(padding15);
+  builder_.add_padding14(padding14);
+  builder_.add_padding13(padding13);
+  builder_.add_padding12(padding12);
+  builder_.add_padding11(padding11);
+  builder_.add_padding10(padding10);
+  builder_.add_padding9(padding9);
+  builder_.add_padding8(padding8);
+  builder_.add_padding7(padding7);
+  builder_.add_padding6(padding6);
+  builder_.add_padding5(padding5);
+  builder_.add_padding4(padding4);
+  builder_.add_padding3(padding3);
+  builder_.add_padding2(padding2);
+  builder_.add_padding(padding);
   builder_.add_length(length);
   builder_.add_data(data);
   builder_.add_csram_cacheable(csram_cacheable);
@@ -249,6 +585,34 @@ inline flatbuffers::Offset<BinaryData> CreateBinaryDataDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     MVCNN::DType underlying_type = MVCNN::DType_NOT_SET,
     uint64_t length = 0,
+    uint64_t padding = 0,
+    uint64_t padding2 = 0,
+    uint64_t padding3 = 0,
+    uint64_t padding4 = 0,
+    uint64_t padding5 = 0,
+    uint64_t padding6 = 0,
+    uint64_t padding7 = 0,
+    uint64_t padding8 = 0,
+    uint64_t padding9 = 0,
+    uint64_t padding10 = 0,
+    uint64_t padding11 = 0,
+    uint64_t padding12 = 0,
+    uint64_t padding13 = 0,
+    uint64_t padding14 = 0,
+    uint64_t padding15 = 0,
+    uint64_t padding16 = 0,
+    uint64_t padding17 = 0,
+    uint64_t padding18 = 0,
+    uint64_t padding19 = 0,
+    uint64_t padding20 = 0,
+    uint64_t padding21 = 0,
+    uint64_t padding22 = 0,
+    uint64_t padding23 = 0,
+    uint64_t padding24 = 0,
+    uint64_t padding25 = 0,
+    uint64_t padding26 = 0,
+    uint64_t padding27 = 0,
+    uint64_t padding28 = 0,
     const std::vector<uint64_t> *data = nullptr,
     bool csram_cacheable = false) {
   auto data__ = data ? _fbb.CreateVector<uint64_t>(*data) : 0;
@@ -256,6 +620,34 @@ inline flatbuffers::Offset<BinaryData> CreateBinaryDataDirect(
       _fbb,
       underlying_type,
       length,
+      padding,
+      padding2,
+      padding3,
+      padding4,
+      padding5,
+      padding6,
+      padding7,
+      padding8,
+      padding9,
+      padding10,
+      padding11,
+      padding12,
+      padding13,
+      padding14,
+      padding15,
+      padding16,
+      padding17,
+      padding18,
+      padding19,
+      padding20,
+      padding21,
+      padding22,
+      padding23,
+      padding24,
+      padding25,
+      padding26,
+      padding27,
+      padding28,
       data__,
       csram_cacheable);
 }
@@ -370,7 +762,7 @@ struct TensorReferenceT : public flatbuffers::NativeTable {
   typedef TensorReference TableType;
   std::string name;
   std::vector<uint32_t> dimensions;
-  std::vector<uint32_t> strides;
+  std::vector<float> strides;
   uint32_t leading_offset;
   uint32_t trailing_offset;
   std::unique_ptr<MVCNN::IndirectDataReferenceT> data;
@@ -410,12 +802,12 @@ struct TensorReference FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_LOCALE_INDEX = 18,
     VT_DATA_DTYPE = 20,
     VT_QUANT_ZERO = 22,
-    VT_QUANT_MULT = 26,
-    VT_QUANT_SHIFT = 28,
-    VT_QUANT_POST_SHIFT_RIGHT = 30,
-    VT_ORDER = 32,
-    VT_DENSITY_RATE = 34,
-    VT_SWIZZLING_KEY = 36
+    VT_QUANT_MULT = 24,
+    VT_QUANT_SHIFT = 26,
+    VT_QUANT_POST_SHIFT_RIGHT = 28,
+    VT_ORDER = 30,
+    VT_DENSITY_RATE = 32,
+    VT_SWIZZLING_KEY = 34
   };
   /// Information on how to access a Tensor
   const flatbuffers::String *name() const {
@@ -424,8 +816,8 @@ struct TensorReference FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const flatbuffers::Vector<uint32_t> *dimensions() const {
     return GetPointer<const flatbuffers::Vector<uint32_t> *>(VT_DIMENSIONS);
   }
-  const flatbuffers::Vector<uint32_t> *strides() const {
-    return GetPointer<const flatbuffers::Vector<uint32_t> *>(VT_STRIDES);
+  const flatbuffers::Vector<float> *strides() const {
+    return GetPointer<const flatbuffers::Vector<float> *>(VT_STRIDES);
   }
   uint32_t leading_offset() const {
     return GetField<uint32_t>(VT_LEADING_OFFSET, 0);
@@ -509,7 +901,7 @@ struct TensorReferenceBuilder {
   void add_dimensions(flatbuffers::Offset<flatbuffers::Vector<uint32_t>> dimensions) {
     fbb_.AddOffset(TensorReference::VT_DIMENSIONS, dimensions);
   }
-  void add_strides(flatbuffers::Offset<flatbuffers::Vector<uint32_t>> strides) {
+  void add_strides(flatbuffers::Offset<flatbuffers::Vector<float>> strides) {
     fbb_.AddOffset(TensorReference::VT_STRIDES, strides);
   }
   void add_leading_offset(uint32_t leading_offset) {
@@ -567,7 +959,7 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReference(
     flatbuffers::FlatBufferBuilder &_fbb,
     flatbuffers::Offset<flatbuffers::String> name = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint32_t>> dimensions = 0,
-    flatbuffers::Offset<flatbuffers::Vector<uint32_t>> strides = 0,
+    flatbuffers::Offset<flatbuffers::Vector<float>> strides = 0,
     uint32_t leading_offset = 0,
     uint32_t trailing_offset = 0,
     flatbuffers::Offset<MVCNN::IndirectDataReference> data = 0,
@@ -605,7 +997,7 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReferenceDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     const char *name = nullptr,
     const std::vector<uint32_t> *dimensions = nullptr,
-    const std::vector<uint32_t> *strides = nullptr,
+    const std::vector<float> *strides = nullptr,
     uint32_t leading_offset = 0,
     uint32_t trailing_offset = 0,
     flatbuffers::Offset<MVCNN::IndirectDataReference> data = 0,
@@ -621,7 +1013,7 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReferenceDirect(
     uint8_t swizzling_key = 0) {
   auto name__ = name ? _fbb.CreateString(name) : 0;
   auto dimensions__ = dimensions ? _fbb.CreateVector<uint32_t>(*dimensions) : 0;
-  auto strides__ = strides ? _fbb.CreateVector<uint32_t>(*strides) : 0;
+  auto strides__ = strides ? _fbb.CreateVector<float>(*strides) : 0;
   auto locale_index__ = locale_index ? _fbb.CreateVector<uint32_t>(*locale_index) : 0;
   auto quant_zero__ = quant_zero ? _fbb.CreateVector<uint8_t>(*quant_zero) : 0;
   auto quant_mult__ = quant_mult ? _fbb.CreateVector<uint16_t>(*quant_mult) : 0;
@@ -659,6 +1051,34 @@ inline void BinaryData::UnPackTo(BinaryDataT *_o, const flatbuffers::resolver_fu
   (void)_resolver;
   { auto _e = underlying_type(); _o->underlying_type = _e; }
   { auto _e = length(); _o->length = _e; }
+  { auto _e = padding(); _o->padding = _e; }
+  { auto _e = padding2(); _o->padding2 = _e; }
+  { auto _e = padding3(); _o->padding3 = _e; }
+  { auto _e = padding4(); _o->padding4 = _e; }
+  { auto _e = padding5(); _o->padding5 = _e; }
+  { auto _e = padding6(); _o->padding6 = _e; }
+  { auto _e = padding7(); _o->padding7 = _e; }
+  { auto _e = padding8(); _o->padding8 = _e; }
+  { auto _e = padding9(); _o->padding9 = _e; }
+  { auto _e = padding10(); _o->padding10 = _e; }
+  { auto _e = padding11(); _o->padding11 = _e; }
+  { auto _e = padding12(); _o->padding12 = _e; }
+  { auto _e = padding13(); _o->padding13 = _e; }
+  { auto _e = padding14(); _o->padding14 = _e; }
+  { auto _e = padding15(); _o->padding15 = _e; }
+  { auto _e = padding16(); _o->padding16 = _e; }
+  { auto _e = padding17(); _o->padding17 = _e; }
+  { auto _e = padding18(); _o->padding18 = _e; }
+  { auto _e = padding19(); _o->padding19 = _e; }
+  { auto _e = padding20(); _o->padding20 = _e; }
+  { auto _e = padding21(); _o->padding21 = _e; }
+  { auto _e = padding22(); _o->padding22 = _e; }
+  { auto _e = padding23(); _o->padding23 = _e; }
+  { auto _e = padding24(); _o->padding24 = _e; }
+  { auto _e = padding25(); _o->padding25 = _e; }
+  { auto _e = padding26(); _o->padding26 = _e; }
+  { auto _e = padding27(); _o->padding27 = _e; }
+  { auto _e = padding28(); _o->padding28 = _e; }
   { auto _e = data(); if (_e) { _o->data.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->data[_i] = _e->Get(_i); } } }
   { auto _e = csram_cacheable(); _o->csram_cacheable = _e; }
 }
@@ -673,12 +1093,68 @@ inline flatbuffers::Offset<BinaryData> CreateBinaryData(flatbuffers::FlatBufferB
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const BinaryDataT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _underlying_type = _o->underlying_type;
   auto _length = _o->length;
+  auto _padding = _o->padding;
+  auto _padding2 = _o->padding2;
+  auto _padding3 = _o->padding3;
+  auto _padding4 = _o->padding4;
+  auto _padding5 = _o->padding5;
+  auto _padding6 = _o->padding6;
+  auto _padding7 = _o->padding7;
+  auto _padding8 = _o->padding8;
+  auto _padding9 = _o->padding9;
+  auto _padding10 = _o->padding10;
+  auto _padding11 = _o->padding11;
+  auto _padding12 = _o->padding12;
+  auto _padding13 = _o->padding13;
+  auto _padding14 = _o->padding14;
+  auto _padding15 = _o->padding15;
+  auto _padding16 = _o->padding16;
+  auto _padding17 = _o->padding17;
+  auto _padding18 = _o->padding18;
+  auto _padding19 = _o->padding19;
+  auto _padding20 = _o->padding20;
+  auto _padding21 = _o->padding21;
+  auto _padding22 = _o->padding22;
+  auto _padding23 = _o->padding23;
+  auto _padding24 = _o->padding24;
+  auto _padding25 = _o->padding25;
+  auto _padding26 = _o->padding26;
+  auto _padding27 = _o->padding27;
+  auto _padding28 = _o->padding28;
   auto _data = _fbb.CreateVector(_o->data);
   auto _csram_cacheable = _o->csram_cacheable;
   return MVCNN::CreateBinaryData(
       _fbb,
       _underlying_type,
       _length,
+      _padding,
+      _padding2,
+      _padding3,
+      _padding4,
+      _padding5,
+      _padding6,
+      _padding7,
+      _padding8,
+      _padding9,
+      _padding10,
+      _padding11,
+      _padding12,
+      _padding13,
+      _padding14,
+      _padding15,
+      _padding16,
+      _padding17,
+      _padding18,
+      _padding19,
+      _padding20,
+      _padding21,
+      _padding22,
+      _padding23,
+      _padding24,
+      _padding25,
+      _padding26,
+      _padding27,
+      _padding28,
       _data,
       _csram_cacheable);
 }

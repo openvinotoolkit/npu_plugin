@@ -210,7 +210,7 @@ TEST_P(KmbPrivateConfigTests, IE_VPU_KMB_PRIVATE_CONFIG_COMMON) {
 const std::vector<PrivateConfigTestParams> privateConfigParams {
     PrivateConfigTestParams()
         .testDescription("IE_VPUX_GRAPH_COLOR_FORMAT")
-        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
+        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob")
         .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-bgr-nv12.bin")
         .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
         .preProc(true)
@@ -221,20 +221,20 @@ const std::vector<PrivateConfigTestParams> privateConfigParams {
         .nClasses(4),
     PrivateConfigTestParams()
         .testDescription("USE_SIPP")
-        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
-        .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin")
-        .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
+        .modelPath(ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob")
+        .inputPath(ModelsPath() + "/KMB_models/BLOBS/resnet-50/input-228x228-nv12.bin")
+        .referencePath(ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-cat-1080x1080-nv12.bin")
         .preProc(true)
         .checkSIPP(false)
         .privateConfig({{"VPUX_USE_SIPP", CONFIG_VALUE(YES)}})
         .inputWidth(228)
         .inputHeight(228)
-        .nClasses(2)};
+        .nClasses(1)};
 
 const std::vector<PrivateConfigTestParams> privateConfigParamsBrokenTests {
     PrivateConfigTestParams()
         .testDescription("REPACK_INPUT_LAYOUT")
-        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
+        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob")
         .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin")
         .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin")
         .preProc(false)
@@ -245,7 +245,7 @@ const std::vector<PrivateConfigTestParams> privateConfigParamsBrokenTests {
         .nClasses(5),
     PrivateConfigTestParams()
         .testDescription("USE_CORE_NN")
-        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
+        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob")
         .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin")
         .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
         .preProc(true)
@@ -267,7 +267,7 @@ TEST_P(KmbConfigTestsWithParams, PERF_COUNT) {
     SKIP();
 #endif
     const std::string perfCount = GetParam();
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
 
     Core ie;
     InferenceEngine::ExecutableNetwork network;
