@@ -935,11 +935,11 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     }
 
     toBuild->memory_sizes = std::vector<std::unique_ptr<MVCNN::MemoryMappingT>>();
-    if(globalConfigurationParams->hasAttr("totalcmx")){
+    if(globalConfigurationParams->hasAttr("totalCmx")){
         std::unique_ptr<MVCNN::MemoryMappingT> cmxMemorySize =
             std::unique_ptr<MVCNN::MemoryMappingT>(new MVCNN::MemoryMappingT());
         cmxMemorySize->item= MVCNN::PhysicalMem_NN_CMX;
-        setIfPresent<double, unsigned>(cmxMemorySize->number, *globalConfigurationParams , "cmx");
+        setIfPresent<double, unsigned>(cmxMemorySize->number, *globalConfigurationParams , "totalCmx");
         toBuild->memory_sizes.push_back(std::move(cmxMemorySize));
     }
     if(globalConfigurationParams->hasAttr("DDRScratch")){
