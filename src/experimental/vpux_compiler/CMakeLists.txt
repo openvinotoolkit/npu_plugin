@@ -255,7 +255,6 @@ link_system_libraries(${OBJ_TARGET_NAME}
         MLIRTranslation
         MLIRStandardOpsTransforms
         MLIRLinalg
-        MLIRAffine
         flatbuffers
         # TODO: get rid of this dependency
         IE::vpu_common_lib
