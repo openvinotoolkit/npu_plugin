@@ -1258,7 +1258,7 @@ std::string mv::Tensor::getLogID() const
     return "Tensor:" + getName();
 }
 
-std::vector<unsigned> mv::Tensor::computeNumericStrides() const
+std::vector<float> mv::Tensor::computeNumericStrides() const
 {
     return getOrder().computeByteStrides(shape_, getDType().getSizeInBits() / 8);
 }

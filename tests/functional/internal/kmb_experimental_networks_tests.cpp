@@ -35,6 +35,7 @@ TEST_F(KmbNetworkTestBase, split_conv_concat) {
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_customnet1_tf_int8_dense_grayscale_fashionmnist) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hangs on infer");  // [Track number: S#43799]
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet1_tf_int8_dense_grayscale_fashionmnist.xml")
             .setUserInputPrecision("input", Precision::U8)

@@ -29,9 +29,6 @@ preCompiled_(true)
     auto& graphFile = rm.getGraphFile();
     model_->setName(graphFile.header->identifier);
     
-    model_->bufferMap().addScratch("Scratch", mv::Order("W"),
-        {graphFile.header->resources->ddr_scratch}, mv::DType("Default"));
-
     for (unsigned i = 0; i < graphFile.header->net_input.size(); ++i) {
         auto dimensions = graphFile.header->net_input[i]->dimensions;
         auto strides = graphFile.header->net_input[i]->strides;

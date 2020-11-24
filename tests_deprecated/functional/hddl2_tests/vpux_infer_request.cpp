@@ -458,7 +458,7 @@ protected:
 
 void InferenceCheckPortsYoloV3Network::SetUp() {
     graphPath =
-        ModelsPath() + "/KMB_models/BLOBS/yolo-v3/yolo_v3_tf_dense_int8_IRv10.blob";
+        ModelsPath() + "/KMB_models/BLOBS/yolo-v3/schema-3.24.3/yolo_v3_tf_dense_int8_IRv10.blob";
     modelPath =
         ModelsPath() + "/KMB_models/INT8/public/yolo_v3/yolo_v3_tf_dense_int8_IRv10.xml";
     inputPath = "person.bmp";

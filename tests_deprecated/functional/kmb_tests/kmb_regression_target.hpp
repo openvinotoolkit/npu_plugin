@@ -33,7 +33,7 @@ struct CompilationParameter {
 
 #if defined(__arm__) || defined(__aarch64__)
 
-const size_t NUMBER_OF_TOP_CLASSES = 5;
+const size_t NUMBER_OF_TOP_CLASSES = 1;
 const std::string YOLO_GRAPH_NAME = "tiny-yolo-v2.blob";
 
 struct modelBlobsInfo {

@@ -119,8 +119,8 @@ enum PPELayerType {
   PPELayerType_ADD = 5,
   PPELayerType_SUB = 6,
   PPELayerType_MULT = 7,
-  PPELayerType_RELU = 8,
-  PPELayerType_RELUX = 9,
+  PPELayerType_LRELU = 8,
+  PPELayerType_LRELUX = 9,
   PPELayerType_LPRELU = 10,
   PPELayerType_MAXIMUM = 11,
   PPELayerType_MINIMUM = 12,
@@ -153,8 +153,8 @@ inline const PPELayerType (&EnumValuesPPELayerType())[28] {
     PPELayerType_ADD,
     PPELayerType_SUB,
     PPELayerType_MULT,
-    PPELayerType_RELU,
-    PPELayerType_RELUX,
+    PPELayerType_LRELU,
+    PPELayerType_LRELUX,
     PPELayerType_LPRELU,
     PPELayerType_MAXIMUM,
     PPELayerType_MINIMUM,
@@ -187,8 +187,8 @@ inline const char * const *EnumNamesPPELayerType() {
     "ADD",
     "SUB",
     "MULT",
-    "RELU",
-    "RELUX",
+    "LRELU",
+    "LRELUX",
     "LPRELU",
     "MAXIMUM",
     "MINIMUM",
@@ -301,8 +301,8 @@ struct PPEFixedFunctionT : public flatbuffers::NativeTable {
   std::vector<MVCNN::PPELayerType> Ops;
   int32_t Clamp_Low;
   int32_t Clamp_High;
-  int8_t Lrelu_Mult;
-  uint8_t Lrelu_Shift;
+  int32_t Lrelu_Mult;
+  uint32_t Lrelu_Shift;
   PPEFixedFunctionT()
       : Clamp_Low((-2147483647 - 1)),
         Clamp_High(2147483647),
@@ -334,11 +334,11 @@ struct PPEFixedFunction FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   int32_t Clamp_High() const {
     return GetField<int32_t>(VT_CLAMP_HIGH, 2147483647);
   }
-  int8_t Lrelu_Mult() const {
-    return GetField<int8_t>(VT_LRELU_MULT, 1);
+  int32_t Lrelu_Mult() const {
+    return GetField<int32_t>(VT_LRELU_MULT, 1);
   }
-  uint8_t Lrelu_Shift() const {
-    return GetField<uint8_t>(VT_LRELU_SHIFT, 0);
+  uint32_t Lrelu_Shift() const {
+    return GetField<uint32_t>(VT_LRELU_SHIFT, 0);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -346,8 +346,8 @@ struct PPEFixedFunction FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyVector(Ops()) &&
            VerifyField<int32_t>(verifier, VT_CLAMP_LOW) &&
            VerifyField<int32_t>(verifier, VT_CLAMP_HIGH) &&
-           VerifyField<int8_t>(verifier, VT_LRELU_MULT) &&
-           VerifyField<uint8_t>(verifier, VT_LRELU_SHIFT) &&
+           VerifyField<int32_t>(verifier, VT_LRELU_MULT) &&
+           VerifyField<uint32_t>(verifier, VT_LRELU_SHIFT) &&
            verifier.EndTable();
   }
   PPEFixedFunctionT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -368,11 +368,11 @@ struct PPEFixedFunctionBuilder {
   void add_Clamp_High(int32_t Clamp_High) {
     fbb_.AddElement<int32_t>(PPEFixedFunction::VT_CLAMP_HIGH, Clamp_High, 2147483647);
   }
-  void add_Lrelu_Mult(int8_t Lrelu_Mult) {
-    fbb_.AddElement<int8_t>(PPEFixedFunction::VT_LRELU_MULT, Lrelu_Mult, 1);
+  void add_Lrelu_Mult(int32_t Lrelu_Mult) {
+    fbb_.AddElement<int32_t>(PPEFixedFunction::VT_LRELU_MULT, Lrelu_Mult, 1);
   }
-  void add_Lrelu_Shift(uint8_t Lrelu_Shift) {
-    fbb_.AddElement<uint8_t>(PPEFixedFunction::VT_LRELU_SHIFT, Lrelu_Shift, 0);
+  void add_Lrelu_Shift(uint32_t Lrelu_Shift) {
+    fbb_.AddElement<uint32_t>(PPEFixedFunction::VT_LRELU_SHIFT, Lrelu_Shift, 0);
   }
   explicit PPEFixedFunctionBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -391,14 +391,14 @@ inline flatbuffers::Offset<PPEFixedFunction> CreatePPEFixedFunction(
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> Ops = 0,
     int32_t Clamp_Low = (-2147483647 - 1),
     int32_t Clamp_High = 2147483647,
-    int8_t Lrelu_Mult = 1,
-    uint8_t Lrelu_Shift = 0) {
+    int32_t Lrelu_Mult = 1,
+    uint32_t Lrelu_Shift = 0) {
   PPEFixedFunctionBuilder builder_(_fbb);
+  builder_.add_Lrelu_Shift(Lrelu_Shift);
+  builder_.add_Lrelu_Mult(Lrelu_Mult);
   builder_.add_Clamp_High(Clamp_High);
   builder_.add_Clamp_Low(Clamp_Low);
   builder_.add_Ops(Ops);
-  builder_.add_Lrelu_Shift(Lrelu_Shift);
-  builder_.add_Lrelu_Mult(Lrelu_Mult);
   return builder_.Finish();
 }
 
@@ -407,8 +407,8 @@ inline flatbuffers::Offset<PPEFixedFunction> CreatePPEFixedFunctionDirect(
     const std::vector<uint8_t> *Ops = nullptr,
     int32_t Clamp_Low = (-2147483647 - 1),
     int32_t Clamp_High = 2147483647,
-    int8_t Lrelu_Mult = 1,
-    uint8_t Lrelu_Shift = 0) {
+    int32_t Lrelu_Mult = 1,
+    uint32_t Lrelu_Shift = 0) {
   auto Ops__ = Ops ? _fbb.CreateVector<uint8_t>(*Ops) : 0;
   return MVCNN::CreatePPEFixedFunction(
       _fbb,
@@ -425,8 +425,10 @@ struct PPETaskT : public flatbuffers::NativeTable {
   typedef PPETask TableType;
   std::unique_ptr<MVCNN::TensorReferenceT> scale_data;
   std::unique_ptr<MVCNN::PPEFixedFunctionT> fixed_function;
+  MVCNN::PPERoundingMode rounding;
   std::unique_ptr<MVCNN::TensorReferenceT> instruction_list_data;
-  PPETaskT() {
+  PPETaskT()
+      : rounding(MVCNN::PPERoundingMode_RNE) {
   }
 };
 
@@ -436,6 +438,7 @@ struct PPETask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SCALE_DATA = 4,
     VT_FIXED_FUNCTION = 6,
+    VT_ROUNDING = 8,
     VT_INSTRUCTION_LIST_DATA = 10
   };
   const MVCNN::TensorReference *scale_data() const {
@@ -443,6 +446,9 @@ struct PPETask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   const MVCNN::PPEFixedFunction *fixed_function() const {
     return GetPointer<const MVCNN::PPEFixedFunction *>(VT_FIXED_FUNCTION);
+  }
+  MVCNN::PPERoundingMode rounding() const {
+    return static_cast<MVCNN::PPERoundingMode>(GetField<int8_t>(VT_ROUNDING, 0));
   }
   const MVCNN::TensorReference *instruction_list_data() const {
     return GetPointer<const MVCNN::TensorReference *>(VT_INSTRUCTION_LIST_DATA);
@@ -453,6 +459,7 @@ struct PPETask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyTable(scale_data()) &&
            VerifyOffset(verifier, VT_FIXED_FUNCTION) &&
            verifier.VerifyTable(fixed_function()) &&
+           VerifyField<int8_t>(verifier, VT_ROUNDING) &&
            VerifyOffset(verifier, VT_INSTRUCTION_LIST_DATA) &&
            verifier.VerifyTable(instruction_list_data()) &&
            verifier.EndTable();
@@ -471,6 +478,9 @@ struct PPETaskBuilder {
   }
   void add_fixed_function(flatbuffers::Offset<MVCNN::PPEFixedFunction> fixed_function) {
     fbb_.AddOffset(PPETask::VT_FIXED_FUNCTION, fixed_function);
+  }
+  void add_rounding(MVCNN::PPERoundingMode rounding) {
+    fbb_.AddElement<int8_t>(PPETask::VT_ROUNDING, static_cast<int8_t>(rounding), 0);
   }
   void add_instruction_list_data(flatbuffers::Offset<MVCNN::TensorReference> instruction_list_data) {
     fbb_.AddOffset(PPETask::VT_INSTRUCTION_LIST_DATA, instruction_list_data);
@@ -491,11 +501,13 @@ inline flatbuffers::Offset<PPETask> CreatePPETask(
     flatbuffers::FlatBufferBuilder &_fbb,
     flatbuffers::Offset<MVCNN::TensorReference> scale_data = 0,
     flatbuffers::Offset<MVCNN::PPEFixedFunction> fixed_function = 0,
+    MVCNN::PPERoundingMode rounding = MVCNN::PPERoundingMode_RNE,
     flatbuffers::Offset<MVCNN::TensorReference> instruction_list_data = 0) {
   PPETaskBuilder builder_(_fbb);
   builder_.add_instruction_list_data(instruction_list_data);
   builder_.add_fixed_function(fixed_function);
   builder_.add_scale_data(scale_data);
+  builder_.add_rounding(rounding);
   return builder_.Finish();
 }
 
@@ -1254,6 +1266,7 @@ inline void PPETask::UnPackTo(PPETaskT *_o, const flatbuffers::resolver_function
   (void)_resolver;
   { auto _e = scale_data(); if (_e) _o->scale_data = std::unique_ptr<MVCNN::TensorReferenceT>(_e->UnPack(_resolver)); }
   { auto _e = fixed_function(); if (_e) _o->fixed_function = std::unique_ptr<MVCNN::PPEFixedFunctionT>(_e->UnPack(_resolver)); }
+  { auto _e = rounding(); _o->rounding = _e; }
   { auto _e = instruction_list_data(); if (_e) _o->instruction_list_data = std::unique_ptr<MVCNN::TensorReferenceT>(_e->UnPack(_resolver)); }
 }
 
@@ -1267,11 +1280,13 @@ inline flatbuffers::Offset<PPETask> CreatePPETask(flatbuffers::FlatBufferBuilder
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PPETaskT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _scale_data = _o->scale_data ? CreateTensorReference(_fbb, _o->scale_data.get(), _rehasher) : 0;
   auto _fixed_function = _o->fixed_function ? CreatePPEFixedFunction(_fbb, _o->fixed_function.get(), _rehasher) : 0;
+  auto _rounding = _o->rounding;
   auto _instruction_list_data = _o->instruction_list_data ? CreateTensorReference(_fbb, _o->instruction_list_data.get(), _rehasher) : 0;
   return MVCNN::CreatePPETask(
       _fbb,
       _scale_data,
       _fixed_function,
+      _rounding,
       _instruction_list_data);
 }
 
