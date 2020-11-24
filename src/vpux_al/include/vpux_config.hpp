@@ -68,9 +68,9 @@ public:
     int executorStreams() const {
         return _executorStreams;
     }
-	uint32_t inferenceTimeoutMs() const noexcept {
-	return _inferenceTimeoutMs;
-	}
+    uint32_t inferenceTimeoutMs() const noexcept {
+        return _inferenceTimeoutMs;
+    }
 
     void parseFrom(const VPUXConfig& other);
 

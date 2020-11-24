@@ -45,7 +45,9 @@ public:
 
     ~WatchDog() {
         _stopWatchdog = true;
-        _abortThread.join();
+        if (_abortThread.joinable()) {
+            _abortThread.join();
+        }
     }
 
     WatchDog(const WatchDog&) = delete;
