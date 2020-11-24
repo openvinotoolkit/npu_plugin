@@ -1,5 +1,4 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
-#include "emu/manager.hpp"
 
 #ifdef _MSC_VER
 // Force linking relevant global objects (registry entries),
@@ -12,7 +11,6 @@ const std::string mv::CompilationUnit::ma3100DefTargetDescPath_ = "/config/targe
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
 const std::string mv::CompilationUnit::ma3100DefCompDescPath_ = "/config/compilation/release_kmb.json";
-const std::string mv::CompilationUnit::ma2490EmulatorCompDescPath_ = "/contrib/mcm-emulator/config/compilation/emulator_kmb_SC-Prefetch1.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
@@ -215,15 +213,6 @@ mv::Element mv::CompilationUnit::run()
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
     passManager_.loadPassList(passList);
 
-    // generate emulator results
-    mv::Element globalParams = passList[0];
-    bool emulator=false;
-    if (globalParams.hasAttr("emulator_results") )
-        emulator = globalParams.get<bool>("emulator_results");
-
-    if (emulator)
-        generateExpectedResults();
-
     while (!passManager_.completed())
     {
         MV_PROFILE_VIRTUAL_MEM;
@@ -297,62 +286,4 @@ const mv::BufferMap& mv::CompilationUnit::getBufferMap() const
 void mv::CompilationUnit::getName(char* name, unsigned bufferSize) const
 {
     strncpy(name, model_->getName().c_str(), bufferSize);
-}
-
-/**
- * Generates a deep copy of the opmodel
- */
-void mv::CompilationUnit::deepCopy(mv::OpModel& copyModel)
-{
-    // store all the copied tensors
-    std::map<std::string, mv::Data::TensorIterator> copiedTensorIterators;
-    for(auto opIterator = model_->opBegin(); opIterator != model_->opEnd(); ++opIterator)
-    {
-        // getAttrs() returns map, defineOp() requires vector
-        std::vector<std::pair<std::string, mv::Attribute>> vectAttrs;
-        for (const auto &attr : opIterator->getAttrs())
-            vectAttrs.push_back(attr);
-
-        // Get references to input tensors for this Op
-        std::vector<mv::Data::TensorIterator> copiedInputTensorsToOp;
-        std::vector<mv::Data::TensorIterator> originalInputTensors = opIterator->getInputTensor();
-        for (auto tensIt = originalInputTensors.begin(); tensIt != originalInputTensors.end(); ++tensIt)
-        {
-            mv::Data::TensorIterator originalTensorIt = *tensIt;
-            mv::Data::TensorIterator copiedTensorIt = copiedTensorIterators.at(originalTensorIt->getName().substr(0, originalTensorIt->getName().length() -2) );
-            copiedInputTensorsToOp.push_back(copiedTensorIt);
-        }
-
-        mv::Data::TensorIterator returnIt = copyModel.defineOp(opIterator->getOpType(), copiedInputTensorsToOp, vectAttrs, opIterator->getName(), false, false);
-        copiedTensorIterators.emplace(opIterator->getName(), returnIt);
-    }
-}
-
-void mv::CompilationUnit::generateExpectedResults()
-{
-    log(mv::Logger::MessageType::Debug, "Initializing emulator...");
-    std::cout << "Initializing emulator..." << std::endl;
-    mv::CompilationUnit emUnit(model_->getName());
-    mv::OpModel& emOM = emUnit.model();
-    deepCopy(emOM);
-
-    emUnit.loadTargetDescriptor(mv::Target::ma2490);
-    std::string emuCompPath = utils::projectRootPath() + ma2490EmulatorCompDescPath_;
-    std::cout <<  "loading Comp desc: " << emuCompPath << std::endl;
-    emUnit.loadCompilationDescriptor(emuCompPath);
-    emUnit.compilationDescriptor().setPassArg("GlobalConfigParams", "emulator_results", false); // prevent infinite loop
-
-    emUnit.initialize();
-    emUnit.run();
-    std::cout << "Emulator Compilation completed..." << std::endl;
-
-    // initialize the Emulator Manager
-    mv::emu::Manager emulatorManager(emOM);
-
-    // set input tensor values - filename is in emulator config
-    emulatorManager.populateInput();
-
-    std::cout << "Generating results..." << std::endl;
-    emulatorManager.run();
-    std::cout << "Results complete. Generating blob..." << std::endl;
 }
