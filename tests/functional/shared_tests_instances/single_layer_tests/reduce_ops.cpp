@@ -95,7 +95,6 @@ namespace {
             ngraph::helpers::ReductionType::Sum,
             ngraph::helpers::ReductionType::Prod,
             ngraph::helpers::ReductionType::LogicalOr,
-            ngraph::helpers::ReductionType::LogicalXor,
             ngraph::helpers::ReductionType::LogicalAnd,
     };
 
