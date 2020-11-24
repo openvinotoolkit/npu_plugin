@@ -160,8 +160,8 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
 using kmbSetBlob = vpuLayersTests;
 
 TEST_F(kmbSetBlob, compareSetBlobAllocation) {
-    std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
-    std::string resnetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
+    std::string resnetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
 
     std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input.bin";
 
@@ -253,7 +253,7 @@ public:
 
 TEST_F(vpuInferWithSetUp, DISABLED_copyCheckSetBlob) {
     std::string strToCheck = "isValidPtr(): Input blob will be copied";
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
     std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
     std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin";
 

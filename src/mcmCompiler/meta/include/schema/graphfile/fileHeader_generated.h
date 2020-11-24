@@ -27,32 +27,29 @@ struct SummaryHeaderT;
 enum ExecutionFlag {
   ExecutionFlag_INVALID = 0,
   ExecutionFlag_DynamicBarriers = 1,
-  ExecutionFlag_Compiled_For_VPU3 = 2,
   ExecutionFlag_MIN = ExecutionFlag_INVALID,
-  ExecutionFlag_MAX = ExecutionFlag_Compiled_For_VPU3
+  ExecutionFlag_MAX = ExecutionFlag_DynamicBarriers
 };
 
-inline const ExecutionFlag (&EnumValuesExecutionFlag())[3] {
+inline const ExecutionFlag (&EnumValuesExecutionFlag())[2] {
   static const ExecutionFlag values[] = {
     ExecutionFlag_INVALID,
-    ExecutionFlag_DynamicBarriers,
-    ExecutionFlag_Compiled_For_VPU3
+    ExecutionFlag_DynamicBarriers
   };
   return values;
 }
 
 inline const char * const *EnumNamesExecutionFlag() {
-  static const char * const names[4] = {
+  static const char * const names[3] = {
     "INVALID",
     "DynamicBarriers",
-    "Compiled_For_VPU3",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameExecutionFlag(ExecutionFlag e) {
-  if (flatbuffers::IsOutRange(e, ExecutionFlag_INVALID, ExecutionFlag_Compiled_For_VPU3)) return "";
+  if (flatbuffers::IsOutRange(e, ExecutionFlag_INVALID, ExecutionFlag_DynamicBarriers)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesExecutionFlag()[index];
 }
@@ -187,45 +184,11 @@ flatbuffers::Offset<Version> CreateVersion(flatbuffers::FlatBufferBuilder &_fbb,
 
 struct ResourcesT : public flatbuffers::NativeTable {
   typedef Resources TableType;
-  uint32_t upa_shaves;
-  int8_t nce1_blocks;
-  uint32_t nce2_blocks;
-  uint32_t upa_shared_cmx;
-  uint32_t nn_cmx_per_slice;
-  uint32_t nn_cmx_slice_amount;
-  uint32_t ddr_scratch;
-  uint32_t csram_storage;
-  uint32_t arm_freq;
-  uint32_t lnn_freq;
-  uint32_t lupa_freq;
-  uint32_t dpu_freq;
-  uint32_t csram_freq;
-  uint32_t nncmx_to_ddr_BW;
-  uint32_t ddr_to_nncmx_BW;
-  uint32_t nncmx_to_upacmx_BW;
-  uint32_t upacmx_to_nncmx_BW;
-  uint32_t nncmx_to_dpu_BW;
-  uint32_t dpu_to_nncmx_BW;
-  ResourcesT()
-      : upa_shaves(0),
-        nce1_blocks(0),
-        nce2_blocks(0),
-        upa_shared_cmx(0),
-        nn_cmx_per_slice(0),
-        nn_cmx_slice_amount(0),
-        ddr_scratch(0),
-        csram_storage(0),
-        arm_freq(0),
-        lnn_freq(0),
-        lupa_freq(0),
-        dpu_freq(0),
-        csram_freq(0),
-        nncmx_to_ddr_BW(0),
-        ddr_to_nncmx_BW(0),
-        nncmx_to_upacmx_BW(0),
-        upacmx_to_nncmx_BW(0),
-        nncmx_to_dpu_BW(0),
-        dpu_to_nncmx_BW(0) {
+  std::vector<std::unique_ptr<MVCNN::ProcessorMappingT>> processor_allocation;
+  std::vector<std::unique_ptr<MVCNN::ProcessorMappingT>> processor_frequencies;
+  std::vector<std::unique_ptr<MVCNN::MemoryMappingT>> memory_sizes;
+  std::vector<std::unique_ptr<MVCNN::MemoryRelationshipMappingT>> memory_bandwidth;
+  ResourcesT() {
   }
 };
 
@@ -233,104 +196,37 @@ struct Resources FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef ResourcesT NativeTableType;
   typedef ResourcesBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_UPA_SHAVES = 4,
-    VT_NCE1_BLOCKS = 6,
-    VT_NCE2_BLOCKS = 8,
-    VT_UPA_SHARED_CMX = 10,
-    VT_NN_CMX_PER_SLICE = 12,
-    VT_NN_CMX_SLICE_AMOUNT = 14,
-    VT_DDR_SCRATCH = 18,
-    VT_CSRAM_STORAGE = 20,
-    VT_ARM_FREQ = 22,
-    VT_LNN_FREQ = 24,
-    VT_LUPA_FREQ = 26,
-    VT_DPU_FREQ = 28,
-    VT_CSRAM_FREQ = 30,
-    VT_NNCMX_TO_DDR_BW = 32,
-    VT_DDR_TO_NNCMX_BW = 34,
-    VT_NNCMX_TO_UPACMX_BW = 36,
-    VT_UPACMX_TO_NNCMX_BW = 38,
-    VT_NNCMX_TO_DPU_BW = 40,
-    VT_DPU_TO_NNCMX_BW = 42
+    VT_PROCESSOR_ALLOCATION = 4,
+    VT_PROCESSOR_FREQUENCIES = 6,
+    VT_MEMORY_SIZES = 8,
+    VT_MEMORY_BANDWIDTH = 10
   };
-  uint32_t upa_shaves() const {
-    return GetField<uint32_t>(VT_UPA_SHAVES, 0);
+  const flatbuffers::Vector<flatbuffers::Offset<MVCNN::ProcessorMapping>> *processor_allocation() const {
+    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<MVCNN::ProcessorMapping>> *>(VT_PROCESSOR_ALLOCATION);
   }
-  int8_t nce1_blocks() const {
-    return GetField<int8_t>(VT_NCE1_BLOCKS, 0);
+  const flatbuffers::Vector<flatbuffers::Offset<MVCNN::ProcessorMapping>> *processor_frequencies() const {
+    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<MVCNN::ProcessorMapping>> *>(VT_PROCESSOR_FREQUENCIES);
   }
-  uint32_t nce2_blocks() const {
-    return GetField<uint32_t>(VT_NCE2_BLOCKS, 0);
+  const flatbuffers::Vector<flatbuffers::Offset<MVCNN::MemoryMapping>> *memory_sizes() const {
+    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<MVCNN::MemoryMapping>> *>(VT_MEMORY_SIZES);
   }
-  uint32_t upa_shared_cmx() const {
-    return GetField<uint32_t>(VT_UPA_SHARED_CMX, 0);
-  }
-  uint32_t nn_cmx_per_slice() const {
-    return GetField<uint32_t>(VT_NN_CMX_PER_SLICE, 0);
-  }
-  uint32_t nn_cmx_slice_amount() const {
-    return GetField<uint32_t>(VT_NN_CMX_SLICE_AMOUNT, 0);
-  }
-  uint32_t ddr_scratch() const {
-    return GetField<uint32_t>(VT_DDR_SCRATCH, 0);
-  }
-  uint32_t csram_storage() const {
-    return GetField<uint32_t>(VT_CSRAM_STORAGE, 0);
-  }
-  uint32_t arm_freq() const {
-    return GetField<uint32_t>(VT_ARM_FREQ, 0);
-  }
-  uint32_t lnn_freq() const {
-    return GetField<uint32_t>(VT_LNN_FREQ, 0);
-  }
-  uint32_t lupa_freq() const {
-    return GetField<uint32_t>(VT_LUPA_FREQ, 0);
-  }
-  uint32_t dpu_freq() const {
-    return GetField<uint32_t>(VT_DPU_FREQ, 0);
-  }
-  uint32_t csram_freq() const {
-    return GetField<uint32_t>(VT_CSRAM_FREQ, 0);
-  }
-  uint32_t nncmx_to_ddr_BW() const {
-    return GetField<uint32_t>(VT_NNCMX_TO_DDR_BW, 0);
-  }
-  uint32_t ddr_to_nncmx_BW() const {
-    return GetField<uint32_t>(VT_DDR_TO_NNCMX_BW, 0);
-  }
-  uint32_t nncmx_to_upacmx_BW() const {
-    return GetField<uint32_t>(VT_NNCMX_TO_UPACMX_BW, 0);
-  }
-  uint32_t upacmx_to_nncmx_BW() const {
-    return GetField<uint32_t>(VT_UPACMX_TO_NNCMX_BW, 0);
-  }
-  uint32_t nncmx_to_dpu_BW() const {
-    return GetField<uint32_t>(VT_NNCMX_TO_DPU_BW, 0);
-  }
-  uint32_t dpu_to_nncmx_BW() const {
-    return GetField<uint32_t>(VT_DPU_TO_NNCMX_BW, 0);
+  const flatbuffers::Vector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>> *memory_bandwidth() const {
+    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>> *>(VT_MEMORY_BANDWIDTH);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint32_t>(verifier, VT_UPA_SHAVES) &&
-           VerifyField<int8_t>(verifier, VT_NCE1_BLOCKS) &&
-           VerifyField<uint32_t>(verifier, VT_NCE2_BLOCKS) &&
-           VerifyField<uint32_t>(verifier, VT_UPA_SHARED_CMX) &&
-           VerifyField<uint32_t>(verifier, VT_NN_CMX_PER_SLICE) &&
-           VerifyField<uint32_t>(verifier, VT_NN_CMX_SLICE_AMOUNT) &&
-           VerifyField<uint32_t>(verifier, VT_DDR_SCRATCH) &&
-           VerifyField<uint32_t>(verifier, VT_CSRAM_STORAGE) &&
-           VerifyField<uint32_t>(verifier, VT_ARM_FREQ) &&
-           VerifyField<uint32_t>(verifier, VT_LNN_FREQ) &&
-           VerifyField<uint32_t>(verifier, VT_LUPA_FREQ) &&
-           VerifyField<uint32_t>(verifier, VT_DPU_FREQ) &&
-           VerifyField<uint32_t>(verifier, VT_CSRAM_FREQ) &&
-           VerifyField<uint32_t>(verifier, VT_NNCMX_TO_DDR_BW) &&
-           VerifyField<uint32_t>(verifier, VT_DDR_TO_NNCMX_BW) &&
-           VerifyField<uint32_t>(verifier, VT_NNCMX_TO_UPACMX_BW) &&
-           VerifyField<uint32_t>(verifier, VT_UPACMX_TO_NNCMX_BW) &&
-           VerifyField<uint32_t>(verifier, VT_NNCMX_TO_DPU_BW) &&
-           VerifyField<uint32_t>(verifier, VT_DPU_TO_NNCMX_BW) &&
+           VerifyOffset(verifier, VT_PROCESSOR_ALLOCATION) &&
+           verifier.VerifyVector(processor_allocation()) &&
+           verifier.VerifyVectorOfTables(processor_allocation()) &&
+           VerifyOffset(verifier, VT_PROCESSOR_FREQUENCIES) &&
+           verifier.VerifyVector(processor_frequencies()) &&
+           verifier.VerifyVectorOfTables(processor_frequencies()) &&
+           VerifyOffset(verifier, VT_MEMORY_SIZES) &&
+           verifier.VerifyVector(memory_sizes()) &&
+           verifier.VerifyVectorOfTables(memory_sizes()) &&
+           VerifyOffset(verifier, VT_MEMORY_BANDWIDTH) &&
+           verifier.VerifyVector(memory_bandwidth()) &&
+           verifier.VerifyVectorOfTables(memory_bandwidth()) &&
            verifier.EndTable();
   }
   ResourcesT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -342,62 +238,17 @@ struct ResourcesBuilder {
   typedef Resources Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_upa_shaves(uint32_t upa_shaves) {
-    fbb_.AddElement<uint32_t>(Resources::VT_UPA_SHAVES, upa_shaves, 0);
+  void add_processor_allocation(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::ProcessorMapping>>> processor_allocation) {
+    fbb_.AddOffset(Resources::VT_PROCESSOR_ALLOCATION, processor_allocation);
   }
-  void add_nce1_blocks(int8_t nce1_blocks) {
-    fbb_.AddElement<int8_t>(Resources::VT_NCE1_BLOCKS, nce1_blocks, 0);
+  void add_processor_frequencies(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::ProcessorMapping>>> processor_frequencies) {
+    fbb_.AddOffset(Resources::VT_PROCESSOR_FREQUENCIES, processor_frequencies);
   }
-  void add_nce2_blocks(uint32_t nce2_blocks) {
-    fbb_.AddElement<uint32_t>(Resources::VT_NCE2_BLOCKS, nce2_blocks, 0);
+  void add_memory_sizes(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::MemoryMapping>>> memory_sizes) {
+    fbb_.AddOffset(Resources::VT_MEMORY_SIZES, memory_sizes);
   }
-  void add_upa_shared_cmx(uint32_t upa_shared_cmx) {
-    fbb_.AddElement<uint32_t>(Resources::VT_UPA_SHARED_CMX, upa_shared_cmx, 0);
-  }
-  void add_nn_cmx_per_slice(uint32_t nn_cmx_per_slice) {
-    fbb_.AddElement<uint32_t>(Resources::VT_NN_CMX_PER_SLICE, nn_cmx_per_slice, 0);
-  }
-  void add_nn_cmx_slice_amount(uint32_t nn_cmx_slice_amount) {
-    fbb_.AddElement<uint32_t>(Resources::VT_NN_CMX_SLICE_AMOUNT, nn_cmx_slice_amount, 0);
-  }
-  void add_ddr_scratch(uint32_t ddr_scratch) {
-    fbb_.AddElement<uint32_t>(Resources::VT_DDR_SCRATCH, ddr_scratch, 0);
-  }
-  void add_csram_storage(uint32_t csram_storage) {
-    fbb_.AddElement<uint32_t>(Resources::VT_CSRAM_STORAGE, csram_storage, 0);
-  }
-  void add_arm_freq(uint32_t arm_freq) {
-    fbb_.AddElement<uint32_t>(Resources::VT_ARM_FREQ, arm_freq, 0);
-  }
-  void add_lnn_freq(uint32_t lnn_freq) {
-    fbb_.AddElement<uint32_t>(Resources::VT_LNN_FREQ, lnn_freq, 0);
-  }
-  void add_lupa_freq(uint32_t lupa_freq) {
-    fbb_.AddElement<uint32_t>(Resources::VT_LUPA_FREQ, lupa_freq, 0);
-  }
-  void add_dpu_freq(uint32_t dpu_freq) {
-    fbb_.AddElement<uint32_t>(Resources::VT_DPU_FREQ, dpu_freq, 0);
-  }
-  void add_csram_freq(uint32_t csram_freq) {
-    fbb_.AddElement<uint32_t>(Resources::VT_CSRAM_FREQ, csram_freq, 0);
-  }
-  void add_nncmx_to_ddr_BW(uint32_t nncmx_to_ddr_BW) {
-    fbb_.AddElement<uint32_t>(Resources::VT_NNCMX_TO_DDR_BW, nncmx_to_ddr_BW, 0);
-  }
-  void add_ddr_to_nncmx_BW(uint32_t ddr_to_nncmx_BW) {
-    fbb_.AddElement<uint32_t>(Resources::VT_DDR_TO_NNCMX_BW, ddr_to_nncmx_BW, 0);
-  }
-  void add_nncmx_to_upacmx_BW(uint32_t nncmx_to_upacmx_BW) {
-    fbb_.AddElement<uint32_t>(Resources::VT_NNCMX_TO_UPACMX_BW, nncmx_to_upacmx_BW, 0);
-  }
-  void add_upacmx_to_nncmx_BW(uint32_t upacmx_to_nncmx_BW) {
-    fbb_.AddElement<uint32_t>(Resources::VT_UPACMX_TO_NNCMX_BW, upacmx_to_nncmx_BW, 0);
-  }
-  void add_nncmx_to_dpu_BW(uint32_t nncmx_to_dpu_BW) {
-    fbb_.AddElement<uint32_t>(Resources::VT_NNCMX_TO_DPU_BW, nncmx_to_dpu_BW, 0);
-  }
-  void add_dpu_to_nncmx_BW(uint32_t dpu_to_nncmx_BW) {
-    fbb_.AddElement<uint32_t>(Resources::VT_DPU_TO_NNCMX_BW, dpu_to_nncmx_BW, 0);
+  void add_memory_bandwidth(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>>> memory_bandwidth) {
+    fbb_.AddOffset(Resources::VT_MEMORY_BANDWIDTH, memory_bandwidth);
   }
   explicit ResourcesBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -413,46 +264,34 @@ struct ResourcesBuilder {
 
 inline flatbuffers::Offset<Resources> CreateResources(
     flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t upa_shaves = 0,
-    int8_t nce1_blocks = 0,
-    uint32_t nce2_blocks = 0,
-    uint32_t upa_shared_cmx = 0,
-    uint32_t nn_cmx_per_slice = 0,
-    uint32_t nn_cmx_slice_amount = 0,
-    uint32_t ddr_scratch = 0,
-    uint32_t csram_storage = 0,
-    uint32_t arm_freq = 0,
-    uint32_t lnn_freq = 0,
-    uint32_t lupa_freq = 0,
-    uint32_t dpu_freq = 0,
-    uint32_t csram_freq = 0,
-    uint32_t nncmx_to_ddr_BW = 0,
-    uint32_t ddr_to_nncmx_BW = 0,
-    uint32_t nncmx_to_upacmx_BW = 0,
-    uint32_t upacmx_to_nncmx_BW = 0,
-    uint32_t nncmx_to_dpu_BW = 0,
-    uint32_t dpu_to_nncmx_BW = 0) {
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::ProcessorMapping>>> processor_allocation = 0,
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::ProcessorMapping>>> processor_frequencies = 0,
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::MemoryMapping>>> memory_sizes = 0,
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>>> memory_bandwidth = 0) {
   ResourcesBuilder builder_(_fbb);
-  builder_.add_dpu_to_nncmx_BW(dpu_to_nncmx_BW);
-  builder_.add_nncmx_to_dpu_BW(nncmx_to_dpu_BW);
-  builder_.add_upacmx_to_nncmx_BW(upacmx_to_nncmx_BW);
-  builder_.add_nncmx_to_upacmx_BW(nncmx_to_upacmx_BW);
-  builder_.add_ddr_to_nncmx_BW(ddr_to_nncmx_BW);
-  builder_.add_nncmx_to_ddr_BW(nncmx_to_ddr_BW);
-  builder_.add_csram_freq(csram_freq);
-  builder_.add_dpu_freq(dpu_freq);
-  builder_.add_lupa_freq(lupa_freq);
-  builder_.add_lnn_freq(lnn_freq);
-  builder_.add_arm_freq(arm_freq);
-  builder_.add_csram_storage(csram_storage);
-  builder_.add_ddr_scratch(ddr_scratch);
-  builder_.add_nn_cmx_slice_amount(nn_cmx_slice_amount);
-  builder_.add_nn_cmx_per_slice(nn_cmx_per_slice);
-  builder_.add_upa_shared_cmx(upa_shared_cmx);
-  builder_.add_nce2_blocks(nce2_blocks);
-  builder_.add_upa_shaves(upa_shaves);
-  builder_.add_nce1_blocks(nce1_blocks);
+  builder_.add_memory_bandwidth(memory_bandwidth);
+  builder_.add_memory_sizes(memory_sizes);
+  builder_.add_processor_frequencies(processor_frequencies);
+  builder_.add_processor_allocation(processor_allocation);
   return builder_.Finish();
+}
+
+inline flatbuffers::Offset<Resources> CreateResourcesDirect(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    const std::vector<flatbuffers::Offset<MVCNN::ProcessorMapping>> *processor_allocation = nullptr,
+    const std::vector<flatbuffers::Offset<MVCNN::ProcessorMapping>> *processor_frequencies = nullptr,
+    const std::vector<flatbuffers::Offset<MVCNN::MemoryMapping>> *memory_sizes = nullptr,
+    const std::vector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>> *memory_bandwidth = nullptr) {
+  auto processor_allocation__ = processor_allocation ? _fbb.CreateVector<flatbuffers::Offset<MVCNN::ProcessorMapping>>(*processor_allocation) : 0;
+  auto processor_frequencies__ = processor_frequencies ? _fbb.CreateVector<flatbuffers::Offset<MVCNN::ProcessorMapping>>(*processor_frequencies) : 0;
+  auto memory_sizes__ = memory_sizes ? _fbb.CreateVector<flatbuffers::Offset<MVCNN::MemoryMapping>>(*memory_sizes) : 0;
+  auto memory_bandwidth__ = memory_bandwidth ? _fbb.CreateVector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>>(*memory_bandwidth) : 0;
+  return MVCNN::CreateResources(
+      _fbb,
+      processor_allocation__,
+      processor_frequencies__,
+      memory_sizes__,
+      memory_bandwidth__);
 }
 
 flatbuffers::Offset<Resources> CreateResources(flatbuffers::FlatBufferBuilder &_fbb, const ResourcesT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -718,25 +557,10 @@ inline ResourcesT *Resources::UnPack(const flatbuffers::resolver_function_t *_re
 inline void Resources::UnPackTo(ResourcesT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = upa_shaves(); _o->upa_shaves = _e; }
-  { auto _e = nce1_blocks(); _o->nce1_blocks = _e; }
-  { auto _e = nce2_blocks(); _o->nce2_blocks = _e; }
-  { auto _e = upa_shared_cmx(); _o->upa_shared_cmx = _e; }
-  { auto _e = nn_cmx_per_slice(); _o->nn_cmx_per_slice = _e; }
-  { auto _e = nn_cmx_slice_amount(); _o->nn_cmx_slice_amount = _e; }
-  { auto _e = ddr_scratch(); _o->ddr_scratch = _e; }
-  { auto _e = csram_storage(); _o->csram_storage = _e; }
-  { auto _e = arm_freq(); _o->arm_freq = _e; }
-  { auto _e = lnn_freq(); _o->lnn_freq = _e; }
-  { auto _e = lupa_freq(); _o->lupa_freq = _e; }
-  { auto _e = dpu_freq(); _o->dpu_freq = _e; }
-  { auto _e = csram_freq(); _o->csram_freq = _e; }
-  { auto _e = nncmx_to_ddr_BW(); _o->nncmx_to_ddr_BW = _e; }
-  { auto _e = ddr_to_nncmx_BW(); _o->ddr_to_nncmx_BW = _e; }
-  { auto _e = nncmx_to_upacmx_BW(); _o->nncmx_to_upacmx_BW = _e; }
-  { auto _e = upacmx_to_nncmx_BW(); _o->upacmx_to_nncmx_BW = _e; }
-  { auto _e = nncmx_to_dpu_BW(); _o->nncmx_to_dpu_BW = _e; }
-  { auto _e = dpu_to_nncmx_BW(); _o->dpu_to_nncmx_BW = _e; }
+  { auto _e = processor_allocation(); if (_e) { _o->processor_allocation.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->processor_allocation[_i] = std::unique_ptr<MVCNN::ProcessorMappingT>(_e->Get(_i)->UnPack(_resolver)); } } }
+  { auto _e = processor_frequencies(); if (_e) { _o->processor_frequencies.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->processor_frequencies[_i] = std::unique_ptr<MVCNN::ProcessorMappingT>(_e->Get(_i)->UnPack(_resolver)); } } }
+  { auto _e = memory_sizes(); if (_e) { _o->memory_sizes.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->memory_sizes[_i] = std::unique_ptr<MVCNN::MemoryMappingT>(_e->Get(_i)->UnPack(_resolver)); } } }
+  { auto _e = memory_bandwidth(); if (_e) { _o->memory_bandwidth.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->memory_bandwidth[_i] = std::unique_ptr<MVCNN::MemoryRelationshipMappingT>(_e->Get(_i)->UnPack(_resolver)); } } }
 }
 
 inline flatbuffers::Offset<Resources> Resources::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ResourcesT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -747,46 +571,16 @@ inline flatbuffers::Offset<Resources> CreateResources(flatbuffers::FlatBufferBui
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const ResourcesT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _upa_shaves = _o->upa_shaves;
-  auto _nce1_blocks = _o->nce1_blocks;
-  auto _nce2_blocks = _o->nce2_blocks;
-  auto _upa_shared_cmx = _o->upa_shared_cmx;
-  auto _nn_cmx_per_slice = _o->nn_cmx_per_slice;
-  auto _nn_cmx_slice_amount = _o->nn_cmx_slice_amount;
-  auto _ddr_scratch = _o->ddr_scratch;
-  auto _csram_storage = _o->csram_storage;
-  auto _arm_freq = _o->arm_freq;
-  auto _lnn_freq = _o->lnn_freq;
-  auto _lupa_freq = _o->lupa_freq;
-  auto _dpu_freq = _o->dpu_freq;
-  auto _csram_freq = _o->csram_freq;
-  auto _nncmx_to_ddr_BW = _o->nncmx_to_ddr_BW;
-  auto _ddr_to_nncmx_BW = _o->ddr_to_nncmx_BW;
-  auto _nncmx_to_upacmx_BW = _o->nncmx_to_upacmx_BW;
-  auto _upacmx_to_nncmx_BW = _o->upacmx_to_nncmx_BW;
-  auto _nncmx_to_dpu_BW = _o->nncmx_to_dpu_BW;
-  auto _dpu_to_nncmx_BW = _o->dpu_to_nncmx_BW;
+  auto _processor_allocation = _fbb.CreateVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> (_o->processor_allocation.size(), [](size_t i, _VectorArgs *__va) { return CreateProcessorMapping(*__va->__fbb, __va->__o->processor_allocation[i].get(), __va->__rehasher); }, &_va );
+  auto _processor_frequencies = _fbb.CreateVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> (_o->processor_frequencies.size(), [](size_t i, _VectorArgs *__va) { return CreateProcessorMapping(*__va->__fbb, __va->__o->processor_frequencies[i].get(), __va->__rehasher); }, &_va );
+  auto _memory_sizes = _fbb.CreateVector<flatbuffers::Offset<MVCNN::MemoryMapping>> (_o->memory_sizes.size(), [](size_t i, _VectorArgs *__va) { return CreateMemoryMapping(*__va->__fbb, __va->__o->memory_sizes[i].get(), __va->__rehasher); }, &_va );
+  auto _memory_bandwidth = _fbb.CreateVector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>> (_o->memory_bandwidth.size(), [](size_t i, _VectorArgs *__va) { return CreateMemoryRelationshipMapping(*__va->__fbb, __va->__o->memory_bandwidth[i].get(), __va->__rehasher); }, &_va );
   return MVCNN::CreateResources(
       _fbb,
-      _upa_shaves,
-      _nce1_blocks,
-      _nce2_blocks,
-      _upa_shared_cmx,
-      _nn_cmx_per_slice,
-      _nn_cmx_slice_amount,
-      _ddr_scratch,
-      _csram_storage,
-      _arm_freq,
-      _lnn_freq,
-      _lupa_freq,
-      _dpu_freq,
-      _csram_freq,
-      _nncmx_to_ddr_BW,
-      _ddr_to_nncmx_BW,
-      _nncmx_to_upacmx_BW,
-      _upacmx_to_nncmx_BW,
-      _nncmx_to_dpu_BW,
-      _dpu_to_nncmx_BW);
+      _processor_allocation,
+      _processor_frequencies,
+      _memory_sizes,
+      _memory_bandwidth);
 }
 
 inline SummaryHeaderT *SummaryHeader::UnPack(const flatbuffers::resolver_function_t *_resolver) const {

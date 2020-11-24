@@ -307,21 +307,15 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
     // TODO: remove these workarounds when this case will be handled on mcm compiler side
     if (mvShape.ndims() == 1) {
         for (auto&& consumerNode : constant->get_users()) {
-            if (ngraph::op::GatherIE::type_info == consumerNode->get_type_info()) {
+            if (ngraph::op::GatherIE::type_info == consumerNode->get_type_info() ||
+                ngraph::op::v1::Split::type_info == consumerNode->get_type_info()) {
                 mvShape = mv::Shape::augment_major(mvShape, 4);
                 // int64 precision for indices is not supported by runtime yet
                 if (ngraph::element::i64 == constant->get_element_type()) {
-                    mvDType == mv::DType("Int32");
+                    mvDType = mv::DType("Int32");
                     opName += "_indices_i32";
                 }
                 break;
-            }
-            if (ngraph::op::v1::Split::type_info == consumerNode->get_type_info()) {
-                mvShape = mv::Shape::augment_major(mvShape, 4);
-                if (ngraph::element::i64 == constant->get_element_type()) {
-                    mvDType == mv::DType("Int32");
-                    opName += "_indices_i32";
-                }
             }
         }
     }

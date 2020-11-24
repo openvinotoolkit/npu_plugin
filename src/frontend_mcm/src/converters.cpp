@@ -20,7 +20,7 @@
 
 const uint32_t DIM_N = 0, DIM_C = 1, DIM_H = 2, DIM_W = 3, DIM_D = 4;
 
-static const std::map<InferenceEngine::Layout, std::vector<uint32_t>> orderMapping = {
+static const std::map<InferenceEngine::Layout, std::vector<float>> orderMapping = {
     {InferenceEngine::Layout::NCHW, {DIM_N, DIM_C, DIM_H, DIM_W}},
     {InferenceEngine::Layout::NHWC, {DIM_N, DIM_H, DIM_W, DIM_C}},
     {InferenceEngine::Layout::NCDHW, {DIM_N, DIM_C, DIM_D, DIM_H, DIM_W}},
@@ -43,14 +43,14 @@ static const std::map<InferenceEngine::Precision, MVCNN::DType> dataTypeMapping 
     {InferenceEngine::Precision::BIN, MVCNN::DType::DType_BIN},
 };
 
-InferenceEngine::Layout orderVectorToLayout(const std::vector<uint32_t>& tensorOrder) {
-    std::function<bool(const std::pair<InferenceEngine::Layout, std::vector<uint32_t>>&)> mapSearchPredicate =
-        [tensorOrder](const std::pair<InferenceEngine::Layout, std::vector<uint32_t>>& orderPair) -> bool {
+InferenceEngine::Layout orderVectorToLayout(const std::vector<float>& tensorOrder) {
+    std::function<bool(const std::pair<InferenceEngine::Layout, std::vector<float>>&)> mapSearchPredicate =
+        [tensorOrder](const std::pair<InferenceEngine::Layout, std::vector<float>>& orderPair) -> bool {
         size_t orderSize = tensorOrder.size();
         size_t pairSize = orderPair.second.size();
         return (orderSize == pairSize) && std::equal(tensorOrder.begin(), tensorOrder.end(), orderPair.second.begin());
     };
-    std::map<InferenceEngine::Layout, std::vector<uint32_t>>::const_iterator mapIter =
+    std::map<InferenceEngine::Layout, std::vector<float>>::const_iterator mapIter =
         std::find_if(orderMapping.begin(), orderMapping.end(), mapSearchPredicate);
     if (mapIter == orderMapping.end()) {
         THROW_IE_EXCEPTION << "orderToLayout: failed to convert input order";
@@ -71,7 +71,7 @@ InferenceEngine::Precision MvcnnDTypeToPrecision(const MVCNN::DType& dtype) {
     return mapIter->first;
 }
 
-std::vector<uint32_t> layoutToOrderVector(const InferenceEngine::Layout& tensorLayout) {
+std::vector<float> layoutToOrderVector(const InferenceEngine::Layout& tensorLayout) {
     return orderMapping.at(tensorLayout);
 }
 

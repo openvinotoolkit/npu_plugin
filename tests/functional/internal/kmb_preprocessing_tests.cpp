@@ -76,10 +76,10 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksHDImage1000Iterations) {
     }
     Core ie;
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = getTestModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    std::string network1Path = getTestModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
     ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, DEVICE_NAME, {}));
 
-    std::string network2Path = getTestModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
+    std::string network2Path = getTestModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/schema-3.24.3/tiny-yolo-v2.blob";
     InferenceEngine::ExecutableNetwork network2;
     ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, DEVICE_NAME, {}));
 
@@ -187,10 +187,10 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksStressTest) {
     }
     Core ie;
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = getTestModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    std::string network1Path = getTestModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
     ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, DEVICE_NAME, {}));
 
-    std::string network2Path = getTestModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
+    std::string network2Path = getTestModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/schema-3.24.3/tiny-yolo-v2.blob";
     InferenceEngine::ExecutableNetwork network2;
     ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, DEVICE_NAME, {}));
 
@@ -320,10 +320,10 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_detectClassify4Threads) {
     }
     Core ie;
 
-    std::string detectNetworkPath = getTestModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
+    std::string detectNetworkPath = getTestModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/schema-3.24.3/tiny-yolo-v2.blob";
     InferenceEngine::ExecutableNetwork detectionNetwork = ie.ImportNetwork(detectNetworkPath, DEVICE_NAME, {});
 
-    std::string classifyNetworkPath = getTestModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    std::string classifyNetworkPath = getTestModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
     InferenceEngine::ExecutableNetwork classificationNetwork = ie.ImportNetwork(classifyNetworkPath, DEVICE_NAME, {});
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =

@@ -42,7 +42,7 @@ static std::string getFirstAvailableDeviceId(const InferenceEngine::Core& ieCore
 }
 
 TEST_F(vpuLayersTests, remoteCtx) {
-    const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     const std::string refInputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input.bin";
     const std::string refOutputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output.bin";
 
@@ -103,7 +103,7 @@ TEST_F(vpuLayersTests, remoteCtx) {
 }
 
 TEST_F(vpuLayersTests, remoteCtxNV12) {
-    const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     const std::string refInputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input-dog-1080x1080-nv12.bin";
     const std::string refOutputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
 
@@ -228,7 +228,7 @@ static Blob::Ptr wrapImageToBlob(const Image& image, const RemoteContext::Ptr& c
 class VpuRemoteCtxTests : public vpuLayersTests, public testing::WithParamInterface<bool> {};
 
 TEST_P(VpuRemoteCtxTests, remoteCtxNV12WithROI) {
-    const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     const std::string refInputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input-dog-1080x1080-nv12.bin";
     const std::string refOutputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
 
@@ -299,7 +299,7 @@ TEST_P(VpuRemoteCtxTests, remoteCtxNV12WithROI) {
 INSTANTIATE_TEST_CASE_P(RemoteCtxWithROI, VpuRemoteCtxTests, ::testing::ValuesIn({true, false}));
 
 TEST_F(vpuLayersTests, incompatibleRemoteCtx) {
-    const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
 
     InferenceEngine::Core ie;
     InferenceEngine::RemoteContext::Ptr contextPtr = nullptr;
@@ -321,7 +321,7 @@ TEST_F(vpuLayersTests, incompatibleRemoteCtx) {
 }
 
 TEST_F(vpuLayersTests, keyDeviceId) {
-    const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
 
     InferenceEngine::Core ie;
     InferenceEngine::RemoteContext::Ptr contextPtr = nullptr;

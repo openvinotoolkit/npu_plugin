@@ -167,7 +167,7 @@ std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> buildAllocator(const char* 
 TEST_P(VpuPreprocessingTestsWithParam,
     DISABLED_importWithPreprocessing) {  // To be run in manual mode when device is available
     preprocessingType preprocType = GetParam();
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
         buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
@@ -222,7 +222,7 @@ TEST_F(VpuPreprocessingTests, preprocResizeAndCSC) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
         buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
@@ -269,7 +269,7 @@ TEST_F(VpuPreprocessingTests, multiThreadPreprocResizeAndCSC) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
         buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
@@ -325,7 +325,7 @@ TEST_F(VpuPreprocessingTests, twoRequestsWithPreprocessing) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
         buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
@@ -397,10 +397,10 @@ class VpuPreprocessingWithTwoNetworksTests :
 
 TEST_P(VpuPreprocessingWithTwoNetworksTests, inference) {
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
 
-    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
+    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/schema-3.24.3/tiny-yolo-v2.blob";
     InferenceEngine::ExecutableNetwork network2;
     ASSERT_NO_THROW(network2 = core->ImportNetwork(network2Path, deviceName, {}));
 
@@ -496,7 +496,7 @@ INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingWithTwoNetworksTests,
 
 TEST_F(vpuLayersTests, allocateNV12WithNative) {
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
 
     ASSERT_EQ(1, network1.GetInputsInfo().size());
@@ -533,7 +533,7 @@ TEST_F(vpuLayersTests, allocateNV12WithNative) {
 
 TEST_F(vpuLayersTests, allocateNV12TwoImages) {
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
 
     ASSERT_EQ(1, network1.GetInputsInfo().size());
@@ -590,7 +590,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
 
 TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
 
     ASSERT_EQ(1, network1.GetInputsInfo().size());
@@ -665,7 +665,7 @@ public:
         std::string key, value;
         std::tie(key, value) = GetParam();
 
-        std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
+        std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/schema-3.24.3/tiny-yolo-v2.blob";
 
         std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
             buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
@@ -706,7 +706,7 @@ TEST_P(VpuPreprocessingConfigTests, setConfigAndCheck) {
     std::string key, value;
     bool valid;
     std::tie(key, value, valid) = GetParam();
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
 
     InferenceEngine::ExecutableNetwork importedNetwork;
 
@@ -722,14 +722,14 @@ TEST_P(VpuPreprocessingConfigTests, setConfigAndCheck) {
 
 TEST_F(VpuPreprocessingTests, setConfigForTwoNetworks) {
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/schema-3.24.3/tiny-yolo-v2.blob";
     std::map<std::string, std::string> config1;
     config1["VPUX_PREPROCESSING_SHAVES"] = "4";
     config1["VPUX_PREPROCESSING_LPI"] = "4";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, config1));
 
     InferenceEngine::ExecutableNetwork network2;
-    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     std::map<std::string, std::string> config2;
     config2["VPUX_PREPROCESSING_SHAVES"] = "2";
     config2["VPUX_PREPROCESSING_LPI"] = "8";
@@ -811,7 +811,7 @@ TEST_F(VpuPreprocessingTests, setConfigForTwoNetworks) {
 
 // [Track number: S#41588]
 TEST_F(VpuPreprocessingTests, DISABLED_setConfigAndCheckNumShaves) {
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
 
     InferenceEngine::ExecutableNetwork importedNetwork;
 
