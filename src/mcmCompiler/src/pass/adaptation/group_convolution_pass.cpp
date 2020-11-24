@@ -124,6 +124,12 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
                     om.addAttr(sliceConvOp, "bias", biasSliceTensor->getName());
                 }
+
+                if (convOp->hasAttr("postOpTypes"))
+                {
+                    om.addAttr(sliceConvOp, "postOpTypes", convOp->get<std::vector<std::string>>("postOpTypes"));
+                }
+
                 convOutputs.push_back(newConvTensor);
             }
             auto concat = om.concat(convOp->getName() + "concat_",
