@@ -66,7 +66,8 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
         RESOLVE_DEPENDENCY(VPU_CLC_MA2X9X
             ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X9X_VERSION}.tar.gz"
             TARGET_PATH "${TEMP}/vpu/clc/ma2x9x/${VPU_CLC_MA2X9X_VERSION}"
-            ENVIRONMENT "VPU_CLC_MA2X9X_COMMAND")
+            ENVIRONMENT "VPU_CLC_MA2X9X_COMMAND"
+            SHA256 "0a864bd0e11cee2d85ac7e451dddae19216c8bc9bb50e1a8e0151ab97d5e3c8d")
         debug_message(STATUS "VPU_CLC_MA2X9X=" ${VPU_CLC_MA2X9X})
 
         update_deps_cache(
@@ -158,9 +159,12 @@ if(ENABLE_HDDL2)
     if(UNIX)
         set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww44)
         set(HDDLUNITE_TBH_ARCHIVE_VERSION RELEASE_TBH_ww44)
+        set(HDDLUNITE_KMB_ARCHIVE_HASH "04df19c47aa4b11e3254f997e892c00eb29ac2e1ce61846282eb462401412077")
+        set(HDDLUNITE_TBH_ARCHIVE_HASH "cebc6864a6d20c435d379f6757e9ffea38eea17073bb5363db85a098b476a84d")
         set(ARCH_FORMAT ".tgz")
     else()
         set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww44_Windows)
+        set(HDDLUNITE_KMB_ARCHIVE_HASH "f1da749d21b6c9190443a3dc681e65397cd1270f44003140dfb8d1350b7ef1e0")
         set(ARCH_FORMAT ".zip")
     endif()
 
@@ -178,12 +182,14 @@ if(ENABLE_HDDL2)
         RESOLVE_DEPENDENCY(HDDL_UNITE
                 ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"
                 ENVIRONMENT "HDDL_UNITE"
-                TARGET_PATH "${TEMP}/hddl_unite")
+                TARGET_PATH "${TEMP}/hddl_unite"
+                SHA256 ${HDDLUNITE_KMB_ARCHIVE_HASH})
         if(UNIX)
             RESOLVE_DEPENDENCY(HDDL_UNITE_TBH
                     ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_TBH_ARCHIVE_VERSION}${ARCH_FORMAT}"
                     ENVIRONMENT "HDDL_UNITE_TBH"
-                    TARGET_PATH "${TEMP}/tbh/hddl_unite")
+                    TARGET_PATH "${TEMP}/tbh/hddl_unite"
+                    SHA256 ${HDDLUNITE_TBH_ARCHIVE_HASH})
         endif()
 
         unset(IE_PATH_TO_DEPS)
