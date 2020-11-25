@@ -36,6 +36,11 @@ mlir::SideEffects::Resource* vpux::VPUIP::getMemoryResource(PhysicalMemory mem) 
     }
 }
 
-mlir::SideEffects::Resource* vpux::VPUIP::getMemoryResource(mlir::MemRefType memref) {
-    return getMemoryResource(getPhysicalMemory(memref));
+mlir::FailureOr<mlir::SideEffects::Resource*> vpux::VPUIP::getMemoryResource(mlir::MemRefType memref) {
+    auto mem = getPhysicalMemory(memref);
+    if (mlir::failed(mem)) {
+        return mlir::failure();
+    }
+
+    return getMemoryResource(mem.getValue());
 }

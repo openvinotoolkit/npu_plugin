@@ -8,8 +8,8 @@ The `VPUIP` Dialect represents NN RunTime IR in terms of MLIR framework.
 
 ## Type constraint definition
 
-### VPUIP Barrier
-This object represents closely a Barrier in the device.
+### VPUIP Barrier Type
+This object represents closely a Barrier in the device
 
 ## Operation definition
 
@@ -36,14 +36,14 @@ operation ::= `VPUIP.ConfigureBarrier` attr-dict
 | :-----: | ----------- |
 `inputTensors` | memref of any type values
 `outputTensors` | memref of any type values
-`waitBarriers` | VPUIP Barrier
-`updateBarriers` | VPUIP Barrier
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`barrier` | VPUIP Barrier
+`barrier` | VPUIP Barrier Type
 
 ### `VPUIP.DeclareBarrier` (vpux::VPUIP::DeclareBarrierOp)
 
@@ -61,7 +61,7 @@ operation ::= `VPUIP.DeclareBarrier` attr-dict `->` type(results)
 
 | Result | Description |
 | :----: | ----------- |
-`barrier` | VPUIP Barrier
+`barrier` | VPUIP Barrier Type
 
 ### `VPUIP.DeclareTensor` (vpux::VPUIP::DeclareTensorOp)
 
@@ -71,7 +71,7 @@ MemRef value declaration
 Syntax:
 
 ```
-operation ::= `VPUIP.DeclareTensor` $location (`,` $offset^)? attr-dict `->` type(results)
+operation ::= `VPUIP.DeclareTensor` $locale (`:` $localeIndex^)? attr-dict `->` type(results)
 ```
 
 
@@ -79,8 +79,13 @@ operation ::= `VPUIP.DeclareTensor` $location (`,` $offset^)? attr-dict `->` typ
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`location` | MemoryLocationAttr | Values indicating which type of memory a tensor resides in
-`offset` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`locale` | MemoryLocationAttr | Values indicating which type of memory a tensor resides in
+`localeIndex` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`leadingOffset` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`trailingOffset` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`dataIndex` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`sparsityIndex` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`storageElementIndex` | ::mlir::IntegerAttr | 64-bit signless integer attribute
 
 #### Results:
 
@@ -112,6 +117,7 @@ operation ::= `VPUIP.Graph` attr-dict
               $identifier `at` $entryPoint
               `options` `:` $options
               `resources` `:` $resources
+              `version` `:` $version
               `inputsInfo` `:` $inputsInfo
               `outputsInfo` `:` $outputsInfo
 ```
@@ -124,7 +130,8 @@ operation ::= `VPUIP.Graph` attr-dict
 `identifier` | ::mlir::StringAttr | string attribute
 `entryPoint` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
 `options` | ExecutionFlagAttr | Each of these enums' presence informs how the current schedule is configured
-`resources` | vpux::VPUIP::ResourcesAttr | DictionaryAttr with field(s): 'upa_shaves', 'nce2_blocks', 'upa_shared_cmx', 'nn_cmx_per_slice', 'nn_cmx_slice_amount', 'ddr_scratch', 'csram_storage' (each field having its own constraints)
+`resources` | vpux::VPUIP::ResourcesAttr | DictionaryAttr with field(s): 'processor_allocation', 'processor_frequencies', 'memory_sizes', 'memory_bandwidth' (each field having its own constraints)
+`version` | vpux::VPUIP::VersionAttr | DictionaryAttr with field(s): 'majorV', 'minorV', 'patchV', 'hash', 'contextStr' (each field having its own constraints)
 
 ### `VPUIP.SoftMaxUPA` (vpux::VPUIP::SoftMaxUPAOp)
 
@@ -156,8 +163,8 @@ operation ::= `VPUIP.SoftMaxUPA` attr-dict
 | :-----: | ----------- |
 `inputTensors` | memref of 16-bit float values
 `outputTensors` | memref of 16-bit float values
-`waitBarriers` | VPUIP Barrier
-`updateBarriers` | VPUIP Barrier
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
 
 ### `VPUIP.TensorInfo` (vpux::VPUIP::TensorInfoOp)
 
@@ -202,12 +209,13 @@ operation ::= `VPUIP.UPADMA` attr-dict
 | :-----: | ----------- |
 `inputTensors` | memref of any type values
 `outputTensors` | memref of any type values
-`waitBarriers` | VPUIP Barrier
-`updateBarriers` | VPUIP Barrier
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
 
 ## Type definition
 
-### `VPUIP_BarrierType` (BarrierType)
+### `VPUIP_BarrierDef` (BarrierType)
 
+VPUIP Barrier Type
 This object represents closely a Barrier in the device
 

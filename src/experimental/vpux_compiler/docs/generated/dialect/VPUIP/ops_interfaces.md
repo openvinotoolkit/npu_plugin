@@ -7,50 +7,32 @@
 ```c++
 mlir::ValueRange inputTensors();
 ```
-All inputs for this task
-NOTE: This method *must* be implemented by the user.
-
-#### `outputTensors`
+All inputs for this task#### `outputTensors`
 
 ```c++
 mlir::ValueRange outputTensors();
 ```
-All outputs for this task
-NOTE: This method *must* be implemented by the user.
-
-#### `waitBarriers`
+All outputs for this task#### `waitBarriers`
 
 ```c++
 mlir::ValueRange waitBarriers();
 ```
-Barriers that will free this task to run
-NOTE: This method *must* be implemented by the user.
-
-#### `waitBarriersMutable`
+Barriers that will free this task to run#### `waitBarriersMutable`
 
 ```c++
 mlir::MutableOperandRange waitBarriersMutable();
 ```
-Barriers that will free this task to run
-NOTE: This method *must* be implemented by the user.
-
-#### `updateBarriers`
+Barriers that will free this task to run#### `updateBarriers`
 
 ```c++
 mlir::ValueRange updateBarriers();
 ```
-Barriers that will be at least partially unlocked when this task is complete
-NOTE: This method *must* be implemented by the user.
-
-#### `updateBarriersMutable`
+Barriers that will be at least partially unlocked when this task is complete#### `updateBarriersMutable`
 
 ```c++
 mlir::MutableOperandRange updateBarriersMutable();
 ```
-Barriers that will be at least partially unlocked when this task is complete
-NOTE: This method *must* be implemented by the user.
-
-#### `serialize`
+Barriers that will be at least partially unlocked when this task is complete#### `serialize`
 
 ```c++
 vpux::VPUIP::BlobWriter::SpecificTask serialize(vpux::VPUIP::BlobWriter&writer);
@@ -63,7 +45,12 @@ NOTE: This method *must* be implemented by the user.
 ```c++
 static vpux::VPUIP::TaskType getTaskType();
 ```
-Get the VPUIP TaskType for the Operation
+Get the VPUIP TaskType for the Operation#### `getEffects`
+
+```c++
+void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>&effects);
+```
+Get all Memory effects for the Operation
 NOTE: This method *must* be implemented by the user.
 
 ## UPATaskOpInterface (VPUIP_UPATaskOpInterface)Interface for VPUIP UPA Task
@@ -73,25 +60,24 @@ NOTE: This method *must* be implemented by the user.
 ```c++
 uint32_t maxShaves();
 ```
-Get maximal number of UPA SHAVEs to use
-NOTE: This method *must* be implemented by the user.
-
-#### `setMaxShaves`
+Get maximal number of UPA SHAVEs to use#### `setMaxShaves`
 
 ```c++
 void setMaxShaves(uint32_t maxShaves);
 ```
-Update maximal number of UPA SHAVEs to use#### `isTrailingSWLayer`
+Update maximal number of UPA SHAVEs to use
+NOTE: This method *must* be implemented by the user.
+
+#### `isTrailingSWLayer`
 
 ```c++
 bool isTrailingSWLayer();
 ```
-Is current task the trailing SW layer
-NOTE: This method *must* be implemented by the user.
-
-#### `markAsTrailingSWLayer`
+Is current task the trailing SW layer#### `markAsTrailingSWLayer`
 
 ```c++
 void markAsTrailingSWLayer();
 ```
 Mark current task as trailing SW layer
+NOTE: This method *must* be implemented by the user.
+

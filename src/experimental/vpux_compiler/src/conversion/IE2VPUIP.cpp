@@ -20,6 +20,7 @@
 #include "vpux/compiler/core/stride_reqs.hpp"
 #include "vpux/compiler/core/strides.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/scalars.hpp"
 
@@ -119,8 +120,14 @@ mlir::LogicalResult ConvertIE2VPUIPPass::allocateResults(mlir::Location loc, mli
 
         const auto memrefType = mlir::MemRefType::get(tensorType.getShape(), tensorType.getElementType());
 
-        auto allocOp =
-                builder.create<VPUIP::DeclareTensorOp>(loc, memrefType, VPUIP::MemoryLocation::VPU_DDR_Heap, nullptr);
+        auto allocOp = builder.create<VPUIP::DeclareTensorOp>(loc, memrefType, VPUIP::MemoryLocation::VPU_DDR_Heap,
+                                                              nullptr,  // localeIndex
+                                                              0,        // leadingOffset
+                                                              0,        // trailingOffset
+                                                              nullptr,  // dataIndex
+                                                              nullptr,  // sparsityIndex
+                                                              nullptr   // storageElementIndex
+        );
 
         allocatedBufs.push_back(allocOp.memory());
     }
@@ -285,19 +292,30 @@ mlir::LogicalResult ConvertIE2VPUIPPass::addGraphOp() {
 
     const auto options = VPUIP::ExecutionFlagAttr::get(VPUIP::ExecutionFlag::NONE, &ctx);
 
-    // We have to reserve at least 1 nn_cmx_slice to allow runtime work
-    const auto resources = VPUIP::ResourcesAttr::get(getInt32Attr(&ctx, maxUPAShaves),  // upa_shaves
-                                                     nullptr,                           // nce2_blocks
-                                                     nullptr,                           // upa_shared_cmx
-                                                     nullptr,                           // nn_cmx_per_slice
-                                                     getInt32Attr(&ctx, 1),             // nn_cmx_slice_amount
-                                                     nullptr,                           // ddr_scratch
-                                                     nullptr,                           // csram_storage
+    SmallVector<mlir::Attribute, 2> processorAllocation;
+    processorAllocation.push_back(VPUIP::ProcessorMappingAttr::get(
+            VPUIP::PhysicalProcessorAttr::get(VPUIP::PhysicalProcessor::SHAVE_UPA, &ctx),
+            getInt64Attr(&ctx, maxUPAShaves), nullptr, &ctx));
+    processorAllocation.push_back(VPUIP::ProcessorMappingAttr::get(
+            VPUIP::PhysicalProcessorAttr::get(VPUIP::PhysicalProcessor::NCE_Cluster, &ctx), getInt64Attr(&ctx, 1),
+            nullptr, &ctx));
+
+    const auto resources = VPUIP::ResourcesAttr::get(mlir::ArrayAttr::get(processorAllocation, &ctx),
+                                                     mlir::ArrayAttr::get({}, &ctx),  // processor_frequencies
+                                                     mlir::ArrayAttr::get({}, &ctx),  // memory_sizes
+                                                     mlir::ArrayAttr::get({}, &ctx),  // memory_bandwidth
                                                      &ctx);
+
+    const auto version = VPUIP::VersionAttr::get(getInt32Attr(&ctx, 3),                         // majorV
+                                                 getInt32Attr(&ctx, 11),                        // minorV
+                                                 getInt32Attr(&ctx, 0),                         // patchV
+                                                 mlir::StringAttr::get("", &ctx),               // hash
+                                                 mlir::StringAttr::get("VPUX Compiler", &ctx),  // contextStr
+                                                 &ctx);
 
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
 
-    auto graphOp = builder.create<VPUIP::GraphOp>(_netInfoLoc, _netName, _entryPoint, options, resources);
+    auto graphOp = builder.create<VPUIP::GraphOp>(_netInfoLoc, _netName, _entryPoint, options, resources, version);
 
     graphOp.inputsInfo().push_back(new mlir::Block);
     builder.setInsertionPointToStart(&graphOp.inputsInfo().front());

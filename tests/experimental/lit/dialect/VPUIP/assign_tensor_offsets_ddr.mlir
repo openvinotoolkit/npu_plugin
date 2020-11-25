@@ -2,12 +2,25 @@
 
 #NC = affine_map<(d0, d1) -> (d0, d1)>
 
-// CHECK: ddr_scratch = 4096
+// CHECK: {item = "DDR", number = 4096 : i64}
 VPUIP.Graph "LinearGraph" at @main
     options : "NONE"
     resources : {
-        nn_cmx_slice_amount = 1 : i32,
-        upa_shaves = 1 : i32
+        processor_allocation = [
+            {item = "SHAVE_UPA", number = 1 : i64},
+            {item = "NCE_Cluster", number = 1 : i64}
+        ],
+        processor_frequencies = [],
+        memory_sizes = [
+            {item = "CMX_NN", number = 1048576 : i64}
+        ],
+        memory_bandwidth = []
+    }
+    version : {
+        majorV = 3 : i32,
+        minorV = 11 : i32,
+        patchV = 0 : i32, hash = "",
+        contextStr = "VPUX Compiler"
     }
     inputsInfo : {
         VPUIP.TensorInfo "data", f16, #NC
@@ -17,15 +30,15 @@ VPUIP.Graph "LinearGraph" at @main
     }
 
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
-    // CHECK: "VPU_DDR_Heap", 0
+    // CHECK: dataIndex = 0
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<1x1000xf16>
     VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>)
 
-    // CHECK: "VPU_DDR_Heap", 2048
+    // CHECK: dataIndex = 2048
     %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<1x1000xf16>
     VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%0 : memref<1x1000xf16>) outputs(%1 : memref<1x1000xf16>)
 
-    // CHECK: "VPU_DDR_Heap", 0
+    // CHECK: dataIndex = 0
     %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<1x1000xf16>
     VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%1 : memref<1x1000xf16>) outputs(%2 : memref<1x1000xf16>)
 

@@ -52,5 +52,6 @@ mlir::IntegerAttr getUInt32Attr(mlir::MLIRContext* ctx, uint32_t val);
 mlir::IntegerAttr getUInt64Attr(mlir::MLIRContext* ctx, uint64_t val);
 
 mlir::FloatAttr getFP32Attr(mlir::MLIRContext* ctx, float val);
+mlir::FloatAttr getFP64Attr(mlir::MLIRContext* ctx, double val);
 
 }  // namespace vpux

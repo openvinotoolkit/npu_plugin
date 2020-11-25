@@ -40,13 +40,22 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(SoftMaxUPAOp op) {
     const auto srcMem = getPhysicalMemory(srcType);
     const auto dstMem = getPhysicalMemory(dstType);
 
-    if (srcMem != PhysicalMemory::DDR && srcMem != PhysicalMemory::CSRAM) {
-        return printTo(op.emitError(), "'{0}' can't operate with '{1}' PhysicalMemory",
-                       SoftMaxUPAOp::getOperationName(), srcMem);
+    if (mlir::failed(srcMem)) {
+        return printTo(op.emitError(), "Input tensor for Operation '{0}' has unsupported memory space '{1}'",
+                       SoftMaxUPAOp::getOperationName(), srcType.getMemorySpace());
     }
-    if (srcMem != PhysicalMemory::DDR && srcMem != PhysicalMemory::CSRAM) {
+    if (mlir::failed(dstMem)) {
+        return printTo(op.emitError(), "Output tensor for Operation '{0}' has unsupported memory space '{1}'",
+                       SoftMaxUPAOp::getOperationName(), dstType.getMemorySpace());
+    }
+
+    if (srcMem.getValue() != PhysicalMemory::DDR && srcMem.getValue() != PhysicalMemory::CSRAM) {
         return printTo(op.emitError(), "'{0}' can't operate with '{1}' PhysicalMemory",
-                       SoftMaxUPAOp::getOperationName(), dstMem);
+                       SoftMaxUPAOp::getOperationName(), srcMem.getValue());
+    }
+    if (srcMem.getValue() != PhysicalMemory::DDR && srcMem.getValue() != PhysicalMemory::CSRAM) {
+        return printTo(op.emitError(), "'{0}' can't operate with '{1}' PhysicalMemory",
+                       SoftMaxUPAOp::getOperationName(), dstMem.getValue());
     }
 
     return mlir::success();

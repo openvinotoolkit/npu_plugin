@@ -18,6 +18,8 @@
 
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 
+#include "vpux/utils/core/format.hpp"
+
 #include <mlir/IR/StandardTypes.h>
 
 using namespace vpux;
@@ -31,15 +33,15 @@ void vpux::VPUIP::getTaskEffects(
     auto task = mlir::cast<TaskOpInterface>(op);
 
     for (const auto input : task.inputTensors()) {
-        const auto inputType = input.getType().cast<mlir::MemRefType>();
-
-        effects.emplace_back(mlir::MemoryEffects::Read::get(), input, getMemoryResource(inputType));
+        auto inputType = input.getType().cast<mlir::MemRefType>();
+        auto resource = getMemoryResource(inputType);
+        effects.emplace_back(mlir::MemoryEffects::Read::get(), input, resource.getValue());
     }
 
     for (const auto output : task.outputTensors()) {
-        const auto outputType = output.getType().cast<mlir::MemRefType>();
-
-        effects.emplace_back(mlir::MemoryEffects::Write::get(), output, getMemoryResource(outputType));
+        auto outputType = output.getType().cast<mlir::MemRefType>();
+        auto resource = getMemoryResource(outputType);
+        effects.emplace_back(mlir::MemoryEffects::Write::get(), output, resource.getValue());
     }
 
     for (const auto waitBarrier : task.waitBarriers()) {

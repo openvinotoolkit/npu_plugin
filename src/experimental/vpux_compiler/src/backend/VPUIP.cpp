@@ -41,22 +41,110 @@ using namespace vpux;
 
 namespace {
 
-flatbuffers::Offset<MVCNN::Version> createVersion(VPUIP::BlobWriter& writer) {
+flatbuffers::Offset<MVCNN::Version> createVersion(VPUIP::BlobWriter& writer, VPUIP::VersionAttr version) {
+    const auto serializedHash = writer.createString(version.hash().getValue());
+    const auto serializedContext = writer.createString(version.contextStr().getValue());
+
     MVCNN::VersionBuilder builder(writer);
-    builder.add_majorV(3);
-    builder.add_minorV(11);
+    builder.add_majorV(version.majorV().getInt());
+    builder.add_minorV(version.minorV().getInt());
+    builder.add_patchV(version.patchV().getInt());
+    builder.add_hash(serializedHash);
+    builder.add_context(serializedContext);
     return builder.Finish();
 }
 
-flatbuffers::Offset<MVCNN::Resources> serializeResources(VPUIP::BlobWriter& writer, VPUIP::ResourcesAttr resources) {
+MVCNN::PhysicalProcessor createPhysicalProcessor(VPUIP::PhysicalProcessor proc) {
+    switch (proc) {
+    case VPUIP::PhysicalProcessor::ARM:
+        return MVCNN::PhysicalProcessor_ARM;
+    case VPUIP::PhysicalProcessor::Leon_RT:
+        return MVCNN::PhysicalProcessor_LEON_RT;
+    case VPUIP::PhysicalProcessor::Leon_NN:
+        return MVCNN::PhysicalProcessor_LEON_NN;
+    case VPUIP::PhysicalProcessor::SHAVE_UPA:
+        return MVCNN::PhysicalProcessor_UPA_SHV;
+    case VPUIP::PhysicalProcessor::SHAVE_NN:
+        return MVCNN::PhysicalProcessor_NN_SHV;
+    case VPUIP::PhysicalProcessor::NCE_Cluster:
+        return MVCNN::PhysicalProcessor_NCE_Cluster;
+    case VPUIP::PhysicalProcessor::NCE_PerClusterDPU:
+        return MVCNN::PhysicalProcessor_NCE_PerClusterDPU;
+    default:
+        VPUX_THROW("Unsupported PhysicalProcessor '{0}'", proc);
+    }
+}
+
+flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
+                                                                    VPUIP::ProcessorMappingAttr attr) {
+    MVCNN::ProcessorMappingBuilder builder(writer);
+    builder.add_item(createPhysicalProcessor(attr.item().getValue()));
+    builder.add_number(attr.number().getInt());
+    builder.add_is_bitmask(attr.isBitMask().getValue());
+    return builder.Finish();
+}
+
+MVCNN::PhysicalMem createPhysicalMem(VPUIP::PhysicalMemory mem) {
+    switch (mem) {
+    case VPUIP::PhysicalMemory::DDR:
+        return MVCNN::PhysicalMem_DDR;
+    case VPUIP::PhysicalMemory::CSRAM:
+        return MVCNN::PhysicalMem_CSRAM;
+    case VPUIP::PhysicalMemory::CMX_UPA:
+        return MVCNN::PhysicalMem_UPA_CMX;
+    case VPUIP::PhysicalMemory::CMX_NN:
+        return MVCNN::PhysicalMem_NN_CMX;
+    default:
+        VPUX_THROW("Unsupported PhysicalMemory '{0}'", mem);
+    }
+}
+
+flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer,
+                                                              VPUIP::MemoryMappingAttr attr) {
+    MVCNN::MemoryMappingBuilder builder(writer);
+    builder.add_item(createPhysicalMem(attr.item().getValue()));
+    builder.add_number(attr.number().getInt());
+    return builder.Finish();
+}
+
+flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createMemoryRelationshipMapping(
+        VPUIP::BlobWriter& writer, VPUIP::MemoryRelationshipMappingAttr attr) {
+    MVCNN::MemoryRelationshipMappingBuilder builder(writer);
+    builder.add_from_item(createPhysicalMem(attr.fromItem().getValue()));
+    builder.add_to_item(createPhysicalMem(attr.toItem().getValue()));
+    builder.add_number(attr.number().getValueAsDouble());
+    return builder.Finish();
+}
+
+flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer, VPUIP::ResourcesAttr resources) {
+    const auto processor_allocation =
+            writer.createVector(resources.processor_allocation().getAsRange<VPUIP::ProcessorMappingAttr>() |
+                                transformed([&](VPUIP::ProcessorMappingAttr attr) {
+                                    return createProcessorMapping(writer, attr);
+                                }));
+
+    const auto processor_frequencies =
+            writer.createVector(resources.processor_frequencies().getAsRange<VPUIP::ProcessorMappingAttr>() |
+                                transformed([&](VPUIP::ProcessorMappingAttr attr) {
+                                    return createProcessorMapping(writer, attr);
+                                }));
+
+    const auto memory_sizes = writer.createVector(resources.memory_sizes().getAsRange<VPUIP::MemoryMappingAttr>() |
+                                                  transformed([&](VPUIP::MemoryMappingAttr attr) {
+                                                      return createMemoryMapping(writer, attr);
+                                                  }));
+
+    const auto memory_bandwidth =
+            writer.createVector(resources.memory_bandwidth().getAsRange<VPUIP::MemoryRelationshipMappingAttr>() |
+                                transformed([&](VPUIP::MemoryRelationshipMappingAttr attr) {
+                                    return createMemoryRelationshipMapping(writer, attr);
+                                }));
+
     MVCNN::ResourcesBuilder builder(writer);
-    builder.add_upa_shaves(checked_cast<uint32_t>(resources.upa_shaves().getInt()));
-    builder.add_nce2_blocks(checked_cast<uint32_t>(resources.nce2_blocks().getInt()));
-    builder.add_upa_shared_cmx(checked_cast<uint32_t>(resources.upa_shared_cmx().getInt()));
-    builder.add_nn_cmx_per_slice(checked_cast<uint32_t>(resources.nn_cmx_per_slice().getInt()));
-    builder.add_nn_cmx_slice_amount(checked_cast<uint32_t>(resources.nn_cmx_slice_amount().getInt()));
-    builder.add_ddr_scratch(checked_cast<uint32_t>(resources.ddr_scratch().getInt()));
-    builder.add_csram_storage(checked_cast<uint32_t>(resources.csram_storage().getInt()));
+    builder.add_processor_allocation(processor_allocation);
+    builder.add_processor_frequencies(processor_frequencies);
+    builder.add_memory_sizes(memory_sizes);
+    builder.add_memory_bandwidth(memory_bandwidth);
     return builder.Finish();
 }
 
@@ -105,13 +193,13 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     }
     const auto serializedOptions = writer.createVector(options);
 
-    const auto serializedVersion = createVersion(writer);
+    const auto serializedVersion = createVersion(writer, graphOp.version());
     const auto serializedName = writer.createString(graphOp.identifier());
     const auto serializedGraphInputs = writer.createVector(graphInputs);
     const auto serializedUserInputs = writer.createVector(userInputs);
     const auto serializedGraphOutputs = writer.createVector(graphOutputs);
     const auto serializedUserOutputs = writer.createVector(userOutputs);
-    const auto serializedResources = serializeResources(writer, graphOp.resources());
+    const auto serializedResources = createResources(writer, graphOp.resources());
 
     MVCNN::SummaryHeaderBuilder builder(writer);
     builder.add_version(serializedVersion);
@@ -154,9 +242,9 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
         if (auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op)) {
             tasksMap[task.getTaskType()].push_back(writer.createTask(task));
         } else if (auto tensorOp = mlir::dyn_cast<DeclareTensorOp>(op)) {
-            VPUX_THROW_UNLESS(tensorOp.offset().hasValue(), "Memory for Operation {0} was not allocated", *op);
+            VPUX_THROW_UNLESS(tensorOp.dataIndex().hasValue(), "Memory for Operation {0} was not allocated", *op);
 
-            writer.createTensor(tensorOp.memory(), "", tensorOp.location(), tensorOp.offset().getValue());
+            writer.createTensor(tensorOp.memory(), "", tensorOp.locale(), tensorOp.dataIndex().getValue());
         } else if (auto barrierOp = mlir::dyn_cast<DeclareBarrierOp>(op)) {
             writer.createBarrier(barrierOp.barrier());
         } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == graphFunc.getOperation()) {

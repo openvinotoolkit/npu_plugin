@@ -94,8 +94,8 @@ public:
     Vector<uint32_t> createDims(ShapeRef shape);
     Vector<uint32_t> createDims(mlir::MemRefType type);
 
-    Vector<uint32_t> createStrides(StridesRef strides, int64_t elemByteSize);
-    Vector<uint32_t> createStrides(mlir::MemRefType type);
+    VPUIP::BlobWriter::Vector<float> createStrides(StridesRef strides, int64_t elemByteSize);
+    Vector<float> createStrides(mlir::MemRefType type);
 
     static MVCNN::MemoryLocation createMemoryLocation(MemoryLocation location);
     IndirectDataReference createIndirectDataReference(uint64_t offset);

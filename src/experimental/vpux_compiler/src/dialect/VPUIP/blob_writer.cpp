@@ -246,16 +246,16 @@ VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(mlir::Me
     return createDims(getShape(type));
 }
 
-VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createStrides(StridesRef strides, int64_t elemByteSize) {
+VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesRef strides, int64_t elemByteSize) {
     Strides temp{elemByteSize};
     temp.append(strides.begin(), strides.end());
 
     return createVector(temp | transformed([](int64_t val) {
-                            return checked_cast<uint32_t>(val);
+                            return checked_cast<float>(val);
                         }));
 }
 
-VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createStrides(mlir::MemRefType type) {
+VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(mlir::MemRefType type) {
     return createStrides(getStrides(type), type.getElementTypeBitWidth() / 8);
 }
 

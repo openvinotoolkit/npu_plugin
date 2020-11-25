@@ -20,17 +20,6 @@
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 
 //
-// Base class
-//
-
-class VPUIP_Attr<Pred pred, string descr> :
-        DialectAttr<
-            VPUIP_Dialect,
-            pred,
-            descr
-        >;
-
-//
 // PhysicalProcessor
 //
 
@@ -102,17 +91,169 @@ def VPUIP_PhysicalMemory :
 }
 
 //
-// ArchKind
+// MemoryMapping
 //
 
-def VPUIP_ArchKind_KMB : StrEnumAttrCase<"KMB">;
+def VPUIP_MemoryMapping_item    : StructFieldAttr<"item",   VPUIP_PhysicalMemory>;
+def VPUIP_MemoryMapping_number  : StructFieldAttr<"number", I64Attr>;  // TODO: allow F64 usage
 
-def VPUIP_ArchKind :
-        StrEnumAttr<
-            "ArchKind",
-            "Represents VPU architecture generation",
+def VPUIP_MemoryMapping :
+        StructAttr<
+            "MemoryMappingAttr",
+            VPUIP_Dialect,
             [
-                VPUIP_ArchKind_KMB,
+                VPUIP_MemoryMapping_item,
+                VPUIP_MemoryMapping_number,
+            ]
+        >;
+
+//
+// ProcessorMapping
+//
+
+def VPUIP_ProcessorMapping_item         : StructFieldAttr<"item",       VPUIP_PhysicalProcessor>;
+def VPUIP_ProcessorMapping_number       : StructFieldAttr<"number",     I64Attr>;  // TODO: allow F64 usage
+def VPUIP_ProcessorMapping_is_bitmask   : StructFieldAttr<"isBitMask",  DefaultValuedAttr<BoolAttr, "false">>;
+
+def VPUIP_ProcessorMapping :
+        StructAttr<
+            "ProcessorMappingAttr",
+            VPUIP_Dialect,
+            [
+                VPUIP_ProcessorMapping_item,
+                VPUIP_ProcessorMapping_number,
+                VPUIP_ProcessorMapping_is_bitmask,
+            ]
+        >;
+
+//
+// MemoryRelationshipMapping
+//
+
+def VPUIP_MemoryRelationshipMapping_fromItem    : StructFieldAttr<"fromItem",   VPUIP_PhysicalMemory>;
+def VPUIP_MemoryRelationshipMapping_toItem      : StructFieldAttr<"toItem",     VPUIP_PhysicalMemory>;
+def VPUIP_MemoryRelationshipMapping_number      : StructFieldAttr<"number",     F64Attr>;
+
+def VPUIP_MemoryRelationshipMapping :
+        StructAttr<
+            "MemoryRelationshipMappingAttr",
+            VPUIP_Dialect,
+            [
+                VPUIP_MemoryRelationshipMapping_fromItem,
+                VPUIP_MemoryRelationshipMapping_toItem,
+                VPUIP_MemoryRelationshipMapping_number,
+            ]
+        >;
+
+//
+// Version
+//
+
+def VPUIP_Version_majorV        : StructFieldAttr<"majorV",     I32Attr>;
+def VPUIP_Version_minorV        : StructFieldAttr<"minorV",     I32Attr>;
+def VPUIP_Version_patchV        : StructFieldAttr<"patchV",     I32Attr>;
+def VPUIP_Version_hash          : StructFieldAttr<"hash",       DefaultValuedAttr<StrAttr, "">>;
+def VPUIP_Version_contextStr    : StructFieldAttr<"contextStr", DefaultValuedAttr<StrAttr, "">>;
+
+def VPUIP_Version :
+        StructAttr<
+            "VersionAttr",
+            VPUIP_Dialect,
+            [
+                VPUIP_Version_majorV,
+                VPUIP_Version_minorV,
+                VPUIP_Version_patchV,
+                VPUIP_Version_hash,
+                VPUIP_Version_contextStr,
+            ]
+        >;
+
+//
+// Resources
+//
+
+def VPUIP_ProcessorMappingArray :
+        TypedArrayAttrBase<
+            VPUIP_ProcessorMapping,
+            "Array of physical processors information"
+        >;
+
+def VPUIP_MemoryMappingArray :
+        TypedArrayAttrBase<
+            VPUIP_MemoryMapping,
+            "Array of physical memory information"
+        >;
+
+def VPUIP_MemoryRelationshipMappingArray :
+        TypedArrayAttrBase<
+            VPUIP_MemoryRelationshipMapping,
+            "Array of physical memory relationship information"
+        >;
+
+def VPUIP_Resources_processor_allocation    : StructFieldAttr<"processor_allocation",   VPUIP_ProcessorMappingArray>;
+def VPUIP_Resources_processor_frequencies   : StructFieldAttr<"processor_frequencies",  VPUIP_ProcessorMappingArray>;
+def VPUIP_Resources_memory_sizes            : StructFieldAttr<"memory_sizes",           VPUIP_MemoryMappingArray>;
+def VPUIP_Resources_memory_bandwidth        : StructFieldAttr<"memory_bandwidth",       VPUIP_MemoryRelationshipMappingArray>;
+
+def VPUIP_ResourcesAttr :
+        StructAttr<
+            "ResourcesAttr",
+            VPUIP_Dialect,
+            [
+                VPUIP_Resources_processor_allocation,
+                VPUIP_Resources_processor_frequencies,
+                VPUIP_Resources_memory_sizes,
+                VPUIP_Resources_memory_bandwidth,
+            ]
+        >;
+
+//
+// ExecutionFlag
+//
+
+def VPUIP_ExecutionFlag_NONE :              BitEnumAttrCase<"NONE",             0x0000>;
+def VPUIP_ExecutionFlag_DynamicBarriers :   BitEnumAttrCase<"DynamicBarriers",  0x0001>;
+
+def VPUIP_ExecutionFlag:
+        BitEnumAttr<
+            "ExecutionFlag",
+            "Each of these enums' presence informs how the current schedule is configured",
+            [
+                VPUIP_ExecutionFlag_NONE,
+                VPUIP_ExecutionFlag_DynamicBarriers,
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+}
+
+//
+// TaskType
+//
+
+class VPUIP_TaskTypeVal<string sym> : StrEnumAttrCase<sym> {
+    string enumVal = "vpux::VPUIP::TaskType::" # sym;
+}
+
+def VPUIP_TaskType_UPADMA       : VPUIP_TaskTypeVal<"UPADMA">;
+def VPUIP_TaskType_NNDMA        : VPUIP_TaskTypeVal<"NNDMA">;
+def VPUIP_TaskType_NCE2         : VPUIP_TaskTypeVal<"NCE2">;
+def VPUIP_TaskType_Controller   : VPUIP_TaskTypeVal<"Controller">;
+def VPUIP_TaskType_UPA          : VPUIP_TaskTypeVal<"UPA">;
+def VPUIP_TaskType_SNN          : VPUIP_TaskTypeVal<"SNN">;
+def VPUIP_TaskType_Generic      : VPUIP_TaskTypeVal<"Generic">;
+
+def VPUIP_TaskType :
+        StrEnumAttr<
+            "TaskType",
+            "The type of the relevant processing code of the VPU for the task",
+            [
+                VPUIP_TaskType_UPADMA,
+                VPUIP_TaskType_NNDMA,
+                VPUIP_TaskType_NCE2,
+                VPUIP_TaskType_Controller,
+                VPUIP_TaskType_UPA,
+                VPUIP_TaskType_SNN,
+                VPUIP_TaskType_Generic,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
@@ -150,80 +291,20 @@ def VPUIP_MemoryLocation :
 }
 
 //
-// TaskType
+// ArchKind
 //
 
-class VPUIP_TaskTypeVal<string sym> : StrEnumAttrCase<sym> {
-    string enumVal = "vpux::VPUIP::TaskType::" # sym;
-}
+def VPUIP_ArchKind_KMB : StrEnumAttrCase<"KMB">;
 
-def VPUIP_TaskType_UPADMA       : VPUIP_TaskTypeVal<"UPADMA">;
-def VPUIP_TaskType_NNDMA        : VPUIP_TaskTypeVal<"NNDMA">;
-def VPUIP_TaskType_NCE2         : VPUIP_TaskTypeVal<"NCE2">;
-def VPUIP_TaskType_Controller   : VPUIP_TaskTypeVal<"Controller">;
-def VPUIP_TaskType_UPA          : VPUIP_TaskTypeVal<"UPA">;
-def VPUIP_TaskType_SNN          : VPUIP_TaskTypeVal<"SNN">;
-
-def VPUIP_TaskType :
+def VPUIP_ArchKind :
         StrEnumAttr<
-            "TaskType",
-            "The type of the relevant processing code of the VPU for the task",
+            "ArchKind",
+            "Represents VPU architecture generation",
             [
-                VPUIP_TaskType_UPADMA,
-                VPUIP_TaskType_NNDMA,
-                VPUIP_TaskType_NCE2,
-                VPUIP_TaskType_Controller,
-                VPUIP_TaskType_UPA,
-                VPUIP_TaskType_SNN,
+                VPUIP_ArchKind_KMB,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
 }
-
-//
-// ExecutionFlag
-//
-
-def VPUIP_ExecutionFlag_NONE :              BitEnumAttrCase<"NONE",             0x0000>;
-def VPUIP_ExecutionFlag_DynamicBarriers :   BitEnumAttrCase<"DynamicBarriers",  0x0001>;
-
-def VPUIP_ExecutionFlag:
-        BitEnumAttr<
-            "ExecutionFlag",
-            "Each of these enums' presence informs how the current schedule is configured",
-            [
-                VPUIP_ExecutionFlag_NONE,
-                VPUIP_ExecutionFlag_DynamicBarriers,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIP";
-}
-
-//
-// Resources
-//
-
-def VPUIP_Resources_upa_shaves          : StructFieldAttr<"upa_shaves",             DefaultValuedAttr<I32Attr, "0">>;
-def VPUIP_Resources_nce2_blocks         : StructFieldAttr<"nce2_blocks",            DefaultValuedAttr<I32Attr, "0">>;
-def VPUIP_Resources_upa_shared_cmx      : StructFieldAttr<"upa_shared_cmx",         DefaultValuedAttr<I32Attr, "0">>;
-def VPUIP_Resources_nn_cmx_per_slice    : StructFieldAttr<"nn_cmx_per_slice",       DefaultValuedAttr<I32Attr, "0">>;
-def VPUIP_Resources_nn_cmx_slice_amount : StructFieldAttr<"nn_cmx_slice_amount",    DefaultValuedAttr<I32Attr, "0">>;
-def VPUIP_Resources_ddr_scratch         : StructFieldAttr<"ddr_scratch",            DefaultValuedAttr<I64Attr, "0">>;
-def VPUIP_Resources_csram_storage       : StructFieldAttr<"csram_storage",          DefaultValuedAttr<I64Attr, "0">>;
-
-def VPUIP_ResourcesAttr :
-        StructAttr<
-            "ResourcesAttr",
-            VPUIP_Dialect,
-            [
-                VPUIP_Resources_upa_shaves,
-                VPUIP_Resources_nce2_blocks,
-                VPUIP_Resources_upa_shared_cmx,
-                VPUIP_Resources_nn_cmx_per_slice,
-                VPUIP_Resources_nn_cmx_slice_amount,
-                VPUIP_Resources_ddr_scratch,
-                VPUIP_Resources_csram_storage,
-            ]
-        >;
 
 #endif

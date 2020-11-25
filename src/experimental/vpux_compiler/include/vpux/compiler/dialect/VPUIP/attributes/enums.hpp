@@ -36,11 +36,8 @@ namespace VPUIP {
 // MemoryLocation utilities
 //
 
-MemoryLocation getDefaultMemoryLocation(PhysicalMemory mem);
-MemoryLocation getDefaultMemoryLocation(mlir::MemRefType memref);
-
 PhysicalMemory getPhysicalMemory(MemoryLocation location);
-PhysicalMemory getPhysicalMemory(mlir::MemRefType memref);
+mlir::FailureOr<PhysicalMemory> getPhysicalMemory(mlir::MemRefType memref);
 
 bool isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref);
 

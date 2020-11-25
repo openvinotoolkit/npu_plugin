@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "vpux/utils/core/helper_macros.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <flatbuffers/flatbuffers.h>
@@ -28,80 +29,33 @@
 
 namespace MVCNN {
 
-inline vpux::StringRef stringifyEnum(PSROIPoolingMode val) {
-    return EnumNamePSROIPoolingMode(val);
-}
+#define VPUX_STRINGIFY_SCHEMA_ENUM(_name_)             \
+    inline vpux::StringRef stringifyEnum(_name_ val) { \
+        return VPUX_COMBINE(EnumName, _name_)(val);    \
+    }
 
-inline vpux::StringRef stringifyEnum(DataType val) {
-    return EnumNameDataType(val);
-}
+VPUX_STRINGIFY_SCHEMA_ENUM(PhysicalProcessor)
+VPUX_STRINGIFY_SCHEMA_ENUM(DMAEngine)
+VPUX_STRINGIFY_SCHEMA_ENUM(PhysicalMem)
+VPUX_STRINGIFY_SCHEMA_ENUM(ExecutionFlag)
+VPUX_STRINGIFY_SCHEMA_ENUM(SpecificTask)
+VPUX_STRINGIFY_SCHEMA_ENUM(MemoryLocation)
+VPUX_STRINGIFY_SCHEMA_ENUM(DType)
+VPUX_STRINGIFY_SCHEMA_ENUM(ControllerSubTask)
+VPUX_STRINGIFY_SCHEMA_ENUM(DataType)
+VPUX_STRINGIFY_SCHEMA_ENUM(PSROIPoolingMode)
+VPUX_STRINGIFY_SCHEMA_ENUM(InterpolationMethod)
+VPUX_STRINGIFY_SCHEMA_ENUM(EltwiseParam)
+VPUX_STRINGIFY_SCHEMA_ENUM(EltwisePostOpsNestedParams)
+VPUX_STRINGIFY_SCHEMA_ENUM(PostOpsNestedParams)
+VPUX_STRINGIFY_SCHEMA_ENUM(UnaryOpNestedParams)
+VPUX_STRINGIFY_SCHEMA_ENUM(SoftwareLayerParams)
+VPUX_STRINGIFY_SCHEMA_ENUM(NN2Optimization)
+VPUX_STRINGIFY_SCHEMA_ENUM(DPULayerType)
+VPUX_STRINGIFY_SCHEMA_ENUM(PPELayerType)
+VPUX_STRINGIFY_SCHEMA_ENUM(MPE_Mode)
+VPUX_STRINGIFY_SCHEMA_ENUM(PPERoundingMode)
 
-inline vpux::StringRef stringifyEnum(InterpolationMethod val) {
-    return EnumNameInterpolationMethod(val);
-}
-
-inline vpux::StringRef stringifyEnum(SoftwareLayer val) {
-    return EnumNameSoftwareLayer(val);
-}
-
-inline vpux::StringRef stringifyEnum(NNHelper val) {
-    return EnumNameNNHelper(val);
-}
-
-inline vpux::StringRef stringifyEnum(EltwiseParam val) {
-    return EnumNameEltwiseParam(val);
-}
-
-inline vpux::StringRef stringifyEnum(EltwisePostOpsNestedParams val) {
-    return EnumNameEltwisePostOpsNestedParams(val);
-}
-
-inline vpux::StringRef stringifyEnum(PostOpsNestedParams val) {
-    return EnumNamePostOpsNestedParams(val);
-}
-
-inline vpux::StringRef stringifyEnum(UnaryOpNestedParams val) {
-    return EnumNameUnaryOpNestedParams(val);
-}
-
-inline vpux::StringRef stringifyEnum(SoftwareLayerParams val) {
-    return EnumNameSoftwareLayerParams(val);
-}
-
-inline vpux::StringRef stringifyEnum(NN2Optimization val) {
-    return EnumNameNN2Optimization(val);
-}
-
-inline vpux::StringRef stringifyEnum(DPULayerType val) {
-    return EnumNameDPULayerType(val);
-}
-
-inline vpux::StringRef stringifyEnum(PPELayerType val) {
-    return EnumNamePPELayerType(val);
-}
-
-inline vpux::StringRef stringifyEnum(MPE_Mode val) {
-    return EnumNameMPE_Mode(val);
-}
-
-inline vpux::StringRef stringifyEnum(ControllerSubTask val) {
-    return EnumNameControllerSubTask(val);
-}
-
-inline vpux::StringRef stringifyEnum(MemoryLocation val) {
-    return EnumNameMemoryLocation(val);
-}
-
-inline vpux::StringRef stringifyEnum(DType val) {
-    return EnumNameDType(val);
-}
-
-inline vpux::StringRef stringifyEnum(ExecutionFlag val) {
-    return EnumNameExecutionFlag(val);
-}
-
-inline vpux::StringRef stringifyEnum(SpecificTask val) {
-    return EnumNameSpecificTask(val);
-}
+#undef VPUX_STRINGIFY_SCHEMA_ENUM
 
 }  // namespace MVCNN

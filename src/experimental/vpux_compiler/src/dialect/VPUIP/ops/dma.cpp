@@ -40,9 +40,18 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(UPADMAOp op) {
     const auto srcMem = getPhysicalMemory(srcType);
     const auto dstMem = getPhysicalMemory(dstType);
 
-    if (srcMem == PhysicalMemory::CMX_NN || dstMem == PhysicalMemory::CMX_NN) {
-        return printTo(op.emitError(), "'{0}' can't copy from '{1}' to '{2}'", UPADMAOp::getOperationName(), srcMem,
-                       dstMem);
+    if (mlir::failed(srcMem)) {
+        return printTo(op.emitError(), "Input tensor for Operation '{0}' has unsupported memory space '{1}'",
+                       UPADMAOp::getOperationName(), srcType.getMemorySpace());
+    }
+    if (mlir::failed(dstMem)) {
+        return printTo(op.emitError(), "Output tensor for Operation '{0}' has unsupported memory space '{1}'",
+                       UPADMAOp::getOperationName(), dstType.getMemorySpace());
+    }
+
+    if (srcMem.getValue() == PhysicalMemory::CMX_NN || dstMem.getValue() == PhysicalMemory::CMX_NN) {
+        return printTo(op.emitError(), "'{0}' can't copy from '{1}' to '{2}'", UPADMAOp::getOperationName(),
+                       srcMem.getValue(), dstMem.getValue());
     }
 
     return mlir::success();

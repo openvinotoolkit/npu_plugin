@@ -93,3 +93,7 @@ mlir::IntegerAttr vpux::getUInt64Attr(mlir::MLIRContext* ctx, uint64_t val) {
 mlir::FloatAttr vpux::getFP32Attr(mlir::MLIRContext* ctx, float val) {
     return mlir::FloatAttr::get(mlir::FloatType::getF32(ctx), val);
 }
+
+mlir::FloatAttr vpux::getFP64Attr(mlir::MLIRContext* ctx, double val) {
+    return mlir::FloatAttr::get(mlir::FloatType::getF64(ctx), val);
+}

@@ -5,9 +5,22 @@
 VPUIP.Graph "Test" at @main
     options : "DynamicBarriers"
     resources : {
-        ddr_scratch = 2048 : i64,
-        nn_cmx_slice_amount = 1 : i32,
-        upa_shaves = 1 : i32
+        processor_allocation = [
+            {item = "SHAVE_UPA", number = 1 : i64},
+            {item = "NCE_Cluster", number = 1 : i64}
+        ],
+        processor_frequencies = [],
+        memory_sizes = [
+            {item = "DDR", number = 2048 : i64},
+            {item = "CMX_NN", number = 1048576 : i64}
+        ],
+        memory_bandwidth = []
+    }
+    version : {
+        majorV = 3 : i32,
+        minorV = 11 : i32,
+        patchV = 0 : i32, hash = "",
+        contextStr = "VPUX Compiler"
     }
     inputsInfo : {
         VPUIP.TensorInfo "input", f32, #NC
@@ -17,7 +30,7 @@ VPUIP.Graph "Test" at @main
     }
 
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
-    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap", 0 -> memref<1x1000xf16>
+    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" {dataIndex = 0 : i64} -> memref<1x1000xf16>
     %1 = VPUIP.ConfigureBarrier -> !VPUIP.Barrier
     VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>) updates(%1 : !VPUIP.Barrier)
     VPUIP.UPADMA inputs(%0 : memref<1x1000xf16>) outputs(%arg1 : memref<1x1000xf16>) waits(%1 : !VPUIP.Barrier)
@@ -34,9 +47,9 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 // CHECK:           1000
 // CHECK:       ],
 // CHECK:       strides: [
-// CHECK:           2,
-// CHECK:           2000,
-// CHECK:           2
+// CHECK:           2.0,
+// CHECK:           2000.0,
+// CHECK:           2.0
 // CHECK:       ],
 // CHECK:       data: {
 // CHECK:         data_index: 0
@@ -54,9 +67,9 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 // CHECK:         1000
 // CHECK:       ],
 // CHECK:       strides: [
-// CHECK:         2,
-// CHECK:         2000,
-// CHECK:         2
+// CHECK:         2.0,
+// CHECK:         2000.0,
+// CHECK:         2.0
 // CHECK:       ],
 // CHECK:       data: {
 // CHECK:         data_index: 0
@@ -72,12 +85,6 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 // CHECK:     "DynamicBarriers"
 // CHECK:   ],
 
-// CHECK:   resources: {
-// CHECK:     upa_shaves: 1,
-// CHECK:     nn_cmx_slice_amount: 1,
-// CHECK:     ddr_scratch: 2048
-// CHECK:   },
-
 // CHECK:   in_tensor_desc: [
 // CHECK:     {
 // CHECK:       name: "input",
@@ -86,9 +93,9 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 // CHECK:         1000
 // CHECK:       ],
 // CHECK:       strides: [
-// CHECK:         4,
-// CHECK:         4000,
-// CHECK:         4
+// CHECK:         4.0,
+// CHECK:         4000.0,
+// CHECK:         4.0
 // CHECK:       ],
 // CHECK:       data: {
 // CHECK:         data_index: 0
@@ -106,9 +113,9 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 // CHECK:         1000
 // CHECK:       ],
 // CHECK:       strides: [
-// CHECK:         4,
-// CHECK:         4000,
-// CHECK:         4
+// CHECK:         4.0,
+// CHECK:         4000.0,
+// CHECK:         4.0
 // CHECK:       ],
 // CHECK:       data: {
 // CHECK:         data_index: 0

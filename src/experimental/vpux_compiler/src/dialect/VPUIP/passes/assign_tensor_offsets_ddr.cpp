@@ -85,11 +85,11 @@ AddressType AssignTensorOffsetsDDRPass::Handler::getAddress(mlir::Value val) con
     auto producerOp = mlir::dyn_cast<VPUIP::DeclareTensorOp>(val.getDefiningOp());
 
     VPUX_THROW_UNLESS(producerOp != nullptr, "Can allocate only DeclareTensorOp results");
-    VPUX_THROW_UNLESS(getPhysicalMemory(producerOp.location()) == VPUIP::PhysicalMemory::DDR,
+    VPUX_THROW_UNLESS(getPhysicalMemory(producerOp.locale()) == VPUIP::PhysicalMemory::DDR,
                       "Can allocate only DDR memory");
-    VPUX_THROW_UNLESS(producerOp.offset().hasValue(), "DeclareTensorOp offset was not set");
+    VPUX_THROW_UNLESS(producerOp.dataIndex().hasValue(), "DeclareTensorOp offset was not set");
 
-    return producerOp.offset().getValue();
+    return producerOp.dataIndex().getValue();
 }
 
 void AssignTensorOffsetsDDRPass::Handler::allocated(mlir::Value val, AddressType addr) {
@@ -98,11 +98,11 @@ void AssignTensorOffsetsDDRPass::Handler::allocated(mlir::Value val, AddressType
     auto producerOp = mlir::dyn_cast<VPUIP::DeclareTensorOp>(val.getDefiningOp());
 
     VPUX_THROW_UNLESS(producerOp != nullptr, "Can allocate only DeclareTensorOp results");
-    VPUX_THROW_UNLESS(getPhysicalMemory(producerOp.location()) == VPUIP::PhysicalMemory::DDR,
+    VPUX_THROW_UNLESS(getPhysicalMemory(producerOp.locale()) == VPUIP::PhysicalMemory::DDR,
                       "Can allocate only DDR memory");
-    VPUX_THROW_UNLESS(!producerOp.offset().hasValue(), "DeclareTensorOp offset was already set");
+    VPUX_THROW_UNLESS(!producerOp.dataIndex().hasValue(), "DeclareTensorOp offset was already set");
 
-    producerOp.offsetAttr(getInt64Attr(val.getContext(), addr));
+    producerOp.dataIndexAttr(getInt64Attr(val.getContext(), addr));
 
     maxAllocatedSize = std::max(maxAllocatedSize, alignVal<AddressType>(addr + getSize(val), 64));
 }
@@ -146,7 +146,7 @@ void AssignTensorOffsetsDDRPass::passBody() {
 
     auto callback = [&](mlir::Operation* op) -> mlir::WalkResult {
         if (auto allocOp = mlir::dyn_cast<VPUIP::DeclareTensorOp>(op)) {
-            if (getPhysicalMemory(allocOp.location()) == VPUIP::PhysicalMemory::DDR) {
+            if (getPhysicalMemory(allocOp.locale()) == VPUIP::PhysicalMemory::DDR) {
                 auto memVal = allocOp.memory();
 
                 if (!scan.alloc({memVal}, /*allowSpills*/ false)) {
@@ -187,12 +187,26 @@ void AssignTensorOffsetsDDRPass::passBody() {
 
     graphFunc.walk(std::move(callback));
 
-    const auto newResources = VPUIP::ResourcesAttr::get(
-            graphOp.resources().upa_shaves(), graphOp.resources().nce2_blocks(), graphOp.resources().upa_shared_cmx(),
-            graphOp.resources().nn_cmx_per_slice(), graphOp.resources().nn_cmx_slice_amount(),
-            getInt64Attr(module.getContext(),
-                         scan.handler().maxAllocatedSize),  // ddr_scratch
-            graphOp.resources().csram_storage(), module.getContext());
+    auto oldResources = graphOp.resourcesAttr();
+
+    auto oldMemSizes = oldResources.memory_sizes();
+    SmallVector<mlir::Attribute, 2> newMemSizes;
+
+    for (auto memMap : oldMemSizes.getAsRange<VPUIP::MemoryMappingAttr>()) {
+        if (memMap.item().getValue() != VPUIP::PhysicalMemory::DDR) {
+            newMemSizes.push_back(memMap);
+        }
+    }
+
+    newMemSizes.push_back(VPUIP::MemoryMappingAttr::get(
+            VPUIP::PhysicalMemoryAttr::get(VPUIP::PhysicalMemory::DDR, module.getContext()),
+            getInt64Attr(module.getContext(), scan.handler().maxAllocatedSize), module.getContext()));
+
+    auto newResources =
+            VPUIP::ResourcesAttr::get(oldResources.processor_allocation(), oldResources.processor_frequencies(),
+                                      mlir::ArrayAttr::get(newMemSizes, module.getContext()),
+                                      oldResources.memory_bandwidth(), module.getContext());
+
     graphOp.resourcesAttr(newResources);
 }
 
