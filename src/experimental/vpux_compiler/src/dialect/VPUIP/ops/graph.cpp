@@ -72,30 +72,6 @@ mlir::LogicalResult vpux::VPUIP::GraphOp::verifySymbolUses(mlir::SymbolTableColl
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::GraphOp::getFromModule(mlir::ModuleOp module, GraphOp& graphOp,
-                                                        mlir::FuncOp& graphFunc) {
-    auto graphOps = to_vector<1>(module.getOps<GraphOp>());
-    if (graphOps.size() != 1) {
-        return printTo(module.emitError(), "Module {0} doesn't contain VPUIP.{1} Operation", module.getName(),
-                       GraphOp::getOperationName());
-    }
-
-    graphOp = graphOps.front();
-    graphFunc = module.lookupSymbol<mlir::FuncOp>(graphOp.entryPointAttr());
-
-    return mlir::success(graphFunc != nullptr);
-}
-
-mlir::LogicalResult vpux::VPUIP::verifyOp(GraphOp op) {
-    if (mlir::failed(IE::checkNetworkDataInfoBlock<GraphOp, TensorInfoOp, EndOp>(
-                op, op.inputsInfo().front().getOperations(), "inputInfo"))) {
-        return mlir::failure();
-    }
-
-    if (mlir::failed(IE::checkNetworkDataInfoBlock<GraphOp, TensorInfoOp, EndOp>(
-                op, op.outputsInfo().front().getOperations(), "outputsInfo"))) {
-        return mlir::failure();
-    }
-
-    return mlir::success();
+DimsOrder vpux::VPUIP::TensorInfoOp::getDimsOrder() {
+    return DimsOrder::fromAffineMap(layout()).getValue();
 }

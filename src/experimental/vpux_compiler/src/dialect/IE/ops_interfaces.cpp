@@ -16,62 +16,6 @@
 
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
-#include "vpux/utils/core/format.hpp"
-
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/IR/SymbolTable.h>
-
-using namespace vpux;
-
-//
-// NetworkInformation
-//
-
-mlir::LogicalResult vpux::IE::verifyNetworkInformation(mlir::Operation* op) {
-    if (!op->hasTrait<mlir::OpTrait::IsIsolatedFromAbove>()) {
-        return printTo(op->emitError(), "NetworkInformation Operation '{0}' is not Isolated", *op);
-    }
-
-    if (!op->hasTrait<mlir::OpTrait::HasParent<mlir::ModuleOp>::Impl>()) {
-        return printTo(op->emitError(), "NetworkInformation Operation '{0}' is not attached to Module", *op);
-    }
-
-    if (op->getRegions().size() != 2) {
-        return printTo(op->emitError(),
-                       "NetworkInformation Operation '{0}' must have 2 Regions "
-                       "attached with inputs/outputs information",
-                       *op);
-    }
-
-    if (!op->hasTrait<mlir::OpTrait::NoRegionArguments>()) {
-        return printTo(op->emitError(),
-                       "NetworkInformation Operation '{0}' Regions must have no "
-                       "arguments",
-                       *op);
-    }
-
-    if (mlir::dyn_cast<mlir::SymbolUserOpInterface>(op) == nullptr) {
-        return printTo(op->emitError(), "NetworkInformation Operation '{0}' is not a Symbol User", *op);
-    }
-
-    const auto entryPointAttrName = mlir::Identifier::get("entryPoint", op->getContext());
-    const auto entryPointAttr = op->getAttr(entryPointAttrName);
-    if (entryPointAttr == nullptr) {
-        return printTo(op->emitError(),
-                       "NetworkInformation Operation '{0}' doesn't have '{1}' "
-                       "attribute",
-                       *op, entryPointAttrName);
-    }
-    if (!entryPointAttr.isa<mlir::FlatSymbolRefAttr>()) {
-        return printTo(op->emitError(),
-                       "NetworkInformation Operation '{0}' attribute '{1}' is "
-                       "not a Symbol Reference",
-                       *op, entryPointAttrName);
-    }
-
-    return mlir::success();
-}
-
 //
 // Generated
 //

@@ -29,47 +29,6 @@ namespace vpux {
 namespace IE {
 
 //
-// NetworkInformation
-//
-
-mlir::LogicalResult verifyNetworkInformation(mlir::Operation* op);
-
-template <class ConcreteOp>
-class NetworkInformation : public mlir::OpTrait::TraitBase<ConcreteOp, NetworkInformation> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifyNetworkInformation(op);
-    }
-};
-
-template <class NetworkInfoOp, class DataInfoOp, class EndOp>
-mlir::LogicalResult checkNetworkDataInfoBlock(NetworkInfoOp op, mlir::Block::OpListType& block, StringRef blockName) {
-    for (auto&& p : block | indexed) {
-        auto& infoOp = p.value();
-
-        if (static_cast<size_t>(p.index()) == block.size() - 1) {
-            if (!mlir::isa<EndOp>(infoOp)) {
-                return printTo(op.emitError(),
-                               "Got wrong item #{0} in '{1}' {2} ('{3}'), "
-                               "expected '{4}'",
-                               p.index(), NetworkInfoOp::getOperationName(), blockName, infoOp,
-                               EndOp::getOperationName());
-            }
-        } else {
-            if (!mlir::isa<DataInfoOp>(infoOp)) {
-                return printTo(op.emitError(),
-                               "Got wrong item #{0} in '{1}' {2} ('{3}'), "
-                               "expected '{4}'",
-                               p.index(), NetworkInfoOp::getOperationName(), blockName, infoOp,
-                               DataInfoOp::getOperationName());
-            }
-        }
-    }
-
-    return mlir::success();
-}
-
-//
 // SoftMaxLayerInterface
 //
 

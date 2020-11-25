@@ -20,14 +20,6 @@
 include "mlir/IR/OpBase.td"
 
 //
-// NetworkInformation
-//
-
-def IE_NetworkInformation : NativeOpTrait<"NetworkInformation"> {
-    let cppNamespace = "vpux::IE";
-}
-
-//
 // SoftMaxLayerInterface
 //
 
