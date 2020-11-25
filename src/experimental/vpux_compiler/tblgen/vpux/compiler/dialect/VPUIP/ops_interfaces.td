@@ -31,29 +31,47 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
     let methods = [
         InterfaceMethod<
             "All inputs for this task",
-            "mlir::ValueRange", "inputTensors", (ins)
+            "mlir::ValueRange", "inputTensors", (ins),
+            [{
+                return $_op.inputTensors();
+            }]
         >,
         InterfaceMethod<
             "All outputs for this task",
-            "mlir::ValueRange", "outputTensors", (ins)
+            "mlir::ValueRange", "outputTensors", (ins),
+            [{
+                return $_op.outputTensors();
+            }]
         >,
 
         InterfaceMethod<
             "Barriers that will free this task to run",
-            "mlir::ValueRange", "waitBarriers", (ins)
+            "mlir::ValueRange", "waitBarriers", (ins),
+            [{
+                return $_op.waitBarriers();
+            }]
         >,
         InterfaceMethod<
             "Barriers that will free this task to run",
-            "mlir::MutableOperandRange", "waitBarriersMutable", (ins)
+            "mlir::MutableOperandRange", "waitBarriersMutable", (ins),
+            [{
+                return $_op.waitBarriersMutable();
+            }]
         >,
 
         InterfaceMethod<
             "Barriers that will be at least partially unlocked when this task is complete",
-            "mlir::ValueRange", "updateBarriers", (ins)
+            "mlir::ValueRange", "updateBarriers", (ins),
+            [{
+                return $_op.updateBarriers();
+            }]
         >,
         InterfaceMethod<
             "Barriers that will be at least partially unlocked when this task is complete",
-            "mlir::MutableOperandRange", "updateBarriersMutable", (ins)
+            "mlir::MutableOperandRange", "updateBarriersMutable", (ins),
+            [{
+                return $_op.updateBarriersMutable();
+            }]
         >,
 
         InterfaceMethod<
@@ -64,15 +82,22 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
 
         StaticInterfaceMethod<
             "Get the VPUIP TaskType for the Operation",
-            "vpux::VPUIP::TaskType", "getTaskType", (ins)
-        >
-    ];
+            "vpux::VPUIP::TaskType", "getTaskType", (ins),
+            [{
+                return ConcreteOp::getTaskType();
+            }]
+        >,
 
-    let extraTraitClassDeclaration = [{
-        void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
-            vpux::VPUIP::getTaskEffects(this->getOperation(), effects);
-        }
-    }];
+        InterfaceMethod<
+            "Get all Memory effects for the Operation",
+            "void", "getEffects",
+            (ins "mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>&":$effects),
+            [{}],
+            [{
+                vpux::VPUIP::getTaskEffects($_op, effects);
+            }]
+        >,
+    ];
 }
 
 //
@@ -87,11 +112,15 @@ def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Get maximal number of UPA SHAVEs to use",
-            "uint32_t", "maxShaves", (ins)
+            "uint32_t", "maxShaves", (ins),
+            [{
+                return $_op.maxShaves();
+            }]
         >,
         InterfaceMethod<
             "Update maximal number of UPA SHAVEs to use",
             "void", "setMaxShaves", (ins "uint32_t":$maxShaves),
+            [{}],
             [{
                 $_op.maxShavesAttr(vpux::getInt32Attr($_op.getContext(), maxShaves));
             }]
@@ -99,11 +128,15 @@ def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
 
         InterfaceMethod<
             "Is current task the trailing SW layer",
-            "bool", "isTrailingSWLayer", (ins)
+            "bool", "isTrailingSWLayer", (ins),
+            [{
+                return $_op.isTrailingSWLayer();
+            }]
         >,
         InterfaceMethod<
             "Mark current task as trailing SW layer",
             "void", "markAsTrailingSWLayer", (ins),
+            [{}],
             [{
                 $_op.isTrailingSWLayerAttr(mlir::UnitAttr::get($_op.getContext()));
             }]

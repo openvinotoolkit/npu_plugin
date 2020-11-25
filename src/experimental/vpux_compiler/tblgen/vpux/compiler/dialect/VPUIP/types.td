@@ -27,37 +27,31 @@ class VPUIP_TypeDef<string name> : TypeDef<VPUIP_Dialect, name> {
     let mnemonic = name;
 }
 
-class VPUIP_Type<Pred pred, string descr> :
+class VPUIP_Type<VPUIP_TypeDef typeDef> :
         DialectType<
             VPUIP_Dialect,
-            pred,
-            descr
-        >;
+            CPred<"$_self.isa<vpux::VPUIP::" # typeDef.cppClassName # ">()">,
+            typeDef.summary
+        > {
+    let typeDescription = typeDef.description;
+}
 
 //
 // Barrier
 //
 
-def VPUIP_BarrierType : VPUIP_TypeDef<"Barrier"> {
-    let summary = "This object represents closely a Barrier in the device";
-}
+def VPUIP_BarrierDef : VPUIP_TypeDef<"Barrier"> {
+    let summary = "VPUIP Barrier Type";
 
-def VPUIP_IsBarrier :
-    CPred<
-        "$_self.isa<vpux::VPUIP::BarrierType>()"
-    >;
-
-def VPUIP_Barrier :
-        VPUIP_Type<
-            VPUIP_IsBarrier,
-            "VPUIP Barrier"
-        >,
-        BuildableType<
-            "vpux::VPUIP::BarrierType::get($_builder.getContext())"
-        > {
-    let typeDescription = [{
-        This object represents closely a Barrier in the device.
+    let description = [{
+        This object represents closely a Barrier in the device
     }];
 }
+
+def VPUIP_Barrier :
+        VPUIP_Type<VPUIP_BarrierDef>,
+        BuildableType<
+            "vpux::VPUIP::BarrierType::get($_builder.getContext())"
+        >;
 
 #endif

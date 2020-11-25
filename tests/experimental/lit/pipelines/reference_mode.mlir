@@ -4,8 +4,7 @@
 
 // CHECK:       VPUIP.Graph "SingleLayer" at @main
 // CHECK-SAME:      options : "DynamicBarriers"
-// CHECK-SAME:      nn_cmx_slice_amount = 1
-// CHECK-SAME:      upa_shaves = 1
+// CHECK-SAME:      item = "SHAVE_UPA", number = 1
 IE.CNNNetwork "SingleLayer" at @main
     inputsInfo : {
         // CHECK: VPUIP.TensorInfo "input", f32, #NC

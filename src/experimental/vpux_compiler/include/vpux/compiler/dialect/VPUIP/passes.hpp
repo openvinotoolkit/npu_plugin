@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "vpux/utils/core/logger.hpp"
+
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
 
@@ -28,19 +30,19 @@ namespace VPUIP {
 // AssignTensorOffsetsDDR
 //
 
-std::unique_ptr<mlir::Pass> createAssignTensorOffsetsDDRPass();
+std::unique_ptr<mlir::Pass> createAssignTensorOffsetsDDRPass(Logger log = Logger::global());
 
 //
 // AddLinearScheduling
 //
 
-std::unique_ptr<mlir::Pass> createAddLinearSchedulingPass();
+std::unique_ptr<mlir::Pass> createAddLinearSchedulingPass(Logger log = Logger::global());
 
 //
 // RemoveExtraDMA
 //
 
-std::unique_ptr<mlir::Pass> createRemoveExtraDMAPass();
+std::unique_ptr<mlir::Pass> createRemoveExtraDMAPass(Logger log = Logger::global());
 
 //
 // Generated

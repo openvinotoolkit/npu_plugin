@@ -45,7 +45,7 @@ private:
 };
 
 mlir::SideEffects::Resource* getMemoryResource(PhysicalMemory mem);
-mlir::SideEffects::Resource* getMemoryResource(mlir::MemRefType memref);
+mlir::FailureOr<mlir::SideEffects::Resource*> getMemoryResource(mlir::MemRefType memref);
 
 struct BarrierResource final : public mlir::SideEffects::Resource::Base<BarrierResource> {
     StringRef getName() final {

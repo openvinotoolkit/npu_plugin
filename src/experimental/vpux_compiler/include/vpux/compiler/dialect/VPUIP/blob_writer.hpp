@@ -19,9 +19,10 @@
 #include "vpux/compiler/core/shape.hpp"
 #include "vpux/compiler/core/strides.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPUIP/schema.hpp"
 
-#include "vpux/utils/VPUIP/schema.hpp"
 #include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
@@ -65,6 +66,10 @@ public:
     using Vector = flatbuffers::Offset<flatbuffers::Vector<T>>;
 
 public:
+    explicit BlobWriter(Logger log): _log(log) {
+    }
+
+public:
     Task createTask(mlir::Operation* op);
 
 public:
@@ -89,8 +94,8 @@ public:
     Vector<uint32_t> createDims(ShapeRef shape);
     Vector<uint32_t> createDims(mlir::MemRefType type);
 
-    Vector<uint32_t> createStrides(StridesRef strides, int64_t elemByteSize);
-    Vector<uint32_t> createStrides(mlir::MemRefType type);
+    VPUIP::BlobWriter::Vector<float> createStrides(StridesRef strides, int64_t elemByteSize);
+    Vector<float> createStrides(mlir::MemRefType type);
 
     static MVCNN::MemoryLocation createMemoryLocation(MemoryLocation location);
     IndirectDataReference createIndirectDataReference(uint64_t offset);
@@ -128,6 +133,7 @@ private:
     using BarrierMap = mlir::DenseMap<mlir::Value, Barrier>;
 
 private:
+    Logger _log;
     flatbuffers::FlatBufferBuilder _impl;
     TaskMap _tasks;
     TensorReferenceMap _tensors;

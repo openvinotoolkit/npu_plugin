@@ -32,7 +32,7 @@ namespace {
 
 class RemoveExtraDMAPass final : public VPUIP::RemoveExtraDMABase<RemoveExtraDMAPass> {
 public:
-    RemoveExtraDMAPass();
+    explicit RemoveExtraDMAPass(Logger log);
 
 public:
     void runOnFunction() final;
@@ -41,11 +41,14 @@ private:
     void passBody();
 
 private:
+    Logger _log;
     mlir::OpPassManager _cleanUpIR;
 };
 
-RemoveExtraDMAPass::RemoveExtraDMAPass()
-    : _cleanUpIR(mlir::FuncOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
+RemoveExtraDMAPass::RemoveExtraDMAPass(Logger log)
+    : _log(log), _cleanUpIR(mlir::FuncOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
+    _log.setName(Base::getArgumentName());
+
     _cleanUpIR.addPass(mlir::createCanonicalizerPass());
 }
 
@@ -208,6 +211,6 @@ void RemoveExtraDMAPass::passBody() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createRemoveExtraDMAPass() {
-    return std::make_unique<RemoveExtraDMAPass>();
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createRemoveExtraDMAPass(Logger log) {
+    return std::make_unique<RemoveExtraDMAPass>(log);
 }

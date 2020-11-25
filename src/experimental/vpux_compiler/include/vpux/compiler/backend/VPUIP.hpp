@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "vpux/utils/core/logger.hpp"
+
 #include <mlir/IR/BuiltinOps.h>
 
 #include <flatbuffers/flatbuffers.h>
@@ -23,7 +25,7 @@
 namespace vpux {
 namespace VPUIP {
 
-flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module);
+flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module, Logger log = Logger::global());
 
 }  // namespace VPUIP
 }  // namespace vpux

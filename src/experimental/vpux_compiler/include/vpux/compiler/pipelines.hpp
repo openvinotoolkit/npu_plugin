@@ -16,11 +16,13 @@
 
 #pragma once
 
+#include "vpux/utils/core/logger.hpp"
+
 #include <mlir/Pass/PassManager.h>
 
 namespace vpux {
 
-void buildReferenceModePipeline(mlir::OpPassManager& pm, uint32_t maxUPAShaves = 1);
+void buildReferenceModePipeline(mlir::OpPassManager& pm, uint32_t maxUPAShaves = 1, Logger log = Logger::global());
 
 void registerAllPipelines();
 

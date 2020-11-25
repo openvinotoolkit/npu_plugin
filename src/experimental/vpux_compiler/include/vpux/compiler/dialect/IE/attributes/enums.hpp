@@ -18,12 +18,11 @@
 
 #include "vpux/compiler/core/dims_order.hpp"
 
-#include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
-#include "vpux/utils/mlir/attributes.hpp"
 
 #include <mlir/IR/AffineMap.h>
+#include <mlir/IR/Attributes.h>
 
 //
 // Generated
@@ -32,36 +31,11 @@
 #include <vpux/compiler/dialect/IE/generated/attributes/enums.hpp.inc>
 
 //
-// EnumTraits
-//
-
-namespace vpux {
-
-template <>
-struct EnumTraits<IE::Layout> final {
-    static auto getEnumValueName(IE::Layout val) {
-        return IE::stringifyEnum(val);
-    }
-
-    static auto parseValue(StringRef valStr) {
-        return IE::symbolizeEnum<IE::Layout>(valStr);
-    }
-
-    static bool isValidVal(int64_t val) {
-        return val >= 0 && static_cast<uint64_t>(val) <= IE::getMaxEnumValForLayout();
-    }
-};
-
-}  // namespace vpux
-
-//
 // Layout utilities
 //
 
 namespace vpux {
 namespace IE {
-
-using LayoutAttr = IntEnumAttr<Layout>;
 
 int32_t getRank(Layout layout);
 

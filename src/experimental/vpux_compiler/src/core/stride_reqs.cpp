@@ -30,11 +30,7 @@ using namespace vpux;
 // StrideReqKind
 //
 
-StringRef vpux::EnumTraits<StrideReqKind>::getEnumClassName() {
-    return "StrideReqKind";
-}
-
-StringRef vpux::EnumTraits<StrideReqKind>::getEnumValueName(StrideReqKind val) {
+StringLiteral vpux::stringifyEnum(StrideReqKind val) {
     switch (val) {
     case StrideReqKind::Compact:
         return "Compact";
@@ -45,19 +41,6 @@ StringRef vpux::EnumTraits<StrideReqKind>::getEnumValueName(StrideReqKind val) {
     default:
         return "<UNKNOWN>";
     }
-}
-
-Optional<StrideReqKind> vpux::EnumTraits<StrideReqKind>::parseEnumValue(StringRef valStr) {
-    if (valStr == "Compact") {
-        return StrideReqKind::Compact;
-    }
-    if (valStr == "Aligned") {
-        return StrideReqKind::Aligned;
-    }
-    if (valStr == "Fixed") {
-        return StrideReqKind::Fixed;
-    }
-    return None;
 }
 
 //

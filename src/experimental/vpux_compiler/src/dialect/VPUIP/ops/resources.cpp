@@ -25,30 +25,34 @@ using namespace vpux;
 //
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
-    const auto location = op.location();
+    const auto locale = op.locale();
 
-    if (location == MemoryLocation::ProgrammableInput || location == MemoryLocation::ProgrammableOutput ||
-        location == MemoryLocation::GraphFile) {
-        return printTo(op.emitError(), "MemoryLocation '{0}' can't be used in '{1}'", location,
+    if (locale == MemoryLocation::ProgrammableInput || locale == MemoryLocation::ProgrammableOutput ||
+        locale == MemoryLocation::GraphFile) {
+        return printTo(op.emitError(), "MemoryLocation '{0}' can't be used in '{1}'", locale,
                        DeclareTensorOp::getOperationName());
     }
 
+    // TODO: check localeIndex
+
     const auto memref = op.memory().getType().cast<mlir::MemRefType>();
 
-    if (!isMemoryCompatible(location, memref)) {
-        return printTo(op.emitError(), "'{0}' location '{1}' is not compatible with memory Type '{2}'",
-                       DeclareTensorOp::getOperationName(), location, memref);
+    if (!isMemoryCompatible(locale, memref)) {
+        return printTo(op.emitError(), "'{0}' locale '{1}' is not compatible with memory space '{2}'",
+                       DeclareTensorOp::getOperationName(), locale, memref.getMemorySpace());
     }
 
-    if (const auto offsetAttr = op.offsetAttr()) {
-        const auto offset = offsetAttr.getValue().getSExtValue();
-        if (offset < 0) {
-            return printTo(op.emitError(), "Got negative offset '{0}' for '{1}'", offset,
+    if (const auto dataIndexAttr = op.dataIndexAttr()) {
+        const auto dataIndex = dataIndexAttr.getValue().getSExtValue();
+        if (dataIndex < 0) {
+            return printTo(op.emitError(), "Got negative dataIndex '{0}' for '{1}'", dataIndex,
                            DeclareTensorOp::getOperationName());
         }
 
         // TODO: check memory limitations
     }
+
+    // TODO: check other offsets
 
     return mlir::success();
 }

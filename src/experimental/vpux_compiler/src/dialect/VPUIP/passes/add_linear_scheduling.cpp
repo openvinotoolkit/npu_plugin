@@ -17,10 +17,10 @@
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
-#include "vpux/utils/mlir/logging.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
 
@@ -31,6 +31,11 @@ using namespace vpux;
 namespace {
 
 class AddLinearSchedulingPass final : public VPUIP::AddLinearSchedulingBase<AddLinearSchedulingPass> {
+public:
+    explicit AddLinearSchedulingPass(Logger log): _log(log) {
+        _log.setName(Base::getArgumentName());
+    }
+
 public:
     void runOnOperation() final;
 
@@ -43,6 +48,7 @@ private:
     static VPUIP::TaskOpInterface getNextTask(mlir::Operation* op);
 
 private:
+    Logger _log;
     std::unordered_set<mlir::Operation*> _trailingSwTasks;
 };
 
@@ -95,7 +101,7 @@ void AddLinearSchedulingPass::passBody() {
 
     auto options = graphOp.options();
     options = options | VPUIP::ExecutionFlag::DynamicBarriers;
-    graphOp.optionsAttr(VPUIP::ExecutionFlagAttr::get(module.getContext(), options));
+    graphOp.optionsAttr(VPUIP::ExecutionFlagAttr::get(options, module.getContext()));
 }
 
 void AddLinearSchedulingPass::collectTrailingSwTasks(mlir::FuncOp graphFunc) {
@@ -153,6 +159,6 @@ VPUIP::TaskOpInterface AddLinearSchedulingPass::getNextTask(mlir::Operation* op)
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createAddLinearSchedulingPass() {
-    return std::make_unique<AddLinearSchedulingPass>();
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createAddLinearSchedulingPass(Logger log) {
+    return std::make_unique<AddLinearSchedulingPass>(log);
 }

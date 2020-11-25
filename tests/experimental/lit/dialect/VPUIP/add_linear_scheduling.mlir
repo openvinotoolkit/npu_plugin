@@ -8,8 +8,21 @@ VPUIP.Graph "linear_dma_graph" at @main
     // CHECK: options : "DynamicBarriers"
     options : "NONE"
     resources : {
-        nn_cmx_slice_amount = 1 : i32,
-        upa_shaves = 1 : i32
+        processor_allocation = [
+            {item = "SHAVE_UPA", number = 1 : i64},
+            {item = "NCE_Cluster", number = 1 : i64}
+        ],
+        processor_frequencies = [],
+        memory_sizes = [
+            {item = "CMX_NN", number = 1048576 : i64}
+        ],
+        memory_bandwidth = []
+    }
+    version : {
+        majorV = 3 : i32,
+        minorV = 11 : i32,
+        patchV = 0 : i32, hash = "",
+        contextStr = "VPUX Compiler"
     }
     inputsInfo : {
         VPUIP.TensorInfo "data", f16, #NC
@@ -56,8 +69,21 @@ VPUIP.Graph "linear_upa_graph" at @main
     // CHECK: options : "DynamicBarriers"
     options : "NONE"
     resources : {
-        nn_cmx_slice_amount = 1 : i32,
-        upa_shaves = 1 : i32
+        processor_allocation = [
+            {item = "SHAVE_UPA", number = 1 : i64},
+            {item = "NCE_Cluster", number = 1 : i64}
+        ],
+        processor_frequencies = [],
+        memory_sizes = [
+            {item = "CMX_NN", number = 1048576 : i64}
+        ],
+        memory_bandwidth = []
+    }
+    version : {
+        majorV = 3 : i32,
+        minorV = 11 : i32,
+        patchV = 0 : i32, hash = "",
+        contextStr = "VPUX Compiler"
     }
     inputsInfo : {
         VPUIP.TensorInfo "data", f16, #NC

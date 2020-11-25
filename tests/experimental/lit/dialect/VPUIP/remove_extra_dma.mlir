@@ -16,15 +16,15 @@ func @copy_block_args(%arg0:  memref<8x8xf16>, %arg1: memref<8x8xf16>) {
 // CHECK-LABEL: different_types
 
 func @different_types() {
-    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<8x8xf16>
-    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<8x8xf16, #map>
-    %2 = VPUIP.DeclareTensor "VPU_CMX_UPA" -> memref<8x8xf16, 2>
+    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<8x8xf16, "DDR">
+    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" -> memref<8x8xf16, #map, "DDR">
+    %2 = VPUIP.DeclareTensor "VPU_CMX_UPA" -> memref<8x8xf16, "CMX_UPA">
 
-    VPUIP.UPADMA inputs(%0 : memref<8x8xf16>) outputs(%1 : memref<8x8xf16, #map>)
-    // CHECK: VPUIP.UPADMA inputs(%0 : memref<8x8xf16>) outputs(%1 : memref<8x8xf16, #map>)
+    VPUIP.UPADMA inputs(%0 : memref<8x8xf16, "DDR">) outputs(%1 : memref<8x8xf16, #map, "DDR">)
+    // CHECK: VPUIP.UPADMA inputs(%0 : memref<8x8xf16, "DDR">) outputs(%1 : memref<8x8xf16, #map, "DDR">)
 
-    VPUIP.UPADMA inputs(%0 : memref<8x8xf16>) outputs(%2 : memref<8x8xf16, 2>)
-    // CHECK: VPUIP.UPADMA inputs(%0 : memref<8x8xf16>) outputs(%2 : memref<8x8xf16, 2>)
+    VPUIP.UPADMA inputs(%0 : memref<8x8xf16, "DDR">) outputs(%2 : memref<8x8xf16, "CMX_UPA">)
+    // CHECK: VPUIP.UPADMA inputs(%0 : memref<8x8xf16, "DDR">) outputs(%2 : memref<8x8xf16, "CMX_UPA">)
 
     return
 }

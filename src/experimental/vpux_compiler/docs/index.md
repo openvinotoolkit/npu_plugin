@@ -146,12 +146,6 @@ IE.CNNNetwork {
 }
 ```
 
-Auto-generated documentation for **IE Dialect**:
-
-* [IE Dialect](generated/dialect/IE.md).
-  * [IE Dialect Operation Interfaces](generated/dialect/IE/ops_interfaces.md).
-  * [IE Dialect Passes](generated/dialect/IE/passes.md).
-
 ### IERT Dialect
 
 **TBD:** add initial implementation for this Dialect.
@@ -193,12 +187,6 @@ It allows to work with graph schema inside MLIR framework:
 * Validate it.
 * Perform additional low level transformations/optimizations.
 
-Auto-generated documentation for **VPUIP Dialect**:
-
-* [VPUIP Dialect](generated/dialect/VPUIP.md).
-  * [VPUIP Dialect Operation Interfaces](generated/dialect/VPUIP/ops_interfaces.md).
-  * [VPUIP Dialect Passes](generated/dialect/VPUIP/passes.md).
-
 ### BackEnd
 
 **BackEnd** is used to export **VPUX NN Compiler** IR into external output.
@@ -212,10 +200,6 @@ This mode is used for **LLVM LIT** based unit testing, for example (see below).
 ### Conversion Passes
 
 This types of Passes performs lowering from high-level Dialects to low level.
-
-Auto-generated documentation for **Conversion passes**:
-
-* [Conversion passes](generated/conversion/passes.md).
 
 ### Custom Layers / eDSL
 

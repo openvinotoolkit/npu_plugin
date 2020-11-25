@@ -22,10 +22,10 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/pipelines.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
-#include "vpux/utils/mlir/logging.hpp"
 
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/MLIRContext.h>
@@ -44,9 +44,35 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(ICNNNetwork&, c
                "version");
 }
 
+namespace {
+
+LogLevel getLogLevel(const VPUXConfig& config) {
+    switch (config.logLevel()) {
+    case vpu::LogLevel::Fatal:
+        return LogLevel::Fatal;
+    case vpu::LogLevel::Error:
+        return LogLevel::Error;
+    case vpu::LogLevel::Warning:
+        return LogLevel::Warning;
+    case vpu::LogLevel::Info:
+        return LogLevel::Info;
+    case vpu::LogLevel::Debug:
+        return LogLevel::Debug;
+    case vpu::LogLevel::Trace:
+        return LogLevel::Trace;
+    default:
+        return LogLevel::None;
+    }
+}
+
+}  // namespace
+
 std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shared_ptr<ngraph::Function>& func,
                                                                  const std::string&, const InputsDataMap& inputsInfo,
-                                                                 const OutputsDataMap& outputsInfo, const VPUXConfig&) {
+                                                                 const OutputsDataMap& outputsInfo,
+                                                                 const VPUXConfig& config) {
+    Logger log("vpux-compiler", getLogLevel(config));
+
     CNNNetwork cnnNet(func);
 
     for (const auto& p : inputsInfo) {
@@ -59,21 +85,23 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     }
 
     mlir::MLIRContext ctx;
+    addLogging(ctx, log);
 
     ctx.loadDialect<IE::IEDialect>();
     ctx.loadDialect<VPUIP::VPUIPDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    IE::FrontEnd frontEnd(&ctx, LogLevel::Warning);
+    IE::FrontEnd frontEnd(&ctx, log);
     auto module = frontEnd.importNetwork(cnnNet);
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
+    addLogging(pm, log);
 
-    buildReferenceModePipeline(pm);
+    buildReferenceModePipeline(pm, 1, log.nest());
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module.get())), "Compilation failed");
 
-    const auto blob = VPUIP::exportToBlob(module.get());
+    const auto blob = VPUIP::exportToBlob(module.get(), log);
 
     std::vector<char> compiledNetwork(blob.size());
     std::copy_n(reinterpret_cast<const char*>(blob.data()), blob.size(), compiledNetwork.data());

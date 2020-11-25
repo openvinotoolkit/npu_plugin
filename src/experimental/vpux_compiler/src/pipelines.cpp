@@ -22,12 +22,12 @@
 
 using namespace vpux;
 
-void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, uint32_t maxUPAShaves) {
-    pm.addPass(IE::createAdjustPrecisionForVPUPass());
-    pm.addPass(createConvertIE2VPUIPPass(maxUPAShaves));
-    pm.addPass(VPUIP::createRemoveExtraDMAPass());
-    pm.addPass(VPUIP::createAssignTensorOffsetsDDRPass());
-    pm.addPass(VPUIP::createAddLinearSchedulingPass());
+void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, uint32_t maxUPAShaves, Logger log) {
+    pm.addPass(IE::createAdjustPrecisionForVPUPass(log));
+    pm.addPass(createConvertIE2VPUIPPass(maxUPAShaves, log));
+    pm.addPass(VPUIP::createRemoveExtraDMAPass(log));
+    pm.addPass(VPUIP::createAssignTensorOffsetsDDRPass(log));
+    pm.addPass(VPUIP::createAddLinearSchedulingPass(log));
 }
 
 void vpux::registerAllPipelines() {

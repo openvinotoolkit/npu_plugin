@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "vpux/utils/core/logger.hpp"
+
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
 
@@ -28,7 +30,7 @@ namespace IE {
 // AdjustPrecisionForVPU
 //
 
-std::unique_ptr<mlir::Pass> createAdjustPrecisionForVPUPass();
+std::unique_ptr<mlir::Pass> createAdjustPrecisionForVPUPass(Logger log = Logger::global());
 
 //
 // Generated

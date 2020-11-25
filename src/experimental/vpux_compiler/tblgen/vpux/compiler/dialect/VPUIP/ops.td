@@ -46,7 +46,7 @@ class VPUIP_TaskOp<string mnemonic, VPUIP_TaskTypeVal taskType, list<OpTrait> tr
                 [
                     AttrSizedOperandSegments,
                     MemoryEffectsOpInterface,
-                    VPUIP_TaskOpInterface
+                    DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
                 ]
             )
         > {
@@ -55,8 +55,6 @@ class VPUIP_TaskOp<string mnemonic, VPUIP_TaskTypeVal taskType, list<OpTrait> tr
     }];
 
     let extraClassDeclaration = [{
-        vpux::VPUIP::BlobWriter::SpecificTask serialize(vpux::VPUIP::BlobWriter& writer);
-
         static vpux::VPUIP::TaskType getTaskType() {
             return }] # taskType.enumVal # [{;
         }
@@ -93,7 +91,8 @@ def VPUIP_GraphOp :
         StrAttr:$identifier,
         FlatSymbolRefAttr:$entryPoint,
         VPUIP_ExecutionFlag:$options,
-        VPUIP_ResourcesAttr:$resources
+        VPUIP_ResourcesAttr:$resources,
+        VPUIP_Version:$version
     );
 
     let regions = (region
@@ -110,6 +109,7 @@ def VPUIP_GraphOp :
         $identifier `at` $entryPoint
         `options` `:` $options
         `resources` `:` $resources
+        `version` `:` $version
         `inputsInfo` `:` $inputsInfo
         `outputsInfo` `:` $outputsInfo
     }];
@@ -169,8 +169,15 @@ def VPUIP_DeclareTensorOp :
     let summary = "MemRef value declaration";
 
     let arguments = (ins
-        VPUIP_MemoryLocation:$location,
-        OptionalAttr<I64Attr>:$offset
+        VPUIP_MemoryLocation:$locale,
+        OptionalAttr<I32Attr>:$localeIndex,
+
+        DefaultValuedAttr<I64Attr, "0">:$leadingOffset,
+        DefaultValuedAttr<I64Attr, "0">:$trailingOffset,
+
+        OptionalAttr<I64Attr>:$dataIndex,
+        OptionalAttr<I64Attr>:$sparsityIndex,
+        OptionalAttr<I64Attr>:$storageElementIndex
     );
 
     let results = (outs
@@ -182,7 +189,7 @@ def VPUIP_DeclareTensorOp :
     }];
 
     let assemblyFormat = [{
-        $location (`,` $offset^)? attr-dict `->` type(results)
+        $locale (`:` $localeIndex^)? attr-dict `->` type(results)
     }];
 }
 
@@ -207,8 +214,7 @@ def VPUIP_DeclareBarrierOp :
         OpBuilderDAG<
             (ins),
             [{
-                build($_builder, $_state,
-                      vpux::VPUIP::BarrierType::get($_builder.getContext()));
+                build($_builder, $_state, vpux::VPUIP::BarrierType::get($_builder.getContext()));
             }]
         >
     ];
@@ -304,7 +310,7 @@ def VPUIP_SoftMaxUPAOp :
             VPUIP_TaskType_UPA,
             [
                 DeclareOpInterfaceMethods<IE_SoftMaxLayerInterface>,
-                VPUIP_UPATaskOpInterface
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
         > {
     let summary = "SoftMax UPA SHAVE kernel";
