@@ -111,12 +111,17 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 if (convOp->hasAttr("bias"))
                 {
                     mv::Data::TensorIterator biasSliceTensor;
-                    std::vector<mv::DataElement> biasData;
-                    for (std::size_t i = branchId * outputChannels; i < branchId * outputChannels + outputChannels; i++)
-                        biasData.push_back(biasTensor->getData()[i]);
+                    std::vector<mv::DataElement> biasData = biasTensor->getData();
 
-                    biasSliceTensor = dm.defineTensor(mv::Tensor(biasName + "slice" + std::to_string(branchId), {outputChannels}, biasTensor->getDType(),
-                                        biasTensor->getOrder(), biasData, biasTensor->get<mv::QuantizationParams>("quantParams")));
+                    biasData = get_part_of_vec(biasData, branchId, group);
+
+                    biasSliceTensor = dm.defineTensor(biasName + "slice" + std::to_string(branchId), {outputChannels/group}, biasTensor->getDType(), biasTensor->getOrder(), biasData);
+
+                    if (biasTensor->isQuantized())
+                    {
+                        biasSliceTensor->setQuantParams(biasTensor->getQuantParams().getSlice(branchId, group));
+                    }
+
                     om.addAttr(sliceConvOp, "bias", biasSliceTensor->getName());
                 }
                 convOutputs.push_back(newConvTensor);
