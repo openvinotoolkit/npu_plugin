@@ -640,9 +640,16 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
             auto scaleTensor = current_op->getInputTensor(1);
             auto originalConstOp = om.getSourceOp(scaleTensor);
             auto scaleData = scaleTensor->getDoubleData();
-            auto quantizedScaleData = std::vector<int64_t>(scaleData.size(), 1);
+            auto quantizedScaleData = std::vector<int64_t>(scaleData.size(), 127+127);
+            for (size_t c = 0; c < scaleData.size(); c++) {
+                if (scaleData[c] < 0) {
+                    scaleData[c] = -scaleData[c];
+                    quantizedScaleData[c] = 127-127;
+                }
+                scaleData[c] /= 127.0;
+            }
 
-            mv::QuantizationParams scalesQuantParams = {{0}, scaleData, {-inf}, {inf}};
+            mv::QuantizationParams scalesQuantParams = {{127}, scaleData, {-inf}, {inf}};
             auto quantized_const_tensor =
                 om.constantInt(originalConstOp->getName() + ":quantized",
                                quantizedScaleData, scaleTensor->getShape(),
