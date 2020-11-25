@@ -24,9 +24,30 @@ function(vpux_add_tblgen_command)
     set(multiValueArgs EXTRA_ARGS INCLUDES)
     cmake_parse_arguments(TBLGEN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    file(RELATIVE_PATH ofn_rel ${PROJECT_SOURCE_DIR} ${TBLGEN_OUTPUT})
+    if(NOT TBLGEN_TOOL)
+        message(FATAL_ERROR "Missing TOOL argument in vpux_add_tblgen_command")
+    endif()
+    if(NOT TBLGEN_MODE)
+        message(FATAL_ERROR "Missing MODE argument in vpux_add_tblgen_command")
+    endif()
+    if(NOT TBLGEN_SOURCE)
+        message(FATAL_ERROR "Missing SOURCE argument in vpux_add_tblgen_command")
+    endif()
+    if(NOT TBLGEN_OUTPUT)
+        message(FATAL_ERROR "Missing OUTPUT argument in vpux_add_tblgen_command")
+    endif()
 
-    get_filename_component(dst_dir ${TBLGEN_OUTPUT} DIRECTORY)
+    if(IS_ABSOLUTE ${TBLGEN_SOURCE})
+        message(FATAL_ERROR "SOURCE argument in vpux_add_tblgen_command must be a relative path")
+    endif()
+    if(IS_ABSOLUTE ${TBLGEN_OUTPUT})
+        message(FATAL_ERROR "OUTPUT argument in vpux_add_tblgen_command must be a relative path")
+    endif()
+
+    set(src_abs_path "${CMAKE_CURRENT_SOURCE_DIR}/${TBLGEN_SOURCE}")
+    set(dst_abs_path "${CMAKE_CURRENT_BINARY_DIR}/${TBLGEN_OUTPUT}")
+
+    get_filename_component(dst_dir ${dst_abs_path} DIRECTORY)
     file(MAKE_DIRECTORY ${dst_dir})
 
     set(cmd_args ${TBLGEN_MODE} ${TBLGEN_EXTRA_ARGS})
@@ -35,22 +56,11 @@ function(vpux_add_tblgen_command)
         list(APPEND cmd_args -I ${include_dir})
     endforeach()
 
-    if(IS_ABSOLUTE TBLGEN_SOURCE)
-        set(LLVM_TARGET_DEFINITIONS ${TBLGEN_SOURCE})
-    else()
-        set(LLVM_TARGET_DEFINITIONS "${CMAKE_CURRENT_SOURCE_DIR}/${TBLGEN_SOURCE}")
-    endif()
+    set(LLVM_TARGET_DEFINITIONS ${src_abs_path})
     set(TABLEGEN_OUTPUT)
-    tablegen(${TBLGEN_TOOL} ${ofn_rel} ${cmd_args})
+    tablegen(${TBLGEN_TOOL} ${TBLGEN_OUTPUT} ${cmd_args})
 
-    add_custom_command(
-        OUTPUT ${TBLGEN_OUTPUT}
-        COMMAND ${CMAKE_COMMAND} -E copy ${TABLEGEN_OUTPUT} ${TBLGEN_OUTPUT}
-        DEPENDS ${TABLEGEN_OUTPUT}
-        COMMENT "[${TBLGEN_TOOL} TableGen ${TBLGEN_MODE}] ${TBLGEN_SOURCE}"
-    )
-
-    set(TBGGEN_OUTPUT_FILES ${TBGGEN_OUTPUT_FILES} ${TBLGEN_OUTPUT} PARENT_SCOPE)
+    set(TBGGEN_OUTPUT_FILES ${TBGGEN_OUTPUT_FILES} ${TABLEGEN_OUTPUT} PARENT_SCOPE)
 endfunction()
 
 function(vpux_add_tblgen_target TARGET_NAME)

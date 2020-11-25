@@ -25,8 +25,8 @@ set(STATIC_TARGET_NAME "${TARGET_NAME}_static")
 #
 
 set(gen_base_src_dir "tblgen/vpux/compiler")
-set(gen_base_dst_include_dir "${CMAKE_CURRENT_BINARY_DIR}/include/vpux/compiler")
-set(gen_base_dst_docs_dir "${CMAKE_CURRENT_SOURCE_DIR}/docs/generated")
+set(gen_base_dst_include_dir "include/vpux/compiler")
+set(gen_base_dst_docs_dir "docs/generated")
 
 macro(add_op_interfaces subdir)
     vpux_add_tblgen_command(
@@ -200,7 +200,7 @@ add_dependencies(${TBLGEN_TARGET_NAME} mlir-headers mlir-generic-headers)
 
 vpux_add_flatc_target(${SCHEMA_TARGET_NAME}
     SRC_DIR "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/graphFile-schema/src/schema"
-    DST_DIR "${gen_base_dst_include_dir}/dialect/VPUIP/generated/schema"
+    DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPUIP/generated/schema"
     ARGS "--gen-name-strings"
 )
 set_target_properties(${SCHEMA_TARGET_NAME} PROPERTIES FOLDER "src")
