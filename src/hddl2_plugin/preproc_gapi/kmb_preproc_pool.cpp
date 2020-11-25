@@ -43,12 +43,6 @@ PreprocessorPool::PreprocessorPool(
     : _preprocs(nPipelines), _numberOfShaves(shaveLast + 1 - shaveFirst) {
     IE_ASSERT(ppPath == Path::SIPP || ppPath == Path::M2I);
 
-    if (ppPath == Path::M2I) {
-        // TODO: Currently M2I has no parameters for SHAVEs to run
-        // All we can do now is to make sure there's just one M2I
-        // instance is created
-        IE_ASSERT(nPipelines == 1);
-    }
 
     auto shavesPerPipeline = _numberOfShaves / nPipelines;
     IE_ASSERT(shavesPerPipeline > 0);
@@ -83,7 +77,7 @@ void PreprocessorPool::execDataPreprocessing(const PreprocTask& task, const int 
 unsigned int PreprocessorPool::getNumberOfShaves() const { return _numberOfShaves; }
 
 PreprocessorPool& PreprocPool::getPool(
-    const std::string& preprocPoolId, unsigned int numberOfShaves, unsigned int lpi, Path ppPath) {
+    const std::string& preprocPoolId, unsigned int numberOfShaves, unsigned int lpi, unsigned int numberOfPipes, Path ppPath) {
     std::unique_lock<std::mutex> lock(_mutex);
     if (_preprocPools.count(preprocPoolId) == 0) {
         //First SHAVE number is actually obsolete parameter.
@@ -104,7 +98,7 @@ PreprocessorPool& PreprocPool::getPool(
         IE_ASSERT(lastShave < 16) << "PreprocPool error: attempt to execute preprocessing on " << firstFreeShave
                                   << "-" << lastShave << " SHAVEs, last SHAVE index must be less than 16";
 
-        _preprocPools[preprocPoolId].reset(new PreprocessorPool(firstFreeShave, lastShave, pipesPerPool, lpi, ppPath));
+        _preprocPools[preprocPoolId].reset(new PreprocessorPool(firstFreeShave, lastShave, numberOfPipes, lpi, ppPath));
     }
     lock.unlock();
 
@@ -112,13 +106,13 @@ PreprocessorPool& PreprocPool::getPool(
 }
 
 void PreprocPool::execDataPreprocessing(
-    const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, Path ppPath, const std::string& preprocPoolId,
+    const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, unsigned int numberOfPipes, Path ppPath, const std::string& preprocPoolId,
     const int deviceId) {
     if (task.inputs.empty()) {
         THROW_IE_EXCEPTION << "Inputs are empty.";
     }
     auto dims = task.inputs.begin()->second->getTensorDesc().getDims();
-    getPool(preprocPoolId, numberOfShaves, lpi, ppPath).execDataPreprocessing(task, deviceId);
+    getPool(preprocPoolId, numberOfShaves, lpi, numberOfPipes, ppPath).execDataPreprocessing(task, deviceId);
 }
 
 PreprocPool& preprocPool() {

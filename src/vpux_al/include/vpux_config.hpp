@@ -40,6 +40,7 @@ public:
     bool useSIPP() const { return _useSIPP; }
     int numberOfSIPPShaves() const { return _numberOfSIPPShaves; }
     int SIPPLpi() const { return _SIPPLpi; }
+    int numberOfPPPipes() const { return _numberOfPPPipes; }
     int executorStreams() const { return _executorStreams; }
 
     void parseFrom(const VPUXConfig& other);
@@ -63,6 +64,7 @@ protected:
     bool _useSIPP = true;
     int _numberOfSIPPShaves = 4;
     int _SIPPLpi = 8;
+    int _numberOfPPPipes = 1;
     int _executorStreams = 1;
 
 private:
