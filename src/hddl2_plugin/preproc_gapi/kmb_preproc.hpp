@@ -21,7 +21,7 @@ bool isApplicable(
 
 void execDataPreprocessing(BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
     InputsDataMap& networkInputs, ColorFormat out_format, unsigned int numShaves, unsigned int lpi,
-    const std::string& preprocPoolId, const int deviceId, Path path = Path::SIPP);
+    unsigned int numPipes, const std::string& preprocPoolId, const int deviceId, Path path = Path::SIPP);
 
 }  // namespace KmbPreproc
 }  // namespace InferenceEngine

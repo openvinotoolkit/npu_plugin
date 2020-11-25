@@ -37,24 +37,7 @@
 namespace ie = InferenceEngine;
 
 namespace vpux {
-#if defined(__arm__) || defined(__aarch64__)
-constexpr uint16_t XLINK_IPC_CHANNELS = 1024;
-#endif
 constexpr int VPU_CSRAM_DEVICE_ID = 32;
-
-#if defined(__arm__) || defined(__aarch64__)
-void VpualCoreNNExecutor::initWatchDog() {
-    _wd.reset(new WatchDog(_config.inferenceTimeoutMs(), _logger, [this]() {
-        _logger->error("%d milliseconds have passed, closing xlink channels." , _config.inferenceTimeoutMs());
-        auto xhndl {
-              getXlinkDeviceHandle(_nnXlinkPlg->getDeviceId())
-        };
-        for (uint16_t i{0}; i < XLINK_IPC_CHANNELS; ++i) {
-              xlink_close_channel(&xhndl, i);
-        }
-      }));
-}
-#endif
 
 VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
     const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId, const VpualConfig& config)
@@ -114,7 +97,6 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     _logger->debug("Allocated buffer for input with the size: %d", inputsTotalSize);
 
     allocateGraph(_networkDescription->getCompiledNetwork());
-    initWatchDog();
 #else
     UNUSED(deviceId);
 #endif
@@ -185,7 +167,6 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
         _outputPhysAddrs.push_back(outPhysAddr);
         outputOffset += descOut.totalSize;
     }
-    initWatchDog();
 }
 #endif
 
@@ -274,7 +255,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     static int graphId_main = 1;
     int nThreads = _config.throughputStreams();
 
-    _logger->info("allocateGraph begins");
+    _logger->info("VpualCoreNNExecutor::allocateGraph begins");
 
     _blobHandle->graphid = graphId_main++;
     _blobHandle->graphBuff = 0x00000000;
@@ -285,7 +266,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     blob_file.reset(_allocator->alloc(_blobHandle->graphLen));
 
     if (blob_file == nullptr) {
-        _logger->error("allocateGraph: Error getting CMA for graph");
+        _logger->error("VpualCoreNNExecutor::allocateGraph: Error getting CMA for graph");
         THROW_IE_EXCEPTION << "allocateGraph: allocation failed for graph";
     }
 
@@ -299,7 +280,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
 
     auto status = _nnCorePlg->Create(_blobHandle.get(), nThreads);
     if (MVNCI_SUCCESS != status) {
-        _logger->error("allocateGraph: failed to create NnCorePlg");
+        _logger->error("VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg");
         THROW_IE_EXCEPTION << "VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: " << status;
     }
 
@@ -319,13 +300,13 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     MvNCIVersion blobVersion;
     status = _nnCorePlg->GetBlobVersion(&blobVersion);
     if (MVNCI_SUCCESS != status) {
-        _logger->error("allocateGraph: failed to get blob version");
+        _logger->error("VpualCoreNNExecutor::allocateGraph: failed to get blob version");
         THROW_IE_EXCEPTION << "VpualCoreNNExecutor::allocateGraph: failed to get blob version: " << status;
     }
 
     const uint32_t upaShaves = _config.numberOfNnCoreShaves();
     if (upaShaves > 0) {
-        _logger->debug("::allocateGraph: SetNumUpaShaves to %d", upaShaves);
+        _logger->debug("VpualCoreNNExecutor::allocateGraph: SetNumUpaShaves to %d", upaShaves);
         _nnCorePlg->SetNumUpaShaves(upaShaves);
     }
 
@@ -505,7 +486,7 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
 void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "push");
-    _logger->info("::push started");
+    _logger->info("VpualCoreNNExecutor::push started");
 
     ie::BlobMap updatedInputs;
     const auto& deviceInputs = _networkDescription->getDeviceInputsInfo();
@@ -536,11 +517,11 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 
     auto status = _nnXlinkPlg->RequestInference(request);
     if (MVNCI_SUCCESS != status) {
-        _logger->error("push: RequestInference failed");
+        _logger->error("VpualCoreNNExecutor::push: RequestInference failed");
         THROW_IE_EXCEPTION << "VpualCoreNNExecutor::push: RequestInference failed" << status;
     }
 
-    _logger->info("::push finished");
+    _logger->info("VpualCoreNNExecutor::push finished");
 #else
     UNUSED(inputs);
 #endif
@@ -590,23 +571,17 @@ uint32_t VpualCoreNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inp
 void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "pull");
-    _logger->info("pull started");
+    _logger->info("VpualCoreNNExecutor::pull started");
     NnExecResponseMsg response;
-    _wd->Start();
     auto status = _nnXlinkPlg->WaitForResponse(response);
-    _wd->Pause();
-    if (X_LINK_SUCCESS != status) {
-        _logger->error("pull: WaitForResponse failed");
+    if (MVNCI_SUCCESS != status) {
+        _logger->error("VpualCoreNNExecutor::pull: WaitForResponse failed");
         THROW_IE_EXCEPTION << "VpualCoreNNExecutor::pull: WaitForResponse failed" << status;
     }
-    if (MVNCI_SUCCESS != response.status) {
-        _logger->error("pull: for inference: %d, received error response: %d", response.inferenceID, response.status);
-        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::pull: " << ", for inference: " << response.inferenceID
-                           << " received error response: " << response.status;
-    }
+
     ie::BlobMap deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
     repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
-    _logger->info("pull finished");
+    _logger->info("VpualCoreNNExecutor::pull finished");
 #else
     UNUSED(outputs);
 #endif
