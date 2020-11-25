@@ -15,6 +15,12 @@
 #
 
 function(vpux_add_native_tool NATIVE_NAME NATIVE_SOURCE_DIR)
+    if(NOT CMAKE_CROSSCOMPILING)
+        set(${NATIVE_NAME}_COMMAND ${NATIVE_NAME} CACHE INTERNAL "" FORCE)
+        set(${NATIVE_NAME}_TARGET ${NATIVE_NAME} CACHE INTERNAL "" FORCE)
+        return()
+    endif()
+
     set(options)
     set(oneValueArgs "EXEDIR")
     set(multiValueArgs "CMAKE_ARGS")
@@ -23,23 +29,28 @@ function(vpux_add_native_tool NATIVE_NAME NATIVE_SOURCE_DIR)
     set(NATIVE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/NATIVE/${NATIVE_NAME}")
 
     if(NOT DEFINED NATIVE_EXEDIR)
-        if(CMAKE_CFG_INTDIR STREQUAL ".")
-            set(NATIVE_EXEDIR ".")
-        else()
-            set(NATIVE_EXEDIR "Release")
-        endif()
+        set(NATIVE_EXEDIR ".")
     endif()
 
-    set(${NATIVE_NAME}_COMMAND "${NATIVE_BINARY_DIR}/${NATIVE_EXEDIR}/${NATIVE_NAME}${CMAKE_EXECUTABLE_SUFFIX}" CACHE INTERNAL "" FORCE)
+    if(CMAKE_CFG_INTDIR STREQUAL ".")
+        set(NATIVE_CFGDIR ".")
+    else()
+        set(NATIVE_CFGDIR "Release")
+    endif()
+
+    set(${NATIVE_NAME}_COMMAND
+        "${NATIVE_BINARY_DIR}/${NATIVE_EXEDIR}/${NATIVE_CFGDIR}/${NATIVE_NAME}${CMAKE_EXECUTABLE_SUFFIX}"
+        CACHE INTERNAL "" FORCE
+    )
+    set(${NATIVE_NAME}_TARGET
+        NATIVE_${NATIVE_NAME}
+        CACHE INTERNAL "" FORCE
+    )
 
     add_custom_command(
         OUTPUT ${NATIVE_BINARY_DIR}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${NATIVE_BINARY_DIR}
         COMMENT "[NATIVE] Creating ${NATIVE_BINARY_DIR} ..."
-    )
-
-    add_custom_target(CREATE_${NATIVE_NAME}_BINARY_DIR
-        DEPENDS ${NATIVE_BINARY_DIR}
     )
 
     set(cmake_args -G ${CMAKE_GENERATOR})
@@ -63,22 +74,18 @@ function(vpux_add_native_tool NATIVE_NAME NATIVE_SOURCE_DIR)
     add_custom_command(
         OUTPUT "${NATIVE_BINARY_DIR}/CMakeCache.txt"
         COMMAND ${CMAKE_COMMAND} ${cmake_args}
-        DEPENDS CREATE_${NATIVE_NAME}_BINARY_DIR
+        DEPENDS ${NATIVE_BINARY_DIR} ${NATIVE_NAME}
         COMMENT "[NATIVE] Configuring ${NATIVE_NAME} ..."
-    )
-
-    add_custom_target(CONFIGURE_${NATIVE_NAME}
-        DEPENDS "${NATIVE_BINARY_DIR}/CMakeCache.txt"
     )
 
     add_custom_command(
         OUTPUT ${${NATIVE_NAME}_COMMAND}
         COMMAND ${CMAKE_COMMAND} --build ${NATIVE_BINARY_DIR} --config Release --target ${NATIVE_NAME}
-        DEPENDS CONFIGURE_${NATIVE_NAME}
+        DEPENDS "${NATIVE_BINARY_DIR}/CMakeCache.txt"
         COMMENT "[NATIVE] Building ${NATIVE_NAME} ..."
     )
 
-    add_custom_target(BUILD_${NATIVE_NAME}
+    add_custom_target(NATIVE_${NATIVE_NAME}
         DEPENDS ${${NATIVE_NAME}_COMMAND}
     )
 endfunction()

@@ -1,10 +1,12 @@
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+
 project(mcmComplier VERSION 1.5.3)
 
 #############################################################################################
 ### Setup
 #############################################################################################
 
-set(META_DIR_PATH "${CMAKE_CURRENT_SOURCE_DIR}/meta")
+set(META_DIR_PATH "${CMAKE_CURRENT_BINARY_DIR}/meta")
 
 # Replace compiler flags
 foreach(flag IN ITEMS "-Werror" "-fvisibility=hidden" "-fvisibility-inlines-hidden")
@@ -27,6 +29,24 @@ endif()
 
 set(CMAKE_C_VISIBILITY_PRESET default)
 set(CMAKE_CXX_VISIBILITY_PRESET default)
+
+if(NOT TARGET flatbuffers)
+    set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(FLATBUFFERS_INSTALL OFF CACHE BOOL "" FORCE)
+    set(FLATBUFFERS_BUILD_FLATC ON CACHE BOOL "" FORCE)
+
+    add_subdirectory(
+        "${PROJECT_SOURCE_DIR}/../../thirdparty/flatbuffers"
+        "${CMAKE_CURRENT_BINARY_DIR}/flatbuffers"
+        EXCLUDE_FROM_ALL
+    )
+
+    set(flatc_COMMAND flatc)
+    set(flatc_TARGET flatc)
+
+    include("${PROJECT_SOURCE_DIR}/../../cmake/cross_compilation.cmake")
+    include("${PROJECT_SOURCE_DIR}/../../cmake/flatbuffers.cmake")
+endif()
 
 #############################################################################################
 ### Main build
@@ -273,6 +293,13 @@ set(syscalls
 add_subdirectory(meta)
 add_subdirectory(tools)
 
+set_source_files_properties(
+    "${META_DIR_PATH}/src/compositional_model.cpp"
+    "${META_DIR_PATH}/src/op_model.cpp"
+    PROPERTIES
+        GENERATED TRUE
+)
+
 add_library(mcmCompiler SHARED
     ${base} ${model} ${logger} ${pass} ${compiler} ${syscalls}
     "${META_DIR_PATH}/src/compositional_model.cpp"
@@ -289,12 +316,7 @@ if(MSVC)
     set_target_properties(mcmCompiler PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 endif()
 
-if(TARGET mcmCompilerGenCompAPI)
-    add_dependencies(mcmCompiler mcmCompilerGenCompAPI)
-endif()
-if(TARGET mcmCompilerGenSchema)
-    add_dependencies(mcmCompiler mcmCompilerGenSchema)
-endif()
+add_dependencies(mcmCompiler mcmCompilerGenSchema mcmCompilerGenCompAPI)
 
 target_include_directories(mcmCompiler
     PUBLIC

@@ -18,7 +18,7 @@
 # Project properties
 #
 
-cmake_minimum_required(VERSION 3.13.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 # Honor <LANG>_VISIBILITY_PRESET for all target types (including static libraries).
 cmake_policy(SET CMP0063 NEW)
@@ -44,6 +44,8 @@ find_package(InferenceEngineDeveloperPackage REQUIRED)
 include(cmake/features.cmake)
 include(cmake/compile_options.cmake)
 include(cmake/dependencies.cmake)
+include(cmake/cross_compilation.cmake)
+include(cmake/flatbuffers.cmake)
 
 if(ENABLE_TESTS)
     enable_testing()
@@ -70,10 +72,6 @@ endif()
 
 ie_cpack_add_component(${VPUX_DEVICE_NAME} REQUIRED)
 ie_cpack_add_component(${KMB_DEVICE_NAME} REQUIRED)
-
-if(CMAKE_CROSSCOMPILING)
-    include(cmake/cross_compilation.cmake)
-endif()
 
 #
 # Sub-directories
