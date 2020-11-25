@@ -113,16 +113,17 @@ The X86_64 build is needed to get reference results for the tests.
 2. Move to [KMB Plugin Project] base directory and build it with commands:
 
     ```bash
-    ( \
-        source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux ; \
-        mkdir -p $KMB_PLUGIN_HOME/build-aarch64 ; \
-        cd $KMB_PLUGIN_HOME/build-aarch64 ; \
-        cmake \
-            -D InferenceEngineDeveloperPackage_DIR=$OPENVINO_HOME/build-aarch64 \
-            .. ; \
-        make -j${nproc} ; \
-    )
+    mkdir -p $KMB_PLUGIN_HOME/build-aarch64
+    cd $KMB_PLUGIN_HOME/build-aarch64
+    cmake \
+        -D CMAKE_TOOLCHAIN_FILE=$KMB_PLUGIN_HOME/cmake/oecore.arm64.toolchain.cmake \
+        -D InferenceEngineDeveloperPackage_DIR=$OPENVINO_HOME/build-aarch64 \
+        ..
+    make -j${nproc}
     ```
+
+**Note:** Please use custom CMake toolchain file for [KMB Plugin Project],
+default approach with `environment-setup-aarch64-ese-linux` is not supported.
 
 #### mcmCompiler
 

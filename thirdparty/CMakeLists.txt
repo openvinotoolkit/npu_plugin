@@ -51,16 +51,12 @@ set(FLATBUFFERS_INSTALL OFF CACHE BOOL "" FORCE)
 set(FLATBUFFERS_BUILD_FLATC ON CACHE BOOL "" FORCE)
 add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
 
-if(NOT CMAKE_CROSSCOMPILING)
-    set(flatc_COMMAND "flatc" CACHE INTERNAL "" FORCE)
-else()
-    vpux_add_native_tool(flatc "${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers"
-        CMAKE_ARGS
-            "FLATBUFFERS_BUILD_TESTS:BOOL=OFF"
-            "FLATBUFFERS_INSTALL:BOOL=OFF"
-            "FLATBUFFERS_BUILD_FLATC:BOOL=ON"
-    )
-endif()
+vpux_add_native_tool(flatc "${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers"
+    CMAKE_ARGS
+        "FLATBUFFERS_BUILD_TESTS:BOOL=OFF"
+        "FLATBUFFERS_INSTALL:BOOL=OFF"
+        "FLATBUFFERS_BUILD_FLATC:BOOL=ON"
+)
 
 #
 # vpual
