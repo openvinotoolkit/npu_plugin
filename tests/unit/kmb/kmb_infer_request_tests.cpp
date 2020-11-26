@@ -156,8 +156,8 @@ public:
         : vpux::InferRequest(networkInputs, networkOutputs, executor, kmbConfig, "networkName", allocator){};
 
 public:
-    MOCK_METHOD6(execKmbDataPreprocessing, void(ie::BlobMap&, std::map<std::string, ie::PreProcessDataPtr>&,
-                                               ie::InputsDataMap&, ie::ColorFormat, unsigned int, unsigned int));
+    MOCK_METHOD7(execKmbDataPreprocessing, void(ie::BlobMap&, std::map<std::string, ie::PreProcessDataPtr>&,
+                                               ie::InputsDataMap&, ie::ColorFormat, unsigned int, unsigned int, unsigned int));
     MOCK_METHOD2(execDataPreprocessing, void(ie::BlobMap&, bool));
 };
 
@@ -362,7 +362,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, BGRIsDefaultColorFormatForSIPPPreproc) 
     _inferRequest->SetBlob(inputName, nv12Input, preProcInfo);
 
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()),
-        execKmbDataPreprocessing(_, _, _, ie::ColorFormat::BGR, _, _));
+        execKmbDataPreprocessing(_, _, _, ie::ColorFormat::BGR, _, _, _));
 
     _inferRequest->InferAsync();
 }
@@ -398,7 +398,7 @@ TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, preprocessingUseRGBIfConfigIs
         return ie::ColorFormat::RAW;
     };
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()),
-        execKmbDataPreprocessing(_, _, _, expectedColorFmt(configValue), _, _));
+        execKmbDataPreprocessing(_, _, _, expectedColorFmt(configValue), _, _, _));
 
     _inferRequest->InferAsync();
 }
@@ -427,7 +427,7 @@ TEST_F(kmbInferRequestSIPPPreprocessing, DISABLED_canDisableSIPP) {
     _inferRequest->SetBlob(inputName, nv12Input, preProcInfo);
 
     EXPECT_CALL(
-        *dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), execKmbDataPreprocessing(_, _, _, _, _, _))
+        *dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), execKmbDataPreprocessing(_, _, _, _, _, _, _))
         .Times(0);
 
     _inferRequest->InferAsync();
