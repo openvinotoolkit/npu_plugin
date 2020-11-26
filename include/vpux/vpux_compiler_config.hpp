@@ -91,13 +91,6 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT);
 
 /**
  * @brief [Only for vpu compiler]
- * Type: "YES/NO", default is "NO".
- *
- */
-DECLARE_VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER);
-
-/**
- * @brief [Only for vpu compiler]
  * Type: std::string, default is empty.
  * Provide path to custom layer binding xml file.
  * If layer is present in such an xml, it would be used during inference even if the layer is natively supported.
