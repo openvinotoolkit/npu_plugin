@@ -44,6 +44,7 @@ vpux::VPUXConfig::VPUXConfig() {
                                                                            VPU_KMB_CONFIG_KEY(USE_SIPP),
                                                                            VPUX_CONFIG_KEY(PREPROCESSING_SHAVES),
                                                                            VPUX_CONFIG_KEY(PREPROCESSING_LPI),
+                                                                           VPUX_CONFIG_KEY(PREPROCESSING_PIPES),
                                                                            VPUX_CONFIG_KEY(EXECUTOR_STREAMS),
                                                                            VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS),
                                                                        });
@@ -92,6 +93,7 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     IE_ASSERT(0 < _SIPPLpi && _SIPPLpi <= 16 && vpu::isPowerOfTwo(_SIPPLpi))
         << "VPUXConfig::parse attempt to set invalid lpi value for SIPP: '" << _SIPPLpi
         << "',  valid values are 1, 2, 4, 8, 16";
+    setOption(_numberOfPPPipes, config, VPUX_CONFIG_KEY(PREPROCESSING_PIPES), parseInt);
     setOption(_executorStreams, config, VPUX_CONFIG_KEY(EXECUTOR_STREAMS), parseInt);
     setOption(_executorStreams, config, VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS), parseInt);
 

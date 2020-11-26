@@ -688,10 +688,11 @@ TEST_P(KmbPreprocPoolTest, TestNV12Resize)
 
             unsigned int nShaves = 4;
             unsigned int lpi = 8;
+            unsigned int nPipes = 1;
             const std::string graphId = "1";
             const int deviceId = 0;
             KmbPreproc::execDataPreprocessing(
-                ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, out_fmt, nShaves, lpi, graphId, deviceId, ctx.preprocPath);
+                ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, out_fmt, nShaves, lpi, nPipes, graphId, deviceId, ctx.preprocPath);
         }
 
 #if 0
