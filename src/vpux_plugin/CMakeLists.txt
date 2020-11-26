@@ -18,10 +18,97 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(VPUX_PLUGIN_TARGET "VPUXPlugin" CACHE INTERNAL "")
+file(GLOB SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-set(VPUX_PLUGIN_OBJS_TARGET ${HDDL2_PLUGIN_OBJS_TARGET})
-set(VPUX_PLUGIN_ENGINE_SOURCE_FILE ${HDDL2_PLUGIN_ENGINE_SOURCE_FILE})
+list(FILTER SOURCES EXCLUDE REGEX "vpux_plugin.cpp")
+
+set(VPUX_PLUGIN_TARGET "VPUXPlugin" CACHE INTERNAL "")
+set(VPUX_PLUGIN_OBJS_TARGET ${VPUX_PLUGIN_TARGET}_objs)
+set(VPUX_PLUGIN_STATIC_TARGET "${VPUX_PLUGIN_TARGET}_static" CACHE INTERNAL "")
+set(VPUX_PLUGIN_ENGINE_SOURCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/vpux_plugin.cpp CACHE INTERNAL "")
+
+
+#
+# Object library
+#
+
+add_library(${VPUX_PLUGIN_OBJS_TARGET} OBJECT ${SOURCES})
+
+enable_warnings_as_errors(${VPUX_PLUGIN_OBJS_TARGET})
+addVersionDefines(${VPUX_PLUGIN_ENGINE_SOURCE_FILE} CI_BUILD_NUMBER)
+target_compile_definitions(${VPUX_PLUGIN_OBJS_TARGET}
+    PRIVATE
+        IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+
+target_include_directories(${VPUX_PLUGIN_OBJS_TARGET}
+    PUBLIC
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/preproc_gapi"
+)
+
+link_system_libraries(${VPUX_PLUGIN_OBJS_TARGET}
+    PUBLIC
+        IE::inference_engine
+        IE::inference_engine_plugin_api
+        IE::vpu_common_lib
+)
+
+target_link_libraries(${VPUX_PLUGIN_OBJS_TARGET}
+    PUBLIC
+        kmb_utils
+        vpux_al
+    PRIVATE
+        ${GAPI_LIB}
+)
+
+add_cpplint_target(${VPUX_PLUGIN_OBJS_TARGET}_cpplint FOR_TARGETS ${VPUX_PLUGIN_OBJS_TARGET})
+
+if(ENABLE_CLANG_FORMAT)
+    add_clang_format_target(clang_format_${VPUX_PLUGIN_TARGET} FOR_TARGETS ${VPUX_PLUGIN_OBJS_TARGET} ALL)
+    add_dependencies(${VPUX_PLUGIN_OBJS_TARGET} clang_format_${VPUX_PLUGIN_TARGET})
+endif()
+
+#
+# Static library
+#
+
+add_library(${VPUX_PLUGIN_STATIC_TARGET} STATIC
+        $<TARGET_OBJECTS:${VPUX_PLUGIN_OBJS_TARGET}>
+        ${VPUX_PLUGIN_ENGINE_SOURCE_FILE})
+
+target_compile_definitions(${VPUX_PLUGIN_STATIC_TARGET}
+    PRIVATE
+        IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+        "DEVICE_NAME=\"${VPUX_DEVICE_NAME}\"")
+
+target_include_directories(${VPUX_PLUGIN_STATIC_TARGET}
+    PUBLIC
+        $<TARGET_PROPERTY:${VPUX_PLUGIN_OBJS_TARGET},INTERFACE_INCLUDE_DIRECTORIES>)
+
+
+link_system_libraries(${VPUX_PLUGIN_STATIC_TARGET}
+    PUBLIC
+        IE::inference_engine_plugin_api
+        IE::vpu_common_lib
+)
+
+target_link_libraries(${VPUX_PLUGIN_STATIC_TARGET}
+    PUBLIC
+        kmb_utils
+    PRIVATE
+        vpux_al
+        ${GAPI_LIB}
+)
+
+
+#
+# Plugin library
+#
 
 set(TARGET_NAME ${VPUX_PLUGIN_TARGET})
 ie_add_plugin(NAME ${VPUX_PLUGIN_TARGET}
@@ -40,6 +127,7 @@ target_link_libraries(${VPUX_PLUGIN_TARGET}
     PRIVATE
         ${VPUX_PLUGIN_OBJS_TARGET})
 
+
 install(TARGETS ${VPUX_PLUGIN_TARGET} mcmCompiler
     RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_DEVICE_NAME}
     ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_DEVICE_NAME}
@@ -57,7 +145,6 @@ endif()
 
 set(ALL_PLUGINS)
 
-list(APPEND ALL_PLUGINS ${HDDL2_PLUGIN_TARGET})
 list(APPEND ALL_PLUGINS ${VPUX_PLUGIN_TARGET})
 
 ie_register_plugins(MAIN_TARGET ${VPUX_PLUGIN_TARGET} POSSIBLE_PLUGINS ${ALL_PLUGINS})
