@@ -27,21 +27,47 @@ public:
     VPUXConfig();
 
     // Public options
-    bool performanceCounting() const { return _performanceCounting; }
-    std::string deviceId() const { return _deviceId; }
-    int throughputStreams() const { return _throughputStreams; }
-    InferenceEngine::VPUXConfigParams::VPUXPlatform platform() const { return _platform; }
+    bool performanceCounting() const {
+        return _performanceCounting;
+    }
+    std::string deviceId() const {
+        return _deviceId;
+    }
+    int throughputStreams() const {
+        return _throughputStreams;
+    }
+    InferenceEngine::VPUXConfigParams::VPUXPlatform platform() const {
+        return _platform;
+    }
 
     // Private options
-    bool useNGraphParser() const { return _useNGraphParser; }
-    InferenceEngine::ColorFormat graphColorFormat() const { return _graphColorFormat; }
-    uint64_t CSRAMSize() const { return _csramSize; }
-    bool useM2I() const { return _useM2I; }
-    bool useSIPP() const { return _useSIPP; }
-    int numberOfSIPPShaves() const { return _numberOfSIPPShaves; }
-    int SIPPLpi() const { return _SIPPLpi; }
-    int numberOfPPPipes() const { return _numberOfPPPipes; }
-    int executorStreams() const { return _executorStreams; }
+    bool useNGraphParser() const {
+        return _useNGraphParser;
+    }
+    InferenceEngine::ColorFormat graphColorFormat() const {
+        return _graphColorFormat;
+    }
+    uint64_t CSRAMSize() const {
+        return _csramSize;
+    }
+    bool useM2I() const {
+        return _useM2I;
+    }
+    bool useSIPP() const {
+        return _useSIPP;
+    }
+    int numberOfSIPPShaves() const {
+        return _numberOfSIPPShaves;
+    }
+    int SIPPLpi() const {
+        return _SIPPLpi;
+    }
+    int numberOfPPPipes() const {
+        return _numberOfPPPipes;
+    }
+    int executorStreams() const {
+        return _executorStreams;
+    }
 
     void parseFrom(const VPUXConfig& other);
 

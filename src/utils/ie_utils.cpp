@@ -84,9 +84,13 @@ ie::Blob::Ptr makeSingleValueBlob_(const ie::TensorDesc& desc, T val) {
 
 }  // namespace
 
-ie::Blob::Ptr makeSingleValueBlob(const ie::TensorDesc& desc, float val) { return makeSingleValueBlob_(desc, val); }
+ie::Blob::Ptr makeSingleValueBlob(const ie::TensorDesc& desc, float val) {
+    return makeSingleValueBlob_(desc, val);
+}
 
-ie::Blob::Ptr makeSingleValueBlob(const ie::TensorDesc& desc, int64_t val) { return makeSingleValueBlob_(desc, val); }
+ie::Blob::Ptr makeSingleValueBlob(const ie::TensorDesc& desc, int64_t val) {
+    return makeSingleValueBlob_(desc, val);
+}
 
 //
 // makeScalarBlob
@@ -162,7 +166,7 @@ void cvtBlobPrecision_<float, ie::ie_fp16>(const ie::Blob::Ptr& in, const ie::Bl
 }  // namespace
 
 ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precision,
-    const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
+                          const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
     IE_ASSERT(in != nullptr);
 
     const auto& inDesc = in->getTensorDesc();
@@ -428,11 +432,11 @@ ie::Blob::Ptr convertPrecision(const ie::Blob::Ptr& sourceData, const ie::Precis
     }
 
     ie::Blob::Ptr target = make_blob_with_precision(
-        ie::TensorDesc(targetPrecision, sourceTensorDesc.getDims(), sourceTensorDesc.getLayout()));
+            ie::TensorDesc(targetPrecision, sourceTensorDesc.getDims(), sourceTensorDesc.getLayout()));
     target->allocate();
     if (sourcePrecision == ie::Precision::FP16 && targetPrecision == ie::Precision::FP32) {
-        ie::PrecisionUtils::f16tof32Arrays(
-            target->buffer(), sourceData->cbuffer().as<ie::ie_fp16*>(), sourceData->size(), 1.0f, 0.0f);
+        ie::PrecisionUtils::f16tof32Arrays(target->buffer(), sourceData->cbuffer().as<ie::ie_fp16*>(),
+                                           sourceData->size(), 1.0f, 0.0f);
     } else if (sourcePrecision == ie::Precision::FP32 && targetPrecision == ie::Precision::FP16) {
         ie::PrecisionUtils::f32tof16Arrays(target->buffer(), sourceData->cbuffer().as<float*>(), sourceData->size());
     } else {

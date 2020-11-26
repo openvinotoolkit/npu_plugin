@@ -17,8 +17,9 @@
 #include "vpux_config_base.hpp"
 
 vpux::VPUXConfigBase::VPUXConfigBase()
-    : _compileOptions(vpu::ParsedConfigBase::getCompileOptions()),
-      _runTimeOptions(vpu::ParsedConfigBase::getRunTimeOptions()) {}
+        : _compileOptions(vpu::ParsedConfigBase::getCompileOptions()),
+          _runTimeOptions(vpu::ParsedConfigBase::getRunTimeOptions()) {
+}
 
 void vpux::VPUXConfigBase::parse(const std::map<std::string, std::string>& config) {
     ParsedConfigBase::parse(config);
@@ -41,6 +42,10 @@ void vpux::VPUXConfigBase::expandSupportedRunTimeOptions(const std::unordered_se
     _runTimeOptions.insert(options.cbegin(), options.cend());
 }
 
-const std::unordered_set<std::string>& vpux::VPUXConfigBase::getCompileOptions() const { return _compileOptions; }
+const std::unordered_set<std::string>& vpux::VPUXConfigBase::getCompileOptions() const {
+    return _compileOptions;
+}
 
-const std::unordered_set<std::string>& vpux::VPUXConfigBase::getRunTimeOptions() const { return _runTimeOptions; }
+const std::unordered_set<std::string>& vpux::VPUXConfigBase::getRunTimeOptions() const {
+    return _runTimeOptions;
+}

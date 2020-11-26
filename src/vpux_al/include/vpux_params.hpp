@@ -28,10 +28,18 @@ namespace vpux {
  */
 class ParsedRemoteBlobParams {
 public:
-    InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
-    InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
-    std::shared_ptr<const InferenceEngine::ROI> getROIPtr() const { return _roiPtr; }
-    std::shared_ptr<const InferenceEngine::TensorDesc> getOriginalTensorDesc() const { return _originalTensorDesc; }
+    InferenceEngine::ParamMap getParamMap() const {
+        return _paramMap;
+    }
+    InferenceEngine::ColorFormat getColorFormat() const {
+        return _colorFormat;
+    }
+    std::shared_ptr<const InferenceEngine::ROI> getROIPtr() const {
+        return _roiPtr;
+    }
+    std::shared_ptr<const InferenceEngine::TensorDesc> getOriginalTensorDesc() const {
+        return _originalTensorDesc;
+    }
 
 public:
     /** @brief Override current parameters with new options, not specified keep the same */

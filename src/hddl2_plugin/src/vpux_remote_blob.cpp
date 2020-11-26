@@ -27,12 +27,13 @@ namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
 VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemoteContext::Ptr& contextPtr,
-    const std::shared_ptr<Allocator>& allocator, const IE::ParamMap& params, const vpu::LogLevel logLevel)
-    : RemoteBlob(tensorDesc),
-      _remoteContextPtr(contextPtr),
-      _allocatorPtr(allocator),
-      _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", logLevel, vpu::consoleOutput())),
-      _originalTensorDesc(tensorDesc) {
+                               const std::shared_ptr<Allocator>& allocator, const IE::ParamMap& params,
+                               const vpu::LogLevel logLevel)
+        : RemoteBlob(tensorDesc),
+          _remoteContextPtr(contextPtr),
+          _allocatorPtr(allocator),
+          _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", logLevel, vpu::consoleOutput())),
+          _originalTensorDesc(tensorDesc) {
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << CONTEXT_ERROR_str << "Remote context is null.";
     }
@@ -50,7 +51,7 @@ VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemot
 }
 
 static std::shared_ptr<IE::ROI> makeROIOverROI(const std::shared_ptr<const IE::ROI>& origROIPtr,
-    const IE::ROI& appliedROI, const size_t width, const size_t height) {
+                                               const IE::ROI& appliedROI, const size_t width, const size_t height) {
     std::shared_ptr<IE::ROI> resultROI = nullptr;
     if (origROIPtr) {
         IE::ROI newROI = appliedROI;
@@ -68,12 +69,12 @@ static std::shared_ptr<IE::ROI> makeROIOverROI(const std::shared_ptr<const IE::R
 }
 
 VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& regionOfInterest)
-    : RemoteBlob(make_roi_desc(origBlob.getTensorDesc(), regionOfInterest, true)),
-      _parsedParams(origBlob._parsedParams),
-      _remoteContextPtr(origBlob._remoteContextPtr),
-      _allocatorPtr(origBlob._allocatorPtr),
-      _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", origBlob._logger->level(), vpu::consoleOutput())),
-      _originalTensorDesc(origBlob.getOriginalTensorDesc()) {
+        : RemoteBlob(make_roi_desc(origBlob.getTensorDesc(), regionOfInterest, true)),
+          _parsedParams(origBlob._parsedParams),
+          _remoteContextPtr(origBlob._remoteContextPtr),
+          _allocatorPtr(origBlob._allocatorPtr),
+          _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", origBlob._logger->level(), vpu::consoleOutput())),
+          _originalTensorDesc(origBlob.getOriginalTensorDesc()) {
     if (_allocatorPtr == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set allocator";
     }
@@ -87,13 +88,14 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
     auto newROI = makeROIOverROI(_parsedParams.getROIPtr(), regionOfInterest, orig_W, orig_H);
     // With ROI param full tensor desc also should be stored to be able to get full frame information
     IE::ParamMap updatedROIPtrParam = {{IE::KMB_PARAM_KEY(ROI_PTR), newROI},
-        {IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC), std::make_shared<IE::TensorDesc>(origBlob.getOriginalTensorDesc())}};
+                                       {IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC),
+                                        std::make_shared<IE::TensorDesc>(origBlob.getOriginalTensorDesc())}};
     _parsedParams.update(updatedROIPtrParam);
 
     // TODO Remove this cast
     const auto privateAllocator = std::static_pointer_cast<Allocator>(_allocatorPtr);
     IE::ParamMap params = {{IE::KMB_PARAM_KEY(BLOB_MEMORY_HANDLE), origBlob._memoryHandle},
-        {IE::KMB_PARAM_KEY(ALLOCATION_SIZE), origBlob.size()}};
+                           {IE::KMB_PARAM_KEY(ALLOCATION_SIZE), origBlob.size()}};
 
     try {
         auto origParams = origBlob.getParams();
@@ -143,13 +145,18 @@ std::string VPUXRemoteBlob::getDeviceName() const noexcept {
     return remoteContext->getDeviceName();
 }
 
-std::shared_ptr<IE::RemoteContext> VPUXRemoteBlob::getContext() const noexcept { return _remoteContextPtr.lock(); }
+std::shared_ptr<IE::RemoteContext> VPUXRemoteBlob::getContext() const noexcept {
+    return _remoteContextPtr.lock();
+}
 
-const std::shared_ptr<IE::IAllocator>& VPUXRemoteBlob::getAllocator() const noexcept { return _allocatorPtr; }
+const std::shared_ptr<IE::IAllocator>& VPUXRemoteBlob::getAllocator() const noexcept {
+    return _allocatorPtr;
+}
 
 size_t VPUXRemoteBlob::size() const noexcept {
     if (_parsedParams.getColorFormat() == IE::ColorFormat::NV12) {
-        if (tensorDesc.getLayout() == IE::Layout::SCALAR) return 1;
+        if (tensorDesc.getLayout() == IE::Layout::SCALAR)
+            return 1;
         // FIXME It's a very bad solution
         const auto dims = tensorDesc.getDims();
         size_t height = dims.at(2);
@@ -160,7 +167,9 @@ size_t VPUXRemoteBlob::size() const noexcept {
     }
 }
 
-size_t VPUXRemoteBlob::byteSize() const noexcept { return size() * element_size(); }
+size_t VPUXRemoteBlob::byteSize() const noexcept {
+    return size() * element_size();
+}
 
 IE::Blob::Ptr VPUXRemoteBlob::createROI(const IE::ROI& regionOfInterest) const {
     return Blob::Ptr(new VPUXRemoteBlob(*this, regionOfInterest));

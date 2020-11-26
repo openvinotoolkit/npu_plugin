@@ -46,12 +46,17 @@ namespace ie = InferenceEngine;
 class McmNodeObject final : public EnableHandle, public EnableCustomAttributes {
 public:
     explicit McmNodeObject(mv::Data::TensorIterator node, InferenceEngine::TensorDesc desc)
-        : _desc(desc), _mcmNode(node) {}
+            : _desc(desc), _mcmNode(node) {
+    }
     MCM_MODEL_ATTRIBUTE(InferenceEngine::TensorDesc, desc, InferenceEngine::TensorDesc())
     MCM_MODEL_ATTRIBUTE(ie::DataPtr, origData, nullptr)
 
-    mv::Data::TensorIterator& getMcmNode() { return _mcmNode; }
-    void setOrigData(const ie::DataPtr& origData) { _origData = origData; }
+    mv::Data::TensorIterator& getMcmNode() {
+        return _mcmNode;
+    }
+    void setOrigData(const ie::DataPtr& origData) {
+        _origData = origData;
+    }
 
 private:
     mv::Data::TensorIterator _mcmNode;
@@ -68,9 +73,9 @@ public:
     using Ptr = std::shared_ptr<FrontEndMcm>;
 
     explicit FrontEndMcm(mv::OpModel& modelMcm, const MCMConfig& config)
-        : _modelMcm(modelMcm),
-          _logger(std::make_shared<Logger>("FrontEndMcm", config.mcmLogLevel(), consoleOutput())),
-          _config(config){};
+            : _modelMcm(modelMcm),
+              _logger(std::make_shared<Logger>("FrontEndMcm", config.mcmLogLevel(), consoleOutput())),
+              _config(config){};
 
     void buildInitialModel(ie::ICNNNetwork& network);
 
@@ -150,8 +155,8 @@ private:
     void bindData(const McmNode& data, const ie::DataPtr& ieData);
     void bindOutput(mv::Data::TensorIterator node, ie::DataPtr& layerOutput);
     void getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inputs);
-    void parseScaleImpl(
-        const ie::CNNLayerPtr& layer, const McmNodeVector& inputs, std::vector<double>& weights, ie::Blob::Ptr biases);
+    void parseScaleImpl(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs, std::vector<double>& weights,
+                        ie::Blob::Ptr biases);
 
     struct ParsedNetwork {
         ie::InputsDataMap networkInputs;
@@ -186,10 +191,10 @@ private:
     ParsedNetwork _parsedNetwork;
     MCMConfig _config;
 
-    std::vector<CustomLayer::Ptr> getSuitableCustomLayers(
-        const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr& cnnLayer);
-    CustomLayer::Ptr findMatchingCustomLayer(
-        const std::vector<CustomLayer::Ptr>& customLayers, const McmNodeVector& inputs);
+    std::vector<CustomLayer::Ptr> getSuitableCustomLayers(const std::vector<CustomLayer::Ptr>& customLayers,
+                                                          const ie::CNNLayerPtr& cnnLayer);
+    CustomLayer::Ptr findMatchingCustomLayer(const std::vector<CustomLayer::Ptr>& customLayers,
+                                             const McmNodeVector& inputs);
 
     ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> _customLayers;
 };

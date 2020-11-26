@@ -33,10 +33,18 @@ class KmbBlobParams {
 public:
     explicit KmbBlobParams(const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config);
 
-    InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
-    KmbRemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
-    KmbHandleParam getRemoteMemoryHandle() const { return _remoteMemoryHandle; }
-    KmbOffsetParam getRemoteMemoryOffset() const { return _remoteMemoryOffset; }
+    InferenceEngine::ParamMap getParamMap() const {
+        return _paramMap;
+    }
+    KmbRemoteMemoryFD getRemoteMemoryFD() const {
+        return _remoteMemoryFd;
+    }
+    KmbHandleParam getRemoteMemoryHandle() const {
+        return _remoteMemoryHandle;
+    }
+    KmbOffsetParam getRemoteMemoryOffset() const {
+        return _remoteMemoryOffset;
+    }
 
 protected:
     InferenceEngine::ParamMap _paramMap;
@@ -51,15 +59,16 @@ public:
     using Ptr = std::shared_ptr<KmbRemoteBlob>;
 
     explicit KmbRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const KmbRemoteContext::Ptr& contextPtr,
-        const InferenceEngine::ParamMap& params, const vpux::VPUXConfig& config,
-        const std::shared_ptr<vpux::Allocator>& allocator);
+                           const InferenceEngine::ParamMap& params, const vpux::VPUXConfig& config,
+                           const std::shared_ptr<vpux::Allocator>& allocator);
     explicit KmbRemoteBlob(const KmbRemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
     ~KmbRemoteBlob() override = default;
 
     /**
      * @details Since Remote blob just wraps remote memory, allocation is not required
      */
-    void allocate() noexcept override {}
+    void allocate() noexcept override {
+    }
 
     /**
      * @brief Deallocate local memory
@@ -79,11 +88,15 @@ public:
 
     std::shared_ptr<InferenceEngine::RemoteContext> getContext() const noexcept override;
 
-    InferenceEngine::ParamMap getParams() const override { return _params.getParamMap(); }
+    InferenceEngine::ParamMap getParams() const override {
+        return _params.getParamMap();
+    }
 
     std::string getDeviceName() const noexcept override;
 
-    KmbRemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
+    KmbRemoteMemoryFD getRemoteMemoryFD() const {
+        return _remoteMemoryFd;
+    }
 
     size_t size() const noexcept override;
 

@@ -32,28 +32,30 @@ class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDef
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
-    explicit ExecutableNetwork(
-        InferenceEngine::ICNNNetwork& network, const Device::Ptr& device, const VPUXConfig& config);
+    explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network, const Device::Ptr& device,
+                               const VPUXConfig& config);
     explicit ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const VPUXConfig& config);
     ~ExecutableNetwork() override = default;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
-        const InferenceEngine::InputsDataMap networkInputs,
-        const InferenceEngine::OutputsDataMap networkOutputs) override;
+            const InferenceEngine::InputsDataMap networkInputs,
+            const InferenceEngine::OutputsDataMap networkOutputs) override;
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
 
     using InferenceEngine::ExecutableNetworkInternal::Export;
     void ExportImpl(std::ostream& model) override;
-    void Export(std::ostream& networkModel) override { ExportImpl(networkModel); }
+    void Export(std::ostream& networkModel) override {
+        ExportImpl(networkModel);
+    }
     void Export(const std::string& modelFileName) override;
 
     void GetMetric(const std::string& name, InferenceEngine::Parameter& result,
-        InferenceEngine::ResponseDesc* resp) const override;
+                   InferenceEngine::ResponseDesc* resp) const override;
 
 private:
     explicit ExecutableNetwork(const VPUXConfig& config, const Device::Ptr& device);
-    Executor::Ptr createExecutor(
-        const NetworkDescription::Ptr& network, const VPUXConfig& config, const Device::Ptr& device);
+    Executor::Ptr createExecutor(const NetworkDescription::Ptr& network, const VPUXConfig& config,
+                                 const Device::Ptr& device);
 
 private:
     void ConfigureStreamsExecutor(const std::string& networkName);

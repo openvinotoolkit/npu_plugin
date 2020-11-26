@@ -170,8 +170,8 @@ CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir):
     const size_t neoMetadataSize = neoMetadataShdr->shSize;
 
     const Elf32Shdr* neoMetadataStrShdr = get_elf_section_with_name(elf, ".neo_metadata.str");
-    VPU_THROW_UNLESS(
-        neoMetadataStrShdr, "Error while parsing custom layer elf: Couldn't find .neo_metadata.str section");
+    VPU_THROW_UNLESS(neoMetadataStrShdr,
+                     "Error while parsing custom layer elf: Couldn't find .neo_metadata.str section");
 
     const char* neoMetadataStr = reinterpret_cast<const char*>(elf + neoMetadataStrShdr->shOffset);
     const size_t neoMetadataStrSize = neoMetadataStrShdr->shSize;
@@ -181,9 +181,9 @@ CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir):
     VPU_THROW_UNLESS(_kernelId != -1, "Failed to find kernel with name `%l`", kernelEntryName);
 
     VPU_THROW_UNLESS(parser.get_kernel_count() == 1,
-        "Failed to load kernel binary '%l'\n"
-        "\tReason: binary should contain only one kernel, but contains %l",
-        fileName, parser.get_kernel_count());
+                     "Failed to load kernel binary '%l'\n"
+                     "\tReason: binary should contain only one kernel, but contains %l",
+                     fileName, parser.get_kernel_count());
     _kernelArguments = deduceKernelArguments(parser, _kernelId);
 
     processParametersNode(kernel);
@@ -225,8 +225,8 @@ std::pair<CustomDimSource, int> parseDimSource(const std::string& dims) {
 
 CustomDataFormat formatFromString(const std::string& str) {
     static const ie::details::caseless_map<std::string, CustomDataFormat> FormatNameToType = {
-        {"BFYX", CustomDataFormat::BFYX}, {"BYXF", CustomDataFormat::BYXF}, {"FYX", CustomDataFormat::FYX},
-        {"YXF", CustomDataFormat::YXF}, {"BF", CustomDataFormat::BF}, {"ANY", CustomDataFormat::Any}};
+            {"BFYX", CustomDataFormat::BFYX}, {"BYXF", CustomDataFormat::BYXF}, {"FYX", CustomDataFormat::FYX},
+            {"YXF", CustomDataFormat::YXF},   {"BF", CustomDataFormat::BF},     {"ANY", CustomDataFormat::Any}};
 
     auto it = FormatNameToType.find(str);
     if (it != FormatNameToType.end()) {

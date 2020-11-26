@@ -25,7 +25,9 @@ namespace vpux {
 class VPUXConfigBase : public vpu::ParsedConfigBase {
 public:
     VPUXConfigBase();
-    const std::map<std::string, std::string>& getConfig() const { return _config; }
+    const std::map<std::string, std::string>& getConfig() const {
+        return _config;
+    }
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
     void expandSupportedCompileOptions(const std::unordered_set<std::string>& options);

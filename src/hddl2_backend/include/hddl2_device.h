@@ -33,8 +33,12 @@ namespace HDDL2 {
 class HDDLUniteDevice final : public IDevice {
 public:
     explicit HDDLUniteDevice(const std::string& name = "");
-    std::shared_ptr<Allocator> getAllocator() const override { return _allocatorPtr; }
-    std::string getName() const override { return _name; }
+    std::shared_ptr<Allocator> getAllocator() const override {
+        return _allocatorPtr;
+    }
+    std::string getName() const override {
+        return _name;
+    }
 
     Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;
 

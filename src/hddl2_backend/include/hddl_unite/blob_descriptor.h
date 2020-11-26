@@ -42,15 +42,17 @@ public:
     BlobDescriptor& operator=(const BlobDescriptor&&) = delete;
 
     explicit BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::CPtr& blob,
-        bool createRemoteMemoryDescriptor, bool isNeedAllocation, bool isOutput);
+                            bool createRemoteMemoryDescriptor, bool isNeedAllocation, bool isOutput);
     virtual ~BlobDescriptor() = default;
 
-    virtual HddlUnite::Inference::BlobDesc createUniteBlobDesc(
-        const bool& isInput, const InferenceEngine::ColorFormat& colorFormat);
+    virtual HddlUnite::Inference::BlobDesc createUniteBlobDesc(const bool& isInput,
+                                                               const InferenceEngine::ColorFormat& colorFormat);
     virtual void initUniteBlobDesc(HddlUnite::Inference::BlobDesc&);
     virtual HddlUnite::Inference::NNInputDesc createNNDesc();
 
-    std::shared_ptr<const InferenceEngine::ROI> getROIPtr() const { return _parsedBlobParamsPtr->getROIPtr(); }
+    std::shared_ptr<const InferenceEngine::ROI> getROIPtr() const {
+        return _parsedBlobParamsPtr->getROIPtr();
+    }
     std::shared_ptr<const InferenceEngine::TensorDesc> getOriginalTensorDesc() const {
         return _parsedBlobParamsPtr->getOriginalTensorDesc();
     };

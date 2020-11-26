@@ -31,22 +31,19 @@ using namespace InferenceEngine::PluginConfigParams;
 
 KmbMetrics::KmbMetrics(const std::map<std::string, std::shared_ptr<vpux::Device>>& devices) {
     _supportedMetrics = {
-        METRIC_KEY(SUPPORTED_METRICS),
-        METRIC_KEY(AVAILABLE_DEVICES),
-        METRIC_KEY(FULL_DEVICE_NAME),
-        METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-        METRIC_KEY(OPTIMIZATION_CAPABILITIES),
-        METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
-        METRIC_KEY(RANGE_FOR_STREAMS),
+            METRIC_KEY(SUPPORTED_METRICS),         METRIC_KEY(AVAILABLE_DEVICES),
+            METRIC_KEY(FULL_DEVICE_NAME),          METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+            METRIC_KEY(OPTIMIZATION_CAPABILITIES), METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+            METRIC_KEY(RANGE_FOR_STREAMS),
     };
 
     _supportedConfigKeys = {
-        CONFIG_KEY(LOG_LEVEL),
-        CONFIG_KEY(PERF_COUNT),
-        CONFIG_KEY(DEVICE_ID),
-        VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
-        KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
-        VPUX_CONFIG_KEY(PLATFORM),
+            CONFIG_KEY(LOG_LEVEL),
+            CONFIG_KEY(PERF_COUNT),
+            CONFIG_KEY(DEVICE_ID),
+            VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
+            KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+            VPUX_CONFIG_KEY(PLATFORM),
     };
 
     for (const auto& elem : devices) {
@@ -55,18 +52,30 @@ KmbMetrics::KmbMetrics(const std::map<std::string, std::shared_ptr<vpux::Device>
     }
 }
 
-std::vector<std::string> KmbMetrics::AvailableDevicesNames() const { return _availableDevices; }
+std::vector<std::string> KmbMetrics::AvailableDevicesNames() const {
+    return _availableDevices;
+}
 
-const std::vector<std::string>& KmbMetrics::SupportedMetrics() const { return _supportedMetrics; }
+const std::vector<std::string>& KmbMetrics::SupportedMetrics() const {
+    return _supportedMetrics;
+}
 
-std::string KmbMetrics::GetFullDevicesNames() { return {"Gen3 Intel(R) Movidius(TM) VPU code-named Keem Bay"}; }
+std::string KmbMetrics::GetFullDevicesNames() {
+    return {"Gen3 Intel(R) Movidius(TM) VPU code-named Keem Bay"};
+}
 
-const std::vector<std::string>& KmbMetrics::GetSupportedConfigKeys() const { return _supportedConfigKeys; }
+const std::vector<std::string>& KmbMetrics::GetSupportedConfigKeys() const {
+    return _supportedConfigKeys;
+}
 
-const std::vector<std::string>& KmbMetrics::GetOptimizationCapabilities() const { return _optimizationCapabilities; }
+const std::vector<std::string>& KmbMetrics::GetOptimizationCapabilities() const {
+    return _optimizationCapabilities;
+}
 
 const std::tuple<uint32_t, uint32_t, uint32_t>& KmbMetrics::GetRangeForAsyncInferRequest() const {
     return _rangeForAsyncInferRequests;
 }
 
-const std::tuple<uint32_t, uint32_t>& KmbMetrics::GetRangeForStreams() const { return _rangeForStreams; }
+const std::tuple<uint32_t, uint32_t>& KmbMetrics::GetRangeForStreams() const {
+    return _rangeForStreams;
+}

@@ -40,12 +40,12 @@ static void checkData(const IE::DataPtr& desc) {
 
 //------------------------------------------------------------------------------
 HddlUniteInferData::HddlUniteInferData(const bool& needPreProcessing,
-    const HddlUnite::WorkloadContext::Ptr& workloadContext, const InferenceEngine::ColorFormat colorFormat,
-    const size_t numOutputs)
-    : _workloadContext(workloadContext),
-      _haveRemoteContext(workloadContext != nullptr),
-      _needUnitePreProcessing(needPreProcessing),
-      _graphColorFormat(colorFormat) {
+                                       const HddlUnite::WorkloadContext::Ptr& workloadContext,
+                                       const InferenceEngine::ColorFormat colorFormat, const size_t numOutputs)
+        : _workloadContext(workloadContext),
+          _haveRemoteContext(workloadContext != nullptr),
+          _needUnitePreProcessing(needPreProcessing),
+          _graphColorFormat(colorFormat) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
 
     // TODO Use maxRoiNum

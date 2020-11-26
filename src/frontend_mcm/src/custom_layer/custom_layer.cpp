@@ -33,8 +33,8 @@ void assertExactlyOneOccurrence(const pugi::xml_node& node, const SmallVector<st
     for (const auto& name : childs) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty(), "Required parameter %s is not found", name);
-        VPU_THROW_UNLESS(
-            child.next_sibling(name.c_str()).empty(), "Found several definitions of the parameter %s", name);
+        VPU_THROW_UNLESS(child.next_sibling(name.c_str()).empty(), "Found several definitions of the parameter %s",
+                         name);
     }
 }
 
@@ -49,7 +49,7 @@ void assertZeroOrOneOccurrence(const pugi::xml_node& node, const SmallVector<std
     for (const auto& name : childNames) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty() || child.next_sibling(name.c_str()).empty(),
-            "Found several definitions of the parameter %s", name);
+                         "Found several definitions of the parameter %s", name);
     }
 }
 
@@ -57,8 +57,8 @@ void assertNoEmptyAttributes(const pugi::xml_node& customLayer) {
     const auto checkAttributes = [&customLayer](const pugi::xml_node& node) {
         for (const auto& attr : node.attributes()) {
             VPU_THROW_UNLESS(strlen(attr.value()) != 0,
-                "Wrong custom layer XML: Custom layer %s has node <%s> with an empty attribute %s",
-                customLayer.attribute("name").value(), node.name(), attr.name());
+                             "Wrong custom layer XML: Custom layer %s has node <%s> with an empty attribute %s",
+                             customLayer.attribute("name").value(), node.name(), attr.name());
         }
     };
 
@@ -72,7 +72,7 @@ void assertNoEmptyAttributes(const pugi::xml_node& customLayer) {
 }  // namespace
 
 ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLayer::loadFromFile(
-    const std::string& configFile, bool canBeMissed) {
+        const std::string& configFile, bool canBeMissed) {
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load_file(configFile.c_str());
 
@@ -82,7 +82,7 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
             return {};
         } else {
             VPU_THROW_FORMAT("Failed to load custom layer configuration file %s : %s at offset %s", configFile,
-                res.description(), res.offset);
+                             res.description(), res.offset);
         }
     }
 
@@ -95,7 +95,8 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
 #endif
 
     VPU_THROW_UNLESS(abs_path_ptr != nullptr,
-        "Failed to load custom layer configuration file %s : can't get canonicalized absolute path", configFile);
+                     "Failed to load custom layer configuration file %s : can't get canonicalized absolute path",
+                     configFile);
 
     std::string abs_file_name(path);
 
@@ -125,8 +126,8 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
 CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLayer): _configDir(std::move(configDir)) {
     const auto cmp = ie::details::CaselessEq<std::string>{};
     const auto nodeName = customLayer.name();
-    VPU_THROW_UNLESS(
-        cmp(nodeName, "CustomLayer"), "Wrong custom layer XML : Node is not CustomLayer, but %s", nodeName);
+    VPU_THROW_UNLESS(cmp(nodeName, "CustomLayer"), "Wrong custom layer XML : Node is not CustomLayer, but %s",
+                     nodeName);
 
     const auto nodeType = XMLParseUtils::GetStrAttr(customLayer, "type");
     VPU_THROW_UNLESS(cmp(nodeType, "MVCL"), "Wrong custom layer XML : Type is not MVCL, but %s", nodeType);
@@ -162,22 +163,22 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
         for (const auto& kernel : kernelNodes) {
             const auto stageAttr = kernel.attribute("stage");
             VPU_THROW_UNLESS(stageAttr,
-                "Error while binding %s custom layer: for multi-kernel binding, "
-                "each kernel should be provided with 'stage' attribute.",
-                _layerName);
+                             "Error while binding %s custom layer: for multi-kernel binding, "
+                             "each kernel should be provided with 'stage' attribute.",
+                             _layerName);
 
             const auto stageNum = std::stod(stageAttr.value());
             VPU_THROW_UNLESS(stageOrder.find(stageNum) == stageOrder.end(),
-                "Error while binding %s custom layer: found duplicating stage id.", _layerName);
+                             "Error while binding %s custom layer: found duplicating stage id.", _layerName);
 
             stageOrder.emplace(stageNum, CustomKernel{kernel, _configDir});
         }
 
         VPU_THROW_UNLESS(stageOrder.size() > 0, "Error stage order for %s layer is empty", _layerName);
-        VPU_THROW_UNLESS(
-            stageOrder.begin()->first == 0, "Error while binding %s custom layer: Stage 0 is not found.", _layerName);
+        VPU_THROW_UNLESS(stageOrder.begin()->first == 0, "Error while binding %s custom layer: Stage 0 is not found.",
+                         _layerName);
         VPU_THROW_UNLESS(static_cast<size_t>(stageOrder.rbegin()->first) == stageOrder.size() - 1,
-            "Error while binding %s custom layer: Kernels should have stage id from 0 to N.", _layerName);
+                         "Error while binding %s custom layer: Kernels should have stage id from 0 to N.", _layerName);
 
         for (auto& stage : stageOrder) {
             _kernels.push_back(std::move(stage.second));
@@ -212,14 +213,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
 bool CustomLayer::isLegalSizeRule(const std::string& rule, std::map<std::string, std::string> layerParams) {
     {
         auto sizes = SmallVector<std::pair<std::string, std::string>>{
-            {"b", "1"},
-            {"B", "1"},
-            {"f", "1"},
-            {"F", "1"},
-            {"y", "1"},
-            {"Y", "1"},
-            {"x", "1"},
-            {"X", "1"},
+                {"b", "1"}, {"B", "1"}, {"f", "1"}, {"F", "1"}, {"y", "1"}, {"Y", "1"}, {"x", "1"}, {"X", "1"},
         };
 
         std::move(begin(sizes), end(sizes), inserter(layerParams, end(layerParams)));
