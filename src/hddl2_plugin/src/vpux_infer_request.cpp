@@ -23,6 +23,8 @@
 #include <ie_blob.h>
 #include <ie_layouts.h>
 // Plugin
+#include <dumper.hpp>
+
 #include "ie_itt.hpp"
 #include "ie_utils.hpp"
 #include "vpux_infer_request.h"
@@ -243,11 +245,19 @@ void InferRequest::InferAsync() {
 #endif
         _executorPtr->push(_inputs);
     }
+    if (std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH") != nullptr) {
+        utils::dumpBlobs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"), "input", _logger);
+    }
 }
 
 void InferRequest::GetResult() {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "GetResult");
     _executorPtr->pull(_outputs);
+    const char* dumpOutputPathEnv = std::getenv("IE_VPU_KMB_DUMP_OUTPUT_PATH");
+    if (dumpOutputPathEnv != nullptr) {
+        utils::dumpBlobs(_outputs, dumpOutputPathEnv, "output", _logger);
+    }
+    _logger->debug("InferRequest::GetResult finished");
 }
 
 void InferRequest::GetPerformanceCounts(std::map<std::string, IE::InferenceEngineProfileInfo>& perfMap) const {
