@@ -6,6 +6,12 @@
 
 #include <string>
 
+#ifdef __aarch64__
+constexpr bool IS_ON_ARM = true;
+#else
+constexpr bool IS_ON_ARM = false;
+#endif
+
 namespace LayerTestsUtils {
 
 class KmbTestEnvConfig {
@@ -13,10 +19,16 @@ public:
     std::string IE_KMB_TESTS_DEVICE_NAME;
     std::string IE_KMB_TESTS_DUMP_PATH;
     std::string IE_KMB_TESTS_LOG_LEVEL;
-    bool IE_KMB_TESTS_RAW_EXPORT;
-    bool IE_KMB_TESTS_RUN_INFER;
-    bool IE_KMB_TESTS_RUN_IMPORT;
-    bool IE_KMB_TESTS_LONG_FILE_NAME;
+
+    bool IE_KMB_TESTS_RUN_COMPILER = !IS_ON_ARM;
+    bool IE_KMB_TESTS_RUN_EXPORT = !IS_ON_ARM;
+    bool IE_KMB_TESTS_RUN_IMPORT = IS_ON_ARM;
+    bool IE_KMB_TESTS_RUN_INFER = IS_ON_ARM;
+
+    bool IE_KMB_TESTS_RAW_EXPORT = false;
+    bool IE_KMB_TESTS_LONG_FILE_NAME = false;
+
+    bool IE_VPUX_USE_EXPERIMENTAL_COMPILER = false;
 public:
     explicit KmbTestEnvConfig();
 };

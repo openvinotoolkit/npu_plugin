@@ -29,3 +29,10 @@ addIeTargetTest(
     LABELS
         KMB
 )
+
+if(ENABLE_EXPERIMENTAL_MLIR)
+    target_compile_definitions(${TARGET_NAME}
+        PRIVATE
+            ENABLE_EXPERIMENTAL_MLIR
+    )
+endif()

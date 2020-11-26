@@ -24,8 +24,10 @@ const TargetDevice testPlatformTargetDevice("VPUX");
 const KmbTestEnvConfig KmbLayerTestsCommon::envConfig;
 
 KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
+    IE_ASSERT(core != nullptr);
+
     if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
-        configuration[CONFIG_KEY(LOG_LEVEL)] = envConfig.IE_KMB_TESTS_LOG_LEVEL;
+        core->SetConfig({{CONFIG_KEY(LOG_LEVEL), envConfig.IE_KMB_TESTS_LOG_LEVEL}}, testPlatformTargetDevice);
     }
 }
 
@@ -35,12 +37,14 @@ void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
 }
 
 void KmbLayerTestsCommon::ImportNetwork() {
-    executableNetwork = kmbTestTool.importNetwork(getCore(),
+    IE_ASSERT(core != nullptr);
+    executableNetwork = kmbTestTool.importNetwork(core,
         filesysName(testing::UnitTest::GetInstance()->current_test_info(), !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
 }
 
 void KmbLayerTestsCommon::ExportNetwork() {
-    kmbTestTool.exportNetwork(executableNetwork, filesysName(testing::UnitTest::GetInstance()->current_test_info(), !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+    kmbTestTool.exportNetwork(executableNetwork,
+        filesysName(testing::UnitTest::GetInstance()->current_test_info(), !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
 }
 
 void KmbLayerTestsCommon::Validate() {
@@ -103,20 +107,29 @@ void KmbLayerTestsCommon::Run() {
 
     std::cout << "KmbLayerTestsCommon::BuildNetworkWithoutCompile" << std::endl;
     BuildNetworkWithoutCompile();
-#ifndef __aarch64__
-    std::cout << "KmbLayerTestsCommon::Compile" << std::endl;
-    executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration);
-    std::cout << "KmbLayerTestsCommon::ExportNetwork()" << std::endl;
-    ASSERT_NO_THROW(ExportNetwork());
-#else
+
     try {
-        std::cout << "KmbLayerTestsCommon::ImportNetwork()" << std::endl;
-        SkipBeforeImport();
-        ImportNetwork();
+        if (envConfig.IE_KMB_TESTS_RUN_COMPILER) {
+            std::cout << "KmbLayerTestsCommon::Compile" << std::endl;
+            SkipBeforeLoad();
+            ASSERT_NO_THROW(executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration));
+
+            if (envConfig.IE_KMB_TESTS_RUN_EXPORT) {
+                std::cout << "KmbLayerTestsCommon::ExportNetwork()" << std::endl;
+                ASSERT_NO_THROW(ExportNetwork());
+            }
+        } else {
+            std::cout << "KmbLayerTestsCommon::ImportNetwork()" << std::endl;
+            SkipBeforeLoad();
+            SkipBeforeImport();
+            ImportNetwork();
+        }
+
         if (envConfig.IE_KMB_TESTS_RUN_INFER) {
             std::cout << "KmbLayerTestsCommon::Infer()" << std::endl;
             SkipBeforeInfer();
             Infer();
+
             std::cout << "KmbLayerTestsCommon::Validate()" << std::endl;
             SkipBeforeValidate();
             Validate();
@@ -127,7 +140,6 @@ void KmbLayerTestsCommon::Run() {
         std::cout << "Skipping the test due to: " << e.what() << std::endl;
         SKIP() << "Skipping the test due to: " << e.what();
     }
-#endif
 }
 
 }  // namespace LayerTestsUtils
