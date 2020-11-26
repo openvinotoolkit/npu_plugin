@@ -16,7 +16,9 @@
 
 #pragma once
 
+#include "vpux/compiler/core/dim.hpp"
 #include "vpux/compiler/core/dims_order.hpp"
+#include "vpux/compiler/core/shape.hpp"
 
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
@@ -25,28 +27,28 @@
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/IR/Operation.h>
+#include <mlir/IR/StandardTypes.h>
 
 namespace vpux {
+
+//
+// Forward declarations
+//
+
+class DataInfoInterface;
+class NetInfoInterface;
+
+namespace details {
 
 //
 // DataInfoInterface
 //
 
-class DataInfoInterface;
-
-namespace details {
-
 mlir::LogicalResult verifyDataInfo(mlir::Operation* op);
-
-}  // namespace details
 
 //
 // NetInfoInterface
 //
-
-class NetInfoInterface;
-
-namespace details {
 
 mlir::LogicalResult verifyNetInfo(mlir::Operation* op);
 
@@ -71,8 +73,25 @@ mlir::LogicalResult getNetInfo(mlir::ModuleOp module, ConcreteOp& netInfo, mlir:
 
 SmallVector<DataInfoInterface, 1> getDataInfoVec(mlir::Region& region);
 
-}  // namespace details
+//
+// LayerInterface
+//
 
+mlir::LogicalResult verifyLayer(mlir::Operation* op);
+
+//
+// ConvertLayerInterface
+//
+
+mlir::LogicalResult verifyConvertLayer(mlir::Operation* op);
+
+//
+// SoftMaxLayerInterface
+//
+
+mlir::LogicalResult verifySoftMaxLayer(mlir::Operation* op);
+
+}  // namespace details
 }  // namespace vpux
 
 //

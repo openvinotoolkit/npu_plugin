@@ -20,7 +20,6 @@
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IE/dialect.td"
-include "vpux/compiler/dialect/IE/ops_interfaces.td"
 
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -44,8 +43,10 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
                 traits,
                 [
                     NoSideEffect,
-                    DeclareOpInterfaceMethods<InferTypeOpInterface>,
-                    DeclareOpInterfaceMethods<InferShapedTypeOpInterface>
+                    NativeOpTrait<"InferTensorType">,
+                    InferTypeOpInterface,
+                    DeclareOpInterfaceMethods<InferShapedTypeOpInterface>,
+                    DeclareOpInterfaceMethods<LayerInterface>
                 ]
             )
         >;
@@ -145,7 +146,10 @@ def IE_EndOp :
 
 def IE_ConvertOp :
         IE_LayerOp<
-            "Convert"
+            "Convert",
+            [
+                DeclareOpInterfaceMethods<ConvertLayerInterface>
+            ]
         > {
     let summary = "InferenceEngine Convert layer";
 
@@ -177,7 +181,7 @@ def IE_SoftMaxOp :
             [
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
-                DeclareOpInterfaceMethods<IE_SoftMaxLayerInterface>
+                DeclareOpInterfaceMethods<SoftMaxLayerInterface>
             ]
         > {
     let summary = "InferenceEngine SoftMax layer";

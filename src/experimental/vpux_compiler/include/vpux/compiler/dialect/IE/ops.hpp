@@ -18,7 +18,6 @@
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
-#include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>

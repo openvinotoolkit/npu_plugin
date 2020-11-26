@@ -17,7 +17,6 @@
 #pragma once
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"

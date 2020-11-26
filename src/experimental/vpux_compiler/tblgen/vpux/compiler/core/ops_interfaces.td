@@ -130,4 +130,139 @@ def NetInfoInterface : OpInterface<"NetInfoInterface"> {
     }];
 }
 
+//
+// LayerInterface
+//
+
+def LayerInterface : OpInterface<"LayerInterface"> {
+    let description = "Base interface for Layer Operation";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get all inputs (tensors or memory buffers) for the Operation",
+            "mlir::ValueRange", "getInputs", (ins)
+        >,
+
+        InterfaceMethod<
+            "Get the outputs (tensors or memory buffers) for the Operation",
+            "mlir::ValueRange", "getOutputs", (ins)
+        >,
+    ];
+
+    let verify = [{
+        return vpux::details::verifyLayer($_op);
+    }];
+}
+
+//
+// ConvertLayerInterface
+//
+
+def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
+    let description = "Interface for Convert Layer";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the source Value for the Convert Operation",
+            "mlir::Value", "getSrcValue", (ins),
+            [{}],
+            [{
+                return $_op.getInputs()[0];
+            }]
+        >,
+        InterfaceMethod<
+            "Get the input Type",
+            "mlir::ShapedType", "getSrcType", (ins),
+            [{}],
+            [{
+                return getSrcValue().getType().template cast<mlir::ShapedType>();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get destination Value for the Convert Operation",
+            "mlir::Value", "getDstValue", (ins),
+            [{}],
+            [{
+                return $_op.getOutputs()[0];
+            }]
+        >,
+        InterfaceMethod<
+            "Get the output Type",
+            "mlir::ShapedType", "getDstType", (ins),
+            [{}],
+            [{
+                return getDstValue().getType().template cast<mlir::ShapedType>();
+            }]
+        >
+    ];
+
+    let verify = [{
+        return vpux::details::verifyConvertLayer($_op);
+    }];
+}
+
+//
+// SoftMaxLayerInterface
+//
+
+def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
+    let description = "Interface for SoftMax Layer";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the source Value for the Convert Operation",
+            "mlir::Value", "getSrcValue", (ins),
+            [{}],
+            [{
+                return $_op.getInputs()[0];
+            }]
+        >,
+        InterfaceMethod<
+            "Get the input Type",
+            "mlir::ShapedType", "getSrcType", (ins),
+            [{}],
+            [{
+                return getSrcValue().getType().template cast<mlir::ShapedType>();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get destination Value for the Convert Operation",
+            "mlir::Value", "getDstValue", (ins),
+            [{}],
+            [{
+                return $_op.getOutputs()[0];
+            }]
+        >,
+        InterfaceMethod<
+            "Get the output Type",
+            "mlir::ShapedType", "getDstType", (ins),
+            [{}],
+            [{
+                return getDstValue().getType().template cast<mlir::ShapedType>();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get the axis parameter in logical dimensions",
+            "vpux::Dim", "getAxisDim", (ins),
+            [{}],
+            [{
+                return vpux::Dim($_op.axisInd());
+            }]
+        >,
+    ];
+
+    let verify = [{
+        return vpux::details::verifySoftMaxLayer($_op);
+    }];
+}
+
 #endif

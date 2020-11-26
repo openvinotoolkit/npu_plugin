@@ -18,7 +18,6 @@
 #define VPUX_COMPILER_DIALECT_VPUIP_OPS
 
 include "vpux/compiler/core/ops_interfaces.td"
-include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
@@ -303,7 +302,8 @@ def VPUIP_SoftMaxUPAOp :
             "SoftMaxUPA",
             VPUIP_TaskType_UPA,
             [
-                DeclareOpInterfaceMethods<IE_SoftMaxLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<SoftMaxLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
         > {

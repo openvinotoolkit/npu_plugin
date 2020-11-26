@@ -192,6 +192,148 @@ SmallVector<DataInfoInterface, 1> vpux::details::getDataInfoVec(mlir::Region& re
 }
 
 //
+// LayerInterface
+//
+
+mlir::LogicalResult vpux::details::verifyLayer(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyLayer");
+
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    if (layer == nullptr) {
+        return printTo(op->emitError(), "Operation '{0}' is not a Layer", op->getName());
+    }
+
+    // NOTE: `to_vector` is used to overcome `concat` limitations for iterators, which returns copies instead of
+    // references
+    auto inputs = to_vector<4>(layer.getInputs());
+    auto outputs = to_vector<1>(layer.getOutputs());
+
+    if (outputs.empty()) {
+        return printTo(op->emitError(), "Layer Operation '{0}' has no outputs", op->getName());
+    }
+
+    for (auto var : concat<mlir::Value>(inputs, outputs)) {
+        auto type = var.getType();
+
+        if (!type.isa<mlir::ShapedType>()) {
+            return printTo(op->emitError(),
+                           "Layer Operation '{0}' has input/output with wrong Type, expected ShapedType, got '{1}'",
+                           op->getName(), type);
+        }
+    }
+
+    return mlir::success();
+}
+
+//
+// ConvertLayerInterface
+//
+
+namespace {
+
+template <class ConcreteLayer>
+mlir::FailureOr<std::pair<LayerInterface, ConcreteLayer>> getLayer(mlir::Operation* op, StringRef comment) {
+    auto base = mlir::dyn_cast<LayerInterface>(op);
+    if (base == nullptr) {
+        return mlir::LogicalResult(printTo(op->emitError(), "Operation '{0}' is not a Layer", op->getName()));
+    }
+
+    auto actual = mlir::dyn_cast<ConcreteLayer>(op);
+    if (actual == nullptr) {
+        return mlir::LogicalResult(
+                printTo(op->emitError(), "Operation '{0}' is not a {1} Layer", op->getName(), comment));
+    }
+
+    return std::make_pair(base, actual);
+}
+
+mlir::LogicalResult verifyLayerInputsOutputs(LayerInterface layer, size_t numInputs, size_t numOutputs,
+                                             StringRef comment) {
+    if (layer.getInputs().size() != numInputs) {
+        return printTo(layer.emitError(), "{0} Layer '{1}' has wrong number of inputs '{2}', expected '{3}'", comment,
+                       layer.getOperation()->getName(), layer.getInputs().size(), numInputs);
+    }
+    if (layer.getOutputs().size() != numOutputs) {
+        return printTo(layer.emitError(), "{0} Layer '{1}' has wrong number of outputs '{2}', expected '{3}'", comment,
+                       layer.getOperation()->getName(), layer.getOutputs().size(), numOutputs);
+    }
+
+    return mlir::success();
+}
+
+}  // namespace
+
+mlir::LogicalResult vpux::details::verifyConvertLayer(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyConvertLayer");
+
+    auto res = getLayer<ConvertLayerInterface>(op, "Convert");
+    if (mlir::failed(res)) {
+        return mlir::failure();
+    }
+
+    auto layer = res->first;
+    auto convert = res->second;
+
+    if (mlir::failed(verifyLayerInputsOutputs(layer, 1, 1, "Convert"))) {
+        return mlir::failure();
+    }
+
+    auto srcType = convert.getSrcType();
+    auto dstType = convert.getDstType();
+
+    if (srcType.getShape() != dstType.getShape()) {
+        return printTo(op->emitError(), "Convert Layer '{0}' has different shapes for input ('{1}') and output ('{2}')",
+                       op->getName(), srcType.getShape(), dstType.getShape());
+    }
+
+    return mlir::success();
+}
+
+//
+// SoftMaxLayerInterface
+//
+
+mlir::LogicalResult vpux::details::verifySoftMaxLayer(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySoftMaxLayer");
+
+    auto res = getLayer<SoftMaxLayerInterface>(op, "SoftMax");
+    if (mlir::failed(res)) {
+        return mlir::failure();
+    }
+
+    auto layer = res->first;
+    auto softMax = res->second;
+
+    if (mlir::failed(verifyLayerInputsOutputs(layer, 1, 1, "SoftMax"))) {
+        return mlir::failure();
+    }
+
+    auto srcType = softMax.getSrcType();
+    auto dstType = softMax.getDstType();
+
+    if (srcType.getShape() != dstType.getShape()) {
+        return printTo(op->emitError(), "SoftMax Layer '{0}' has different shapes for input ('{1}') and output ('{2}')",
+                       op->getName(), srcType.getShape(), dstType.getShape());
+    }
+
+    if (srcType.getElementType() != dstType.getElementType()) {
+        return printTo(op->emitError(),
+                       "SoftMax Layer '{0}' has different element type for input ('{1}') and output ('{2}')",
+                       op->getName(), srcType.getElementType(), dstType.getElementType());
+    }
+
+    const auto workRank = srcType.getShape().size();
+    const auto axisInd = softMax.getAxisDim().ind();
+
+    if (axisInd < 0 || checked_cast<size_t>(axisInd) >= workRank) {
+        return printTo(op->emitError(), "SoftMax Layer '{0}' axis index '{1}' is out of working rank '{2}'",
+                       op->getName(), axisInd, workRank);
+    }
+
+    return mlir::success();
+}
+
+//
 // Generated
 //
 
