@@ -93,30 +93,6 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::IE::CNNNetworkOp::getFromModule(mlir::ModuleOp module, CNNNetworkOp& netOp,
-                                                          mlir::FuncOp& netFunc) {
-    auto netOps = to_vector<1>(module.getOps<CNNNetworkOp>());
-    if (netOps.size() != 1) {
-        return printTo(module.emitError(), "Module {0} doesn't contain IE.{1} Operation", module.getName(),
-                       CNNNetworkOp::getOperationName());
-    }
-
-    netOp = netOps.front();
-    netFunc = module.lookupSymbol<mlir::FuncOp>(netOp.entryPointAttr());
-
-    return mlir::success(netFunc != nullptr);
-}
-
-mlir::LogicalResult vpux::IE::verifyOp(CNNNetworkOp op) {
-    if (mlir::failed(checkNetworkDataInfoBlock<CNNNetworkOp, DataInfoOp, EndOp>(
-                op, op.inputsInfo().front().getOperations(), "inputInfo"))) {
-        return mlir::failure();
-    }
-
-    if (mlir::failed(checkNetworkDataInfoBlock<CNNNetworkOp, DataInfoOp, EndOp>(
-                op, op.outputsInfo().front().getOperations(), "outputsInfo"))) {
-        return mlir::failure();
-    }
-
-    return mlir::success();
+DimsOrder vpux::IE::DataInfoOp::getDimsOrder() {
+    return IE::getDimsOrder(layout());
 }

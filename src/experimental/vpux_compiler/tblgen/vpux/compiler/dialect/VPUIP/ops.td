@@ -17,7 +17,7 @@
 #ifndef VPUX_COMPILER_DIALECT_VPUIP_OPS
 #define VPUX_COMPILER_DIALECT_VPUIP_OPS
 
-include "vpux/compiler/dialect/IE/ops_interfaces.td"
+include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
@@ -81,7 +81,7 @@ def VPUIP_GraphOp :
                 HasParent<"mlir::ModuleOp">,
                 SingleBlockImplicitTerminator<"vpux::VPUIP::EndOp">,
                 NoRegionArguments,
-                IE_NetworkInformation,
+                DeclareOpInterfaceMethods<NetInfoInterface>,
                 DeclareOpInterfaceMethods<SymbolUserOpInterface>
             ]
         > {
@@ -100,10 +100,6 @@ def VPUIP_GraphOp :
         SizedRegion<1>:$outputsInfo
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
-
     let assemblyFormat = [{
         attr-dict
         $identifier `at` $entryPoint
@@ -113,10 +109,6 @@ def VPUIP_GraphOp :
         `inputsInfo` `:` $inputsInfo
         `outputsInfo` `:` $outputsInfo
     }];
-
-    let extraClassDeclaration = [{
-        static mlir::LogicalResult getFromModule(mlir::ModuleOp module, vpux::VPUIP::GraphOp& graphOp, mlir::FuncOp& graphFunc);
-    }];
 }
 
 def VPUIP_TensorInfoOp :
@@ -124,7 +116,8 @@ def VPUIP_TensorInfoOp :
             "TensorInfo",
             [
                 IsolatedFromAbove,
-                HasParent<"vpux::VPUIP::GraphOp">
+                HasParent<"vpux::VPUIP::GraphOp">,
+                DeclareOpInterfaceMethods<DataInfoInterface>
             ]
         > {
     let summary = "Information about user inputs/outputs tensors";
@@ -309,7 +302,8 @@ def VPUIP_SoftMaxUPAOp :
             "SoftMaxUPA",
             VPUIP_TaskType_UPA,
             [
-                DeclareOpInterfaceMethods<IE_SoftMaxLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<SoftMaxLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
         > {

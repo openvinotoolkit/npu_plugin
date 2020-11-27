@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
+#include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
@@ -49,7 +49,6 @@
 namespace vpux {
 namespace VPUIP {
 
-mlir::LogicalResult verifyOp(GraphOp op);
 mlir::LogicalResult verifyOp(DeclareTensorOp op);
 mlir::LogicalResult verifyOp(ConfigureBarrierOp op);
 mlir::LogicalResult verifyOp(UPADMAOp op);

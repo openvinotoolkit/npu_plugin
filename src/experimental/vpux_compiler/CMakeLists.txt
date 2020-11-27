@@ -170,8 +170,9 @@ macro(add_rewriters subdir)
     unset(rewriters_sources)
 endmacro()
 
+add_op_interfaces("core")
+
 add_enum_attrs("dialect/IE")
-add_op_interfaces("dialect/IE")
 add_dialect("IE")
 add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")

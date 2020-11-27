@@ -20,27 +20,30 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::ConvertOp::inferReturnTypes(mlir::MLIRContext* ctx, Optional<mlir::Location> loc,
-                                                          mlir::ValueRange operands, mlir::DictionaryAttr attributes,
-                                                          mlir::RegionRange regions,
-                                                          SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    return mlir::detail::inferReturnTensorTypes(ConvertOp::inferReturnTypeComponents, ctx, loc, operands, attributes,
-                                                regions, inferredReturnTypes);
-}
-
 mlir::LogicalResult vpux::IE::ConvertOp::inferReturnTypeComponents(
-        mlir::MLIRContext*, Optional<mlir::Location>, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
+        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    VPUX_THROW_UNLESS(operands.size() == 1, "Got wrong number of operands : {0}", operands.size());
+    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    const auto dstTypeAttr = attrs.get("dstType").dyn_cast_or_null<mlir::TypeAttr>();
-    VPUX_THROW_UNLESS(dstTypeAttr != nullptr, "Missing dstType attribute");
+    IE::ConvertOpAdaptor cvt(operands, attrs);
+    if (mlir::failed(cvt.verify(loc))) {
+        return ::mlir::failure();
+    }
 
-    const auto inType = operands[0].getType().cast<mlir::RankedTensorType>();
+    auto inType = cvt.input().getType().cast<mlir::RankedTensorType>();
+    auto dstElemType = cvt.dstType().getValue();
 
-    inferredReturnShapes.emplace_back(inType.getShape(), dstTypeAttr.getValue());
+    inferredReturnShapes.emplace_back(inType.getShape(), dstElemType);
 
     return mlir::success();
+}
+
+mlir::ValueRange vpux::IE::ConvertOp::getInputs() {
+    return getODSOperands(0);
+}
+
+mlir::ValueRange vpux::IE::ConvertOp::getOutputs() {
+    return getODSResults(0);
 }
 
 namespace IE_Convert {
@@ -57,8 +60,8 @@ void vpux::IE::ConvertOp::getCanonicalizationPatterns(mlir::OwningRewritePattern
 }
 
 mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute>) {
-    const auto inType = input().getType().cast<mlir::RankedTensorType>();
-    const auto outType = output().getType().cast<mlir::RankedTensorType>();
+    const auto inType = getSrcType();
+    const auto outType = getDstType();
 
     if (inType.getElementType() == outType.getElementType()) {
         return input();

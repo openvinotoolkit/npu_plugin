@@ -20,17 +20,6 @@
 include "vpux/compiler/dialect/IE/dialect.td"
 
 //
-// Base class
-//
-
-class IE_Attr<Pred pred, string descr> :
-        DialectAttr<
-            IE_Dialect,
-            pred,
-            descr
-        >;
-
-//
 // Layout
 //
 
