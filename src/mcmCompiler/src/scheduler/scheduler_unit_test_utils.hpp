@@ -78,6 +78,7 @@ class Operation_Dag {
     typedef typename resource_cost_model_t::iterator resource_cost_iterator_t;
     typedef std::unordered_set<operation_t> data_op_set_t;
     typedef std::unordered_map<operation_t, operation_t> inplace_op_map_t;
+    typedef std::unordered_map<operation_t, size_t> priority_map_t;
 
     // delay cost model //
     typedef size_t delay_t;
@@ -296,9 +297,21 @@ class Operation_Dag {
       inplace_op_map_ = in;
     }
 
+    void reset_priority_map(const priority_map_t& in) {
+      priority_map_ = in;
+    }
+
+    size_t priority(const operation_t& op) const {
+      auto itr = priority_map_.find(op);
+      return itr == priority_map_.end() ? 0UL : itr->second;
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     // scheduler_traits //
 
+    static size_t eviction_priority(const dag_t& in, const operation_t& op) {
+      return in.priority(op);
+    }
     static const char * operation_name(const operation_t& op) {
       return op.c_str();
     }
@@ -413,6 +426,7 @@ class Operation_Dag {
     resource_cost_model_t resource_cost_model_;
     data_op_set_t data_op_set_;
     inplace_op_map_t inplace_op_map_;
+    priority_map_t priority_map_;
 }; // class Operation_Dag //
 
 // Using the Cumulative_Resource_State //

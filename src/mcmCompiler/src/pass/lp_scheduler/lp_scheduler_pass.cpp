@@ -124,7 +124,6 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   std::list<cmx_concat_control_edge_t> cmx_concat_control_edges;
 
   if (apply_cmx_concat_transforms) {
-    //mv::GenerateDotFromModel(cm, "OpModel", "opmodel_before_transform.dot");
 
     std::string ignore_these_concats;
     if (passDesc.hasAttr("ignore_these_concats")) {
@@ -132,7 +131,6 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     }
     input_dag.enable_cmx_concat_transforms(cm, cmx_concat_control_edges,
           upper_bound, ignore_these_concats);
-    //mv::GenerateDotFromModel(cm, "OpModel", "opmodel_after_transform.dot");
   } else {
     input_dag.reset(cm);
   }
@@ -182,7 +180,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   typedef typename scheduled_op_list_t::iterator scheduled_op_list_iterator_t;
   scheduled_op_list_t scheduled_ops;
 
-  std::string scheduled_op_type; 
+  std::string scheduled_op_type;
   while (scheduler != scheduler_end) { // collect original schedule //
     const scheduled_op_info_t &scheduled_op = *scheduler;
     mv::Op const *op = scheduled_op.op_;
@@ -192,7 +190,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     scheduled_op_type = scheduled_op.op_type_name();
 
     if (input_dag.is_input_op(op)) {
-      // explicitly set the resource bounds so that the prefetch edges can 
+      // explicitly set the resource bounds so that the prefetch edges can
       // be done as high as possible.
       rbegin = 1UL;
       rend = upper_bound;
@@ -235,7 +233,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   }
 
 
-  { 
+  {
     std::list<scheduled_op_t> new_scheduled_ops;
 
     mv::lp_scheduler::Remove_Redundant_Spill_Writes::remove(
@@ -359,7 +357,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
     repacker_t repacker(input_dag, repackable_op_selector);
 
-    repacker.repack(scheduled_ops.begin(), scheduled_ops.end(), 
+    repacker.repack(scheduled_ops.begin(), scheduled_ops.end(),
         std::back_inserter(new_scheduled_ops));
 
     scheduled_ops = new_scheduled_ops;
@@ -387,7 +385,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     params->set<std::string>(writer_t::ddr_address_attribute(),
           schedule_state.str());
   }
-  
+
   ////////////////////// Control Edge Generation ///////////////////////////////
   mv::ControlModel cmodel(model);
   control_edge_set_t control_edges(cmodel);
@@ -416,13 +414,13 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   }
 
 
-  { 
-    control_edges.add_cmx_memory_control_edges(input_dag, model, 
+  {
+    control_edges.add_cmx_memory_control_edges(input_dag, model,
         scheduled_ops.begin(), scheduled_ops.end(), generate_temporal_edges);
     printfInfo("LpScheduler:", "[Dynamic Spill Control Edge Count]: %lu\n",
         dynamic_spill_control_edges.size());
 
-    //NOTE: dynamic_spill_control_edges for spilled CMX Concat DPU reps are 
+    //NOTE: dynamic_spill_control_edges for spilled CMX Concat DPU reps are
     //included
     control_edges.add_control_edges(model, dynamic_spill_control_edges.begin(),
         dynamic_spill_control_edges.end());

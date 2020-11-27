@@ -308,6 +308,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         // // where we don't want the same datatype for output as the input tensors
         // newTensor->setDType(op->getOutputTensor(0)->getDType());
         om.getSourceOp(newTensor)->set<unsigned>("opId", opId);
+        om.getSourceOp(newTensor)->set<std::string>("parentOpName", op->getName());
 
         //todo: clean this if-then-else bias logic.... bloatware code....
         if (op->hasAttr("bias"))
@@ -814,6 +815,7 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
         // where we don't want the same datatype for output as the input tensors
         newTensor->setDType(op->getOutputTensor(0)->getDType());
         auto newOp = om.getSourceOp(newTensor);
+        newOp->set<std::string>("parentOpName", op->getName());
 
         newOp->setAttrs(attrsToCopy);
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated

@@ -156,7 +156,7 @@
                     "globalStrategies" : [
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
-                        {"name" : "enablePipelining",   "value" : false },
+                        {"name" : "enablePipelining",   "value" : true },
                         {"name" : "enablePrefetching",   "value" : true      },
                         {"name" : "forceActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : false      },
@@ -260,7 +260,8 @@
             "SplittingTensorsAcrossClusters",
             "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision"
+            "ConfigureOutputPrecision",
+            "FuseConcats"
         ]
     },
   "dma": {
