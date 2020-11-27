@@ -37,13 +37,10 @@ using namespace InferenceEngine;
 using namespace vpu::KmbPlugin;
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-    const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
+    const CNNNetwork& network, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "LoadExeNetworkImp");
-    InputsDataMap networkInputs;
-    OutputsDataMap networkOutputs;
-
-    network.getInputsInfo(networkInputs);
-    network.getOutputsInfo(networkOutputs);
+    InputsDataMap networkInputs = network.getInputsInfo();
+    OutputsDataMap networkOutputs = network.getOutputsInfo();
 
     for (auto networkInput : networkInputs) {
         auto input_precision = networkInput.second->getPrecision();
@@ -87,7 +84,7 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
 }
 
 QueryNetworkResult Engine::QueryNetwork(
-    const ICNNNetwork& network, const std::map<std::string, std::string>& config) const {
+    const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     QueryNetworkResult res;
     if (network.getFunction()) {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported nativelly";
