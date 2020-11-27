@@ -19,8 +19,8 @@
 #include <mcm_network_description.hpp>
 #include <ngraph_mcm_frontend/frontend.hpp>
 
-std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(
-    InferenceEngine::ICNNNetwork& network, const vpux::VPUXConfig& config) {
+std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(InferenceEngine::ICNNNetwork& network,
+                                                                const vpux::VPUXConfig& config) {
     std::vector<char> compiledNetwork;
     auto copy = _config;
     copy.parseFrom(config);
@@ -30,8 +30,10 @@ std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(
 }
 
 std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(const std::shared_ptr<ngraph::Function>& func,
-    const std::string& netName, const ie::InputsDataMap& inputsInfo, const ie::OutputsDataMap& outputsInfo,
-    const vpux::VPUXConfig& config) {
+                                                                const std::string& netName,
+                                                                const ie::InputsDataMap& inputsInfo,
+                                                                const ie::OutputsDataMap& outputsInfo,
+                                                                const vpux::VPUXConfig& config) {
     auto copy = _config;
     copy.parseFrom(config);
 
@@ -39,8 +41,9 @@ std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(const std::share
     return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, copy);
 }
 
-std::shared_ptr<vpux::INetworkDescription> MCMCompiler::parse(
-    const std::vector<char>& compiledNetwork, const vpux::VPUXConfig& config, const std::string& graphName) {
+std::shared_ptr<vpux::INetworkDescription> MCMCompiler::parse(const std::vector<char>& compiledNetwork,
+                                                              const vpux::VPUXConfig& config,
+                                                              const std::string& graphName) {
     auto copy = _config;
     copy.parseFrom(config);
 
@@ -51,7 +54,9 @@ std::set<std::string> MCMCompiler::getSupportedLayers(InferenceEngine::ICNNNetwo
     return vpu::MCMAdapter::getSupportedLayers(network, _config);
 }
 
-std::unordered_set<std::string> MCMCompiler::getSupportedOptions() { return _config.getCompileOptions(); }
+std::unordered_set<std::string> MCMCompiler::getSupportedOptions() {
+    return _config.getCompileOptions();
+}
 
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
 CreateVPUXCompiler(vpux::ICompiler*& compiler, InferenceEngine::ResponseDesc* resp) noexcept {

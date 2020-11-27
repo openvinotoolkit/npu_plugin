@@ -47,10 +47,11 @@ static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
 }
 
 HDDL2RemoteMemoryContainer::HDDL2RemoteMemoryContainer(const HddlUnite::RemoteMemory::Ptr& remoteMemory)
-    : remoteMemory(remoteMemory) {}
+        : remoteMemory(remoteMemory) {
+}
 
 HDDL2RemoteAllocator::HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr, const LogLevel logLevel)
-    : _logger(std::make_shared<Logger>("RemoteAllocator", logLevel, consoleOutput())) {
+        : _logger(std::make_shared<Logger>("RemoteAllocator", logLevel, consoleOutput())) {
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << "Context pointer is null";
     }
@@ -169,8 +170,8 @@ bool HDDL2RemoteAllocator::free(void* remoteMemoryHandle) noexcept {
     }
 
     if (handle_counter) {
-        _logger->info(
-            "%s: Memory %p found, remaining references = %lu\n", __FUNCTION__, remoteMemoryHandle, handle_counter);
+        _logger->info("%s: Memory %p found, remaining references = %lu\n", __FUNCTION__, remoteMemoryHandle,
+                      handle_counter);
         return true;
     }
 
@@ -179,7 +180,9 @@ bool HDDL2RemoteAllocator::free(void* remoteMemoryHandle) noexcept {
     return true;
 }
 
-void HDDL2RemoteAllocator::Release() noexcept { delete this; }
+void HDDL2RemoteAllocator::Release() noexcept {
+    delete this;
+}
 
 // TODO LOCK_FOR_READ behavior when we will have lock for read-write
 /**
@@ -212,7 +215,7 @@ void* HDDL2RemoteAllocator::lock(void* remoteMemoryHandle, InferenceEngine::Lock
 
     if (dmaBufSize != memory->localMemory.size()) {
         _logger->info("%s: dmaBufSize(%d) != memory->size(%d)\n", __FUNCTION__, static_cast<int>(dmaBufSize),
-            static_cast<int>(memory->localMemory.size()));
+                      static_cast<int>(memory->localMemory.size()));
         return nullptr;
     }
 
@@ -220,10 +223,11 @@ void* HDDL2RemoteAllocator::lock(void* remoteMemoryHandle, InferenceEngine::Lock
 
     // TODO Do this step only on R+W and R operations, not for Write
     _logger->info("%s: Sync %d memory from device, remoteMemoryHandle %p, fd %d\n", __FUNCTION__,
-        static_cast<int>(memory->localMemory.size()), remoteMemoryHandle, memory->remoteMemory->getDmaBufFd());
+                  static_cast<int>(memory->localMemory.size()), remoteMemoryHandle,
+                  memory->remoteMemory->getDmaBufFd());
 
     HddlStatusCode statusCode =
-        memory->remoteMemory->syncFromDevice(memory->localMemory.data(), memory->localMemory.size());
+            memory->remoteMemory->syncFromDevice(memory->localMemory.data(), memory->localMemory.size());
     if (statusCode != HDDL_OK) {
         memory->isLocked = false;
         return nullptr;
@@ -245,24 +249,24 @@ void HDDL2RemoteAllocator::unlock(void* remoteMemoryHandle) noexcept {
     if (memory->lockOp == InferenceEngine::LOCK_FOR_WRITE) {
         // Sync memory to device
         _logger->info("%s: Sync %d memory to device, remoteMemoryHandle %p\n", __FUNCTION__,
-            static_cast<int>(memory->localMemory.size()), remoteMemoryHandle);
+                      static_cast<int>(memory->localMemory.size()), remoteMemoryHandle);
         memory->remoteMemory->syncToDevice(memory->localMemory.data(), memory->localMemory.size());
     } else {
         _logger->warning("%s: LOCK_FOR_READ, Memory %d will NOT be synced, remoteMemoryHandle %p\n", __FUNCTION__,
-            static_cast<int>(memory->localMemory.size()), remoteMemoryHandle);
+                         static_cast<int>(memory->localMemory.size()), remoteMemoryHandle);
     }
 
     memory->isLocked = false;
 }
 
-void* HDDL2RemoteAllocator::wrapRemoteMemoryHandle(
-    const int& /*remoteMemoryFd*/, const size_t /*size*/, void* /*memHandle*/) noexcept {
+void* HDDL2RemoteAllocator::wrapRemoteMemoryHandle(const int& /*remoteMemoryFd*/, const size_t /*size*/,
+                                                   void* /*memHandle*/) noexcept {
     _logger->error("Not implemented");
     return nullptr;
 }
 
-void* HDDL2RemoteAllocator::wrapRemoteMemoryOffset(
-    const int& /*remoteMemoryFd*/, const size_t /*size*/, const size_t& /*memOffset*/) noexcept {
+void* HDDL2RemoteAllocator::wrapRemoteMemoryOffset(const int& /*remoteMemoryFd*/, const size_t /*size*/,
+                                                   const size_t& /*memOffset*/) noexcept {
     _logger->error("Not implemented");
     return nullptr;
 }

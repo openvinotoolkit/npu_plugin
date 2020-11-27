@@ -26,9 +26,9 @@ public:
     using Ptr = std::shared_ptr<AsyncInferRequest>;
 
     explicit AsyncInferRequest(const InferRequest::Ptr& inferRequest,
-        const InferenceEngine::ITaskExecutor::Ptr& requestExecutor,
-        const InferenceEngine::ITaskExecutor::Ptr& getResultExecutor,
-        const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
+                               const InferenceEngine::ITaskExecutor::Ptr& requestExecutor,
+                               const InferenceEngine::ITaskExecutor::Ptr& getResultExecutor,
+                               const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
 
     ~AsyncInferRequest() override;
 

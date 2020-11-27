@@ -25,10 +25,11 @@ namespace HDDL2 {
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-HDDLUniteDevice::HDDLUniteDevice(const std::string& name): _name(name) {}
+HDDLUniteDevice::HDDLUniteDevice(const std::string& name): _name(name) {
+}
 
-vpux::Executor::Ptr HDDLUniteDevice::createExecutor(
-    const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
+vpux::Executor::Ptr HDDLUniteDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
+                                                    const VPUXConfig& config) {
     return HDDL2Executor::prepareExecutor(networkDescription, config);
 }
 }  // namespace HDDL2

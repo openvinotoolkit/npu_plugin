@@ -49,26 +49,29 @@ public:
     using Ptr = std::shared_ptr<KmbInferRequest>;
 
     explicit KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-        const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<vpu::StageMetaInfo>& blobMetaData,
-        const vpux::VPUXConfig& kmbConfig, const std::shared_ptr<vpux::Executor>& executor,
-        const std::shared_ptr<InferenceEngine::IAllocator>& allocator, const std::string& netName);
+                             const InferenceEngine::OutputsDataMap& networkOutputs,
+                             const std::vector<vpu::StageMetaInfo>& blobMetaData, const vpux::VPUXConfig& kmbConfig,
+                             const std::shared_ptr<vpux::Executor>& executor,
+                             const std::shared_ptr<InferenceEngine::IAllocator>& allocator, const std::string& netName);
 
     void InferImpl() override;
     void InferAsync();
     void GetResult();
 
     void GetPerformanceCounts(
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
+            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
 
 protected:
     void execPreprocessing(InferenceEngine::BlobMap& inputs);
     void relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
-        InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
-        unsigned int lpi, unsigned int numPipes);
+                                               InferenceEngine::InputsDataMap& networkInputs,
+                                               InferenceEngine::ColorFormat out_format, unsigned int numShaves,
+                                               unsigned int lpi, unsigned int numPipes);
     virtual void execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
-        std::map<std::string, InferenceEngine::PreProcessDataPtr>& preprocData,
-        InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
-        unsigned int lpi, unsigned int numPipes);
+                                          std::map<std::string, InferenceEngine::PreProcessDataPtr>& preprocData,
+                                          InferenceEngine::InputsDataMap& networkInputs,
+                                          InferenceEngine::ColorFormat out_format, unsigned int numShaves,
+                                          unsigned int lpi, unsigned int numPipes);
 };
 
 }  // namespace KmbPlugin

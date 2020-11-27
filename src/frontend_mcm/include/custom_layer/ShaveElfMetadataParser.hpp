@@ -10,15 +10,15 @@
 
 struct md_parser_t {
     md_parser_t(const uint8_t* data, size_t data_size, const char* strtab, size_t strtab_size)
-        : hdr((const md_header_t*)data),
-          kernel_descriptor((const md_kernel_descriptor_t*)(data + hdr->kernel_first)),
-          kernel_argument((const md_kernel_argument_t*)(data + hdr->arg_first)),
-          kernel_sipp_info((const md_kernel_sipp_info_t*)(data + hdr->sipp_info_first)),
-          expr_node((const md_expr_node_t*)(data + hdr->expr_node_first)),
-          expr((const md_expr_t*)(data + hdr->expr_first)),
-          func((const md_function_t*)(data + hdr->func_first)),
-          strtab(strtab),
-          strtab_size(strtab_size) {
+            : hdr((const md_header_t*)data),
+              kernel_descriptor((const md_kernel_descriptor_t*)(data + hdr->kernel_first)),
+              kernel_argument((const md_kernel_argument_t*)(data + hdr->arg_first)),
+              kernel_sipp_info((const md_kernel_sipp_info_t*)(data + hdr->sipp_info_first)),
+              expr_node((const md_expr_node_t*)(data + hdr->expr_node_first)),
+              expr((const md_expr_t*)(data + hdr->expr_first)),
+              func((const md_function_t*)(data + hdr->func_first)),
+              strtab(strtab),
+              strtab_size(strtab_size) {
         (void)data_size;
         (void)strtab_size;
         assert(hdr->version == md_version_latest);
@@ -26,7 +26,9 @@ struct md_parser_t {
 
     // Return the metadata version
     //
-    md_version_t get_version() const { return static_cast<md_version_t>(hdr->version); }
+    md_version_t get_version() const {
+        return static_cast<md_version_t>(hdr->version);
+    }
 
     // Get a kernel id by name
     //
@@ -71,8 +73,8 @@ struct md_parser_t {
 
     // Get a rough stack size estimate for a kernel variant
     //
-    uint32_t get_kernel_stack_estimate(
-        const md_kernel_descriptor_t* kernel, md_kernel_variant_type_t variant, const uint32_t local_size[3]) const {
+    uint32_t get_kernel_stack_estimate(const md_kernel_descriptor_t* kernel, md_kernel_variant_type_t variant,
+                                       const uint32_t local_size[3]) const {
         const uint32_t local_area = local_size[0] * local_size[1] * local_size[2];
         const uint32_t per_wi = local_area * kernel->stack_size_wi;
         const uint32_t per_wg = kernel->stack_size_wg;
@@ -111,7 +113,9 @@ struct md_parser_t {
 
     // Get the number of distinct kernels in this file
     //
-    uint32_t get_kernel_count() const { return hdr->kernel_count; }
+    uint32_t get_kernel_count() const {
+        return hdr->kernel_count;
+    }
 
     // Get a function by index
     //
@@ -183,11 +187,15 @@ struct md_parser_t {
 
     // Return the name of a kernel
     //
-    const char* get_name(const md_kernel_descriptor_t* kernel) const { return strtab + kernel->name; }
+    const char* get_name(const md_kernel_descriptor_t* kernel) const {
+        return strtab + kernel->name;
+    }
 
     // Return the name of an argument
     //
-    const char* get_name(const md_kernel_argument_t* arg) const { return strtab + arg->name; }
+    const char* get_name(const md_kernel_argument_t* arg) const {
+        return strtab + arg->name;
+    }
 
 protected:
     // structure parsers

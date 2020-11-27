@@ -29,7 +29,8 @@ namespace HDDL2Plugin {
 namespace IE = InferenceEngine;
 
 static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& deviceID) {
-    if (deviceID.empty()) return nullptr;
+    if (deviceID.empty())
+        return nullptr;
 
     std::vector<HddlUnite::Device> cores;
     getAvailableDevices(cores);
@@ -43,8 +44,8 @@ static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& device
 }
 
 HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID,
-    const std::unordered_map<std::string, std::string>& config, const LogLevel logLevel)
-    : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
+                               const std::unordered_map<std::string, std::string>& config, const LogLevel logLevel)
+        : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     if (!network) {
         throw std::invalid_argument("Network pointer is null!");
     }
@@ -67,8 +68,8 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, co
     // [Track number: S#39350]
     const int nnThreadNum = 1;
     const int nnShaveNum = 4;
-    statusCode = HddlUnite::Inference::loadGraph(
-        _uniteGraphPtr, graphName, graphData.data(), graphData.size(), devices_to_use, nnThreadNum, nnShaveNum, config);
+    statusCode = HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(),
+                                                 devices_to_use, nnThreadNum, nnShaveNum, config);
 
     // FIXME This error handling part should be refactored according to new api
     if (statusCode == HddlStatusCode::HDDL_CONNECT_ERROR) {
@@ -83,9 +84,9 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, co
 }
 
 HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
-    const HddlUnite::WorkloadContext::Ptr& workloadContext, const std::unordered_map<std::string, std::string>& config,
-    const LogLevel logLevel)
-    : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
+                               const HddlUnite::WorkloadContext::Ptr& workloadContext,
+                               const std::unordered_map<std::string, std::string>& config, const LogLevel logLevel)
+        : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;
     if (workloadContext == nullptr) {
         THROW_IE_EXCEPTION << "Workload context is null";
@@ -99,7 +100,7 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
     const int nnThreadNum = 1;
     const int nnShaveNum = 4;
     statusCode = HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(),
-        {*workloadContext}, nnThreadNum, nnShaveNum, config);
+                                                 {*workloadContext}, nnThreadNum, nnShaveNum, config);
 
     if (statusCode != HddlStatusCode::HDDL_OK) {
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;

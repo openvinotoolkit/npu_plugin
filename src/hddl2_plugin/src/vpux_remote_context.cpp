@@ -25,15 +25,16 @@ namespace vpux {
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-VPUXRemoteContext::VPUXRemoteContext(
-    const std::shared_ptr<Device>& device, const IE::ParamMap& paramMap, const VPUXConfig& config)
-    : _devicePtr(device),
-      _config(config),
-      _logger(std::make_shared<vpu::Logger>("VPUXRemoteContext", config.logLevel(), vpu::consoleOutput())),
-      _paramMap(paramMap) {}
+VPUXRemoteContext::VPUXRemoteContext(const std::shared_ptr<Device>& device, const IE::ParamMap& paramMap,
+                                     const VPUXConfig& config)
+        : _devicePtr(device),
+          _config(config),
+          _logger(std::make_shared<vpu::Logger>("VPUXRemoteContext", config.logLevel(), vpu::consoleOutput())),
+          _paramMap(paramMap) {
+}
 
-IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(
-    const IE::TensorDesc& tensorDesc, const IE::ParamMap& params) noexcept {
+IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(const IE::TensorDesc& tensorDesc,
+                                                  const IE::ParamMap& params) noexcept {
     try {
         auto smart_this = shared_from_this();
     } catch (...) {
@@ -46,7 +47,7 @@ IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(
     } catch (const std::exception& ex) {
         _logger->warning("Incorrect parameters for CreateBlob call.\n"
                          "Please make sure remote memory is correct.\nError: %s\n",
-            ex.what());
+                         ex.what());
         return nullptr;
     }
 }

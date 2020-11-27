@@ -52,11 +52,19 @@ private:
 class HDDLUniteContextDevice final : public IDevice {
 public:
     explicit HDDLUniteContextDevice(const InferenceEngine::ParamMap& paramMap, const VPUXConfig& config = {});
-    std::shared_ptr<Allocator> getAllocator() const override { return _allocatorPtr; }
-    std::string getName() const override { return _name; }
+    std::shared_ptr<Allocator> getAllocator() const override {
+        return _allocatorPtr;
+    }
+    std::string getName() const override {
+        return _name;
+    }
     Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;
-    const ParsedContextParams& getContextParams() const { return _contextParams; }
-    HddlUnite::WorkloadContext::Ptr getUniteContext() const { return _workloadContext; }
+    const ParsedContextParams& getContextParams() const {
+        return _contextParams;
+    }
+    HddlUnite::WorkloadContext::Ptr getUniteContext() const {
+        return _workloadContext;
+    }
 
 private:
     InferenceEngine::RemoteContext::Ptr _contextPtr;

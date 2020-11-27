@@ -37,13 +37,17 @@ ParsedContextParams::ParsedContextParams(const InferenceEngine::ParamMap& paramM
     _workloadId = _paramMap.at(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID));
 }
 
-InferenceEngine::ParamMap ParsedContextParams::getParamMap() const { return _paramMap; }
+InferenceEngine::ParamMap ParsedContextParams::getParamMap() const {
+    return _paramMap;
+}
 
-WorkloadID ParsedContextParams::getWorkloadId() const { return _workloadId; }
+WorkloadID ParsedContextParams::getWorkloadId() const {
+    return _workloadId;
+}
 
 //------------------------------------------------------------------------------
 HDDLUniteContextDevice::HDDLUniteContextDevice(const InferenceEngine::ParamMap& paramMap, const VPUXConfig& config)
-    : _contextParams(paramMap) {
+        : _contextParams(paramMap) {
     // TODO Create logger for context device
     _workloadContext = HddlUnite::queryWorkloadContext(_contextParams.getWorkloadId());
     if (_workloadContext == nullptr) {
@@ -56,8 +60,8 @@ HDDLUniteContextDevice::HDDLUniteContextDevice(const InferenceEngine::ParamMap& 
     _allocatorPtr = std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteAllocator>(_workloadContext, config.logLevel());
 }
 
-vpux::Executor::Ptr HDDLUniteContextDevice::createExecutor(
-    const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
+vpux::Executor::Ptr HDDLUniteContextDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
+                                                           const VPUXConfig& config) {
     return vpux::HDDL2::HDDL2Executor::prepareExecutor(networkDescription, config, _allocatorPtr, _workloadContext);
 }
 }  // namespace HDDL2

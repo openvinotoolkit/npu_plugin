@@ -25,18 +25,18 @@
 using namespace vpu::KmbPlugin;
 
 KmbRemoteContext::KmbRemoteContext(const InferenceEngine::ParamMap& params, const vpux::VPUXConfig& config,
-    const std::shared_ptr<vpux::Device>& device)
-    : _config(config),
-      _params(params),
-      _logger(std::make_shared<Logger>("KmbRemoteContext", config.logLevel(), consoleOutput())),
-      _device(device) {
+                                   const std::shared_ptr<vpux::Device>& device)
+        : _config(config),
+          _params(params),
+          _logger(std::make_shared<Logger>("KmbRemoteContext", config.logLevel(), consoleOutput())),
+          _device(device) {
     if (_device == nullptr) {
         THROW_IE_EXCEPTION << "Cannot define a remote context with a device";
     }
 }
 
-InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
-    const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) noexcept {
+InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(const InferenceEngine::TensorDesc& tensorDesc,
+                                                              const InferenceEngine::ParamMap& params) noexcept {
     try {
         auto smart_this = shared_from_this();
     } catch (...) {
@@ -44,12 +44,12 @@ InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
         return nullptr;
     }
     try {
-        return std::make_shared<KmbRemoteBlob>(
-            tensorDesc, shared_from_this(), params, _config, _device->getAllocator());
+        return std::make_shared<KmbRemoteBlob>(tensorDesc, shared_from_this(), params, _config,
+                                               _device->getAllocator());
     } catch (const std::exception& ex) {
         _logger->warning("Incorrect parameters for CreateBlob call.\n"
                          "Please make sure remote memory fd is correct.\nError: %s\n",
-            ex.what());
+                         ex.what());
         return nullptr;
     }
 }
@@ -58,4 +58,6 @@ std::string KmbRemoteContext::getDeviceName() const noexcept {
     return std::string(Engine::deviceName) + "." + _device->getName();
 }
 
-InferenceEngine::ParamMap KmbRemoteContext::getParams() const { return _params; }
+InferenceEngine::ParamMap KmbRemoteContext::getParams() const {
+    return _params;
+}

@@ -36,12 +36,15 @@ public:
     using CPtr = std::shared_ptr<const VPUXRemoteBlob>;
 
     explicit VPUXRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const VPUXRemoteContext::Ptr& contextPtr,
-        const std::shared_ptr<Allocator>& allocator, const InferenceEngine::ParamMap& params,
-        const vpu::LogLevel logLevel = vpu::LogLevel::None);
-    ~VPUXRemoteBlob() override { VPUXRemoteBlob::deallocate(); }
+                            const std::shared_ptr<Allocator>& allocator, const InferenceEngine::ParamMap& params,
+                            const vpu::LogLevel logLevel = vpu::LogLevel::None);
+    ~VPUXRemoteBlob() override {
+        VPUXRemoteBlob::deallocate();
+    }
 
     /** @details Since Remote blob just wrap remote memory, allocation is not required */
-    void allocate() noexcept override {}
+    void allocate() noexcept override {
+    }
 
     bool deallocate() noexcept override;
     InferenceEngine::LockedMemory<void> buffer() noexcept override;
@@ -64,7 +67,9 @@ public:
 
     InferenceEngine::Blob::Ptr createROI(const InferenceEngine::ROI& regionOfInterest) const override;
 
-    InferenceEngine::ParamMap getParams() const override { return _parsedParams.getParamMap(); }
+    InferenceEngine::ParamMap getParams() const override {
+        return _parsedParams.getParamMap();
+    }
 
 private:
     /** @brief All objects, which might be used inside backend, should be stored in paramMap */
@@ -87,8 +92,12 @@ private:
      *  This will not allow to create ROI blob using paramMap, which is not API approach. */
     explicit VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
 
-    InferenceEngine::TensorDesc getOriginalTensorDesc() const { return _originalTensorDesc; }
-    void* getHandle() const noexcept override { return _memoryHandle; }
+    InferenceEngine::TensorDesc getOriginalTensorDesc() const {
+        return _originalTensorDesc;
+    }
+    void* getHandle() const noexcept override {
+        return _memoryHandle;
+    }
     const std::shared_ptr<InferenceEngine::IAllocator>& getAllocator() const noexcept override;
 };
 

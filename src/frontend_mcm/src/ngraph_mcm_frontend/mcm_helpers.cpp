@@ -67,7 +67,9 @@ mv::Shape cvtShapeToMCM(const ngraph::Shape& shape) {
     return mv::Shape(dims);
 }
 
-mv::Shape cvtShapeToMCM(const ngraph::PartialShape& pshape) { return cvtShapeToMCM(pshape.to_shape()); }
+mv::Shape cvtShapeToMCM(const ngraph::PartialShape& pshape) {
+    return cvtShapeToMCM(pshape.to_shape());
+}
 
 mv::DType cvtElemTypeToMCM(const ngraph::element::Type& elemType) {
     std::ostringstream mcmTypeName;

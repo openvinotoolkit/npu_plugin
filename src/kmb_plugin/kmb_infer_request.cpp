@@ -45,21 +45,23 @@ using namespace InferenceEngine;
 #endif
 
 KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-    const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<vpu::StageMetaInfo>& blobMetaData,
-    const vpux::VPUXConfig& kmbConfig, const std::shared_ptr<vpux::Executor>& executor,
-    const std::shared_ptr<InferenceEngine::IAllocator>& allocator, const std::string& netName)
-    : InferRequestInternal(networkInputs, networkOutputs),
-      _executor(executor),
-      _allocator(allocator),
-      _stagesMetaData(blobMetaData),
-      _config(kmbConfig),
-      _netUniqueId(netName),
-      _deviceId(utils::extractIdFromDeviceName(kmbConfig.deviceId())),
-      _preprocBuffer(nullptr,
-          [this](uint8_t* buffer) {
-              _allocator->free(buffer);
-          }),
-      _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())) {
+                                 const InferenceEngine::OutputsDataMap& networkOutputs,
+                                 const std::vector<vpu::StageMetaInfo>& blobMetaData, const vpux::VPUXConfig& kmbConfig,
+                                 const std::shared_ptr<vpux::Executor>& executor,
+                                 const std::shared_ptr<InferenceEngine::IAllocator>& allocator,
+                                 const std::string& netName)
+        : InferRequestInternal(networkInputs, networkOutputs),
+          _executor(executor),
+          _allocator(allocator),
+          _stagesMetaData(blobMetaData),
+          _config(kmbConfig),
+          _netUniqueId(netName),
+          _deviceId(utils::extractIdFromDeviceName(kmbConfig.deviceId())),
+          _preprocBuffer(nullptr,
+                         [this](uint8_t* buffer) {
+                             _allocator->free(buffer);
+                         }),
+          _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "KmbInferRequest");
     if (_networkOutputs.empty() || _networkInputs.empty()) {
         THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
@@ -123,7 +125,8 @@ void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     if ((_config.useSIPP() || _config.useM2I()) &&
         InferenceEngine::KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecKmbDataPreprocessing(inputs, _networkInputs, _config.graphColorFormat(),
-            _config.numberOfSIPPShaves(), _config.SIPPLpi(), _config.numberOfPPPipes());
+                                              _config.numberOfSIPPShaves(), _config.SIPPLpi(),
+                                              _config.numberOfPPPipes());
     } else {
         _logger->warning("SIPP/M2I is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
@@ -135,8 +138,10 @@ void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
 
 // TODO: SIPP preprocessing usage can be merged to common preprocessing pipeline
 void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
-    InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
-    unsigned int lpi, unsigned int numPipes) {
+                                                            InferenceEngine::InputsDataMap& networkInputs,
+                                                            InferenceEngine::ColorFormat out_format,
+                                                            unsigned int numShaves, unsigned int lpi,
+                                                            unsigned int numPipes) {
 #ifdef __aarch64__
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "relocationAndExecKmbDataPreprocessing");
     std::map<std::string, PreProcessDataPtr> preprocDataRealloc;
@@ -160,19 +165,20 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
                 !utils::isBlobAllocatedByAllocator(origUVBlob, _allocator)) {
                 _logger->warning("NV12 Blob located in memory not managed by plugin. Need to re-allocate the blob.");
                 _preprocBuffer.reset(
-                    reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
+                        reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
 
                 auto memoryBlobY = as<MemoryBlob>(origYBlob);
                 IE_ASSERT(memoryBlobY != nullptr);
                 auto y_offset_pad = memoryBlobY->getTensorDesc().getBlockingDesc().getOffsetPadding();
                 auto memoryHolderYPlane = memoryBlobY->rmap();
                 ie_memcpy(_preprocBuffer.get(), origYBlob->byteSize(), memoryHolderYPlane.as<uint8_t*>() + y_offset_pad,
-                    origYBlob->byteSize());
+                          origYBlob->byteSize());
                 // explicitly ignore blocking descriptor
                 // memory has already been cropped properly
                 // just copy precision, dimensions and layout
                 InferenceEngine::TensorDesc croppedYTensorDesc = {origYBlob->getTensorDesc().getPrecision(),
-                    origYBlob->getTensorDesc().getDims(), origYBlob->getTensorDesc().getLayout()};
+                                                                  origYBlob->getTensorDesc().getDims(),
+                                                                  origYBlob->getTensorDesc().getLayout()};
                 kmbYBlob = ie::make_shared_blob<uint8_t>(croppedYTensorDesc, _preprocBuffer.get());
 
                 auto memoryBlobUV = as<MemoryBlob>(origUVBlob);
@@ -180,15 +186,16 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
                 auto uv_offset_pad = memoryBlobUV->getTensorDesc().getBlockingDesc().getOffsetPadding();
                 auto memoryHolderUVPlane = memoryBlobUV->rmap();
                 ie_memcpy(_preprocBuffer.get() + origYBlob->byteSize(), origUVBlob->byteSize(),
-                    memoryHolderUVPlane.as<uint8_t*>() + uv_offset_pad, origUVBlob->byteSize());
+                          memoryHolderUVPlane.as<uint8_t*>() + uv_offset_pad, origUVBlob->byteSize());
                 InferenceEngine::TensorDesc croppedUVTensorDesc = {origUVBlob->getTensorDesc().getPrecision(),
-                    origUVBlob->getTensorDesc().getDims(), origUVBlob->getTensorDesc().getLayout()};
-                kmbUVBlob =
-                    ie::make_shared_blob<uint8_t>(croppedUVTensorDesc, _preprocBuffer.get() + origYBlob->byteSize());
+                                                                   origUVBlob->getTensorDesc().getDims(),
+                                                                   origUVBlob->getTensorDesc().getLayout()};
+                kmbUVBlob = ie::make_shared_blob<uint8_t>(croppedUVTensorDesc,
+                                                          _preprocBuffer.get() + origYBlob->byteSize());
             }
 
             InferenceEngine::Blob::Ptr nv12Blob =
-                InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(kmbYBlob, kmbUVBlob);
+                    InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(kmbYBlob, kmbUVBlob);
             preprocDataRealloc[preProcDataIter->first]->setRoiBlob(nv12Blob);
         } else {
             THROW_IE_EXCEPTION << "Attempt to pass non-NV12 image to Kmb preprocessing.";
@@ -206,14 +213,16 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
 }
 
 void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
-    std::map<std::string, PreProcessDataPtr>& preprocData, InferenceEngine::InputsDataMap& networkInputs,
-    InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi, unsigned int numPipes) {
+                                               std::map<std::string, PreProcessDataPtr>& preprocData,
+                                               InferenceEngine::InputsDataMap& networkInputs,
+                                               InferenceEngine::ColorFormat out_format, unsigned int numShaves,
+                                               unsigned int lpi, unsigned int numPipes) {
 #ifdef __aarch64__
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "execKmbDataPreprocessing");
     IE_ASSERT(_config.useSIPP() || _config.useM2I());
     const KmbPreproc::Path ppPath = _config.useM2I() ? KmbPreproc::Path::M2I : KmbPreproc::Path::SIPP;
-    KmbPreproc::execDataPreprocessing(
-        inputs, preprocData, networkInputs, out_format, numShaves, lpi, numPipes, _netUniqueId, _deviceId, ppPath);
+    KmbPreproc::execDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi, numPipes,
+                                      _netUniqueId, _deviceId, ppPath);
 #else
     UNUSED(inputs);
     UNUSED(preprocData);

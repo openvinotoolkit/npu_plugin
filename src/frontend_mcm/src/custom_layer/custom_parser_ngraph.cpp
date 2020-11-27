@@ -6,7 +6,9 @@ class paramVisitor : public ngraph::AttributeVisitor {
     std::map<std::string, std::string> layerParam;
 
 public:
-    std::map<std::string, std::string> GetMap() const { return layerParam; }
+    std::map<std::string, std::string> GetMap() const {
+        return layerParam;
+    }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
         (void)name;
         (void)adapter;
@@ -52,21 +54,15 @@ public:
 
 namespace vpu {
 SmallVector<int> CustomLayerParserNGraph::calcSizesFromParams(const std::vector<size_t>& dims,
-    const SmallVector<std::string>& bufferSizeRules, std::map<std::string, std::string> layerParams) {
+                                                              const SmallVector<std::string>& bufferSizeRules,
+                                                              std::map<std::string, std::string> layerParams) {
     const auto B = std::to_string(dims[0]);
     const auto F = std::to_string(dims[1]);
     const auto Y = std::to_string(dims[2]);
     const auto X = std::to_string(dims[3]);
 
     auto sizes = std::vector<std::pair<std::string, std::string>>{
-        {"b", B},
-        {"B", B},
-        {"f", F},
-        {"F", F},
-        {"y", Y},
-        {"Y", Y},
-        {"x", X},
-        {"X", X},
+            {"b", B}, {"B", B}, {"f", F}, {"F", F}, {"y", Y}, {"Y", Y}, {"x", X}, {"X", X},
     };
 
     std::move(begin(sizes), end(sizes), inserter(layerParams, end(layerParams)));
@@ -86,9 +82,9 @@ SmallVector<int> CustomLayerParserNGraph::calcSizesFromParams(const std::vector<
     return parsedSizes;
 }
 
-CustomLayerParserNGraph::CustomLayerParserNGraph(
-    std::shared_ptr<ngraph::Node>& node, std::vector<mv::Data::TensorIterator> inputs)
-    : _node(node), _layerInputs(std::move(inputs)) {
+CustomLayerParserNGraph::CustomLayerParserNGraph(std::shared_ptr<ngraph::Node>& node,
+                                                 std::vector<mv::Data::TensorIterator> inputs)
+        : _node(node), _layerInputs(std::move(inputs)) {
     paramVisitor visitor;
     node->visit_attributes(visitor);
     _layerParam = visitor.GetMap();
@@ -104,8 +100,8 @@ CustomLayerParserNGraph::CustomLayerParserNGraph(
     }
 };
 
-std::vector<vpu::CustomLayer::Ptr> getSuitableCustomLayers(
-    const std::vector<vpu::CustomLayer::Ptr>& customLayers, const std::shared_ptr<ngraph::Node>& node) {
+std::vector<vpu::CustomLayer::Ptr> getSuitableCustomLayers(const std::vector<vpu::CustomLayer::Ptr>& customLayers,
+                                                           const std::shared_ptr<ngraph::Node>& node) {
     const auto isSuitableLayer = [&](const vpu::CustomLayer::Ptr& customLayer) {
         paramVisitor visitor;
         node->visit_attributes(visitor);
@@ -123,18 +119,18 @@ std::vector<vpu::CustomLayer::Ptr> getSuitableCustomLayers(
                 return vpu::CustomLayer::isLegalSizeRule(rule, layerParams);
             };
 
-            const auto validGridSizes =
-                std::all_of(begin(gws), end(gws), validSizeRule) && std::all_of(begin(lws), end(lws), validSizeRule);
+            const auto validGridSizes = std::all_of(begin(gws), end(gws), validSizeRule) &&
+                                        std::all_of(begin(lws), end(lws), validSizeRule);
 
             const auto workGroupDims = 3;
             VPU_THROW_UNLESS(lws.size() <= workGroupDims,
-                "Failed to parse '%s' custom layer binding list. Local work group size count "
-                "is greater than 3.",
-                customLayer->layerName());
+                             "Failed to parse '%s' custom layer binding list. Local work group size count "
+                             "is greater than 3.",
+                             customLayer->layerName());
             VPU_THROW_UNLESS(gws.size() <= workGroupDims,
-                "Failed to parse '%s' custom layer binding list. Global work group size count "
-                "is greater than 3.",
-                customLayer->layerName());
+                             "Failed to parse '%s' custom layer binding list. Global work group size count "
+                             "is greater than 3.",
+                             customLayer->layerName());
 
             if (!validGridSizes) {
                 return false;
@@ -151,16 +147,16 @@ std::vector<vpu::CustomLayer::Ptr> getSuitableCustomLayers(
     return suitableCustomLayers;
 }
 
-vpu::CustomLayer::Ptr findMatchingCustomLayer(
-    const std::vector<vpu::CustomLayer::Ptr>& customLayers, const std::vector<mv::Data::TensorIterator>& inputs) {
+vpu::CustomLayer::Ptr findMatchingCustomLayer(const std::vector<vpu::CustomLayer::Ptr>& customLayers,
+                                              const std::vector<mv::Data::TensorIterator>& inputs) {
     VPU_THROW_UNLESS(customLayers.size(), "Trying to use custom layer parser but custom layers were not found.");
 
     const auto findMismatchedClEdge = [&](const vpu::SmallVector<mv::Order>& cnnEdges,
                                           const std::map<int, InferenceEngine::Layout>& clEdges) {
         for (auto clEdge = begin(clEdges); clEdge != end(clEdges); ++clEdge) {
             int port = clEdge->first;
-            VPU_THROW_UNLESS(
-                port < (int)cnnEdges.size(), "Can't bind custom layer edge with port '%s' to CNNNetwork layer", port);
+            VPU_THROW_UNLESS(port < (int)cnnEdges.size(),
+                             "Can't bind custom layer edge with port '%s' to CNNNetwork layer", port);
 
             const auto clFormat = clEdge->second;
             const auto cnnFormat = cnnEdges[port];
@@ -201,13 +197,13 @@ vpu::CustomLayer::Ptr findMatchingCustomLayer(
 
     VPU_THROW_FORMAT("Failed to bind '%l' custom layer. MCM compiler expected input with port '%l' to have '%l' "
                      "layout, but custom layer has '%l' layout instead.",
-        layerName, port, mcmOrder.toString(), clOrder.toString());
+                     layerName, port, mcmOrder.toString(), clOrder.toString());
 
     return nullptr;
 }
 
-std::vector<uint8_t> CustomLayerParserNGraph::resolveKernelArguments(
-    const CustomKernel& kernel, const vpu::SmallVector<uint32_t>& kernelArgs) {
+std::vector<uint8_t> CustomLayerParserNGraph::resolveKernelArguments(const CustomKernel& kernel,
+                                                                     const vpu::SmallVector<uint32_t>& kernelArgs) {
     const auto workGroupDims = 3;
 
     const auto& wgDimSource = (kernel.dimSource() == CustomDimSource::Input) ? _inputDescs : _outputDescs;
@@ -245,13 +241,14 @@ std::vector<uint8_t> CustomLayerParserNGraph::resolveKernelArguments(
     return kernelData;
 }
 
-std::vector<mv::TensorInfo> CustomLayerParserNGraph::resolveStageOutputs(
-    const CustomKernel& kernel, const CustomLayer& customLayer, const std::vector<StageOutput>& stageOutputs) {
+std::vector<mv::TensorInfo> CustomLayerParserNGraph::resolveStageOutputs(const CustomKernel& kernel,
+                                                                         const CustomLayer& customLayer,
+                                                                         const std::vector<StageOutput>& stageOutputs) {
     std::vector<mv::TensorInfo> kernelOutputs;
     for (const auto& output : stageOutputs) {
         if (output.isBuffer) {
             kernelOutputs.emplace_back(mv::Shape{static_cast<uint32_t>(output.bufferSize), 1, 1, 1}, mv::DType{"UInt8"},
-                mv::Order::getZMajorID(4));
+                                       mv::Order::getZMajorID(4));
         } else {
             const auto& desc = _outputDescs.at(output.portIndex);
             VPU_THROW_UNLESS(desc.size() <= 4, "Custom layer does not support tensors greater 4D");
@@ -262,9 +259,9 @@ std::vector<mv::TensorInfo> CustomLayerParserNGraph::resolveStageOutputs(
             const auto layerOutputs = customLayer.outputs();
             const auto outputLayoutIt = layerOutputs.find(output.portIndex);
             VPU_THROW_UNLESS(outputLayoutIt != layerOutputs.end(),
-                "Failed to parse custom layer '%s'. "
-                "Couldn't find output tensor with port-index=%l ",
-                customLayer.layerName(), output.portIndex);
+                             "Failed to parse custom layer '%s'. "
+                             "Couldn't find output tensor with port-index=%l ",
+                             customLayer.layerName(), output.portIndex);
 
             auto order = layoutToOrder(outputLayoutIt->second);
             // 4D tensor can be only in two layouts: NHWC (default) or NCHW.
@@ -279,8 +276,10 @@ std::vector<mv::TensorInfo> CustomLayerParserNGraph::resolveStageOutputs(
                 auto argument = std::find_if(begin(kernel.arguments()), end(kernel.arguments()), withBindingName);
                 IE_ASSERT(argument != kernel.arguments().end());
 
-                if (argument->underlyingTypeSize == 1) return mv::DType{"UInt8"};
-                if (argument->underlyingTypeSize == 2) return mv::DType{"Float16"};
+                if (argument->underlyingTypeSize == 1)
+                    return mv::DType{"UInt8"};
+                if (argument->underlyingTypeSize == 2)
+                    return mv::DType{"Float16"};
 
                 VPU_THROW_EXCEPTION << "Custom layer output parameter '" << output.argName
                                     << "' has unsupported output data type with "
@@ -317,9 +316,9 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
         case CustomParamType::InputBuffer: {
             const auto bufferIt = _buffers.find(binding.portIndex);
             VPU_THROW_UNLESS(bufferIt != _buffers.end(),
-                "Unable to deduce parameter '%s' for '%s' layer. "
-                "There is no output_buffer with port-index=%d defined.",
-                binding.argName, _node->description(), binding.portIndex);
+                             "Unable to deduce parameter '%s' for '%s' layer. "
+                             "There is no output_buffer with port-index=%d defined.",
+                             binding.argName, _node->description(), binding.portIndex);
 
             stage.inputs.push_back(bufferIt->second);
             stage.arguments.push_back(stage.inputs.size() - 1);
@@ -327,10 +326,10 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
         }
         case CustomParamType::OutputBuffer: {
             VPU_THROW_UNLESS(_buffers.find(binding.portIndex) == _buffers.end(),
-                "Unable to deduce parameter '%s' for '%s' layer. "
-                "Can't add output_buffer with port-index=%d. "
-                "Buffer with that index already exists.",
-                binding.argName, _node->description(), binding.portIndex);
+                             "Unable to deduce parameter '%s' for '%s' layer. "
+                             "Can't add output_buffer with port-index=%d. "
+                             "Buffer with that index already exists.",
+                             binding.argName, _node->description(), binding.portIndex);
 
             const int bufferSize = parseBufferSize(binding);
             stage.outputs.emplace_back(true, bufferSize, binding.portIndex, binding.argName);
@@ -340,9 +339,9 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
         case CustomParamType::Data:
         case CustomParamType::Input: {
             VPU_THROW_UNLESS((uint32_t)binding.portIndex < _layerInputs.size(),
-                "Unable to deduce parameter '%s' for '%s' layer. "
-                "Can't find layer input with port-index=%d.",
-                binding.argName, _node->description(), binding.portIndex);
+                             "Unable to deduce parameter '%s' for '%s' layer. "
+                             "Can't find layer input with port-index=%d.",
+                             binding.argName, _node->description(), binding.portIndex);
 
             stage.inputs.push_back(_layerInputs.at(binding.portIndex));
             stage.arguments.push_back(stage.inputs.size() - 1);
@@ -361,20 +360,20 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
                 const auto param = [&]() -> std::string {
                     if (binding.portIndex < 0) {
                         VPU_THROW_UNLESS(parseNumber<float>(cnnParam->second).hasValue(),
-                            "Unable to deduce parameter '%s' for '%s' layer. "
-                            "Without "
-                            "port-index set, only viable "
-                            "size value is a whole integer number.",
-                            binding.argName, _node->description());
+                                         "Unable to deduce parameter '%s' for '%s' layer. "
+                                         "Without "
+                                         "port-index set, only viable "
+                                         "size value is a whole integer number.",
+                                         binding.argName, _node->description());
                         return cnnParam->second;
                     }
 
                     VPU_THROW_UNLESS(cnnParam->second.find(',') != std::string::npos,
-                        "Error while parsing CNNetwork parameter '%s' for '%s' "
-                        "layer: "
-                        "port-index=%d is set, "
-                        "but parameter is neither a tensor, nor an array type.",
-                        cnnParam->first, _node->description(), binding.portIndex);
+                                     "Error while parsing CNNetwork parameter '%s' for '%s' "
+                                     "layer: "
+                                     "port-index=%d is set, "
+                                     "but parameter is neither a tensor, nor an array type.",
+                                     cnnParam->first, _node->description(), binding.portIndex);
 
                     std::string value;
                     std::stringstream parameterStream{cnnParam->second};
@@ -387,24 +386,26 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
                 if (binding.type == CustomParamType::Int) {
                     const auto val = parseNumber<int>(param);
                     VPU_THROW_UNLESS(val.hasValue(),
-                        "Unable to deduce parameter '%s' for '%s' layer. "
-                        "Name is: '%s', parameter is: '%s'",
-                        binding.argName, _node->description(), _node->get_friendly_name(), binding.irSource);
+                                     "Unable to deduce parameter '%s' for '%s' layer. "
+                                     "Name is: '%s', parameter is: '%s'",
+                                     binding.argName, _node->description(), _node->get_friendly_name(),
+                                     binding.irSource);
                     stage.arguments.push_back(val.get());
                 } else {
                     const auto val = parseNumber<float>(param);
                     VPU_THROW_UNLESS(val.hasValue(),
-                        "Unable to deduce parameter '%s' for '%s' layer. "
-                        "Name is: '%s', parameter is: '%s'",
-                        binding.argName, _node->description(), _node->get_friendly_name(), binding.irSource);
+                                     "Unable to deduce parameter '%s' for '%s' layer. "
+                                     "Name is: '%s', parameter is: '%s'",
+                                     binding.argName, _node->description(), _node->get_friendly_name(),
+                                     binding.irSource);
                     stage.arguments.push_back(floatAsInt(val.get()));
                 }
                 // if not cnnLayer param, check if it is 'I.X' format param
             } else if (binding.irSource[1] == '.' && (binding.irSource[0] == 'I' || binding.irSource[0] == 'O')) {
                 VPU_THROW_UNLESS(binding.irSource.length() == 3,
-                    "Unable to deduce parameter '%s' for '%s' layer."
-                    "Wrong source format",
-                    binding.argName, _node->description());
+                                 "Unable to deduce parameter '%s' for '%s' layer."
+                                 "Wrong source format",
+                                 binding.argName, _node->description());
 
                 const auto origDims = [&] {
                     if (binding.irSource[0] == 'I') {
@@ -428,19 +429,19 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
                 }();
 
                 VPU_THROW_UNLESS(dimPosition != std::string::npos,
-                    "Unable to deduce parameter '%s' for '%s' layer."
-                    "Failed to parse source dimension from provided string "
-                    "'%s'",
-                    binding.argName, _node->description(), binding.irSource);
+                                 "Unable to deduce parameter '%s' for '%s' layer."
+                                 "Failed to parse source dimension from provided string "
+                                 "'%s'",
+                                 binding.argName, _node->description(), binding.irSource);
 
                 auto dimValue = dims.at(dimPosition);
                 stage.arguments.push_back(static_cast<uint32_t>(dimValue));
             } else {
                 VPU_THROW_UNLESS(binding.portIndex < 0,
-                    "Unable to deduce parameter '%s' for '%s' layer: "
-                    "port-index=%d is set, "
-                    "but parameter is neither a tensor, nor an array type.",
-                    binding.argName, _node->description(), binding.portIndex);
+                                 "Unable to deduce parameter '%s' for '%s' layer: "
+                                 "port-index=%d is set, "
+                                 "but parameter is neither a tensor, nor an array type.",
+                                 binding.argName, _node->description(), binding.portIndex);
 
                 const auto val = [&] {
                     if (binding.type == CustomParamType::Int) {
@@ -451,9 +452,9 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
                 }();
 
                 VPU_THROW_UNLESS(val.hasValue(),
-                    "Unable to deduce parameter '%s' for '%s' layer. "
-                    "Name is: '%s', parameter is: '%s'",
-                    binding.argName, _node->description(), _node->get_friendly_name(), binding.irSource);
+                                 "Unable to deduce parameter '%s' for '%s' layer. "
+                                 "Name is: '%s', parameter is: '%s'",
+                                 binding.argName, _node->description(), _node->get_friendly_name(), binding.irSource);
 
                 const auto number = binding.type == CustomParamType::Int ? val.get() : floatAsInt(val.get());
                 stage.arguments.push_back(number);

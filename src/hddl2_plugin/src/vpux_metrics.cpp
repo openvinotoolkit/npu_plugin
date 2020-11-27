@@ -24,22 +24,19 @@ namespace vpux {
 
 Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
     _supportedMetrics = {
-        METRIC_KEY(SUPPORTED_METRICS),
-        METRIC_KEY(AVAILABLE_DEVICES),
-        METRIC_KEY(FULL_DEVICE_NAME),
-        METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-        METRIC_KEY(OPTIMIZATION_CAPABILITIES),
-        METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
-        METRIC_KEY(RANGE_FOR_STREAMS),
+            METRIC_KEY(SUPPORTED_METRICS),         METRIC_KEY(AVAILABLE_DEVICES),
+            METRIC_KEY(FULL_DEVICE_NAME),          METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+            METRIC_KEY(OPTIMIZATION_CAPABILITIES), METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+            METRIC_KEY(RANGE_FOR_STREAMS),
     };
 
     _supportedConfigKeys = {
-        CONFIG_KEY(LOG_LEVEL),
-        CONFIG_KEY(PERF_COUNT),
-        CONFIG_KEY(DEVICE_ID),
-        VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
-        KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
-        VPUX_CONFIG_KEY(PLATFORM),
+            CONFIG_KEY(LOG_LEVEL),
+            CONFIG_KEY(PERF_COUNT),
+            CONFIG_KEY(DEVICE_ID),
+            VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
+            KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+            VPUX_CONFIG_KEY(PLATFORM),
     };
 }
 
@@ -48,21 +45,31 @@ std::vector<std::string> Metrics::GetAvailableDevicesNames() const {
 }
 
 // TODO each backend may support different metrics
-const std::vector<std::string>& Metrics::SupportedMetrics() const { return _supportedMetrics; }
+const std::vector<std::string>& Metrics::SupportedMetrics() const {
+    return _supportedMetrics;
+}
 
 // TODO: Need to add the full name
-std::string Metrics::GetFullDevicesNames() const { return {""}; }
+std::string Metrics::GetFullDevicesNames() const {
+    return {""};
+}
 
 // TODO each backend may support different configs
-const std::vector<std::string>& Metrics::GetSupportedConfigKeys() const { return _supportedConfigKeys; }
+const std::vector<std::string>& Metrics::GetSupportedConfigKeys() const {
+    return _supportedConfigKeys;
+}
 
 // TODO each backend may support different optimization capabilities
-const std::vector<std::string>& Metrics::GetOptimizationCapabilities() const { return _optimizationCapabilities; }
+const std::vector<std::string>& Metrics::GetOptimizationCapabilities() const {
+    return _optimizationCapabilities;
+}
 
 const std::tuple<uint32_t, uint32_t, uint32_t>& Metrics::GetRangeForAsyncInferRequest() const {
     return _rangeForAsyncInferRequests;
 }
 
-const std::tuple<uint32_t, uint32_t>& Metrics::GetRangeForStreams() const { return _rangeForStreams; }
+const std::tuple<uint32_t, uint32_t>& Metrics::GetRangeForStreams() const {
+    return _rangeForStreams;
+}
 
 }  // namespace vpux

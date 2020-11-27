@@ -24,8 +24,8 @@
 namespace utils {
 
 void dumpBlobHelper(const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst,
-    const vpu::Logger::Ptr& _logger, const std::string& blobType);
+                    const vpu::Logger::Ptr& _logger, const std::string& blobType);
 void dumpBlobs(const InferenceEngine::BlobMap& blobMap, const std::string& dstPath, const std::string& blobType,
-    const vpu::Logger::Ptr& logger);
+               const vpu::Logger::Ptr& logger);
 
 }  // namespace utils

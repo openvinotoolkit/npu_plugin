@@ -44,15 +44,17 @@ public:
 
     // TODO refactor this mess
     explicit HddlUniteInferData(const bool& needPreProcessing = false,
-        const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
-        const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR,
-        const size_t numOutputs = 1);
+                                const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
+                                const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR,
+                                const size_t numOutputs = 1);
 
     // TODO Now similar to prepareUniteOutput, make one for all?
     void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const InferenceEngine::DataPtr& desc);
     void prepareUniteOutput(const InferenceEngine::DataPtr& desc);
 
-    HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() { return _inferDataPtr; }
+    HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() {
+        return _inferDataPtr;
+    }
     void waitInferDone() const;
 
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getHDDLUnitePerfCounters() const;

@@ -27,51 +27,95 @@ namespace vpu {
 
 class MCMConfig : public vpux::VPUXConfig {
 public:
-    LogLevel mcmLogLevel() const { return _mcmLogLevel; }
+    LogLevel mcmLogLevel() const {
+        return _mcmLogLevel;
+    }
 
-    const std::string& mcmTargetDesciptorPath() const { return _mcmTargetDesciptorPath; }
+    const std::string& mcmTargetDesciptorPath() const {
+        return _mcmTargetDesciptorPath;
+    }
 
-    const std::string& mcmTargetDesciptor() const { return _mcmTargetDesciptor; }
+    const std::string& mcmTargetDesciptor() const {
+        return _mcmTargetDesciptor;
+    }
 
-    const std::string& mcmCompilationDesciptorPath() const { return _mcmCompilationDesciptorPath; }
+    const std::string& mcmCompilationDesciptorPath() const {
+        return _mcmCompilationDesciptorPath;
+    }
 
-    const std::string& mcmCompilationDesciptor() const { return _mcmCompilationDesciptor; }
+    const std::string& mcmCompilationDesciptor() const {
+        return _mcmCompilationDesciptor;
+    }
 
-    bool mcmGenerateBlob() const { return _mcmGenerateBlob; }
+    bool mcmGenerateBlob() const {
+        return _mcmGenerateBlob;
+    }
 
-    bool mcmGenerateJSON() const { return _mcmGenerateJSON; }
+    bool mcmGenerateJSON() const {
+        return _mcmGenerateJSON;
+    }
 
-    bool mcmGenerateDOT() const { return _mcmGenerateDOT; }
+    bool mcmGenerateDOT() const {
+        return _mcmGenerateDOT;
+    }
 
-    bool mcmParseOnly() const { return _mcmParseOnly; }
+    bool mcmParseOnly() const {
+        return _mcmParseOnly;
+    }
 
-    const std::string& mcmCompilationResultsPath() const { return _mcmCompilationResultsPath; }
+    const std::string& mcmCompilationResultsPath() const {
+        return _mcmCompilationResultsPath;
+    }
 
-    const std::string& mcmCompilationResults() const { return _mcmCompilationResults; }
+    const std::string& mcmCompilationResults() const {
+        return _mcmCompilationResults;
+    }
 
-    bool eltwiseScalesAlignment() const { return _eltwiseScalesAlignment; }
+    bool eltwiseScalesAlignment() const {
+        return _eltwiseScalesAlignment;
+    }
 
-    bool concatScalesAlignment() const { return _concatScalesAlignment; }
+    bool concatScalesAlignment() const {
+        return _concatScalesAlignment;
+    }
 
-    bool zeroPointsOnWeightsAlignment() const { return _zeroPointsOnWeightsAlignment; }
+    bool zeroPointsOnWeightsAlignment() const {
+        return _zeroPointsOnWeightsAlignment;
+    }
 
-    const std::string& serializeCNNBeforeCompileFile() const { return _serializeCNNBeforeCompileFile; }
+    const std::string& serializeCNNBeforeCompileFile() const {
+        return _serializeCNNBeforeCompileFile;
+    }
 
-    std::string customLayers() const { return _customLayers; }
+    std::string customLayers() const {
+        return _customLayers;
+    }
 
-    const std::string& mcmCompilationPassBanList() const { return _mcmCompilationPassBanList; }
+    const std::string& mcmCompilationPassBanList() const {
+        return _mcmCompilationPassBanList;
+    }
 
-    bool scaleFuseInput() const { return _scaleFuseInput; }
+    bool scaleFuseInput() const {
+        return _scaleFuseInput;
+    }
 
-    bool referenceMode() const { return _referenceMode; }
+    bool referenceMode() const {
+        return _referenceMode;
+    }
 
     const std::unordered_set<std::string>& getCompileOptions() const override;
 
-    bool allowNCHWLayoutForMcmModelInput() const { return _allowNCHWLayoutForMcmModelInput; }
+    bool allowNCHWLayoutForMcmModelInput() const {
+        return _allowNCHWLayoutForMcmModelInput;
+    }
 
-    bool allowU8InputForFp16Models() const { return _allowU8InputForFp16Models; }
+    bool allowU8InputForFp16Models() const {
+        return _allowU8InputForFp16Models;
+    }
 
-    bool scaleShiftFusing() const { return _scaleShiftFusing; }
+    bool scaleShiftFusing() const {
+        return _scaleShiftFusing;
+    }
 
 protected:
     void parse(const std::map<std::string, std::string>& config) override;

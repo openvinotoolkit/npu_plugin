@@ -30,8 +30,12 @@ namespace KmbPlugin {
 
 namespace utils {
 
-static float clip_great(float x, float threshold) { return x < threshold ? x : threshold; }
-static float clip_less(float x, float threshold) { return x > threshold ? x : threshold; }
+static float clip_great(float x, float threshold) {
+    return x < threshold ? x : threshold;
+}
+static float clip_less(float x, float threshold) {
+    return x > threshold ? x : threshold;
+}
 
 std::vector<double> computePriorbox(const priorBoxParam& param) {
     std::vector<float> dst_aspect_ratios{1.0f};
