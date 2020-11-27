@@ -28,7 +28,7 @@ preCompiled_(true)
     rm.deserialize(blobBuffer, blobSize);
     auto& graphFile = rm.getGraphFile();
     model_->setName(graphFile.header->identifier);
-    
+
     for (unsigned i = 0; i < graphFile.header->net_input.size(); ++i) {
         auto dimensions = graphFile.header->net_input[i]->dimensions;
         auto strides = graphFile.header->net_input[i]->strides;
@@ -42,7 +42,7 @@ preCompiled_(true)
             RuntimeModel::convertDtype(graphFile.header->net_input[i]->data_dtype)
         );
     }
-    
+
     for (unsigned i = 0; i < graphFile.header->net_output.size(); ++i) {
         auto dimensions = graphFile.header->net_output[i]->dimensions;
         auto strides = graphFile.header->net_output[i]->strides;
@@ -252,7 +252,7 @@ void mv::CompilationUnit::reset()
     RuntimeModel::getInstance(targetDescriptor_).clear();
     targetDescriptor_ = TargetDescriptor();
     model_->clear();
-    if (preCompiled_) 
+    if (preCompiled_)
     {
         preCompiled_ = false;
     }
@@ -283,7 +283,7 @@ const mv::BufferMap& mv::CompilationUnit::getBufferMap() const
     return model_->bufferMap();
 }
 
-void mv::CompilationUnit::getName(char* name, unsigned bufferSize) const 
+void mv::CompilationUnit::getName(char* name, unsigned bufferSize) const
 {
     strncpy(name, model_->getName().c_str(), bufferSize);
 }
