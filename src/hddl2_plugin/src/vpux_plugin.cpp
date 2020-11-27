@@ -81,14 +81,14 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
 }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-    const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
+    const CNNNetwork& network, const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(networkConfig.deviceId());
     return LoadExeNetwork(network, device, networkConfig);
 }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-    const ICNNNetwork& network, RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
+    const CNNNetwork& network, RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(context);
     return LoadExeNetwork(network, device, networkConfig);
@@ -132,7 +132,7 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
 }
 
 IE::QueryNetworkResult Engine::QueryNetwork(
-    const IE::ICNNNetwork& network, const std::map<std::string, std::string>& config) const {
+    const IE::CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     UNUSED(network);
     UNUSED(config);
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED;
