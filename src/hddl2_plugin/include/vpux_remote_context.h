@@ -29,23 +29,29 @@
 namespace vpux {
 
 class VPUXRemoteContext :
-    public InferenceEngine::RemoteContext,
-    public std::enable_shared_from_this<VPUXRemoteContext> {
+        public InferenceEngine::RemoteContext,
+        public std::enable_shared_from_this<VPUXRemoteContext> {
 public:
     using Ptr = std::shared_ptr<VPUXRemoteContext>;
     using CPtr = std::shared_ptr<const VPUXRemoteContext>;
 
     explicit VPUXRemoteContext(const std::shared_ptr<Device>& device, const InferenceEngine::ParamMap& paramMap,
-        const VPUXConfig& config = {});
+                               const VPUXConfig& config = {});
 
-    InferenceEngine::RemoteBlob::Ptr CreateBlob(
-        const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& blobParams) noexcept override;
-    std::shared_ptr<Device> getDevice() const { return _devicePtr; }
+    InferenceEngine::RemoteBlob::Ptr CreateBlob(const InferenceEngine::TensorDesc& tensorDesc,
+                                                const InferenceEngine::ParamMap& blobParams) noexcept override;
+    std::shared_ptr<Device> getDevice() const {
+        return _devicePtr;
+    }
 
     /** @brief Provide device name attached to current context.
      * Format: {plugin prefix}.{device name} */
-    std::string getDeviceName() const noexcept override { return "VPUX." + _devicePtr->getName(); }
-    InferenceEngine::ParamMap getParams() const override { return _contextParams; }
+    std::string getDeviceName() const noexcept override {
+        return "VPUX." + _devicePtr->getName();
+    }
+    InferenceEngine::ParamMap getParams() const override {
+        return _contextParams;
+    }
 
 protected:
     std::shared_ptr<Device> _devicePtr = nullptr;

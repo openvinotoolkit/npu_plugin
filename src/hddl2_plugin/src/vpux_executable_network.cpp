@@ -70,17 +70,18 @@ static Executor::Ptr getExecutorForInference(const Executor::Ptr& executor, cons
 //      Shared init ctor
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr& device)
-    : _config(config),
-      _logger(std::make_shared<vpu::Logger>("ExecutableNetwork", config.logLevel(), vpu::consoleOutput())),
-      _device(device),
-      _compiler(Compiler::create(CompilerType::MCMCompiler)),
-      _supportedMetrics({METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)}) {}
+        : _config(config),
+          _logger(std::make_shared<vpu::Logger>("ExecutableNetwork", config.logLevel(), vpu::consoleOutput())),
+          _device(device),
+          _compiler(Compiler::create(CompilerType::MCMCompiler)),
+          _supportedMetrics({METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)}) {
+}
 
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(IE::ICNNNetwork& network, const Device::Ptr& device, const VPUXConfig& config)
-    : ExecutableNetwork(config, device) {
+        : ExecutableNetwork(config, device) {
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
     if (_config.useNGraphParser()) {
@@ -107,7 +108,7 @@ ExecutableNetwork::ExecutableNetwork(IE::ICNNNetwork& network, const Device::Ptr
             auto nGraphFunc = network.getFunction();
             ngraph::pass::Manager manager;
             ngraph::pass::ConvertPriorBox().run_on_function(
-                nGraphFunc);  // strict requirement: ConvertPriorBox should be first
+                    nGraphFunc);  // strict requirement: ConvertPriorBox should be first
 
             manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
             manager.run_passes(nGraphFunc);
@@ -141,7 +142,7 @@ ExecutableNetwork::ExecutableNetwork(IE::ICNNNetwork& network, const Device::Ptr
 //      Import network
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const VPUXConfig& config)
-    : ExecutableNetwork(config, device) {
+        : ExecutableNetwork(config, device) {
     const std::string networkName = "net" + std::to_string(loadBlobCounter);
     _networkPtr = _compiler->parse(networkModel, _config, networkName);
     _executorPtr = createExecutor(_networkPtr, config, device);
@@ -158,7 +159,7 @@ void ExecutableNetwork::ConfigureStreamsExecutor(const std::string& networkName)
         maxTaskExecutorGetResultCount = 1;
     } else {
         _taskExecutor = std::make_shared<IE::CPUStreamsExecutor>(
-            IE::IStreamsExecutor::Config{"VPUXPlugin executor", _config.executorStreams()});
+                IE::IStreamsExecutor::Config{"VPUXPlugin executor", _config.executorStreams()});
         maxTaskExecutorGetResultCount = _config.executorStreams();
     }
 
@@ -184,33 +185,33 @@ IE::ITaskExecutor::Ptr ExecutableNetwork::getNextTaskExecutor() {
 //------------------------------------------------------------------------------
 //      Create infer requests
 //------------------------------------------------------------------------------
-IE::InferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(
-    const IE::InputsDataMap networkInputs, const IE::OutputsDataMap networkOutputs) {
+IE::InferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const IE::InputsDataMap networkInputs,
+                                                                        const IE::OutputsDataMap networkOutputs) {
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
-    return std::make_shared<InferRequest>(
-        networkInputs, networkOutputs, inferExecutor, _config, _networkName, allocator);
+    return std::make_shared<InferRequest>(networkInputs, networkOutputs, inferExecutor, _config, _networkName,
+                                          allocator);
 }
 
 InferenceEngine::IInferRequest::Ptr ExecutableNetwork::CreateInferRequest() {
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
-    auto syncRequestImpl = std::make_shared<InferRequest>(
-        _networkInputs, _networkOutputs, inferExecutor, _config, _networkName, allocator);
+    auto syncRequestImpl = std::make_shared<InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config,
+                                                          _networkName, allocator);
 
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
     auto resultExecutor = getNextTaskExecutor();
 
     auto asyncThreadSafeImpl =
-        std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, resultExecutor, _callbackExecutor);
+            std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, resultExecutor, _callbackExecutor);
 
     InferenceEngine::IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(
-        new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(asyncThreadSafeImpl),
-        [](InferenceEngine::IInferRequest* p) {
-            p->Release();
-        });
+    asyncRequest.reset(new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(
+                               asyncThreadSafeImpl),
+                       [](InferenceEngine::IInferRequest* p) {
+                           p->Release();
+                       });
     asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
     return asyncRequest;
 }
@@ -252,8 +253,8 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
 //------------------------------------------------------------------------------
 std::atomic<int> ExecutableNetwork::loadBlobCounter{1};
 
-Executor::Ptr ExecutableNetwork::createExecutor(
-    const NetworkDescription::Ptr& network, const VPUXConfig& config, const Device::Ptr& device) {
+Executor::Ptr ExecutableNetwork::createExecutor(const NetworkDescription::Ptr& network, const VPUXConfig& config,
+                                                const Device::Ptr& device) {
     loadBlobCounter++;  // increment blob static counter to make unique network ID
     if (network == nullptr) {
         THROW_IE_EXCEPTION << "Network is null!";

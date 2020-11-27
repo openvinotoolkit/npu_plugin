@@ -17,12 +17,12 @@ namespace ie = InferenceEngine;
 VPU_DECLARE_ENUM(CustomParamType, Input, Output, Data, LocalData, InputBuffer, OutputBuffer, Int, Float)
 
 VPU_DECLARE_ENUM(CustomDataFormat,
-    BYXF = 0,  // NHWC used in most software layers
-    BFYX = 1,  // NCHW used if HW module is enabled
-    YXF = 2,   // HWC used in most software layers
-    FYX = 3,   // CHW used if HW module is enabled
-    BF = 4,    // NC layout
-    Any = 5)   // doesn't really matter
+                 BYXF = 0,  // NHWC used in most software layers
+                 BFYX = 1,  // NCHW used if HW module is enabled
+                 YXF = 2,   // HWC used in most software layers
+                 FYX = 3,   // CHW used if HW module is enabled
+                 BF = 4,    // NC layout
+                 Any = 5)   // doesn't really matter
 
 VPU_DECLARE_ENUM(CustomDimSource, Input, Output)
 
@@ -42,7 +42,8 @@ struct CustomKernel final {
         std::string name;
         int underlyingTypeSize{};
 
-        Argument(std::string name, int typeSize): name{std::move(name)}, underlyingTypeSize{typeSize} {}
+        Argument(std::string name, int typeSize): name{std::move(name)}, underlyingTypeSize{typeSize} {
+        }
     };
 
 private:
@@ -66,16 +67,36 @@ public:
     void processParametersNode(const pugi::xml_node& node);
     void processWorkSizesNode(const pugi::xml_node& node);
 
-    int maxShaves() const { return _maxShaves; }
-    const std::vector<uint8_t>& kernelBinary() const { return _kernelBinary; }
-    const SmallVector<Argument>& arguments() const { return _kernelArguments; }
-    const std::unordered_map<std::string, BindingParameter>& bindings() const { return _bindings; }
-    const SmallVector<std::string>& globalGridSizeRules() const { return _globalGridSizeRules; }
-    const SmallVector<std::string>& localGridSizeRules() const { return _localGridSizeRules; }
-    int kernelId() const { return _kernelId; }
-    CustomDimSource dimSource() const { return _wgDimSource; }
-    int dimSourceIndex() const { return _wgDimIdx; }
-    int inputDataCount() const { return _inputDataCount; }
+    int maxShaves() const {
+        return _maxShaves;
+    }
+    const std::vector<uint8_t>& kernelBinary() const {
+        return _kernelBinary;
+    }
+    const SmallVector<Argument>& arguments() const {
+        return _kernelArguments;
+    }
+    const std::unordered_map<std::string, BindingParameter>& bindings() const {
+        return _bindings;
+    }
+    const SmallVector<std::string>& globalGridSizeRules() const {
+        return _globalGridSizeRules;
+    }
+    const SmallVector<std::string>& localGridSizeRules() const {
+        return _localGridSizeRules;
+    }
+    int kernelId() const {
+        return _kernelId;
+    }
+    CustomDimSource dimSource() const {
+        return _wgDimSource;
+    }
+    int dimSourceIndex() const {
+        return _wgDimIdx;
+    }
+    int inputDataCount() const {
+        return _inputDataCount;
+    }
 };
 
 }  // namespace vpu

@@ -20,7 +20,7 @@
 namespace vpu {
 
 void parseDims(const InferenceEngine::SizeVector& dims, size_t& dimN, size_t& dimZ, size_t& dimY, size_t& dimX,
-    size_t defaultValue) {
+               size_t defaultValue) {
     dimN = dimZ = dimY = dimX = defaultValue;
     switch (dims.size()) {
     case 1:

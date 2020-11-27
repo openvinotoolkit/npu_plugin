@@ -34,30 +34,30 @@ class Engine : public InferenceEngine::InferencePluginInternal {
 public:
     Engine();
 
-    ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-        const ICNNNetwork& network, const std::map<std::string, std::string>& config) override;
+    ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network,
+                                                      const std::map<std::string, std::string>& config) override;
 
-    ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-        const ICNNNetwork& network, RemoteContext::Ptr ptr, const std::map<std::string, std::string>& map) override;
+    ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network, RemoteContext::Ptr ptr,
+                                                      const std::map<std::string, std::string>& map) override;
 
     using InferenceEngine::InferencePluginInternal::ImportNetwork;
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(
-        const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
+    InferenceEngine::ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+                                                     const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(
-        std::istream& networkModel, const std::map<std::string, std::string>& config) override;
+    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
+                                                         const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel, const RemoteContext::Ptr& context,
-        const std::map<std::string, std::string>& config) override;
+                                                         const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::QueryNetworkResult QueryNetwork(
-        const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config) const override;
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+                                                     const std::map<std::string, std::string>& config) const override;
 
     InferenceEngine::Parameter GetMetric(
-        const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+            const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
     /**
      * @brief Create context form param map. Will reuse already created workloadContext (workload
@@ -66,8 +66,8 @@ public:
     RemoteContext::Ptr CreateContext(const ParamMap& map) override;
 
 private:
-    ExecutableNetworkInternal::Ptr LoadExeNetwork(
-        const ICNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& networkConfig);
+    ExecutableNetworkInternal::Ptr LoadExeNetwork(const ICNNNetwork& network, std::shared_ptr<Device>& device,
+                                                  const VPUXConfig& networkConfig);
 
 private:
     VPUXConfig _parsedConfig;

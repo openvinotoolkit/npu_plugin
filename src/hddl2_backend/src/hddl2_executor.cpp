@@ -87,8 +87,8 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
         inputForInference = make_blob_with_precision(TensorDesc);
         inputForInference->allocate();
 
-        ie_memcpy(
-            inputForInference->buffer(), inputForInference->byteSize(), actualInput->buffer(), actualInput->byteSize());
+        ie_memcpy(inputForInference->buffer(), inputForInference->byteSize(), actualInput->buffer(),
+                  actualInput->byteSize());
     } else {
         if (actualInput->getTensorDesc().getDims().size() == 3) {
             // 3D CHW input
@@ -101,8 +101,8 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
             IE_ASSERT(memBlobTmp != nullptr);
             auto memBlobActualInput = IE::as<IE::MemoryBlob>(actualInput);
             IE_ASSERT(memBlobActualInput != nullptr);
-            std::memcpy(
-                memBlobTmp->wmap().as<uint8_t*>(), memBlobActualInput->rmap().as<uint8_t*>(), actualInput->byteSize());
+            std::memcpy(memBlobTmp->wmap().as<uint8_t*>(), memBlobActualInput->rmap().as<uint8_t*>(),
+                        actualInput->byteSize());
             inputForInference = toLayout(tmpBlobPtr, expectedLayout);
         } else {
             // 4D to 4D input conversion
@@ -114,8 +114,9 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
 }
 //------------------------------------------------------------------------------
 HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
-    const VPUXConfig& config, const std::shared_ptr<vpux::Allocator>& allocator,
-    const HddlUnite::WorkloadContext::Ptr& workloadContext) {
+                                                  const VPUXConfig& config,
+                                                  const std::shared_ptr<vpux::Allocator>& allocator,
+                                                  const HddlUnite::WorkloadContext::Ptr& workloadContext) {
     auto logger = std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput());
     vpux::HDDL2::HDDL2Executor::Ptr executor = nullptr;
 
@@ -134,27 +135,28 @@ HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription
 }
 
 HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
-    const std::shared_ptr<vpux::Allocator>& allocator, const HddlUnite::WorkloadContext::Ptr& workloadContext)
-    // TODO Make executor logger name unique
-    : _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())),
-      _network(network),
-      _allocatorPtr(allocator),
-      _workloadContext(workloadContext) {
+                             const std::shared_ptr<vpux::Allocator>& allocator,
+                             const HddlUnite::WorkloadContext::Ptr& workloadContext)
+        // TODO Make executor logger name unique
+        : _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())),
+          _network(network),
+          _allocatorPtr(allocator),
+          _workloadContext(workloadContext) {
     _config.parseFrom(config);
     loadGraphToDevice();
-    _inferDataPtr =
-        std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
+    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext,
+                                                                         _config.graphColorFormat());
 }
 
 HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
-    : _config(ex._config),
-      _logger(std::make_shared<vpu::Logger>("Executor", _config.logLevel(), vpu::consoleOutput())),
-      _network(ex._network),
-      _uniteGraphPtr(ex._uniteGraphPtr),
-      _allocatorPtr(ex._allocatorPtr),
-      _workloadContext(ex._workloadContext) {
-    _inferDataPtr =
-        std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
+        : _config(ex._config),
+          _logger(std::make_shared<vpu::Logger>("Executor", _config.logLevel(), vpu::consoleOutput())),
+          _network(ex._network),
+          _uniteGraphPtr(ex._uniteGraphPtr),
+          _allocatorPtr(ex._allocatorPtr),
+          _workloadContext(ex._workloadContext) {
+    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext,
+                                                                         _config.graphColorFormat());
 }
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
@@ -162,7 +164,9 @@ void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
-void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs) { push(inputs, {}); }
+void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs) {
+    push(inputs, {});
+}
 
 void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) {
     // TODO [Design flaw] InferData need to know if preprocessing required on creation [Track number: S#31308]
@@ -175,11 +179,11 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
     if (inputs.size() != networkInputs.size()) {
         _logger->warning("Amount of blobs and network inputs mismatch!\n"
                          "Blobs: %d, network inputs: %d",
-            inputs.size(), networkInputs.size());
+                         inputs.size(), networkInputs.size());
     } else if (networkInputs.size() != deviceInputs.size()) {
         _logger->warning("Amount of network inputs and expected device inputs mismatch!\n"
                          "Network inputs: %d, Device inputs: %d",
-            networkInputs.size(), deviceInputs.size());
+                         networkInputs.size(), deviceInputs.size());
     }
 
     for (const auto& networkInput : networkInputs) {
@@ -305,9 +309,9 @@ bool HDDL2Executor::isPreProcessingSupported(const PreprocMap& preProcMap) const
     for (const auto& input : preProcMap) {
         const auto& preProcInfo = input.second;
         const auto preProcessingSupported =
-            preProcSupported(preProcInfo.getResizeAlgorithm(), preProcInfo.getColorFormat());
+                preProcSupported(preProcInfo.getResizeAlgorithm(), preProcInfo.getColorFormat());
         _logger->debug("Preprocessing for color format '{}' resize algorithm '{}' is {}.", preProcInfo.getColorFormat(),
-            preProcInfo.getResizeAlgorithm(), preProcessingSupported ? "supported" : "not supported");
+                       preProcInfo.getResizeAlgorithm(), preProcessingSupported ? "supported" : "not supported");
         isPreProcSupported &= preProcessingSupported;
     }
     return isPreProcSupported;
@@ -328,15 +332,17 @@ void HDDL2Executor::loadGraphToDevice() {
     hddlUniteConfig.insert(std::make_pair("CSRAM_SIZE", std::to_string(csram_size)));
 
     if (_workloadContext == nullptr) {
-        _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
-            _network, _config.deviceId(), hddlUniteConfig, _config.logLevel());
+        _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _config.deviceId(),
+                                                                            hddlUniteConfig, _config.logLevel());
     } else {
-        _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
-            _network, _workloadContext, hddlUniteConfig, _config.logLevel());
+        _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _workloadContext, hddlUniteConfig,
+                                                                            _config.logLevel());
     }
 }
 
-Executor::Ptr HDDL2Executor::clone() const { return std::make_shared<HDDL2Executor>(*this); }
+Executor::Ptr HDDL2Executor::clone() const {
+    return std::make_shared<HDDL2Executor>(*this);
+}
 
 }  // namespace HDDL2
 }  // namespace vpux

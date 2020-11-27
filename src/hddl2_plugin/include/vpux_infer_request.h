@@ -30,14 +30,15 @@ public:
     using Ptr = std::shared_ptr<InferRequest>;
 
     explicit InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-        const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor, const VPUXConfig& config,
-        const std::string& netName, const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
+                          const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor,
+                          const VPUXConfig& config, const std::string& netName,
+                          const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
 
     void Infer() override;
     void InferImpl() override;
     void InferAsync();
     void GetPerformanceCounts(
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
+            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
 
     void GetResult();
 
@@ -54,7 +55,7 @@ protected:
      * @return Map with preprocess information
      */
     PreprocMap preparePreProcessing(const InferenceEngine::InputsDataMap& networkInputs,
-        const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
+                                    const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
 
     /**
      * @brief Move all preProcessing blobs to inputs BlobMap
@@ -62,19 +63,21 @@ protected:
      * @details This should be done as separate step, if device cannot handle such preprocessing, input should not be
      * replaced  */
     void moveBlobForPreprocessingToInputs(InferenceEngine::BlobMap& inputs,
-        const InferenceEngine::InputsDataMap& networkInputs,
-        const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
+                                          const InferenceEngine::InputsDataMap& networkInputs,
+                                          const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
 
     // TODO Preprocessing should be moved into backend [Track number: S#43193]
 #ifdef __aarch64__
     void execPreprocessing(InferenceEngine::BlobMap& inputs);
     void relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
-        InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
-        unsigned int lpi, unsigned int numPipes);
+                                               InferenceEngine::InputsDataMap& networkInputs,
+                                               InferenceEngine::ColorFormat out_format, unsigned int numShaves,
+                                               unsigned int lpi, unsigned int numPipes);
     virtual void execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
-        std::map<std::string, InferenceEngine::PreProcessDataPtr>& preprocData,
-        InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
-        unsigned int lpi, unsigned int numPipes);
+                                          std::map<std::string, InferenceEngine::PreProcessDataPtr>& preprocData,
+                                          InferenceEngine::InputsDataMap& networkInputs,
+                                          InferenceEngine::ColorFormat out_format, unsigned int numShaves,
+                                          unsigned int lpi, unsigned int numPipes);
 #endif
 
 protected:

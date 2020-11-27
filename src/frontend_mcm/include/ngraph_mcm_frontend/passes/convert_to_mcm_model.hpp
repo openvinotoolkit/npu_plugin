@@ -34,14 +34,16 @@
 class ConvertToMcmModel final : public ngraph::pass::FunctionPass {
 public:
     ConvertToMcmModel(mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-        const InferenceEngine::InputsDataMap& networkInputs, const InferenceEngine::OutputsDataMap& networkOutputs,
-        const std::map<std::string, std::string>& ioMap, const vpu::MCMConfig& config)
-        : _mcmModel(mcmModel),
-          _mcmOutputsMap(mcmOutputsMap),
-          _networkInputs(networkInputs),
-          _networkOutputs(networkOutputs),
-          _ioMap(ioMap),
-          _config(config) {}
+                      const InferenceEngine::InputsDataMap& networkInputs,
+                      const InferenceEngine::OutputsDataMap& networkOutputs,
+                      const std::map<std::string, std::string>& ioMap, const vpu::MCMConfig& config)
+            : _mcmModel(mcmModel),
+              _mcmOutputsMap(mcmOutputsMap),
+              _networkInputs(networkInputs),
+              _networkOutputs(networkOutputs),
+              _ioMap(ioMap),
+              _config(config) {
+    }
 
     bool run_on_function(std::shared_ptr<ngraph::Function> func) override;
 

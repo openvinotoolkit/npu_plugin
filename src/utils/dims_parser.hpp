@@ -21,7 +21,7 @@
 namespace vpu {
 
 void parseDims(const InferenceEngine::SizeVector& dims, size_t& dimN, size_t& dimZ, size_t& dimY, size_t& dimX,
-    size_t defaultValue = 1);
+               size_t defaultValue = 1);
 
 InferenceEngine::TensorDesc getNCHW(const InferenceEngine::TensorDesc& desc, size_t defaultValue = 1);
 

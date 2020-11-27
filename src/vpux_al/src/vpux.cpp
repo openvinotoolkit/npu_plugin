@@ -44,16 +44,19 @@ const std::map<std::string, std::shared_ptr<Device>> EngineBackend::createDevice
 }
 
 // TODO _devices lists should not be forced initialized here
-EngineBackend::EngineBackend(std::string pathToLib): _impl(pathToLib), _devices(std::move(createDeviceMap())) {}
+EngineBackend::EngineBackend(std::string pathToLib): _impl(pathToLib), _devices(std::move(createDeviceMap())) {
+}
 
 inline const std::shared_ptr<Device> wrapDeviceWithImpl(
-    const std::shared_ptr<IDevice>& device, const InferenceEngine::details::SOPointer<IEngineBackend>& backendPtr) {
+        const std::shared_ptr<IDevice>& device, const InferenceEngine::details::SOPointer<IEngineBackend>& backendPtr) {
     if (device == nullptr) {
         return nullptr;
     }
     return std::make_shared<Device>(device, backendPtr);
 }
-const std::shared_ptr<Device> EngineBackend::getDevice() const { return wrapDeviceWithImpl(_impl->getDevice(), _impl); }
+const std::shared_ptr<Device> EngineBackend::getDevice() const {
+    return wrapDeviceWithImpl(_impl->getDevice(), _impl);
+}
 
 const std::shared_ptr<Device> EngineBackend::getDevice(const std::string& specificDeviceName) const {
     return wrapDeviceWithImpl(_impl->getDevice(specificDeviceName), _impl);
@@ -107,7 +110,9 @@ const std::map<std::string, std::shared_ptr<IDevice>>& IEngineBackend::getDevice
     THROW_IE_EXCEPTION << "Not implemented";
 }
 
-std::unordered_set<std::string> IEngineBackend::getSupportedOptions() const { return {}; }
+std::unordered_set<std::string> IEngineBackend::getSupportedOptions() const {
+    return {};
+}
 
 void* Allocator::wrapRemoteMemory(const InferenceEngine::ParamMap&) noexcept {
     std::cerr << "Wrapping remote memory not implemented" << std::endl;

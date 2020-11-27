@@ -47,17 +47,18 @@ public:
 
     static void fillBlobByFP32(ie::Blob::Ptr& dstBlob, const float* srcData);
 
-    static ie::CNNLayerPtr getParent(
-        const ie::CNNLayer& layer, const size_t index = 0, const std::string& ignoreLayerType = "");
+    static ie::CNNLayerPtr getParent(const ie::CNNLayer& layer, const size_t index = 0,
+                                     const std::string& ignoreLayerType = "");
 
-    static std::vector<ie::CNNLayerPtr> getParents(
-        const ie::CNNLayer& layer, const std::string& exceptionLayerName = "");
+    static std::vector<ie::CNNLayerPtr> getParents(const ie::CNNLayer& layer,
+                                                   const std::string& exceptionLayerName = "");
 
-    static std::vector<ie::CNNLayerPtr> getParentsRecursivelyExceptTypes(const ie::CNNLayer& layer,
-        const std::unordered_set<std::string>& exceptionLayerTypes = {}, const int portIndex = -1);
+    static std::vector<ie::CNNLayerPtr> getParentsRecursivelyExceptTypes(
+            const ie::CNNLayer& layer, const std::unordered_set<std::string>& exceptionLayerTypes = {},
+            const int portIndex = -1);
 
-    static std::vector<ie::CNNLayerPtr> getChildren(
-        const ie::CNNLayer& layer, const std::string& exceptionLayerName = "");
+    static std::vector<ie::CNNLayerPtr> getChildren(const ie::CNNLayer& layer,
+                                                    const std::string& exceptionLayerName = "");
 
 private:
     // 1  - on weights

@@ -41,9 +41,9 @@ inline BlobDescType getBlobType(const bool haveRemoteContext) {
 /** @brief Allocation information for BlobDesc */
 struct AllocationInfo {
     explicit AllocationInfo(const BlobDescType typeOfBlob, const InferenceEngine::DataPtr& blobDesc,
-        const InferenceEngine::ColorFormat& graphColorFormat, const bool isInput);
-    explicit AllocationInfo(
-        const InferenceEngine::Blob::CPtr& blob, const InferenceEngine::ColorFormat& graphColorFormat);
+                            const InferenceEngine::ColorFormat& graphColorFormat, const bool isInput);
+    explicit AllocationInfo(const InferenceEngine::Blob::CPtr& blob,
+                            const InferenceEngine::ColorFormat& graphColorFormat);
     bool operator==(const AllocationInfo& rhs) const;
     bool operator!=(const AllocationInfo& rhs) const;
 
@@ -100,10 +100,11 @@ public:
     BlobDescriptorAdapter& operator=(const BlobDescriptorAdapter&) = delete;
     BlobDescriptorAdapter& operator=(const BlobDescriptorAdapter&&) = delete;
     explicit BlobDescriptorAdapter(BlobDescType typeOfBlob, const InferenceEngine::DataPtr& blobDesc,
-        const InferenceEngine::ColorFormat& graphColorFormat, const bool isInput);
+                                   const InferenceEngine::ColorFormat& graphColorFormat, const bool isInput);
     /** @brief If blob allocation data is different from networkDesc, recreation of blob desc required */
     explicit BlobDescriptorAdapter(const InferenceEngine::Blob::CPtr& blobPtr,
-        const InferenceEngine::ColorFormat& graphColorFormat, const InferenceEngine::DataPtr& blobDesc);
+                                   const InferenceEngine::ColorFormat& graphColorFormat,
+                                   const InferenceEngine::DataPtr& blobDesc);
     virtual ~BlobDescriptorAdapter() = default;
 
 public:
@@ -133,11 +134,11 @@ private:
 
 private:
     /** Fill SourceInfo stuct with all frame related information **/
-    void prepareImageFormatInfo(
-        const InferenceEngine::Blob::CPtr& blobPtr, const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams);
+    void prepareImageFormatInfo(const InferenceEngine::Blob::CPtr& blobPtr,
+                                const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams);
     /** Prepare ROI information **/
-    void getRect(
-        const InferenceEngine::Blob::CPtr& blobPtr, const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams);
+    void getRect(const InferenceEngine::Blob::CPtr& blobPtr,
+                 const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams);
 
     // TODO [Workaround] Find suitable approach for IE::NV12 & HddlUnite::NV12 handling
     /**

@@ -24,7 +24,8 @@ class CustomLayerParser {
         std::string argName;
 
         StageOutput(bool is_buffer, int buffer_size, int port_index, std::string arg_name)
-            : isBuffer(is_buffer), bufferSize(buffer_size), portIndex(port_index), argName{std::move(arg_name)} {}
+                : isBuffer(is_buffer), bufferSize(buffer_size), portIndex(port_index), argName{std::move(arg_name)} {
+        }
     };
 
     SmallVector<ie::TensorDesc> inputDescs;
@@ -36,7 +37,8 @@ class CustomLayerParser {
 
 private:
     static SmallVector<int> calcSizesFromParams(const ie::TensorDesc& desc,
-        const SmallVector<std::string>& bufferSizeRules, std::map<std::string, std::string> layerParams) {
+                                                const SmallVector<std::string>& bufferSizeRules,
+                                                std::map<std::string, std::string> layerParams) {
         const auto& dims = desc.getDims();
         const auto B = std::to_string(dims[0]);
         const auto F = std::to_string(dims[1]);
@@ -44,14 +46,7 @@ private:
         const auto X = std::to_string(dims[3]);
 
         auto sizes = std::vector<std::pair<std::string, std::string>>{
-            {"b", B},
-            {"B", B},
-            {"f", F},
-            {"F", F},
-            {"y", Y},
-            {"Y", Y},
-            {"x", X},
-            {"X", X},
+                {"b", B}, {"B", B}, {"f", F}, {"F", F}, {"y", Y}, {"Y", Y}, {"x", X}, {"X", X},
         };
 
         std::move(begin(sizes), end(sizes), inserter(layerParams, end(layerParams)));
@@ -73,7 +68,7 @@ private:
 
 public:
     CustomLayerParser(InferenceEngine::CNNLayerPtr layer, McmNodeVector inputs)
-        : cnnLayer{std::move(layer)}, layerInputs{std::move(inputs)} {
+            : cnnLayer{std::move(layer)}, layerInputs{std::move(inputs)} {
         inputDescs.reserve(inputs.size());
         for (const auto& input : inputs) {
             inputDescs.push_back(input->desc());
@@ -85,8 +80,8 @@ public:
         }
     };
 
-    std::vector<uint8_t> resolveKernelArguments(
-        const CustomKernel& kernel, const vpu::SmallVector<uint32_t>& kernelArgs) {
+    std::vector<uint8_t> resolveKernelArguments(const CustomKernel& kernel,
+                                                const vpu::SmallVector<uint32_t>& kernelArgs) {
         const auto workGroupDims = 3;
 
         const auto& wgDimSource = (kernel.dimSource() == CustomDimSource::Input) ? inputDescs : outputDescs;
@@ -124,13 +119,13 @@ public:
         return kernelData;
     }
 
-    std::vector<mv::TensorInfo> resolveStageOutputs(
-        const CustomKernel& kernel, const CustomLayer& customLayer, const std::vector<StageOutput>& stageOutputs) {
+    std::vector<mv::TensorInfo> resolveStageOutputs(const CustomKernel& kernel, const CustomLayer& customLayer,
+                                                    const std::vector<StageOutput>& stageOutputs) {
         std::vector<mv::TensorInfo> kernelOutputs;
         for (const auto& output : stageOutputs) {
             if (output.isBuffer) {
                 kernelOutputs.emplace_back(mv::Shape{static_cast<uint32_t>(output.bufferSize), 1, 1, 1},
-                    mv::DType{"UInt8"}, mv::Order::getZMajorID(4));
+                                           mv::DType{"UInt8"}, mv::Order::getZMajorID(4));
             } else {
                 const auto& desc = outputDescs.at(output.portIndex);
                 VPU_THROW_UNLESS(desc.getDims().size() <= 4, "Custom layer does not support tensors greater 4D");
@@ -141,9 +136,9 @@ public:
                 const auto layerOutputs = customLayer.outputs();
                 const auto outputLayoutIt = layerOutputs.find(output.portIndex);
                 VPU_THROW_UNLESS(outputLayoutIt != layerOutputs.end(),
-                    "Failed to parse custom layer '%s'. "
-                    "Couldn't find output tensor with port-index=%l ",
-                    customLayer.layerName(), output.portIndex);
+                                 "Failed to parse custom layer '%s'. "
+                                 "Couldn't find output tensor with port-index=%l ",
+                                 customLayer.layerName(), output.portIndex);
 
                 auto order = layoutToOrder(outputLayoutIt->second);
                 // 4D tensor can be only in two layouts: NHWC (default) or NCHW.
@@ -158,8 +153,10 @@ public:
                     auto argument = std::find_if(begin(kernel.arguments()), end(kernel.arguments()), withBindingName);
                     IE_ASSERT(argument != kernel.arguments().end());
 
-                    if (argument->underlyingTypeSize == 1) return mv::DType{"UInt8"};
-                    if (argument->underlyingTypeSize == 2) return mv::DType{"Float16"};
+                    if (argument->underlyingTypeSize == 1)
+                        return mv::DType{"UInt8"};
+                    if (argument->underlyingTypeSize == 2)
+                        return mv::DType{"Float16"};
 
                     VPU_THROW_EXCEPTION << "Custom layer output parameter '" << output.argName
                                         << "' has unsupported output data type with "
@@ -202,9 +199,9 @@ public:
             case CustomParamType::InputBuffer: {
                 const auto bufferIt = buffers.find(binding.portIndex);
                 VPU_THROW_UNLESS(bufferIt != buffers.end(),
-                    "Unable to deduce parameter '%s' for '%s' layer. "
-                    "There is no output_buffer with port-index=%d defined.",
-                    binding.argName, cnnLayer->type, binding.portIndex);
+                                 "Unable to deduce parameter '%s' for '%s' layer. "
+                                 "There is no output_buffer with port-index=%d defined.",
+                                 binding.argName, cnnLayer->type, binding.portIndex);
 
                 stage.inputs.push_back(bufferIt->second);
                 stage.arguments.push_back(stage.inputs.size() - 1);
@@ -212,10 +209,10 @@ public:
             }
             case CustomParamType::OutputBuffer: {
                 VPU_THROW_UNLESS(buffers.find(binding.portIndex) == buffers.end(),
-                    "Unable to deduce parameter '%s' for '%s' layer. "
-                    "Can't add output_buffer with port-index=%d. "
-                    "Buffer with that index already exists.",
-                    binding.argName, cnnLayer->type, binding.portIndex);
+                                 "Unable to deduce parameter '%s' for '%s' layer. "
+                                 "Can't add output_buffer with port-index=%d. "
+                                 "Buffer with that index already exists.",
+                                 binding.argName, cnnLayer->type, binding.portIndex);
 
                 const int bufferSize = parseBufferSize(binding);
                 stage.outputs.emplace_back(true, bufferSize, binding.portIndex, binding.argName);
@@ -225,9 +222,9 @@ public:
             case CustomParamType::Data:
             case CustomParamType::Input: {
                 VPU_THROW_UNLESS(static_cast<decltype(layerInputs.size())>(binding.portIndex) < layerInputs.size(),
-                    "Unable to deduce parameter '%s' for '%s' layer. "
-                    "Can't find layer input with port-index=%d.",
-                    binding.argName, cnnLayer->type, binding.portIndex);
+                                 "Unable to deduce parameter '%s' for '%s' layer. "
+                                 "Can't find layer input with port-index=%d.",
+                                 binding.argName, cnnLayer->type, binding.portIndex);
 
                 stage.inputs.push_back(layerInputs.at(binding.portIndex)->getMcmNode());
                 stage.arguments.push_back(stage.inputs.size() - 1);
@@ -246,18 +243,18 @@ public:
                     const auto param = [&]() -> std::string {
                         if (binding.portIndex < 0) {
                             VPU_THROW_UNLESS(parseNumber<int>(cnnParam->second).hasValue(),
-                                "Unable to deduce parameter '%s' for '%s' layer. Without "
-                                "port-index set, only viable "
-                                "size value is a whole integer number.",
-                                binding.argName, cnnLayer->type);
+                                             "Unable to deduce parameter '%s' for '%s' layer. Without "
+                                             "port-index set, only viable "
+                                             "size value is a whole integer number.",
+                                             binding.argName, cnnLayer->type);
                             return cnnParam->second;
                         }
 
                         VPU_THROW_UNLESS(cnnParam->second.find(',') != std::string::npos,
-                            "Error while parsing CNNetwork parameter '%s' for '%s' layer: "
-                            "port-index=%d is set, "
-                            "but parameter is neither a tensor, nor an array type.",
-                            cnnParam->first, cnnLayer->type, binding.portIndex);
+                                         "Error while parsing CNNetwork parameter '%s' for '%s' layer: "
+                                         "port-index=%d is set, "
+                                         "but parameter is neither a tensor, nor an array type.",
+                                         cnnParam->first, cnnLayer->type, binding.portIndex);
 
                         std::string value;
                         std::stringstream parameterStream{cnnParam->second};
@@ -270,24 +267,24 @@ public:
                     if (binding.type == CustomParamType::Int) {
                         const auto val = parseNumber<int>(param);
                         VPU_THROW_UNLESS(val.hasValue(),
-                            "Unable to deduce parameter '%s' for '%s' layer. "
-                            "Name is: '%s', parameter is: '%s'",
-                            binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
+                                         "Unable to deduce parameter '%s' for '%s' layer. "
+                                         "Name is: '%s', parameter is: '%s'",
+                                         binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
                         stage.arguments.push_back(val.get());
                     } else {
                         const auto val = parseNumber<float>(param);
                         VPU_THROW_UNLESS(val.hasValue(),
-                            "Unable to deduce parameter '%s' for '%s' layer. "
-                            "Name is: '%s', parameter is: '%s'",
-                            binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
+                                         "Unable to deduce parameter '%s' for '%s' layer. "
+                                         "Name is: '%s', parameter is: '%s'",
+                                         binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
                         stage.arguments.push_back(floatAsInt(val.get()));
                     }
                     // if not cnnLayer param, check if it is 'I.X' format param
                 } else if (binding.irSource[1] == '.' && (binding.irSource[0] == 'I' || binding.irSource[0] == 'O')) {
                     VPU_THROW_UNLESS(binding.irSource.length() == 3,
-                        "Unable to deduce parameter '%s' for '%s' layer."
-                        "Wrong source format",
-                        binding.argName, cnnLayer->type);
+                                     "Unable to deduce parameter '%s' for '%s' layer."
+                                     "Wrong source format",
+                                     binding.argName, cnnLayer->type);
 
                     const auto origData = [&] {
                         if (binding.irSource[0] == 'I') {
@@ -312,31 +309,31 @@ public:
                     }();
 
                     VPU_THROW_UNLESS(dimPosition != std::string::npos,
-                        "Unable to deduce parameter '%s' for '%s' layer."
-                        "Failed to parse source dimension from provided string '%s'",
-                        binding.argName, cnnLayer->type, binding.irSource);
+                                     "Unable to deduce parameter '%s' for '%s' layer."
+                                     "Failed to parse source dimension from provided string '%s'",
+                                     binding.argName, cnnLayer->type, binding.irSource);
 
                     auto dimValue = dims.at(dimPosition);
                     stage.arguments.push_back(static_cast<uint32_t>(dimValue));
                 } else {
                     VPU_THROW_UNLESS(binding.portIndex < 0,
-                        "Unable to deduce parameter '%s' for '%s' layer: port-index=%d is set, "
-                        "but parameter is neither a tensor, nor an array type.",
-                        binding.argName, cnnLayer->type, binding.portIndex);
+                                     "Unable to deduce parameter '%s' for '%s' layer: port-index=%d is set, "
+                                     "but parameter is neither a tensor, nor an array type.",
+                                     binding.argName, cnnLayer->type, binding.portIndex);
 
                     if (binding.type == CustomParamType::Int) {
                         const auto val = parseNumber<int>(binding.irSource);
                         VPU_THROW_UNLESS(val.hasValue(),
-                            "Unable to deduce parameter '%s' for '%s' layer. "
-                            "Name is: '%s', parameter is: '%s'",
-                            binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
+                                         "Unable to deduce parameter '%s' for '%s' layer. "
+                                         "Name is: '%s', parameter is: '%s'",
+                                         binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
                         stage.arguments.push_back(val.get());
                     } else {
                         const auto val = parseNumber<float>(binding.irSource);
                         VPU_THROW_UNLESS(val.hasValue(),
-                            "Unable to deduce parameter '%s' for '%s' layer. "
-                            "Name is: '%s', parameter is: '%s'",
-                            binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
+                                         "Unable to deduce parameter '%s' for '%s' layer. "
+                                         "Name is: '%s', parameter is: '%s'",
+                                         binding.argName, cnnLayer->type, cnnLayer->name, binding.irSource);
                         stage.arguments.push_back(floatAsInt(val.get()));
                     }
                 }
@@ -359,7 +356,9 @@ public:
         return sizes[0];
     }
 
-    void addBuffer(int port, const mv::Data::TensorIterator& bufferIt) { buffers.emplace(port, bufferIt); }
+    void addBuffer(int port, const mv::Data::TensorIterator& bufferIt) {
+        buffers.emplace(port, bufferIt);
+    }
 };
 
 }  // namespace vpu

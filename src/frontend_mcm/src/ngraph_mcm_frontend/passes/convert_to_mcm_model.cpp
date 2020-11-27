@@ -1529,8 +1529,8 @@ void ConvertNode(const std::shared_ptr<ngraph::Node> op, mv::OpModel& mcmModel, 
 
 // clang-format on
 
-void ConvertToMcmModel::parseCustom(
-    std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+void ConvertToMcmModel::parseCustom(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel,
+                                    NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(node, mcmOutputsMap);
 
     auto parser = vpu::CustomLayerParserNGraph(node, mcmInputs);
@@ -1552,9 +1552,9 @@ void ConvertToMcmModel::parseCustom(
             for (const auto& arg : kernel.arguments()) {
                 const auto& binding = kernel.bindings().find(arg.name);
                 VPU_THROW_UNLESS(binding != kernel.bindings().end(),
-                    "Failed to bind '%s' custom layer. "
-                    "Can't find kernel argument '%s' in binding list.",
-                    customLayer->layerName(), arg.name);
+                                 "Failed to bind '%s' custom layer. "
+                                 "Can't find kernel argument '%s' in binding list.",
+                                 customLayer->layerName(), arg.name);
                 bindings.push_back(binding->second);
             }
 
@@ -1605,11 +1605,12 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
         for (const auto& op : func->get_parameters()) {
             if (op->get_friendly_name() == _ioMap.at(inputInfo.first)) {
                 ConvertNode(op, _mcmModel, _mcmOutputsMap, inputInfo.second->getInputData(), allowNCHWInput,
-                    allowU8InputForFp16Models);
+                            allowU8InputForFp16Models);
                 isFound = true;
             }
         }
-        if (!isFound) THROW_IE_EXCEPTION << "Input not found: " << inputInfo.first;
+        if (!isFound)
+            THROW_IE_EXCEPTION << "Input not found: " << inputInfo.first;
     }
 
     if (!_config.customLayers().empty()) {
@@ -1623,9 +1624,12 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
     }
 
     for (const auto& op : func->get_ordered_ops()) {
-        if (ngraph::op::Parameter::type_info == op->get_type_info()) continue;
-        if (ngraph::op::Result::type_info == op->get_type_info()) continue;
-        if (ngraph::op::Constant::type_info == op->get_type_info()) continue;
+        if (ngraph::op::Parameter::type_info == op->get_type_info())
+            continue;
+        if (ngraph::op::Result::type_info == op->get_type_info())
+            continue;
+        if (ngraph::op::Constant::type_info == op->get_type_info())
+            continue;
 
         const auto customLayersForType = _customLayers.find(op->description());
 
@@ -1648,7 +1652,8 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
                 isFound = true;
             }
         }
-        if (!isFound) THROW_IE_EXCEPTION << "Output not found: " << outputInfo.first;
+        if (!isFound)
+            THROW_IE_EXCEPTION << "Output not found: " << outputInfo.first;
     }
 
     return false;

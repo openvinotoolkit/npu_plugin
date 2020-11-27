@@ -9,37 +9,41 @@
 using namespace vpu::details;
 
 QuantizationDetails::QuantizationDetails()
-    : levels(),
-      inputLowValues({}),
-      inputHighValues({}),
-      outputLowValues({}),
-      outputHighValues({}),
-      inputIntervalsCount(0),
-      outputIntervalsCount(0),
-      outputChannelsCount(0) {}
+        : levels(),
+          inputLowValues({}),
+          inputHighValues({}),
+          outputLowValues({}),
+          outputHighValues({}),
+          inputIntervalsCount(0),
+          outputIntervalsCount(0),
+          outputChannelsCount(0) {
+}
 
 QuantizationDetails::QuantizationDetails(const QuantizationDetails& quantizationDetails)
-    : levels(quantizationDetails.levels),
-      inputLowValues(quantizationDetails.inputLowValues),
-      inputHighValues(quantizationDetails.inputHighValues),
-      outputLowValues(quantizationDetails.outputLowValues),
-      outputHighValues(quantizationDetails.outputHighValues),
-      inputIntervalsCount(quantizationDetails.inputIntervalsCount),
-      outputIntervalsCount(quantizationDetails.outputIntervalsCount),
-      outputChannelsCount(quantizationDetails.outputChannelsCount) {}
+        : levels(quantizationDetails.levels),
+          inputLowValues(quantizationDetails.inputLowValues),
+          inputHighValues(quantizationDetails.inputHighValues),
+          outputLowValues(quantizationDetails.outputLowValues),
+          outputHighValues(quantizationDetails.outputHighValues),
+          inputIntervalsCount(quantizationDetails.inputIntervalsCount),
+          outputIntervalsCount(quantizationDetails.outputIntervalsCount),
+          outputChannelsCount(quantizationDetails.outputChannelsCount) {
+}
 
 QuantizationDetails::QuantizationDetails(const size_t levels, const std::vector<float>& inputLowValues,
-    const std::vector<float>& inputHighValues, const std::vector<float>& outputLowValues,
-    const std::vector<float>& outputHighValues, const size_t inputIntervalsCount, const size_t outputIntervalsCount,
-    const size_t outputChannelsCount)
-    : levels(levels),
-      inputLowValues(inputLowValues),
-      inputHighValues(inputHighValues),
-      outputLowValues(outputLowValues),
-      outputHighValues(outputHighValues),
-      inputIntervalsCount(inputIntervalsCount),
-      outputIntervalsCount(outputIntervalsCount),
-      outputChannelsCount(outputChannelsCount) {}
+                                         const std::vector<float>& inputHighValues,
+                                         const std::vector<float>& outputLowValues,
+                                         const std::vector<float>& outputHighValues, const size_t inputIntervalsCount,
+                                         const size_t outputIntervalsCount, const size_t outputChannelsCount)
+        : levels(levels),
+          inputLowValues(inputLowValues),
+          inputHighValues(inputHighValues),
+          outputLowValues(outputLowValues),
+          outputHighValues(outputHighValues),
+          inputIntervalsCount(inputIntervalsCount),
+          outputIntervalsCount(outputIntervalsCount),
+          outputChannelsCount(outputChannelsCount) {
+}
 
 IE_SUPPRESS_DEPRECATED_START
 bool QuantizationDetails::outputLayoutIsSupported(const ie::CNNLayer& quantize) {
@@ -49,7 +53,7 @@ bool QuantizationDetails::outputLayoutIsSupported(const ie::CNNLayer& quantize) 
     getOutputIntervals(quantize, outputLowValues, outputHighValues, outputIntervalsCount);
 
     const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(
-        quantize, CNNNetworkHelper::onWeights(quantize) && CNNNetworkHelper::onConstWeightsPath(quantize));
+            quantize, CNNNetworkHelper::onWeights(quantize) && CNNNetworkHelper::onConstWeightsPath(quantize));
     if ((outputIntervalsCount != 1ul) && (outputIntervalsCount != outputChannelsCount)) {
         return false;
     }
@@ -58,7 +62,7 @@ bool QuantizationDetails::outputLayoutIsSupported(const ie::CNNLayer& quantize) 
 }
 
 void QuantizationDetails::getInputIntervals(const ie::CNNLayer& quantize, std::vector<float>& inputLowValues,
-    std::vector<float>& inputHighValues, size_t& inputIntervalsCount) {
+                                            std::vector<float>& inputHighValues, size_t& inputIntervalsCount) {
     if (quantize.insData.size() != 5) {
         THROW_VPU_LPT_EXCEPTION(quantize) << "Unexpected inputs size " << quantize.insData.size();
     }
@@ -89,7 +93,7 @@ void QuantizationDetails::getInputIntervals(const ie::CNNLayer& quantize, std::v
 }
 
 void QuantizationDetails::getOutputIntervals(const ie::CNNLayer& quantize, std::vector<float>& outputLowValues,
-    std::vector<float>& outputHighValues, size_t& outputIntervalsCount) {
+                                             std::vector<float>& outputHighValues, size_t& outputIntervalsCount) {
     if (quantize.insData.size() != 5) {
         THROW_VPU_LPT_EXCEPTION(quantize) << "unexpected inputs size " << quantize.insData.size();
     }
@@ -131,10 +135,10 @@ QuantizationDetails QuantizationDetails::getDetails(const ie::CNNLayer& quantize
     getOutputIntervals(quantize, outputLowValues, outputHighValues, outputIntervalsCount);
 
     const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(
-        quantize, CNNNetworkHelper::onWeights(quantize) && CNNNetworkHelper::onConstWeightsPath(quantize));
+            quantize, CNNNetworkHelper::onWeights(quantize) && CNNNetworkHelper::onConstWeightsPath(quantize));
     if (!outputLayoutIsSupported(quantize)) {
         THROW_VPU_LPT_EXCEPTION(quantize)
-            << "Expected output channels count " << outputIntervalsCount << " but found " << outputChannelsCount;
+                << "Expected output channels count " << outputIntervalsCount << " but found " << outputChannelsCount;
     }
 
     if (!quantize.CheckParamPresence("levels")) {
@@ -142,7 +146,7 @@ QuantizationDetails QuantizationDetails::getDetails(const ie::CNNLayer& quantize
     }
 
     return QuantizationDetails(quantize.GetParamAsInt("levels"), inputLowValues, inputHighValues, outputLowValues,
-        outputHighValues, inputIntervalsCount, outputIntervalsCount, outputChannelsCount);
+                               outputHighValues, inputIntervalsCount, outputIntervalsCount, outputChannelsCount);
 }
 
 void QuantizationDetails::validate(const ie::CNNLayerPtr& constantLayer) {

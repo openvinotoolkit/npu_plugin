@@ -58,7 +58,9 @@ public:
     /** @brief Get a list of supported options */
     virtual std::unordered_set<std::string> getSupportedOptions() const;
 
-    void Release() noexcept override { delete this; }
+    void Release() noexcept override {
+        delete this;
+    }
 
 protected:
     virtual ~IEngineBackend() override = default;
@@ -70,13 +72,21 @@ class EngineBackend final {
 public:
     virtual ~EngineBackend() = default;
     /** @deprecated Will be replaced with methods below */
-    const std::map<std::string, std::shared_ptr<Device>>& getDevices() const { return _devices; }
+    const std::map<std::string, std::shared_ptr<Device>>& getDevices() const {
+        return _devices;
+    }
     virtual const std::shared_ptr<Device> getDevice() const;
     virtual const std::shared_ptr<Device> getDevice(const std::string& specificDeviceName) const;
     virtual const std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
-    virtual const std::vector<std::string> getDeviceNames() const { return _impl->getDeviceNames(); }
-    virtual const std::string getName() const { return _impl->getName(); }
-    virtual const std::unordered_set<std::string> getSupportedOptions() const { return _impl->getSupportedOptions(); }
+    virtual const std::vector<std::string> getDeviceNames() const {
+        return _impl->getDeviceNames();
+    }
+    virtual const std::string getName() const {
+        return _impl->getName();
+    }
+    virtual const std::unordered_set<std::string> getSupportedOptions() const {
+        return _impl->getSupportedOptions();
+    }
 
 private:
     friend class EngineBackendConfigurator;
@@ -111,8 +121,8 @@ public:
     // TODO: need update methods to remove Kmb from parameters
     /** @deprecated These functions below should not be used */
     virtual void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept = 0;
-    virtual void* wrapRemoteMemoryOffset(
-        const int& remoteMemoryFd, const size_t size, const size_t& memOffset) noexcept = 0;
+    virtual void* wrapRemoteMemoryOffset(const int& remoteMemoryFd, const size_t size,
+                                         const size_t& memOffset) noexcept = 0;
 
     // FIXME: temporary exposed to allow executor to use vpux::Allocator
     virtual unsigned long getPhysicalAddress(void* handle) noexcept = 0;
@@ -128,12 +138,14 @@ public:
      * @example Each backend may have many allocators, each of which suitable for different RemoteMemory param */
     virtual std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) const;
 
-    virtual std::shared_ptr<Executor> createExecutor(
-        const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) = 0;
+    virtual std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
+                                                     const VPUXConfig& config) = 0;
 
     virtual std::string getName() const = 0;
 
-    void Release() noexcept override { delete this; }
+    void Release() noexcept override {
+        delete this;
+    }
 
 protected:
     virtual ~IDevice() override = default;
@@ -152,21 +164,28 @@ public:
     using CPtr = std::shared_ptr<const Device>;
 
     Device(const std::shared_ptr<IDevice> device, InferenceEngine::details::SharedObjectLoader::Ptr plg)
-        : _actual(device), _plg(plg) {}
+            : _actual(device), _plg(plg) {
+    }
 
-    std::shared_ptr<Allocator> getAllocator() const { return _actual->getAllocator(); }
+    std::shared_ptr<Allocator> getAllocator() const {
+        return _actual->getAllocator();
+    }
     std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) {
         return _actual->getAllocator(paramMap);
     }
 
-    virtual std::shared_ptr<Executor> createExecutor(
-        const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
+    virtual std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
+                                                     const VPUXConfig& config) {
         return _actual->createExecutor(networkDescription, config);
     }
 
-    std::string getName() const { return _actual->getName(); }
+    std::string getName() const {
+        return _actual->getName();
+    }
 
-    ~Device() { _actual = nullptr; }
+    ~Device() {
+        _actual = nullptr;
+    }
 };
 
 //------------------------------------------------------------------------------
@@ -177,7 +196,9 @@ public:
     using CPtr = std::shared_ptr<const Executor>;
 
     virtual void setup(const InferenceEngine::ParamMap& params) = 0;
-    virtual Executor::Ptr clone() const { THROW_IE_EXCEPTION << "Not implemented"; }
+    virtual Executor::Ptr clone() const {
+        THROW_IE_EXCEPTION << "Not implemented";
+    }
 
     virtual void push(const InferenceEngine::BlobMap& inputs) = 0;
     virtual void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) = 0;

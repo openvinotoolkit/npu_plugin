@@ -84,8 +84,8 @@ static IE::SizeVector getNV12ImageDims(const IE::Blob::CPtr& blobPtr) {
 using matchColorFormats_t = std::unordered_map<int, HddlUnite::Inference::FourCC>;
 static HddlUnite::Inference::FourCC covertColorFormat(const IE::ColorFormat colorFormat) {
     static const matchColorFormats_t matchColorFormats = {
-        {static_cast<int>(IE::ColorFormat::BGR), HddlUnite::Inference::FourCC::BGR},
-        {static_cast<int>(IE::ColorFormat::RGB), HddlUnite::Inference::FourCC::RGB}};
+            {static_cast<int>(IE::ColorFormat::BGR), HddlUnite::Inference::FourCC::BGR},
+            {static_cast<int>(IE::ColorFormat::RGB), HddlUnite::Inference::FourCC::RGB}};
 
     auto format = matchColorFormats.find(colorFormat);
     if (format == matchColorFormats.end()) {
@@ -102,12 +102,12 @@ static size_t getSizeFromTensor(const IE::TensorDesc& tensorDesc) {
     const auto& dims = tensorDesc.getDims();
     const auto elementSize = tensorDesc.getPrecision().size();
     const size_t size =
-        elementSize * std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
+            elementSize * std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
     return size;
 }
 
-static bool isBlobContainsNV12Data(
-    const IE::Blob::CPtr& blobPtr, const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams) {
+static bool isBlobContainsNV12Data(const IE::Blob::CPtr& blobPtr,
+                                   const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams) {
     if (blobPtr == nullptr || blobParams == nullptr) {
         THROW_IE_EXCEPTION << "Check for NV12 failed, variables is null!";
     }
@@ -117,36 +117,41 @@ static bool isBlobContainsNV12Data(
     return false;
 }
 
-static inline bool isRemoteBlob(const InferenceEngine::Blob::CPtr& blob) { return blob && blob->is<IE::RemoteBlob>(); }
+static inline bool isRemoteBlob(const InferenceEngine::Blob::CPtr& blob) {
+    return blob && blob->is<IE::RemoteBlob>();
+}
 
 //------------------------------------------------------------------------------
 AllocationInfo::AllocationInfo(const BlobDescType typeOfBlob, const IE::DataPtr& blobDesc,
-    const IE::ColorFormat& graphColorFormat, const bool isInput)
-    : precision(Unite::convertFromIEPrecision(blobDesc->getPrecision())),
-      dataSize(getSizeFromTensor(blobDesc->getTensorDesc())),
-      isRemoteMemory(typeOfBlob == BlobDescType::VideoWorkload),
-      // It should be not possible to set local blob in VideoWorkload case
-      isNeedAllocation(!(typeOfBlob == BlobDescType::VideoWorkload && isInput)),
-      // TODO No compound support now
-      isCompound(false),
-      nnInputColorFormat(graphColorFormat) {
+                               const IE::ColorFormat& graphColorFormat, const bool isInput)
+        : precision(Unite::convertFromIEPrecision(blobDesc->getPrecision())),
+          dataSize(getSizeFromTensor(blobDesc->getTensorDesc())),
+          isRemoteMemory(typeOfBlob == BlobDescType::VideoWorkload),
+          // It should be not possible to set local blob in VideoWorkload case
+          isNeedAllocation(!(typeOfBlob == BlobDescType::VideoWorkload && isInput)),
+          // TODO No compound support now
+          isCompound(false),
+          nnInputColorFormat(graphColorFormat) {
     checkDataIsValid(blobDesc);
 }
 
 AllocationInfo::AllocationInfo(const IE::Blob::CPtr& blob, const IE::ColorFormat& graphColorFormat)
-    : precision(Unite::convertFromIEPrecision(blob->getTensorDesc().getPrecision())),
-      dataSize(blob->size()),
-      isRemoteMemory(isRemoteBlob(blob)),
-      isNeedAllocation(!isRemoteBlob(blob)),
-      isCompound(false),
-      nnInputColorFormat(graphColorFormat) {}
+        : precision(Unite::convertFromIEPrecision(blob->getTensorDesc().getPrecision())),
+          dataSize(blob->size()),
+          isRemoteMemory(isRemoteBlob(blob)),
+          isNeedAllocation(!isRemoteBlob(blob)),
+          isCompound(false),
+          nnInputColorFormat(graphColorFormat) {
+}
 
 bool AllocationInfo::operator==(const AllocationInfo& rhs) const {
     return precision == rhs.precision && dataSize == rhs.dataSize && isRemoteMemory == rhs.isRemoteMemory &&
            isNeedAllocation == rhs.isNeedAllocation && isCompound == rhs.isCompound &&
            nnInputColorFormat == rhs.nnInputColorFormat;
 }
-bool AllocationInfo::operator!=(const AllocationInfo& rhs) const { return !(rhs == *this); }
+bool AllocationInfo::operator!=(const AllocationInfo& rhs) const {
+    return !(rhs == *this);
+}
 
 static void validateAllocatorInfoFields(const AllocationInfo& allocationInfo) {
     if (allocationInfo.dataSize == 0) {
@@ -155,25 +160,28 @@ static void validateAllocatorInfoFields(const AllocationInfo& allocationInfo) {
 }
 //------------------------------------------------------------------------------
 NNInputInfo::NNInputInfo(const BlobDescType typeOfBlob, const IE::DataPtr& blobDesc)
-    : precision(Unite::convertFromIEPrecision(blobDesc->getPrecision())),
-      dataSize(getSizeFromTensor(blobDesc->getTensorDesc())),
-      isRemoteMemory(typeOfBlob == BlobDescType::VideoWorkload),
-      // Not possible create intermediate buffer from plugin side
-      isNeedAllocation(true),
-      batch(1) {}
+        : precision(Unite::convertFromIEPrecision(blobDesc->getPrecision())),
+          dataSize(getSizeFromTensor(blobDesc->getTensorDesc())),
+          isRemoteMemory(typeOfBlob == BlobDescType::VideoWorkload),
+          // Not possible create intermediate buffer from plugin side
+          isNeedAllocation(true),
+          batch(1) {
+}
 
 //------------------------------------------------------------------------------
 BlobDescriptorAdapter::BlobDescriptorAdapter(BlobDescType typeOfBlob, const InferenceEngine::DataPtr& blobDesc,
-    const InferenceEngine::ColorFormat& graphColorFormat, const bool isInput)
-    : _blobType(typeOfBlob),
-      _allocationInfo(typeOfBlob, blobDesc, graphColorFormat, isInput),
-      _nnInputInfo(typeOfBlob, blobDesc) {}
+                                             const InferenceEngine::ColorFormat& graphColorFormat, const bool isInput)
+        : _blobType(typeOfBlob),
+          _allocationInfo(typeOfBlob, blobDesc, graphColorFormat, isInput),
+          _nnInputInfo(typeOfBlob, blobDesc) {
+}
 
 BlobDescriptorAdapter::BlobDescriptorAdapter(const InferenceEngine::Blob::CPtr& blobPtr,
-    const InferenceEngine::ColorFormat& graphColorFormat, const InferenceEngine::DataPtr& blobDesc)
-    : _blobType(isRemoteBlob(blobPtr) ? BlobDescType::VideoWorkload : BlobDescType::ImageWorkload),
-      _allocationInfo(blobPtr, graphColorFormat),
-      _nnInputInfo(_blobType, blobDesc) {
+                                             const InferenceEngine::ColorFormat& graphColorFormat,
+                                             const InferenceEngine::DataPtr& blobDesc)
+        : _blobType(isRemoteBlob(blobPtr) ? BlobDescType::VideoWorkload : BlobDescType::ImageWorkload),
+          _allocationInfo(blobPtr, graphColorFormat),
+          _nnInputInfo(_blobType, blobDesc) {
     checkBlobCompatibility(blobPtr, _blobType);
     // TODO [Workaround] If it's NV12 Blob, use repacked memory instead
     if (blobPtr->is<IE::NV12Blob>()) {
@@ -186,9 +194,11 @@ BlobDescriptorAdapter::BlobDescriptorAdapter(const InferenceEngine::Blob::CPtr& 
 const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::createUniteBlobDesc(const bool isInput) {
     validateAllocatorInfoFields(_allocationInfo);
     _hddlUniteBlobDesc = HddlUnite::Inference::BlobDesc(_allocationInfo.precision, _allocationInfo.isRemoteMemory,
-        _allocationInfo.isNeedAllocation, _allocationInfo.dataSize, _allocationInfo.isCompound);
+                                                        _allocationInfo.isNeedAllocation, _allocationInfo.dataSize,
+                                                        _allocationInfo.isCompound);
 
-    if (isInput) _hddlUniteBlobDesc.m_nnInputFormat = covertColorFormat(_allocationInfo.nnInputColorFormat);
+    if (isInput)
+        _hddlUniteBlobDesc.m_nnInputFormat = covertColorFormat(_allocationInfo.nnInputColorFormat);
     return _hddlUniteBlobDesc;
 }
 
@@ -239,13 +249,16 @@ const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::updateUniteBlobDesc
 }
 
 void BlobDescriptorAdapter::createRepackedNV12Blob(const IE::Blob::CPtr& blobPtr) {
-    if (!blobPtr->is<IE::NV12Blob>()) THROW_IE_EXCEPTION << "Incorrect blob for repacking!";
+    if (!blobPtr->is<IE::NV12Blob>())
+        THROW_IE_EXCEPTION << "Incorrect blob for repacking!";
 
     auto nv12Ptr = blobPtr->as<IE::NV12Blob>();
-    if (nv12Ptr == nullptr) THROW_IE_EXCEPTION << "Failed to cast nv12 blob.";
+    if (nv12Ptr == nullptr)
+        THROW_IE_EXCEPTION << "Failed to cast nv12 blob.";
 
     auto nv12Tensor = nv12Ptr->getTensorDesc();
-    if (nv12Tensor.getPrecision() != IE::Precision::U8) THROW_IE_EXCEPTION << "Unsupported NV12 Blob precision.";
+    if (nv12Tensor.getPrecision() != IE::Precision::U8)
+        THROW_IE_EXCEPTION << "Unsupported NV12 Blob precision.";
 
     IE::Blob::Ptr yPlane = nv12Ptr->y();
     IE::Blob::Ptr uvPlane = nv12Ptr->uv();
@@ -260,25 +273,31 @@ void BlobDescriptorAdapter::createRepackedNV12Blob(const IE::Blob::CPtr& blobPtr
 
     {
         IE::MemoryBlob::Ptr yPlaneMBlob = IE::as<IE::MemoryBlob>(yPlane);
-        if (yPlaneMBlob == nullptr) THROW_IE_EXCEPTION << "Failed to cast yPlane blob to memory blob";
+        if (yPlaneMBlob == nullptr)
+            THROW_IE_EXCEPTION << "Failed to cast yPlane blob to memory blob";
 
         auto yPlaneLockedMemory = yPlaneMBlob->rmap();
         auto yPlaneMemory = yPlaneLockedMemory.as<uint8_t*>();
-        if (yPlaneMemory == nullptr) THROW_IE_EXCEPTION << "Null yPlane memory";
+        if (yPlaneMemory == nullptr)
+            THROW_IE_EXCEPTION << "Null yPlane memory";
 
         IE::MemoryBlob::Ptr uvPlaneMBlob = IE::as<IE::MemoryBlob>(uvPlane);
-        if (uvPlaneMBlob == nullptr) THROW_IE_EXCEPTION << "Failed to cast uvPlane blob to memory blob";
+        if (uvPlaneMBlob == nullptr)
+            THROW_IE_EXCEPTION << "Failed to cast uvPlane blob to memory blob";
 
         auto uvPlaneLockedMemory = uvPlaneMBlob->rmap();
         auto uvPlaneMemory = uvPlaneLockedMemory.as<uint8_t*>();
-        if (uvPlaneMemory == nullptr) THROW_IE_EXCEPTION << "Null uvPlane memory";
+        if (uvPlaneMemory == nullptr)
+            THROW_IE_EXCEPTION << "Null uvPlane memory";
 
         IE::MemoryBlob::Ptr repackedMBlob = IE::as<IE::MemoryBlob>(repackedBlob);
-        if (repackedMBlob == nullptr) THROW_IE_EXCEPTION << "Failed to cast blob to memory blob";
+        if (repackedMBlob == nullptr)
+            THROW_IE_EXCEPTION << "Failed to cast blob to memory blob";
 
         auto repackedBlobLockedMemory = repackedMBlob->wmap();
         auto repackedBlobMemory = repackedBlobLockedMemory.as<uint8_t*>();
-        if (repackedBlobMemory == nullptr) THROW_IE_EXCEPTION << "Failed to allocate memory for blob";
+        if (repackedBlobMemory == nullptr)
+            THROW_IE_EXCEPTION << "Failed to allocate memory for blob";
 
         ie_memcpy(repackedBlobMemory, yPlane->size(), yPlaneMemory, yPlane->size());
         ie_memcpy(repackedBlobMemory + yPlane->size(), uvPlane->size(), uvPlaneMemory, uvPlane->size());
@@ -286,8 +305,8 @@ void BlobDescriptorAdapter::createRepackedNV12Blob(const IE::Blob::CPtr& blobPtr
     _repackedBlob = repackedBlob;
 }
 
-void BlobDescriptorAdapter::prepareImageFormatInfo(
-    const IE::Blob::CPtr& blobPtr, const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams) {
+void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr,
+                                                   const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams) {
     if (isBlobContainsNV12Data(blobPtr, blobParams)) {
         _sourceInfo.blobColorFormat = HddlUnite::Inference::FourCC::NV12;
     } else {
@@ -320,14 +339,15 @@ void BlobDescriptorAdapter::prepareImageFormatInfo(
     _sourceInfo.planeStride = _sourceInfo.widthStride * _sourceInfo.resHeight;
 }
 
-void BlobDescriptorAdapter::getRect(
-    const InferenceEngine::Blob::CPtr& blobPtr, const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams) {
+void BlobDescriptorAdapter::getRect(const InferenceEngine::Blob::CPtr& blobPtr,
+                                    const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams) {
     const auto& roiPtr = blobParams->getROIPtr();
     if (blobPtr->is<IE::NV12Blob>() || roiPtr != nullptr) {
         if (roiPtr != nullptr) {
             // TODO Only one ROI is supported
             HddlUnite::Inference::Rectangle roi0{static_cast<int32_t>(roiPtr->posX), static_cast<int32_t>(roiPtr->posY),
-                static_cast<int32_t>(roiPtr->sizeX), static_cast<int32_t>(roiPtr->sizeY)};
+                                                 static_cast<int32_t>(roiPtr->sizeX),
+                                                 static_cast<int32_t>(roiPtr->sizeY)};
             _sourceInfo.roiRectangles.push_back(roi0);
         }
     }
@@ -335,13 +355,15 @@ void BlobDescriptorAdapter::getRect(
 
 HddlUnite::Inference::NNInputDesc BlobDescriptorAdapter::createNNDesc() const {
     return HddlUnite::Inference::NNInputDesc(_nnInputInfo.precision, _nnInputInfo.isRemoteMemory,
-        _nnInputInfo.isNeedAllocation, _nnInputInfo.dataSize, _nnInputInfo.batch);
+                                             _nnInputInfo.isNeedAllocation, _nnInputInfo.dataSize, _nnInputInfo.batch);
 }
 
 bool BlobDescriptorAdapter::isBlobDescSuitableForBlob(const InferenceEngine::Blob::CPtr& blob) const {
     return AllocationInfo(blob, _allocationInfo.nnInputColorFormat) == _allocationInfo;
 }
-bool BlobDescriptorAdapter::isROIPreprocessingRequired() const { return _sourceInfo.roiRectangles.size() > 0; }
+bool BlobDescriptorAdapter::isROIPreprocessingRequired() const {
+    return _sourceInfo.roiRectangles.size() > 0;
+}
 
 }  // namespace HDDL2Plugin
 }  // namespace vpu
