@@ -32,11 +32,12 @@ namespace HDDL2 {
 
 // TODO Use config from VPUX Plugin, not default. [Track number: S#42840]
 HDDL2Backend::HDDL2Backend(const VPUXConfig& config)
-    : _config(config),
-      _logger(std::make_shared<vpu::Logger>("HDDL2Backend", _config.logLevel(), vpu::consoleOutput())) {
+        : _config(config),
+          _logger(std::make_shared<vpu::Logger>("HDDL2Backend", _config.logLevel(), vpu::consoleOutput())) {
     setUniteLogLevel(_config.logLevel());
     _devices = createDeviceMap();
-    if (_devices.empty()) THROW_IE_EXCEPTION << "Device map is empty.";
+    if (_devices.empty())
+        THROW_IE_EXCEPTION << "Device map is empty.";
 }
 
 /** Generic device */
@@ -97,7 +98,7 @@ bool HDDL2Backend::isServiceAvailable(const vpu::Logger::Ptr& logger) {
     const std::ifstream defaultService("/opt/intel/hddlunite/bin/hddl_scheduler_service");
 
     const std::string specifiedServicePath =
-        std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
+            std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
     const std::ifstream specifiedService(specifiedServicePath + std::string("/bin/hddl_scheduler_service"));
 
     const auto serviceAvailable = specifiedService.good() || defaultService.good() || isServiceRunning();
@@ -107,7 +108,9 @@ bool HDDL2Backend::isServiceAvailable(const vpu::Logger::Ptr& logger) {
     return serviceAvailable;
 }
 
-bool HDDL2Backend::isServiceRunning() { return HddlUnite::isServiceRunning(); }
+bool HDDL2Backend::isServiceRunning() {
+    return HddlUnite::isServiceRunning();
+}
 
 HddlUnite::clientLogLevel convertIELogLevelToUnite(vpu::LogLevel ieLogLevel) {
     switch (ieLogLevel) {

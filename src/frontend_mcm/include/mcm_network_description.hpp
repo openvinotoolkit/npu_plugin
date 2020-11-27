@@ -26,8 +26,8 @@ namespace MCMAdapter {
 class MCMNetworkDescription final : public vpux::INetworkDescription {
 public:
     // TODO extract network name from blob
-    MCMNetworkDescription(
-        const std::vector<char>& compiledNetwork, const MCMConfig& config, const std::string& name = "");
+    MCMNetworkDescription(const std::vector<char>& compiledNetwork, const MCMConfig& config,
+                          const std::string& name = "");
     const vpux::DataMap& getInputsInfo() const override;
 
     const vpux::DataMap& getOutputsInfo() const override;
@@ -53,10 +53,10 @@ private:
     std::shared_ptr<vpu::Logger> _logger;
 
     vpux::DataMap matchElementsByName(const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names);
-    vpux::DataMap matchElementsByLexicographicalOrder(
-        const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names);
-    vpux::DataMap createDeviceMapWithCorrectNames(
-        const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names);
+    vpux::DataMap matchElementsByLexicographicalOrder(const vpux::DataMap& actualDeviceData,
+                                                      const std::vector<std::string>& names);
+    vpux::DataMap createDeviceMapWithCorrectNames(const vpux::DataMap& actualDeviceData,
+                                                  const std::vector<std::string>& names);
 };
 }  // namespace MCMAdapter
 }  // namespace vpu

@@ -42,25 +42,25 @@ public:
     Engine();
 
     InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-        const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config) override;
+            const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
-    InferenceEngine::QueryNetworkResult QueryNetwork(
-        const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config) const override;
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+                                                     const std::map<std::string, std::string>& config) const override;
 
     using ie::InferencePluginInternal::ImportNetwork;
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(
-        const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
+    InferenceEngine::ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+                                                     const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(
-        std::istream& networkModel, const std::map<std::string, std::string>& config) override;
+    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
+                                                         const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel, const RemoteContext::Ptr& context,
-        const std::map<std::string, std::string>& config) override;
+                                                         const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::Parameter GetMetric(
-        const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+            const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
     RemoteContext::Ptr CreateContext(const ParamMap& map) override;
 

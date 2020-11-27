@@ -54,11 +54,19 @@ public:
     explicit VideoWorkloadDevice(const InferenceEngine::ParamMap& paramMap, const VPUXConfig& config = {});
     Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;
 
-    std::shared_ptr<Allocator> getAllocator() const override { return nullptr; }
+    std::shared_ptr<Allocator> getAllocator() const override {
+        return nullptr;
+    }
     std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) const override;
-    std::string getName() const override { return _name; }
-    const ParsedContextParams& getContextParams() const { return _contextParams; }
-    HddlUnite::WorkloadContext::Ptr getUniteContext() const { return _workloadContext; }
+    std::string getName() const override {
+        return _name;
+    }
+    const ParsedContextParams& getContextParams() const {
+        return _contextParams;
+    }
+    HddlUnite::WorkloadContext::Ptr getUniteContext() const {
+        return _workloadContext;
+    }
 
 private:
     InferenceEngine::RemoteContext::Ptr _contextPtr;

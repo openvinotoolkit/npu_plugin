@@ -22,9 +22,9 @@
 #include <vpu/utils/io.hpp>
 #include <vpux_compiler.hpp>
 
-vpux::NetworkDescription::NetworkDescription(
-    INetworkDescription::Ptr actual, InferenceEngine::details::SharedObjectLoader::Ptr plg)
-    : _actual(actual), _plg(plg) {
+vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr actual,
+                                             InferenceEngine::details::SharedObjectLoader::Ptr plg)
+        : _actual(actual), _plg(plg) {
     if (_actual == nullptr) {
         THROW_IE_EXCEPTION << "ExecutableNetwork wrapper was not initialized.";
     }
@@ -35,8 +35,8 @@ static std::string extractFileName(const std::string& fullPath) {
     return fullPath.substr(lastSlashIndex + 1);
 }
 
-std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(
-    const std::string& filename, const VPUXConfig& config) {
+std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(const std::string& filename,
+                                                                  const VPUXConfig& config) {
     std::ifstream stream(filename, std::ios::binary);
     if (!stream.is_open()) {
         THROW_IE_EXCEPTION << "Could not open file: " << filename;
@@ -45,8 +45,8 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(
     return parse(stream, config, graphName);
 }
 
-std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(
-    std::istream& stream, const VPUXConfig& config, const std::string& graphName) {
+std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& stream, const VPUXConfig& config,
+                                                                  const std::string& graphName) {
     const size_t graphSize = vpu::KmbPlugin::utils::getFileSize(stream);
     if (graphSize == 0) {
         THROW_IE_EXCEPTION << "Blob is empty";

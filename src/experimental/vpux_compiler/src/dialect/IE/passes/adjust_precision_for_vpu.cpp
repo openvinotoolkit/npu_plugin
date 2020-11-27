@@ -55,7 +55,7 @@ private:
 };
 
 AdjustPrecisionForVPUPass::AdjustPrecisionForVPUPass(Logger log)
-    : _log(log), _cleanUpIR(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
+        : _log(log), _cleanUpIR(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _log.setName(Base::getArgumentName());
 
     _cleanUpIR.addPass(mlir::createCanonicalizerPass());
@@ -111,7 +111,7 @@ mlir::LogicalResult AdjustPrecisionForVPUPass::FuncOpConverter::matchAndRewrite(
 class AdjustPrecisionForVPUPass::OpConverter final : public mlir::ConversionPattern {
 public:
     OpConverter(mlir::TypeConverter& typeConverter, mlir::PatternBenefit benefit = 1)
-        : mlir::ConversionPattern(benefit, typeConverter, MatchAnyOpTypeTag{}) {
+            : mlir::ConversionPattern(benefit, typeConverter, MatchAnyOpTypeTag{}) {
     }
 
 public:

@@ -25,8 +25,9 @@ namespace IE = InferenceEngine;
 
 // TODO Config will be useless here, since only default values will be used
 VPUXBackends::VPUXBackends(const VPUXConfig& config)
-    : _logger(std::make_shared<vpu::Logger>("VPUXBackends", config.logLevel(), vpu::consoleOutput())),
-      _backend(EngineBackendConfigurator::findBackend()) {}
+        : _logger(std::make_shared<vpu::Logger>("VPUXBackends", config.logLevel(), vpu::consoleOutput())),
+          _backend(EngineBackendConfigurator::findBackend()) {
+}
 
 std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName) const {
     _logger->debug("Searching for device to use started...");
@@ -75,6 +76,8 @@ std::unordered_set<std::string> VPUXBackends::getSupportedOptions() const {
 }
 
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below
-void VPUXBackends::setup(const VPUXConfig& config) const { _logger->setLevel(config.logLevel()); }
+void VPUXBackends::setup(const VPUXConfig& config) const {
+    _logger->setLevel(config.logLevel());
+}
 
 }  // namespace vpux

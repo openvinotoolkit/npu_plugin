@@ -43,13 +43,17 @@ ParsedContextParams::ParsedContextParams(const InferenceEngine::ParamMap& paramM
     }
 }
 
-InferenceEngine::ParamMap ParsedContextParams::getParamMap() const { return _paramMap; }
+InferenceEngine::ParamMap ParsedContextParams::getParamMap() const {
+    return _paramMap;
+}
 
-WorkloadID ParsedContextParams::getWorkloadId() const { return _workloadId; }
+WorkloadID ParsedContextParams::getWorkloadId() const {
+    return _workloadId;
+}
 
 //------------------------------------------------------------------------------
 VideoWorkloadDevice::VideoWorkloadDevice(const InferenceEngine::ParamMap& paramMap, const VPUXConfig& config)
-    : _contextParams(paramMap) {
+        : _contextParams(paramMap) {
     // TODO Create logger for context device
     _workloadContext = HddlUnite::queryWorkloadContext(_contextParams.getWorkloadId());
     if (_workloadContext == nullptr) {
@@ -62,8 +66,8 @@ VideoWorkloadDevice::VideoWorkloadDevice(const InferenceEngine::ParamMap& paramM
     _allocatorPtr = std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteAllocator>(_workloadContext, config.logLevel());
 }
 
-vpux::Executor::Ptr VideoWorkloadDevice::createExecutor(
-    const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
+vpux::Executor::Ptr VideoWorkloadDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
+                                                        const VPUXConfig& config) {
     return vpux::HDDL2::HDDL2Executor::prepareExecutor(networkDescription, config, _allocatorPtr, _workloadContext);
 }
 std::shared_ptr<Allocator> VideoWorkloadDevice::getAllocator(const InferenceEngine::ParamMap& paramMap) const {

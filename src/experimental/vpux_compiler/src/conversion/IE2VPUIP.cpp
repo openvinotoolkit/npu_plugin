@@ -92,7 +92,7 @@ private:
 };
 
 ConvertIE2VPUIPPass::ConvertIE2VPUIPPass(uint32_t maxUPAShaves, Logger log)
-    : _log(log), _convertFuncs(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
+        : _log(log), _convertFuncs(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _log.setName(Base::getArgumentName());
 
     this->maxUPAShaves = maxUPAShaves;
@@ -142,7 +142,7 @@ mlir::LogicalResult ConvertIE2VPUIPPass::allocateResults(mlir::Location loc, mli
 class ConvertIE2VPUIPPass::SoftMaxRewrite final : public mlir::OpConversionPattern<IE::SoftMaxOp> {
 public:
     SoftMaxRewrite(uint32_t maxUPAShaves, mlir::MLIRContext* ctx)
-        : mlir::OpConversionPattern<IE::SoftMaxOp>(ctx), _maxUPAShaves(maxUPAShaves) {
+            : mlir::OpConversionPattern<IE::SoftMaxOp>(ctx), _maxUPAShaves(maxUPAShaves) {
     }
 
 public:

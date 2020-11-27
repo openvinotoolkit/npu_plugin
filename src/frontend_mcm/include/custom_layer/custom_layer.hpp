@@ -27,13 +27,21 @@ public:
     using Ptr = std::shared_ptr<CustomLayer>;
     explicit CustomLayer(std::string configDir, const pugi::xml_node& customLayer);
 
-    std::vector<CustomKernel> kernels() const { return _kernels; }
-    std::string layerName() const { return _layerName; }
-    std::map<int, ie::Layout> inputs() const { return _inputs; }
-    std::map<int, ie::Layout> outputs() const { return _outputs; }
+    std::vector<CustomKernel> kernels() const {
+        return _kernels;
+    }
+    std::string layerName() const {
+        return _layerName;
+    }
+    std::map<int, ie::Layout> inputs() const {
+        return _inputs;
+    }
+    std::map<int, ie::Layout> outputs() const {
+        return _outputs;
+    }
 
     static ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> loadFromFile(
-        const std::string& configFile, bool canBeMissed = false);
+            const std::string& configFile, bool canBeMissed = false);
 
     bool meetsWhereRestrictions(const std::map<std::string, std::string>& params) const;
     static bool isLegalSizeRule(const std::string& rule, std::map<std::string, std::string> layerParams);

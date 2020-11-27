@@ -41,10 +41,10 @@ class ExecutableNetwork final : public ie::ExecutableNetworkThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
-    explicit ExecutableNetwork(
-        ie::ICNNNetwork& network, const vpux::VPUXConfig& config, const std::shared_ptr<vpux::Device>& device);
-    explicit ExecutableNetwork(
-        std::istream& strm, const vpux::VPUXConfig& config, const std::shared_ptr<vpux::Device>& device);
+    explicit ExecutableNetwork(ie::ICNNNetwork& network, const vpux::VPUXConfig& config,
+                               const std::shared_ptr<vpux::Device>& device);
+    explicit ExecutableNetwork(std::istream& strm, const vpux::VPUXConfig& config,
+                               const std::shared_ptr<vpux::Device>& device);
 
     virtual ~ExecutableNetwork() = default;
 
@@ -52,14 +52,14 @@ public:
     ie::Parameter GetMetric(const std::string& name) const override;
     ie::Parameter GetConfig(const std::string& name) const override;
 
-    ie::InferRequestInternal::Ptr CreateInferRequestImpl(
-        ie::InputsDataMap networkInputs, ie::OutputsDataMap networkOutputs) override {
+    ie::InferRequestInternal::Ptr CreateInferRequestImpl(ie::InputsDataMap networkInputs,
+                                                         ie::OutputsDataMap networkOutputs) override {
         if (_device == nullptr) {
             THROW_IE_EXCEPTION << "Can not create an infer request because there are no devices";
         }
 
-        return std::make_shared<KmbInferRequest>(
-            networkInputs, networkOutputs, _stagesMetaData, _config, _executor, _device->getAllocator(), _netName);
+        return std::make_shared<KmbInferRequest>(networkInputs, networkOutputs, _stagesMetaData, _config, _executor,
+                                                 _device->getAllocator(), _netName);
     }
 
     ie::IInferRequest::Ptr CreateInferRequest() override {
@@ -67,18 +67,18 @@ public:
             THROW_IE_EXCEPTION << "Can not create an infer request because there are no devices";
         }
 
-        auto syncRequestImpl = std::make_shared<KmbInferRequest>(
-            _networkInputs, _networkOutputs, _stagesMetaData, _config, _executor, _device->getAllocator(), _netName);
+        auto syncRequestImpl = std::make_shared<KmbInferRequest>(_networkInputs, _networkOutputs, _stagesMetaData,
+                                                                 _config, _executor, _device->getAllocator(), _netName);
 
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
         auto asyncThreadSafeImpl = std::make_shared<KmbAsyncInferRequest>(
-            syncRequestImpl, _taskExecutor, taskExecutorGetResult, _callbackExecutor, _logger);
+                syncRequestImpl, _taskExecutor, taskExecutorGetResult, _callbackExecutor, _logger);
         ie::IInferRequest::Ptr asyncRequest;
         asyncRequest.reset(new ie::InferRequestBase<ie::AsyncInferRequestThreadSafeDefault>(asyncThreadSafeImpl),
-            [](ie::IInferRequest* p) {
-                p->Release();
-            });
+                           [](ie::IInferRequest* p) {
+                               p->Release();
+                           });
         asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
         return asyncRequest;
     }
@@ -101,7 +101,9 @@ public:
         }
     }
 
-    void Export(std::ostream& networkModel) override { ExportImpl(networkModel); }
+    void Export(std::ostream& networkModel) override {
+        ExportImpl(networkModel);
+    }
 
 private:
     explicit ExecutableNetwork(const vpux::VPUXConfig& config, const std::shared_ptr<vpux::Device>& device);

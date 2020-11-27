@@ -46,7 +46,7 @@ private:
 };
 
 RemoveExtraDMAPass::RemoveExtraDMAPass(Logger log)
-    : _log(log), _cleanUpIR(mlir::FuncOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
+        : _log(log), _cleanUpIR(mlir::FuncOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _log.setName(Base::getArgumentName());
 
     _cleanUpIR.addPass(mlir::createCanonicalizerPass());

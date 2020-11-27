@@ -48,7 +48,7 @@ namespace {
 class NGraphImporter final {
 public:
     NGraphImporter(mlir::MLIRContext* ctx, const std::shared_ptr<const ngraph::Function>& netGraph, Logger log)
-        : _ctx(ctx), _netGraph(netGraph), _log(log) {
+            : _ctx(ctx), _netGraph(netGraph), _log(log) {
     }
 
 public:

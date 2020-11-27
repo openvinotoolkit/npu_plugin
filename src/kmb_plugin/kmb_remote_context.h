@@ -35,10 +35,10 @@ public:
     using CPtr = std::shared_ptr<const KmbRemoteContext>;
 
     explicit KmbRemoteContext(const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config,
-        const std::shared_ptr<vpux::Device>& device);
+                              const std::shared_ptr<vpux::Device>& device);
 
-    InferenceEngine::RemoteBlob::Ptr CreateBlob(
-        const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) noexcept override;
+    InferenceEngine::RemoteBlob::Ptr CreateBlob(const InferenceEngine::TensorDesc& tensorDesc,
+                                                const InferenceEngine::ParamMap& params) noexcept override;
 
     std::string getDeviceName() const noexcept override;
 
