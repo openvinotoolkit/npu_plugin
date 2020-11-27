@@ -1344,6 +1344,90 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test_complex) {
   EXPECT_EQ(original_ops, 5UL);
 }
 
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, eviction_no_priority) {
+  dag_t::adjacency_map_t in = { {"A", {"B", "D_weights", "D"}}, {"B", {"C"}},
+    {"C", {"D"}}, {"D_weights", {"D"}},{"D", {}}  };
+  dag_t::resource_cost_model_t memory = { {"A", 1UL}, {"B", 4UL}, {"C", 2UL},
+    {"D_weights", 5UL}, {"D", 1UL} };
+
+  dag_t g(in);
+  g.reset_resource_model(memory);
+
+  dynamic_spill_scheduler_t scheduler(g, resource_t(10)), scheduler_end;
+  size_t original_ops = 0;
+  bool is_operation_b_spilled = false;
+
+  std::unordered_set<std::string> spilled_ops;
+  for (; scheduler != scheduler_end; ++scheduler) {
+    const scheduled_op_info_t& scheduled_op = *scheduler;
+
+    if (scheduled_op.op_type_name() == std::string("ORIGINAL")) {
+      original_ops++;
+    }
+    
+    if (scheduled_op.op_type_name() == "SPILLED_WRITE") {
+      spilled_ops.insert(scheduled_op.op_);
+    }
+
+    printf("op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+        scheduled_op.op_type_name(), scheduled_op.time_);
+
+    if (scheduled_op.has_active_resource()) {
+      printf(" resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+          scheduled_op.end_resource());
+    } else {
+      printf(" resource=<none>\n");
+    }
+  }
+
+  EXPECT_EQ(original_ops, 5UL);
+  EXPECT_TRUE(spilled_ops.find("B") != spilled_ops.end());
+  EXPECT_TRUE(spilled_ops.find("C") != spilled_ops.end());
+}
+
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, eviction_with_priority) {
+  dag_t::adjacency_map_t in = { {"A", {"B", "D_weights", "D"}}, {"B", {"C"}},
+    {"C", {"D"}}, {"D_weights", {"D"}},{"D", {}}  };
+  dag_t::resource_cost_model_t memory = { {"A", 1UL}, {"B", 4UL}, {"C", 2UL},
+    {"D_weights", 5UL}, {"D", 1UL} };
+  dag_t::priority_map_t priority_map = { {"A", 1UL}, {"B", 1UL}, {"C", 1UL},
+    {"D", 1UL}, {"D_weights", 0UL} };
+
+  dag_t g(in);
+  g.reset_resource_model(memory);
+  g.reset_priority_map(priority_map);
+
+  dynamic_spill_scheduler_t scheduler(g, resource_t(10)), scheduler_end;
+  size_t original_ops = 0;
+  std::unordered_set<std::string> spilled_ops;
+
+  for (; scheduler != scheduler_end; ++scheduler) {
+    const scheduled_op_info_t& scheduled_op = *scheduler;
+
+    if (scheduled_op.op_type_name() == std::string("ORIGINAL")) {
+      original_ops++;
+    }
+
+    if (scheduled_op.op_type_name() == "SPILLED_WRITE") {
+      spilled_ops.insert(scheduled_op.op_);
+    }
+
+    printf("op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+        scheduled_op.op_type_name(), scheduled_op.time_);
+
+    if (scheduled_op.has_active_resource()) {
+      printf(" resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+          scheduled_op.end_resource());
+    } else {
+      printf(" resource=<none>\n");
+    }
+  }
+
+  EXPECT_EQ(original_ops, 5UL);
+  EXPECT_FALSE(spilled_ops.find("B") != spilled_ops.end());
+  EXPECT_FALSE(spilled_ops.find("B") != spilled_ops.end());
+}
+
 
 TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_inplace_basic) {
 

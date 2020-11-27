@@ -183,7 +183,7 @@ class Operation_Dag {
     typedef model_traits<model_t> mtraits;
     typedef typename mtraits::const_operation_iterator_t op_itr_t;
     typedef typename mtraits::const_child_operation_iterator_t child_op_itr_t;
-    
+
     typedef mv::scheduler::CMX_Concatenation cmx_concat_algo_t;
     typedef typename cmx_concat_algo_t::control_edge_t
         cmx_concat_control_edge_t;
@@ -368,7 +368,7 @@ class Operation_Dag {
     }
 
     bool is_pseudo_edge(operation_t src, operation_t sink) const {
-      return (pseudo_edge_set_.find( pseudo_edge_t(src, sink) ) 
+      return (pseudo_edge_set_.find( pseudo_edge_t(src, sink) )
             != pseudo_edge_set_.end() );
     }
 
@@ -431,7 +431,7 @@ class Operation_Dag {
         cmx_concat_subgraphs_.insert(
             std::make_pair(subgraph.representative_dpu_, subgraph));
       }
-      
+
       // reinit the DAG with fresh op model //
       reset_from_cmx_concat_control_edges(omodel, cmx_concat_control_edges);
     }
@@ -651,6 +651,12 @@ class Operation_Dag {
     }
 
     ////////////////////////////////////////////////////////////////////////////
+
+    static size_t eviction_priority(const dag_t& , const operation_t& op) {
+      if (op->hasAttr("cmx_concatable")) { return 2UL; }
+      return (op->getOpType() == "DPUTask") ? 1UL : 0UL;
+    }
+
     static const char* operation_name(const operation_t& op) {
       return (op->getName()).c_str();
     }
@@ -884,7 +890,7 @@ class Operation_Dag {
         const_operation_iterator_t citr_end=end_nodes(curr_op);
         for (; citr != citr_end; ++citr) {
           operation_t child_op = *citr;
-          
+
           if (is_pseudo_edge(curr_op, child_op)) {
             // pseudo edge does not contribute to the resource utility of //
             // the child op//
@@ -1296,7 +1302,7 @@ class Operation_Dag {
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
-        
+
         if (is_operation_ignored(op, model)) { continue; }
         if (!is_dma_op(op)) { continue; }
         if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
@@ -1323,7 +1329,7 @@ class Operation_Dag {
     }
 
     template<typename ControlEdgeIterator>
-    void apply_control_edges(ControlEdgeIterator cbegin, 
+    void apply_control_edges(ControlEdgeIterator cbegin,
         ControlEdgeIterator cend) {
       while (cbegin != cend) {
         operation_t src_op = (&(*((*cbegin).source_itr_)));
@@ -1546,7 +1552,7 @@ class Operation_Dag {
       // remove sink_op from adj_list of source_op //
       op_ref_list_t *child_list_ptr = NULL, *parent_list_ptr = NULL;
       typename op_ref_list_t::iterator child_remove_iterator,
-               parent_remove_iterator; 
+               parent_remove_iterator;
       {
         adjacency_map_t::iterator adj_itr = adj_map_.find(source_op);
         if (adj_itr == adj_map_.end()) { return false; }
@@ -1571,7 +1577,7 @@ class Operation_Dag {
         op_ref_list_t& parent_list = adj_rev_itr->second;
         for (op_ref_list_t::iterator parent=parent_list.begin();
               parent!=parent_list.end(); ++parent) {
-          if (*parent == &(*itr_source)) { 
+          if (*parent == &(*itr_source)) {
             parent_remove_iterator = parent;
             parent_list_ptr = &parent_list;
           }

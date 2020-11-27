@@ -36,6 +36,11 @@ struct scheduler_traits {
   // data operations have no producers and just feed data to compute operations.
   static bool is_data_operation(const dag_t&, const operation_t&);
   static bool is_compute_operation(const dag_t&, const operation_t&);
+  
+  // Applications can return an eviction priority of operations. If there is a
+  // tie using the default eviction policy. Then the tie is broken using
+  // eviction priority.
+  static size_t eviction_priority(const dag_t&, const operation_t&);
 
   // Given v \in V , iterator over { u | (v, u) \in E } 
   static const_operation_iterator_t outgoing_operations_begin(const dag_t&,
@@ -1215,6 +1220,39 @@ class Feasible_Memory_Schedule_Generator {
       }
     }; // struct default_eviction_policy_t //
 
+    struct evictable_candidate_t {
+      dag_t const* dag_ptr_;
+      operation_t candidate_;
+      size_t active_input_count_;
+      evictable_candidate_t(const dag_t& input_dag,
+          const operation_t& candidate, size_t active_input_count)
+        : dag_ptr_(&input_dag), candidate_(candidate),
+          active_input_count_(active_input_count){} 
+
+      bool operator<(const evictable_candidate_t& other) const {
+        if (active_input_count_ != other.active_input_count_) {
+          return active_input_count_ < other.active_input_count_;
+        }
+
+        // compare priority: ties are resolved using name// 
+        size_t priority_this = traits::eviction_priority(*dag_ptr_, candidate_);
+        size_t priority_other =
+            traits::eviction_priority(*dag_ptr_, other.candidate_);
+
+        return (priority_this != priority_other) ? 
+            (priority_this < priority_other) 
+            : (strcmp(traits::operation_name(candidate_),
+                      traits::operation_name(other.candidate_)) < 0);
+      }
+
+      void print() const {
+        printf("name=%s active_input=%lu evict_priority=%lu\n", 
+            traits::operation_name(candidate_), active_input_count_,
+            traits::eviction_priority(*dag_ptr_, candidate_));
+      }
+
+    }; // struct evictable_candidate_t //
+
 
     //TODO(vamsikku): consolidate all the lookup tables into one //
     typedef std::vector<active_result_info_t> eviction_heap_t;
@@ -1775,25 +1813,23 @@ class Feasible_Memory_Schedule_Generator {
       return true;
     }
 
+
     //TODO: abstract the choice of picking a candidate with an eviction policy.
-    bool choose_active_operation_for_eviction(operation_t& candidate) const {
+    bool choose_active_operation_for_eviction(operation_t& output) const {
       if (active_resource_table_.empty()) { return false; }
 
       auto aitr = active_resource_table_.begin();
-      candidate = aitr->first;
-      size_t curr_input_count,
-             candidate_input_count = get_active_input_count(candidate);
+      evictable_candidate_t smallest_candidate(*input_ptr_, aitr->first,
+          get_active_input_count(aitr->first));
 
       for (++aitr; aitr!=active_resource_table_.end(); ++aitr) {
-        curr_input_count = get_active_input_count(aitr->first);
-        if ((curr_input_count < candidate_input_count) ||
-            ((curr_input_count == candidate_input_count) &&
-             (strcmp(traits::operation_name(aitr->first),
-                     traits::operation_name(candidate)) < 0))) {
-          candidate = aitr->first; 
-          candidate_input_count = curr_input_count;
+        evictable_candidate_t curr_candidate(*input_ptr_, aitr->first,
+              get_active_input_count(aitr->first));
+        if (curr_candidate < smallest_candidate) {
+          smallest_candidate = curr_candidate;
         }
       }
+      output = smallest_candidate.candidate_;
       return true;
     }
 
@@ -2039,6 +2075,7 @@ class Feasible_Memory_Schedule_Generator {
           traits::incoming_operations_end(*input_ptr_, op);
       size_t acount = 0UL;
       for (; itr!=itr_end; ++itr) {
+        if (traits::is_pseudo_input_edge(*input_ptr_, *itr, op)) { continue; }
         if (!(active_resource_table_.find(*itr) ==
                 active_resource_table_.end())) {
           ++acount;

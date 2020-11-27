@@ -79,6 +79,7 @@ namespace mv
             bool enableChannelMajorConv=false;
             double safetyFactor=1.0;
             double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
+            double cmxPipeLineWeightsOverhead=34816.0;
             enum class FailCause
             {
                 Pass,
@@ -473,16 +474,16 @@ namespace mv
                 {
                     uint16_t kernelH;
                     std::array<unsigned short, 4> padding;
-                                       
+
                     auto originalH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                     auto newOutputSizes = tileSpatialOutputSize(originalH, splits);
-                                       
+
                     unsigned short kernelStride;
                     if (op.hasAttr("stride"))
                         kernelStride = op.get<std::array<unsigned short, 2>>("stride")[1];
                     else
                         kernelStride = 1;//fake stride
-                    
+
                     if (op.hasAttr("padding"))
                         padding = op.get<std::array<unsigned short, 4>>("padding");
                     else
@@ -843,6 +844,40 @@ namespace mv
                 //NOTE: funny part you can spill even if you are not streaming, fasten your seatbelts!!
                 bool isStreaming = ((streamShape["W"] * streamShape["H"] * streamShape["C"]
                                                             * streamShape["K"] * streamShape["B"]) > 1) ? true : false;
+
+                // NOTE: This is a temporary workaround till we are able to identify the chains before graph
+                // optimizer and control the cmx percentage that we want the weigths to receive described in
+                // https://jira.devtools.intel.com/browse/CVS-43222
+                {
+                    if (op.getOpType() == "Conv")
+                    {
+                        if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,512,1}) &&
+                            op.getInputTensor()[1]->getShape() == mv::Shape({3,3,512,1024}) &&
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
+                        {
+                            if(globalEnablePipelining && streamShape["K"] != 8)
+                                return FailCause::cmxConcatDecision;
+                        }
+
+                        if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}) &&
+                            op.getInputTensor()[1]->getShape() == mv::Shape({3,3,1024,1024}) &&
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
+                        {
+                            if(globalEnablePipelining && streamShape["K"] != 8)
+                                return FailCause::cmxConcatDecision;
+                        }
+
+                        if (op.getInputTensor()[0]->getShape() == mv::Shape({1,1,2048,1}) &&
+                            op.getInputTensor()[1]->getShape() == mv::Shape({1,1,2048,1000}) &&
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({1,1,1000,1}))
+                        {
+                            if(globalEnablePipelining && streamShape["K"] != 4 && streamShape["K"] != 2)
+                                return FailCause::cmxConcatDecision;
+                        }
+
+                    }
+
+                }
 
                 // A proper decision on CMX concat for explicit concat or eltwise streaming cannot
                 // be made with the information on hand. Will not optimize strategies for these.
@@ -2302,12 +2337,6 @@ namespace mv
                 if(stream["H"] > 1 && stream["K"] > 1)
                     return false;
 
-                //Note: avoid pipelining small weights. Need to be more than 1/5 memory
-                // heuristic, not an exact science as to why 1/5 seems to be working well
-                //or else perfromance is killed...
-                if(op.getInputTensor(1)->computeTotalSize() < (clusterMemory * 0.2))
-                    return false;
-
                 size_t input, output, weights;
                 // in case initialization in memorySize fails
                 input = output = weights = 0;
@@ -2320,6 +2349,12 @@ namespace mv
                                                                 requiresFakeActivationSparsity(op),
                                                                 spilling,
                                                                 parentSpilling);
+
+
+                //Note: avoid pipelining small weights. This number came out of experiments, when
+                // the overhead starts to appear...
+                if(weights < cmxPipeLineWeightsOverhead)
+                    return false;
 
                 if(stream["K"] > 1) // Full activation in CMX, stream weights
                 {

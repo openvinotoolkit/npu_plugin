@@ -377,7 +377,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_f
         1, 0.05f);
 }
 
-TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_legacy_parser) {
+TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_googlenet_v3_tf_dense_int8_IRv10_legacy_parser) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/googlenet-v3/googlenet_v3_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
