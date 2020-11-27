@@ -108,5 +108,12 @@ DECLARE_VPUX_CONFIG_KEY(EXECUTOR_STREAMS);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS);
 
+/**
+ * @brief [Only for vpu compiler]
+ * Type: "YES/NO", default is "NO".
+ * Enable nGraph frontend
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER);
+
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine
