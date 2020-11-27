@@ -108,5 +108,12 @@ DECLARE_VPUX_CONFIG_KEY(EXECUTOR_STREAMS);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS);
 
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: integer, default is 5 minutes = 60 * 1000 * 5.
+ * Time interval during which to wait for backend pull to complete
+ */
+DECLARE_VPUX_CONFIG_KEY(INFERENCE_TIMEOUT);
+
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine
