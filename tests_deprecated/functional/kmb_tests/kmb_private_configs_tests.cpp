@@ -186,7 +186,7 @@ Blob::Ptr KmbPrivateConfigTests::readReference(const std::string& reference_path
     return referenceBlob;
 }
 
-TEST_P(KmbPrivateConfigTests, IE_VPU_KMB_PRIVATE_CONFIG_COMMON) {
+TEST_P(KmbPrivateConfigTests, DISABLED_IE_VPU_KMB_PRIVATE_CONFIG_COMMON) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #else
@@ -262,7 +262,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_precommit, KmbPrivateConfigTests, testing::Valu
 class KmbConfigTestsWithParams :
     public vpuLayersTests, public testing::WithParamInterface<std::string> {};
 
-TEST_P(KmbConfigTestsWithParams, PERF_COUNT) {
+TEST_P(KmbConfigTestsWithParams, DISABLED_PERF_COUNT) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
