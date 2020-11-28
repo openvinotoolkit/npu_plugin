@@ -157,6 +157,110 @@ std::vector<mv::Data::OpListIterator> findOutputNodeParentImplicitOps(mv::Comput
     return implicitOps;
 }
 
+// This is a helper function to recursively scan children of operation until it reaches DPU tasks.
+// In case of a DPU task check input sparsity setting.
+static void scanDpuForSparsityInputRecursiveDown(mv::Data::OpListIterator exploreOp, std::vector<bool>& sparsityEnVec, mv::OpModel& om)
+{
+    for(auto nextOp = exploreOp.leftmostChild(); nextOp != om.opEnd(); ++nextOp)
+    {
+        auto opType = nextOp->getOpType();
+        if(opType == "DPUTask")
+            sparsityEnVec.push_back(nextOp->hasAttr("inputActivationSparsity") ? nextOp->get<bool>("inputActivationSparsity") : false);
+        else
+            scanDpuForSparsityInputRecursiveDown(nextOp, sparsityEnVec, om);
+    }
+}
+
+// This function is to check if with given tensor order and slicing parameters, tensor splitting
+// can be performed in CMX or if it has to go through DDR (->Slice->DMA->DDR->DMA->DPU->).
+// This check is performed because DPU IDU unit cannot directly load input_data if it is not
+// a continguous block of memory - so when input tensor dimensions do not match input strides
+// In the effect slicing in CMX as an input to DPU task can be done only along major dimension.
+// This restriction is not relevant if sparsity support functionality is used for input of DPU task
+bool isSliceToBeMovedToDdr(mv::Data::OpListIterator sliceOp, mv::OpModel& om)
+{
+    // Check if slice was already requested to be performed in DDR
+    if (sliceOp->hasAttr("force_slice_in_DDR") && sliceOp->get<bool>("force_slice_in_DDR"))
+        return true;
+
+    auto inputTensor = sliceOp->getInputTensor(0);
+    // All this checking is relevant if input is in CMX or already in DDR.
+    // If it is INPUT or OUTPUT then it can return early as the code is intended to analyze
+    // split execution between CMX and DDR
+    if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::INPUT ||
+        inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::OUTPUT)
+        return false;
+
+    // Check if slicing is performed along axis which with given input tensor order
+    // can be done as splits into contiguous blocks of memory
+    // NHWC - split along H
+    // NCHW - split along C
+    bool sliceAlongMajorDim = true;
+    auto order = inputTensor->getOrder();
+    auto shape = inputTensor->getShape();
+
+    auto begin = sliceOp->get<mv::Shape>("begin");
+    auto size = sliceOp->get<mv::Shape>("size");
+
+    if (shape == size)
+        return false;
+
+    // Mask with information on which dimension with given tensor
+    // order split will be supported by DPU IDU. Boolean value
+    // idicates if certain dimension must match.
+    //                             |  W   |  H   |  C   |  N  |
+    bool allowed_mask_split_H[4] = {true,  false, true,  true};
+    bool allowed_mask_split_C[4] = {true,  true,  false, true};
+    bool *allowed_mask_split = NULL;
+
+    if (order == mv::Order("NHWC"))
+    {
+        allowed_mask_split = allowed_mask_split_H;
+    } else if (order == mv::Order("NCHW")) {
+        allowed_mask_split = allowed_mask_split_C;
+    }
+
+    if (allowed_mask_split == NULL)
+        return true;
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        if((size[i] == shape[i]) != allowed_mask_split[i])
+        {
+            sliceAlongMajorDim = false;
+            break;
+        }
+    }
+
+    if (sliceAlongMajorDim)
+        return false;
+
+    // If slice is not done along major dimension check if all subsequent DPU tasks
+    // have enabled input sparsity
+    std::vector<bool> sparsityEnVec;
+    scanDpuForSparsityInputRecursiveDown(sliceOp, sparsityEnVec, om);
+    auto sparsityEnableOnAllTasks = true;
+    auto sparsityEnableOnAnyTasks = false;
+    for (bool sparsityEn : sparsityEnVec)
+    {
+        sparsityEnableOnAllTasks &= sparsityEn;
+        sparsityEnableOnAnyTasks |= sparsityEn;
+    }
+    sparsityEnableOnAllTasks &= sparsityEnableOnAnyTasks;
+
+    // If in case of not doing the slice along major dimension but all subsequent tasks
+    // have input sparsity enabled then slicing can be located in CMX
+    if (sparsityEnableOnAllTasks)
+        return false;
+
+    // If sparsity is enabled only on some tasks signal this as unsupported config
+    if (!sparsityEnableOnAllTasks && sparsityEnableOnAnyTasks)
+        throw mv::AttributeError("isSliceToBeForcedInDdr", " slice op " + sliceOp->getName() +
+                                            " has DPU childen tasks which do not have matching input sparsity enable state");
+
+    return true;
+}
+
 void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -170,8 +274,14 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
 
         if (opType == "Slice")
         {
-            auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
+            if (isSliceToBeMovedToDdr(opIt, om))
+            {
+                opIt->set<bool>("force_slice_in_DDR", true);
+                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+            } else {
+                auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
+            }
         }
         else if (opType == "Crop")
         {
