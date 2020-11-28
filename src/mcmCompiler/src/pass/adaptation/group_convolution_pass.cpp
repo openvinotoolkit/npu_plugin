@@ -106,8 +106,8 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                                              1);
                 newConvTensor->setDType(convOp->getOutputTensor(0)->getDType());
                 newConvTensor->setQuantParams(outputQuantParams);
-                om.getSourceOp(newConvTensor)->set<unsigned>("opId", convOp->get<unsigned>("opId"));
                 auto sliceConvOp = om.getSourceOp(newConvTensor);
+                sliceConvOp->set<unsigned>("opId", convOp->get<unsigned>("opId"));
                 if (convOp->hasAttr("bias"))
                 {
                     mv::Data::TensorIterator biasSliceTensor;
