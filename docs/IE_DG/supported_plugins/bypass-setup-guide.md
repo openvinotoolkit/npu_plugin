@@ -206,14 +206,14 @@
 3. (x86_64) Set environment variables with the following commands:
 
     ```bash
-    cd $INTEL_OPENVINO_DIR/deployment_tools/inference-engine/external/tbh/hddl_unite
+    cd $INTEL_OPENVINO_DIR/deployment_tools/inference-engine/external/vpux_4/hddl_unite
     source ./env_host.sh
     ```
 
 4. (x86_64) Run scheduler service with command:
 
     ```bash
-    ${KMB_INSTALL_DIR}/tbh/bin/hddl_scheduler_service
+    ${KMB_INSTALL_DIR}/vpux_4/bin/hddl_scheduler_service
     ```
 
 5. (ARM) Run device services with the following commands:
@@ -231,7 +231,7 @@
 6. (x86_64) Set bypass mode with the following commands (open another terminal):
 
     ```bash
-    cd $INTEL_OPENVINO_DIR/deployment_tools/inference-engine/external/tbh/hddl_unite
+    cd $INTEL_OPENVINO_DIR/deployment_tools/inference-engine/external/vpux_4/hddl_unite
     source ./env.sh
     cd $KMB_INSTALL_DIR/bin
     ./SetHDDLMode -m bypass
