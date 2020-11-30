@@ -53,7 +53,7 @@ addIeTargetTest(
         kmbTestData
     LABELS
         VPU
-        kmbPlugin
+        HDDL2Plugin
 )
 
 if (UNIX)
