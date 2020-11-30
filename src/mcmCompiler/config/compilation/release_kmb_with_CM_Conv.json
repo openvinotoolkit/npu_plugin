@@ -108,8 +108,8 @@
             {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
-                "VersionMinor": 11,
-                "VersionPatch": 0,
+                "VersionMinor": 24,
+                "VersionPatch": 3,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
             },
             "UseReferenceOps"
@@ -224,6 +224,7 @@
                 }
             },
             "StoreGraphOptimizerDecisions",
+            "AddOptimalChainPipeliningStrategies",
             "ComputeSparsitySolution",
             "StreamingOperations",
             "StreamBinaryDataWeights",
@@ -355,6 +356,13 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             "DMAOrdering",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/final.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",

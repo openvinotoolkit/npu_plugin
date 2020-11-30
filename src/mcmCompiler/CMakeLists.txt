@@ -231,6 +231,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/sparsity/eltwise_ops.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_to_16_channels.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/real_pad_tensors.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/ensure_optimal_pipelining_strategies.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming/spatial_split_streaming.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_quantize.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/concat_fusion.cpp"
