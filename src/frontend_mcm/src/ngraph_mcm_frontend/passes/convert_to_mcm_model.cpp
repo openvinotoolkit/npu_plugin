@@ -43,6 +43,7 @@
 
 #include "ngraph/op/prelu.hpp"
 #include <ngraph/op/roi_pooling.hpp>
+#include <ngraph/op/psroi_pooling.hpp>
 
 #include "ngraph/op/region_yolo.hpp"
 
@@ -816,6 +817,27 @@ void convert(std::shared_ptr<ngraph::op::v0::ROIPooling> roipool, mv::OpModel& m
     registerOutputs(roipool, {roipoolOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::PSROIPooling> psroipool, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    auto mcmInputs = getMcmInputs(psroipool, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto& opName = psroipool->get_friendly_name();
+    const std::size_t output_dim = psroipool->get_output_dim();
+    const std::size_t group_size = psroipool->get_group_size();
+    const float spatial_scale  = psroipool->get_spatial_scale();
+    const int spatial_bins_x = psroipool->get_spatial_bins_x();
+    const int spatial_bins_y = psroipool->get_spatial_bins_y();
+    const std::string mode = psroipool->get_mode();
+    IE_ASSERT(4u == psroipool->get_output_shape(0).size());
+    const std::size_t pooled_h = psroipool->get_output_shape(0)[2];
+    const std::size_t pooled_w = psroipool->get_output_shape(0)[3];
+
+    const auto roipoolOutput = mcmModel.pSROIPooling(opName, mcmInputs, output_dim, group_size, spatial_scale, pooled_h,
+        pooled_w, spatial_bins_x, spatial_bins_y, mode);
+    roipoolOutput->setQuantParams(initialQuantParams());
+
+    registerOutputs(psroipool, {roipoolOutput}, mcmOutputsMap);
+}
+
 void convert(std::shared_ptr<ngraph::op::PriorBoxIE> priorbox, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(priorbox, mcmOutputsMap);
     const auto mcmData = mcmInputs.at(0);
@@ -1455,6 +1477,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::Result),
     MAP_ENTRY(ngraph::op::Constant),
     MAP_ENTRY(ngraph::op::v0::ROIPooling),
+    MAP_ENTRY(ngraph::op::v0::PSROIPooling),
     MAP_ENTRY(McmConv),
     MAP_ENTRY(McmBias),
     MAP_ENTRY(McmScale),
