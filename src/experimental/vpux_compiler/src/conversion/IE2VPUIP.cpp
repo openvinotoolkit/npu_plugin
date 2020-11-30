@@ -56,6 +56,7 @@ public:
     void runOnOperation() final;
 
 public:
+    class ConstantRewrite;
     class SoftMaxRewrite;
 
 public:
@@ -120,17 +121,46 @@ mlir::LogicalResult ConvertIE2VPUIPPass::allocateResults(mlir::Location loc, mli
 
         const auto memrefType = mlir::MemRefType::get(tensorType.getShape(), tensorType.getElementType());
 
-        auto allocOp = builder.create<VPUIP::DeclareTensorOp>(loc, memrefType, VPUIP::MemoryLocation::VPU_DDR_Heap,
-                                                              nullptr,  // localeIndex
-                                                              0,        // leadingOffset
-                                                              0,        // trailingOffset
-                                                              nullptr,  // dataIndex
-                                                              nullptr,  // sparsityIndex
-                                                              nullptr   // storageElementIndex
-        );
+        auto allocOp = builder.create<VPUIP::DeclareTensorOp>(loc, memrefType, VPUIP::MemoryLocation::VPU_DDR_Heap);
 
         allocatedBufs.push_back(allocOp.memory());
     }
+
+    return mlir::success();
+}
+
+//
+// ConstantRewrite
+//
+
+class ConvertIE2VPUIPPass::ConstantRewrite final : public mlir::OpConversionPattern<mlir::ConstantOp> {
+public:
+    explicit ConstantRewrite(mlir::MLIRContext* ctx): mlir::OpConversionPattern<mlir::ConstantOp>(ctx) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(mlir::ConstantOp origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertIE2VPUIPPass::ConstantRewrite::matchAndRewrite(
+        mlir::ConstantOp origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
+    VPUX_THROW_UNLESS(newOperands.empty(), "Got wrong newOperands size : {0}", newOperands.size());
+
+    auto tensorType = origOp.getResult().getType().dyn_cast<mlir::RankedTensorType>();
+    if (tensorType == nullptr) {
+        return mlir::failure();
+    }
+
+    auto content = origOp.value().dyn_cast<mlir::DenseElementsAttr>();
+    if (content == nullptr) {
+        return mlir::failure();
+    }
+
+    auto memrefType = mlir::MemRefType::get(tensorType.getShape(), tensorType.getElementType());
+
+    auto newOp = rewriter.create<VPUIP::DeclareConstantTensorOp>(origOp.getLoc(), memrefType, content);
+    rewriter.replaceOp(origOp, newOp.getResult());
 
     return mlir::success();
 }
@@ -227,6 +257,7 @@ mlir::LogicalResult ConvertIE2VPUIPPass::convertRegions() {
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
 
     mlir::OwningRewritePatternList patterns;
+    patterns.insert<ConstantRewrite>(&ctx);
     patterns.insert<SoftMaxRewrite>(maxUPAShaves, &ctx);
     mlir::populateBufferizeMaterializationLegality(target);
 

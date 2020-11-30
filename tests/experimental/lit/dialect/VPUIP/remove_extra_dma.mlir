@@ -60,3 +60,29 @@ func @redirect_dst_users(%arg0:  memref<8x8xf16>, %arg1:  memref<8x8xf16>) {
     // CHECK-NEXT:  VPUIP.SoftMaxUPA {{.*}} inputs(%0 : memref<8x8xf16>) outputs(%arg1 : memref<8x8xf16>)
     // CHECK-NEXT:  return
 }
+
+// -----
+
+// CHECK-LABEL: constant_op
+
+func @constant_op(%arg0: memref<1x2x2x2xf16>) {
+    %0 = VPUIP.DeclareConstantTensorOp
+        dense<[
+            [
+                [
+                    [1.0, 2.0],
+                    [3.0, 4.0]
+                ],
+                [
+                    [5.0, 6.0],
+                    [7.0, 8.0]
+                ]
+            ]
+        ]> : tensor<1x2x2x2xf16> -> memref<1x2x2x2xf16>
+    // CHECK: %0 = VPUIP.DeclareConstantTensorOp
+
+    VPUIP.UPADMA inputs(%0 : memref<1x2x2x2xf16>) outputs(%arg0 : memref<1x2x2x2xf16>)
+    // CHECK: VPUIP.UPADMA inputs(%0 : memref<1x2x2x2xf16>) outputs(%arg0 : memref<1x2x2x2xf16>)
+
+    return
+}

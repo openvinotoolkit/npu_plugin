@@ -159,23 +159,41 @@ def VPUIP_DeclareTensorOp :
                 NoSideEffect
             ]
         > {
-    let summary = "MemRef value declaration";
+    let summary = "TensorReference value declaration";
 
     let arguments = (ins
         VPUIP_MemoryLocation:$locale,
         OptionalAttr<I32Attr>:$localeIndex,
 
-        DefaultValuedAttr<I64Attr, "0">:$leadingOffset,
-        DefaultValuedAttr<I64Attr, "0">:$trailingOffset,
-
         OptionalAttr<I64Attr>:$dataIndex,
         OptionalAttr<I64Attr>:$sparsityIndex,
-        OptionalAttr<I64Attr>:$storageElementIndex
+        OptionalAttr<I64Attr>:$storageElementIndex,
+        OptionalAttr<I32Attr>:$storageElementSize,
+
+        OptionalAttr<I32Attr>:$leadingOffset,
+        OptionalAttr<I32Attr>:$trailingOffset
     );
 
     let results = (outs
         AnyMemRef:$memory
     );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale),
+            [{
+                build($_builder, $_state, memory, locale,
+                      nullptr, // localeIndex
+                      nullptr, // dataIndex
+                      nullptr, // sparsityIndex
+                      nullptr, // storageElementIndex
+                      nullptr, // storageElementSize
+                      nullptr, // leadingOffset
+                      nullptr  // trailingOffset
+                );
+            }]
+        >
+    ];
 
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
@@ -184,6 +202,60 @@ def VPUIP_DeclareTensorOp :
     let assemblyFormat = [{
         $locale (`:` $localeIndex^)? attr-dict `->` type(results)
     }];
+}
+
+//
+// DeclareConstantTensorOp
+//
+
+def DenseElementsAttr :
+        ElementsAttrBase<
+            CPred<"$_self.isa<mlir::DenseElementsAttr>()">,
+            "constant dense tensor attribute"
+        > {
+    let storageType = "mlir::DenseElementsAttr";
+    let returnType = "mlir::DenseElementsAttr";
+    let convertFromStorage = "$_self";
+}
+
+def VPUIP_DeclareConstantTensorOp :
+        VPUIP_Op<
+            "DeclareConstantTensorOp",
+            [
+                ConstantLike,
+                NoSideEffect
+            ]
+        > {
+    let summary = "Constant TensorReference value declaration";
+
+    let arguments = (ins
+        DenseElementsAttr:$content,
+
+        UnitAttr:$csramCacheable
+    );
+
+    let results = (outs
+        AnyMemRef:$memory
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins "mlir::MemRefType":$type, "mlir::DenseElementsAttr":$content),
+            [{
+                build($_builder, $_state, type, content, nullptr);
+            }]
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        $content attr-dict `->` type(results)
+    }];
+
+    let hasFolder = 1;
 }
 
 //

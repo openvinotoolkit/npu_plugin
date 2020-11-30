@@ -2,7 +2,7 @@
 
 // CHECK: #NC = affine_map<(d0, d1) -> (d0, d1)>
 
-// CHECK:       VPUIP.Graph "SingleLayer" at @main
+// CHECK-LABEL: VPUIP.Graph "SingleLayer" at @main
 // CHECK-SAME:      options : "NONE"
 // CHECK-SAME:      item = "SHAVE_UPA", number = 1
 // CHECK-SAME:      item = "NCE_Cluster", number = 1
@@ -24,5 +24,38 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 
     return %prob : tensor<1x1000xf16>
     // CHECK:       VPUIP.UPADMA inputs(%0 : memref<1x1000xf16>) outputs(%arg1 : memref<1x1000xf16>)
+    // CHECK-NEXT:  return
+}
+
+// -----
+
+// CHECK-LABEL: VPUIP.Graph "ConstantLayer" at @main
+IE.CNNNetwork "ConstantLayer" at @main
+    inputsInfo : {
+    }
+    outputsInfo : {
+        IE.DataInfo "output", f32, "NCHW"
+    }
+
+// CHECK: func @main(%arg0: memref<1x2x2x2xf16>)
+func @main() -> tensor<1x2x2x2xf16> {
+    %0 = constant
+        dense<[
+            [
+                [
+                    [1.0, 2.0],
+                    [3.0, 4.0]
+                ],
+                [
+                    [5.0, 6.0],
+                    [7.0, 8.0]
+                ]
+            ]
+        ]> : tensor<1x2x2x2xf16>
+    // CHECK:       %[[VAR:.*]] = VPUIP.DeclareConstantTensorOp
+    // CHECK-SAME:      memref<1x2x2x2xf16>
+
+    return %0 : tensor<1x2x2x2xf16>
+    // CHECK:       VPUIP.UPADMA inputs(%[[VAR]] : memref<1x2x2x2xf16>) outputs(%arg0 : memref<1x2x2x2xf16>)
     // CHECK-NEXT:  return
 }

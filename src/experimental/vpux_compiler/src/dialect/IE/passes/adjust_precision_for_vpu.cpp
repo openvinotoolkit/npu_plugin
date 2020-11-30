@@ -19,8 +19,10 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/scalars.hpp"
 
+#include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
@@ -30,6 +32,10 @@
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/Passes.h>
+
+#include <precision_utils.h>
+
+#include <ngraph/type/float16.hpp>
 
 using namespace vpux;
 
@@ -44,7 +50,8 @@ public:
 
 public:
     class FuncOpConverter;
-    class OpConverter;
+    class ConstantOpConverter;
+    class GenericOpConverter;
 
 private:
     void passBody();
@@ -105,12 +112,79 @@ mlir::LogicalResult AdjustPrecisionForVPUPass::FuncOpConverter::matchAndRewrite(
 }
 
 //
-// OpConverter
+// ConstantOpConverter
 //
 
-class AdjustPrecisionForVPUPass::OpConverter final : public mlir::ConversionPattern {
+class AdjustPrecisionForVPUPass::ConstantOpConverter final : public mlir::OpConversionPattern<mlir::ConstantOp> {
 public:
-    OpConverter(mlir::TypeConverter& typeConverter, mlir::PatternBenefit benefit = 1)
+    ConstantOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* context,
+                        mlir::PatternBenefit benefit = 2)
+            : mlir::OpConversionPattern<mlir::ConstantOp>(typeConverter, context, benefit) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(mlir::ConstantOp origOp, ArrayRef<mlir::Value> operands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult AdjustPrecisionForVPUPass::ConstantOpConverter::matchAndRewrite(
+        mlir::ConstantOp origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
+    auto* converter = getTypeConverter();
+    VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
+
+    VPUX_THROW_UNLESS(operands.empty(), "Wrong operands size : {0}", operands.size());
+
+    auto origTensorType = origOp.getResult().getType().dyn_cast<mlir::RankedTensorType>();
+    if (origTensorType == nullptr) {
+        return mlir::failure();
+    }
+
+    auto origElemType = origTensorType.getElementType();
+    if (!origElemType.isF32()) {
+        return mlir::failure();
+    }
+
+    auto origContent = origOp.value().dyn_cast<mlir::DenseElementsAttr>();
+    if (origContent == nullptr) {
+        return mlir::failure();
+    }
+
+    auto newType = converter->convertType(origTensorType).cast<mlir::ShapedType>();
+
+    auto totalNumElems = origTensorType.getNumElements();
+
+    mlir::DenseElementsAttr newContent;
+    if (origContent.isSplat()) {
+        const auto origValue = origContent.getSplatValue<float>();
+        const auto newValue = InferenceEngine::PrecisionUtils::f32tof16(origValue);
+        newContent = mlir::DenseElementsAttr::get(newType, newValue);
+    } else {
+        const auto origValues = to_std_vector(origContent.getValues<float>());
+        std::vector<ngraph::float16> newValues(origValues.size());
+
+        loop_1d(LoopExecPolicy::Parallel, origValues.size(), [&](size_t i) {
+            newValues[i] = InferenceEngine::PrecisionUtils::f16tof32(origValues[i]);
+        });
+
+        newContent = mlir::DenseElementsAttr::get(newType, makeArrayRef(newValues.data(), totalNumElems));
+    }
+
+    auto* dialect = rewriter.getContext()->getLoadedDialect<IE::IEDialect>();
+    VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
+
+    auto* newOp = dialect->materializeConstant(rewriter, newContent, newType, origOp.getLoc());
+    rewriter.replaceOp(origOp, newOp->getResults());
+
+    return mlir::success();
+}
+
+//
+// GenericOpConverter
+//
+
+class AdjustPrecisionForVPUPass::GenericOpConverter final : public mlir::ConversionPattern {
+public:
+    GenericOpConverter(mlir::TypeConverter& typeConverter, mlir::PatternBenefit benefit = 1)
             : mlir::ConversionPattern(benefit, typeConverter, MatchAnyOpTypeTag{}) {
     }
 
@@ -119,7 +193,7 @@ public:
                                         mlir::ConversionPatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult AdjustPrecisionForVPUPass::OpConverter::matchAndRewrite(
+mlir::LogicalResult AdjustPrecisionForVPUPass::GenericOpConverter::matchAndRewrite(
         mlir::Operation* origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
@@ -191,6 +265,7 @@ void AdjustPrecisionForVPUPass::passBody() {
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
     target.addLegalOp<IE::ConvertOp>();
     target.addIllegalDialect<mlir::StandardOpsDialect>();
+    target.addDynamicallyLegalOp<mlir::ConstantOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
@@ -199,7 +274,8 @@ void AdjustPrecisionForVPUPass::passBody() {
 
     mlir::OwningRewritePatternList patterns;
     patterns.insert<FuncOpConverter>(typeConverter, &ctx);
-    patterns.insert<OpConverter>(typeConverter);
+    patterns.insert<ConstantOpConverter>(typeConverter, &ctx);
+    patterns.insert<GenericOpConverter>(typeConverter);
 
     auto module = getOperation();
     if (mlir::failed(mlir::applyFullConversion(module.getOperation(), target, std::move(patterns)))) {

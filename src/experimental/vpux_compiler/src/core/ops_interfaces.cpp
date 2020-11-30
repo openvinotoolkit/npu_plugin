@@ -151,11 +151,8 @@ mlir::LogicalResult vpux::details::verifyNetInfo(mlir::Operation* op) {
     auto inputsInfo = netInfo.getInputsInfo();
     auto outputsInfo = netInfo.getOutputsInfo();
 
-    if (inputsInfo.empty()) {
-        return printTo(op->emitError(), "Operation '{0}' has no inputs information", op->getName());
-    }
     if (outputsInfo.empty()) {
-        return printTo(op->emitError(), "Operation '{0}' has no outputs information", op->getName());
+        return printTo(op->emitError(), "Operation '{0}' has no outputs", op->getName());
     }
 
     std::unordered_set<StringRef> usedNames;
