@@ -47,6 +47,10 @@ class VpualCoreNNExecutor final : public vpux::Executor {
 public:
     using Ptr = std::shared_ptr<VpualCoreNNExecutor>;
 
+#if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
+    class PipePrintHandler;
+#endif
+
     virtual ~VpualCoreNNExecutor();
     VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
         const uint32_t deviceId, const VpualConfig& config);
@@ -107,6 +111,10 @@ private:
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _outputBuffer;
 
     std::vector<uint32_t> _outputPhysAddrs;
+
+#if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
+    std::shared_ptr<PipePrintHandler> _pipePrint;
+#endif
 };
 
 }  // namespace vpux

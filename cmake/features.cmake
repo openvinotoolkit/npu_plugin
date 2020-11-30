@@ -65,6 +65,8 @@ else()
     ie_option(ENABLE_EXPERIMENTAL_MLIR "Enable build of experimental MLIR-based compiler" ON)
 endif()
 
+ie_option(ENABLE_DEVELOPER_BUILD "Enable developer build with extra validation/logging functionality" OFF)
+
 function (print_enabled_kmb_features)
     message(STATUS "KMB Plugin enabled features: ")
     message(STATUS "")
