@@ -31,9 +31,8 @@
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : "Example",
-                        "cluster_filter" : 0,
-                        "strategy" : "Example"
+                        "name_filter" : "yolov2/darknet19_model/conv2/bn/FusedBatchNorm/variance/Fused_Add_",
+                        "strategy" : "SplitOverH"
                     }
                 ],
                 "default_tensor_placement" : "NNCMX",
@@ -224,7 +223,21 @@
                 }
             },
             "StoreGraphOptimizerDecisions",
-            "AddOptimalChainPipeliningStrategies",
+            {
+                "name" : "AddOptimalChainPipeliningStrategies",
+                "select_stages" : 2,
+                "AddOptimalChainPipeliningStrategiesConfig" : {
+                    "layerStrategies" : [
+                        {
+                            "name" : "Conv",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverK","StreamOverN"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]}
+                            ]
+                        }
+                    ]
+                }
+            },
             "ComputeSparsitySolution",
             "StreamingOperations",
             "StreamBinaryDataWeights",
@@ -259,6 +272,13 @@
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/SetSparsityAttrForUnpopulatedTensors.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+                },
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "ImplicitOutputDTypeUpdate",
