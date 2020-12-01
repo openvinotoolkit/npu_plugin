@@ -50,10 +50,6 @@ class VPUIP_TaskOp<string mnemonic, VPUIP_TaskTypeVal taskType, list<OpTrait> tr
                 ]
             )
         > {
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
-
     let extraClassDeclaration = [{
         static vpux::VPUIP::TaskType getTaskType() {
             return }] # taskType.enumVal # [{;
@@ -324,6 +320,10 @@ def VPUIP_ConfigureBarrierOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         (`inputs` `(` $inputTensors^ `:` type($inputTensors) `)`)?
@@ -341,7 +341,10 @@ def VPUIP_ConfigureBarrierOp :
 def VPUIP_UPADMAOp :
         VPUIP_TaskOp<
             "UPADMA",
-            VPUIP_TaskType_UPADMA
+            VPUIP_TaskType_UPADMA,
+            [
+                VPUIP_UPATaskTrait
+            ]
         > {
     let summary = "UPA DMA task";
 
@@ -374,6 +377,7 @@ def VPUIP_SoftMaxUPAOp :
             "SoftMaxUPA",
             VPUIP_TaskType_UPA,
             [
+                VPUIP_UPATaskTrait,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>

@@ -27,6 +27,10 @@ class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUti
                  std::ignore,
                  std::ignore) = GetParam();
 
+        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+            throw LayerTestsUtils::KmbSkipTestException("Blobs generated with MCM compiler hangs on runtime");
+        }
+
         // TODO: [Track number: S#40296]
         if (inputShape.at(axisInd) == 1) {
             throw LayerTestsUtils::KmbSkipTestException("SoftMax over dim==1 fails during blob parsing");
@@ -48,12 +52,6 @@ class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUti
             }
         }
     }
-
-    void SkipBeforeImport() override {
-        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
-            throw LayerTestsUtils::KmbSkipTestException("Blobs generated with MCM compiler hangs on runtime");
-        }
-    }
 };
 
 TEST_P(KmbSoftMaxLayerTest, CompareWithRefs) {
@@ -68,7 +66,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP16,
+    InferenceEngine::Precision::FP32,
 };
 
 const std::vector<InferenceEngine::Layout> inputLayouts2D = {
@@ -77,8 +75,6 @@ const std::vector<InferenceEngine::Layout> inputLayouts2D = {
 
 const std::vector<InferenceEngine::SizeVector> inputShapes2D = {
     InferenceEngine::SizeVector {1, 100},
-    InferenceEngine::SizeVector {1, 20},
-    InferenceEngine::SizeVector {1, 200},
     InferenceEngine::SizeVector {100, 1},
     InferenceEngine::SizeVector {10, 10},
 };
@@ -89,8 +85,8 @@ const std::vector<size_t> axis2D = {
 
 const auto params2D = testing::Combine(
     testing::ValuesIn(netPrecisions),
-    testing::Values(InferenceEngine::Precision::FP16),
-    testing::Values(InferenceEngine::Precision::FP16),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::ValuesIn(inputLayouts2D),
     testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes2D),
@@ -110,15 +106,14 @@ const std::vector<InferenceEngine::SizeVector> inputShapes4D = {
     InferenceEngine::SizeVector {1, 100, 1, 1},
     InferenceEngine::SizeVector {1, 3, 4, 3},
     InferenceEngine::SizeVector {2, 3, 4, 5},
-    InferenceEngine::SizeVector {1, 3, 16, 16},
 };
 
 const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
 const auto params4D = testing::Combine(
     testing::ValuesIn(netPrecisions),
-    testing::Values(InferenceEngine::Precision::FP16),
-    testing::Values(InferenceEngine::Precision::FP16),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::Values(InferenceEngine::Layout::NCHW),
     testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes4D),

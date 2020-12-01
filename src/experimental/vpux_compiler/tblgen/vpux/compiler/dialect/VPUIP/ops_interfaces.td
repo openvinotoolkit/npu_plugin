@@ -94,10 +94,18 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
             (ins "mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>&":$effects),
             [{}],
             [{
-                vpux::VPUIP::getTaskEffects($_op, effects);
+                vpux::VPUIP::details::getTaskEffects($_op, effects);
             }]
         >,
     ];
+}
+
+//
+// UPATaskTrait
+//
+
+def VPUIP_UPATaskTrait : NativeOpTrait<"UPATaskTrait"> {
+    let cppNamespace = "vpux::VPUIP";
 }
 
 //
@@ -144,7 +152,7 @@ def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
     ];
 
     let verify = [{
-        return vpux::VPUIP::verifyUPATask($_op);
+        return vpux::VPUIP::details::verifyUPATask($_op);
     }];
 }
 
