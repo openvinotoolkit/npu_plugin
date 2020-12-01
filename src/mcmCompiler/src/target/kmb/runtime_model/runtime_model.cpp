@@ -2870,7 +2870,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& /*c
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto toBuild = new MVCNN::UPALayerTaskT();
-    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CustomLayerParams;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CustomLayerOclParams;
 
     for (size_t i = 0; i < opIt->inputSlots(); i++) {
         const auto input = opIt->getInputTensor(i);
@@ -2882,7 +2882,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomTask(ComputationModel& cm
         toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
     }
 
-    auto softParams = new MVCNN::CustomLayerParamsT();
+    auto softParams = new MVCNN::CustomLayerOclParamsT();
     toBuild->softLayerParams.value = softParams;
 
     softParams->leonPreambleID = -1u;  // unused
