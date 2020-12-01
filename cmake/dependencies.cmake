@@ -158,9 +158,9 @@ endif()
 if(ENABLE_HDDL2)
     if(UNIX)
         set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww44)
-        set(HDDLUNITE_TBH_ARCHIVE_VERSION RELEASE_TBH_ww44)
+        set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww44)
         set(HDDLUNITE_KMB_ARCHIVE_HASH "04df19c47aa4b11e3254f997e892c00eb29ac2e1ce61846282eb462401412077")
-        set(HDDLUNITE_TBH_ARCHIVE_HASH "cebc6864a6d20c435d379f6757e9ffea38eea17073bb5363db85a098b476a84d")
+        set(HDDLUNITE_VPUX_4_ARCHIVE_HASH "cebc6864a6d20c435d379f6757e9ffea38eea17073bb5363db85a098b476a84d")
         set(ARCH_FORMAT ".tgz")
     else()
         set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww44_Windows)
@@ -185,11 +185,11 @@ if(ENABLE_HDDL2)
                 TARGET_PATH "${TEMP}/hddl_unite"
                 SHA256 ${HDDLUNITE_KMB_ARCHIVE_HASH})
         if(UNIX)
-            RESOLVE_DEPENDENCY(HDDL_UNITE_TBH
-                    ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_TBH_ARCHIVE_VERSION}${ARCH_FORMAT}"
-                    ENVIRONMENT "HDDL_UNITE_TBH"
-                    TARGET_PATH "${TEMP}/tbh/hddl_unite"
-                    SHA256 ${HDDLUNITE_TBH_ARCHIVE_HASH})
+            RESOLVE_DEPENDENCY(HDDL_UNITE_VPUX_4
+                    ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_VPUX_4_ARCHIVE_VERSION}${ARCH_FORMAT}"
+                    ENVIRONMENT "HDDL_UNITE_VPUX_4"
+                    TARGET_PATH "${TEMP}/vpux_4/hddl_unite"
+		    SHA256 ${HDDLUNITE_VPUX_4_ARCHIVE_HASH})
         endif()
 
         unset(IE_PATH_TO_DEPS)
