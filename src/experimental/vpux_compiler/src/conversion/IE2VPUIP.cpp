@@ -61,7 +61,7 @@ public:
 
 public:
     static mlir::LogicalResult allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
-                                               mlir::ValueRange origResults,
+                                               mlir::TypeConverter& typeConverter, mlir::ValueRange origResults,
                                                SmallVectorImpl<mlir::Value>& allocatedBufs);
 
 private:
@@ -100,6 +100,7 @@ ConvertIE2VPUIPPass::ConvertIE2VPUIPPass(uint32_t maxUPAShaves, Logger log)
 
     _convertFuncs.addPass(mlir::createFuncBufferizePass());
     _convertFuncs.addPass(mlir::createBufferResultsToOutParamsPass());
+    _convertFuncs.addPass(mlir::createFinalizingBufferizePass());
 }
 
 //
@@ -107,6 +108,7 @@ ConvertIE2VPUIPPass::ConvertIE2VPUIPPass(uint32_t maxUPAShaves, Logger log)
 //
 
 mlir::LogicalResult ConvertIE2VPUIPPass::allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
+                                                         mlir::TypeConverter& typeConverter,
                                                          mlir::ValueRange origResults,
                                                          SmallVectorImpl<mlir::Value>& allocatedBufs) {
     allocatedBufs.reserve(origResults.size());
@@ -118,8 +120,7 @@ mlir::LogicalResult ConvertIE2VPUIPPass::allocateResults(mlir::Location loc, mli
         }
 
         const auto tensorType = origType.cast<mlir::RankedTensorType>();
-
-        const auto memrefType = mlir::MemRefType::get(tensorType.getShape(), tensorType.getElementType());
+        const auto memrefType = typeConverter.convertType(tensorType);
 
         auto allocOp = builder.create<VPUIP::DeclareTensorOp>(loc, memrefType, VPUIP::MemoryLocation::VPU_DDR_Heap);
 
@@ -135,8 +136,7 @@ mlir::LogicalResult ConvertIE2VPUIPPass::allocateResults(mlir::Location loc, mli
 
 class ConvertIE2VPUIPPass::ConstantRewrite final : public mlir::OpConversionPattern<mlir::ConstantOp> {
 public:
-    explicit ConstantRewrite(mlir::MLIRContext* ctx): mlir::OpConversionPattern<mlir::ConstantOp>(ctx) {
-    }
+    using mlir::OpConversionPattern<mlir::ConstantOp>::OpConversionPattern;
 
 public:
     mlir::LogicalResult matchAndRewrite(mlir::ConstantOp origOp, ArrayRef<mlir::Value> newOperands,
@@ -146,6 +146,9 @@ public:
 mlir::LogicalResult ConvertIE2VPUIPPass::ConstantRewrite::matchAndRewrite(
         mlir::ConstantOp origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
     VPUX_THROW_UNLESS(newOperands.empty(), "Got wrong newOperands size : {0}", newOperands.size());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
     auto tensorType = origOp.getResult().getType().dyn_cast<mlir::RankedTensorType>();
     if (tensorType == nullptr) {
@@ -157,7 +160,8 @@ mlir::LogicalResult ConvertIE2VPUIPPass::ConstantRewrite::matchAndRewrite(
         return mlir::failure();
     }
 
-    auto memrefType = mlir::MemRefType::get(tensorType.getShape(), tensorType.getElementType());
+    auto memrefType = typeConverter->convertType(tensorType).dyn_cast<mlir::MemRefType>();
+    VPUX_THROW_UNLESS(memrefType != nullptr, "TypeConverter failed to convert Tensor to MemRef");
 
     auto newOp = rewriter.create<VPUIP::DeclareConstantTensorOp>(origOp.getLoc(), memrefType, content);
     rewriter.replaceOp(origOp, newOp.getResult());
@@ -171,8 +175,8 @@ mlir::LogicalResult ConvertIE2VPUIPPass::ConstantRewrite::matchAndRewrite(
 
 class ConvertIE2VPUIPPass::SoftMaxRewrite final : public mlir::OpConversionPattern<IE::SoftMaxOp> {
 public:
-    SoftMaxRewrite(uint32_t maxUPAShaves, mlir::MLIRContext* ctx)
-            : mlir::OpConversionPattern<IE::SoftMaxOp>(ctx), _maxUPAShaves(maxUPAShaves) {
+    SoftMaxRewrite(uint32_t maxUPAShaves, mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx)
+            : mlir::OpConversionPattern<IE::SoftMaxOp>(typeConverter, ctx), _maxUPAShaves(maxUPAShaves) {
     }
 
 public:
@@ -187,8 +191,11 @@ mlir::LogicalResult ConvertIE2VPUIPPass::SoftMaxRewrite::matchAndRewrite(
         IE::SoftMaxOp origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
     VPUX_THROW_UNLESS(newOperands.size() == 1, "Got wrong newOperands size : {0}", newOperands.size());
 
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
     SmallVector<mlir::Value, 1> allocatedBufs;
-    if (mlir::failed(allocateResults(origOp.getLoc(), rewriter, {origOp.output()}, allocatedBufs))) {
+    if (mlir::failed(allocateResults(origOp.getLoc(), rewriter, *typeConverter, {origOp.output()}, allocatedBufs))) {
         return mlir::failure();
     }
 
@@ -257,8 +264,8 @@ mlir::LogicalResult ConvertIE2VPUIPPass::convertRegions() {
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
 
     mlir::OwningRewritePatternList patterns;
-    patterns.insert<ConstantRewrite>(&ctx);
-    patterns.insert<SoftMaxRewrite>(maxUPAShaves, &ctx);
+    patterns.insert<ConstantRewrite>(_typeConverter, &ctx);
+    patterns.insert<SoftMaxRewrite>(maxUPAShaves, _typeConverter, &ctx);
     mlir::populateBufferizeMaterializationLegality(target);
 
     return mlir::applyFullConversion(module, target, std::move(patterns));

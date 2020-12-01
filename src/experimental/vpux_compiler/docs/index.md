@@ -18,7 +18,7 @@ The **VPUX NN Compiler** is designed to achive the following goals:
   * Dynamic shapes.
   * Control flow.
 * Improve compilation performance.
-* Integrate existing solutions from different projects in single code base.
+* Integrate existing solutions from different projects in single code base.
 * Design future-proof architecture with extensibility to the next VPU generations.
 * Improve developer experience (debuggability, self-validation techniques, testing approach).
 
