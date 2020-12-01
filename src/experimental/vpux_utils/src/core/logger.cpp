@@ -81,14 +81,14 @@ llvm::raw_ostream& getStream(LogLevel msgLevel) {
     switch (msgLevel) {
     case LogLevel::Fatal:
     case LogLevel::Error:
-        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Error).get();
+        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Error, llvm::ColorMode::Enable).get();
     case LogLevel::Warning:
-        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Warning).get();
+        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Warning, llvm::ColorMode::Enable).get();
     case LogLevel::Info:
-        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Note).get();
+        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Note, llvm::ColorMode::Enable).get();
     case LogLevel::Debug:
     case LogLevel::Trace:
-        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Remark).get();
+        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Remark, llvm::ColorMode::Enable).get();
     default:
         return llvm::outs();
     }

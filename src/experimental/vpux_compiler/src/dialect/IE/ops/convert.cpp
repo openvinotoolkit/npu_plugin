@@ -38,12 +38,12 @@ mlir::LogicalResult vpux::IE::ConvertOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-mlir::ValueRange vpux::IE::ConvertOp::getInputs() {
-    return getODSOperands(0);
+SmallVector<mlir::Value, 4> vpux::IE::ConvertOp::getInputs() {
+    return {input()};
 }
 
-mlir::ValueRange vpux::IE::ConvertOp::getOutputs() {
-    return getODSResults(0);
+SmallVector<mlir::Value, 1> vpux::IE::ConvertOp::getOutputs() {
+    return {output()};
 }
 
 namespace IE_Convert {
@@ -60,10 +60,7 @@ void vpux::IE::ConvertOp::getCanonicalizationPatterns(mlir::OwningRewritePattern
 }
 
 mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute>) {
-    const auto inType = getSrcType();
-    const auto outType = getDstType();
-
-    if (inType.getElementType() == outType.getElementType()) {
+    if (inputType().getElementType() == outputType().getElementType()) {
         return input();
     }
 

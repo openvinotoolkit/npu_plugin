@@ -39,12 +39,12 @@ mlir::LogicalResult vpux::IE::SoftMaxOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-mlir::ValueRange vpux::IE::SoftMaxOp::getInputs() {
-    return getODSOperands(0);
+SmallVector<mlir::Value, 4> vpux::IE::SoftMaxOp::getInputs() {
+    return {input()};
 }
 
-mlir::ValueRange vpux::IE::SoftMaxOp::getOutputs() {
-    return getODSResults(0);
+SmallVector<mlir::Value, 1> vpux::IE::SoftMaxOp::getOutputs() {
+    return {output()};
 }
 
 namespace IE_SoftMax {

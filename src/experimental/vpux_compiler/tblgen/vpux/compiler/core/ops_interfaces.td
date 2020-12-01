@@ -142,12 +142,12 @@ def LayerInterface : OpInterface<"LayerInterface"> {
     let methods = [
         InterfaceMethod<
             "Get all inputs (tensors or memory buffers) for the Operation",
-            "mlir::ValueRange", "getInputs", (ins)
+            "vpux::SmallVector<mlir::Value, 4>", "getInputs", (ins)
         >,
 
         InterfaceMethod<
             "Get the outputs (tensors or memory buffers) for the Operation",
-            "mlir::ValueRange", "getOutputs", (ins)
+            "vpux::SmallVector<mlir::Value, 1>", "getOutputs", (ins)
         >,
     ];
 
@@ -168,7 +168,7 @@ def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
     let methods = [
         InterfaceMethod<
             "Get the source Value for the Convert Operation",
-            "mlir::Value", "getSrcValue", (ins),
+            "mlir::Value", "input", (ins),
             [{}],
             [{
                 return $_op.getInputs()[0];
@@ -176,16 +176,16 @@ def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
         >,
         InterfaceMethod<
             "Get the input Type",
-            "mlir::ShapedType", "getSrcType", (ins),
+            "mlir::ShapedType", "inputType", (ins),
             [{}],
             [{
-                return getSrcValue().getType().template cast<mlir::ShapedType>();
+                return $_op.input().getType().template cast<mlir::ShapedType>();
             }]
         >,
 
         InterfaceMethod<
             "Get destination Value for the Convert Operation",
-            "mlir::Value", "getDstValue", (ins),
+            "mlir::Value", "output", (ins),
             [{}],
             [{
                 return $_op.getOutputs()[0];
@@ -193,10 +193,10 @@ def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
         >,
         InterfaceMethod<
             "Get the output Type",
-            "mlir::ShapedType", "getDstType", (ins),
+            "mlir::ShapedType", "outputType", (ins),
             [{}],
             [{
-                return getDstValue().getType().template cast<mlir::ShapedType>();
+                return $_op.output().getType().template cast<mlir::ShapedType>();
             }]
         >
     ];
@@ -218,7 +218,7 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
     let methods = [
         InterfaceMethod<
             "Get the source Value for the Convert Operation",
-            "mlir::Value", "getSrcValue", (ins),
+            "mlir::Value", "input", (ins),
             [{}],
             [{
                 return $_op.getInputs()[0];
@@ -226,16 +226,16 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
         >,
         InterfaceMethod<
             "Get the input Type",
-            "mlir::ShapedType", "getSrcType", (ins),
+            "mlir::ShapedType", "inputType", (ins),
             [{}],
             [{
-                return getSrcValue().getType().template cast<mlir::ShapedType>();
+                return $_op.input().getType().template cast<mlir::ShapedType>();
             }]
         >,
 
         InterfaceMethod<
             "Get destination Value for the Convert Operation",
-            "mlir::Value", "getDstValue", (ins),
+            "mlir::Value", "output", (ins),
             [{}],
             [{
                 return $_op.getOutputs()[0];
@@ -243,13 +243,20 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
         >,
         InterfaceMethod<
             "Get the output Type",
-            "mlir::ShapedType", "getDstType", (ins),
+            "mlir::ShapedType", "outputType", (ins),
             [{}],
             [{
-                return getDstValue().getType().template cast<mlir::ShapedType>();
+                return $_op.output().getType().template cast<mlir::ShapedType>();
             }]
         >,
 
+        InterfaceMethod<
+            "Get the axis index in logical dimensions",
+            "uint32_t", "axisInd", (ins),
+            [{
+                return $_op.axisInd();
+            }]
+        >,
         InterfaceMethod<
             "Get the axis parameter in logical dimensions",
             "vpux::Dim", "getAxisDim", (ins),

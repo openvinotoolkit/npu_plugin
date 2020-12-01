@@ -218,7 +218,7 @@ TEST_P(VpuPreprocessingTestsWithParam,
 
 using VpuPreprocessingTests = vpuLayersTests;
 
-TEST_F(VpuPreprocessingTests, preprocResizeAndCSC) {
+TEST_F(VpuPreprocessingTests, DISABLED_preprocResizeAndCSC) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
@@ -265,7 +265,7 @@ TEST_F(VpuPreprocessingTests, preprocResizeAndCSC) {
     }
 }
 
-TEST_F(VpuPreprocessingTests, multiThreadPreprocResizeAndCSC) {
+TEST_F(VpuPreprocessingTests, DISABLED_multiThreadPreprocResizeAndCSC) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
@@ -321,7 +321,7 @@ TEST_F(VpuPreprocessingTests, multiThreadPreprocResizeAndCSC) {
     }
 }
 
-TEST_F(VpuPreprocessingTests, twoRequestsWithPreprocessing) {
+TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
@@ -395,7 +395,7 @@ class VpuPreprocessingWithTwoNetworksTests :
     public testing::WithParamInterface<
         std::tuple<const char*, std::size_t, std::size_t, const char*, std::size_t, std::size_t>> {};
 
-TEST_P(VpuPreprocessingWithTwoNetworksTests, inference) {
+TEST_P(VpuPreprocessingWithTwoNetworksTests, DISABLED_inference) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
@@ -494,7 +494,7 @@ INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingWithTwoNetworksTests,
         std::make_tuple("/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin", 228, 228,
             "/KMB_models/BLOBS/tiny-yolo-v2/input-1920x1080-nv12.bin", 1920, 1080)));
 
-TEST_F(vpuLayersTests, allocateNV12WithNative) {
+TEST_F(vpuLayersTests, DISABLED_allocateNV12WithNative) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
@@ -531,7 +531,7 @@ TEST_F(vpuLayersTests, allocateNV12WithNative) {
     ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
 }
 
-TEST_F(vpuLayersTests, allocateNV12TwoImages) {
+TEST_F(vpuLayersTests, DISABLED_allocateNV12TwoImages) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
@@ -588,7 +588,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
     ASSERT_NO_THROW(compareTopClasses(dogOutputBlob, dogReferenceOutputBlob, NUMBER_OF_CLASSES));
 }
 
-TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
+TEST_F(vpuLayersTests, DISABLED_allocateNV12TwoImagesGetBlob) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
@@ -688,7 +688,7 @@ public:
         ASSERT_NO_THROW(inferRequest.Infer());
     }
 };
-TEST_P(VpuPreprocessingConfigAndInferTests, setConfigAndInfer) { setConfigAndInfer(); }
+TEST_P(VpuPreprocessingConfigAndInferTests, DISABLED_setConfigAndInfer) { setConfigAndInfer(); }
 
 class VpuPreprocessingConfigAndInferTestsSipp : public VpuPreprocessingConfigAndInferTests {
 public:
@@ -697,12 +697,12 @@ public:
         _config["VPUX_USE_SIPP"] = "YES";
     }
 };
-TEST_P(VpuPreprocessingConfigAndInferTestsSipp, setConfigAndInfer) { setConfigAndInfer(); }
+TEST_P(VpuPreprocessingConfigAndInferTestsSipp, DISABLED_setConfigAndInfer) { setConfigAndInfer(); }
 
 class VpuPreprocessingConfigTests :
     public vpuLayersTests,
     public testing::WithParamInterface<std::tuple<const char*, const char*, bool>> {};
-TEST_P(VpuPreprocessingConfigTests, setConfigAndCheck) {
+TEST_P(VpuPreprocessingConfigTests, DISABLED_setConfigAndCheck) {
     std::string key, value;
     bool valid;
     std::tie(key, value, valid) = GetParam();
@@ -720,7 +720,7 @@ TEST_P(VpuPreprocessingConfigTests, setConfigAndCheck) {
     }
 }
 
-TEST_F(VpuPreprocessingTests, setConfigForTwoNetworks) {
+TEST_F(VpuPreprocessingTests, DISABLED_setConfigForTwoNetworks) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/schema-3.24.3/tiny-yolo-v2.blob";
     std::map<std::string, std::string> config1;
