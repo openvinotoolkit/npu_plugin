@@ -556,7 +556,7 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
                         if(isHStreaming)
                             streamingStrategyFound = findStrategy(streamingStrategies,"StreamOverH");
 
-                        if (streamingStrategyFound || clusteringStrategyFound) {
+                        if (streamingStrategyFound && clusteringStrategyFound && isKStreaming) {
 
                             pass.log(mv::Logger::MessageType::Debug,
                                      "Op " + op->getName() + " is streaming over K: " +
@@ -691,7 +691,7 @@ void evaluateAndAssignStrategies(std::list<subgraph_t>& chainSubgraphs,
                             if (isHStreaming)
                                 streamingStrategyFound = findStrategy(streamingStrategies, "StreamOverH");
 
-                            if (streamingStrategyFound || clusteringStrategyFound) {
+                            if (streamingStrategyFound && clusteringStrategyFound && isKStreaming) {
 
                                 int originalKStreaming = streaming_strategy[3].get<int>("K");
                                 fullweightsSize = opIt->getInputTensor(1)->computeTotalSize();

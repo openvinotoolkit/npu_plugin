@@ -31,8 +31,8 @@
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : "yolov2/darknet19_model/conv2/bn/FusedBatchNorm/variance/Fused_Add_",
-                        "strategy" : "SplitOverH"
+                        "name_filter" : "Example",
+                        "strategy" : "none"
                     }
                 ],
                 "default_tensor_placement" : "NNCMX",
