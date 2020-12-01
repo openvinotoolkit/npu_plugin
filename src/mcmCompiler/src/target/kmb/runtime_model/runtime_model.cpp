@@ -603,7 +603,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 		    (*tensorAllocatorName == "VPU_DDR_Heap" && !subtensor.getOrder().isColMajor()))
     {
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-        numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
+        // numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
+        //NOTE: if I go from a k-split strategy to splitOverH i need to use my whole tensor,
+        //cause the parent is full on its location, if I go from soh to soh i will dma the subs
+        if ((*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverH" ||
+                (*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverHOverlapped" ||
+                (*masterBuffer)->getData()->get<std::string>("splitStrategy") == "HKSwitch")
+            numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
+        else
+            numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
     }
 
