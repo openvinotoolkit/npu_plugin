@@ -231,8 +231,8 @@
                         {
                             "name" : "Conv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverK","StreamOverN"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]}
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverK"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverK"]}
                             ]
                         }
                     ]

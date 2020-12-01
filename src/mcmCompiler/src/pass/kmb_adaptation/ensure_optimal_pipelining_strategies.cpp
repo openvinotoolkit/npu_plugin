@@ -67,6 +67,7 @@ size_t alignedWeightsSize(
                    tensorToSize->getShape()[mv::KERNEL_HEIGHT]) *
                dtypeMultiplier;
     } else {
+        std::cout << alignedFullInputChannels << " "  << alignedStreamedOutputChannels << std::endl;
         return (alignedFullInputChannels * alignedStreamedOutputChannels * tensorToSize->getShape()[mv::KERNEL_WIDTH] *
                    tensorToSize->getShape()[mv::KERNEL_HEIGHT]) *
                dtypeMultiplier;
@@ -315,6 +316,7 @@ std::tuple<size_t, size_t, size_t> memorySize(mv::Op& op, const mv::Attribute& c
 
             // ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
             fakeSparsitySize = 16 * NumberOfRowsSparistyBytes * outputChannels;
+            //std::cout << op.getName() << "fake sparsity is " << fakeSparsitySize << std::endl;
         }
         inputSize += fakeSparsitySize;
     }
@@ -359,9 +361,11 @@ std::tuple<size_t, size_t, size_t> memorySize(mv::Op& op, const mv::Attribute& c
         auto sparseWeightSize = std::ceil((double)tensorSize / 8);
         // Sparse pointers taken into account in weight table ...
         sparseWeightSize = mv::round_up(sparseWeightSize, 16);
+         //std::cout << op.getName() << "sparse weightSize is " << sparseWeightSize << std::endl;
         weightSize += sparseWeightSize;
     }
 
+    //std::cout << op.getName() << "weightSize is " << weightSize << std::endl;
     weightSize += weightTableSize;
 
     // Note: for SOH and SOK, division by number of clusters is done in activationTensorSize
@@ -477,14 +481,30 @@ std::unordered_map<std::string,StrategySet> getStrategies(mv::Element& passDesc)
     return layerStrategies;
 }
 
-std::map<int, int> getMinWeightsPerClusterSizePerChain(std::list<subgraph_t>& chainSubgraphs, const mv::pass::PassEntry& pass,
-                                         mv::ComputationModel& model) {
+std::vector<mv::Attribute> getClusteringStrategies(std::unordered_map<std::string,StrategySet>& strategies, mv::Data::OpListIterator opIt, std::string strategy)
+{
+    std::vector<mv::Attribute> attr;
+    auto layerEntry = strategies.find(opIt->getOpType());
+    auto& layerCfg = layerEntry->second;
+    auto strategyEntry = layerCfg.find(strategy);
+
+    for (auto elem : strategyEntry->second.get<std::vector<std::string>>())
+    {
+        attr.push_back(elem);
+    }
+
+    return attr;
+}
+
+std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_t>& chainSubgraphs, const mv::pass::PassEntry& pass,
+                                         mv::ComputationModel& model, std::unordered_map<std::string,StrategySet>& strategies) {
     mv::OpModel om(model);
     typedef mv::scheduler::Pipeline_Chains pipeline_chains_t;
     typedef typename pipeline_chains_t::chain_subgraph_t subgraph_t;
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
-    std::vector<mv::Element> strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
-    std::map<int, int> minWeightsPerClusterPerChain;
+    std::vector<mv::Element> streamingStrategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+    auto multiClusterStrategyList = globalParams->get<std::vector<mv::Element>>("split_strategy");
+    std::map<size_t, size_t> minWeightsPerClusterPerChain;
     unsigned chainID = 0;
     std::string clustering;
     std::vector<size_t> streamsSizes;  // Store streamsSizes
@@ -495,70 +515,257 @@ std::map<int, int> getMinWeightsPerClusterSizePerChain(std::list<subgraph_t>& ch
 
         // For each operation in chain[i]
         for (auto& op : chain_subgraph.dpu_chain_) {
+
             pass.log(mv::Logger::MessageType::Debug,
                      "Process Op " + op->getName() + " in chain " + std::to_string(chainID));
             mv::Data::OpListIterator opIt = om.getOp(op->getName());
-            opIt->set<unsigned>("chainID", chainID);
 
-            // If its a conv and marke
-            if (opIt->getOpType() == "Conv") {
-                std::cout << opIt->getName() << " " << opIt->getInputTensor(1)->computeTotalSize() << std::endl;
+            // If its a conv
+            if (opIt->getOpType() == "Conv") 
+            {
+                auto streamingStrategies = getClusteringStrategies(strategies,opIt,"streamingStrategies");
+                auto clusteringStrategies = getClusteringStrategies(strategies,opIt,"clusteringStrategies");
 
                 // Get the strategy for this conv
-                for (auto layerNameStrategy : strategyList) {
+                for (auto layerNameStrategy : streamingStrategyList) {
                     std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
 
                     if (nodeName == op->getName()) {
+                        
+                        //Get the streaming strategy from graph optimizer
                         auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
+                        bool isKStreaming = streaming_strategy[3].get<int>("K") > 1 ? true : false;
+                        bool isHStreaming = streaming_strategy[1].get<int>("H") > 1 ? true : false;
 
-                        pass.log(mv::Logger::MessageType::Debug,
-                                 "Op " + op->getName() + " is streaming over K: " +
-                                         std::to_string(streaming_strategy[3].get<int>("K")));
+                        
+                        // Get the MC strategy from graph optimizer
+                        std::string mcStrategy;
+                        for (auto s : multiClusterStrategyList) {
+                            std::string& name_filter = s.get<std::string>("name_filter");
+                            std::regex exp(name_filter);
+                            if (std::regex_match(opIt->getName(), exp))
+                                mcStrategy = s.get<std::string>("strategy");
+                        }
 
-                        if (op->hasAttr("splitStrategy"))
-                            clustering = op->get<std::string>("splitStrategy");
+                        auto findStrategy = [](std::vector<mv::Attribute>& vec,const std::string& str) ->bool { for(const auto elem : vec) if(str==elem.get<std::string>()) return true; return false;};
+                        bool clusteringStrategyFound = findStrategy(clusteringStrategies,mcStrategy);
 
-                        bool inputActivationSparsity, outputActivationSparsity, weightsSparsity = false;
-                        if (op->hasAttr("inputActivationSparsity"))
-                            inputActivationSparsity = op->get<bool>("inputActivationSparsity");
-                        if (op->hasAttr("outputActivationSparsity"))
-                            outputActivationSparsity = op->get<bool>("outputActivationSparsity");
-                        if (op->hasAttr("weightsSparsity"))
-                            weightsSparsity = op->get<bool>("weightsSparsity");
+                        bool streamingStrategyFound= false;
+                        if(isKStreaming)
+                            streamingStrategyFound = findStrategy(streamingStrategies,"StreamOverK");
+                        if(isHStreaming)
+                            streamingStrategyFound = findStrategy(streamingStrategies,"StreamOverH");
 
-                        // get the memory size of the streams weights
-                        size_t input, output, weightsPerCluster;
-                        input = output = weightsPerCluster = 0;
-                        mv::Data::OpListIterator oitr = om.getOp(op->getName());
+                        if (streamingStrategyFound || clusteringStrategyFound) {
 
-                        std::tie(input, output, weightsPerCluster) = memorySize(
-                                *oitr, clustering, inputActivationSparsity, outputActivationSparsity, weightsSparsity,
-                                {1, (unsigned int)streaming_strategy[1].get<int>("H"),
-                                 (unsigned int)streaming_strategy[2].get<int>("C"),
-                                 (unsigned int)streaming_strategy[3].get<int>("K"),
-                                 (unsigned int)streaming_strategy[4].get<int>("N")},
-                                requiresFakeActivationSparsity(*oitr), true, true);
+                            pass.log(mv::Logger::MessageType::Debug,
+                                     "Op " + op->getName() + " is streaming over K: " +
+                                             std::to_string(streaming_strategy[3].get<int>("K")));
 
-                        streamsSizes.push_back(weightsPerCluster);
+                            if (op->hasAttr("splitStrategy"))
+                                clustering = op->get<std::string>("splitStrategy");
 
-                        pass.log(mv::Logger::MessageType::Info,
-                                 "Op " + op->getName() + " is streaming over K: " +
-                                         std::to_string(streaming_strategy[3].get<int>("K")) +
-                                         " and the stream weights size per cluster is " +
-                                         std::to_string(weightsPerCluster));
+                            bool inputActivationSparsity, outputActivationSparsity, weightsSparsity = false;
+                            if (op->hasAttr("inputActivationSparsity"))
+                                inputActivationSparsity = op->get<bool>("inputActivationSparsity");
+                            if (op->hasAttr("outputActivationSparsity"))
+                                outputActivationSparsity = op->get<bool>("outputActivationSparsity");
+                            if (op->hasAttr("weightsSparsity"))
+                                weightsSparsity = op->get<bool>("weightsSparsity");
+
+                            // get the memory size of the streams weights
+                            size_t input, output, weightsPerCluster;
+                            input = output = weightsPerCluster = 0;
+                            mv::Data::OpListIterator oitr = om.getOp(op->getName());
+
+                            std::tie(input, output, weightsPerCluster) =
+                                    memorySize(*oitr, clustering, inputActivationSparsity, outputActivationSparsity,
+                                               weightsSparsity,
+                                               {1, (unsigned int)streaming_strategy[1].get<int>("H"),
+                                                (unsigned int)streaming_strategy[2].get<int>("C"),
+                                                (unsigned int)streaming_strategy[3].get<int>("K"),
+                                                (unsigned int)streaming_strategy[4].get<int>("N")},
+                                               requiresFakeActivationSparsity(*oitr), true, true);
+
+                            streamsSizes.push_back(weightsPerCluster);
+
+                            pass.log(mv::Logger::MessageType::Info,
+                                     "Op " + op->getName() + " is streaming over K: " +
+                                             std::to_string(streaming_strategy[3].get<int>("K")) + " is " + mcStrategy +
+                                             " inputSparsity is " + std::to_string(inputActivationSparsity) + " weight sparsity is " + std::to_string(weightsSparsity) +
+                                             " and the stream weights size per cluster is " +
+                                             std::to_string(weightsPerCluster));
+                        }
                     }
                 }
             }
         }
-        std::cout<<"here"<<std::endl;
         std::sort(streamsSizes.begin(), streamsSizes.end());
         streamsSizes.erase(unique(streamsSizes.begin(), streamsSizes.end()), streamsSizes.end());
-        std::cout<<"hereee"<<std::endl;
         minWeightsPerClusterPerChain.insert({chainID, streamsSizes[0]});
         chainID++;
-        
     }
     return minWeightsPerClusterPerChain;
+}
+
+void evaluateAndAssignStrategies(std::list<subgraph_t>& chainSubgraphs,
+                                                       const mv::pass::PassEntry& pass, mv::ComputationModel& model,
+                                                       std::unordered_map<std::string, StrategySet>& strategies, std::map<size_t, size_t>& minWeightsPerClusterPerChain) {
+    /* Step 3: For each operation in chain[i]
+     *    3a. calculate the maximiumNumberOfPossibleKStreams, defined as the outputChannels / 4 / 16
+     *    3b. calculate the OptimumNumberOfKStreams for a layer, defined as the (Total weight and WT size in bytes) /
+     * the smallest stream size in a chain 3c. compare the OptimumNumberOfKStreams versus the number of K streams
+     * determined by graph optimizer
+     *            - if (OptimumNumberOfKStreams < maximumNumberOfPossibleKStreams) && (OptimumNumberOfKStreams >
+     * KStreamsAssignedbyGO)
+     *                   - assign the the OptimumNumberOfKStreams
+     *               else
+     *                   - retain the K streams assigned by graph optimizer
+     */
+    unsigned chainID = 0;
+    mv::OpModel om(model);
+    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+    std::vector<mv::Element> strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+    auto compDesc = model.getGlobalConfigParams();
+    size_t nClusters = globalParams->get<int>("Number_of_Clusters");
+    std::string clustering;
+    size_t fullweightsSize = 0;
+    double maxpossibleStreams = 0.0;
+    size_t optimalNumberOfKStreams = 0;
+    std::vector<mv::Element> streaming_strategy;
+    std::vector<mv::Element> overWrittenStreamingStrategies;
+    std::vector<mv::Element> allStreamingStrategies;
+    std::vector<mv::Element> streamingStrategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+    auto multiClusterStrategyList = globalParams->get<std::vector<mv::Element>>("split_strategy");
+    std::map<std::string, size_t> minOutputChannels = {{"SplitOverK", 64}, {"Clustering", 16}, {"SplitOverH", 16}, {"HKSwitch", 16}};
+
+    for (subgraph_t chain_subgraph : chainSubgraphs) {
+        for (auto& op : chain_subgraph.dpu_chain_) {
+            mv::Data::OpListIterator opIt = om.getOp(op->getName());
+
+            // If its a conv
+            if (opIt->getOpType() == "Conv") {
+                std::size_t minStreamSize = 0;
+                if (minWeightsPerClusterPerChain[chainID] < 34816)
+                    minStreamSize = minWeightsPerClusterPerChain[chainID];
+                else
+                    minStreamSize = 34816;
+
+                for (auto layerNameStrategy : strategyList) {
+                    std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+                    mv::Data::OpListIterator opIt;
+
+                    if (nodeName == op->getName()) {
+                        opIt = om.getOp(nodeName);
+                        optimalNumberOfKStreams = 0;
+
+                        if (opIt->getOpType() == "Conv") {
+                            auto streamingStrategies = getClusteringStrategies(strategies, opIt, "streamingStrategies");
+                            auto clusteringStrategies =
+                                    getClusteringStrategies(strategies, opIt, "clusteringStrategies");
+                            // Get the streaming strategy from graph optimizer
+                            auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
+                            bool isKStreaming = streaming_strategy[3].get<int>("K") > 1 ? true : false;
+                            bool isHStreaming = streaming_strategy[1].get<int>("H") > 1 ? true : false;
+
+                            // Get the MC strategy from graph optimizer
+                            std::string mcStrategy;
+                            for (auto s : multiClusterStrategyList) {
+                                std::string& name_filter = s.get<std::string>("name_filter");
+                                std::regex exp(name_filter);
+                                if (std::regex_match(opIt->getName(), exp))
+                                    mcStrategy = s.get<std::string>("strategy");
+                            }
+
+                            auto findStrategy = [](std::vector<mv::Attribute>& vec, const std::string& str) -> bool {
+                                for (const auto elem : vec)
+                                    if (str == elem.get<std::string>())
+                                        return true;
+                                return false;
+                            };
+                            bool clusteringStrategyFound = findStrategy(clusteringStrategies, mcStrategy);
+
+                            bool streamingStrategyFound = false;
+                            if (isKStreaming)
+                                streamingStrategyFound = findStrategy(streamingStrategies, "StreamOverK");
+                            if (isHStreaming)
+                                streamingStrategyFound = findStrategy(streamingStrategies, "StreamOverH");
+
+                            if (streamingStrategyFound || clusteringStrategyFound) {
+
+                                int originalKStreaming = streaming_strategy[3].get<int>("K");
+                                fullweightsSize = opIt->getInputTensor(1)->computeTotalSize();
+
+                                size_t outChannels =
+                                        opIt->outputSlots()
+                                                ? opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION]
+                                                : 0;
+
+                                size_t alignedFullChannels = mv::round_up(outChannels, 16);
+                                double weightTableSize = 0.0;
+                                weightTableSize = 16 * alignedFullChannels;
+                                int weightSize = opIt->getInputTensor(1)->computeTotalSize();
+
+                                pass.log(mv::Logger::MessageType::Info,
+                                         "Op " + opIt->getName() + " full weights size is: " +
+                                                 std::to_string(weightSize) + " and weight table is " +
+                                                 std::to_string(16 * alignedFullChannels) + " total size is (byes) " +
+                                                 std::to_string(fullweightsSize + weightTableSize) +
+                                                 " and number of streams is " + std::to_string(originalKStreaming));
+
+                                maxpossibleStreams =
+                                        opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] / minOutputChannels[mcStrategy];
+
+                                pass.log(mv::Logger::MessageType::Info, "Op " + opIt->getName() +
+                                                                                " max possible sreams are " +
+                                                                                std::to_string(maxpossibleStreams));
+
+                                double optimalNumberOfKStreams =
+                                        std::round((fullweightsSize + weightTableSize) / (minStreamSize * nClusters));
+
+                                pass.log(mv::Logger::MessageType::Info,
+                                         "Op " + opIt->getName() + " optimalNumberOfKStreams is " +
+                                                 std::to_string(optimalNumberOfKStreams));
+
+                                if ((optimalNumberOfKStreams <= maxpossibleStreams) &&
+                                    (optimalNumberOfKStreams > originalKStreaming)) {
+                                    pass.log(mv::Logger::MessageType::Info,
+                                             "Op " + opIt->getName() +
+                                                     " optimal number of streams based on min chain size should be: " +
+                                                     std::to_string(optimalNumberOfKStreams) +
+                                                     " strategy manager assigned " +
+                                                     std::to_string(originalKStreaming));
+
+                                    pass.log(
+                                            mv::Logger::MessageType::Info,
+                                            "Op " + opIt->getName() +
+                                                    " changing to optimal number of streams based on min chain size: " +
+                                                    std::to_string(optimalNumberOfKStreams) +
+                                                    " strategy manager assigned " + std::to_string(originalKStreaming));
+
+                                    opIt->set<unsigned>("optimalNumberOfKStreams", optimalNumberOfKStreams);
+                                    std::cout << "Op " << opIt->getName()
+                                              << " changing to optimal number of streams based on min chain size: "
+                                              << optimalNumberOfKStreams << " strategy manager assigned "
+                                              << originalKStreaming << std::endl;
+                                    break;
+                                } else if ((optimalNumberOfKStreams > maxpossibleStreams) &&
+                                           (optimalNumberOfKStreams > originalKStreaming)) {
+                                    opIt->set<unsigned>("optimalNumberOfKStreams", maxpossibleStreams);
+                                    std::cout << "Op " << opIt->getName()
+                                              << " changing to optimal number of streams to be the max number of "
+                                                 "streams: "
+                                              << maxpossibleStreams << " strategy manager assigned "
+                                              << originalKStreaming << std::endl;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        chainID++;
+    }
 }
 
 void addOptimalChainPipeliningStrategiesFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
@@ -579,7 +786,6 @@ void addOptimalChainPipeliningStrategiesFnc(const mv::pass::PassEntry& pass, mv:
     mv::OpModel om(model);
     typedef mv::scheduler::Pipeline_Chains pipeline_chains_t;
     typedef typename pipeline_chains_t::chain_subgraph_t subgraph_t;
-    unsigned chainID = 0;
     std::vector<size_t> streamsSizes; //Store streamsSizes  
     bool isKStreaming = false;
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
@@ -592,6 +798,8 @@ void addOptimalChainPipeliningStrategiesFnc(const mv::pass::PassEntry& pass, mv:
     std::vector<mv::Element> streaming_strategy;
     std::vector<mv::Element> overWrittenStreamingStrategies;
     std::vector<mv::Element> allStreamingStrategies;
+    std::vector<mv::Element> streamingStrategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+    auto multiClusterStrategyList = globalParams->get<std::vector<mv::Element>>("split_strategy");
     
     //Get the strategies to be included in pass
     auto strategies = getStrategies(passDesc);
@@ -607,196 +815,15 @@ void addOptimalChainPipeliningStrategiesFnc(const mv::pass::PassEntry& pass, mv:
     // Step 1: Get the subgraph chains
     auto chainSubgraphs = pipeliner.get_chain_subgraphs(pipeline_stages);
 
-    auto mp = getMinWeightsPerClusterSizePerChain(chainSubgraphs, pass, model);
-    std::cout<<"here1"<<std::endl;
-    std::cout << "KEY\tELEMENT\n";
-    for (auto itr = mp.begin(); itr != mp.end(); ++itr) {
+    auto minWeightsPerClusterPerChain = getMinWeightsPerClusterSizePerChain(chainSubgraphs, pass, model, strategies);
+    std::cout << "Chain\tMinWeightsPerCluster\n";
+    for (auto itr = minWeightsPerClusterPerChain.begin(); itr != minWeightsPerClusterPerChain.end(); ++itr) {
         std::cout << itr->first
              << '\t' << itr->second << '\n';
     }
-    std::cout << "done" << std::endl;
-    
-    // // For each chain
-    // for (subgraph_t chain_subgraph : chainSubgraphs) {
 
-    //     streamsSizes.clear(); //clear stream sizes for chain i
-
-    //     // Step 2: For each operation in chain[i]
-    //     for (auto& op : chain_subgraph.dpu_chain_) { 
-            
-    //         isKStreaming = false;
-
-    //         pass.log(mv::Logger::MessageType::Debug, "Process Op " + op->getName() + " in chain " + std::to_string(chainID));
-    //         mv::Data::OpListIterator opIt = om.getOp(op->getName());
-    //         opIt->set<unsigned>("chainID", chainID);
-
-    //         // If its a conv and marke
-    //         if (opIt->getOpType() == "Conv") 
-    //         {
-    //             std::cout << opIt->getName() << " " << opIt->getInputTensor(1)->computeTotalSize() << std::endl;
-    //             // Get the strategy for this conv
-    //             for (auto layerNameStrategy : strategyList) {
-
-    //                 std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
-
-    //                 if (nodeName == op->getName()) {
-    //                     auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
-    //                     isKStreaming = streaming_strategy[3].get<int>("K") > 1 ? true : false;
-
-    //                     pass.log(mv::Logger::MessageType::Debug,
-    //                              "Op " + op->getName() + " is streaming over K: " +
-    //                                      std::to_string(streaming_strategy[3].get<int>("K")));
-
-    //                     if (op->hasAttr("splitStrategy"))
-    //                         clustering = op->get<std::string>("splitStrategy");
-
-    //                     bool inputActivationSparsity, outputActivationSparsity, weightsSparsity = false;
-    //                     if (op->hasAttr("inputActivationSparsity"))
-    //                         inputActivationSparsity = op->get<bool>("inputActivationSparsity");
-    //                     if (op->hasAttr("outputActivationSparsity"))
-    //                         outputActivationSparsity = op->get<bool>("outputActivationSparsity");
-    //                     if (op->hasAttr("weightsSparsity"))
-    //                         weightsSparsity = op->get<bool>("weightsSparsity");
-
-    //                     // get the memory size of the streams weights
-    //                     size_t input, output, weightsPerCluster;
-    //                     input = output = weightsPerCluster = 0;
-    //                     mv::Data::OpListIterator oitr = om.getOp(op->getName());
-
-    //                     std::tie(input, output, weightsPerCluster) = memorySize(
-    //                             *oitr, clustering, inputActivationSparsity, outputActivationSparsity, weightsSparsity,
-    //                             {1, (unsigned int)streaming_strategy[1].get<int>("H"),
-    //                              (unsigned int)streaming_strategy[2].get<int>("C"),
-    //                              (unsigned int)streaming_strategy[3].get<int>("K"),
-    //                              (unsigned int)streaming_strategy[4].get<int>("N")},
-    //                             requiresFakeActivationSparsity(*oitr), true, true);
-
-    //                     streamsSizes.push_back(weightsPerCluster);
-
-    //                     pass.log(mv::Logger::MessageType::Info,
-    //                              "Op " + op->getName() + " is streaming over K: " +
-    //                                      std::to_string(streaming_strategy[3].get<int>("K")) +
-    //                                      " and the stream weights size per cluster is " +
-    //                                      std::to_string(weightsPerCluster));
-    //             }
-    //             }
-    //         }
-    //         std::cout << "*********" << std::endl;
-    //     }
-    //     //Sort streams by sizes
-    //     std::sort(streamsSizes.begin(), streamsSizes.end());
-    //     streamsSizes.erase(unique(streamsSizes.begin(), streamsSizes.end()), streamsSizes.end());
-
-    //     std::size_t minStreamSize = 0;
-    //     // if(streamsSizes[0] < 34816)
-    //     //     minStreamSize = streamsSizes[0];
-    //     // else
-    //         minStreamSize = 34816;
-        
-    //     std::cout << "min stream size for chain " << chainID << " is " << streamsSizes[0] << std::endl;
-    //     std::cout << "using " << minStreamSize << " as the size for " << chainID << std::endl;
-    //     // Print the stream sizes in chain i
-    //     pass.log(mv::Logger::MessageType::Debug, "Stream sizes for chain " + std::to_string(chainID) + " are: ");
-    //     std::vector<size_t>::iterator itr;
-    //     for (itr = streamsSizes.begin(); itr != streamsSizes.end(); ++itr)
-    //         pass.log(mv::Logger::MessageType::Debug, std::to_string(*itr));
-        
-    //     /* Step 3: For each operation in chain[i]
-    //      *    3a. calculate the maximiumNumberOfPossibleKStreams, defined as the outputChannels / 4 / 16
-    //      *    3b. calculate the OptimumNumberOfKStreams for a layer, defined as the (Total weight and WT size in bytes) / the smallest stream size in a chain
-    //      *    3c. compare the OptimumNumberOfKStreams versus the number of K streams determined by graph optimizer
-    //      *            - if (OptimumNumberOfKStreams < maximumNumberOfPossibleKStreams) && (OptimumNumberOfKStreams > KStreamsAssignedbyGO)
-    //      *                   - assign the the OptimumNumberOfKStreams
-    //      *               else
-    //      *                   - retain the K streams assigned by graph optimizer
-    //      */
-
-    //     for (auto& op : chain_subgraph.dpu_chain_) {
-    //         for (auto layerNameStrategy : strategyList) {
-    //             std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
-    //             mv::Data::OpListIterator opIt;
-
-    //             if (nodeName == op->getName()) {
-    //                 opIt = om.getOp(nodeName);
-    //                 optimalNumberOfKStreams = 0;
-
-    //                 if (opIt->getOpType() == "Conv") 
-    //                 {
-    //                     pass.log(mv::Logger::MessageType::Debug, "Op " + opIt->getName());
-    //                     auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
-    //                     isKStreaming = streaming_strategy[3].get<int>("K") > 1 ? true : false;
-
-    //                     // Add number of streams to list
-    //                     if (isKStreaming) {
-    //                         int originalKStreaming = streaming_strategy[3].get<int>("K");
-    //                         fullweightsSize = opIt->getInputTensor(1)->computeTotalSize();
-
-    //                         size_t outChannels = opIt->outputSlots()
-    //                                                  ? opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION]
-    //                                                  : 0;
-
-    //                         size_t alignedFullChannels = mv::round_up(outChannels, 16);
-    //                         double weightTableSize = 0.0;
-    //                         weightTableSize = 16 * alignedFullChannels;
-    //                         int weightSize = opIt->getInputTensor(1)->computeTotalSize();
-
-    //                         pass.log(mv::Logger::MessageType::Info,
-    //                             "Op " + opIt->getName() + " full weights size is: " + std::to_string(weightSize) +
-    //                                 " and weight table is " + std::to_string(16 * alignedFullChannels) +
-    //                                 " total size is (byes) " + std::to_string(fullweightsSize + weightTableSize) +
-    //                                 " and number of streams is " + std::to_string(originalKStreaming));
-
-    //                         maxpossibleStreams = opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] / 64;
-
-    //                         pass.log(mv::Logger::MessageType::Info, "Op " + opIt->getName() +
-    //                                                                     " min possible sreams are " +
-    //                                                                     std::to_string(maxpossibleStreams));
-
-                            
-    //                             double optimalNumberOfKStreams =
-    //                                 std::round((fullweightsSize + weightTableSize) / (minStreamSize * 4.0));
-
-    //                             pass.log(mv::Logger::MessageType::Info, "Op " + opIt->getName() +
-    //                                                                         " optimalNumberOfKStreams is " +
-    //                                                                         std::to_string(optimalNumberOfKStreams));
-
-    //                             if ((optimalNumberOfKStreams <= maxpossibleStreams) &&
-    //                                 (optimalNumberOfKStreams > originalKStreaming)) {
-    //                                 pass.log(mv::Logger::MessageType::Info,
-    //                                     "Op " + opIt->getName() +
-    //                                         " optimal number of streams based on min chain size should be: " +
-    //                                         std::to_string(optimalNumberOfKStreams) + " strategy manager assigned " +
-    //                                         std::to_string(originalKStreaming));
-
-    //                                 pass.log(mv::Logger::MessageType::Info,
-    //                                     "Op " + opIt->getName() +
-    //                                         " changing to optimal number of streams based on min chain size: " +
-    //                                         std::to_string(optimalNumberOfKStreams) + " strategy manager assigned " +
-    //                                         std::to_string(originalKStreaming));
-
-    //                                 opIt->set<unsigned>("optimalNumberOfKStreams", optimalNumberOfKStreams);
-    //                                 std::cout <<   "Op " << opIt->getName() << " changing to optimal number of streams based on min chain size: " << 
-    //                                         optimalNumberOfKStreams << " strategy manager assigned " <<
-    //                                         originalKStreaming << std::endl;
-    //                                 break;
-    //                             }
-    //                             else if ((optimalNumberOfKStreams > maxpossibleStreams) &&
-    //                                 (optimalNumberOfKStreams > originalKStreaming))
-    //                             {
-    //                                 opIt->set<unsigned>("optimalNumberOfKStreams", maxpossibleStreams);
-    //                                 std::cout <<   "Op " << opIt->getName() << " changing to optimal number of streams to be the max number of streams: " << 
-    //                                 maxpossibleStreams << " strategy manager assigned " <<
-    //                                 originalKStreaming << std::endl;
-
-    //                             }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     chainID++;
-    // }
-    // assignNewSrategies(model, allStreamingStrategies, overWrittenStreamingStrategies, globalParams);
-    // compDesc->set("streaming_strategy", allStreamingStrategies);
-    // saveNewStreamingStrategiesToJson(pass, overWrittenStreamingStrategies);
+    evaluateAndAssignStrategies(chainSubgraphs, pass, model, strategies, minWeightsPerClusterPerChain);
+    assignNewSrategies(model, allStreamingStrategies, overWrittenStreamingStrategies, globalParams);
+    compDesc->set("streaming_strategy", allStreamingStrategies);
+    saveNewStreamingStrategiesToJson(pass, overWrittenStreamingStrategies);
 }
