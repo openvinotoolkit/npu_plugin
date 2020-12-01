@@ -58,6 +58,26 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
 }
 
 //
+// DeclareConstantTensorOp
+//
+
+mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareConstantTensorOp op) {
+    auto memref = op.memory().getType().cast<mlir::MemRefType>();
+    auto mem = getPhysicalMemory(memref);
+
+    if (mlir::failed(mem) || mem.getValue() != VPUIP::PhysicalMemory::DDR) {
+        return printTo(op.emitError(), "'{0}' has unsupported result memory space '{1}'",
+                       DeclareConstantTensorOp::getOperationName(), memref.getMemorySpace());
+    }
+
+    return mlir::success();
+}
+
+mlir::OpFoldResult vpux::VPUIP::DeclareConstantTensorOp::fold(ArrayRef<mlir::Attribute>) {
+    return content();
+}
+
+//
 // ConfigureBarrierOp
 //
 

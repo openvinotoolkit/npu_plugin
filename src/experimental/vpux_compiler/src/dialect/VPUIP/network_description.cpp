@@ -102,9 +102,6 @@ vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob): _co
     _deviceInputs = deserializeDataMap(header->net_input());
     _deviceOutputs = deserializeDataMap(header->net_output());
 
-    VPUX_THROW_UNLESS(!_networkInputs.empty(), "VPUIP blob does not contain network inputs");
     VPUX_THROW_UNLESS(!_networkOutputs.empty(), "VPUIP blob does not contain network outputs");
-
-    VPUX_THROW_UNLESS(!_deviceInputs.empty(), "VPUIP blob does not contain device inputs");
     VPUX_THROW_UNLESS(!_deviceOutputs.empty(), "VPUIP blob does not contain device outputs");
 }

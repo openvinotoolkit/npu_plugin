@@ -158,15 +158,19 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     userInputs.reserve(inputsInfo.size());
 
     for (const auto& p : inputsInfo | indexed) {
+        const auto ind = checked_cast<uint32_t>(p.index());
+
         auto userInfo = p.value();
-        auto val = graphFunc.getArgument(checked_cast<uint32_t>(p.index()));
+        auto val = graphFunc.getArgument(ind);
 
         const auto graphType = val.getType().cast<mlir::MemRefType>();
         const auto userType = mlir::MemRefType::get(graphType.getShape(), userInfo.precision(), {userInfo.layout()});
 
-        graphInputs.push_back(writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableInput, 0));
+        graphInputs.push_back(
+                writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
+
         userInputs.push_back(
-                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableInput, 0));
+                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
     }
 
     SmallVector<VPUIP::BlobWriter::TensorReference, 1> graphOutputs, userOutputs;
@@ -174,6 +178,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     userOutputs.reserve(outputsInfo.size());
 
     for (const auto& p : outputsInfo | indexed) {
+        const auto ind = checked_cast<uint32_t>(p.index());
         const auto funcArgInd = inputsInfo.size() + p.index();
 
         auto userInfo = p.value();
@@ -182,9 +187,11 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         const auto graphType = val.getType().cast<mlir::MemRefType>();
         const auto userType = mlir::MemRefType::get(graphType.getShape(), userInfo.precision(), {userInfo.layout()});
 
-        graphOutputs.push_back(writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableOutput, 0));
+        graphOutputs.push_back(
+                writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
+
         userOutputs.push_back(
-                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableOutput, 0));
+                writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
     }
 
     SmallVector<int8_t, 1> options;
@@ -238,13 +245,27 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
 
     std::vector<BlobWriter::BinaryData> binaryData;
 
+    size_t tempTensorInd = 0;
+    size_t constantTensorInd = 0;
     const auto callback = [&](mlir::Operation* op) {
         if (auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op)) {
             tasksMap[task.getTaskType()].push_back(writer.createTask(task));
         } else if (auto tensorOp = mlir::dyn_cast<DeclareTensorOp>(op)) {
             VPUX_THROW_UNLESS(tensorOp.dataIndex().hasValue(), "Memory for Operation {0} was not allocated", *op);
 
-            writer.createTensor(tensorOp.memory(), "", tensorOp.locale(), tensorOp.dataIndex().getValue());
+            writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
+                                tensorOp.localeIndex(), tensorOp.dataIndex().getValue(), tensorOp.sparsityIndex(),
+                                tensorOp.storageElementIndex(), tensorOp.storageElementSize(), tensorOp.leadingOffset(),
+                                tensorOp.trailingOffset());
+
+            ++tempTensorInd;
+        } else if (auto tensorOp = mlir::dyn_cast<DeclareConstantTensorOp>(op)) {
+            writer.createBinaryData(tensorOp.content(), tensorOp.csramCacheable());
+
+            writer.createTensor(tensorOp.memory(), llvm::formatv("constant-{0}", tempTensorInd).str(),
+                                MemoryLocation::GraphFile, constantTensorInd, 0);
+
+            ++constantTensorInd;
         } else if (auto barrierOp = mlir::dyn_cast<DeclareBarrierOp>(op)) {
             writer.createBarrier(barrierOp.barrier());
         } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == graphFunc.getOperation()) {
