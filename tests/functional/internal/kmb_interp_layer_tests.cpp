@@ -18,7 +18,6 @@
 #include <blob_factory.hpp>
 
 struct InterpTestParams final {
-    InterpTestParams(const InterpParams& param) : _interpParams(param) {}
     SizeVector _inDims;
     InterpParams _interpParams;
     size_t _width;
@@ -46,10 +45,13 @@ std::ostream& operator<<(std::ostream& os, const InterpTestParams& p) {
     return os;
 }
 
-class KmbInterpLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<InterpTestParams> {};
+class KmbInterpLayerTests :
+    public KmbLayerTestBase,
+    public testing::WithParamInterface<std::tuple<InterpTestParams, UseCustomLayers>> {};
 
 TEST_P(KmbInterpLayerTests, EqualWithCPU) {
-    const auto &p = GetParam();
+    const auto &p = std::get<0>(GetParam());
+    const auto &useCustomLayers = std::get<1>(GetParam());
 
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
     const auto userOutDesc = TensorDesc(Precision::FP32, Layout::NHWC);
@@ -87,6 +89,7 @@ TEST_P(KmbInterpLayerTests, EqualWithCPU) {
                 .build()
             .addNetOutput(PortInfo("interpolation"))
             .setUserOutput(PortInfo("interpolation"), userOutDesc.getPrecision(), userOutDesc.getLayout())
+            .useCustomLayers(useCustomLayers)
             .finalize();
     };
 
@@ -95,15 +98,26 @@ TEST_P(KmbInterpLayerTests, EqualWithCPU) {
 
 // Params from ICNet network
 const std::vector<InterpTestParams> interpParams {
-        InterpTestParams(InterpParams(1,0,0,0))
+        InterpTestParams()
+            .interpParams(InterpParams(1,0,0,0))
             .inDims({1, 3, 720, 960})
             .outShapeHW(360, 480),
-        InterpTestParams(InterpParams(1,0,0,0))
+        InterpTestParams()
+            .interpParams(InterpParams(1,0,0,0))
             .inDims({1, 512, 45, 60})
             .outShapeHW(23, 30),
-        InterpTestParams(InterpParams(0,0,0,0))
+        InterpTestParams()
+            .interpParams(InterpParams(0,0,0,0))
             .inDims({1, 512, 45, 60})
             .outShapeHW(23, 30)
 };
 
-INSTANTIATE_TEST_CASE_P(precommit_Interpolation, KmbInterpLayerTests, testing::ValuesIn(interpParams));
+const std::vector<UseCustomLayers> CustomLayersParams = {
+    KernelType::Native,
+#ifdef KMB_HAS_CUSTOM_CPP_KERNELS
+    KernelType::Cpp
+#endif
+};
+
+INSTANTIATE_TEST_CASE_P(precommit_Interpolation, KmbInterpLayerTests,
+                        testing::Combine(testing::ValuesIn(interpParams), testing::ValuesIn(CustomLayersParams)));

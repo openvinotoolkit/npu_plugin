@@ -21,6 +21,7 @@
 #include <ngraph/op/util/attr_types.hpp>
 
 struct InterpParams final {
+    InterpParams(){}
     InterpParams(const size_t& aligh_corners, const size_t& antialias, const size_t& pad_beg, const size_t& pad_end ) 
     : _alignCorners(aligh_corners), _antialias(antialias), _padBeg(pad_beg), _padEnd(pad_end){}
     size_t _alignCorners;

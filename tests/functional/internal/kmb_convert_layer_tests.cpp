@@ -62,7 +62,7 @@ TEST_P(KmbConvertLayerTests, DISABLED_accuracy) {
                 .build()
             .addNetOutput(PortInfo("convert"))
             .setUserOutput(PortInfo("convert"), userOutDesc.getPrecision(), userOutDesc.getLayout())
-            .useCustomLayers()
+            .useCustomLayers(KernelType::Ocl)
             .disableMcmPasses({{"kmb_adapt", "KMBQuantizeConversion"}})
             .finalize();
     };
@@ -77,6 +77,6 @@ const std::vector<ConvertTestParams> convertParams = {
             .destination_type(ngraph::element::Type_t::f16)
 };
 
-#ifdef KMB_HAS_CUSTOM_KERNELS
+#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 INSTANTIATE_TEST_CASE_P(precommit, KmbConvertLayerTests, testing::ValuesIn(convertParams));
 #endif

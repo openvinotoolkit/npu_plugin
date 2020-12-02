@@ -60,7 +60,7 @@ TEST_P(KmbMVNLayerTests, accuracy) {
                 .build()
             .addNetOutput(PortInfo("mvn"))
             .setUserOutput(PortInfo("mvn"), userOutDesc.getPrecision(), userOutDesc.getLayout())
-            .useCustomLayers()
+            .useCustomLayers(KernelType::Ocl)
             .finalize();
     };
 
@@ -74,6 +74,6 @@ const std::vector<MVNTestParams> convertParams = {
             .across_channels(true)
 };
 
-#ifdef KMB_HAS_CUSTOM_KERNELS
+#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 INSTANTIATE_TEST_CASE_P(precommit, KmbMVNLayerTests, testing::ValuesIn(convertParams));
 #endif

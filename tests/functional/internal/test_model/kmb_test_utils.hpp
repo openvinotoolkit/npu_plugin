@@ -89,3 +89,13 @@ inline std::ostream& operator<<(std::ostream& os, const Pad2D& p) {
 ngraph::element::Type precisionToType(const Precision& precision);
 
 Precision typeToPrecision(const ngraph::element::Type& type);
+
+//
+// Custom layers
+//
+
+enum class KernelType : int {
+    Native,
+    Ocl,
+    Cpp,
+};

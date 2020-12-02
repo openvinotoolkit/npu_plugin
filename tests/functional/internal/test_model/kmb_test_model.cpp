@@ -21,8 +21,11 @@
 #include <blob_factory.hpp>
 #include <queue>
 
-const std::string TestNetwork::_customLayerXmlDefault =
-    getIELibraryPath() + "/kmb_custom_kernels/customLayerBindings.xml";
+const std::string TestNetwork::_customOclLayerXmlDefault =
+    getIELibraryPath() + "/kmb_custom_ocl_kernels/customOclLayerBindings.xml";
+
+const std::string TestNetwork::_customCppLayerXmlDefault =
+    getIELibraryPath() + "/kmb_custom_cpp_kernels/customCppLayerBindings.xml";
 
 namespace {
 

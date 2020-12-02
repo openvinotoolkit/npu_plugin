@@ -86,14 +86,14 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
 endif()
 
 #
-# `kmb_custom_kernels` CMake target
+# `kmb_custom_ocl_kernels` CMake target
 #
 
-add_library(kmb_custom_kernels INTERFACE)
+add_library(kmb_custom_ocl_kernels INTERFACE)
 
-function(add_kmb_compile_custom_kernels)
-    set(SRC_DIR "${CMAKE_SOURCE_DIR}/src/custom_kernels")
-    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/kmb_custom_kernels")
+function(add_kmb_compile_custom_ocl_kernels)
+    set(SRC_DIR "${CMAKE_SOURCE_DIR}/src/custom_ocl_kernels")
+    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/kmb_custom_ocl_kernels")
 
     file(MAKE_DIRECTORY "${DST_DIR}")
 
@@ -136,19 +136,19 @@ function(add_kmb_compile_custom_kernels)
             VERBATIM)
     endforeach()
 
-    add_custom_target(kmb_compile_custom_kernels
+    add_custom_target(kmb_compile_custom_ocl_kernels
         DEPENDS ${all_output_files}
         COMMENT "[KMB] Compile custom kernels")
 
-    add_dependencies(kmb_custom_kernels kmb_compile_custom_kernels)
+    add_dependencies(kmb_custom_ocl_kernels kmb_compile_custom_ocl_kernels)
 endfunction()
 
 if(VPU_CLC_MA2X9X_COMMAND)
-    add_kmb_compile_custom_kernels()
+    add_kmb_compile_custom_ocl_kernels()
 endif()
 
 if(VPU_CLC_MA2X9X_COMMAND OR CMAKE_CROSSCOMPILING)
-    target_compile_definitions(kmb_custom_kernels INTERFACE "KMB_HAS_CUSTOM_KERNELS")
+    target_compile_definitions(kmb_custom_ocl_kernels INTERFACE "KMB_HAS_CUSTOM_OCL_KERNELS")
 endif()
 
 #

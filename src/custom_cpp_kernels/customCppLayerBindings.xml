@@ -1,0 +1,50 @@
+<CustomLayer name="CTCGreedyDecoder" type="CPP" version="1" max-shaves="1">
+    <Kernel>
+        <Source filename="ctcdecoder_kernel.elf"/>
+        <Parameters>
+            <Tensor arg-name="probabilities" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="sequence_indicators" type="input" port-index="1" format="BFYX"/>
+            <Tensor arg-name="output" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="width" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="height" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="channels" type="int" port-index="0" source="I.F"/>
+        </Parameters>
+        <WorkSizes dim="output,0"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="GRN" type="CPP" version="1">
+    <Kernel>
+        <Source filename="grn_kernel.elf"/>
+        <Parameters>
+            <Tensor arg-name="src_data" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="channels" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="height" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="width" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="bias" type="float" source="bias"/>
+        </Parameters>
+        <WorkSizes dim="input,0"/>
+    </Kernel>
+</CustomLayer>
+
+<CustomLayer name="interp" type="CPP" version="1" max-shaves="1">
+    <Kernel>
+        <Source filename="interp_kernel.elf"/>
+        <Parameters>
+            <Tensor arg-name="src_data" type="input"  port-index="0" format="BYXF"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BYXF"/>
+            <Scalar arg-name="channels" type="int"    port-index="0" source="I.F"/>
+            <Scalar arg-name="height"   type="int"    port-index="0" source="I.Y"/>
+            <Scalar arg-name="width"    type="int"    port-index="0" source="I.X"/>
+            <Scalar arg-name="oheight"  type="int"    port-index="0" source="O.Y"/>
+            <Scalar arg-name="owidth"   type="int"    port-index="0" source="O.X"/>
+            <Scalar arg-name="istride"  type="int"    port-index="0" source="I.F"/>
+            <Scalar arg-name="ostride"  type="int"    port-index="0" source="O.F"/> 
+            <Scalar arg-name="align"    type="int"    source="align_corners"/>
+            <Scalar arg-name="isHWC"    type="int"    source="1"/>
+        </Parameters>
+        <WorkSizes dim="output,0"/>
+    </Kernel>
+</CustomLayer>
+
