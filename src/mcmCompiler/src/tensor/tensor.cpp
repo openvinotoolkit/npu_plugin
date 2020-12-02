@@ -58,7 +58,7 @@ std::string mv::Tensor::MemoryLocation::toString() const
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order):
 Element(name),
 shape_(shape),
-internalOrder_(Order(Order::getRowMajorID(shape.ndims()))),
+internalOrder_(Order(order.toString())),
 blockSize_(shape[shape.ndims() - 1])
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
