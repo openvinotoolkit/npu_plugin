@@ -90,9 +90,9 @@ public:
 public:
     bool hasDim(Dim d) const;
 
-    int32_t dimPos(Dim d) const;
+    size_t dimPos(Dim d) const;
 
-    Dim dimAt(int32_t pos) const;
+    Dim dimAt(size_t pos) const;
 
 public:
     MemDim toMemDim(Dim d) const;
