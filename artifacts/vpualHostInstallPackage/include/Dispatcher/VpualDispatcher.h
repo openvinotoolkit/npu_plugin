@@ -19,16 +19,26 @@
 
 #include <stdint.h>
 #include <string>
+#include <vector>
+
 #include "VpualMessage.h"
 #include "xlink.h"
 
 /** Ensure the correct resources are opened/closed when needed. */
 class VpualDispatcherResource {
-	private:
-    uint32_t device_id;
+  private:
+    std::vector<uint32_t> active_devices;
+
   public:
-    VpualDispatcherResource (uint32_t device_id);
-    ~VpualDispatcherResource ();
+    VpualDispatcherResource();
+    ~VpualDispatcherResource();
+
+    /**
+     * Initialise specified VPU device.
+     *
+     * @param device_id - ID of VPU device to be initialised.
+     */
+    void initDevice(uint32_t device_id);
 };
 
 /** Initialise the dispatcher if uninitialised. */

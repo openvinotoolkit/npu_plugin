@@ -183,11 +183,6 @@ typedef struct {
     UInt8 out_census_thr;  // Census Threshold
     UInt8 out_remove_thr;  // Outliers Remove Threshold
 
-    UInt32 p1H;
-    UInt32 p2H;
-    UInt32 p1V;
-    UInt32 p2V;
-
     UInt8  lut[256*4];
 
 } StereoParam;
