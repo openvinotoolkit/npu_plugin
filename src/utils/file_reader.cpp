@@ -170,7 +170,7 @@ std::ifstream& skipMagic(std::ifstream& blobStream) {
 
     blobStream.seekg(0, blobStream.beg);
     blobStream.read(magic.data(), magic.size());
-    auto exportedWithName = (exportMagic == magic);
+    auto exportedWithName = (InferenceEngine::exportMagic == magic);
     if (exportedWithName) {
         std::string tmp;
         std::getline(blobStream, tmp);

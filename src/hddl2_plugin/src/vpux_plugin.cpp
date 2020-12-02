@@ -65,30 +65,30 @@ Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)), _met
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
-    const ICNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& networkConfig) {
+IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
+    const IE::ICNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& networkConfig) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "LoadExeNetwork");
-    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    std::shared_ptr<IE::ICNNNetwork> clonedNetwork = cloneNetwork(network);
 
-    auto implNetwork = std::dynamic_pointer_cast<CNNNetworkImpl>(clonedNetwork);
+    auto implNetwork = std::dynamic_pointer_cast<IE::details::CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
-        ConstTransformer transformator(implNetwork.get());
+        IE::ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
     }
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork, device, networkConfig);
 }
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-    const CNNNetwork& network, const std::map<std::string, std::string>& config) {
+IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
+    const IE::CNNNetwork& network, const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(networkConfig.deviceId());
     return LoadExeNetwork(network, device, networkConfig);
 }
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-    const CNNNetwork& network, RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
+IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
+    const IE::CNNNetwork& network, IE::RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(context);
     return LoadExeNetwork(network, device, networkConfig);
@@ -114,7 +114,7 @@ IE::ExecutableNetwork Engine::ImportNetworkImpl(
 }
 
 IE::ExecutableNetwork Engine::ImportNetworkImpl(
-    std::istream& networkModel, const RemoteContext::Ptr& context, const std::map<std::string, std::string>& config) {
+    std::istream& networkModel, const IE::RemoteContext::Ptr& context, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(context);
@@ -135,11 +135,11 @@ IE::QueryNetworkResult Engine::QueryNetwork(
     const IE::CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     UNUSED(network);
     UNUSED(config);
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED;
+    THROW_IE_EXCEPTION << IE::NOT_IMPLEMENTED;
     return {};
 }
 
-RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
+IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
     // Device in this case will be searched inside RemoteContext creation
     const auto device = _backends->getDevice(map);
     if (device == nullptr) {
@@ -168,7 +168,7 @@ IE::Parameter Engine::GetMetric(
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
-static const Version version = {{2, 1}, CI_BUILD_NUMBER, "VPUXPlugin"};
+static const IE::Version version = {{2, 1}, CI_BUILD_NUMBER, "VPUXPlugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
 
 }  // namespace vpux
