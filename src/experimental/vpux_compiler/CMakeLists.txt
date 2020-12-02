@@ -177,6 +177,8 @@ add_dialect("IE")
 add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")
 
+add_dialect("IERT")
+
 add_op_interfaces("dialect/VPUIP")
 add_enum_attrs("dialect/VPUIP")
 add_struct_attrs("VPUIP")
