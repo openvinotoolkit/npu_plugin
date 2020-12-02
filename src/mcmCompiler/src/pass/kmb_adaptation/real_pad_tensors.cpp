@@ -463,7 +463,7 @@ void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationMode
     }
 }
 
-void alignPopulatedTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void alignPopulatedTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -485,17 +485,22 @@ void alignPopulatedTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel
             mv::Shape alignedShape;
             //NOTE: only Convs have weights (=) alignment
             auto taskOp = layer->get<std::string>("taskOp");
+            if (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3600)
+                continue;
+
             std::size_t outputChannelsPadded = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
 
-            if (taskOp == "Conv" || taskOp == "ChannelMajorConvolution")
+            if (taskOp == "Conv")
                 alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
                                                     inputTensorShape[mv::IO_CHANNEL_DIMENSION], outputTensorShape[mv::IO_CHANNEL_DIMENSION]});
+
             else if (taskOp == "DepthwiseConv")
             {
                 alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
                                                             inputTensorShape[mv::IO_CHANNEL_DIMENSION], 1});
                 outputChannelsPadded = inputTensorShape[mv::IO_CHANNEL_DIMENSION];
             }
+
             alignWeightsTensor(om, weightsTensor, alignedShape);
             if(layer->hasAttr("bias"))
             {

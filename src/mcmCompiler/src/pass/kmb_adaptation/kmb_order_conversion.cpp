@@ -61,7 +61,7 @@ void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model,
                     auto inputImplicitOp = om.getSourceOp(dpuTask->getInputTensor(0));
                     inputImplicitOp->getInputTensor(0)->setOrder(mv::Order::getZMajorID(4));
                 }
-                if(taskOp == "Conv")
+                if(taskOp == "Conv" || (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3600))
                 {
                     mv::Order targetOrder("NHWC");
                     dpuTask->getInputTensor(1)->setOrder(targetOrder);
