@@ -157,7 +157,10 @@ std::vector<float> mv::Order::computeWordStrides(const Shape &shape) const
     std::vector<float> realStrides(n, 1);
 
     for(size_t i = 1; i < n; ++i)
+    {
         realStrides[contVector_[i]] = realStrides[contVector_[i-1]] * shape[contVector_[i-1]];
+        assert((((unsigned int)realStrides[contVector_[i - 1]]) * shape[contVector_[i - 1]]) == (unsigned int)realStrides[contVector_[i]]);
+    }
 
     return realStrides;
 }

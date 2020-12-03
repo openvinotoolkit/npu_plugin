@@ -922,22 +922,62 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
         setIfPresent<double, int>(NNClusterProcessor->number, *globalConfigurationParams , "Number_of_Clusters");
         toBuild->processor_allocation.push_back(std::move(NNClusterProcessor));
     }
+    if(globalConfigurationParams->hasAttr("Number_of_DPUs")){
+        std::unique_ptr<MVCNN::ProcessorMappingT> NNDPUProcessor =
+            std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
+        NNDPUProcessor->item= MVCNN::PhysicalProcessor_NCE_PerClusterDPU;
+        setIfPresent<double, int>(NNDPUProcessor->number, *globalConfigurationParams , "Number_of_DPUs");
+        if(globalConfigurationParams->hasAttr("Number_of_Clusters")){
+            int clusterNumber = globalConfigurationParams->get<int>("Number_of_Clusters");
+            NNDPUProcessor->number = NNDPUProcessor->number / (double)clusterNumber;
+        }
+        toBuild->processor_allocation.push_back(std::move(NNDPUProcessor));
+    }
 
     toBuild->memory_sizes = std::vector<std::unique_ptr<MVCNN::MemoryMappingT>>();
-    if(globalConfigurationParams->hasAttr("cmx")){
+    if(globalConfigurationParams->hasAttr("totalCmx")){
         std::unique_ptr<MVCNN::MemoryMappingT> cmxMemorySize =
             std::unique_ptr<MVCNN::MemoryMappingT>(new MVCNN::MemoryMappingT());
         cmxMemorySize->item= MVCNN::PhysicalMem_NN_CMX;
-        setIfPresent<double, unsigned>(cmxMemorySize->number, *globalConfigurationParams , "cmx");
+        setIfPresent<double, unsigned>(cmxMemorySize->number, *globalConfigurationParams , "totalCmx");
         toBuild->memory_sizes.push_back(std::move(cmxMemorySize));
     }
     if(globalConfigurationParams->hasAttr("DDRScratch")){
         std::unique_ptr<MVCNN::MemoryMappingT> DDRMemorySize =
             std::unique_ptr<MVCNN::MemoryMappingT>(new MVCNN::MemoryMappingT());
         DDRMemorySize->item= MVCNN::PhysicalMem_DDR;
-        setIfPresent<double, int>(DDRMemorySize->number, *globalConfigurationParams , "DDRScratch");
+        // Set DDR scratch value to high watermark, which is saved in BufferMap
+        // Actually globalConfigParams in cm is also reset by high watermark so they're the same
+        DDRMemorySize->number= (cm.bufferMap().getScratch()) ? cm.bufferMap().getScratch()->getSize() : 0;
         toBuild->memory_sizes.push_back(std::move(DDRMemorySize));
     }
+
+    toBuild->memory_bandwidth = std::vector<std::unique_ptr<MVCNN::MemoryRelationshipMappingT>>();
+    if(globalConfigurationParams->hasAttr("memoryBandwidth")){
+        std::unique_ptr<MVCNN::MemoryRelationshipMappingT> ddrToCMX =
+            std::unique_ptr<MVCNN::MemoryRelationshipMappingT>(new MVCNN::MemoryRelationshipMappingT());
+        ddrToCMX->from_item= MVCNN::PhysicalMem_DDR;
+        ddrToCMX->to_item= MVCNN::PhysicalMem_NN_CMX;
+        setIfPresent<double, int>(ddrToCMX->number, *globalConfigurationParams , "memoryBandwidth");
+        toBuild->memory_bandwidth.push_back(std::move(ddrToCMX));
+
+        std::unique_ptr<MVCNN::MemoryRelationshipMappingT> cmxToDDR =
+            std::unique_ptr<MVCNN::MemoryRelationshipMappingT>(new MVCNN::MemoryRelationshipMappingT());
+        cmxToDDR->from_item= MVCNN::PhysicalMem_NN_CMX;
+        cmxToDDR->to_item= MVCNN::PhysicalMem_DDR;
+        setIfPresent<double, int>(cmxToDDR->number, *globalConfigurationParams , "memoryBandwidth");
+        toBuild->memory_bandwidth.push_back(std::move(cmxToDDR));
+    }
+
+    toBuild->processor_frequencies = std::vector<std::unique_ptr<MVCNN::ProcessorMappingT>>();
+    if(globalConfigurationParams->hasAttr("systemClockMhz")){
+        std::unique_ptr<MVCNN::ProcessorMappingT> dpuFreq =
+            std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
+        dpuFreq->item= MVCNN::PhysicalProcessor_NCE_Cluster;
+        setIfPresent<double, int>(dpuFreq->number, *globalConfigurationParams , "systemClockMhz");
+        toBuild->processor_frequencies.push_back(std::move(dpuFreq));
+    }
+
     return toBuild;
 }
 
