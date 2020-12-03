@@ -20,6 +20,47 @@
 include "mlir/Pass/PassBase.td"
 
 //
+// BufferizeIE
+//
+
+def BufferizeIE : FunctionPass<"bufferize-IE"> {
+    let summary = "Bufferize the IE dialect into the IERT dialect on Function level";
+
+    let description = [{
+        This "atomic" pass bufferizes IE Dialect into IERT Dialect.
+        Only functions inner regions are affected, not signatures.
+    }];
+
+    let constructor = "vpux::createBufferizeIEPass()";
+
+    let dependentDialects = [
+        "vpux::IERT::IERTDialect",
+        "mlir::StandardOpsDialect"
+    ];
+}
+
+//
+// LowerIE2IERT
+//
+
+def LowerIE2IERT : Pass<"lower-IE-to-IERT", "mlir::ModuleOp"> {
+    let summary = "Performs full lowering from the IE Dialect to IERT Dialect";
+
+    let description = [{
+        This "pipeline" pass performs full IR lowering from IE Dialect to IERT Dialect,
+        including Function types, call graph and return operations.
+    }];
+
+    let constructor = "vpux::createLowerIE2IERTPass()";
+
+    let dependentDialects = [
+        "vpux::IERT::IERTDialect",
+        "mlir::StandardOpsDialect",
+        "mlir::linalg::LinalgDialect"
+    ];
+}
+
+//
 // ConvertIE2VPUIP
 //
 
