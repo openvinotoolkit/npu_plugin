@@ -224,6 +224,13 @@
             },
             "StoreGraphOptimizerDecisions",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/final.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
                 "name" : "AddOptimalChainPipeliningStrategies",
                 "select_stages" : 2,
                 "AddOptimalChainPipeliningStrategiesConfig" : {
@@ -379,7 +386,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/final.dot",
-                "scope": "ControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             },
