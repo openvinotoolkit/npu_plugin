@@ -335,7 +335,7 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
         auto taskOp = opIt->get<std::string>("taskOp");
         if(taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "MaxPool" ||
             taskOp == "Eltwise" ||
-            (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3600)) //channel major as zmajor in MTL
+            (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3720)) //channel major as zmajor in MTL
         {
             auto numInputs = 1;
             if (taskOp == "Eltwise")
@@ -361,7 +361,7 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                         {
                             auto taskType = sinkFlow.sink()->get<std::string>("taskOp");
                             if((taskType == "Conv") || (taskType == "DepthwiseConv") || (taskType == "MaxPool") || (taskType == "Eltwise")
-                                || (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3600))
+                                || (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3720))
                             {
                                 opsToLink.push_back(sinkFlow.sink());
                                 inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
@@ -485,7 +485,7 @@ void alignPopulatedTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel
             mv::Shape alignedShape;
             //NOTE: only Convs have weights (=) alignment
             auto taskOp = layer->get<std::string>("taskOp");
-            if (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3600)
+            if (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3720)
                 continue;
 
             std::size_t outputChannelsPadded = outputTensorShape[mv::IO_CHANNEL_DIMENSION];

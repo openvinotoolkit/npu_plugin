@@ -183,7 +183,7 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
         }
     }
     else if(taskOp == "DepthwiseConv"  ||
-            (taskOp == "ChannelMajorConvolution" && td.getTarget() != mv::Target::ma3600) ||
+            (taskOp == "ChannelMajorConvolution" && td.getTarget() != mv::Target::ma3720) ||
             taskOp == "MaxPool")
     {
         // We have fake sparsity here! Yuppi!

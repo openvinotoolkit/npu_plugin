@@ -93,7 +93,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             bool weightsSparsity = dpuTask->hasAttr("weightsSparsity") ? dpuTask->get<bool>("weightsSparsity") : false;
             std::string taskOp = dpuTask->get<std::string>("taskOp");
             pass.log(mv::Logger::MessageType::Debug, " taskOp "  + dpuTask->get<std::string>("taskOp"));
-            bool isChannelMajorConv = (taskOp == "ChannelMajorConvolution") && (td.getTarget() != mv::Target::ma3600);
+            bool isChannelMajorConv = (taskOp == "ChannelMajorConvolution") && (td.getTarget() != mv::Target::ma3720);
             bool isPooling = taskOp == "MaxPool";
             bool isDepthWiseConv = taskOp == "DepthwiseConv";
 

@@ -461,7 +461,7 @@ static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry&, mv::Comput
     mv::OpModel om(model);
 
     // Skip pass if C-Major isn't enabled
-    if (!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")) || td.getTarget() == mv::Target::ma3600)
+    if (!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")) || td.getTarget() == mv::Target::ma3720)
         return;
 
     // Change Input op to C-Major

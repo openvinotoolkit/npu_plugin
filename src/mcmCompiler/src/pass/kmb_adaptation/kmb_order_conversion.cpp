@@ -31,7 +31,7 @@ void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model,
         {
             //handle channel major convolution (only possible if enabled in comp descriptor)
             auto taskOp = dpuTask->get<std::string>("taskOp");
-            if (taskOp == "ChannelMajorConvolution" && td.getTarget() != mv::Target::ma3600)
+            if (taskOp == "ChannelMajorConvolution" && td.getTarget() != mv::Target::ma3720)
             {
                 // ChannelMajorConvolution is the only operation that requires input tensor in OUR ColMajor
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
@@ -61,7 +61,7 @@ void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model,
                     auto inputImplicitOp = om.getSourceOp(dpuTask->getInputTensor(0));
                     inputImplicitOp->getInputTensor(0)->setOrder(mv::Order::getZMajorID(4));
                 }
-                if(taskOp == "Conv" || (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3600))
+                if(taskOp == "Conv" || (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3720))
                 {
                     mv::Order targetOrder("NHWC");
                     dpuTask->getInputTensor(1)->setOrder(targetOrder);

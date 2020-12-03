@@ -25,7 +25,7 @@ namespace mv
     {
         ma2490,
         ma3100,
-        ma3600,
+        ma3720,
         Unknown
     };
 

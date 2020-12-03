@@ -58,10 +58,10 @@ import_array();
             unit->loadTargetDescriptor(mv::Target::ma3100);
             unit->loadCompilationDescriptor(mv::Target::ma3100);
         }
-        else if(target.compare("ma3600") == 0)
+        else if(target.compare("ma3720") == 0)
         {
-            unit->loadTargetDescriptor(mv::Target::ma3600);
-            unit->loadCompilationDescriptor(mv::Target::ma3600);
+            unit->loadTargetDescriptor(mv::Target::ma3720);
+            unit->loadCompilationDescriptor(mv::Target::ma3720);
         }
         else
         {

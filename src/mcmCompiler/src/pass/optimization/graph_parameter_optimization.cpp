@@ -1288,7 +1288,7 @@ namespace mv
                 auto isCMConv = false;
                 auto clusterStrategy = clustering.get<std::string>();
 
-                if(enableChannelMajorConv && op.supportsCMConv() && target != mv::Target::ma3600)
+                if(enableChannelMajorConv && op.supportsCMConv() && target != mv::Target::ma3720)
                      isCMConv = true;
 
                 if (op.hasAttr("DilatedSubConv") && (op.get<bool>("DilatedSubConv")))
@@ -1538,7 +1538,7 @@ namespace mv
 
              //Channel major conv, pooling and depthwise will get fake sparsity, so need to check memory constraints as if real sparsity
             bool requiresFakeActivationSparsity(Op& op){
-                if(enableChannelMajorConv && op.supportsCMConv() && target != mv::Target::ma3600)
+                if(enableChannelMajorConv && op.supportsCMConv() && target != mv::Target::ma3720)
                     return true;
 
                 if(op.getOpType() == "MaxPool")
