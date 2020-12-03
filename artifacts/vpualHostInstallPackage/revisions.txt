@@ -1,3 +1,3 @@
 
-VPUAL: 29176eff69d663bd37dab104ccad5cb672651edb, tag: tbh_release_ER6.1_WW44.1
+VPUAL: 8e1ec3a74b78a29002c4e073ce82231b460b472b, tag: TBH_Release_ER6.1.2
 

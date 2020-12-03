@@ -1,3 +1,3 @@
 
-VPUIP2: d1a4912f45970791d25bca2bb82f7d36c5261d7b tag: tbh_release_ER6.1a
+VPUIP2: 4f9a3f46706ed51219336c543096e2712ffd9317 tag: tbh_release_ER6.1.2
 
