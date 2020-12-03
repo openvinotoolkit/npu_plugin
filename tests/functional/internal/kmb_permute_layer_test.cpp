@@ -71,6 +71,10 @@ TEST_P(KmbPermuteLayerTests, Accuracy) {
         }
     );
 
+    const auto keepNoopPermute = CompileConfig{{
+        VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP),
+        InferenceEngine::PluginConfigParams::NO}};
+
     const auto netBuidler = [&](TestNetwork& testNet) {
         testNet
             .setUserInput("input", p.in_desc_.getPrecision(), p.in_desc_.getLayout())
@@ -82,6 +86,7 @@ TEST_P(KmbPermuteLayerTests, Accuracy) {
                 .build()
             .addNetOutput(PortInfo("permute"))
             .setUserOutput(PortInfo("permute"), output_desc.getPrecision(), output_desc.getLayout())
+            .setCompileConfig(keepNoopPermute)
             .finalize();
     };
 
@@ -107,6 +112,12 @@ const std::vector<PermuteTestParams> supportedCases {
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
         .order({0, 1, 3, 2}),
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
+        .order({0, 1, 2, 3}),
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NHWC})
+        .order({0, 1, 2, 3}),
 };
 
 // NB: Please note that these test cases doesn't include cases when batch not equal to one
@@ -119,17 +130,13 @@ const std::vector<PermuteTestParams> unsupportedCases {
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 18, 19, 19}, Layout::NHWC})
         .order({0, 2, 3, 1}),
-    // FIXME: Disabled suppportedCase [Track number: D#3455]
-    PermuteTestParams()
-        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
-        .order({0, 1, 2, 3}),
     // FIXME: Disabled FaceDetectionRetailCase [Track number: D#3455]
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 18, 19, 19}, Layout::NCHW})
         .order({0, 2, 3, 1}),
 };
 
-INSTANTIATE_TEST_CASE_P(precommit_SupportedCases,            KmbPermuteLayerTests, testing::ValuesIn(supportedCases));
+INSTANTIATE_TEST_CASE_P(precommit_SupportedCases, KmbPermuteLayerTests, testing::ValuesIn(supportedCases));
 // [Track number: S-37612]
 INSTANTIATE_TEST_CASE_P(DISABLED_precommit_FaceDetectionRetail, KmbPermuteLayerTests, testing::ValuesIn(FaceDetectionRetailCases));
 INSTANTIATE_TEST_CASE_P(DISABLED_precommit_UnsupportedCases, KmbPermuteLayerTests, testing::ValuesIn(unsupportedCases));

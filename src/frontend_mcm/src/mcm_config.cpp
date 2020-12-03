@@ -49,6 +49,7 @@ const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
                                                            VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT),
                                                            VPU_COMPILER_CONFIG_KEY(ALLOW_U8_INPUT_FOR_FP16_MODELS),
                                                            VPU_COMPILER_CONFIG_KEY(SCALESHIFT_FUSING),
+                                                           VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP),
                                                    });
 
     return options;
@@ -97,4 +98,6 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_allowU8InputForFp16Models, switches, config, VPU_COMPILER_CONFIG_KEY(ALLOW_U8_INPUT_FOR_FP16_MODELS));
 
     setOption(_scaleShiftFusing, switches, config, VPU_COMPILER_CONFIG_KEY(SCALESHIFT_FUSING));
+
+    setOption(_removePermuteNoOp, switches, config, VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP));
 }

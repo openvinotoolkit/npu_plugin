@@ -117,6 +117,10 @@ public:
         return _scaleShiftFusing;
     }
 
+    bool removePermuteNoOp() const {
+        return _removePermuteNoOp;
+    }
+
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
@@ -156,6 +160,8 @@ private:
     bool _allowU8InputForFp16Models = false;
 
     bool _scaleShiftFusing = true;
+
+    bool _removePermuteNoOp = true;
 };
 
 }  //  namespace vpu
