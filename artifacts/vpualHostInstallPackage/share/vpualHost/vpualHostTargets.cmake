@@ -16,7 +16,7 @@ set(CMAKE_IMPORT_FILE_VERSION 1)
 set(_targetsDefined)
 set(_targetsNotDefined)
 set(_expectedTargets)
-foreach(_expectedTarget VpualDispatcher RemoteFlic NN sipp_custom XLink ResMgr Profiling OSD)
+foreach(_expectedTarget VpualDispatcher RemoteFlic NN sipp_custom XLink ResMgr Profiling OSD vpumgr)
   list(APPEND _expectedTargets ${_expectedTarget})
   if(NOT TARGET ${_expectedTarget})
     list(APPEND _targetsNotDefined ${_expectedTarget})
@@ -54,7 +54,7 @@ add_library(VpualDispatcher SHARED IMPORTED)
 
 set_target_properties(VpualDispatcher PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/Dispatcher"
-  INTERFACE_LINK_LIBRARIES "XLink;vpusmm"
+  INTERFACE_LINK_LIBRARIES "XLink;vpumgr"
 )
 
 # Create imported target RemoteFlic
@@ -110,6 +110,13 @@ add_library(OSD SHARED IMPORTED)
 set_target_properties(OSD PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/OSD"
   INTERFACE_LINK_LIBRARIES "VpualDispatcher"
+)
+
+# Create imported target vpumgr
+add_library(vpumgr SHARED IMPORTED)
+
+set_target_properties(vpumgr PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/vpumgr"
 )
 
 if(CMAKE_VERSION VERSION_LESS 2.8.12)

@@ -32,11 +32,6 @@ add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
 #
 
 if(AARCH64)
-    find_library(VPUSMM_LIBRARY vpusmm ONLY_CMAKE_FIND_ROOT_PATH)
-    add_library(vpusmm UNKNOWN IMPORTED)
-    set_target_properties(vpusmm PROPERTIES
-        IMPORTED_LOCATION ${VPUSMM_LIBRARY})
-
     find_package(vpualHost REQUIRED CONFIG NO_DEFAULT_PATH
         PATHS "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/share/vpualHost"
         CMAKE_FIND_ROOT_PATH_BOTH)
@@ -46,6 +41,7 @@ if(AARCH64)
     set_target_properties(sipp_custom PROPERTIES IMPORTED_GLOBAL TRUE)
     set_target_properties(XLink PROPERTIES IMPORTED_GLOBAL TRUE)
     set_target_properties(RemoteFlic PROPERTIES IMPORTED_GLOBAL TRUE)
+    set_target_properties(vpumgr PROPERTIES IMPORTED_GLOBAL TRUE)
 
     add_subdirectory(gapi_sipp/sipp)
     add_subdirectory(gapi_sipp/m2i)
@@ -63,14 +59,15 @@ if(AARCH64)
     set(VPUAL_NN_LIBRARY NN CACHE INTERNAL "")
     set(VPUAL_NN_INCLUDES $<TARGET_PROPERTY:NN,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
 
+    set(VPUMGR_LIBRARY vpumgr CACHE INTERNAL "")
+    set(VPUMGR_INCLUDES $<TARGET_PROPERTY:vpumgr,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
+
     set(GAPI_SIPP_LIBRARY gapi_sipp CACHE INTERNAL "")
     set(GAPI_SIPP_INCLUDES $<TARGET_PROPERTY:gapi_sipp,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
 
     set(GAPI_M2I_LIBRARY gapi_m2i CACHE INTERNAL "")
     set(GAPI_M2I_INCLUDES $<TARGET_PROPERTY:gapi_m2i,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
 else()
-    set(VPUSMM_LIBRARY "" CACHE INTERNAL "")
-
     set(VPUAL_XLINK_LIBRARY "" CACHE INTERNAL "")
     set(VPUAL_XLINK_INCLUDES "" CACHE INTERNAL "")
 

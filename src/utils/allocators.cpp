@@ -32,7 +32,7 @@
 #include "ie_macro.hpp"
 
 #if defined(__arm__) || defined(__aarch64__)
-#include <vpusmm/vpusmm.h>
+#include <vpumgr.h>
 #endif
 
 namespace vpu {

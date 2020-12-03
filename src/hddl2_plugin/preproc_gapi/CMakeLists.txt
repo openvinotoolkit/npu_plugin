@@ -38,7 +38,7 @@ target_include_directories(${GAPI_LIB}
 
 link_system_libraries(${GAPI_LIB}
     PRIVATE
-        ${VPUSMM_LIBRARY}
+        ${VPUMGR_LIBRARY}
         IE::inference_engine
         kmb_utils
         ${GAPI_SIPP_LIBRARY}

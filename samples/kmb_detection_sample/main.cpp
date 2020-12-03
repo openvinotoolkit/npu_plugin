@@ -36,7 +36,7 @@
 #include <ie_compound_blob.h>
 #include <format_reader_ptr.h>
 
-#include <vpusmm/vpusmm.h>
+#include <vpumgr.h>
 
 #include <unistd.h>
 #include <sys/mman.h>
