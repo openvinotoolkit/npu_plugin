@@ -89,6 +89,14 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
         default:
             return std::shared_ptr<EngineBackend>(new EngineBackend());
         }
+    } catch (const InferenceEngine::details::InferenceEngineException& e) {
+        std::cout << "Could not find a suitable backend. Will be used null backend" << std::endl;
+        std::cout << e.what() << std::endl;
+        return nullptr;
+    } catch (const std::exception& e) {
+        std::cout << "Could not find a suitable backend. Will be used null backend" << std::endl;
+        std::cout << e.what() << std::endl;
+        return nullptr;
     } catch (...) {
         std::cout << "Could not find a suitable backend. Will be used null backend" << std::endl;
         return nullptr;

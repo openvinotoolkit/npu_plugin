@@ -186,7 +186,7 @@ struct Image {
     int remoteMemoryFd[2];
 };
 
-static Blob::Ptr wrapImageToBlob(const Image& image, const RemoteContext::Ptr& contextPtr, bool useOffsets) {
+static Blob::Ptr wrapImageToBlob(const Image& image, const InferenceEngine::RemoteContext::Ptr& contextPtr, bool useOffsets) {
     const size_t& imageWidth = image.width;
     const size_t& imageHeight = image.height;
     TensorDesc planeY(Precision::U8, {1, 1, imageHeight, imageWidth}, Layout::NHWC);
