@@ -24,7 +24,7 @@
 #if defined(__arm__) || defined(__aarch64__)
 #include <sys/mman.h>
 #include <unistd.h>
-#include <vpusmm/vpusmm.h>
+#include <vpumgr.h>
 #endif
 
 #include "ie_macro.hpp"

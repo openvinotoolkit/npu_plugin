@@ -33,7 +33,7 @@ if (UNIX)
                 IE::vpu_common_lib
                 IE::ngraph
                 IE::ngraph_reference
-                ${VPUSMM_LIB}
+                ${VPUMGR_LIBRARY}
                 kmb_utils
                 Boost::filesystem
                 common_tests_helpers

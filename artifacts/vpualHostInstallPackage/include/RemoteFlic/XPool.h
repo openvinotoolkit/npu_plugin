@@ -81,6 +81,7 @@ class XPool : public PluginStub
     std::queue<DevicePtr> output_buffers;
     std::mutex xpool_mutex_;
     std::condition_variable xpool_cond_;
+    std::condition_variable xpool_ava_cond_;
 
     /** XLink channel ID used. */
     uint16_t chanId;
@@ -106,6 +107,12 @@ class XPool : public PluginStub
     void FreeThread(void) {
         while(alive) {
             // TODO try not to throw as much..?
+            {
+                std::unique_lock<std::mutex> m_lock(xpool_mutex_);
+                xpool_ava_cond_.wait(m_lock, [&](){
+                    return !output_buffers.empty() || !alive;
+                });
+	    }
 
             // Check if there is an output buffer in our queue
             if (false == output_buffers.empty()) {
@@ -354,6 +361,7 @@ class XPool : public PluginStub
     /** Stop Method. Indicate to the threads to return. */
     void Stop (void) {
         alive = false;
+        xpool_ava_cond_.notify_all();
     }
 
     /** Wait for the threads to finish (join). */
@@ -412,7 +420,11 @@ class XPool : public PluginStub
         if (X_LINK_SUCCESS != rc) {
             std::cerr << "XPool: XLink write error: " << rc << std::endl;
         } else {
-            output_buffers.push(buffer);
+            {
+                std::unique_lock<std::mutex> m_lock(xpool_mutex_);
+                output_buffers.push(buffer);
+            }
+            xpool_ava_cond_.notify_all();
         }
         return static_cast<int>(rc);
     }

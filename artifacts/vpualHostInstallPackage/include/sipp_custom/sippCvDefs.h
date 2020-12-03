@@ -183,11 +183,6 @@ typedef struct {
     UInt8 out_census_thr;  // Census Threshold
     UInt8 out_remove_thr;  // Outliers Remove Threshold
 
-    UInt32 p1H;
-    UInt32 p2H;
-    UInt32 p1V;
-    UInt32 p2V;
-
     UInt8  lut[256*4];
 
 } StereoParam;
@@ -397,8 +392,8 @@ typedef enum
 typedef enum
 {
     SIPP_CV_WARP_OBUF_SOLO = 0,
-    SIPP_CV_WARP_OBUF_PRIMARY,
-    SIPP_CV_WARP_OBUF_SECONDARY
+    SIPP_CV_WARP_OBUF_MASTER,
+    SIPP_CV_WARP_OBUF_SLAVE
 
 } SIPP_CV_WARP_OBUF_TYPE;
 
@@ -511,15 +506,15 @@ typedef struct {
     // Now we need some other type of mode here when we want a filter to execute on more
     // than one image in parallel such as when doing U and V but that can come later...
     SIPP_CV_WARP_OP_MODE   opMode;         // 0: Single context/plane 1: Multi Context / plane
-    SIPP_CV_WARP_OBUF_TYPE oBufType;       // Signals if the warp output buffer is to be the primary buffer in a set
+    SIPP_CV_WARP_OBUF_TYPE oBufType;       // Signals if the warp output buffer is to be the master buffer in a set
                                            // This would apply for the output buffers for ALL contexts / planes
-    SippFilters *           primaryOBufFilt; // if oBufType == SIPP_CV_WARP_OBUF_SECONDARY, this signals where the primary
+    SippFilters *           masterOBufFilt; // if oBufType == SIPP_CV_WARP_OBUF_SLAVE, this signals where the master
                                            // filter is
-    SippFilters *           secondaryOBufFilts[(SIPP_HWCV_NUM_WARP_UNITS - 0x1)];
-                                           // if oBufType == SIPP_CV_WARP_OBUF_PRIMARY, this signals where the secondary
+    SippFilters *           slaveOBufFilts[(SIPP_HWCV_NUM_WARP_UNITS - 0x1)];
+                                           // if oBufType == SIPP_CV_WARP_OBUF_MASTER, this signals where the slave
                                            // filter(s) are
-    uint8_t                     secondaryOutContext;// Effectively states which output context this secondary will be working on
-                                           // In a striping scenario, all secondaries will also be working on context zero
+    uint8_t                     slaveOutContext;// Effectively states which output context this slave will be working on
+                                           // In a striping scenario, all slaves will also be working on context zero
                                            // In a plane stacking scenario where filter feeds a circular buffer,
                                            // the filter needs this info in order to correctly place output into the
                                            // correct plane / context
