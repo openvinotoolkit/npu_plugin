@@ -1,3 +1,6 @@
+/*
+* {% copyright %}
+*/
 #ifndef __PLG_M2I_TYPES_H__
 #define __PLG_M2I_TYPES_H__
 #include <iostream>

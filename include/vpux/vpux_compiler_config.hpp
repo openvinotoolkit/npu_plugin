@@ -119,5 +119,13 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(SCALE_FUSE_INPUT);
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT);
 
+/**
+ * @brief [Only for vpu compiler]
+ * Type: "YES/NO", default is "YES".
+ * Permute no-op layer can be used as dummy SW layer
+ * Used as workaround in HETERO plugin
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP);
+
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

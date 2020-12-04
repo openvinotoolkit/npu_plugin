@@ -36,7 +36,7 @@ addIeTargetTest(
         IE::commonTestUtils
         IE::ngraph
         IE::gmock
-        ${VPUSMM_LIB}
+        ${VPUMGR_LIBRARY}
         common_tests_helpers
         ${VPUX_PLUGIN_STATIC_TARGET}
         kmb_utils
