@@ -19,7 +19,7 @@
 #include "vpux/compiler/core/dim.hpp"
 #include "vpux/compiler/core/dim_values.hpp"
 
-#include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 #include <cstdint>
 

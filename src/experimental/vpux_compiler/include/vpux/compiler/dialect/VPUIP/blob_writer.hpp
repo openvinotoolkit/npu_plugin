@@ -28,8 +28,8 @@
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Operation.h>
-#include <mlir/IR/StandardTypes.h>
 #include <mlir/IR/Value.h>
 
 #include <flatbuffers/flatbuffers.h>

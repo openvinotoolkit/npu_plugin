@@ -22,7 +22,7 @@
 
 #include <mlir/Dialect/Shape/IR/Shape.h>
 #include <mlir/IR/BuiltinOps.h>
-#include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/SymbolTable.h>
 
 #include <unordered_set>

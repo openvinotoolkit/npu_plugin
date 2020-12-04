@@ -20,7 +20,7 @@
 
 #include "vpux/utils/core/format.hpp"
 
-#include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 

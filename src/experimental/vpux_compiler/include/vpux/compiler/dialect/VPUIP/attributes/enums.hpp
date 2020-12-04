@@ -20,8 +20,8 @@
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
-#include <mlir/IR/Attributes.h>
-#include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 //
 // Generated

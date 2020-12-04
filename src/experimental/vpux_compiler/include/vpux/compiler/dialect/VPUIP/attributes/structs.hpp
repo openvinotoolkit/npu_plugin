@@ -18,7 +18,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 
-#include <mlir/IR/Attributes.h>
+#include <mlir/IR/BuiltinAttributes.h>
 
 //
 // Generated

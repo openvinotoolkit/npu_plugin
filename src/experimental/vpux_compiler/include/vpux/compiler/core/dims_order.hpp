@@ -24,7 +24,7 @@
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/IR/AffineMap.h>
-#include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 #include <ie_layouts.h>
 

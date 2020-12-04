@@ -30,8 +30,8 @@
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Operation.h>
-#include <mlir/IR/StandardTypes.h>
 
 #include <precision_utils.h>
 

@@ -24,10 +24,10 @@
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/IR/Operation.h>
-#include <mlir/IR/StandardTypes.h>
 
 namespace vpux {
 

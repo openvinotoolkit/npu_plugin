@@ -25,9 +25,9 @@
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/DialectImplementation.h>
-#include <mlir/IR/StandardTypes.h>
 #include <mlir/IR/SymbolTable.h>
 #include <mlir/Interfaces/CopyOpInterface.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
