@@ -95,20 +95,11 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
     // query recorded model settings
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
     mv::Element globalParams = passList[0];
-    if (globalParams.hasAttr("recorded_model") )
+    if (globalParams.hasAttr("recorded_model") && globalParams.get<bool>("recorded_model"))
     {
-        bool recordModel = globalParams.get<bool>("recorded_model");
-        if (recordModel)
-        {
-            bool recordWeightsAsText = false;
-            if (globalParams.hasAttr("weights_form") )
-            {
-                std::string weights = globalParams.get<std::string>("weights_form");
-                if ( (weights == "text") || (weights == "Text") || (weights == "TEXT") )
-                    recordWeightsAsText = true;
-            }
-            model_->initRecordingFile("templateExampleNew.cpp", recordWeightsAsText);
-        }
+        bool recordWeightsAsText = 
+            globalParams.hasAttr("recordWeightsAsText") ? globalParams.get<bool>("recordWeightsAsText") : false;
+        model_->initRecordingFile("templateExampleNew.cpp", recordWeightsAsText);
     }
     return true;
 }

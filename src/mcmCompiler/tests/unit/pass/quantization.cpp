@@ -36,8 +36,6 @@ TEST(quantization, case_conv)
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
     compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
-    compDesc.setPassArg("GlobalConfigParams", "MemoryHack", false);
-    compDesc.setPassArg("GlobalConfigParams", "MemoryHack", false);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

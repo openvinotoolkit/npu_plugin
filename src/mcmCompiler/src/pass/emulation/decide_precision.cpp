@@ -283,41 +283,32 @@ void decidePrecision(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
         }
         if (weightsQuantized || inputQuantized)
         {
-            if (returnedParams->hasAttr("Int32Output"))
+            if (returnedParams->hasAttr("Int32Output") && returnedParams->get<bool>("Int32Output"))
             {
-                if (returnedParams->get<bool>("Int32Output"))
-                {
-                    opIt->getOutputTensor()[0]->setDType(mv::DType("Int32"));
-                }
+                opIt->getOutputTensor()[0]->setDType(mv::DType("Int32"));
             }
             //NOTE: HW limitation, in mixed mode the grids of the MPEs are conflicting between
             //each other, which leads to 1x1 workloads, so we will do an explicit conversion
             //in different cases
-            if (returnedParams->hasAttr("FloatOutput"))
+            if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput"))
             {
-                if (returnedParams->get<bool>("FloatOutput"))
+                if (opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
+                    opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1)
                 {
-                    if (opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
-                     opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1)
-                    {
-                        opIt->set<bool>("mixedToFloat", true);
-                        opIt->getOutputTensor()[0]->setDType(mv::DType("Float16"));
-                    }
-                    else
-                    {
-                        PredictionOfQuantizationOutput = true;
-                    }
+                    opIt->set<bool>("mixedToFloat", true);
+                    opIt->getOutputTensor()[0]->setDType(mv::DType("Float16"));
+                }
+                else
+                {
+                    PredictionOfQuantizationOutput = true;
                 }
             }
         }
         else
         {
-            if (returnedParams->hasAttr("FloatOutput"))
+            if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput"))
             {
-                if (returnedParams->get<bool>("FloatOutput"))
-                {
-                    opIt->set<bool>("floatPrecision", true);
-                }
+                opIt->set<bool>("floatPrecision", true);
             }
         }
     }

@@ -90,8 +90,8 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
     auto sortedOps = cm.topologicalSort();
 
     int _dma_dependency = 1;
-    if(passDesc.hasAttr("weights_prefetch"))
-        _dma_dependency = passDesc.get<int>("weights_prefetch");
+    if(om.hasGlobalConfigParam("weights_prefetch"))
+        _dma_dependency = om.getGlobalConfigParam("weights_prefetch").get<int>();
 
     auto dmas = om.getOps("DMATask");
 
