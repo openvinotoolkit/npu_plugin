@@ -129,6 +129,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     auto workloadCost = std::get<4>(compilationConfigs);
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     auto referenceDevice = globalParams->get<std::string>("referenceDevice");
+    auto target = td.getTarget();
 
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
@@ -165,7 +166,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             /*Depthwise cov SOH A0 workaround*/
             if(((opIt->get<std::string>("taskOp") == "DepthwiseConv") ||
                         (opIt->get<std::string>("taskOp") == "MaxPool")) &&
-                    (opIt->get<std::string>("splitStrategy") == "SplitOverH") && referenceDevice == "A0") {
+                    (opIt->get<std::string>("splitStrategy") == "SplitOverH") &&
+                    (target == mv::Target::ma2490 && referenceDevice == "A0")) {
                 depthWiseSOHA0Workaround = true;
                 opIt->set<std::string>("Depthwise_SOH_A0_bug", "True");
             }

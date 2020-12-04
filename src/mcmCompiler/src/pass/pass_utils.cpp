@@ -399,9 +399,9 @@ std::vector<mv::Data::OpListIterator> mv::findSinkLayers(mv::DataModel &dataMode
     return sinkOperations;
 }
 
-bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice)
+bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice, mv::Target target)
 {
-    if (referenceDevice != "A0")
+    if (target != mv::Target::ma2490 || referenceDevice != "A0")
         return false;
     auto sink = flow.sink();
     auto tensor = flow->getTensor();

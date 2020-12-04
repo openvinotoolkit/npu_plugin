@@ -4,6 +4,7 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/target/target_descriptor.hpp"
 
 //cause of the BASE_PTR is 9 bits, -4 for the 16 alignment according to zoran
 static const std::size_t SHIFT_FOR_STORAGE_ELEMENT = 5;
@@ -23,7 +24,7 @@ namespace mv
     mv::Data::OpListIterator linkNewMultipleOperationsReplacement(mv::Data::OpListIterator parentOpIt, std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel & om, mv::Data::OpListIterator opIt);
     mv::Data::OpListIterator linkNewOperationsReplacementRemoveFlows(mv::Data::OpListIterator childOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt);
     std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor);
-    bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice);
+    bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice, mv::Target target);
 
     bool isVectorsEqual(const std::vector<double>& left, const std::vector<double>& right);
     bool isEqualScale(const mv::QuantizationParams& left, const mv::QuantizationParams& right);

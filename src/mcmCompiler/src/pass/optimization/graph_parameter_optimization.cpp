@@ -1490,7 +1490,7 @@ namespace mv
 
                 if(op.getOpType() == "Conv" &&
                     op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
-                    !isCMConv && referenceDevice == "A0")
+                    !isCMConv && target == mv::Target::ma2490 && referenceDevice == "A0")
                         return true;
 
                 return false;
@@ -1515,7 +1515,7 @@ namespace mv
                 if (op.isSparsityConsumer() &&
                     op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
                     !isCMConv &&
-                    referenceDevice == "A0")
+                    target == mv::Target::ma2490 && referenceDevice == "A0")
                 {
                     return true;
                 }
@@ -1527,7 +1527,7 @@ namespace mv
                     if( clustering == "SplitOverH" &&
                         (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1) &&
                         !isCMConv &&
-                        referenceDevice == "A0")
+                        target == mv::Target::ma2490 && referenceDevice == "A0")
                         {
                             return true;
                         }
