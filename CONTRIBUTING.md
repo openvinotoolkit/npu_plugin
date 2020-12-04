@@ -2,42 +2,91 @@
 
 ## Merge Request Process
 
-1. The header of the MR must be filled out according to the MR template.
-2. There are CI jobs in the template which are run manually. 
-   Developer must ensure MR's header contains links to green CI for the latest commit.  
-3. There is precommit which is triggered for each MR. Precommit must be green.
-4. All discussions are resolved.
+1. Before the opening check that MR meets the requirements ([Request requirements](#request-requirements))
+2. The header of the MR must be filled out according to the MR template (need review template).
+3. MR must contain actual links to the CI results. [CI details](how-to-run-ci-jobs)
+4. MR must be reviewed ([Review process](#review-process))
+6. All discussions are resolved.
 
     * A discussion is closed by a developer who creates it, except there are no other explicit agreements
     * All discussion started with `Nitpick:` are not necessary and can be resolved by any developer
-  
-5. No "thumbs down" and some "thumbs up". The count of "thumbs up" depends
-   on changes which bring the MR.
-6. Changes in the MR must be covered by tests.
+
+6. MR must be approved. The count of approves depends on changes which bring the MR
 7. If the MR requires manual test runs, the test results have to be provided
    to reviewers through a MR discussion.
-8. When the points above are resolved, you may merge the Merge Request, or
-   if you do not have permission to do that, you may request the second reviewer
-   to merge it for you.
-   
-## How to run TeamCity Build All
-1. Go to the link provided in the MR template.
-2. Choose dldt branch to test (on the right side of `Build Keembay only` label)
-3. Press '...' button (on the right side of 'Run' button).
-4. Go to 'Parameters' tab and enter branch, you want to test, into 'reverse.dep.branch._KMB_plugin_branch'
-5. Press 'Run Build' button
-6. Attach a link to the job triggered in MR's description.
+8. When the points above are resolved, you need to reassign the Merge Request to ([Project Maintainers](#maintainers-list))
+   and ask him\her to merge. If everything is OK, the maintainer will merge MR.
+9. MRs with functionality required for an upcomming release after FF milestone should be targeting release branch directly.
+    * An MR with corresponding changes to master branch has to be created by the original MR author right after merge to release branch.
 
-## How to run IE-MDK job
-1. Go to the link provided in the MR template.
-2. Choose dldt and kmb-plugin branches, you want to test, by entering names of the branches into `dldt_branch` and  `kmb_plugin_branch` respectively.
-3. Select the following checkboxes:
-    * Platforms
-        * run_Ubuntu18
-        * run_Yocto_ARM
-    * Devices
-        * run_KMB
-        * run_HDDL2
-3. Press `Build` button.
-    * There will be a new job triggered. You can find the link to the job in `Build history`.
-4. Attach a link to the job in MR's description.
+### Request requirements
+* No warnings have been introduced
+* Does only one thing (Feature / Bug Fix / Optimization / Refactoring)
+* Must be up-to-date with target branch
+* Contains list of logically separated commits. Each commit as a separate small task
+    * Each commit has clear description what and why has been done
+        * With Jira number when applicable
+    * Request with one commit for all changes (except trivial ones) is not acceptable
+        * It is recommended to do fixes for review comments in separate commits so it's easier to review
+* Changes in the MR must be covered by tests
+    * Checks for new functionality/behavior
+    * Checks for fixed functionality/behavior
+    * All required tests were actually run during validation
+    * New layer must be covered in kmb-plugin per-layer tests
+    * New network must be covered in kmb-plugin network tests
+* For optimization additional information must be provided
+    * Baseline performance
+    * Optimized version performance
+* Clear description for all introduced changes in header
+* Link to the corresponding MR/PR if applicable
+* Link to Jira ticket
+* Approval from at least 2 reviewers
+* Appropriate tags\labels
+* Link to passed validation reports
+    * IE
+        * IE-MDK functional tests [IE MDK](https://wiki.ith.intel.com/display/VPUWIKI/Functional+validation+CI)
+        * Nets-validation performance and accuracy check [Nets-validation](https://wiki.ith.intel.com/display/VPUWIKI/Nets-validation+CI)
+    * MDK
+        * List of Jobs ???
+    * If validation is failed due to infrastructure issues:
+         * It should be reported to CI-master\Maintainer\Teams-channel -OPEN
+* If in the process of development or review new issues that should be fixed in a separated request
+ have been found then appropriate ticket should be created
+
+### Review process
+* Request must satisfy requirements
+* Request should be assigned to a reviewer first (not maintainers)
+    * If you feel you don't have required expertise ask someone else to review
+* Request is assigned to a project maintainer only if review has been completed and requirements have been satisfied
+* Reviewers should expclicitly notify the MR author that they don't have other comments
+* Request can be reviewed by any member of team, but approval is required from reviewers specified by author
+* Check that request is targeted to the correct branch (e.g. master or release)
+* Maintainer might perform additional code review and ask for changes in case of significant issues not covered by code reviewers
+
+### Responsibilities
+
+#### Request Author
+* Arranging a request in according to the requirements
+* Merging and passing review in time
+* Immediate blockers escalating if any
+* The author must take the initiative to solve the problems
+* Make sure the functionality reached all the target branches (releases and master)
+
+#### Reviewer
+* Making review in according to the review process
+* Reviewer is responsible for what was actually merged
+
+#### Maintainer
+* Resolving request dependencies and merging functionality in right order
+* Check all requirements
+* Make sure there is no potential conflicts with other changes merged recently
+
+#### Maintainers List
+* Vladislav Vinogradov
+* Artemy Skrebkov
+* Alexander Novak
+* Sergey Losev
+
+## How to run CI jobs
+1. [IE MDK](https://wiki.ith.intel.com/display/VPUWIKI/Functional+validation+CI)
+2. [Nets-validation](https://wiki.ith.intel.com/display/VPUWIKI/Nets-validation+CI)
