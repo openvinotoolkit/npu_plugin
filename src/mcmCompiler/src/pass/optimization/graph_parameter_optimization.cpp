@@ -106,6 +106,7 @@ namespace mv
                 SparsitySpilling,
                 DeConvSubConvSOKHeight,
                 SpiltOverHForLayer79InACLNet,
+                SpiltOverHForLayer97and113ModelE,
                 SplitOverHOverlappedWronglyComputed,
                 SoftwareDeconvolutionSet,
                 UpaHKSwitch
@@ -136,6 +137,7 @@ namespace mv
                 {FailCause::SparsitySpilling, "SparsitySpilling"},
                 {FailCause::DeConvSubConvSOKHeight, "DeConvSubConvSOKHeight"},
                 {FailCause::SpiltOverHForLayer79InACLNet, "SpiltOverHForLayer79InACLNet"},
+                {FailCause::SpiltOverHForLayer97and113ModelE, "SpiltOverHForLayer97and113ModelE"},
                 {FailCause::SoftwareDeconvolutionSet, "SoftwareDeconvolutionSet"},
                 {FailCause::UpaHKSwitch, "UpaHKSwitch"}
             };
@@ -1025,7 +1027,6 @@ namespace mv
                 if(strategy["outputSparsity"].get<bool>() &&
                     isStreaming)
                     return FailCause::SparsitySpilling;
-
                 if(requiresFakeActivationSparsity(op) && strategy["inputSparsity"].get<bool>())
                     return FailCause::RealSparseForFakeSparseOp;
 
@@ -1084,6 +1085,15 @@ namespace mv
                 if (clustering == "SplitOverH" &&
                     (streamShape["H"] > 1) && !spilling)
                     return FailCause::SpiltOverHWithStreamOverHInCMX;
+                
+                // This is intended to be a temporary workaround for ModelE, layer '97' & '113', which does work with SOH
+                // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 80 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 48 &&
+                    op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 80 &&
+                    op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 48 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
+                    return FailCause::SpiltOverHForLayer97and113ModelE;
 
                 // This is intended to be a temporary workaround for ACLnet, layer '79', which does work with SOH
                 // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
@@ -1107,6 +1117,7 @@ namespace mv
                                 return FailCause::SoftwareDeconvolutionSet;
                      }
                 }
+           
                 //temporarily disable the SplitOverHOverlapped for custom network kernel size 7x7 subtensors not correct
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 &&
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72 &&
@@ -1787,7 +1798,6 @@ namespace mv
                         return INF;
                     }
                 }
-
                 //Note: these are full cost, across all streams, used in serial computation
                 //Also used to calculate sparsity overhead vs. speedup in child
                 auto pFullComp = computeTime(parentOp,parent);
@@ -1977,18 +1987,39 @@ namespace mv
                 {
                     if (childClustering == "HKSwitch")
                         return true;
+
+                    bool modelAWA = false;
+                    if (childOp.getOpType() == "Conv" && childOp.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 80 &&
+                        childOp.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 44 && childOp.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 44 &&
+                        childOp.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 72 && childOp.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 22 &&
+                        childOp.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 22 && childOp.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
+                        childOp.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
+                    {
+                        modelAWA = true;
+                    }
+                    if (childOp.getOpType() == "Conv" && childOp.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 48 &&
+                        childOp.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 22 && childOp.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 22 &&
+                        childOp.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 48 && childOp.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 22 &&
+                        childOp.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 22 && childOp.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
+                        childOp.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
+                    {
+                        modelAWA = true;
+                    }
+
                     //NOTE: For now I disable parent spill SOH->child (Clustering, K) for Z major convs
+                    //Workaround added to enable SplitOverH for ModelA - Perf
                     if (parentClustering == "SplitOverH" && ((childClustering == "Clustering" && childOpType !=  "Output") ||
-                                                              childClustering == "SplitOverK"))
+                                                              childClustering == "SplitOverK") && !modelAWA)
+
                     {
                         if (!(enableChannelMajorConv &&
                             ((parentOpType == "Conv" &&
                             parentOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16) ||
                             (childOpType == "Conv" &&
                             childOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16))) )
-                            {
-                                return true;
-                            }
+
+                            return true;
+
                     }
                 }
                 else
