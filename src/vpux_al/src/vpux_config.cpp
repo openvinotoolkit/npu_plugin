@@ -48,6 +48,7 @@ vpux::VPUXConfig::VPUXConfig() {
                                                                                VPUX_CONFIG_KEY(PREPROCESSING_PIPES),
                                                                                VPUX_CONFIG_KEY(EXECUTOR_STREAMS),
                                                                                VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS),
+                                                                               VPUX_CONFIG_KEY(INFERENCE_TIMEOUT),
                                                                        });
 }
 
@@ -68,6 +69,7 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
 
     // Public options
     setOption(_performanceCounting, switches, config, CONFIG_KEY(PERF_COUNT));
+
     setOption(_deviceId, config, CONFIG_KEY(DEVICE_ID));
     setOption(_throughputStreams, config, VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
     setOption(_throughputStreams, config, KMB_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
@@ -79,6 +81,7 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_platform, vpuxPlatform, config, VPUX_CONFIG_KEY(PLATFORM));
 
     // Private options
+    setOption(_inferenceTimeoutMs, config, VPUX_CONFIG_KEY(INFERENCE_TIMEOUT), parseInt);
     setOption(_useNGraphParser, switches, config, VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER));
     static const std::unordered_map<std::string, IE::ColorFormat> colorFormat = {
             {VPUX_CONFIG_VALUE(BGR), IE::ColorFormat::BGR},
