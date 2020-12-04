@@ -53,7 +53,7 @@ public:
     std::vector<mv::TensorInfo> resolveStageOutputs(const CustomLayer& customLayer,
                                                     const std::vector<StageOutput>& stageOutputs);
 
-    StageInfo parseKernelArguments(const std::vector<CustomKernel::BindingParameter>& bindings);
+    StageInfo parseKernelArguments(const SmallVector<CustomKernel::BindingParameter>& bindings);
     uint32_t parseBufferSize(const CustomKernel::BindingParameter& binding);
     void addBuffer(int port, const mv::Data::TensorIterator& bufferIt);
 };

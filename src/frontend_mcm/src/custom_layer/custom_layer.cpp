@@ -209,12 +209,11 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
 
     for (const auto& kernel : _kernels) {
         for (const auto& binding : kernel->bindings()) {
-            const auto& param = binding.second;
-            if (param.type == CustomParamType::Input) {
-                addPorts(_inputs, param);
+            if (binding.type == CustomParamType::Input) {
+                addPorts(_inputs, binding);
             }
-            if (param.type == CustomParamType::Output) {
-                addPorts(_outputs, param);
+            if (binding.type == CustomParamType::Output) {
+                addPorts(_outputs, binding);
             }
         }
     }
@@ -310,10 +309,10 @@ bool CustomLayer::meetsWhereRestrictions(const std::map<std::string, std::string
 
 SizeRuleValidator::SizeRuleValidator(
     CustomLayer::Ptr customLayer,
-    std::map<std::string, std::string> cnnLayerParams,
+    const std::map<std::string, std::string>& cnnLayerParams,
     Logger::Ptr logger) :
     _customLayer(std::move(customLayer)),
-    _cnnLayerParams(std::move(cnnLayerParams)),
+    _cnnLayerParams(cnnLayerParams),
     _logger(std::move(logger)){}
 
 void SizeRuleValidator::visitCpp(const CustomKernelCpp&) {
@@ -330,7 +329,7 @@ void SizeRuleValidator::visitCL(const CustomKernelOcl &kernel) {
 
     const auto validGridSizes = std::all_of(begin(gws), end(gws), validSizeRule) && std::all_of(begin(lws), end(lws), validSizeRule);
 
-    const auto workGroupDims = 3;
+    const size_t workGroupDims = 3;
     VPU_THROW_UNLESS(lws.size() <= workGroupDims,
                      "Failed to parse '%s' custom layer binding list. Local work group size count "
                      "is greater than 3.",

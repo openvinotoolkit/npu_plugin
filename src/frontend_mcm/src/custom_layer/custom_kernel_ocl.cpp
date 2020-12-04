@@ -12,6 +12,11 @@
 
 namespace vpu {
 
+struct Argument final {
+    std::string name;
+    uint32_t    typeSize;
+};
+
 VPU_PACKED(Elf32Shdr {
     uint32_t shName;
     uint32_t pad0[3];
@@ -67,13 +72,13 @@ static const Elf32Shdr* get_elf_section_with_name(const uint8_t* elf_data, const
     return nullptr;
 }
 
-SmallVector<CustomKernel::Argument> deduceKernelArguments(const md_parser_t& parser, int kernelId) {
+SmallVector<Argument> deduceKernelArguments(const md_parser_t& parser, int kernelId) {
     const auto kernelDesc = parser.get_kernel(kernelId);
     IE_ASSERT(kernelDesc != nullptr);
     // Number of elements we get from parser is always greater by one
     const auto argCount = kernelDesc->arg_count - 1;
 
-    auto arguments = SmallVector<CustomKernel::Argument>{};
+    auto arguments = SmallVector<Argument>{};
     arguments.reserve(argCount);
     for (size_t i = 0; i < argCount; i++) {
         const auto arg = parser.get_argument(kernelDesc, i);
@@ -85,19 +90,14 @@ SmallVector<CustomKernel::Argument> deduceKernelArguments(const md_parser_t& par
             continue;
         }
 
-        arguments.emplace_back(argName);
+        arguments.emplace_back(Argument{argName, arg->size_elm});
     }
 
     return arguments;
 }
 
-CustomKernelOcl::CustomKernelOcl(const pugi::xml_node& node, const std::string& configDir) {
-    _maxShaves = XMLParseUtils::GetIntAttr(node, "max-shaves", 0);
-    _kernelBinary = loadKernelBinary(node, configDir);
-
-    const auto kernelEntryName = XMLParseUtils::GetStrAttr(node, "entry");
-
-    const auto elf = _kernelBinary.data();
+md_parser_t createParser(const std::vector<uint8_t>& kernelBinary) {
+    const auto elf = kernelBinary.data();
     const Elf32Shdr* neoMetadataShdr = get_elf_section_with_name(elf, ".neo_metadata");
     VPU_THROW_UNLESS(neoMetadataShdr, "Error while parsing custom layer elf: Couldn't find .neo_metadata section");
 
@@ -112,6 +112,17 @@ CustomKernelOcl::CustomKernelOcl(const pugi::xml_node& node, const std::string& 
     const size_t neoMetadataStrSize = neoMetadataStrShdr->shSize;
 
     const auto parser = md_parser_t{neoMetadata, neoMetadataSize, neoMetadataStr, neoMetadataStrSize};
+    return parser;
+}
+
+CustomKernelOcl::CustomKernelOcl(const pugi::xml_node& node, const std::string& configDir) {
+    _maxShaves = XMLParseUtils::GetIntAttr(node, "max-shaves", 0);
+    _kernelBinary = loadKernelBinary(node, configDir);
+
+    processWorkSizesNode(node);
+
+    md_parser_t parser = createParser(_kernelBinary);
+    const auto kernelEntryName = XMLParseUtils::GetStrAttr(node, "entry");
     _kernelId = parser.get_kernel_id(kernelEntryName);
     VPU_THROW_UNLESS(_kernelId != -1, "Failed to find kernel with name `%l`", kernelEntryName);
 
@@ -119,18 +130,34 @@ CustomKernelOcl::CustomKernelOcl(const pugi::xml_node& node, const std::string& 
         "Failed to load kernel binary\n"
         "\tReason: binary should contain only one kernel, but contains %l",
         parser.get_kernel_count());
-    _kernelArguments = deduceKernelArguments(parser, _kernelId);
 
-    processParametersNode(node);
-    processWorkSizesNode(node);
+    auto arguments = deduceKernelArguments(parser, _kernelId);
+    auto bindings = processParametersNode(node);
 
-    const auto isInputData = [&](const std::pair<std::string, CustomKernel::BindingParameter>& binding) {
-        const auto& param = binding.second;
+    for (const auto& argument : arguments) {
+        const auto withBindingName = [&](const BindingParameter& bind) {
+            return bind.argName == argument.name;
+        };
+
+        auto binding = std::find_if(begin(bindings), end(bindings), withBindingName);
+        IE_ASSERT(binding != bindings.end());
+
+        if(binding->type == CustomParamType::Output &&
+            argument.typeSize != 1 && argument.typeSize != 2) {
+            VPU_THROW_EXCEPTION << "Custom layer output parameter '" << argument.name
+                                << "' has unsupported output data type with "
+                                << "underlying type size = " << argument.typeSize;
+        }
+
+        _kernelBindings.push_back(*binding);
+    }
+
+    const auto isInputData = [&](const CustomKernel::BindingParameter& param) {
         return param.type == CustomParamType::Input || param.type == CustomParamType::InputBuffer ||
                param.type == CustomParamType::Data;
     };
 
-    _inputDataCount = std::count_if(begin(_bindings), end(_bindings), isInputData);
+    _inputDataCount = std::count_if(begin(_kernelBindings), end(_kernelBindings), isInputData);
 }
 
 void CustomKernelOcl::accept(CustomKernelVisitor& validator) const {

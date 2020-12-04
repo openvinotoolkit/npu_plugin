@@ -2055,23 +2055,7 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
 
     int stageIdx = 0;
     for (const auto& kernel : customLayer->kernels()) {
-        const auto sortedKernelBindings = [&] {
-            auto bindings = std::vector<CustomKernel::BindingParameter>{};
-            bindings.reserve(kernel->arguments().size());
-
-            for (const auto& arg : kernel->arguments()) {
-                const auto& binding = kernel->bindings().find(arg);
-                VPU_THROW_UNLESS(binding != kernel->bindings().end(),
-                                 "Failed to bind '%s' custom layer. "
-                                 "Can't find kernel argument '%s' in binding list.",
-                                 customLayer->layerName(), arg);
-                bindings.push_back(binding->second);
-            }
-
-            return bindings;
-        }();
-
-        const auto stage = parser.parseKernelArguments(sortedKernelBindings);
+        const auto stage = parser.parseKernelArguments(kernel->bindings());
 
         const auto kernelData = parser.resolveKernelArguments(*kernel, stage.arguments);
         const auto stageOutputs = parser.resolveStageOutputs(*customLayer, stage.outputs);

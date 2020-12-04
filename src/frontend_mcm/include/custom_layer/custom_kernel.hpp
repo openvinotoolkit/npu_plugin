@@ -50,12 +50,9 @@ public:
         int dimIdx = -1;
     };
 
-
-    using Argument = std::string;
 protected:
     std::vector<uint8_t> _kernelBinary;
-    std::unordered_map<std::string, BindingParameter> _bindings;
-    SmallVector<Argument> _kernelArguments;
+    SmallVector<BindingParameter> _kernelBindings;
 
     CustomDimSource _wgDimSource = CustomDimSource::Input;
     int _wgDimIdx = -1;
@@ -67,11 +64,8 @@ public:
     const std::vector<uint8_t>& kernelBinary() const {
         return _kernelBinary;
     }
-    const std::unordered_map<std::string, BindingParameter>& bindings() const {
-        return _bindings;
-    }
-    const SmallVector<Argument>& arguments() const {
-        return _kernelArguments;
+    const SmallVector<BindingParameter>& bindings() const {
+        return _kernelBindings;
     }
 
     CustomDimSource dimSource() const {
@@ -92,7 +86,7 @@ public:
 
 protected:
     std::vector<uint8_t> loadKernelBinary(const pugi::xml_node& node, const std::string& configDir);
-    void processParametersNode(const pugi::xml_node& node);
+    SmallVector<CustomKernel::BindingParameter> processParametersNode(const pugi::xml_node& node);
     std::pair<CustomDimSource, int> parseDimSource(const std::string& dims);
     CustomDataFormat formatFromString(const std::string& str);
     SmallVector<std::string> parseSizeRule(const std::string& size);

@@ -63,7 +63,7 @@ private:
 class SizeRuleValidator : public CustomKernelVisitor {
 public:
     explicit SizeRuleValidator(CustomLayer::Ptr customLayer,
-                               std::map<std::string, std::string> cnnLayerParams,
+                               const std::map<std::string, std::string>& cnnLayerParams,
                                Logger::Ptr logger = {});
 
     void visitCpp(const CustomKernelCpp& kernel) override;
@@ -73,7 +73,7 @@ public:
 
 private:
     CustomLayer::Ptr _customLayer;
-    std::map<std::string, std::string> _cnnLayerParams;
+    const std::map<std::string, std::string>& _cnnLayerParams;
     Logger::Ptr _logger;
     bool _result = false;
 };

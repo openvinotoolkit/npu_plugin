@@ -79,7 +79,7 @@ SmallVector<std::string> CustomKernel::parseSizeRule(const std::string& size) {
     return result;
 }
 
-void CustomKernel::processParametersNode(const pugi::xml_node& node) {
+SmallVector<CustomKernel::BindingParameter> CustomKernel::processParametersNode(const pugi::xml_node& node) {
     const auto cmp = ie::details::CaselessEq<std::string>{};
     const auto parameters = node.child("Parameters");
     auto bindings = SmallVector<BindingParameter>{};
@@ -173,9 +173,7 @@ void CustomKernel::processParametersNode(const pugi::xml_node& node) {
         bindings.push_back(std::move(kp));
     }
 
-    for (auto& binding : bindings) {
-        _bindings[binding.argName] = std::move(binding);
-    }
+    return bindings;
 }
 
 }  // namespace vpu

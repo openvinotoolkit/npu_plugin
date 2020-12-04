@@ -67,12 +67,12 @@ public:
         const auto& wgDataDesc = wgDimSource.at(kernel.dimSourceIndex());
 
         auto lwgs = calcSizesFromParams(wgDataDesc, kernel.localGridSizeRules(), _cnnLayerParams);
-        for (int i = lwgs.size(); i < workGroupDims; i++) {
+        for (auto i = lwgs.size(); i < workGroupDims; i++) {
             lwgs.push_back(1);
         }
 
         auto gwgs = calcSizesFromParams(wgDataDesc, kernel.globalGridSizeRules(), _cnnLayerParams);
-        for (int i = gwgs.size(); i < workGroupDims; i++) {
+        for (auto i = gwgs.size(); i < workGroupDims; i++) {
             gwgs.push_back(1);
         }
 
@@ -161,10 +161,10 @@ std::vector<mv::TensorInfo> CustomLayerParser::resolveStageOutputs(
     return kernelOutputs;
 }
 
-CustomLayerParser::StageInfo CustomLayerParser::parseKernelArguments(const std::vector<CustomKernel::BindingParameter>& bindings) {
+CustomLayerParser::StageInfo CustomLayerParser::parseKernelArguments(const SmallVector<CustomKernel::BindingParameter>& bindings) {
     const auto floatAsInt = [](const float f) {
         uint32_t i;
-        memcpy(&i, &f, 4);
+        memcpy(&i, &f, sizeof(i));
         return i;
     };
 

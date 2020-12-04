@@ -74,23 +74,23 @@ static void grn_NCHW(const half* src_data, half* dst_data, int C, int W, float b
         int c = 0;
         for (; c <= C - 4; c += 4)
         {
-            half8 psrc00 = *((const half8*)(src_data + (c + 0) * W + x));
-            half8 psrc01 = *((const half8*)(src_data + (c + 1) * W + x));
-            half8 psrc02 = *((const half8*)(src_data + (c + 2) * W + x));
-            half8 psrc03 = *((const half8*)(src_data + (c + 3) * W + x));
-            half8 psrc10 = *((const half8*)(src_data + (c + 0) * W + x + 8));
-            half8 psrc11 = *((const half8*)(src_data + (c + 1) * W + x + 8));
-            half8 psrc12 = *((const half8*)(src_data + (c + 2) * W + x + 8));
-            half8 psrc13 = *((const half8*)(src_data + (c + 3) * W + x + 8));
+            const half8 psrc00 = *((const half8*)(src_data + (c + 0) * W + x));
+            const half8 psrc01 = *((const half8*)(src_data + (c + 1) * W + x));
+            const half8 psrc02 = *((const half8*)(src_data + (c + 2) * W + x));
+            const half8 psrc03 = *((const half8*)(src_data + (c + 3) * W + x));
+            const half8 psrc10 = *((const half8*)(src_data + (c + 0) * W + x + 8));
+            const half8 psrc11 = *((const half8*)(src_data + (c + 1) * W + x + 8));
+            const half8 psrc12 = *((const half8*)(src_data + (c + 2) * W + x + 8));
+            const half8 psrc13 = *((const half8*)(src_data + (c + 3) * W + x + 8));
 
-            float8 fsrc00 = mvuConvert_float8(psrc00);
-            float8 fsrc01 = mvuConvert_float8(psrc01);
-            float8 fsrc02 = mvuConvert_float8(psrc02);
-            float8 fsrc03 = mvuConvert_float8(psrc03);
-            float8 fsrc10 = mvuConvert_float8(psrc10);
-            float8 fsrc11 = mvuConvert_float8(psrc11);
-            float8 fsrc12 = mvuConvert_float8(psrc12);
-            float8 fsrc13 = mvuConvert_float8(psrc13);
+            const float8 fsrc00 = mvuConvert_float8(psrc00);
+            const float8 fsrc01 = mvuConvert_float8(psrc01);
+            const float8 fsrc02 = mvuConvert_float8(psrc02);
+            const float8 fsrc03 = mvuConvert_float8(psrc03);
+            const float8 fsrc10 = mvuConvert_float8(psrc10);
+            const float8 fsrc11 = mvuConvert_float8(psrc11);
+            const float8 fsrc12 = mvuConvert_float8(psrc12);
+            const float8 fsrc13 = mvuConvert_float8(psrc13);
 
             variance0 += fsrc00 * fsrc00;
             variance0 += fsrc01 * fsrc01;
@@ -104,11 +104,11 @@ static void grn_NCHW(const half* src_data, half* dst_data, int C, int W, float b
         }
         for (; c < C; c++)
         {
-            half8 psrc0 = *((const half8*)(src_data + c*W + x));
-            half8 psrc1 = *((const half8*)(src_data + c*W + x + 8));
+            const half8 psrc0 = *((const half8*)(src_data + c*W + x));
+            const half8 psrc1 = *((const half8*)(src_data + c*W + x + 8));
 
-            float8 fsrc0 = mvuConvert_float8(psrc0);
-            float8 fsrc1 = mvuConvert_float8(psrc1);
+            const float8 fsrc0 = mvuConvert_float8(psrc0);
+            const float8 fsrc1 = mvuConvert_float8(psrc1);
 
             variance0 += fsrc0 * fsrc0;
             variance1 += fsrc1 * fsrc1;
@@ -120,14 +120,14 @@ static void grn_NCHW(const half* src_data, half* dst_data, int C, int W, float b
         c = 0;
         for (; c <= C - 4; c += 4)
         {
-            half8 psrc00 = *((const half8*)(src_data + (c + 0) * W + x));
-            half8 psrc01 = *((const half8*)(src_data + (c + 1) * W + x));
-            half8 psrc02 = *((const half8*)(src_data + (c + 2) * W + x));
-            half8 psrc03 = *((const half8*)(src_data + (c + 3) * W + x));
-            half8 psrc10 = *((const half8*)(src_data + (c + 0) * W + x + 8));
-            half8 psrc11 = *((const half8*)(src_data + (c + 1) * W + x + 8));
-            half8 psrc12 = *((const half8*)(src_data + (c + 2) * W + x + 8));
-            half8 psrc13 = *((const half8*)(src_data + (c + 3) * W + x + 8));
+            const half8 psrc00 = *((const half8*)(src_data + (c + 0) * W + x));
+            const half8 psrc01 = *((const half8*)(src_data + (c + 1) * W + x));
+            const half8 psrc02 = *((const half8*)(src_data + (c + 2) * W + x));
+            const half8 psrc03 = *((const half8*)(src_data + (c + 3) * W + x));
+            const half8 psrc10 = *((const half8*)(src_data + (c + 0) * W + x + 8));
+            const half8 psrc11 = *((const half8*)(src_data + (c + 1) * W + x + 8));
+            const half8 psrc12 = *((const half8*)(src_data + (c + 2) * W + x + 8));
+            const half8 psrc13 = *((const half8*)(src_data + (c + 3) * W + x + 8));
 
             half8* pdst0 = (half8*)(dst_data + (c + 0) * W + x);
             half8* pdst1 = (half8*)(dst_data + (c + 1) * W + x);
@@ -146,8 +146,8 @@ static void grn_NCHW(const half* src_data, half* dst_data, int C, int W, float b
         }
         for (; c < C; c++)
         {
-            half8 psrc0 = *((const half8*)(src_data + c*W + x));
-            half8 psrc1 = *((const half8*)(src_data + c*W + x + 8));
+            const half8 psrc0 = *((const half8*)(src_data + c*W + x));
+            const half8 psrc1 = *((const half8*)(src_data + c*W + x + 8));
 
             half8* pdst = (half8*)(dst_data + c*W + x);
 

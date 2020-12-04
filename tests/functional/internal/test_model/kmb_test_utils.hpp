@@ -99,3 +99,19 @@ enum class KernelType : int {
     Ocl,
     Cpp,
 };
+
+inline std::ostream& operator<<(std::ostream& os, const KernelType& p) {
+    switch (p) {
+        case KernelType::Native:
+            vpu::formatPrint(os, "Native");
+            break;
+        case KernelType::Ocl:
+            vpu::formatPrint(os, "OCL");
+            break;
+        case KernelType::Cpp:
+            vpu::formatPrint(os, "CPP");
+            break;
+    }
+
+    return os;
+}

@@ -25,9 +25,9 @@ void  CTCDecoder(const half *probabilities,
                             int width,
                             int height,
                             int channels) {
-    int T_ = channels;
-    int B_ = height;
-    int C_ = width;
+    const int T_ = channels;
+    const int B_ = height;
+    const int C_ = width;
 
     // Fill output with -1
     for (int i = 0; i < B_ * T_; i++)
@@ -40,8 +40,8 @@ void  CTCDecoder(const half *probabilities,
     for(int b = 0; b < B_; ++b)
     {
         const half *seq_ind = sequenceIndicators + b*T_;
-        int seq_len = std::find(seq_ind + 1, seq_ind + T_, 0.h) - seq_ind;
-        int time = std::min(seq_len, T_);
+        const int seq_len = std::find(seq_ind + 1, seq_ind + T_, 0.h) - seq_ind;
+        const int time = std::min(seq_len, T_);
 
         int prev_class_idx = -1;
 

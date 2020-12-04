@@ -7,8 +7,8 @@
 
 namespace vpu {
 
-SmallVector<CustomKernel::Argument> deduceKernelArguments(const pugi::xml_node& node) {
-    auto arguments = SmallVector<CustomKernel::Argument>{};
+SmallVector<std::string> deduceKernelArguments(const pugi::xml_node& node) {
+    auto arguments = SmallVector<std::string>{};
     for(const auto& child : node.child("Parameters")) {
         arguments.push_back(XMLParseUtils::GetStrAttr(child, "arg-name"));
     }
@@ -20,17 +20,28 @@ CustomKernelCpp::CustomKernelCpp(const pugi::xml_node &node, const std::string &
     _maxShaves = XMLParseUtils::GetIntAttr(node, "max-shaves", 0);
     _kernelBinary = loadKernelBinary(node, configDir);
 
-    processParametersNode(node);
     processWorkSizesNode(node);
 
-    const auto isInputData = [&](const std::pair <std::string, CustomKernel::BindingParameter> &binding) {
-        const auto &param = binding.second;
+    auto bindings = processParametersNode(node);
+    auto arguments = deduceKernelArguments(node);
+
+    for (const auto& argument : arguments) {
+        const auto withBindingName = [&](const BindingParameter& bind) {
+            return bind.argName == argument;
+        };
+
+        auto binding = std::find_if(begin(bindings), end(bindings), withBindingName);
+        IE_ASSERT(binding != bindings.end());
+
+        _kernelBindings.push_back(*binding);
+    }
+
+    const auto isInputData = [&](const CustomKernel::BindingParameter& param) {
         return param.type == CustomParamType::Input || param.type == CustomParamType::InputBuffer ||
                param.type == CustomParamType::Data;
     };
 
-    _inputDataCount = std::count_if(begin(_bindings), end(_bindings), isInputData);
-    _kernelArguments = deduceKernelArguments(node);
+    _inputDataCount = std::count_if(begin(_kernelBindings), end(_kernelBindings), isInputData);
 }
 
 void CustomKernelCpp::accept(CustomKernelVisitor &validator) const {
