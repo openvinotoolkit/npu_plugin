@@ -2,7 +2,7 @@
 
 ## Merge Request Process
 
-1. Before the opening check that MR meet the requirements ([Request requirements](#request-requirements))
+1. Before the opening check that MR meets the requirements ([Request requirements](#request-requirements))
 2. The header of the MR must be filled out according to the MR template (need review template).
 3. MR must contain actual links to the CI results. [CI details](how-to-run-ci-jobs)
 4. MR must be reviewed ([Review process](#review-process))
@@ -56,6 +56,7 @@
 * Request should be assigned to a reviewer first (not maintainers)
     * If you feel you don't have required expertise ask someone else to review
 * Request is assigned to a project maintainer only if review has been completed and requirements have been satisfied
+* Reviewers should expclicitly notify the MR author that they don't have other comments
 * Request can be reviewed by any member of team, but approval is required from reviewers specified by author
 * Check that request is targeted to the correct branch (e.g. master or release)
 * Maintainer might perform additional code review and ask for changes in case of significant issues not covered by code reviewers
