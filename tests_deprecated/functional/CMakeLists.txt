@@ -10,6 +10,11 @@ endif()
 if (UNIX)
     set(TARGET_NAME "KmbFunctionalTests")
 
+    set(XLINK_LIB "")
+    if(AARCH64)
+        set(XLINK_LIB "XLink")
+    endif()
+
     find_package(Boost REQUIRED COMPONENTS system filesystem)
 
     addIeTargetTest(
@@ -34,6 +39,7 @@ if (UNIX)
                 IE::ngraph
                 IE::ngraph_reference
                 ${VPUSMM_LIB}
+                ${XLINK_LIB} # required for getAvailableDevices test
                 kmb_utils
                 Boost::filesystem
                 common_tests_helpers
