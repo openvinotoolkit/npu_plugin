@@ -1386,6 +1386,19 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 sourceIsBroadCasted = true;
         }
     }
+    else if (direction == mv::DmaDirectionEnum::NNCMX2DDR)
+    {
+        if (outputTensor->hasAttr("overwriteStrategy"))
+        {
+            if (outputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+            {
+                sourceIsBroadCasted = false;
+                splitting = "SoHToClustering";
+            }
+            else if (outputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
+                sourceIsBroadCasted = true;
+        }
+    }
 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
 
@@ -1406,34 +1419,23 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
         auto sinkOperators = findSinkLayers(dm, omOpIt->getOutputTensor(0));
 
-        if (sinkOperators[0]->getOpType() == "Align")
+        if ((sinkOperators[0]->getOpType() == "Align" && sinkOperators[0]->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped") ||
+            (omOpIt->getOutputTensor(0)->hasAttr("splitStrategy") && omOpIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
         {
-            if (sinkOperators[0]->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
+            if (parentOp->getOpType() == "DMATask")
             {
+                // Indicate dmaToDma case if we have DMA(CMX2DDR)->DMA(DDR2CMX)
                 auto parentDirection = parentOp->get<mv::DmaDirection>("direction");
                 if (parentDirection == mv::NNCMX2DDR && direction == mv::DDR2NNCMX)
-                {
                     dmaToDma = true;
-                }
             }
-        }
-        else if (omOpIt->getOutputTensor(0)->hasAttr("splitStrategy"))
-        {
-            if (omOpIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
+            else if ((parentOp->getOpType() == "ImplicitConcat" && direction == mv::DDR2NNCMX))
             {
-                if (parentOp->getOpType() == "DMATask")
-                {
-                    auto parentDirection = parentOp->get<mv::DmaDirection>("direction");
-                    if (parentDirection == mv::NNCMX2DDR && direction == mv::DDR2NNCMX)
-                        dmaToDma = true;
-                }
-                else if ((parentOp->getOpType() == "ImplicitConcat" && direction == mv::DDR2NNCMX))
-                {
-                    dmaToDma = true;
-                }
+                // Indicate dmaToDma case if we have DMA(CMX2DDR)->ImplicitConcat->DMA(DDR2CMX)
+                // TODO: Concat case should be revisited as concat might happen in CMX
+                dmaToDma = true;
             }
         }
-
     }
 
     std::uint8_t port = opIt->get<std::uint8_t>("port");
@@ -2910,7 +2912,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& /*c
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto toBuild = new MVCNN::UPALayerTaskT();
-    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CustomLayerParams;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CustomLayerOclParams;
 
     for (size_t i = 0; i < opIt->inputSlots(); i++) {
         const auto input = opIt->getInputTensor(i);
@@ -2922,7 +2924,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomTask(ComputationModel& cm
         toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
     }
 
-    auto softParams = new MVCNN::CustomLayerParamsT();
+    auto softParams = new MVCNN::CustomLayerOclParamsT();
     toBuild->softLayerParams.value = softParams;
 
     softParams->leonPreambleID = -1u;  // unused
@@ -3374,14 +3376,24 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
                 {
                     if (inputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
                         sourceIsBroadCasted = false;
+                    else if (inputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+                        sourceIsBroadCasted = true;
                 }
             }
-            //NOTE: In case I spill from soh and I bring a sok tensor is not broadcasted
-            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverH" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK")
-                    || (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK"))
-                toReturn = 1;
-            // NOTE: a sok tensor might come from a different strategy op
-            else if(!sourceIsBroadCasted)
+            else if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2DDR)
+            {
+                auto outputTensor = opIt->getOutputTensor(0);
+                // inputTensor->setShape(outputTensor->getShape());
+                 if (outputTensor->hasAttr("overwriteStrategy"))
+                 {
+                     if (outputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
+                         sourceIsBroadCasted = true;
+                     else if (outputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+                         sourceIsBroadCasted = false;
+                 }
+            }
+
+            if(!sourceIsBroadCasted)
                 toReturn = numClusters;
             else
                 toReturn = 1;
