@@ -161,7 +161,7 @@ def VPUIP_DeclareTensorOp :
         VPUIP_MemoryLocation:$locale,
         OptionalAttr<I32Attr>:$localeIndex,
 
-        OptionalAttr<I64Attr>:$dataIndex,
+        I64Attr:$dataIndex,
         OptionalAttr<I64Attr>:$sparsityIndex,
         OptionalAttr<I64Attr>:$storageElementIndex,
         OptionalAttr<I32Attr>:$storageElementSize,
@@ -176,11 +176,11 @@ def VPUIP_DeclareTensorOp :
 
     let builders = [
         OpBuilderDAG<
-            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale),
+            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint64_t":$dataIndex),
             [{
                 build($_builder, $_state, memory, locale,
                       nullptr, // localeIndex
-                      nullptr, // dataIndex
+                      dataIndex,
                       nullptr, // sparsityIndex
                       nullptr, // storageElementIndex
                       nullptr, // storageElementSize
@@ -196,7 +196,7 @@ def VPUIP_DeclareTensorOp :
     }];
 
     let assemblyFormat = [{
-        $locale (`:` $localeIndex^)? attr-dict `->` type(results)
+        $locale (`[` $localeIndex^ `]`)? `<` $dataIndex `>` attr-dict `->` type(results)
     }];
 }
 
