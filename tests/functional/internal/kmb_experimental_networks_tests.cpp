@@ -87,3 +87,19 @@ TEST_F(KmbClassifyNetworkTest, customnet_tanh) {
         "28x28/image_1_28x28.bmp",
         1, 0.5f);
 }
+
+namespace {
+constexpr bool EXPERIMENTAL = true;
+} // namespace
+
+TEST_F(KmbClassifyNetworkTest, experimental_network_0000) {
+    runTest(
+        TestNetworkDesc("emotions-recognition-retail-0003/emotions-recognition-retail-0003_int8_from_fp16.xml", EXPERIMENTAL)
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputLayout("output", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32),
+        "vpu/emotions-recognition-retail-0003.png",
+        2, 0.1f);
+}
+

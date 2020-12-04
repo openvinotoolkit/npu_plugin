@@ -723,6 +723,17 @@ std::string getTestModelsBasePath() {
 #endif
 }
 
+std::string getExperimentalModelsPath() {
+    if (const auto envVar = std::getenv("EXPERIMENTAL_MODELS_PATH"))
+        return std::string(envVar);
+    else
+#ifdef EXPERIMENTAL_MODELS_PATH
+        return EXPERIMENTAL_MODELS_PATH;
+#else
+        return {};
+#endif
+}
+
 }  // namespace
 
 std::string KmbNetworkTestBase::getTestModelsPath() {
@@ -768,7 +779,11 @@ Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, size_t chann
 
 CNNNetwork KmbNetworkTestBase::readNetwork(const TestNetworkDesc& netDesc, bool fillUserInfo) {
     std::ostringstream modelPath;
-    modelPath << getTestModelsPath() << "/" << netDesc.irFileName();
+
+    if (netDesc.isExperimental())
+        modelPath << getExperimentalModelsPath() << "/" << netDesc.irFileName();
+    else
+        modelPath << getTestModelsPath() << "/" << netDesc.irFileName();
 
     auto net = core->ReadNetwork(modelPath.str());
 
@@ -859,6 +874,10 @@ void KmbNetworkTestBase::runTest(
         if (DUMP_PATH.empty()) {
             SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
         }
+    }
+
+    if (netDesc.isExperimental() && getExperimentalModelsPath().empty()) {
+        SKIP() << "EXPERIMENTAL_MODELS_PATH is not set";
     }
 
     auto exeNet = getExecNetwork(netDesc);
