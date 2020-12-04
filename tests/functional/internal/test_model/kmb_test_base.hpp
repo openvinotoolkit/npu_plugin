@@ -269,6 +269,8 @@ protected:
 class TestNetworkDesc final {
 public:
     explicit TestNetworkDesc(std::string irFileName) : _irFileName(std::move(irFileName)) {}
+    explicit TestNetworkDesc(std::string irFileName, bool isExperimental) :
+        _irFileName(std::move(irFileName)), _isExperimental(isExperimental) {}
 
     TestNetworkDesc& setUserInputPrecision(
             const std::string& name,
@@ -322,6 +324,10 @@ public:
         return _compileConfig;
     }
 
+    bool isExperimental() const {
+        return _isExperimental;
+    }
+
     bool isCompilationForced() const {
         return _forceCompilation;
     }
@@ -347,6 +353,7 @@ private:
 
     std::map<std::string, std::string> _compileConfig;
     bool _forceCompilation = false;
+    const bool _isExperimental = false;
 };
 
 //
