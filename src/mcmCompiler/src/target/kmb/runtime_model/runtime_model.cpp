@@ -1386,6 +1386,19 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 sourceIsBroadCasted = true;
         }
     }
+    else if (direction == mv::DmaDirectionEnum::NNCMX2DDR)
+    {
+        if (outputTensor->hasAttr("overwriteStrategy"))
+        {
+            if (outputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+            {
+                sourceIsBroadCasted = false;
+                splitting = "SoHToClustering";
+            }
+            else if (outputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
+                sourceIsBroadCasted = true;
+        }
+    }
 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
 
@@ -3374,14 +3387,24 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
                 {
                     if (inputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
                         sourceIsBroadCasted = false;
+                    else if (inputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+                        sourceIsBroadCasted = true;
                 }
             }
-            //NOTE: In case I spill from soh and I bring a sok tensor is not broadcasted
-            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverH" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK")
-                    || (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK"))
-                toReturn = 1;
-            // NOTE: a sok tensor might come from a different strategy op
-            else if(!sourceIsBroadCasted)
+            else if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2DDR)
+            {
+                auto outputTensor = opIt->getOutputTensor(0);
+                // inputTensor->setShape(outputTensor->getShape());
+                 if (outputTensor->hasAttr("overwriteStrategy"))
+                 {
+                     if (outputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
+                         sourceIsBroadCasted = true;
+                     else if (outputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+                         sourceIsBroadCasted = false;
+                 }
+            }
+
+            if(!sourceIsBroadCasted)
                 toReturn = numClusters;
             else
                 toReturn = 1;
