@@ -160,7 +160,7 @@ void BufferizeIEPass::passBody() {
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<IERT::IERTDialect>();
     target.addIllegalDialect<IE::IEDialect>();
-    target.addLegalOp<IE::CNNNetworkOp, IE::EndOp, IE::DataInfoOp>();
+    target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp, IE::EndOp>();
     target.addLegalOp<mlir::AllocOp>();
     target.addDynamicallyLegalOp<mlir::ConstantOp>([&](mlir::ConstantOp op) {
         return typeConverter.isLegal(op);

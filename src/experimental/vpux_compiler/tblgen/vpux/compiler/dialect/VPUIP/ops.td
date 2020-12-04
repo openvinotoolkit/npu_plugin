@@ -412,6 +412,19 @@ def VPUIP_SoftMaxUPAOp :
                       axisInd, maxShaves,
                       nullptr);
             }]
+        >,
+
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$output,
+                "mlir::IntegerAttr":$axisInd
+            ),
+            [{
+                build($_builder, $_state,
+                      input, output,
+                      axisInd,
+                      $_builder.getI32IntegerAttr(1));
+            }]
         >
     ];
 }

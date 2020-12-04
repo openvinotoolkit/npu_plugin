@@ -61,6 +61,44 @@ def LowerIE2IERT : Pass<"lower-IE-to-IERT", "mlir::ModuleOp"> {
 }
 
 //
+// ConvertIERT2VPUIP
+//
+
+def ConvertIERT2VPUIP : FunctionPass<"convert-IERT-to-VPUIP"> {
+    let summary = "Convert IERT Dialect Layer Operations to VPUIP Dialect";
+
+    let description = [{
+        This "atomic" pass converts Laye Operations from IERT Dialect to VPUIP Dialect.
+        It uses simple SW implementation for IERT operations without any optimizations.
+    }];
+
+    let constructor = "vpux::createConvertIERT2VPUIPPass()";
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect"
+    ];
+}
+
+//
+// LowerIERT2VPUIP
+//
+
+def LowerIERT2VPUIP : Pass<"lower-IERT-to-VPUIP", "mlir::ModuleOp"> {
+    let summary = "Performs full lowering from IERT Dialect to VPUIP Dialect";
+
+    let description = [{
+        This "pipeline" pass performs full IR lowering from IERT Dialect to VPUIP Dialect,
+        including Module level Operations.
+    }];
+
+    let constructor = "vpux::createLowerIERT2VPUIPPass()";
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect"
+    ];
+}
+
+//
 // ConvertIE2VPUIP
 //
 

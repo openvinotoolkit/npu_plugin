@@ -33,7 +33,8 @@ def IERT_Dialect : Dialect {
     let cppNamespace = "vpux::IERT";
 
     let dependentDialects = [
-        "mlir::StandardOpsDialect"
+        "mlir::StandardOpsDialect",
+        "mlir::linalg::LinalgDialect"
     ];
 
     let hasConstantMaterializer = 1;
