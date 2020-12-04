@@ -32,5 +32,9 @@ std::vector<std::string> disabledTestPatterns() {
 
         // [Track number: S#43484]
         ".*KmbMaxMinLayerTest.*",
+
+	// Need to create openvino releases/2020/vpux/2021/2 branch with #3350 pull request to fix test names
+	".*IEClassBasicTestP_smoke/IEClassBasicTestP.*",
+	".*IEClassGetMetricTest_nightly/IEClassGetMetricTest.*",
     };
 }
