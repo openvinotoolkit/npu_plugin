@@ -34,12 +34,11 @@ class Engine : public InferenceEngine::InferencePluginInternal {
 public:
     Engine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-            const InferenceEngine::CNNNetwork& network, const std::map<std::string, std::string>& config) override;
+    ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network,
+                                                      const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-            const InferenceEngine::CNNNetwork& network, InferenceEngine::RemoteContext::Ptr ptr,
-            const std::map<std::string, std::string>& map) override;
+    ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network, RemoteContext::Ptr ptr,
+                                                      const std::map<std::string, std::string>& map) override;
 
     using InferenceEngine::InferencePluginInternal::ImportNetwork;
 
@@ -55,7 +54,7 @@ public:
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
 
     InferenceEngine::Parameter GetMetric(
