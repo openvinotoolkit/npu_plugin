@@ -13,7 +13,6 @@
                 "UpaShaves": 1,
                 "WorkloadCost": 0,
                 "DDRScratch": 23068672,
-                "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": true,
                 "split_strategy" :

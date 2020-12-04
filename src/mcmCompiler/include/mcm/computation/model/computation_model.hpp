@@ -209,6 +209,9 @@ namespace mv
          * @return compilation descriptor Element*/
         std::shared_ptr<mv::Element>getGlobalConfigParams() const;
         void setGlobalConfigParams(mv::Element& element);
+        void addGlobalConfigParams(mv::Element& element);
+        bool hasGlobalConfigParam(const std::string& name) const;
+        Attribute getGlobalConfigParam(const std::string& name) const;
 
         BufferMap& bufferMap();
 

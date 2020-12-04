@@ -106,24 +106,26 @@ std::string StrategyManager::getLogID() const
 void StrategyManager::updateValuesFromJSON()
 {
     auto graphOptimizerConfig = passDesc_.get<mv::Element>("graphOptimizerConfig");
-
-
     auto globalConfigs = graphOptimizerConfig.get<vector<mv::Element>>("globalConfigs");
     auto globalStrategies = graphOptimizerConfig.get<vector<mv::Element>>("globalStrategies");
     auto layerStrategySets  = graphOptimizerConfig.get<vector<mv::Element>>("layerStrategies");
 
     for( auto globalConfig : globalConfigs)
-    {
-        auto configName = globalConfig.getName();
-        auto configValue = globalConfig.get("value");
-        globalConfig_[configName] = configValue;
-    }
+        globalConfig_[globalConfig.getName()] = globalConfig.get("value");
+    
+    globalConfig_["referenceDevice"] = model_.getGlobalConfigParam("referenceDevice");
+    globalConfig_["totalClusters"] = model_.getGlobalConfigParam("Number_of_Clusters");
+    globalConfig_["clusterMemory"] = (int)model_.getGlobalConfigParam("totalCmx").get<unsigned>();
+    globalConfig_["dpuPerCluster"] = 
+        model_.getGlobalConfigParam("Number_of_DPUs").get<int>() / model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
 
     for( auto globalStrategy : globalStrategies)
     {
         auto strategyName = globalStrategy.getName();
-        auto strategyValue = globalStrategy.get("value");
-        globalStrategies_[strategyName] = strategyValue;
+         if (model_.hasGlobalConfigParam(strategyName))
+            globalStrategies_[strategyName] = model_.getGlobalConfigParam(strategyName);
+        else
+            globalStrategies_[strategyName] = globalStrategy.get("value");
     }
 
     for( auto layerStrategySet : layerStrategySets)

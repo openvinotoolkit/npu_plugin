@@ -17,7 +17,7 @@ MV_OPTIMIZER_GLOBAL_CONFIG_REGISTRY(KmbOptGlCongigDpuPerCluster)
     .enter("dpuPerCluster").set(1);
 
 MV_OPTIMIZER_GLOBAL_CONFIG_REGISTRY(KmbOptGlCongigDdrBw)
-    .enter("ddrBandwidth").set(1);
+    .enter("ddrBandwidth").set(128);
 
 MV_OPTIMIZER_GLOBAL_CONFIG_REGISTRY(KmbOptGlCongigSysClk)
     .enter("systemClockMhz").set(500);

@@ -9,6 +9,7 @@
 #include <map>
 #include <regex>
 #include "include/mcm/base/json/json.hpp"
+#include "include/mcm/utils/env_loader.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/parsing_error.hpp"
 
@@ -51,18 +52,30 @@ namespace mv
         };
 
         static const std::map<ParserState, std::map<JSONSymbol, ParserState>> pushdownAutomata_;
+        static const std::string fileComposeKeyword_;
+        static const std::string enableMergeKey_;
 
         char *buffer_;
         std::string bufferStr_;
         unsigned bufferLength_;
         std::ifstream inputStream_;
+        bool composable_;
 
         unsigned readStream_();
         std::pair<JSONSymbol, std::string> lexer_();
 
     public:
-
-        JSONTextParser(unsigned bufferLength = 64);
+        /**
+         * @brief Construct a new JSONTextParser object
+         * 
+         * @param composable Enables extension feature which allows to compose multiple files into one JSON object.
+         * If true all occurances of string values prefixed with "@FILE:" will be replaced with the content of file under
+         * location specified by the string after prefix ("@FILE@path/to/file"). By assumption it has to contain a valid 
+         * textual JSON object definition. Note that usage of this flag dissallows to use string @FILE@ anywhere else than
+         * for the file composition feature.
+         * @param bufferLength Number of buffered characters while loading the file
+         */
+        JSONTextParser(bool composable = false, unsigned bufferLength = 64);
         JSONTextParser(const JSONTextParser &) = delete;
         ~JSONTextParser();
         const JSONTextParser & operator=(const JSONTextParser &) = delete;

@@ -230,13 +230,6 @@ static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, cons
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    auto globalConfigurationParameters = model.getGlobalConfigParams();
-
-    std::string indexAssignment = globalConfigurationParameters->get<std::string>("barrier_index_assignment");
-
-    if(passDesc.hasAttr("barrier_index_assignment"))
-        indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
-
     for (auto& barrier: barriers)
     {
         //Following POC convention for the moment, reversable in any moment :)

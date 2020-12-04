@@ -12,7 +12,6 @@
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "DDRScratch": 16777216,
-                "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "HuffmanCompression": false,

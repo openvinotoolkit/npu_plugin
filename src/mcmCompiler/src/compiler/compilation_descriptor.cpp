@@ -3,7 +3,7 @@
 
 mv::json::Object mv::CompilationDescriptor::load(const std::string& filePath)
 {
-    JSONTextParser parser(jsonParserBufferLength_);
+    JSONTextParser parser(true, jsonParserBufferLength_);
     json::Value jsonRoot;
 
     if (!parser.parseFile(filePath, jsonRoot))

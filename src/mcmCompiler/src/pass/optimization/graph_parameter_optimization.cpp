@@ -141,20 +141,16 @@ namespace mv
             };
 
             void readGlobalConfigs()
-            {
-                referenceDevice = globalConfig_["referenceDevice"].get<std::string>();
-                totalClusters = globalConfig_["totalClusters"].get<int>();
-                clusterMemoryKb = globalConfig_["clusterMemory"].get<int>();
-                dpuPerCluster = globalConfig_["dpuPerCluster"].get<int>();
-                ddrBandwidth = globalConfig_["ddrBandwidth"].get<int>();
-                sysClock = globalConfig_["systemClockMhz"].get<int>();
+            { 
+                referenceDevice = model_.getGlobalConfigParam("referenceDevice").get<std::string>();
+                totalClusters = model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
+                clusterMemoryKb = (int)model_.getGlobalConfigParam("totalCmx").get<unsigned>() / 1024;
+                dpuPerCluster = model_.getGlobalConfigParam("Number_of_DPUs").get<int>() / totalClusters;
                 createStrategyDots = globalConfig_["createStrategyDots"].get<bool>();
                 dotFileLocation = globalConfig_["dotFileLocation"].get<std::string>();
                 jsonOutFileName = globalConfig_["jsonOutFileName"].get<std::string>();
-                safetyFactor = globalConfig_["FathomSafetyFactor"].get<double>();
                 //Input is in Kb
                 clusterMemory = (double)clusterMemoryKb * 1024.0 * safetyFactor;
-
                 globalEnableStreaming = globalStrategies_["enableStreaming"].get<bool>();
                 globalEnablePipelining = globalStrategies_["enablePipelining"].get<bool>();
                 globalEnablePrefetching = globalStrategies_["enablePrefetching"].get<bool>();
