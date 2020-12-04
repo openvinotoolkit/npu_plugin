@@ -1900,7 +1900,7 @@ namespace mv
                 // Note: if we don't include parent cost, prefetch calculation for child is misleading.
                 // It may look better, because if the parent takes longer we can hide more dma cost
                 // BUT doesn't take into consideration that the parent... is longer!
-                bool includeParentCost = true;
+                bool includeParentCost = false;
 
                 if(includeParentCost)
                     cost = cost + (pLastComp + pOutDma);
