@@ -98,34 +98,4 @@ def LowerIERT2VPUIP : Pass<"lower-IERT-to-VPUIP", "mlir::ModuleOp"> {
     ];
 }
 
-//
-// ConvertIE2VPUIP
-//
-
-def ConvertIE2VPUIP : Pass<"convert-IE-to-VPUIP", "mlir::ModuleOp"> {
-    let summary = "Convert the operations from the IE dialect into the VPUIP dialect";
-
-    let description = [{
-        This conversion uses simple SW implementation for IE operations without any optimizations.
-    }];
-
-    let constructor = "vpux::createConvertIE2VPUIPPass()";
-
-    let dependentDialects = [
-        "vpux::VPUIP::VPUIPDialect",
-        "mlir::StandardOpsDialect",
-        "mlir::linalg::LinalgDialect"
-    ];
-
-    let options = [
-        Option<
-            "maxUPAShaves",
-            "max-UPA-SHAVEs",
-            "uint32_t",
-            /*default=*/"1",
-            "Maximal number of UPA SHAVEs to utilize"
-        >
-    ];
-}
-
 #endif

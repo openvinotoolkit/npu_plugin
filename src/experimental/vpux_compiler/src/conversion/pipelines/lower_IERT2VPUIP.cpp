@@ -49,10 +49,10 @@ private:
 };
 
 LowerIERT2VPUIPPass::LowerIERT2VPUIPPass(Logger log)
-        : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Explicit) {
+        : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _log.setName(Base::getArgumentName());
 
-    _pm.addNestedPass<mlir::FuncOp>(createConvertIERT2VPUIPPass(_log.nest()));
+    _pm.addPass(createConvertIERT2VPUIPPass(_log.nest()));
 }
 
 void LowerIERT2VPUIPPass::runOnOperation() {

@@ -56,12 +56,6 @@ std::unique_ptr<mlir::Pass> createConvertIERT2VPUIPPass(Logger log = Logger::glo
 std::unique_ptr<mlir::Pass> createLowerIERT2VPUIPPass(Logger log = Logger::global());
 
 //
-// IE2VPUIP
-//
-
-std::unique_ptr<mlir::Pass> createConvertIE2VPUIPPass(uint32_t maxUPAShaves = 1, Logger log = Logger::global());
-
-//
 // Generated
 //
 

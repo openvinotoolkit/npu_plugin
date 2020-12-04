@@ -189,6 +189,8 @@ add_passes("dialect/VPUIP" "VPUIP")
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")
 
+add_passes("pipelines" "Pipelines")
+
 file(GLOB_RECURSE TBLGEN_SOURCES "*.td")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TBLGEN_SOURCES})
 

@@ -14,33 +14,28 @@
 // stated in the License.
 //
 
-#pragma once
+#ifndef VPUX_COMPILER_PIPELINES_PASSES
+#define VPUX_COMPILER_PIPELINES_PASSES
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-
-#include "vpux/utils/core/logger.hpp"
-
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Pass/Pass.h>
-
-namespace vpux {
+include "mlir/Pass/PassBase.td"
 
 //
 // ReferenceMode
 //
 
-std::unique_ptr<mlir::Pass> createReferenceModePass(Logger log = Logger::global());
+def ReferenceMode : Pass<"reference-mode", "mlir::ModuleOp"> {
+    let summary = "Compiles IE Network in Reference mode (SW only execution)";
 
-//
-// Generated
-//
+    let description = [{
+        This "pipeline" pass performs full IR lowering from IE Dialect to VPUIP Dialect (using intermediate lowerings).
+        It uses simple SW implementation for layer operations without any optimizations.
+    }];
 
-#define GEN_PASS_CLASSES
-#include <vpux/compiler/pipelines/generated/passes.hpp.inc>
-#undef GEN_PASS_CLASSES
+    let constructor = "vpux::createReferenceModePass()";
 
-#define GEN_PASS_REGISTRATION
-#include <vpux/compiler/pipelines/generated/passes.hpp.inc>
-#undef GEN_PASS_REGISTRATION
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect"
+    ];
+}
 
-}  // namespace vpux
+#endif

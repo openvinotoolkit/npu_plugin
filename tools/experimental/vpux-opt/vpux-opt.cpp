@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
         vpux::IE::registerIEPasses();
         vpux::VPUIP::registerVPUIPPasses();
         vpux::registerConversionPasses();
-        vpux::registerAllPipelines();
+        vpux::registerPipelinesPasses();
 
         const auto res = mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, true);
 

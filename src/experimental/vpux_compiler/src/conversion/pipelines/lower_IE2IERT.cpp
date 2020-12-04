@@ -62,15 +62,15 @@ private:
 };
 
 LowerIE2IERTPass::LowerIE2IERTPass(Logger log)
-        : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Explicit) {
+        : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _log.setName(Base::getArgumentName());
 
-    _pm.addNestedPass<mlir::FuncOp>(createBufferizeIEPass(_log.nest()));
+    _pm.addPass(createBufferizeIEPass(_log.nest()));
     _pm.addPass(mlir::createTensorConstantBufferizePass());
     _pm.addPass(mlir::createFuncBufferizePass());
     _pm.addPass(mlir::createBufferResultsToOutParamsPass());
-    _pm.addNestedPass<mlir::FuncOp>(mlir::createFinalizingBufferizePass());
-    _pm.addNestedPass<mlir::FuncOp>(mlir::createBufferDeallocationPass());
+    _pm.addPass(mlir::createFinalizingBufferizePass());
+    _pm.addPass(mlir::createBufferDeallocationPass());
 }
 
 void LowerIE2IERTPass::runOnOperation() {
