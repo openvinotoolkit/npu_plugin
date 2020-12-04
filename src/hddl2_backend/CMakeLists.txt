@@ -43,7 +43,7 @@ target_include_directories(${HDDL2_BACKEND_MODULE_TARGET}
         "${CMAKE_CURRENT_SOURCE_DIR}/include/hddl_unite"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
         # TODO Should be not included
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/hddl2_plugin/include"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_plugin/include"
         )
 
 link_system_libraries(${HDDL2_BACKEND_MODULE_TARGET}
@@ -79,7 +79,7 @@ if(ENABLE_TESTS)
             "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/hddl2"
             "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/vpu"
             # TODO Should be not included
-            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/hddl2_plugin/include"
+            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_plugin/include"
             )
 
     link_system_libraries(${HDDL2_BACKEND_STATIC_TARGET}
