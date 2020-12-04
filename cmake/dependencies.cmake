@@ -66,8 +66,7 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
         RESOLVE_DEPENDENCY(VPU_CLC_MA2X9X
             ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X9X_VERSION}.tar.gz"
             TARGET_PATH "${TEMP}/vpu/clc/ma2x9x/${VPU_CLC_MA2X9X_VERSION}"
-            ENVIRONMENT "VPU_CLC_MA2X9X_COMMAND"
-            SHA256 "0a864bd0e11cee2d85ac7e451dddae19216c8bc9bb50e1a8e0151ab97d5e3c8d")
+            ENVIRONMENT "VPU_CLC_MA2X9X_COMMAND")
         debug_message(STATUS "VPU_CLC_MA2X9X=" ${VPU_CLC_MA2X9X})
 
         update_deps_cache(
@@ -263,14 +262,12 @@ if(ENABLE_HDDL2)
         RESOLVE_DEPENDENCY(HDDL_UNITE
                 ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"
                 ENVIRONMENT "HDDL_UNITE"
-                TARGET_PATH "${TEMP}/hddl_unite"
-                SHA256 ${HDDLUNITE_KMB_ARCHIVE_HASH})
+                TARGET_PATH "${TEMP}/hddl_unite")
         if(UNIX)
             RESOLVE_DEPENDENCY(HDDL_UNITE_VPUX_4
                     ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_VPUX_4_ARCHIVE_VERSION}${ARCH_FORMAT}"
                     ENVIRONMENT "HDDL_UNITE_VPUX_4"
-                    TARGET_PATH "${TEMP}/vpux_4/hddl_unite"
-		    SHA256 ${HDDLUNITE_VPUX_4_ARCHIVE_HASH})
+                    TARGET_PATH "${TEMP}/vpux_4/hddl_unite")
         endif()
 
         unset(IE_PATH_TO_DEPS)
