@@ -29,6 +29,13 @@ namespace mv
 
 }
 
+// This is a helper function to get part of vector from equally divided slices
+template <typename T>
+static T getPartOfVec(T& vec, unsigned partIndex, unsigned totalNumberOfParts)
+{
+    return T(vec.cbegin() + partIndex * vec.size()/totalNumberOfParts, vec.cbegin() + (partIndex + 1) * vec.size()/totalNumberOfParts);
+}
+
 void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -70,9 +77,9 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 biasTensor = dm.getTensor(convOp->get<std::string>("bias"));
             for (unsigned branchId = 0; branchId < group; branchId++)
             {
-                std::string sliceName = "slice" + std::to_string(branchId);
-                std::string weightSliceName = "weightSlice" + std::to_string(branchId);
-                std::string convName = convOp->getName() + sliceName;
+                std::string sliceName = convOp->getName() + "slice" + std::to_string(branchId);
+                std::string weightSliceName = convOp->getName() + "weightSlice" + std::to_string(branchId);
+                std::string convName = convOp->getName() + "_" + sliceName;
                 std::string biasName = mv::createBiasName(convName + "bias");
                 groupBegin = {{0},{0},{branchId * inputGroupSize},{0}};
                 auto slice = om.slice(sliceName,
@@ -85,11 +92,43 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
                 weightsGroupBegin = {{0},{0},{0},{branchId * weightsGroupSize}};
 
+                // weight quant params need to be divided if they are per channel
+                // same as weight tensor is divided along channel axis
+                mv::QuantizationParams weightQuantParamsPart = {{},{},{},{}};
+                auto zp_vec = weightQuantParams.getZeroPoint();
+                auto scale_vec = weightQuantParams.getScale();
+                auto min_vec = weightQuantParams.getMin();
+                auto max_vec = weightQuantParams.getMax();
+
+                if(zp_vec.size() > 1)
+                    zp_vec = getPartOfVec(zp_vec, branchId, group);
+                if(scale_vec.size() > 1)
+                    scale_vec = getPartOfVec(scale_vec, branchId, group);
+                if(min_vec.size() > 1)
+                    min_vec = getPartOfVec(min_vec, branchId, group);
+                if(max_vec.size() > 1)
+                    max_vec = getPartOfVec(max_vec, branchId, group);
+
+                if (weightQuantParams.hasAttr("shift") && weightQuantParams.hasAttr("mult"))
+                {
+                    auto shift_vec = weightQuantParams.getShift();
+                    auto mult_vec = weightQuantParams.getMult();
+
+                    if(shift_vec.size() > 1)
+                        shift_vec = getPartOfVec(shift_vec, branchId, group);
+                    if(mult_vec.size() > 1)
+                        mult_vec = getPartOfVec(mult_vec, branchId, group);
+
+                    weightQuantParamsPart = mv::QuantizationParams(zp_vec, scale_vec, min_vec, max_vec, shift_vec, mult_vec);
+                } else {
+                    weightQuantParamsPart = mv::QuantizationParams(zp_vec, scale_vec, min_vec, max_vec);
+                }
+
                 auto weightsSlice = om.slice(weightSliceName,
                                              weightTensor,
                                              weightsGroupBegin,
                                              weightsGroupShape);
-                weightsSlice->setQuantParams(weightQuantParams);
+                weightsSlice->setQuantParams(weightQuantParamsPart);
 
                 om.getSourceOp(weightsSlice)->set<unsigned>("opId", om.getSourceOp(convOp->getInputTensor(1))->get<unsigned>("opId"));
 
@@ -128,9 +167,12 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 if (sourceFlow.source()->getName() == previousOp->getName())
                     om.undefineFlow(sourceFlow);
             }
-            //NOTE: for now we consider that the sinkOp is only one operation like happens with AlexNet
-            sinkOperators[0]->setInputTensor(concat, 0, false);
-            om.defineFlow(concat, sinkOperators[0], 0);
+            // Update all the sink operations input tensor to newly created concat output
+            for (auto& sinkOp : sinkOperators)
+            {
+                sinkOp->setInputTensor(concat, 0, false);
+                om.defineFlow(concat, sinkOp, 0);
+            }
             om.removeOp(convOp);
         }
         else

@@ -591,6 +591,10 @@ void quantizeIO(mv::ComputationModel& model) {
                     std::vector<double> min;
                     std::vector<double> max;
 
+                    // TODO: Input scale fusing cannot be performed if per channel parameters (scale, bias)
+                    // are very different from each other. Add conditional code which will check
+                    // similarity of elements of realBiasValue and realScaleValue
+
                     float output_min_value = (realBiasValue[0] * realScaleValue[0] +
                     realBiasValue[1] * realScaleValue[1] + realBiasValue[2] * realScaleValue[2]) / 3;
 
