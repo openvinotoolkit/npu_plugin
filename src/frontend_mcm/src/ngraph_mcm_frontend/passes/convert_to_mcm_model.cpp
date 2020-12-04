@@ -1427,6 +1427,11 @@ void convert(std::shared_ptr<ngraph::op::v1::StridedSlice> stridedSlice, mv::OpM
     const auto end_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(end_node);
     const auto stride_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(stride_node);
 
+    // Remove unused constant inputs.
+    for (size_t i = 1; i < mcmInputs.size(); ++i) {
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
+    }
+
     mv::Shape beginShape(getWHCN(begin_node_const->cast_vector<size_t>()));
     mv::Shape endShape(getWHCN(end_node_const->cast_vector<size_t>()));
     mv::Shape strideShape(getWHCN(stride_node_const->cast_vector<size_t>()));
