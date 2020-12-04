@@ -79,6 +79,7 @@ namespace mv
             bool enableChannelMajorConv=false;
             double safetyFactor=1.0;
             double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
+            double schedulerPipelineLimit = 700000.0;
             double cmxPipeLineWeightsOverhead=34816.0;
             enum class FailCause
             {
@@ -525,7 +526,7 @@ namespace mv
 
                 if( globalEnablePipelining &&
                     createStrategyFromBool(op, "pipelining") && //Only find extra K streams if pipelining enabled
-                    (clustering.get<std::string>() == "SplitOverK" || clustering.get<std::string>() == "Clustering"))
+                    (clustering.get<std::string>() == "SplitOverK"))
                 {
                     auto pipelinedMinSplitsToFit = getMinStreamOverK(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true);
                     if(pipelinedMinSplitsToFit != 0)
@@ -534,7 +535,12 @@ namespace mv
                             splits.push_back(pipelinedMinSplitsToFit);
                         auto nextKStream = getNextStreamOverK(op, clustering, pipelinedMinSplitsToFit, spilling);
                         if(nextKStream > 0)
+                        {
                             splits.push_back(nextKStream);
+                            auto thirdKStream = getNextStreamOverK(op, clustering, nextKStream, spilling);
+                            if(thirdKStream > 0)
+                                splits.push_back(thirdKStream);
+                        }
                     }
                 }
 
@@ -846,35 +852,35 @@ namespace mv
                 // NOTE: This is a temporary workaround till we are able to identify the chains before graph
                 // optimizer and control the cmx percentage that we want the weigths to receive described in
                 // https://jira.devtools.intel.com/browse/CVS-43222
-                {
-                    if (op.getOpType() == "Conv")
-                    {
-                        if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,512,1}) &&
-                            op.getInputTensor()[1]->getShape() == mv::Shape({3,3,512,1024}) &&
-                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
-                        {
-                            if(globalEnablePipelining && streamShape["K"] != 8)
-                                return FailCause::cmxConcatDecision;
-                        }
+                // {
+                //     if (op.getOpType() == "Conv")
+                //     {
+                //         if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,512,1}) &&
+                //             op.getInputTensor()[1]->getShape() == mv::Shape({3,3,512,1024}) &&
+                //             op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
+                //         {
+                //             if(globalEnablePipelining && streamShape["K"] != 8)
+                //                 return FailCause::cmxConcatDecision;
+                //         }
 
-                        if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}) &&
-                            op.getInputTensor()[1]->getShape() == mv::Shape({3,3,1024,1024}) &&
-                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
-                        {
-                            if(globalEnablePipelining && streamShape["K"] != 8)
-                                return FailCause::cmxConcatDecision;
-                        }
+                //         if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}) &&
+                //             op.getInputTensor()[1]->getShape() == mv::Shape({3,3,1024,1024}) &&
+                //             op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
+                //         {
+                //             if(globalEnablePipelining && streamShape["K"] != 8)
+                //                 return FailCause::cmxConcatDecision;
+                //         }
 
-                        if (op.getInputTensor()[0]->getShape() == mv::Shape({1,1,2048,1}) &&
-                            op.getInputTensor()[1]->getShape() == mv::Shape({1,1,2048,1000}) &&
-                            op.getOutputTensor()[0]->getShape() == mv::Shape({1,1,1000,1}))
-                        {
-                            if(globalEnablePipelining && streamShape["K"] != 4 && streamShape["K"] != 2)
-                                return FailCause::cmxConcatDecision;
-                        }
-                    }
+                //         if (op.getInputTensor()[0]->getShape() == mv::Shape({1,1,2048,1}) &&
+                //             op.getInputTensor()[1]->getShape() == mv::Shape({1,1,2048,1000}) &&
+                //             op.getOutputTensor()[0]->getShape() == mv::Shape({1,1,1000,1}))
+                //         {
+                //             if(globalEnablePipelining && streamShape["K"] != 4 && streamShape["K"] != 2)
+                //                 return FailCause::cmxConcatDecision;
+                //         }
+                //     }
 
-                }
+                // }
 
                 // A proper decision on CMX concat for explicit concat or eltwise streaming cannot
                 // be made with the information on hand. Will not optimize strategies for these.
@@ -1804,6 +1810,10 @@ namespace mv
                 auto pFullDma = dmaTime(parentOp, parent);
                 auto cFullDma = dmaTime(childOp, child, parentSpilling);
 
+                auto pOutDma = averageOutputDmaTime(parentOp, parent);
+                auto pStreams = parentStreamShape["H"] * parentStreamShape["K"];
+                auto pLastComp = pFullComp / pStreams;
+
                 //Note: these are cost per stream, used when pipelining or prefetching
                 auto cInDma = averageInputDmaTime(childOp, child, parentSpilling);
                 auto cWeightDma = averageWeightsDmaTime(childOp, child);
@@ -1839,44 +1849,65 @@ namespace mv
                 auto pipelineable = isPipeliningPossible(childOp, child, parent["spilling"].get<bool>());
                 auto prefetchable = isPrefetchPossible(parentOp, childOp, parent, child);
 
+                auto kStreams = childStreamShape["K"];
+
+                auto compPerStream = ((double) cFullComp / kStreams);
+                auto prefetch = std::min(pLastComp, cWeightDma);
+                auto pipeline = std::max((cWeightDma+cOutDma), compPerStream);
+
+                auto prepipe_cost = (cWeightDma - prefetch) + (kStreams-1)*pipeline + cOutDma;
+                //Pipeline means overlap K stream compute with weights read for next K stream, assume input in CMX
+                auto pipe_cost = cWeightDma + (kStreams-1)*pipeline + cOutDma;
+                //Prefetch means bring in one weights slice while still computing the parent, assume input in CMX
+                auto pre_cost = cWeightDma - prefetch + (kStreams-1)*cWeightDma + cFullComp + (kStreams * cOutDma);
+                auto base_cost = cFullDma + cFullComp;
+
+                double cost = base_cost;
+
+                // std::cout << "Strategy for " << parent["id"].toString() << " --> " << child["id"].toString() << std::endl <<
+                //     "    " << prepipe_cost << " : " << pipe_cost << " : " << pre_cost << " : " << base_cost << std::endl;
+
                 if(pipelineable && prefetchable)
                 {
-                    //TODO for now, we only pipeline over K. reenable over H!
-                    auto streams = childStreamShape["K"];
-
-                    auto cStreamComp = ((double) cFullComp / streams);
-                    // In this case the pipeline overlap does not include read of first weights, because that
-                    // is overlapped with the prefetch
-                    auto pipelineOverlap =  ( (streams - 1) * std::max(cStreamComp, cWeightDma)) + cStreamComp;
-                    auto prefetchOverlap = std::max(pFullComp, cWeightDma);
-
-                    return pFullDma + prefetchOverlap + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + heuristics;
+                    cost = prepipe_cost;
+                    // std::cout << "    chose prepipe: " << prepipe_cost << std::endl;
+                    // if(isSchedulerFriendly(childOp, child))
+                    // {
+                    //     cost *= 0.99;
+                    //     std::cout << "      scheduler friendly - cost now: " << cost << std::endl;
+                    // }
                 }
                 else if(pipelineable)
                 {
-                    //TODO for now, we only pipeline over K. reenable over H!
-                    auto streams = childStreamShape["K"];
-
-                    // In pipelining, we can overlap the compute and dma (except the first dma and the last compute)
-                    auto cStreamComp = ((double) cFullComp / streams);
-                    auto pipelineOverlap = cWeightDma + ( (streams - 1) * std::max(cStreamComp, cWeightDma)) + cStreamComp;
-                    return pFullDma + pFullComp + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + heuristics;
+                    cost = pipe_cost;
+                    // std::cout << "    chose pipe: " << pipe_cost << std::endl;
+                    // if(isSchedulerFriendly(childOp, child))
+                    // {
+                    //     cost *= 0.99;
+                    //     std::cout << "      scheduler friendly - cost now: " << cost << std::endl;
+                    // }
                 }
                 else if(prefetchable)
                 {
-                    auto streams = childStreamShape["K"];// we only prefetch weights
-
-                    // If we can prefetch, overlap first stream over child weights with parent compute
-                    // To be prefetchable, parent doesn't spill so pOutDma=0, cInDma=0, cWeightDma > 0
-                    auto prefetchOverlap = std::max(pFullComp, cWeightDma);
-                    auto remainderChildDma = ((streams - 1) * cWeightDma) + (streams*(cInDma + cOutDma));
-                    return pFullDma + prefetchOverlap + remainderChildDma + cFullComp  + heuristics;
+                    cost = pre_cost;
+                    // std::cout << "    chose pre: " << pre_cost << std::endl;
                 }
                 else
                 {
-                    //Fully serialized dma and compute between and internally in this layer
-                    return pFullDma + pFullComp + cFullDma + cFullComp + heuristics;
+                    // std::cout << "    chose base: " << base_cost << std::endl;
                 }
+
+                // Note: if we don't include parent cost, prefetch calculation for child is misleading.
+                // It may look better, because if the parent takes longer we can hide more dma cost
+                // BUT doesn't take into consideration that the parent... is longer!
+                bool includeParentCost = true;
+
+                if(includeParentCost)
+                    cost = cost + (pLastComp + pOutDma);
+
+                cost = cost + heuristics;
+                // std::cout << " returning cost " << cost << std::endl;
+                return cost;
         }
 
             bool violatesClusteringStrategyRules(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
@@ -2329,6 +2360,37 @@ namespace mv
                 return  (totalStreams * (readIn + readOut + compTime)) * 1000000; //return in us
             }
 
+            // Note: a proper model does not exist for the interplay between hardware optimality
+                // and schedulability given the goals of the LPScheduler. We note that with chain pipelining
+                // in the scheduler, K streams meeting a certain threshold are better. A pass after GO will
+                // check across the chain for optimality.
+            bool isSchedulerFriendly(mv::Op& op, StrategySet& strategy)
+            {
+                auto stream = strategy["streaming"].get<Shape>();
+                auto clustering = strategy["clustering"].get<std::string>();
+                auto inputSparsity = strategy["inputSparsity"].get<bool>();
+                auto outputSparsity = strategy["outputSparsity"].get<bool>();
+                auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
+                auto spilling = strategy["spilling"].get<bool>();
+
+                size_t input, output, weights;
+                input = output = weights = 0;
+                std::tie(input, output, weights) = memorySize(op,
+                                                                clustering,
+                                                                inputSparsity,
+                                                                outputSparsity,
+                                                                weightsSparsity,
+                                                                stream,
+                                                                requiresFakeActivationSparsity(op),
+                                                                spilling,
+                                                                false); // pipelineable always has parent in cmx
+
+                if((input+output+2*weights) < schedulerPipelineLimit)    
+                    return true;
+
+                return false;       
+            }
+
             bool isPipeliningPossible(mv::Op& op, StrategySet& strategy, bool parentSpilling)
             {
                 if(!globalEnablePipelining)
@@ -2351,7 +2413,7 @@ namespace mv
                 if(parentSpilling)
                     return false;
 
-                if(clustering == "SplitOverH" || clustering == "HKSwitch")
+                if(clustering != "SplitOverK")
                     return false;
 
                 //Note: for now, only support pipelining over H and K
