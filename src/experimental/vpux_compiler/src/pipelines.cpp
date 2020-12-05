@@ -49,7 +49,6 @@ ReferenceModePass::ReferenceModePass(Logger log)
     _pm.addPass(IE::createAdjustPrecisionForVPUPass(_log.nest()));
     _pm.addPass(createLowerIE2IERTPass(_log.nest()));
     _pm.addPass(createLowerIERT2VPUIPPass(_log.nest()));
-    _pm.addPass(VPUIP::createRemoveExtraDMAPass(_log.nest()));
     _pm.addPass(VPUIP::createAssignTensorOffsetsDDRPass(_log.nest()));
     _pm.addPass(VPUIP::createAddLinearSchedulingPass(_log.nest()));
 }

@@ -39,12 +39,6 @@ std::unique_ptr<mlir::Pass> createAssignTensorOffsetsDDRPass(Logger log = Logger
 std::unique_ptr<mlir::Pass> createAddLinearSchedulingPass(Logger log = Logger::global());
 
 //
-// RemoveExtraDMA
-//
-
-std::unique_ptr<mlir::Pass> createRemoveExtraDMAPass(Logger log = Logger::global());
-
-//
 // Generated
 //
 

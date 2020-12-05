@@ -9,6 +9,8 @@
 //   * Replaces only Layer Operations.
 //
 
+// -----
+
 #NC = affine_map<(d0, d1) -> (d0, d1)>
 
 // CHECK-LABEL: IERT.CNNNetwork "SingleLayer" at @main
@@ -23,22 +25,14 @@ IERT.CNNNetwork "SingleLayer" at @main
 
 // CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x1000xf16>, [[ARG1:%arg[0-9]*]]: memref<1x1000xf16>) {
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
-    %0 = alloc() : memref<1x1000xf16>
-    IERT.SoftMax(%arg0, %0) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16>
-    linalg.copy(%0, %arg1) : memref<1x1000xf16>, memref<1x1000xf16>
-    dealloc %0 : memref<1x1000xf16>
+    IERT.SoftMax(%arg0, %arg1) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16>
     return
 
-    // CHECK:       [[VAR0:%[0-9]*]] = alloc() : memref<1x1000xf16>
     // CHECK-NEXT:  VPUIP.SoftMaxUPA
     // CHECK-SAME:      axisInd = 1
     // CHECK-SAME:      maxShaves = 1
     // CHECK-SAME:      inputs([[ARG0]] : memref<1x1000xf16>)
-    // CHECK-SAME:      outputs([[VAR0]] : memref<1x1000xf16>)
-    // CHECK-NEXT:  VPUIP.UPADMA
-    // CHECK-SAME:      inputs([[VAR0]] : memref<1x1000xf16>)
     // CHECK-SAME:      outputs([[ARG1]] : memref<1x1000xf16>)
-    // CHECK-NEXT:  dealloc [[VAR0]] : memref<1x1000xf16>
     // CHECK-NEXT:  return
 }
 

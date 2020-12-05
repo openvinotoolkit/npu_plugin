@@ -71,6 +71,7 @@ LowerIE2IERTPass::LowerIE2IERTPass(Logger log)
     _pm.addPass(mlir::createBufferResultsToOutParamsPass());
     _pm.addPass(mlir::createFinalizingBufferizePass());
     _pm.addPass(mlir::createBufferDeallocationPass());
+    _pm.addPass(mlir::createCopyRemovalPass());
 }
 
 void LowerIE2IERTPass::runOnOperation() {

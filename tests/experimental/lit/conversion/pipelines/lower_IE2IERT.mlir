@@ -6,8 +6,8 @@
 //   * Fully replaces IE Dialect with IERT Dielect.
 //   * Changes all Values types from `tensor` to `memref`.
 //   * Changes Function results tensors to arguments.
-//   * Inserts extra `linalg.copy` Operations for output buffers.
 //   * Replaces `std.constant` Operations with `global_memref`/`get_global_memref`.
+//   * Inserts `linalg.copy` for `std.constant` as result case.
 //   * Inserts `std.dealloc` Operations for inner buffers.
 //
 
@@ -30,10 +30,7 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %prob = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %prob : tensor<1x1000xf16>
 
-    // CHECK: [[VAR0:%[0-9]*]] = alloc() : memref<1x1000xf16>
-    // CHECK: IERT.SoftMax([[ARG0]], [[VAR0]]) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16>
-    // CHECK: linalg.copy([[VAR0]], [[ARG1]]) : memref<1x1000xf16>, memref<1x1000xf16>
-    // CHECK: dealloc [[VAR0]] : memref<1x1000xf16>
+    // CHECK: IERT.SoftMax([[ARG0]], [[ARG1]]) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16>
     // CHECK: return
 }
 

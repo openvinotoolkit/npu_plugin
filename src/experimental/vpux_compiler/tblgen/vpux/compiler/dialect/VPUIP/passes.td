@@ -47,18 +47,4 @@ def AddLinearScheduling : Pass<"add-linear-scheduling", "mlir::ModuleOp"> {
     let constructor = "vpux::VPUIP::createAddLinearSchedulingPass()";
 }
 
-//
-// RemoveExtraDMA
-//
-
-def RemoveExtraDMA : FunctionPass<"remove-extra-dma"> {
-    let summary = "Removes extra DMA tasks";
-
-    let description = [{
-        The pass removes DMA tasks, which copies between same physical memory and with the same strides.
-    }];
-
-    let constructor = "vpux::VPUIP::createRemoveExtraDMAPass()";
-}
-
 #endif
