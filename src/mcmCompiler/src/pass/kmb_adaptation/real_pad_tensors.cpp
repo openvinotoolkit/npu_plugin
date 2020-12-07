@@ -83,11 +83,19 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
         outputTensor->setShape({outputShape[mv::IO_WIDTH_DIMENSION], outputShape[mv::IO_HEIGHT_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION], outputShape[mv::IO_BATCH_DIMENSION]});
         for (const auto& flowName : outputTensor->getFlowNames())
             propagateShapeChange(om, flowName);
+
+        addCropNode(om, sink, outputTensor, outputShape[mv::IO_CHANNEL_DIMENSION]);
     }
 }
 
 void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels)
 {
+    auto cropOpName = outputTensor->getName() + "_crop";
+
+    // check if already there's a crop for output tensor
+    if (om.checkOp(cropOpName))
+       return;
+
     std::vector<mv::Data::OpListIterator> opsToLink;
     std::vector<std::size_t> inputSlots;
     std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
@@ -101,8 +109,6 @@ void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::Tens
         flowsToRemove.push_back(sinkFlow);
     }
 
-    //TODO check if already there's a crop? or maybe move this to separate pass
-    auto cropOpName = outputTensor->getName() + "_crop";
     auto quantParams = outputTensor->getQuantParams();
 
     auto croppedTensor = om.crop(cropOpName,
