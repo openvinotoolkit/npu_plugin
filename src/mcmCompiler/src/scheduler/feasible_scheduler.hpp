@@ -18,10 +18,10 @@ struct scheduler_traits {
   //////////////////////////////////////////////////////////////////////////////
   // Input: G(V,E) //
   typedef int dag_t;
-  typedef int operation_t; 
+  typedef int operation_t;
   // should be a function which defines a hash function and is equivalent to
   // std::hash<operation_t> //
-  typedef int operation_hash_t; 
+  typedef int operation_hash_t;
 
   // Invariant: &(*itr) should remain same constant irrespective of the iterator
   typedef int const_operation_iterator_t;
@@ -36,19 +36,19 @@ struct scheduler_traits {
   // data operations have no producers and just feed data to compute operations.
   static bool is_data_operation(const dag_t&, const operation_t&);
   static bool is_compute_operation(const dag_t&, const operation_t&);
-  
+
   // Applications can return an eviction priority of operations. If there is a
   // tie using the default eviction policy. Then the tie is broken using
   // eviction priority.
   static size_t eviction_priority(const dag_t&, const operation_t&);
 
-  // Given v \in V , iterator over { u | (v, u) \in E } 
+  // Given v \in V , iterator over { u | (v, u) \in E }
   static const_operation_iterator_t outgoing_operations_begin(const dag_t&,
         const operation_t&);
   static const_operation_iterator_t outgoing_operations_end(const dag_t&,
         const operation_t&);
 
-  // Given v \in V , iterator over { u | (u, v) \in E } 
+  // Given v \in V , iterator over { u | (u, v) \in E }
   static const_operation_iterator_t incoming_operations_begin(const dag_t&,
       const operation_t&);
   static const_operation_iterator_t incoming_operations_end(const dag_t&,
@@ -78,13 +78,13 @@ struct scheduler_traits {
   // Resource model //
   typedef size_t resource_t;
 
-  // Resource utility = r : V->{1,2\ldots k} // 
+  // Resource utility = r : V->{1,2\ldots k} //
   static resource_t resource_utility(const dag_t&, const operation_t&);
   //////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////////////
   // Resource update model:
-  // 
+  //
   // Invariant: takes an operation and state of the resources and returns true
   // if this operation can be scheduled //
 
@@ -100,11 +100,11 @@ struct scheduler_traits {
   static bool is_resource_available(const resource_t& demand,
         const resource_state_t&);
 
-  template<typename DemandIterator> 
+  template<typename DemandIterator>
   static bool are_resources_available(
       DemandIterator ditr, DemandIterator ditr_end, const resource_state_t&);
 
-  // Precondition: is_resource_available(demand) = true. 
+  // Precondition: is_resource_available(demand) = true.
   // Invariant: makes an update in the resource usage of using the operations//
   static bool schedule_operation(const operation_t&, resource_t demand,
       resource_state_t&);
@@ -116,7 +116,7 @@ struct scheduler_traits {
     return schedule_operation(op, demand, rstate);
   }
 
-  // Precondition: updates the resource state by removing the operation form 
+  // Precondition: updates the resource state by removing the operation form
   // the schedule //
   static bool unschedule_operation(const operation_t&, resource_state_t&);
   //////////////////////////////////////////////////////////////////////////////
@@ -193,7 +193,7 @@ class Cumulative_Resource_State {
 }; // class Cumulative_Resource_State //
 
 // This models the resource state as disjoint set of integral intervals//
-// 
+//
 // TODO(vkundeti): enforce hashable requirement for the Key //
 template< typename Unit, typename Key, typename KeyHash=std::hash<Key>,
          typename KeyEqual=std::equal_to<Key> >
@@ -210,7 +210,7 @@ class Contiguous_Resource_State {
 
     // closed interval [begin_, end_] = { x | begin_ <= x <= end_ }
     struct interval_info_t {
-      void invalidate() { 
+      void invalidate() {
         begin_ = std::numeric_limits<unit_t>::max();
         end_ = std::numeric_limits<unit_t>::min();
       }
@@ -227,13 +227,13 @@ class Contiguous_Resource_State {
         return (begin_ == o.begin_) && (end_ == o.end_);
       }
 
-      unit_t begin_; 
+      unit_t begin_;
       unit_t end_;
     }; // struct interval_info_t //
 
     struct no_op_back_insert_iterator_t {
       void operator++() {}
-      void operator=(const interval_info_t&) {} 
+      void operator=(const interval_info_t&) {}
     }; // struct no_op_back_insert_iterator_t //
 
     struct interval_length_ordering_t {
@@ -291,7 +291,7 @@ class Contiguous_Resource_State {
       // a decision about the packing. The algorithm is greedy on the size
       // of the free bins and packs as much demand as it can into the chosen
       // free bin and moves to the next bin. However its possible that this
-      // can miss a valid packing. To solve it correctly we need to solve a 
+      // can miss a valid packing. To solve it correctly we need to solve a
       // 1D bin-packing problem.
 
       free_interval_iterator_t fitr = active_resources_.begin_free_intervals();
@@ -304,7 +304,7 @@ class Contiguous_Resource_State {
       for (; fitr != fitr_end; ++fitr) {
         // NOTE: the disjoint interval set is on open interval:
         // (-\infty, +\infty) and will return free intervals which
-        // may not be in the range [location_begin_, location_end_] 
+        // may not be in the range [location_begin_, location_end_]
         unit_t a = std::max(location_begin_-1, fitr.interval_begin());
         unit_t b = std::min(location_end_+1, fitr.interval_end());
 
@@ -341,7 +341,7 @@ class Contiguous_Resource_State {
       size_t remaining_space_in_curr_bin = (free_bins.size() == 0) ? 0 : (*bitr).length();
       bool is_fresh_bin = true;
 
-      // In each iterator either we move to next demand or 
+      // In each iterator either we move to next demand or
       // we move to next bin or we exit. Hence this loop terminates //
       while ( (ditr != ditr_end) && (bitr != bitr_end) ) {
 
@@ -422,7 +422,7 @@ class Contiguous_Resource_State {
     bool unassign_resources(const key_t& op) {
       typename lookup_t::iterator litr = lookup_.find(op);
       if (litr == lookup_.end()) { return false; }
-      const interval_info_t &interval = litr->second; 
+      const interval_info_t &interval = litr->second;
 
       if (!active_resources_.erase(interval.begin_, interval.end_)) {
         return false;
@@ -434,7 +434,7 @@ class Contiguous_Resource_State {
     // moves the resources of op_a to op_b //
     bool relocate_resources(const key_t& op_a, const key_t& op_b) {
       typename lookup_t::iterator litr = lookup_.find(op_a);
-      if (litr == lookup_.end()) { 
+      if (litr == lookup_.end()) {
         throw "Source does not have any relocatable resources";
       }
       if (lookup_.find(op_b) != lookup_.end()) {
@@ -518,7 +518,7 @@ class Contiguous_Resource_State {
             (min_capacity > ((curr_end - curr_start)+1)) ) {
           output_interval_start = curr_start;
           output_interval_end = curr_end;
-          min_capacity = (curr_end - curr_start) + 1; 
+          min_capacity = (curr_end - curr_start) + 1;
         }
       }
       return output_interval_start <= output_interval_end;
@@ -535,7 +535,7 @@ class Contiguous_Resource_State {
 // This models a resource which can have consumers and its engaged until all the
 // consumers are done consuming the resource. Both the producers and consumers
 // are identified Key type objects.
-// 
+//
 // TODO(vkundeti): enforce hashable requirement for the Key type.
 template<typename Unit, typename Key>
 class Producer_Consumer_Contiguous_Resource :
@@ -549,7 +549,9 @@ class Producer_Consumer_Contiguous_Resource :
     typedef Contiguous_Resource_State<unit_t, key_t> parent_t;
     typedef key_t consumer_t;
     typedef key_t producer_t;
-    using parent_t::active_resources_t;
+    typedef typename parent_t::active_resources_t active_resources_t;
+    typedef typename active_resources_t::free_interval_iterator_t
+        free_interval_iterator_t;
     using parent_t::active_resources_;
     typedef std::list<producer_t> producers_t;
     typedef std::unordered_map<consumer_t, producers_t> consumer_producer_map_t;
@@ -573,7 +575,7 @@ class Producer_Consumer_Contiguous_Resource :
     // producer to all consumers. Consumers for this producer are passed as an
     // iterator over the consumers.
     template<typename ConsumerIterator>
-    bool assign_resources(const key_t& op, const unit_t& demand, 
+    bool assign_resources(const key_t& op, const unit_t& demand,
         ConsumerIterator consumer_begin=ConsumerIterator(),
         ConsumerIterator consumer_end=ConsumerIterator()) {
 
@@ -611,7 +613,7 @@ class Producer_Consumer_Contiguous_Resource :
           // no consumers for this op hence unassign its resources //
           producer_ref_count_.erase(ref_itr);
           parent_t::unassign_resources(op);
-        } 
+        }
       }
 
       // reduce the ref_count of all the producers //
@@ -627,7 +629,7 @@ class Producer_Consumer_Contiguous_Resource :
         for(;pitr != pitr_end; ++pitr) {
           const producer_t& producer = *pitr;
 
-          ref_itr = producer_ref_count_.find(producer); 
+          ref_itr = producer_ref_count_.find(producer);
           if (ref_itr == ref_itr_end) { return false; }// Invariant violation //
           --(ref_itr->second);
           if (!(ref_itr->second)) {
@@ -636,9 +638,19 @@ class Producer_Consumer_Contiguous_Resource :
             parent_t::unassign_resources(producer);
           }
         }
-        consumer_producers_map_.erase(citr); 
+        consumer_producers_map_.erase(citr);
       }
       return true;
+    }
+
+    bool empty() const { return active_resources_.empty(); }
+
+    free_interval_iterator_t begin_free_intervals() const {
+      return active_resources_.begin_free_intervals();
+    }
+
+    free_interval_iterator_t end_free_intervals() const {
+      return active_resources_.end_free_intervals();
     }
 
   private:
@@ -690,7 +702,7 @@ class Feasible_Schedule_Generator {
   typedef std::unordered_map<const_op_ptr_t, size_t> operation_in_degree_t;
   typedef std::unordered_map<const_op_ptr_t, size_t> priority_map_t;
   typedef std::unordered_set<const_op_ptr_t> processed_ops_t;
-  
+
   //////////////////////////////////////////////////////////////////////////////
 
 
@@ -708,15 +720,15 @@ class Feasible_Schedule_Generator {
 
   Feasible_Schedule_Generator() : heap_(), current_time_(0), candidates_(),
     resource_state_(), heap_ordering_(), schedulable_op_(), in_degree_(),
-    processed_ops_(), input_ptr_(), priority_() {} 
+    processed_ops_(), input_ptr_(), priority_() {}
 
   void operator++() { next_schedulable_operation(); }
   // Precondition: reached_end() is false //
-  const operation_t& operator*() const 
+  const operation_t& operator*() const
   {
     if (!schedulable_op_)
       throw RuntimeError("LpScheduler", "Feasible_Schedule_Generator: Null ptr dereference");
-    return *schedulable_op_; 
+    return *schedulable_op_;
   }
 
   bool operator==(const Feasible_Schedule_Generator& o) const {
@@ -808,7 +820,7 @@ class Feasible_Schedule_Generator {
     }
 
     while (!zero_in_degree_nodes[curr_priority%2].empty()) {
-      // decrement the in-degree 
+      // decrement the in-degree
       for (auto zitr=zero_in_degree_nodes[curr_priority%2].begin();
             zitr != zero_in_degree_nodes[curr_priority%2].end(); ++zitr) {
 
@@ -996,7 +1008,7 @@ class Feasible_Schedule_Generator {
     processed_ops_.insert(op_ptr);
   }
 
- 
+
   //////////////////////////////////////////////////////////////////////////////
   schedule_heap_t heap_;
   schedule_time_t current_time_;
@@ -1013,7 +1025,7 @@ class Feasible_Schedule_Generator {
 }; // class Feasible_Schedule_Generator //
 
 
-// Feasible_Memory_Schedule_Generator: generates a feasible schedule for an 
+// Feasible_Memory_Schedule_Generator: generates a feasible schedule for an
 // operation DAG on a memory (contiguous resource) model. Also memory model
 // falls into a producer-consumer resource model.
 template<typename T, typename SchedulerTraits=scheduler_traits<T>,
@@ -1051,8 +1063,8 @@ class Feasible_Memory_Schedule_Generator {
       }
 
       void change_state_to_active() { state_ = operation_output_e::ACTIVE; }
-      void change_state_to_consumed() { state_ = operation_output_e::CONSUMED; } 
-      void change_state_to_spilled() { state_ = operation_output_e::SPILLED; } 
+      void change_state_to_consumed() { state_ = operation_output_e::CONSUMED; }
+      void change_state_to_spilled() { state_ = operation_output_e::SPILLED; }
 
       void decrement_consumers() {
         assert(outstanding_consumers_ > 0UL);
@@ -1120,7 +1132,7 @@ class Feasible_Memory_Schedule_Generator {
       interval_info_t interval_info_;
       // if set true means the resources are relocated and will not unassign
       // resources during unschedule_op //
-      bool is_relocated_; 
+      bool is_relocated_;
     }; // struct active_result_info_t //
 
     struct heap_element_t {
@@ -1145,7 +1157,7 @@ class Feasible_Memory_Schedule_Generator {
       // maintaining op_ and op_type_ seperately.
       operation_t op_;
       schedule_time_t time_;
-      op_type_e op_type_; 
+      op_type_e op_type_;
     }; // struct heap_element_t //
 
 
@@ -1166,7 +1178,7 @@ class Feasible_Memory_Schedule_Generator {
         return *this;
       }
 
-      const char* op_type_name() const { 
+      const char* op_type_name() const {
         const char *ret = NULL;
 
         switch (op_type_) {
@@ -1195,7 +1207,7 @@ class Feasible_Memory_Schedule_Generator {
       operator operation_t() const { return op_; }
 
 
-      operation_t op_; 
+      operation_t op_;
       op_type_e op_type_;
       schedule_time_t time_;
       interval_info_t resource_info_;
@@ -1212,7 +1224,7 @@ class Feasible_Memory_Schedule_Generator {
     typedef completion_time_ordering_t start_time_ordering_t;
 
 
-    //TODO(vamsikku): the purpose of a eviction policy is to choose the 
+    //TODO(vamsikku): the purpose of a eviction policy is to choose the
     //minimum active operation for eviction.
     struct default_eviction_policy_t {
       bool operator()(const operation_t& a, const operation_t& b) const {
@@ -1227,26 +1239,29 @@ class Feasible_Memory_Schedule_Generator {
       evictable_candidate_t(const dag_t& input_dag,
           const operation_t& candidate, size_t active_input_count)
         : dag_ptr_(&input_dag), candidate_(candidate),
-          active_input_count_(active_input_count){} 
+          active_input_count_(active_input_count){}
 
       bool operator<(const evictable_candidate_t& other) const {
         if (active_input_count_ != other.active_input_count_) {
           return active_input_count_ < other.active_input_count_;
         }
 
-        // compare priority: ties are resolved using name// 
+        // compare priority: ties are resolved using name//
         size_t priority_this = traits::eviction_priority(*dag_ptr_, candidate_);
         size_t priority_other =
             traits::eviction_priority(*dag_ptr_, other.candidate_);
 
-        return (priority_this != priority_other) ? 
-            (priority_this < priority_other) 
-            : (strcmp(traits::operation_name(candidate_),
+        if (priority_this != priority_other) {
+          return priority_this < priority_other;
+        } else if (active_input_count_ != other.active_input_count_) {
+          return (active_input_count_ < other.active_input_count_);
+        }
+        return  (strcmp(traits::operation_name(candidate_),
                       traits::operation_name(other.candidate_)) < 0);
       }
 
       void print() const {
-        printf("name=%s active_input=%lu evict_priority=%lu\n", 
+        printf("name=%s active_input=%lu evict_priority=%lu\n",
             traits::operation_name(candidate_), active_input_count_,
             traits::eviction_priority(*dag_ptr_, candidate_));
       }
@@ -1263,16 +1278,16 @@ class Feasible_Memory_Schedule_Generator {
     // ready lists //
     typedef std::unordered_set<operation_t, operation_hash_t> ready_data_list_t;
     typedef std::unordered_set<operation_t, operation_hash_t>
-        ready_active_list_t; 
-    typedef std::unordered_set<operation_t, operation_hash_t> ready_list_t; 
+        ready_active_list_t;
+    typedef std::unordered_set<operation_t, operation_hash_t> ready_list_t;
 
-    typedef std::unordered_set<operation_t, operation_hash_t> processed_ops_t; 
+    typedef std::unordered_set<operation_t, operation_hash_t> processed_ops_t;
     typedef std::unordered_map<operation_t, size_t, operation_hash_t>
         op_in_degree_t;
     typedef std::unordered_map<operation_t, op_output_info_t,
               operation_hash_t> op_output_table_t;
     typedef std::vector<active_result_info_t> active_op_resources_t;
-    // NOTE: the reason for the active_op_resources_t is to consider any future 
+    // NOTE: the reason for the active_op_resources_t is to consider any future
     // possibility of one operation generating multiple outputs.
     typedef std::unordered_map<operation_t, active_op_resources_t,
               operation_hash_t>
@@ -1280,7 +1295,7 @@ class Feasible_Memory_Schedule_Generator {
 
     struct noop_op_back_insert_iterator_t {
       void operator++() {}
-      void operator=(const operation_t&) {} 
+      void operator=(const operation_t&) {}
     }; // struct noop_op_back_insert_iterator_t //
 
     struct decreasing_demand_ordering_t {
@@ -1294,8 +1309,8 @@ class Feasible_Memory_Schedule_Generator {
       bool operator()(const operation_t& a, const operation_t& b) const {
         return (traits::resource_utility(dag_, a) !=
               traits::resource_utility(dag_, b))
-          ? (traits::resource_utility(dag_, a) > 
-                traits::resource_utility(dag_, b)) : 
+          ? (traits::resource_utility(dag_, a) >
+                traits::resource_utility(dag_, b)) :
           (::strcmp(traits::operation_name(a), traits::operation_name(b)) < 0);
       }
       const dag_t& dag_;
@@ -1470,7 +1485,7 @@ class Feasible_Memory_Schedule_Generator {
 
 
     template<typename Ordering, typename BackInsertIterator>
-    void pop_all_elements_at_this_time_gen(heap_t& heap, const Ordering& order, 
+    void pop_all_elements_at_this_time_gen(heap_t& heap, const Ordering& order,
         schedule_time_t time_step, BackInsertIterator output) {
       heap_element_t const *top_ptr = NULL;
       while ( (top_ptr = top_element_gen(heap)) &&
@@ -1479,7 +1494,7 @@ class Feasible_Memory_Schedule_Generator {
         ++output;
       }
     }
-    
+
     ////////////////////////////////////////////////////////////////////////////
 
 
@@ -1502,7 +1517,7 @@ class Feasible_Memory_Schedule_Generator {
       noop_op_back_insert_iterator_t noop;
       reduce_in_degree_of_adjacent_operations_gen(op, noop);
     }
-    
+
     // Also maintains the invariant that the map in_degree_ has no ops
     // with zero in-degree. Also returns zero in degree ops via a back insert
     // iterator.
@@ -1572,7 +1587,7 @@ class Feasible_Memory_Schedule_Generator {
 
     void compute_ready_data_list() {
       const_operation_iterator_t itr, itr_end;
-        
+
       itr = traits::operations_begin(*input_ptr_);
       itr_end = traits::operations_end(*input_ptr_);
 
@@ -1582,7 +1597,7 @@ class Feasible_Memory_Schedule_Generator {
               is_zero_in_degree_op(op) ) {
           ready_data_list_.insert(op);
           // this may create new ready compute-ops //
-          reduce_in_degree_of_adjacent_operations(op); 
+          reduce_in_degree_of_adjacent_operations(op);
         }
       } // foreach op //
     }
@@ -1590,7 +1605,7 @@ class Feasible_Memory_Schedule_Generator {
     void compute_ready_compute_list() {
       const_operation_iterator_t itr, itr_end;
       total_compute_ops_ = 0UL;
-        
+
       itr = traits::operations_begin(*input_ptr_);
       itr_end = traits::operations_end(*input_ptr_);
 
@@ -1605,6 +1620,73 @@ class Feasible_Memory_Schedule_Generator {
       } // foreach op //
     }
 
+    void check_if_input_is_dag() const {
+      std::list<operation_t> zero_in_degree_nodes[2];
+      size_t curr_level = 0;
+      const_operation_iterator_t itr = traits::operations_begin(*input_ptr_);
+      const_operation_iterator_t itr_end = traits::operations_end(*input_ptr_);
+      std::unordered_map<operation_t, size_t> in_degree_map;
+
+      // compute in degree //
+      while (itr != itr_end) {
+        operation_t op = *itr;
+        const_operation_iterator_t pitr =
+            traits::incoming_operations_begin(*input_ptr_, op);
+        const_operation_iterator_t pitr_end =
+            traits::incoming_operations_end(*input_ptr_, op);
+
+        size_t in_degree = 0UL;
+        for (; pitr != pitr_end; ++pitr) { ++in_degree; }
+
+        in_degree_map[op] = in_degree;
+
+        if (!in_degree) {
+          zero_in_degree_nodes[curr_level%2UL].push_back(op);
+        }
+        ++itr;
+      }
+
+      while (!zero_in_degree_nodes[curr_level%2].empty()) {
+        // decrement the in-degree
+        for (auto zitr=zero_in_degree_nodes[curr_level%2].begin();
+              zitr != zero_in_degree_nodes[curr_level%2].end(); ++zitr) {
+
+          const_operation_iterator_t jtr = traits::outgoing_operations_begin(
+              *input_ptr_, *zitr);
+          const_operation_iterator_t jtr_end = traits::outgoing_operations_end(
+              *input_ptr_, *zitr);
+
+          while (jtr != jtr_end) {
+            typename std::unordered_map<operation_t, size_t>::iterator deg_itr =
+                in_degree_map.find(*jtr);
+            assert((deg_itr != in_degree_map.end()) && (deg_itr->second > 0));
+            (deg_itr->second)--;
+            if (!(deg_itr->second)) {
+              // in-degree of this node has become zero//
+              zero_in_degree_nodes[(curr_level+1)%2].push_back(deg_itr->first);
+            }
+            ++jtr;
+          }
+        }
+        zero_in_degree_nodes[curr_level%2].clear();
+        ++curr_level;
+      }
+
+
+      bool has_cycle = false;
+      for (auto deg_itr=in_degree_map.begin(); deg_itr!=in_degree_map.end();
+            ++deg_itr) {
+        if (deg_itr->second) {
+          has_cycle = true;
+          break;
+        }
+      }
+
+      if (has_cycle) {
+        throw RuntimeError("LpScheduler", "input is not a DAG\n");
+      }
+    }
+
     bool init(const dag_t& input, const resource_t& upper_bound) {
       input_ptr_ = &input;
       memory_state_.clear();
@@ -1614,9 +1696,10 @@ class Feasible_Memory_Schedule_Generator {
       clear_lists();
 
       compute_op_in_degree();
+      check_if_input_is_dag();
       compute_ready_data_list();
       compute_ready_compute_list();
-      
+
       schedule_all_possible_ready_ops_and_update(ready_list_);
       next_schedulable_op();
       return true;
@@ -1682,7 +1765,6 @@ class Feasible_Memory_Schedule_Generator {
       //if (!is_operation_using_non_empty_resources(op)) { return true; }
       // first check if output resources for this operation are available //
       resource_t demand = traits::resource_utility(*input_ptr_, op);
-
 
       if (!memory_state_.is_resource_available(demand)) {
         return false;
@@ -1883,9 +1965,9 @@ class Feasible_Memory_Schedule_Generator {
     }
 
     // Core Schedule Operation:
-    // 1. Update the op_output_table_ and active_resource_table_ 
+    // 1. Update the op_output_table_ and active_resource_table_
     // 2. Assign resources simultaneously: updates memory_state_
-    // 3. Schedule all non-active data ops which provide input to this op 
+    // 3. Schedule all non-active data ops which provide input to this op
     //   3.1 add delay to the op equal to the max of the delays of these input
     //       ops
     // 4. Add the operation to the schedule heap : updates heap_
@@ -1913,14 +1995,14 @@ class Feasible_Memory_Schedule_Generator {
       }
       op_output_table_.insert( std::make_pair(op,
             op_output_info_t(operation_output_e::ACTIVE,
-                outstanding_consumers)) ); 
+                outstanding_consumers)) );
       //////////////////////////////////////////////////////////////////////////
 
 
       //////////////////////////////////////////////////////////////////////////
       //STEP-2: assign resources simultaneously //
       // get all the info about resource allocations //
-      std::vector<resource_t> op_demands; 
+      std::vector<resource_t> op_demands;
       std::vector<operation_t> ops_corresponding_to_demands;
       decreasing_demand_ordering_t demand_ordering(*input_ptr_);
 
@@ -1972,22 +2054,22 @@ class Feasible_Memory_Schedule_Generator {
       //////////////////////////////////////////////////////////////////////////
       //Inplace Ops: At this point the compute op is fully scheduled. If its an
       //inplace op then all its inputs should now have active resources in the
-      //active resource table. 
-      //TODO(vamsikku): now locate the 
+      //active resource table.
+      //TODO(vamsikku): now locate the
       if (traits::is_inplace_op(*input_ptr_, op)) {
         // transfer the resources from input to this op//
         operation_t overwrite_op =
             traits::get_inplace_output_op(*input_ptr_, op);
         // STEP-1:
-        //  a. locate overwrite_op in op_output_table_ 
+        //  a. locate overwrite_op in op_output_table_
         //  b. this must be active.
         //  c. this must have exactly one outstanding consumers //
         //  d. resource utility must be exactly the same. //
         typename op_output_table_t::iterator
             overwrite_out_itr = op_output_table_.find(overwrite_op);
 
-        if ( !((overwrite_out_itr != op_output_table_.end()) && 
-              (overwrite_out_itr->second).active() && 
+        if ( !((overwrite_out_itr != op_output_table_.end()) &&
+              (overwrite_out_itr->second).active() &&
               (overwrite_out_itr->second).has_single_outstanding_consumer()) ) {
           throw "Invalid overwrite state of inplace output";
         }
@@ -2011,7 +2093,7 @@ class Feasible_Memory_Schedule_Generator {
         // create an entry in the active resources table //
         typename active_resource_table_t::iterator op_aitr =
             active_resource_table_.find(op);
-        if (op_aitr != active_resource_table_.end()) { 
+        if (op_aitr != active_resource_table_.end()) {
           throw "Invalid active_resource state for currently scheduled op";
         }
 
@@ -2027,7 +2109,7 @@ class Feasible_Memory_Schedule_Generator {
 
 
       //////////////////////////////////////////////////////////////////////////
-      //STEP-3: schedule this compute op 
+      //STEP-3: schedule this compute op
       schedule_time_t op_start_time = current_time_ + max_input_delay;
       // compute op is always original //
       push_to_heap_start_time(heap_element_t(op, op_start_time,
@@ -2125,7 +2207,7 @@ class Feasible_Memory_Schedule_Generator {
           typename active_resource_table_t::iterator aitr =
               active_resource_table_.find(pop);
           assert(aitr != active_resource_table_.end());
-          
+
           const active_op_resources_t &active_op_resources = aitr->second;
           for (size_t i=0; i<active_op_resources.size(); i++) {
             // clear out its resources from memory_state_ //
@@ -2143,10 +2225,10 @@ class Feasible_Memory_Schedule_Generator {
           active_resource_table_.erase(aitr);
         }
       }
-      
+
       typename op_output_table_t::iterator itr = op_output_table_.find(op);
       assert(itr != op_output_table_.end());
-      
+
       op_output_info_t &op_output_info = itr->second;
 
       if (op_output_info.consumed()) {
@@ -2218,9 +2300,12 @@ class Feasible_Memory_Schedule_Generator {
         const heap_element_t *start_top_ptr = top_element_start_time();
         const heap_element_t *completion_top_ptr = top_element_completion_time();
 
-        assert(start_top_ptr || completion_top_ptr);
+        if (!(start_top_ptr || completion_top_ptr)) {
+          throw RuntimeError("LpScheduler",
+                "Both start time and completion heaps are empty.");
+        }
 
-        bool pop_from_start_heap = start_top_ptr && ( !completion_top_ptr || 
+        bool pop_from_start_heap = start_top_ptr && ( !completion_top_ptr ||
             (start_top_ptr->time_ < completion_top_ptr->time_) );
 
         heap_element_t helement;
@@ -2235,7 +2320,7 @@ class Feasible_Memory_Schedule_Generator {
           current_scheduled_op_.op_ = helement.op_;
           current_scheduled_op_.op_type_ = helement.op_type_;
           current_scheduled_op_.time_ = current_time_;
-          if (!helement.is_implicit_write_op() && 
+          if (!helement.is_implicit_write_op() &&
                 is_operation_using_non_empty_resources(helement.op_)) {
             current_scheduled_op_.resource_info_ =
                 get_active_resource_info(helement.op_);
@@ -2255,7 +2340,7 @@ class Feasible_Memory_Schedule_Generator {
             // at this time. This creates new ready lists.
             unschedule_all_completing_ops_at_next_earliest_time();
 
-            // since we have unscheduled some ops try to see if we could 
+            // since we have unscheduled some ops try to see if we could
             // schedule new ones //
             schedule_all_possible_ready_ops_and_update(ready_active_list_);
             schedule_all_possible_ready_ops_and_update(ready_list_);
@@ -2270,8 +2355,13 @@ class Feasible_Memory_Schedule_Generator {
           }
         }
 
-      } while (!found_schedulable_op && !reached_end()); 
+      } while (!found_schedulable_op && !reached_end());
 
+
+      if (reached_end() && !op_in_degree_.empty()) {
+        throw RuntimeError("LpScheduler",
+              "non-empty indegree map at the end of scheduling");
+      }
     }
 
     const interval_info_t& get_active_resource_info(
@@ -2284,7 +2374,7 @@ class Feasible_Memory_Schedule_Generator {
       return (aitr->second).front().interval_info_;
     }
 
-   
+
     void reset_input(const dag_t& in) { input_ptr_ = &in; }
 
     void reset(const dag_t& in, const resource_t& upper_bound) {
@@ -2358,7 +2448,7 @@ class Color_Connected_Vertices {
           colored_bfs_list.push_back(u);
         }
       }
-      explored.insert(v); 
+      explored.insert(v);
 
       while (!colored_bfs_list.empty()) {
         vertex_t w = colored_bfs_list.front();
@@ -2379,9 +2469,9 @@ class Color_Connected_Vertices {
             output = u;
           }
         }
-        explored.insert(w); 
+        explored.insert(w);
       } // while (!colored_bfs_list.empty() //
-      
+
     }
 
   private:

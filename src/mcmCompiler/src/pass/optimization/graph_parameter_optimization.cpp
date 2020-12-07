@@ -872,7 +872,6 @@ namespace mv
                             if(globalEnablePipelining && streamShape["K"] != 4 && streamShape["K"] != 2)
                                 return FailCause::cmxConcatDecision;
                         }
-
                     }
 
                 }
@@ -2376,7 +2375,6 @@ namespace mv
                                                                 requiresFakeActivationSparsity(op),
                                                                 spilling,
                                                                 parentSpilling);
-
 
                 //Note: avoid pipelining small weights. This number came out of experiments, when
                 // the overhead starts to appear...

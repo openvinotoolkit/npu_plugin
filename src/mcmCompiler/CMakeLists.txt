@@ -274,6 +274,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/pipeline_transform.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_dmas_from_concat.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/recompute_implicit_memory_locations.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/pipeline_across_parallel_branches.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 

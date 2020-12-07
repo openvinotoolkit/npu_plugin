@@ -58,11 +58,9 @@ void ChainPipeliningTransform(const mv::pass::PassEntry&,
     mv::Element&) {
   mv::OpModel om(model);
   typedef mv::scheduler::Pipeline_Chains pipeline_chains_t;
-
   pipeline_chains_t pipeliner(om);
 
   size_t pipeline_stages = 0UL;
-
   if (passDesc.hasAttr("select_stages")) {
     pipeline_stages = (size_t) passDesc.get<int>("select_stages");
   }
@@ -76,15 +74,11 @@ void ChainPipeliningTransform(const mv::pass::PassEntry&,
     }
   }
 
-  //mv::GenerateDotFromModel(om, "OpModel",
-   //     "before_pipeline_chain_transform.dot");
   FILE *pipeline_report_fptr = fopen("chain_pipeline_report.txt", "w");
   if (!pipeline_report_fptr)
     throw mv::RuntimeError("ChainPipeliningTransform", "Cannot open chain_pipeline_report.txt for write");
   pipeliner.transform_op_model(pipeline_report_fptr, pipeline_stages);
   fclose(pipeline_report_fptr);
-  //mv::GenerateDotFromModel(om, "OpModel",
-    // after_pipeline_chain_transform.dot");
 }
 
 void ChainPipeliningInverseTransform(const mv::pass::PassEntry&,
@@ -194,7 +188,7 @@ void LocateInplaceEltwiseOps(const mv::pass::PassEntry&,
             (op_itr->get<std::string>("taskOp") == "Eltwise"))) {continue;}
 
     ////////////////////////////////////////////////////////////////////////
-    // TODO(vamsikku): currently we ignore eltwise's which generate sparse 
+    // TODO(vamsikku): currently we ignore eltwise's which generate sparse
     // if we were to overwrite input of we need to also carefully overwrite
     // sparsity maps and storage element pointers.
     if (does_this_op_generate_sparse_output(model, op_itr)) {
