@@ -469,10 +469,10 @@ class CMX_Concatenation {
     bool is_weight_read(T op) const {
       mv::Data::OpListIterator oitr = omodel_.getOp(op->getName());
       if (oitr->getOpType() != "DMATask") { return false; }
+
       // indegree must be 1 and
       auto pitr = oitr.leftmostParent();
       auto pitr_next = pitr;
-
       ++pitr_next;
       if (pitr_next != omodel_.opEnd()) { return false; }
 
@@ -483,7 +483,6 @@ class CMX_Concatenation {
     template<typename T, typename OutputIterator>
     void get_weight_read_inputs(T dpu_op, OutputIterator output) const {
       mv::Data::OpListIterator oitr = omodel_.getOp(dpu_op->getName());
-
       for (auto pitr=oitr.leftmostParent(); pitr!=omodel_.opEnd(); ++pitr) {
         if (is_weight_read(pitr)) {
           output = &(*pitr);
@@ -865,7 +864,6 @@ class CMX_Concatenation {
     bool is_cmx_concateable_in_current_opmodel(
         const concat_subgraph_t& subgraph, size_t cmx_size,
         FILE *fptr=NULL) const {
-
       if (is_this_an_unsupported_concat(subgraph)) { return false; }
 
       size_t max_input_size =

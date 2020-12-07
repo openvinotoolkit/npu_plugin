@@ -46,6 +46,19 @@ class Pipeline_Chains {
         }
       }
 
+      void set_chain_pipeline_attribute(mv::OpModel& om) const {
+        for (operation_t dpu_op : dpu_chain_) {
+          mv::Data::OpListIterator dpu_op_itr = om.getOp(dpu_op->getName());
+          dpu_op_itr->set<bool>("chain_pipelined_dpu", true);
+        }
+      }
+
+      void set_chain_pipeline_attribute(mv::OpModel& om,
+          operation_t dpu_op) const {
+        mv::Data::OpListIterator dpu_op_itr = om.getOp(dpu_op->getName());
+        dpu_op_itr->set<bool>("chain_pipelined_dpu", true);
+      }
+
       void print(FILE *fptr=stdout) {
         if (dpu_chain_.size() < 2UL) { return; }
 
@@ -272,7 +285,6 @@ class Pipeline_Chains {
       std::list<operation_t> zero_in_degree_nodes[2UL];
       std::unordered_map<operation_t, size_t> in_degree_map;
       size_t curr_depth = 0;
-
       // STEP-0: compute the in-degree's of all nodes //
       //NOTE: in_degree means the number of inputs of an op, and the pseudo data flows
       //if an op is zero_in_degree goes to zero_in_degree_nodes, like constants
@@ -325,7 +337,6 @@ class Pipeline_Chains {
         zero_in_degree_nodes[parity].clear();
         curr_depth++;
       }
-
       clearEmptyDepth(dpu_levels);
 
       auto level_itr = dpu_levels.begin();
@@ -661,6 +672,8 @@ class Pipeline_Chains {
         const std::list<op_list_t>& weight_reads = chain_subgraph.weight_reads_;
         const op_list_t& dpu_chain = chain_subgraph.dpu_chain_;
         assert(!dpu_chain.empty() && "dpu_chain is empty");
+        if (dpu_chain.size() <= 3UL) { continue; }
+
 
         chain_subgraph.print(fptr);
         //compute_working_memory_for_eltwise_chain(chain_subgraph);
@@ -739,6 +752,7 @@ class Pipeline_Chains {
                 mv::Data::FlowListIterator flow_itr =
                     omodel_.defineFlow(src_tensor_itr, sink_itr, 0UL);
                 flow_itr->set<bool>("pseudo_data_flow", true);
+                src_itr->set<bool>("chain_pipelined_dpu", true);
               }
             }
           }
