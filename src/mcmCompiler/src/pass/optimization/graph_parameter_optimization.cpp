@@ -351,13 +351,13 @@ namespace mv
 
                                     strategyVec.push_back(s);
 
-                                    //    std::cout << "Name: " + op.getName() << " ID " << s["id"].toString()<< std::endl;
-                                    //    std::cout << "Input Sparsity: " + inputSparsity.toString() << std::endl;
-                                    //    std::cout << "Output Sparsity: " + outputSparsity.toString() << std::endl;
-                                    //    std::cout << "Weights Sparsity: " + weightsSparsity << std::endl;
-                                    //    std::cout << "Spilling: " + spilling.toString() << std::endl;
-                                    //    std::cout << "MCStrategy: " + clustering.toString() << std::endl;
-                                    //    std::cout << "Streaming(W,H,C,K,N): " + streamShape.toString() << std::endl<<std::endl;
+                                       std::cout << "Name: " + op.getName() << " ID " << s["id"].toString()<< std::endl;
+                                       std::cout << "Input Sparsity: " + inputSparsity.toString() << std::endl;
+                                       std::cout << "Output Sparsity: " + outputSparsity.toString() << std::endl;
+                                       std::cout << "Weights Sparsity: " + weightsSparsity << std::endl;
+                                       std::cout << "Spilling: " + spilling.toString() << std::endl;
+                                       std::cout << "MCStrategy: " + clustering.toString() << std::endl;
+                                       std::cout << "Streaming(W,H,C,K,N): " + streamShape.toString() << std::endl<<std::endl;
 
                                 }
                             }
@@ -1864,13 +1864,13 @@ namespace mv
 
                 double cost = base_cost;
 
-                // std::cout << "Strategy for " << parent["id"].toString() << " --> " << child["id"].toString() << std::endl <<
-                //     "    " << prepipe_cost << " : " << pipe_cost << " : " << pre_cost << " : " << base_cost << std::endl;
+                std::cout << "Strategy for " << parent["id"].toString() << " --> " << child["id"].toString() << std::endl <<
+                    "    " << prepipe_cost << " : " << pipe_cost << " : " << pre_cost << " : " << base_cost << std::endl;
 
                 if(pipelineable && prefetchable)
                 {
                     cost = prepipe_cost;
-                    // std::cout << "    chose prepipe: " << prepipe_cost << std::endl;
+                    std::cout << "    chose prepipe: " << prepipe_cost << std::endl;
                     // if(isSchedulerFriendly(childOp, child))
                     // {
                     //     cost *= 0.99;
@@ -1880,7 +1880,7 @@ namespace mv
                 else if(pipelineable)
                 {
                     cost = pipe_cost;
-                    // std::cout << "    chose pipe: " << pipe_cost << std::endl;
+                    std::cout << "    chose pipe: " << pipe_cost << std::endl;
                     // if(isSchedulerFriendly(childOp, child))
                     // {
                     //     cost *= 0.99;
@@ -1890,11 +1890,11 @@ namespace mv
                 else if(prefetchable)
                 {
                     cost = pre_cost;
-                    // std::cout << "    chose pre: " << pre_cost << std::endl;
+                    std::cout << "    chose pre: " << pre_cost << std::endl;
                 }
                 else
                 {
-                    // std::cout << "    chose base: " << base_cost << std::endl;
+                    std::cout << "    chose base: " << base_cost << std::endl;
                 }
 
                 // Note: if we don't include parent cost, prefetch calculation for child is misleading.
@@ -1906,7 +1906,8 @@ namespace mv
                     cost = cost + (pLastComp + pOutDma);
 
                 cost = cost + heuristics;
-                // std::cout << " returning cost " << cost << std::endl;
+                std::cout << " returning cost " << cost << std::endl;
+                
                 return cost;
         }
 
