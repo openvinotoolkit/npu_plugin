@@ -244,10 +244,10 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
         0.6, 0.4, 0.4, false);
 }
 
-#ifdef KMB_HAS_CUSTOM_KERNELS
+#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
-        getIELibraryPath() + "/kmb_custom_kernels/yolov2.xml");
+        getIELibraryPath() + "/kmb_custom_ocl_kernels/yolov2.xml");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -257,7 +257,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
         TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
-#endif  // KMB_HAS_CUSTOM_KERNELS
+#endif  // KMB_HAS_CUSTOM_OCL_KERNELS
 
 // KMB : Bad inference results. Possible bug in test system.
 // [Track number: S#28790]
@@ -281,10 +281,10 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
         0.6, 0.4, 0.4, false);
 }
 
-#ifdef KMB_HAS_CUSTOM_KERNELS
+#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
-        getIELibraryPath() + "/kmb_custom_kernels/yolov2.xml");
+        getIELibraryPath() + "/kmb_custom_ocl_kernels/yolov2.xml");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -294,7 +294,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
         TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
-#endif  // KMB_HAS_CUSTOM_KERNELS
+#endif  // KMB_HAS_CUSTOM_OCL_KERNELS
 
 TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
     runTest(

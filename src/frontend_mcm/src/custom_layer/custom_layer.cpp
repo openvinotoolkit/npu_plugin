@@ -130,7 +130,8 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
                      nodeName);
 
     const auto nodeType = XMLParseUtils::GetStrAttr(customLayer, "type");
-    VPU_THROW_UNLESS(cmp(nodeType, "MVCL"), "Wrong custom layer XML : Type is not MVCL, but %s", nodeType);
+    VPU_THROW_UNLESS(cmp(nodeType, "MVCL") || cmp(nodeType, "CPP"),
+                     "Wrong custom layer XML. Supported types: MVCL and CPP. Parsed type: %s", nodeType);
 
     const auto version = XMLParseUtils::GetIntAttr(customLayer, "version");
     VPU_THROW_UNLESS(version == 1, "Wrong custom layer XML : only version 1 is supported");
@@ -156,10 +157,19 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
         return nodes;
     }();
 
+    bool isCl = nodeType == "MVCL";
+    auto createKernel = [&](const pugi::xml_node& node, const std::string& configDir) -> std::shared_ptr<CustomKernel> {
+        if (isCl) {
+            return std::make_shared<CustomKernelOcl>(node, configDir);
+        }
+
+        return std::make_shared<CustomKernelCpp>(node, configDir);
+    };
+
     if (kernelNodes.size() == 1) {
-        _kernels.emplace_back(kernelNodes.front(), _configDir);
+        _kernels.emplace_back(createKernel(kernelNodes.front(), _configDir));
     } else {
-        auto stageOrder = std::map<int, CustomKernel>{};
+        auto stageOrder = std::map<int, CustomKernel::Ptr>{};
         for (const auto& kernel : kernelNodes) {
             const auto stageAttr = kernel.attribute("stage");
             VPU_THROW_UNLESS(stageAttr,
@@ -171,7 +181,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
             VPU_THROW_UNLESS(stageOrder.find(stageNum) == stageOrder.end(),
                              "Error while binding %s custom layer: found duplicating stage id.", _layerName);
 
-            stageOrder.emplace(stageNum, CustomKernel{kernel, _configDir});
+            stageOrder.emplace(stageNum, createKernel(kernel, _configDir));
         }
 
         VPU_THROW_UNLESS(stageOrder.size() > 0, "Error stage order for %s layer is empty", _layerName);
@@ -198,13 +208,12 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
     };
 
     for (const auto& kernel : _kernels) {
-        for (const auto& binding : kernel.bindings()) {
-            const auto& param = binding.second;
-            if (param.type == CustomParamType::Input) {
-                addPorts(_inputs, param);
+        for (const auto& binding : kernel->bindings()) {
+            if (binding.type == CustomParamType::Input) {
+                addPorts(_inputs, binding);
             }
-            if (param.type == CustomParamType::Output) {
-                addPorts(_outputs, param);
+            if (binding.type == CustomParamType::Output) {
+                addPorts(_outputs, binding);
             }
         }
     }
@@ -297,5 +306,62 @@ bool CustomLayer::meetsWhereRestrictions(const std::map<std::string, std::string
     }
     return true;
 }
+
+SizeRuleValidator::SizeRuleValidator(CustomLayer::Ptr customLayer,
+                                     const std::map<std::string, std::string>& cnnLayerParams, Logger::Ptr logger)
+        : _customLayer(std::move(customLayer)), _cnnLayerParams(cnnLayerParams), _logger(std::move(logger)) {
+}
+
+void SizeRuleValidator::visitCpp(const CustomKernelCpp&) {
+    _result = true;
+}
+
+void SizeRuleValidator::visitCL(const CustomKernelOcl& kernel) {
+    const auto& gws = kernel.globalGridSizeRules();
+    const auto& lws = kernel.localGridSizeRules();
+
+    const auto validSizeRule = [&](const std::string& rule) {
+        return CustomLayer::isLegalSizeRule(rule, _cnnLayerParams);
+    };
+
+    const auto validGridSizes =
+            std::all_of(begin(gws), end(gws), validSizeRule) && std::all_of(begin(lws), end(lws), validSizeRule);
+
+    const size_t workGroupDims = 3;
+    VPU_THROW_UNLESS(lws.size() <= workGroupDims,
+                     "Failed to parse '%s' custom layer binding list. Local work group size count "
+                     "is greater than 3.",
+                     _customLayer->layerName());
+    VPU_THROW_UNLESS(gws.size() <= workGroupDims,
+                     "Failed to parse '%s' custom layer binding list. Global work group size count "
+                     "is greater than 3.",
+                     _customLayer->layerName());
+
+    _result = validGridSizes;
+    if (!_result && _logger) {
+        _logger->debug("Not suitable: Work group grid sizes are not valid");
+    }
+}
+
+OperationFactory::OperationFactory(int stageIdx, mv::OpModel& modelMcm, const std::vector<uint8_t>& kernelData,
+                                   const std::vector<mv::Data::TensorIterator>& stageInputs,
+                                   const std::vector<mv::TensorInfo>& stageOutputs, const std::string& friendlyName)
+        : _stageIdx(stageIdx),
+          _modelMcm(modelMcm),
+          _kernelData(kernelData),
+          _stageInputs(stageInputs),
+          _stageOutputs(stageOutputs),
+          _friendlyName(friendlyName) {
+}
+
+void OperationFactory::visitCpp(const CustomKernelCpp& kernel) {
+    const auto layerName = _friendlyName + "_CustomCpp:" + std::to_string(_stageIdx);
+    _result = _modelMcm.customCpp(layerName, _stageInputs, kernel.kernelBinary(), _kernelData, _stageOutputs);
+};
+
+void OperationFactory::visitCL(const CustomKernelOcl& kernel) {
+    const auto layerName = _friendlyName + "_CustomOcl:" + std::to_string(_stageIdx);
+    _result = _modelMcm.customOcl(layerName, _stageInputs, kernel.kernelBinary(), _kernelData, _stageOutputs);
+};
 
 }  // namespace vpu

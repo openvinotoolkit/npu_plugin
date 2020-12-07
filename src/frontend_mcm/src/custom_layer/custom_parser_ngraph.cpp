@@ -53,9 +53,10 @@ public:
 };
 
 namespace vpu {
-SmallVector<int> CustomLayerParserNGraph::calcSizesFromParams(const std::vector<size_t>& dims,
-                                                              const SmallVector<std::string>& bufferSizeRules,
-                                                              std::map<std::string, std::string> layerParams) {
+
+static SmallVector<int> calcSizesFromParams(const std::vector<size_t>& dims,
+                                            const SmallVector<std::string>& bufferSizeRules,
+                                            std::map<std::string, std::string> layerParams) {
     const auto B = std::to_string(dims[0]);
     const auto F = std::to_string(dims[1]);
     const auto Y = std::to_string(dims[2]);
@@ -81,6 +82,60 @@ SmallVector<int> CustomLayerParserNGraph::calcSizesFromParams(const std::vector<
 
     return parsedSizes;
 }
+
+class CustomKernelParserNGraph : public CustomKernelVisitor {
+public:
+    CustomKernelParserNGraph(std::vector<uint32_t>& kernelParams,
+                             const std::map<std::string, std::string>& cnnLayerParams,
+                             const SmallVector<ngraph::Shape>& inputDescs,
+                             const SmallVector<ngraph::Shape>& outputDescs,
+                             const vpu::SmallVector<uint32_t>& kernelArgs)
+            : _kernelParams(kernelParams),
+              _cnnLayerParams(cnnLayerParams),
+              _inputDescs(inputDescs),
+              _outputDescs(outputDescs),
+              _kernelArgs(kernelArgs) {
+    }
+
+    void visitCpp(const CustomKernelCpp&) override {
+        _kernelParams.push_back(_kernelArgs.size());
+    }
+
+    void visitCL(const CustomKernelOcl& kernel) override {
+        const auto workGroupDims = 3;
+
+        const auto& wgDimSource = (kernel.dimSource() == CustomDimSource::Input) ? _inputDescs : _outputDescs;
+        const auto& wgDataDesc = wgDimSource.at(kernel.dimSourceIndex());
+
+        auto lwgs = calcSizesFromParams(wgDataDesc, kernel.localGridSizeRules(), _cnnLayerParams);
+        for (auto i = lwgs.size(); i < workGroupDims; i++) {
+            lwgs.push_back(1);
+        }
+
+        auto gwgs = calcSizesFromParams(wgDataDesc, kernel.globalGridSizeRules(), _cnnLayerParams);
+        for (auto i = gwgs.size(); i < workGroupDims; i++) {
+            gwgs.push_back(1);
+        }
+
+        const auto globalOffset = std::array<uint32_t, workGroupDims>{0};
+
+        std::copy(begin(lwgs), end(lwgs), back_inserter(_kernelParams));
+        for (decltype(lwgs.size()) i = 0; i < lwgs.size(); i++) {
+            IE_ASSERT(gwgs[i] % lwgs[i] == 0);
+            _kernelParams.push_back(gwgs[i] / lwgs[i]);
+        }
+        std::copy(globalOffset.begin(), globalOffset.end(), std::back_inserter(_kernelParams));
+        _kernelParams.push_back(workGroupDims);
+        _kernelParams.push_back(kernel.kernelId());
+    }
+
+private:
+    std::vector<uint32_t>& _kernelParams;
+    const std::map<std::string, std::string>& _cnnLayerParams;
+    const SmallVector<ngraph::Shape>& _inputDescs;
+    const SmallVector<ngraph::Shape>& _outputDescs;
+    const vpu::SmallVector<uint32_t>& _kernelArgs;
+};
 
 CustomLayerParserNGraph::CustomLayerParserNGraph(std::shared_ptr<ngraph::Node>& node,
                                                  std::vector<mv::Data::TensorIterator> inputs)
@@ -111,28 +166,10 @@ std::vector<vpu::CustomLayer::Ptr> getSuitableCustomLayers(const std::vector<vpu
             return false;
         }
 
+        SizeRuleValidator validator{customLayer, layerParams};
         for (const auto& kernel : customLayer->kernels()) {
-            const auto& gws = kernel.globalGridSizeRules();
-            const auto& lws = kernel.localGridSizeRules();
-
-            const auto validSizeRule = [&](const std::string& rule) {
-                return vpu::CustomLayer::isLegalSizeRule(rule, layerParams);
-            };
-
-            const auto validGridSizes = std::all_of(begin(gws), end(gws), validSizeRule) &&
-                                        std::all_of(begin(lws), end(lws), validSizeRule);
-
-            const auto workGroupDims = 3;
-            VPU_THROW_UNLESS(lws.size() <= workGroupDims,
-                             "Failed to parse '%s' custom layer binding list. Local work group size count "
-                             "is greater than 3.",
-                             customLayer->layerName());
-            VPU_THROW_UNLESS(gws.size() <= workGroupDims,
-                             "Failed to parse '%s' custom layer binding list. Global work group size count "
-                             "is greater than 3.",
-                             customLayer->layerName());
-
-            if (!validGridSizes) {
+            kernel->accept(validator);
+            if (!validator.result()) {
                 return false;
             }
         }
@@ -204,34 +241,10 @@ vpu::CustomLayer::Ptr findMatchingCustomLayer(const std::vector<vpu::CustomLayer
 
 std::vector<uint8_t> CustomLayerParserNGraph::resolveKernelArguments(const CustomKernel& kernel,
                                                                      const vpu::SmallVector<uint32_t>& kernelArgs) {
-    const auto workGroupDims = 3;
-
-    const auto& wgDimSource = (kernel.dimSource() == CustomDimSource::Input) ? _inputDescs : _outputDescs;
-    const auto& wgDataDesc = wgDimSource.at(kernel.dimSourceIndex());
-
-    auto lwgs = calcSizesFromParams(wgDataDesc, kernel.localGridSizeRules(), _layerParam);
-    for (int i = lwgs.size(); i < workGroupDims; i++) {
-        lwgs.push_back(1);
-    }
-
-    auto gwgs = calcSizesFromParams(wgDataDesc, kernel.globalGridSizeRules(), _layerParam);
-    for (int i = gwgs.size(); i < workGroupDims; i++) {
-        gwgs.push_back(1);
-    }
-
-    const auto globalOffset = std::array<uint32_t, workGroupDims>{0};
-
     auto kernelParams = std::vector<uint32_t>{};
-    kernelParams.reserve(workGroupDims * 3 + 2 + kernelArgs.size());
 
-    std::copy(begin(lwgs), end(lwgs), back_inserter(kernelParams));
-    for (decltype(lwgs.size()) i = 0; i < lwgs.size(); i++) {
-        IE_ASSERT(gwgs[i] % lwgs[i] == 0);
-        kernelParams.push_back(gwgs[i] / lwgs[i]);
-    }
-    std::copy(globalOffset.begin(), globalOffset.end(), std::back_inserter(kernelParams));
-    kernelParams.push_back(workGroupDims);
-    kernelParams.push_back(kernel.kernelId());
+    CustomKernelParserNGraph kernelParser{kernelParams, _layerParam, _inputDescs, _outputDescs, kernelArgs};
+    kernel.accept(kernelParser);
 
     std::copy(kernelArgs.begin(), kernelArgs.end(), std::back_inserter(kernelParams));
 
@@ -241,8 +254,7 @@ std::vector<uint8_t> CustomLayerParserNGraph::resolveKernelArguments(const Custo
     return kernelData;
 }
 
-std::vector<mv::TensorInfo> CustomLayerParserNGraph::resolveStageOutputs(const CustomKernel& kernel,
-                                                                         const CustomLayer& customLayer,
+std::vector<mv::TensorInfo> CustomLayerParserNGraph::resolveStageOutputs(const CustomLayer& customLayer,
                                                                          const std::vector<StageOutput>& stageOutputs) {
     std::vector<mv::TensorInfo> kernelOutputs;
     for (const auto& output : stageOutputs) {
@@ -268,23 +280,6 @@ std::vector<mv::TensorInfo> CustomLayerParserNGraph::resolveStageOutputs(const C
             if (order != mv::Order::getColMajorID(4)) {
                 order = mv::Order::getZMajorID(4);
             }
-            const auto type = [&] {
-                const auto withBindingName = [&](const CustomKernel::Argument& arg) {
-                    return arg.name == output.argName;
-                };
-
-                auto argument = std::find_if(begin(kernel.arguments()), end(kernel.arguments()), withBindingName);
-                IE_ASSERT(argument != kernel.arguments().end());
-
-                if (argument->underlyingTypeSize == 1)
-                    return mv::DType{"UInt8"};
-                if (argument->underlyingTypeSize == 2)
-                    return mv::DType{"Float16"};
-
-                VPU_THROW_EXCEPTION << "Custom layer output parameter '" << output.argName
-                                    << "' has unsupported output data type with "
-                                    << "underlying type size = " << argument->underlyingTypeSize;
-            }();
 
             // setting type as `Default` to replace it with input[0]'s DType
             // inside MCM using actual type is failing to compile with YoloV2 IR
@@ -295,10 +290,10 @@ std::vector<mv::TensorInfo> CustomLayerParserNGraph::resolveStageOutputs(const C
     return kernelOutputs;
 }
 
-StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<CustomKernel::BindingParameter>& bindings) {
+StageInfo CustomLayerParserNGraph::parseKernelArguments(const SmallVector<CustomKernel::BindingParameter>& bindings) {
     const auto floatAsInt = [](const float f) {
         uint32_t i;
-        memcpy(&i, &f, 4);
+        memcpy(&i, &f, sizeof(i));
         return i;
     };
 

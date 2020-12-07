@@ -44,21 +44,16 @@ class CustomLayerParserNGraph {
     std::map<std::string, std::string> _layerParam;
     std::unordered_map<int, mv::Data::TensorIterator> _buffers;
 
-private:
-    static SmallVector<int> calcSizesFromParams(const std::vector<size_t>& dims,
-                                                const SmallVector<std::string>& bufferSizeRules,
-                                                std::map<std::string, std::string> layerParams);
-
 public:
     CustomLayerParserNGraph(std::shared_ptr<ngraph::Node>& node, std::vector<mv::Data::TensorIterator> inputs);
 
     std::vector<uint8_t> resolveKernelArguments(const CustomKernel& kernel,
                                                 const vpu::SmallVector<uint32_t>& kernelArgs);
 
-    std::vector<mv::TensorInfo> resolveStageOutputs(const CustomKernel& kernel, const CustomLayer& customLayer,
+    std::vector<mv::TensorInfo> resolveStageOutputs(const CustomLayer& customLayer,
                                                     const std::vector<StageOutput>& stageOutputs);
 
-    StageInfo parseKernelArguments(const std::vector<CustomKernel::BindingParameter>& bindings);
+    StageInfo parseKernelArguments(const SmallVector<CustomKernel::BindingParameter>& bindings);
     uint32_t parseBufferSize(const CustomKernel::BindingParameter& binding);
     void addBuffer(int port, const mv::Data::TensorIterator& bufferIt);
 };

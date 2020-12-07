@@ -82,7 +82,16 @@ const std::vector<CTCDecoderTestParams> ctcParams = {
             .layout(Layout::NCHW)
 };
 
-#ifdef KMB_HAS_CUSTOM_KERNELS
+const std::vector<UseCustomLayers> CustomLayersParams = {
+#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
+    KernelType::Ocl,
+#endif
+#ifdef KMB_HAS_CUSTOM_CPP_KERNELS
+    KernelType::Cpp
+#endif
+};
+
+#if defined(KMB_HAS_CUSTOM_OCL_KERNELS) || defined(KMB_HAS_CUSTOM_CPP_KERNELS)
 INSTANTIATE_TEST_CASE_P(precommit, KmbCTCDecoderLayerTests,
-    testing::Combine(testing::ValuesIn(ctcParams), testing::Values<UseCustomLayers>(true)));
+    testing::Combine(testing::ValuesIn(ctcParams), testing::ValuesIn(CustomLayersParams)));
 #endif

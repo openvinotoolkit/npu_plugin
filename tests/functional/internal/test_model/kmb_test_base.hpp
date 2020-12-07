@@ -71,7 +71,7 @@ using namespace InferenceEngine;
         *os << #name ": " << ::testing::PrintToString((name::param_type)(param));           \
     }
 
-PRETTY_PARAM(UseCustomLayers, bool);
+PRETTY_PARAM(UseCustomLayers, KernelType);
 
 // #define RUN_SKIPPED_TESTS
 

@@ -163,7 +163,7 @@ public:
 
     static uint32_t float_as_int(float f) {
         uint32_t i;
-        memcpy(&i, &f, 4);
+        memcpy(&i, &f, sizeof(i));
         return i;
     }
 

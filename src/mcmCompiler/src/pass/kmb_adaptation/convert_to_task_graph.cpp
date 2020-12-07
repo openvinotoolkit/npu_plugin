@@ -557,15 +557,28 @@ mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector
     return norm;
 }
 
-mv::Data::TensorIterator convertCustomToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+mv::Data::TensorIterator convertCustomOclToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool /*software*/ = false,
                                     const mv::QuantizationParams& quantParams = mv::QuantizationParams::empty(),
-                                    const mv::DType& outputTensorType = mv::DType("Default"))
+                                    const mv::DType& outputTensorType = mv::DType("Default")) {
+    auto custom = om.uPATaskCustomOcl(name, inputs,
+                                      attrs.at("kernelData").get<std::vector<uint8_t>>(),
+                                      attrs.at("paramData").get<std::vector<uint8_t>>(),
+                                      attrs.at("outputsInfo").get<std::vector<mv::TensorInfo>>());
+    custom->setDType(outputTensorType);
+    custom->setQuantParams(quantParams);
+    return custom;
+}
+
+mv::Data::TensorIterator convertCustomCppToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                   const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool /*software*/ = false,
+                                                   const mv::QuantizationParams& quantParams = mv::QuantizationParams::empty(),
+                                                   const mv::DType& outputTensorType = mv::DType("Default"))
 {
-    auto custom = om.uPATaskCustom(name, inputs,
-                                   attrs.at("kernelData").get<std::vector<uint8_t>>(),
-                                   attrs.at("paramData").get<std::vector<uint8_t>>(),
-                                   attrs.at("outputsInfo").get<std::vector<mv::TensorInfo>>());
+    auto custom = om.uPATaskCustomCpp(name, inputs,
+                                      attrs.at("kernelData").get<std::vector<uint8_t>>(),
+                                      attrs.at("paramData").get<std::vector<uint8_t>>(),
+                                      attrs.at("outputsInfo").get<std::vector<mv::TensorInfo>>());
     custom->setDType(outputTensorType);
     custom->setQuantParams(quantParams);
     return custom;
@@ -700,9 +713,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
-                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
+                                                       "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
                                                        "RefConv", "Gather", "HSwish", "Conversion"};
-
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -732,7 +744,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Priorbox", convertPriorboxToUPATask},
     {"Argmax", convertArgmaxToUPATask},
     {"Permute", convertPermuteToUPATask},
-    {"Custom", convertCustomToUPATask},
+    {"CustomOcl", convertCustomOclToUPATask},
+    {"CustomCpp", convertCustomCppToUPATask},
     {"Sigmoid", convertSigmoidToUPATask},
     {"Deconv", convertDeconvToUPATask},
     {"Tile", convertTileToUPATask},

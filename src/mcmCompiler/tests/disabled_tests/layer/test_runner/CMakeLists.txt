@@ -17,7 +17,7 @@ else()
         get_filename_component(cl_file_name ${cl_file} NAME_WE)
 
         set(out_file "${ELF_DIR}/${cl_file_name}.elf")
-        list(APPEND CUSTOM_KERNELS ${out_file})
+        list(APPEND CUSTOM_OCL_KERNELS ${out_file})
 
         add_custom_command(
             OUTPUT ${out_file}
@@ -33,8 +33,8 @@ else()
             VERBATIM)
     endforeach()
 endif()
-add_custom_target(compile_custom_kernels
-        DEPENDS ${CUSTOM_KERNELS}
+add_custom_target(compile_custom_ocl_kernels
+        DEPENDS ${CUSTOM_OCL_KERNELS}
         COMMENT "[CLC] Compiled custom kernels")
 
 file(GLOB_RECURSE NATIVE_TEST_FILES "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
@@ -64,7 +64,7 @@ foreach(test_file IN LISTS TEST_FILES)
         COMMAND ${CMAKE_COMMAND} -E make_directory ${blobs_info}
         COMMAND ${target_name} > ${out_blob_info}
         COMMAND ${CMAKE_COMMAND} -E copy ${mcm_blob} ${out_blob}
-        DEPENDS compile_custom_kernels
+        DEPENDS compile_custom_ocl_kernels
         COMMENT "Compiling ${target_name}.blob"
         VERBATIM)
 

@@ -19,6 +19,7 @@
 #include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
 #include <vpux/vpux_compiler_config.hpp>
+#include <common_test_utils/test_common.hpp>
 
 #include "kmb_test_utils.hpp"
 
@@ -79,8 +80,21 @@ public:
         return LayerDef(*this, std::forward<Args>(args)...);
     }
 
-    TestNetwork& useCustomLayers(bool enable = true) {
-        _compileConfig[VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS)] = enable ? _customLayerXmlDefault : "";
+    TestNetwork& useCustomLayers(KernelType kernelType = KernelType::Native) {
+        switch (kernelType) {
+            case KernelType::Native:
+                _compileConfig[VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS)] = "";
+                break;
+            case KernelType::Ocl:
+                _compileConfig[VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS)] = _customOclLayerXmlDefault;
+                break;
+            case KernelType::Cpp:
+                _compileConfig[VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS)] = _customCppLayerXmlDefault;
+                break;
+            default:
+                throw std::invalid_argument("Undefined kernel type: " + ::testing::PrintToString(kernelType));
+        }
+
         allowNCHWLayoutForMcmModelInput(true);
         return *this;
     }
@@ -142,5 +156,6 @@ private:
 
     std::map<std::string, std::string> _compileConfig;
 
-    static const std::string _customLayerXmlDefault;
+    static const std::string _customOclLayerXmlDefault;
+    static const std::string _customCppLayerXmlDefault;
 };

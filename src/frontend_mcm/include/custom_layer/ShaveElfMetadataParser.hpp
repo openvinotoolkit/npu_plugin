@@ -1,6 +1,8 @@
 // Copyright (C) Codeplay Software Limited. All Rights Reserved.
 // Copyright (C) Intel Corporation. All Rights Reserved.
 
+#pragma once
+
 #include <cassert>
 #include <cstring>
 #include <string>

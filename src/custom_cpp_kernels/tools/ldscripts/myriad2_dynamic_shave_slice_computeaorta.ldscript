@@ -1,0 +1,25 @@
+/*Linker script file which sets all dynamic code*/
+
+SECTIONS {
+
+  /*Setting up shave slices memory with absolute addresses*/
+  . = 0x1E000000;
+  .dyn.text ALIGN(4) : {
+        *(S.text*)
+        *(S.__TEXT__sect)
+        *(S.__MAIN__sect)
+        *(S.init*)
+  }
+  .dyn.rodata ALIGN(4) : {
+      *(S.rodata*)
+  }
+  . = 0x1F000040;
+.dyn.data : {
+        *(S.data*)
+        *(S.__DATA__sect*)
+        *(S.__STACK__sect*)
+        *(S.__static_data*)
+        *(S.__HEAP__sect*)
+        *(S.__T__*)
+  }
+}
