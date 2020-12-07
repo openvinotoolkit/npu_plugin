@@ -1036,3 +1036,17 @@ TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
         0.3f,
         0.1f, 0.3f);
 }
+
+TEST_F(SmokeNetworkTest, text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/text-detection-0004/tf/FP16-INT8/text-detection-0004-ww48.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32));
+}
+
+TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/text-detection-0003/tf/FP16-INT8/text-detection-0003-ww48.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32));
+}
