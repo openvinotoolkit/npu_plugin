@@ -1,8 +1,3 @@
 
-<<<<<<< HEAD
-VPUIP2: 2003d3198658f9447ed6cc1bebe1eacee03466d8
+VPUIP2: 8f6c9bc13eba142b0678493c297afa23a9e32fa1
                     
-=======
-VPUIP2: b79e764559174e4d45a51c4ec2f0b0ea02a62462 tag: kmb_release_ww47.2
-
->>>>>>> releases/2020/kmb/er47
