@@ -157,7 +157,7 @@ bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
     }
 
     if (op->getOpType() == "AveragePool") {
-        return om.getSourceOp(op->getOutputTensor(0))->getOpType() == "FakeQuantize";
+        return om.getSourceOp(op->getInputTensor(0))->getOpType() == "FakeQuantize";
     }
 
     assert(op->getInputTensor().size() > 1);
