@@ -36,7 +36,7 @@ class KmbConvertLayerTests : public KmbLayerTestBase, public testing::WithParamI
 
 // After migrating to ngraph parser, need to add a way of disabling other covert stages/passes
 // [Track number: S#41542]
-TEST_P(KmbConvertLayerTests, DISABLED_accuracy) {
+TEST_P(KmbConvertLayerTests, accuracy) {
     const auto &p = GetParam();
 
     const auto netPrecision = Precision::FP32;
