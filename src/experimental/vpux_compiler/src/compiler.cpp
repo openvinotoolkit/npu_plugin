@@ -18,6 +18,7 @@
 
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/network_description.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
@@ -88,8 +89,8 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     addLogging(ctx, log);
 
     ctx.loadDialect<IE::IEDialect>();
+    ctx.loadDialect<IERT::IERTDialect>();
     ctx.loadDialect<VPUIP::VPUIPDialect>();
-    ctx.loadDialect<mlir::StandardOpsDialect>();
 
     IE::FrontEnd frontEnd(&ctx, log);
     auto module = frontEnd.importNetwork(cnnNet);
@@ -97,7 +98,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
     addLogging(pm, log);
 
-    buildReferenceModePipeline(pm, 1, log.nest());
+    pm.addPass(createReferenceModePass(log.nest()));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module.get())), "Compilation failed");
 

@@ -20,32 +20,81 @@
 include "mlir/Pass/PassBase.td"
 
 //
-// ConvertIE2VPUIP
+// BufferizeIE
 //
 
-def ConvertIE2VPUIP : Pass<"convert-IE-to-VPUIP", "mlir::ModuleOp"> {
-    let summary = "Convert the operations from the IE dialect into the VPUIP dialect";
+def BufferizeIE : FunctionPass<"bufferize-IE"> {
+    let summary = "Bufferize the IE dialect into the IERT dialect on Function level";
 
     let description = [{
-        This conversion uses simple SW implementation for IE operations without any optimizations.
+        This "atomic" pass bufferizes IE Dialect into IERT Dialect.
+        Only functions inner regions are affected, not signatures.
     }];
 
-    let constructor = "vpux::createConvertIE2VPUIPPass()";
+    let constructor = "vpux::createBufferizeIEPass()";
 
     let dependentDialects = [
-        "vpux::VPUIP::VPUIPDialect",
+        "vpux::IERT::IERTDialect",
+        "mlir::StandardOpsDialect"
+    ];
+}
+
+//
+// LowerIE2IERT
+//
+
+def LowerIE2IERT : Pass<"lower-IE-to-IERT", "mlir::ModuleOp"> {
+    let summary = "Performs full lowering from the IE Dialect to IERT Dialect";
+
+    let description = [{
+        This "pipeline" pass performs full IR lowering from IE Dialect to IERT Dialect,
+        including Function types, call graph and return operations.
+    }];
+
+    let constructor = "vpux::createLowerIE2IERTPass()";
+
+    let dependentDialects = [
+        "vpux::IERT::IERTDialect",
         "mlir::StandardOpsDialect",
         "mlir::linalg::LinalgDialect"
     ];
+}
 
-    let options = [
-        Option<
-            "maxUPAShaves",
-            "max-UPA-SHAVEs",
-            "uint32_t",
-            /*default=*/"1",
-            "Maximal number of UPA SHAVEs to utilize"
-        >
+//
+// ConvertIERT2VPUIP
+//
+
+def ConvertIERT2VPUIP : FunctionPass<"convert-IERT-to-VPUIP"> {
+    let summary = "Convert IERT Dialect Layer Operations to VPUIP Dialect";
+
+    let description = [{
+        This "atomic" pass converts Laye Operations from IERT Dialect to VPUIP Dialect.
+        It uses simple SW implementation for IERT operations without any optimizations.
+    }];
+
+    let constructor = "vpux::createConvertIERT2VPUIPPass()";
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect"
+    ];
+}
+
+//
+// LowerIERT2VPUIP
+//
+
+def LowerIERT2VPUIP : Pass<"lower-IERT-to-VPUIP", "mlir::ModuleOp"> {
+    let summary = "Performs full lowering from IERT Dialect to VPUIP Dialect";
+
+    let description = [{
+        This "pipeline" pass performs full IR lowering from IERT Dialect to VPUIP Dialect,
+        including Module level Operations.
+    }];
+
+    let constructor = "vpux::createLowerIERT2VPUIPPass()";
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect"
     ];
 }
 

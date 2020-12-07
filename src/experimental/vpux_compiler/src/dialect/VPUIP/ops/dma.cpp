@@ -16,7 +16,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 

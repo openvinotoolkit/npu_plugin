@@ -30,8 +30,8 @@
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Operation.h>
-#include <mlir/IR/StandardTypes.h>
 
 #include <precision_utils.h>
 
@@ -251,10 +251,8 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
         if (auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op)) {
             tasksMap[task.getTaskType()].push_back(writer.createTask(task));
         } else if (auto tensorOp = mlir::dyn_cast<DeclareTensorOp>(op)) {
-            VPUX_THROW_UNLESS(tensorOp.dataIndex().hasValue(), "Memory for Operation {0} was not allocated", *op);
-
             writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
-                                tensorOp.localeIndex(), tensorOp.dataIndex().getValue(), tensorOp.sparsityIndex(),
+                                tensorOp.localeIndex(), tensorOp.dataIndex(), tensorOp.sparsityIndex(),
                                 tensorOp.storageElementIndex(), tensorOp.storageElementSize(), tensorOp.leadingOffset(),
                                 tensorOp.trailingOffset());
 

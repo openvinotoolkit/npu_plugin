@@ -17,6 +17,7 @@
 #include "vpux/compiler/conversion/passes.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/pipelines.hpp"
@@ -28,19 +29,17 @@
 
 #include <cstdlib>
 
-using namespace vpux;
-
 int main(int argc, char* argv[]) {
     try {
         mlir::DialectRegistry registry;
-        registry.insert<IE::IEDialect>();
-        registry.insert<VPUIP::VPUIPDialect>();
-        registry.insert<mlir::StandardOpsDialect>();
+        registry.insert<vpux::IE::IEDialect>();
+        registry.insert<vpux::IERT::IERTDialect>();
+        registry.insert<vpux::VPUIP::VPUIPDialect>();
 
-        IE::registerIEPasses();
-        VPUIP::registerVPUIPPasses();
-        registerConversionPasses();
-        registerAllPipelines();
+        vpux::IE::registerIEPasses();
+        vpux::VPUIP::registerVPUIPPasses();
+        vpux::registerConversionPasses();
+        vpux::registerPipelinesPasses();
 
         const auto res = mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, true);
 

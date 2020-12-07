@@ -20,19 +20,51 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
+#include <mlir/Pass/PassManager.h>
+
 using namespace vpux;
 
-void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, uint32_t maxUPAShaves, Logger log) {
-    pm.addPass(IE::createAdjustPrecisionForVPUPass(log));
-    pm.addPass(createConvertIE2VPUIPPass(maxUPAShaves, log));
-    pm.addPass(VPUIP::createRemoveExtraDMAPass(log));
-    pm.addPass(VPUIP::createAssignTensorOffsetsDDRPass(log));
-    pm.addPass(VPUIP::createAddLinearSchedulingPass(log));
+//
+// ReferenceMode
+//
+
+namespace {
+
+class ReferenceModePass final : public ReferenceModeBase<ReferenceModePass> {
+public:
+    explicit ReferenceModePass(Logger log);
+
+public:
+    void runOnOperation() final;
+
+private:
+    Logger _log;
+    mlir::OpPassManager _pm;
+};
+
+ReferenceModePass::ReferenceModePass(Logger log)
+        : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
+    _log.setName(Base::getArgumentName());
+
+    _pm.addPass(IE::createAdjustPrecisionForVPUPass(_log.nest()));
+    _pm.addPass(createLowerIE2IERTPass(_log.nest()));
+    _pm.addPass(createLowerIERT2VPUIPPass(_log.nest()));
+    _pm.addPass(VPUIP::createAssignTensorOffsetsDDRPass(_log.nest()));
+    _pm.addPass(VPUIP::createAddLinearSchedulingPass(_log.nest()));
 }
 
-void vpux::registerAllPipelines() {
-    mlir::PassPipelineRegistration<> referenceMode(
-            "reference-mode", "Compile IE Network in Reference mode (SW only execution)", [](mlir::OpPassManager& pm) {
-                buildReferenceModePipeline(pm);
-            });
+void ReferenceModePass::runOnOperation() {
+    if (mlir::failed(runPipeline(_pm, getOperation()))) {
+        signalPassFailure();
+    }
+}
+
+}  // namespace
+
+//
+// createReferenceModePass
+//
+
+std::unique_ptr<mlir::Pass> vpux::createReferenceModePass(Logger log) {
+    return std::make_unique<ReferenceModePass>(log);
 }

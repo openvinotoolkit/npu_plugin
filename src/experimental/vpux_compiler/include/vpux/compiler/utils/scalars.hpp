@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <mlir/IR/Attributes.h>
-#include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 namespace vpux {
 

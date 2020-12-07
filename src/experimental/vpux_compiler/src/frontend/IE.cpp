@@ -359,8 +359,9 @@ mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetw
 
     auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(_ctx),
                                                   mlir::StringAttr::get(cnnNet.getName(), _ctx), mainFuncName);
+    IE::CNNNetworkOp::ensureTerminator(cnnOp.inputsInfo(), builder, cnnOp.getLoc());
+    IE::CNNNetworkOp::ensureTerminator(cnnOp.outputsInfo(), builder, cnnOp.getLoc());
 
-    cnnOp.inputsInfo().push_back(new mlir::Block);
     builder.setInsertionPointToStart(&cnnOp.inputsInfo().front());
     for (const auto& param : netGraph->get_parameters()) {
         const auto& inputName = param->get_friendly_name();
@@ -371,9 +372,7 @@ mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetw
                                        importPrecision(_ctx, userDesc.getPrecision()),
                                        importLayout(_ctx, userDesc.getLayout()));
     }
-    builder.create<IE::EndOp>(mlir::UnknownLoc::get(_ctx));
 
-    cnnOp.outputsInfo().push_back(new mlir::Block);
     builder.setInsertionPointToStart(&cnnOp.outputsInfo().front());
     for (const auto& result : netGraph->get_results()) {
         const auto* resultInput = result->get_input_node_ptr(0);
@@ -385,7 +384,6 @@ mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetw
                                        importPrecision(_ctx, userDesc.getPrecision()),
                                        importLayout(_ctx, userDesc.getLayout()));
     }
-    builder.create<IE::EndOp>(mlir::UnknownLoc::get(_ctx));
 
     NGraphImporter importer(_ctx, netGraph, _log);
     const auto mainFunc = importer.buildMainFunc(mainFuncName.getValue());

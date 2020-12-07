@@ -33,6 +33,9 @@ function(vpux_setup_lit_tool)
 
     add_custom_target(copy_lit_tool ALL
         COMMAND
+            ${CMAKE_COMMAND} -E remove_directory
+                "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/lit-tool"
+        COMMAND
             ${CMAKE_COMMAND} -E make_directory
                 "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/lit-tool"
         COMMAND
@@ -112,6 +115,9 @@ config.substitutions.append(('%${var}%', config.${var}))
     endforeach()
 
     add_custom_target(copy_${TEST_NAME}_tests ALL
+        COMMAND
+            ${CMAKE_COMMAND} -E remove_directory
+                "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/${TEST_NAME}"
         COMMAND
             ${CMAKE_COMMAND} -E make_directory
                 "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/${TEST_NAME}"

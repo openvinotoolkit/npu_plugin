@@ -14,26 +14,21 @@
 // stated in the License.
 //
 
-#ifndef VPUX_COMPILER_CONVERSION_REWRITERS_IE2VPUIP
-#define VPUX_COMPILER_CONVERSION_REWRITERS_IE2VPUIP
+#include "vpux/utils/core/mem_size.hpp"
 
-include "vpux/compiler/dialect/VPUIP/ops.td"
+using namespace vpux;
 
-include "mlir/IR/OpBase.td"
-include "mlir/Dialect/Linalg/IR/LinalgStructuredOps.td"
-
-//
-// CopyOp
-//
-
-def NullAttr : Attr<CPred<"$_self == nullptr">>;
-
-def createUPADMAOp : NativeCodeCall<"$_builder.create<vpux::VPUIP::UPADMAOp>($_loc, $0, $1)">;
-
-def RewriteCopyOp :
-        Pat<
-            (CopyOp AnyMemRef:$src, AnyMemRef:$dst, NullAttr:$inputPermutation, NullAttr:$outputPermutation),
-            (createUPADMAOp $src, $dst)
-        >;
-
-#endif
+StringLiteral vpux::stringifyEnum(MemType val) {
+    switch (val) {
+    case MemType::Byte:
+        return "Byte";
+    case MemType::KB:
+        return "KB";
+    case MemType::MB:
+        return "MB";
+    case MemType::GB:
+        return "GB";
+    default:
+        return "<UNKNOWN>";
+    }
+}

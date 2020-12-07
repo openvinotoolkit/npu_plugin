@@ -109,7 +109,7 @@ void vpux::Logger::addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_
 
     auto& stream = getStream(msgLevel);
 
-    printTo(stream, "[{0}] ", msgLevel);
+    printTo(stream, "[{0}] ", _name);
 
     for (size_t i = 0; i < _indentLevel; ++i)
         stream << "  ";

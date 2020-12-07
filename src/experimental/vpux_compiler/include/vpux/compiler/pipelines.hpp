@@ -16,14 +16,31 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+
 #include "vpux/utils/core/logger.hpp"
 
-#include <mlir/Pass/PassManager.h>
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/Pass/Pass.h>
 
 namespace vpux {
 
-void buildReferenceModePipeline(mlir::OpPassManager& pm, uint32_t maxUPAShaves = 1, Logger log = Logger::global());
+//
+// ReferenceMode
+//
 
-void registerAllPipelines();
+std::unique_ptr<mlir::Pass> createReferenceModePass(Logger log = Logger::global());
+
+//
+// Generated
+//
+
+#define GEN_PASS_CLASSES
+#include <vpux/compiler/pipelines/generated/passes.hpp.inc>
+#undef GEN_PASS_CLASSES
+
+#define GEN_PASS_REGISTRATION
+#include <vpux/compiler/pipelines/generated/passes.hpp.inc>
+#undef GEN_PASS_REGISTRATION
 
 }  // namespace vpux

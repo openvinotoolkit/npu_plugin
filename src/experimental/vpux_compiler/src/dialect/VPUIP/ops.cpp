@@ -18,7 +18,7 @@
 
 #include "vpux/compiler/core/dims_order.hpp"
 
-#include <mlir/IR/Attributes.h>
+#include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/OpImplementation.h>
 
 using namespace vpux;
