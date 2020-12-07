@@ -173,7 +173,10 @@ std::vector<char> compileNGraph(
         auto& mcmCompDesc = mcmCompiler.compilationDescriptor();
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.mcmLogLevel()));
-        mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.removePermuteNoOp());
+
+        if (!config.removePermuteNoOp()) {
+            mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", false);
+        }
 
         if (config.referenceMode()) {
             mcmCompDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);

@@ -37,6 +37,7 @@ Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
             VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
             KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
             VPUX_CONFIG_KEY(PLATFORM),
+            VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP),
     };
 }
 
