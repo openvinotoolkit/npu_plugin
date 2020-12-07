@@ -34,6 +34,7 @@ void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::Co
 static void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void markCMCompatibleConvsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+void replaceLargeGlobalPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -81,6 +82,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replaceStridedSliceWithStridedConvConcat(pass, model);
     replacePoolReshapePatternFcn(pass, model);
     replaceExpReduceSumMultipyFcn(pass, model);
+    replaceLargeGlobalPoolingFcn(pass, model);
     replaceLargeKernelsFcn(pass, model);
     replaceLargeStridesFcn(pass, model);
     replaceAsymmetricStridesFcn(pass, model);
@@ -1197,6 +1199,204 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& , mv::ComputationMo
 
             linkNewOperationsReplacement(it, ap, om, opIt);
         }
+    }
+}
+
+namespace {
+    struct poolParams {
+        std::array<unsigned short, 4> padding;
+        std::array<unsigned short, 2> kernel;
+        std::array<unsigned short, 2> stride;
+    };
+}
+
+std::vector<poolParams> calcPoolParams(const mv::Data::OpListIterator& opIt, const mv::pass::PassEntry& pass) {
+    std::array<unsigned short, 2> kSize;
+    kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+
+    auto kernelSize = kSize[mv::KERNEL_WIDTH];
+    auto outputShape = opIt->getOutputTensor()[0]->getShape();
+
+    std::pair<unsigned short, unsigned short> factors;
+
+    // If average pool kernel size is greater than 11, we will try to split it in several avg pools
+    // Limitations: Symmetric case, split without residue
+    // For example: 14x14 -> 7x7 + 2x2
+    //              17x17 -> can't be processed in that pass, need replace by deptwise
+
+    std::vector<std::pair<unsigned short, unsigned short>> allFactors = getFactorsList(kernelSize);
+    if (allFactors.empty()) {
+        return {};
+    } else {
+        factors = allFactors.back();
+    }
+    pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kernelSize) + " , factor1=" + std::to_string(factors.first)+ " , factor2=" + std::to_string(factors.second));
+
+    std::array<unsigned short, 4> padding = {0, 0, 0, 0};
+    std::array<unsigned short, 2> newKernel = {factors.first, factors.first};
+    std::array<unsigned short, 2> newKernel_1 = {factors.second, factors.second};
+
+    poolParams first  = {padding, newKernel, newKernel};
+    poolParams second  = {padding, newKernel_1, newKernel_1};
+    std::vector<poolParams> ans  = {first, second};
+    return  ans;
+}
+
+bool splitPoolOp(mv::ComputationModel& model, const mv::Data::OpListIterator& opIt, const std::vector<poolParams> &poolParams) {
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    auto sourceTensor = opIt->getInputTensor(0);
+    auto parentOpIt = om.getSourceOp(sourceTensor);
+
+    mv::Data::TensorIterator op0;
+    auto dType = opIt->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
+    auto quantParams = opIt->getOutputTensor(0)->getQuantParams();
+    if (opIt->getOpType() == "AveragePool") {
+        op0 = om.averagePool(opIt->getName() + "_AvgPool0",
+                         sourceTensor,
+                         poolParams[0].kernel,
+                         poolParams[0].stride,
+                         poolParams[0].padding,
+                         true); //exclude pad
+    }
+    else if (opIt->getOpType()== "MaxPool") {
+        op0 = om.maxPool(opIt->getName() + "_MaxPool0",
+                         sourceTensor,
+                         poolParams[0].kernel,
+                         poolParams[0].stride,
+                         poolParams[0].padding,
+                         true); //exclude pad
+    }
+    else
+        throw std::runtime_error( "Error: Op= " + opIt->getName() + " compiler doesn't support large kernel for a " + opIt->getOpType() );
+
+    op0->setDType(dType);
+    op0->setQuantParams(quantParams);
+    if(opIt->hasAttr("opId")) {
+        unsigned currentOpId = opIt->get<unsigned>("opId");
+        op0->set<unsigned>("opId", currentOpId);
+        om.getSourceOp(op0)->set<unsigned>("opId", currentOpId);
+    }
+
+    linkNewOperationsReplacement(parentOpIt, op0, om, opIt);
+
+    // Remove old flow, remember to it to put next pool into model in correct place
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+    auto input_op0 = om.getSourceOp(op0);
+    auto sourceFlowStart = input_op0.leftmostOutput();
+
+    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow) {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+        flowsToRemove.push_back(sinkFlow);
+    }
+    // Remove old flow before creating new dw
+    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++) {
+        om.undefineFlow(flowsToRemove[flowIdx]);
+    }
+
+    mv::Data::TensorIterator op1;
+    dType = input_op0->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
+    quantParams = op0->getQuantParams();
+    if (input_op0->getOpType() == "AveragePool" ) {
+        op1 = om.averagePool(op0->getName() + "_AvgPool1",
+                         op0,
+                         poolParams[1].kernel,
+                         poolParams[1].stride,
+                         poolParams[1].padding,
+                         true); //exclude pad
+    }
+    else if (input_op0->getOpType() == "MaxPool") {
+
+        op1 = om.maxPool(op0->getName() + "_MaxPool1",
+                         op0,
+                         poolParams[1].kernel,
+                         poolParams[1].stride,
+                         poolParams[1].padding,
+                         true); //exclude pad
+    }
+    else
+        throw std::runtime_error( "Error: Op= " + input_op0->getName() + " compiler doesn't support large kernel for a " + input_op0->getOpType() );
+
+    op1->setDType(dType);
+    op1->setQuantParams(quantParams);
+    if (input_op0->hasAttr("opId")) {
+        unsigned currentOpId = input_op0->get<unsigned>("opId");
+        op1->set<unsigned>("opId", currentOpId);
+        om.getSourceOp(op1)->set<unsigned>("opId", currentOpId);
+    }
+
+    for(unsigned op = 0 ; op < opsToLink.size(); ++op) {
+        opsToLink[op]->setInputTensor(op1, inputSlots[op], false);
+        om.defineFlow(op1, opsToLink[op], inputSlots[op]);
+    }
+
+    return true;
+}
+
+bool supportedCase(const mv::Data::OpListIterator& opIt) {
+    std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
+    std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
+    std::array<unsigned short, 2> kernel;
+    if (opIt->hasAttr("kSize"))
+        kernel = opIt->get<std::array<unsigned short, 2>>("kSize");
+    else {
+        throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: pool op doesn't have a kSize param"));
+    }
+    auto kernelX = kernel[mv::KERNEL_WIDTH];
+    auto kernelY = kernel[mv::KERNEL_HEIGHT];
+    auto strideX = stride[mv::STRIDE_WIDTH];
+    auto strideY = stride[mv::STRIDE_HEIGHT];
+    auto sourceTensor = opIt->getInputTensor(0);
+    auto inputShape = sourceTensor->getShape();
+
+    if ((kernelX <= mv::MAX_KERNEL && kernelY <= mv::MAX_KERNEL) || (kernelX != kernelY)) {
+        return false;
+    }
+
+    if ((inputShape[mv::IO_WIDTH_DIMENSION] == kernelX) && (inputShape[mv::IO_HEIGHT_DIMENSION] == kernelY)) {
+        return true;
+    } else if ((kernelX == strideX) && (kernelY == strideY)) {
+        return true;
+    } else {
+        return false;
+    }
+
+    return false;
+}
+
+bool replaceLargeGlobalPooling(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    std::vector<std::string> opList = {"AveragePool", "MaxPool"};
+    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
+    std::vector <mv::Data::OpListIterator> ops;
+    ops.reserve(operations["AveragePool"].size() + operations["MaxPool"].size() );
+    ops.insert(ops.end(), operations["AveragePool"].begin(), operations["AveragePool"].end());
+    ops.insert(ops.end(), operations["MaxPool"].begin(), operations["MaxPool"].end());
+    bool isReplaced = false;
+
+    for (auto &opIt : ops) {
+        if (!supportedCase(opIt))
+            continue;
+
+        auto poolParams = calcPoolParams(opIt, pass);
+        if (poolParams.empty()) {
+            continue;
+        }
+        isReplaced = splitPoolOp(model, opIt, poolParams);
+    }
+    return isReplaced;
+}
+
+void replaceLargeGlobalPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+    bool splitting = true;
+    while (splitting) {
+        splitting = replaceLargeGlobalPooling(pass, model);
     }
 }
 
