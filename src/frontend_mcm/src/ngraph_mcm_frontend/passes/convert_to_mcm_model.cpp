@@ -89,6 +89,7 @@
 #include <ngraph/op/detection_output.hpp>
 
 #include <ngraph/op/split.hpp>
+#include <ngraph/op/strided_slice.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
@@ -309,7 +310,8 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
     if (mvShape.ndims() == 1) {
         for (auto&& consumerNode : constant->get_users()) {
             if (ngraph::op::GatherIE::type_info == consumerNode->get_type_info() ||
-                ngraph::op::v1::Split::type_info == consumerNode->get_type_info()) {
+                ngraph::op::v1::Split::type_info == consumerNode->get_type_info() ||
+                ngraph::op::v1::StridedSlice::type_info == consumerNode->get_type_info()) {
                 mvShape = mv::Shape::augment_major(mvShape, 4);
                 // int64 precision for indices is not supported by runtime yet
                 if (ngraph::element::i64 == constant->get_element_type()) {
@@ -1436,6 +1438,31 @@ void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel
     registerOutputs(split, mcmOutputs, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v1::StridedSlice> stridedSlice, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto& opName = stridedSlice->get_friendly_name();
+    const auto mcmInputs = getMcmInputs(stridedSlice, mcmOutputsMap);
+
+    const auto begin_node = stridedSlice->input_value(1).get_node_shared_ptr();
+    const auto end_node = stridedSlice->input_value(2).get_node_shared_ptr();
+    const auto stride_node = stridedSlice->input_value(3).get_node_shared_ptr();
+    const auto begin_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(begin_node);
+    const auto end_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(end_node);
+    const auto stride_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(stride_node);
+
+    // Remove unused constant inputs.
+    for (size_t i = 1; i < mcmInputs.size(); ++i) {
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
+    }
+
+    mv::Shape beginShape(getWHCN(begin_node_const->cast_vector<size_t>()));
+    mv::Shape endShape(getWHCN(end_node_const->cast_vector<size_t>()));
+    mv::Shape strideShape(getWHCN(stride_node_const->cast_vector<size_t>()));
+
+    auto mcmStridedSlice = mcmModel.stridedSlice(opName, mcmInputs.at(0), beginShape, endShape, strideShape);
+
+    registerOutputs(stridedSlice, {mcmStridedSlice}, mcmOutputsMap);
+}
+
 void convert(std::shared_ptr<ngraph::op::TileIE> tileIE, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(tileIE, mcmOutputsMap);
     IE_ASSERT(1u == mcmInputs.size());
@@ -1521,6 +1548,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::Maximum),
     MAP_ENTRY(ngraph::op::v1::Minimum),
     MAP_ENTRY(ngraph::op::v1::Split),
+    MAP_ENTRY(ngraph::op::v1::StridedSlice),
     MAP_ENTRY(ngraph::op::v4::HSwish),
     MAP_ENTRY(ngraph::op::TileIE)
 };

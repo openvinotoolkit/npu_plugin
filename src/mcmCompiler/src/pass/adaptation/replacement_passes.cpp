@@ -29,6 +29,7 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
 void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void markCMCompatibleConvsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -76,6 +77,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
                        mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     fullyConnectedAsConv2DFcn(pass, model);
+    replaceStridedSliceWithStridedConvConcat(pass, model);
     replacePoolReshapePatternFcn(pass, model);
     replaceExpReduceSumMultipyFcn(pass, model);
     replaceLargeKernelsFcn(pass, model);
@@ -289,6 +291,86 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
         linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
         conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
+}
+
+// Replaces StridedSlice layer with equivalent network of slices -> strided convolution -> concat
+// layers. The slice operations will split the input tensor strided-channel-wise. The outputs of
+// each of the slice operations will be passed into a strided convolution to capture the height
+// and width strided behavior. The outputs of the strided convolution will then be concated channel-
+// wise, to yield the equivalent strided slice result.
+//
+// NOTE: Currently, mixed convolution with mixed scaled inputs do not work properly. Wait for the
+// generic fix.
+void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::ComputationModel& model) {
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+
+    for (auto& opIt : om.getOps("StridedSlice")) {
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        auto sourceTensor = opIt->getInputTensor(0);
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+        auto beginShape = opIt->get<mv::Shape>("begin");
+        auto endShape = opIt->get<mv::Shape>("end");
+        auto strideShape = opIt->get<mv::Shape>("stride");
+
+        std::vector<mv::Data::TensorIterator> convOutputTensors, sliceOutputTensors;
+        mv::Shape innerSliceBeginShape(beginShape);
+        mv::Shape innerSliceSizeShape(opIt->getInputTensor(0)->getShape());
+        size_t k = mv::IO_CHANNEL_DIMENSION;
+        innerSliceSizeShape[k] = 1;
+
+        // Create slices from strided steps.
+        for (size_t c = beginShape[k]; c < endShape[k]; c += strideShape[k]) {
+            auto mcmSlice = om.slice(opIt->getName() + "_slice_" + std::to_string(c),
+                                     opIt->getInputTensor(0), innerSliceBeginShape,
+                                     innerSliceSizeShape);
+            mcmSlice->setQuantParams(opIt->getInputTensor(0)->getQuantParams());
+            auto sliceOp = om.getSourceOp(mcmSlice);
+            if (opIt->hasAttr("opId")) {
+                unsigned currentOpId = opIt->get<unsigned>("opId");
+                sliceOp->set<unsigned>("opId", currentOpId);
+            }
+            innerSliceBeginShape[k] += strideShape[k];
+            sliceOutputTensors.push_back(mcmSlice);
+        }
+
+        // Create strided convolutions on the outputs of the slices.
+        for (size_t c = beginShape[k]; c < endShape[k]; c += strideShape[k]) {
+
+            std::vector<int64_t> constantWeights{255};
+            mv::Shape constantShape({1, 1, 1, 1});
+            auto constantOutputTensor = om.constantInt(
+                    opIt->getName() + "_constant_" + std::to_string(c), constantWeights,
+                    constantShape, mv::DType("UInt8"), mv::Order::getColMajorID(4));
+
+            std::array<unsigned short, 2> kernelStrides = {
+                strideShape[mv::IO_WIDTH_DIMENSION], strideShape[mv::IO_HEIGHT_DIMENSION]};
+            std::array<unsigned short, 4> padding = {0, 0, 0, 0};
+            auto mcmConv = om.conv(opIt->getName() + "_conv_" + std::to_string(c),
+                                   sliceOutputTensors[c], constantOutputTensor, kernelStrides,
+                                   padding);
+            mcmConv->setQuantParams(sliceOutputTensors[c]->getQuantParams());
+
+            auto convOp = om.getSourceOp(mcmConv);
+            auto constantOp = om.getSourceOp(constantOutputTensor);
+            if (opIt->hasAttr("opId")) {
+                unsigned currentOpId = opIt->get<unsigned>("opId");
+                convOp->set<unsigned>("opId", currentOpId);
+                constantOp->set<unsigned>("opId", currentOpId);
+            }
+            convOutputTensors.push_back(mcmConv);
+        }
+
+        auto mcmConcat = om.concat(opIt->getName() + "_concat", convOutputTensors, "C");
+        auto concatOp = om.getSourceOp(mcmConcat);
+        if (opIt->hasAttr("opId")) {
+            unsigned currentOpId = opIt->get<unsigned>("opId");
+            concatOp->set<unsigned>("opId", currentOpId);
+        }
+        linkNewOperationsReplacement(parentOpIt, mcmConcat, om, opIt);
+        mcmConcat->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        mcmConcat->setQuantParams(convOutputTensors[0]->getQuantParams());
     }
 }
 
