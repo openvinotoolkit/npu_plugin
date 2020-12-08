@@ -58,7 +58,12 @@ ie_option(ENABLE_MCM_COMPILER_PACKAGE "Enable build of separate mcmCompiler pack
 
 ie_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend" ON "WIN32" OFF)
 
-ie_option(ENABLE_EXPERIMENTAL_MLIR "Enable build of experimental MLIR-based compiler" OFF)
+# TODO: enable on Windows too once CI is updated
+if(WIN32)
+    ie_option(ENABLE_EXPERIMENTAL_MLIR "Enable build of experimental MLIR-based compiler" OFF)
+else()
+    ie_option(ENABLE_EXPERIMENTAL_MLIR "Enable build of experimental MLIR-based compiler" ON)
+endif()
 
 function (print_enabled_kmb_features)
     message(STATUS "KMB Plugin enabled features: ")

@@ -231,7 +231,7 @@ TEST(DimsOrderTest, dimPosTest) {
     std::for_each(orders2dims.begin(), orders2dims.end(), [](const std::pair<DimsOrder, size_t>& order2dim) {
         for (size_t i = 0; i < MAX_NUM_DIMS; ++i) {
             if (i < order2dim.second) {
-                EXPECT_EQ(order2dim.first.dimPos(order2dim.first.dimAt(i)), int32_t(i));
+                EXPECT_EQ(order2dim.first.dimPos(order2dim.first.dimAt(i)), i);
             } else {
                 EXPECT_ANY_THROW(order2dim.first.dimPos(Dim(i)));
             }

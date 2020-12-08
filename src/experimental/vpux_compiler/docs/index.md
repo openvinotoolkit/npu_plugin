@@ -39,14 +39,28 @@ More information about the MLIR framework can be found on the [wiki page](https:
 The **VPUX NN Compiler** architecture and its implementation is based on the following principles:
 
 1. Explicit notion for IR validity and invariants.
-2. Enforced architectural stability.
+2. Enforced architectural stability and self-validation during compilation pipeline.
 3. IR spliting onto separate stages with different level of details.
+4. Operation interfaces for generic passes.
+5. Atomic and pipeline passes.
 
 For more details about the first two principles please refer to [separate chapter](architectural_stability.md).
 
-The third principle is achivied by MLIR architecture - dialects.
+The third principle is achivied by MLIR architecture - Dialects concept.
 The **VPUX NN Compiler** consists of several Dialects with different level of details.
 The IR is lowered from high level abstractions to more detailed representation step-by-step during compilation pipeline.
+
+The forth principle encourages using such MLIR concepts as Operation Traits and Interfaces.
+They allow to reduce code duplication and group similar Operations unser single API.
+Operation Interfaces also allows to write more generic passes, which are not bound to particular operation set.
+
+The fifth principle declarase that each Pass in compilation pipeline must represent one single transformation
+to reach one particular goal (either IR adaptation or IR optimization).
+Such "atomic" pass is easier to be covered by unit testing.
+The "atomic" passes can be joined togerther in the compilation chain inside "pipeline" pass.
+The "pipeline" pass doesn't perform IR transformation on its own, instead it creates internal
+pipeline of other passes (either "atomic" or another "pipeline") using MLIR dynamic pass manager feature.
+The goal of "pipeline" pass is to establish correct order of underlying passes, while keep actual transformation logic inside them.
 
 ## Architecture
 

@@ -204,7 +204,7 @@ bool vpux::DimsOrder::hasDim(Dim d) const {
     return false;
 }
 
-int32_t vpux::DimsOrder::dimPos(Dim d) const {
+size_t vpux::DimsOrder::dimPos(Dim d) const {
     const auto dimDigit = static_cast<StorageType>(d.ind() + 1);
 
     auto code = this->code();
@@ -216,16 +216,16 @@ int32_t vpux::DimsOrder::dimPos(Dim d) const {
         }
 
         if (curDigit == dimDigit) {
-            return static_cast<int32_t>(i);
+            return i;
         }
     }
 
     VPUX_THROW("Dim {0} is not available in layout {1}", d, *this);
 }
 
-Dim vpux::DimsOrder::dimAt(int32_t pos) const {
+Dim vpux::DimsOrder::dimAt(size_t pos) const {
     auto code = this->code();
-    code >>= checked_cast<size_t>(pos) * BITS_PER_DIM;
+    code >>= checked_cast<StorageType>(pos * BITS_PER_DIM);
 
     const auto curDigit = code & INDEX_MASK;
     VPUX_THROW_UNLESS(curDigit > 0, "DimsOrder {0} doesn't have Dim at pos {1}", *this, pos);

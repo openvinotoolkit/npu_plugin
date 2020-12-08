@@ -21,6 +21,7 @@
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -46,9 +47,9 @@ flatbuffers::Offset<MVCNN::Version> createVersion(VPUIP::BlobWriter& writer, VPU
     const auto serializedContext = writer.createString(version.contextStr().getValue());
 
     MVCNN::VersionBuilder builder(writer);
-    builder.add_majorV(version.majorV().getInt());
-    builder.add_minorV(version.minorV().getInt());
-    builder.add_patchV(version.patchV().getInt());
+    builder.add_majorV(checked_cast<uint32_t>(version.majorV().getInt()));
+    builder.add_minorV(checked_cast<uint32_t>(version.minorV().getInt()));
+    builder.add_patchV(checked_cast<uint32_t>(version.patchV().getInt()));
     builder.add_hash(serializedHash);
     builder.add_context(serializedContext);
     return builder.Finish();
@@ -79,7 +80,7 @@ flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobW
                                                                     VPUIP::ProcessorMappingAttr attr) {
     MVCNN::ProcessorMappingBuilder builder(writer);
     builder.add_item(createPhysicalProcessor(attr.item().getValue()));
-    builder.add_number(attr.number().getInt());
+    builder.add_number(checked_cast<double>(attr.number().getInt()));
     builder.add_is_bitmask(attr.isBitMask().getValue());
     return builder.Finish();
 }
@@ -103,7 +104,7 @@ flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter&
                                                               VPUIP::MemoryMappingAttr attr) {
     MVCNN::MemoryMappingBuilder builder(writer);
     builder.add_item(createPhysicalMem(attr.item().getValue()));
-    builder.add_number(attr.number().getInt());
+    builder.add_number(checked_cast<double>(attr.number().getInt()));
     return builder.Finish();
 }
 
@@ -261,7 +262,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
             writer.createBinaryData(tensorOp.content(), tensorOp.csramCacheable());
 
             writer.createTensor(tensorOp.memory(), llvm::formatv("constant-{0}", tempTensorInd).str(),
-                                MemoryLocation::GraphFile, constantTensorInd, 0);
+                                MemoryLocation::GraphFile, checked_cast<uint32_t>(constantTensorInd), 0);
 
             ++constantTensorInd;
         } else if (auto barrierOp = mlir::dyn_cast<DeclareBarrierOp>(op)) {

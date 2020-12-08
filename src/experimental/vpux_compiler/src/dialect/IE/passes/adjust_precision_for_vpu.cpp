@@ -163,7 +163,7 @@ mlir::LogicalResult AdjustPrecisionForVPUPass::ConstantOpConverter::matchAndRewr
         std::vector<ngraph::float16> newValues(origValues.size());
 
         loop_1d(LoopExecPolicy::Parallel, origValues.size(), [&](size_t i) {
-            newValues[i] = InferenceEngine::PrecisionUtils::f16tof32(origValues[i]);
+            newValues[i] = InferenceEngine::PrecisionUtils::f32tof16(origValues[i]);
         });
 
         newContent = mlir::DenseElementsAttr::get(newType, makeArrayRef(newValues.data(), totalNumElems));
