@@ -16,7 +16,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 
-#include "vpux/compiler/core/dims_order.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 

@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/utils/scalars.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 using namespace vpux;
 
@@ -60,40 +60,4 @@ mlir::IntegerType vpux::getUInt32Type(mlir::MLIRContext* ctx) {
 
 mlir::IntegerType vpux::getUInt64Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(64, mlir::IntegerType::Unsigned, ctx);
-}
-
-//
-// get<scalar>Attr
-//
-
-mlir::IntegerAttr vpux::getInt32Attr(mlir::MLIRContext* ctx, uint32_t val) {
-    return mlir::IntegerAttr::get(getInt32Type(ctx), val);
-}
-
-mlir::IntegerAttr vpux::getInt64Attr(mlir::MLIRContext* ctx, uint64_t val) {
-    return mlir::IntegerAttr::get(getInt64Type(ctx), val);
-}
-
-mlir::IntegerAttr vpux::getSInt32Attr(mlir::MLIRContext* ctx, int32_t val) {
-    return mlir::IntegerAttr::get(getSInt32Type(ctx), val);
-}
-
-mlir::IntegerAttr vpux::getSInt64Attr(mlir::MLIRContext* ctx, int64_t val) {
-    return mlir::IntegerAttr::get(getSInt64Type(ctx), val);
-}
-
-mlir::IntegerAttr vpux::getUInt32Attr(mlir::MLIRContext* ctx, uint32_t val) {
-    return mlir::IntegerAttr::get(getUInt32Type(ctx), val);
-}
-
-mlir::IntegerAttr vpux::getUInt64Attr(mlir::MLIRContext* ctx, uint64_t val) {
-    return mlir::IntegerAttr::get(getUInt64Type(ctx), val);
-}
-
-mlir::FloatAttr vpux::getFP32Attr(mlir::MLIRContext* ctx, float val) {
-    return mlir::FloatAttr::get(mlir::FloatType::getF32(ctx), val);
-}
-
-mlir::FloatAttr vpux::getFP64Attr(mlir::MLIRContext* ctx, double val) {
-    return mlir::FloatAttr::get(mlir::FloatType::getF64(ctx), val);
 }

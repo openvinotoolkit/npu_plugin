@@ -14,10 +14,10 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/allocator/analysis.hpp"
+#include "vpux/compiler/core/static_allocation.hpp"
 
-#include "vpux/compiler/allocator/linear_scan.hpp"
-#include "vpux/compiler/core/strides.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
+#include "vpux/compiler/utils/linear_scan.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"

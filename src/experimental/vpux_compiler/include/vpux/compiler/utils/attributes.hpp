@@ -17,26 +17,8 @@
 #pragma once
 
 #include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/IR/BuiltinTypes.h>
 
 namespace vpux {
-
-//
-// get<scalar>Type
-//
-
-mlir::IntegerType getInt32Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getInt64Type(mlir::MLIRContext* ctx);
-
-mlir::IntegerType getSInt8Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getSInt16Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getSInt32Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getSInt64Type(mlir::MLIRContext* ctx);
-
-mlir::IntegerType getUInt8Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getUInt16Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getUInt32Type(mlir::MLIRContext* ctx);
-mlir::IntegerType getUInt64Type(mlir::MLIRContext* ctx);
 
 //
 // get<scalar>Attr

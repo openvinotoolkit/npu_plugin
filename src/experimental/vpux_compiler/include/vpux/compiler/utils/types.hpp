@@ -16,32 +16,25 @@
 
 #pragma once
 
-#include "vpux/compiler/core/attributes/dims_order.hpp"
-
-#include "vpux/utils/core/optional.hpp"
-#include "vpux/utils/core/string_ref.hpp"
-
-#include <mlir/IR/AffineMap.h>
-#include <mlir/IR/BuiltinAttributes.h>
-
-//
-// Generated
-//
-
-#include <vpux/compiler/dialect/IE/generated/attributes/enums.hpp.inc>
-
-//
-// Layout utilities
-//
+#include <mlir/IR/BuiltinTypes.h>
 
 namespace vpux {
-namespace IE {
 
-int32_t getRank(Layout layout);
+//
+// get<scalar>Type
+//
 
-DimsOrder getDimsOrder(Layout layout);
+mlir::IntegerType getInt32Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getInt64Type(mlir::MLIRContext* ctx);
 
-mlir::AffineMap getAffineMap(mlir::MLIRContext* ctx, Layout layout);
+mlir::IntegerType getSInt8Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getSInt16Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getSInt32Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getSInt64Type(mlir::MLIRContext* ctx);
 
-}  // namespace IE
+mlir::IntegerType getUInt8Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getUInt16Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getUInt32Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getUInt64Type(mlir::MLIRContext* ctx);
+
 }  // namespace vpux

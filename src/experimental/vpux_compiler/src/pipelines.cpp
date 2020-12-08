@@ -16,7 +16,7 @@
 
 #include "vpux/compiler/pipelines.hpp"
 
-#include "vpux/compiler/conversion/passes.hpp"
+#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 

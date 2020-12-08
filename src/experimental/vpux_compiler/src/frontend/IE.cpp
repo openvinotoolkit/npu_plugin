@@ -17,8 +17,9 @@
 #include "vpux/compiler/frontend/IE.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
-#include "vpux/compiler/utils/scalars.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/format.hpp"
 #include "vpux/utils/IE/hash.hpp"

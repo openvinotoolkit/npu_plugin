@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/allocator/partitioner.hpp"
+#include "vpux/compiler/utils/partitioner.hpp"
 
 #include <gtest/gtest.h>
 

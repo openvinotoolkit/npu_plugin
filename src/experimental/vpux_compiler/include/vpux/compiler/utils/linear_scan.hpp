@@ -33,7 +33,7 @@
 
 #pragma once
 
-#include "vpux/compiler/allocator/partitioner.hpp"
+#include "vpux/compiler/utils/partitioner.hpp"
 
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/small_vector.hpp"

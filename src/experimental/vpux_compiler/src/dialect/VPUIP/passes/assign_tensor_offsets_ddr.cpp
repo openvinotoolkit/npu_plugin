@@ -16,9 +16,9 @@
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include "vpux/compiler/allocator/analysis.hpp"
+#include "vpux/compiler/core/static_allocation.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/utils/scalars.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Transforms/DialectConversion.h>

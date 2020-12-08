@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/conversion/passes.hpp"
+#include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"

@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include "vpux/compiler/core/dim.hpp"
-#include "vpux/compiler/core/dims_order.hpp"
-#include "vpux/compiler/core/strides.hpp"
+#include "vpux/compiler/core/attributes/dim.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/error.hpp"

@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include "vpux/compiler/core/dims_order.hpp"
-#include "vpux/compiler/core/shape.hpp"
-#include "vpux/compiler/core/strides.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 

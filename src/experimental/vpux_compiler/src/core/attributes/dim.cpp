@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/core/dim.hpp"
+#include "vpux/compiler/core/attributes/dim.hpp"
 
 using namespace vpux;
 
