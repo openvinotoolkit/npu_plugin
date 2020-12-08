@@ -145,7 +145,6 @@ size_t memorySize(mv::Op& op, const mv::Attribute& clustering, bool weightsSpars
         weightTableSize = 16 * alignedSplittedChannels;
         if (opType == "Conv") {
             weightSize += alignedWeightsSize(op.getInputTensor(1), {1, 1, 1, streamConfig["K"], 1}, clusterStrategy);
-            std::cout << "op name is " << op.getName() << " weightSize size is " << weightSize << std::endl;
 
         } else {
             weightSize += realTensorSize(op.getInputTensor(1), {1, 1, streamConfig["C"], 1, 1}, isCMConv);
@@ -203,6 +202,7 @@ void assignNewSrategies(mv::ComputationModel& model, std::vector<mv::Element>& n
             for (int i = newSplits.size(); i < 5; i++) newSplits.push_back(newSplits[0]);
 
             if (opIt->hasAttr("optimalNumberOfKStreams")) {
+                std::cout << "Changing " << opIt->getName() << " from " << streaming_strategy[3].get<int>("K") << " to " << opIt->get<unsigned>("optimalNumberOfKStreams") << " streams " << std::endl;
                 newElement.set("name_filter", opIt->getName());
                 newSplits[0].set<int>("W", streaming_strategy[0].get<int>("W"));
                 newSplits[1].set<int>("H", streaming_strategy[1].get<int>("H"));

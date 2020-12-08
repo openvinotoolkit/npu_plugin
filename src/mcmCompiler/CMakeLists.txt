@@ -296,12 +296,12 @@ set(syscalls
 
 add_subdirectory(meta)
 add_subdirectory(tools)
-add_subdirectory(contrib/mcm-emulator)
+# add_subdirectory(contrib/mcm-emulator)
 
-if(TARGET mcm_emulator)
-    set(EMULATOR mcm_emulator)
-    set(TARGET_OBJECTS_EMULATOR $<TARGET_OBJECTS:mcm_emulator>)
-endif()
+# if(TARGET mcm_emulator)
+#     set(EMULATOR mcm_emulator)
+#     set(TARGET_OBJECTS_EMULATOR $<TARGET_OBJECTS:mcm_emulator>)
+# endif()
 
 set_source_files_properties(
     "${META_DIR_PATH}/src/compositional_model.cpp"
