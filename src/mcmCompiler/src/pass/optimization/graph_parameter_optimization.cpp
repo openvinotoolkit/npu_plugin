@@ -79,7 +79,6 @@ namespace mv
             bool enableChannelMajorConv=false;
             double safetyFactor=1.0;
             double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
-            double schedulerPipelineLimit = 700000.0;
             double cmxPipeLineWeightsOverhead=34816.0;
             enum class FailCause
             {
@@ -351,13 +350,13 @@ namespace mv
 
                                     strategyVec.push_back(s);
 
-                                       std::cout << "Name: " + op.getName() << " ID " << s["id"].toString()<< std::endl;
-                                       std::cout << "Input Sparsity: " + inputSparsity.toString() << std::endl;
-                                       std::cout << "Output Sparsity: " + outputSparsity.toString() << std::endl;
-                                       std::cout << "Weights Sparsity: " + weightsSparsity << std::endl;
-                                       std::cout << "Spilling: " + spilling.toString() << std::endl;
-                                       std::cout << "MCStrategy: " + clustering.toString() << std::endl;
-                                       std::cout << "Streaming(W,H,C,K,N): " + streamShape.toString() << std::endl<<std::endl;
+                                    //    std::cout << "Name: " + op.getName() << " ID " << s["id"].toString()<< std::endl;
+                                    //    std::cout << "Input Sparsity: " + inputSparsity.toString() << std::endl;
+                                    //    std::cout << "Output Sparsity: " + outputSparsity.toString() << std::endl;
+                                    //    std::cout << "Weights Sparsity: " + weightsSparsity.toString() << std::endl;
+                                    //    std::cout << "Spilling: " + spilling.toString() << std::endl;
+                                    //    std::cout << "MCStrategy: " + clustering.toString() << std::endl;
+                                    //    std::cout << "Streaming(W,H,C,K,N): " + streamShape.toString() << std::endl<<std::endl;
 
                                 }
                             }
@@ -1864,57 +1863,42 @@ namespace mv
 
                 double cost = base_cost;
 
-                std::cout << "Strategy for " << parent["id"].toString() << " --> " << child["id"].toString() << std::endl <<
-                    "    " << prepipe_cost << " : " << pipe_cost << " : " << pre_cost << " : " << base_cost << std::endl;
+                // std::cout << "Strategy for " << parent["id"].toString() << " --> " << child["id"].toString() << std::endl <<
+                //     "    " << prepipe_cost << " : " << pipe_cost << " : " << pre_cost << " : " << base_cost << std::endl;
 
                 if(pipelineable && prefetchable)
                 {
                     cost = prepipe_cost;
-                    std::cout << "    chose prepipe: " << prepipe_cost << std::endl;
-                    // if(isSchedulerFriendly(childOp, child))
-                    // {
-                    //     cost *= 0.99;
-                    //     std::cout << "      scheduler friendly - cost now: " << cost << std::endl;
-                    // }
+                    // std::cout << "    chose prepipe: " << prepipe_cost << std::endl;
                 }
                 else if(pipelineable)
                 {
                     cost = pipe_cost;
-                    std::cout << "    chose pipe: " << pipe_cost << std::endl;
-                    // if(isSchedulerFriendly(childOp, child))
-                    // {
-                    //     cost *= 0.99;
-                    //     std::cout << "      scheduler friendly - cost now: " << cost << std::endl;
-                    // }
+                    // std::cout << "    chose pipe: " << pipe_cost << std::endl;
                 }
                 else if(prefetchable)
                 {
                     cost = pre_cost;
-                    std::cout << "    chose pre: " << pre_cost << std::endl;
+                    // std::cout << "    chose pre: " << pre_cost << std::endl;
                 }
                 else
                 {
-                    std::cout << "    chose base: " << base_cost << std::endl;
+                    // std::cout << "    chose base: " << base_cost << std::endl;
                 }
 
-                // Note: if we don't include parent cost, prefetch calculation for child is misleading.
-                // It may look better, because if the parent takes longer we can hide more dma cost
-                // BUT doesn't take into consideration that the parent... is longer!
-                bool includeParentCost = false;
-
-                if(includeParentCost)
-                    cost = cost + (pFullComp + pOutDma);
-
+                // Note: for performance, here we ensure if that MC strategies are preferenced in order
+                // SOH, HKSwitch, SOK, Clustering.
                 if(parentClustering == "SplitOverH" && !parentSpilling)
                         cost = cost * 0.95;
                 if((childClustering == "SplitOverH" || childClustering == "HKSwitch") && !childSpilling)
                 {   
-                     cost = cost * 0.95;
-                     
+                     cost = cost * 0.95;   
                 }
-                cost = cost + heuristics;
+                if(parentClustering == "Clustering" || childClustering == "Clustering")
+                    cost = cost * 1.01;
 
-                std::cout << " returning cost " << cost << std::endl;
+                cost = cost + heuristics;
+                // std::cout << " returning cost " << cost << std::endl;
 
                 return cost;
         }
@@ -2367,37 +2351,6 @@ namespace mv
                 double compTime = ((totalToCompute * baseKernelCost) / OPS);
 
                 return  (totalStreams * (readIn + readOut + compTime)) * 1000000; //return in us
-            }
-
-            // Note: a proper model does not exist for the interplay between hardware optimality
-                // and schedulability given the goals of the LPScheduler. We note that with chain pipelining
-                // in the scheduler, K streams meeting a certain threshold are better. A pass after GO will
-                // check across the chain for optimality.
-            bool isSchedulerFriendly(mv::Op& op, StrategySet& strategy)
-            {
-                auto stream = strategy["streaming"].get<Shape>();
-                auto clustering = strategy["clustering"].get<std::string>();
-                auto inputSparsity = strategy["inputSparsity"].get<bool>();
-                auto outputSparsity = strategy["outputSparsity"].get<bool>();
-                auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
-                auto spilling = strategy["spilling"].get<bool>();
-
-                size_t input, output, weights;
-                input = output = weights = 0;
-                std::tie(input, output, weights) = memorySize(op,
-                                                                clustering,
-                                                                inputSparsity,
-                                                                outputSparsity,
-                                                                weightsSparsity,
-                                                                stream,
-                                                                requiresFakeActivationSparsity(op),
-                                                                spilling,
-                                                                false); // pipelineable always has parent in cmx
-
-                if((input+output+2*weights) < schedulerPipelineLimit)    
-                    return true;
-
-                return false;       
             }
 
             bool isPipeliningPossible(mv::Op& op, StrategySet& strategy, bool parentSpilling)

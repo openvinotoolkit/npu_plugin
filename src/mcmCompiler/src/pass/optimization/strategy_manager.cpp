@@ -447,7 +447,7 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
         auto& strategy = *elem;
         auto opName = strategy["name"].get<std::string>();
 
-        std::cout << opName << " got strategy ID " << strategy["id"].toString() << std::endl;
+        // std::cout << opName << " got strategy ID " << strategy["id"].toString() << std::endl;
 
         auto op = model_.getOp(opName);
 
