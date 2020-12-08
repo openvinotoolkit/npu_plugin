@@ -377,9 +377,8 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
                                                 (unsigned int)streaming_strategy[4].get<int>("N")}
                                               );
                             
-                            // new test
-                            if(isKStreaming)
-                                streamsSizes.push_back(weightsPerCluster);
+                            
+                            streamsSizes.push_back(weightsPerCluster);
                             
                             weightsPerClusterPerOp.insert({opIt->getName(),weightsPerCluster});
                             
@@ -394,6 +393,7 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
                 }
             }
         }
+        // Store the min weights per chain
         std::sort(streamsSizes.begin(), streamsSizes.end());
         streamsSizes.erase(unique(streamsSizes.begin(), streamsSizes.end()), streamsSizes.end());
         minWeightsPerClusterPerChain.insert({chainID, streamsSizes[0]});
