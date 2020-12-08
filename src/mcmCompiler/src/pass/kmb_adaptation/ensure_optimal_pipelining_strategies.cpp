@@ -609,12 +609,15 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
                   // SOK and streaming
                  //if (streamingStrategyFoundinCompilationDescriptor && clusteringStrategyFoundinCompilationDescriptor) {
                     
-                    auto fullWeightsSizeOptimalKStreaming = fullWeightsSizeForOpandOptimalKStreaming(multiclusterStrategy, weightsPerCluster, minWeightsPerClusterPerChain[chainID], isKStreaming, streaming_strategy[3].get<int>("K"), nClusters);
+                     std::pair<size_t, double> fullWeightsSizeOptimalKStreaming = {};
+                    if(minWeightsPerClusterPerChain[chainID] > 0)
+                        fullWeightsSizeOptimalKStreaming = fullWeightsSizeForOpandOptimalKStreaming(multiclusterStrategy, weightsPerCluster, minWeightsPerClusterPerChain[chainID], isKStreaming, streaming_strategy[3].get<int>("K"), nClusters);
+                    
                     fullWeightsSize = fullWeightsSizeOptimalKStreaming.first;
                     optimalNumberOfKStreams = fullWeightsSizeOptimalKStreaming.second;
 
                     //Assign the new streaming strategies
-                     if (optimalNumberOfKStreams <= maxpossibleStreams) {
+                     if ((optimalNumberOfKStreams > 0) && (optimalNumberOfKStreams <= maxpossibleStreams)) {
                          printInfoToFile(chainID, (opIt->getName()).c_str(), streaming_strategy[3].get<int>("K"),
                                          streaming_strategy[1].get<int>("H"), multiclusterStrategy.c_str(),
                                          fullWeightsSize, alignedFullOutputChannels,
