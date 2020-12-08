@@ -124,9 +124,9 @@ class CMX_Concatenation {
         return output_size;
       }
 
-      bool is_cmx_concateable(size_t cmx_size=917504UL) const {
-        size_t max_input_size = get_max_input_size_for_dpus_driving_concat();
-        return ((max_input_size + master_buffer_size()) < cmx_size);
+      bool is_cmx_concateable() const {
+        return is_concatable_in_cmx(
+          get_max_input_size_for_dpus_driving_concat(), master_buffer_size());
       }
 
       size_t get_max_input_size_for_dpus_driving_concat() const {
@@ -213,10 +213,8 @@ class CMX_Concatenation {
 
       // MAX_INPUT_SIZE (across all streaming DPUs) + BUFFER_SIZE < CMX //
       bool is_concatable_in_cmx(
-          size_t max_input_size, size_t master_buffer_size,
-          size_t cmx_size=917504) const {
-
-        return (max_input_size + master_buffer_size) < cmx_size;
+          size_t max_input_size, size_t master_buffer_size) const {
+        return (max_input_size + master_buffer_size) < cmx_size_;
       }
 
       template<typename T>
@@ -320,6 +318,7 @@ class CMX_Concatenation {
       operation_t concat_root_;
       operation_t representative_dpu_; // representative DPU task from dpu_in_
       size_t representative_dpu_depth_;
+      size_t cmx_size_;
     }; // struct concat_subgraph_t //
 
     ////////////////////////////////////////////////////////////////////////////
@@ -328,6 +327,7 @@ class CMX_Concatenation {
       : omodel_(model), ignore_these_concats_() {
       populate_ignore_list(ignore_list);
       compute_dpu_depth_map();
+      cmx_size_ = omodel_.getGlobalConfigParam("cmx").get<int>();
     }
 
     static const std::string cmx_concat_control_edge_attribute() {
@@ -358,6 +358,7 @@ class CMX_Concatenation {
         if (is_root_concat(oitr)) {
           concat_subgraph_t subgraph;
           subgraph.concat_root_ = &(*oitr);
+          subgraph.cmx_size_ = cmx_size_;
 
           locate_dpu_in_and_write_tasks(oitr,
               std::back_inserter(subgraph.dpu_in_),
@@ -459,10 +460,9 @@ class CMX_Concatenation {
     }
 
     template<typename ControlEdgeOutput>
-    void transform_op_model(ControlEdgeOutput output,
-        size_t cmx_size=917504UL) {
+    void transform_op_model(ControlEdgeOutput output) {
       std::list<concat_subgraph_t> concat_subgraphs;
-      transform_op_model(output, concat_subgraphs, cmx_size);
+      transform_op_model(output, concat_subgraphs);
     }
 
     template<typename T>
@@ -491,15 +491,15 @@ class CMX_Concatenation {
     }
 
     //NOTE: For all subgraphs on cmx the depth of rep dpu >= depth of others across all subgraphs
-    template<typename T, typename P>
-    void validate_dpu_ins_level(T concat_subgraphs, P cmx_size) const
+    template<typename T>
+    void validate_dpu_ins_level(T concat_subgraphs) const
     {
       for (auto sitr=concat_subgraphs.begin(); sitr!=concat_subgraphs.end();
           ++sitr)
       {
         concat_subgraph_t& subgraph = *sitr;
         bool can_transform =
-            is_cmx_concateable_in_current_opmodel(subgraph, cmx_size);
+            is_cmx_concateable_in_current_opmodel(subgraph);
         if (!can_transform)
           continue;
         operation_t dpu_rep = subgraph.representative_dpu_;
@@ -516,12 +516,11 @@ class CMX_Concatenation {
           }
         }
       }
-
     }
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
     void transform_op_model(ControlEdgeOutput output,
-          SubGraphContainer& concat_subgraphs, size_t cmx_size=917504UL) {
+          SubGraphContainer& concat_subgraphs) {
 
       static_assert( std::is_same<concat_subgraph_t,
             typename SubGraphContainer::value_type>::value,
@@ -537,7 +536,7 @@ class CMX_Concatenation {
             ++sitr) {
         concat_subgraph_t& subgraph = *sitr;
         bool can_transform =
-            is_cmx_concateable_in_current_opmodel(subgraph, cmx_size);
+            is_cmx_concateable_in_current_opmodel(subgraph);
         if (can_transform) {
           transform_and_get_control_edges(subgraph, output);
           if (does_rep_dpu_has_lower_depth_than_others(subgraph)) {
@@ -576,8 +575,7 @@ class CMX_Concatenation {
       if (fptr) {
         fclose(fptr);
       }
-      validate_dpu_ins_level(concat_subgraphs, cmx_size);
-
+      validate_dpu_ins_level(concat_subgraphs);
     }
 
     bool has_no_cmx_concat_flag(const concat_subgraph_t& subgraph) const {
@@ -862,8 +860,8 @@ class CMX_Concatenation {
 
 
     bool is_cmx_concateable_in_current_opmodel(
-        const concat_subgraph_t& subgraph, size_t cmx_size,
-        FILE *fptr=NULL) const {
+        const concat_subgraph_t& subgraph, FILE *fptr=NULL) const {
+
       if (is_this_an_unsupported_concat(subgraph)) { return false; }
 
       size_t max_input_size =
@@ -882,7 +880,7 @@ class CMX_Concatenation {
                     (max_output_size_dpu_reads + max_input_size_dpu_reads)
                   )
           );
-      double cmx_fullness = double(resource_utility_estimate)/double(cmx_size);
+      double cmx_fullness = double(resource_utility_estimate)/double(cmx_size_);
 
 #if 0
       printf("Concat = %s utility=%lu percentage=%0.3lf "
@@ -952,9 +950,9 @@ class CMX_Concatenation {
 
 
     //Precondition: must be valid with representative DPU task //
-    void transform(concat_subgraph_t& subgraph, size_t cmx_size=917504UL) {
+    void transform(concat_subgraph_t& subgraph) {
 
-      if (!is_cmx_concateable_in_current_opmodel(subgraph, cmx_size)) {
+      if (!is_cmx_concateable_in_current_opmodel(subgraph)) {
         throw RuntimeError("LpScheduler", "Precondition violation: ");
       }
 
@@ -1422,6 +1420,7 @@ class CMX_Concatenation {
     mv::OpModel& omodel_;
     std::unordered_set<std::string> ignore_these_concats_;
     std::unordered_map<operation_t, size_t> dpu_depth_map_;
+    size_t cmx_size_;
 }; // class CMX_Concatenation //
 
 

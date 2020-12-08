@@ -656,7 +656,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     },
     false, true);
 
-    memsize = globalConfigParams->get<unsigned>("totalCmx");
+    memsize = globalConfigParams->get<int>("cmx");
     pass.log(mv::Logger::MessageType::Debug, " Calling AggressiveSimplify");
 
     agOrder = aggressiveSimplify(pass, nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);

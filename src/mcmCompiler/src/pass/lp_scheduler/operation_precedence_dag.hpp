@@ -399,16 +399,14 @@ class Operation_Dag {
     }
 
 
-    void enable_cmx_concat_transforms(mv::OpModel& omodel,
-          size_t cmx_size=917504UL) {
+    void enable_cmx_concat_transforms(mv::OpModel& omodel) {
       std::list<cmx_concat_control_edge_t> cmx_control_edges;
-      enable_cmx_concat_transforms(omodel, cmx_control_edges, cmx_size);
+      enable_cmx_concat_transforms(omodel, cmx_control_edges);
     }
 
     template<typename CmxConcatControlEdgeContainer>
     void enable_cmx_concat_transforms(mv::OpModel& omodel,
           CmxConcatControlEdgeContainer &cmx_concat_control_edges,
-          size_t cmx_size=917504UL,
           std::string ignore_concat_list="") {
 
       static_assert(std::is_same<
@@ -421,8 +419,7 @@ class Operation_Dag {
 
       std::list<cmx_concat_subgraph_t> cmx_concat_subgraphs;
       cmx_concat_algo.transform_op_model(
-          std::back_inserter(cmx_concat_control_edges), cmx_concat_subgraphs,
-            cmx_size);
+          std::back_inserter(cmx_concat_control_edges), cmx_concat_subgraphs);
 
       cmx_concat_subgraphs_.clear();
       for (auto subg_itr=cmx_concat_subgraphs.begin();
@@ -501,8 +498,7 @@ class Operation_Dag {
 
     template<typename PipeLineControlEdgeContainer>
     void enable_pipeline_transforms(mv::OpModel& omodel,
-          PipeLineControlEdgeContainer &pipeline_control_edges,
-            size_t cmx_size=917504UL) {
+          PipeLineControlEdgeContainer &pipeline_control_edges) {
 
       static_assert(std::is_same<
           typename PipeLineControlEdgeContainer::value_type,
@@ -513,8 +509,7 @@ class Operation_Dag {
 
       std::list<pipeline_subgraph_t> pipeline_subgraphs;
       pipeline_algo.transform_op_model(
-          std::back_inserter(pipeline_control_edges), pipeline_subgraphs,
-            cmx_size);
+          std::back_inserter(pipeline_control_edges), pipeline_subgraphs);
       mv::GenerateDotFromModel(omodel, "OpModel",
             "pipeline_transformed_model.dot");
 

@@ -115,9 +115,9 @@ void StrategyManager::updateValuesFromJSON()
     for( auto globalConfig : globalConfigs)
         globalConfig_[globalConfig.getName()] = globalConfig.get("value");
     
-    globalConfig_["referenceDevice"] = model_.getGlobalConfigParam("referenceDevice");
-    globalConfig_["totalClusters"] = model_.getGlobalConfigParam("Number_of_Clusters");
-    globalConfig_["clusterMemory"] = (int)model_.getGlobalConfigParam("totalCmx").get<unsigned>();
+    globalConfig_["referenceDevice"] = model_.getGlobalConfigParam("referenceDevice").get<std::string>();
+    globalConfig_["totalClusters"] = model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
+    globalConfig_["clusterMemory"] = model_.getGlobalConfigParam("cmx").get<int>();
     globalConfig_["dpuPerCluster"] = 
         model_.getGlobalConfigParam("Number_of_DPUs").get<int>() / model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
 

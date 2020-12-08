@@ -24,8 +24,6 @@ void LocateCMXConcateableOps(const mv::pass::PassEntry&,
   mv::OpModel om(model);
   typedef mv::scheduler::CMX_Concatenation locator_t;
   typedef typename locator_t::concat_subgraph_t concat_subgraph_t; 
-  auto params = model.getGlobalConfigParams();
-  size_t cmx_size = params->get<unsigned>("totalCmx");
 
   locator_t locator(om);
   std::list<concat_subgraph_t> concats;
@@ -40,8 +38,8 @@ void LocateCMXConcateableOps(const mv::pass::PassEntry&,
 
   for (auto itr=concats.begin(); itr!=concats.end(); ++itr) {
     itr->dump(fptr);
-    if ((*itr).is_cmx_concateable(cmx_size)) {
-      locator.transform(*itr, cmx_size);
+    if ((*itr).is_cmx_concateable()) {
+      locator.transform(*itr);
     }
   }
   fclose(fptr);

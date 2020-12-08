@@ -34,12 +34,13 @@ void LocatePipeLinedOps(const mv::pass::PassEntry&,
 
   std::list<subgraph_t> subgraphs;
   pipeliner_t pipeliner(om);
+  size_t cmx_size = om.getGlobalConfigParam("cmx").get<int>();
 
   pipeliner.locate_pipeline_subgraphs(std::back_inserter(subgraphs));
 
   for (auto itr=subgraphs.begin(); itr!=subgraphs.end(); ++itr) {
     itr->normalize(om);
-    if (itr->is_pipelineable(917504)) {
+    if (itr->is_pipelineable(cmx_size)) {
       printf("root = %s pipelinable=yes\n", (itr->name()).c_str());
     }
   }

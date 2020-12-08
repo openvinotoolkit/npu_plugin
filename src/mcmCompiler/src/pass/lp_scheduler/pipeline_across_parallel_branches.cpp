@@ -180,7 +180,7 @@ void PipeLineAcrossParallelBranches(const mv::pass::PassEntry& ,
   mv::OpModel om(model);
   dag_t input_dag;
   auto params = model.getGlobalConfigParams();
-  dag_t::resource_t upper_bound = params->get<unsigned>("totalCmx");
+  dag_t::resource_t upper_bound = params->get<int>("cmx");
   { // build the dependency DAG //
     //input_dag.enable_cmx_concat_transforms(om, upper_bound);
     input_dag.reset(om);
