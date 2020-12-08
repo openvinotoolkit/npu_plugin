@@ -142,6 +142,21 @@
                 }
             },
             "StoreGraphOptimizerDecisions",
+            {
+                "name" : "AddOptimalChainPipeliningStrategies",
+                "select_stages" : 2,
+                "AddOptimalChainPipeliningStrategiesConfig" : {
+                    "layerStrategies" : [
+                        {
+                            "name" : "Conv",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverK"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverK"]}
+                            ]
+                        }
+                    ]
+                }
+            },
             "ComputeSparsitySolution",
             "StreamingOperations",
             "StreamBinaryDataWeights",
