@@ -1903,11 +1903,19 @@ namespace mv
                 bool includeParentCost = false;
 
                 if(includeParentCost)
-                    cost = cost + (pLastComp + pOutDma);
+                    cost = cost + (pFullComp + pOutDma);
 
+                if(parentClustering == "SplitOverH" && !parentSpilling)
+                        cost = cost * 0.95;
+                if((childClustering == "SplitOverH" || childClustering == "HKSwitch") && !childSpilling)
+                {   
+                     cost = cost * 0.95;
+                     
+                }
                 cost = cost + heuristics;
+
                 std::cout << " returning cost " << cost << std::endl;
-                
+
                 return cost;
         }
 
