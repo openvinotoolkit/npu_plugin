@@ -70,4 +70,23 @@ def IE_AutoBroadcastType :
     let cppNamespace = "vpux::IE";
 }
 
+//
+// Rounding type
+//
+
+def IE_RoundingType_FLOOR   : I32EnumAttrCase<"FLOOR",  0>;
+def IE_RoundingType_CEIL    : I32EnumAttrCase<"CEIL",   1>;
+
+def IE_RoundingType :
+        I32EnumAttr<
+            "RoundingType",
+            "Rounding type that operations support",
+            [
+                IE_RoundingType_FLOOR,
+                IE_RoundingType_CEIL
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+}
+
 #endif
