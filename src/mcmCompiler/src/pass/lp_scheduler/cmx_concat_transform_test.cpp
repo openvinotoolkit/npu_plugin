@@ -217,10 +217,10 @@ TEST_F(CMX_Concatenation_Test, run_scheduler) {
   op_model_dag_t dag(om);
 
   // STEP-2: update Operation_Dag //
-  dag.enable_cmx_concat_transforms(om, 917504UL);
+  dag.enable_cmx_concat_transforms(om);
 
   // STEP-3: run scheduler //
-  size_t max_memory = 917504UL;
+  size_t max_memory = om.getGlobalConfigParam("cmx").get<int>();
   scheduler_t scheduler_begin(dag, max_memory), scheduler_end;
 
   std::unordered_map<size_t, size_t> memory_use_map;

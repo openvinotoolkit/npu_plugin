@@ -12,7 +12,6 @@
             },
             "AssignInputNode",
             "AssignOutputNode",
-            "ComputeMemory",
             "AssignUniqueOpId",
             {
                 "name": "ApplyTargetVars",

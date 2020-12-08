@@ -420,7 +420,7 @@ class Pipelining_Transform {
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
     void transform_op_model(ControlEdgeOutput output,
-        SubGraphContainer& pipeline_subgraphs, size_t cmx_size=917504UL) {
+        SubGraphContainer& pipeline_subgraphs) {
 
       static_assert( std::is_same<pipeline_subgraph_t,
             typename SubGraphContainer::value_type>::value,
@@ -428,6 +428,7 @@ class Pipelining_Transform {
 
       compute_depth_map();
       mv::OpModel &om = omodel_;
+      size_t cmx_size = omodel_.getGlobalConfigParam("cmx").get<int>();
       pipeline_subgraphs.clear();
       locate_pipeline_subgraphs(std::back_inserter(pipeline_subgraphs));
       for (auto subitr=pipeline_subgraphs.begin();

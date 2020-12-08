@@ -110,9 +110,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
   mv::OpModel cm(model);
   dag_t input_dag;
-  auto params = model.getGlobalConfigParams();
 
-  dag_t::resource_t upper_bound = params->get<unsigned>("totalCmx");
+  dag_t::resource_t upper_bound = model.getGlobalConfigParam("cmx").get<int>();
   printfInfo("LpScheduler:", "[upper_bound = %lu]\n", upper_bound);
 
   // update the operation precedence dag with CMX concat transforms //
@@ -129,8 +128,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     if (passDesc.hasAttr("ignore_these_concats")) {
       ignore_these_concats = passDesc.get<std::string>("ignore_these_concats");
     }
-    input_dag.enable_cmx_concat_transforms(cm, cmx_concat_control_edges,
-          upper_bound, ignore_these_concats);
+    input_dag.enable_cmx_concat_transforms(cm, cmx_concat_control_edges, ignore_these_concats);
   } else {
     input_dag.reset(cm);
   }
@@ -382,7 +380,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     assert(status);
     // save the schedule state in global params //
     auto global_params = model.getGlobalConfigParams();
-    params->set<std::string>(writer_t::ddr_address_attribute(),
+    global_params->set<std::string>(writer_t::ddr_address_attribute(),
           schedule_state.str());
   }
 

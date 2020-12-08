@@ -146,7 +146,7 @@ namespace mv
             { 
                 referenceDevice = model_.getGlobalConfigParam("referenceDevice").get<std::string>();
                 totalClusters = model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
-                clusterMemoryKb = (int)model_.getGlobalConfigParam("totalCmx").get<unsigned>() / 1024;
+                clusterMemoryKb = model_.getGlobalConfigParam("cmx").get<int>() / 1024;
                 dpuPerCluster = model_.getGlobalConfigParam("Number_of_DPUs").get<int>() / totalClusters;
                 createStrategyDots = globalConfig_["createStrategyDots"].get<bool>();
                 dotFileLocation = globalConfig_["dotFileLocation"].get<std::string>();
