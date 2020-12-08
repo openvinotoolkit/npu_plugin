@@ -359,9 +359,9 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
                         // If the layer has a strategy that is also in the CD then include it in the analysis
                         // Just SOK 
 
-                        if (clusteringStrategyFound && !isHStreaming) {
+                        //if (clusteringStrategyFound && !isHStreaming) {
                         // SOK and streaming
-                        //if (streamingStrategyFound && clusteringStrategyFound) {
+                        if (streamingStrategyFound && clusteringStrategyFound && !isHStreaming) {
 
                             if (op->hasAttr("splitStrategy"))
                                 clustering = op->get<std::string>("splitStrategy");
@@ -402,7 +402,7 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
 
         if(!streamsSizes.empty())
             minWeightsPerClusterPerChain.insert({chainID, streamsSizes[0]});
-            
+
         chainID++;
     }
     fprintf(fptr, "End of network analysis\n");
@@ -597,9 +597,9 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
                  // Then divide by the minStreamSize * nclusters
 
                   //Just SOK
-                  if (clusteringStrategyFoundinCompilationDescriptor && !isHStreaming) {
+                  //if (clusteringStrategyFoundinCompilationDescriptor && !isHStreaming) {
                   // SOK and streaming
-                 //if (streamingStrategyFoundinCompilationDescriptor && clusteringStrategyFoundinCompilationDescriptor) {
+                  if (streamingStrategyFoundinCompilationDescriptor && clusteringStrategyFoundinCompilationDescriptor && !isHStreaming) {
                     
                      std::pair<size_t, double> fullWeightsSizeOptimalKStreaming = {};
                     if(minWeightsPerClusterPerChain[chainID] > 0)
