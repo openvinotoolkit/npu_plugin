@@ -85,5 +85,15 @@ set_target_properties(OSD PROPERTIES
 list(APPEND _IMPORT_CHECK_TARGETS OSD )
 list(APPEND _IMPORT_CHECK_FILES_FOR_OSD "${_IMPORT_PREFIX}/lib/libOSD.so" )
 
+# Import target "vpumgr" for configuration "Release"
+set_property(TARGET vpumgr APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(vpumgr PROPERTIES
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/libvpumgr.so"
+  IMPORTED_SONAME_RELEASE "libvpumgr.so"
+  )
+
+list(APPEND _IMPORT_CHECK_TARGETS vpumgr )
+list(APPEND _IMPORT_CHECK_FILES_FOR_vpumgr "${_IMPORT_PREFIX}/lib/libvpumgr.so" )
+
 # Commands beyond this point should not need to know the version.
 set(CMAKE_IMPORT_FILE_VERSION)

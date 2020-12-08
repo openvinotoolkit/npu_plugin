@@ -39,20 +39,20 @@ class Message
     PluginStub *parent;
 };
 
-/** Secondary reciever template class. */
+/** Slave reciever template class. */
 template <typename T>
 class SReceiver : public Message
 {
 };
 
-/** Primary reciever template class. */
+/** Master reciever template class. */
 template <typename T>
 class MReceiver : public Message
 {
 };
 
 /**
- * Primary sender template class.
+ * Master sender template class.
  * Contains Link method to Link with a compatable SReceiver.
  */
 template <typename T>
@@ -67,9 +67,9 @@ class MSender : private VpualStub, public Message
     MSender(const MSender&); // Declare copy ctor, but don't define.
 
     /**
-     * Link to a compatable secondary receiver.
+     * Link to a compatable slave receiver.
      *
-     * @param r secondary reciever of the same type (T) to Link with.
+     * @param r slave reciever of the same type (T) to Link with.
      */
     void Link(SReceiver<T> *r)
     {
@@ -93,7 +93,7 @@ class MSender : private VpualStub, public Message
 };
 
 /**
- * Secondary receiver template class.
+ * Slave receiver template class.
  * Contains Link method to Link with a compatable MReceiver.
  */
 template <typename T>
@@ -104,9 +104,9 @@ class SSender : private VpualStub, public Message
     SSender(uint32_t device_id);
 
     /**
-     * Link to a compatable primary receiver.
+     * Link to a compatable master receiver.
      *
-     * @param r primary reciever of the same type (T) to Link with.
+     * @param r master reciever of the same type (T) to Link with.
      */
     void Link(MReceiver<T> *r)
     {

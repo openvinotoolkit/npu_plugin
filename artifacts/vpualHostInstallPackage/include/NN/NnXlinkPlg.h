@@ -30,7 +30,7 @@ class NnXlinkPlg : public PluginStub{
     /** Constructor. */
     NnXlinkPlg(uint32_t device_id) : PluginStub("NnXlinkPlg",device_id), requestOut{device_id} {};
 
-    ~NnXlinkPlg() { Delete(); }; // Ensure delete is called to close channel.
+    ~NnXlinkPlg() { Stop(); }; // Ensure stop is called to close channel.
 
     int Create(size_t queue_len);
 
@@ -40,6 +40,6 @@ class NnXlinkPlg : public PluginStub{
     uint16_t channel_id_ {};
     bool channel_open_ { false };
 
-    void Delete(void) override;
+    void Stop(void) override;
 };
 #endif // __NN_XLINK_PLG_H__

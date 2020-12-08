@@ -181,6 +181,7 @@ void MCMAdapter::compileNetwork(InferenceEngine::ICNNNetwork& network, const MCM
 
     compDesc.setPassArg("GlobalConfigParams", "verbose", getMcmLogLevel(config.mcmLogLevel()));
     compDesc.setPassArg("GlobalConfigParams", "ScaleFuseInput", config.scaleFuseInput());
+    compDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.removePermuteNoOp());
 
     if (config.referenceMode()) {
         compDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);

@@ -28,7 +28,7 @@
 #include "PlgStreamResult.h"
 #include "XPool.h"
 
-#include "vpusmm/vpusmm.h"
+#include "vpumgr.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -14,6 +14,8 @@
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "HuffmanCompression": false,
+                "DPUTasksinFloat": false,
+                "RemovePermuteNoOp": true,
                 "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
                 "Int32Output": false,
