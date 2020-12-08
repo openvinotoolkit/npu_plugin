@@ -203,4 +203,27 @@ def IE_SoftMaxOp :
     let hasCanonicalizer = 1;
 }
 
+//
+// TileOp
+//
+
+def IE_TileOp :
+        IE_LayerOp<
+            "Tile"
+        > {
+    let summary = "InferenceEngine Tile layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        AnyRankedTensor:$repeats
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
 #endif
