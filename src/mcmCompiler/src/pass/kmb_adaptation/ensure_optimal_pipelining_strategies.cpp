@@ -480,23 +480,24 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
     size_t fullWeightsSize = 0;
     size_t optimalNumberOfKStreams =0;
     std::pair<size_t, double> toReturn;
+    size_t minWeightsPerClusterPerChainoverwrite = 34816; //OVERWRITE
 
     if (isKStreaming && multiclusterStrategy == "SplitOverK") {
 
         fullWeightsSize = weightsPerClusterforOp * nClusters * numberOfkStreams;
-        optimalNumberOfKStreams = std::round(fullWeightsSize / (minWeightsPerClusterPerChain * nClusters));
+        optimalNumberOfKStreams = std::round(fullWeightsSize / (minWeightsPerClusterPerChainoverwrite * nClusters));
        
     } 
     else if (isKStreaming && multiclusterStrategy == "Clustering")
      {
         fullWeightsSize = weightsPerClusterforOp * numberOfkStreams;
-        optimalNumberOfKStreams = std::round(fullWeightsSize / minWeightsPerClusterPerChain);
+        optimalNumberOfKStreams = std::round(fullWeightsSize / minWeightsPerClusterPerChainoverwrite);
         
     } 
     else if (multiclusterStrategy == "SplitOverK") 
     {
         fullWeightsSize = weightsPerClusterforOp * nClusters;
-        optimalNumberOfKStreams = std::round(fullWeightsSize / (minWeightsPerClusterPerChain * nClusters));
+        optimalNumberOfKStreams = std::round(fullWeightsSize / (minWeightsPerClusterPerChainoverwrite * nClusters));
         
     }
 
@@ -618,7 +619,7 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
                                          streaming_strategy[1].get<int>("H"), multiclusterStrategy.c_str(),
                                          fullWeightsSize, alignedFullOutputChannels,
                                          weightsPerClusterPerOp.find(opIt->getName())->second,
-                                         minWeightsPerClusterPerChain[chainID], optimalNumberOfKStreams,
+                                         34816, optimalNumberOfKStreams,
                                          maxpossibleStreams, optimalNumberOfKStreams, fptr);
 
                          opIt->set<unsigned>("optimalNumberOfKStreams", optimalNumberOfKStreams);
@@ -628,7 +629,7 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
                                          streaming_strategy[1].get<int>("H"), multiclusterStrategy.c_str(),
                                          fullWeightsSize, alignedFullOutputChannels,
                                          weightsPerClusterPerOp.find(opIt->getName())->second,
-                                         minWeightsPerClusterPerChain[chainID], optimalNumberOfKStreams,
+                                          34816, optimalNumberOfKStreams,
                                          maxpossibleStreams, maxpossibleStreams, fptr);
                          opIt->set<unsigned>("optimalNumberOfKStreams", maxpossibleStreams);
                      }
