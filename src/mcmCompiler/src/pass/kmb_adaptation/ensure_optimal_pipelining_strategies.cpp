@@ -299,8 +299,10 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
     std::vector<size_t> streamsSizes;  // Store streamsSizes
     size_t nClusters = globalParams->get<int>("Number_of_Clusters");
     bool clusteringStrategyFound = false;
+    bool streamingStrategyFound = false;
     size_t weightsPerCluster = 0;
     bool weightsSparsity = false;
+    
 
     //Header for the excel file
     fprintf(fptr,  "%s :  %s :  %s :  %s :  %s :  %s :  %s :  %s", "chainId", "OpName", "kStreaming", "Hstreaming", "MultiCluster", "TotalSize(Inc WT)", "OutputChannels", "WeightsPerCluster(Inc WT)");
@@ -347,15 +349,18 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
                         auto findStrategy = [](std::vector<mv::Attribute>& vec,const std::string& str) ->bool { for(const auto elem : vec) if(str==elem.get<std::string>()) return true; return false;};
                         clusteringStrategyFound = findStrategy(clusteringStrategies,mcStrategy);
 
-                        bool streamingStrategyFound= false;
+                        streamingStrategyFound = false;
                         if(isKStreaming)
                             streamingStrategyFound = findStrategy(streamingStrategies,"StreamOverK");
                         if(isHStreaming)
                             streamingStrategyFound = findStrategy(streamingStrategies,"StreamOverH");
 
                         // If the layer has a strategy that is also in the CD then include it in the analysis
-                        // Change this to || if you only want SOK 
-                        if (streamingStrategyFound && clusteringStrategyFound) {
+                        // Just SOK 
+
+                        if (clusteringStrategyFound) {
+                        // SOK and streaming
+                        //if (streamingStrategyFound && clusteringStrategyFound) {
 
                             if (op->hasAttr("splitStrategy"))
                                 clustering = op->get<std::string>("splitStrategy");
@@ -393,10 +398,18 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
                 }
             }
         }
-        // Store the min weights per chain
-        std::sort(streamsSizes.begin(), streamsSizes.end());
-        streamsSizes.erase(unique(streamsSizes.begin(), streamsSizes.end()), streamsSizes.end());
-        minWeightsPerClusterPerChain.insert({chainID, streamsSizes[0]});
+
+        //Only store the min stream sizes if layer strategies match those in the CD
+        //Just SOK
+        if (clusteringStrategyFound) {
+        // SOK and streaming
+        //if (streamingStrategyFound && clusteringStrategyFound) {
+            // Store the min weights per chain
+            std::sort(streamsSizes.begin(), streamsSizes.end());
+            streamsSizes.erase(unique(streamsSizes.begin(), streamsSizes.end()), streamsSizes.end());
+
+            minWeightsPerClusterPerChain.insert({chainID, streamsSizes[0]});
+        }
         chainID++;
     }
     fprintf(fptr, "End of network analysis\n");
@@ -588,12 +601,17 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
                  // Calculate the optimal number of K streams
                  // First calculate the full weight size
                  // Then divide by the minStreamSize * nclusters
-                 auto fullWeightsSizeOptimalKStreaming = fullWeightsSizeForOpandOptimalKStreaming(multiclusterStrategy, weightsPerCluster, minWeightsPerClusterPerChain[chainID], isKStreaming, streaming_strategy[3].get<int>("K"), nClusters);
-                 fullWeightsSize = fullWeightsSizeOptimalKStreaming.first;
-                 optimalNumberOfKStreams = fullWeightsSizeOptimalKStreaming.second;
 
-                 // Assign the new streaming strategies
-                 if (streamingStrategyFoundinCompilationDescriptor && clusteringStrategyFoundinCompilationDescriptor) {
+                  //Just SOK
+                  if (clusteringStrategyFoundinCompilationDescriptor) {
+                  // SOK and streaming
+                 //if (streamingStrategyFoundinCompilationDescriptor && clusteringStrategyFoundinCompilationDescriptor) {
+                    
+                    auto fullWeightsSizeOptimalKStreaming = fullWeightsSizeForOpandOptimalKStreaming(multiclusterStrategy, weightsPerCluster, minWeightsPerClusterPerChain[chainID], isKStreaming, streaming_strategy[3].get<int>("K"), nClusters);
+                    fullWeightsSize = fullWeightsSizeOptimalKStreaming.first;
+                    optimalNumberOfKStreams = fullWeightsSizeOptimalKStreaming.second;
+
+                    //Assign the new streaming strategies
                      if (optimalNumberOfKStreams <= maxpossibleStreams) {
                          printInfoToFile(chainID, (opIt->getName()).c_str(), streaming_strategy[3].get<int>("K"),
                                          streaming_strategy[1].get<int>("H"), multiclusterStrategy.c_str(),
