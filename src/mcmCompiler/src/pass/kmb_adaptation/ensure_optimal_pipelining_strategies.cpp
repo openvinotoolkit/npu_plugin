@@ -472,24 +472,35 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
     size_t fullWeightsSize = 0;
     size_t optimalNumberOfKStreams =0;
     std::pair<size_t, double> toReturn;
-    size_t minWeightsPerClusterPerChainoverwrite = 34816; //OVERWRITE
 
     if (isKStreaming && multiclusterStrategy == "SplitOverK") {
 
         fullWeightsSize = weightsPerClusterforOp * nClusters * numberOfkStreams;
-        optimalNumberOfKStreams = std::round(fullWeightsSize / (minWeightsPerClusterPerChainoverwrite * nClusters));
+
+        if(minWeightsPerClusterPerChain < 34816)
+            minWeightsPerClusterPerChain = 34816;
+
+        optimalNumberOfKStreams = std::round(fullWeightsSize / (minWeightsPerClusterPerChain * nClusters));
        
     } 
     else if (isKStreaming && multiclusterStrategy == "Clustering")
      {
         fullWeightsSize = weightsPerClusterforOp * numberOfkStreams;
-        optimalNumberOfKStreams = std::round(fullWeightsSize / minWeightsPerClusterPerChainoverwrite);
+
+        if(minWeightsPerClusterPerChain < 34816)
+            minWeightsPerClusterPerChain = 34816;
+
+        optimalNumberOfKStreams = std::round(fullWeightsSize / minWeightsPerClusterPerChain);
         
     } 
     else if (multiclusterStrategy == "SplitOverK") 
     {
         fullWeightsSize = weightsPerClusterforOp * nClusters;
-        optimalNumberOfKStreams = std::round(fullWeightsSize / (minWeightsPerClusterPerChainoverwrite * nClusters));
+
+        if(minWeightsPerClusterPerChain < 34816)
+            minWeightsPerClusterPerChain = 34816;
+            
+        optimalNumberOfKStreams = std::round(fullWeightsSize / (minWeightsPerClusterPerChain * nClusters));
         
     }
 
