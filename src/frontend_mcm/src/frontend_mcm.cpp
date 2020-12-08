@@ -2060,10 +2060,7 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
         const auto kernelData = parser.resolveKernelArguments(*kernel, stage.arguments);
         const auto stageOutputs = parser.resolveStageOutputs(*customLayer, stage.outputs);
 
-        vpu::OperationFactory opFactory {
-            stageIdx, _modelMcm, kernelData,
-            stage.inputs, stageOutputs, layer->name
-        };
+        vpu::OperationFactory opFactory{stageIdx, _modelMcm, kernelData, stage.inputs, stageOutputs, layer->name};
         kernel->accept(opFactory);
 
         auto custom = opFactory.result();

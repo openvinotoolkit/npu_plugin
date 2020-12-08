@@ -89,10 +89,13 @@ public:
                              const std::map<std::string, std::string>& cnnLayerParams,
                              const SmallVector<ngraph::Shape>& inputDescs,
                              const SmallVector<ngraph::Shape>& outputDescs,
-                             const vpu::SmallVector<uint32_t>& kernelArgs) :
-        _kernelParams(kernelParams), _cnnLayerParams(cnnLayerParams),
-        _inputDescs(inputDescs), _outputDescs(outputDescs),
-        _kernelArgs(kernelArgs){}
+                             const vpu::SmallVector<uint32_t>& kernelArgs)
+            : _kernelParams(kernelParams),
+              _cnnLayerParams(cnnLayerParams),
+              _inputDescs(inputDescs),
+              _outputDescs(outputDescs),
+              _kernelArgs(kernelArgs) {
+    }
 
     void visitCpp(const CustomKernelCpp&) override {
         _kernelParams.push_back(_kernelArgs.size());
@@ -136,7 +139,7 @@ private:
 
 CustomLayerParserNGraph::CustomLayerParserNGraph(std::shared_ptr<ngraph::Node>& node,
                                                  std::vector<mv::Data::TensorIterator> inputs)
-    : _node(node), _layerInputs(std::move(inputs)) {
+        : _node(node), _layerInputs(std::move(inputs)) {
     paramVisitor visitor;
     node->visit_attributes(visitor);
     _layerParam = visitor.GetMap();
@@ -240,8 +243,7 @@ std::vector<uint8_t> CustomLayerParserNGraph::resolveKernelArguments(const Custo
                                                                      const vpu::SmallVector<uint32_t>& kernelArgs) {
     auto kernelParams = std::vector<uint32_t>{};
 
-    CustomKernelParserNGraph kernelParser{kernelParams, _layerParam,
-                                          _inputDescs, _outputDescs, kernelArgs};
+    CustomKernelParserNGraph kernelParser{kernelParams, _layerParam, _inputDescs, _outputDescs, kernelArgs};
     kernel.accept(kernelParser);
 
     std::copy(kernelArgs.begin(), kernelArgs.end(), std::back_inserter(kernelParams));

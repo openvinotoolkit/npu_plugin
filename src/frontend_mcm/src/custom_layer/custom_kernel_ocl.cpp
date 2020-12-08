@@ -14,7 +14,7 @@ namespace vpu {
 
 struct Argument final {
     std::string name;
-    uint32_t    typeSize;
+    uint32_t typeSize;
 };
 
 VPU_PACKED(Elf32Shdr {
@@ -105,8 +105,8 @@ md_parser_t createParser(const std::vector<uint8_t>& kernelBinary) {
     const size_t neoMetadataSize = neoMetadataShdr->shSize;
 
     const Elf32Shdr* neoMetadataStrShdr = get_elf_section_with_name(elf, ".neo_metadata.str");
-    VPU_THROW_UNLESS(
-        neoMetadataStrShdr, "Error while parsing custom layer elf: Couldn't find .neo_metadata.str section");
+    VPU_THROW_UNLESS(neoMetadataStrShdr,
+                     "Error while parsing custom layer elf: Couldn't find .neo_metadata.str section");
 
     const char* neoMetadataStr = reinterpret_cast<const char*>(elf + neoMetadataStrShdr->shOffset);
     const size_t neoMetadataStrSize = neoMetadataStrShdr->shSize;
@@ -127,9 +127,9 @@ CustomKernelOcl::CustomKernelOcl(const pugi::xml_node& node, const std::string& 
     VPU_THROW_UNLESS(_kernelId != -1, "Failed to find kernel with name `%l`", kernelEntryName);
 
     VPU_THROW_UNLESS(parser.get_kernel_count() == 1,
-        "Failed to load kernel binary\n"
-        "\tReason: binary should contain only one kernel, but contains %l",
-        parser.get_kernel_count());
+                     "Failed to load kernel binary\n"
+                     "\tReason: binary should contain only one kernel, but contains %l",
+                     parser.get_kernel_count());
 
     auto arguments = deduceKernelArguments(parser, _kernelId);
     auto bindings = processParametersNode(node);
@@ -142,8 +142,7 @@ CustomKernelOcl::CustomKernelOcl(const pugi::xml_node& node, const std::string& 
         auto binding = std::find_if(begin(bindings), end(bindings), withBindingName);
         IE_ASSERT(binding != bindings.end());
 
-        if(binding->type == CustomParamType::Output &&
-            argument.typeSize != 1 && argument.typeSize != 2) {
+        if (binding->type == CustomParamType::Output && argument.typeSize != 1 && argument.typeSize != 2) {
             VPU_THROW_EXCEPTION << "Custom layer output parameter '" << argument.name
                                 << "' has unsupported output data type with "
                                 << "underlying type size = " << argument.typeSize;

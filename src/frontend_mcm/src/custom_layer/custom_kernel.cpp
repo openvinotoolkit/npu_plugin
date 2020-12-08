@@ -11,7 +11,7 @@ namespace vpu {
 
 std::vector<uint8_t> CustomKernel::loadKernelBinary(const pugi::xml_node& node, const std::string& configDir) {
     auto source = node.child("Source");
-    if(source.empty()) {
+    if (source.empty()) {
         THROW_IE_EXCEPTION << "Kernel binary not found";
     }
 

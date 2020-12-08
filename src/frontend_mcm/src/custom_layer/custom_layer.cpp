@@ -307,27 +307,25 @@ bool CustomLayer::meetsWhereRestrictions(const std::map<std::string, std::string
     return true;
 }
 
-SizeRuleValidator::SizeRuleValidator(
-    CustomLayer::Ptr customLayer,
-    const std::map<std::string, std::string>& cnnLayerParams,
-    Logger::Ptr logger) :
-    _customLayer(std::move(customLayer)),
-    _cnnLayerParams(cnnLayerParams),
-    _logger(std::move(logger)){}
+SizeRuleValidator::SizeRuleValidator(CustomLayer::Ptr customLayer,
+                                     const std::map<std::string, std::string>& cnnLayerParams, Logger::Ptr logger)
+        : _customLayer(std::move(customLayer)), _cnnLayerParams(cnnLayerParams), _logger(std::move(logger)) {
+}
 
 void SizeRuleValidator::visitCpp(const CustomKernelCpp&) {
     _result = true;
 }
 
-void SizeRuleValidator::visitCL(const CustomKernelOcl &kernel) {
-    const auto &gws = kernel.globalGridSizeRules();
-    const auto &lws = kernel.localGridSizeRules();
+void SizeRuleValidator::visitCL(const CustomKernelOcl& kernel) {
+    const auto& gws = kernel.globalGridSizeRules();
+    const auto& lws = kernel.localGridSizeRules();
 
-    const auto validSizeRule = [&](const std::string &rule) {
+    const auto validSizeRule = [&](const std::string& rule) {
         return CustomLayer::isLegalSizeRule(rule, _cnnLayerParams);
     };
 
-    const auto validGridSizes = std::all_of(begin(gws), end(gws), validSizeRule) && std::all_of(begin(lws), end(lws), validSizeRule);
+    const auto validGridSizes =
+            std::all_of(begin(gws), end(gws), validSizeRule) && std::all_of(begin(lws), end(lws), validSizeRule);
 
     const size_t workGroupDims = 3;
     VPU_THROW_UNLESS(lws.size() <= workGroupDims,
@@ -345,13 +343,16 @@ void SizeRuleValidator::visitCL(const CustomKernelOcl &kernel) {
     }
 }
 
-OperationFactory::OperationFactory(int stageIdx, mv::OpModel& modelMcm,
-                                   const std::vector<uint8_t>& kernelData,
+OperationFactory::OperationFactory(int stageIdx, mv::OpModel& modelMcm, const std::vector<uint8_t>& kernelData,
                                    const std::vector<mv::Data::TensorIterator>& stageInputs,
-                                   const std::vector<mv::TensorInfo>& stageOutputs,
-                                   const std::string& friendlyName) :
-                                   _stageIdx(stageIdx), _modelMcm(modelMcm), _kernelData(kernelData),
-                                   _stageInputs(stageInputs), _stageOutputs(stageOutputs), _friendlyName(friendlyName) {}
+                                   const std::vector<mv::TensorInfo>& stageOutputs, const std::string& friendlyName)
+        : _stageIdx(stageIdx),
+          _modelMcm(modelMcm),
+          _kernelData(kernelData),
+          _stageInputs(stageInputs),
+          _stageOutputs(stageOutputs),
+          _friendlyName(friendlyName) {
+}
 
 void OperationFactory::visitCpp(const CustomKernelCpp& kernel) {
     const auto layerName = _friendlyName + "_CustomCpp:" + std::to_string(_stageIdx);

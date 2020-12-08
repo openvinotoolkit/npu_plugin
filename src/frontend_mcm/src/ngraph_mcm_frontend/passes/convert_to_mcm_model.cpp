@@ -1602,10 +1602,8 @@ void ConvertToMcmModel::parseCustom(std::shared_ptr<ngraph::Node> node, mv::OpMo
         const auto kernelData = parser.resolveKernelArguments(*kernel, stage.arguments);
         const auto stageOutputs = parser.resolveStageOutputs(*customLayer, stage.outputs);
 
-        vpu::OperationFactory opFactory {
-            stageIdx, mcmModel, kernelData,
-            stage.inputs, stageOutputs, node->get_friendly_name()
-        };
+        vpu::OperationFactory opFactory{stageIdx,     mcmModel,     kernelData,
+                                        stage.inputs, stageOutputs, node->get_friendly_name()};
 
         kernel->accept(opFactory);
         auto custom = opFactory.result();

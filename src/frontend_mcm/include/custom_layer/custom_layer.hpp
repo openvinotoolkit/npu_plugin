@@ -9,6 +9,7 @@
 #include <caseless.hpp>
 #include <custom_layer/custom_kernel.hpp>
 #include <functional>
+#include <include/mcm/op_model.hpp>
 #include <map>
 #include <memory>
 #include <pugixml.hpp>
@@ -16,9 +17,8 @@
 #include <string>
 #include <vector>
 #include <vpu/utils/enums.hpp>
-#include <vpu/utils/small_vector.hpp>
 #include <vpu/utils/logger.hpp>
-#include <include/mcm/op_model.hpp>
+#include <vpu/utils/small_vector.hpp>
 
 namespace vpu {
 
@@ -62,14 +62,15 @@ private:
 
 class SizeRuleValidator : public CustomKernelVisitor {
 public:
-    explicit SizeRuleValidator(CustomLayer::Ptr customLayer,
-                               const std::map<std::string, std::string>& cnnLayerParams,
+    explicit SizeRuleValidator(CustomLayer::Ptr customLayer, const std::map<std::string, std::string>& cnnLayerParams,
                                Logger::Ptr logger = {});
 
     void visitCpp(const CustomKernelCpp& kernel) override;
     void visitCL(const CustomKernelOcl& kernel) override;
 
-    bool result() const { return _result; }
+    bool result() const {
+        return _result;
+    }
 
 private:
     CustomLayer::Ptr _customLayer;
@@ -80,16 +81,16 @@ private:
 
 class OperationFactory : public CustomKernelVisitor {
 public:
-    explicit OperationFactory(int stageIdx, mv::OpModel& modelMcm,
-                              const std::vector<uint8_t>& kernelData,
+    explicit OperationFactory(int stageIdx, mv::OpModel& modelMcm, const std::vector<uint8_t>& kernelData,
                               const std::vector<mv::Data::TensorIterator>& stageInputs,
-                              const std::vector<mv::TensorInfo>& stageOutputs,
-                              const std::string& friendlyName);
+                              const std::vector<mv::TensorInfo>& stageOutputs, const std::string& friendlyName);
 
     void visitCpp(const CustomKernelCpp& kernel) override;
     void visitCL(const CustomKernelOcl& kernel) override;
 
-    mv::Data::TensorIterator result() const { return _result; }
+    mv::Data::TensorIterator result() const {
+        return _result;
+    }
 
 private:
     int _stageIdx = 0;

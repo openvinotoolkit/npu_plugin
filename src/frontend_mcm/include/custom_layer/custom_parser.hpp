@@ -7,9 +7,9 @@
 #include <legacy/ie_layers.h>
 
 #include <converters.hpp>
+#include <custom_layer/custom_kernel.hpp>
 #include <frontend_mcm.hpp>
 #include <vpu/utils/simple_math.hpp>
-#include <custom_layer/custom_kernel.hpp>
 
 #include "custom_layer.hpp"
 
@@ -39,10 +39,10 @@ public:
 public:
     CustomLayerParser(InferenceEngine::CNNLayerPtr layer, McmNodeVector inputs);
 
-    std::vector<uint8_t> resolveKernelArguments(
-        const CustomKernel& kernel, const vpu::SmallVector<uint32_t>& kernelArgs);
-    std::vector<mv::TensorInfo> resolveStageOutputs(
-        const CustomLayer& customLayer, const std::vector<StageOutput>& stageOutputs);
+    std::vector<uint8_t> resolveKernelArguments(const CustomKernel& kernel,
+                                                const vpu::SmallVector<uint32_t>& kernelArgs);
+    std::vector<mv::TensorInfo> resolveStageOutputs(const CustomLayer& customLayer,
+                                                    const std::vector<StageOutput>& stageOutputs);
 
     StageInfo parseKernelArguments(const SmallVector<CustomKernel::BindingParameter>& bindings);
     uint32_t parseBufferSize(const CustomKernel::BindingParameter& binding);

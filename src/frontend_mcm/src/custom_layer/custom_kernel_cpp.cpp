@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <custom_layer/custom_kernel.hpp>
 #include <xml_parse_utils.h>
+#include <custom_layer/custom_kernel.hpp>
 
 namespace vpu {
 
 SmallVector<std::string> deduceKernelArguments(const pugi::xml_node& node) {
     auto arguments = SmallVector<std::string>{};
-    for(const auto& child : node.child("Parameters")) {
+    for (const auto& child : node.child("Parameters")) {
         arguments.push_back(XMLParseUtils::GetStrAttr(child, "arg-name"));
     }
 
     return arguments;
 }
 
-CustomKernelCpp::CustomKernelCpp(const pugi::xml_node &node, const std::string &configDir) {
+CustomKernelCpp::CustomKernelCpp(const pugi::xml_node& node, const std::string& configDir) {
     _maxShaves = XMLParseUtils::GetIntAttr(node, "max-shaves", 0);
     _kernelBinary = loadKernelBinary(node, configDir);
 
@@ -44,15 +44,15 @@ CustomKernelCpp::CustomKernelCpp(const pugi::xml_node &node, const std::string &
     _inputDataCount = std::count_if(begin(_kernelBindings), end(_kernelBindings), isInputData);
 }
 
-void CustomKernelCpp::accept(CustomKernelVisitor &validator) const {
+void CustomKernelCpp::accept(CustomKernelVisitor& validator) const {
     validator.visitCpp(*this);
 }
 
-void CustomKernelCpp::processWorkSizesNode(const pugi::xml_node &node) {
+void CustomKernelCpp::processWorkSizesNode(const pugi::xml_node& node) {
     const auto workSizes = node.child("WorkSizes");
 
     const auto dims = XMLParseUtils::GetStrAttr(workSizes, "dim");
     std::tie(_wgDimSource, _wgDimIdx) = parseDimSource(dims);
 }
 
-} // namespace vpu
+}  // namespace vpu
