@@ -254,6 +254,16 @@ sshfs <username>@<host>:$OPENVINO_HOME/inference-engine/temp $KMB_WORK_DIR/temp
 fusermount -u $KMB_WORK_DIR/temp
 ```
 
+#### Booting firmware
+
+Before running anything you need to boot a correct firmware. By default, vpu_nvr.bin from /lib/firmware is booted.
+The repo contains its own version of  firmware (`$KMB_PLUGIN_HOME/artifacts/vpuip_2/vpu.bin`) which is in sync with a current state of repo. To boot vpu.bin from the repo follow:
+
+1. `rsync -avz $KMB_PLUGIN_HOME/artifacts/vpuip_2/vpu.bin root@$KMB_BOARD_HOST:/lib/firmware/vpu_custom.bin`
+2. Make sure that there are no running applications at the moment
+3. `echo "vpu_custom.bin"  > /sys/devices/platform/soc/soc\:vpusmm/fwname`
+4. You can start your application. vpu_custom.bin will be booted.
+
 ### Testing on KMB board
 
 #### Run Layer Tests
