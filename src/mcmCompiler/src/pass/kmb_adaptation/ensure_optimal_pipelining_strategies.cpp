@@ -400,17 +400,9 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
             }
         }
 
-        //Only store the min stream sizes if layer strategies match those in the CD
-        //Just SOK
-        if (clusteringStrategyFound && !isHStreaming) {
-        // SOK and streaming
-        //if (streamingStrategyFound && clusteringStrategyFound) {
-            // Store the min weights per chain
-            std::sort(streamsSizes.begin(), streamsSizes.end());
-            streamsSizes.erase(unique(streamsSizes.begin(), streamsSizes.end()), streamsSizes.end());
-
+        if(!streamsSizes.empty())
             minWeightsPerClusterPerChain.insert({chainID, streamsSizes[0]});
-        }
+            
         chainID++;
     }
     fprintf(fptr, "End of network analysis\n");
