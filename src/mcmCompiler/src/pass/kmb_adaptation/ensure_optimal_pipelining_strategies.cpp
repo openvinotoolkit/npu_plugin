@@ -302,6 +302,7 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
     bool streamingStrategyFound = false;
     size_t weightsPerCluster = 0;
     bool weightsSparsity = false;
+    bool isHStreaming = false;
     
 
     //Header for the excel file
@@ -333,7 +334,7 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
                         //Get the streaming strategy from graph optimizer
                         auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
                         bool isKStreaming = streaming_strategy[3].get<int>("K") > 1 ? true : false;
-                        bool isHStreaming = streaming_strategy[1].get<int>("H") > 1 ? true : false;
+                        isHStreaming = streaming_strategy[1].get<int>("H") > 1 ? true : false;
 
                         
                         // Get the MC strategy from graph optimizer
@@ -358,7 +359,7 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
                         // If the layer has a strategy that is also in the CD then include it in the analysis
                         // Just SOK 
 
-                        if (clusteringStrategyFound) {
+                        if (clusteringStrategyFound && !isHStreaming) {
                         // SOK and streaming
                         //if (streamingStrategyFound && clusteringStrategyFound) {
 
@@ -401,7 +402,7 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
 
         //Only store the min stream sizes if layer strategies match those in the CD
         //Just SOK
-        if (clusteringStrategyFound) {
+        if (clusteringStrategyFound && !isHStreaming) {
         // SOK and streaming
         //if (streamingStrategyFound && clusteringStrategyFound) {
             // Store the min weights per chain
@@ -603,7 +604,7 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
                  // Then divide by the minStreamSize * nclusters
 
                   //Just SOK
-                  if (clusteringStrategyFoundinCompilationDescriptor) {
+                  if (clusteringStrategyFoundinCompilationDescriptor && !isHStreaming) {
                   // SOK and streaming
                  //if (streamingStrategyFoundinCompilationDescriptor && clusteringStrategyFoundinCompilationDescriptor) {
                     
