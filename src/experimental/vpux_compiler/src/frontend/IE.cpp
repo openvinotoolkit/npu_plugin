@@ -62,6 +62,7 @@ private:
 private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Constant>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Softmax>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Tile>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -104,6 +105,7 @@ const NGraphImporter::DispatchMap NGraphImporter::dispatchMap{
 
         MAP_ENTRY(ngraph::opset1::Constant),
         MAP_ENTRY(ngraph::opset1::Softmax),
+        MAP_ENTRY(ngraph::opset1::Tile),
 };
 
 #undef MAP_ENTRY
@@ -212,6 +214,15 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto axisAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(axis));
 
     auto op = builder.create<IE::SoftMaxOp>(createLocation(origNode), inputs[0], axisAttr);
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Tile>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Tile node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::TileOp>(createLocation(origNode), inputs[0], inputs[1]);
     addOutputs(origNode, {op.getResult()});
 }
 
