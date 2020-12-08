@@ -42,6 +42,10 @@ The following environment variables should be set:
 * The `KMB_BOARD_HOST` environment variable to the hostname or ip addess of the KMB board.
 * The `KMB_WORK_DIR` environment variable to the working directory on the KMB board.
 
+#### ClangFormat
+
+`sudo apt-get install -y clang-format-9`
+
 ### KMB Manual build
 
 #### Dependencies
@@ -124,6 +128,10 @@ The X86_64 build is needed to get reference results for the tests.
 
 **Note:** Please use custom CMake toolchain file for [KMB Plugin Project],
 default approach with `environment-setup-aarch64-ese-linux` is not supported.
+
+#### Code style
+
+Build target `clang_format_fix_all` to fix code style issues.
 
 #### mcmCompiler
 
