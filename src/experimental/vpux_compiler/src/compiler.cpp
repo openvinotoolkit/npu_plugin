@@ -92,8 +92,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     ctx.loadDialect<IERT::IERTDialect>();
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
-    IE::FrontEnd frontEnd(&ctx, log);
-    auto module = frontEnd.importNetwork(cnnNet);
+    auto module = IE::importNetwork(&ctx, cnnNet, log.nest());
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
     addLogging(pm, log);

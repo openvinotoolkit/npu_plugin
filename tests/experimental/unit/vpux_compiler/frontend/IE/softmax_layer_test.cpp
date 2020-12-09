@@ -25,7 +25,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 
-TEST(IE_FrontendTest, SoftMaxLayer) {
+TEST(IE_FrontEndTest, SoftMaxLayer) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
@@ -43,6 +43,5 @@ TEST(IE_FrontendTest, SoftMaxLayer) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    vpux::IE::FrontEnd frontEnd(&ctx);
-    EXPECT_NO_THROW(frontEnd.importNetwork(nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
 }

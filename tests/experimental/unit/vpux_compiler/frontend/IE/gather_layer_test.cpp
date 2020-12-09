@@ -25,7 +25,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 
-TEST(IE_FrontendGatherTest, ImportNetwork) {
+TEST(IE_FrontEndTest, GatherLayer) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{6, 12, 10, 24});
@@ -47,7 +47,5 @@ TEST(IE_FrontendGatherTest, ImportNetwork) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    vpux::IE::FrontEnd frontEnd(&ctx);
-
-    EXPECT_NO_THROW(frontEnd.importNetwork(nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
 }

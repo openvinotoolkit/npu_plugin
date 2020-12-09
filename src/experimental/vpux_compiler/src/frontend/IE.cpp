@@ -413,29 +413,27 @@ mlir::TypeAttr importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Pr
 
 }  // namespace
 
-vpux::IE::FrontEnd::FrontEnd(mlir::MLIRContext* ctx, Logger log): _ctx(ctx), _log(log) {
-    _log.setName("IE::FrontEnd");
+mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet, Logger log) {
+    log.setName("IE::FrontEnd");
 
-    _log.trace("Load IE::FrontEnd dependent Dialects");
-    _ctx->loadDialect<IE::IEDialect>();
-}
+    log.trace("Load IE::FrontEnd dependent Dialects");
+    ctx->loadDialect<IE::IEDialect>();
 
-mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetwork cnnNet) const {
     const auto netGraph = cnnNet.getFunction();
     VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
 
     const auto inputsInfo = cnnNet.getInputsInfo();
     const auto outputsInfo = cnnNet.getOutputsInfo();
 
-    const auto mainFuncName = mlir::FlatSymbolRefAttr::get("main", _ctx);
+    const auto mainFuncName = mlir::FlatSymbolRefAttr::get("main", ctx);
 
-    auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(_ctx));
+    auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx));
 
-    OpBuilderLogger builderLog(_log.nest());
+    OpBuilderLogger builderLog(log.nest());
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
 
-    auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(_ctx),
-                                                  mlir::StringAttr::get(cnnNet.getName(), _ctx), mainFuncName);
+    auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(ctx),
+                                                  mlir::StringAttr::get(cnnNet.getName(), ctx), mainFuncName);
     IE::CNNNetworkOp::ensureTerminator(cnnOp.inputsInfo(), builder, cnnOp.getLoc());
     IE::CNNNetworkOp::ensureTerminator(cnnOp.outputsInfo(), builder, cnnOp.getLoc());
 
@@ -445,9 +443,9 @@ mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetw
         const auto& userInput = inputsInfo.at(inputName);
         const auto& userDesc = userInput->getTensorDesc();
 
-        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(_ctx), mlir::StringAttr::get(inputName, _ctx),
-                                       importPrecision(_ctx, userDesc.getPrecision()),
-                                       importLayout(_ctx, userDesc.getLayout()));
+        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(inputName, ctx),
+                                       importPrecision(ctx, userDesc.getPrecision()),
+                                       importLayout(ctx, userDesc.getLayout()));
     }
 
     builder.setInsertionPointToStart(&cnnOp.outputsInfo().front());
@@ -456,12 +454,12 @@ mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetw
         const auto& userOutput = outputsInfo.at(resultName);
         const auto& userDesc = userOutput->getTensorDesc();
 
-        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(_ctx), mlir::StringAttr::get(resultName, _ctx),
-                                       importPrecision(_ctx, userDesc.getPrecision()),
-                                       importLayout(_ctx, userDesc.getLayout()));
+        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(resultName, ctx),
+                                       importPrecision(ctx, userDesc.getPrecision()),
+                                       importLayout(ctx, userDesc.getLayout()));
     }
 
-    NGraphImporter importer(_ctx, netGraph, _log);
+    NGraphImporter importer(ctx, netGraph, log);
     const auto mainFunc = importer.buildMainFunc(mainFuncName.getValue());
     module.push_back(mainFunc);
 

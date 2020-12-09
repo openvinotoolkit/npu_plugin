@@ -26,17 +26,8 @@
 namespace vpux {
 namespace IE {
 
-class FrontEnd final {
-public:
-    explicit FrontEnd(mlir::MLIRContext* ctx, Logger log = Logger::global());
-
-public:
-    mlir::OwningModuleRef importNetwork(InferenceEngine::CNNNetwork cnnNet) const;
-
-private:
-    mlir::MLIRContext* _ctx = nullptr;
-    Logger _log;
-};
+mlir::OwningModuleRef importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet,
+                                    Logger log = Logger::global());
 
 }  // namespace IE
 }  // namespace vpux
