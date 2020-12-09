@@ -25,7 +25,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 
-TEST(IE_FrontendSoftmaxTest, ImportNetwork) {
+TEST(IE_FrontendTest, SoftMaxLayer) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
