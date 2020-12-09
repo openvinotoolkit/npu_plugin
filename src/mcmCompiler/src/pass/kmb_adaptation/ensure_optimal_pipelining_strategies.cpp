@@ -383,7 +383,6 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
                                                 (unsigned int)streaming_strategy[4].get<int>("N")}
                                               );
                             
-                            
                             streamsSizes.push_back(weightsPerCluster);
                             
                             weightsPerClusterPerOp.insert({opIt->getName(),weightsPerCluster});
@@ -400,8 +399,10 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
             }
         }
 
+        std::sort(streamsSizes.begin(),streamsSizes.end());
         if(!streamsSizes.empty())
             minWeightsPerClusterPerChain.insert({chainID, streamsSizes[0]});
+        
 
         chainID++;
     }
@@ -621,21 +622,27 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
 
                     //Assign the new streaming strategies
                      if ((optimalNumberOfKStreams > 0) && (optimalNumberOfKStreams <= maxpossibleStreams)) {
+
+                          if(minWeightsPerClusterPerChain[chainID] < 34816)
+                            minWeightsPerClusterPerChain[chainID] = 34816;
                          printInfoToFile(chainID, (opIt->getName()).c_str(), streaming_strategy[3].get<int>("K"),
                                          streaming_strategy[1].get<int>("H"), multiclusterStrategy.c_str(),
                                          fullWeightsSize, alignedFullOutputChannels,
                                          weightsPerClusterPerOp.find(opIt->getName())->second,
-                                         34816, optimalNumberOfKStreams,
+                                         minWeightsPerClusterPerChain[chainID], optimalNumberOfKStreams,
                                          maxpossibleStreams, optimalNumberOfKStreams, fptr);
 
                          opIt->set<unsigned>("optimalNumberOfKStreams", optimalNumberOfKStreams);
 
                      } else if (optimalNumberOfKStreams > maxpossibleStreams) {
+
+                         if(minWeightsPerClusterPerChain[chainID] < 34816)
+                            minWeightsPerClusterPerChain[chainID] = 34816;
                          printInfoToFile(chainID, (opIt->getName()).c_str(), streaming_strategy[3].get<int>("K"),
                                          streaming_strategy[1].get<int>("H"), multiclusterStrategy.c_str(),
                                          fullWeightsSize, alignedFullOutputChannels,
                                          weightsPerClusterPerOp.find(opIt->getName())->second,
-                                          34816, optimalNumberOfKStreams,
+                                          minWeightsPerClusterPerChain[chainID], optimalNumberOfKStreams,
                                          maxpossibleStreams, maxpossibleStreams, fptr);
                          opIt->set<unsigned>("optimalNumberOfKStreams", maxpossibleStreams);
                      }
@@ -678,6 +685,14 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
      auto minWeightsPerClusterPerChain = getMinWeightsPerClusterSizePerChain(
              chainSubgraphs, pass, model, strategies, weightsPerClusterPerOp, network_report_fptr);
 
+    std::cout << "\tKEY\tELEMENT\n"; 
+    std::map<size_t, size_t>::iterator itr; 
+    for (itr = minWeightsPerClusterPerChain.begin(); itr != minWeightsPerClusterPerChain.end(); ++itr) { 
+        std::cout << '\t' << itr->first 
+             << '\t' << itr->second << '\n'; 
+    } 
+    
+
      // Step 3:
      evaluateAndAssignStrategies(chainSubgraphs, pass, model, strategies, minWeightsPerClusterPerChain,
                                  weightsPerClusterPerOp, network_report_fptr);
@@ -688,4 +703,5 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
      compDesc->set("streaming_strategy", allStreamingStrategies);
      // saveNewStreamingStrategiesToJson(pass, overWrittenStreamingStrategies);
      saveNewStreamingStrategiesToJson(pass, allStreamingStrategies);
+     exit(1);
  }
