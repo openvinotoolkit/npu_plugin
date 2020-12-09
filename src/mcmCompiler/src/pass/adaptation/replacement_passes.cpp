@@ -345,8 +345,11 @@ void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::Co
                     constantShape, mv::DType("UInt8"), mv::Order::getColMajorID(4));
 
             std::array<unsigned short, 2> kernelStrides = {
-                strideShape[mv::IO_WIDTH_DIMENSION], strideShape[mv::IO_HEIGHT_DIMENSION]};
+                (unsigned short)strideShape[mv::IO_WIDTH_DIMENSION],
+                (unsigned short)strideShape[mv::IO_HEIGHT_DIMENSION]};
+
             std::array<unsigned short, 4> padding = {0, 0, 0, 0};
+
             auto mcmConv = om.conv(opIt->getName() + "_conv_" + std::to_string(c),
                                    sliceOutputTensors[c], constantOutputTensor, kernelStrides,
                                    padding);
