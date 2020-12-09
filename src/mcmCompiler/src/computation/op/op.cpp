@@ -359,11 +359,12 @@ bool mv::Op::isHardwarizable() const
 bool mv::Op::hasWeights() const
 {
     bool hasWeights = false;
-    std::vector<std::string> weightTypes = {"Conv", "DepthwiseConv"};
-    if (std::count(weightTypes.begin(), weightTypes.end(), getOpType()))
+    const std::vector<std::string> weightTypes = {"Conv", "DepthwiseConv"};
+    if (std::count(weightTypes.cbegin(), weightTypes.cend(), getOpType()))
         hasWeights = true;
-    else
-        hasWeights = false;
+    else if (getOpType() == "DPUTask" &&
+        std::count(weightTypes.cbegin(), weightTypes.cend(), get<std::string>("taskOp")))
+        hasWeights = true;
     return hasWeights;
 }
 

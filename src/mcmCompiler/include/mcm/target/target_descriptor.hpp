@@ -35,6 +35,14 @@ namespace mv
         bool bypassMode;
     };
 
+    typedef std::vector<std::pair<std::string, std::string>> DataTypeSet;
+
+    struct DataTypeSupport
+    {
+        DataTypeSet failCase;
+        DataTypeSet mitigation;
+    };
+
     class TargetDescriptor : public LogSender
     {
 
@@ -50,7 +58,6 @@ namespace mv
             std::size_t totalNumber;
         };
 
-
         static Target toTarget(const std::string& str);
         const static unsigned jsonParserBufferLenght_ = 128;
 
@@ -62,6 +69,7 @@ namespace mv
         HdeDescriptor hdeDef_;
         std::map<std::string, NceDescriptor> nceDefs_;
         std::map<std::string, mv::Element> serialDescriptions_;
+        std::vector<DataTypeSupport> dtypeSupport_;
     public:
 
         TargetDescriptor(const std::string& filePath = "");
@@ -89,6 +97,7 @@ namespace mv
         const std::map<std::string, MemoryDescriptor>& memoryDefs() const;
         const std::map<std::string, NceDescriptor>& nceDefs() const;
         const HdeDescriptor& hdeDef() const;
+        const std::vector<mv::DataTypeSupport> & dtypeSupport() const;
 
         std::string getLogID() const override;
 

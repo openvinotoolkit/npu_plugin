@@ -239,6 +239,40 @@ void calcZeroPointAndScalePerTensor(double outputMax,  double outputMin, double&
     }
 }
 
+void calcZeroPointAndScalePerChannel(
+    std::vector<double> &floatMax,
+    std::vector<double> &floatMin,
+    std::vector<double> &quantScale,
+    std::vector<int64_t> &quantZp,
+    int64_t levels)
+{
+    auto max_quant = levels - 1;
+    std::transform(floatMax.cbegin(), floatMax.cend(),
+        floatMin.cbegin(), quantScale.begin(),
+        [max_quant](const double &max,const double &min)
+        {
+            if (min == max)
+                return 1.0;
+            else
+                return (max - min) / max_quant;
+        });
+
+    std::transform(floatMax.cbegin(), floatMax.cend(),
+        floatMin.cbegin(), quantZp.begin(),
+        [max_quant](const double &max, const double &min)
+        {
+            if (min >= 0.0)
+                return static_cast<int64_t>(0);
+            else if (max <= 0.0)
+                return static_cast<int64_t>(max_quant);
+            else
+            {
+                auto max_diff = (max/(std::abs(min) + max)) * max_quant;
+                return static_cast<int64_t>(std::ceil(max_quant - max_diff));
+            }
+        });
+}
+
 void updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor)
 {
     auto& tensorQuantization = tensor->get<mv::QuantizationParams>("quantParams");
