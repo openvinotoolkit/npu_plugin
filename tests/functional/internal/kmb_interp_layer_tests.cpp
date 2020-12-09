@@ -112,10 +112,12 @@ const std::vector<InterpTestParams> interpParams {
             .outShapeHW(23, 30)
 };
 
+// Disabled custom layer
+// [Track number: D#44766]
 const std::vector<UseCustomLayers> CustomLayersParams = {
     KernelType::Native,
 #ifdef KMB_HAS_CUSTOM_CPP_KERNELS
-    KernelType::Cpp
+//    KernelType::Cpp
 #endif
 };
 
