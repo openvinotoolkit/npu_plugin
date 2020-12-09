@@ -703,5 +703,4 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
      compDesc->set("streaming_strategy", allStreamingStrategies);
      // saveNewStreamingStrategiesToJson(pass, overWrittenStreamingStrategies);
      saveNewStreamingStrategiesToJson(pass, allStreamingStrategies);
-     exit(1);
  }
