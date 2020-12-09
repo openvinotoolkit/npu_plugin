@@ -1675,7 +1675,7 @@ namespace mv
                 if(childOpType == "Eltwise" && (child["eltwiseParentSpilling"].get<bool>() != parentSpilling))
                     return INF;
 
-                if( violatesClusteringStrategyRules(parentOp, childOp, parent, child) )
+                if(violatesClusteringStrategyRules(parentOp, childOp, parent, child))
                 {
                     log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() +
@@ -1701,7 +1701,8 @@ namespace mv
                         return INF;
                 }
 
-                if(enableChannelMajorConv){
+                if(enableChannelMajorConv && target != mv::Target::ma3720)
+                {
                     if( violatesChannelMajorRules(parentOp, childOp, parent, child) )
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
@@ -2066,7 +2067,7 @@ namespace mv
                 if (spillForCM && !parentSpilling)
                     return true;
 
-                if( isChildChanMajor )
+                if(isChildChanMajor)
                 {
                     //Note: If SOHOverlapped input requires SOH CMconv, and vice versa
                     if(childClustering == "SplitOverH" &&
