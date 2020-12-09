@@ -851,35 +851,35 @@ namespace mv
                 // NOTE: This is a temporary workaround till we are able to identify the chains before graph
                 // optimizer and control the cmx percentage that we want the weigths to receive described in
                 // https://jira.devtools.intel.com/browse/CVS-43222
-                // {
-                //     if (op.getOpType() == "Conv")
-                //     {
-                //         if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,512,1}) &&
-                //             op.getInputTensor()[1]->getShape() == mv::Shape({3,3,512,1024}) &&
-                //             op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
-                //         {
-                //             if(globalEnablePipelining && streamShape["K"] != 8)
-                //                 return FailCause::cmxConcatDecision;
-                //         }
+                {
+                    if (op.getOpType() == "Conv")
+                    {
+                        if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,512,1}) &&
+                            op.getInputTensor()[1]->getShape() == mv::Shape({3,3,512,1024}) &&
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
+                        {
+                            if(globalEnablePipelining && streamShape["K"] != 8)
+                                return FailCause::cmxConcatDecision;
+                        }
 
-                //         if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}) &&
-                //             op.getInputTensor()[1]->getShape() == mv::Shape({3,3,1024,1024}) &&
-                //             op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
-                //         {
-                //             if(globalEnablePipelining && streamShape["K"] != 8)
-                //                 return FailCause::cmxConcatDecision;
-                //         }
+                        if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}) &&
+                            op.getInputTensor()[1]->getShape() == mv::Shape({3,3,1024,1024}) &&
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
+                        {
+                            if(globalEnablePipelining && streamShape["K"] != 8)
+                                return FailCause::cmxConcatDecision;
+                        }
 
-                //         if (op.getInputTensor()[0]->getShape() == mv::Shape({1,1,2048,1}) &&
-                //             op.getInputTensor()[1]->getShape() == mv::Shape({1,1,2048,1000}) &&
-                //             op.getOutputTensor()[0]->getShape() == mv::Shape({1,1,1000,1}))
-                //         {
-                //             if(globalEnablePipelining && streamShape["K"] != 4 && streamShape["K"] != 2)
-                //                 return FailCause::cmxConcatDecision;
-                //         }
-                //     }
+                        if (op.getInputTensor()[0]->getShape() == mv::Shape({1,1,2048,1}) &&
+                            op.getInputTensor()[1]->getShape() == mv::Shape({1,1,2048,1000}) &&
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({1,1,1000,1}))
+                        {
+                            if(globalEnablePipelining && streamShape["K"] != 4 && streamShape["K"] != 2)
+                                return FailCause::cmxConcatDecision;
+                        }
+                    }
 
-                // }
+                }
 
                 // A proper decision on CMX concat for explicit concat or eltwise streaming cannot
                 // be made with the information on hand. Will not optimize strategies for these.
