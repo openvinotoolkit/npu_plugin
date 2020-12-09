@@ -1887,15 +1887,13 @@ namespace mv
                 }
 
                 // Note: for performance, here we ensure if that MC strategies are preferenced in order
-                // SOH, HKSwitch, SOK, Clustering.
+                // SOH, HKSwitch, SOK, Clustering. Required in order to remove parent cost from calculation.
                 if(parentClustering == "SplitOverH" && !parentSpilling)
                         cost = cost * 0.95;
-                if((childClustering == "SplitOverH" || childClustering == "HKSwitch") && !childSpilling)
-                {   
+                if((childClustering == "SplitOverH" || childClustering == "HKSwitch") && !childSpilling) 
                      cost = cost * 0.95;   
-                }
                 if(parentClustering == "Clustering" || childClustering == "Clustering")
-                    cost = cost * 1.01;
+                    cost = cost * 1.05;
 
                 cost = cost + heuristics;
                 // std::cout << " returning cost " << cost << std::endl;
