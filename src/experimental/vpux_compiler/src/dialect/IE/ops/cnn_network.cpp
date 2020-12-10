@@ -55,7 +55,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
 
         const auto userLayout = inputsInfo[ind].layout();
 
-        if (getRank(userLayout) != inType.getRank()) {
+        if ((getRank(userLayout) != inType.getRank()) && (inType.getRank() != 4)) {
             return printTo(emitError(),
                            "'{0}' entryPoint '@{1}' input #{2} is not compatible "
                            "with userLayout '{3}'",
@@ -82,7 +82,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
 
         const auto userLayout = outputsInfo[ind].layout();
 
-        if (getRank(userLayout) != outType.getRank()) {
+        if ((getRank(userLayout) != outType.getRank()) && (outType.getRank() != 4)) {
             return printTo(emitError(),
                            "'{0}' entryPoint '@{1}' output #{2} is not compatible "
                            "with userLayout '{3}'",

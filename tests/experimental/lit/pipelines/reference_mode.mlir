@@ -18,18 +18,18 @@ IE.CNNNetwork "SingleLayer" at @main
     }
 
 // CHECK:       func @main(
-// CHECK-SAME:      %[[VAL_0:.*]]: memref<1x1000xf16>,
-// CHECK-SAME:      %[[VAL_1:.*]]: memref<1x1000xf16>) {
+// CHECK-SAME:      %[[VAL_0:.*]]: memref<1x1x1x1000xf16>,
+// CHECK-SAME:      %[[VAL_1:.*]]: memref<1x1x1x1000xf16>) {
 func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
     %0 = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf32> -> tensor<1x1000xf32>
     return %0 : tensor<1x1000xf32>
 
     // CHECK:       VPUIP.SoftMaxUPA
-    // CHECK-SAME:      axisInd = 1
+    // CHECK-SAME:      axisInd = 3
     // CHECK-SAME:      isTrailingSWLayer
     // CHECK-SAME:      maxShaves = 1
-    // CHECK-SAME:      inputs(%[[VAL_0]] : memref<1x1000xf16>)
-    // CHECK-SAME:      outputs(%[[VAL_1]] : memref<1x1000xf16>)
+    // CHECK-SAME:      inputs(%[[VAL_0]] : memref<1x1x1x1000xf16>)
+    // CHECK-SAME:      outputs(%[[VAL_1]] : memref<1x1x1x1000xf16>)
 
     // CHECK:       return
 }

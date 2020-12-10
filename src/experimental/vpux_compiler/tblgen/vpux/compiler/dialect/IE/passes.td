@@ -18,6 +18,7 @@
 #define VPUX_COMPILER_DIALECT_IE_PASSES
 
 include "mlir/Pass/PassBase.td"
+include "mlir/Dialect/Linalg/IR/LinalgOps.td"
 
 //
 // AdjustPrecisionForVPU
@@ -31,6 +32,26 @@ def AdjustPrecisionForVPU : Pass<"adjust-precision-for-vpu", "mlir::ModuleOp"> {
     }];
 
     let constructor = "vpux::IE::createAdjustPrecisionForVPUPass()";
+}
+
+//
+// ConvertNDOpsTo4D
+//
+
+def ConvertNDOpsTo4D : Pass<"convert-Nd-ops-to-4d", "mlir::ModuleOp"> {
+    let summary = "Convert input/output types to 4D tensors";
+
+    let description = [{
+        This pass replaces all ND operations to 4d tensor. Tensor > 4D will be treated as an error.
+    }];
+
+    let constructor = "vpux::IE::createConvertNDOpsTo4DPass()";
+
+    let dependentDialects = [
+        "mlir::linalg::LinalgDialect"
+    ];
+
+
 }
 
 #endif
