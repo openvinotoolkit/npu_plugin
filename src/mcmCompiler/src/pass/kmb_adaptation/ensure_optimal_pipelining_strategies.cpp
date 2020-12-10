@@ -621,7 +621,7 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
                     optimalNumberOfKStreams = fullWeightsSizeOptimalKStreaming.second;
 
                     //Assign the new streaming strategies
-                     if ((optimalNumberOfKStreams > 0) && (optimalNumberOfKStreams <= maxpossibleStreams)) {
+                     if ((optimalNumberOfKStreams > 0) && (optimalNumberOfKStreams <= maxpossibleStreams) && (optimalNumberOfKStreams > streaming_strategy[3].get<int>("K"))) {
 
                           if(minWeightsPerClusterPerChain[chainID] < 66560)
                             minWeightsPerClusterPerChain[chainID] = 66560;
