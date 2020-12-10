@@ -163,9 +163,16 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
         auto userInfo = p.value();
         auto val = graphFunc.getArgument(ind);
-
         const auto graphType = val.getType().cast<mlir::MemRefType>();
-        const auto userType = mlir::MemRefType::get(graphType.getShape(), userInfo.precision(), {userInfo.layout()});
+        // Note: user input layout might not be same as graph shape, if 4D converter pass is applied.
+        // TODO: add an attribute on Module op to keep this info showing whether 4D converter is applied or not
+        auto graphShape = graphType.getShape();
+        int32_t origDim = userInfo.layout().getNumDims();
+        int32_t dimDiff = graphShape.size() - origDim;
+        std::vector<int64_t> origShape(origDim);
+        for (auto i = 0; i < origDim; ++i)
+            origShape[i] = graphShape[i + dimDiff];
+        const auto userType = mlir::MemRefType::get(origShape, userInfo.precision(), {userInfo.layout()});
 
         graphInputs.push_back(
                 writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
@@ -186,7 +193,17 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         auto val = graphFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
         const auto graphType = val.getType().cast<mlir::MemRefType>();
-        const auto userType = mlir::MemRefType::get(graphType.getShape(), userInfo.precision(), {userInfo.layout()});
+        // Note: user input layout might not be same as graph shape, if 4D converter pass is applied.
+        // TODO: add an attribute on Module op to keep this info showing whether 4D converter is applied or not
+        auto graphShape = graphType.getShape();
+        int32_t origDim = userInfo.layout().getNumDims();
+        int32_t dimDiff = graphShape.size() - origDim;
+        std::vector<int64_t> origShape(origDim);
+
+        for (auto i = 0; i < origDim; ++i)
+            origShape[i] = graphShape[i + dimDiff];
+
+        const auto userType = mlir::MemRefType::get(origShape, userInfo.precision(), {userInfo.layout()});
 
         graphOutputs.push_back(
                 writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
@@ -226,7 +243,6 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
 flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Logger log) {
     log.setName("VPUIP::BackEnd");
-
     log.trace("Extract {0} from Module", VPUIP::GraphOp::getOperationName());
     VPUIP::GraphOp graphOp;
     mlir::FuncOp graphFunc;

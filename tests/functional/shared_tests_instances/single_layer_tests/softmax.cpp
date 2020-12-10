@@ -41,15 +41,6 @@ class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUti
                 (outputPrecision != InferenceEngine::Precision::FP16 && outputPrecision != InferenceEngine::Precision::UNSPECIFIED)) {
                 throw LayerTestsUtils::KmbSkipTestException("Experimenal compiler supports only FP16");
             }
-
-            if (inputShape.size() != 4) {
-                throw LayerTestsUtils::KmbSkipTestException("Experimenal compiler supports only 4D");
-            }
-
-            if ((inputLayout != InferenceEngine::Layout::NCHW && inputLayout != InferenceEngine::Layout::ANY) ||
-                (outputLayout != InferenceEngine::Layout::NCHW && outputLayout != InferenceEngine::Layout::ANY)) {
-                throw LayerTestsUtils::KmbSkipTestException("Experimenal compiler supports only NCHW");
-            }
         }
     }
 };

@@ -18,6 +18,7 @@
 
 #include "vpux/utils/core/logger.hpp"
 
+#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
 
@@ -31,6 +32,12 @@ namespace IE {
 //
 
 std::unique_ptr<mlir::Pass> createAdjustPrecisionForVPUPass(Logger log = Logger::global());
+
+//
+// ConvertNDOpsTo4D
+//
+
+std::unique_ptr<mlir::Pass> createConvertNDOpsTo4DPass(Logger log = Logger::global());
 
 //
 // Generated

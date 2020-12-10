@@ -60,7 +60,8 @@ mlir::LogicalResult vpux::VPUIP::GraphOp::verifySymbolUses(mlir::SymbolTableColl
         auto userInfo = std::get<1>(p.value());
         const auto userLayout = userInfo.layout();
 
-        if (checked_cast<unsigned>(runtimeType.getRank()) != userLayout.getNumDims()) {
+        if ((checked_cast<unsigned>(runtimeType.getRank()) != userLayout.getNumDims()) &&
+            (checked_cast<unsigned>(runtimeType.getRank()) != 4)) {
             return printTo(emitError(),
                            "'{0}' entryPoint '@{1} input #{2} is not compatible "
                            "with {3} '{4}'",

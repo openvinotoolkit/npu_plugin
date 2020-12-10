@@ -60,7 +60,8 @@ mlir::LogicalResult vpux::IERT::CNNNetworkOp::verifySymbolUses(mlir::SymbolTable
         auto userInfo = std::get<1>(p.value());
         const auto userLayout = userInfo.layout();
 
-        if (checked_cast<unsigned>(runtimeType.getRank()) != userLayout.getNumDims()) {
+        if ((checked_cast<unsigned>(runtimeType.getRank()) != userLayout.getNumDims()) &&
+            (checked_cast<unsigned>(runtimeType.getRank()) != 4)) {
             return printTo(emitError(),
                            "'{0}' entryPoint '@{1} input #{2} is not compatible "
                            "with {3} user layout '{4}'",
