@@ -84,7 +84,7 @@ InferenceEngine::InputsDataMap vpux::helpers::dataMapIntoInputsDataMap(const vpu
 
     for (const auto& input : dataMap) {
         InferenceEngine::InputInfo info;
-        info.setInputData(input.second);
+        info.setInputData(std::make_shared<InferenceEngine::Data>(*input.second));
         inputsDataMap.insert({input.first, std::make_shared<InferenceEngine::InputInfo>(info)});
     }
 
@@ -95,7 +95,7 @@ InferenceEngine::OutputsDataMap vpux::helpers::dataMapIntoOutputsDataMap(const v
     InferenceEngine::OutputsDataMap outputsDataMap = {};
 
     for (const auto& output : dataMap) {
-        outputsDataMap.insert({output.first, output.second});
+        outputsDataMap.insert({output.first, std::make_shared<InferenceEngine::Data>(*output.second)});
     }
 
     return outputsDataMap;
