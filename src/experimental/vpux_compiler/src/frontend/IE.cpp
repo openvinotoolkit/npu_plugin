@@ -45,6 +45,15 @@ using namespace vpux;
 
 namespace {
 
+std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result) {
+    const auto* resultInput = result->get_input_node_ptr(0);
+    std::string portSuffix;
+    if (resultInput->get_output_size() != 1) {
+        portSuffix = "." + std::to_string(result->get_input_source_output(0).get_index());
+    }
+    return resultInput->get_friendly_name() + portSuffix;
+}
+
 class NGraphImporter final {
 public:
     NGraphImporter(mlir::MLIRContext* ctx, const std::shared_ptr<const ngraph::Function>& netGraph, Logger log)
@@ -64,6 +73,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Softmax>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Tile>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Relu>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Split>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -107,6 +117,7 @@ const NGraphImporter::DispatchMap NGraphImporter::dispatchMap{
         MAP_ENTRY(ngraph::opset1::Constant),
         MAP_ENTRY(ngraph::opset1::Softmax),
         MAP_ENTRY(ngraph::opset1::Tile),
+        MAP_ENTRY(ngraph::opset1::Split),
         {ngraph::opset1::Relu::get_type_info_static(), &NGraphImporter::parseDispatch<ngraph::opset1::Relu>}
 };
 
@@ -235,6 +246,17 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto op = builder.create<IE::ReLUOp>(createLocation(origNode), inputs[0]);
     addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Split>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Split node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto num_splits = origNode->get_num_splits();
+    const auto numSplitsAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(num_splits));
+    auto op = builder.create<IE::SplitOp>(createLocation(origNode), inputs[0], inputs[1], numSplitsAttr);
+    addOutputs(origNode, {op.getResults()});
 }
 
 SmallVector<mlir::Value, 4> NGraphImporter::getInputs(const OrigNodePtr& node) {
@@ -397,8 +419,7 @@ mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetw
 
     builder.setInsertionPointToStart(&cnnOp.outputsInfo().front());
     for (const auto& result : netGraph->get_results()) {
-        const auto* resultInput = result->get_input_node_ptr(0);
-        const auto& resultName = resultInput->get_friendly_name();
+        const auto& resultName = getValidOutputName(result);
         const auto& userOutput = outputsInfo.at(resultName);
         const auto& userDesc = userOutput->getTensorDesc();
 
