@@ -478,8 +478,8 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
 
         fullWeightsSize = weightsPerClusterforOp * nClusters * numberOfkStreams;
 
-        if(minWeightsPerClusterPerChain < 34816)
-            minWeightsPerClusterPerChain = 34816;
+        if(minWeightsPerClusterPerChain < 66560)
+            minWeightsPerClusterPerChain = 66560;
 
         optimalNumberOfKStreams = std::round(fullWeightsSize / (minWeightsPerClusterPerChain * nClusters));
        
@@ -488,8 +488,8 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
      {
         fullWeightsSize = weightsPerClusterforOp * numberOfkStreams;
 
-        if(minWeightsPerClusterPerChain < 34816)
-            minWeightsPerClusterPerChain = 34816;
+        if(minWeightsPerClusterPerChain < 66560)
+            minWeightsPerClusterPerChain = 66560;
 
         optimalNumberOfKStreams = std::round(fullWeightsSize / minWeightsPerClusterPerChain);
         
@@ -498,8 +498,8 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
     {
         fullWeightsSize = weightsPerClusterforOp * nClusters;
 
-        if(minWeightsPerClusterPerChain < 34816)
-            minWeightsPerClusterPerChain = 34816;
+        if(minWeightsPerClusterPerChain < 66560)
+            minWeightsPerClusterPerChain = 66560;
             
         optimalNumberOfKStreams = std::round(fullWeightsSize / (minWeightsPerClusterPerChain * nClusters));
         
@@ -623,8 +623,8 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
                     //Assign the new streaming strategies
                      if ((optimalNumberOfKStreams > 0) && (optimalNumberOfKStreams <= maxpossibleStreams)) {
 
-                          if(minWeightsPerClusterPerChain[chainID] < 34816)
-                            minWeightsPerClusterPerChain[chainID] = 34816;
+                          if(minWeightsPerClusterPerChain[chainID] < 66560)
+                            minWeightsPerClusterPerChain[chainID] = 66560;
                          printInfoToFile(chainID, (opIt->getName()).c_str(), streaming_strategy[3].get<int>("K"),
                                          streaming_strategy[1].get<int>("H"), multiclusterStrategy.c_str(),
                                          fullWeightsSize, alignedFullOutputChannels,
@@ -636,8 +636,8 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
 
                      } else if (optimalNumberOfKStreams > maxpossibleStreams) {
 
-                         if(minWeightsPerClusterPerChain[chainID] < 34816)
-                            minWeightsPerClusterPerChain[chainID] = 34816;
+                         if(minWeightsPerClusterPerChain[chainID] < 66560)
+                            minWeightsPerClusterPerChain[chainID] = 66560;
                          printInfoToFile(chainID, (opIt->getName()).c_str(), streaming_strategy[3].get<int>("K"),
                                          streaming_strategy[1].get<int>("H"), multiclusterStrategy.c_str(),
                                          fullWeightsSize, alignedFullOutputChannels,
