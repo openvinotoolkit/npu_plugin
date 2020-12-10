@@ -254,4 +254,29 @@ def IE_ReLUOp :
     }];
 }
 
+//
+// SplitOp
+//
+
+def IE_SplitOp :
+        IE_LayerOp<
+            "Split"
+        > {
+    let summary = "InferenceEngine Split layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        AnyRankedTensor:$axis,
+        I32Attr:$num_splits
+    );
+
+    let results = (outs
+        Variadic<AnyRankedTensor>:$output_tensors
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
