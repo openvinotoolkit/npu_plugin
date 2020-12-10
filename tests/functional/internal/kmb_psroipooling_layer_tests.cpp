@@ -140,7 +140,7 @@ const std::vector<PSROIPoolingTestParams> psRoiPoolingParams {
     PSROIPoolingTestParams()
         .input_dims({1, 1029, 14, 14})
         .coords_dims({300, 5})
-        .params(PSROIPoolingParams().output_dim(8u)
+        .params(PSROIPoolingParams().output_dim(21u)
                                     .group_size(7u)
                                     .spatial_scale(0.0625f)
                                     .spatial_bin_x(1u)
