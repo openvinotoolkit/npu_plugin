@@ -1,4 +1,4 @@
-// RUN: vpux-opt -split-input-file -add-linear-scheduling %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --add-linear-scheduling %s | FileCheck %s
 
 // CHECK-LABEL: linear_dma_graph
 

@@ -52,8 +52,8 @@ def VPUIP_PhysicalProcessor :
 // DMAEngine
 //
 
-def VPUIP_DMAEngine_UPA  : StrEnumAttrCase<"UPA">;
-def VPUIP_DMAEngine_NN   : StrEnumAttrCase<"NN">;
+def VPUIP_DMAEngine_UPA  : StrEnumAttrCase<"DMA_UPA">;
+def VPUIP_DMAEngine_NN   : StrEnumAttrCase<"DMA_NN">;
 
 def VPUIP_DMAEngine :
         StrEnumAttr<
@@ -294,14 +294,20 @@ def VPUIP_MemoryLocation :
 // ArchKind
 //
 
-def VPUIP_ArchKind_KMB : StrEnumAttrCase<"KMB">;
+def VPUIP_ArchKind_MA2490       : StrEnumAttrCase<"MA2490">;    // Keem bay A0
+def VPUIP_ArchKind_MA2490_B0    : StrEnumAttrCase<"MA2490_B0">; // Keem bay B0
+def VPUIP_ArchKind_MA3100       : StrEnumAttrCase<"MA3100">;    // Thunder bay harbor A0
+def VPUIP_ArchKind_MA3720       : StrEnumAttrCase<"MA3720">;    // Meteor lake
 
 def VPUIP_ArchKind :
         StrEnumAttr<
             "ArchKind",
             "Represents VPU architecture generation",
             [
-                VPUIP_ArchKind_KMB,
+                VPUIP_ArchKind_MA2490,
+                VPUIP_ArchKind_MA2490_B0,
+                VPUIP_ArchKind_MA3100,
+                VPUIP_ArchKind_MA3720,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";

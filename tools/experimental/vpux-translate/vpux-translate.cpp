@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 
@@ -86,10 +87,14 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
     return mlir::success();
 }
 
+//
+// registerDialects
+//
+
 void registerDialects(mlir::DialectRegistry& registry) {
     registry.insert<IE::IEDialect>();
+    registry.insert<IERT::IERTDialect>();
     registry.insert<VPUIP::VPUIPDialect>();
-    registry.insert<mlir::StandardOpsDialect>();
 }
 
 }  // namespace

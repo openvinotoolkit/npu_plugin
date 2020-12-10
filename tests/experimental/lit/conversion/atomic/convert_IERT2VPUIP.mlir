@@ -1,4 +1,4 @@
-// RUN: vpux-opt -split-input-file -convert-IERT-to-VPUIP %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --convert-IERT-to-VPUIP %s | FileCheck %s
 
 //
 // The 'convert-IERT-to-VPUIP' pass:

@@ -1,4 +1,4 @@
-// RUN: vpux-opt -split-input-file -lower-IERT-to-VPUIP %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --lower-IERT-to-VPUIP %s | FileCheck %s
 
 //
 // The 'lower-IERT-to-VPUIP' pass:

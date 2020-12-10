@@ -1,4 +1,4 @@
-// RUN: vpux-opt -split-input-file -adjust-precision-for-vpu %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --adjust-precision-for-vpu %s | FileCheck %s
 
 // CHECK-LABEL: FP32toFP16
 

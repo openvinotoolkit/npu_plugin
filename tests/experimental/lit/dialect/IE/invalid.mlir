@@ -1,4 +1,4 @@
-// RUN: vpux-opt %s -split-input-file -verify-diagnostics
+// RUN: vpux-opt %s --split-input-file --verify-diagnostics
 
 // CHECK-LABEL: Wrong entryPoint
 

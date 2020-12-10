@@ -1,4 +1,4 @@
-// RUN: vpux-opt -split-input-file -reference-mode %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --reference-mode %s | FileCheck %s
 
 // CHECK: #NC = affine_map<(d0, d1) -> (d0, d1)>
 

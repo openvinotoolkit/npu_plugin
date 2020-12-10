@@ -20,6 +20,33 @@
 include "mlir/Pass/PassBase.td"
 
 //
+// SetCompileParams
+//
+
+def SetCompileParams : Pass<"set-compile-params", "mlir::ModuleOp"> {
+    let summary = "Set compilation parameters related to VPUIP Dialect";
+
+    let description = [{
+        This "atomic" pass attaches compilation parameters related to VPUIP Dialect
+        to Module attributes and initializes IERT Dialect resources information.
+    }];
+
+    let constructor = "vpux::VPUIP::createSetCompileParamsPass(vpux::None)";
+
+    let options = [
+        Option<
+            "archName", "vpu-arch",
+            "std::string", [{"MA2490"}],
+            "VPU architecture to compile for"
+        >
+    ];
+
+    let dependentDialects = [
+        "vpux::IERT::IERTDialect"
+    ];
+}
+
+//
 // AssignTensorOffsetsDDR
 //
 

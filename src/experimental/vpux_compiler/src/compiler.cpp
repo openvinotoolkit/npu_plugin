@@ -21,6 +21,7 @@
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/network_description.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/pipelines.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -66,6 +67,21 @@ LogLevel getLogLevel(const VPUXConfig& config) {
     }
 }
 
+VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
+    switch (config.platform()) {
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::MA2490:
+        return VPUIP::ArchKind::MA2490;
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::MA2490_B0:
+        return VPUIP::ArchKind::MA2490_B0;
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::MA3100:
+        return VPUIP::ArchKind::MA3100;
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::MA3720:
+        return VPUIP::ArchKind::MA3720;
+    default:
+        VPUX_THROW("Unsupported VPUX platform");
+    }
+}
+
 }  // namespace
 
 std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shared_ptr<ngraph::Function>& func,
@@ -97,6 +113,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
     addLogging(pm, log);
 
+    pm.addPass(createSetCompileParamsPass(getArchKind(config), log.nest()));
     pm.addPass(createReferenceModePass(log.nest()));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module.get())), "Compilation failed");
