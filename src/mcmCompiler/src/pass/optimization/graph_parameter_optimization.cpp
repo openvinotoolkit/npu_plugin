@@ -353,7 +353,7 @@ namespace mv
                                     //    std::cout << "Name: " + op.getName() << " ID " << s["id"].toString()<< std::endl;
                                     //    std::cout << "Input Sparsity: " + inputSparsity.toString() << std::endl;
                                     //    std::cout << "Output Sparsity: " + outputSparsity.toString() << std::endl;
-                                    //    std::cout << "Weights Sparsity: " + weightsSparsity.toString() << std::endl;
+                                    //    std::cout << "Weights Sparsity: " + weightsSparsity << std::endl;
                                     //    std::cout << "Spilling: " + spilling.toString() << std::endl;
                                     //    std::cout << "MCStrategy: " + clustering.toString() << std::endl;
                                     //    std::cout << "Streaming(W,H,C,K,N): " + streamShape.toString() << std::endl<<std::endl;
@@ -525,7 +525,7 @@ namespace mv
 
                 if( globalEnablePipelining &&
                     createStrategyFromBool(op, "pipelining") && //Only find extra K streams if pipelining enabled
-                    (clustering.get<std::string>() == "SplitOverK"))
+                    (clustering.get<std::string>() == "SplitOverK" || clustering.get<std::string>() == "Clustering"))
                 {
                     auto pipelinedMinSplitsToFit = getMinStreamOverK(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true);
                     if(pipelinedMinSplitsToFit != 0)
@@ -534,12 +534,7 @@ namespace mv
                             splits.push_back(pipelinedMinSplitsToFit);
                         auto nextKStream = getNextStreamOverK(op, clustering, pipelinedMinSplitsToFit, spilling);
                         if(nextKStream > 0)
-                        {
                             splits.push_back(nextKStream);
-                            auto thirdKStream = getNextStreamOverK(op, clustering, nextKStream, spilling);
-                            if(thirdKStream > 0)
-                                splits.push_back(thirdKStream);
-                        }
                     }
                 }
 
@@ -1809,10 +1804,6 @@ namespace mv
                 auto pFullDma = dmaTime(parentOp, parent);
                 auto cFullDma = dmaTime(childOp, child, parentSpilling);
 
-                auto pOutDma = averageOutputDmaTime(parentOp, parent);
-                auto pStreams = parentStreamShape["H"] * parentStreamShape["K"];
-                auto pLastComp = pFullComp / pStreams;
-
                 //Note: these are cost per stream, used when pipelining or prefetching
                 auto cInDma = averageInputDmaTime(childOp, child, parentSpilling);
                 auto cWeightDma = averageWeightsDmaTime(childOp, child);
@@ -1848,57 +1839,44 @@ namespace mv
                 auto pipelineable = isPipeliningPossible(childOp, child, parent["spilling"].get<bool>());
                 auto prefetchable = isPrefetchPossible(parentOp, childOp, parent, child);
 
-                auto kStreams = childStreamShape["K"];
-
-                auto compPerStream = ((double) cFullComp / kStreams);
-                auto prefetch = std::min(pLastComp, cWeightDma);
-                auto pipeline = std::max((cWeightDma+cOutDma), compPerStream);
-
-                auto prepipe_cost = (cWeightDma - prefetch) + (kStreams-1)*pipeline + cOutDma;
-                //Pipeline means overlap K stream compute with weights read for next K stream, assume input in CMX
-                auto pipe_cost = cWeightDma + (kStreams-1)*pipeline + cOutDma;
-                //Prefetch means bring in one weights slice while still computing the parent, assume input in CMX
-                auto pre_cost = cWeightDma - prefetch + (kStreams-1)*cWeightDma + cFullComp + (kStreams * cOutDma);
-                auto base_cost = cFullDma + cFullComp;
-
-                double cost = base_cost;
-
-                // std::cout << "Strategy for " << parent["id"].toString() << " --> " << child["id"].toString() << std::endl <<
-                //     "    " << prepipe_cost << " : " << pipe_cost << " : " << pre_cost << " : " << base_cost << std::endl;
-
                 if(pipelineable && prefetchable)
                 {
-                    cost = prepipe_cost;
-                    // std::cout << "    chose prepipe: " << prepipe_cost << std::endl;
+                    //TODO for now, we only pipeline over K. reenable over H!
+                    auto streams = childStreamShape["K"];
+
+                    auto cStreamComp = ((double) cFullComp / streams);
+                    // In this case the pipeline overlap does not include read of first weights, because that
+                    // is overlapped with the prefetch
+                    auto pipelineOverlap =  ( (streams - 1) * std::max(cStreamComp, cWeightDma)) + cStreamComp;
+                    auto prefetchOverlap = std::max(pFullComp, cWeightDma);
+
+                    return pFullDma + prefetchOverlap + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + heuristics;
                 }
                 else if(pipelineable)
                 {
-                    cost = pipe_cost;
-                    // std::cout << "    chose pipe: " << pipe_cost << std::endl;
+                    //TODO for now, we only pipeline over K. reenable over H!
+                    auto streams = childStreamShape["K"];
+
+                    // In pipelining, we can overlap the compute and dma (except the first dma and the last compute)
+                    auto cStreamComp = ((double) cFullComp / streams);
+                    auto pipelineOverlap = cWeightDma + ( (streams - 1) * std::max(cStreamComp, cWeightDma)) + cStreamComp;
+                    return pFullDma + pFullComp + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + heuristics;
                 }
                 else if(prefetchable)
                 {
-                    cost = pre_cost;
-                    // std::cout << "    chose pre: " << pre_cost << std::endl;
+                    auto streams = childStreamShape["K"];// we only prefetch weights
+
+                    // If we can prefetch, overlap first stream over child weights with parent compute
+                    // To be prefetchable, parent doesn't spill so pOutDma=0, cInDma=0, cWeightDma > 0
+                    auto prefetchOverlap = std::max(pFullComp, cWeightDma);
+                    auto remainderChildDma = ((streams - 1) * cWeightDma) + (streams*(cInDma + cOutDma));
+                    return pFullDma + prefetchOverlap + remainderChildDma + cFullComp  + heuristics;
                 }
                 else
                 {
-                    // std::cout << "    chose base: " << base_cost << std::endl;
+                    //Fully serialized dma and compute between and internally in this layer
+                    return pFullDma + pFullComp + cFullDma + cFullComp + heuristics;
                 }
-
-                // Note: for performance, here we ensure if that MC strategies are preferenced in order
-                // SOH, HKSwitch, SOK, Clustering. Required in order to remove parent cost from calculation.
-                if(parentClustering == "SplitOverH" && !parentSpilling)
-                        cost = cost * 0.95;
-                if((childClustering == "SplitOverH" || childClustering == "HKSwitch") && !childSpilling) 
-                     cost = cost * 0.95;   
-                if(parentClustering == "Clustering" || childClustering == "Clustering")
-                    cost = cost * 1.1;
-
-                cost = cost + heuristics;
-                // std::cout << " returning cost " << cost << std::endl;
-
-                return cost;
         }
 
             bool violatesClusteringStrategyRules(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
@@ -2373,7 +2351,7 @@ namespace mv
                 if(parentSpilling)
                     return false;
 
-                if(clustering != "SplitOverK")
+                if(clustering == "SplitOverH" || clustering == "HKSwitch")
                     return false;
 
                 //Note: for now, only support pipelining over H and K
