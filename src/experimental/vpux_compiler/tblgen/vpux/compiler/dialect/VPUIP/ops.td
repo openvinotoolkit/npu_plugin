@@ -136,6 +136,7 @@ def VPUIP_EndOp :
             [
                 NoSideEffect,
                 Terminator,
+                NativeOpTrait<"ReturnLike">,
                 HasParent<"vpux::VPUIP::GraphOp">
             ]
         > {

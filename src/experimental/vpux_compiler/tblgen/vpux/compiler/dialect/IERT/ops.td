@@ -51,6 +51,144 @@ class IERT_LayerOp<string mnemonic, list<OpTrait> traits = []> :
 }
 
 //
+// RunTimeResourcesOp
+//
+
+def IERT_RunTimeResourcesOp :
+        IERT_Op<
+            "RunTimeResources",
+            [
+                IsolatedFromAbove,
+                HasParent<"mlir::ModuleOp">,
+                SingleBlockImplicitTerminator<"vpux::IERT::EndOp">,
+                NoRegionArguments
+            ]
+        > {
+    let summary = "Definition of run-time resources";
+
+    let description = [{
+        This operation defines various resources consumed at run-time:
+
+          * Memory spaces for interal buffers.
+          * Executors for asynchronous calls.
+
+        The resources are divided onto 2 category:
+
+          * Avaialble - total amount of resources, which run-time can consume.
+          * Used - actual number of resources, which are needed for network execution.
+    }];
+
+    let regions = (region
+        SizedRegion<1>:$availableMemory,
+        SizedRegion<1>:$usedMemory,
+
+        SizedRegion<1>:$availableExecutors,
+        SizedRegion<1>:$usedExecutors
+    );
+
+    let skipDefaultBuilders = 1;
+    let builders = [
+        OpBuilderDAG<(ins)>
+    ];
+
+    let verifier = [{
+        return vpux::IERT::verifyOp(*this);
+    }];
+
+    let extraClassDeclaration = [{
+        static vpux::IERT::RunTimeResourcesOp getFromModule(mlir::ModuleOp module);
+
+        vpux::IERT::MemoryResourceOp addAvailableMemory(mlir::Attribute kind, vpux::Byte size);
+        vpux::IERT::MemoryResourceOp getAvailableMemory(mlir::Attribute kind);
+
+        vpux::IERT::MemoryResourceOp setUsedMemory(mlir::Attribute kind, vpux::Byte size);
+        vpux::IERT::MemoryResourceOp getUsedMemory(mlir::Attribute kind);
+
+        vpux::IERT::ExecutorResourceOp addAvailableExecutor(mlir::Attribute kind, uint32_t count);
+        vpux::IERT::ExecutorResourceOp getAvailableExecutor(mlir::Attribute kind);
+
+        vpux::IERT::ExecutorResourceOp setUsedExecutor(mlir::Attribute kind, uint32_t count);
+        vpux::IERT::ExecutorResourceOp getUsedExecutor(mlir::Attribute kind);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `availableMemory` `:` $availableMemory
+        `usedMemory` `:` $usedMemory
+        `availableExecutors` `:` $availableExecutors
+        `usedExecutors` `:` $usedExecutors
+    }];
+}
+
+//
+// MemoryResourceOp
+//
+
+def IERT_MemoryResourceOp :
+        IERT_Op<
+            "MemoryResource",
+            [
+                HasParent<"vpux::IERT::RunTimeResourcesOp">
+            ]
+        > {
+    let summary = "Information about memory resource";
+
+    let description = [{
+        The memory resource is defined by the following attributes:
+
+          * Kind - optional kind of memory space.
+          * Size - size in bytes of memory space.
+    }];
+
+    let arguments = (ins
+        OptionalAttr<AnyAttr>:$kind,
+        I64Attr:$byteSize
+    );
+
+    let extraClassDeclaration = [{
+        vpux::Byte size() {
+            return vpux::Byte(byteSize());
+        }
+    }];
+
+    let assemblyFormat = [{
+        $byteSize `bytes` (`of` $kind^)?
+        attr-dict
+    }];
+}
+
+//
+// ExecutorResourceOp
+//
+
+def IERT_ExecutorResourceOp :
+        IERT_Op<
+            "ExecutorResource",
+            [
+                HasParent<"vpux::IERT::RunTimeResourcesOp">
+            ]
+        > {
+    let summary = "Information about executor resource";
+
+    let description = [{
+        The executor resource is defined by the following attributes:
+
+          * Kind - optional kind of the executor.
+          * Count - number of executor units.
+    }];
+
+    let arguments = (ins
+        AnyAttr:$kind,
+        I32Attr:$count
+    );
+
+    let assemblyFormat = [{
+        $count `of` $kind
+        attr-dict
+    }];
+}
+
+//
 // CNNNetworkOp
 //
 
@@ -94,6 +232,10 @@ def IERT_CNNNetworkOp :
     }];
 }
 
+//
+// DataInfoOp
+//
+
 def IERT_DataInfoOp :
         IERT_Op<
             "DataInfo",
@@ -125,16 +267,21 @@ def IERT_DataInfoOp :
     }];
 }
 
+//
+// EndOp
+//
+
 def IERT_EndOp :
         IERT_Op<
             "End",
             [
                 NoSideEffect,
                 Terminator,
-                HasParent<"vpux::IERT::CNNNetworkOp">
+                NativeOpTrait<"ReturnLike">,
+                ParentOneOf<["vpux::IERT::RunTimeResourcesOp", "vpux::IERT::CNNNetworkOp"]>
             ]
         > {
-    let summary = "End indicator for IERT CNNNetwork inputs/outputs info lists";
+    let summary = "End indicator for IERT operations with declarations";
 
     let assemblyFormat = "attr-dict";
 }

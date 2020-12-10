@@ -52,18 +52,18 @@ macro(add_op_interfaces subdir)
     endif()
 endmacro()
 
-macro(add_enum_attrs subdir)
+macro(add_enum_attrs dialect)
     vpux_add_tblgen_command(
         TOOL "MLIR"
         MODE "-gen-enum-decls"
-        SOURCE "${gen_base_src_dir}/${subdir}/attributes.td"
-        OUTPUT "${gen_base_dst_include_dir}/${subdir}/generated/attributes/enums.hpp.inc"
+        SOURCE "${gen_base_src_dir}/dialect/${dialect}/attributes.td"
+        OUTPUT "${gen_base_dst_include_dir}/dialect/${dialect}/generated/attributes/enums.hpp.inc"
     )
     vpux_add_tblgen_command(
         TOOL "MLIR"
         MODE "-gen-enum-defs"
-        SOURCE "${gen_base_src_dir}/${subdir}/attributes.td"
-        OUTPUT "${gen_base_dst_include_dir}/${subdir}/generated/attributes/enums.cpp.inc"
+        SOURCE "${gen_base_src_dir}/dialect/${dialect}/attributes.td"
+        OUTPUT "${gen_base_dst_include_dir}/dialect/${dialect}/generated/attributes/enums.cpp.inc"
     )
 endmacro()
 
@@ -172,18 +172,18 @@ endmacro()
 
 add_op_interfaces("core")
 
-add_enum_attrs("dialect/IE")
 add_dialect("IE")
+add_enum_attrs("IE")
 add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")
 
 add_dialect("IERT")
 
+add_dialect("VPUIP")
 add_op_interfaces("dialect/VPUIP")
-add_enum_attrs("dialect/VPUIP")
+add_enum_attrs("VPUIP")
 add_struct_attrs("VPUIP")
 add_types("VPUIP")
-add_dialect("VPUIP")
 add_passes("dialect/VPUIP" "VPUIP")
 
 add_passes("conversion" "Conversion")

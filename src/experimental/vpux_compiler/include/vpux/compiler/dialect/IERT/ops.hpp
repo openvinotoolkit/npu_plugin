@@ -18,6 +18,8 @@
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
 
+#include "vpux/utils/core/mem_size.hpp"
+
 #include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -35,3 +37,15 @@
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/IERT/generated/ops.hpp.inc>
 #undef GET_OP_CLASSES
+
+//
+// Operation verifiers
+//
+
+namespace vpux {
+namespace IERT {
+
+mlir::LogicalResult verifyOp(RunTimeResourcesOp op);
+
+}  // namespace IERT
+}  // namespace vpux
