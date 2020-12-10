@@ -14,10 +14,9 @@
 # stated in the License.
 #
 
-# FIXME ENABLE_LTO leads to segmentation fault after 'calling fini libfrontend_mcm.so'
-# if(ENABLE_LTO)
-#     ie_enable_lto()
-# endif()
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
 
 set(TARGET_NAME "frontend_mcm")
 set(OBJ_TARGET_NAME "frontend_mcm_obj")
