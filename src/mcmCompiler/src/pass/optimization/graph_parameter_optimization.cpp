@@ -1893,7 +1893,7 @@ namespace mv
                 if((childClustering == "SplitOverH" || childClustering == "HKSwitch") && !childSpilling) 
                      cost = cost * 0.95;   
                 if(parentClustering == "Clustering" || childClustering == "Clustering")
-                    cost = cost * 1.05;
+                    cost = cost * 1.1;
 
                 cost = cost + heuristics;
                 // std::cout << " returning cost " << cost << std::endl;
