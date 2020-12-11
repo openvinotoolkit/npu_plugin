@@ -20,8 +20,6 @@
 #include <hddl2_helpers/helper_workload_context.h>
 #include <helper_calc_cpu_ref.h>
 #include <helper_remote_context.h>
-#include <models/model_mobilenet_v2.h>
-#include <models/model_pooling.h>
 #include <yolo_helpers.hpp>
 
 #include <vpu/utils/ie_helpers.hpp>
@@ -92,9 +90,8 @@ protected:
 };
 
 void InferRequest_NV12::SetUp() {
-    ModelMobileNet_V2_Helper mobileNetV2Helper;
-    network = mobileNetV2Helper.getNetwork();
-    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(network, pluginName)));
+    const Models::ModelDesc modelToUse = Models::googlenet_v1;
+    executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ExecutableNetworkFactory::createExecutableNetwork(modelToUse.pathToModel));
     ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 }
 
@@ -170,11 +167,10 @@ using InferRequestCreation_Tests = CoreAPI_Tests;
 // TODO Need to set env variable back after unset
 TEST_F(InferRequestCreation_Tests, DISABLED_CanCompileButCanNotCreateRequestWithoutDaemon) {
     unsetenv("KMB_INSTALL_DIR");
-    ModelPooling_Helper modelPoolingHelper;
-    auto cnnNetwork = modelPoolingHelper.getNetwork();
 
-    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(cnnNetwork, pluginName)));
-    ASSERT_ANY_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
+    const Models::ModelDesc modelToUse = Models::googlenet_v1;
+    executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ExecutableNetworkFactory::createExecutableNetwork(modelToUse.pathToModel));
+    ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 }
 
 #endif
@@ -191,8 +187,8 @@ protected:
 };
 
 void Inference_onSpecificDevice::SetUp() {
-    ModelSqueezenetV1_1_Helper squeezenetV11Helper;
-    network = squeezenetV11Helper.getNetwork();
+    const Models::ModelDesc modelToUse = Models::squeezenet1_1;
+    network = ExecutableNetworkFactory::createCNNNetwork(modelToUse.pathToModel);
 
     std::vector<HddlUnite::Device> devices;
     getAvailableDevices(devices);
@@ -259,8 +255,9 @@ protected:
 };
 
 void InferenceWithPerfCount::SetUp() {
-    ModelSqueezenetV1_1_Helper squeezenetV11Helper;
-    network = squeezenetV11Helper.getNetwork();
+    const Models::ModelDesc modelToUse = Models::squeezenet1_1;
+    network = ExecutableNetworkFactory::createCNNNetwork(modelToUse.pathToModel);
+    executableNetworkPtr = nullptr;
 }
 
 TEST_F(InferenceWithPerfCount, precommit_SyncInferenceWithPerfCount) {
@@ -299,7 +296,7 @@ void InferenceWithCheckLayout::SetUp() {
     const auto& inputInfo = executableNetworkPtr->GetInputsInfo().begin()->second;
     const auto& inputLayout = inputInfo->getTensorDesc().getLayout();
     const bool isBGR = true;
-    cat227x227Blob = loadImage("cat3.bmp", 227, 227, inputLayout, isBGR);
+    cat227x227Blob = loadImage("cat3.bmp", modelToUse.width, modelToUse.height, inputLayout, isBGR);
     inferRequest = executableNetworkPtr->CreateInferRequest();
 }
 
