@@ -169,7 +169,6 @@ void BufferizeIEPass::passBody() {
 
     mlir::OwningRewritePatternList patterns;
     patterns.insert<LayerRewrite>(typeConverter, _log.nest());
-    mlir::populateBufferizeMaterializationLegality(target);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
