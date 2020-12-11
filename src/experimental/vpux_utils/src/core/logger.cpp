@@ -75,6 +75,15 @@ Logger vpux::Logger::nest(StringLiteral name) const {
     return nested;
 }
 
+bool vpux::Logger::isActive(LogLevel msgLevel) const {
+#ifdef NDEBUG
+    return static_cast<int32_t>(msgLevel) <= static_cast<int32_t>(_logLevel);
+#else
+    return (static_cast<int32_t>(msgLevel) <= static_cast<int32_t>(_logLevel)) ||
+           (llvm::DebugFlag && llvm::isCurrentDebugType(name().data()));
+#endif
+}
+
 namespace {
 
 llvm::HighlightColor getColor(LogLevel msgLevel) {
@@ -97,19 +106,19 @@ llvm::HighlightColor getColor(LogLevel msgLevel) {
 }  // namespace
 
 void vpux::Logger::addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_base& msg) const {
-#ifdef NDEBUG
     if (!isActive(msgLevel)) {
         return;
     }
-#else
-    if (!isActive(msgLevel) && !(llvm::DebugFlag && ::llvm::isCurrentDebugType(name().data()))) {
-        return;
-    }
-#endif
 
     const auto color = getColor(msgLevel);
 
-    llvm::WithColor colorStream(llvm::outs(), color);
+#ifdef NDEBUG
+    auto& baseStream = llvm::outs();
+#else
+    auto& baseStream = llvm::DebugFlag ? llvm::dbgs() : llvm::outs();
+#endif
+
+    llvm::WithColor colorStream(baseStream, color);
     auto& stream = colorStream.get();
 
     printTo(stream, "[{0}] ", _name);

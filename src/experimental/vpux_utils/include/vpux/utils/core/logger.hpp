@@ -89,9 +89,7 @@ public:
         _logLevel = lvl;
     }
 
-    bool isActive(LogLevel msgLevel) const {
-        return static_cast<int32_t>(msgLevel) <= static_cast<int32_t>(_logLevel);
-    }
+    bool isActive(LogLevel msgLevel) const;
 
 public:
     template <typename... Args>
