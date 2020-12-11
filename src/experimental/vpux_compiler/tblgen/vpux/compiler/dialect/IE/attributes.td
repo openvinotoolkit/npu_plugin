@@ -52,4 +52,22 @@ def IE_Layout :
     let cppNamespace = "vpux::IE";
 }
 
+
+def IE_AutoBroadcastType_NONE_OR_EXPLICIT : I32EnumAttrCase<"NONE_OR_EXPLICIT", 0>;
+def IE_AutoBroadcastType_NUMPY            : I32EnumAttrCase<"NUMPY", 1>;
+def IE_AutoBroadcastType_PDPD             : I32EnumAttrCase<"PDPD", 2>;
+
+def IE_AutoBroadcastType :
+        I32EnumAttr<
+            "AutoBroadcastType",
+            "Specifies rules used for auto-broadcasting of input tensors",
+            [
+                IE_AutoBroadcastType_NONE_OR_EXPLICIT,
+                IE_AutoBroadcastType_NUMPY,
+                IE_AutoBroadcastType_PDPD,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+}
+
 #endif
