@@ -279,4 +279,32 @@ def IE_SplitOp :
     }];
 }
 
+//
+// PowerOp
+//
+
+def IE_PowerOp :
+        IE_LayerOp<
+            "Power",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine Power layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
