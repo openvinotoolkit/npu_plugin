@@ -309,6 +309,34 @@ def IE_PowerOp :
 }
 
 //
+// MultiplyOp
+//
+
+def IE_MultiplyOp :
+        IE_LayerOp<
+            "Multiply",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine Multiply layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
 // MaxPoolOp
 //
 def IE_MaxPoolOp :

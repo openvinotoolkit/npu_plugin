@@ -53,6 +53,10 @@ def IE_Layout :
 }
 
 
+//
+// AutoBroadcastType
+//
+
 def IE_AutoBroadcastType_NONE_OR_EXPLICIT : I32EnumAttrCase<"NONE_OR_EXPLICIT", 0>;
 def IE_AutoBroadcastType_NUMPY            : I32EnumAttrCase<"NUMPY", 1>;
 def IE_AutoBroadcastType_PDPD             : I32EnumAttrCase<"PDPD", 2>;
