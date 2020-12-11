@@ -3,6 +3,8 @@
         "Singular": [
             {
                 "name" : "GlobalConfigParams",
+                "recorded_model": false,
+                "recordWeightsAsText": false,
                 "referenceDevice": "B0",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
