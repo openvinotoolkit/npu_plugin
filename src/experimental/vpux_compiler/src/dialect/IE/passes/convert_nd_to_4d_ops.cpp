@@ -220,7 +220,7 @@ mlir::LogicalResult ConvertNDOpsTo4DPass::GenericOpConverter::matchAndRewrite(
         auto newAxis = softMaxOp.axisInd() +
                        (TARGET_TENSOR_DIM -
                         origOp->getOperand(0).getType().dyn_cast<mlir::RankedTensorType>().getShape().size());
-        softMaxOp.axisIndAttr(rewriter.getI32IntegerAttr(newAxis));
+        softMaxOp.axisIndAttr(rewriter.getI32IntegerAttr(checked_cast<int32_t>(newAxis)));
     }
 
     auto* newOp = rewriter.clone(*origOp, mapper);

@@ -163,15 +163,19 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
         auto userInfo = p.value();
         auto val = graphFunc.getArgument(ind);
+
         const auto graphType = val.getType().cast<mlir::MemRefType>();
+
         // Note: user input layout might not be same as graph shape, if 4D converter pass is applied.
         // TODO: add an attribute on Module op to keep this info showing whether 4D converter is applied or not
         auto graphShape = graphType.getShape();
-        int32_t origDim = userInfo.layout().getNumDims();
-        int32_t dimDiff = graphShape.size() - origDim;
+        size_t origDim = userInfo.layout().getNumDims();
+        size_t dimDiff = graphShape.size() - origDim;
         std::vector<int64_t> origShape(origDim);
-        for (auto i = 0; i < origDim; ++i)
+        for (size_t i = 0; i < origDim; ++i) {
             origShape[i] = graphShape[i + dimDiff];
+        }
+
         const auto userType = mlir::MemRefType::get(origShape, userInfo.precision(), {userInfo.layout()});
 
         graphInputs.push_back(
@@ -193,15 +197,16 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         auto val = graphFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
         const auto graphType = val.getType().cast<mlir::MemRefType>();
+
         // Note: user input layout might not be same as graph shape, if 4D converter pass is applied.
         // TODO: add an attribute on Module op to keep this info showing whether 4D converter is applied or not
         auto graphShape = graphType.getShape();
-        int32_t origDim = userInfo.layout().getNumDims();
-        int32_t dimDiff = graphShape.size() - origDim;
+        size_t origDim = userInfo.layout().getNumDims();
+        size_t dimDiff = graphShape.size() - origDim;
         std::vector<int64_t> origShape(origDim);
-
-        for (auto i = 0; i < origDim; ++i)
+        for (size_t i = 0; i < origDim; ++i) {
             origShape[i] = graphShape[i + dimDiff];
+        }
 
         const auto userType = mlir::MemRefType::get(origShape, userInfo.precision(), {userInfo.layout()});
 
