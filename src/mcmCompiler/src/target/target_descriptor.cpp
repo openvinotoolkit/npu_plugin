@@ -48,6 +48,7 @@ void mv::TargetDescriptor::reset()
     ops_.clear();
     memoryDefs_.clear();
     nceDefs_.clear();
+    dtypeSupport_.clear();
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
@@ -108,6 +109,54 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
             globalDType_ = DType(jsonDescriptor["dtype"]["global"].get<std::string>());
         }
 
+        if (!jsonDescriptor["dtype"].hasKey("hwCompatibilityCases") ||
+            jsonDescriptor["dtype"]["hwCompatibilityCases"].valueType() != json::JSONType::Array)
+        {
+            reset();
+            return false;
+        }
+        else
+        {
+            auto cases = jsonDescriptor["dtype"]["hwCompatibilityCases"];
+            for (size_t cIdx = 0; cIdx < cases.size(); ++cIdx)
+            {
+                if (!cases[cIdx].hasKey("failCase") ||
+                    cases[cIdx]["failCase"].valueType() != json::JSONType::Array ||
+                    !cases[cIdx].hasKey("mitigation") ||
+                    cases[cIdx]["mitigation"].valueType() != json::JSONType::Array ||
+                    cases[cIdx]["failCase"].size() != cases[cIdx]["mitigation"].size())
+                {
+                    reset();
+                    return false;
+                }
+
+                auto failCaseJson = cases[cIdx]["failCase"];
+                auto mitigationJson = cases[cIdx]["mitigation"];
+                DataTypeSupport dtypeSupportCase;
+                for (size_t fIdx = 0; fIdx < failCaseJson.size(); ++fIdx)
+                {
+                    if (!failCaseJson[fIdx].hasKey("tensor") ||
+                        !failCaseJson[fIdx].hasKey("dtype") ||
+                        !mitigationJson[fIdx].hasKey("tensor") ||
+                        !mitigationJson[fIdx].hasKey("dtype"))
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    dtypeSupportCase.failCase.push_back(
+                        std::make_pair(
+                            failCaseJson[fIdx]["tensor"].get<std::string>(),
+                            failCaseJson[fIdx]["dtype"].get<std::string>()));
+                    dtypeSupportCase.mitigation.push_back(
+                        std::make_pair(
+                            mitigationJson[fIdx]["tensor"].get<std::string>(),
+                            mitigationJson[fIdx]["dtype"].get<std::string>()));
+
+                }
+                dtypeSupport_.push_back(dtypeSupportCase);
+            }
+        }
     }
 
     if (jsonDescriptor["ops"].valueType() != json::JSONType::Object)
@@ -497,6 +546,11 @@ const std::map<std::string, mv::TargetDescriptor::NceDescriptor>& mv::TargetDesc
 const mv::HdeDescriptor& mv::TargetDescriptor::hdeDef() const
 {
     return hdeDef_;
+}
+
+const std::vector<mv::DataTypeSupport>& mv::TargetDescriptor::dtypeSupport() const
+{
+    return dtypeSupport_;
 }
 
 std::string mv::TargetDescriptor::getLogID() const

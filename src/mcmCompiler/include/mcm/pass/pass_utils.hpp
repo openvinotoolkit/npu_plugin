@@ -31,6 +31,12 @@ namespace mv
 
 }
 void calcZeroPointAndScalePerTensor(double outputMax,  double outputMin, double& outScale, int64_t& outZp);
+void calcZeroPointAndScalePerChannel(
+    std::vector<double> &floatMax,
+    std::vector<double> &floatMin,
+    std::vector<double> &quantScale,
+    std::vector<int64_t> &quantZp,
+    int64_t levels);
 void updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor);
 void updateInfMinMaxPerChannel(mv::Data::TensorIterator tensor);
 void provideAccuracyinPPEs(mv::ComputationModel& model);

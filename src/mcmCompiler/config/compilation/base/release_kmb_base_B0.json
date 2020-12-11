@@ -7,7 +7,7 @@
             "StoreWorkloadStrategy",
             "LoadPWLQuantParams",
             "ConvertOpsToTasks",
-            "AdaptFixedPointCompute",
+	    "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "TaskMultiplePostOps",
             "ForceSerialize",
@@ -30,7 +30,8 @@
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision",
-            "FuseConcats"
+            "FuseConcats",
+	    "EnsureDTypeCompatibility"
         ]
     },
     "finalize": {
