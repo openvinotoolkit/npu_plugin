@@ -66,7 +66,7 @@ namespace mv
 
         inline signed getPostShift() const
         {
-            return get<signed>("postShift");
+            return hasAttr("postShift") ? get<signed>("postShift") : 0;
         }
 
         void quantize(std::vector<unsigned> shift, std::vector<unsigned> mult);
