@@ -9,11 +9,10 @@
 //   * Replaces only Layer Operations.
 //
 
-// -----
-
 #NC = affine_map<(d0, d1) -> (d0, d1)>
 
-// CHECK-LABEL: IERT.CNNNetwork "SingleLayer" at @main
+// CHECK-LABEL: @SingleLayer
+module @SingleLayer {
 
 IERT.CNNNetwork "SingleLayer" at @main
     inputsInfo : {
@@ -30,17 +29,19 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 
     // CHECK-NEXT:  VPUIP.SoftMaxUPA
     // CHECK-SAME:      axisInd = 1
-    // CHECK-SAME:      maxShaves = 1
     // CHECK-SAME:      inputs([[ARG0]] : memref<1x1000xf16>)
     // CHECK-SAME:      outputs([[ARG1]] : memref<1x1000xf16>)
     // CHECK-NEXT:  return
+}
+
 }
 
 // -----
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-// CHECK-LABEL: IERT.CNNNetwork "ConstantLayer" at @main
+// CHECK-LABEL: @ConstantLayer
+module @ConstantLayer {
 
 IERT.CNNNetwork "ConstantLayer" at @main
     inputsInfo : {
@@ -65,4 +66,6 @@ func @main(%arg0: memref<1x2x2x2xf16>) {
     // CHECK-SAME:      inputs([[VAR0]] : memref<1x2x2x2xf16>)
     // CHECK-SAME:      outputs([[ARG0]] : memref<1x2x2x2xf16>)
     // CHECK-NEXT:  return
+}
+
 }

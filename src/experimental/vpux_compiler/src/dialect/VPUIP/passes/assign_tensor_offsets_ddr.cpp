@@ -17,6 +17,7 @@
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/core/static_allocation.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
@@ -155,37 +156,26 @@ void AssignTensorOffsetsDDRPass::passBody() {
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
         _log.error("Failed to replace Alloc/Dealloc Operations");
         signalPassFailure();
+        return;
     }
 
     VPUIP::GraphOp graphOp;
     mlir::FuncOp graphFunc;
     if (mlir::failed(VPUIP::GraphOp::getFromModule(module, graphOp, graphFunc))) {
-        _log.error("Failed to get VPUIP.Graph Operation from module");
+        printTo(module.emitError(), "Failed to get VPUIP.Graph Operation from module");
         signalPassFailure();
         return;
     }
 
-    auto oldResources = graphOp.resourcesAttr();
-
-    auto oldMemSizes = oldResources.memory_sizes();
-    SmallVector<mlir::Attribute, 2> newMemSizes;
-
-    for (auto memMap : oldMemSizes.getAsRange<VPUIP::MemoryMappingAttr>()) {
-        if (memMap.item().getValue() != VPUIP::PhysicalMemory::DDR) {
-            newMemSizes.push_back(memMap);
-        }
+    auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+    if (resources == nullptr) {
+        printTo(module.emitError(), "Failed to get IERT.RunTimeResources Operation from module");
+        signalPassFailure();
+        return;
     }
 
-    newMemSizes.push_back(VPUIP::MemoryMappingAttr::get(
-            VPUIP::PhysicalMemoryAttr::get(VPUIP::PhysicalMemory::DDR, module.getContext()),
-            getInt64Attr(module.getContext(), allocInfo.maxAllocatedSize()), module.getContext()));
-
-    auto newResources =
-            VPUIP::ResourcesAttr::get(oldResources.processor_allocation(), oldResources.processor_frequencies(),
-                                      mlir::ArrayAttr::get(newMemSizes, module.getContext()),
-                                      oldResources.memory_bandwidth(), module.getContext());
-
-    graphOp.resourcesAttr(newResources);
+    resources.setUsedMemory(VPUIP::PhysicalMemoryAttr::get(VPUIP::PhysicalMemory::DDR, module.getContext()),
+                            Byte(allocInfo.maxAllocatedSize()));
 }
 
 }  // namespace

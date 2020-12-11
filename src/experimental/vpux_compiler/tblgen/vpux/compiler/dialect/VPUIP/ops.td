@@ -87,7 +87,6 @@ def VPUIP_GraphOp :
         StrAttr:$identifier,
         FlatSymbolRefAttr:$entryPoint,
         VPUIP_ExecutionFlag:$options,
-        VPUIP_ResourcesAttr:$resources,
         VPUIP_Version:$version
     );
 
@@ -100,7 +99,6 @@ def VPUIP_GraphOp :
         attr-dict
         $identifier `at` $entryPoint
         `options` `:` $options
-        `resources` `:` $resources
         `version` `:` $version
         `inputsInfo` `:` $inputsInfo
         `outputsInfo` `:` $outputsInfo
@@ -395,7 +393,7 @@ def VPUIP_SoftMaxUPAOp :
 
         I32Attr:$axisInd,
 
-        I32Attr:$maxShaves,
+        OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -403,28 +401,14 @@ def VPUIP_SoftMaxUPAOp :
         OpBuilderDAG<
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::IntegerAttr":$axisInd,
-                "mlir::IntegerAttr":$maxShaves
+                "mlir::IntegerAttr":$axisInd
             ),
             [{
                 build($_builder, $_state,
                       mlir::ValueRange {input}, mlir::ValueRange {output},
                       mlir::ValueRange {}, mlir::ValueRange {},
-                      axisInd, maxShaves,
-                      nullptr);
-            }]
-        >,
-
-        OpBuilderDAG<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::IntegerAttr":$axisInd
-            ),
-            [{
-                build($_builder, $_state,
-                      input, output,
                       axisInd,
-                      $_builder.getI32IntegerAttr(1));
+                      nullptr, nullptr);
             }]
         >
     ];

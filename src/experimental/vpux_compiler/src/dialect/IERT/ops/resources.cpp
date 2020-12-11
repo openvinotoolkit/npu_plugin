@@ -102,8 +102,6 @@ IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::getAvailableMemory(mlir::
 }
 
 IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::setUsedMemory(mlir::Attribute kind, Byte size) {
-    VPUX_THROW_UNLESS(size.count() > 0, "Trying to set zero size of memory kind '{0}'", kind);
-
     auto available = getAvailableMemory(kind);
     VPUX_THROW_UNLESS(available != nullptr, "Memory kind '{0}' is not registered as available", kind);
     VPUX_THROW_UNLESS(size.count() <= available.byteSize(),
@@ -156,8 +154,6 @@ IERT::ExecutorResourceOp vpux::IERT::RunTimeResourcesOp::getAvailableExecutor(ml
 }
 
 IERT::ExecutorResourceOp vpux::IERT::RunTimeResourcesOp::setUsedExecutor(mlir::Attribute kind, uint32_t count) {
-    VPUX_THROW_UNLESS(count > 0, "Trying to set zero count of executor kind '{0}'", kind);
-
     auto available = getAvailableExecutor(kind);
     VPUX_THROW_UNLESS(available != nullptr, "Executor kind '{0}' is not registered as available", kind);
     VPUX_THROW_UNLESS(count <= available.count(), "Executor kind '{0}' used count '{1}' exceeds available count '{2}'",

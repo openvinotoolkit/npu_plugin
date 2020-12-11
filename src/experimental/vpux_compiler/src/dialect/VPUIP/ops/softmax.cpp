@@ -36,5 +36,5 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftMaxUPAOp::serialize(vpux::VPUIP
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(getOperation(), {paramsOff.Union(), MVCNN::SoftwareLayerParams_SoftmaxParams},
-                                     checked_cast<int32_t>(maxShaves()), isTrailingSWLayer());
+                                     maxShaves(), isTrailingSWLayer());
 }

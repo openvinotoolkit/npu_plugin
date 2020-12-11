@@ -13,8 +13,10 @@
 
 // CHECK: #NC = affine_map<(d0, d1) -> (d0, d1)>
 
-// CHECK-LABEL: IERT.CNNNetwork "SingleLayer" at @main
+// CHECK-LABEL: @SingleLayer
+module @SingleLayer {
 
+// CHECK: IERT.CNNNetwork "SingleLayer" at @main
 IE.CNNNetwork "SingleLayer" at @main
     inputsInfo : {
         // CHECK: IERT.DataInfo "data", f32, #NC
@@ -34,12 +36,16 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     // CHECK: return
 }
 
+}
+
 // -----
 
 // CHECK: #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-// CHECK-LABEL: IERT.CNNNetwork "ConstantLayer" at @main
+// CHECK-LABEL: @ConstantLayer
+module @ConstantLayer {
 
+// CHECK: IERT.CNNNetwork "ConstantLayer" at @main
 IE.CNNNetwork "ConstantLayer" at @main
     inputsInfo : {
     }
@@ -71,4 +77,6 @@ func @main() -> tensor<1x2x2x2xf16> {
     // CHECK: [[VAR0:%[0-9]*]] = get_global_memref [[CST0]] : memref<1x2x2x2xf16>
     // CHECK: linalg.copy([[VAR0]], [[ARG0]]) : memref<1x2x2x2xf16>, memref<1x2x2x2xf16>
     // CHECK: return
+}
+
 }

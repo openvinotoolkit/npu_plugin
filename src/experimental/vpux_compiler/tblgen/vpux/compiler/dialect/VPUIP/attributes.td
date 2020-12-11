@@ -91,61 +91,6 @@ def VPUIP_PhysicalMemory :
 }
 
 //
-// MemoryMapping
-//
-
-def VPUIP_MemoryMapping_item    : StructFieldAttr<"item",   VPUIP_PhysicalMemory>;
-def VPUIP_MemoryMapping_number  : StructFieldAttr<"number", I64Attr>;  // TODO: allow F64 usage
-
-def VPUIP_MemoryMapping :
-        StructAttr<
-            "MemoryMappingAttr",
-            VPUIP_Dialect,
-            [
-                VPUIP_MemoryMapping_item,
-                VPUIP_MemoryMapping_number,
-            ]
-        >;
-
-//
-// ProcessorMapping
-//
-
-def VPUIP_ProcessorMapping_item         : StructFieldAttr<"item",       VPUIP_PhysicalProcessor>;
-def VPUIP_ProcessorMapping_number       : StructFieldAttr<"number",     I64Attr>;  // TODO: allow F64 usage
-def VPUIP_ProcessorMapping_is_bitmask   : StructFieldAttr<"isBitMask",  DefaultValuedAttr<BoolAttr, "false">>;
-
-def VPUIP_ProcessorMapping :
-        StructAttr<
-            "ProcessorMappingAttr",
-            VPUIP_Dialect,
-            [
-                VPUIP_ProcessorMapping_item,
-                VPUIP_ProcessorMapping_number,
-                VPUIP_ProcessorMapping_is_bitmask,
-            ]
-        >;
-
-//
-// MemoryRelationshipMapping
-//
-
-def VPUIP_MemoryRelationshipMapping_fromItem    : StructFieldAttr<"fromItem",   VPUIP_PhysicalMemory>;
-def VPUIP_MemoryRelationshipMapping_toItem      : StructFieldAttr<"toItem",     VPUIP_PhysicalMemory>;
-def VPUIP_MemoryRelationshipMapping_number      : StructFieldAttr<"number",     F64Attr>;
-
-def VPUIP_MemoryRelationshipMapping :
-        StructAttr<
-            "MemoryRelationshipMappingAttr",
-            VPUIP_Dialect,
-            [
-                VPUIP_MemoryRelationshipMapping_fromItem,
-                VPUIP_MemoryRelationshipMapping_toItem,
-                VPUIP_MemoryRelationshipMapping_number,
-            ]
-        >;
-
-//
 // Version
 //
 
@@ -165,45 +110,6 @@ def VPUIP_Version :
                 VPUIP_Version_patchV,
                 VPUIP_Version_hash,
                 VPUIP_Version_contextStr,
-            ]
-        >;
-
-//
-// Resources
-//
-
-def VPUIP_ProcessorMappingArray :
-        TypedArrayAttrBase<
-            VPUIP_ProcessorMapping,
-            "Array of physical processors information"
-        >;
-
-def VPUIP_MemoryMappingArray :
-        TypedArrayAttrBase<
-            VPUIP_MemoryMapping,
-            "Array of physical memory information"
-        >;
-
-def VPUIP_MemoryRelationshipMappingArray :
-        TypedArrayAttrBase<
-            VPUIP_MemoryRelationshipMapping,
-            "Array of physical memory relationship information"
-        >;
-
-def VPUIP_Resources_processor_allocation    : StructFieldAttr<"processor_allocation",   VPUIP_ProcessorMappingArray>;
-def VPUIP_Resources_processor_frequencies   : StructFieldAttr<"processor_frequencies",  VPUIP_ProcessorMappingArray>;
-def VPUIP_Resources_memory_sizes            : StructFieldAttr<"memory_sizes",           VPUIP_MemoryMappingArray>;
-def VPUIP_Resources_memory_bandwidth        : StructFieldAttr<"memory_bandwidth",       VPUIP_MemoryRelationshipMappingArray>;
-
-def VPUIP_ResourcesAttr :
-        StructAttr<
-            "ResourcesAttr",
-            VPUIP_Dialect,
-            [
-                VPUIP_Resources_processor_allocation,
-                VPUIP_Resources_processor_frequencies,
-                VPUIP_Resources_memory_sizes,
-                VPUIP_Resources_memory_bandwidth,
             ]
         >;
 

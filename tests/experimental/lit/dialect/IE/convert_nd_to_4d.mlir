@@ -1,6 +1,7 @@
 // RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --convert-Nd-ops-to-4d %s | FileCheck %s
 
-// CHECK-LABEL: ConvertNDto4D
+// CHECK-LABEL: @ConvertNDto4D
+module @ConvertNDto4D {
 
 IE.CNNNetwork "ConvertNDto4D" at @main
     inputsInfo : {
@@ -21,9 +22,12 @@ func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
     // CHECK: return %[[OUT]] : tensor<1x1x1x1000xf32>
 }
 
+}
+
 // -----
 
-// CHECK-LABEL: ConstantLayer
+// CHECK-LABEL: @ConstantLayer
+module @ConstantLayer {
 
 IE.CNNNetwork "ConstantLayer" at @main
     inputsInfo : {
@@ -44,4 +48,6 @@ func @main() -> tensor<2x2xf32> {
 
     return %0 : tensor<2x2xf32>
     // CHECK: return %[[OUT]] : tensor<1x1x2x2xf32>
+}
+
 }

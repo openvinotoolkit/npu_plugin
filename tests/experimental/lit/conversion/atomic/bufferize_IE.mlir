@@ -10,7 +10,8 @@
 //   * Replaces only Layer Operations.
 //
 
-// CHECK-LABEL: IE.CNNNetwork "SingleLayer" at @main
+// CHECK-LABEL: @SingleLayer
+module @SingleLayer {
 
 IE.CNNNetwork "SingleLayer" at @main
     inputsInfo : {
@@ -32,9 +33,12 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     // CHECK: return [[VAR2]] : tensor<1x1000xf16>
 }
 
+}
+
 // -----
 
-// CHECK-LABEL: IE.CNNNetwork "ConstantLayer" at @main
+// CHECK-LABEL: @ConstantLayer
+module @ConstantLayer {
 
 IE.CNNNetwork "ConstantLayer" at @main
     inputsInfo : {
@@ -64,4 +68,6 @@ func @main() -> tensor<1x2x2x2xf16> {
     // CHECK:       [[CST0:%cst[0-9]*]] = constant
     // CHECK-SAME:      tensor<1x2x2x2xf16>
     // CHECK:       return [[CST0]] : tensor<1x2x2x2xf16>
+}
+
 }

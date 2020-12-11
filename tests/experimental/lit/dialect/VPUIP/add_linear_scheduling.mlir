@@ -1,23 +1,13 @@
 // RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --add-linear-scheduling %s | FileCheck %s
 
-// CHECK-LABEL: linear_dma_graph
-
 #NC = affine_map<(d0, d1) -> (d0, d1)>
+
+// CHECK-LABEL: @linear_dma_graph
+module @linear_dma_graph {
 
 VPUIP.Graph "linear_dma_graph" at @main
     // CHECK: options : "DynamicBarriers"
     options : "NONE"
-    resources : {
-        processor_allocation = [
-            {item = "SHAVE_UPA", number = 1 : i64},
-            {item = "NCE_Cluster", number = 1 : i64}
-        ],
-        processor_frequencies = [],
-        memory_sizes = [
-            {item = "CMX_NN", number = 1048576 : i64}
-        ],
-        memory_bandwidth = []
-    }
     version : {
         majorV = 3 : i32,
         minorV = 11 : i32,
@@ -59,26 +49,18 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
     return
 }
 
+}
+
 // -----
 
-// CHECK-LABEL: linear_upa_graph
-
 #NC = affine_map<(d0, d1) -> (d0, d1)>
+
+// CHECK-LABEL: @linear_upa_graph
+module @linear_upa_graph {
 
 VPUIP.Graph "linear_upa_graph" at @main
     // CHECK: options : "DynamicBarriers"
     options : "NONE"
-    resources : {
-        processor_allocation = [
-            {item = "SHAVE_UPA", number = 1 : i64},
-            {item = "NCE_Cluster", number = 1 : i64}
-        ],
-        processor_frequencies = [],
-        memory_sizes = [
-            {item = "CMX_NN", number = 1048576 : i64}
-        ],
-        memory_bandwidth = []
-    }
     version : {
         majorV = 3 : i32,
         minorV = 11 : i32,
@@ -94,19 +76,21 @@ VPUIP.Graph "linear_upa_graph" at @main
 
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16>
-    VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>)
+    VPUIP.SoftMaxUPA {axisInd = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>)
     // CHECK:       VPUIP.SoftMaxUPA
     // CHECK-SAME:      isTrailingSWLayer
 
     %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1000xf16>
-    VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%0 : memref<1x1000xf16>) outputs(%1 : memref<1x1000xf16>)
+    VPUIP.SoftMaxUPA {axisInd = 1 : i32} inputs(%0 : memref<1x1000xf16>) outputs(%1 : memref<1x1000xf16>)
     // CHECK:       VPUIP.SoftMaxUPA
     // CHECK-SAME:      isTrailingSWLayer
 
     %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16>
-    VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%1 : memref<1x1000xf16>) outputs(%arg1 : memref<1x1000xf16>)
+    VPUIP.SoftMaxUPA {axisInd = 1 : i32} inputs(%1 : memref<1x1000xf16>) outputs(%arg1 : memref<1x1000xf16>)
     // CHECK:       VPUIP.SoftMaxUPA
     // CHECK-SAME:      isTrailingSWLayer
 
     return
+}
+
 }
