@@ -80,7 +80,10 @@ int64_t calculateZeroPoint(float low, float high, int levels, mv::DType dtype) {
 }
 
 double calculateScales(float low, float high, int levels) {
-    return static_cast<double>((high - low) / (levels - 1));
+    if (low == high)
+        return 1.0;
+    else
+        return static_cast<double>((high - low) / (levels - 1));
 }
 
 //NOTE: workaround. merge_in_one is true for activations and false for weights
