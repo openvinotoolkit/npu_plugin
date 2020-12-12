@@ -3,6 +3,8 @@
         "Singular": [
             {
                 "name" : "GlobalConfigParams",
+                "recorded_model": false,
+                "recordWeightsAsText": false,
                 "referenceDevice": "A0",
                 "systemClockMhz" : 500,
                 "memoryBandwidth" : 16,
