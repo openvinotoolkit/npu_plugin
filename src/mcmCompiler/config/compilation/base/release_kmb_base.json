@@ -4,9 +4,7 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": false,
                 "verbose": "Error",
-                "recordWeightsAsText": false,
                 "barrier_index_assignment" : "Dynamic",
                 "default_tensor_placement" : "NNCMX"
             },
