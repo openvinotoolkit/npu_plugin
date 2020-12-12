@@ -208,8 +208,7 @@ const static std::vector<InferenceEngine::Layout> outputLayout = {
 class KmbYoloV3NetworkTestWithSpecificLayout : public KmbYoloV3NetworkTest,
     public testing::WithParamInterface<std::tuple<InferenceEngine::Layout, InferenceEngine::Layout>> {};
 
-// [Track number: D#42973]
-TEST_P(KmbYoloV3NetworkTestWithSpecificLayout, DISABLED_INT8_Dense_TF_YoloV3) {
+TEST_P(KmbYoloV3NetworkTestWithSpecificLayout, INT8_Dense_TF_YoloV3) {
     std::vector<float> anchors = {10.0, 13.0, 16.0, 30.0, 33.0, 23.0, 30.0, 61.0, 62.0,
                         45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
     runTest(
@@ -275,7 +274,10 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
 
 // Compilation fails on windows
 // [Track number: D#44765]
-TEST_F(KmbYoloV2NetworkTest, DISABLED_precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32) {
+TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32) {
+#ifdef _WIN32
+    SKIP() << "LpScheduler - RuntimeError: input is not a DAG";
+#endif
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -302,7 +304,10 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
 
 // Compilation fails on windows
 // [Track number: D#44765]
-TEST_F(KmbYoloV2NetworkTest, DISABLED_yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
+TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
+#ifdef _WIN32
+    SKIP() << "LpScheduler - RuntimeError: input is not a DAG";
+#endif
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -1043,14 +1048,22 @@ TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
         0.1f, 0.3f);
 }
 
+// [Track number: D#45024]
 TEST_F(SmokeNetworkTest, text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/text-detection-0004/tf/FP16-INT8/text-detection-0004-ww48.xml")
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserOutputPrecision("output", Precision::FP32));
 }
 
+// [Track number: D#45024]
 TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/text-detection-0003/tf/FP16-INT8/text-detection-0003-ww48.xml")
                     .setUserInputPrecision("input", Precision::U8)
