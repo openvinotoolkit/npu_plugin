@@ -215,7 +215,6 @@
                         {
                             "name" : "Input",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : []},
                                 {"name" : "clusteringStrategies", "value" : ["Clustering", "SplitOverK", "SplitOverH"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : false},
@@ -225,7 +224,6 @@
                         {
                             "name" : "ImplicitInput",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : []},
                                 {"name" : "clusteringStrategies", "value" : ["Clustering", "SplitOverK", "SplitOverH"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : false},
