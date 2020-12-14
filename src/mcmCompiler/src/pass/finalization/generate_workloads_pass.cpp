@@ -467,7 +467,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 }
 
                 pass.log(mv::Logger::MessageType::Debug, "Selecting workload at index " + std::to_string(optimalWorkloadIndex) + " as the most optimal workload for subtensor number " + std::to_string(clusterNumber));
-
+                std::cout << opIt->getName() << " " << opStrategy << " cluster " << std::to_string(clusterNumber) << " " <<  " number workloads " << std::to_string(workloadsVector.at(optimalWorkloadIndex).nWorkloads()) << " MPE Mode " << std::to_string(workloadsVector.at(optimalWorkloadIndex).getWorkloads()[0].MPEMode) << " algorithm " << workloadsVector.at(optimalWorkloadIndex).getWorkloads()[0].algorithm << std::endl;
                 /*set the clusterID field of the most optimial workload*/
                 workloadsVector.at(optimalWorkloadIndex).populateClusterID(clusterNumber);
 
