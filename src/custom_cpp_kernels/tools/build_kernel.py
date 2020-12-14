@@ -42,11 +42,9 @@ def setEnvironment(args):
 
     if not os.path.isabs(pathToOutputFile) :
         pathToOutputFile = sourceDir + pathToOutputFile
-    if not os.path.exists(os.path.dirname(pathToOutputFile)):
-        os.mkdir(os.path.dirname(pathToOutputFile))
 
-    if not os.path.exists(pathToOutTempFolder):
-        os.mkdir(pathToOutTempFolder)
+    os.makedirs(os.path.dirname(pathToOutputFile), exist_ok=True)
+    os.makedirs(pathToOutTempFolder, exist_ok=True)
 
     MOVI_COMPILE_COMMAND      = MOVI_COMPILE_COMMAND_TEMPLATE.format(pathToKernel=args.input, outFolder=pathToOutTempFolder)
     MOVI_ASM_COMMAND          = MOVI_ASM_COMMAND_TEMPLATE.format(outFolder=pathToOutTempFolder)
