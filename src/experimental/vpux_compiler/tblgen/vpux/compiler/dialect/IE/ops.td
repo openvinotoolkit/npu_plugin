@@ -555,4 +555,54 @@ def IE_UnsqueezeOp :
     }];
 }
 
+//
+// MinimumOp
+//
+
+def IE_MinimumOp :
+        IE_LayerOp<
+            "Minimum"
+        > {
+    let summary = "InferenceEngine Minimum layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        AnyRankedTensor:$input2,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// MaximumOp
+//
+
+def IE_MaximumOp :
+        IE_LayerOp<
+            "Maximum"
+        > {
+    let summary = "InferenceEngine Maximum layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        AnyRankedTensor:$input2,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
