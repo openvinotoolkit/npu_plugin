@@ -353,6 +353,19 @@
                     ]
 
             },
+        "Eltwise":
+            {
+                "mpe_modes" :
+                    [
+                        [8,16]
+                    ],
+                "algorithms":
+                    [
+                        "Z-Tiling",
+                        "Rectangle"
+                    ]
+
+            },
         "DepthwiseConv":
             {
                 "mpe_modes" :
@@ -369,7 +382,42 @@
                         32,
                         64
                     ]
-            }
+            },
+        "MaxPool":
+            {
+                "mpe_modes" :
+                    [
+                        [16,16]
+                    ],
+                "algorithms":
+                    [
+                        "Z-Tiling"
+                    ],
+                "valid_ztiling":
+                    [
+                        16,
+                        32,
+                        64
+                    ]
+            },
+        "ChannelMajorConvolution":
+                    {
+                        "mpe_modes" :
+                            [
+                                [16,16]
+                            ],
+                        "algorithms":
+                            [
+                                "Z-Tiling"
+                            ],
+                        "valid_ztiling":
+                            [
+                                16,
+                                32,
+                                64
+                            ]
+                    }
+
     },
 
     "resources":
