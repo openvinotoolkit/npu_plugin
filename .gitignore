@@ -10,7 +10,6 @@
 
 # Build results
 [Bb]uild*/
-[Bb]uild-aarch64/
 
 
 # Inherited from dldt/inference-engine/.gitignore

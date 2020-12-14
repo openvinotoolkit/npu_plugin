@@ -49,7 +49,8 @@ link_system_libraries(${OBJ_TARGET_NAME}
 target_link_libraries(${OBJ_TARGET_NAME}
     PRIVATE
         vpux_al
-        kmb_utils)
+        kmb_utils
+        mcmCompiler)
 
 add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}>)
 target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})

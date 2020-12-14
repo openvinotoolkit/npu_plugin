@@ -151,7 +151,7 @@ vpux::DataMap MCMNetworkDescription::matchElementsByLexicographicalOrder(const v
             name = names.at(curMatchPos);
         else {
             name = data.first;
-            std::cout << "Additional output: " << data.first << std::endl; 
+            _logger->info("Additional output: %s\n", name);
         }
         const auto dataCorrectedName = data.second;
         dataCorrectedName->setName(name);

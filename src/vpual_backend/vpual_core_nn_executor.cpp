@@ -32,6 +32,8 @@
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/enums.hpp>
 
+#include "mcm/utils/profiling_parser.hpp"
+
 #if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
 #include <atomic>
 #include <cstdio>
@@ -840,6 +842,9 @@ void VpualCoreNNExecutor::repackDeviceOutputsToNetworkOutputs(
     const ie::BlobMap& deviceOutputs, ie::BlobMap& networkOutputs) {
     for (const auto& item : deviceOutputs) {
         const auto& name = item.first;
+
+        if (name == "profilingOutput") continue;
+
         const auto& deviceBlob = item.second;
         const auto& deviceDesc = deviceBlob->getTensorDesc();
         const auto& outputBlob = networkOutputs[name];
@@ -880,8 +885,32 @@ void VpualCoreNNExecutor::setup(const ie::ParamMap&) { THROW_IE_EXCEPTION << "No
 bool VpualCoreNNExecutor::isPreProcessingSupported(const PreprocMap&) const { return false; }
 
 std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLayerStatistics() {
-    THROW_IE_EXCEPTION << "Not implemented";
-    return std::map<std::string, ie::InferenceEngineProfileInfo>();
+    std::map<std::string, ie::InferenceEngineProfileInfo> perfCounts;
+
+    const auto blob = _networkDescription->getCompiledNetwork().data();
+    auto deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
+    auto profilingOutputBlob = deviceOutputs.find("profilingOutput");
+    if (profilingOutputBlob == deviceOutputs.end()) {
+        std::cout << "No profiling output" << std::endl;
+        return perfCounts;
+    }
+    const auto& profilingOutput = ie::as<ie::MemoryBlob>(profilingOutputBlob->second)->rmap().as<const void*>();
+
+    std::vector<mv::utils::prof_info_t> deviceProfiling;
+    mv::utils::getProfilingInfo(blob, profilingOutput, deviceProfiling, nullptr);
+
+    int execution_index = 0;
+    ie::InferenceEngineProfileInfo info;
+    for (const auto& profilingEntry : deviceProfiling) {    
+        info.status = ie::InferenceEngineProfileInfo::EXECUTED;
+        info.cpu_uSec = info.realTime_uSec = profilingEntry.time;
+        info.execution_index = execution_index++;
+        strncpy(info.layer_type, profilingEntry.layer_type.c_str(), sizeof(info.layer_type)-1);
+        strncpy(info.exec_type, profilingEntry.exec_type.c_str(), sizeof(info.exec_type)-1);
+        perfCounts[profilingEntry.name] = info;
+    }
+
+    return perfCounts;
 }
 
 InferenceEngine::Parameter VpualCoreNNExecutor::getParameter(const std::string&) const {

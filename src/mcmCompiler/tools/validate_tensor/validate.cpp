@@ -886,6 +886,8 @@ int postProcessActualResults(std::vector<std::string>& actualResults, std::strin
         // call python script for numpy reshape/transpose
         std::string dtypeStr = "U8";
         if (dtype == MVCNN::DType::DType_FP16) dtypeStr = "FP16";
+        else if (dtype == MVCNN::DType::DType_I32) dtypeStr = "I32";
+        else if (dtype == MVCNN::DType::DType_U32) dtypeStr = "U32";
         std::string outputFile="./output_transposed" + std::to_string(i) + ".dat";
         std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME") +
             std::string("/python/tools/post_process.py --file ") + actualResults[i] + " --dtype " + dtypeStr + " --shape " +
@@ -905,6 +907,18 @@ int postProcessActualResults(std::vector<std::string>& actualResults, std::strin
         actualResultsProcessed.emplace_back(outputFile);
     }
     return RESULT_SUCCESS;
+}
+
+static void getProfilingData(std::string data_path)
+{
+    std::cout << "Profiling Output" << std::endl;
+    std::string commandline = std::string("cd ") + std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + " && " 
+    + "./prof_parser " + FILE_BLOB_NAME + " " + data_path;
+    std::cout << commandline << std::endl;
+    int returnVal = std::system(commandline.c_str());
+    if (returnVal == -1) {
+        std::cout << std::endl << "Error occurred running perf_parser!" << std::endl;
+    }
 }
 
 bool checkInference(std::string actualResults, std::string expectedResults, std::string imagePath, std::string networkType = "classification")
@@ -1081,8 +1095,16 @@ int main(int argc, char *argv[])
     {
         testPass = true;
         for (auto idx=0; idx<countOutputs; ++idx) {
-            bool thisResult = checkInference(actualResults[idx], expectedPaths[idx], FLAGS_i, networkType);
-            testPass = testPass && thisResult;
+            if (checkFilesExist({expectedPaths[idx]})) {
+                bool thisResult = checkInference(actualResults[idx], expectedPaths[idx], FLAGS_i, networkType);
+                testPass = testPass && thisResult;
+            } else getProfilingData(actualResults[idx]);
+        }
+    } else {
+        for (auto idx=0; idx<countOutputs; ++idx) {
+            if (!checkFilesExist({expectedPaths[idx]})) {
+                getProfilingData(actualResults[idx]);
+            }
         }
     }
 

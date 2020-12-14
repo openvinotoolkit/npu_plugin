@@ -8,14 +8,16 @@
 
 #include "pass/lp_scheduler/barrier_scheduler_pass.hpp"
 
-static void AddDPUTasksProfilingDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+#define HW_TIMER_ABSOLUTE_ADDR  0x203300BC  
+
+static void AddTaskProfilingDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
     namespace pass
     {
         MV_REGISTER_PASS(AddDPUTasksProfilingDMA)
-            .setFunc(AddDPUTasksProfilingDMAFcn)
+            .setFunc(AddTaskProfilingDMAFcn)
             .setDescription(
                "Add DMA Tasks for DPU Tasks profiling");
     }
@@ -26,9 +28,12 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
 void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, const mv::Element& passDesc, const std::vector<mv::Barrier>& barriers);
 
 
+/* In order to correctly calculate the layer timing in case of parallel execution we need to find the parent task 
+   and calculate timings between current task value and parent one
+   here we recursively going thought all parent branches and looks for the task with the closest layerNumber to the current one */ 
 static mv::Control::OpListIterator findParentDPUorUPATask(mv::Control::OpListIterator opIterator, mv::ControlModel& cm) {
     for (auto parentOp = opIterator.leftmostParent(); parentOp != cm.opEnd(); ++parentOp) {
-        if ((parentOp->getOpType() == "DPUTask") || (parentOp->getOpType() == "UPATask")|| (parentOp->getOpType() == "Input")) {
+        if ((parentOp->getOpType() == "DPUTask") || (parentOp->getOpType() == "UPATask")) {
             return parentOp;
         }
     }
@@ -50,13 +55,11 @@ static mv::Control::OpListIterator findParentDPUorUPATask(mv::Control::OpListIte
             retLayerNumber = opParentLayerNumber;
         }
     }
-    if (ret == cm.opEnd()) 
-        ret = opIterator.leftmostParent();
 
     return ret;
 }
 
-void AddDMAtoBarrier(mv::Control::OpListIterator barrierOp, std::string dmaName, unsigned layerNumber, unsigned opId, mv::ComputationModel& model, mv::Data::TensorIterator &profilingTensor, std::vector<mv::Data::TensorIterator> &profilingDmas)
+void AddDMAtoBarrier(mv::Control::OpListIterator barrierOp, std::string dmaName, unsigned layerNumber, unsigned parentDMA, unsigned opId, mv::ComputationModel& model, mv::Data::TensorIterator &profilingTensor, std::vector<mv::Data::TensorIterator> &profilingDmas)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -64,7 +67,7 @@ void AddDMAtoBarrier(mv::Control::OpListIterator barrierOp, std::string dmaName,
     auto& barrier = barrierOp->get<mv::Barrier>("Barrier");
     auto barrierName = barrierOp->getName();
 
-    auto profilingDma = om.dMATask(dmaName, profilingTensor, mv::DmaDirectionEnum::HW2DDR, 0);
+    auto profilingDma = om.dMATask(dmaName+"_"+to_string(parentDMA)+"_"+to_string(layerNumber), profilingTensor, mv::DmaDirectionEnum::HW2DDR, 0);
     profilingDmas.push_back(profilingDma);
 
     auto profilingDmaOp = om.getSourceOp(profilingDma);
@@ -80,16 +83,38 @@ void AddDMAtoBarrier(mv::Control::OpListIterator barrierOp, std::string dmaName,
     barrier.addConsumer(dmaName);
 
     auto barrierDataOp = om.getOp(barrierName);
-    cm.defineFlow(barrierDataOp, om.getSourceOp(profilingDma));
+    cm.defineFlow(barrierDataOp, profilingDmaOp);
+}
+
+static mv::Control::OpListIterator FindSuitableBarrier(mv::Control::OpListIterator opIt, mv::ControlModel &cm, const mv::pass::PassEntry& pass)
+{
+    int minProducersCount = std::numeric_limits<int>::max();
+    mv::Control::OpListIterator retOp = cm.opEnd();
+    for(auto childOp = opIt.leftmostChild(); childOp != cm.opEnd(); ++childOp) {
+        if (childOp->getOpType() == "BarrierTask") {
+            auto& barrier = childOp->get<mv::Barrier>("Barrier");
+            if (barrier.getNumProducers() < minProducersCount) {
+                minProducersCount = barrier.getNumProducers();
+                retOp = childOp;   
+            }
+        }
+    }
+
+    if ((retOp != cm.opEnd()) && (minProducersCount != 1)) {
+        pass.log(mv::Logger::MessageType::Warning, "There is no barrier with 1 producer for " + opIt->getName());
+    }
+
+    return retOp;
 }
 
 // Pass role: Add DMA Tasks for DPU task profiling (if needed).
-void AddDPUTasksProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element &)
+void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element &)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
 
+    /* Check if profiling DMAs should be added */ 
     bool enable_profiling = false;
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     if (globalParams->hasAttr("PerformanceCounting") && globalParams->get<bool>("PerformanceCounting"))
@@ -99,40 +124,42 @@ void AddDPUTasksProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::Computation
 
     if (!enable_profiling) return;
 
-    /* TODO: Specify here the Free Running counter address */
-    auto profilingTensor = om.constantInt("profilingInput", {0x203300BC}, {1,1,1,1}, mv::DType("Int32"), mv::Order("NCHW"));
+    /* Specify here the Free Running counter address */
+    auto profilingTensor = om.constantInt("profilingInput", {HW_TIMER_ABSOLUTE_ADDR}, {1,1,1,1}, mv::DType("Int32"), mv::Order("NCHW"));
     /* Mandatory fields */
     std::set<std::string> toSet;
     profilingTensor->set<std::set<std::string>>("flows", toSet);
     profilingTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+    /* Get last_graphFileIndex to be able properly allocate address constant */
     auto graphFileIndex = dm.getGlobalConfigParams()->get<int>("last_graphFileIndex");
     profilingTensor->set<unsigned>("graphFileIndex", graphFileIndex);
+    graphFileIndex++;
+    dm.getGlobalConfigParams()->set<int>("last_graphFileIndex", graphFileIndex);
 
     std::vector<mv::Data::TensorIterator> profilingDmas;
+    std::map<std::string, int> TaskDMAMap;
 
     for(auto opIt:cm.schedulingSortDPUorUPA()) {
-        std::string nextBarrier = "", prevBarrier = "";
-        mv::Control::OpListIterator barrierOp = cm.opEnd();
+        auto barrierOp = FindSuitableBarrier(opIt, cm, pass);
         bool lastTask = false;
-
-        for(auto childOp = opIt.leftmostChild(); childOp != cm.opEnd(); ++childOp) {
-            if (childOp->getOpType() == "BarrierTask") {
-                nextBarrier = childOp->getName();
-                barrierOp = childOp;
-                break;
-            }
-        }
 
         if (barrierOp == cm.opEnd()) {
             std::vector<mv::Barrier> barriers;
             std::set<std::string> producers, consumers;
             producers.insert(opIt->getName());
-            //consumers.insert(childOp->getName());
             mv::Barrier new_barrier(producers, consumers);
             barriers.push_back(new_barrier);
             insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
             mv::lp_scheduler::Control_Model_Barrier_Scheduler::renumberBarrierTasks(om);
             barrierOp = opIt.leftmostChild();
+            
+            /* Add new barrier dependency */
+            auto& barrierRef = opIt->get<mv::BarrierDependencies>("BarrierDeps");
+            barrierRef.addUpdateBarrier(barrierOp->get<mv::Barrier>("Barrier").getIndex());
+
+            /* Remove trailing tag as we will add barrier dependency */
+            if (opIt->hasAttr("trailing")) 
+                opIt->set<bool>("trailing", false);
             lastTask = true;
         }
 
@@ -141,26 +168,36 @@ void AddDPUTasksProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::Computation
             auto dmaName = opIt->getName();
             auto opId = opIt->get<unsigned>("opId");
             auto layerNumber = opIt->get<unsigned>("layerNumber");
-            /* TODO Make this condition better */
-            if (layerNumber == 2) {
-                auto parentDPU = findParentDPUorUPATask(opIt, cm);
+            
+            auto parentDPU = findParentDPUorUPATask(opIt, cm);
+            if (parentDPU == cm.opEnd()) {
                 /* Add DMA to the first parent barrier */
-                for(auto childOp = parentDPU.leftmostChild(); childOp != cm.opEnd(); ++childOp) {
-                    if (childOp->getOpType() == "BarrierTask") {
-                        AddDMAtoBarrier(childOp, dmaName+"_PROFBEGIN", 1, opId, model, profilingTensor, profilingDmas);
+                for(auto parentOp = opIt.leftmostParent(); parentOp != cm.opEnd(); ++parentOp) {
+                    if (parentOp->getOpType() == "BarrierTask") {
+                        AddDMAtoBarrier(parentOp, dmaName+"_PROFBEGIN", 1, 0, opId, model, profilingTensor, profilingDmas);
+                        TaskDMAMap[parentOp->getName()] = profilingDmas.size()-1;
                         break;
                     }
                 }
             }
 
+            unsigned parentDMA = 0;
+            if (parentDPU != cm.opEnd()) {
+                auto parentDMAit = TaskDMAMap.find(parentDPU->getName());
+                if (parentDMAit == TaskDMAMap.end() ) {
+                throw std::logic_error("Cannot find parent DMA for the DPU");
+                } else parentDMA = parentDMAit->second;
+            }
+
             layerNumber++;
             dmaName += (!lastTask) ? "_PROFMIDDLE" : "_PROFEND";
-            AddDMAtoBarrier(barrierOp, dmaName, layerNumber, opId, model, profilingTensor, profilingDmas);
+            AddDMAtoBarrier(barrierOp, dmaName, layerNumber, parentDMA, opId, model, profilingTensor, profilingDmas);
+            TaskDMAMap[opIt->getName()] = profilingDmas.size()-1;
         }
     }
 
     if (!profilingDmas.size()) {
-        //TODO maybe add accert here
+        throw std::logic_error("No profiling DMAs added during Task loop");
         return;
     }
     /*
@@ -192,13 +229,9 @@ void AddDPUTasksProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::Computation
     /* 
      * Create additional output from network 
      */
-#if 1
     auto profilingOutput = om.output("profilingOutput", ProfilingConcat, {"Default"}, true);
     auto profilingOutputTensor = dm.defineTensor("profilingOutput", ProfilingConcat->getShape(), ProfilingConcat->getDType(), ProfilingConcat->getOrder());
     ProfilingConcat->set<uint8_t>("outputIndex", om.getNetworkOutputs().size()-1);
-#else
-    auto profilingOutput = om.implicitOutput("profilingOutput", ProfilingConcat);
-#endif
     /* 
      * Execute postprocessing passes 
      */
@@ -211,5 +244,5 @@ void AddDPUTasksProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::Computation
 #endif
 
     /* Debug info */
-    std::cout << "Total ProgrammableOutput size: " << ProfilingConcat->size() << std::endl;
+    pass.log(mv::Logger::MessageType::Info,  "Total Profiling output size: " + std::to_string(ProfilingConcat->size()));
 }

@@ -6,7 +6,8 @@
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "verbose": "Error",
                 "barrier_index_assignment" : "Dynamic",
-                "default_tensor_placement" : "NNCMX"
+                "default_tensor_placement" : "NNCMX",
+                "PerformanceCounting" : false
             },
             "AssignInputNode",
             "AssignOutputNode",
@@ -178,13 +179,10 @@
               "real_physical_barriers": 32,
               "barrier_bound": 16,
               "producer_bound" : 256,
-              "remove_barriers_in_upa_tail" : false,
-              "remove_redundant_wait_barriers" : false
+              "remove_barriers_in_upa_tail" : true,
+              "remove_redundant_wait_barriers" : true
             },
-            {
-                "name" : "AddDPUTasksProfilingDMA",
-                "force_profiling" : false
-            },
+            "AddDPUTasksProfilingDMA",
             "LayoutDMA"
         ]
     },
