@@ -1,4 +1,12 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --convert-Nd-ops-to-4d %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --convert-shape-to-4d %s | FileCheck %s
+
+//
+// The 'convert-shape-to-4d' pass:
+//
+//   * Updates both Function bodies and Function prototypes.
+//   * It shouldn't touch user types defined in `IE.CNNNetwork`.
+//   * It should update types for `Constant` operation.
+//
 
 // CHECK-LABEL: @ConvertNDto4D
 module @ConvertNDto4D {

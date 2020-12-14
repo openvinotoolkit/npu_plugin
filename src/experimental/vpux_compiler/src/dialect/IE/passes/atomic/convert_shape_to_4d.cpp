@@ -18,6 +18,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -32,16 +33,21 @@
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/Passes.h>
 
-#define DEBUG_TYPE "convert_nd_ops_to_4d"
-#define TARGET_TENSOR_DIM 4
-
 using namespace vpux;
 
 namespace {
 
-class ConvertNDOpsTo4DPass final : public IE::ConvertNDOpsTo4DBase<ConvertNDOpsTo4DPass> {
+constexpr size_t TARGET_TENSOR_DIM = 4;
+
+//
+// ConvertShapeTo4DPass
+//
+
+class ConvertShapeTo4DPass final : public IE::ConvertShapeTo4DBase<ConvertShapeTo4DPass> {
 public:
-    explicit ConvertNDOpsTo4DPass(Logger log);
+    explicit ConvertShapeTo4DPass(Logger log): _log(log) {
+        _log.setName(Base::getArgumentName());
+    }
 
 public:
     void runOnOperation() final;
@@ -51,26 +57,25 @@ public:
     class ConstantOpConverter;
     class GenericOpConverter;
 
+public:
+    static const mlir::PatternBenefit genericBenefit;
+    static const mlir::PatternBenefit specificBenefit;
+
 private:
     void passBody();
 
 private:
     Logger _log;
-    mlir::OpPassManager _cleanUpIR;
 };
 
-ConvertNDOpsTo4DPass::ConvertNDOpsTo4DPass(Logger log)
-        : _log(log), _cleanUpIR(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
-    _log.setName(Base::getArgumentName());
+const mlir::PatternBenefit ConvertShapeTo4DPass::genericBenefit(1);
+const mlir::PatternBenefit ConvertShapeTo4DPass::specificBenefit(2);
 
-    _cleanUpIR.addPass(mlir::createCanonicalizerPass());
-}
-
-void ConvertNDOpsTo4DPass::runOnOperation() {
+void ConvertShapeTo4DPass::runOnOperation() {
     try {
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "ConvertNDOpsTo4DPass failed : {0}", e.what());
+        printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
@@ -79,94 +84,66 @@ void ConvertNDOpsTo4DPass::runOnOperation() {
 // FuncOpConverter
 //
 
-class ConvertNDOpsTo4DPass::FuncOpConverter final : public mlir::OpConversionPattern<mlir::FuncOp> {
+class ConvertShapeTo4DPass::FuncOpConverter final : public mlir::OpConversionPattern<mlir::FuncOp> {
 public:
-    using mlir::OpConversionPattern<mlir::FuncOp>::OpConversionPattern;
+    FuncOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<mlir::FuncOp>(typeConverter, ctx, specificBenefit), _log(log) {
+    }
 
 public:
     mlir::LogicalResult matchAndRewrite(mlir::FuncOp funcOp, ArrayRef<mlir::Value> operands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
 };
 
-mlir::LogicalResult ConvertNDOpsTo4DPass::FuncOpConverter::matchAndRewrite(
+mlir::LogicalResult ConvertShapeTo4DPass::FuncOpConverter::matchAndRewrite(
         mlir::FuncOp funcOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
-    LLVM_DEBUG(llvm::dbgs() << "ConvertNDOpsTo4DPass::FuncOpConverter\n");
-    LLVM_DEBUG({
-        llvm::dbgs() << "- Orig FuncOp:  ";
-        funcOp.dump();
-    });
-
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
-    const auto funcType = funcOp.getType();
-
-    mlir::TypeConverter::SignatureConversion conversion(funcType.getNumInputs());
-    for (const auto& p : funcType.getInputs() | indexed) {
-        const auto newType = converter->convertType(p.value());
-        conversion.addInputs(checked_cast<uint32_t>(p.index()), newType);
-    }
-
-    SmallVector<mlir::Type, 1> newResultTypes;
-    newResultTypes.reserve(funcOp.getNumResults());
-    for (const auto& outType : funcType.getResults()) {
-        newResultTypes.push_back(converter->convertType(outType));
-    }
-
-    if (mlir::failed(rewriter.convertRegionTypes(&funcOp.getBody(), *converter, &conversion))) {
-        return printTo(funcOp.emitError(), "Failed to convert Function arguments");
-    }
-
-    rewriter.updateRootInPlace(funcOp, [&]() {
-        funcOp.setType(rewriter.getFunctionType(conversion.getConvertedTypes(), newResultTypes));
-    });
-    LLVM_DEBUG({
-        llvm::dbgs() << "- New FuncOp:  ";
-        funcOp.dump();
-    });
-    return mlir::success();
+    return rewriteFuncPrototype(funcOp, *converter, rewriter, _log);
 }
 
 //
 // ConstantOpConverter
 //
 
-class ConvertNDOpsTo4DPass::ConstantOpConverter final : public mlir::OpConversionPattern<mlir::ConstantOp> {
+class ConvertShapeTo4DPass::ConstantOpConverter final : public mlir::OpConversionPattern<mlir::ConstantOp> {
 public:
-    ConstantOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* context,
-                        mlir::PatternBenefit benefit = 2)
-            : mlir::OpConversionPattern<mlir::ConstantOp>(typeConverter, context, benefit) {
+    ConstantOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<mlir::ConstantOp>(typeConverter, ctx, specificBenefit), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(mlir::ConstantOp origOp, ArrayRef<mlir::Value> operands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
 };
 
-mlir::LogicalResult ConvertNDOpsTo4DPass::ConstantOpConverter::matchAndRewrite(
-        mlir::ConstantOp origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
-    LLVM_DEBUG(llvm::dbgs() << "ConvertNDOpsTo4DPass::ConstantOpConverter\n");
-    LLVM_DEBUG({
-        llvm::dbgs() << "- Orig ConstantOp:  ";
-        origOp.dump();
-    });
+mlir::LogicalResult ConvertShapeTo4DPass::ConstantOpConverter::matchAndRewrite(
+        mlir::ConstantOp origOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Process Constant Operation '{0}'", origOp);
 
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
-    VPUX_THROW_UNLESS(operands.empty(), "Wrong operands size : {0}", operands.size());
-
-    auto origTensorType = origOp.getResult().getType().dyn_cast<mlir::RankedTensorType>();
+    const auto origTensorType = origOp.getResult().getType().dyn_cast<mlir::RankedTensorType>();
     if (origTensorType == nullptr || origTensorType.getShape().size() == TARGET_TENSOR_DIM) {
+        _log.trace("Unsupported result type '{0}'", origOp.getResult().getType());
         return mlir::failure();
     }
 
     auto origContent = origOp.value().dyn_cast<mlir::DenseElementsAttr>();
     if (origContent == nullptr) {
+        _log.trace("Unsupported content attribute '{0}'", origOp.value());
         return mlir::failure();
     }
 
-    auto newType = converter->convertType(origTensorType).cast<mlir::ShapedType>();
+    const auto newType = converter->convertType(origTensorType).cast<mlir::ShapedType>();
 
     mlir::DenseElementsAttr newContent = origContent.reshape(newType);
 
@@ -176,11 +153,6 @@ mlir::LogicalResult ConvertNDOpsTo4DPass::ConstantOpConverter::matchAndRewrite(
     auto* newOp = dialect->materializeConstant(rewriter, newContent, newType, origOp.getLoc());
     rewriter.replaceOp(origOp, newOp->getResults());
 
-    LLVM_DEBUG({
-        llvm::dbgs() << "- New ConstantOp:  ";
-        newOp->dump();
-    });
-
     return mlir::success();
 }
 
@@ -188,24 +160,23 @@ mlir::LogicalResult ConvertNDOpsTo4DPass::ConstantOpConverter::matchAndRewrite(
 // GenericOpConverter
 //
 
-class ConvertNDOpsTo4DPass::GenericOpConverter final : public mlir::ConversionPattern {
+class ConvertShapeTo4DPass::GenericOpConverter final : public mlir::ConversionPattern {
 public:
-    GenericOpConverter(mlir::TypeConverter& shapeConverter, mlir::PatternBenefit benefit = 1)
-            : mlir::ConversionPattern(benefit, shapeConverter, MatchAnyOpTypeTag{}) {
+    GenericOpConverter(mlir::TypeConverter& shapeConverter, Logger log)
+            : mlir::ConversionPattern(genericBenefit, shapeConverter, MatchAnyOpTypeTag{}), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> operands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
 };
 
-mlir::LogicalResult ConvertNDOpsTo4DPass::GenericOpConverter::matchAndRewrite(
+mlir::LogicalResult ConvertShapeTo4DPass::GenericOpConverter::matchAndRewrite(
         mlir::Operation* origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
-    LLVM_DEBUG(llvm::dbgs() << "ConvertNDOpsTo4DPass::GenericConverter\n");
-    LLVM_DEBUG({
-        llvm::dbgs() << "- Orig OP:  ";
-        origOp->dump();
-    });
+    _log.trace("Process Operation '{0}'", *origOp);
 
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
@@ -230,27 +201,26 @@ mlir::LogicalResult ConvertNDOpsTo4DPass::GenericOpConverter::matchAndRewrite(
     }
     rewriter.replaceOp(origOp, newOp->getResults());
 
-    LLVM_DEBUG({
-        llvm::dbgs() << "- New OP:  ";
-        newOp->dump();
-    });
-
     return mlir::success();
 }
 
-void ConvertNDOpsTo4DPass::passBody() {
+//
+// passBody
+//
+
+void ConvertShapeTo4DPass::passBody() {
     auto& ctx = getContext();
 
     mlir::TypeConverter typeConverter;
     typeConverter.addConversion([](mlir::RankedTensorType tensor) {
-        if (tensor.getShape().size() == TARGET_TENSOR_DIM)
+        if (tensor.getShape().size() == TARGET_TENSOR_DIM) {
             return tensor;
-        else if (tensor.getShape().size() > TARGET_TENSOR_DIM)
-            VPUX_THROW("# dims > 4 is not supporeted");
-        else {
-            int32_t nDimsToAdd = TARGET_TENSOR_DIM - (int32_t)tensor.getShape().size();
+        } else if (tensor.getShape().size() > TARGET_TENSOR_DIM) {
+            VPUX_THROW("Tensors with rank > 4 is not supporeted");
+        } else {
+            const auto nDimsToAdd = TARGET_TENSOR_DIM - tensor.getShape().size();
             SmallVector<int64_t, TARGET_TENSOR_DIM> newShape(nDimsToAdd, 1);
-            for (auto& s : tensor.getShape()) {
+            for (auto s : tensor.getShape()) {
                 newShape.push_back(s);
             }
             return mlir::RankedTensorType::get(newShape, tensor.getElementType());
@@ -259,12 +229,12 @@ void ConvertNDOpsTo4DPass::passBody() {
     typeConverter.addSourceMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
                                               mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
         VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
-        return builder.create<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
+        return builder.createOrFold<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
     });
     typeConverter.addTargetMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
                                               mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
         VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
-        return builder.create<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
+        return builder.createOrFold<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
     });
 
     const auto isLegalOp = [&](mlir::Operation* op) {
@@ -282,22 +252,24 @@ void ConvertNDOpsTo4DPass::passBody() {
     });
 
     mlir::OwningRewritePatternList patterns;
-    patterns.insert<FuncOpConverter>(typeConverter, &ctx);
-    patterns.insert<ConstantOpConverter>(typeConverter, &ctx);
-    patterns.insert<GenericOpConverter>(typeConverter);
+    patterns.insert<FuncOpConverter>(typeConverter, &ctx, _log.nest());
+    patterns.insert<ConstantOpConverter>(typeConverter, &ctx, _log.nest());
+    patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
+    mlir::linalg::TensorReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto module = getOperation();
 
     if (mlir::failed(mlir::applyPartialConversion(module.getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
     }
-
-    if (mlir::failed(runPipeline(_cleanUpIR, module))) {
-        signalPassFailure();
-    }
 }
+
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IE::createConvertNDOpsTo4DPass(Logger log) {
-    return std::make_unique<ConvertNDOpsTo4DPass>(log);
+//
+// createConvertShapeTo4DPass
+//
+
+std::unique_ptr<mlir::Pass> vpux::IE::createConvertShapeTo4DPass(Logger log) {
+    return std::make_unique<ConvertShapeTo4DPass>(log);
 }

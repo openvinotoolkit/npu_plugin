@@ -18,6 +18,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
@@ -31,9 +32,7 @@
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <mlir/Transforms/Passes.h>
 
 #include <precision_utils.h>
 
@@ -43,9 +42,15 @@ using namespace vpux;
 
 namespace {
 
-class AdjustPrecisionForVPUPass final : public IE::AdjustPrecisionForVPUBase<AdjustPrecisionForVPUPass> {
+//
+// ConvertPrecisionToFP16Pass
+//
+
+class ConvertPrecisionToFP16Pass final : public IE::ConvertPrecisionToFP16Base<ConvertPrecisionToFP16Pass> {
 public:
-    explicit AdjustPrecisionForVPUPass(Logger log);
+    explicit ConvertPrecisionToFP16Pass(Logger log): _log(log) {
+        _log.setName(Base::getArgumentName());
+    }
 
 public:
     void runOnOperation() final;
@@ -55,105 +60,101 @@ public:
     class ConstantOpConverter;
     class GenericOpConverter;
 
+public:
+    static const mlir::PatternBenefit genericBenefit;
+    static const mlir::PatternBenefit specificBenefit;
+
 private:
     void passBody();
 
 private:
     Logger _log;
-    mlir::OpPassManager _cleanUpIR;
 };
 
-AdjustPrecisionForVPUPass::AdjustPrecisionForVPUPass(Logger log)
-        : _log(log), _cleanUpIR(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
-    _log.setName(Base::getArgumentName());
+const mlir::PatternBenefit ConvertPrecisionToFP16Pass::genericBenefit(1);
+const mlir::PatternBenefit ConvertPrecisionToFP16Pass::specificBenefit(2);
 
-    _cleanUpIR.addPass(mlir::createCanonicalizerPass());
+void ConvertPrecisionToFP16Pass::runOnOperation() {
+    try {
+        passBody();
+    } catch (const std::exception& e) {
+        printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
+        signalPassFailure();
+    }
 }
 
 //
 // FuncOpConverter
 //
 
-class AdjustPrecisionForVPUPass::FuncOpConverter final : public mlir::OpConversionPattern<mlir::FuncOp> {
+class ConvertPrecisionToFP16Pass::FuncOpConverter final : public mlir::OpConversionPattern<mlir::FuncOp> {
 public:
-    using mlir::OpConversionPattern<mlir::FuncOp>::OpConversionPattern;
+    FuncOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<mlir::FuncOp>(typeConverter, ctx, specificBenefit), _log(log) {
+    }
 
 public:
     mlir::LogicalResult matchAndRewrite(mlir::FuncOp funcOp, ArrayRef<mlir::Value> operands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
 };
 
-mlir::LogicalResult AdjustPrecisionForVPUPass::FuncOpConverter::matchAndRewrite(
+mlir::LogicalResult ConvertPrecisionToFP16Pass::FuncOpConverter::matchAndRewrite(
         mlir::FuncOp funcOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
-    const auto funcType = funcOp.getType();
-
-    mlir::TypeConverter::SignatureConversion conversion(funcType.getNumInputs());
-    for (const auto& p : funcType.getInputs() | indexed) {
-        const auto newType = converter->convertType(p.value());
-        conversion.addInputs(checked_cast<uint32_t>(p.index()), newType);
-    }
-
-    SmallVector<mlir::Type, 1> newResultTypes;
-    newResultTypes.reserve(funcOp.getNumResults());
-    for (const auto& outType : funcType.getResults()) {
-        newResultTypes.push_back(converter->convertType(outType));
-    }
-
-    if (mlir::failed(rewriter.convertRegionTypes(&funcOp.getBody(), *converter, &conversion))) {
-        return printTo(funcOp.emitError(), "Failed to convert Function arguments");
-    }
-
-    rewriter.updateRootInPlace(funcOp, [&]() {
-        funcOp.setType(rewriter.getFunctionType(conversion.getConvertedTypes(), newResultTypes));
-    });
-
-    return mlir::success();
+    return rewriteFuncPrototype(funcOp, *converter, rewriter, _log);
 }
 
 //
 // ConstantOpConverter
 //
 
-class AdjustPrecisionForVPUPass::ConstantOpConverter final : public mlir::OpConversionPattern<mlir::ConstantOp> {
+class ConvertPrecisionToFP16Pass::ConstantOpConverter final : public mlir::OpConversionPattern<mlir::ConstantOp> {
 public:
-    ConstantOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* context,
-                        mlir::PatternBenefit benefit = 2)
-            : mlir::OpConversionPattern<mlir::ConstantOp>(typeConverter, context, benefit) {
+    ConstantOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<mlir::ConstantOp>(typeConverter, ctx, specificBenefit), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(mlir::ConstantOp origOp, ArrayRef<mlir::Value> operands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
 };
 
-mlir::LogicalResult AdjustPrecisionForVPUPass::ConstantOpConverter::matchAndRewrite(
-        mlir::ConstantOp origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertPrecisionToFP16Pass::ConstantOpConverter::matchAndRewrite(
+        mlir::ConstantOp origOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Process Constant Operation '{0}'", origOp);
+
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
-    VPUX_THROW_UNLESS(operands.empty(), "Wrong operands size : {0}", operands.size());
-
-    auto origTensorType = origOp.getResult().getType().dyn_cast<mlir::RankedTensorType>();
+    const auto origTensorType = origOp.getResult().getType().dyn_cast<mlir::RankedTensorType>();
     if (origTensorType == nullptr) {
+        _log.trace("Unsupported result type '{0}'", origOp.getResult().getType());
         return mlir::failure();
     }
 
-    auto origElemType = origTensorType.getElementType();
+    const auto origElemType = origTensorType.getElementType();
     if (!origElemType.isF32()) {
+        _log.trace("Unsupported result precision '{0}'", origElemType);
         return mlir::failure();
     }
 
-    auto origContent = origOp.value().dyn_cast<mlir::DenseElementsAttr>();
+    const auto origContent = origOp.value().dyn_cast<mlir::DenseElementsAttr>();
     if (origContent == nullptr) {
+        _log.trace("Unsupported content attribute '{0}'", origOp.value());
         return mlir::failure();
     }
 
-    auto newType = converter->convertType(origTensorType).cast<mlir::ShapedType>();
+    const auto newType = converter->convertType(origTensorType).cast<mlir::ShapedType>();
 
-    auto totalNumElems = origTensorType.getNumElements();
+    const auto totalNumElems = origTensorType.getNumElements();
 
     mlir::DenseElementsAttr newContent;
     if (origContent.isSplat()) {
@@ -184,19 +185,24 @@ mlir::LogicalResult AdjustPrecisionForVPUPass::ConstantOpConverter::matchAndRewr
 // GenericOpConverter
 //
 
-class AdjustPrecisionForVPUPass::GenericOpConverter final : public mlir::ConversionPattern {
+class ConvertPrecisionToFP16Pass::GenericOpConverter final : public mlir::ConversionPattern {
 public:
-    GenericOpConverter(mlir::TypeConverter& typeConverter, mlir::PatternBenefit benefit = 1)
-            : mlir::ConversionPattern(benefit, typeConverter, MatchAnyOpTypeTag{}) {
+    GenericOpConverter(mlir::TypeConverter& typeConverter, Logger log)
+            : mlir::ConversionPattern(genericBenefit, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> operands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
 };
 
-mlir::LogicalResult AdjustPrecisionForVPUPass::GenericOpConverter::matchAndRewrite(
+mlir::LogicalResult ConvertPrecisionToFP16Pass::GenericOpConverter::matchAndRewrite(
         mlir::Operation* origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", *origOp);
+
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
@@ -217,27 +223,16 @@ mlir::LogicalResult AdjustPrecisionForVPUPass::GenericOpConverter::matchAndRewri
 }
 
 //
-// IEConvertToFP16Pass::runOnOperation
+// passBody
 //
 
-void AdjustPrecisionForVPUPass::runOnOperation() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "AdjustPrecisionForVPUPass failed : {0}", e.what());
-        signalPassFailure();
-    }
-}
-
-void AdjustPrecisionForVPUPass::passBody() {
+void ConvertPrecisionToFP16Pass::passBody() {
     auto& ctx = getContext();
 
     mlir::TypeConverter typeConverter;
     typeConverter.addConversion([](mlir::RankedTensorType tensor) {
         if (tensor.getElementType().isF32()) {
             return mlir::RankedTensorType::get(tensor.getShape(), mlir::Float16Type::get(tensor.getContext()));
-        } else if (tensor.getElementType().isIntOrIndex()) {
-            return mlir::RankedTensorType::get(tensor.getShape(), getSInt32Type(tensor.getContext()));
         } else {
             return tensor;
         }
@@ -268,22 +263,23 @@ void AdjustPrecisionForVPUPass::passBody() {
     });
 
     mlir::OwningRewritePatternList patterns;
-    patterns.insert<FuncOpConverter>(typeConverter, &ctx);
-    patterns.insert<ConstantOpConverter>(typeConverter, &ctx);
-    patterns.insert<GenericOpConverter>(typeConverter);
+    patterns.insert<FuncOpConverter>(typeConverter, &ctx, _log.nest());
+    patterns.insert<ConstantOpConverter>(typeConverter, &ctx, _log.nest());
+    patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
+    IE::ConvertOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto module = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(module.getOperation(), target, std::move(patterns)))) {
-        signalPassFailure();
-    }
-
-    if (mlir::failed(runPipeline(_cleanUpIR, module))) {
         signalPassFailure();
     }
 }
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IE::createAdjustPrecisionForVPUPass(Logger log) {
-    return std::make_unique<AdjustPrecisionForVPUPass>(log);
+//
+// createConvertPrecisionToFP16Pass
+//
+
+std::unique_ptr<mlir::Pass> vpux::IE::createConvertPrecisionToFP16Pass(Logger log) {
+    return std::make_unique<ConvertPrecisionToFP16Pass>(log);
 }

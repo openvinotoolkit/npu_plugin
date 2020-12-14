@@ -18,38 +18,13 @@
 
 #include "vpux/utils/core/logger.hpp"
 
-#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/IR/BuiltinOps.h>
-#include <mlir/Pass/Pass.h>
-
-#include <memory>
+#include <mlir/IR/PatternMatch.h>
+#include <mlir/Transforms/DialectConversion.h>
 
 namespace vpux {
-namespace IE {
 
-//
-// ConvertPrecisionToFP16
-//
+mlir::LogicalResult rewriteFuncPrototype(mlir::FuncOp funcOp, mlir::TypeConverter& typeConverter,
+                                         mlir::ConversionPatternRewriter& rewriter, Logger log = Logger::global());
 
-std::unique_ptr<mlir::Pass> createConvertPrecisionToFP16Pass(Logger log = Logger::global());
-
-//
-// ConvertShapeTo4D
-//
-
-std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
-
-//
-// Generated
-//
-
-#define GEN_PASS_CLASSES
-#include <vpux/compiler/dialect/IE/generated/passes.hpp.inc>
-#undef GEN_PASS_CLASSES
-
-#define GEN_PASS_REGISTRATION
-#include <vpux/compiler/dialect/IE/generated/passes.hpp.inc>
-#undef GEN_PASS_REGISTRATION
-
-}  // namespace IE
 }  // namespace vpux

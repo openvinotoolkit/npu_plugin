@@ -39,13 +39,6 @@ public:
     void runOnOperation() final;
 
 private:
-    struct DataInfo final {
-        mlir::StringAttr name;
-        mlir::TypeAttr precision;
-        mlir::AffineMapAttr layout;
-    };
-
-private:
     void passBody();
 
 private:

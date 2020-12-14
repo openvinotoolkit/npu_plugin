@@ -97,7 +97,7 @@ SmallVector<mlir::Value, 1> BufferizeIEPass::allocateResults(mlir::Location loc,
 
 class BufferizeIEPass::LayerRewrite final : public mlir::ConversionPattern {
 public:
-    explicit LayerRewrite(mlir::TypeConverter& typeConverter, Logger log)
+    LayerRewrite(mlir::TypeConverter& typeConverter, Logger log)
             : mlir::ConversionPattern(genericBenefit, typeConverter, mlir::Pattern::MatchAnyOpTypeTag{}), _log(log) {
     }
 

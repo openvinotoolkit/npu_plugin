@@ -21,37 +21,37 @@ include "mlir/Pass/PassBase.td"
 include "mlir/Dialect/Linalg/IR/LinalgOps.td"
 
 //
-// AdjustPrecisionForVPU
+// ConvertPrecisionToFP16
 //
 
-def AdjustPrecisionForVPU : Pass<"adjust-precision-for-vpu", "mlir::ModuleOp"> {
-    let summary = "Adjusts the IE CNN Network layers inputs/outputs for VPU";
+def ConvertPrecisionToFP16 : Pass<"convert-precision-to-fp16", "mlir::ModuleOp"> {
+    let summary = "Convert tensors precision from FP32 to FP16";
 
     let description = [{
-        This pass replaces all FP32 with FP16 and replaces all Integer types with I32.
+        This "atomic" pass replaces all FP32 tensors with FP16.
+        It updates both function bodies as well as Function signatures.
     }];
 
-    let constructor = "vpux::IE::createAdjustPrecisionForVPUPass()";
+    let constructor = "vpux::IE::createConvertPrecisionToFP16Pass()";
 }
 
 //
-// ConvertNDOpsTo4D
+// ConvertShapeTo4D
 //
 
-def ConvertNDOpsTo4D : Pass<"convert-Nd-ops-to-4d", "mlir::ModuleOp"> {
-    let summary = "Convert input/output types to 4D tensors";
+def ConvertShapeTo4D : Pass<"convert-shape-to-4d", "mlir::ModuleOp"> {
+    let summary = "Convert tensors shapes to 4D";
 
     let description = [{
-        This pass replaces all ND operations to 4d tensor. Tensor > 4D will be treated as an error.
+        This "atomic" pass replaces all ND tensor with 4D analogues.
+        Tensor with rank greater than 4 will be treated as an error.
     }];
 
-    let constructor = "vpux::IE::createConvertNDOpsTo4DPass()";
+    let constructor = "vpux::IE::createConvertShapeTo4DPass()";
 
     let dependentDialects = [
         "mlir::linalg::LinalgDialect"
     ];
-
-
 }
 
 #endif

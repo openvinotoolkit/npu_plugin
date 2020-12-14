@@ -1,4 +1,12 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --adjust-precision-for-vpu %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --convert-precision-to-fp16 %s | FileCheck %s
+
+//
+// The 'convert-precision-to-fp16' pass:
+//
+//   * Updates both Function bodies and Function prototypes.
+//   * It shouldn't touch user types defined in `IE.CNNNetwork`.
+//   * It should update types for `Constant` operation.
+//
 
 // CHECK-LABEL: @FP32toFP16
 module @FP32toFP16 {
