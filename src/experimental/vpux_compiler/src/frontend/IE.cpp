@@ -108,34 +108,31 @@ private:
     Logger _log;
 
     NodeOutputMap _importedVals;
-
-private:
-    using Callback = void (NGraphImporter::*)(mlir::OpBuilder& builder, const OrigNodePtr& origNode);
-    using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
-
-    static const DispatchMap dispatchMap;
 };
+
+mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
+    SmallVector<mlir::Type, 1> inputTypes;
 
 #define MAP_ENTRY(_NodeType_) \
     { _NodeType_::type_info, &NGraphImporter::parseDispatch<_NodeType_> }
 
-const NGraphImporter::DispatchMap NGraphImporter::dispatchMap{
-        {ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
-        {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
-
-        MAP_ENTRY(ngraph::opset1::Constant),
-        MAP_ENTRY(ngraph::opset1::Softmax),
-        MAP_ENTRY(ngraph::opset1::Tile),
-        MAP_ENTRY(ngraph::opset1::Split),
-        MAP_ENTRY(ngraph::opset1::Power),
-        MAP_ENTRY(ngraph::opset1::Relu),
-        MAP_ENTRY(ngraph::opset1::MaxPool),
-        MAP_ENTRY(ngraph::opset1::Gather),
-        MAP_ENTRY(ngraph::opset1::Clamp)};
-
+    using Callback = void (NGraphImporter::*)(mlir::OpBuilder& builder, const OrigNodePtr& origNode);
+    using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
+    static const DispatchMap dispatchMap{
+            {ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
+            {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
+            MAP_ENTRY(ngraph::opset1::Constant),
+            MAP_ENTRY(ngraph::opset1::Softmax),
+            MAP_ENTRY(ngraph::opset1::Tile),
+            MAP_ENTRY(ngraph::opset1::Split),
+            MAP_ENTRY(ngraph::opset1::Power),
+            MAP_ENTRY(ngraph::opset1::Relu),
+            MAP_ENTRY(ngraph::opset1::MaxPool),
+            MAP_ENTRY(ngraph::opset1::Gather),
+            MAP_ENTRY(ngraph::opset1::Clamp)
+        };
 #undef MAP_ENTRY
-mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
-    SmallVector<mlir::Type, 1> inputTypes;
+
     inputTypes.reserve(_netGraph->get_parameters().size());
     for (const auto& param : _netGraph->get_parameters()) {
         inputTypes.push_back(importTensor(param->get_partial_shape(), param->get_element_type()));
