@@ -225,7 +225,7 @@ static void addBarriers(mv::ComputationModel& model, std::vector<mv::Barrier>& b
 
 }
 
-static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, const mv::Element& passDesc, const std::vector<mv::Barrier>& barriers)
+void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, const mv::Element& passDesc, const std::vector<mv::Barrier>& barriers)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);

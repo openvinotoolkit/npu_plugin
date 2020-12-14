@@ -925,7 +925,9 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
             auto destOp = implicitOutputOps[i];
             auto outputIt = destOp->getInputTensor(0);
             // Rename output tensor - same as output operation name
-            outputIt->setName(destOp->get("networkOutputName"));
+            if (destOp->hasAttr("networkOutputName")) {
+                outputIt->setName(destOp->get("networkOutputName"));
+            } else outputIt->setName(destOp->getName());
             toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, outputIt);
             cm.bufferMap().addOutput(outputIt->getName(), outputIt->getOrder(), outputIt->getShape(), outputIt->getDType());
         }
@@ -1244,7 +1246,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
     else if(taskType == "DMATask")
     {
         auto direction = opIt->get<mv::DmaDirection>("direction");
-        if(direction == mv::DmaDirectionEnum::NNCMX2UPACMX ||
+        if (direction == mv::DmaDirectionEnum::HW2DDR)
+        {
+            toBuild = buildHWDMATaskT(cm, compilationDescriptor, opIt);
+        }
+        else if(direction == mv::DmaDirectionEnum::NNCMX2UPACMX ||
            direction == mv::DmaDirectionEnum::UPACMX2NNCMX ||
            direction == mv::DmaDirectionEnum::DDR2UPACMX   ||
            direction == mv::DmaDirectionEnum::UPACMX2DDR)
@@ -1626,6 +1632,53 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         }
         return toReturn;
     }
+}
+
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildHWDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    mv::DataModel dm(cm);
+    mv::OpModel om(cm);
+
+    auto inputTensor = opIt->getInputTensor(0);
+    auto outputTensor = opIt->getOutputTensor(0);
+    auto inputData = inputTensor->getData()[0];
+
+    auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
+    if(tensorAllocatorName == outputTensor->get<std::set<std::string>>("allocators").end()) {
+        throw mv::ArgumentError(om, "buildHWDMATaskT", "0", "No tensor allocators found");
+    }
+
+#if 0
+    if (*tensorAllocatorName == "ProgrammableOutput")
+        //Only if we are DMA-ing to programmable output check if we need to padd it
+        padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
+#endif
+
+    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
+    std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+    std::unique_ptr<MVCNN::NNDMATaskT> tmp = std::unique_ptr<MVCNN::NNDMATaskT>(new MVCNN::NNDMATaskT());
+    toPush->task.type = MVCNN::SpecificTask_NNDMATask;
+    //Output
+    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
+    //Input
+    tmp->src = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
+    tmp->src->data_dtype = convertDtype(inputTensor->getDType());
+    tmp->src->name = inputTensor->getName();
+    /* The size of HW DMA operation is hardcoded to 4 bytes */
+    tmp->src->dimensions = std::vector<uint32_t>{1,1,1,1};
+    tmp->src->strides = std::vector<float>{4,4,4,4,4};
+    tmp->src->locale = (MVCNN::MemoryLocation)9;
+    //tmp->src->locale = MVCNN::MemoryLocation_ProgrammableInput;
+    tmp->src->locale_index = std::vector<unsigned int>(1,0);
+    tmp->src->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
+    tmp->src->data->data_index = int64_t(inputData);
+    tmp->src->data_dtype = MVCNN::DType_U32;
+
+    //tmp->port = port;
+    toPush->task.value = tmp.release();
+    toReturn.push_back(std::move(toPush));
+   
+    return toReturn;
 }
 
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE1TaskT(ComputationModel& /*cm*/, mv::Element& /*compilationDescriptor*/, Control::OpListIterator /*opIt*/)

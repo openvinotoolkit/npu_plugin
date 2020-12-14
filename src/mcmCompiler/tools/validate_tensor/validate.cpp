@@ -979,6 +979,12 @@ int main(int argc, char *argv[])
         return FAIL_GENERAL;
     }
 
+    if(std::getenv("MCM_HOME") == NULL)
+    {
+        std::cout << "ERROR! Environmental variable MCM_HOME must be set with path to mcmCompiler subfolder" << std::endl << std::endl;
+        return FAIL_GENERAL;
+    }
+
     if (!ParseAndCheckCommandLine(argc, argv))
         return FAIL_ERROR; 
 

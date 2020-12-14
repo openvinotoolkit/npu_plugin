@@ -70,8 +70,8 @@ mv::Data::OpListIterator findChildDPUorUPATaskOp(mv::ComputationModel& model, mv
 
     while(!(childOp->getOpType() == "DPUTask") && !(childOp->getOpType() == "UPATask"))
     { 
-        
-
+        if (!childOp.leftmostChild())
+            return om.getOutput();
         childOp = om.getOp(childOp.leftmostChild()->getName());
         if(childOp->getOpType() == "DPUTask" || childOp->getOpType() == "UPATask")
             return om.getOp(childOp->getName());
