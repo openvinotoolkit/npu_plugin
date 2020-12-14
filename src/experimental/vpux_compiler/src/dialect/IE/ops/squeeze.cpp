@@ -73,11 +73,3 @@ mlir::LogicalResult vpux::IE::SqueezeOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), inDataType.getElementType());
     return mlir::success();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::SqueezeOp::getInputs() {
-    return {input1(), input2()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::SqueezeOp::getOutputs() {
-    return {output()};
-}

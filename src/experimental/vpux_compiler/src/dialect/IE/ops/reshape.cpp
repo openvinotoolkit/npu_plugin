@@ -96,11 +96,3 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
 
     return mlir::failure();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::ReshapeOp::getInputs() {
-    return {input1(), input2()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::ReshapeOp::getOutputs() {
-    return {output()};
-}

@@ -38,14 +38,6 @@ mlir::LogicalResult vpux::IE::ConvertOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-SmallVector<mlir::Value, 4> vpux::IE::ConvertOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::ConvertOp::getOutputs() {
-    return {output()};
-}
-
 namespace IE_Convert {
 namespace {
 

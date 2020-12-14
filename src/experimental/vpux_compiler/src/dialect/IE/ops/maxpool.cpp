@@ -81,11 +81,3 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::MaxPoolOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::MaxPoolOp::getOutputs() {
-    return {output()};
-}

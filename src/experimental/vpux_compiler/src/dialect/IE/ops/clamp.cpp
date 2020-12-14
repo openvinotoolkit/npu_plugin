@@ -38,11 +38,3 @@ mlir::LogicalResult vpux::IE::ClampOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::ClampOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::ClampOp::getOutputs() {
-    return {output()};
-}

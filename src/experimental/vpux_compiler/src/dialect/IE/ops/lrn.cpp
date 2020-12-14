@@ -35,11 +35,3 @@ mlir::LogicalResult vpux::IE::LRNOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::LRNOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::LRNOp::getOutputs() {
-    return {output()};
-}

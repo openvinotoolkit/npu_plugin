@@ -31,12 +31,18 @@ def LayerInterface : OpInterface<"LayerInterface"> {
     let methods = [
         InterfaceMethod<
             "Get all inputs (tensors or memory buffers) for the Operation",
-            "vpux::SmallVector<mlir::Value, 4>", "getInputs", (ins)
+            "vpux::SmallVector<mlir::Value, 4>", "getInputs", (ins),
+            [{
+                return $_op.getInputs();
+            }]
         >,
 
         InterfaceMethod<
             "Get the outputs (tensors or memory buffers) for the Operation",
-            "vpux::SmallVector<mlir::Value, 1>", "getOutputs", (ins)
+            "vpux::SmallVector<mlir::Value, 1>", "getOutputs", (ins),
+            [{
+                return $_op.getOutputs();
+            }]
         >,
     ];
 
@@ -58,9 +64,8 @@ def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
         InterfaceMethod<
             "Get the source Value for the Convert Operation",
             "mlir::Value", "input", (ins),
-            [{}],
             [{
-                return $_op.getInputs()[0];
+                return $_op.input();
             }]
         >,
         InterfaceMethod<
@@ -75,9 +80,8 @@ def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
         InterfaceMethod<
             "Get destination Value for the Convert Operation",
             "mlir::Value", "output", (ins),
-            [{}],
             [{
-                return $_op.getOutputs()[0];
+                return $_op.output();
             }]
         >,
         InterfaceMethod<
@@ -92,6 +96,16 @@ def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
 
     let verify = [{
         return vpux::details::verifyConvertLayer($_op);
+    }];
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value, 4> getInputs() {
+            return { $_op.input() };
+        }
+
+        vpux::SmallVector<mlir::Value, 1> getOutputs() {
+            return { $_op.output() };
+        }
     }];
 }
 
@@ -108,9 +122,8 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
         InterfaceMethod<
             "Get the source Value for the Convert Operation",
             "mlir::Value", "input", (ins),
-            [{}],
             [{
-                return $_op.getInputs()[0];
+                return $_op.input();
             }]
         >,
         InterfaceMethod<
@@ -125,9 +138,8 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
         InterfaceMethod<
             "Get destination Value for the Convert Operation",
             "mlir::Value", "output", (ins),
-            [{}],
             [{
-                return $_op.getOutputs()[0];
+                return $_op.output();
             }]
         >,
         InterfaceMethod<
@@ -158,6 +170,16 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
 
     let verify = [{
         return vpux::details::verifySoftMaxLayer($_op);
+    }];
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value, 4> getInputs() {
+            return { $_op.input() };
+        }
+
+        vpux::SmallVector<mlir::Value, 1> getOutputs() {
+            return { $_op.output() };
+        }
     }];
 }
 

@@ -64,11 +64,3 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::GatherOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::GatherOp::getOutputs() {
-    return {output()};
-}

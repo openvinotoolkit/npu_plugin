@@ -41,11 +41,3 @@ mlir::LogicalResult vpux::IE::MinimumOp::inferReturnTypeComponents(
     }
     return outShapeOrResult;
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::MinimumOp::getInputs() {
-    return {input1(), input2()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::MinimumOp::getOutputs() {
-    return {output()};
-}

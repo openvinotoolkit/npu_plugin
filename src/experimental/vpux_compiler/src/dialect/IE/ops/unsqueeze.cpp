@@ -65,11 +65,3 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
 
     return mlir::failure();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::UnsqueezeOp::getInputs() {
-    return {input1(), input2()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::UnsqueezeOp::getOutputs() {
-    return {output()};
-}

@@ -45,8 +45,7 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
                     NoSideEffect,
                     NativeOpTrait<"InferTensorType">,
                     InferTypeOpInterface,
-                    DeclareOpInterfaceMethods<InferShapedTypeOpInterface>,
-                    DeclareOpInterfaceMethods<LayerInterface>
+                    DeclareOpInterfaceMethods<InferShapedTypeOpInterface>
                 ]
             )
         >;
@@ -176,6 +175,7 @@ def IE_ConvertOp :
         IE_LayerOp<
             "Convert",
             [
+                DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ConvertLayerInterface>
             ]
         > {
@@ -209,6 +209,7 @@ def IE_SoftMaxOp :
             [
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
+                DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>
             ]
         > {
@@ -300,7 +301,7 @@ def IE_SplitOp :
     );
 
     let results = (outs
-        Variadic<AnyRankedTensor>:$output_tensors
+        Variadic<AnyRankedTensor>:$outputs
     );
 
     let assemblyFormat = [{

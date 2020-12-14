@@ -42,14 +42,6 @@ mlir::LogicalResult vpux::IE::SoftMaxOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-SmallVector<mlir::Value, 4> vpux::IE::SoftMaxOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::SoftMaxOp::getOutputs() {
-    return {output()};
-}
-
 mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(ArrayRef<mlir::Attribute>) {
     auto shape = input().getType().cast<mlir::ShapedType>();
     auto numElements = shape.getNumElements();

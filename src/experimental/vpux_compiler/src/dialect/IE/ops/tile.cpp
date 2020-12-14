@@ -53,11 +53,3 @@ mlir::LogicalResult vpux::IE::TileOp::inferReturnTypeComponents(
     }
     return ::mlir::failure();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::TileOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::TileOp::getOutputs() {
-    return {output()};
-}
