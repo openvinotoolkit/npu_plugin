@@ -82,14 +82,14 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
                                                                             const SoftwareLayerParams& params,
                                                                             Optional<uint32_t> maxShaves,
                                                                             bool isTrailingSWLayer) {
-    auto task = mlir::cast<VPUIP::TaskOpInterface>(op);
+    auto layer = mlir::cast<LayerInterface>(op);
 
     const auto getTensorCb = [this](mlir::Value val) {
         return getTensor(val);
     };
 
-    const auto inputs = createVector(task.inputTensors() | transformed(getTensorCb));
-    const auto outputs = createVector(task.outputTensors() | transformed(getTensorCb));
+    const auto inputs = createVector(layer.getInputs() | transformed(getTensorCb));
+    const auto outputs = createVector(layer.getOutputs() | transformed(getTensorCb));
 
     MVCNN::UPALayerTaskBuilder builder(_impl);
     if (maxShaves.hasValue()) {

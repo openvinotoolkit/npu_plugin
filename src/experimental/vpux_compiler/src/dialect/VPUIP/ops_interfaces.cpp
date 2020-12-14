@@ -26,51 +26,29 @@
 using namespace vpux;
 
 //
-// getTaskEffects
+// verifyUPATask
 //
 
-void vpux::VPUIP::details::getTaskEffects(
-        mlir::Operation* op, SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getTaskEffects");
-
-    auto task = mlir::dyn_cast<TaskOpInterface>(op);
-    VPUX_THROW_UNLESS(task != nullptr, "Got non Task Operation '{0}' in getTaskEffects", op->getName());
-
-    for (const auto input : task.inputTensors()) {
-        auto inputType = input.getType().cast<mlir::MemRefType>();
-        auto resource = getMemoryResource(inputType);
-        effects.emplace_back(mlir::MemoryEffects::Read::get(), input, resource.getValue());
-    }
-
-    for (const auto output : task.outputTensors()) {
-        auto outputType = output.getType().cast<mlir::MemRefType>();
-        auto resource = getMemoryResource(outputType);
-        effects.emplace_back(mlir::MemoryEffects::Write::get(), output, resource.getValue());
-    }
-
-    for (const auto waitBarrier : task.waitBarriers()) {
-        effects.emplace_back(mlir::MemoryEffects::Read::get(), waitBarrier, VPUIP::BarrierResource::get());
-    }
-
-    for (const auto updateBarrier : task.updateBarriers()) {
-        effects.emplace_back(mlir::MemoryEffects::Write::get(), updateBarrier, VPUIP::BarrierResource::get());
-    }
-}
-
-//
-// UPATaskTrait
-//
-
-mlir::LogicalResult vpux::VPUIP::details::verifyUPATaskTrait(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyUPATaskTrait");
+mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyUPATask");
 
     auto task = mlir::dyn_cast<TaskOpInterface>(op);
     if (task == nullptr) {
-        return printTo(op->emitError(), "Operation '{0}' is not a VPUIP Task", op->getName());
+        return printTo(op->emitError(), "Operation '{0}' doesn't implement VPUIP UPATask interface", op->getName());
     }
 
-    auto inputs = to_vector<4>(task.inputTensors());
-    auto outputs = to_vector<1>(task.outputTensors());
+    auto upaTask = mlir::dyn_cast<UPATaskOpInterface>(op);
+    if (upaTask == nullptr) {
+        return printTo(op->emitError(), "Operation '{0}' doesn't implement VPUIP UPATask interface", op->getName());
+    }
+
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    if (layer == nullptr) {
+        return printTo(op->emitError(), "Operation '{0}' doesn't implement Layer interface", op->getName());
+    }
+
+    auto inputs = layer.getInputs();
+    auto outputs = layer.getOutputs();
 
     for (auto val : concat<mlir::Value>(inputs, outputs)) {
         auto type = val.getType().cast<mlir::MemRefType>();
@@ -85,25 +63,6 @@ mlir::LogicalResult vpux::VPUIP::details::verifyUPATaskTrait(mlir::Operation* op
             return printTo(op->emitError(), "'{0}' can't operate with '{1}' PhysicalMemory", op->getName(),
                            mem.getValue());
         }
-    }
-
-    return mlir::success();
-}
-
-//
-// UPATaskOpInterface
-//
-
-mlir::LogicalResult vpux::VPUIP::details::verifyUPATask(mlir::Operation* op) {
-    auto upaTask = mlir::cast<UPATaskOpInterface>(op);
-
-    auto task = mlir::dyn_cast<TaskOpInterface>(op);
-    if (task == nullptr) {
-        return printTo(op->emitError(), "UPA Task '{0}' doesn't have TaskOpInterface", op->getName());
-    }
-
-    if (task.getTaskType() != VPUIP::TaskType::UPA) {
-        return printTo(op->emitError(), "UPA Task '{0}' has wrong TaskType '{1}'", op->getName(), task.getTaskType());
     }
 
     if (upaTask.maxShaves().hasValue()) {
@@ -140,6 +99,40 @@ mlir::LogicalResult vpux::VPUIP::details::verifyUPATask(mlir::Operation* op) {
     }
 
     return mlir::success();
+}
+
+//
+// getTaskEffects
+//
+
+void vpux::VPUIP::getTaskEffects(
+        mlir::Operation* op, SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getTaskEffects");
+
+    if (auto layer = mlir::dyn_cast<LayerInterface>(op)) {
+        for (const auto input : layer.getInputs()) {
+            auto inputType = input.getType().cast<mlir::MemRefType>();
+            auto resource = getMemoryResource(inputType);
+            effects.emplace_back(mlir::MemoryEffects::Read::get(), input, resource.getValue());
+        }
+
+        for (const auto output : layer.getOutputs()) {
+            auto outputType = output.getType().cast<mlir::MemRefType>();
+            auto resource = getMemoryResource(outputType);
+            effects.emplace_back(mlir::MemoryEffects::Write::get(), output, resource.getValue());
+        }
+    }
+
+    auto task = mlir::dyn_cast<TaskOpInterface>(op);
+    VPUX_THROW_UNLESS(task != nullptr, "Got non Task Operation '{0}' in getTaskEffects", op->getName());
+
+    for (const auto waitBarrier : task.waitBarriers()) {
+        effects.emplace_back(mlir::MemoryEffects::Read::get(), waitBarrier, VPUIP::BarrierResource::get());
+    }
+
+    for (const auto updateBarrier : task.updateBarriers()) {
+        effects.emplace_back(mlir::MemoryEffects::Write::get(), updateBarrier, VPUIP::BarrierResource::get());
+    }
 }
 
 //

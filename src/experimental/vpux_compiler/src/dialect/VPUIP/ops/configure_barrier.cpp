@@ -33,17 +33,3 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConfigureBarrierOp::serialize(vpux:
 
     return {builder.Finish().Union(), MVCNN::SpecificTask_ControllerTask};
 }
-
-mlir::LogicalResult vpux::VPUIP::verifyOp(ConfigureBarrierOp op) {
-    if (!op.inputTensors().empty()) {
-        return printTo(op.emitError(), "'{0}' must not have input tensors, got {1}",
-                       ConfigureBarrierOp::getOperationName(), op.inputTensors().size());
-    }
-
-    if (!op.outputTensors().empty()) {
-        return printTo(op.emitError(), "'{0}' must not have output tensors, got {1}",
-                       ConfigureBarrierOp::getOperationName(), op.outputTensors().size());
-    }
-
-    return mlir::success();
-}

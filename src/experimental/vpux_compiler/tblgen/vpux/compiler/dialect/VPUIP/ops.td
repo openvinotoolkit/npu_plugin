@@ -38,7 +38,7 @@ class VPUIP_Op<string mnemonic, list<OpTrait> traits = []> :
             traits
         >;
 
-class VPUIP_TaskOp<string mnemonic, VPUIP_TaskTypeVal taskType, list<OpTrait> traits = []> :
+class VPUIP_TaskOp<string mnemonic, list<OpTrait> traits = []> :
         VPUIP_Op<
             mnemonic,
             !listconcat(
@@ -50,12 +50,6 @@ class VPUIP_TaskOp<string mnemonic, VPUIP_TaskTypeVal taskType, list<OpTrait> tr
                 ]
             )
         > {
-    let extraClassDeclaration = [{
-        static vpux::VPUIP::TaskType getTaskType() {
-            return }] # taskType.enumVal # [{;
-        }
-    }];
-
     let assemblyFormat = [{
         attr-dict
         (`inputs` `(` $inputTensors^ `:` type($inputTensors) `)`)?
@@ -241,15 +235,11 @@ def VPUIP_DeclareBarrierOp :
 
 def VPUIP_ConfigureBarrierOp :
         VPUIP_TaskOp<
-            "ConfigureBarrier",
-            VPUIP_TaskType_Controller
+            "ConfigureBarrier"
         > {
     let summary = "A task to configure the setup for a barrier";
 
     let arguments = (ins
-        Variadic<AnyMemRef>:$inputTensors,
-        Variadic<AnyMemRef>:$outputTensors,
-
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers
     );
@@ -264,20 +254,19 @@ def VPUIP_ConfigureBarrierOp :
             [{
                 build($_builder, $_state,
                       vpux::VPUIP::BarrierType::get($_builder.getContext()),
-                      mlir::ValueRange {}, mlir::ValueRange {},
                       mlir::ValueRange {}, mlir::ValueRange {});
             }]
         >
     ];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::Controller;
+        }
     }];
 
     let assemblyFormat = [{
         attr-dict
-        (`inputs` `(` $inputTensors^ `:` type($inputTensors) `)`)?
-        (`outputs` `(` $outputTensors^ `:` type($outputTensors) `)`)?
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
@@ -324,11 +313,7 @@ def VPUIP_NNDMAOp :
 
 def VPUIP_UPADMAOp :
         VPUIP_TaskOp<
-            "UPADMA",
-            VPUIP_TaskType_UPADMA,
-            [
-                VPUIP_UPATaskTrait
-            ]
+            "UPADMA"
         > {
     let summary = "UPA DMA task";
 
@@ -350,6 +335,12 @@ def VPUIP_UPADMAOp :
             }]
         >
     ];
+
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::UPADMA;
+        }
+    }];
 }
 
 //
@@ -359,9 +350,7 @@ def VPUIP_UPADMAOp :
 def VPUIP_SoftMaxUPAOp :
         VPUIP_TaskOp<
             "SoftMaxUPA",
-            VPUIP_TaskType_UPA,
             [
-                VPUIP_UPATaskTrait,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>

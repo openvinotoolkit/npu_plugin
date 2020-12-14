@@ -30,21 +30,6 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
 
     let methods = [
         InterfaceMethod<
-            "All inputs for this task",
-            "mlir::ValueRange", "inputTensors", (ins),
-            [{
-                return $_op.inputTensors();
-            }]
-        >,
-        InterfaceMethod<
-            "All outputs for this task",
-            "mlir::ValueRange", "outputTensors", (ins),
-            [{
-                return $_op.outputTensors();
-            }]
-        >,
-
-        InterfaceMethod<
             "Barriers that will free this task to run",
             "mlir::ValueRange", "waitBarriers", (ins),
             [{
@@ -87,25 +72,13 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
                 return ConcreteOp::getTaskType();
             }]
         >,
-
-        InterfaceMethod<
-            "Get all Memory effects for the Operation",
-            "void", "getEffects",
-            (ins "mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>&":$effects),
-            [{}],
-            [{
-                vpux::VPUIP::details::getTaskEffects($_op, effects);
-            }]
-        >,
     ];
-}
 
-//
-// UPATaskTrait
-//
-
-def VPUIP_UPATaskTrait : NativeOpTrait<"UPATaskTrait"> {
-    let cppNamespace = "vpux::VPUIP";
+    let extraTraitClassDeclaration = [{
+        void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
+            vpux::VPUIP::getTaskEffects($_op, effects);
+        }
+    }];
 }
 
 //
@@ -152,7 +125,13 @@ def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
     ];
 
     let verify = [{
-        return vpux::VPUIP::details::verifyUPATask($_op);
+        return vpux::VPUIP::verifyUPATask($_op);
+    }];
+
+    let extraTraitClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::UPA;
+        }
     }];
 }
 
