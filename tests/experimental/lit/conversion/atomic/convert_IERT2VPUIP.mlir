@@ -9,17 +9,17 @@
 //   * Replaces only Layer Operations.
 //
 
-#NC = affine_map<(d0, d1) -> (d0, d1)>
-
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
 
-IERT.CNNNetwork "SingleLayer" at @main
+// CHECK: IE.CNNNetwork
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
-        IERT.DataInfo "data", f32, #NC
+        IE.DataInfo "data" : memref<1x1000xf32>
     }
     outputsInfo : {
-        IERT.DataInfo "prob", f32, #NC
+        IE.DataInfo "prob" : memref<1x1000xf32>
     }
 
 // CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x1000xf16>, [[ARG1:%arg[0-9]*]]: memref<1x1000xf16>) {
@@ -38,16 +38,16 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 
 // -----
 
-#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-
 // CHECK-LABEL: @ConstantLayer
 module @ConstantLayer {
 
-IERT.CNNNetwork "ConstantLayer" at @main
+// CHECK: IE.CNNNetwork
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
     }
     outputsInfo :  {
-        IERT.DataInfo "output", f32, #NCHW
+        IE.DataInfo "output" : memref<1x2x2x2xf32>
     }
 
 // CHECK: global_memref

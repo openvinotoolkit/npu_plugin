@@ -72,8 +72,8 @@ IERT::RunTimeResourcesOp vpux::IERT::RunTimeResourcesOp::getFromModule(mlir::Mod
         return nullptr;
     }
 
-    VPUX_THROW_UNLESS(ops.size() == 1, "Can't have more than one IERT::RunTimeResources Operation in Module, got '{0}'",
-                      ops.size());
+    VPUX_THROW_UNLESS(ops.size() == 1,
+                      "Can't have more than one 'IERT::RunTimeResources' Operation in Module, got '{0}'", ops.size());
 
     return ops.front();
 }

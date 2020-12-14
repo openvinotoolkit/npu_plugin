@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/frontend/IE.hpp"
 
+#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -587,50 +588,62 @@ bool NGraphImporter::validateElementwiseArgs(ngraph::Node* node, const ngraph::o
     return true;
 }
 
-IE::LayoutAttr importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout) {
-#define CASE(_l_)                      \
-    case InferenceEngine::Layout::_l_: \
-        return IE::LayoutAttr::get(IE::Layout::_l_, ctx)
-
+mlir::AffineMap importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout) {
     switch (layout) {
-        CASE(ANY);
-        CASE(SCALAR);
-        CASE(C);
-        CASE(NC);
-        CASE(CHW);
-        CASE(NCHW);
-        CASE(NHWC);
-        CASE(NCDHW);
-        CASE(NDHWC);
-    default:
-        VPUX_THROW("Unsupported layout {0}", layout);
-    }
+    case InferenceEngine::Layout::ANY:
+    case InferenceEngine::Layout::SCALAR:
+    case InferenceEngine::Layout::C:
+    case InferenceEngine::Layout::NC:
+    case InferenceEngine::Layout::CHW:
+    case InferenceEngine::Layout::NCHW:
+    case InferenceEngine::Layout::NCDHW:
+        return {};
+    case InferenceEngine::Layout::NHWC:
+        return DimsOrder::NHWC.toAffineMap(ctx);
+    case InferenceEngine::Layout::NDHWC:
+        return DimsOrder::NDHWC.toAffineMap(ctx);
 
-#undef CASE
+    default:
+        VPUX_THROW("Unsupported layout '{0}'", layout);
+    }
 }
 
-mlir::TypeAttr importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precision& precision) {
+mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precision& precision) {
     if (precision == InferenceEngine::Precision::FP32) {
-        return mlir::TypeAttr::get(mlir::Float32Type::get(ctx));
+        return mlir::Float32Type::get(ctx);
     } else if (precision == InferenceEngine::Precision::FP16) {
-        return mlir::TypeAttr::get(mlir::Float16Type::get(ctx));
+        return mlir::Float16Type::get(ctx);
     } else if (precision == InferenceEngine::Precision::I64) {
-        return mlir::TypeAttr::get(getSInt64Type(ctx));
+        return getSInt64Type(ctx);
     } else if (precision == InferenceEngine::Precision::U64) {
-        return mlir::TypeAttr::get(getUInt64Type(ctx));
+        return getUInt64Type(ctx);
     } else if (precision == InferenceEngine::Precision::I32) {
-        return mlir::TypeAttr::get(getSInt32Type(ctx));
+        return getSInt32Type(ctx);
     } else if (precision == InferenceEngine::Precision::I16) {
-        return mlir::TypeAttr::get(getSInt16Type(ctx));
+        return getSInt16Type(ctx);
     } else if (precision == InferenceEngine::Precision::U16) {
-        return mlir::TypeAttr::get(getUInt16Type(ctx));
+        return getUInt16Type(ctx);
     } else if (precision == InferenceEngine::Precision::I8) {
-        return mlir::TypeAttr::get(getSInt8Type(ctx));
+        return getSInt8Type(ctx);
     } else if (precision == InferenceEngine::Precision::U8) {
-        return mlir::TypeAttr::get(getUInt8Type(ctx));
+        return getUInt8Type(ctx);
     } else {
-        VPUX_THROW("Unsupported precision : {0}", precision);
+        VPUX_THROW("Unsupported precision : '{0}'", precision);
     }
+}
+
+mlir::MemRefType importBuffer(mlir::MLIRContext* ctx, const InferenceEngine::TensorDesc& desc) {
+    SmallVector<int64_t, MAX_NUM_DIMS> shape(desc.getDims().size());
+    std::copy(desc.getDims().begin(), desc.getDims().end(), shape.begin());
+
+    const auto precision = importPrecision(ctx, desc.getPrecision());
+
+    SmallVector<mlir::AffineMap, 1> affineMaps;
+    if (auto layout = importLayout(ctx, desc.getLayout())) {
+        affineMaps.push_back(layout);
+    }
+
+    return mlir::MemRefType::get(shape, precision, affineMaps);
 }
 
 }  // namespace
@@ -649,13 +662,12 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
 
     const auto mainFuncName = mlir::FlatSymbolRefAttr::get("main", ctx);
 
-    auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx));
+    auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef(cnnNet.getName()));
 
     OpBuilderLogger builderLog(log.nest());
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
 
-    auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(ctx),
-                                                  mlir::StringAttr::get(cnnNet.getName(), ctx), mainFuncName);
+    auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(ctx), mainFuncName);
     IE::CNNNetworkOp::ensureTerminator(cnnOp.inputsInfo(), builder, cnnOp.getLoc());
     IE::CNNNetworkOp::ensureTerminator(cnnOp.outputsInfo(), builder, cnnOp.getLoc());
 
@@ -665,9 +677,10 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
         const auto& userInput = inputsInfo.at(inputName);
         const auto& userDesc = userInput->getTensorDesc();
 
-        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(inputName, ctx),
-                                       importPrecision(ctx, userDesc.getPrecision()),
-                                       importLayout(ctx, userDesc.getLayout()));
+        const auto nameAttr = mlir::StringAttr::get(inputName, ctx);
+        const auto userTypeAttr = mlir::TypeAttr::get(importBuffer(ctx, userDesc));
+
+        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }
 
     builder.setInsertionPointToStart(&cnnOp.outputsInfo().front());
@@ -676,9 +689,10 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
         const auto& userOutput = outputsInfo.at(resultName);
         const auto& userDesc = userOutput->getTensorDesc();
 
-        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(resultName, ctx),
-                                       importPrecision(ctx, userDesc.getPrecision()),
-                                       importLayout(ctx, userDesc.getLayout()));
+        const auto nameAttr = mlir::StringAttr::get(resultName, ctx);
+        const auto userTypeAttr = mlir::TypeAttr::get(importBuffer(ctx, userDesc));
+
+        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }
 
     NGraphImporter importer(ctx, netGraph, log);

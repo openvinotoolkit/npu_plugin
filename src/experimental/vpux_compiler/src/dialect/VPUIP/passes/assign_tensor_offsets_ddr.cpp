@@ -159,14 +159,6 @@ void AssignTensorOffsetsDDRPass::passBody() {
         return;
     }
 
-    VPUIP::GraphOp graphOp;
-    mlir::FuncOp graphFunc;
-    if (mlir::failed(VPUIP::GraphOp::getFromModule(module, graphOp, graphFunc))) {
-        printTo(module.emitError(), "Failed to get VPUIP.Graph Operation from module");
-        signalPassFailure();
-        return;
-    }
-
     auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
     if (resources == nullptr) {
         printTo(module.emitError(), "Failed to get IERT.RunTimeResources Operation from module");

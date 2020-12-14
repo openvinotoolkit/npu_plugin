@@ -20,40 +20,6 @@
 include "vpux/compiler/dialect/IE/dialect.td"
 
 //
-// Layout
-//
-
-def IE_Layout_ANY       : I32EnumAttrCase<"ANY",    0>;
-def IE_Layout_SCALAR    : I32EnumAttrCase<"SCALAR", 1>;
-def IE_Layout_C         : I32EnumAttrCase<"C",      2>;
-def IE_Layout_NC        : I32EnumAttrCase<"NC",     3>;
-def IE_Layout_CHW       : I32EnumAttrCase<"CHW",    4>;
-def IE_Layout_NCHW      : I32EnumAttrCase<"NCHW",   5>;
-def IE_Layout_NHWC      : I32EnumAttrCase<"NHWC",   6>;
-def IE_Layout_NCDHW     : I32EnumAttrCase<"NCDHW",  7>;
-def IE_Layout_NDHWC     : I32EnumAttrCase<"NDHWC",  8>;
-
-def IE_Layout :
-        I32EnumAttr<
-            "Layout",
-            "Layouts that the InferenceEngine supports",
-            [
-                IE_Layout_ANY,
-                IE_Layout_SCALAR,
-                IE_Layout_C,
-                IE_Layout_NC,
-                IE_Layout_CHW,
-                IE_Layout_NCHW,
-                IE_Layout_NHWC,
-                IE_Layout_NCDHW,
-                IE_Layout_NDHWC,
-            ]
-        > {
-    let cppNamespace = "vpux::IE";
-}
-
-
-//
 // AutoBroadcastType
 //
 

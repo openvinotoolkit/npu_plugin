@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
+#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
@@ -64,14 +65,13 @@ void AddLinearSchedulingPass::runOnOperation() {
 void AddLinearSchedulingPass::passBody() {
     auto module = getOperation();
 
-    VPUIP::GraphOp graphOp;
-    mlir::FuncOp graphFunc;
-    if (mlir::failed(VPUIP::GraphOp::getFromModule(module, graphOp, graphFunc))) {
-        signalPassFailure();
-        return;
-    }
+    IE::CNNNetworkOp netOp;
+    mlir::FuncOp netFunc;
+    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    collectTrailingSwTasks(graphFunc);
+    auto graphOp = VPUIP::GraphOp::getFromModule(module);
+
+    collectTrailingSwTasks(netFunc);
 
     const auto callback = [&](mlir::Operation* op) {
         auto curTask = mlir::dyn_cast<VPUIP::TaskOpInterface>(op);
@@ -97,7 +97,7 @@ void AddLinearSchedulingPass::passBody() {
         }
     };
 
-    graphFunc.walk(callback);
+    netFunc.walk(callback);
 
     auto options = graphOp.options();
     options = options | VPUIP::ExecutionFlag::DynamicBarriers;

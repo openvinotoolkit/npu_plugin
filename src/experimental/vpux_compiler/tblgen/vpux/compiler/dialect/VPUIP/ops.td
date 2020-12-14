@@ -73,74 +73,25 @@ def VPUIP_GraphOp :
         VPUIP_Op<
             "Graph",
             [
-                IsolatedFromAbove,
-                HasParent<"mlir::ModuleOp">,
-                SingleBlockImplicitTerminator<"vpux::VPUIP::EndOp">,
-                NoRegionArguments,
-                DeclareOpInterfaceMethods<NetInfoInterface>,
-                DeclareOpInterfaceMethods<SymbolUserOpInterface>
+                HasParent<"mlir::ModuleOp">
             ]
         > {
     let summary = "The root object for the VPUIP Execution Graph";
 
     let arguments = (ins
-        StrAttr:$identifier,
-        FlatSymbolRefAttr:$entryPoint,
         VPUIP_ExecutionFlag:$options,
         VPUIP_Version:$version
     );
 
-    let regions = (region
-        SizedRegion<1>:$inputsInfo,
-        SizedRegion<1>:$outputsInfo
-    );
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::GraphOp getFromModule(mlir::ModuleOp module);
+    }];
 
     let assemblyFormat = [{
         attr-dict
-        $identifier `at` $entryPoint
         `options` `:` $options
         `version` `:` $version
-        `inputsInfo` `:` $inputsInfo
-        `outputsInfo` `:` $outputsInfo
     }];
-}
-
-def VPUIP_TensorInfoOp :
-        VPUIP_Op<
-            "TensorInfo",
-            [
-                IsolatedFromAbove,
-                HasParent<"vpux::VPUIP::GraphOp">,
-                DeclareOpInterfaceMethods<DataInfoInterface>
-            ]
-        > {
-    let summary = "Information about user inputs/outputs tensors";
-
-    let arguments = (ins
-        StrAttr:$name,
-        TypeAttr:$precision,
-        AffineMapAttr:$layout
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        $name `,` $precision `,` $layout
-    }];
-}
-
-def VPUIP_EndOp :
-        VPUIP_Op<
-            "End",
-            [
-                NoSideEffect,
-                Terminator,
-                NativeOpTrait<"ReturnLike">,
-                HasParent<"vpux::VPUIP::GraphOp">
-            ]
-        > {
-    let summary = "End indicator for VPUIP Graph user inputs/outputs info lists";
-
-    let assemblyFormat = "attr-dict";
 }
 
 //

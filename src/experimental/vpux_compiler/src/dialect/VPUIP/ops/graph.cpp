@@ -16,63 +16,13 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/format.hpp"
-#include "vpux/utils/core/range.hpp"
-
-#include <mlir/IR/BuiltinOps.h>
-
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::GraphOp::verifySymbolUses(mlir::SymbolTableCollection& symbolTable) {
-    auto netFunc = symbolTable.lookupNearestSymbolFrom<mlir::FuncOp>(*this, entryPointAttr());
+VPUIP::GraphOp vpux::VPUIP::GraphOp::getFromModule(mlir::ModuleOp module) {
+    auto graphOps = to_vector<1>(module.getOps<GraphOp>());
 
-    if (netFunc == nullptr) {
-        return printTo(emitError(), "'{0}' entryPoint '@{1}' doesn't refer to existing Function",
-                       GraphOp::getOperationName(), entryPoint());
-    }
+    VPUX_THROW_UNLESS(graphOps.size() == 1, "Can't have more than one 'VPUIP::GraphOp' Operation in Module, got '{0}'",
+                      graphOps.size());
 
-    auto inputsInfo = to_vector<1>(this->inputsInfo().getOps<TensorInfoOp>());
-    auto outputsInfo = to_vector<1>(this->outputsInfo().getOps<TensorInfoOp>());
-
-    const auto netFuncType = netFunc.getType();
-
-    if (netFuncType.getNumInputs() != inputsInfo.size() + outputsInfo.size()) {
-        return printTo(emitError(),
-                       "'{0}' entryPoint '@{1}' inputs count '{2}' doesn't match "
-                       "userInputs count '{3}' and userOutputs count '{4}'",
-                       GraphOp::getOperationName(), entryPoint(), netFuncType.getNumInputs(), inputsInfo.size(),
-                       outputsInfo.size());
-    }
-    if (netFuncType.getNumResults() != 0) {
-        return printTo(emitError(), "'{0}' entryPoint '@{1}' can't have results, got '{2}'",
-                       GraphOp::getOperationName(), entryPoint(), netFuncType.getNumResults());
-    }
-
-    for (const auto& p : zip(netFuncType.getInputs(), concat<TensorInfoOp>(inputsInfo, outputsInfo)) | indexed) {
-        const auto runtimeType = std::get<0>(p.value()).dyn_cast<mlir::MemRefType>();
-
-        if (runtimeType == nullptr) {
-            return printTo(emitError(), "'{0}' entryPoint '@{1}' input #{2} is not a 'MemRefType'",
-                           GraphOp::getOperationName(), entryPoint(), p.index());
-        }
-
-        auto userInfo = std::get<1>(p.value());
-        const auto userLayout = userInfo.layout();
-
-        if ((checked_cast<unsigned>(runtimeType.getRank()) != userLayout.getNumDims()) &&
-            (checked_cast<unsigned>(runtimeType.getRank()) != 4)) {
-            return printTo(emitError(),
-                           "'{0}' entryPoint '@{1} input #{2} is not compatible "
-                           "with {3} '{4}'",
-                           GraphOp::getOperationName(), entryPoint(), p.index(),
-                           p.index() < inputsInfo.size() ? "user layout" : "user layout", userLayout);
-        }
-    }
-
-    return mlir::success();
-}
-
-DimsOrder vpux::VPUIP::TensorInfoOp::getDimsOrder() {
-    return DimsOrder::fromAffineMap(layout()).getValue();
+    return graphOps.front();
 }

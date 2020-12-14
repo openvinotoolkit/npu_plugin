@@ -1,11 +1,9 @@
 // RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --assign-tensor-offsets-ddr %s | FileCheck %s
 
-#NC = affine_map<(d0, d1) -> (d0, d1)>
-
 // CHECK-LABEL: @LinearGraph
 module @LinearGraph {
 
-VPUIP.Graph "LinearGraph" at @main
+VPUIP.Graph
     options : "NONE"
     version : {
         majorV = 3 : i32,
@@ -13,11 +11,14 @@ VPUIP.Graph "LinearGraph" at @main
         patchV = 0 : i32, hash = "",
         contextStr = "VPUX Compiler"
     }
+
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
-        VPUIP.TensorInfo "data", f16, #NC
+        IE.DataInfo "data" : memref<1x1000xf16>
     }
     outputsInfo : {
-        VPUIP.TensorInfo "prob", f16, #NC
+        IE.DataInfo "prob" : memref<1x1000xf16>
     }
 
 // CHECK:   IERT.RunTimeResources

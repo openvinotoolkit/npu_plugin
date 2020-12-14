@@ -40,7 +40,8 @@ public:
 private:
     void passBody();
 
-    mlir::LogicalResult replaceCnnNetworkOp();
+    void addGraphOp();
+    mlir::LogicalResult setRunTimeResources();
     mlir::LogicalResult removeGlobalMemRefOp();
 
 private:
@@ -76,7 +77,9 @@ void LowerIERT2VPUIPPass::passBody() {
         return;
     }
 
-    if (mlir::failed(replaceCnnNetworkOp())) {
+    addGraphOp();
+
+    if (mlir::failed(setRunTimeResources())) {
         signalPassFailure();
         return;
     }
@@ -91,63 +94,53 @@ void LowerIERT2VPUIPPass::passBody() {
 // replaceCnnNetworkOp
 //
 
-mlir::LogicalResult LowerIERT2VPUIPPass::replaceCnnNetworkOp() {
-    _log.trace("Replace IERT.CNNNetwork Operation with VPUIP.Graph");
+void LowerIERT2VPUIPPass::addGraphOp() {
+    _log.trace("Add VPUIP.Graph Operation");
 
     auto& ctx = getContext();
     auto module = getOperation();
 
-    IERT::CNNNetworkOp netOp;
-    mlir::FuncOp netFunc;
-    if (mlir::failed(IERT::CNNNetworkOp::getFromModule(module, netOp, netFunc))) {
-        return printTo(module.emitError(), "Failed to get IERT.CNNNetwork Operation from module");
-    }
+    const auto options = VPUIP::ExecutionFlagAttr::get(VPUIP::ExecutionFlag::NONE, &ctx);
 
-    auto options = VPUIP::ExecutionFlagAttr::get(VPUIP::ExecutionFlag::NONE, &ctx);
+    const auto version = VPUIP::VersionAttr::get(getInt32Attr(&ctx, 3),                         // majorV
+                                                 getInt32Attr(&ctx, 11),                        // minorV
+                                                 getInt32Attr(&ctx, 0),                         // patchV
+                                                 mlir::StringAttr::get("", &ctx),               // hash
+                                                 mlir::StringAttr::get("VPUX Compiler", &ctx),  // contextStr
+                                                 &ctx);
+
+    OpBuilderLogger builderLog(_log.nest());
+    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
+
+    builder.create<VPUIP::GraphOp>(mlir::UnknownLoc::get(&ctx), options, version);
+}
+
+//
+// setRunTimeResources
+//
+
+mlir::LogicalResult LowerIERT2VPUIPPass::setRunTimeResources() {
+    _log.trace("Setup used run-time resources for executors");
+
+    auto& ctx = getContext();
+    auto module = getOperation();
+
+    auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+    if (resources == nullptr) {
+        return printTo(module.emitError(), "Failed to get 'IERT.RunTimeResources' Operation from Module");
+    }
 
     const auto getProcAttr = [&](VPUIP::PhysicalProcessor proc) {
         return VPUIP::PhysicalProcessorAttr::get(proc, &ctx);
     };
 
-    auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
-    if (resources == nullptr) {
-        return printTo(module.emitError(), "Failed to get IERT.RunTimeResources Operation from module");
-    }
     if (auto available = resources.getAvailableExecutor(getProcAttr(VPUIP::PhysicalProcessor::SHAVE_UPA))) {
         resources.setUsedExecutor(getProcAttr(VPUIP::PhysicalProcessor::SHAVE_UPA), available.count());
     }
     if (auto available = resources.getAvailableExecutor(getProcAttr(VPUIP::PhysicalProcessor::NCE_Cluster))) {
+        // We have to set at least 1 NCE cluster to allow run-time work, even for full SW mode.
         resources.setUsedExecutor(getProcAttr(VPUIP::PhysicalProcessor::NCE_Cluster), 1);
     }
-
-    auto version = VPUIP::VersionAttr::get(getInt32Attr(&ctx, 3),                         // majorV
-                                           getInt32Attr(&ctx, 11),                        // minorV
-                                           getInt32Attr(&ctx, 0),                         // patchV
-                                           mlir::StringAttr::get("", &ctx),               // hash
-                                           mlir::StringAttr::get("VPUX Compiler", &ctx),  // contextStr
-                                           &ctx);
-
-    OpBuilderLogger builderLog(_log.nest());
-    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
-
-    auto graphOp = builder.create<VPUIP::GraphOp>(netOp.getLoc(), netOp.netNameAttr(), netOp.entryPointAttr(), options,
-                                                  version);
-    VPUIP::GraphOp::ensureTerminator(graphOp.inputsInfo(), builder, netOp.getLoc());
-    VPUIP::GraphOp::ensureTerminator(graphOp.outputsInfo(), builder, netOp.getLoc());
-
-    builder.setInsertionPointToStart(&graphOp.inputsInfo().front());
-    for (auto dataInfo : netOp.inputsInfo().getOps<IERT::DataInfoOp>()) {
-        builder.create<VPUIP::TensorInfoOp>(dataInfo.getLoc(), dataInfo.nameAttr(), dataInfo.precisionAttr(),
-                                            dataInfo.layoutAttr());
-    }
-
-    builder.setInsertionPointToStart(&graphOp.outputsInfo().front());
-    for (auto dataInfo : netOp.outputsInfo().getOps<IERT::DataInfoOp>()) {
-        builder.create<VPUIP::TensorInfoOp>(dataInfo.getLoc(), dataInfo.nameAttr(), dataInfo.precisionAttr(),
-                                            dataInfo.layoutAttr());
-    }
-
-    netOp.erase();
 
     return mlir::success();
 }

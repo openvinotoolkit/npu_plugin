@@ -63,7 +63,6 @@ def IE_CNNNetworkOp :
                 HasParent<"mlir::ModuleOp">,
                 SingleBlockImplicitTerminator<"vpux::IE::EndOp">,
                 NoRegionArguments,
-                DeclareOpInterfaceMethods<NetInfoInterface>,
                 DeclareOpInterfaceMethods<SymbolUserOpInterface>
             ]
         > {
@@ -78,7 +77,6 @@ def IE_CNNNetworkOp :
     }];
 
     let arguments = (ins
-        StrAttr:$netName,
         FlatSymbolRefAttr:$entryPoint
     );
 
@@ -87,21 +85,38 @@ def IE_CNNNetworkOp :
         SizedRegion<1>:$outputsInfo
     );
 
+    let extraClassDeclaration = [{
+        vpux::SmallVector<vpux::IE::DataInfoOp, 1> getInputsInfo();
+        vpux::SmallVector<vpux::IE::DataInfoOp, 1> getOutputsInfo();
+
+        static void getFromModule(
+                mlir::ModuleOp module,
+                vpux::IE::CNNNetworkOp& netInfo,
+                mlir::FuncOp& netFunc);
+    }];
+
     let assemblyFormat = [{
         attr-dict
-        $netName `at` $entryPoint
+        `entryPoint` `:` $entryPoint
         `inputsInfo` `:` $inputsInfo
         `outputsInfo` `:` $outputsInfo
     }];
+
+    let verifier = [{
+        return vpux::IE::verifyOp(*this);
+    }];
 }
+
+//
+// DataInfoOp
+//
 
 def IE_DataInfoOp :
         IE_Op<
             "DataInfo",
             [
                 IsolatedFromAbove,
-                HasParent<"vpux::IE::CNNNetworkOp">,
-                DeclareOpInterfaceMethods<DataInfoInterface>
+                HasParent<"vpux::IE::CNNNetworkOp">
             ]
         > {
     let summary = "Information about InferenceEngine CNN Network input/output Data object";
@@ -110,21 +125,33 @@ def IE_DataInfoOp :
         This operation is bound to `IE.CNNNetwork` Operation and holds information about Data object:
 
           * Name
+          * Original shape
           * User-defined precision (element type)
           * User-defined layout
     }];
 
     let arguments = (ins
         StrAttr:$name,
-        TypeAttr:$precision,
-        IE_Layout:$layout
+        TypeAttr:$userType
     );
 
+    let extraClassDeclaration = [{
+        vpux::DimsOrder getDimsOrder();
+    }];
+
     let assemblyFormat = [{
+        $name `:` $userType
         attr-dict
-        $name `,` $precision `,` $layout
+    }];
+
+    let verifier = [{
+        return vpux::IE::verifyOp(*this);
     }];
 }
+
+//
+// EndOp
+//
 
 def IE_EndOp :
         IE_Op<

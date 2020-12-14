@@ -189,85 +189,6 @@ def IERT_ExecutorResourceOp :
 }
 
 //
-// CNNNetworkOp
-//
-
-def IERT_CNNNetworkOp :
-        IERT_Op<
-            "CNNNetwork",
-            [
-                IsolatedFromAbove,
-                HasParent<"mlir::ModuleOp">,
-                SingleBlockImplicitTerminator<"vpux::IERT::EndOp">,
-                NoRegionArguments,
-                DeclareOpInterfaceMethods<NetInfoInterface>,
-                DeclareOpInterfaceMethods<SymbolUserOpInterface>
-            ]
-        > {
-    let summary = "InferenceEngine CNN Network run-time description";
-
-    let description = [{
-        This operation is bound to MLIR Module and holds extra information about InferenceEngine CNN Network:
-
-          * Precision and layout for user-provided inputs.
-          * Precision and layout for user-provided outputs.
-          * Entry point (Function name) for the network inference.
-    }];
-
-    let arguments = (ins
-        StrAttr:$netName,
-        FlatSymbolRefAttr:$entryPoint
-    );
-
-    let regions = (region
-        SizedRegion<1>:$inputsInfo,
-        SizedRegion<1>:$outputsInfo
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        $netName `at` $entryPoint
-        `inputsInfo` `:` $inputsInfo
-        `outputsInfo` `:` $outputsInfo
-    }];
-}
-
-//
-// DataInfoOp
-//
-
-def IERT_DataInfoOp :
-        IERT_Op<
-            "DataInfo",
-            [
-                IsolatedFromAbove,
-                HasParent<"vpux::IERT::CNNNetworkOp">,
-                DeclareOpInterfaceMethods<DataInfoInterface>
-            ]
-        > {
-    let summary = "Information about InferenceEngine CNN Network input/output Data object";
-
-    let description = [{
-        This operation is bound to `IERT.CNNNetwork` Operation and holds information about Data object:
-
-          * Name
-          * User-defined precision (element type)
-          * User-defined layout
-    }];
-
-    let arguments = (ins
-        StrAttr:$name,
-        TypeAttr:$precision,
-        AffineMapAttr:$layout
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        $name `,` $precision `,` $layout
-    }];
-}
-
-//
 // EndOp
 //
 
@@ -278,10 +199,10 @@ def IERT_EndOp :
                 NoSideEffect,
                 Terminator,
                 NativeOpTrait<"ReturnLike">,
-                ParentOneOf<["vpux::IERT::RunTimeResourcesOp", "vpux::IERT::CNNNetworkOp"]>
+                HasParent<"vpux::IERT::RunTimeResourcesOp">
             ]
         > {
-    let summary = "End indicator for IERT operations with declarations";
+    let summary = "End indicator for IERT resources section";
 
     let assemblyFormat = "attr-dict";
 }

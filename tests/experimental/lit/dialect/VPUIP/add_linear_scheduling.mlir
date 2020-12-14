@@ -1,11 +1,9 @@
 // RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --add-linear-scheduling %s | FileCheck %s
 
-#NC = affine_map<(d0, d1) -> (d0, d1)>
-
 // CHECK-LABEL: @linear_dma_graph
 module @linear_dma_graph {
 
-VPUIP.Graph "linear_dma_graph" at @main
+VPUIP.Graph
     // CHECK: options : "DynamicBarriers"
     options : "NONE"
     version : {
@@ -14,11 +12,14 @@ VPUIP.Graph "linear_dma_graph" at @main
         patchV = 0 : i32, hash = "",
         contextStr = "VPUX Compiler"
     }
+
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
-        VPUIP.TensorInfo "data", f16, #NC
+        IE.DataInfo "data" : memref<1x1000xf16>
     }
     outputsInfo : {
-        VPUIP.TensorInfo "prob", f16, #NC
+        IE.DataInfo "prob" : memref<1x1000xf16>
     }
 
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
@@ -53,12 +54,10 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 
 // -----
 
-#NC = affine_map<(d0, d1) -> (d0, d1)>
-
 // CHECK-LABEL: @linear_upa_graph
 module @linear_upa_graph {
 
-VPUIP.Graph "linear_upa_graph" at @main
+VPUIP.Graph
     // CHECK: options : "DynamicBarriers"
     options : "NONE"
     version : {
@@ -67,11 +66,14 @@ VPUIP.Graph "linear_upa_graph" at @main
         patchV = 0 : i32, hash = "",
         contextStr = "VPUX Compiler"
     }
+
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
-        VPUIP.TensorInfo "data", f16, #NC
+        IE.DataInfo "data" : memref<1x1000xf16>
     }
     outputsInfo : {
-        VPUIP.TensorInfo "prob", f16, #NC
+        IE.DataInfo "prob" : memref<1x1000xf16>
     }
 
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
