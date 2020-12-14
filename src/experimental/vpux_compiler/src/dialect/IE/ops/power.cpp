@@ -34,14 +34,11 @@ mlir::LogicalResult vpux::IE::PowerOp::inferReturnTypeComponents(
         return ::mlir::failure();
     }
 
-    if (power.auto_broadcast().getValue() == vpux::IE::AutoBroadcastType::NONE_OR_EXPLICIT)
-    {
+    if (power.auto_broadcast().getValue() == vpux::IE::AutoBroadcastType::NONE_OR_EXPLICIT) {
         auto outType = power.input1().getType().cast<mlir::RankedTensorType>();
         auto outShape = outType.getShape();
         inferredReturnShapes.emplace_back(outShape, outType.getElementType());
-    }
-    else
-    {
+    } else {
         auto inType1 = power.input1().getType().cast<mlir::RankedTensorType>();
         auto inType2 = power.input2().getType().cast<mlir::RankedTensorType>();
         auto inShape1 = inType1.getShape();
@@ -50,8 +47,7 @@ mlir::LogicalResult vpux::IE::PowerOp::inferReturnTypeComponents(
 
         std::vector<int64_t> shape;
         shape.reserve(rank);
-        for(auto it1 = inShape1.rbegin(), it2 = inShape2.rbegin();
-            it1 != inShape1.rend() || it2 != inShape2.rend();) {
+        for (auto it1 = inShape1.rbegin(), it2 = inShape2.rbegin(); it1 != inShape1.rend() || it2 != inShape2.rend();) {
             if (it1 == inShape1.rend() && it2 == inShape2.rend())
                 break;
 
@@ -59,8 +55,7 @@ mlir::LogicalResult vpux::IE::PowerOp::inferReturnTypeComponents(
                 shape.push_back(std::max(*it1, *it2));
                 ++it1;
                 ++it2;
-            }
-            else if (it1 != inShape1.rend() && it2 == inShape2.rend()) {
+            } else if (it1 != inShape1.rend() && it2 == inShape2.rend()) {
                 shape.push_back(*it1);
                 ++it1;
             }

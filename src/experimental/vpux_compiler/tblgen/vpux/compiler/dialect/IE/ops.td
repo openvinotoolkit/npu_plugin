@@ -307,4 +307,29 @@ def IE_PowerOp :
     }];
 }
 
+//
+// GatherOp
+//
+
+def IE_GatherOp :
+        IE_LayerOp<
+            "Gather"
+        > {
+    let summary = "InferenceEngine Gather layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        AnyRankedTensor:$indices,
+        AnyRankedTensor:$axis
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif

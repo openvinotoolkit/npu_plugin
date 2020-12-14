@@ -38,7 +38,7 @@ TEST(IE_FrontendPowerTest, ImportNetwork) {
 
         ngraph::pass::InitNodeInfo().run_on_function(f);
     }
-    
+
     InferenceEngine::CNNNetwork nGraphImpl(f);
 
     mlir::MLIRContext ctx;
@@ -61,7 +61,7 @@ TEST(IE_FrontendPowerTest, AutoBroadcastType_NUMPY) {
 
         ngraph::pass::InitNodeInfo().run_on_function(f);
     }
-    
+
     InferenceEngine::CNNNetwork nGraphImpl(f);
 
     mlir::MLIRContext ctx;

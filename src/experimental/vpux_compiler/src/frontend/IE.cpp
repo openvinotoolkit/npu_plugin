@@ -75,6 +75,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Relu>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Split>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Power>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -120,8 +121,8 @@ const NGraphImporter::DispatchMap NGraphImporter::dispatchMap{
         MAP_ENTRY(ngraph::opset1::Tile),
         MAP_ENTRY(ngraph::opset1::Split),
         MAP_ENTRY(ngraph::opset1::Power),
-        {ngraph::opset1::Relu::get_type_info_static(), &NGraphImporter::parseDispatch<ngraph::opset1::Relu>}
-};
+        MAP_ENTRY(ngraph::opset1::Gather),
+        {ngraph::opset1::Relu::get_type_info_static(), &NGraphImporter::parseDispatch<ngraph::opset1::Relu>}};
 
 #undef MAP_ENTRY
 
@@ -269,14 +270,24 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     auto autob = origNode->get_autob();
     if (autob.m_type == ngraph::op::AutoBroadcastType::NONE) {
         VPUX_THROW_UNLESS(origNode->get_input_shape(0) == origNode->get_input_shape(1),
-                "Inputs of Power node '{0}' must have same shape. {1} != {2}",
-                origNode->get_friendly_name(), origNode->get_input_shape(0), origNode->get_input_shape(1));
+                          "Inputs of Power node '{0}' must have same shape. {1} != {2}", origNode->get_friendly_name(),
+                          origNode->get_input_shape(0), origNode->get_input_shape(1));
     }
 
-    auto autoBroadcastType = checked_cast<vpux::IE::AutoBroadcastType>(static_cast<vpux::IE::AutoBroadcastType>(autob.m_type));
+    auto autoBroadcastType =
+            checked_cast<vpux::IE::AutoBroadcastType>(static_cast<vpux::IE::AutoBroadcastType>(autob.m_type));
     auto autoBroadcastTypeAttr = vpux::IE::AutoBroadcastTypeAttr::get(autoBroadcastType, builder.getContext());
     auto op = builder.create<IE::PowerOp>(createLocation(origNode), inputs[0], inputs[1], autoBroadcastTypeAttr);
 
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 3, "nGraph Gather node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::GatherOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2]);
     addOutputs(origNode, {op.getResult()});
 }
 
