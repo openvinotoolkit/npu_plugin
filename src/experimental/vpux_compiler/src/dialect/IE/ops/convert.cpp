@@ -52,7 +52,7 @@ void vpux::IE::ConvertOp::getCanonicalizationPatterns(mlir::OwningRewritePattern
 }
 
 mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute>) {
-    if (inputType().getElementType() == outputType().getElementType()) {
+    if (inputType() == outputType()) {
         return input();
     }
 

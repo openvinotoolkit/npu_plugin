@@ -229,7 +229,6 @@ def IE_SoftMaxOp :
         `(` operands `)` attr-dict `:` type(operands) `->` type(results)
     }];
 
-    let hasCanonicalizer = 1;
     let hasFolder = 1;
 }
 

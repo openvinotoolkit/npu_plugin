@@ -63,16 +63,3 @@ mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(ArrayRef<mlir::Attribute>) {
     }
     return denseAttrOfOnes;
 }
-
-namespace IE_SoftMax {
-namespace {
-
-#include <vpux/compiler/dialect/IE/rewriters/generated/softmax.hpp.inc>
-
-}  // namespace
-}  // namespace IE_SoftMax
-
-void vpux::IE::SoftMaxOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
-                                                      mlir::MLIRContext* context) {
-    IE_SoftMax::populateWithGenerated(context, patterns);
-}
