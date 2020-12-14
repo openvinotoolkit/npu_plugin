@@ -14,42 +14,35 @@
 // stated in the License.
 //
 
-// TODO cleanup this
-#include <ie_blob.h>
 
+#include <ie_blob.h>
 #include <blob_factory.hpp>
 #include <fstream>
-#include <vpux_private_config.hpp>
 
 #include <creators/creator_blob_nv12.h>
-#include <tests_common.hpp>
+#include <helper_calc_cpu_ref.h>
 #include <helper_ie_core.h>
-#include <ie_core.hpp>
 #include <ie_compound_blob.h>
+#include <ie_core.hpp>
+#include <tests_common.hpp>
 #include "RemoteMemory.h"
 #include "comparators.h"
 #include "file_reader.h"
 #include "gtest/gtest.h"
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_params.hpp"
-#include "ie_core.hpp"
 #include "ie_utils.hpp"
-#include <helper_calc_cpu_ref.h>
-#include "models/precompiled_resnet.h"
-#include <vpu/utils/ie_helpers.hpp>
-#include <vpux/kmb_params.hpp>
+#include "executable_network_factory.h"
+#include "models/models_constant.h"
 
 namespace IE = InferenceEngine;
 
 class VideoWorkload_Tests : public ::testing::Test {
 public:
     WorkloadID workloadId = -1;
-
-    std::string graphPath;
-    std::string modelPath;
-
-    const size_t inputWidth = 224;
-    const size_t inputHeight = 224;
+    const Models::ModelDesc modelToUse = Models::googlenet_v1;
+    const size_t inputWidth = modelToUse.width;
+    const size_t inputHeight = modelToUse.height;
     const size_t nv12Size = inputWidth * inputHeight * 3 / 2;
     const size_t numberOfTopClassesToCompare = 3;
 
@@ -57,7 +50,6 @@ public:
         const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize);
 
 protected:
-    void SetUp() override;
     void TearDown() override;
     HddlUnite::RemoteMemory::Ptr _remoteFrame = nullptr;
 };
@@ -75,11 +67,6 @@ HddlUnite::RemoteMemory::Ptr VideoWorkload_Tests::allocateRemoteMemory(
         THROW_IE_EXCEPTION << "Failed to sync memory to device.";
     }
     return _remoteFrame;
-}
-
-void VideoWorkload_Tests::SetUp() {
-    graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
-    modelPath = PrecompiledResNet_Helper::resnet50.modelPath;
 }
 
 void VideoWorkload_Tests::TearDown() { HddlUnite::unregisterWorkloadContext(workloadId); }
@@ -100,7 +87,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
 
     // ---- Load frame to remote memory (emulate VAAPI result)
     // ----- Load input
-    IE::Blob::Ptr inputRefBlob = IE_Core_Helper::loadCatImage(IE::Layout::NCHW);
+    IE::Blob::Ptr inputRefBlob = IE_Core_Helper::loadImage("husky.bmp", modelToUse.width, modelToUse.height, IE::NHWC, true);
 
     // ----- Allocate memory with HddlUnite on device
     auto remoteMemory = allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
@@ -110,13 +97,8 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     IE::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", paramMap);
 
     // ---- Import network providing context as input to bind to context
-    std::filebuf blobFile;
-    if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
-        THROW_IE_EXCEPTION << "Could not open file: " << graphPath;
-    }
-    std::istream graphBlob(&blobFile);
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr);
-    blobFile.close();
+    auto blobContentStream = ExecutableNetworkFactory::getGraphBlob(modelToUse.pathToModel);
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(blobContentStream, contextPtr);
 
     // ---- Create infer request
     IE::InferRequest inferRequest;
@@ -144,7 +126,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputRefBlob);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputRefBlob);
 
     // --- Compare with expected output
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
@@ -175,13 +157,8 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     IE::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", paramMap);
 
     // ---- Import network providing context as input to bind to context
-    std::filebuf blobFile;
-    if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
-        THROW_IE_EXCEPTION << "Could not open file: " << graphPath;
-    }
-    std::istream graphBlob(&blobFile);
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, "VPUX");
-    blobFile.close();
+    auto blobContentStream = ExecutableNetworkFactory::getGraphBlob(modelToUse.pathToModel);
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(blobContentStream, contextPtr);
 
     // ---- Create infer request
     IE::InferRequest inferRequest;
@@ -256,13 +233,8 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
     IE::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", paramMap);
 
     // ---- Import network providing context as input to bind to context
-    std::filebuf blobFile;
-    if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
-        THROW_IE_EXCEPTION << "Could not open file: " << graphPath;
-    }
-    std::istream graphBlob(&blobFile);
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr);
-    blobFile.close();
+    auto blobContentStream = ExecutableNetworkFactory::getGraphBlob(modelToUse.pathToModel);
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(blobContentStream, contextPtr);
 
     // ---- Create infer request
     IE::InferRequest inferRequest;
@@ -295,7 +267,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputNV12Blob, &preprocInfo);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputNV12Blob, &preprocInfo);
 
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
         toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
@@ -336,13 +308,8 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
     IE::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", paramMap);
 
     // ---- Import network providing context as input to bind to context
-    std::filebuf blobFile;
-    if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
-        THROW_IE_EXCEPTION << "Could not open file: " << graphPath;
-    }
-    std::istream graphBlob(&blobFile);
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr);
-    blobFile.close();
+    auto blobContentStream = ExecutableNetworkFactory::getGraphBlob(modelToUse.pathToModel);
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(blobContentStream, contextPtr);
 
     // ---- Create infer request
     IE::InferRequest inferRequest;
@@ -379,7 +346,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputNV12Blob, &preprocInfo);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputNV12Blob, &preprocInfo);
 
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
         toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
