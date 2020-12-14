@@ -83,6 +83,11 @@
     [  162.461581] xlink-driver xlink-driver: Major = 236 Minor = 0
     [  162.461626] xlink-driver xlink-driver: Device Driver Insert...Done!!!
     ```
+7. Install thermal monitor driver (thermaldaemon-*-x86_64.deb) from BKC with the following command:
+
+    ```bash
+    sudo dpkg -i thermaldaemon-*-x86_64.deb
+    ```
 
 ## Set up VPUX plugin - KMB bypass on x86_64
 

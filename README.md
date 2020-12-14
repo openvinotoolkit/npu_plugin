@@ -379,6 +379,8 @@ Available only in DEBUG mode.
 
 2. Install PCIe XLink and HDDL drivers (use instructions from [VPU Wiki PCIe drivers KMB])
 
+3. Install additional drivers, described in [VPU Wiki Additional HDDL drivers]
+
 ### Set up VPUX plugin - KMB bypass on ARM
 
 1. Download last version of HDDLUnite package from [BKC configuration KMB] (`hddlunite-kmb_*.tar.gz`) with the following commands:
@@ -543,6 +545,7 @@ For any questions regarding this component please refer to [G-API-VPU project] m
 [VPU Wiki Install FIP KMB]: https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+FIP+via+fastboot
 [VPU Wiki Install Yocto KMB]: https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+Yocto+Image+to+EMMC+via+fastboot
 [VPU Wiki PCIe drivers KMB]: https://wiki.ith.intel.com/pages/viewpage.action?pageId=1503496133#HowtosetupPCIeforHDDLUnite-InstallPCIeXLinkdriver
+[VPU Wiki Additional HDDL drivers]: https://wiki.ith.intel.com/pages/viewpage.action?pageId=1503496133#HowtosetupPCIeforHDDLUnite-Installadditionaldrivers
 [BKC Configuration KMB]: https://wiki.ith.intel.com/display/VPUWIKI/HDDL2#HDDL2-Configuration
 [BKC Configuration TBH]: https://wiki.ith.intel.com/pages/viewpage.action?pageId=1700643473#ThunderBayHarbor-Configuration
 [VPU Wiki Boot TBH]: https://wiki.ith.intel.com/display/VPUWIKI/How+to+boot+up+Thunder+Bay+Harbor+board
