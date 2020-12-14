@@ -136,24 +136,6 @@ void AddDPUTasksProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::Computation
             lastTask = true;
         }
 
-        auto parentDPU = findParentDPUorUPATask(opIt, cm);
-        if (parentDPU != cm.opEnd()) {
-            for(auto childOp = parentDPU.leftmostChild(); childOp != cm.opEnd(); ++childOp) {
-                if (childOp->getOpType() == "BarrierTask") {
-                    prevBarrier = childOp->getName();
-                    break;
-                }
-            }
-        } else parentDPU = opIt;
-        std::cout << "DPU: " << opIt->getName() << "(" << opIt->get<unsigned>("layerNumber") << ")"
-        //<< " Child: " << nextBarrier 
-        //<< " Parent: " << prevBarrier << "(" << parentDPU->get<unsigned>("layerNumber")  << ")"
-        << std::endl;
-
-        for (const auto& inputTensor : opIt->getInputTensor()) {
-            std::cout << "I size: " << inputTensor->getClusterSize() << " " << inputTensor->getShape().toString() << std::endl;
-        }
-
         if (barrierOp != cm.opEnd()) {
             auto barrierName = barrierOp->getName();
             auto dmaName = opIt->getName();
@@ -161,6 +143,7 @@ void AddDPUTasksProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::Computation
             auto layerNumber = opIt->get<unsigned>("layerNumber");
             /* TODO Make this condition better */
             if (layerNumber == 2) {
+                auto parentDPU = findParentDPUorUPATask(opIt, cm);
                 /* Add DMA to the first parent barrier */
                 for(auto childOp = parentDPU.leftmostChild(); childOp != cm.opEnd(); ++childOp) {
                     if (childOp->getOpType() == "BarrierTask") {

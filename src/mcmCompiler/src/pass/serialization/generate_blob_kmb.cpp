@@ -93,49 +93,42 @@ static void DMAOrderingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
     mv::ControlModel cm(model); 
     mv::Data::OpListIterator dputask; 
     unsigned dpuTaskschedulingNumber = 0;
-    unsigned dpulevel = 0;
-    auto sortedOps = cm.topologicalSort();
-    std::vector<unsigned> dpuTaskschedulingNumbers;
-    unsigned maxdpuTaskschedulingNumber = 0;
+    //unsigned dpulevel = 0;
 
     auto dmas = om.getOps("DMATask");
 
     for(auto& dmaOp: dmas) {
+            unsigned mindpuTaskschedulingNumber = std::numeric_limits<unsigned>::max();
+            if (!dmaOp->hasAttr("DPU-schedule-number")) {
 
-            dpuTaskschedulingNumbers.clear();
-            for(auto son = dmaOp.leftmostChild(); son != om.opEnd(); ++son)
-            {
-                auto task = om.getOp(son->getName());
-                if(task->getOpType() != "DPUTask" && (task->getOpType() != "Output" && task->getOpType() != "UPATask"))
-                    task = findChildDPUorUPATaskOp(model, son);
-       
-                if(task->hasAttr("schedulingNumber"))
+                for(auto son = dmaOp.leftmostChild(); son != om.opEnd(); ++son)
                 {
-                    dpuTaskschedulingNumber = task->get<unsigned>("schedulingNumber");
-                    dpuTaskschedulingNumbers.push_back(dpuTaskschedulingNumber);
-                    dpulevel = task->get<unsigned>("layerNumber");
+                    auto task = om.getOp(son->getName());
+                    if(task->getOpType() != "DPUTask" && task->getOpType() != "Output" && task->getOpType() != "UPATask")
+                        task = findChildDPUorUPATaskOp(model, son);
+        
+                    if(task->hasAttr("schedulingNumber"))
+                    {
+                        dpuTaskschedulingNumber = task->get<unsigned>("schedulingNumber");
+                        //dpulevel = task->get<unsigned>("layerNumber");
+                    }
+
+                    if ( (task->getOpType() != "Output") && (dpuTaskschedulingNumber < mindpuTaskschedulingNumber) )
+                        mindpuTaskschedulingNumber = dpuTaskschedulingNumber;
                 }
-               
-                auto dmaTasklayernumber = dmaOp->get<unsigned>("layerNumber");
-
-                if(dpuTaskschedulingNumber > maxdpuTaskschedulingNumber)
-                    maxdpuTaskschedulingNumber = dpuTaskschedulingNumber;
-
-
-                if(task->getOpType() == "Output")
-                {
-                    maxdpuTaskschedulingNumber = std::numeric_limits<unsigned>::max();
-                    dpuTaskschedulingNumber= maxdpuTaskschedulingNumber;
-                    dpuTaskschedulingNumbers.push_back(dpuTaskschedulingNumber);
-                }
-               
-                dmaOp->set<unsigned>("DPULevel",dpulevel);
-                dmaOp->set<unsigned>("DMALevel",dmaTasklayernumber);
-                dmaOp->set<unsigned>("DPU-schedule-number",*std::min_element(std::begin(dpuTaskschedulingNumbers), std::end(dpuTaskschedulingNumbers)));
-                dmaOp->set<std::array<unsigned short, 2>>("DMALevel-DPU-schedule-number", {
-                    static_cast<unsigned short>(dmaTasklayernumber),
-                    static_cast<unsigned short>(dpuTaskschedulingNumber)
-                  });
+            } else {
+                dpuTaskschedulingNumber = mindpuTaskschedulingNumber = dmaOp->get<unsigned>("DPU-schedule-number");
             }
+
+            auto dmaTasklayernumber = dmaOp->get<unsigned>("layerNumber");
+               
+            //dmaOp->set<unsigned>("DPULevel",dpulevel); Not used anythere
+            dmaOp->set<unsigned>("DMALevel",dmaTasklayernumber);
+            dmaOp->set<unsigned>("DPU-schedule-number", mindpuTaskschedulingNumber);
+            //This used just as a flag
+            dmaOp->set<std::array<unsigned short, 2>>("DMALevel-DPU-schedule-number", {
+                static_cast<unsigned short>(dmaTasklayernumber),
+                static_cast<unsigned short>(dpuTaskschedulingNumber)
+                });
     }
 }
