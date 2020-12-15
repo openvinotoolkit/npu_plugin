@@ -423,4 +423,30 @@ def IE_EluOp :
     }];
 }
 
+//
+// ReshapeOp
+// 
+
+def IE_ReshapeOp :
+        IE_LayerOp<
+            "Reshape"
+        > {
+
+    let summary = "InferenceEngine Reshape layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        1DTensorOf<[AnyInteger]>:$input2,
+        UnitAttr:$special_zero
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
