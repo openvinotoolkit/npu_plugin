@@ -56,7 +56,8 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapNegativeWorkloadID_ThrowException) {
 }
 
 //------------------------------------------------------------------------------
-TEST_F(HDDL2_HddlUnite_Tests, CanGetAvailableDevices) {
+// Track number: H#18012581010
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CanGetAvailableDevices) {
     std::vector<HddlUnite::Device> devices;
 
     HddlStatusCode code = getAvailableDevices(devices);
@@ -66,7 +67,8 @@ TEST_F(HDDL2_HddlUnite_Tests, CanGetAvailableDevices) {
 }
 
 //------------------------------------------------------------------------------
-TEST_F(HDDL2_HddlUnite_Tests, CanCreateAndChangeRemoteMemory) {
+// Track number: H#18012581010
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CanCreateAndChangeRemoteMemory) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const std::string message = "Hello there\n";
 
@@ -84,7 +86,8 @@ TEST_F(HDDL2_HddlUnite_Tests, CanCreateAndChangeRemoteMemory) {
     ASSERT_EQ(resultMessage, message);
 }
 
-TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
+// Track number: H#18012581010
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrappedMemoryWillHaveSameData) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const std::string message = "Hello there\n";
 

@@ -56,11 +56,7 @@ void HDDL2_Remote_Blob_Tests::TearDown() {
 }
 
 //------------------------------------------------------------------------------
-// Test shows error for memory allocation:
-// [ RUN      ] HDDL2_Remote_Blob_Tests.CanCreateRemoteBlobUsingContext
-// ERROR[RemoteMemoryObject.cpp:300] Error: allocate remote memory failed: statusCode(-4)[0m
-// ERROR[RemoteMemory.cpp:144] Error: invalid remote memory object[0m
-// [Track number: S#42491]
+// Track number: H#18012581010
 TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanCreateRemoteBlobUsingContext) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
@@ -79,12 +75,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_RemoteBlobFromRemoteMem_WillNotDestroyR
     ASSERT_TRUE(remoteMemoryHelper.isRemoteTheSame(memoryData));
 }
 
-// Test fails with segmentation fault
-// [ RUN      ] HDDL2_Remote_Blob_Tests.CanGetParams
-// ERROR[RemoteMemoryObject.cpp:300] Error: allocate remote memory failed: statusCode(-4)[0m
-// ERROR[RemoteMemory.cpp:144] Error: invalid remote memory object[0m
-// Segmentation fault (core dumped)
-// [Track number: S#42493]
+// Track number: H#18012581010
 TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetParams) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
@@ -95,7 +86,8 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetParams) {
     ASSERT_EQ(params, blobParams);
 }
 
-TEST_F(HDDL2_Remote_Blob_Tests, CanGetDeviceName) {
+// Track number: H#18012581010
+TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetDeviceName) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
@@ -106,7 +98,8 @@ TEST_F(HDDL2_Remote_Blob_Tests, CanGetDeviceName) {
     ASSERT_NE(deviceName.find(pluginName), std::string::npos);
 }
 
-TEST_F(HDDL2_Remote_Blob_Tests, CanGetTensorDesc) {
+// Track number: H#18012581010
+TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetTensorDesc) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);

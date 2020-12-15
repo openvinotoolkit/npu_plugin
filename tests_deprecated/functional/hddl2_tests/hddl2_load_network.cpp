@@ -21,11 +21,13 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::VPUXConfigParams;
 
-TEST_F(LoadNetwork_Tests, CanCreateExecutableNetwork) {
+// Track number: H#18012581010
+TEST_F(LoadNetwork_Tests, DISABLED_CanCreateExecutableNetwork) {
     ASSERT_NO_THROW(auto executableNetwork = ie.LoadNetwork(network, pluginName));
 }
 
-TEST_F(LoadNetwork_Tests, CanCreateWithContext) {
+// Track number: H#18012581010
+TEST_F(LoadNetwork_Tests, DISABLED_CanCreateWithContext) {
     Remote_Context_Helper contextHelper;
 
     auto contextParams = contextHelper.wrapWorkloadIdToMap(contextHelper.getWorkloadId());
@@ -34,13 +36,15 @@ TEST_F(LoadNetwork_Tests, CanCreateWithContext) {
     ASSERT_NO_THROW(auto executableNetwork = ie.LoadNetwork(network, remoteContext, {}));
 }
 
-TEST_F(LoadNetwork_Tests, CannotCreateWithNullContext) {
+// Track number: H#18012581010
+TEST_F(LoadNetwork_Tests, DISABLED_CannotCreateWithNullContext) {
     RemoteContext::Ptr remoteContext = nullptr;
 
     ASSERT_ANY_THROW(auto executableNetwork = ie.LoadNetwork(network, remoteContext, {}));
 }
 
-TEST_F(LoadNetwork_Tests, CanSetCSRAMSize) {
+// Track number: H#18012581010
+TEST_F(LoadNetwork_Tests, DISABLED_CanSetCSRAMSize) {
     // TODO We need some way to distinguish KMB/TBH cases
     const uint64_t csram_size = 6 * 1024 * 1024;
     std::map<std::string, std::string> _config = {{VPUX_CONFIG_KEY(CSRAM_SIZE), std::to_string(csram_size)}};
@@ -48,13 +52,15 @@ TEST_F(LoadNetwork_Tests, CanSetCSRAMSize) {
     ASSERT_NO_THROW(auto executableNetwork = ie.LoadNetwork(network, pluginName, _config));
 }
 
-TEST_F(LoadNetwork_Tests, CannotSetBadConfig) {
+// Track number: H#18012581010
+TEST_F(LoadNetwork_Tests, DISABLED_CannotSetBadConfig) {
     std::map<std::string, std::string> _config = {{"BAD_KEY", "BAD_VALUE"}};
 
     ASSERT_ANY_THROW(auto executableNetwork = ie.LoadNetwork(network, pluginName, _config));
 }
 
 //------------------------------------------------------------------------------
-TEST_F(ExecutableNetwork_Tests, CanCreateInferRequest) {
+// Track number: H#18012581010
+TEST_F(ExecutableNetwork_Tests, DISABLED_CanCreateInferRequest) {
     ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 }
