@@ -43,7 +43,8 @@ public:
 private:
     void passBody();
 
-    void collectTrailingSwTasks(mlir::FuncOp graphFunc);
+private:
+    void collectTrailingUPATasks(mlir::FuncOp graphFunc);
 
     static VPUIP::TaskOpInterface getPrevTask(mlir::Operation* op);
     static VPUIP::TaskOpInterface getNextTask(mlir::Operation* op);
@@ -57,10 +58,14 @@ void AddLinearSchedulingPass::runOnOperation() {
     try {
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "AddLinearSchedulingPass failed : {0}", e.what());
+        printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
+
+//
+// passBody
+//
 
 void AddLinearSchedulingPass::passBody() {
     auto module = getOperation();
@@ -71,27 +76,42 @@ void AddLinearSchedulingPass::passBody() {
 
     auto graphOp = VPUIP::GraphOp::getFromModule(module);
 
-    collectTrailingSwTasks(netFunc);
+    _log.trace("Try to find trailing UPA Tasks");
+    collectTrailingUPATasks(netFunc);
 
     const auto callback = [&](mlir::Operation* op) {
+        auto innerLog = _log.nest();
+
+        innerLog.trace("Process Operation '{0}'", *op);
+
         auto curTask = mlir::dyn_cast<VPUIP::TaskOpInterface>(op);
         if (curTask == nullptr) {
+            innerLog.trace("It is not a VPUIP Task");
             return;
         }
 
         if (_trailingSwTasks.count(op) != 0) {
+            innerLog.trace("It is a trailing UPA Task");
+
             auto upaTask = mlir::cast<VPUIP::UPATaskOpInterface>(op);
             upaTask.markAsTrailingSWLayer();
+
             return;
         }
 
         if (auto prevTask = getPrevTask(op)) {
+            innerLog.trace("It has dependency on previous task '{0}'", prevTask);
+
             const auto prevBarriers = prevTask.updateBarriers();
             curTask.waitBarriersMutable().append(prevBarriers);
         }
 
         if (getNextTask(op) != nullptr) {
-            mlir::OpBuilder builder(op);
+            innerLog.trace("It has dependent task");
+
+            OpBuilderLogger builderLog(_log.nest());
+            mlir::OpBuilder builder(op, &builderLog);
+
             auto newBarrierOp = builder.create<VPUIP::ConfigureBarrierOp>(op->getLoc());
             curTask.updateBarriersMutable().append(mlir::ValueRange{newBarrierOp.barrier()});
         }
@@ -99,47 +119,57 @@ void AddLinearSchedulingPass::passBody() {
 
     netFunc.walk(callback);
 
+    _log.trace("Update VPUIP.Graph Operation 'options' attribute");
     auto options = graphOp.options();
     options = options | VPUIP::ExecutionFlag::DynamicBarriers;
     graphOp.optionsAttr(VPUIP::ExecutionFlagAttr::get(options, module.getContext()));
 }
 
-void AddLinearSchedulingPass::collectTrailingSwTasks(mlir::FuncOp graphFunc) {
+//
+// collectTrailingSwTasks
+//
+
+void AddLinearSchedulingPass::collectTrailingUPATasks(mlir::FuncOp graphFunc) {
     auto tasks = to_vector<16>(graphFunc.getOps<VPUIP::TaskOpInterface>());
 
     for (auto curTask : tasks | reversed) {
+        auto innerLog = _log.nest();
+
+        innerLog.trace("Process Task '{0}'", curTask);
+
         if (curTask.getTaskType() != VPUIP::TaskType::UPA) {
+            innerLog.trace("Is it not an UPA task, stop processing");
             break;
         }
 
-        bool hasNonSwDep = false;
+        bool hasNonUPADep = false;
         for (auto updateBarrier : curTask.updateBarriers()) {
             for (auto* depOp : updateBarrier.getUsers()) {
-                auto depTask = mlir::dyn_cast<VPUIP::TaskOpInterface>(depOp);
+                if (!mlir::isa<VPUIP::UPATaskOpInterface>(depOp)) {
+                    innerLog.trace("Is has non UPA dependent task '{0}'", *depOp);
 
-                if (depTask == nullptr) {
-                    hasNonSwDep = true;
-                    break;
-                }
-
-                if (depTask.getTaskType() != VPUIP::TaskType::UPA) {
-                    hasNonSwDep = true;
+                    hasNonUPADep = true;
                     break;
                 }
             }
 
-            if (hasNonSwDep) {
+            if (hasNonUPADep) {
                 break;
             }
         }
 
-        if (hasNonSwDep) {
+        if (hasNonUPADep) {
             break;
         }
 
+        innerLog.trace("Is is a trailing UPA task");
         _trailingSwTasks.insert(curTask.getOperation());
     }
 }
+
+//
+// getPrevTask & getNextTask
+//
 
 VPUIP::TaskOpInterface AddLinearSchedulingPass::getPrevTask(mlir::Operation* op) {
     auto* prevOp = op->getPrevNode();
@@ -158,6 +188,10 @@ VPUIP::TaskOpInterface AddLinearSchedulingPass::getNextTask(mlir::Operation* op)
 }
 
 }  // namespace
+
+//
+// createAddLinearSchedulingPass
+//
 
 std::unique_ptr<mlir::Pass> vpux::VPUIP::createAddLinearSchedulingPass(Logger log) {
     return std::make_unique<AddLinearSchedulingPass>(log);
