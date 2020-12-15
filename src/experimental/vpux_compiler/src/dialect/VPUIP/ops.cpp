@@ -80,26 +80,6 @@ mlir::Operation* vpux::VPUIP::VPUIPDialect::materializeConstant(mlir::OpBuilder&
                                                           value.cast<mlir::DenseElementsAttr>());
 }
 
-mlir::Type vpux::VPUIP::VPUIPDialect::parseType(mlir::DialectAsmParser& parser) const {
-    StringRef mnemonic;
-    if (mlir::failed(parser.parseKeyword(&mnemonic))) {
-        printTo(parser.emitError(parser.getCurrentLocation()), "Failed to get VPUIP Type mnemonic");
-        return nullptr;
-    }
-
-    const auto type = generatedTypeParser(getContext(), parser, mnemonic);
-
-    if (type == nullptr) {
-        printTo(parser.emitError(parser.getCurrentLocation()), "Unknown VPUIP Type '{0}'", mnemonic);
-    }
-
-    return type;
-}
-
-void vpux::VPUIP::VPUIPDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& os) const {
-    generatedTypePrinter(type, os);
-}
-
 //
 // Generated
 //
