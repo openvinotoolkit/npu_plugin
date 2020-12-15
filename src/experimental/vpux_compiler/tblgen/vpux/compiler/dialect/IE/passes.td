@@ -54,4 +54,22 @@ def ConvertShapeTo4D : Pass<"convert-shape-to-4d", "mlir::ModuleOp"> {
     ];
 }
 
+//
+// AdjustForVPU
+//
+
+def AdjustForVPU : Pass<"adjust-for-vpu", "mlir::ModuleOp"> {
+    let summary = "Adjust IE Dialect IR for VPU target";
+
+    let description = [{
+        This "pipeline" pass includes various adaptation passes to adjust the IR for VPU target.
+    }];
+
+    let constructor = "vpux::IE::createAdjustForVPUPass()";
+
+    let dependentDialects = [
+        "mlir::linalg::LinalgDialect"
+    ];
+}
+
 #endif

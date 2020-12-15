@@ -14,48 +14,59 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/pipelines.hpp"
-
-#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
+
+#include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/Passes.h>
 
 using namespace vpux;
 
-//
-// ReferenceMode
-//
-
 namespace {
 
-class ReferenceModePass final : public ReferenceModeBase<ReferenceModePass> {
+//
+// AdjustForVPUPass
+//
+
+class AdjustForVPUPass final : public IE::AdjustForVPUBase<AdjustForVPUPass> {
 public:
-    explicit ReferenceModePass(Logger log);
+    explicit AdjustForVPUPass(Logger log);
 
 public:
     void runOnOperation() final;
+
+private:
+    void passBody();
 
 private:
     Logger _log;
     mlir::OpPassManager _pm;
 };
 
-ReferenceModePass::ReferenceModePass(Logger log)
+AdjustForVPUPass::AdjustForVPUPass(Logger log)
         : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _log.setName(Base::getArgumentName());
 
-    _pm.addPass(mlir::createCanonicalizerPass());
-    _pm.addPass(IE::createAdjustForVPUPass(_log.nest()));
-    _pm.addPass(createLowerIE2IERTPass(_log.nest()));
-    _pm.addPass(createLowerIERT2VPUIPPass(_log.nest()));
-    _pm.addPass(VPUIP::createAddLinearSchedulingPass(_log.nest()));
+    _pm.addPass(IE::createConvertShapeTo4DPass(_log.nest()));
+    _pm.addPass(IE::createConvertPrecisionToFP16Pass(_log.nest()));
 }
 
-void ReferenceModePass::runOnOperation() {
-    if (mlir::failed(runPipeline(_pm, getOperation()))) {
+void AdjustForVPUPass::runOnOperation() {
+    try {
+        passBody();
+    } catch (const std::exception& e) {
+        printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
+        signalPassFailure();
+    }
+}
+
+//
+// passBody
+//
+
+void AdjustForVPUPass::passBody() {
+    auto module = getOperation();
+    if (mlir::failed(runPipeline(_pm, module))) {
         signalPassFailure();
     }
 }
@@ -63,9 +74,9 @@ void ReferenceModePass::runOnOperation() {
 }  // namespace
 
 //
-// createReferenceModePass
+// createAdjustForVPUPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::createReferenceModePass(Logger log) {
-    return std::make_unique<ReferenceModePass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createAdjustForVPUPass(Logger log) {
+    return std::make_unique<AdjustForVPUPass>(log);
 }

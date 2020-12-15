@@ -32,8 +32,8 @@ namespace IE {
 //
 
 std::unique_ptr<mlir::Pass> createConvertPrecisionToFP16Pass(Logger log = Logger::global());
-
 std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createAdjustForVPUPass(Logger log = Logger::global());
 
 //
 // Generated
