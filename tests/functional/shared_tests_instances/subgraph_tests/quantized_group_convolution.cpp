@@ -9,7 +9,7 @@
 
 #include "kmb_layer_test.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 class KmbQuantGroupConvLayerTest: public QuantGroupConvLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeImport() override {
@@ -23,7 +23,7 @@ TEST_P(KmbQuantGroupConvLayerTest, CompareWithRefs) {
 
 }  // namespace LayerTestsDefinitions
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 using namespace ngraph::helpers;
 
 namespace {
