@@ -28,14 +28,10 @@ namespace vpux {
 namespace IE {
 
 //
-// ConvertPrecisionToFP16
+// Passes
 //
 
 std::unique_ptr<mlir::Pass> createConvertPrecisionToFP16Pass(Logger log = Logger::global());
-
-//
-// ConvertShapeTo4D
-//
 
 std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
 

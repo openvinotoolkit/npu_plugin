@@ -48,9 +48,6 @@ public:
     void runOnOperation() final;
 
 public:
-    Optional<int64_t> getValOffset(mlir::Value val) const;
-
-public:
     class AllocRewrite;
     class DeallocRewrite;
 
@@ -105,9 +102,9 @@ mlir::LogicalResult StaticAllocationPass::AllocRewrite::matchAndRewrite(mlir::Al
                                                                         mlir::PatternRewriter& rewriter) const {
     _log.trace("Found Alloc Operation '{0}'", origOp);
 
-    auto val = origOp.memref();
+    const auto val = origOp.memref();
 
-    auto offset = _allocInfo.get().getValOffset(val);
+    const auto offset = _allocInfo.get().getValOffset(val);
     if (!offset.hasValue()) {
         _log.error("Value '{0}' was not allocated", val);
         return mlir::failure();

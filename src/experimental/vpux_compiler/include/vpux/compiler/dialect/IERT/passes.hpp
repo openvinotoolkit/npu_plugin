@@ -20,6 +20,8 @@
 
 #include "vpux/utils/core/logger.hpp"
 
+#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
 
@@ -29,8 +31,10 @@ namespace vpux {
 namespace IERT {
 
 //
-// StaticAllocation
+// Passes
 //
+
+std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(mlir::Attribute memSpace, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createStaticAllocationPass(mlir::Attribute memSpace, Logger log = Logger::global());
 

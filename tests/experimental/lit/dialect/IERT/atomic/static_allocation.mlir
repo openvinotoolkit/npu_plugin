@@ -54,7 +54,7 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
     // CHECK:       linalg.copy([[VAR2]], [[ARG1]])
     // CHECK-NOT:   dealloc
 
-    // CHECK-NEXT:  return
+    // CHECK:       return
 }
 
 }

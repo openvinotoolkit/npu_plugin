@@ -258,7 +258,6 @@ void ConvertShapeTo4DPass::passBody() {
     mlir::linalg::TensorReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto module = getOperation();
-
     if (mlir::failed(mlir::applyPartialConversion(module.getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
     }

@@ -20,6 +20,33 @@
 include "mlir/Pass/PassBase.td"
 
 //
+// SetInternalMemorySpace
+//
+
+def SetInternalMemorySpace : FunctionPass<"set-internal-memory-space"> {
+    let summary = "Set specific memory space for all internal memory buffers";
+
+    let description = [{
+        This "atomic" pass updates all Types for internal memory buffers and sets the specified memory space for them.
+    }];
+
+    let constructor = "vpux::IERT::createSetInternalMemorySpacePass(nullptr)";
+
+    let options = [
+        Option<
+            "memSpaceName", "memory-space",
+            "std::string", [{""}],
+            "Memory space to perform allocation"
+        >
+    ];
+
+    let dependentDialects = [
+        "mlir::StandardOpsDialect",
+        "mlir::linalg::LinalgDialect"
+    ];
+}
+
+//
 // StaticAllocation
 //
 
