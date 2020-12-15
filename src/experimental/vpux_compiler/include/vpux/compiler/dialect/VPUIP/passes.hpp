@@ -36,8 +36,6 @@ namespace VPUIP {
 
 std::unique_ptr<mlir::Pass> createSetCompileParamsPass(Optional<ArchKind> arch, Logger log = Logger::global());
 
-std::unique_ptr<mlir::Pass> createAssignTensorOffsetsDDRPass(Logger log = Logger::global());
-
 std::unique_ptr<mlir::Pass> createAddLinearSchedulingPass(Logger log = Logger::global());
 
 //

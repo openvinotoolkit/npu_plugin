@@ -35,8 +35,6 @@ func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
     // CHECK-SAME:      isTrailingSWLayer
     // CHECK-SAME:      inputs(%[[VAL_0]] : memref<1x1x1x1000xf16>)
     // CHECK-SAME:      outputs(%[[VAL_1]] : memref<1x1x1x1000xf16>)
-
-    // CHECK:       return
 }
 
 }
@@ -105,8 +103,6 @@ func @main(%arg0: tensor<1x2x2x2xf32>) -> (tensor<1x2x2x2xf32>, tensor<1x2x2x2xf
     // CHECK-SAME:      isTrailingSWLayer
     // CHECK-SAME:      inputs(%[[VAL_3]] : memref<1x2x2x2xf16>)
     // CHECK-SAME:      outputs(%[[VAL_2]] : memref<1x2x2x2xf16>)
-
-    // CHECK:       return
 }
 
 }

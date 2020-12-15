@@ -1,5 +1,12 @@
 // RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --set-internal-memory-space="memory-space=DDR" %s | FileCheck %s
 
+//
+// The 'set-internal-memory-space' pass:
+//
+//   * Updates only Function bodies.
+//   * Updates `alloc` Operation result Type.
+//
+
 // CHECK-LABEL: @Test
 module @Test {
 

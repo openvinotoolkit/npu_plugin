@@ -31,22 +31,21 @@ IE.CNNNetwork
 
 // CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x1000xf16>, [[ARG1:%arg[0-9]*]]: memref<1x1000xf16>) {
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
-    %0 = alloc() : memref<1x1000xf16>
-    IERT.SoftMax(%arg0, %0) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16>
-    linalg.copy(%0, %arg1) : memref<1x1000xf16>, memref<1x1000xf16>
-    dealloc %0 : memref<1x1000xf16>
+    %0 = IERT.StaticAlloc<0> -> memref<1x1000xf16, "DDR">
+    IERT.SoftMax(%arg0, %0) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16, "DDR">
+    linalg.copy(%0, %arg1) : memref<1x1000xf16, "DDR">, memref<1x1000xf16>
     return
 
-    // CHECK:       [[VAR0:%[0-9]*]] = alloc() : memref<1x1000xf16>
-    // CHECK-NEXT:  VPUIP.SoftMaxUPA
+    // CHECK:       [[VAR0:%[0-9]*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16, "DDR">
+
+    // CHECK:       VPUIP.SoftMaxUPA
     // CHECK-SAME:      axisInd = 1
     // CHECK-SAME:      inputs([[ARG0]] : memref<1x1000xf16>)
-    // CHECK-SAME:      outputs([[VAR0]] : memref<1x1000xf16>)
-    // CHECK-NEXT:  VPUIP.NNDMA
-    // CHECK-SAME:      inputs([[VAR0]] : memref<1x1000xf16>)
+    // CHECK-SAME:      outputs([[VAR0]] : memref<1x1000xf16, "DDR">)
+
+    // CHECK:       VPUIP.NNDMA
+    // CHECK-SAME:      inputs([[VAR0]] : memref<1x1000xf16, "DDR">)
     // CHECK-SAME:      outputs([[ARG1]] : memref<1x1000xf16>)
-    // CHECK-NEXT:  dealloc [[VAR0]] : memref<1x1000xf16>
-    // CHECK-NEXT:  return
 }
 
 }
@@ -86,10 +85,10 @@ func @main(%arg0: memref<1x2x2x2xf16>) {
     // CHECK:       [[VAR0:%[0-9]*]] = VPUIP.DeclareConstantTensorOp
     // CHECK-SAME:      dense<1.000000e+00>
     // CHECK-SAME:      -> memref<1x2x2x2xf16>
-    // CHECK-NEXT:  VPUIP.NNDMA
+
+    // CHECK:       VPUIP.NNDMA
     // CHECK-SAME:      inputs([[VAR0]] : memref<1x2x2x2xf16>)
     // CHECK-SAME:      outputs([[ARG0]] : memref<1x2x2x2xf16>)
-    // CHECK-NEXT:  return
 }
 
 }

@@ -1,5 +1,12 @@
 // RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --static-allocation="memory-space=DDR" %s | FileCheck %s
 
+//
+// The 'static-allocation' pass:
+//
+//   * Starts from `IE.CNNNetwork` entry point Function.
+//   * It replaces all `alloc`/`dealloc` Operations, that works with specific memory space, with single `IERT.StaticAlloc` Operation.
+//
+
 // CHECK-LABEL: @LinearGraph
 module @LinearGraph {
 

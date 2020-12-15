@@ -17,6 +17,8 @@
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/IERT/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
@@ -52,12 +54,18 @@ private:
 LowerIERT2VPUIPPass::LowerIERT2VPUIPPass(Logger log)
         : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _log.setName(Base::getArgumentName());
-
-    _pm.addPass(createConvertIERT2VPUIPPass(_log.nest()));
 }
 
 void LowerIERT2VPUIPPass::runOnOperation() {
     try {
+        auto& ctx = getContext();
+
+        const auto ddrMemSpace = VPUIP::PhysicalMemoryAttr::get(VPUIP::PhysicalMemory::DDR, &ctx);
+
+        _pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpace, _log.nest()));
+        _pm.addPass(IERT::createStaticAllocationPass(ddrMemSpace, _log.nest()));
+        _pm.addPass(createConvertIERT2VPUIPPass(_log.nest()));
+
         passBody();
     } catch (const std::exception& e) {
         printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
@@ -91,7 +99,7 @@ void LowerIERT2VPUIPPass::passBody() {
 }
 
 //
-// replaceCnnNetworkOp
+// addGraphOp
 //
 
 void LowerIERT2VPUIPPass::addGraphOp() {
