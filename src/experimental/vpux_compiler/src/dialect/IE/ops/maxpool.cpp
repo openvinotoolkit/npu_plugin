@@ -17,13 +17,14 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
+#include "vpux/utils/core/error.hpp"
 
 #include <mlir/IR/PatternMatch.h>
+
 #include <ngraph/coordinate.hpp>
 #include <ngraph/op/max_pool.hpp>
 #include <ngraph/util.hpp>
-#include "ngraph/validation_util.hpp"
-#include "vpux/utils/core/error.hpp"
+#include <ngraph/validation_util.hpp>
 
 using namespace vpux;
 
