@@ -337,6 +337,34 @@ def IE_PowerOp :
 }
 
 //
+// AddOp
+//
+
+def IE_AddOp :
+        IE_LayerOp<
+            "Add",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine Add layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
 // MultiplyOp
 //
 

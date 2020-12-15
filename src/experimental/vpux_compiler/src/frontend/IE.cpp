@@ -97,6 +97,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Unsqueeze>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Minimum>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Maximum>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Add>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -157,6 +158,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset1::Unsqueeze),
             MAP_ENTRY(ngraph::opset1::Minimum),
             MAP_ENTRY(ngraph::opset1::Maximum),
+            MAP_ENTRY(ngraph::opset1::Add),
     };
 #undef MAP_ENTRY
 
@@ -393,6 +395,25 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto op = builder.create<IE::MaxPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
                                             attrPadsBegin, attrPadsEnd, attrRoundingType);
+
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Add>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Add node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto autob = origNode->get_autob();
+    if (autob.m_type == ngraph::op::AutoBroadcastType::NONE) {
+        VPUX_THROW_UNLESS(origNode->get_input_shape(0) == origNode->get_input_shape(1),
+                          "Input shapes of Add node '{0}' are different.", origNode->get_friendly_name());
+    }
+
+    auto autoBroadcastType =
+            checked_cast<vpux::IE::AutoBroadcastType>(static_cast<vpux::IE::AutoBroadcastType>(autob.m_type));
+    auto autoBroadcastTypeAttr = vpux::IE::AutoBroadcastTypeAttr::get(autoBroadcastType, builder.getContext());
+    auto op = builder.create<IE::AddOp>(createLocation(origNode), inputs[0], inputs[1], autoBroadcastTypeAttr);
 
     addOutputs(origNode, {op.getResult()});
 }
