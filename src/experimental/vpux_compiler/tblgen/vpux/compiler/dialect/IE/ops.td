@@ -309,6 +309,37 @@ def IE_PowerOp :
 }
 
 //
+// MaxPoolOp
+//
+def IE_MaxPoolOp :
+        IE_LayerOp<
+            "MaxPool",
+            [
+                ResultsAreFloatLike,
+            ]
+        > {
+    let summary = "InferenceEngine MaxPool layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        I32ArrayAttr:$kernel_size,
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        IE_RoundingType:$rounding_type
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
 // GatherOp
 //
 
@@ -332,5 +363,4 @@ def IE_GatherOp :
         `(` operands `)` attr-dict `:` type(operands) `->` type(results)
     }];
 }
-
 #endif

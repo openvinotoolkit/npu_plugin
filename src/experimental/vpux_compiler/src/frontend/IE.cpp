@@ -76,6 +76,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Relu>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Split>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Power>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MaxPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode);
 
     template <class NodeType>
@@ -95,6 +96,10 @@ private:
     mlir::Type importElemType(const ngraph::element::Type& elemType);
     mlir::RankedTensorType importTensor(const ngraph::PartialShape& shape, const ngraph::element::Type& elemType);
     mlir::Location createLocation(const OrigNodePtr& node);
+
+private:
+    template <typename T>
+    mlir::ArrayAttr importUInt32Array(T& inArray);
 
 private:
     mlir::MLIRContext* _ctx = nullptr;
@@ -122,11 +127,12 @@ const NGraphImporter::DispatchMap NGraphImporter::dispatchMap{
         MAP_ENTRY(ngraph::opset1::Tile),
         MAP_ENTRY(ngraph::opset1::Split),
         MAP_ENTRY(ngraph::opset1::Power),
+        MAP_ENTRY(ngraph::opset1::Relu),
+        MAP_ENTRY(ngraph::opset1::MaxPool),
         MAP_ENTRY(ngraph::opset1::Gather),
-        {ngraph::opset1::Relu::get_type_info_static(), &NGraphImporter::parseDispatch<ngraph::opset1::Relu>}};
+};
 
 #undef MAP_ENTRY
-
 mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
     SmallVector<mlir::Type, 1> inputTypes;
     inputTypes.reserve(_netGraph->get_parameters().size());
@@ -188,6 +194,17 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
     return func;
 }
 
+
+template <typename T>
+mlir::ArrayAttr NGraphImporter::importUInt32Array(T& inArray) {
+    SmallVector<mlir::Attribute, 4> vecArray;
+
+    for (auto& k: inArray)
+        vecArray.push_back(getInt32Attr(_ctx, checked_cast<uint32_t>(k)));
+
+    return mlir::ArrayAttr::get(vecArray, _ctx);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Constant>& origNode) {
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.empty(), "nGraph Constant node '{0}' has unsupported number of inputs '{1}'",
@@ -245,7 +262,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Relu>& origNode) {
     const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph MaxPool node '{0}' has unsupported number of inputs '{1}'",
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::ReLUOp>(createLocation(origNode), inputs[0]);
@@ -279,6 +296,31 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
             checked_cast<vpux::IE::AutoBroadcastType>(static_cast<vpux::IE::AutoBroadcastType>(autob.m_type));
     auto autoBroadcastTypeAttr = vpux::IE::AutoBroadcastTypeAttr::get(autoBroadcastType, builder.getContext());
     auto op = builder.create<IE::PowerOp>(createLocation(origNode), inputs[0], inputs[1], autoBroadcastTypeAttr);
+
+    addOutputs(origNode, {op.getResult()});
+}
+
+IE::RoundingTypeAttr importRoundingType(mlir::MLIRContext* ctx, ngraph::op::RoundingType roundingType) {
+    if (roundingType == ngraph::op::RoundingType::FLOOR)
+        return IE::RoundingTypeAttr::get(IE::RoundingType::FLOOR, ctx);
+    else if (roundingType == ngraph::op::RoundingType::CEIL)
+        return IE::RoundingTypeAttr::get(IE::RoundingType::CEIL, ctx);
+    VPUX_THROW("Unsupported rounding type {0}", static_cast<int32_t>(roundingType));
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MaxPool>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    mlir::ArrayAttr attrKernelSize = importUInt32Array(origNode->get_kernel());
+    mlir::ArrayAttr attrStride = importUInt32Array(origNode->get_strides());
+    mlir::ArrayAttr attrPadsBegin = importUInt32Array(origNode->get_pads_begin());
+    mlir::ArrayAttr attrPadsEnd = importUInt32Array(origNode->get_pads_end());
+    IE::RoundingTypeAttr attrRoundingType = importRoundingType(_ctx, origNode->get_rounding_type());
+
+    auto op = builder.create<IE::MaxPoolOp>(createLocation(origNode), inputs[0],
+                    attrKernelSize, attrStride, attrPadsBegin, attrPadsEnd, attrRoundingType);
 
     addOutputs(origNode, {op.getResult()});
 }
