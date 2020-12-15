@@ -43,28 +43,23 @@ void ImportNetwork_Tests::SetUp() {
     params = Remote_Context_Helper::wrapWorkloadIdToMap(_workloadId);
 }
 
-//------------------------------------------------------------------------------
-TEST_F(ImportNetwork_Tests, CanFindPlugin) {
+//-----------------------------------------------------------------------------
+// Track number: H#18012581010
+TEST_F(ImportNetwork_Tests, DISABLED_CanFindPlugin) {
     ASSERT_NO_THROW(ie.ImportNetwork(blobInfo.graphPath, pluginName));
 }
 
-TEST_F(ImportNetwork_Tests, CanCreateExecutableNetwork) {
+// Track number: H#18012581010
+TEST_F(ImportNetwork_Tests, DISABLED_CanCreateExecutableNetwork) {
     ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
 }
 
-TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithConfig) {
+// Track number: H#18012581010
+TEST_F(ImportNetwork_Tests, DISABLED_CanCreateExecutableNetworkWithConfig) {
     std::map<std::string, std::string> config = {};
     ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName, config));
 }
 
-// Test fails with error:
-// [ RUN      ] ImportNetwork_Tests.CanCreateInferRequest
-// kmb-plugin/tests_deprecated/functional/hddl2_tests/hddl2_import_network.cpp:64: Failure
-// Expected: inferRequest = executableNetwork.CreateInferRequest() doesn't throw an exception.
-// Actual: it throws:Can't create infer request!
-// Please make sure that the device is available. Only exports can be made.
-// [  FAILED  ] ImportNetwork_Tests.CanCreateInferRequest (292 ms)
-// // [Track number: S#42488]
 TEST_F(ImportNetwork_Tests, DISABLED_CanCreateInferRequest) {
     IE::ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
@@ -72,7 +67,8 @@ TEST_F(ImportNetwork_Tests, DISABLED_CanCreateInferRequest) {
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }
 
-TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithStream) {
+// Track number: H#18012581010
+TEST_F(ImportNetwork_Tests, DISABLED_CanCreateExecutableNetworkWithStream) {
     const std::map<std::string, std::string> config = {};
 
     std::filebuf blobFile;
@@ -87,14 +83,7 @@ TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithStream) {
     blobFile.close();
 }
 
-// Test fails with error:
-// [ RUN      ] ImportNetwork_Tests.canParseInputAndOutput
-// kmb-plugin/tests_deprecated/functional/hddl2_tests/hddl2_import_network.cpp:96: Failure
-// Expected: inferRequest = executableNetwork.CreateInferRequest() doesn't throw an exception.
-// Actual: it throws:Can't create infer request!
-// Please make sure that the device is available. Only exports can be made.
-// [  FAILED  ] ImportNetwork_Tests.canParseInputAndOutput (252 ms)
-// [Track number: S#42489]
+// Track number: H#18012581010
 TEST_F(ImportNetwork_Tests, DISABLED_canParseInputAndOutput) {
     const std::string expected_input_name = "data";
     const IE::Precision expected_input_precision = IE::Precision::U8;
