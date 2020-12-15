@@ -1,21 +1,37 @@
-// RUN: vpux-translate -export-VPUIP -o %t %s && flatc --raw-binary --json %vpuip_schema_file% -- %t && FileCheck %s --input-file %basename_t.json
+// RUN: vpux-translate --export-VPUIP -o %t %s && flatc --raw-binary --json %vpuip_schema_file% -- %t && FileCheck %s --input-file %basename_t.json
 
 #NC = affine_map<(d0, d1) -> (d0, d1)>
 
+module @test attributes {VPUIP.arch = "MA2490"} {
+
+IERT.RunTimeResources
+    availableMemory : {
+        IERT.MemoryResource 1073741824 bytes
+        IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
+        IERT.MemoryResource 4194304 bytes of "CMX_UPA" {VPUIP.bandwidth = 16 : i64, VPUIP.derateFactor = 8.500000e-01 : f64}
+        IERT.MemoryResource 1048576 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+    }
+    usedMemory : {
+        IERT.MemoryResource 2048 bytes of "DDR"
+        IERT.MemoryResource 1048576 bytes of "CMX_NN"
+    }
+    availableExecutors : {
+        IERT.ExecutorResource 1 of "Leon_RT"
+        IERT.ExecutorResource 1 of "Leon_NN"
+        IERT.ExecutorResource 16 of "SHAVE_UPA"
+        IERT.ExecutorResource 20 of "SHAVE_NN"
+        IERT.ExecutorResource 4 of "NCE_Cluster"
+        IERT.ExecutorResource 5 of "NCE_PerClusterDPU"
+        IERT.ExecutorResource 1 of "DMA_UPA"
+        IERT.ExecutorResource 1 of "DMA_NN"
+    }
+    usedExecutors : {
+        IERT.ExecutorResource 16 of "SHAVE_UPA"
+        IERT.ExecutorResource 1 of "NCE_Cluster"
+    }
+
 VPUIP.Graph "Test" at @main
     options : "DynamicBarriers"
-    resources : {
-        processor_allocation = [
-            {item = "SHAVE_UPA", number = 1 : i64},
-            {item = "NCE_Cluster", number = 1 : i64}
-        ],
-        processor_frequencies = [],
-        memory_sizes = [
-            {item = "DDR", number = 2048 : i64},
-            {item = "CMX_NN", number = 1048576 : i64}
-        ],
-        memory_bandwidth = []
-    }
     version : {
         majorV = 3 : i32,
         minorV = 11 : i32,
@@ -32,9 +48,11 @@ VPUIP.Graph "Test" at @main
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16>
     %1 = VPUIP.ConfigureBarrier -> !VPUIP.Barrier
-    VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>) updates(%1 : !VPUIP.Barrier)
+    VPUIP.SoftMaxUPA {axisInd = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>) updates(%1 : !VPUIP.Barrier)
     VPUIP.UPADMA inputs(%0 : memref<1x1000xf16>) outputs(%arg1 : memref<1x1000xf16>) waits(%1 : !VPUIP.Barrier)
     return
+}
+
 }
 
 // CHECK:   identifier: "Test"

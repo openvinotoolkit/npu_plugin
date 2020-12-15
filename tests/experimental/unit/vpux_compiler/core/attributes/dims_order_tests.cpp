@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/core/dims_order.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
 
 #include <gtest/gtest.h>
 

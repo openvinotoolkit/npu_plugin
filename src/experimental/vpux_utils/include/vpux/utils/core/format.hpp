@@ -230,7 +230,7 @@ struct format_provider<vpux::Mask> final {
 template <vpux::MemType TYPE>
 struct format_provider<vpux::MemSize<TYPE>> final {
     static void format(const vpux::MemSize<TYPE>& size, llvm::raw_ostream& stream, StringRef style) {
-        auto adapter1 = llvm::detail::build_format_adapter(size.count);
+        auto adapter1 = llvm::detail::build_format_adapter(size.count());
         adapter1.format(stream, style);
 
         stream << " ";

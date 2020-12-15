@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include "vpux/compiler/core/dim.hpp"
-#include "vpux/compiler/core/dim_values.hpp"
+#include "vpux/compiler/core/attributes/dim.hpp"
+#include "vpux/compiler/core/attributes/dim_values.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 

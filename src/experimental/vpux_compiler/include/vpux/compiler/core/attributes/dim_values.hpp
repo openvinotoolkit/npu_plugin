@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "vpux/compiler/core/dim.hpp"
+#include "vpux/compiler/core/attributes/dim.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/format.hpp"

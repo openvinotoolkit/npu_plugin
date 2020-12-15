@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/conversion/passes.hpp"
+#include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
@@ -169,7 +169,6 @@ void BufferizeIEPass::passBody() {
 
     mlir::OwningRewritePatternList patterns;
     patterns.insert<LayerRewrite>(typeConverter, _log.nest());
-    mlir::populateBufferizeMaterializationLegality(target);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {

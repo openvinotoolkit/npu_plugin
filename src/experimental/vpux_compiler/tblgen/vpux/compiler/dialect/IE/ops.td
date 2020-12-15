@@ -132,6 +132,7 @@ def IE_EndOp :
             [
                 NoSideEffect,
                 Terminator,
+                NativeOpTrait<"ReturnLike">,
                 HasParent<"vpux::IE::CNNNetworkOp">
             ]
         > {

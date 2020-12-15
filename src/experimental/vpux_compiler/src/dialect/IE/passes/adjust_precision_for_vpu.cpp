@@ -17,9 +17,11 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/scalars.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
+#include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/numeric.hpp"
@@ -252,19 +254,12 @@ void AdjustPrecisionForVPUPass::passBody() {
     });
 
     const auto isLegalOp = [&](mlir::Operation* op) {
-        return llvm::all_of(op->getOperandTypes(),
-                            [&](mlir::Type type) {
-                                return typeConverter.isLegal(type);
-                            }) &&
-               llvm::all_of(op->getResultTypes(), [&](mlir::Type type) {
-                   return typeConverter.isLegal(type);
-               });
+        return typeConverter.isLegal(op);
     };
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
     target.addLegalOp<IE::ConvertOp>();
-    target.addIllegalDialect<mlir::StandardOpsDialect>();
     target.addDynamicallyLegalOp<mlir::ConstantOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
@@ -278,7 +273,7 @@ void AdjustPrecisionForVPUPass::passBody() {
     patterns.insert<GenericOpConverter>(typeConverter);
 
     auto module = getOperation();
-    if (mlir::failed(mlir::applyFullConversion(module.getOperation(), target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPartialConversion(module.getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
     }
 

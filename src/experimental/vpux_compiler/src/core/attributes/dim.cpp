@@ -14,21 +14,33 @@
 // stated in the License.
 //
 
-#pragma once
+#include "vpux/compiler/core/attributes/dim.hpp"
 
-#include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+using namespace vpux;
 
-#include <mlir/IR/BuiltinOps.h>
+//
+// DimBase
+//
 
-namespace vpux {
-namespace VPUIP {
+void vpux::details::validateDimAttrs(StringRef className, int32_t ind) {
+    VPUX_THROW_UNLESS(ind >= 0, "Got negative index {0} for {1}", ind, className);
 
-void setArch(mlir::ModuleOp module, ArchKind kind);
-ArchKind getArch(mlir::ModuleOp module);
+    VPUX_THROW_UNLESS(static_cast<size_t>(ind) < MAX_NUM_DIMS, "{0} index {1} exceeds maximal supported value {2}",
+                      className, ind, MAX_NUM_DIMS);
+}
 
-double getMemoryDerateFactor(IERT::MemoryResourceOp mem);
-uint32_t getMemoryBandwidth(IERT::MemoryResourceOp mem);
+//
+// Dim
+//
 
-}  // namespace VPUIP
-}  // namespace vpux
+StringRef vpux::Dim::getClassName() {
+    return "Dim";
+}
+
+//
+// MemDim
+//
+
+StringRef vpux::MemDim::getClassName() {
+    return "MemDim";
+}

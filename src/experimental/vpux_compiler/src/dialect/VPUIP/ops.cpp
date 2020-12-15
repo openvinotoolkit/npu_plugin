@@ -16,7 +16,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/core/dims_order.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/OpImplementation.h>

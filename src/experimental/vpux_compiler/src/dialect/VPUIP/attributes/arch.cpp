@@ -16,149 +16,95 @@
 
 #include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 
+#include "vpux/compiler/utils/attributes.hpp"
+
+#include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/string_ref.hpp"
+
+#include <mlir/IR/Builders.h>
+
 using namespace vpux;
 
-//
-// KMB
-//
+namespace {
 
-StringRef vpux::VPUIP::ArchTraits<VPUIP::ArchKind::KMB>::getArchGenName() {
-    return "VPU 2.0";
-}
+const StringLiteral archAttrName = "VPUIP.arch";
+const StringLiteral derateFactorAttrName = "VPUIP.derateFactor";
+const StringLiteral bandwidthAttrName = "VPUIP.bandwidth";
 
-//
-// Run-time information
-//
+}  // namespace
 
-int32_t vpux::VPUIP::getProcessorUnitCount(ArchKind arch, PhysicalProcessor kind) {
-#define CASE(_arch_, _proc_)        \
-    case PhysicalProcessor::_proc_: \
-        return ArchTraits<ArchKind::_arch_>::ProcessorTraits<PhysicalProcessor::_proc_>::COUNT
+void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
+    module.setAttr(archAttrName, VPUIP::ArchKindAttr::get(kind, module.getContext()));
 
-    switch (arch) {
-    case ArchKind::KMB:
-        switch (kind) {
-            CASE(KMB, ARM);
-            CASE(KMB, Leon_RT);
-            CASE(KMB, Leon_NN);
-            CASE(KMB, SHAVE_UPA);
-            CASE(KMB, SHAVE_NN);
-            CASE(KMB, NCE_Cluster);
-            CASE(KMB, NCE_PerClusterDPU);
-        default:
-            return 0;
-        }
-    default:
-        return 0;
+    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
+    auto resources = builder.create<IERT::RunTimeResourcesOp>(module.getLoc());
+
+    const auto addMem = [&](VPUIP::PhysicalMemory kind, Byte size, double derateFactor, uint32_t bandwidth) {
+        auto mem = resources.addAvailableMemory(VPUIP::PhysicalMemoryAttr::get(kind, module.getContext()), size);
+        mem.setAttr(derateFactorAttrName, getFP64Attr(module.getContext(), derateFactor));
+        mem.setAttr(bandwidthAttrName, getInt64Attr(module.getContext(), bandwidth));
+    };
+
+    resources.addAvailableMemory(nullptr, 1_GB);
+    addMem(VPUIP::PhysicalMemory::DDR, 30_MB, 0.6, 8);
+    addMem(VPUIP::PhysicalMemory::CMX_UPA, 4_MB, 0.85, 16);
+    addMem(VPUIP::PhysicalMemory::CMX_NN, 1_MB, 1.0, 32);
+    if (kind == VPUIP::ArchKind::MA3100) {
+        addMem(VPUIP::PhysicalMemory::CSRAM, 24_MB, 0.85, 64);
     }
 
-#undef CASE
+    const auto getProcKind = [&](VPUIP::PhysicalProcessor kind) {
+        return VPUIP::PhysicalProcessorAttr::get(kind, module.getContext());
+    };
+
+    const auto getDmaKind = [&](VPUIP::DMAEngine kind) {
+        return VPUIP::DMAEngineAttr::get(kind, module.getContext());
+    };
+    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::Leon_RT), 1);
+    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::Leon_NN), 1);
+    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::SHAVE_UPA), 16);
+    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::SHAVE_NN), 20);
+    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 4);
+    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
+    resources.addAvailableExecutor(getDmaKind(DMAEngine::DMA_UPA), 1);
+    if (kind == VPUIP::ArchKind::MA3100) {
+        resources.addAvailableExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
+    } else {
+        resources.addAvailableExecutor(getDmaKind(DMAEngine::DMA_NN), 1);
+    }
 }
 
-int32_t vpux::VPUIP::getDmaEngineCount(ArchKind arch, DMAEngine kind) {
-#define CASE(_arch_, _dma_) \
-    case DMAEngine::_dma_:  \
-        return ArchTraits<ArchKind::_arch_>::DMATraits<DMAEngine::_dma_>::COUNT
-
-    switch (arch) {
-    case ArchKind::KMB:
-        switch (kind) {
-            CASE(KMB, UPA);
-            CASE(KMB, NN);
-        default:
-            return 0;
-        }
-    default:
-        return 0;
-    }
-
-#undef CASE
+VPUIP::ArchKind vpux::VPUIP::getArch(mlir::ModuleOp module) {
+    auto attr = module.getAttr(archAttrName);
+    VPUX_THROW_UNLESS(attr != nullptr, "Module doesn't contain '{0}' attribute", archAttrName);
+    VPUX_THROW_UNLESS(attr.isa<VPUIP::ArchKindAttr>(), "Module attribute '{0}' has unsupported value '{1}'",
+                      archAttrName, attr);
+    return attr.cast<VPUIP::ArchKindAttr>().getValue();
 }
 
-int32_t vpux::VPUIP::getMemoryClustersCount(ArchKind arch, PhysicalMemory kind) {
-#define CASE(_arch_, _mem_)     \
-    case PhysicalMemory::_mem_: \
-        return ArchTraits<ArchKind::_arch_>::MemoryTraits<PhysicalMemory::_mem_>::CLUSTERS_COUNT
+double vpux::VPUIP::getMemoryDerateFactor(IERT::MemoryResourceOp mem) {
+    VPUX_THROW_UNLESS(mem.kindAttr() != nullptr, "Unsupported memory resource kind '{0}'", mem.kind());
+    VPUX_THROW_UNLESS(mem.kindAttr().isa<VPUIP::PhysicalMemoryAttr>(), "Unsupported memory resource kind '{0}'",
+                      mem.kind());
 
-    switch (arch) {
-    case ArchKind::KMB:
-        switch (kind) {
-            CASE(KMB, DDR);
-            CASE(KMB, CSRAM);
-            CASE(KMB, CMX_UPA);
-            CASE(KMB, CMX_NN);
-        default:
-            return 0;
-        }
-    default:
-        return 0;
-    }
+    auto attr = mem.getAttr(derateFactorAttrName);
+    VPUX_THROW_UNLESS(attr != nullptr, "Memory resource '{0}' has no '{1}' attribute", mem.kind(),
+                      derateFactorAttrName);
+    VPUX_THROW_UNLESS(attr.isa<mlir::FloatAttr>(), "Memory resource '{0}' has wrong '{1}' attribute : '{2}'",
+                      mem.kind(), derateFactorAttrName, attr);
 
-#undef CASE
+    return attr.cast<mlir::FloatAttr>().getValueAsDouble();
 }
 
-int32_t vpux::VPUIP::getMemoryClusterSizeKB(ArchKind arch, PhysicalMemory kind) {
-#define CASE(_arch_, _mem_)     \
-    case PhysicalMemory::_mem_: \
-        return ArchTraits<ArchKind::_arch_>::MemoryTraits<PhysicalMemory::_mem_>::CLUSTER_SIZE_KB
+uint32_t vpux::VPUIP::getMemoryBandwidth(IERT::MemoryResourceOp mem) {
+    VPUX_THROW_UNLESS(mem.kindAttr() != nullptr, "Unsupported memory resource kind '{0}'", mem.kind());
+    VPUX_THROW_UNLESS(mem.kindAttr().isa<VPUIP::PhysicalMemoryAttr>(), "Unsupported memory resource kind '{0}'",
+                      mem.kind());
 
-    switch (arch) {
-    case ArchKind::KMB:
-        switch (kind) {
-            CASE(KMB, DDR);
-            CASE(KMB, CSRAM);
-            CASE(KMB, CMX_UPA);
-            CASE(KMB, CMX_NN);
-        default:
-            return 0;
-        }
-    default:
-        return 0;
-    }
+    auto attr = mem.getAttr(bandwidthAttrName);
+    VPUX_THROW_UNLESS(attr != nullptr, "Memory resource '{0}' has no '{1}' attribute", mem.kind(), bandwidthAttrName);
+    VPUX_THROW_UNLESS(attr.isa<mlir::IntegerAttr>(), "Memory resource '{0}' has wrong '{1}' attribute : '{2}'",
+                      mem.kind(), bandwidthAttrName, attr);
 
-#undef CASE
-}
-
-float vpux::VPUIP::getMemoryDerateFactor(ArchKind arch, PhysicalMemory kind) {
-#define CASE(_arch_, _mem_)     \
-    case PhysicalMemory::_mem_: \
-        return ArchTraits<ArchKind::_arch_>::MemoryTraits<PhysicalMemory::_mem_>::DERATE_FACTOR
-
-    switch (arch) {
-    case ArchKind::KMB:
-        switch (kind) {
-            CASE(KMB, DDR);
-            CASE(KMB, CSRAM);
-            CASE(KMB, CMX_UPA);
-            CASE(KMB, CMX_NN);
-        default:
-            return 0.0f;
-        }
-    default:
-        return 0.0f;
-    }
-
-#undef CASE
-}
-
-int32_t vpux::VPUIP::getMemoryBandwidth(ArchKind arch, PhysicalMemory kind) {
-#define CASE(_arch_, _mem_)     \
-    case PhysicalMemory::_mem_: \
-        return ArchTraits<ArchKind::_arch_>::MemoryTraits<PhysicalMemory::_mem_>::BANDWIDTH
-
-    switch (arch) {
-    case ArchKind::KMB:
-        switch (kind) {
-            CASE(KMB, DDR);
-            CASE(KMB, CSRAM);
-            CASE(KMB, CMX_UPA);
-            CASE(KMB, CMX_NN);
-        default:
-            return 0;
-        }
-    default:
-        return 0;
-    }
-
-#undef CASE
+    return checked_cast<uint32_t>(attr.cast<mlir::IntegerAttr>().getInt());
 }

@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 
@@ -67,8 +68,7 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ct
     mlir::OwningModuleRef module;
 
     try {
-        IE::FrontEnd frontEnd(ctx);
-        module = frontEnd.importNetwork(cnnNet);
+        module = IE::importNetwork(ctx, cnnNet);
     } catch (const std::exception& ex) {
         printTo(llvm::errs(), "Failed to translate IE IR {0} to MLIR : {1}", netFileName, ex.what());
         return nullptr;
@@ -87,10 +87,14 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
     return mlir::success();
 }
 
+//
+// registerDialects
+//
+
 void registerDialects(mlir::DialectRegistry& registry) {
     registry.insert<IE::IEDialect>();
+    registry.insert<IERT::IERTDialect>();
     registry.insert<VPUIP::VPUIPDialect>();
-    registry.insert<mlir::StandardOpsDialect>();
 }
 
 }  // namespace

@@ -14,11 +14,11 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/core/strides.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
 
-#include "vpux/compiler/core/dims_order.hpp"
-#include "vpux/compiler/core/shape.hpp"
-#include "vpux/compiler/core/stride_reqs.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 
 using namespace vpux;
 

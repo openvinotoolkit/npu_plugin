@@ -16,7 +16,8 @@
 
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 
-#include "vpux/compiler/core/dims_order.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 
@@ -78,7 +79,8 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir::Operation* op,
                                                                             const SoftwareLayerParams& params,
-                                                                            int32_t maxShaves, bool isTrailingSWLayer) {
+                                                                            Optional<uint32_t> maxShaves,
+                                                                            bool isTrailingSWLayer) {
     auto task = mlir::cast<VPUIP::TaskOpInterface>(op);
 
     const auto getTensorCb = [this](mlir::Value val) {
@@ -89,7 +91,18 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     const auto outputs = createVector(task.outputTensors() | transformed(getTensorCb));
 
     MVCNN::UPALayerTaskBuilder builder(_impl);
-    builder.add_maxShaves(checked_cast<uint8_t>(maxShaves));
+    if (maxShaves.hasValue()) {
+        builder.add_maxShaves(checked_cast<uint8_t>(maxShaves.getValue()));
+    } else {
+        auto resources = IERT::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
+        VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources definition");
+
+        auto available = resources.getAvailableExecutor(
+                VPUIP::PhysicalProcessorAttr::get(VPUIP::PhysicalProcessor::SHAVE_UPA, op->getContext()));
+        VPUX_THROW_UNLESS(available != nullptr, "SHAVE_UPA executor is not avaialble in run-time");
+
+        builder.add_maxShaves(checked_cast<uint8_t>(available.count()));
+    }
     builder.add_softLayerParams_type(params.type);
     builder.add_softLayerParams(params.obj);
     builder.add_inputs(inputs);

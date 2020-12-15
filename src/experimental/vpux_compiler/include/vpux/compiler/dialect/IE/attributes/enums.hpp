@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "vpux/compiler/core/dims_order.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
 
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"

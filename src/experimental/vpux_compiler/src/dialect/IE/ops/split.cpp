@@ -63,5 +63,5 @@ SmallVector<mlir::Value, 4> vpux::IE::SplitOp::getInputs() {
 }
 
 SmallVector<mlir::Value, 1> vpux::IE::SplitOp::getOutputs() {
-    return {output_tensors()};
+    return output_tensors();
 }

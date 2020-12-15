@@ -1,6 +1,7 @@
-// RUN: vpux-opt -split-input-file -adjust-precision-for-vpu %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --adjust-precision-for-vpu %s | FileCheck %s
 
-// CHECK-LABEL: FP32toFP16
+// CHECK-LABEL: @FP32toFP16
+module @FP32toFP16 {
 
 IE.CNNNetwork "FP32toFP16" at @main
     inputsInfo : {
@@ -20,9 +21,12 @@ func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
     // CHECK: return %[[OUT]] : tensor<1x1000xf16>
 }
 
+}
+
 // -----
 
-// CHECK-LABEL: ConstantLayer
+// CHECK-LABEL: @ConstantLayer
+module @ConstantLayer {
 
 IE.CNNNetwork "ConstantLayer" at @main
     inputsInfo : {
@@ -51,4 +55,6 @@ func @main() -> tensor<1x2x2x2xf32> {
 
     return %0 : tensor<1x2x2x2xf32>
     // CHECK: return %[[OUT]] : tensor<1x2x2x2xf16>
+}
+
 }

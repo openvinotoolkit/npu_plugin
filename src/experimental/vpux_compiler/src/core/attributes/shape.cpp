@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/core/shape.hpp"
+#include "vpux/compiler/core/attributes/shape.hpp"
 
 #include <algorithm>
 #include <numeric>

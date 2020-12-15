@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/allocator/linear_scan.hpp"
+#include "vpux/compiler/utils/linear_scan.hpp"
 
 #include <gtest/gtest.h>
 

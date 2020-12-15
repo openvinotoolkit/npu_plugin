@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/conversion/passes.hpp"
+#include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -100,25 +100,25 @@ mlir::LogicalResult LowerIERT2VPUIPPass::replaceCnnNetworkOp() {
     IERT::CNNNetworkOp netOp;
     mlir::FuncOp netFunc;
     if (mlir::failed(IERT::CNNNetworkOp::getFromModule(module, netOp, netFunc))) {
-        _log.error("Failed to get IERT.CNNNetwork Operation from module");
-        return mlir::failure();
+        return printTo(module.emitError(), "Failed to get IERT.CNNNetwork Operation from module");
     }
 
     auto options = VPUIP::ExecutionFlagAttr::get(VPUIP::ExecutionFlag::NONE, &ctx);
 
-    SmallVector<mlir::Attribute, 2> processorAllocation;
-    processorAllocation.push_back(VPUIP::ProcessorMappingAttr::get(
-            VPUIP::PhysicalProcessorAttr::get(VPUIP::PhysicalProcessor::SHAVE_UPA, &ctx), getInt64Attr(&ctx, 1),
-            nullptr, &ctx));
-    processorAllocation.push_back(VPUIP::ProcessorMappingAttr::get(
-            VPUIP::PhysicalProcessorAttr::get(VPUIP::PhysicalProcessor::NCE_Cluster, &ctx), getInt64Attr(&ctx, 1),
-            nullptr, &ctx));
+    const auto getProcAttr = [&](VPUIP::PhysicalProcessor proc) {
+        return VPUIP::PhysicalProcessorAttr::get(proc, &ctx);
+    };
 
-    auto resources = VPUIP::ResourcesAttr::get(mlir::ArrayAttr::get(processorAllocation, &ctx),
-                                               mlir::ArrayAttr::get({}, &ctx),  // processor_frequencies
-                                               mlir::ArrayAttr::get({}, &ctx),  // memory_sizes
-                                               mlir::ArrayAttr::get({}, &ctx),  // memory_bandwidth
-                                               &ctx);
+    auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+    if (resources == nullptr) {
+        return printTo(module.emitError(), "Failed to get IERT.RunTimeResources Operation from module");
+    }
+    if (auto available = resources.getAvailableExecutor(getProcAttr(VPUIP::PhysicalProcessor::SHAVE_UPA))) {
+        resources.setUsedExecutor(getProcAttr(VPUIP::PhysicalProcessor::SHAVE_UPA), available.count());
+    }
+    if (auto available = resources.getAvailableExecutor(getProcAttr(VPUIP::PhysicalProcessor::NCE_Cluster))) {
+        resources.setUsedExecutor(getProcAttr(VPUIP::PhysicalProcessor::NCE_Cluster), 1);
+    }
 
     auto version = VPUIP::VersionAttr::get(getInt32Attr(&ctx, 3),                         // majorV
                                            getInt32Attr(&ctx, 11),                        // minorV
@@ -131,7 +131,7 @@ mlir::LogicalResult LowerIERT2VPUIPPass::replaceCnnNetworkOp() {
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
 
     auto graphOp = builder.create<VPUIP::GraphOp>(netOp.getLoc(), netOp.netNameAttr(), netOp.entryPointAttr(), options,
-                                                  resources, version);
+                                                  version);
     VPUIP::GraphOp::ensureTerminator(graphOp.inputsInfo(), builder, netOp.getLoc());
     VPUIP::GraphOp::ensureTerminator(graphOp.outputsInfo(), builder, netOp.getLoc());
 

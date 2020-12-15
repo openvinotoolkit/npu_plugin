@@ -17,7 +17,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/scalars.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -206,6 +206,7 @@ mlir::LogicalResult ConvertNDOpsTo4DPass::GenericOpConverter::matchAndRewrite(
         llvm::dbgs() << "- Orig OP:  ";
         origOp->dump();
     });
+
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
@@ -220,7 +221,7 @@ mlir::LogicalResult ConvertNDOpsTo4DPass::GenericOpConverter::matchAndRewrite(
         auto newAxis = softMaxOp.axisInd() +
                        (TARGET_TENSOR_DIM -
                         origOp->getOperand(0).getType().dyn_cast<mlir::RankedTensorType>().getShape().size());
-        softMaxOp.axisIndAttr(rewriter.getI32IntegerAttr(newAxis));
+        softMaxOp.axisIndAttr(rewriter.getI32IntegerAttr(checked_cast<int32_t>(newAxis)));
     }
 
     auto* newOp = rewriter.clone(*origOp, mapper);
@@ -240,8 +241,8 @@ mlir::LogicalResult ConvertNDOpsTo4DPass::GenericOpConverter::matchAndRewrite(
 void ConvertNDOpsTo4DPass::passBody() {
     auto& ctx = getContext();
 
-    mlir::TypeConverter shapeConverter;
-    shapeConverter.addConversion([](mlir::RankedTensorType tensor) {
+    mlir::TypeConverter typeConverter;
+    typeConverter.addConversion([](mlir::RankedTensorType tensor) {
         if (tensor.getShape().size() == TARGET_TENSOR_DIM)
             return tensor;
         else if (tensor.getShape().size() > TARGET_TENSOR_DIM)
@@ -255,45 +256,39 @@ void ConvertNDOpsTo4DPass::passBody() {
             return mlir::RankedTensorType::get(newShape, tensor.getElementType());
         }
     });
-
-    shapeConverter.addSourceMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
-                                               mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
+    typeConverter.addSourceMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
+                                              mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
         VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
         return builder.create<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
     });
-    shapeConverter.addTargetMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
-                                               mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
+    typeConverter.addTargetMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
+                                              mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
         VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
         return builder.create<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
     });
 
     const auto isLegalOp = [&](mlir::Operation* op) {
-        return shapeConverter.isLegal(op);
+        return typeConverter.isLegal(op);
     };
 
     mlir::ConversionTarget target(ctx);
-
-    target.addLegalDialect<mlir::linalg::LinalgDialect>();
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
-    target.addDynamicallyLegalDialect<mlir::StandardOpsDialect>(isLegalOp);
-
-    target.addLegalOp<IE::ConvertOp>();
-    target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
-
+    target.addLegalOp<mlir::linalg::TensorReshapeOp>();
     target.addDynamicallyLegalOp<mlir::ConstantOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
+    target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
-        return shapeConverter.isSignatureLegal(funcOp.getType()) && shapeConverter.isLegal(&funcOp.getBody());
+        return typeConverter.isSignatureLegal(funcOp.getType()) && typeConverter.isLegal(&funcOp.getBody());
     });
 
     mlir::OwningRewritePatternList patterns;
-    patterns.insert<GenericOpConverter>(shapeConverter);
-    patterns.insert<FuncOpConverter>(shapeConverter, &ctx);
-    patterns.insert<ConstantOpConverter>(shapeConverter, &ctx);
+    patterns.insert<FuncOpConverter>(typeConverter, &ctx);
+    patterns.insert<ConstantOpConverter>(typeConverter, &ctx);
+    patterns.insert<GenericOpConverter>(typeConverter);
 
     auto module = getOperation();
 
-    if (mlir::failed(mlir::applyFullConversion(module.getOperation(), target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPartialConversion(module.getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
     }
 

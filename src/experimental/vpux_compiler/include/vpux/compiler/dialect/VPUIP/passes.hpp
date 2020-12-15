@@ -16,7 +16,11 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+
 #include "vpux/utils/core/logger.hpp"
+#include "vpux/utils/core/optional.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
@@ -25,6 +29,12 @@
 
 namespace vpux {
 namespace VPUIP {
+
+//
+// SetCompileParams
+//
+
+std::unique_ptr<mlir::Pass> createSetCompileParamsPass(Optional<ArchKind> arch, Logger log = Logger::global());
 
 //
 // AssignTensorOffsetsDDR

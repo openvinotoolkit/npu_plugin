@@ -20,10 +20,6 @@
 
 using namespace vpux;
 
-//
-// DeclareTensorOp
-//
-
 mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
     const auto locale = op.locale();
 
@@ -53,58 +49,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
     }
 
     // TODO: check other offsets
-
-    return mlir::success();
-}
-
-//
-// DeclareConstantTensorOp
-//
-
-mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareConstantTensorOp op) {
-    auto memref = op.memory().getType().cast<mlir::MemRefType>();
-    auto mem = getPhysicalMemory(memref);
-
-    if (mlir::failed(mem) || mem.getValue() != VPUIP::PhysicalMemory::DDR) {
-        return printTo(op.emitError(), "'{0}' has unsupported result memory space '{1}'",
-                       DeclareConstantTensorOp::getOperationName(), memref.getMemorySpace());
-    }
-
-    return mlir::success();
-}
-
-mlir::OpFoldResult vpux::VPUIP::DeclareConstantTensorOp::fold(ArrayRef<mlir::Attribute>) {
-    return content();
-}
-
-//
-// ConfigureBarrierOp
-//
-
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConfigureBarrierOp::serialize(vpux::VPUIP::BlobWriter& writer) {
-    const auto barrier = writer.createBarrier(this->barrier());
-
-    MVCNN::BarrierConfigurationTaskBuilder subBuilder(writer);
-    subBuilder.add_target(barrier);
-    const auto subTask = subBuilder.Finish();
-
-    MVCNN::ControllerTaskBuilder builder(writer);
-    builder.add_task_type(MVCNN::ControllerSubTask_BarrierConfigurationTask);
-    builder.add_task(subTask.Union());
-
-    return {builder.Finish().Union(), MVCNN::SpecificTask_ControllerTask};
-}
-
-mlir::LogicalResult vpux::VPUIP::verifyOp(ConfigureBarrierOp op) {
-    if (!op.inputTensors().empty()) {
-        return printTo(op.emitError(), "'{0}' must not have input tensors, got {1}",
-                       ConfigureBarrierOp::getOperationName(), op.inputTensors().size());
-    }
-
-    if (!op.outputTensors().empty()) {
-        return printTo(op.emitError(), "'{0}' must not have output tensors, got {1}",
-                       ConfigureBarrierOp::getOperationName(), op.outputTensors().size());
-    }
 
     return mlir::success();
 }

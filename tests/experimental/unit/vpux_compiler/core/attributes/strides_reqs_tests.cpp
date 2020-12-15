@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/core/stride_reqs.hpp"
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 
 #include <gtest/gtest.h>
 

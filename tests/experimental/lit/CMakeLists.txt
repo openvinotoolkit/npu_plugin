@@ -28,6 +28,6 @@ set_target_properties(copy_vpuip_schema_tests PROPERTIES FOLDER "tests")
 
 set(vpuip_schema_file "path('../schema/graphfile.fbs')")
 vpux_setup_lit_tests(VPUX
-    PATTERNS "*.mlir" "*.xml"
+    PATTERNS "*.mlir"
     SUBSTITUTIONS vpuip_schema_file
 )

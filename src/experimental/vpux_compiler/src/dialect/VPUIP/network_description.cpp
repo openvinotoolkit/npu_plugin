@@ -16,7 +16,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/network_description.hpp"
 
-#include "vpux/compiler/core/dims_order.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 
 #include "vpux/utils/core/enums.hpp"

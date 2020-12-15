@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/backend/VPUIP.hpp"
 
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
@@ -77,11 +78,14 @@ MVCNN::PhysicalProcessor createPhysicalProcessor(VPUIP::PhysicalProcessor proc) 
 }
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
-                                                                    VPUIP::ProcessorMappingAttr attr) {
+                                                                    IERT::ExecutorResourceOp res) {
+    auto kind = res.kindAttr().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
+    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", kind);
+
     MVCNN::ProcessorMappingBuilder builder(writer);
-    builder.add_item(createPhysicalProcessor(attr.item().getValue()));
-    builder.add_number(checked_cast<double>(attr.number().getInt()));
-    builder.add_is_bitmask(attr.isBitMask().getValue());
+    builder.add_item(createPhysicalProcessor(kind.getValue()));
+    builder.add_number(checked_cast<double>(res.count()));
+    builder.add_is_bitmask(false);
     return builder.Finish();
 }
 
@@ -100,57 +104,39 @@ MVCNN::PhysicalMem createPhysicalMem(VPUIP::PhysicalMemory mem) {
     }
 }
 
-flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer,
-                                                              VPUIP::MemoryMappingAttr attr) {
+flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer, IERT::MemoryResourceOp res) {
+    auto kind = res.kindAttr().dyn_cast_or_null<VPUIP::PhysicalMemoryAttr>();
+    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown memory space kind '{0}'", kind);
+
     MVCNN::MemoryMappingBuilder builder(writer);
-    builder.add_item(createPhysicalMem(attr.item().getValue()));
-    builder.add_number(checked_cast<double>(attr.number().getInt()));
+    builder.add_item(createPhysicalMem(kind.getValue()));
+    builder.add_number(checked_cast<double>(res.byteSize()));
     return builder.Finish();
 }
 
-flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createMemoryRelationshipMapping(
-        VPUIP::BlobWriter& writer, VPUIP::MemoryRelationshipMappingAttr attr) {
-    MVCNN::MemoryRelationshipMappingBuilder builder(writer);
-    builder.add_from_item(createPhysicalMem(attr.fromItem().getValue()));
-    builder.add_to_item(createPhysicalMem(attr.toItem().getValue()));
-    builder.add_number(attr.number().getValueAsDouble());
-    return builder.Finish();
-}
+flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer, mlir::ModuleOp module) {
+    auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+    VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources information");
 
-flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer, VPUIP::ResourcesAttr resources) {
-    const auto processor_allocation =
-            writer.createVector(resources.processor_allocation().getAsRange<VPUIP::ProcessorMappingAttr>() |
-                                transformed([&](VPUIP::ProcessorMappingAttr attr) {
-                                    return createProcessorMapping(writer, attr);
-                                }));
+    const auto usedMemory = writer.createVector(resources.usedMemory().getOps<IERT::MemoryResourceOp>() |
+                                                transformed([&](IERT::MemoryResourceOp res) {
+                                                    return createMemoryMapping(writer, res);
+                                                }));
 
-    const auto processor_frequencies =
-            writer.createVector(resources.processor_frequencies().getAsRange<VPUIP::ProcessorMappingAttr>() |
-                                transformed([&](VPUIP::ProcessorMappingAttr attr) {
-                                    return createProcessorMapping(writer, attr);
-                                }));
-
-    const auto memory_sizes = writer.createVector(resources.memory_sizes().getAsRange<VPUIP::MemoryMappingAttr>() |
-                                                  transformed([&](VPUIP::MemoryMappingAttr attr) {
-                                                      return createMemoryMapping(writer, attr);
-                                                  }));
-
-    const auto memory_bandwidth =
-            writer.createVector(resources.memory_bandwidth().getAsRange<VPUIP::MemoryRelationshipMappingAttr>() |
-                                transformed([&](VPUIP::MemoryRelationshipMappingAttr attr) {
-                                    return createMemoryRelationshipMapping(writer, attr);
-                                }));
+    const auto usedExecutors = writer.createVector(resources.usedExecutors().getOps<IERT::ExecutorResourceOp>() |
+                                                   transformed([&](IERT::ExecutorResourceOp res) {
+                                                       return createProcessorMapping(writer, res);
+                                                   }));
 
     MVCNN::ResourcesBuilder builder(writer);
-    builder.add_processor_allocation(processor_allocation);
-    builder.add_processor_frequencies(processor_frequencies);
-    builder.add_memory_sizes(memory_sizes);
-    builder.add_memory_bandwidth(memory_bandwidth);
+    builder.add_processor_allocation(usedExecutors);
+    builder.add_memory_sizes(usedMemory);
     return builder.Finish();
 }
 
-flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, VPUIP::GraphOp graphOp,
-                                                              mlir::FuncOp graphFunc, ptrdiff_t taskCount) {
+flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
+                                                              VPUIP::GraphOp graphOp, mlir::FuncOp graphFunc,
+                                                              ptrdiff_t taskCount) {
     auto inputsInfo = to_vector<1>(graphOp.inputsInfo().getOps<VPUIP::TensorInfoOp>());
     auto outputsInfo = to_vector<1>(graphOp.outputsInfo().getOps<VPUIP::TensorInfoOp>());
 
@@ -163,15 +149,19 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
         auto userInfo = p.value();
         auto val = graphFunc.getArgument(ind);
+
         const auto graphType = val.getType().cast<mlir::MemRefType>();
+
         // Note: user input layout might not be same as graph shape, if 4D converter pass is applied.
         // TODO: add an attribute on Module op to keep this info showing whether 4D converter is applied or not
         auto graphShape = graphType.getShape();
-        int32_t origDim = userInfo.layout().getNumDims();
-        int32_t dimDiff = graphShape.size() - origDim;
+        size_t origDim = userInfo.layout().getNumDims();
+        size_t dimDiff = graphShape.size() - origDim;
         std::vector<int64_t> origShape(origDim);
-        for (auto i = 0; i < origDim; ++i)
+        for (size_t i = 0; i < origDim; ++i) {
             origShape[i] = graphShape[i + dimDiff];
+        }
+
         const auto userType = mlir::MemRefType::get(origShape, userInfo.precision(), {userInfo.layout()});
 
         graphInputs.push_back(
@@ -193,15 +183,16 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         auto val = graphFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
         const auto graphType = val.getType().cast<mlir::MemRefType>();
+
         // Note: user input layout might not be same as graph shape, if 4D converter pass is applied.
         // TODO: add an attribute on Module op to keep this info showing whether 4D converter is applied or not
         auto graphShape = graphType.getShape();
-        int32_t origDim = userInfo.layout().getNumDims();
-        int32_t dimDiff = graphShape.size() - origDim;
+        size_t origDim = userInfo.layout().getNumDims();
+        size_t dimDiff = graphShape.size() - origDim;
         std::vector<int64_t> origShape(origDim);
-
-        for (auto i = 0; i < origDim; ++i)
+        for (size_t i = 0; i < origDim; ++i) {
             origShape[i] = graphShape[i + dimDiff];
+        }
 
         const auto userType = mlir::MemRefType::get(origShape, userInfo.precision(), {userInfo.layout()});
 
@@ -224,7 +215,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     const auto serializedUserInputs = writer.createVector(userInputs);
     const auto serializedGraphOutputs = writer.createVector(graphOutputs);
     const auto serializedUserOutputs = writer.createVector(userOutputs);
-    const auto serializedResources = createResources(writer, graphOp.resources());
+    const auto serializedResources = createResources(writer, module);
 
     MVCNN::SummaryHeaderBuilder builder(writer);
     builder.add_version(serializedVersion);
@@ -254,7 +245,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
     const auto allTasks = graphFunc.getOps<VPUIP::TaskOpInterface>();
     const auto taskCount = std::distance(allTasks.begin(), allTasks.end());
 
-    const auto header = createSummaryHeader(writer, graphOp, graphFunc, taskCount);
+    const auto header = createSummaryHeader(writer, module, graphOp, graphFunc, taskCount);
 
     using TaskList = std::vector<BlobWriter::Task>;
     using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;

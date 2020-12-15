@@ -14,33 +14,24 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/core/dim.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+
+#include "vpux/utils/core/format.hpp"
 
 using namespace vpux;
 
-//
-// DimBase
-//
+mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareConstantTensorOp op) {
+    auto memref = op.memory().getType().cast<mlir::MemRefType>();
+    auto mem = getPhysicalMemory(memref);
 
-void vpux::details::validateDimAttrs(StringRef className, int32_t ind) {
-    VPUX_THROW_UNLESS(ind >= 0, "Got negative index {0} for {1}", ind, className);
+    if (mlir::failed(mem) || mem.getValue() != VPUIP::PhysicalMemory::DDR) {
+        return printTo(op.emitError(), "'{0}' has unsupported result memory space '{1}'",
+                       DeclareConstantTensorOp::getOperationName(), memref.getMemorySpace());
+    }
 
-    VPUX_THROW_UNLESS(static_cast<size_t>(ind) < MAX_NUM_DIMS, "{0} index {1} exceeds maximal supported value {2}",
-                      className, ind, MAX_NUM_DIMS);
+    return mlir::success();
 }
 
-//
-// Dim
-//
-
-StringRef vpux::Dim::getClassName() {
-    return "Dim";
-}
-
-//
-// MemDim
-//
-
-StringRef vpux::MemDim::getClassName() {
-    return "MemDim";
+mlir::OpFoldResult vpux::VPUIP::DeclareConstantTensorOp::fold(ArrayRef<mlir::Attribute>) {
+    return content();
 }

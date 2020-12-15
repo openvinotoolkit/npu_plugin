@@ -18,7 +18,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
-#include "vpux/compiler/utils/scalars.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/small_vector.hpp"
 

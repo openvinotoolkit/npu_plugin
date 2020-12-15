@@ -16,36 +16,25 @@
 
 #pragma once
 
-#include "vpux/compiler/core/ops_interfaces.hpp"
-
-#include "vpux/utils/core/mem_size.hpp"
-
-#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/IR/Dialect.h>
-#include <mlir/IR/DialectImplementation.h>
-#include <mlir/IR/SymbolTable.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-
-//
-// Generated
-//
-
-#include <vpux/compiler/dialect/IERT/generated/dialect.hpp.inc>
-
-#define GET_OP_CLASSES
-#include <vpux/compiler/dialect/IERT/generated/ops.hpp.inc>
-#undef GET_OP_CLASSES
-
-//
-// Operation verifiers
-//
+#include <mlir/IR/BuiltinTypes.h>
 
 namespace vpux {
-namespace IERT {
 
-mlir::LogicalResult verifyOp(RunTimeResourcesOp op);
+//
+// get<scalar>Type
+//
 
-}  // namespace IERT
+mlir::IntegerType getInt32Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getInt64Type(mlir::MLIRContext* ctx);
+
+mlir::IntegerType getSInt8Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getSInt16Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getSInt32Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getSInt64Type(mlir::MLIRContext* ctx);
+
+mlir::IntegerType getUInt8Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getUInt16Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getUInt32Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getUInt64Type(mlir::MLIRContext* ctx);
+
 }  // namespace vpux

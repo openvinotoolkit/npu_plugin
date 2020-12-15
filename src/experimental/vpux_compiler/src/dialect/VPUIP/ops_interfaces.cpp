@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 
 #include "vpux/utils/core/format.hpp"
@@ -103,6 +104,23 @@ mlir::LogicalResult vpux::VPUIP::details::verifyUPATask(mlir::Operation* op) {
 
     if (task.getTaskType() != VPUIP::TaskType::UPA) {
         return printTo(op->emitError(), "UPA Task '{0}' has wrong TaskType '{1}'", op->getName(), task.getTaskType());
+    }
+
+    if (upaTask.maxShaves().hasValue()) {
+        auto resources = IERT::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
+        if (resources == nullptr) {
+            return printTo(op->emitError(), "Missing IERT run-time resources definition");
+        }
+
+        auto available = resources.getAvailableExecutor(
+                VPUIP::PhysicalProcessorAttr::get(VPUIP::PhysicalProcessor::SHAVE_UPA, op->getContext()));
+        if (available == nullptr) {
+            return printTo(op->emitError(), "SHAVE_UPA executor is not avaialble in run-time");
+        }
+        if (upaTask.maxShaves().getValue() > available.count()) {
+            return printTo(op->emitError(), "Operation 'maxShaves' attribute '{0}' exceeds available count '{1}'",
+                           upaTask.maxShaves(), available.count());
+        }
     }
 
     if (upaTask.isTrailingSWLayer()) {

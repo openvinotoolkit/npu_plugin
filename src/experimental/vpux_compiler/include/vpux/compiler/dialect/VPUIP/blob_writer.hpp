@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include "vpux/compiler/core/dims_order.hpp"
-#include "vpux/compiler/core/shape.hpp"
-#include "vpux/compiler/core/strides.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 
@@ -74,8 +74,8 @@ public:
     Task createTask(mlir::Operation* op);
 
 public:
-    SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params, int32_t maxShaves,
-                                    bool isTrailingSWLayer);
+    SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params,
+                                    Optional<uint32_t> maxShaves, bool isTrailingSWLayer);
 
 public:
     TensorReference createTensor(StringRef name, mlir::MemRefType type, MemoryLocation locale,

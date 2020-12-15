@@ -75,39 +75,51 @@ Logger vpux::Logger::nest(StringLiteral name) const {
     return nested;
 }
 
+bool vpux::Logger::isActive(LogLevel msgLevel) const {
+#ifdef NDEBUG
+    return static_cast<int32_t>(msgLevel) <= static_cast<int32_t>(_logLevel);
+#else
+    return (static_cast<int32_t>(msgLevel) <= static_cast<int32_t>(_logLevel)) ||
+           (llvm::DebugFlag && llvm::isCurrentDebugType(name().data()));
+#endif
+}
+
 namespace {
 
-llvm::raw_ostream& getStream(LogLevel msgLevel) {
+llvm::HighlightColor getColor(LogLevel msgLevel) {
     switch (msgLevel) {
     case LogLevel::Fatal:
     case LogLevel::Error:
-        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Error, llvm::ColorMode::Enable).get();
+        return llvm::HighlightColor::Error;
     case LogLevel::Warning:
-        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Warning, llvm::ColorMode::Enable).get();
+        return llvm::HighlightColor::Warning;
     case LogLevel::Info:
-        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Note, llvm::ColorMode::Enable).get();
+        return llvm::HighlightColor::Note;
     case LogLevel::Debug:
     case LogLevel::Trace:
-        return llvm::WithColor(llvm::outs(), llvm::HighlightColor::Remark, llvm::ColorMode::Enable).get();
+        return llvm::HighlightColor::Remark;
     default:
-        return llvm::outs();
+        return llvm::HighlightColor::Remark;
     }
 }
 
 }  // namespace
 
 void vpux::Logger::addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_base& msg) const {
-#ifdef NDEBUG
     if (!isActive(msgLevel)) {
         return;
     }
+
+    const auto color = getColor(msgLevel);
+
+#ifdef NDEBUG
+    auto& baseStream = llvm::outs();
 #else
-    if (!isActive(msgLevel) && !(llvm::DebugFlag && ::llvm::isCurrentDebugType(name().data()))) {
-        return;
-    }
+    auto& baseStream = llvm::DebugFlag ? llvm::dbgs() : llvm::outs();
 #endif
 
-    auto& stream = getStream(msgLevel);
+    llvm::WithColor colorStream(baseStream, color);
+    auto& stream = colorStream.get();
 
     printTo(stream, "[{0}] ", _name);
 

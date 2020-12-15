@@ -25,7 +25,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 
-TEST(IE_FrontendPowerTest, ImportNetwork) {
+TEST(IE_FrontEndTest, PowerLayer) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{256, 56});
@@ -45,11 +45,10 @@ TEST(IE_FrontendPowerTest, ImportNetwork) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    vpux::IE::FrontEnd frontEnd(&ctx);
-    EXPECT_NO_THROW(frontEnd.importNetwork(nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
 }
 
-TEST(IE_FrontendPowerTest, AutoBroadcastType_NUMPY) {
+TEST(IE_FrontEndTest, PowerLayer_AutoBroadcastType_NUMPY) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{8, 1, 6, 1});
@@ -68,6 +67,5 @@ TEST(IE_FrontendPowerTest, AutoBroadcastType_NUMPY) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    vpux::IE::FrontEnd frontEnd(&ctx);
-    EXPECT_NO_THROW(frontEnd.importNetwork(nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
 }
