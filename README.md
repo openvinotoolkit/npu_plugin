@@ -222,6 +222,15 @@ git add -A
 git commit -m "integrate new version vpualHost"
 ```
 
+#### Developer build
+
+The VPUX plugin has extra CMake option to enable Developer build, which is ortogonal mode for Release/Debug configuration.
+The mode is enabled with `-D ENABLE_DEVELOPER_BUILD=ON` CMake option, which should be added to kmb-plugin CMake command line.
+The mode enables extra debugging and logging functionality not avaialble in default build:
+
+* Pipeprint functionality on KMB board. It allows to get logs from VPU side on ARM.
+  Can be enabled with `IE_VPUX_ENABLE_PIPEPRINT=1` environment variable.
+
 ### Deployment to KMB board
 
 Deploy OpenVINO artifacts to the KMB board:

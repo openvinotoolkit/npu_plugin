@@ -103,6 +103,10 @@ if(ENABLE_EXPERIMENTAL_MLIR)
     include(cmake/tblgen.cmake)
 endif()
 
+if(ENABLE_DEVELOPER_BUILD)
+    add_compile_definitions(VPUX_DEVELOPER_BUILD)
+endif()
+
 add_subdirectory(src)
 
 if(ENABLE_TESTS)

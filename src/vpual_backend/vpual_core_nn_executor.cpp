@@ -31,18 +31,35 @@
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/logger.hpp>
 
+#if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
+#include <atomic>
+#include <cstdio>
+#include <mutex>
+#include <thread>
+#include <errno.h>
+#include <fcntl.h>
+#include <mvLog.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
+#endif
+
 #include "vpual_config.hpp"
 #include "vpusmm_allocator.hpp"
 
 namespace ie = InferenceEngine;
 
 namespace vpux {
-#if defined(__arm__) || defined(__aarch64__)
-constexpr uint16_t XLINK_IPC_CHANNELS = 1024;
-#endif
+
 constexpr int VPU_CSRAM_DEVICE_ID = 32;
 
 #if defined(__arm__) || defined(__aarch64__)
+
+constexpr uint16_t XLINK_IPC_CHANNELS = 1024;
+
 void VpualCoreNNExecutor::initWatchDog() {
     _wd.reset(new WatchDog(_config.inferenceTimeoutMs(), _logger, [this]() {
         _logger->error("%d milliseconds have passed, closing xlink channels." , _config.inferenceTimeoutMs());
@@ -54,6 +71,147 @@ void VpualCoreNNExecutor::initWatchDog() {
         }
       }));
 }
+
+#ifdef VPUX_DEVELOPER_BUILD
+
+class VpualCoreNNExecutor::PipePrintHandler final {
+public:
+    static std::shared_ptr<PipePrintHandler> get();
+
+public:
+    ~PipePrintHandler();
+
+private:
+    static constexpr size_t CONFIGURED_PIPEPRINT_BUFFER_SIZE_MAX = 1024*1024;
+    static constexpr size_t VPU_CACHE_LINE_SIZE = 64;
+    static constexpr size_t PAGE_SIZE = 4096;
+
+    struct tyMvConsoleQueue {
+        volatile uint32_t canaryStart;
+        volatile uint32_t in;
+        volatile uint32_t out;
+        volatile uint32_t queueSize;
+        volatile uint32_t canaryEnd;
+        volatile uint8_t buffer[CONFIGURED_PIPEPRINT_BUFFER_SIZE_MAX];
+    };
+
+private:
+    PipePrintHandler();
+
+    static void threadBody(PipePrintHandler* obj);
+
+    static constexpr size_t vpuAlignDown(size_t val) {
+        return val & (~(VPU_CACHE_LINE_SIZE-1));
+    }
+
+private:
+    std::atomic<bool> _enabled{false};
+    std::thread _thread;
+
+    static std::weak_ptr<PipePrintHandler> _globalObj;
+    static std::mutex _globalMtx;
+};
+
+std::weak_ptr<VpualCoreNNExecutor::PipePrintHandler> VpualCoreNNExecutor::PipePrintHandler::_globalObj;
+std::mutex VpualCoreNNExecutor::PipePrintHandler::_globalMtx;
+
+std::shared_ptr<VpualCoreNNExecutor::PipePrintHandler> VpualCoreNNExecutor::PipePrintHandler::get() {
+    if (const auto* env = std::getenv("IE_VPUX_ENABLE_PIPEPRINT")) {
+        if (std::stoi(env) != 0) {
+            std::unique_lock<std::mutex> lock(_globalMtx);
+
+            auto obj = _globalObj.lock();
+            if (obj != nullptr) {
+                return obj;
+            }
+
+            obj.reset(new PipePrintHandler);
+            _globalObj = obj;
+            return obj;
+        }
+    }
+
+    return nullptr;
+}
+
+VpualCoreNNExecutor::PipePrintHandler::PipePrintHandler() {
+    _enabled = true;
+    _thread = std::thread(threadBody, this);
+}
+
+VpualCoreNNExecutor::PipePrintHandler::~PipePrintHandler() {
+    try {
+        if (_thread.joinable()) {
+            _enabled = false;
+            _thread.join();
+        }
+    } catch (...) {
+        std::cerr << "Got an error during pipeprint thread join" << std::endl;
+    }
+}
+
+void VpualCoreNNExecutor::PipePrintHandler::threadBody(PipePrintHandler* obj) {
+    static constexpr uint64_t DEFAULT_PIPEPRINT_PHY_ADDR = 0x94500000;
+
+    uint64_t phyAddr = DEFAULT_PIPEPRINT_PHY_ADDR;
+    if (const auto* env = std::getenv("IE_VPUX_PIPEPRINT_PHY_ADDR")) {
+        phyAddr = std::stoull(env);
+    }
+    IE_ASSERT((phyAddr & (PAGE_SIZE - 1)) == 0);
+
+    const auto fd = open("/dev/mem", O_RDONLY | O_SYNC);
+    IE_ASSERT(fd >= 0);
+
+    using FdDeleter = std::function<void(const int*)>;
+    using FdHnd = std::unique_ptr<const int, FdDeleter>;
+    FdHnd fdHnd(&fd, [](const int* fd) {
+        close(*fd);
+    });
+
+    const auto mapSize = (sizeof(tyMvConsoleQueue) + PAGE_SIZE - 1) / PAGE_SIZE * PAGE_SIZE;
+
+    auto* const rawPtr = mmap(NULL, mapSize, PROT_READ, MAP_SHARED, fd, phyAddr);
+    IE_ASSERT(rawPtr != MAP_FAILED);
+
+    using MapDeleter = std::function<void(void*)>;
+    using MapHnd = std::unique_ptr<void, MapDeleter>;
+    MapHnd mapHnd(rawPtr, [](void* p) {
+        munmap(p, mapSize);
+    });
+
+    const auto bufferBase = reinterpret_cast<uintptr_t>(reinterpret_cast<const tyMvConsoleQueue*>(phyAddr)->buffer);
+
+    const auto* console = static_cast<const tyMvConsoleQueue*>(rawPtr);
+    auto curOffset = console->in;
+
+    while (obj->_enabled) {
+        const auto queueSize = console->queueSize;
+        const auto nextOffset = console->in;
+
+        if (nextOffset > curOffset) {
+            // only 64bit aligned part is flushed from cache to RAM in time
+            // the rest part will be flushed later by subsequent logs or forcely with timeout
+            const auto count = (vpuAlignDown(bufferBase + nextOffset) - (bufferBase + curOffset)) % queueSize;
+
+            if (count != 0) {
+                const auto res = write(1, const_cast<const uint8_t*>(console->buffer + curOffset), count);
+                (void)res;
+
+                std::fputs(ANSI_COLOR_RESET, stdout);
+                std::fflush(stdout);
+
+                curOffset = (curOffset + count) % queueSize;
+                continue;
+            }
+        }
+
+        // 1ms sleep when no logs are presented.
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+#endif  // VPUX_DEVELOPER_BUILD
+
 #endif
 
 VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
@@ -105,6 +263,10 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
           }
       }) {
 #if defined(__arm__) || defined(__aarch64__)
+#ifdef VPUX_DEVELOPER_BUILD
+    _pipePrint = PipePrintHandler::get();
+#endif
+
     std::size_t inputsTotalSize = 0;
     for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
         const auto& tensorDesc = in.second->getTensorDesc();
@@ -159,6 +321,10 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
               _allocator->free(buffer);
           }
       }) {
+#ifdef VPUX_DEVELOPER_BUILD
+    _pipePrint = PipePrintHandler::get();
+#endif
+
     std::size_t inputsTotalSize = 0;
     for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
         const auto& tensorDesc = in.second->getTensorDesc();
