@@ -79,6 +79,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MaxPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Clamp>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Elu>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -111,28 +112,28 @@ private:
 };
 
 mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
-    SmallVector<mlir::Type, 1> inputTypes;
-
-#define MAP_ENTRY(_NodeType_) \
-    { _NodeType_::type_info, &NGraphImporter::parseDispatch<_NodeType_> }
-
     using Callback = void (NGraphImporter::*)(mlir::OpBuilder& builder, const OrigNodePtr& origNode);
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
+#define MAP_ENTRY(_NodeType_) \
+    { _NodeType_::type_info, &NGraphImporter::parseDispatch<_NodeType_> }
     static const DispatchMap dispatchMap{
-            {ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
-            {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
-            MAP_ENTRY(ngraph::opset1::Constant),
-            MAP_ENTRY(ngraph::opset1::Softmax),
-            MAP_ENTRY(ngraph::opset1::Tile),
-            MAP_ENTRY(ngraph::opset1::Split),
-            MAP_ENTRY(ngraph::opset1::Power),
-            MAP_ENTRY(ngraph::opset1::Relu),
-            MAP_ENTRY(ngraph::opset1::MaxPool),
-            MAP_ENTRY(ngraph::opset1::Gather),
-            MAP_ENTRY(ngraph::opset1::Clamp)
+        {ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
+        {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
+
+        MAP_ENTRY(ngraph::opset1::Constant),
+        MAP_ENTRY(ngraph::opset1::Softmax),
+        MAP_ENTRY(ngraph::opset1::Tile),
+        MAP_ENTRY(ngraph::opset1::Split),
+        MAP_ENTRY(ngraph::opset1::Power),
+        MAP_ENTRY(ngraph::opset1::Relu),
+        MAP_ENTRY(ngraph::opset1::MaxPool),
+        MAP_ENTRY(ngraph::opset1::Gather),
+        MAP_ENTRY(ngraph::opset1::Clamp),
+        MAP_ENTRY(ngraph::opset1::Elu),
         };
 #undef MAP_ENTRY
 
+    SmallVector<mlir::Type, 1> inputTypes;
     inputTypes.reserve(_netGraph->get_parameters().size());
     for (const auto& param : _netGraph->get_parameters()) {
         inputTypes.push_back(importTensor(param->get_partial_shape(), param->get_element_type()));
@@ -354,6 +355,18 @@ SmallVector<mlir::Value, 4> NGraphImporter::getInputs(const OrigNodePtr& node) {
     }
 
     return out;
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Elu>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Elu node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto alpha = origNode->get_alpha();
+    const auto alphaAttr = getFP64Attr(_ctx, checked_cast<double>(alpha));
+
+    auto op = builder.create<IE::EluOp>(createLocation(origNode), inputs[0], alphaAttr);
+    addOutputs(origNode, {op.getResult()});
 }
 
 void NGraphImporter::addOutputs(const OrigNodePtr& node, mlir::ValueRange vals) {

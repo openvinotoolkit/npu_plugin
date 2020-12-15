@@ -394,4 +394,33 @@ def IE_ClampOp :
     }];
 }
 
+//
+// EluOp
+//
+
+def IE_EluOp :
+        IE_LayerOp<
+            "Elu",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType
+            ]
+        > {
+    let summary = "InferenceEngine Elu layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        F64Attr:$alpha    
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
