@@ -44,18 +44,18 @@ struct vpux::StaticAllocation::Handler final {
     }
 
     AddressType getSize(mlir::Value val) const {
-        auto type = val.getType().dyn_cast<mlir::MemRefType>();
+        const auto type = val.getType().dyn_cast<mlir::MemRefType>();
         VPUX_THROW_UNLESS(type != nullptr, "StaticAllocation can work only with MemRef Type, got '{0}'", val.getType());
 
         return checked_cast<AddressType>(getTypeByteSize(type));
     }
 
     AddressType getAlignment(mlir::Value) const {
-        return 64;
+        return parent._alignment;
     }
 
     AddressType getAddress(mlir::Value val) const {
-        auto addr = parent.getValOffset(val);
+        const auto addr = parent.getValOffset(val);
         VPUX_THROW_UNLESS(addr.hasValue(), "Value '{0}' was not allocated", val);
 
         return checked_cast<AddressType>(addr.getValue());
@@ -66,7 +66,8 @@ struct vpux::StaticAllocation::Handler final {
         VPUX_THROW_UNLESS(parent._valOffsets.count(val) == 0, "Value '{0}' was already allocated", val);
 
         parent._valOffsets.insert({val, checked_cast<int64_t>(addr)});
-        parent._maxAllocatedSize = std::max(parent._maxAllocatedSize, alignVal<int64_t>(addr + getSize(val), 64));
+        parent._maxAllocatedSize = Byte(
+                std::max(parent._maxAllocatedSize.count(), alignVal<uint64_t>(addr + getSize(val), getAlignment(val))));
     }
 
     void freed(mlir::Value) const {
@@ -81,22 +82,33 @@ struct vpux::StaticAllocation::Handler final {
     }
 };
 
-vpux::StaticAllocation::StaticAllocation(mlir::Operation* rootOp) {
-    LinearScan<mlir::Value, Handler> scan(std::numeric_limits<uint32_t>::max(), *this);
+vpux::StaticAllocation::StaticAllocation(mlir::Operation* rootOp, mlir::Attribute memSpace, Byte maxSize,
+                                         uint64_t alignment)
+        : _alignment(alignment) {
+    LinearScan<mlir::Value, Handler> scan(maxSize.count(), *this);
 
     auto callback = [&](mlir::Operation* op) {
         if (auto allocOp = mlir::dyn_cast<mlir::AllocOp>(op)) {
-            auto val = allocOp.memref();
+            const auto val = allocOp.memref();
+            const auto type = val.getType().dyn_cast<mlir::MemRefType>();
+
+            if (type == nullptr) {
+                return;
+            }
+            if (type.getMemorySpace() != memSpace) {
+                return;
+            }
 
             VPUX_THROW_UNLESS(scan.alloc({val}, /*allowSpills*/ false),
                               "Failed to statically allocate memory with LinearScan for Value '{0}'", val);
 
             scan.handler().aliveValues.insert(val);
         } else if (auto deallocOp = mlir::dyn_cast<mlir::DeallocOp>(op)) {
-            auto val = deallocOp.memref();
+            const auto val = deallocOp.memref();
 
-            scan.handler().aliveValues.erase(val);
-            scan.freeNonAlive();
+            if (scan.handler().aliveValues.erase(val)) {
+                scan.freeNonAlive();
+            }
         }
     };
 

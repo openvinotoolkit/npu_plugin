@@ -16,34 +16,35 @@
 
 #pragma once
 
-#include "vpux/utils/core/mem_size.hpp"
-#include "vpux/utils/core/optional.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 
-#include <mlir/IR/Operation.h>
-#include <mlir/IR/Value.h>
+#include "vpux/utils/core/logger.hpp"
+
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/Pass/Pass.h>
+
+#include <memory>
 
 namespace vpux {
+namespace IERT {
 
-class StaticAllocation final {
-public:
-    explicit StaticAllocation(mlir::Operation* rootOp, mlir::Attribute memSpace = nullptr,
-                              Byte maxSize = Byte(std::numeric_limits<uint64_t>::max()), uint64_t alignment = 1);
+//
+// StaticAllocation
+//
 
-public:
-    Optional<int64_t> getValOffset(mlir::Value val) const;
+std::unique_ptr<mlir::Pass> createStaticAllocationPass(mlir::Attribute memSpace, Logger log = Logger::global());
 
-    auto maxAllocatedSize() const {
-        return _maxAllocatedSize;
-    }
+//
+// Generated
+//
 
-private:
-    struct Handler;
-    friend Handler;
+#define GEN_PASS_CLASSES
+#include <vpux/compiler/dialect/IERT/generated/passes.hpp.inc>
+#undef GEN_PASS_CLASSES
 
-private:
-    uint64_t _alignment = 1;
-    mlir::DenseMap<mlir::Value, int64_t> _valOffsets;
-    Byte _maxAllocatedSize;
-};
+#define GEN_PASS_REGISTRATION
+#include <vpux/compiler/dialect/IERT/generated/passes.hpp.inc>
+#undef GEN_PASS_REGISTRATION
 
+}  // namespace IERT
 }  // namespace vpux

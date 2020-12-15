@@ -14,15 +14,22 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/IERT/passes.hpp"
 
+#include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/core/static_allocation.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/linear_scan.hpp"
+
+#include "vpux/utils/core/checked_cast.hpp"
+#include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/IR/Value.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -30,17 +37,18 @@ using namespace vpux;
 namespace {
 
 //
-// AssignTensorOffsetsDDRPass
+// StaticAllocationPass
 //
 
-class AssignTensorOffsetsDDRPass final : public VPUIP::AssignTensorOffsetsDDRBase<AssignTensorOffsetsDDRPass> {
+class StaticAllocationPass final : public IERT::StaticAllocationBase<StaticAllocationPass> {
 public:
-    explicit AssignTensorOffsetsDDRPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
-    }
+    StaticAllocationPass(mlir::Attribute memSpace, Logger log);
 
 public:
     void runOnOperation() final;
+
+public:
+    Optional<int64_t> getValOffset(mlir::Value val) const;
 
 public:
     class AllocRewrite;
@@ -50,11 +58,24 @@ private:
     void passBody();
 
 private:
+    mlir::Attribute _memSpace;
     Logger _log;
 };
 
-void AssignTensorOffsetsDDRPass::runOnOperation() {
+StaticAllocationPass::StaticAllocationPass(mlir::Attribute memSpace, Logger log): _memSpace(memSpace), _log(log) {
+    _log.setName(Base::getArgumentName());
+}
+
+void StaticAllocationPass::runOnOperation() {
     try {
+        auto& ctx = getContext();
+
+        if (_memSpace == nullptr) {
+            if (!memSpaceName.getValue().empty()) {
+                _memSpace = mlir::StringAttr::get(memSpaceName.getValue(), &ctx);
+            }
+        }
+
         passBody();
     } catch (const std::exception& e) {
         printTo(getOperation().emitError(), "{0} failed : {1}", getName(), e.what());
@@ -66,7 +87,7 @@ void AssignTensorOffsetsDDRPass::runOnOperation() {
 // AllocRewrite
 //
 
-class AssignTensorOffsetsDDRPass::AllocRewrite final : public mlir::OpRewritePattern<mlir::AllocOp> {
+class StaticAllocationPass::AllocRewrite final : public mlir::OpRewritePattern<mlir::AllocOp> {
 public:
     AllocRewrite(StaticAllocation& allocInfo, mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<mlir::AllocOp>(ctx), _allocInfo(allocInfo), _log(log) {
@@ -80,8 +101,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult AssignTensorOffsetsDDRPass::AllocRewrite::matchAndRewrite(mlir::AllocOp origOp,
-                                                                              mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult StaticAllocationPass::AllocRewrite::matchAndRewrite(mlir::AllocOp origOp,
+                                                                        mlir::PatternRewriter& rewriter) const {
     _log.trace("Found Alloc Operation '{0}'", origOp);
 
     auto val = origOp.memref();
@@ -92,8 +113,7 @@ mlir::LogicalResult AssignTensorOffsetsDDRPass::AllocRewrite::matchAndRewrite(ml
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<VPUIP::DeclareTensorOp>(origOp, val.getType(), VPUIP::MemoryLocation::VPU_DDR_Heap,
-                                                        offset.getValue());
+    rewriter.replaceOpWithNewOp<IERT::StaticAllocOp>(origOp, val.getType(), offset.getValue());
 
     _log.trace("Replaced with statically allocated VPUIP.DeclareTensorOp (offset = {0})", offset);
 
@@ -104,7 +124,7 @@ mlir::LogicalResult AssignTensorOffsetsDDRPass::AllocRewrite::matchAndRewrite(ml
 // DeallocRewrite
 //
 
-class AssignTensorOffsetsDDRPass::DeallocRewrite final : public mlir::OpConversionPattern<mlir::DeallocOp> {
+class StaticAllocationPass::DeallocRewrite final : public mlir::OpConversionPattern<mlir::DeallocOp> {
 public:
     DeallocRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpConversionPattern<mlir::DeallocOp>(ctx), _log(log) {
     }
@@ -117,14 +137,14 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult AssignTensorOffsetsDDRPass::DeallocRewrite::matchAndRewrite(
+mlir::LogicalResult StaticAllocationPass::DeallocRewrite::matchAndRewrite(
         mlir::DeallocOp origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found Dealloc Operation '{0}'", origOp);
 
     VPUX_THROW_UNLESS(newOperands.size() == 1, "Got wrong newOperands count {0}", newOperands.size());
 
     auto* producer = newOperands[0].getDefiningOp();
-    if (!mlir::isa<VPUIP::DeclareTensorOp>(producer)) {
+    if (!mlir::isa<IERT::StaticAllocOp>(producer)) {
         _log.error("Value '{0}' was produced by unsupported Operation '{1}'", newOperands[0], producer->getName());
         return mlir::failure();
     }
@@ -140,7 +160,7 @@ mlir::LogicalResult AssignTensorOffsetsDDRPass::DeallocRewrite::matchAndRewrite(
 // passBody
 //
 
-void AssignTensorOffsetsDDRPass::passBody() {
+void StaticAllocationPass::passBody() {
     auto& ctx = getContext();
     auto module = getOperation();
 
@@ -155,9 +175,9 @@ void AssignTensorOffsetsDDRPass::passBody() {
         return;
     }
 
-    auto available = resources.getAvailableMemory(nullptr);
+    auto available = resources.getAvailableMemory(_memSpace);
     if (available == nullptr) {
-        _log.error("The default memory space is not available");
+        _log.error("The memory space '{0}' is not available", _memSpace);
         signalPassFailure();
         return;
     }
@@ -165,11 +185,18 @@ void AssignTensorOffsetsDDRPass::passBody() {
     const auto maxSize = available.size();
     const uint64_t alignment = 64;  // TODO: extract from run-time resources information
 
-    StaticAllocation allocInfo(netFunc, nullptr, maxSize, alignment);
+    StaticAllocation allocInfo(netFunc, _memSpace, maxSize, alignment);
 
     mlir::ConversionTarget target(ctx);
-    target.addLegalDialect<VPUIP::VPUIPDialect>();
-    target.addIllegalOp<mlir::AllocOp, mlir::DeallocOp>();
+    target.addLegalDialect<IERT::IERTDialect>();
+    target.addDynamicallyLegalOp<mlir::AllocOp>([&](mlir::AllocOp op) {
+        const auto type = op.memref().getType().dyn_cast<mlir::MemRefType>();
+        return type == nullptr || type.getMemorySpace() != _memSpace;
+    });
+    target.addDynamicallyLegalOp<mlir::DeallocOp>([&](mlir::DeallocOp op) {
+        const auto type = op.memref().getType().dyn_cast<mlir::MemRefType>();
+        return type == nullptr || type.getMemorySpace() != _memSpace;
+    });
 
     mlir::OwningRewritePatternList patterns;
     patterns.insert<AllocRewrite>(allocInfo, &ctx, _log.nest());
@@ -181,12 +208,11 @@ void AssignTensorOffsetsDDRPass::passBody() {
         return;
     }
 
-    resources.setUsedMemory(VPUIP::PhysicalMemoryAttr::get(VPUIP::PhysicalMemory::DDR, module.getContext()),
-                            Byte(allocInfo.maxAllocatedSize()));
+    resources.setUsedMemory(_memSpace, allocInfo.maxAllocatedSize());
 }
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createAssignTensorOffsetsDDRPass(Logger log) {
-    return std::make_unique<AssignTensorOffsetsDDRPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IERT::createStaticAllocationPass(mlir::Attribute memSpace, Logger log) {
+    return std::make_unique<StaticAllocationPass>(memSpace, log);
 }

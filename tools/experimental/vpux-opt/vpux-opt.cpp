@@ -18,6 +18,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/pipelines.hpp"
@@ -37,6 +38,7 @@ int main(int argc, char* argv[]) {
         registry.insert<vpux::VPUIP::VPUIPDialect>();
 
         vpux::IE::registerIEPasses();
+        vpux::IERT::registerIERTPasses();
         vpux::VPUIP::registerVPUIPPasses();
         vpux::registerConversionPasses();
         vpux::registerPipelinesPasses();

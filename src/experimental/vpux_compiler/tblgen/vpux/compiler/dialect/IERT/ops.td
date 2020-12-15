@@ -208,6 +208,32 @@ def IERT_EndOp :
 }
 
 //
+// StaticAllocOp
+//
+
+def IERT_StaticAllocOp :
+        IERT_Op<
+            "StaticAlloc",
+            [
+                NoSideEffect
+            ]
+        > {
+    let summary = "InferenceEngine run-time static buffer allocation";
+
+    let arguments = (ins
+        I64Attr:$offset
+    );
+
+    let results = (outs
+        AnyMemRef:$memory
+    );
+
+    let assemblyFormat = [{
+        `<` $offset `>` attr-dict `->` type(results)
+    }];
+}
+
+//
 // ConvertOp
 //
 

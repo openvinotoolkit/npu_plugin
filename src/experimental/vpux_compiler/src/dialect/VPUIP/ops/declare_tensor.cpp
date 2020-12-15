@@ -38,16 +38,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
                        DeclareTensorOp::getOperationName(), locale, memref.getMemorySpace());
     }
 
-    if (const auto dataIndexAttr = op.dataIndexAttr()) {
-        const auto dataIndex = dataIndexAttr.getValue().getSExtValue();
-        if (dataIndex < 0) {
-            return printTo(op.emitError(), "Got negative dataIndex '{0}' for '{1}'", dataIndex,
-                           DeclareTensorOp::getOperationName());
-        }
-
-        // TODO: check memory limitations
-    }
-
     // TODO: check other offsets
 
     return mlir::success();
