@@ -271,7 +271,13 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
         0.6, 0.4, 0.4, false);
 }
 
+
+// Compilation fails on windows
+// [Track number: D#44765]
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32) {
+#ifdef _WIN32
+    SKIP() << "LpScheduler - RuntimeError: input is not a DAG";
+#endif
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -296,7 +302,12 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
 }
 #endif  // KMB_HAS_CUSTOM_OCL_KERNELS
 
+// Compilation fails on windows
+// [Track number: D#44765]
 TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
+#ifdef _WIN32
+    SKIP() << "LpScheduler - RuntimeError: input is not a DAG";
+#endif
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -1035,4 +1046,26 @@ TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
         TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
         0.3f,
         0.1f, 0.3f);
+}
+
+// [Track number: D#45024]
+TEST_F(SmokeNetworkTest, text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/text-detection-0004/tf/FP16-INT8/text-detection-0004-ww48.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32));
+}
+
+// [Track number: D#45024]
+TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/text-detection-0003/tf/FP16-INT8/text-detection-0003-ww48.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32));
 }
