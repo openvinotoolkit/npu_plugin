@@ -167,9 +167,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 if (configs.find(taskOp) != configs.end())
                     dpuModes = configs[taskOp].dpuModes;
                 else
-                {
                     dpuModes = configs["General"].dpuModes;
-                }
             }
             /*Depthwise cov SOH A0 workaround*/
             if(((taskOp == "DepthwiseConv") ||
