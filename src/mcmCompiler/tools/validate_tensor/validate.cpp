@@ -526,20 +526,20 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     // add to runtimeOptions
     long int buffer_max_size=blobfile_size_mb + 1;
     std::string cleanMake = "";
-    long int MAX_BLOB_SIZE = std::atoi(getEnvVarDefault("BLOBSIZE_FORCE_REBUILD", "80").c_str());
-    if(blobfile_size_mb >= MAX_BLOB_SIZE)
-    {
+    //long int MAX_BLOB_SIZE = std::atoi(getEnvVarDefault("BLOBSIZE_FORCE_REBUILD", "80").c_str());
+    //if(blobfile_size_mb >= MAX_BLOB_SIZE)
+    //{
         cleanMake = " clean ";
         runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=") + std::to_string(buffer_max_size);
         //TODO: Deprecated config key to remove after fully transitionning to
         // runtime versions >= NN_Runtime_v2.46.0
         runtimeOptions += std::string(" CONFIG_NN_ALIGN_WEIGHT_BUFFERS=n");
         runtimeOptions += std::string(" CONFIG_NN_WEIGHT_BUFFER_ALIGNMENT=1");
-    }
-    else
-    {   // default buffer size to 100mb
+    //}
+    //else
+    //{   // default buffer size to 100mb
         runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=100");
-    }
+    //}
 
     // execute the blob
     std::cout << std::endl << std::string("====== Execute blob ======") << std::endl;
