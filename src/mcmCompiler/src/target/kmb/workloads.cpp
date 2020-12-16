@@ -158,33 +158,44 @@ mv::Shape mv::Workloads::getShapefromMinMax() const
  * @param Maximum number or workloads
  * @return A pool of possible splits (possible workloads)
  */
-const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor, int nDPUxCluster, mv::DPUModeList dpuModeList, int maxSplits)
+const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor, int nDPUxCluster, mv::DPUModeList dpuModeList, int maxSplits, std::vector<std::size_t> valid_ztiling)
 {
     std::vector<int> splitPool = {1};
     std::vector<int> maxSplitsXY;
+    int maxSplitXYZ = 1;
 
     /*maxSplitsXY*/
     double xDim = tensor.getShape()[0];
     double yDim = tensor.getShape()[1];
-
     for(std::size_t i = 0; i < dpuModeList.size(); i++)
-        maxSplitsXY.push_back(ceil((yDim/dpuModeList[i].H)  * ceil(xDim/dpuModeList[i].W)));
-
-    /*maxSplitsZ*/
-    int maxSplitsZ = ceil(tensor.getShape()[2]/16);
-
-    /*Z splits*/
-    if((maxSplitsZ < maxSplits) && (maxSplitsZ >1))
     {
-        splitPool.push_back(maxSplitsZ);
-        do
-        {
-            maxSplitsZ = maxSplitsZ >> 1;
-            splitPool.push_back(maxSplitsZ);
-        }
-        while ((maxSplitsZ >> 1) > 1);
+        maxSplitsXY.push_back(ceil(static_cast<double>(yDim)/dpuModeList[i].H)  * ceil(static_cast<double>(xDim)/dpuModeList[i].W));
+        if (maxSplitsXY[i] > maxSplitXYZ)
+            maxSplitXYZ = maxSplitsXY[i];
     }
 
+    for(std::size_t i = 0; i < valid_ztiling.size(); i++)
+    {
+        /*maxSplitsZ*/
+        int maxSplitsZ = ceil(tensor.getShape()[2]/(1.0*valid_ztiling[i]));
+        /*Z splits*/
+        if((maxSplitsZ < maxSplits) && (maxSplitsZ >1))
+        {
+            splitPool.push_back(maxSplitsZ);
+            if (maxSplitsZ > maxSplitXYZ)
+                maxSplitXYZ = maxSplitsZ;
+
+            do {
+                maxSplitsZ = maxSplitsZ >> 1;
+                if (maxSplitsZ > maxSplitXYZ)
+                    maxSplitXYZ = maxSplitsZ;
+                splitPool.push_back(maxSplitsZ);
+            }
+            while ((maxSplitsZ >> 1) > 1);
+        }
+    }
+
+    maxSplits = std::min(maxSplitXYZ, maxSplits);
     /*DpuMul splits*/
     for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster)
         splitPool.push_back(i);
@@ -193,7 +204,7 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     for(std::size_t i = 0; i < dpuModeList.size(); i++) {
         for(int j = 0; j < (int)ceil(log2(maxSplitsXY[i])); j++)
             if(((maxSplitsXY[i]%(int)std::pow(2,j)) == 0) && (maxSplitsXY[i]/(std::pow(2,j)) <= maxSplits))
-            splitPool.push_back(maxSplitsXY[i]/std::pow(2,j));
+                splitPool.push_back(maxSplitsXY[i]/std::pow(2,j));
     }
 
     /*sort*/
@@ -454,14 +465,20 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
                 mpeMode = {1,16};
             else if (itworkload->MPEMode == mv::Matrix)
                 mpeMode = {4,4};
+            else if (itworkload->MPEMode == mv::MPE_Mode::CUBOID_8x16)
+                mpeMode = {8,16};
+            else if (itworkload->MPEMode == mv::MPE_Mode::CUBOID_4x16)
+                mpeMode = {4,16};
+            else if (itworkload->MPEMode == mv::MPE_Mode::CUBOID_16x16)
+                mpeMode = {16,16};
             else
                 mpeMode = {1,4};
-
 
             float height = (itworkload->MaxY+1) - itworkload->MinY; // + mpeMode.first;
             float width = (itworkload->MaxX+1) - itworkload->MinX; // + mpeMode.second;
 
-            sumExeCycles = ceil((itworkload->MaxZ-itworkload->MinZ)/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second) * pixelCost;
+            sumExeCycles = ceil(static_cast<double>(itworkload->MaxZ-itworkload->MinZ)/16.0) *
+                            ceil(static_cast<double>(height) / mpeMode.first) * ceil(static_cast<double>(width) / mpeMode.second) * pixelCost;
             sumExeCycles += workloadCost;
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
@@ -1188,7 +1205,7 @@ void mv::Workloads::populateClusterID(int clusterID)
         workload->clusterID = clusterID;
 }
 
-int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, size_t nWorkloads, const mv::pass::PassEntry &pass)
+int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, size_t nWorkloads, const mv::pass::PassEntry &pass, std::vector<std::size_t> validZTiles)
 {
     pass.log(mv::Logger::MessageType::Debug, "Zsplit: layer=" + layerName_);
     unsigned C, H, W;
@@ -1204,8 +1221,24 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, s
 
     //max Z calculation
     size_t max_channels_per_WL = divRoundUp(C,nWorkloads);
-    if (max_channels_per_WL < 16 ||
-        max_channels_per_WL * nWorkloads > C)
+    std::set<std::size_t> validTilingZSet(validZTiles.begin(), validZTiles.end());
+    if (!validZTiles.empty())
+    {
+
+        for (size_t i = 0; i < validZTiles.size(); i++)
+        {
+            max_channels_per_WL = padRoundUp(max_channels_per_WL, validZTiles[i]);
+            if (validTilingZSet.find(max_channels_per_WL) != validTilingZSet.end())
+                break;
+        }
+    }
+    else
+    {
+        max_channels_per_WL = padRoundUp(max_channels_per_WL, 16);
+    }
+
+
+    if (max_channels_per_WL < 16)
         return 0;
 
     WorkloadShape original_shape;
@@ -1251,6 +1284,11 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, s
         //Check that the z workloads dimension for z tiling are multiple of 16
         if(((workload.MaxZ+1) - workload.MinZ)%16 != 0)
             return 0;
+        if (!validZTiles.empty())
+        {
+            if (validTilingZSet.find(((workload.MaxZ+1) - workload.MinZ)) == validTilingZSet.end())
+                return 0;
+        }
 
         workloads_.push_back(workload);
 

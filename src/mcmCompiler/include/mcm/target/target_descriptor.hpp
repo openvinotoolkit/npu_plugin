@@ -29,6 +29,13 @@ namespace mv
         Unknown
     };
 
+    struct WorkloadConfig
+    {
+        std::vector<std::size_t> validZTiles;
+        std::vector<std::string> algorithms;
+        DPUModeList dpuModes;
+    };
+
     struct HdeDescriptor
     {
         std::size_t numberOfHDEModules;
@@ -73,8 +80,9 @@ namespace mv
         std::map<std::string, NceDescriptor> nceDefs_;
         std::map<std::string, std::size_t> processorDefs_;
         std::map<std::string, mv::Element> serialDescriptions_;
-        mv::DPUModeList dpuModes_;
+        std::map<std::string, WorkloadConfig> workloadConfigs_;
         std::vector<DataTypeSupport> dtypeSupport_;
+
     public:
 
         TargetDescriptor(const std::string& filePath = "");
@@ -103,7 +111,7 @@ namespace mv
         const std::map<std::string, NceDescriptor>& nceDefs() const;
         const std::map<std::string, std::size_t>& processorDefs() const;
         const HdeDescriptor& hdeDef() const;
-        const mv::DPUModeList& getMPEModes() const;
+        const std::map<std::string, WorkloadConfig> & getWorkloadConfigs() const;
         const std::vector<mv::DataTypeSupport> & dtypeSupport() const;
 
         std::string getLogID() const override;
