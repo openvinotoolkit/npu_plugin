@@ -490,7 +490,8 @@ void alignPopulatedTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel
 
             std::size_t outputChannelsPadded = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
 
-            if (taskOp == "Conv")
+            if (taskOp == "Conv" ||
+                (taskOp == "ChannelMajorConvolution" && td.getTarget() != mv::Target::ma3720))
                 alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
                                                     inputTensorShape[mv::IO_CHANNEL_DIMENSION], outputTensorShape[mv::IO_CHANNEL_DIMENSION]});
 
