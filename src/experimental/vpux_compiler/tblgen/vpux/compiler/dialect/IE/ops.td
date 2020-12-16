@@ -474,4 +474,31 @@ def IE_SqueezeOp :
     }];
 }
 
+//
+// SigmoidOp
+//
+
+def IE_SigmoidOp :
+        IE_LayerOp<
+            "Sigmoid",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType
+            ]
+        > {
+    let summary = "InferenceEngine Sigmoid layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
