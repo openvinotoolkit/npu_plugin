@@ -501,4 +501,33 @@ def IE_SigmoidOp :
     }];
 }
 
+//
+// ClampOp
+//
+
+def IE_LRNOp :
+        IE_LayerOp<
+            "LRN"
+        > {
+    let summary = "InferenceEngine LRN layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        AnyRankedTensor:$axis,
+
+        F64Attr:$alpha,
+        F64Attr:$beta,
+        F64Attr:$bias,
+        I32Attr:$size
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif

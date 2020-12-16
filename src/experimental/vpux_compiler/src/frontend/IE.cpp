@@ -84,6 +84,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Reshape>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Squeeze>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Sigmoid>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::LRN>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -136,6 +137,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
         MAP_ENTRY(ngraph::opset1::Reshape),
         MAP_ENTRY(ngraph::opset1::Squeeze),
         MAP_ENTRY(ngraph::opset1::Sigmoid),
+        MAP_ENTRY(ngraph::opset1::LRN),
         };
 #undef MAP_ENTRY
 
@@ -359,6 +361,26 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto maxAttr = getFP64Attr(_ctx, checked_cast<double>(max));
 
     auto op = builder.create<IE::ClampOp>(createLocation(origNode), inputs[0], minAttr, maxAttr);
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::LRN>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph LRN node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto alpha = origNode->get_alpha();
+    auto beta = origNode->get_beta();
+    auto bias = origNode->get_bias();
+    auto size = origNode->get_nsize();
+
+    const auto alphaAttr = getFP64Attr(_ctx, checked_cast<double>(alpha));
+    const auto betaAttr = getFP64Attr(_ctx, checked_cast<double>(beta));
+    const auto biasAttr = getFP64Attr(_ctx, checked_cast<double>(bias));
+    const auto sizeAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(size));
+
+    auto op = builder.create<IE::LRNOp>(createLocation(origNode), inputs[0], inputs[1], alphaAttr, betaAttr, biasAttr,
+                                        sizeAttr);
     addOutputs(origNode, {op.getResult()});
 }
 
