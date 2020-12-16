@@ -26,13 +26,13 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
+mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    IE::MaxPoolOpAdaptor maxPool(operands, attrs);
-    if (mlir::failed(maxPool.verify(loc))) {
+    IE::ConvolutionOpAdaptor conv(operands, attrs);
+    if (mlir::failed(conv.verify(loc))) {
         return ::mlir::failure();
     }
 
@@ -44,28 +44,27 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
                 return result;
             };
 
-    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingBelow = convertArrayAttrToSmallVector(maxPool.pads_end());
-    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingAbove = convertArrayAttrToSmallVector(maxPool.pads_begin());
-    SmallVector<int64_t, MAX_NUM_DIMS> windowShape = convertArrayAttrToSmallVector(maxPool.kernel_size());
-    SmallVector<int64_t, MAX_NUM_DIMS> windowStrides = convertArrayAttrToSmallVector(maxPool.strides());
-    SmallVector<int64_t, MAX_NUM_DIMS> dataShape;
-    auto roundingType = maxPool.rounding_type().getValue();
+    auto inShape = conv.input().getType().cast<mlir::RankedTensorType>().getShape();
+    auto inType = conv.input().getType().cast<mlir::RankedTensorType>().getElementType();
+    auto filterShape = conv.filter().getType().cast<mlir::RankedTensorType>().getShape();
 
-    auto inType = maxPool.input().getType().cast<mlir::RankedTensorType>().getElementType();
-    auto inShape = maxPool.input().getType().cast<mlir::RankedTensorType>().getShape();
+    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingBelow = convertArrayAttrToSmallVector(conv.pads_end());
+    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingAbove = convertArrayAttrToSmallVector(conv.pads_begin());
+    SmallVector<int64_t, MAX_NUM_DIMS> windowStrides = convertArrayAttrToSmallVector(conv.strides());
+    SmallVector<int64_t, MAX_NUM_DIMS> windowDilations = convertArrayAttrToSmallVector(conv.dilations());
 
-    auto outputShape = ngraph::infer_batched_pooling_forward(
-            nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
-            ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
-            ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
-            ngraph::Shape(windowShape.begin(), windowShape.end()),
-            ngraph::Strides(windowStrides.begin(), windowStrides.end()), true,
-            roundingType == vpux::IE::RoundingType::CEIL);
+    auto outputShape =
+            ngraph::infer_convolution_forward(nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
+                                              ngraph::Strides(windowStrides.size(), 1),  // dummy data dilations
+                                              ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
+                                              ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
+                                              ngraph::Shape(filterShape.begin(), filterShape.end()),
+                                              ngraph::Strides(windowStrides.begin(), windowStrides.end()),
+                                              ngraph::Strides(windowDilations.begin(), windowDilations.end()));
 
     auto __outputShape = outputShape.get_shape();
 
     SmallVector<int64_t, MAX_NUM_DIMS> mlirOutputShape(__outputShape.begin(), __outputShape.end());
     inferredReturnShapes.emplace_back(mlirOutputShape, inType);
-
     return mlir::success();
 }

@@ -365,8 +365,73 @@ def IE_MultiplyOp :
 }
 
 //
+// ConvolutionOp
+//
+
+def IE_ConvolutionOp :
+        IE_LayerOp<
+            "Convolution",
+            [
+                ResultsAreFloatLike,
+            ]
+        > {
+    let summary = "InferenceEngine Convolution layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$filter,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        I32ArrayAttr:$dilations
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// AvgPoolOp
+//
+
+def IE_AvgPoolOp :
+        IE_LayerOp<
+            "AvgPool",
+            [
+                ResultsAreFloatLike,
+            ]
+        > {
+    let summary = "InferenceEngine AvgPool layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        I32ArrayAttr:$kernel_size,
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        IE_RoundingType:$rounding_type
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
 // MaxPoolOp
 //
+
 def IE_MaxPoolOp :
         IE_LayerOp<
             "MaxPool",

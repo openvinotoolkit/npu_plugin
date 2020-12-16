@@ -84,6 +84,8 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Split>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Power>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Multiply>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convolution>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::AvgPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MaxPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Clamp>& origNode);
@@ -142,6 +144,8 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset1::Power),
             MAP_ENTRY(ngraph::opset1::Multiply),
             MAP_ENTRY(ngraph::opset1::Relu),
+            MAP_ENTRY(ngraph::opset1::Convolution),
+            MAP_ENTRY(ngraph::opset1::AvgPool),
             MAP_ENTRY(ngraph::opset1::MaxPool),
             MAP_ENTRY(ngraph::opset1::Gather),
             MAP_ENTRY(ngraph::opset1::Clamp),
@@ -335,12 +339,45 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     addOutputs(origNode, {op.getResult()});
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convolution>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    mlir::ArrayAttr attrStride = importUInt32Array(origNode->get_strides());
+    mlir::ArrayAttr attrPadsBegin = importUInt32Array(origNode->get_pads_begin());
+    mlir::ArrayAttr attrPadsEnd = importUInt32Array(origNode->get_pads_end());
+    mlir::ArrayAttr attrDilation = importUInt32Array(origNode->get_dilations());
+
+    auto op = builder.create<IE::ConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], attrStride,
+                                                attrPadsBegin, attrPadsEnd, attrDilation);
+
+    addOutputs(origNode, {op.getResult()});
+}
+
 IE::RoundingTypeAttr importRoundingType(mlir::MLIRContext* ctx, ngraph::op::RoundingType roundingType) {
     if (roundingType == ngraph::op::RoundingType::FLOOR)
         return IE::RoundingTypeAttr::get(IE::RoundingType::FLOOR, ctx);
     else if (roundingType == ngraph::op::RoundingType::CEIL)
         return IE::RoundingTypeAttr::get(IE::RoundingType::CEIL, ctx);
     VPUX_THROW("Unsupported rounding type {0}", static_cast<int32_t>(roundingType));
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::AvgPool>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    mlir::ArrayAttr attrKernelSize = importUInt32Array(origNode->get_kernel());
+    mlir::ArrayAttr attrStride = importUInt32Array(origNode->get_strides());
+    mlir::ArrayAttr attrPadsBegin = importUInt32Array(origNode->get_pads_begin());
+    mlir::ArrayAttr attrPadsEnd = importUInt32Array(origNode->get_pads_end());
+    IE::RoundingTypeAttr attrRoundingType = importRoundingType(_ctx, origNode->get_rounding_type());
+
+    auto op = builder.create<IE::AvgPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
+                                            attrPadsBegin, attrPadsEnd, attrRoundingType);
+
+    addOutputs(origNode, {op.getResult()});
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MaxPool>& origNode) {
