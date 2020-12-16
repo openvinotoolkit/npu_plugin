@@ -351,6 +351,9 @@ target_link_libraries(mcmCompiler
         ${EMULATOR}
 )
 
+if(ENABLE_MCM_COMPILER_PYTHON)
+    add_subdirectory(python/api)
+endif()
 #############################################################################################
 ### Package
 #############################################################################################
