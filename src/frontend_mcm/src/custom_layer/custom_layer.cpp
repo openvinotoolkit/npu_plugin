@@ -327,7 +327,7 @@ void SizeRuleValidator::visitCL(const CustomKernelOcl& kernel) {
     const auto validGridSizes =
             std::all_of(begin(gws), end(gws), validSizeRule) && std::all_of(begin(lws), end(lws), validSizeRule);
 
-    const size_t workGroupDims = 3;
+    const decltype(lws.size()) workGroupDims = 3;
     VPU_THROW_UNLESS(lws.size() <= workGroupDims,
                      "Failed to parse '%s' custom layer binding list. Local work group size count "
                      "is greater than 3.",
