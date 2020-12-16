@@ -39,6 +39,35 @@ static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
       {"DDR2OUTPUT",mv::DmaDirectionEnum::DDR2DDR}
 };
 
+namespace {
+bool isStridingOp(mv::Data::OpListIterator opIt)
+{
+    if (opIt->getOpType() == "Slice" || opIt->getOpType() == "Crop")
+    {
+        auto const inputTensor = opIt->getInputTensor(0);
+        auto const inOrder = inputTensor->getOrder();
+        auto const inShape = inputTensor->getShape();
+
+        std::size_t dim = inOrder.lastContiguousDimensionIndex();
+        for ( ; dim >= inOrder.firstContiguousDimensionIndex() ; --dim) {
+            if (inShape[inOrder[dim]] > 1)
+                break;
+        }
+
+        auto const sliceSz = inShape - opIt->getOutputTensor(0)->getShape();
+        auto const majorDim = inOrder[dim];
+
+        for (std::size_t idx = 0; idx < sliceSz.ndims(); idx++)
+        {
+            if (idx != majorDim && sliceSz[idx] != 0)
+                return true;
+        }
+    }
+
+    return false;
+}
+}
+
 void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -282,6 +311,42 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 }
             }
             opIt->get<mv::ImplicitFlow>("ImplicitFlow").resolve();
+
+            // DPUs have no way of resolving input strides implicitly
+            // hence they need to be provided the sliced compact tensor directly
+            // Exception from this rule can be considered cases where sridimg is resolved
+            // as part of activation sparsity logic; currently only DilatedConv uses sparsity
+            // so it satisfies the stides also.
+            if (outputLocation == mv::Tensor::MemoryLocation::NNCMX && isStridingOp(opIt))
+            {
+                for (auto tensor : opIt->getOutputTensor())
+                {
+                    std::vector<mv::Data::FlowListIterator> flowsToRemove;
+                    std::vector<std::size_t> inSlots;
+                    std::vector<mv::Data::OpListIterator> flowSinks;
+                    auto const& flows = tensor->get<std::set<std::string>>("flows");
+                    for(auto const& flowStr : flows)
+                    {
+                        auto flow = dm.getDataFlow(flowStr);
+                        auto sinkOp = flow.sink();
+                        if (sinkOp->getOpType() == "DPUTask" &&
+                            !(sinkOp->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
+                            sinkOp->get<bool>("activationSparsityCompilerSolvingForDilatedConv")))
+                        {
+                            flowsToRemove.push_back(flow);
+                            flowSinks.push_back(sinkOp);
+                            inSlots.push_back(flow->get<std::size_t>("sinkInput"));
+                        }
+                    }
+                    if (!flowsToRemove.empty()) {
+                        auto dmaTaskOut = mv::insertDMAReplacementRemoveFlows(om, opIt, tensor,
+                            mv::DmaDirection(mv::DmaDirectionEnum::NNCMX2DDR),
+                            0, flowsToRemove, inSlots, flowSinks,
+                            tensor->getName() + "_unstrided");
+                        dmaTaskOut->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+                    }
+                }
+            }
         }
     }
 }

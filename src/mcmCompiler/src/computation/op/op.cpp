@@ -133,6 +133,27 @@ bool mv::Op::hasTypeTrait(const std::string& typeTrait) const
     return op::OpRegistry::hasTypeTrait(getOpType(), typeTrait);
 }
 
+void mv::Op::redefineOutputTensors()
+{
+    std::string errMsg;
+    auto checkRes = op::OpRegistry::checkInputs(getOpType(), inputs_, getAttrs_(), errMsg);
+    if (!checkRes.first)
+        throw OpError(*this, "Invalid input " + op::OpRegistry::getInputLabel(getOpType(), checkRes.second) + " (" +
+            std::to_string(checkRes.second) + ") - " + errMsg);
+
+    if(hasAttr("invalid") && get<bool>("invalid"))
+        erase("invalid");
+
+    std::vector<Tensor> outputsDef;
+    op::OpRegistry::getOutputsDef(getOpType(), inputs_, getAttrs_(), outputsDef);
+    for (std::size_t i = 0; i < outputsDef.size(); ++i)
+    {
+        outputs_[i]->setDType(outputsDef[i].getDType());
+        outputs_[i]->setOrder(outputsDef[i].getOrder());
+        outputs_[i]->setShape(outputsDef[i].getShape());
+    }
+}
+
 //NOTE: In this function, cascade effect HAS to be handled.
 //One could potentially change the input tensor(E.G during a replacement pass) of an operation,
 //Causing the output tensor to change as well. But what if the old output tensor was referenced by a flow?
@@ -147,9 +168,13 @@ void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx, bool c
     //NOTE: Sometimes we don't want to check the new inputs and generate new outputs
     if(cascade)
     {
+        //NOTE: Some operations with multiple inputs such as eltwise, depthwise and concat
+        // verify all inputs and weights to be of similar size for specific dimensions.
+        // Whenever we update and propagate a tensor change we influence a single
+        // input tensor at a time so the input check will go always off.
+        // Assume unsafe behavior!
         std::string errMsg;
         auto checkRes = op::OpRegistry::checkInputs(getOpType(), inputs_, getAttrs_(), errMsg);
-
         if (!checkRes.first)
             throw OpError(*this, "Invalid input " + op::OpRegistry::getInputLabel(getOpType(), checkRes.second) + " (" +
                 std::to_string(checkRes.second) + ") - " + errMsg);
@@ -179,9 +204,7 @@ void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx, bool c
                 {
                     auto currentFlow = dm.getDataFlow(key);
                     auto index = currentFlow->get<std::size_t>("sinkInput");
-                    auto destOp = currentFlow.sink();
-                    //recursion
-                    destOp->setInputTensor(outputs_[i], index);
+                    currentFlow.sink()->setInputTensor(outputs_[i], index, cascade);
                 }
             }
         }
@@ -312,7 +335,7 @@ bool mv::Op::isUPA() const
                                         "PSROIPooling", "Resample", "Quantize", "Resample", "Reshape",
                                         "RegionYolo", "ReorgYolo", "DetectionOutput", "Interp", "Norm",
                                         "Priorbox","Argmax","Permute","CustomOcl","CustomCpp","Sigmoid","Deconv","Tile",
-                                        "RefConv", "Gather", "HSwish"};
+                                        "RefConv", "Gather", "HSwish", "Relu"};
     log(Logger::MessageType::Debug, "isUPA method is called for:" + getOpType());
     if (std::count(upaTypes.begin(), upaTypes.end(), getOpType()))
     {
@@ -354,6 +377,18 @@ bool mv::Op::isHardwarizable() const
         isHardwarizableOp = true;
     }
     return isHardwarizableOp;
+}
+
+
+bool mv::Op::isHwFusable() const
+{
+    bool isFusableOp = false;
+    std::vector<std::string> hwFusableTypes =
+        {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Minimum", "Maximum"};
+    if (std::count(hwFusableTypes.cbegin(), hwFusableTypes.cend(),
+        getOpType()))
+        isFusableOp = true;
+    return isFusableOp;
 }
 
 bool mv::Op::hasWeights() const

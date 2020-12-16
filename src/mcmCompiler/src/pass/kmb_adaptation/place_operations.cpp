@@ -159,48 +159,9 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
                 if (opIt->hasWeights())
                 {
-                    double real_weight;
-                    double real_weight_fp16;
                     mv::Data::TensorIterator weightsTensor =  opIt->getInputTensor(1);
-                    std::vector<int64_t> weightsData(weightsTensor->getData().size());
-                    std::vector<double> scale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale();
-                    std::vector<int64_t> zp = weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint();
-                    auto kernelShape = opIt->getInputTensor(1)->getShape();
+                    auto dequantFP16Weights = dequantizeWeightsToFP16(weightsTensor, opIt, om);
 
-                    size_t extend_dim = mv::KERNEL_OUTPUT_CHANNELS;
-                    if (opIt->getOpType() == "DepthwiseConv" ) {
-                        extend_dim = mv::KERNEL_INPUT_CHANNELS;
-                    }
-                    scale = extendToK(kernelShape[extend_dim], scale, weightsTensor->getName());
-                    zp = extendToK(kernelShape[extend_dim], zp, weightsTensor->getName());
-
-                    for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
-                    {
-                        for (size_t c = 0; c < kernelShape[mv::KERNEL_INPUT_CHANNELS]; c++)
-                        {
-                            for (size_t h = 0; h < kernelShape[mv::KERNEL_HEIGHT]; h++)
-                            {
-                                for (size_t w = 0; w < kernelShape[mv::KERNEL_WIDTH]; w++)
-                                {
-                                    auto currWeight = (int64_t)weightsTensor->at({w,h,c,k});
-                                    real_weight = ((int64_t)currWeight - zp[k]) * scale[k];
-                                    real_weight_fp16 = mv::fp32_to_fp16(real_weight);
-                                    const size_t idx = (k * kernelShape[mv::KERNEL_INPUT_CHANNELS] * kernelShape[mv::KERNEL_WIDTH] * kernelShape[mv::KERNEL_HEIGHT]) +
-                                                       (c * kernelShape[mv::KERNEL_WIDTH] * kernelShape[mv::KERNEL_HEIGHT]) +
-                                                       (h * kernelShape[mv::KERNEL_WIDTH]) +
-                                                        w;
-                                    weightsData[idx] = real_weight_fp16;
-                                }
-                            }
-                        }
-                    }
-                    auto weights = om.constantInt(opIt->getName() + "FP16_weights",
-                                        weightsData,
-                                        {kernelShape[mv::KERNEL_WIDTH], kernelShape[mv::KERNEL_HEIGHT],
-                                        kernelShape[mv::KERNEL_INPUT_CHANNELS], kernelShape[mv::KERNEL_OUTPUT_CHANNELS]},
-                                        mv::DType("Float16"),
-                                        weightsTensor->getOrder());
-                    weights->setQuantParams({{0},{1},{},{}});
                     if (hasBias)
                     {
                         mv::Data::TensorIterator bias =  dm.getTensor(opIt->get<std::string>("bias"));
@@ -233,8 +194,8 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                         }
                     }
                     om.removeOp(om.getSourceOp(opIt->getInputTensor(1)));
-                    opIt->setInputTensor(weights, 1, false);
-                    om.defineFlow(weights, opIt, 1);
+                    opIt->setInputTensor(dequantFP16Weights, 1, false);
+                    om.defineFlow(dequantFP16Weights, opIt, 1);
                     om.getSourceOp(opIt->getInputTensor(1))->set<unsigned>("opId", opIt->get<unsigned>("opId"));
                 }
             }
