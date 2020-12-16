@@ -953,15 +953,6 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
         std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
     NNClusterProcessor->item= MVCNN::PhysicalProcessor_NCE_Cluster ;
     setIfPresent<double, int>(NNClusterProcessor->number, *globalConfigurationParams , "Number_of_Clusters");
-
-    //dpus
-    auto totalDPUs = static_cast<int>(td.nceDefs().at("DPUs").totalNumber);
-    std::unique_ptr<MVCNN::ProcessorMappingT> NNClusterProcessorPerCluster =
-        std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
-    NNClusterProcessorPerCluster->item = MVCNN::PhysicalProcessor_NCE_PerClusterDPU;
-    NNClusterProcessorPerCluster->number = totalDPUs/NNClusterProcessor->number;
-
-    toBuild->processor_allocation.push_back(std::move(NNClusterProcessorPerCluster));
     toBuild->processor_allocation.push_back(std::move(NNClusterProcessor));
 
 
