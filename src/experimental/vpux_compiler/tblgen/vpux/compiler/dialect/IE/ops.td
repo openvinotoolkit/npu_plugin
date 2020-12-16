@@ -449,4 +449,29 @@ def IE_ReshapeOp :
     }];
 }
 
+//
+// SqueezeOp
+// 
+
+def IE_SqueezeOp :
+        IE_LayerOp<
+            "Squeeze"
+        > {
+
+    let summary = "InferenceEngine Squeeze layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        TensorOf<[AnyInteger]>:$input2
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
