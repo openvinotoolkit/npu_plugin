@@ -20,6 +20,9 @@
 
 #include <mlir/IR/PatternMatch.h>
 
+#include <precision_utils.h>
+#include <ngraph/type/float16.hpp>
+
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::SoftMaxOp::inferReturnTypeComponents(
@@ -45,6 +48,28 @@ SmallVector<mlir::Value, 4> vpux::IE::SoftMaxOp::getInputs() {
 
 SmallVector<mlir::Value, 1> vpux::IE::SoftMaxOp::getOutputs() {
     return {output()};
+}
+
+mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(ArrayRef<mlir::Attribute>) {
+    auto shape = input().getType().cast<mlir::ShapedType>();
+    auto numElements = shape.getNumElements();
+    auto axis = axisInd();
+
+    VPUX_THROW_UNLESS(axis < shape.getShape().size(), "Wrong axis idx {0} for {1} dim tensor", axis,
+                      shape.getShape().size());
+    if (shape.getShape()[axis] > 1L) {
+        return nullptr;
+    }
+
+    mlir::DenseElementsAttr denseAttrOfOnes;
+    if (shape.getElementType().isF32()) {
+        std::vector<float> arrayOfOnes(numElements, 1.0f);
+        denseAttrOfOnes = mlir::DenseElementsAttr::get(shape, makeArrayRef(arrayOfOnes.data(), numElements));
+    } else if (shape.getElementType().isF16()) {
+        std::vector<ngraph::float16> arrayOfOnes(numElements, 1.0f);
+        denseAttrOfOnes = mlir::DenseElementsAttr::get(shape, makeArrayRef(arrayOfOnes.data(), numElements));
+    }
+    return denseAttrOfOnes;
 }
 
 namespace IE_SoftMax {

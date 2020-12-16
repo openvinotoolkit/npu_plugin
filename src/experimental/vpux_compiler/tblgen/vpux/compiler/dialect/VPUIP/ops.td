@@ -334,6 +334,40 @@ def VPUIP_ConfigureBarrierOp :
 }
 
 //
+// NNDMAOp
+//
+
+def VPUIP_NNDMAOp :
+        VPUIP_TaskOp<
+            "NNDMA",
+            VPUIP_TaskType_NNDMA,
+            [
+                VPUIP_UPATaskTrait
+            ]
+        > {
+    let summary = "NN DMA task";
+
+    let arguments = (ins
+        Variadic<AnyMemRef>:$inputTensors,
+        Variadic<AnyMemRef>:$outputTensors,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins "mlir::Value":$src, "mlir::Value":$dst),
+            [{
+                build($_builder, $_state,
+                      mlir::ValueRange {src}, mlir::ValueRange {dst},
+                      mlir::ValueRange {}, mlir::ValueRange {});
+            }]
+        >
+    ];
+}
+
+//
 // UPADMAOp
 //
 

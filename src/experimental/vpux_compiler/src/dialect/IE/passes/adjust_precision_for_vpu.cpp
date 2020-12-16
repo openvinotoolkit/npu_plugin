@@ -158,14 +158,14 @@ mlir::LogicalResult AdjustPrecisionForVPUPass::ConstantOpConverter::matchAndRewr
     mlir::DenseElementsAttr newContent;
     if (origContent.isSplat()) {
         const auto origValue = origContent.getSplatValue<float>();
-        const auto newValue = InferenceEngine::PrecisionUtils::f32tof16(origValue);
+        const auto newValue = ngraph::float16(origValue);
         newContent = mlir::DenseElementsAttr::get(newType, newValue);
     } else {
         const auto origValues = to_std_vector(origContent.getValues<float>());
         std::vector<ngraph::float16> newValues(origValues.size());
 
         loop_1d(LoopExecPolicy::Parallel, origValues.size(), [&](size_t i) {
-            newValues[i] = InferenceEngine::PrecisionUtils::f32tof16(origValues[i]);
+            newValues[i] = ngraph::float16(origValues[i]);
         });
 
         newContent = mlir::DenseElementsAttr::get(newType, makeArrayRef(newValues.data(), totalNumElems));

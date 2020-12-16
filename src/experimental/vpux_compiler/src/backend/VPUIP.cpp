@@ -266,7 +266,8 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
 
             ++tempTensorInd;
         } else if (auto tensorOp = mlir::dyn_cast<DeclareConstantTensorOp>(op)) {
-            writer.createBinaryData(tensorOp.content(), tensorOp.csramCacheable());
+            const auto binData = writer.createBinaryData(tensorOp.content(), tensorOp.csramCacheable());
+            binaryData.push_back(binData);
 
             writer.createTensor(tensorOp.memory(), llvm::formatv("constant-{0}", tempTensorInd).str(),
                                 MemoryLocation::GraphFile, checked_cast<uint32_t>(constantTensorInd), 0);
