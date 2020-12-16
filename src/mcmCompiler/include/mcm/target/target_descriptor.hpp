@@ -69,6 +69,7 @@ namespace mv
         std::map<std::string, MemoryDescriptor> memoryDefs_;
         HdeDescriptor hdeDef_;
         std::map<std::string, NceDescriptor> nceDefs_;
+        std::map<std::string, std::size_t> processorDefs_;
         std::map<std::string, mv::Element> serialDescriptions_;
         std::vector<DataTypeSupport> dtypeSupport_;
     public:
@@ -97,6 +98,7 @@ namespace mv
 
         const std::map<std::string, MemoryDescriptor>& memoryDefs() const;
         const std::map<std::string, NceDescriptor>& nceDefs() const;
+        const std::map<std::string, std::size_t>& processorDefs() const;
         const HdeDescriptor& hdeDef() const;
         const std::vector<mv::DataTypeSupport> & dtypeSupport() const;
 

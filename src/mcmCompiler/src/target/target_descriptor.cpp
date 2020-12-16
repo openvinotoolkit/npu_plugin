@@ -55,6 +55,7 @@ void mv::TargetDescriptor::reset()
     memoryDefs_.clear();
     nceDefs_.clear();
     dtypeSupport_.clear();
+    processorDefs_.clear();
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
@@ -351,6 +352,52 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
             }
         }
 
+        if (jsonDescriptor["resources"].hasKey("processors"))
+        {
+            if (jsonDescriptor["resources"]["processors"].valueType() != json::JSONType::Array)
+            {
+                reset();
+                return false;
+            }
+            else
+            {
+
+                for (std::size_t i = 0; i < jsonDescriptor["resources"]["processors"].size(); ++i)
+                {
+
+                    std::string name;
+                    std::size_t totalNumber;
+
+                    if (!jsonDescriptor["resources"]["processors"][i].hasKey("name") ||
+                        !jsonDescriptor["resources"]["processors"][i].hasKey("totalNumber"))
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    if (jsonDescriptor["resources"]["processors"][i]["name"].valueType() != json::JSONType::String ||
+                        jsonDescriptor["resources"]["processors"][i]["totalNumber"].valueType() != json::JSONType::NumberInteger)
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    name = jsonDescriptor["resources"]["processors"][i]["name"].get<std::string>();
+                    totalNumber = jsonDescriptor["resources"]["processors"][i]["totalNumber"].get<long long>();
+
+                    if (totalNumber < 0)
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    processorDefs_[name] = {totalNumber};
+
+                }
+
+            }
+        }
+
  if (jsonDescriptor["resources"]["huffman_decode_engine"].valueType() != json::JSONType::Array)
         {
             reset();
@@ -557,6 +604,11 @@ const mv::HdeDescriptor& mv::TargetDescriptor::hdeDef() const
 const std::vector<mv::DataTypeSupport>& mv::TargetDescriptor::dtypeSupport() const
 {
     return dtypeSupport_;
+}
+
+const std::map<std::string, std::size_t>& mv::TargetDescriptor::processorDefs() const
+{
+    return processorDefs_;
 }
 
 std::string mv::TargetDescriptor::getLogID() const
