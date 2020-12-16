@@ -78,6 +78,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Power>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MaxPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Clamp>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -130,7 +131,7 @@ const NGraphImporter::DispatchMap NGraphImporter::dispatchMap{
         MAP_ENTRY(ngraph::opset1::Relu),
         MAP_ENTRY(ngraph::opset1::MaxPool),
         MAP_ENTRY(ngraph::opset1::Gather),
-};
+        MAP_ENTRY(ngraph::opset1::Clamp)};
 
 #undef MAP_ENTRY
 mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
@@ -194,12 +195,11 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
     return func;
 }
 
-
 template <typename T>
 mlir::ArrayAttr NGraphImporter::importUInt32Array(T& inArray) {
     SmallVector<mlir::Attribute, 4> vecArray;
 
-    for (auto& k: inArray)
+    for (auto& k : inArray)
         vecArray.push_back(getInt32Attr(_ctx, checked_cast<uint32_t>(k)));
 
     return mlir::ArrayAttr::get(vecArray, _ctx);
@@ -319,8 +319,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     mlir::ArrayAttr attrPadsEnd = importUInt32Array(origNode->get_pads_end());
     IE::RoundingTypeAttr attrRoundingType = importRoundingType(_ctx, origNode->get_rounding_type());
 
-    auto op = builder.create<IE::MaxPoolOp>(createLocation(origNode), inputs[0],
-                    attrKernelSize, attrStride, attrPadsBegin, attrPadsEnd, attrRoundingType);
+    auto op = builder.create<IE::MaxPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
+                                            attrPadsBegin, attrPadsEnd, attrRoundingType);
 
     addOutputs(origNode, {op.getResult()});
 }
@@ -331,6 +331,20 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::GatherOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2]);
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Clamp>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Clamp node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto min = origNode->get_min();
+    auto max = origNode->get_max();
+    const auto minAttr = getFP64Attr(_ctx, checked_cast<double>(min));
+    const auto maxAttr = getFP64Attr(_ctx, checked_cast<double>(max));
+
+    auto op = builder.create<IE::ClampOp>(createLocation(origNode), inputs[0], minAttr, maxAttr);
     addOutputs(origNode, {op.getResult()});
 }
 

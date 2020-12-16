@@ -363,4 +363,35 @@ def IE_GatherOp :
         `(` operands `)` attr-dict `:` type(operands) `->` type(results)
     }];
 }
+
+//
+// ClampOp
+//
+
+def IE_ClampOp :
+        IE_LayerOp<
+            "Clamp",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType
+            ]
+        > {
+    let summary = "InferenceEngine Clamp layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        F64Attr:$min,
+        F64Attr:$max
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
