@@ -48,10 +48,10 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
 
         auto elementsRange = denseElementArray.getValues<int64_t>();
         std::vector<int64_t> outShapeVec(elementsRange.begin(), elementsRange.end());
-        int zeroDims = std::count_if(outShapeVec.begin(), outShapeVec.end(), [](int64_t v) {
+        const auto zeroDims = std::count_if(outShapeVec.begin(), outShapeVec.end(), [](int64_t v) {
             return v == 0;
         });
-        int negativeDims = std::count_if(outShapeVec.begin(), outShapeVec.end(), [](int64_t v) {
+        const auto negativeDims = std::count_if(outShapeVec.begin(), outShapeVec.end(), [](int64_t v) {
             return v == -1;
         });
 
@@ -60,7 +60,7 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
             return mlir::success();
         } else {
             std::vector<int64_t> inDataShapeVec(inDataShape.begin(), inDataShape.end());
-            int64_t dividend = std::accumulate(inDataShape.begin(), inDataShape.end(), 1, std::multiplies<int64_t>());
+            int64_t dividend = std::accumulate(inDataShape.begin(), inDataShape.end(), int64_t(1), std::multiplies<int64_t>());
 
             for (size_t i = 0; i < outShapeVec.size(); ++i) {
                 auto& v = outShapeVec[i];
