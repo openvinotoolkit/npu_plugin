@@ -85,6 +85,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Squeeze>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Sigmoid>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::LRN>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Unsqueeze>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -120,24 +121,24 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 #define MAP_ENTRY(_NodeType_) \
     { _NodeType_::type_info, &NGraphImporter::parseDispatch<_NodeType_> }
-    static const DispatchMap dispatchMap{
-        {ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
-        {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
+    static const DispatchMap dispatchMap{{ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
+            {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
 
-        MAP_ENTRY(ngraph::opset1::Constant),
-        MAP_ENTRY(ngraph::opset1::Softmax),
-        MAP_ENTRY(ngraph::opset1::Tile),
-        MAP_ENTRY(ngraph::opset1::Split),
-        MAP_ENTRY(ngraph::opset1::Power),
-        MAP_ENTRY(ngraph::opset1::Relu),
-        MAP_ENTRY(ngraph::opset1::MaxPool),
-        MAP_ENTRY(ngraph::opset1::Gather),
+            MAP_ENTRY(ngraph::opset1::Constant),
+            MAP_ENTRY(ngraph::opset1::Softmax),
+            MAP_ENTRY(ngraph::opset1::Tile),
+            MAP_ENTRY(ngraph::opset1::Split),
+            MAP_ENTRY(ngraph::opset1::Power),
+            MAP_ENTRY(ngraph::opset1::Relu),
+            MAP_ENTRY(ngraph::opset1::MaxPool),
+            MAP_ENTRY(ngraph::opset1::Gather),
         MAP_ENTRY(ngraph::opset1::Clamp),
         MAP_ENTRY(ngraph::opset1::Elu),
         MAP_ENTRY(ngraph::opset1::Reshape),
         MAP_ENTRY(ngraph::opset1::Squeeze),
         MAP_ENTRY(ngraph::opset1::Sigmoid),
         MAP_ENTRY(ngraph::opset1::LRN),
+        MAP_ENTRY(ngraph::opset1::Unsqueeze),
         };
 #undef MAP_ENTRY
 
@@ -361,6 +362,15 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto maxAttr = getFP64Attr(_ctx, checked_cast<double>(max));
 
     auto op = builder.create<IE::ClampOp>(createLocation(origNode), inputs[0], minAttr, maxAttr);
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Unsqueeze>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Squeeze node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::UnsqueezeOp>(createLocation(origNode), inputs[0], inputs[1]);
     addOutputs(origNode, {op.getResult()});
 }
 

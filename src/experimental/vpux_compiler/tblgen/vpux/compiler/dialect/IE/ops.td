@@ -530,4 +530,29 @@ def IE_LRNOp :
     }];
 }
 
+//
+// UnsqueezeOp
+// 
+
+def IE_UnsqueezeOp :
+        IE_LayerOp<
+            "Unsqueeze"
+        > {
+
+    let summary = "InferenceEngine Unsqueeze layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        TensorOf<[AnyInteger]>:$input2
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
