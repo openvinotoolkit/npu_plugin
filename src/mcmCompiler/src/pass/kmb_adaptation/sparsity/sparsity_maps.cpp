@@ -77,7 +77,7 @@ std::size_t predictSubTensorShape(std::size_t heightShape, unsigned int numClust
 
 // The sparsity maps relative to populated tensors have to be generated BEFORE the dma passes.
 // As they have to be DMAed into CMX.
-static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -93,7 +93,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             bool weightsSparsity = dpuTask->hasAttr("weightsSparsity") ? dpuTask->get<bool>("weightsSparsity") : false;
             std::string taskOp = dpuTask->get<std::string>("taskOp");
             pass.log(mv::Logger::MessageType::Debug, " taskOp "  + dpuTask->get<std::string>("taskOp"));
-            bool isChannelMajorConv = taskOp == "ChannelMajorConvolution";
+            bool isChannelMajorConv = (taskOp == "ChannelMajorConvolution") && (td.getTarget() != mv::Target::ma3600);
             bool isPooling = taskOp == "MaxPool";
             bool isDepthWiseConv = taskOp == "DepthwiseConv";
 

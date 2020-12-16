@@ -51,11 +51,12 @@ namespace mv
         {
 
         public:
-            StrategyManagerKmb(OpModel& model,mv::Element& passDesc) :
+            StrategyManagerKmb(OpModel& model,mv::Element& passDesc, mv::TargetDescriptor& td) :
                 StrategyManager(model,passDesc)
             {
                 auto globalParams = model.getGlobalConfigParams();
                 enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
+                target = td.getTarget();
             }
 
             size_t totalClusters=4;
@@ -78,6 +79,7 @@ namespace mv
             bool globalForceSpilling=false;
             bool enableChannelMajorConv=false;
             double safetyFactor=1.0;
+            mv::Target target = mv::Target::ma2490;
             double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
             double cmxPipeLineWeightsOverhead=34816.0;
             enum class FailCause
@@ -1286,8 +1288,8 @@ namespace mv
                 auto isCMConv = false;
                 auto clusterStrategy = clustering.get<std::string>();
 
-                if(enableChannelMajorConv && op.supportsCMConv())
-                    isCMConv = true;
+                if(enableChannelMajorConv && op.supportsCMConv() && target != mv::Target::ma3600)
+                     isCMConv = true;
 
                 if (op.hasAttr("DilatedSubConv") && (op.get<bool>("DilatedSubConv")))
                     dilatedLayerInputMemory = true;
@@ -1536,7 +1538,7 @@ namespace mv
 
              //Channel major conv, pooling and depthwise will get fake sparsity, so need to check memory constraints as if real sparsity
             bool requiresFakeActivationSparsity(Op& op){
-                if(enableChannelMajorConv && op.supportsCMConv())
+                if(enableChannelMajorConv && op.supportsCMConv() && target != mv::Target::ma3600)
                     return true;
 
                 if(op.getOpType() == "MaxPool")
@@ -2460,12 +2462,12 @@ namespace mv
 static void GraphParameterOptimizationFcn(
     const mv::pass::PassEntry& ,
     mv::ComputationModel& model,
-    mv::TargetDescriptor& /*td*/, mv::Element& passDesc,
+    mv::TargetDescriptor& td, mv::Element& passDesc,
     mv::Element&
 )
 {
     mv::OpModel om(model);
-    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc);
+    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc, td);
 
     strategyManager.updateValuesFromJSON();
     strategyManager.updateDefaultValues();

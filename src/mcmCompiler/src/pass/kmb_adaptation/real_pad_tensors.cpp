@@ -318,7 +318,7 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
     }
 }
 
-void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -334,7 +334,8 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
         auto opIt = *vecIt;
         auto taskOp = opIt->get<std::string>("taskOp");
         if(taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "MaxPool" ||
-            taskOp == "Eltwise")
+            taskOp == "Eltwise" ||
+            (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3600)) //channel major as zmajor in MTL
         {
             auto numInputs = 1;
             if (taskOp == "Eltwise")
@@ -359,7 +360,8 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                         if (opType == "DPUTask")
                         {
                             auto taskType = sinkFlow.sink()->get<std::string>("taskOp");
-                            if((taskType == "Conv") || (taskType == "DepthwiseConv") || (taskType == "MaxPool") || (taskType == "Eltwise"))
+                            if((taskType == "Conv") || (taskType == "DepthwiseConv") || (taskType == "MaxPool") || (taskType == "Eltwise")
+                                || (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3600))
                             {
                                 opsToLink.push_back(sinkFlow.sink());
                                 inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));

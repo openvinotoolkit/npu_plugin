@@ -18,7 +18,7 @@ namespace mv
     }
 }
 
-void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
  MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -31,7 +31,7 @@ void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model,
         {
             //handle channel major convolution (only possible if enabled in comp descriptor)
             auto taskOp = dpuTask->get<std::string>("taskOp");
-            if (taskOp == "ChannelMajorConvolution")
+            if (taskOp == "ChannelMajorConvolution" && td.getTarget() != mv::Target::ma3600)
             {
                 // ChannelMajorConvolution is the only operation that requires input tensor in OUR ColMajor
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));

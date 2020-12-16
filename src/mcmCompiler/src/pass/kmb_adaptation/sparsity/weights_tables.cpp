@@ -148,7 +148,7 @@ void populateWeightsTablesDataPointers(mv::Data::TensorIterator weightsTableData
 
 
 
-void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
+void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model, mv::TargetDescriptor& td)
 {
     mv::DataModel dm(model);
 
@@ -183,7 +183,7 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
         }
     }
     else if(taskOp == "DepthwiseConv"  ||
-            taskOp == "ChannelMajorConvolution" ||
+            (taskOp == "ChannelMajorConvolution" && td.getTarget() != mv::Target::ma3600) ||
             taskOp == "MaxPool")
     {
         // We have fake sparsity here! Yuppi!
@@ -326,7 +326,7 @@ static void removeBiasTensorsFcn(const mv::pass::PassEntry& , mv::ComputationMod
     }
 }
 
-static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -342,7 +342,7 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
             {
                 auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
                 populateWeightsTablesDataPointers(weightsTable, dpuTaskOp, model);
-                populateWeightsTablesSparsityPointers(weightsTable, dpuTaskOp, model);
+                populateWeightsTablesSparsityPointers(weightsTable, dpuTaskOp, model, td);
             }
         }
     }
