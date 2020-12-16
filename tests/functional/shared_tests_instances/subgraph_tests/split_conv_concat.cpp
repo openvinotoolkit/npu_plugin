@@ -9,7 +9,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 

@@ -12,7 +12,7 @@
 #include "kmb_test_env_cfg.hpp"
 #include "kmb_test_tool.hpp"
 
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsUtils {
 
