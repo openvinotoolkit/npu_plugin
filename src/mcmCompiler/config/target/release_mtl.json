@@ -334,6 +334,16 @@
     {
         "global": "Float16"
     },
+    "workloads":
+    {
+        "mpe_modes":
+        [
+
+            [16,16],
+            [8,16],
+            [4,16]
+        ]
+    },
 
     "resources":
     {

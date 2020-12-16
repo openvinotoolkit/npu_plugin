@@ -56,6 +56,7 @@ void mv::TargetDescriptor::reset()
     nceDefs_.clear();
     dtypeSupport_.clear();
     processorDefs_.clear();
+    dpuModes_.clear();
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
@@ -397,8 +398,41 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
             }
         }
+        if (jsonDescriptor.hasKey("workloads"))
+        {
+            if (jsonDescriptor["workloads"].hasKey("mpe_modes"))
+            {
+                if (jsonDescriptor["workloads"]["mpe_modes"].valueType() != json::JSONType::Array)
+                {
+                    reset();
+                    return false;
+                }
+                else
+                {
+                    for (std::size_t i = 0; i < jsonDescriptor["workloads"]["mpe_modes"].size(); ++i)
+                    {
 
- if (jsonDescriptor["resources"]["huffman_decode_engine"].valueType() != json::JSONType::Array)
+                        if (jsonDescriptor["workloads"]["mpe_modes"][i].valueType() != json::JSONType::Array ||
+                            jsonDescriptor["workloads"]["mpe_modes"][i].size() != 2 ||
+                            jsonDescriptor["workloads"]["mpe_modes"][i][0].valueType() != json::JSONType::NumberInteger ||
+                            jsonDescriptor["workloads"]["mpe_modes"][i][1].valueType() != json::JSONType::NumberInteger)
+                        {
+                            reset();
+                            return false;
+                        }
+                        else
+                        {
+                            DPUMode newMode;
+                            newMode.H = jsonDescriptor["workloads"]["mpe_modes"][i][0].get<long long>();
+                            newMode.W = jsonDescriptor["workloads"]["mpe_modes"][i][1].get<long long>();
+                            dpuModes_.push_back(newMode);
+                        }
+                    }
+
+                }
+            }
+        }
+        if (jsonDescriptor["resources"]["huffman_decode_engine"].valueType() != json::JSONType::Array)
         {
             reset();
             return false;
@@ -609,6 +643,11 @@ const std::vector<mv::DataTypeSupport>& mv::TargetDescriptor::dtypeSupport() con
 const std::map<std::string, std::size_t>& mv::TargetDescriptor::processorDefs() const
 {
     return processorDefs_;
+}
+
+const mv::DPUModeList& mv::TargetDescriptor::getMPEModes() const
+{
+    return dpuModes_;
 }
 
 std::string mv::TargetDescriptor::getLogID() const

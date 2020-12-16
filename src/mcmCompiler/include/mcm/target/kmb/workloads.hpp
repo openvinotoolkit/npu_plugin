@@ -30,9 +30,6 @@ namespace mv
         MinMaxWorkloads
     };
 
-    struct DPUMode { unsigned H, W; };
-    using  DPUModeList = std::vector<mv::DPUMode>;
-
     /* The compiler generates a lattic structure of the tensor shape with the nodes numbered in this order
      * Example for tensor size 16x16
      *

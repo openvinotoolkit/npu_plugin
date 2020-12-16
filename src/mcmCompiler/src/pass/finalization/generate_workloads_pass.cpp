@@ -99,7 +99,7 @@ std::tuple<int,int, int, int, int> getGlobalCompilationDescriptorConf(const mv::
     return std::make_tuple(nDPUxCluster, nWorkloads, nClusters, pad, workloadCost);
 }
 
-void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc, mv::Element&)
+void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
     mv::OpModel om(model);
@@ -147,15 +147,21 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             /* For Deptwise convolution, Max pooling and CM convolution MPE mode must be (1,16)*/
             /* This should be moved to a target descriptor*/
 
-            if((opIt->get<std::string>("taskOp") == "DepthwiseConv") || (opIt->get<std::string>("taskOp") == "MaxPool") 
-                || (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution"))
-                dpuModes = {{1, 16}};
+            if (td.getMPEModes().empty())
+            {
+                if((opIt->get<std::string>("taskOp") == "DepthwiseConv") || (opIt->get<std::string>("taskOp") == "MaxPool")
+                    || (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution"))
+                    dpuModes = {{1, 16}};
+                else
+                    dpuModes = {{4,4},{1, 16}};
+
+                if (opIt->getOutputTensor()[0]->getDType() == mv::DType("Float16"))
+                    dpuModes = {{1,4}};
+            }
             else
-                dpuModes = {{4,4},{1, 16}};
-
-            if (opIt->getOutputTensor()[0]->getDType() == mv::DType("Float16"))
-                dpuModes = {{1,4}};
-
+            {
+                dpuModes = td.getMPEModes();
+            }
             /*Depthwise cov SOH A0 workaround*/
             if(((opIt->get<std::string>("taskOp") == "DepthwiseConv") ||
                         (opIt->get<std::string>("taskOp") == "MaxPool")) &&

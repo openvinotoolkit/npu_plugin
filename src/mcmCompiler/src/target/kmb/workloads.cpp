@@ -1025,12 +1025,18 @@ namespace mv {
             workload.MaxZ = Z ? Z - 1: 0;
 
             /*Select best MPE mode*/
-            if(padding.mode.H == padding.mode.W)
+            //std::cout << " padding mode H " << padding.mode.H << " W " << padding.mode.W << std::endl;
+            if(padding.mode.H == 4 && padding.mode.W == 4)
                 workload.MPEMode = mv::Matrix;
-            else if ((padding.mode.H == 1) && (padding.mode.W == 16))
+            else if ((padding.mode.H == 1 && padding.mode.W == 16) ||
+                     (padding.mode.W == 1 && padding.mode.H == 16))
                 workload.MPEMode = mv::MPE_Mode::Vector;
-            else if ((padding.mode.W == 1) && (padding.mode.H == 16))
-                workload.MPEMode = mv::MPE_Mode::Vector;
+            else if ((padding.mode.H == 8) && (padding.mode.W == 16))
+                workload.MPEMode = mv::MPE_Mode::CUBOID_8x16;
+            else if ((padding.mode.H == 4) && (padding.mode.W == 16))
+                workload.MPEMode = mv::MPE_Mode::CUBOID_4x16;
+            else if ((padding.mode.H == 16) && (padding.mode.W == 16))
+                workload.MPEMode = mv::MPE_Mode::CUBOID_16x16;
             else
                 workload.MPEMode = mv::MPE_Mode::Vector_FP16;
 
@@ -1227,14 +1233,20 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, s
         workload.algorithm = "Z-Tiling";
 
         /*Select best MPE mode*/
-        if(best_padding.mode.H == best_padding.mode.W)
+        //std::cout << " best_padding mode H " << best_padding.mode.H << " W " << best_padding.mode.W << std::endl;
+        if(best_padding.mode.H == 4 && best_padding.mode.W == 4)
             workload.MPEMode = mv::Matrix;
-        else if ((best_padding.mode.H == 1) && (best_padding.mode.W == 16))
+        else if ((best_padding.mode.H == 1 && best_padding.mode.W == 16) ||
+                    (best_padding.mode.W == 1 && best_padding.mode.H == 16))
             workload.MPEMode = mv::MPE_Mode::Vector;
-        else if ((best_padding.mode.W == 1) && (best_padding.mode.H == 16))
-            workload.MPEMode = mv::MPE_Mode::Vector;
+        else if ((best_padding.mode.H == 8) && (best_padding.mode.W == 16))
+            workload.MPEMode = mv::MPE_Mode::CUBOID_8x16;
+        else if ((best_padding.mode.H == 4) && (best_padding.mode.W == 16))
+            workload.MPEMode = mv::MPE_Mode::CUBOID_4x16;
+        else if ((best_padding.mode.H == 16) && (best_padding.mode.W == 16))
+            workload.MPEMode = mv::MPE_Mode::CUBOID_16x16;
         else
-            workload.MPEMode = mv::Vector_FP16;
+            workload.MPEMode = mv::MPE_Mode::Vector_FP16;
 
         //Check that the z workloads dimension for z tiling are multiple of 16
         if(((workload.MaxZ+1) - workload.MinZ)%16 != 0)

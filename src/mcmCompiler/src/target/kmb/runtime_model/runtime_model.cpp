@@ -2029,7 +2029,12 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
             return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
         case mv::MPE_Mode::Vector_FP16:
             return MVCNN::MPE_Mode::MPE_Mode_VECTOR_FP16;
-
+        case mv::MPE_Mode::CUBOID_16x16:
+            return MVCNN::MPE_Mode::MPE_Mode_CUBOID_16x16;
+        case mv::MPE_Mode::CUBOID_4x16:
+            return MVCNN::MPE_Mode::MPE_Mode_CUBOID_4x16;
+        case mv::MPE_Mode::CUBOID_8x16:
+            return MVCNN::MPE_Mode::MPE_Mode_CUBOID_8x16;
         default:
             return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
     }
