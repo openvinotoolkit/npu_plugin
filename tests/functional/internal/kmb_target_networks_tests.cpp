@@ -1069,3 +1069,21 @@ TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserOutputPrecision("output", Precision::FP32));
 }
+
+
+// MTL target compilation test
+TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10_u8_input_MTL) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong detection results");//At the moment no EVM is setup so cannot run
+    runTest(
+            TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::U8) //currently FP16 is not supported by runtime
+                    .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_mtl-sc"},
+                                       {"VPU_COMPILER_TARGET_DESCRIPTOR", "release_mtl"},
+                                       {"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "NO"}}),
+
+
+            "224x224/cat3.bmp",
+            3, 0.05);
+}
