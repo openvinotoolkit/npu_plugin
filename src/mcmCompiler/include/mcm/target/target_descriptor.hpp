@@ -73,13 +73,10 @@ namespace mv
 
         Target target_;
         DType globalDType_;
-        std::set<std::string> ops_;
-        std::set<std::string> postOps_;
         std::map<std::string, MemoryDescriptor> memoryDefs_;
         HdeDescriptor hdeDef_;
         std::map<std::string, NceDescriptor> nceDefs_;
         std::map<std::string, std::size_t> processorDefs_;
-        std::map<std::string, mv::Element> serialDescriptions_;
         std::map<std::string, WorkloadConfig> workloadConfigs_;
         std::vector<DataTypeSupport> dtypeSupport_;
 
@@ -92,12 +89,6 @@ namespace mv
 
         void setTarget(Target target);
         void setDType(DType dType);
-
-        bool defineOp(const std::string& opType);
-        bool undefineOp(const std::string& opType);
-        bool opSupported(const std::string& opType) const;
-        bool opSupportedAsPostOp(const std::string& opType) const;
-
 
         bool defineMemory(const std::string& name, long long size, std::size_t alignment);
         bool undefineMemory(const std::string& name);
