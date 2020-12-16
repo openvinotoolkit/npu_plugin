@@ -99,6 +99,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Maximum>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Add>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::FakeQuantize>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MatMul>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -161,6 +162,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset1::Maximum),
             MAP_ENTRY(ngraph::opset1::Add),
             MAP_ENTRY(ngraph::opset1::FakeQuantize),
+            MAP_ENTRY(ngraph::opset1::MatMul),
     };
 #undef MAP_ENTRY
 
@@ -340,6 +342,15 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     auto op = builder.create<IE::MultiplyOp>(createLocation(origNode), inputs[0], inputs[1],
                                              importBroadcastType(autob.m_type, builder));
 
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MatMul>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+    auto op = builder.create<IE::MatMulOp>(createLocation(origNode), inputs[0], inputs[1], origNode->get_transpose_a(),
+                                           origNode->get_transpose_b());
     addOutputs(origNode, {op.getResult()});
 }
 

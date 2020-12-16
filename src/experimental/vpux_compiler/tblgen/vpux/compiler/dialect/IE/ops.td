@@ -787,4 +787,35 @@ def IE_FakeQuantizeOp :
     }];
 }
 
+//
+// MatMul
+//
+
+def IE_MatMulOp:
+        IE_LayerOp<
+            "MatMul",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine Power layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        UnitAttr:$transpose_a,
+        UnitAttr:$transpose_b
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+
+}
+
 #endif
