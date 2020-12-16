@@ -1069,3 +1069,44 @@ TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserOutputPrecision("output", Precision::FP32));
 }
+
+
+// Regression on compilation due to latest rebase
+TEST_F(KmbVasFDStage1Test, DISABLED_precommit_vasfd_stage1) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+    const std::string inputName = "data";
+    const std::vector<std::string> layerNames = {
+        "b12", "b16", "b24", "b32", "b48",
+        "b64", "b96", "b128", "b192"};
+    const std::vector<int> anchorSizes = {4, 3, 2, 3, 2, 3, 2, 3, 2};
+    const std::vector<int> windowScales = {8, 8, 8, 16, 16, 32, 32, 64, 64};
+    const std::vector<int> windowLengths = {12, 16, 24, 32, 48, 64, 96, 128, 192};
+
+    runTest(
+        TestNetworkDesc("KMB_models/FP16/face_detection_stage1/vasfd_stage1.xml")
+            .setUserInputLayout(inputName, Layout::NHWC)
+            .setUserInputPrecision(inputName, Precision::FP16),
+    TestImageDesc("320x240/Alma_Powell_0_0.1133.jpg", ImageFormat::BGR),
+    0.35f, 0.1f, 0.3f, layerNames, anchorSizes, windowScales, windowLengths);
+}
+
+
+TEST_F(KmbVasFDStage2Test, precommit_vasfd_stage2) {
+    const std::string inputName = "data";
+    const KmbVasFDStage2Test::Candidate candidate = {118.36408299, 50.26568365, 158.98897427, 125.54895544};
+    runTest(
+        TestNetworkDesc("KMB_models/FP16-INT8/private/face_detection_stage2/vasfd_stage2.xml")
+            .setUserInputPrecision(inputName, Precision::U8),
+        TestImageDesc("48x48/Alma_Powell_0_0.1133.jpg", ImageFormat::BGR),
+        0.5f, 1, 0.3f, candidate);
+}
+
+
+TEST_F(KmbVasFRTest, precommit_vasfr_feature) {
+    const std::string inputName = "input_data";
+    runTest(
+        TestNetworkDesc("KMB_models/FP16-INT8/private/face_recognition/vasfr_feature.xml")
+            .setUserInputPrecision(inputName, Precision::U8),
+        TestImageDesc("112x112/Charlize_Theron_0001.jpg", ImageFormat::BGR),
+        0.6f);
+}

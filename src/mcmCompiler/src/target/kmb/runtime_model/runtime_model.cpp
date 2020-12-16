@@ -204,12 +204,11 @@ std::unique_ptr<MVCNN::SourceStructureT> mv::RuntimeModel::buildSourceStructureT
     std::unique_ptr<MVCNN::SourceStructureT> toBuild = std::unique_ptr<MVCNN::SourceStructureT>(new MVCNN::SourceStructureT());
 
     mv::OpModel opModel(cm);
-    auto inputOp = opModel.getInput();
-    toBuild->first_ID.push_back(inputOp->get<unsigned>("opId"));
+    for (auto inputOp : opModel.getNetworkInputs())
+        toBuild->first_ID.push_back(inputOp->get<unsigned>("opId"));
     toBuild->nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(opModel.opsCount());
     unsigned i = 0;
 
-    //auto ops = opModel.topologicalSort();
     for(auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
         toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, opIt);
 
@@ -994,8 +993,14 @@ std::vector<uint64_t> packToInt64(const std::vector<T>& origData, mv::DType dtyp
 
     for(unsigned i = 0; i < finalLength; ++i)
         for(unsigned j = 0; j < nElementToPack; ++j)
-            if ((i*nElementToPack + j) < dataSize)
-                toReturn[i] ^= origData[i*nElementToPack + j] << (j * origDataSize);
+            if ((i*nElementToPack + j) < dataSize) {
+                // When the elements packed in the less significant part ot he long unsingned int value
+                // are negative, the sign extension gets copied over the more significant parts. As a result,
+                // when the next element gets packed it wil have its bits flipped due to XOR.
+                // That's why the mask is needed.
+                const long unsigned int mask = (static_cast<long unsigned int>(1) << origDataSize) - 1;
+                toReturn[i] ^= (origData[i*nElementToPack + j] & mask) << (j * origDataSize);
+            }
 
     return toReturn;
 }
@@ -1334,13 +1339,6 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
             if (dst->hasAttr("alignWidth")){
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_WIDTH_DIMENSION, false);
             }
-        }
-        if (direction == mv::NNCMX2DDR && (om.getSourceOp(src) != om.opEnd()) &&
-              om.getSourceOp(src)->getOpType() == "Crop")
-        {
-            if (om.getSourceOp(om.getSourceOp(src)->getInputTensor(0))->getOpType() == "DPUTask")
-                if (om.getSourceOp(om.getSourceOp(src)->getInputTensor(0))->get<std::string>("taskOp") == "DepthwiseConv")
-                    alignTensor(cm, tmp->src, src->getSubTensor(i), IO_WIDTH_DIMENSION, false);
         }
 
 
@@ -3240,6 +3238,24 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationMo
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReluTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_UnaryOpParams;
+    auto softLayerParamsValue = new MVCNN::UnaryOpParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::UnaryOpNestedParams_ReluParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -3311,6 +3327,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAHSwishTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Conversion")
         toReturn[0]->task.value = buildUPAConversionTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Relu")
+        toReturn[0]->task.value = buildUPAReluTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 

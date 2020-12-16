@@ -174,9 +174,11 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/pass_manager.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_utils.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/pass_quantization.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/quantization/cmconv_shapeBased_selection.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/quantization/propagate_fake_quantize.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/quantization/resolve_fq_after_branching_slice.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/compute_memory.cpp"
@@ -186,6 +188,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_output_node.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_input_node.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/use_reference_ops.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/collapse_branched_scale.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/group_convolution_pass.cpp"
@@ -263,8 +266,6 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/validation/basic_checks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"
-
-    "${PROJECT_SOURCE_DIR}/src/pass/emulation/decide_precision.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_update_barriers.cpp"
