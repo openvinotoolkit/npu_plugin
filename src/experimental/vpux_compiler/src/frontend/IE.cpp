@@ -125,32 +125,33 @@ private:
 };
 
 mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
-    using Callback = void (NGraphImporter::*)(mlir::OpBuilder& builder, const OrigNodePtr& origNode);
+    using Callback = void (NGraphImporter::*)(mlir::OpBuilder & builder, const OrigNodePtr& origNode);
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 #define MAP_ENTRY(_NodeType_) \
     { _NodeType_::type_info, &NGraphImporter::parseDispatch<_NodeType_> }
-    static const DispatchMap dispatchMap{{ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
-        {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
+    static const DispatchMap dispatchMap{
+            {ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
+            {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
 
-        MAP_ENTRY(ngraph::opset1::Constant),
-        MAP_ENTRY(ngraph::opset1::Softmax),
-        MAP_ENTRY(ngraph::opset1::Tile),
-        MAP_ENTRY(ngraph::opset1::Split),
-        MAP_ENTRY(ngraph::opset1::Power),
-        MAP_ENTRY(ngraph::opset1::Multiply),
-        MAP_ENTRY(ngraph::opset1::Relu),
-        MAP_ENTRY(ngraph::opset1::MaxPool),
-        MAP_ENTRY(ngraph::opset1::Gather),
-        MAP_ENTRY(ngraph::opset1::Clamp),
-        MAP_ENTRY(ngraph::opset1::Elu),
-        MAP_ENTRY(ngraph::opset1::Reshape),
-        MAP_ENTRY(ngraph::opset1::Squeeze),
-        MAP_ENTRY(ngraph::opset1::Sigmoid),
-        MAP_ENTRY(ngraph::opset1::LRN),
-        MAP_ENTRY(ngraph::opset1::Unsqueeze),
-        MAP_ENTRY(ngraph::opset1::Minimum),
-        MAP_ENTRY(ngraph::opset1::Maximum),
-        };
+            MAP_ENTRY(ngraph::opset1::Constant),
+            MAP_ENTRY(ngraph::opset1::Softmax),
+            MAP_ENTRY(ngraph::opset1::Tile),
+            MAP_ENTRY(ngraph::opset1::Split),
+            MAP_ENTRY(ngraph::opset1::Power),
+            MAP_ENTRY(ngraph::opset1::Multiply),
+            MAP_ENTRY(ngraph::opset1::Relu),
+            MAP_ENTRY(ngraph::opset1::MaxPool),
+            MAP_ENTRY(ngraph::opset1::Gather),
+            MAP_ENTRY(ngraph::opset1::Clamp),
+            MAP_ENTRY(ngraph::opset1::Elu),
+            MAP_ENTRY(ngraph::opset1::Reshape),
+            MAP_ENTRY(ngraph::opset1::Squeeze),
+            MAP_ENTRY(ngraph::opset1::Sigmoid),
+            MAP_ENTRY(ngraph::opset1::LRN),
+            MAP_ENTRY(ngraph::opset1::Unsqueeze),
+            MAP_ENTRY(ngraph::opset1::Minimum),
+            MAP_ENTRY(ngraph::opset1::Maximum),
+    };
 #undef MAP_ENTRY
 
     SmallVector<mlir::Type, 1> inputTypes;
@@ -306,7 +307,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     auto autob = origNode->get_autob();
     VPUX_THROW_UNLESS(validateElementwiseArgs(origNode.get(), autob),
                       "nGraph Power node '{0}' has uncompatible shapes of inputs. {1}, {2}",
-                          origNode->get_input_shape(0), origNode->get_input_shape(1));
+                      origNode->get_input_shape(0), origNode->get_input_shape(1));
 
     auto op = builder.create<IE::PowerOp>(createLocation(origNode), inputs[0], inputs[1],
                                           importBroadcastType(autob.m_type, builder));
