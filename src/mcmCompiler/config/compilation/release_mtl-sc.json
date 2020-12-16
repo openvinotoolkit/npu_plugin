@@ -13,7 +13,6 @@
                 "Number_of_Clusters" : 1,
                 "WorkloadCost": 300,
                 "DDRScratch": 31457280,
-                "MemoryHack": false,
                 "cmx": 1843200,
                 "enable_channel_major_conv": false,
                 "HuffmanCompression": false,
@@ -83,7 +82,6 @@
             },
             "AssignInputNode",
             "AssignOutputNode",
-            "ComputeMemory",
             "AssignUniqueOpId",
             {
                 "name": "ApplyTargetVars",
@@ -141,13 +139,6 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "referenceDevice", "value" : "A0"},
-                        {"name" : "totalClusters",  "value" : 1   },
-                        {"name" : "clusterMemory",  "value" : 1792 },
-                        {"name" : "dpuPerCluster",  "value" : 1   },
-                        {"name" : "ddrBandwidth",   "value" : 128 },
-                        {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 1.0},
                         {"name" : "createStrategyDots", "value" : false},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}

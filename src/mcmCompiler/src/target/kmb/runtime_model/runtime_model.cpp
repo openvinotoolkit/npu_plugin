@@ -947,14 +947,13 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
         }
         toBuild->processor_allocation.push_back(std::move(NNDPUProcessor));
     }
- 
+
     //clusters
     std::unique_ptr<MVCNN::ProcessorMappingT> NNClusterProcessor =
         std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
     NNClusterProcessor->item= MVCNN::PhysicalProcessor_NCE_Cluster ;
     setIfPresent<double, int>(NNClusterProcessor->number, *globalConfigurationParams , "Number_of_Clusters");
     toBuild->processor_allocation.push_back(std::move(NNClusterProcessor));
-
 
     toBuild->memory_sizes = std::vector<std::unique_ptr<MVCNN::MemoryMappingT>>();
     if(globalConfigurationParams->hasAttr("cmx")){

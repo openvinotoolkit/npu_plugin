@@ -332,7 +332,106 @@
 
     "dtype":
     {
-        "global": "Float16"
+        "global": "Float16",
+        "hwCompatibilityCases": [
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "UInt8"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "Float16"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "UInt8"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "UInt8"
+                    }
+                ]
+            },
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "UInt8"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "Float16"
+                    }
+                ]
+            },
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "UInt8"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "Float16"
+                    }
+                ]
+            },
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "UInt8"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "Float16"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "Float16"
+                    }
+                ]
+            }
+        ]
+
     },
 
     "workloads":
