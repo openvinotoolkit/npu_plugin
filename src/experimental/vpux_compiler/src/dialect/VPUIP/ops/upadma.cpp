@@ -32,3 +32,16 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(vpux::VPUIP::Bl
     builder.add_dst(dstOff);
     return {builder.Finish().Union(), MVCNN::SpecificTask_UPADMATask};
 }
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
+    const auto src = inputTensors().front();
+    const auto dst = outputTensors().front();
+
+    const auto srcOff = writer.getTensor(src);
+    const auto dstOff = writer.getTensor(dst);
+
+    MVCNN::NNDMATaskBuilder builder(writer);
+    builder.add_src(srcOff);
+    builder.add_dst(dstOff);
+    return {builder.Finish().Union(), MVCNN::SpecificTask_NNDMATask};
+}

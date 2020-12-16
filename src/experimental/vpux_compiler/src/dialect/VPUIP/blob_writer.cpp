@@ -21,6 +21,7 @@
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 
+#include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -347,17 +348,23 @@ VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(mlir::De
     std::vector<uint64_t> alignedContent(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
     const auto rawData = content.getRawData();
-    VPUX_THROW_UNLESS(rawData.size() == totalByteSize, "Raw Size mismatch for const content : '{0}' vs '{1}'",
-                      rawData.size(), totalByteSize);
-
-    std::copy_n(reinterpret_cast<const uint8_t*>(rawData.data()), totalByteSize,
-                reinterpret_cast<uint8_t*>(alignedContent.data()));
+    if (content.isSplat()) {
+        loop_1d(LoopExecPolicy::Parallel, (totalByteSize / elemTypeByteSize), [&](int i) {
+            auto dst = reinterpret_cast<uint8_t*>(alignedContent.data()) + i * elemTypeByteSize;
+            std::copy_n(reinterpret_cast<const uint8_t*>(rawData.data()), elemTypeByteSize, dst);
+        });
+    } else {
+        VPUX_THROW_UNLESS(rawData.size() == totalByteSize, "Raw Size mismatch for const content : '{0}' vs '{1}'",
+                          rawData.size(), totalByteSize);
+        std::copy_n(reinterpret_cast<const uint8_t*>(rawData.data()), totalByteSize,
+                    reinterpret_cast<uint8_t*>(alignedContent.data()));
+    }
 
     const auto serializedContent = createVector(alignedContent);
 
     MVCNN::BinaryDataBuilder builder(_impl);
     builder.add_underlying_type(MVCNN::DType::DType_U8);
-    builder.add_length(alignedContent.size() * sizeof(uint64_t));
+    builder.add_length(totalByteSize);
     builder.add_data(serializedContent);
     builder.add_csram_cacheable(csram_cacheable);
     return builder.Finish();

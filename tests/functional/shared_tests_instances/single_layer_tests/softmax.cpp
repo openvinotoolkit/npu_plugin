@@ -30,11 +30,10 @@ class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUti
             if (inPrecision == InferenceEngine::Precision::FP32 || outPrecision == InferenceEngine::Precision::FP32) {
                 throw LayerTestsUtils::KmbSkipTestException("SoftMax with FP32 input/output hangs on graph loading");
             }
-        }
-
-        // [Track number: S#40296]
-        if (inShape.at(axisInd) == 1) {
-            throw LayerTestsUtils::KmbSkipTestException("SoftMax over dim==1 fails during blob parsing");
+            // [Track number: S#40296]
+            if (inShape.at(axisInd) == 1) {
+                throw LayerTestsUtils::KmbSkipTestException("SoftMax over dim==1 fails during blob parsing");
+            }
         }
     }
 

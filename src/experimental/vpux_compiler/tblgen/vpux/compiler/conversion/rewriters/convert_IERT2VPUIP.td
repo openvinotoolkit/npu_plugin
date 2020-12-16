@@ -29,6 +29,11 @@ include "mlir/Dialect/Linalg/IR/LinalgStructuredOps.td"
 
 def NullAttr : Attr<CPred<"$_self == nullptr">>;
 
+def createNNDMAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::NNDMAOp>($_loc, $0, $1)
+        }]>;
+
 def createUPADMAOp :
         NativeCodeCall<[{
             $_builder.create<vpux::VPUIP::UPADMAOp>($_loc, $0, $1)
@@ -37,7 +42,7 @@ def createUPADMAOp :
 def RewriteCopy :
         Pat<
             (CopyOp $input, $output, NullAttr:$inputPermutation, NullAttr:$outputPermutation),
-            (createUPADMAOp $input, $output)
+            (createNNDMAOp $input, $output)
         >;
 
 //

@@ -111,3 +111,54 @@ func @main(%arg0: tensor<1x2x2x2xf32>) -> (tensor<1x2x2x2xf32>, tensor<1x2x2x2xf
 }
 
 }
+
+// -----
+
+// CHECK: #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+
+// CHECK-LABEL: @OptimizeUselessSoftMaxFP32
+module @OptimizeUselessSoftMaxFP32 {
+
+IE.CNNNetwork "OptimizeUselessSoftMaxFP32" at @main
+    inputsInfo : {
+    }
+    outputsInfo : {
+        // CHECK: VPUIP.TensorInfo "prob", f32, #NCHW
+        IE.DataInfo "prob", f32, "NCHW"
+    }
+
+// CHECK:       func @main(
+// CHECK-SAME:      %[[ARG:.*]]: memref<1x2x4x2xf16>
+func @main() -> tensor<1x2x4x2xf32> {
+    %0 = constant
+        dense<[[
+                [
+                    [1.0, 2.0],
+                    [2.0, 3.0],
+                    [3.0, 4.0],
+                    [4.0, 5.0]
+                ],
+                [
+                    [11.0, 22.0],
+                    [22.0, 33.0],
+                    [33.0, 44.0],
+                    [44.0, 55.0]
+                ]
+        ]]> : tensor<1x2x4x2xf32>
+
+    %prob = IE.SoftMax(%0) {axisInd = 0 : i32} : tensor<1x2x4x2xf32> -> tensor<1x2x4x2xf32>
+
+    return %prob : tensor<1x2x4x2xf32>
+
+    // CHECK:       %[[CST:.*]] = VPUIP.DeclareConstantTensorOp
+    // CHECK-SAME:      -> memref<1x2x4x2xf16>
+
+    // CHECK:       VPUIP.NNDMA
+    // CHECK-SAME   inputs(%[[CST]] : memref<1x2x4x2xf16>)
+    // CHECK-SAME   outputs(%[[ARG]] : memref<1x2x4x2xf16>)
+
+    // CHECK:       return
+
+}
+
+}

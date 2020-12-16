@@ -45,7 +45,7 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
     // CHECK-SAME:      axisInd = 1
     // CHECK-SAME:      inputs([[ARG0]] : memref<1x1000xf16>)
     // CHECK-SAME:      outputs([[VAR0]] : memref<1x1000xf16>)
-    // CHECK-NEXT:  VPUIP.UPADMA
+    // CHECK-NEXT:  VPUIP.NNDMA
     // CHECK-SAME:      inputs([[VAR0]] : memref<1x1000xf16>)
     // CHECK-SAME:      outputs([[ARG1]] : memref<1x1000xf16>)
     // CHECK-NEXT:  dealloc [[VAR0]] : memref<1x1000xf16>
@@ -91,7 +91,7 @@ func @main(%arg0: memref<1x2x2x2xf16>) {
     // CHECK:       [[VAR0:%[0-9]*]] = VPUIP.DeclareConstantTensorOp
     // CHECK-SAME:      dense<1.000000e+00>
     // CHECK-SAME:      -> memref<1x2x2x2xf16>
-    // CHECK-NEXT:  VPUIP.UPADMA
+    // CHECK-NEXT:  VPUIP.NNDMA
     // CHECK-SAME:      inputs([[VAR0]] : memref<1x2x2x2xf16>)
     // CHECK-SAME:      outputs([[ARG0]] : memref<1x2x2x2xf16>)
     // CHECK-NEXT:  return

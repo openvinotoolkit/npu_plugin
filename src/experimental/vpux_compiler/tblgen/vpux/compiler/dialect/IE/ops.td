@@ -202,6 +202,7 @@ def IE_SoftMaxOp :
     }];
 
     let hasCanonicalizer = 1;
+    let hasFolder = 1;
 }
 
 //
