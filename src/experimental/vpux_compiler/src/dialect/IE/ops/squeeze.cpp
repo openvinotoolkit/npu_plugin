@@ -17,10 +17,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
-
 #include "vpux/utils/core/small_vector.hpp"
-
-#include <mlir/IR/PatternMatch.h>
 
 #include <numeric>
 

@@ -105,8 +105,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
 // getTaskEffects
 //
 
-void vpux::VPUIP::getTaskEffects(
-        mlir::Operation* op, SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
+void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getTaskEffects");
 
     if (auto layer = mlir::dyn_cast<LayerInterface>(op)) {

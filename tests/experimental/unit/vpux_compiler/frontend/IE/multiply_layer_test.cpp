@@ -52,13 +52,13 @@ static void testImportNetwork(std::shared_ptr<ngraph::opset1::Parameter> param1,
 //  : f32, f16, i64, i32, i16, i8, u64, u16, u8
 //
 
-TEST(IE_FrontendTest, Multiply_AutoBroadcastType_NONE_OR_EXPLICIT_f32) {
+TEST(IE_FrontEndTest, Multiply_AutoBroadcastType_NONE_OR_EXPLICIT_f32) {
     auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{256, 56});
     auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{256, 56});
     testImportNetwork(param1, param2);
 }
 
-TEST(IE_FrontendTest, Multiply_AutoBroadcastType_NONE_OR_EXPLICIT_f16) {
+TEST(IE_FrontEndTest, Multiply_AutoBroadcastType_NONE_OR_EXPLICIT_f16) {
     auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{256, 56});
     auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{256, 56});
     testImportNetwork(param1, param2);
@@ -69,25 +69,25 @@ TEST(IE_FrontendTest, Multiply_AutoBroadcastType_NONE_OR_EXPLICIT_f16) {
 //  : f32, f16
 //
 
-TEST(IE_FrontendTest, Multiply_AutoBroadcastType_NUMPY_DIRECTIONAL_f32) {
+TEST(IE_FrontEndTest, Multiply_AutoBroadcastType_NUMPY_DIRECTIONAL_f32) {
     auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{8, 1, 6, 1});
     auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{7, 1, 5});
     testImportNetwork(param1, param2, ngraph::op::AutoBroadcastType::NUMPY);
 }
 
-TEST(IE_FrontendTest, Multiply_AutoBroadcastType_NUMPY_DIRECTIONAL_f16) {
+TEST(IE_FrontEndTest, Multiply_AutoBroadcastType_NUMPY_DIRECTIONAL_f16) {
     auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{8, 1, 6, 1});
     auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{7, 1, 5});
     testImportNetwork(param1, param2, ngraph::op::AutoBroadcastType::NUMPY);
 }
 
-TEST(IE_FrontendTest, Multiply_AutoBroadcastType_NUMPY_UNDIRECTIONAL_f32) {
+TEST(IE_FrontEndTest, Multiply_AutoBroadcastType_NUMPY_UNDIRECTIONAL_f32) {
     auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{7, 1, 5});
     auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{8, 1, 6, 1});
     testImportNetwork(param1, param2, ngraph::op::AutoBroadcastType::NUMPY);
 }
 
-TEST(IE_FrontendTest, Multiply_AutoBroadcastType_NUMPY_UNDIRECTIONAL_f16) {
+TEST(IE_FrontEndTest, Multiply_AutoBroadcastType_NUMPY_UNDIRECTIONAL_f16) {
     auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{7, 1, 5});
     auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{8, 1, 6, 1});
     testImportNetwork(param1, param2, ngraph::op::AutoBroadcastType::NUMPY);

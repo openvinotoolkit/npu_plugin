@@ -33,7 +33,7 @@ using namespace vpux;
 // LayerInterface
 //
 
-mlir::LogicalResult vpux::details::verifyLayer(mlir::Operation* op) {
+mlir::LogicalResult vpux::verifyLayer(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyLayer");
 
     auto layer = mlir::dyn_cast<LayerInterface>(op);
@@ -149,7 +149,7 @@ mlir::LogicalResult verifyLayerInputsOutputs(LayerInterface layer, size_t numInp
 
 }  // namespace
 
-mlir::LogicalResult vpux::details::verifyConvertLayer(mlir::Operation* op) {
+mlir::LogicalResult vpux::verifyConvertLayer(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyConvertLayer");
 
     auto res = getLayer<ConvertLayerInterface>(op, "Convert");
@@ -179,7 +179,7 @@ mlir::LogicalResult vpux::details::verifyConvertLayer(mlir::Operation* op) {
 // SoftMaxLayerInterface
 //
 
-mlir::LogicalResult vpux::details::verifySoftMaxLayer(mlir::Operation* op) {
+mlir::LogicalResult vpux::verifySoftMaxLayer(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySoftMaxLayer");
 
     auto res = getLayer<SoftMaxLayerInterface>(op, "SoftMax");

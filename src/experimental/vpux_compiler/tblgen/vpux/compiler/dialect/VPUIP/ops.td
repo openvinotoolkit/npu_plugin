@@ -18,10 +18,10 @@
 #define VPUX_COMPILER_DIALECT_VPUIP_OPS
 
 include "vpux/compiler/core/ops_interfaces.td"
-include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
-include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
 include "vpux/compiler/dialect/VPUIP/types.td"
+include "vpux/compiler/dialect/VPUIP/attributes.td"
+include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
 
 include "mlir/Interfaces/CopyOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"

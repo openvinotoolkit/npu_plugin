@@ -29,7 +29,6 @@
 #include <mlir/IR/Operation.h>
 
 namespace vpux {
-namespace details {
 
 //
 // Interface verifiers
@@ -39,7 +38,6 @@ mlir::LogicalResult verifyLayer(mlir::Operation* op);
 mlir::LogicalResult verifyConvertLayer(mlir::Operation* op);
 mlir::LogicalResult verifySoftMaxLayer(mlir::Operation* op);
 
-}  // namespace details
 }  // namespace vpux
 
 //

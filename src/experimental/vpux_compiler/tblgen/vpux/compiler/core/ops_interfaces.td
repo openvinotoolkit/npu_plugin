@@ -47,7 +47,7 @@ def LayerInterface : OpInterface<"LayerInterface"> {
     ];
 
     let verify = [{
-        return vpux::details::verifyLayer($_op);
+        return vpux::verifyLayer($_op);
     }];
 }
 
@@ -62,7 +62,7 @@ def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
 
     let methods = [
         InterfaceMethod<
-            "Get the source Value for the Convert Operation",
+            "Get the source Value for the Operation",
             "mlir::Value", "input", (ins),
             [{
                 return $_op.input();
@@ -78,7 +78,7 @@ def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
         >,
 
         InterfaceMethod<
-            "Get destination Value for the Convert Operation",
+            "Get destination Value for the Operation",
             "mlir::Value", "output", (ins),
             [{
                 return $_op.output();
@@ -95,7 +95,7 @@ def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
     ];
 
     let verify = [{
-        return vpux::details::verifyConvertLayer($_op);
+        return vpux::verifyConvertLayer($_op);
     }];
 
     let extraTraitClassDeclaration = [{
@@ -120,7 +120,7 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
 
     let methods = [
         InterfaceMethod<
-            "Get the source Value for the Convert Operation",
+            "Get the source Value for the Operation",
             "mlir::Value", "input", (ins),
             [{
                 return $_op.input();
@@ -136,7 +136,7 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
         >,
 
         InterfaceMethod<
-            "Get destination Value for the Convert Operation",
+            "Get destination Value for the Operation",
             "mlir::Value", "output", (ins),
             [{
                 return $_op.output();
@@ -169,7 +169,7 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
     ];
 
     let verify = [{
-        return vpux::details::verifySoftMaxLayer($_op);
+        return vpux::verifySoftMaxLayer($_op);
     }];
 
     let extraTraitClassDeclaration = [{

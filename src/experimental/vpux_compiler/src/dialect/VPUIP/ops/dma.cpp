@@ -22,7 +22,7 @@
 
 using namespace vpux;
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto inputOff = writer.getTensor(input());
     const auto outputOff = writer.getTensor(output());
 
@@ -32,7 +32,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(vpux::VPUIP::Bl
     return {builder.Finish().Union(), MVCNN::SpecificTask_UPADMATask};
 }
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto srcOff = writer.getTensor(input());
     const auto dstOff = writer.getTensor(output());
 

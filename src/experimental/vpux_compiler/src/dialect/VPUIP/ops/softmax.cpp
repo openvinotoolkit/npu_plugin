@@ -20,7 +20,7 @@
 
 using namespace vpux;
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftMaxUPAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftMaxUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto axisDim = getAxisDim();
 
     MVCNN::SoftmaxParamsBuilder builder(writer);

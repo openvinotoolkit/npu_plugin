@@ -20,7 +20,7 @@
 
 using namespace vpux;
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConfigureBarrierOp::serialize(vpux::VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConfigureBarrierOp::serialize(VPUIP::BlobWriter& writer) {
     const auto barrier = writer.createBarrier(this->barrier());
 
     MVCNN::BarrierConfigurationTaskBuilder subBuilder(writer);

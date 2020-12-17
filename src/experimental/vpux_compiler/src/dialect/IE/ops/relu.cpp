@@ -18,8 +18,6 @@
 
 #include "vpux/utils/core/checked_cast.hpp"
 
-#include <mlir/IR/PatternMatch.h>
-
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ReLUOp::inferReturnTypeComponents(

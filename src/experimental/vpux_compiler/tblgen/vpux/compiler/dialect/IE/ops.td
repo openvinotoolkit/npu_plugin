@@ -18,8 +18,8 @@
 #define VPUX_COMPILER_DIALECT_IE_OPS
 
 include "vpux/compiler/core/ops_interfaces.td"
-include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IE/dialect.td"
+include "vpux/compiler/dialect/IE/attributes.td"
 
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -296,6 +296,7 @@ def IE_SplitOp :
     let arguments = (ins
         AnyRankedTensor:$input,
         AnyRankedTensor:$axis,
+
         I32Attr:$num_splits
     );
 
@@ -324,6 +325,7 @@ def IE_PowerOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
+
         IE_AutoBroadcastType:$auto_broadcast
     );
 
@@ -352,6 +354,7 @@ def IE_AddOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
+
         IE_AutoBroadcastType:$auto_broadcast
     );
 
@@ -380,6 +383,7 @@ def IE_MultiplyOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
+
         IE_AutoBroadcastType:$auto_broadcast
     );
 
@@ -560,7 +564,7 @@ def IE_EluOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
 
-        F64Attr:$alpha    
+        F64Attr:$alpha
     );
 
     let results = (outs
@@ -574,18 +578,18 @@ def IE_EluOp :
 
 //
 // ReshapeOp
-// 
+//
 
 def IE_ReshapeOp :
         IE_LayerOp<
             "Reshape"
         > {
-
     let summary = "InferenceEngine Reshape layer";
 
     let arguments = (ins
         AnyRankedTensor:$input1,
         1DTensorOf<[AnyInteger]>:$input2,
+
         UnitAttr:$special_zero
     );
 
@@ -600,18 +604,17 @@ def IE_ReshapeOp :
 
 //
 // SqueezeOp
-// 
+//
 
 def IE_SqueezeOp :
         IE_LayerOp<
             "Squeeze"
         > {
-
     let summary = "InferenceEngine Squeeze layer";
 
     let arguments = (ins
         AnyRankedTensor:$input1,
-        TensorOf<[AnyInteger]>:$input2
+        1DTensorOf<[AnyInteger]>:$input2
     );
 
     let results = (outs
@@ -681,7 +684,7 @@ def IE_LRNOp :
 
 //
 // UnsqueezeOp
-// 
+//
 
 def IE_UnsqueezeOp :
         IE_LayerOp<
@@ -692,7 +695,7 @@ def IE_UnsqueezeOp :
 
     let arguments = (ins
         AnyRankedTensor:$input1,
-        TensorOf<[AnyInteger]>:$input2
+        1DTensorOf<[AnyInteger]>:$input2
     );
 
     let results = (outs
@@ -717,6 +720,7 @@ def IE_MinimumOp :
     let arguments = (ins
         AnyRankedTensor:$input1,
         AnyRankedTensor:$input2,
+
         IE_AutoBroadcastType:$auto_broadcast
     );
 
@@ -742,6 +746,7 @@ def IE_MaximumOp :
     let arguments = (ins
         AnyRankedTensor:$input1,
         AnyRankedTensor:$input2,
+
         IE_AutoBroadcastType:$auto_broadcast
     );
 
