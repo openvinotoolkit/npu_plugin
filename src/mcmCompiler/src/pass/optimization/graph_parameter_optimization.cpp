@@ -1127,6 +1127,17 @@ namespace mv
                 return FailCause::Pass; //good strategy
             }
 
+            // If output tensor is larger than CMX, even when SplitOverH (divided by totalClusters)
+            // this op will always spill back to DDR
+            bool willAlwaysSpill(mv::Op& op)
+            {
+                auto outputTensorSize = op.getOutputTensor(0)->computeTotalSize();
+                outputTensorSize = (outputTensorSize / totalClusters);
+                if(outputTensorSize > clusterMemory)
+                    return true;
+
+                return false;
+            }
 
             std::size_t realTensorSize(const mv::Data::TensorIterator tensorToSize, const mv::Shape& streamingPool, bool isCMConv)
             {
@@ -1835,6 +1846,17 @@ namespace mv
                     auto streams = parentStreamShape["K"];
                     if(streams > 1 && parentClustering == "SplitOverK")
                         finalLayerStreamingBoost = streams * ((pFullDma + pFullComp) * 0.1); // streaming over more K is better
+                }
+
+                // For performance in YoloV2 and other networks with large input which don't allow SOH to stay in CMX
+                // at the start of the network, here we preference being clustering or SOK rather than SOH. 
+                // This will allow us to use the AddActivationStreaming pass to speed up these layers.
+                // Needed because SOH can only stream over K, and that pass only speeds up streaming over H...
+                if(parentOpType == "Input" && isChildChanMajor && willAlwaysSpill(childOp) &&
+                    !(childClustering == "Clustering" || childClustering == "SplitOverK"))
+                {
+                    std::cout << "Got here!" << std::endl;
+                    pFullDma = pFullDma * 10;
                 }
 
                 double heuristics = sparsityCost - finalLayerStreamingBoost;
