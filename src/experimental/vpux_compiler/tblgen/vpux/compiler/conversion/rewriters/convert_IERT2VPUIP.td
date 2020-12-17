@@ -24,7 +24,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/Dialect/Linalg/IR/LinalgStructuredOps.td"
 
 //
-// linalg.copy
+// linalg.copy -> VPUIP.NNDMA
 //
 
 def NullAttr : Attr<CPred<"$_self == nullptr">>;
@@ -46,7 +46,7 @@ def RewriteCopy :
         >;
 
 //
-// IERT.StaticAlloc
+// IERT.StaticAlloc -> VPUIP.DeclareTensor
 //
 
 def createDeclareTensorOp :
@@ -73,7 +73,22 @@ def RewriteStaticAlloc :
         >;
 
 //
-// IERT.SoftMax
+// IERT.Convert -> VPUIP.ConvertUPA
+//
+
+def createConvertUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ConvertUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteConvert :
+        Pat<
+            (IERT_ConvertOp $input, $output),
+            (createConvertUPAOp $input, $output)
+        >;
+
+//
+// IERT.SoftMax -> VPUIP.SoftMaxUPA
 //
 
 def createSoftMaxUPAOp :
