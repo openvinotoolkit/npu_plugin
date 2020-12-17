@@ -1072,10 +1072,10 @@ TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
 
 
 // MTL target compilation test
-TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_MTL) {
+TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8_MTL) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong detection results");//At the moment no EVM is setup so cannot run
     runTest(
-                    TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
+                    TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8.xm")
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserOutputPrecision("output", Precision::U8) //currently FP16 is not supported by runtime
