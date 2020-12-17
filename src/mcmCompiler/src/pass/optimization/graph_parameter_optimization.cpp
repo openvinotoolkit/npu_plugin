@@ -146,7 +146,7 @@ namespace mv
             { 
                 referenceDevice = model_.getGlobalConfigParam("referenceDevice").get<std::string>();
                 totalClusters = model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
-                clusterMemoryKb = model_.getGlobalConfigParam("cmx").get<int>() / 1024;
+                clusterMemoryKb = model_.getGlobalConfigParam("cmx").get<unsigned>() / 1024;
                 dpuPerCluster = model_.getGlobalConfigParam("Number_of_DPUs").get<int>() / totalClusters;
                 createStrategyDots = globalConfig_["createStrategyDots"].get<bool>();
                 dotFileLocation = globalConfig_["dotFileLocation"].get<std::string>();
@@ -1649,6 +1649,18 @@ namespace mv
                 return executableInHW;
             }
 
+            // If output tensor is larger than CMX, even when SplitOverH (divided by totalClusters)
+ // this op will always spill back to DDR
+ bool willAlwaysSpill(mv::Op& op)
+ {
+ auto outputTensorSize = op.getOutputTensor(0)->computeTotalSize();
+ outputTensorSize = (outputTensorSize / totalClusters);
+ if(outputTensorSize > clusterMemory)
+ return true;
+ 
+ return false;
+ }
+
 
             double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
             {
@@ -1827,6 +1839,15 @@ namespace mv
                 auto cOutDma = averageOutputDmaTime(childOp, child);
 
                 double sparsityCost = 0;
+
+                // For performance in YoloV2 and other networks with large input which don't allow SOH to stay in CMX
+                // at the start of the network, here we preference being clustering or SOK rather than SOH.
+                // This will allow us to use the AddActivationStreaming pass to speed up these layers.
+                // Needed because SOH can only stream over K, and that pass only speeds up streaming over H...
+                if (parentOpType == "Input" && isChildChanMajor && willAlwaysSpill(childOp) &&
+                    !(childClustering == "Clustering" || childClustering == "SplitOverK")) {
+                    cFullDma = cFullDma * 10;
+                }
 
                 // Case in which child input sparsity will be provided by compiler
                 // Compiler provided sparsity is a dummy sparsity (all 1's sparse map)

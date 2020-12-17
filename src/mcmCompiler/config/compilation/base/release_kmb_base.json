@@ -143,6 +143,7 @@
                 }
             },
             "StoreGraphOptimizerDecisions",
+            "AddActivationStreaming",
             "ValidateStreamingOverKForChainPipelining",
             "ComputeSparsitySolution",
             "StreamingOperations",

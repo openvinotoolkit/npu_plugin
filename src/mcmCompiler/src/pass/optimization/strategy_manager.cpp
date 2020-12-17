@@ -117,7 +117,7 @@ void StrategyManager::updateValuesFromJSON()
     
     globalConfig_["referenceDevice"] = model_.getGlobalConfigParam("referenceDevice").get<std::string>();
     globalConfig_["totalClusters"] = model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
-    globalConfig_["clusterMemory"] = model_.getGlobalConfigParam("cmx").get<int>();
+    globalConfig_["clusterMemory"] = model_.getGlobalConfigParam("cmx").get<unsigned>();
     globalConfig_["dpuPerCluster"] = 
         model_.getGlobalConfigParam("Number_of_DPUs").get<int>() / model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
 
@@ -543,6 +543,7 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 
         auto outTensor = op->getOutputTensor(0);
         auto executable = op->hasTypeTrait("executable") ? true : false;
+        op->set<bool>("goPredictsSpill", spilling);
 
         bool isStreaming = ((streamShape["W"] * streamShape["H"] * streamShape["C"] 
                                             * streamShape["K"] * streamShape["B"]) > 1) ? true : false;
