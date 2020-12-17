@@ -607,6 +607,44 @@ void convert(std::shared_ptr<McmFC> fc, mv::OpModel& mcmModel, NodeOutputToMcmMa
 
     registerOutputs(fc, {mcmFCOutput}, mcmOutputsMap);
 }
+
+// This function performs some checks to decide if after FQ layer new Conversion operation should be inserted
+// This is to handle cases with floating point input and U8 DPU task compute precision
+static bool isConversionToU8NodeNeeded(mv::OpModel& mcmModel, mv::Data::TensorIterator fqInput, unsigned fqLevels)
+{
+    // Check if the input to FQ is a float number and if levels
+    // in FQ correspond to precision of U8 number
+    if (fqLevels > 256)
+        return false;
+
+    auto fqInputDType = fqInput->getDType();
+    if (fqInputDType != mv::DType("Float16") && fqInputDType != mv::DType("Float32"))
+        return false;
+
+    // Check if there is a Input node above
+    auto parentOp = mcmModel.getSourceOp(fqInput);
+
+    // TODO: What kind of checks can be performed to make this
+    // code analyze only initial input part of network?
+    std::string parentOpType;
+    while(parentOp)
+    {
+        parentOpType = parentOp->getOpType();
+        if (parentOp->isHardwarizable() || parentOpType == "FakeQuantize")
+        {
+            break;
+        }
+
+        if (parentOpType == "Input")
+        {
+            return true;
+        }
+        parentOp = parentOp.leftmostParent();
+    }
+
+    return false;
+}
+
 void convert(std::shared_ptr<ngraph::op::v0::FakeQuantize> fq, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(fq, mcmOutputsMap);
     IE_ASSERT(5 == mcmInputs.size());
@@ -621,7 +659,20 @@ void convert(std::shared_ptr<ngraph::op::v0::FakeQuantize> fq, mv::OpModel& mcmM
 
     const auto mcmFQOutput = mcmModel.fakeQuantize(opName, inputData,
         inputMin, inputMax, outputMin, outputMax, levels);
-    registerOutputs(fq, {mcmFQOutput}, mcmOutputsMap);
+
+    // Check if this FQ node is after Input of network and decide if Conversion node should be inserted
+    // to handle cases where there is FP16/32 input but computation can be done in U8
+    // TODO: This is a temporary solution. Decision on computation precision should be moved
+    // to mcmCompiler based on network precision and requested input data type from user
+    if (isConversionToU8NodeNeeded(mcmModel, inputData, levels)) {
+        // Insert conversion to U8
+        const auto mcmConvertedOutput = mcmModel.conversion(mcmModel.getSourceOp(inputData)->getName() + "_convert_to_U8", mcmFQOutput, mv::DType("UInt8"));
+        mcmConvertedOutput->setQuantParams(initialQuantParams());
+        mcmConvertedOutput->setDType(mv::DType("UInt8"));
+        registerOutputs(fq, {mcmConvertedOutput}, mcmOutputsMap);
+    } else {
+        registerOutputs(fq, {mcmFQOutput}, mcmOutputsMap);
+    }
 }
 
 void convert(std::shared_ptr<ngraph::op::PowerIE> power, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
