@@ -27,7 +27,8 @@ class PlgM2I : public PluginStub
     ~PlgM2I();
 
     /** Create method. */
-    int Create();
+    /** @param[in]  enableHWResizeFilter - parameter for enabling the resize polyfir HW filter(=1), or disabling it and use the resize SW filter working on SHAVE(=0) */
+    int Create(bool enableHWResizeFilter = true);
 
     vpum2i::M2IDesc* GetSharedDesc();
     int ReleaseDesc(vpum2i::M2IDesc* desc);
