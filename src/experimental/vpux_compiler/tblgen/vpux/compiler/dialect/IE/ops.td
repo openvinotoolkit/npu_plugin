@@ -899,4 +899,28 @@ def IE_HSwishOp :
     }];
 }
 
+//
+// TransposeOp
+//
+
+def IE_TransposeOp :
+        IE_LayerOp<
+            "Transpose"
+        > {
+    let summary = "InferenceEngine Transpose layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        TensorOf<[AnyInteger]>:$input2
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
