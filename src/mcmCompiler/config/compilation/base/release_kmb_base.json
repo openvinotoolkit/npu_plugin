@@ -143,6 +143,7 @@
                 }
             },
             "StoreGraphOptimizerDecisions",
+            "ValidateStreamingOverKForChainPipelining",
             "ComputeSparsitySolution",
             "StreamingOperations",
             "StreamBinaryDataWeights",
