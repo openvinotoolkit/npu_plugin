@@ -1196,6 +1196,17 @@ namespace mv
                     if(streamedHeight < newOutputSizes.back())
                         streamedHeight = newOutputSizes.back();
 
+                    if(isInput)
+                    {
+                        unsigned short kernelStride;
+                        if (op.hasAttr("stride"))
+                            kernelStride = op.get<std::array<unsigned short, 2>>("stride")[mv::KERNEL_HEIGHT];
+                        else
+                            kernelStride = 1;//fake stride
+                    
+                        streamedHeight = streamedHeight * kernelStride;
+                    }
+
                     // Kernel and padding will add extra lines to final size of streamed portion
                     size_t kHeight = 1;
                     std::array<unsigned short, 4> padding;
