@@ -358,6 +358,63 @@ def VPUIP_NNDMAOp :
 }
 
 //
+// ConvertUPAOp
+//
+
+def VPUIP_ConvertUPAOp :
+        VPUIP_TaskOp<
+            "ConvertUPA",
+            [
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<ConvertLayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "Convert UPA SHAVE kernel";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        OptionalAttr<F32Attr>:$scale,
+        OptionalAttr<F32Attr>:$bias,
+        UnitAttr:$fromDetectionOutput,
+        UnitAttr:$haveBatch,
+        OptionalAttr<I32Attr>:$batchID,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$output
+            ),
+            [{
+                build($_builder, $_state,
+                      input, output,
+                      mlir::ValueRange {}, mlir::ValueRange {},
+                      nullptr, nullptr, false, false, nullptr,
+                      nullptr, false);
+            }]
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
 // SoftMaxUPAOp
 //
 
