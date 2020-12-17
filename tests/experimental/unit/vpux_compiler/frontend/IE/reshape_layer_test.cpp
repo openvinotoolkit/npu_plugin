@@ -48,31 +48,6 @@ TEST(IE_FrontEndTest, ReshapeLayerTest_ImportNetwork) {
     EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
 }
 
-// This example is in https://github.com/openvinotoolkit/openvino/blob/master/docs/ops/shape/Reshape_1.md.
-// But it throws an exception when creating ngraph. So, I disabled this test.
-TEST(IE_FrontEndTest, DISABLED_ReshapeLayerTest_SpecialZeroFalse) {
-    std::shared_ptr<ngraph::Function> f;
-    {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 5, 5, 0});
-        std::vector<int64_t> shapeVector{0, 4};
-        auto shape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, shapeVector);
-        auto reshape = std::make_shared<ngraph::opset1::Reshape>(data, shape, false);
-        reshape->set_friendly_name("Reshape");
-        auto result = std::make_shared<ngraph::op::Result>(reshape);
-
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{data});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-    }
-
-    InferenceEngine::CNNNetwork nGraphImpl(f);
-
-    mlir::MLIRContext ctx;
-    ctx.loadDialect<vpux::IE::IEDialect>();
-    ctx.loadDialect<mlir::StandardOpsDialect>();
-
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
-}
-
 TEST(IE_FrontEndTest, ReshapeLayerTest_OneSpecialZeroWithNegative) {
     std::shared_ptr<ngraph::Function> f;
     {
