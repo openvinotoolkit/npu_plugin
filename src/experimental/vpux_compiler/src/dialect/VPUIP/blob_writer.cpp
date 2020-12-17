@@ -335,6 +335,27 @@ VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirect
     return builder.Finish();
 }
 
+MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
+    const auto vec = to_vector<4>(attr.getValue() | reversed | transformed([](mlir::Attribute attr) {
+                                      return attr.cast<mlir::IntegerAttr>().getInt();
+                                  }));
+
+    VPUX_THROW_UNLESS(vec.size() <= 3, "Got wrong order array : {0}", vec);
+
+    uint8_t x = 0, y = 0, z = 0;
+    if (vec.size() >= 1) {
+        x = checked_cast<uint8_t>(vec[0]);
+    }
+    if (vec.size() >= 2) {
+        y = checked_cast<uint8_t>(vec[1]);
+    }
+    if (vec.size() >= 3) {
+        x = checked_cast<uint8_t>(vec[2]);
+    }
+
+    return MVCNN::order3(x, y, z);
+}
+
 VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(mlir::DenseElementsAttr content,
                                                                         bool csram_cacheable) {
     auto type = content.getType().cast<mlir::ShapedType>();

@@ -468,4 +468,68 @@ def VPUIP_SoftMaxUPAOp :
     }];
 }
 
+//
+// PoolingUPAOp
+//
+
+def VPUIP_PoolingUPAOp :
+        VPUIP_TaskOp<
+            "PoolingUPA",
+            [
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "MAX and AVG Pooling UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        VPUIP_PoolLayerType:$type,
+        I32ArrayAttr:$kernel,
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$padsBegin,
+        I32ArrayAttr:$padsEnd,
+        UnitAttr:$excludePad,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$output,
+                "vpux::VPUIP::PoolLayerTypeAttr":$type,
+                "mlir::ArrayAttr":$kernel, "mlir::ArrayAttr":$strides,
+                "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd,
+                "mlir::UnitAttr":$excludePad
+            ),
+            [{
+                build($_builder, $_state,
+                      input, output,
+                      mlir::ValueRange {}, mlir::ValueRange {},
+                      type,
+                      kernel, strides,
+                      padsBegin, padsEnd,
+                      excludePad,
+                      nullptr, nullptr);
+            }]
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
 #endif

@@ -117,6 +117,8 @@ public:
                                                       Optional<uint64_t> storageElementIndex = None,
                                                       Optional<uint32_t> storageElementSize = None);
 
+    static MVCNN::order3 createOrder3(mlir::ArrayAttr attr);
+
 public:
     auto createString(StringRef str) {
         return _impl.CreateString(str.data(), str.size());
