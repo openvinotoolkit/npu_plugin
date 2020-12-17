@@ -19,11 +19,11 @@
 #include "vpux/utils/core/checked_cast.hpp"
 
 #include <mlir/IR/PatternMatch.h>
+#include <ngraph/coordinate.hpp>
 #include <ngraph/op/max_pool.hpp>
 #include <ngraph/util.hpp>
-#include <ngraph/coordinate.hpp>
-#include "vpux/utils/core/error.hpp"
 #include "ngraph/validation_util.hpp"
+#include "vpux/utils/core/error.hpp"
 
 using namespace vpux;
 
@@ -38,17 +38,18 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
     }
 
     /* FIXME: this can be a utility function to be used across operations */
-    std::function<SmallVector<int64_t, MAX_NUM_DIMS>(mlir::ArrayAttr&& arrayAttr)> convertArrayAttrToSmallVector = [](mlir::ArrayAttr&& arrayAttr) {
-            SmallVector<int64_t, MAX_NUM_DIMS> result;
-            for (auto&& a: arrayAttr)
-                result.push_back(a.dyn_cast<mlir::IntegerAttr>().getInt());
-            return result;
-        };
+    std::function<SmallVector<int64_t, MAX_NUM_DIMS>(mlir::ArrayAttr && arrayAttr)> convertArrayAttrToSmallVector =
+            [](mlir::ArrayAttr&& arrayAttr) {
+                SmallVector<int64_t, MAX_NUM_DIMS> result;
+                for (auto&& a : arrayAttr)
+                    result.push_back(a.dyn_cast<mlir::IntegerAttr>().getInt());
+                return result;
+            };
 
     SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingBelow = convertArrayAttrToSmallVector(maxPool.pads_end());
     SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingAbove = convertArrayAttrToSmallVector(maxPool.pads_begin());
-    SmallVector<int64_t, MAX_NUM_DIMS> windowShape =      convertArrayAttrToSmallVector(maxPool.kernel_size());
-    SmallVector<int64_t, MAX_NUM_DIMS> windowStrides =    convertArrayAttrToSmallVector(maxPool.strides());
+    SmallVector<int64_t, MAX_NUM_DIMS> windowShape = convertArrayAttrToSmallVector(maxPool.kernel_size());
+    SmallVector<int64_t, MAX_NUM_DIMS> windowStrides = convertArrayAttrToSmallVector(maxPool.strides());
     SmallVector<int64_t, MAX_NUM_DIMS> dataShape;
     auto kernelDim = windowShape.size();
     auto roundingType = maxPool.rounding_type().getValue();
@@ -57,16 +58,15 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
 
     std::copy(inType.getShape().end() - kernelDim, inType.getShape().end(), std::back_inserter(dataShape));
 
-    auto outputShape = ngraph::infer_windowed_reduction_output_shape(nullptr,
-                        ngraph::Shape(dataShape.begin(), dataShape.end()),
-                        ngraph::Strides(kernelDim, 1)  /* dilation is not applicable in maxpooling */,
-                        ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
-                        ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
-                        ngraph::Shape(windowShape.begin(), windowShape.end()),
-                        ngraph::Strides(windowStrides.begin(), windowStrides.end()),
-                        ngraph::Strides(kernelDim, 1)  /* dilation is not applicable in maxpooling */,
-                        true,
-                        roundingType == vpux::IE::RoundingType::CEIL);
+    auto outputShape = ngraph::infer_windowed_reduction_output_shape(
+            nullptr, ngraph::Shape(dataShape.begin(), dataShape.end()),
+            ngraph::Strides(kernelDim, 1) /* dilation is not applicable in maxpooling */,
+            ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
+            ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
+            ngraph::Shape(windowShape.begin(), windowShape.end()),
+            ngraph::Strides(windowStrides.begin(), windowStrides.end()),
+            ngraph::Strides(kernelDim, 1) /* dilation is not applicable in maxpooling */, true,
+            roundingType == vpux::IE::RoundingType::CEIL);
 
     // Make __outputShape to have same rank as inType
     SmallVector<int64_t, MAX_NUM_DIMS> __outputShape;

@@ -25,17 +25,17 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 
-TEST(IE_FrontEndTest, PowerLayerTest_SameShape) {
+TEST(IE_FrontEndTest, UnsqueezeLayerTest_ImportNetwork) {
     std::shared_ptr<ngraph::Function> f;
     {
-        auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{256, 56});
-        auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{256, 56});
-        auto autob = ngraph::op::AutoBroadcastSpec();
-        auto pow = std::make_shared<ngraph::opset1::Power>(param1, param2, autob);
-        pow->set_friendly_name("Power");
-        auto result = std::make_shared<ngraph::op::Result>(pow);
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
+        std::vector<int64_t> axesVec{0, 3};
+        auto axes = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, axesVec);
+        auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(input, axes);
+        unsqueeze->set_friendly_name("Unsqueeze");
+        auto result = std::make_shared<ngraph::op::Result>(unsqueeze);
 
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input});
         ngraph::pass::InitNodeInfo().run_on_function(f);
     }
 
@@ -48,16 +48,17 @@ TEST(IE_FrontEndTest, PowerLayerTest_SameShape) {
     EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
 }
 
-TEST(IE_FrontEndTest, PowerLayerTest_AutoBroadcastType_NUMPY) {
+TEST(IE_FrontEndTest, UnsqueezeLayerTest_ODTenserTo1DTensor) {
     std::shared_ptr<ngraph::Function> f;
     {
-        auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{8, 1, 6, 1});
-        auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{7, 1, 5});
-        auto pow = std::make_shared<ngraph::opset1::Power>(param1, param2);
-        pow->set_friendly_name("Power");
-        auto result = std::make_shared<ngraph::op::Result>(pow);
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
+        std::vector<int64_t> axesVec{0};
+        auto axes = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{1}, axesVec);
+        auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(input, axes);
+        unsqueeze->set_friendly_name("Unsqueeze");
+        auto result = std::make_shared<ngraph::op::Result>(unsqueeze);
 
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input});
         ngraph::pass::InitNodeInfo().run_on_function(f);
     }
 

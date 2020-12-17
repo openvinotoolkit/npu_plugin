@@ -310,6 +310,34 @@ def IE_PowerOp :
 }
 
 //
+// MultiplyOp
+//
+
+def IE_MultiplyOp :
+        IE_LayerOp<
+            "Multiply",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine Multiply layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
 // MaxPoolOp
 //
 def IE_MaxPoolOp :
@@ -388,6 +416,217 @@ def IE_ClampOp :
 
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// EluOp
+//
+
+def IE_EluOp :
+        IE_LayerOp<
+            "Elu",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType
+            ]
+        > {
+    let summary = "InferenceEngine Elu layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        F64Attr:$alpha    
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// ReshapeOp
+// 
+
+def IE_ReshapeOp :
+        IE_LayerOp<
+            "Reshape"
+        > {
+
+    let summary = "InferenceEngine Reshape layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        1DTensorOf<[AnyInteger]>:$input2,
+        UnitAttr:$special_zero
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// SqueezeOp
+// 
+
+def IE_SqueezeOp :
+        IE_LayerOp<
+            "Squeeze"
+        > {
+
+    let summary = "InferenceEngine Squeeze layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        TensorOf<[AnyInteger]>:$input2
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// SigmoidOp
+//
+
+def IE_SigmoidOp :
+        IE_LayerOp<
+            "Sigmoid",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType
+            ]
+        > {
+    let summary = "InferenceEngine Sigmoid layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// ClampOp
+//
+
+def IE_LRNOp :
+        IE_LayerOp<
+            "LRN"
+        > {
+    let summary = "InferenceEngine LRN layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        AnyRankedTensor:$axis,
+
+        F64Attr:$alpha,
+        F64Attr:$beta,
+        F64Attr:$bias,
+        I32Attr:$size
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// UnsqueezeOp
+// 
+
+def IE_UnsqueezeOp :
+        IE_LayerOp<
+            "Unsqueeze"
+        > {
+
+    let summary = "InferenceEngine Unsqueeze layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        TensorOf<[AnyInteger]>:$input2
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// MinimumOp
+//
+
+def IE_MinimumOp :
+        IE_LayerOp<
+            "Minimum"
+        > {
+    let summary = "InferenceEngine Minimum layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        AnyRankedTensor:$input2,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// MaximumOp
+//
+
+def IE_MaximumOp :
+        IE_LayerOp<
+            "Maximum"
+        > {
+    let summary = "InferenceEngine Maximum layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        AnyRankedTensor:$input2,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
     );
 
     let assemblyFormat = [{
