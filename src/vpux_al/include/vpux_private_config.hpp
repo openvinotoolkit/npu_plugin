@@ -80,6 +80,23 @@ DECLARE_VPU_KMB_CONFIG_KEY(USE_M2I);
 
 /**
  * @brief [Only for VPUAL Subplugin]
+ * Type: "YES", "NO", default is "NO"
+ * This option allows to use Media-to-Inference (M2I)
+ * SHAVE only version module for image pre-processing
+ */
+DECLARE_VPUX_CONFIG_KEY(USE_SHAVE_ONLY_M2I);
+
+/**
+ * @deprecated Use VPUX_USE_SHAVE_ONLY_M2I instead
+ * @brief [Only for VPUAL Subplugin]
+ * Type: "YES", "NO", default is "NO"
+ * This option allows to use Media-to-Inference (M2I)
+ * SHAVE only version module for image pre-processing
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(USE_SHAVE_ONLY_M2I);
+
+/**
+ * @brief [Only for VPUAL Subplugin]
  * Type: "YES", "NO", default is "YES"
  * This option allows to use Streaming Image Processing Pipeline (SIPP) for image pre-processing
  */

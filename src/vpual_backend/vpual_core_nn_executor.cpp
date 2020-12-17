@@ -390,7 +390,7 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NnCorePlg>& nnC
 
     std::vector<void*> virtAddrVec;
     virtAddrVec.reserve(threadCount);
-    std::vector<uint32_t> physAddrVec;
+    std::vector<NnCorePlg::Buffer> physAddrVec;
     physAddrVec.reserve(threadCount);
     for (unsigned int threadIdx = 0; threadIdx < threadCount; threadIdx++) {
         uint8_t* scratchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(memoryReqs));
@@ -402,7 +402,7 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NnCorePlg>& nnC
             THROW_IE_EXCEPTION << "scratchHelper: failed to get physical address";
         }
         // NB: narrowing unsigned long (uint64_t on 64-bit Yocto) to uint32_t here
-        physAddrVec.push_back(scratchPhysAddr);
+        physAddrVec.push_back({scratchPhysAddr, memoryReqs});
         virtAddrVec.push_back(scratchVirtAddr);
     }
 
@@ -424,7 +424,7 @@ static uint8_t* setPrefetchHelper(const std::shared_ptr<NnCorePlg>& nnCorePtr,
         }
         unsigned long preFetchPhysAddr = allocatorPtr->getPhysicalAddress(preFetchVirtAddr);
         uint32_t preFetchAddrLower32Bits = preFetchPhysAddr & 0xffffffff;
-        nnCorePtr->SetPrefetchBuffer(preFetchAddrLower32Bits);
+        nnCorePtr->SetPrefetchBuffer({preFetchAddrLower32Bits, preFetchSize});
     } else {
         logger->info("prefetchHelper: trying to set prefeth buffer with zero size. Skip.");
     }
@@ -463,7 +463,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     // inference runtime cannot address more than that
     _blobHandle->graphBuff = _allocator->getPhysicalAddress(blob_file.get()) & 0xffffffff;
 
-    auto status = _nnCorePlg->Create(_blobHandle.get(), nThreads);
+    auto status = _nnCorePlg->Create(*_blobHandle, nThreads);
     if (MVNCI_SUCCESS != status) {
         _logger->error("allocateGraph: failed to create NnCorePlg");
         THROW_IE_EXCEPTION << "VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: " << status;
@@ -483,7 +483,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     }
 
     MvNCIVersion blobVersion;
-    status = _nnCorePlg->GetBlobVersion(&blobVersion);
+    status = _nnCorePlg->GetBlobVersion(blobVersion);
     if (MVNCI_SUCCESS != status) {
         _logger->error("allocateGraph: failed to get blob version");
         THROW_IE_EXCEPTION << "VpualCoreNNExecutor::allocateGraph: failed to get blob version: " << status;
