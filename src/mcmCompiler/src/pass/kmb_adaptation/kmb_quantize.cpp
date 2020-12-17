@@ -33,8 +33,17 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
 {
     for(auto& task : tasks)
     {
-        if (task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Quantize")
-            continue;
+        if (task->hasAttr("taskOp"))
+        {
+            auto taskOp = task->get<std::string>("taskOp");
+            if (taskOp == "Quantize" ||
+                taskOp == "Conversion")
+            {
+                // Skip inserting Quantization operation for exisitng Quantization tasks and
+                // Conversion operations which can handle quantization on their own
+                continue;
+            }
+        }
 
         auto inputFlow = task.leftmostInput();
         auto outputDType = task->getOutputTensor(0)->getDType();

@@ -693,12 +693,19 @@ mv::Data::TensorIterator convertHSwishToUPATask(mv::OpModel& om, const std::vect
 mv::Data::TensorIterator convertConversionToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                                 const std::map<std::string, mv::Attribute>& attrs,
                                                 const std::string& name, bool /*software*/ = false,
-                                                const mv::QuantizationParams& /*quantParams*/ = mv::QuantizationParams::empty(),
-                                                const mv::DType& /*outputTensorType*/ = mv::DType("Default"))
+                                                const mv::QuantizationParams& quantParams = mv::QuantizationParams::empty(),
+                                                const mv::DType& outputTensorType = mv::DType("Default"))
 {
     const auto dType = attrs.at("dType").get<mv::DType>();
-
-    return om.uPATaskConversion(name, inputs, dType);
+    if (dType != outputTensorType)
+    {
+        throw mv::RuntimeError("Inconsistent DType between Conversion layer attribute (", dType.toString() +
+            ") and Conversion layer output (" + outputTensorType.toString() + ") for " + name);
+    }
+    auto convert = om.uPATaskConversion(name, inputs, dType);
+    convert->setDType(outputTensorType);
+    convert->setQuantParams(quantParams);
+    return convert;
 }
 
 mv::Data::TensorIterator convertReluToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
@@ -805,8 +812,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             auto newTensorOp = om.getSourceOp(newTensor);
             newTensorOp->setAttrs(attrsToCopy);
+            auto newOpType = newTensorOp->getOpType();
+            auto newOpTaskType = newTensorOp->get<std::string>("taskOp");
 
-            if (newTensorOp->getOpType() == "DPUTask")
+            if (newOpType == "DPUTask")
             {
                 //NOTE: There are multiple cases of DPU Task:
                 //1)Simple U8 Input U8 Output
@@ -823,11 +832,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 if (hasLeadingOffset)
                     newTensor->set<uint64_t>("leadingOffset", leadingOffset);
             }
-            else if (newTensorOp->get<std::string>("taskOp") == "Quantize")
+            else if (newOpTaskType == "Quantize" ||
+                     newOpTaskType == "Conversion")
             {
-                //Skip case of explicitly-added om.quantize()
+                // Skip case for explicitly added Quantize operation
+                // Conversion task will have properly configured DType and no need to override
+                // it to FP16 similar as for other UPATask
             }
-            else if(newTensorOp->getOpType() == "UPATask") // UPA
+            else if(newOpType == "UPATask") // UPA
                 newTensor->setDType(mv::DType("Float16"));
 
             setOutputDataFlow(om, newTensor, outputDataFlows);
@@ -835,7 +847,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             setOutputControlFlow(cm, cm.switchContext(newTensorOp), outputControlFlows);
 
             // Handle dtype for implicit ops following a UPATask
-            if(newTensorOp->getOpType() == "UPATask")
+            if(newOpType == "UPATask")
             {
                 std::vector<mv::Data::OpListIterator> implicit_ops;
                 std::queue<mv::Data::OpListIterator> op_itr_bfs;
