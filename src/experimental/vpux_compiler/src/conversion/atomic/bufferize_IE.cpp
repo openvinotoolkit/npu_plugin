@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
+#include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/Transforms/Bufferize.h>
@@ -130,20 +131,17 @@ mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operati
     _log.trace("Add Alloc Operations for results");
     auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOutputs);
 
-    llvm::TypeSwitch<mlir::Operation*, void>(origOp)
-            .Case<IE::ConvertOp>([&](IE::ConvertOp) {
-                rewriter.create<IERT::ConvertOp>(origOp->getLoc(), newOperands[0], allocatedBufs[0]);
-            })
-            .Case<IE::SoftMaxOp>([&](IE::SoftMaxOp op) {
-                rewriter.create<IERT::SoftMaxOp>(origOp->getLoc(), newOperands[0], allocatedBufs[0], op.axisIndAttr());
-            })
-            .Default([](mlir::Operation* op) {
-                VPUX_THROW("Got unsupported layer Operation '{0}'", op->getName());
-            });
+    const auto newOpName =
+            llvm::formatv("{0}.{1}", IERT::IERTDialect::getDialectNamespace(), origOp->getName().stripDialect()).str();
+    _log.trace("Create IERT analogue : '{0}'", newOpName);
 
+    mlir::OperationState newOpDef(origOp->getLoc(), newOpName);
+    newOpDef.addOperands(newOperands);
+    newOpDef.addOperands(allocatedBufs);
+    newOpDef.addAttributes(origOp->getAttrs());
+
+    rewriter.createOperation(newOpDef);
     rewriter.replaceOp(origOp, allocatedBufs);
-
-    _log.trace("Replaced with IERT analogue");
 
     return mlir::success();
 }
