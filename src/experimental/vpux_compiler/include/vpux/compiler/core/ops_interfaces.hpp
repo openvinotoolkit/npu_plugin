@@ -31,7 +31,23 @@
 namespace vpux {
 
 //
-// Interface verifiers
+// SingleInputAndResultLayer
+//
+
+template <typename ConcreteOp>
+class SingleInputAndResultLayer : public mlir::OpTrait::TraitBase<ConcreteOp, SingleInputAndResultLayer> {
+public:
+    vpux::SmallVector<mlir::Value, 4> getInputs() {
+        return {mlir::cast<ConcreteOp>(this->getOperation()).input()};
+    }
+
+    vpux::SmallVector<mlir::Value, 1> getOutputs() {
+        return {mlir::cast<ConcreteOp>(this->getOperation()).output()};
+    }
+};
+
+//
+// Layer verifiers
 //
 
 mlir::LogicalResult verifyLayer(mlir::Operation* op);

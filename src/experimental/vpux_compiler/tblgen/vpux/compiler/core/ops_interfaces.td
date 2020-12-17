@@ -52,6 +52,14 @@ def LayerInterface : OpInterface<"LayerInterface"> {
 }
 
 //
+// SingleInputAndResultLayer
+//
+
+def SingleInputAndResultLayer : NativeOpTrait<"SingleInputAndResultLayer"> {
+    let cppNamespace = "vpux";
+}
+
+//
 // ConvertLayerInterface
 //
 
@@ -96,16 +104,6 @@ def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
 
     let verify = [{
         return vpux::verifyConvertLayer($_op);
-    }];
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value, 4> getInputs() {
-            return { $_op.input() };
-        }
-
-        vpux::SmallVector<mlir::Value, 1> getOutputs() {
-            return { $_op.output() };
-        }
     }];
 }
 
@@ -170,16 +168,6 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
 
     let verify = [{
         return vpux::verifySoftMaxLayer($_op);
-    }];
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value, 4> getInputs() {
-            return { $_op.input() };
-        }
-
-        vpux::SmallVector<mlir::Value, 1> getOutputs() {
-            return { $_op.output() };
-        }
     }];
 }
 

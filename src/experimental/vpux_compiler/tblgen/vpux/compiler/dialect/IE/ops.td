@@ -175,6 +175,7 @@ def IE_ConvertOp :
         IE_LayerOp<
             "Convert",
             [
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ConvertLayerInterface>
             ]
@@ -209,6 +210,7 @@ def IE_SoftMaxOp :
             [
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>
             ]
@@ -265,7 +267,9 @@ def IE_ReLUOp :
             "ReLU",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine ReLU layer";
@@ -437,6 +441,8 @@ def IE_AvgPoolOp :
             "AvgPool",
             [
                 ResultsAreFloatLike,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine AvgPool layer";
@@ -469,6 +475,8 @@ def IE_MaxPoolOp :
             "MaxPool",
             [
                 ResultsAreFloatLike,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine MaxPool layer";
@@ -526,7 +534,9 @@ def IE_ClampOp :
             "Clamp",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Clamp layer";
@@ -556,7 +566,9 @@ def IE_EluOp :
             "Elu",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Elu layer";
@@ -635,7 +647,9 @@ def IE_SigmoidOp :
             "Sigmoid",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Sigmoid layer";

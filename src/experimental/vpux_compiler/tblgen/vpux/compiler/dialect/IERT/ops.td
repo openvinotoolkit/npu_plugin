@@ -242,6 +242,7 @@ def IERT_ConvertOp :
             "Convert",
             [
                 SameOperandsShape,
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<ConvertLayerInterface>
             ]
         > {
@@ -263,6 +264,7 @@ def IERT_SoftMaxOp :
             [
                 SameOperandsShape,
                 SameOperandsElementType,
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>
             ]
         > {

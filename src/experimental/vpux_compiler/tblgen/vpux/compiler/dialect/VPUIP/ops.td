@@ -365,6 +365,7 @@ def VPUIP_SoftMaxUPAOp :
         VPUIP_TaskOp<
             "SoftMaxUPA",
             [
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
