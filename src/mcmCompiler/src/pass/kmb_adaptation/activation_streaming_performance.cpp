@@ -540,8 +540,6 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
 
     size_t proposedStreams = std::min(magicStreams, maxStreams); //will be in range [originalHStream, maxStream]
 
-    std::cout << "  proposed stream is h=" << proposedStreams << std::endl;
-
     // Step 3. Find valid stream starting from proposedStreams and decreasing towards originalHStreams
     // Ensures lines are divided in such a way that it still fits in CMX, no workload issues etc
     auto optStream = findOptimalValidStream(model, opIt, proposedStreams);
@@ -610,12 +608,10 @@ void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationM
         // Step 0. Decide if we can insert activation streaming for this op
         if(isStreamOptimizable(model, opIt, streams))
         {
-            std::cout << "stream for " << nodeName << " is optimizable "<< std::endl;
             size_t originalHStream = streams[1].get<int>("H");
             
             // Step 1. Choose optimal stream over H number for this op
             auto newHstream = findOptimalStream(model, opIt, originalHStream);
-            std::cout << "  old stream was h=" << originalHStream << " and new stream is h=" << newHstream << std::endl;
             // Step 2. Create the new streaming strategy and add to vector
             if(newHstream != originalHStream)
             {

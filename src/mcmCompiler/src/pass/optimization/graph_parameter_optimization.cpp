@@ -1855,8 +1855,7 @@ namespace mv
                 if(parentOpType == "Input" && isChildChanMajor && willAlwaysSpill(childOp) &&
                     !(childClustering == "Clustering" || childClustering == "SplitOverK"))
                 {
-                    std::cout << "Got here!" << std::endl;
-                    pFullDma = pFullDma * 10;
+                    cFullDma = cFullDma * 10;
                 }
 
                 double heuristics = sparsityCost - finalLayerStreamingBoost;
