@@ -3262,8 +3262,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationMo
         softLayerParamsValue->scale = input->getQuantParams().getScale()[0];
         softLayerParamsValue->bias  = -input->getQuantParams().getZeroPoint()[0] / input->getQuantParams().getScale()[0];
     }
-    else if ((output->getDType() == mv::DType("Float16") || output->getDType() == mv::DType("Float32")) &&
-              input->getDType() == mv::DType("UInt8"))
+    else if ((input->getDType() == mv::DType("Float16") || input->getDType() == mv::DType("Float32")) &&
+              output->getDType() == mv::DType("UInt8"))
     {
         softLayerParamsValue->scale = 1.0 / input->getQuantParams().getScale()[0];
         softLayerParamsValue->bias  = input->getQuantParams().getZeroPoint()[0];
