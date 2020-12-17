@@ -79,6 +79,7 @@ private:
 
 private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Constant>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convert>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Softmax>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Tile>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Relu>& origNode);
@@ -146,6 +147,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
 
             MAP_ENTRY(ngraph::opset1::Constant),
+            MAP_ENTRY(ngraph::opset1::Convert),
             MAP_ENTRY(ngraph::opset1::Softmax),
             MAP_ENTRY(ngraph::opset1::Tile),
             MAP_ENTRY(ngraph::opset1::Split),
@@ -277,6 +279,18 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto* op = dialect->materializeConstant(builder, value, tensorType, createLocation(origNode));
     addOutputs(origNode, op->getResults());
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convert>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Convert node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto dstType = importElemType(origNode->get_destination_type());
+    const auto dstTypeAttr = mlir::TypeAttr::get(dstType);
+
+    auto op = builder.create<IE::ConvertOp>(createLocation(origNode), inputs[0], dstTypeAttr);
+    addOutputs(origNode, {op.getResult()});
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Softmax>& origNode) {
