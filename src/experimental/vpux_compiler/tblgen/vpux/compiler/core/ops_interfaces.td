@@ -171,4 +171,49 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
     }];
 }
 
+//
+// ConvolutionLayerInterface
+//
+
+def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
+    let description = "Interface for Convolution Layer";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "mlir::Value", "input", (ins),
+            [{
+                return $_op.input();
+            }]
+        >,
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "mlir::Value", "filter", (ins),
+            [{
+                return $_op.filter();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get destination Value for the Operation",
+            "mlir::Value", "output", (ins),
+            [{
+                return $_op.output();
+            }]
+        >,
+    ];
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value, 4> getInputs() {
+            return {$_op.input(), $_op.filter()};
+        }
+
+        vpux::SmallVector<mlir::Value, 1> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
+}
+
 #endif

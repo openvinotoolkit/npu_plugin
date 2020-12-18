@@ -409,6 +409,8 @@ def IE_ConvolutionOp :
             "Convolution",
             [
                 ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Convolution layer";

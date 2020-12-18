@@ -469,4 +469,57 @@ def VPUIP_PoolingUPAOp :
     }];
 }
 
+//
+// ConvolutionUPAOp
+//
+
+def VPUIP_ConvolutionUPAOp :
+        VPUIP_TaskOp<
+            "ConvolutionUPA",
+            [
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "Convolution UPA SHAVE kernel (reference implementation)";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$filter,
+        Optional<F16MemRef>:$bias,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$dilations,
+        I32ArrayAttr:$padsBegin,
+        I32ArrayAttr:$padsEnd,
+        I32Attr:$group,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$filter, "mlir::Value":$output,
+                "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$dilations,
+                "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $filter `:` type($filter) (`,` $bias^ `:` type($bias))? `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
 #endif

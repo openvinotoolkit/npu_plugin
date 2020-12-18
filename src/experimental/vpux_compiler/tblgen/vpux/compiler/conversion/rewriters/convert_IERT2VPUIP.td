@@ -130,4 +130,20 @@ def RewriteMaxPool :
             (createPoolingUPAOp<"MAX"> $input, $output, $kernel_size, $strides, $pads_begin, $pads_end)
         >;
 
+//
+// IERT.Convolution -> VPUIP.ConvolutionUPA
+//
+
+def createConvolutionUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ConvolutionUPAOp>(
+                $_loc, $0, $1, $2, $3, $4, $5, $6)
+        }]>;
+
+def RewriteConvolution :
+        Pat<
+            (IERT_ConvolutionOp $input, $filter, $output, $strides, $pads_begin, $pads_end, $dilations),
+            (createConvolutionUPAOp $input, $filter, $output, $strides, $dilations, $pads_begin, $pads_end)
+        >;
+
 #endif

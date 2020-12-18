@@ -330,4 +330,30 @@ def IERT_MaxPoolOp :
     );
 }
 
+//
+// ConvolutionOp
+//
+
+def IERT_ConvolutionOp :
+        IERT_LayerOp<
+            "Convolution",
+            [
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Convolution layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$filter,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        I32ArrayAttr:$dilations
+    );
+}
+
 #endif
