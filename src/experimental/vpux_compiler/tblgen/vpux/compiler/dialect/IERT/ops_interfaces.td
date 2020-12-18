@@ -14,12 +14,17 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/dialect/IERT/ops.hpp"
+#ifndef VPUX_COMPILER_DIALECT_IERT_OPS_INTERFACES
+#define VPUX_COMPILER_DIALECT_IERT_OPS_INTERFACES
 
-using namespace vpux;
+include "mlir/IR/OpBase.td"
 
-void vpux::IERT::SoftMaxOp::getEffects(
-        SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), input());
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), output());
+//
+// RunTimeLayer
+//
+
+def IERT_RunTimeLayer : NativeOpTrait<"RunTimeLayer"> {
+    let cppNamespace = "vpux::IERT";
 }
+
+#endif

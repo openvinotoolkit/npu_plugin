@@ -19,6 +19,7 @@
 
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
+include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -40,7 +41,8 @@ class IERT_LayerOp<string mnemonic, list<OpTrait> traits = []> :
             !listconcat(
                 traits,
                 [
-                    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+                    IERT_RunTimeLayer,
+                    MemoryEffectsOpInterface,
                     DeclareOpInterfaceMethods<LayerInterface>
                 ]
             )

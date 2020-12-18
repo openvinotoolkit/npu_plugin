@@ -14,12 +14,32 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/dialect/IERT/ops.hpp"
+#pragma once
 
-using namespace vpux;
+#include "vpux/utils/core/small_vector.hpp"
 
-void vpux::IERT::ConvertOp::getEffects(
-        SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), input());
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), output());
-}
+#include <mlir/IR/OpDefinition.h>
+#include <mlir/IR/Operation.h>
+#include <mlir/Interfaces/SideEffectInterfaces.h>
+
+namespace vpux {
+namespace IERT {
+
+//
+// RunTimeLayer
+//
+
+using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
+
+void getLayerEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
+
+template <typename ConcreteOp>
+class RunTimeLayer : public mlir::OpTrait::TraitBase<ConcreteOp, RunTimeLayer> {
+public:
+    void getEffects(SmallVectorImpl<MemoryEffect>& effects) {
+        getLayerEffects(this->getOperation(), effects);
+    }
+};
+
+}  // namespace IERT
+}  // namespace vpux
