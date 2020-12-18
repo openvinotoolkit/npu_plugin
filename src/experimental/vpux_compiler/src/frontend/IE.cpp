@@ -41,6 +41,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/shape.hpp>
 #include <ngraph/type/element_type.hpp>
 
@@ -102,6 +103,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MatMul>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Tanh>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Exp>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::HSwish>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -167,6 +169,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset1::MatMul),
             MAP_ENTRY(ngraph::opset1::Tanh),
             MAP_ENTRY(ngraph::opset1::Exp),
+            MAP_ENTRY(ngraph::opset4::HSwish),
     };
 #undef MAP_ENTRY
 
@@ -572,6 +575,15 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto alphaAttr = getFP64Attr(_ctx, checked_cast<double>(alpha));
 
     auto op = builder.create<IE::EluOp>(createLocation(origNode), inputs[0], alphaAttr);
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::HSwish>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph HSwish node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::HSwishOp>(createLocation(origNode), inputs[0]);
     addOutputs(origNode, {op.getResult()});
 }
 

@@ -872,4 +872,31 @@ def IE_ExpOp :
     }];
 }
 
+//
+// HSwishOp
+//
+
+def IE_HSwishOp :
+        IE_LayerOp<
+            "HSwish",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType
+            ]
+        > {
+    let summary = "InferenceEngine HSwish layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
