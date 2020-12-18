@@ -102,4 +102,32 @@ def RewriteSoftMax :
             (createSoftMaxUPAOp $input, $output, $axisInd)
         >;
 
+//
+// IERT.[Max|Avg]Pool -> VPUIP.PoolingUPA
+//
+
+class createPoolingUPAOp<string method> :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PoolingUPAOp>(
+                $_loc, $0, $1,
+                vpux::VPUIP::PoolLayerTypeAttr::get(
+                    vpux::VPUIP::PoolLayerType::}] # method # [{,
+                    $_builder.getContext()
+                ),
+                $2, $3, $4, $5,
+                nullptr)
+        }]>;
+
+def RewriteAvgPool :
+        Pat<
+            (IERT_AvgPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
+            (createPoolingUPAOp<"AVG"> $input, $output, $kernel_size, $strides, $pads_begin, $pads_end)
+        >;
+
+def RewriteMaxPool :
+        Pat<
+            (IERT_MaxPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
+            (createPoolingUPAOp<"MAX"> $input, $output, $kernel_size, $strides, $pads_begin, $pads_end)
+        >;
+
 #endif
