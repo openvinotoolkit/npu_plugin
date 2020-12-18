@@ -23,6 +23,14 @@
 
 using namespace vpux;
 
+void vpux::VPUIP::PoolingUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                      mlir::Value output, VPUIP::PoolLayerTypeAttr type, mlir::ArrayAttr kernel,
+                                      mlir::ArrayAttr strides, mlir::ArrayAttr padsBegin, mlir::ArrayAttr padsEnd,
+                                      mlir::UnitAttr excludePad) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, type, kernel, strides, padsBegin,
+          padsEnd, excludePad, nullptr, nullptr);
+}
+
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto kernel = VPUIP::BlobWriter::createOrder3(this->kernel());
     const auto strides = VPUIP::BlobWriter::createOrder3(this->strides());

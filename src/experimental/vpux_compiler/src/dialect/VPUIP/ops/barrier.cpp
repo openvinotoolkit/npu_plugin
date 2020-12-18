@@ -20,6 +20,22 @@
 
 using namespace vpux;
 
+//
+// DeclareBarrierOp
+//
+
+void vpux::VPUIP::DeclareBarrierOp::build(mlir::OpBuilder& builder, mlir::OperationState& state) {
+    build(builder, state, vpux::VPUIP::BarrierType::get(builder.getContext()));
+}
+
+//
+// ConfigureBarrierOp
+//
+
+void vpux::VPUIP::ConfigureBarrierOp::build(mlir::OpBuilder& builder, mlir::OperationState& state) {
+    build(builder, state, vpux::VPUIP::BarrierType::get(builder.getContext()), mlir::ValueRange{}, mlir::ValueRange{});
+}
+
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConfigureBarrierOp::serialize(VPUIP::BlobWriter& writer) {
     const auto barrier = writer.createBarrier(this->barrier());
 

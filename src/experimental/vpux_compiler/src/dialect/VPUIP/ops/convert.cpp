@@ -22,6 +22,12 @@
 
 using namespace vpux;
 
+void vpux::VPUIP::ConvertUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                      mlir::Value output) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr, false, false,
+          nullptr, nullptr, false);
+}
+
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvertUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto scale = scaleAttr() ? scaleAttr().getValueAsDouble() : 1.0;
     const auto bias = biasAttr() ? biasAttr().getValueAsDouble() : 0.0;

@@ -112,18 +112,7 @@ def VPUIP_DeclareTensorOp :
 
     let builders = [
         OpBuilderDAG<
-            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint64_t":$dataIndex),
-            [{
-                build($_builder, $_state, memory, locale,
-                      nullptr, // localeIndex
-                      dataIndex,
-                      nullptr, // sparsityIndex
-                      nullptr, // storageElementIndex
-                      nullptr, // storageElementSize
-                      nullptr, // leadingOffset
-                      nullptr  // trailingOffset
-                );
-            }]
+            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint64_t":$dataIndex)
         >
     ];
 
@@ -172,10 +161,7 @@ def VPUIP_DeclareConstantTensorOp :
 
     let builders = [
         OpBuilderDAG<
-            (ins "mlir::MemRefType":$type, "mlir::DenseElementsAttr":$content),
-            [{
-                build($_builder, $_state, type, content, nullptr);
-            }]
+            (ins "mlir::MemRefType":$type, "mlir::DenseElementsAttr":$content)
         >
     ];
 
@@ -208,12 +194,7 @@ def VPUIP_DeclareBarrierOp :
     );
 
     let builders = [
-        OpBuilderDAG<
-            (ins),
-            [{
-                build($_builder, $_state, vpux::VPUIP::BarrierType::get($_builder.getContext()));
-            }]
-        >
+        OpBuilderDAG<(ins)>
     ];
 
     let assemblyFormat = [{
@@ -241,14 +222,7 @@ def VPUIP_ConfigureBarrierOp :
     );
 
     let builders = [
-        OpBuilderDAG<
-            (ins),
-            [{
-                build($_builder, $_state,
-                      vpux::VPUIP::BarrierType::get($_builder.getContext()),
-                      mlir::ValueRange {}, mlir::ValueRange {});
-            }]
-        >
+        OpBuilderDAG<(ins)>
     ];
 
     let extraClassDeclaration = [{
@@ -285,12 +259,7 @@ def VPUIP_UPADMAOp :
 
     let builders = [
         OpBuilderDAG<
-            (ins "mlir::Value":$src, "mlir::Value":$dst),
-            [{
-                build($_builder, $_state,
-                      src, dst,
-                      mlir::ValueRange {}, mlir::ValueRange {});
-            }]
+            (ins "mlir::Value":$src, "mlir::Value":$dst)
         >
     ];
 
@@ -332,13 +301,7 @@ def VPUIP_NNDMAOp :
 
     let builders = [
         OpBuilderDAG<
-            (ins "mlir::Value":$src, "mlir::Value":$dst),
-            [{
-                build($_builder, $_state,
-                      src, dst,
-                      mlir::ValueRange {}, mlir::ValueRange {},
-                      false);
-            }]
+            (ins "mlir::Value":$src, "mlir::Value":$dst)
         >
     ];
 
@@ -392,16 +355,7 @@ def VPUIP_ConvertUPAOp :
 
     let builders = [
         OpBuilderDAG<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output
-            ),
-            [{
-                build($_builder, $_state,
-                      input, output,
-                      mlir::ValueRange {}, mlir::ValueRange {},
-                      nullptr, nullptr, false, false, nullptr,
-                      nullptr, false);
-            }]
+            (ins "mlir::Value":$input, "mlir::Value":$output)
         >
     ];
 
@@ -448,14 +402,7 @@ def VPUIP_SoftMaxUPAOp :
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "mlir::IntegerAttr":$axisInd
-            ),
-            [{
-                build($_builder, $_state,
-                      input, output,
-                      mlir::ValueRange {}, mlir::ValueRange {},
-                      axisInd,
-                      nullptr, nullptr);
-            }]
+            )
         >
     ];
 
@@ -509,17 +456,7 @@ def VPUIP_PoolingUPAOp :
                 "mlir::ArrayAttr":$kernel, "mlir::ArrayAttr":$strides,
                 "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd,
                 "mlir::UnitAttr":$excludePad
-            ),
-            [{
-                build($_builder, $_state,
-                      input, output,
-                      mlir::ValueRange {}, mlir::ValueRange {},
-                      type,
-                      kernel, strides,
-                      padsBegin, padsEnd,
-                      excludePad,
-                      nullptr, nullptr);
-            }]
+            )
         >
     ];
 
