@@ -279,9 +279,9 @@ bool validateHStream(mv::Data::OpListIterator opIt, std::string clustering, std:
     return true;
 }
 
-std::tuple<size_t,size_t,size_t> memorySize(mv::ComputationModel& model, mv::Data::OpListIterator opIt, size_t hStream)
-{
-    auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
+std::tuple<size_t, size_t, size_t> memorySizeOriginal(mv::ComputationModel& model,mv::Data::OpListIterator opIt, const mv::Attribute& clustering, bool weightsSparsity,
+                                              const mv::Shape& streamConfig) {
+   auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
     mv::OpModel om(model);
     size_t inputSize = 0;
     size_t outputSize = 0;
@@ -307,13 +307,13 @@ std::tuple<size_t,size_t,size_t> memorySize(mv::ComputationModel& model, mv::Dat
         isCMConv = true;
 
     // Note: when an operation is streaming activations, but it's parent didn't spill, the input won't be streamed
-    size_t inputTempStreamConfig = hStream;
+    size_t inputTempStreamConfig = streamConfig["H"];
     if(!parentSpilling)
         inputTempStreamConfig = 1;
     inputSize = activationTensorSize(opIt,clusterStrategy,inputTempStreamConfig, isCMConv, true, totalClusters);
 
     //Note: when streaming operations are not spilled, full output (not streamed size) must be counted
-    size_t outputTempStreamConfig = hStream;
+    size_t outputTempStreamConfig = streamConfig["H"];
     if (!spilling)
         outputTempStreamConfig = 1;
     outputSize = activationTensorSize(opIt,clusterStrategy,outputTempStreamConfig, isCMConv, false, totalClusters);
@@ -403,7 +403,7 @@ std::tuple<size_t,size_t,size_t> memorySize(mv::ComputationModel& model, mv::Dat
         //Only ZM Conv and Elwise are sparse consumers, both need
         //input channels mult of 16
         auto tensorSize = opIt->getInputTensor(0)->computeTotalSize(16, false, false, true);
-        size_t streamDivisor = hStream;
+        size_t streamDivisor = streamConfig["H"];
         //Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
         auto sparseInputSize = std::ceil((double)tensorSize /
             (8 * opIt->getInputTensor(0)->getDType().getSizeInBytes()));
@@ -419,7 +419,7 @@ std::tuple<size_t,size_t,size_t> memorySize(mv::ComputationModel& model, mv::Dat
         //Alignment due to output channels mult of 16 requirement
         //Only ZM Conv and Elwise are sparse consumers
         auto tensorSize = opIt->getOutputTensor(0)->computeTotalSize(16, false, false, true);
-        size_t streamDivisor = hStream;
+        size_t streamDivisor = streamConfig["H"];
         //Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
         auto sparseOutputSize = std::ceil((double)tensorSize /
             (8 * opIt->getOutputTensor(0)->getDType().getSizeInBytes()));
@@ -449,6 +449,176 @@ std::tuple<size_t,size_t,size_t> memorySize(mv::ComputationModel& model, mv::Dat
     return std::tuple<std::size_t,std::size_t,std::size_t>(inputSize, outputSize,weightSize);
 }
 
+// std::tuple<size_t,size_t,size_t> memorySize(mv::ComputationModel& model, mv::Data::OpListIterator opIt, size_t hStream)
+// {
+//     auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
+//     mv::OpModel om(model);
+//     size_t inputSize = 0;
+//     size_t outputSize = 0;
+//     size_t weightSize = 0;
+//     size_t weightTableSize = 0;
+
+//     auto opType = opIt->getOpType();
+//     auto isCMConv = false;
+//     auto clusterStrategy = opIt->get<std::string>("splitStrategy");
+//     bool spilling = opIt->get<bool>("goPredictsSpill");
+    
+//     auto prevOp = om.getSourceOp(opIt->getInputTensor(0));
+//     bool parentSpilling = prevOp->get<bool>("goPredictsSpill");
+//     auto inputSparse = opIt->get<bool>("inputActivationSparsity");
+//     auto outputSparse = opIt->get<bool>("outputActivationSparsity");
+//     auto weightsSparse = opIt->get<bool>("weightsSparsity");
+
+//     auto globalParams = model.getGlobalConfigParams();
+//     bool enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
+//     size_t totalClusters = globalParams->get<int>("Number_of_Clusters");
+
+//     if(enableChannelMajorConv && opIt->supportsCMConv())
+//         isCMConv = true;
+
+//     // Note: when an operation is streaming activations, but it's parent didn't spill, the input won't be streamed
+//     size_t inputTempStreamConfig = hStream;
+//     if(!parentSpilling)
+//         inputTempStreamConfig = 1;
+//     inputSize = activationTensorSize(opIt,clusterStrategy,inputTempStreamConfig, isCMConv, true, totalClusters);
+
+//     //Note: when streaming operations are not spilled, full output (not streamed size) must be counted
+//     size_t outputTempStreamConfig = hStream;
+//     if (!spilling)
+//         outputTempStreamConfig = 1;
+//     outputSize = activationTensorSize(opIt,clusterStrategy,outputTempStreamConfig, isCMConv, false, totalClusters);
+
+//     size_t outChannels = opIt->outputSlots() ? opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] : 0;
+//     size_t alignedFullChannels = mv::round_up(outChannels, 16);
+//     size_t alignedSplittedChannels = alignedFullChannels;
+//     if(clusterStrategy == "SplitOverK") {
+//         alignedSplittedChannels =  mv::round_up(alignedSplittedChannels/totalClusters, 16);
+//     }
+
+//     if(opType == "Conv" || opType == "DepthwiseConv")
+//     {
+//         mv::Shape weightStreamConfig = {1,1,1,1,1};
+//         weightTableSize = 16 * alignedSplittedChannels;
+//         if (opType == "Conv")
+//         {
+//             weightSize += alignedWeightsSize(opIt->getInputTensor(1), {1, 1, 1, 1, 1}, clusterStrategy);
+//         }
+//         else
+//         {
+//             weightSize += opIt->getInputTensor(1)->computeTotalSize(16, false, false, true);
+//             if(clusterStrategy == "SplitOverK")
+//                 weightSize = div(weightSize,totalClusters);
+//         }
+
+//     }
+//     else if(opType == "MaxPool")
+//     {
+//         weightTableSize = 16 * alignedSplittedChannels;
+//         weightSize = 0;
+//     }
+
+//     // Fake Sparsity
+//     if(opType == "MaxPool" || opType == "DepthwiseConv" || isCMConv)
+//     {
+//         uint16_t kernelW, kernelH;
+
+
+//         auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
+
+//         if (opIt->hasAttr("kSize"))
+//         {
+//             auto kernelShape = opIt->get<std::array<unsigned short, 2>>("kSize");
+//             kernelW = kernelShape[0];
+//             kernelH = kernelShape[1];
+//         }
+//         else
+//         {
+//             auto weightsShape = opIt->getInputTensor(1)->getShape();
+//             kernelW = weightsShape[mv::KERNEL_WIDTH];
+//             kernelH = weightsShape[mv::KERNEL_HEIGHT];
+//         }
+
+//         mv::DType dataType = opIt->getInputTensor(0)->getDType();
+//         if (opType != "MaxPool")
+//             dataType = opIt->getInputTensor(1)->getDType();
+
+//         auto windowsSize = getWindowSize(kernelW, strides[0], dataType);
+//         size_t fakeSparsitySize = 0;
+//         if ((opType == "MaxPool") || (opType == "DepthwiseConv"))
+//         {
+//             //inputChannels = 1
+//             auto bitpatternSize = windowsSize*kernelH;
+//             //ndims = {16 * static_cast<std::size_t>(std::ceil(bitpatternSize / 128.0)), 1, 1, 1};
+//             fakeSparsitySize = 16 * static_cast<std::size_t>(std::ceil(bitpatternSize / 128.0));
+//         }
+//         // Channel Major Convolution doesn't need rounding of channels
+//         else if (isCMConv)//isChannelMajorConvolution
+//         {
+
+//             std::size_t outputChannels =  opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+//             outputChannels = outputChannels;///streamConfig["K"];
+//             std::size_t inputChannels = opIt->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+
+//             auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
+//             auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
+
+//             //ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
+//             fakeSparsitySize = 16*NumberOfRowsSparistyBytes*outputChannels;
+
+//         }
+//         inputSize += fakeSparsitySize;
+//     }
+//     if(inputSparse){
+//         //Alignment due to input channels mult of 16 requirement
+//         //Only ZM Conv and Elwise are sparse consumers, both need
+//         //input channels mult of 16
+//         auto tensorSize = opIt->getInputTensor(0)->computeTotalSize(16, false, false, true);
+//         size_t streamDivisor = hStream;
+//         //Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
+//         auto sparseInputSize = std::ceil((double)tensorSize /
+//             (8 * opIt->getInputTensor(0)->getDType().getSizeInBytes()));
+//         //Storage element table calculation, 4 bytes pointers
+//         //Bigger with C streaming
+//         sparseInputSize += opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] *
+//             opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] * 4;
+//         //Alignment due to bus access requirements
+//         sparseInputSize = mv::round_up(sparseInputSize, 16);
+//         inputSize += (sparseInputSize / streamDivisor);
+//     }
+//     if(outputSparse){
+//         //Alignment due to output channels mult of 16 requirement
+//         //Only ZM Conv and Elwise are sparse consumers
+//         auto tensorSize = opIt->getOutputTensor(0)->computeTotalSize(16, false, false, true);
+//         size_t streamDivisor = hStream;
+//         //Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
+//         auto sparseOutputSize = std::ceil((double)tensorSize /
+//             (8 * opIt->getOutputTensor(0)->getDType().getSizeInBytes()));
+//         //Storage element table calculation, 4 bytes pointers
+//         //Bigger with K streaming
+//         sparseOutputSize += opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] *
+//             opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] * 4;
+//         //Alignment due to bus access requirements
+//         sparseOutputSize = mv::round_up(sparseOutputSize, 16);
+//         outputSize += (sparseOutputSize / streamDivisor);
+//     }
+//     if(weightsSparse){
+//         //Alignment due to output/input channels mult of 16 requirement
+//         auto tensorSize = opIt->getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] *
+//             opIt->getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] *
+//             mv::round_up(opIt->getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS], 16) *
+//             alignedSplittedChannels;
+//         //Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
+//         auto sparseWeightSize = std::ceil((double)tensorSize / 8);
+//         //Sparse pointers taken into account in weight table ...
+//         sparseWeightSize = mv::round_up(sparseWeightSize, 16);
+//         weightSize += sparseWeightSize;
+//     }
+
+//     weightSize += weightTableSize;
+
+//     return std::tuple<std::size_t,std::size_t,std::size_t>(inputSize, outputSize,weightSize);
+// }
+
 // Gives the minimum number of streams over H to fit this layer, or if no number of streams enable streaming
 // (for example, weights don't fit) then return 0
 unsigned getMinStreamOverH(mv::ComputationModel& model, mv::Data::OpListIterator opIt)
@@ -461,7 +631,7 @@ unsigned getMinStreamOverH(mv::ComputationModel& model, mv::Data::OpListIterator
     size_t input, output, weights;
     // in case initialization in memorySize fails
     input = output = weights = 0;
-    std::tie(input, output, weights) = memorySize(model, opIt, 1);
+    std::tie(input, output, weights) = memorySizeOriginal(model, opIt, clusterStrategy, false, {1,1,1,1,1});
     auto activationsSize = input + output;
     auto weightsSize = weights;
     double availableMemory = (double) clusterMemory - (double) weightsSize;
@@ -482,7 +652,7 @@ unsigned getMinStreamOverH(mv::ComputationModel& model, mv::Data::OpListIterator
     // Start searching for min stream at naive requirement for splits to fit, rather than 1
     for(unsigned splits = ceil((double)activationsSize/availableMemory); splits <= upperBoundH; splits++)
     {
-        auto memFitCheck = memorySize(model, opIt, splits);
+        auto memFitCheck = memorySizeOriginal(model, opIt, clusterStrategy, false, {1,splits,1,1,1});
 
         if((std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
                 validateHStream(opIt, clusterStrategy, splits, totalClusters))
@@ -504,7 +674,7 @@ unsigned findOptimalValidStream(mv::ComputationModel& model, mv::Data::OpListIte
 
     for(unsigned splits = startStream; splits >= 1; splits--)
     {
-        auto memFitCheck = memorySize(model, opIt, splits);
+        auto memFitCheck = memorySizeOriginal(model, opIt, clusterStrategy, false, {1,splits,1,1,1});
         if( (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
             validateHStream(opIt, clusterStrategy, splits, totalClusters))
                 return splits;
@@ -605,7 +775,7 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
     // Step 1. Decide which tensor will be the benchmark for how many streams we should do
     size_t input, output, weights;
     input = output = weights = 0;
-    std::tie(input, output, weights) = memorySize(model, opIt, 1);
+    std::tie(input, output, weights) =memorySizeOriginal(model, opIt, clusteringStrategy, false, {1,1,1,1,1});
 
     // Step 2. Calculate a possible number of streams using experimetnally found magic number
     // Idea is, if possible, allow multiple slices to fit in CMX to maximize paths
@@ -633,69 +803,69 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
     return optStream;
 }
 
-size_t perClusterWeightsSize(mv::Op& op, const mv::Attribute& clustering, bool weightsSparsity, const mv::Shape& streamConfig) {
+// size_t perClusterWeightsSize(mv::Op& op, const mv::Attribute& clustering, bool weightsSparsity, const mv::Shape& streamConfig) {
     
-    auto div = [](unsigned x, unsigned y) -> unsigned {
-        return (x + y - 1) / y;
-    };
+//     auto div = [](unsigned x, unsigned y) -> unsigned {
+//         return (x + y - 1) / y;
+//     };
 
-    bool enableChannelMajorConv = true;
-    int totalClusters = 4;
-    size_t inputSize = 0;
-    size_t outputSize = 0;
-    size_t weightSize = 0;
-    size_t weightTableSize = 0;
-    auto opType = op.getOpType();
-    auto isCMConv = false;
-    auto clusterStrategy = clustering.get<std::string>();
-    if (enableChannelMajorConv && op.supportsCMConv()) isCMConv = true;
-    auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
+//     bool enableChannelMajorConv = true;
+//     int totalClusters = 4;
+//     size_t inputSize = 0;
+//     size_t outputSize = 0;
+//     size_t weightSize = 0;
+//     size_t weightTableSize = 0;
+//     auto opType = op.getOpType();
+//     auto isCMConv = false;
+//     auto clusterStrategy = clustering.get<std::string>();
+//     if (enableChannelMajorConv && op.supportsCMConv()) isCMConv = true;
+//     auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
 
-    size_t outChannels = op.outputSlots() ? op.getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] : 0;
-    size_t alignedFullChannels = mv::round_up(outChannels, 16);
-    size_t alignedSplittedChannels = mv::round_up(alignedFullChannels / streamConfig["K"], 16);
+//     size_t outChannels = op.outputSlots() ? op.getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] : 0;
+//     size_t alignedFullChannels = mv::round_up(outChannels, 16);
+//     size_t alignedSplittedChannels = mv::round_up(alignedFullChannels / streamConfig["K"], 16);
 
-    if (clusterStrategy == "SplitOverK") {
-        alignedSplittedChannels = mv::round_up(alignedSplittedChannels / totalClusters, 16);
-    }
+//     if (clusterStrategy == "SplitOverK") {
+//         alignedSplittedChannels = mv::round_up(alignedSplittedChannels / totalClusters, 16);
+//     }
 
-    if (opType == "Conv" || opType == "DepthwiseConv") {
-        weightTableSize = 16 * alignedSplittedChannels;
-        if (opType == "Conv") {
-            weightSize += alignedWeightsSize(op.getInputTensor(1), {1, 1, 1, streamConfig["K"], 1}, clusterStrategy);
+//     if (opType == "Conv" || opType == "DepthwiseConv") {
+//         weightTableSize = 16 * alignedSplittedChannels;
+//         if (opType == "Conv") {
+//             weightSize += alignedWeightsSize(op.getInputTensor(1), {1, 1, 1, streamConfig["K"], 1}, clusterStrategy);
 
-        } else {
-            weightSize += realTensorSize(op.getInputTensor(1), {1, 1, streamConfig["C"], 1, 1}, isCMConv);
-            if (clusterStrategy == "SplitOverK")
-                weightSize = div(weightSize, totalClusters);
-        }
+//         } else {
+//             weightSize += realTensorSize(op.getInputTensor(1), {1, 1, streamConfig["C"], 1, 1}, isCMConv);
+//             if (clusterStrategy == "SplitOverK")
+//                 weightSize = div(weightSize, totalClusters);
+//         }
 
-    } else if (opType == "MaxPool") {
-        weightTableSize = 16 * alignedSplittedChannels;
-        weightSize = 0;
-    } else if (opType == "Eltwise" && !software) {
-        weightTableSize = 0;
-        weightSize = 0;
-    }
+//     } else if (opType == "MaxPool") {
+//         weightTableSize = 16 * alignedSplittedChannels;
+//         weightSize = 0;
+//     } else if (opType == "Eltwise" && !software) {
+//         weightTableSize = 0;
+//         weightSize = 0;
+//     }
 
-    if (weightsSparsity) {
-        // Alignment due to output/input channels mult of 16 requirement
-        auto tensorSize = op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] *
-                          op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] *
-                          mv::round_up(op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS], 16) *
-                          alignedSplittedChannels;
+//     if (weightsSparsity) {
+//         // Alignment due to output/input channels mult of 16 requirement
+//         auto tensorSize = op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] *
+//                           op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] *
+//                           mv::round_up(op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS], 16) *
+//                           alignedSplittedChannels;
 
-        // Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
-        auto sparseWeightSize = std::ceil((double)tensorSize / 8);
-        // Sparse pointers taken into account in weight table ...
-        sparseWeightSize = mv::round_up(sparseWeightSize, 16);
-        weightSize += sparseWeightSize;
-    }
+//         // Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
+//         auto sparseWeightSize = std::ceil((double)tensorSize / 8);
+//         // Sparse pointers taken into account in weight table ...
+//         sparseWeightSize = mv::round_up(sparseWeightSize, 16);
+//         weightSize += sparseWeightSize;
+//     }
 
-    weightSize += weightTableSize;
+//     weightSize += weightTableSize;
 
-    return weightSize;
-}
+//     return weightSize;
+// }
 
 void assignNewSrategies(mv::ComputationModel& model, std::vector<mv::Element>& newStrategies,
                         std::shared_ptr<mv::Element> globalParams, size_t optimalNumberOfKStreams = 0) {
@@ -876,15 +1046,14 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
                             weightsPerCluster = 0;
                             mv::Data::OpListIterator oitr = om.getOp(op->getName());
 
-                            weightsPerCluster =
-                                    perClusterWeightsSize(*oitr, clustering,
-                                               weightsSparsity,
-                                               {1, (unsigned int)streaming_strategy[1].get<int>("H"),
-                                                (unsigned int)streaming_strategy[2].get<int>("C"),
-                                                (unsigned int)streaming_strategy[3].get<int>("K"),
-                                                (unsigned int)streaming_strategy[4].get<int>("N")}
-                                              );
-                            
+                            std::size_t input, output = 0;
+                            std::tie(input, output, weightsPerCluster) =
+                                    memorySizeOriginal(model,oitr, clustering, weightsSparsity,
+                                                       {1, (unsigned int)streaming_strategy[1].get<int>("H"),
+                                                        (unsigned int)streaming_strategy[2].get<int>("C"),
+                                                        (unsigned int)streaming_strategy[3].get<int>("K"),
+                                                        (unsigned int)streaming_strategy[4].get<int>("N")});
+
                             streamsSizes.push_back(weightsPerCluster);
                             
                             weightsPerClusterPerOp.insert({opIt->getName(),weightsPerCluster});
