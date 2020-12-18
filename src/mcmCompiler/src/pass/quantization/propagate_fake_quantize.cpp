@@ -526,12 +526,19 @@ mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpL
     if (bias_dtype == getDType(mv::Precision::FP32)) {
         auto bias_data = biasOp->getInputTensor(1)->getDoubleData();
 
+        bool needs_conversion = false;
+
         for (size_t i = 0; i < bias_data.size(); ++i) {
             auto activation_scale = input_quant_params.getScale(i);
             auto weights_scale = weights_params.getScale(i);
 
             auto bias_scale = activation_scale * weights_scale;
             newBiasData[i] = std::round(bias_data[i] / bias_scale);
+
+            if (newBiasData[i] > std::numeric_limits<int32_t>::max() ||
+                newBiasData[i] < std::numeric_limits<int32_t>::min()) {
+                needs_conversion = true;
+            }
         }
 
         auto original_tensor = biasOp->getInputTensor(1);
@@ -550,6 +557,13 @@ mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpL
         quantize_bias_tensor->setQuantParams(input_quant_params);
 
         auto parent_op = mv::linkNewOperationsReplacement(om.getSourceOp(biasOp->getInputTensor(0)), quantize_bias_tensor, om, biasOp);
+
+        if (needs_conversion) {
+            if (isQuantizableOp(parent_op)) {
+                parent_op->set<bool>("placeConversionToFloat", true);
+            }
+        }
+
         return findSinkLayers(dm, parent_op->getOutputTensor(0)).at(0);
     } else if (bias_dtype == getDType(mv::Precision::I32)) {
         // Do nothing
