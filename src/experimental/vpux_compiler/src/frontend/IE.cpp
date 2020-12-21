@@ -101,6 +101,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::FakeQuantize>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MatMul>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Tanh>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Exp>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -165,6 +166,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset1::FakeQuantize),
             MAP_ENTRY(ngraph::opset1::MatMul),
             MAP_ENTRY(ngraph::opset1::Tanh),
+            MAP_ENTRY(ngraph::opset1::Exp),
     };
 #undef MAP_ENTRY
 
@@ -561,17 +563,6 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     addOutputs(origNode, {op.getResult()});
 }
 
-SmallVector<mlir::Value, 4> NGraphImporter::getInputs(const OrigNodePtr& node) {
-    SmallVector<mlir::Value, 4> out;
-    out.reserve(node->get_input_size());
-
-    for (const auto& input : node->inputs()) {
-        out.push_back(_importedVals.at(input.get_source_output()));
-    }
-
-    return out;
-}
-
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Elu>& origNode) {
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Elu node '{0}' has unsupported number of inputs '{1}'",
@@ -603,6 +594,26 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
     auto op = builder.create<IE::FakeQuantizeOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3],
                                                  inputs[4], levelsAttr, importBroadcastType(autob.m_type, builder));
     addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Exp>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Exp node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::ExpOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, {op.getResult()});
+}
+
+SmallVector<mlir::Value, 4> NGraphImporter::getInputs(const OrigNodePtr& node) {
+    SmallVector<mlir::Value, 4> out;
+    out.reserve(node->get_input_size());
+
+    for (const auto& input : node->inputs()) {
+        out.push_back(_importedVals.at(input.get_source_output()));
+    }
+
+    return out;
 }
 
 void NGraphImporter::addOutputs(const OrigNodePtr& node, mlir::ValueRange vals) {
