@@ -25,10 +25,10 @@
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Support/MlirOptMain.h>
-
-#include <iostream>
+#include <mlir/Transforms/Passes.h>
 
 #include <cstdlib>
+#include <iostream>
 
 int main(int argc, char* argv[]) {
     try {
@@ -42,6 +42,7 @@ int main(int argc, char* argv[]) {
         vpux::VPUIP::registerVPUIPPasses();
         vpux::registerConversionPasses();
         vpux::registerPipelinesPasses();
+        mlir::registerTransformsPasses();
 
         const auto res = mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, true);
 

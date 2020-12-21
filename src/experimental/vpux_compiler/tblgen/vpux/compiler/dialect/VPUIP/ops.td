@@ -506,7 +506,7 @@ def VPUIP_ConvolutionUPAOp :
     let builders = [
         OpBuilderDAG<
             (ins
-                "mlir::Value":$input, "mlir::Value":$filter, "mlir::Value":$output,
+                "mlir::Value":$input, "mlir::Value":$filter, "mlir::Value":$bias, "mlir::Value":$output,
                 "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$dilations,
                 "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd
             )

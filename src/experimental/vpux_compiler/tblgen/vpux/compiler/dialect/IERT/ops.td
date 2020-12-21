@@ -347,6 +347,7 @@ def IERT_ConvolutionOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$filter,
+        Optional<MemRefOf<[F16, F32]>>:$bias,
         MemRefOf<[F16, F32]>:$output,
 
         I32ArrayAttr:$strides,

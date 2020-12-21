@@ -387,7 +387,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     mlir::ArrayAttr attrPadsEnd = importUInt32Array(origNode->get_pads_end());
     mlir::ArrayAttr attrDilation = importUInt32Array(origNode->get_dilations());
 
-    auto op = builder.create<IE::ConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], attrStride,
+    auto op = builder.create<IE::ConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, attrStride,
                                                 attrPadsBegin, attrPadsEnd, attrDilation);
 
     addOutputs(origNode, {op.getResult()});

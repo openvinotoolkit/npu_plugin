@@ -418,6 +418,7 @@ def IE_ConvolutionOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
         RankedTensorOf<[F16, F32]>:$filter,
+        Optional<RankedTensorOf<[F16, F32]>>:$bias,
 
         I32ArrayAttr:$strides,
         I32ArrayAttr:$pads_begin,
@@ -432,6 +433,8 @@ def IE_ConvolutionOp :
     let assemblyFormat = [{
         `(` operands `)` attr-dict `:` type(operands) `->` type(results)
     }];
+
+    let hasCanonicalizer = 1;
 }
 
 //

@@ -16,8 +16,12 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/core/attributes/shape.hpp"
+
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
+
+#include <mlir/IR/PatternMatch.h>
 
 #include <ngraph/coordinate.hpp>
 #include <ngraph/op/max_pool.hpp>
@@ -67,4 +71,61 @@ mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
     SmallVector<int64_t, MAX_NUM_DIMS> mlirOutputShape(__outputShape.begin(), __outputShape.end());
     inferredReturnShapes.emplace_back(mlirOutputShape, inType);
     return mlir::success();
+}
+
+namespace {
+
+class FuseConvAndBias final : public mlir::OpRewritePattern<IE::ConvolutionOp> {
+public:
+    using mlir::OpRewritePattern<IE::ConvolutionOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ConvolutionOp convOp, mlir::PatternRewriter& rewriter) const {
+    static const auto N = Dim(0);
+    static const auto C = Dim(1);
+    static const auto H = Dim(2);
+    static const auto W = Dim(3);
+
+    if (!convOp.output().hasOneUse()) {
+        return mlir::failure();
+    }
+
+    auto& use = *convOp.output().getUses().begin();
+
+    auto biasOp = mlir::dyn_cast_or_null<IE::AddOp>(use.getOwner());
+    if (biasOp == nullptr) {
+        return mlir::failure();
+    }
+    if (use.getOperandNumber() != 0) {
+        return mlir::failure();
+    }
+
+    auto convOutShape = getShape(biasOp.input1());
+    auto biasShape = getShape(biasOp.input2());
+
+    if (convOutShape.size() != 4 || biasShape.size() != 4) {
+        return mlir::failure();
+    }
+    if (biasShape[N] != 1 || biasShape[H] != 1 || biasShape[W] != 1) {
+        return mlir::failure();
+    }
+    if (biasShape[C] != convOutShape[C]) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(biasOp, convOp.input(), convOp.filter(), biasOp.input2(),
+                                                   convOp.strides(), convOp.pads_begin(), convOp.pads_end(),
+                                                   convOp.dilations());
+
+    return mlir::success();
+}
+
+}  // namespace
+
+void vpux::IE::ConvolutionOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
+                                                          mlir::MLIRContext* context) {
+    patterns.insert<FuseConvAndBias>(context);
 }

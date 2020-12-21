@@ -22,10 +22,10 @@
 using namespace vpux;
 
 void vpux::VPUIP::ConvolutionUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                          mlir::Value filter, mlir::Value output, mlir::ArrayAttr strides,
-                                          mlir::ArrayAttr dilations, mlir::ArrayAttr padsBegin,
+                                          mlir::Value filter, mlir::Value bias, mlir::Value output,
+                                          mlir::ArrayAttr strides, mlir::ArrayAttr dilations, mlir::ArrayAttr padsBegin,
                                           mlir::ArrayAttr padsEnd) {
-    build(builder, state, input, filter, nullptr, output, mlir::ValueRange{}, mlir::ValueRange{}, strides, dilations,
+    build(builder, state, input, filter, bias, output, mlir::ValueRange{}, mlir::ValueRange{}, strides, dilations,
           padsBegin, padsEnd, 1, nullptr, false);
 }
 
