@@ -1182,3 +1182,4 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/reciprocal.cpp"
 #include    "src/computation/op/def/gather.cpp"
 #include    "src/computation/op/def/hswish.cpp"
+#include    "src/computation/op/def/swish.cpp"

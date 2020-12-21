@@ -3238,6 +3238,25 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAHSwishTask(mv::ComputationModel 
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPASwishTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_SwishParams;
+    softLayerParamsValue->nested_params.AsSwishParams()->beta = opIt->get<double>("beta");
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -3359,6 +3378,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAGatherTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "HSwish")
         toReturn[0]->task.value = buildUPAHSwishTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Swish")
+        toReturn[0]->task.value = buildUPASwishTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Conversion")
         toReturn[0]->task.value = buildUPAConversionTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Relu")
