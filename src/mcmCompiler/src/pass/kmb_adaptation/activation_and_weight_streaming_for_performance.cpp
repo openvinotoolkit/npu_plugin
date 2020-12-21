@@ -325,7 +325,6 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
 
     size_t proposedStreams = std::min(magicStreams, maxStreams); //will be in range [originalHStream, maxStream]
 
-    std::cout << "  proposed stream is h=" << proposedStreams << std::endl;
 
     // Step 3. Find valid stream starting from proposedStreams and decreasing towards originalHStreams
     // Ensures lines are divided in such a way that it still fits in CMX, no workload issues etc
