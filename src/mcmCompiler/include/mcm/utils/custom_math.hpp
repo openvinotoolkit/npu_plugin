@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <utility>
 #include <vector>
+#include <random>
 #include "include/mcm/tensor/dtype/dtype.hpp"
 
 
@@ -54,6 +55,7 @@ namespace mv
     uint16_t fp32_to_fp16(float value);
     uint16_t fp32_to_fp16(double value);
     float fp16_to_fp32(uint16_t value);
+    std::vector<double> normalGenerator(double mean, double stdDev, std::size_t size);
 }
 
 #endif

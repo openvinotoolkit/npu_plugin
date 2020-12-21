@@ -25,6 +25,7 @@ namespace mv
                 "Generate workloads");
     }
 }
+struct dimensionSplits { bool split_over_h, split_over_w; };
 
 float workloadPixelCost(mv::Data::OpListIterator opIt)
 {
@@ -156,10 +157,16 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             if (opIt->getOutputTensor()[0]->getDType() == mv::DType("Float16"))
                 dpuModes = {{1,4}};
 
-            /*Depthwise cov SOH A0 workaround*/
-            if(((opIt->get<std::string>("taskOp") == "DepthwiseConv") ||
-                        (opIt->get<std::string>("taskOp") == "MaxPool")) &&
-                    (opIt->get<std::string>("splitStrategy") == "SplitOverH") && referenceDevice == "A0") {
+            /*
+            # Bug 33243: Depthwise tensor segmentation issues invalid read at split boundary
+            # Trigger conditions:
+            #   - layer padding left is odd
+            #   - layer is DW convolution
+            #   - layer is splitted over H
+            */
+            if(((opIt->get<std::string>("taskOp") == "DepthwiseConv")
+                    && (opIt->get<std::string>("splitStrategy") == "SplitOverH") 
+                    && referenceDevice == "A0" && (opIt->hasAttr("padding") && opIt->get<std::array<unsigned short, 4>>("padding")[0] & 1))) {
                 depthWiseSOHA0Workaround = true;
                 opIt->set<std::string>("Depthwise_SOH_A0_bug", "True");
             }
@@ -169,9 +176,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             auto outputDType = opIt->getOutputTensor(0)->getDType();
             bool mixedPrecisionA0B0WorkAround = false;
 
-            if((inputDType != outputDType) && outputDType != mv::DType("Int32") &&
-                opIt->isHardwarizable() &&
-                opIt->get<std::string>("taskOp") != "Eltwise")
+            if((inputDType != outputDType) && outputDType != mv::DType("Int32") && opIt->get<std::string>("taskOp") == "Conv")
                 mixedPrecisionA0B0WorkAround = true;
 
             /*For multi-clustering we work on subtensors*/
@@ -202,7 +207,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 if(nWorkloadsCompilationDescriptor)
                     nWorkloadsSplitPool.push_back(nWorkloadsCompilationDescriptor);
                 else
-                    nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(subTensor, nDPUxCluster, dpuModes, 50);
+                {
+                     bool sparsity = false;
+                    if(opIt->hasAttr("inputActivationSparsity"))
+                        sparsity = opIt->get<bool>("inputActivationSparsity");
+                    nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(subTensor, nDPUxCluster, dpuModes, 64, sparsity);
+                }
 
                 if(mixedPrecisionA0B0WorkAround)
                 {
@@ -222,6 +232,20 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     nWorkloadsSplitPool.erase(std::unique(nWorkloadsSplitPool.begin(), nWorkloadsSplitPool.end()), nWorkloadsSplitPool.end());
                     std::sort(nWorkloadsSplitPool.begin(), nWorkloadsSplitPool.end());
                 }
+
+                /*Erase duplicate workload numbers from the split pool*/
+                nWorkloadsSplitPool.erase(std::unique(nWorkloadsSplitPool.begin(), nWorkloadsSplitPool.end()), nWorkloadsSplitPool.end());
+                std::sort(nWorkloadsSplitPool.begin(), nWorkloadsSplitPool.end());
+
+                // std::cout << opIt->getName() << std::endl;
+                // for (int i = 0; i < nWorkloadsSplitPool.size(); i++) {
+                //     std::cout << nWorkloadsSplitPool.at(i) << ' ';
+                //     }
+                //     std::cout << std::endl;
+                
+                // for (std::string algorithm : algorithms)
+                //     std::cout << algorithm << ' ';
+                // std::cout << std::endl;
 
                 for(auto nWorkloads : nWorkloadsSplitPool)
                 {
@@ -259,10 +283,14 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                             /*Partition tensor into workloads with Rectangle*/
                             rectangleFail = false;
-                            bool split_over_h = true;
-                            bool split_over_w = true;
+                            dimensionSplits RectangleSplits;
+                            RectangleSplits.split_over_h = true;
+                            RectangleSplits.split_over_w = true;
                             int rectangleResult = 0;
                             bool split_symmetric = false;
+
+                            if((opIt->get<std::string>("taskOp") == "ChannelMajorConvolution"))
+                                RectangleSplits.split_over_w = false;
 
                             /*If nWorkloads specified in compilation descriptor, then force symmetric splits*/
                             if(nWorkloadsCompilationDescriptor)
@@ -272,10 +300,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                             /*If the operation is deptwise convolution, then do not split over H due to AO hardware bug*/
                             if(depthWiseSOHA0Workaround)
-                                split_over_h = false;
+                                RectangleSplits.split_over_h = false;
 
                             rectangleResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpuModes, nWorkloads,
-                                                        split_over_h, split_over_w, split_symmetric,
+                                                        RectangleSplits.split_over_h, RectangleSplits.split_over_w, split_symmetric,
                                                         mv::WorkloadSplitMode::HW, pass);
 
                             if (rectangleResult != 1)
@@ -287,9 +315,14 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                             if(!rectangleFail)
                             {
+                                dimensionSplits RectangleSplits;
+                                RectangleSplits.split_over_h = true;
+                                RectangleSplits.split_over_w = true;
+                                if((opIt->get<std::string>("taskOp") == "ChannelMajorConvolution"))
+                                    RectangleSplits.split_over_w = false;
 
                                 /*Check that workloads sum to the orignal output tensor volume*/
-                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensorShape)))
+                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensorShape, RectangleSplits.split_over_h, RectangleSplits.split_over_w)))
                                 {
                                     pass.log(mv::Logger::MessageType::Debug, "Error producing valid workloads from Rectangle heuristic, the individual workloads do not sum to the original volume or they overlap, erasing this workload instance ");
                                     workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
@@ -313,8 +346,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                             bool ztilingFail = false;
                             int ztilingResult = 0;
-
-                            ztilingResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithZsplit(dpuModes, nWorkloads, pass);
+                            bool sparsity = false;
+                            if(opIt->hasAttr("inputActivationSparsity"))
+                                sparsity = opIt->get<bool>("inputActivationSparsity");
+                           
+                            ztilingResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithZsplit(dpuModes, nWorkloads, pass, sparsity);
 
                             if (ztilingResult != 1)
                             {
@@ -326,7 +362,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             if(!ztilingFail)
                             {
 
-                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensorShape)))
+                                dimensionSplits ZSplits;
+                                ZSplits.split_over_h = false;
+                                ZSplits.split_over_w = false;
+
+                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensorShape, ZSplits.split_over_h, ZSplits.split_over_w)))
                                 {
                                     pass.log(mv::Logger::MessageType::Debug, "Error producing valid workloads from Ztiling partitions,erasing this workload instance ");
                                     workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
@@ -345,8 +385,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                 float pixelCost = workloadPixelCost(opIt);
 
+                bool sparsity = false;
+                if(opIt->hasAttr("inputActivationSparsity"))
+                    sparsity = opIt->get<bool>("inputActivationSparsity");
+
                 /*Calculate execution cycles for each valid workload for this particular subtensor*/
-                mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion, pixelCost, workloadCost);
+                mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion, pixelCost, workloadCost, sparsity);
 
                 /*Sort on number of workloads */
                 std::sort(workloadsVector.begin(), workloadsVector.end(),
@@ -468,7 +512,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     }
                 }
 
-                pass.log(mv::Logger::MessageType::Debug, "Selecting workload at index " + std::to_string(optimalWorkloadIndex) + " as the most optimal workload for subtensor number " + std::to_string(clusterNumber));
+                pass.log(mv::Logger::MessageType::Debug, "Selecting workload at index " + std::to_string(optimalWorkloadIndex) + " as the most optimal workload for subtensor number " + std::to_string(clusterNumber) + " number of workloads is " + std::to_string(workloadsVector.at(optimalWorkloadIndex).nWorkloads()));
+                std::cout << opIt->getName() << " " << opStrategy << " cluster " << std::to_string(clusterNumber) << " " <<  " number workloads " << std::to_string(workloadsVector.at(optimalWorkloadIndex).nWorkloads()) << " MPE Mode " << std::to_string(workloadsVector.at(optimalWorkloadIndex).getWorkloads()[0].MPEMode) << " algorithm " << workloadsVector.at(optimalWorkloadIndex).getWorkloads()[0].algorithm << std::endl;
+
+                if(workloadsVector.empty())
+                    throw std::runtime_error("No valid workloads could be generate for layer " + opIt->getName());
 
                 /*set the clusterID field of the most optimial workload*/
                 workloadsVector.at(optimalWorkloadIndex).populateClusterID(clusterNumber);

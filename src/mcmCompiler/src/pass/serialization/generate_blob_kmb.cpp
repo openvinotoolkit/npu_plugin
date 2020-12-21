@@ -115,6 +115,8 @@ static void DMAOrderingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
                     dpuTaskschedulingNumbers.push_back(dpuTaskschedulingNumber);
                     dpulevel = task->get<unsigned>("layerNumber");
                 }
+                if(task->getOpType() != "Output" && !task->hasAttr("schedulingNumber"))
+                    throw std::runtime_error(task->getName() + " does not have a scheduling number assigned");
                
                 auto dmaTasklayernumber = dmaOp->get<unsigned>("layerNumber");
 

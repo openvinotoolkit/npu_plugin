@@ -3,6 +3,7 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include <algorithm>
 #include <sstream>
+#include <random>
 
 mv::Workloads::~Workloads()
 {
@@ -158,23 +159,31 @@ mv::Shape mv::Workloads::getShapefromMinMax() const
  * @param Maximum number or workloads
  * @return A pool of possible splits (possible workloads)
  */
-const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor, int nDPUxCluster, mv::DPUModeList dpuModeList, int maxSplits)
+const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor, int nDPUxCluster, mv::DPUModeList dpuModeList, int maxSplits, bool sparse=false)
 {
     std::vector<int> splitPool = {1};
     std::vector<int> maxSplitsXY;
+    std::vector<int> xyTilesplits;
+    int maxXYSplits = 1;
 
     /*maxSplitsXY*/
     double xDim = tensor.getShape()[0];
     double yDim = tensor.getShape()[1];
 
     for(std::size_t i = 0; i < dpuModeList.size(); i++)
+    {
         maxSplitsXY.push_back(ceil((yDim/dpuModeList[i].H)  * ceil(xDim/dpuModeList[i].W)));
+        //std::cout << yDim << " " << dpuModeList[i].H << " " << xDim << " " <<  dpuModeList[i].W << std::endl;
+    }
 
     /*maxSplitsZ*/
     int maxSplitsZ = ceil(tensor.getShape()[2]/16);
 
+    maxSplits = std::min(maxSplits,std::max(*std::max_element(maxSplitsXY.begin(),maxSplitsXY.end()),maxSplitsZ));
+    //std::cout << "max z " << maxSplitsZ << " " << " maxsplitsXY " << maxSplitsXY[0] << " max splits " << maxSplits << std::endl;
+
     /*Z splits*/
-    if((maxSplitsZ < maxSplits) && (maxSplitsZ >1))
+    if((maxSplitsZ <= maxSplits) && (maxSplitsZ >1))
     {
         splitPool.push_back(maxSplitsZ);
         do
@@ -186,14 +195,19 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     }
 
     /*DpuMul splits*/
-    for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster)
+    for(int i = nDPUxCluster; i <= (maxSplits+nDPUxCluster - nDPUxCluster) ; i+=nDPUxCluster)
         splitPool.push_back(i);
 
     /*XY splits*/
     for(std::size_t i = 0; i < dpuModeList.size(); i++) {
         for(int j = 0; j < (int)ceil(log2(maxSplitsXY[i])); j++)
+        {
             if(((maxSplitsXY[i]%(int)std::pow(2,j)) == 0) && (maxSplitsXY[i]/(std::pow(2,j)) <= maxSplits))
-            splitPool.push_back(maxSplitsXY[i]/std::pow(2,j));
+            {
+                splitPool.push_back(maxSplitsXY[i]/std::pow(2,j));
+                xyTilesplits.push_back(maxSplitsXY[i]/std::pow(2,j));
+            }
+        }
     }
 
     /*sort*/
@@ -205,9 +219,26 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     /*If the split pool is empty then make the default number of workloads be 4*/
     if(splitPool.empty())
         splitPool.push_back(4);
+    
+    // if(sparse)
+    // {
+    //     splitPool.clear();
+    //     splitPool.push_back(1);
+    //     if(!xyTilesplits.empty())
+    //     {
+    //         splitPool.push_back(*std::max_element(xyTilesplits.begin(),xyTilesplits.end()));
+    //         maxXYSplits = *std::max_element(xyTilesplits.begin(),xyTilesplits.end());
+    //     }
+    //     if(maxXYSplits > 64) 
+    //     {
+    //         splitPool.clear();
+    //         splitPool = {1,64};
+    //     }
+    // }
 
     return splitPool;
 }
+
 
 std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::PassEntry &pass, mv::Workload &workload, std::vector<mv::Workload>& /*workloads*/, mv::DPUMode &mpe_mode)
 {
@@ -423,7 +454,7 @@ void mv::Workloads::setExecutionCycles(std::vector<float> val)
     executionCycles_ = val;
 }
 
-void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction, float pixelCost, int workloadCost)
+void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction, float pixelCost, int workloadCost, bool sparsity = false)
 {
     /* Execution time is bounded by
      * sum(WL)/DPU <= T <= max(WL_max)*(P-1)/P
@@ -434,9 +465,13 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
     float min_range = 0;
     float max_range = 0;
     float sumExeCycles = 0;
+    float workload_sum_  = 0;
 
     if (nDPUxCluster < 1)
         throw mv::ArgumentError("Generate Workloads Pass", "nDPUxCluster", std::to_string(nDPUxCluster), "Invalid number of DPUs");
+
+    if(sparsity)
+        costFunction = CostFunctions::Sparsity;
 
     /*For each workload instance*/
     for(auto itWorkloads = workloadsVector.begin(); itWorkloads != workloadsVector.end(); itWorkloads++) {
@@ -445,6 +480,7 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         min_range = 0;
         max_range = 0;
         sumExeCycles = 0;
+        workload_sum_  = 0;
 
         /*Calculate the cost for each of the individual workloads (rectangles) */
         for(auto itworkload = itWorkloads->workloads_.begin(); itworkload != itWorkloads->workloads_.end(); ++itworkload) {
@@ -508,6 +544,25 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
                 itWorkloads->executionCycles_ = {greedy, greedy};
             }
         }
+        else if(costFunction == CostFunctions::Sparsity) {
+
+            
+            std::vector<float> workloads_sparse_execution_cycles;
+            std::vector<float> cycles;
+            
+            for(unsigned i = 0; i < 30; i++)
+            {
+                std::vector<double> randomNumbers = mv::normalGenerator(0.5, 0.2, workloadsExecutionCycles.size());
+                for(unsigned wl = 0; wl < workloadsExecutionCycles.size(); wl++)
+                {
+                    //std::cout << workloadsExecutionCycles[wl] * randomNumbers[wl] << std::endl;
+                    workloads_sparse_execution_cycles.push_back(workloadsExecutionCycles[wl] * randomNumbers[wl]);
+                }
+
+                cycles.push_back(greedyTaskAssignment(nDPUxCluster, workloads_sparse_execution_cycles));
+            }
+            itWorkloads->executionCycles_ = {*std::min_element(cycles.begin(), cycles.end()), *std::max_element(cycles.begin(), cycles.end())};
+        }
         else
             throw mv::ArgumentError("Generate Workloads Pass", "costFunction", "unknown", "Unsupported cost function");
 
@@ -525,6 +580,7 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
 float mv::Workloads::greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts)
 {
     std::priority_queue<int, std::vector<int>, std::greater<int> > exeCycles; //ascending sizes
+    std::sort(workloadCosts.rbegin(), workloadCosts.rend());
     for (int i=0; i<nProcessors; ++i)
         exeCycles.push(0);
 
@@ -585,7 +641,7 @@ static size_t getTensorSize(const  mv::Shape & shape,
     return size;
 }
 
-bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
+bool mv::Workloads::validateWorkloads(const mv::Shape& shape, bool split_over_h=true, bool split_over_w=true)
 {
     //    Check if the generated workloads are valid
     //    Check 1: the union of the workload have to make the whole tensor
@@ -624,6 +680,22 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     {
         this->log(mv::Logger::MessageType::Debug, "Partition failed because of overlap of paritions");
         return false;
+    }
+
+        if(!split_over_w)
+    {
+        int16_t minx = workloads_[0].MinX;
+        for(unsigned i =0; i < workloads_.size(); i++)
+            if(workloads_[i].MinX != minx)
+                return false;
+    }
+
+    if(!split_over_h)
+    {
+        int16_t miny = workloads_[0].MinY;
+        for(unsigned i =0; i < workloads_.size(); i++)
+            if(workloads_[i].MinY != miny)
+                return false;
     }
 
     return true;
@@ -1182,7 +1254,7 @@ void mv::Workloads::populateClusterID(int clusterID)
         workload->clusterID = clusterID;
 }
 
-int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, size_t nWorkloads, const mv::pass::PassEntry &pass)
+int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, size_t nWorkloads, const mv::pass::PassEntry &pass, bool sparsity)
 {
     pass.log(mv::Logger::MessageType::Debug, "Zsplit: layer=" + layerName_);
     unsigned C, H, W;
@@ -1239,7 +1311,13 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, s
         //Check that the z workloads dimension for z tiling are multiple of 16
         if(((workload.MaxZ+1) - workload.MinZ)%16 != 0)
             return 0;
-
+        
+         //Check that the z workloads dimension for z tiling are a power of two
+        int16_t diff = (workload.MaxZ+1) - workload.MinZ;
+        if(sparsity)
+            if((diff & (diff-1)) != 0)
+                return 0;
+        
         workloads_.push_back(workload);
 
     }

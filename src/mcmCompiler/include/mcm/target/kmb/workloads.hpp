@@ -16,6 +16,7 @@
 #include <cmath>
 #include <vector>
 #include <numeric>
+#include "include/mcm/utils/custom_math.hpp"
 
 namespace mv
 {
@@ -27,7 +28,8 @@ namespace mv
         Balanced,
         CriticalPath,
         Greedy,
-        MinMaxWorkloads
+        MinMaxWorkloads,
+        Sparsity
     };
 
     struct DPUMode { unsigned H, W; };
@@ -85,7 +87,7 @@ namespace mv
                                                   const mv::WorkloadSplitMode& split_mode,
                                                   const mv::pass::PassEntry& pass);
 
-        int partitionTensorWithZsplit(const mv::DPUModeList& modes, size_t nWorkloads, const mv::pass::PassEntry& pass);
+        int partitionTensorWithZsplit(const mv::DPUModeList& modes, size_t nWorkloads, const mv::pass::PassEntry& pass, bool sparsity);
 
         void populateWorkloadsFromPartitions(size_t nWorkloads,
                                             const mv::pass::PassEntry& pass,
@@ -108,15 +110,15 @@ namespace mv
         std::size_t nWorkloads() const;
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;
-        static const std::vector<int> getWorkloadSplitPool(const Tensor& tensor, int nDPUxCluster, mv::DPUModeList dpuModeList, int maxSplits);
+        static const std::vector<int> getWorkloadSplitPool(const Tensor& tensor, int nDPUxCluster, mv::DPUModeList dpuModeList, int maxSplits, bool sparse);
 
-        static void generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction, float pixelCost, int workloadCost);
+        static void generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction, float pixelCost, int workloadCost, bool sparsity);
         std::vector<float> getExecutionCycles() const;
         float getMeanExecutionCycles() const;
         void setExecutionCycles(std::vector<float> val);
         static float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
 
-        bool validateWorkloads(const mv::Shape& shape);
+        bool validateWorkloads(const mv::Shape& shape, bool split_over_h, bool split_over_w);
 
         static mv::CostFunctions getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass);
 

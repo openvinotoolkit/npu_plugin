@@ -92,6 +92,18 @@ std::vector<std::size_t> mv::tileSpatialOutputSize(std::size_t outputSize , std:
     return outputSizes;
 }
 
+std::vector<double> mv::normalGenerator(double mean, double stdDev, std::size_t size)
+{
+    std::vector<double> randomNumbers;
+    std::default_random_engine generator(100);
+    std::normal_distribution<double> distribution(0.5,0.2);
+
+    for (std::size_t i=0; i<size; ++i)
+        randomNumbers.push_back(std::max(0.0, std::min(distribution(generator), 1.0)));
+
+    return randomNumbers;
+}
+
 uint16_t mv::getWindowSize(uint16_t kx, uint16_t sx, mv::DType dataType)
 {
     //Find max mpe where if calc window <= 32

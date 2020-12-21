@@ -11,7 +11,7 @@
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
-                "WorkloadCost": 300,
+                "WorkloadCost": 0,
                 "DDRScratch": 31457280,
                 "cmx": 917504,
                 "enable_channel_major_conv": true,
