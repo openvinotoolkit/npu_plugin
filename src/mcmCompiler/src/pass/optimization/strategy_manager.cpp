@@ -324,8 +324,7 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(Cri
     {
         auto& strategy = *elem;
         const std::string newName = strategy["name"].get<std::string>();
-        const std::string newStrategy = model_.getOp(newName)->getOpType() == "Concat"
-                                        ? "Clustering" : strategy["clustering"].get<std::string>();
+        const std::string newStrategy = strategy["clustering"].get<std::string>();
 
         if ( hasClusterSpec.find(newName) == hasClusterSpec.cend())
         {
@@ -486,6 +485,8 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
         auto& strategy = *elem;
         auto opName = strategy["name"].get<std::string>();
 
+        // std::cout << opName << " got strategy ID " << strategy["id"].toString() << std::endl;
+
         auto op = model_.getOp(opName);
 
         auto software = op->hasAttr("softwareExecuted") && op->get<bool>("softwareExecuted");
@@ -572,6 +573,7 @@ void setOptimalTensorLocation(mv::Data::OpListIterator op, bool spilling, const 
     if (op->getOpType() != "Output") {
         auto outTensor = op->getOutputTensor(0);
         auto executable = op->hasTypeTrait("executable") ? true : false;
+        op->set<bool>("goPredictsSpill", spilling);
 
         bool isStreaming = (streamShape["W"] * streamShape["H"] * streamShape["C"] * streamShape["K"] * streamShape["B"]) > 1;
         if ((spilling && executable) || isStreaming || op->getOpType() == "ImplicitInput") // TODO remove this isStreaming check
