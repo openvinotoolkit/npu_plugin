@@ -323,8 +323,7 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(Cri
     {
         auto& strategy = *elem;
         const std::string newName = strategy["name"].get<std::string>();
-        const std::string newStrategy = model_.getOp(newName)->getOpType() == "Concat"
-                                        ? "Clustering" : strategy["clustering"].get<std::string>();
+        const std::string newStrategy = strategy["clustering"].get<std::string>();
 
         if ( hasClusterSpec.find(newName) == hasClusterSpec.cend())
         {
@@ -484,6 +483,8 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
     {
         auto& strategy = *elem;
         auto opName = strategy["name"].get<std::string>();
+
+        // std::cout << opName << " got strategy ID " << strategy["id"].toString() << std::endl;
 
         auto op = model_.getOp(opName);
 
