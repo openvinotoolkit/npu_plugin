@@ -632,6 +632,31 @@ class CMX_Concatenation {
       return false;
     }
 
+    bool is_this_a_complex_cyclic_subgraph(
+      const concat_subgraph_t& subgraph) const
+    {
+      bool possible_cycle = false;
+      //NOTE: if your representative task is in lower level and you have a path between the rep DPU
+      // and the other dpu_ins then you will generate a cycle, with the pseudo edge that is added later
+      if (does_rep_dpu_has_lower_depth_than_others(subgraph))
+      {
+        for (auto dpu : subgraph.dpu_in_) {
+          auto dpu_in = &(*dpu);
+          auto dpu_rep = &(*subgraph.representative_dpu_);
+          if (dpu_in->getName() != dpu_rep->getName())
+          {
+            auto opIn = omodel_.getOp(dpu_in->getName());
+            auto opRep = omodel_.getOp(dpu_rep->getName());
+            if (omodel_.pathExists(opRep, opIn))
+            {
+              possible_cycle = true;
+            }
+          }
+        }
+      }
+      return possible_cycle;
+    }
+
     bool is_this_an_unsupported_concat(const concat_subgraph_t& subgraph) const
     {
       //NOTE: using variables so we can print the reason, in case of concats fail to cmx transfrom
@@ -641,12 +666,14 @@ class CMX_Concatenation {
       bool does_this_concat_childs_service_compiler_provided_sparsityC =
         does_this_concat_childs_service_compiler_provided_sparsity(subgraph);
       bool does_this_concat_subgraph_create_cyclic_dag = concat_subgraph_leads_cycle(subgraph);
+      bool is_this_a_complex_cyclic_subgraphC = is_this_a_complex_cyclic_subgraph(subgraph);
 
       return has_no_cmx_concat_flagC ||
         does_this_concat_have_any_cropsC ||
         is_this_a_complex_concatC ||
         does_this_concat_childs_service_compiler_provided_sparsityC ||
-        does_this_concat_subgraph_create_cyclic_dag;
+        does_this_concat_subgraph_create_cyclic_dag ||
+        is_this_a_complex_cyclic_subgraphC;
     }
 
     bool does_this_concat_have_any_parents_or_children_of_this_op_type(

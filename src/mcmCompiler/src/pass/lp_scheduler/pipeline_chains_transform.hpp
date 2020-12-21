@@ -269,11 +269,21 @@ class Pipeline_Chains {
       }
     }
 
-      template<typename LevelItr>
-      bool can_this_level_be_appended_to_chain(LevelItr itr)
+    template<typename LevelItr>
+    bool can_this_level_be_appended_to_chain(LevelItr itr)
+    {
+      return ( (itr->second.size() == 1UL) || comeFromTheSameParentStream(itr->second) );
+    }
+
+    bool is_sharing_weights_operation(operation_t dpu_op) const {
+      auto op_itr = omodel_.getOp(dpu_op->getName());
+      bool sharingWeights = false;
+      if (op_itr->hasAttr("shareWeights") && op_itr->get<bool>("shareWeights"))
       {
-        return ( (itr->second.size() == 1UL) || comeFromTheSameParentStream(itr->second) );
+        sharingWeights = true;
       }
+      return sharingWeights;
+    }
 
     template<typename OutputIterator>
     void locate_longer_chains(OutputIterator output)
@@ -370,6 +380,10 @@ class Pipeline_Chains {
               dpu_chain.clear();
               break;
             }
+
+            if (is_sharing_weights_operation(current_dpu_op))
+              continue;
+
             //TODO(vamsikku): also avoid chains with breaks and pivots //
             //check if the current dpu_op has an incoming edge which is not yet
             //in the chain.
