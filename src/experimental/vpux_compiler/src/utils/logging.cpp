@@ -113,5 +113,9 @@ void vpux::OpBuilderLogger::notifyOperationInserted(mlir::Operation* op) {
 }
 
 void vpux::OpBuilderLogger::notifyBlockCreated(mlir::Block* block) {
-    _log.trace("Add new Block for Operation {0}", *block->getParentOp());
+    if (auto* parent = block->getParentOp()) {
+        _log.trace("Add new Block for Operation {0}", *parent);
+    } else {
+        _log.trace("Add new Block without parent Operation");
+    }
 }

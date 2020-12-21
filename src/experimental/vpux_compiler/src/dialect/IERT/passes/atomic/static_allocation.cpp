@@ -141,6 +141,10 @@ mlir::LogicalResult StaticAllocationPass::DeallocRewrite::matchAndRewrite(
     VPUX_THROW_UNLESS(newOperands.size() == 1, "Got wrong newOperands count {0}", newOperands.size());
 
     auto* producer = newOperands[0].getDefiningOp();
+    if (producer == nullptr) {
+        _log.error("Value '{0}' has no producer", newOperands[0]);
+        return mlir::failure();
+    }
     if (!mlir::isa<IERT::StaticAllocOp>(producer)) {
         _log.error("Value '{0}' was produced by unsupported Operation '{1}'", newOperands[0], producer->getName());
         return mlir::failure();
