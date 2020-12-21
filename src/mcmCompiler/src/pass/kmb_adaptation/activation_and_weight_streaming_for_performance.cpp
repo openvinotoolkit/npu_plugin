@@ -841,6 +841,10 @@ void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationM
         pass.log(mv::Logger::MessageType::Debug, "No custom splitting strategy provided, exiting...");
         return;
     }
+    // This pass will work for ZM when input not a dag issue resolved
+    bool enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
+    if(!enableChannelMajorConv) return;
+
     auto streamingStrategies = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
     std::vector<mv::Element> newStreamingStrategies;
 
