@@ -274,26 +274,10 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
 
 // Compilation fails on windows
 // [Track number: D#44765]
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Update disabled tests
-=======
->>>>>>> 33f7935cb8ae5b852c3a0f3ce22daac5178210c8
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32) {
 #ifdef _WIN32
     SKIP() << "LpScheduler - RuntimeError: input is not a DAG";
 #endif
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-TEST_F(KmbYoloV2NetworkTest, DISABLED_precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32) {
->>>>>>> Disable Failing tests. Update ticket numbers
-=======
->>>>>>> Update disabled tests
-=======
->>>>>>> 33f7935cb8ae5b852c3a0f3ce22daac5178210c8
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -320,26 +304,10 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
 
 // Compilation fails on windows
 // [Track number: D#44765]
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Update disabled tests
-=======
->>>>>>> 33f7935cb8ae5b852c3a0f3ce22daac5178210c8
 TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
 #ifdef _WIN32
     SKIP() << "LpScheduler - RuntimeError: input is not a DAG";
 #endif
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-TEST_F(KmbYoloV2NetworkTest, DISABLED_yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
->>>>>>> Disable Failing tests. Update ticket numbers
-=======
->>>>>>> Update disabled tests
-=======
->>>>>>> 33f7935cb8ae5b852c3a0f3ce22daac5178210c8
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
