@@ -398,7 +398,7 @@ class Pipeline_Chains {
             if (!(ditr->second))
             {
               zero_in_degree_nodes[!parity].push_back(cop);
-              if (cop->getOpType() == "DPUTask")
+              if (cop->isHardwarizable()) {
               {
                 dpu_levels[curr_depth].push_back(cop);
               }
@@ -615,6 +615,12 @@ class Pipeline_Chains {
           select_stages, fptr);
     }
 
+    std::list<chain_subgraph_t> get_chain_subgraphs(size_t select_stages=0UL) {
+      std::list<chain_subgraph_t> subgraphs;
+      get_chain_subgraphs(subgraphs, select_stages);
+      return subgraphs;
+    }
+
     template<typename ControlEdgeOutput, typename SubGraphContainer>
     void transform_op_model_old(ControlEdgeOutput output,
         SubGraphContainer& chain_subgraphs, FILE *fptr=stdout) {
@@ -761,6 +767,19 @@ class Pipeline_Chains {
         }
 
       } // foreach chain subgraph //
+    }
+
+    template<typename SubGraphContainer>
+    void get_chain_subgraphs(SubGraphContainer& chain_subgraphs, 
+        size_t select_stages=0UL, FILE *fptr=stdout) {
+
+      static_assert( std::is_same<chain_subgraph_t,
+            typename SubGraphContainer::value_type>::value,
+              "Invalid container for chain subgraphs");
+
+      mv::OpModel &om = omodel_;
+      chain_subgraphs.clear();
+      locate_longer_chains(std::back_inserter(chain_subgraphs));
     }
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
