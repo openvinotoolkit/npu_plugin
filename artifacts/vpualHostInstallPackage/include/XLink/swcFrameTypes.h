@@ -28,6 +28,10 @@ typedef enum frameTypes
      YUV400p,   // 8-bit greyscale
      RGBA8888,  // RGBA interleaved stored in 32 bit word
      RGB888,    // Planar 8 bit RGB data
+     RGB888p,   // Planar 8 bit RGB data
+     RGB888i,   // Interleaved 8 bit RGB data
+     BGR888p,   // Planar 8 bit BGR data
+     BGR888i,   // Interleaved 8 bit BGR data
      LUT2,      // 1 bit  per pixel, Lookup table (used for graphics layers)
      LUT4,      // 2 bits per pixel, Lookup table (used for graphics layers)
      LUT16,     // 4 bits per pixel, Lookup table (used for graphics layers)
