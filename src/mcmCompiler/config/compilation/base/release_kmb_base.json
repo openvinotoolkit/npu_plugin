@@ -149,6 +149,7 @@
                 "name" : "AddActivationStreaming",
                 "max_streams" : 1000
             },
+            "ValidateStreamingOverKForChainPipelining",
             "ComputeSparsitySolution",
             "StreamingOperations",
             "StreamBinaryDataWeights",
