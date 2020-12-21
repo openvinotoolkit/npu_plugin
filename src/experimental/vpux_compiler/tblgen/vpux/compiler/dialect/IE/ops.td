@@ -48,7 +48,11 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
                     DeclareOpInterfaceMethods<InferShapedTypeOpInterface>
                 ]
             )
-        >;
+        > {
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
 
 //
 // CNNNetworkOp
@@ -192,10 +196,6 @@ def IE_ConvertOp :
         AnyRankedTensor:$output
     );
 
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
-
     let hasCanonicalizer = 1;
     let hasFolder = 1;
 }
@@ -227,10 +227,6 @@ def IE_SoftMaxOp :
         RankedTensorOf<[F16, F32]>:$output
     );
 
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
-
     let hasFolder = 1;
 }
 
@@ -252,10 +248,6 @@ def IE_TileOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -281,10 +273,6 @@ def IE_ReLUOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -307,10 +295,6 @@ def IE_SplitOp :
     let results = (outs
         Variadic<AnyRankedTensor>:$outputs
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -336,10 +320,6 @@ def IE_PowerOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -365,10 +345,6 @@ def IE_AddOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -394,10 +370,6 @@ def IE_MultiplyOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -430,10 +402,6 @@ def IE_ConvolutionOp :
         RankedTensorOf<[F16, F32]>:$output
     );
 
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
-
     let hasCanonicalizer = 1;
 }
 
@@ -465,10 +433,6 @@ def IE_AvgPoolOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -499,10 +463,6 @@ def IE_MaxPoolOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -524,10 +484,6 @@ def IE_GatherOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -556,10 +512,6 @@ def IE_ClampOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -587,10 +539,6 @@ def IE_EluOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -613,10 +561,6 @@ def IE_ReshapeOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -637,10 +581,6 @@ def IE_SqueezeOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -666,10 +606,6 @@ def IE_SigmoidOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -695,10 +631,6 @@ def IE_LRNOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -720,10 +652,6 @@ def IE_UnsqueezeOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -746,10 +674,6 @@ def IE_MinimumOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -772,10 +696,6 @@ def IE_MaximumOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -805,10 +725,6 @@ def IE_FakeQuantizeOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -835,11 +751,6 @@ def IE_MatMulOp:
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
-
 }
 
 //
@@ -863,10 +774,6 @@ def IE_TanhOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -890,10 +797,6 @@ def IE_ExpOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -917,10 +820,6 @@ def IE_HSwishOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -941,10 +840,6 @@ def IE_TransposeOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 #endif
