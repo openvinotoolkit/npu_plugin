@@ -338,6 +338,7 @@ def IERT_ConvolutionOp :
         IERT_LayerOp<
             "Convolution",
             [
+                SameOperandsElementType,
                 DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
                 DeclareOpInterfaceMethods<LayerInterface>
             ]
@@ -354,6 +355,25 @@ def IERT_ConvolutionOp :
         I32ArrayAttr:$pads_begin,
         I32ArrayAttr:$pads_end,
         I32ArrayAttr:$dilations
+    );
+}
+
+//
+// ReLUOp
+//
+
+def IERT_ReLUOp :
+        IERT_LayerOp<
+            "ReLU",
+            [
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReLU layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output
     );
 }
 

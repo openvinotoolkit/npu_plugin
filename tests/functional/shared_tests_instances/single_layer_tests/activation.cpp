@@ -11,7 +11,19 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeLoad() override {
+        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+            throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
+        } else {
+            const auto activationType = std::get<0>(GetParam()).first;
+
+            if (activationType != ngraph::helpers::Relu) {
+                throw LayerTestsUtils::KmbSkipTestException("Experimental compiler supports only ReLU activation type");
+            }
+        }
+    }
+};
 
 TEST_P(KmbActivationLayerTest, CompareWithRefs) {
     Run();
@@ -21,7 +33,9 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs) {
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph::helpers;
+
 namespace {
+
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::FP32
 };
@@ -71,7 +85,7 @@ const auto basicParamCases = ::testing::Combine(
     ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Activation_Test, KmbActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Test, KmbActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Param, KmbActivationLayerTest, basicParamCases, ActivationLayerTest::getTestCaseName);
 

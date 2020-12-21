@@ -148,4 +148,19 @@ def RewriteConvolution :
             (createConvolutionUPAOp $input, $filter, $bias, $output, $strides, $dilations, $pads_begin, $pads_end)
         >;
 
+//
+// IERT.ReLU -> VPUIP.ReLUUPA
+//
+
+def createReLUUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReLUUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteReLU :
+        Pat<
+            (IERT_ReLUOp $input, $output),
+            (createReLUUPAOp $input, $output)
+        >;
+
 #endif
