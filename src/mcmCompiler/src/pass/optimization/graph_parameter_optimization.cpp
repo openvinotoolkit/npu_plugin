@@ -2408,6 +2408,10 @@ namespace mv
                 auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
                 auto spilling = strategy["spilling"].get<bool>();
 
+                if(parentSpilling)
+                    return false;
+
+
                 if(clustering == "SplitOverH" || clustering == "HKSwitch")
                     return false;
 
