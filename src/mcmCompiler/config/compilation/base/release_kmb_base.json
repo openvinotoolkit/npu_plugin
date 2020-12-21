@@ -10,6 +10,7 @@
             },
             "AssignInputNode",
             "AssignOutputNode",
+            "DecideComputePrecision",
             "AssignUniqueOpId",
             {
                 "name": "ApplyTargetVars",
