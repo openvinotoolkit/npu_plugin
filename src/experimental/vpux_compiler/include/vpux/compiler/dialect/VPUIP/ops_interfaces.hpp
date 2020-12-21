@@ -36,24 +36,10 @@ namespace VPUIP {
 class BlobWriter;
 
 //
-// UPATaskTrait
+// verifyUPATask
 //
 
-namespace details {
-
-mlir::LogicalResult verifyUPATaskTrait(mlir::Operation* op);
-
-}  // namespace details
-
-template <typename ConcreteOp>
-class UPATaskTrait : public mlir::OpTrait::TraitBase<ConcreteOp, UPATaskTrait> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return details::verifyUPATaskTrait(op);
-    }
-};
-
-namespace details {
+mlir::LogicalResult verifyUPATask(mlir::Operation* op);
 
 //
 // getTaskEffects
@@ -61,14 +47,6 @@ namespace details {
 
 void getTaskEffects(mlir::Operation* op,
                     SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-
-//
-// UPATaskOpInterface
-//
-
-mlir::LogicalResult verifyUPATask(mlir::Operation* op);
-
-}  // namespace details
 
 }  // namespace VPUIP
 }  // namespace vpux

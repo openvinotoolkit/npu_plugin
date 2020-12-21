@@ -47,20 +47,6 @@ def SetCompileParams : Pass<"set-compile-params", "mlir::ModuleOp"> {
 }
 
 //
-// AssignTensorOffsetsDDR
-//
-
-def AssignTensorOffsetsDDR : Pass<"assign-tensor-offsets-ddr", "mlir::ModuleOp"> {
-    let summary = "Assign offset attribute to DeclareTensor Operations in DDR memory";
-
-    let description = [{
-        The pass uses simple LinearScan algorithm.
-    }];
-
-    let constructor = "vpux::VPUIP::createAssignTensorOffsetsDDRPass()";
-}
-
-//
 // AddLinearScheduling
 //
 

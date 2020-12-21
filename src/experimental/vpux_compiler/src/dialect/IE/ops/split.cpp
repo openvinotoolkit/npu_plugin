@@ -57,11 +57,3 @@ mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
     }
     return ::mlir::failure();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::SplitOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::SplitOp::getOutputs() {
-    return output_tensors();
-}

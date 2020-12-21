@@ -18,34 +18,36 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/types.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
-#include "vpux/utils/IE/loop.hpp"
-#include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
-#include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
 
+#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinOps.h>
-#include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/StandardTypes.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/Passes.h>
-
-#include <precision_utils.h>
-
-#include <ngraph/type/float16.hpp>
 
 using namespace vpux;
 
 namespace {
 
-class AdjustPrecisionForVPUPass final : public IE::AdjustPrecisionForVPUBase<AdjustPrecisionForVPUPass> {
+constexpr size_t TARGET_TENSOR_DIM = 4;
+
+//
+// ConvertShapeTo4DPass
+//
+
+class ConvertShapeTo4DPass final : public IE::ConvertShapeTo4DBase<ConvertShapeTo4DPass> {
 public:
-    explicit AdjustPrecisionForVPUPass(Logger log);
+    explicit ConvertShapeTo4DPass(Logger log): _log(log) {
+        _log.setName(Base::getArgumentName());
+    }
 
 public:
     void runOnOperation() final;
@@ -55,121 +57,95 @@ public:
     class ConstantOpConverter;
     class GenericOpConverter;
 
+public:
+    static const mlir::PatternBenefit genericBenefit;
+    static const mlir::PatternBenefit specificBenefit;
+
 private:
     void passBody();
 
 private:
     Logger _log;
-    mlir::OpPassManager _cleanUpIR;
 };
 
-AdjustPrecisionForVPUPass::AdjustPrecisionForVPUPass(Logger log)
-        : _log(log), _cleanUpIR(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
-    _log.setName(Base::getArgumentName());
+const mlir::PatternBenefit ConvertShapeTo4DPass::genericBenefit(1);
+const mlir::PatternBenefit ConvertShapeTo4DPass::specificBenefit(2);
 
-    _cleanUpIR.addPass(mlir::createCanonicalizerPass());
+void ConvertShapeTo4DPass::runOnOperation() {
+    try {
+        passBody();
+    } catch (const std::exception& e) {
+        printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
+        signalPassFailure();
+    }
 }
 
 //
 // FuncOpConverter
 //
 
-class AdjustPrecisionForVPUPass::FuncOpConverter final : public mlir::OpConversionPattern<mlir::FuncOp> {
+class ConvertShapeTo4DPass::FuncOpConverter final : public mlir::OpConversionPattern<mlir::FuncOp> {
 public:
-    using mlir::OpConversionPattern<mlir::FuncOp>::OpConversionPattern;
+    FuncOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<mlir::FuncOp>(typeConverter, ctx, specificBenefit), _log(log) {
+    }
 
 public:
     mlir::LogicalResult matchAndRewrite(mlir::FuncOp funcOp, ArrayRef<mlir::Value> operands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
 };
 
-mlir::LogicalResult AdjustPrecisionForVPUPass::FuncOpConverter::matchAndRewrite(
+mlir::LogicalResult ConvertShapeTo4DPass::FuncOpConverter::matchAndRewrite(
         mlir::FuncOp funcOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
-    const auto funcType = funcOp.getType();
-
-    mlir::TypeConverter::SignatureConversion conversion(funcType.getNumInputs());
-    for (const auto& p : funcType.getInputs() | indexed) {
-        const auto newType = converter->convertType(p.value());
-        conversion.addInputs(checked_cast<uint32_t>(p.index()), newType);
-    }
-
-    SmallVector<mlir::Type, 1> newResultTypes;
-    newResultTypes.reserve(funcOp.getNumResults());
-    for (const auto& outType : funcType.getResults()) {
-        newResultTypes.push_back(converter->convertType(outType));
-    }
-
-    if (mlir::failed(rewriter.convertRegionTypes(&funcOp.getBody(), *converter, &conversion))) {
-        return printTo(funcOp.emitError(), "Failed to convert Function arguments");
-    }
-
-    rewriter.updateRootInPlace(funcOp, [&]() {
-        funcOp.setType(rewriter.getFunctionType(conversion.getConvertedTypes(), newResultTypes));
-    });
-
-    return mlir::success();
+    return rewriteFuncPrototype(funcOp, *converter, rewriter, _log);
 }
 
 //
 // ConstantOpConverter
 //
 
-class AdjustPrecisionForVPUPass::ConstantOpConverter final : public mlir::OpConversionPattern<mlir::ConstantOp> {
+class ConvertShapeTo4DPass::ConstantOpConverter final : public mlir::OpConversionPattern<mlir::ConstantOp> {
 public:
-    ConstantOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* context,
-                        mlir::PatternBenefit benefit = 2)
-            : mlir::OpConversionPattern<mlir::ConstantOp>(typeConverter, context, benefit) {
+    ConstantOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<mlir::ConstantOp>(typeConverter, ctx, specificBenefit), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(mlir::ConstantOp origOp, ArrayRef<mlir::Value> operands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
 };
 
-mlir::LogicalResult AdjustPrecisionForVPUPass::ConstantOpConverter::matchAndRewrite(
-        mlir::ConstantOp origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertShapeTo4DPass::ConstantOpConverter::matchAndRewrite(
+        mlir::ConstantOp origOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Process Constant Operation '{0}'", origOp);
+
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
-    VPUX_THROW_UNLESS(operands.empty(), "Wrong operands size : {0}", operands.size());
-
-    auto origTensorType = origOp.getResult().getType().dyn_cast<mlir::RankedTensorType>();
-    if (origTensorType == nullptr) {
-        return mlir::failure();
-    }
-
-    auto origElemType = origTensorType.getElementType();
-    if (!origElemType.isF32()) {
+    const auto origTensorType = origOp.getResult().getType().dyn_cast<mlir::RankedTensorType>();
+    if (origTensorType == nullptr || origTensorType.getShape().size() == TARGET_TENSOR_DIM) {
+        _log.trace("Unsupported result type '{0}'", origOp.getResult().getType());
         return mlir::failure();
     }
 
     auto origContent = origOp.value().dyn_cast<mlir::DenseElementsAttr>();
     if (origContent == nullptr) {
+        _log.trace("Unsupported content attribute '{0}'", origOp.value());
         return mlir::failure();
     }
 
-    auto newType = converter->convertType(origTensorType).cast<mlir::ShapedType>();
+    const auto newType = converter->convertType(origTensorType).cast<mlir::ShapedType>();
 
-    auto totalNumElems = origTensorType.getNumElements();
-
-    mlir::DenseElementsAttr newContent;
-    if (origContent.isSplat()) {
-        const auto origValue = origContent.getSplatValue<float>();
-        const auto newValue = ngraph::float16(origValue);
-        newContent = mlir::DenseElementsAttr::get(newType, newValue);
-    } else {
-        const auto origValues = to_std_vector(origContent.getValues<float>());
-        std::vector<ngraph::float16> newValues(origValues.size());
-
-        loop_1d(LoopExecPolicy::Parallel, origValues.size(), [&](size_t i) {
-            newValues[i] = ngraph::float16(origValues[i]);
-        });
-
-        newContent = mlir::DenseElementsAttr::get(newType, makeArrayRef(newValues.data(), totalNumElems));
-    }
+    mlir::DenseElementsAttr newContent = origContent.reshape(newType);
 
     auto* dialect = rewriter.getContext()->getLoadedDialect<IE::IEDialect>();
     VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
@@ -184,19 +160,24 @@ mlir::LogicalResult AdjustPrecisionForVPUPass::ConstantOpConverter::matchAndRewr
 // GenericOpConverter
 //
 
-class AdjustPrecisionForVPUPass::GenericOpConverter final : public mlir::ConversionPattern {
+class ConvertShapeTo4DPass::GenericOpConverter final : public mlir::ConversionPattern {
 public:
-    GenericOpConverter(mlir::TypeConverter& typeConverter, mlir::PatternBenefit benefit = 1)
-            : mlir::ConversionPattern(benefit, typeConverter, MatchAnyOpTypeTag{}) {
+    GenericOpConverter(mlir::TypeConverter& shapeConverter, Logger log)
+            : mlir::ConversionPattern(genericBenefit, shapeConverter, MatchAnyOpTypeTag{}), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> operands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
 };
 
-mlir::LogicalResult AdjustPrecisionForVPUPass::GenericOpConverter::matchAndRewrite(
+mlir::LogicalResult ConvertShapeTo4DPass::GenericOpConverter::matchAndRewrite(
         mlir::Operation* origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", *origOp);
+
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
@@ -206,51 +187,54 @@ mlir::LogicalResult AdjustPrecisionForVPUPass::GenericOpConverter::matchAndRewri
     mlir::BlockAndValueMapping mapper;
     mapper.map(origOperands, operands);
 
+    if (auto softMaxOp = mlir::dyn_cast<IE::SoftMaxOp>(*origOp)) {
+        // TODO: implement this within op as an interface?
+        auto newAxis = softMaxOp.axisInd() +
+                       (TARGET_TENSOR_DIM -
+                        origOp->getOperand(0).getType().dyn_cast<mlir::RankedTensorType>().getShape().size());
+        softMaxOp.axisIndAttr(rewriter.getI32IntegerAttr(checked_cast<int32_t>(newAxis)));
+    }
+
     auto* newOp = rewriter.clone(*origOp, mapper);
     for (auto result : newOp->getResults()) {
         result.setType(converter->convertType(result.getType()));
     }
-
     rewriter.replaceOp(origOp, newOp->getResults());
 
     return mlir::success();
 }
 
 //
-// IEConvertToFP16Pass::runOnOperation
+// passBody
 //
 
-void AdjustPrecisionForVPUPass::runOnOperation() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "AdjustPrecisionForVPUPass failed : {0}", e.what());
-        signalPassFailure();
-    }
-}
-
-void AdjustPrecisionForVPUPass::passBody() {
+void ConvertShapeTo4DPass::passBody() {
     auto& ctx = getContext();
 
     mlir::TypeConverter typeConverter;
     typeConverter.addConversion([](mlir::RankedTensorType tensor) {
-        if (tensor.getElementType().isF32()) {
-            return mlir::RankedTensorType::get(tensor.getShape(), mlir::Float16Type::get(tensor.getContext()));
-        } else if (tensor.getElementType().isIntOrIndex()) {
-            return mlir::RankedTensorType::get(tensor.getShape(), getSInt32Type(tensor.getContext()));
-        } else {
+        if (tensor.getShape().size() == TARGET_TENSOR_DIM) {
             return tensor;
+        } else if (tensor.getShape().size() > TARGET_TENSOR_DIM) {
+            VPUX_THROW("Tensors with rank > 4 is not supporeted");
+        } else {
+            const auto nDimsToAdd = TARGET_TENSOR_DIM - tensor.getShape().size();
+            SmallVector<int64_t, TARGET_TENSOR_DIM> newShape(nDimsToAdd, 1);
+            for (auto s : tensor.getShape()) {
+                newShape.push_back(s);
+            }
+            return mlir::RankedTensorType::get(newShape, tensor.getElementType());
         }
     });
     typeConverter.addSourceMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
                                               mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
         VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
-        return builder.createOrFold<IE::ConvertOp>(loc, inputs[0], mlir::TypeAttr::get(type.getElementType()));
+        return builder.createOrFold<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
     });
     typeConverter.addTargetMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
                                               mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
         VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
-        return builder.createOrFold<IE::ConvertOp>(loc, inputs[0], mlir::TypeAttr::get(type.getElementType()));
+        return builder.createOrFold<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
     });
 
     const auto isLegalOp = [&](mlir::Operation* op) {
@@ -259,7 +243,7 @@ void AdjustPrecisionForVPUPass::passBody() {
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
-    target.addLegalOp<IE::ConvertOp>();
+    target.addLegalOp<mlir::linalg::TensorReshapeOp>();
     target.addDynamicallyLegalOp<mlir::ConstantOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
@@ -268,22 +252,23 @@ void AdjustPrecisionForVPUPass::passBody() {
     });
 
     mlir::OwningRewritePatternList patterns;
-    patterns.insert<FuncOpConverter>(typeConverter, &ctx);
-    patterns.insert<ConstantOpConverter>(typeConverter, &ctx);
-    patterns.insert<GenericOpConverter>(typeConverter);
+    patterns.insert<FuncOpConverter>(typeConverter, &ctx, _log.nest());
+    patterns.insert<ConstantOpConverter>(typeConverter, &ctx, _log.nest());
+    patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
+    mlir::linalg::TensorReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto module = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(module.getOperation(), target, std::move(patterns)))) {
-        signalPassFailure();
-    }
-
-    if (mlir::failed(runPipeline(_cleanUpIR, module))) {
         signalPassFailure();
     }
 }
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IE::createAdjustPrecisionForVPUPass(Logger log) {
-    return std::make_unique<AdjustPrecisionForVPUPass>(log);
+//
+// createConvertShapeTo4DPass
+//
+
+std::unique_ptr<mlir::Pass> vpux::IE::createConvertShapeTo4DPass(Logger log) {
+    return std::make_unique<ConvertShapeTo4DPass>(log);
 }

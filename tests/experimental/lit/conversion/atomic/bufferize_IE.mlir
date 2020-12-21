@@ -13,12 +13,13 @@
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
 
-IE.CNNNetwork "SingleLayer" at @main
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data", f32, "NC"
+        IE.DataInfo "data" : memref<1x1000xf32>
     }
     outputsInfo : {
-        IE.DataInfo "prob", f32, "NC"
+        IE.DataInfo "prob" : memref<1x1000xf32>
     }
 
 // CHECK: func @main([[ARG0:%arg[0-9]*]]: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
@@ -40,11 +41,12 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 // CHECK-LABEL: @ConstantLayer
 module @ConstantLayer {
 
-IE.CNNNetwork "ConstantLayer" at @main
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
     }
     outputsInfo : {
-        IE.DataInfo "output", f32, "NCHW"
+        IE.DataInfo "output" : memref<1x2x2x2xf32>
     }
 
 // CHECK: func @main() -> tensor<1x2x2x2xf16> {

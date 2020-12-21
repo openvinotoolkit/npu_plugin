@@ -14,23 +14,17 @@
 // stated in the License.
 //
 
-#ifndef VPUX_COMPILER_DIALECT_IE_REWRITERS_SOFTMAX
-#define VPUX_COMPILER_DIALECT_IE_REWRITERS_SOFTMAX
+#pragma once
 
-include "vpux/compiler/dialect/IE/ops.td"
+#include "vpux/utils/core/logger.hpp"
 
-include "mlir/IR/OpBase.td"
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/PatternMatch.h>
+#include <mlir/Transforms/DialectConversion.h>
 
-//
-// PropagateConvert
-//
+namespace vpux {
 
-def Float32Type : TypeAttrBase<"mlir::Float32Type", "FP32 element type">;
+mlir::LogicalResult rewriteFuncPrototype(mlir::FuncOp funcOp, mlir::TypeConverter& typeConverter,
+                                         mlir::ConversionPatternRewriter& rewriter, Logger log = Logger::global());
 
-def PropagateConvertF32 :
-        Pat<
-            (IE_SoftMaxOp (IE_ConvertOp RankedTensorOf<[F16]>:$input, Float32Type:$dstType), $axisInd),
-            (IE_ConvertOp (IE_SoftMaxOp $input, $axisInd), $dstType)
-        >;
-
-#endif
+}  // namespace vpux

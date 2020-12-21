@@ -38,11 +38,3 @@ mlir::LogicalResult vpux::IE::ReLUOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::ReLUOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::ReLUOp::getOutputs() {
-    return {output()};
-}

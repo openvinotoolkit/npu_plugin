@@ -23,11 +23,3 @@ void vpux::IERT::ConvertOp::getEffects(
     effects.emplace_back(mlir::MemoryEffects::Read::get(), input());
     effects.emplace_back(mlir::MemoryEffects::Write::get(), output());
 }
-
-SmallVector<mlir::Value, 4> vpux::IERT::ConvertOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IERT::ConvertOp::getOutputs() {
-    return {output()};
-}

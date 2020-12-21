@@ -88,7 +88,7 @@ class MemSize final {
 public:
     constexpr MemSize() = default;
 
-    constexpr explicit MemSize(size_t size): _size(size) {
+    constexpr explicit MemSize(uint64_t size): _size(size) {
     }
 
 public:
@@ -103,12 +103,8 @@ public:
         return _size;
     }
 
-    constexpr explicit operator size_t() const {
-        return count();
-    }
-
 private:
-    size_t _size = 0;
+    uint64_t _size = 0;
 };
 
 template <MemType TYPE>

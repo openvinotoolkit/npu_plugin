@@ -42,11 +42,3 @@ mlir::LogicalResult vpux::IE::MaximumOp::inferReturnTypeComponents(
     }
     return outShapeOrResult;
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::MaximumOp::getInputs() {
-    return {input1(), input2()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::MaximumOp::getOutputs() {
-    return {output()};
-}

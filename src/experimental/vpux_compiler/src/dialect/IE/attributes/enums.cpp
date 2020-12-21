@@ -16,62 +16,9 @@
 
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
 
+#include <mlir/IR/BuiltinTypes.h>
+
 using namespace vpux;
-
-//
-// Layout utilities
-//
-
-int32_t vpux::IE::getRank(Layout layout) {
-    switch (layout) {
-    case IE::Layout::C:
-        return 1;
-
-    case IE::Layout::NC:
-        return 2;
-
-    case IE::Layout::CHW:
-        return 3;
-
-    case IE::Layout::NCHW:
-    case IE::Layout::NHWC:
-        return 4;
-
-    case IE::Layout::NCDHW:
-    case IE::Layout::NDHWC:
-        return 5;
-
-    default:
-        return 0;
-    }
-}
-
-DimsOrder vpux::IE::getDimsOrder(Layout layout) {
-    switch (layout) {
-    case IE::Layout::SCALAR:
-        return DimsOrder::fromNumDims(0);
-    case IE::Layout::C:
-        return DimsOrder::C;
-    case IE::Layout::NC:
-        return DimsOrder::NC;
-    case IE::Layout::CHW:
-        return DimsOrder::CHW;
-    case IE::Layout::NCHW:
-        return DimsOrder::NCHW;
-    case IE::Layout::NHWC:
-        return DimsOrder::NHWC;
-    case IE::Layout::NCDHW:
-        return DimsOrder::NCDHW;
-    case IE::Layout::NDHWC:
-        return DimsOrder::NDHWC;
-    default:
-        VPUX_THROW("Can't convert IE::Layout '{0}' to DimsOrder", layout);
-    }
-}
-
-mlir::AffineMap vpux::IE::getAffineMap(mlir::MLIRContext* ctx, Layout layout) {
-    return getDimsOrder(layout).toAffineMap(ctx);
-}
 
 //
 // Generated

@@ -178,6 +178,7 @@ add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")
 
 add_dialect("IERT")
+add_passes("dialect/IERT" "IERT")
 
 add_dialect("VPUIP")
 add_op_interfaces("dialect/VPUIP")

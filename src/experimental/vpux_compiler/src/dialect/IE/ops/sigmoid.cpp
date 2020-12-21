@@ -38,11 +38,3 @@ mlir::LogicalResult vpux::IE::SigmoidOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::SigmoidOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::SigmoidOp::getOutputs() {
-    return {output()};
-}

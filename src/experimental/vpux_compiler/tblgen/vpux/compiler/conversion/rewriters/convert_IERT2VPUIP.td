@@ -46,6 +46,33 @@ def RewriteCopy :
         >;
 
 //
+// IERT.StaticAlloc
+//
+
+def createDeclareTensorOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::DeclareTensorOp>(
+                $_loc, $0.getType(),
+                vpux::VPUIP::MemoryLocation::VPU_DDR_Heap,
+                $1.getInt())
+        }]>;
+
+def HasMemSpaceDDR :
+        Constraint<CPred<[{
+            $0.getType().cast<mlir::MemRefType>().getMemorySpace() ==
+                    vpux::VPUIP::PhysicalMemoryAttr::get(vpux::VPUIP::PhysicalMemory::DDR, $0.getContext())
+        }]>>;
+
+def RewriteStaticAlloc :
+        Pat<
+            (IERT_StaticAllocOp:$memref $offset),
+            (createDeclareTensorOp $memref, $offset),
+            [
+                (HasMemSpaceDDR $memref)
+            ]
+        >;
+
+//
 // IERT.SoftMax
 //
 

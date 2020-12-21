@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/optional.hpp"
 
 #include <mlir/IR/Operation.h>
@@ -25,7 +26,8 @@ namespace vpux {
 
 class StaticAllocation final {
 public:
-    explicit StaticAllocation(mlir::Operation* rootOp);
+    explicit StaticAllocation(mlir::Operation* rootOp, mlir::Attribute memSpace = nullptr,
+                              Byte maxSize = Byte(std::numeric_limits<uint64_t>::max()), uint64_t alignment = 1);
 
 public:
     Optional<int64_t> getValOffset(mlir::Value val) const;
@@ -39,8 +41,9 @@ private:
     friend Handler;
 
 private:
+    uint64_t _alignment = 1;
     mlir::DenseMap<mlir::Value, int64_t> _valOffsets;
-    int64_t _maxAllocatedSize = 0;
+    Byte _maxAllocatedSize;
 };
 
 }  // namespace vpux

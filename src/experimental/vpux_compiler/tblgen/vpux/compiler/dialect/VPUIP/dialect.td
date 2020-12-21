@@ -31,7 +31,10 @@ def VPUIP_Dialect : Dialect {
     let cppNamespace = "vpux::VPUIP";
 
     let dependentDialects = [
-        "mlir::StandardOpsDialect"
+        "vpux::IE::IEDialect",
+        "vpux::IERT::IERTDialect",
+        "mlir::StandardOpsDialect",
+        "mlir::quant::QuantizationDialect"
     ];
 
     let hasConstantMaterializer = 1;

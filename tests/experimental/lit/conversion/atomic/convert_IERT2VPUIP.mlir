@@ -6,20 +6,20 @@
 //   * Updates only Function inner regions.
 //   * Doesn't touch `IERT.CNNNetwork` Operation.
 //   * Doesn't remove `std.global_memref` Operations.
-//   * Replaces only Layer Operations.
+//   * Replaces only Layer Operations and `IERT.StaticAlloc`.
 //
-
-#NC = affine_map<(d0, d1) -> (d0, d1)>
 
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
 
-IERT.CNNNetwork "SingleLayer" at @main
+// CHECK: IE.CNNNetwork
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
-        IERT.DataInfo "data", f32, #NC
+        IE.DataInfo "data" : memref<1x1000xf32>
     }
     outputsInfo : {
-        IERT.DataInfo "prob", f32, #NC
+        IE.DataInfo "prob" : memref<1x1000xf32>
     }
 
 // CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x1000xf16>, [[ARG1:%arg[0-9]*]]: memref<1x1000xf16>) {
@@ -27,27 +27,26 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
     IERT.SoftMax(%arg0, %arg1) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16>
     return
 
-    // CHECK-NEXT:  VPUIP.SoftMaxUPA
+    // CHECK:       VPUIP.SoftMaxUPA
     // CHECK-SAME:      axisInd = 1
     // CHECK-SAME:      inputs([[ARG0]] : memref<1x1000xf16>)
     // CHECK-SAME:      outputs([[ARG1]] : memref<1x1000xf16>)
-    // CHECK-NEXT:  return
 }
 
 }
 
 // -----
 
-#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-
 // CHECK-LABEL: @ConstantLayer
 module @ConstantLayer {
 
-IERT.CNNNetwork "ConstantLayer" at @main
+// CHECK: IE.CNNNetwork
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
     }
     outputsInfo :  {
-        IERT.DataInfo "output", f32, #NCHW
+        IE.DataInfo "output" : memref<1x2x2x2xf32>
     }
 
 // CHECK: global_memref
@@ -62,10 +61,59 @@ func @main(%arg0: memref<1x2x2x2xf16>) {
     // CHECK:       [[VAR0:%[0-9]*]] = VPUIP.DeclareConstantTensorOp
     // CHECK-SAME:      dense<1.000000e+00>
     // CHECK-SAME:      -> memref<1x2x2x2xf16>
-    // CHECK-NEXT:  VPUIP.NNDMA
+
+    // CHECK:       VPUIP.NNDMA
     // CHECK-SAME:      inputs([[VAR0]] : memref<1x2x2x2xf16>)
     // CHECK-SAME:      outputs([[ARG0]] : memref<1x2x2x2xf16>)
-    // CHECK-NEXT:  return
+}
+
+}
+
+// -----
+
+// CHECK-LABEL: @StaticAlloc
+module @StaticAlloc {
+
+// CHECK: IE.CNNNetwork
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        IE.DataInfo "data" : memref<1x1000xf32>
+    }
+    outputsInfo : {
+        IE.DataInfo "prob" : memref<1x1000xf32>
+    }
+
+// CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x1000xf16>, [[ARG1:%arg[0-9]*]]: memref<1x1000xf16>) {
+func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
+    %0 = IERT.StaticAlloc<0> -> memref<1x1000xf16, "DDR">
+    IERT.SoftMax(%arg0, %0) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16, "DDR">
+
+    %1 = IERT.StaticAlloc<2048> -> memref<1x1000xf16, "DDR">
+    IERT.SoftMax(%0, %1) {axisInd = 1 : i32} : memref<1x1000xf16, "DDR">, memref<1x1000xf16, "DDR">
+
+    IERT.SoftMax(%1, %arg1) {axisInd = 1 : i32} : memref<1x1000xf16, "DDR">, memref<1x1000xf16>
+
+    return
+
+    // CHECK:       [[VAR0:%[0-9]*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16, "DDR">
+
+    // CHECK:       VPUIP.SoftMaxUPA
+    // CHECK-SAME:      axisInd = 1
+    // CHECK-SAME:      inputs([[ARG0]] : memref<1x1000xf16>)
+    // CHECK-SAME:      outputs([[VAR0]] : memref<1x1000xf16, "DDR">)
+
+    // CHECK:       [[VAR1:%[0-9]*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1000xf16, "DDR">
+
+    // CHECK:       VPUIP.SoftMaxUPA
+    // CHECK-SAME:      axisInd = 1
+    // CHECK-SAME:      inputs([[VAR0]] : memref<1x1000xf16, "DDR">)
+    // CHECK-SAME:      outputs([[VAR1]] : memref<1x1000xf16, "DDR">)
+
+    // CHECK:       VPUIP.SoftMaxUPA
+    // CHECK-SAME:      axisInd = 1
+    // CHECK-SAME:      inputs([[VAR1]] : memref<1x1000xf16, "DDR">)
+    // CHECK-SAME:      outputs([[ARG1]] : memref<1x1000xf16>)
 }
 
 }

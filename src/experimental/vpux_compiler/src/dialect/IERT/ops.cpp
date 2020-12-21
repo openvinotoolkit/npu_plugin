@@ -16,38 +16,11 @@
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
-#include "vpux/compiler/core/attributes/dims_order.hpp"
-
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/OpImplementation.h>
 
 using namespace vpux;
-
-namespace {
-
-class IERTDialectAsmHooks final : public mlir::OpAsmDialectInterface {
-public:
-    using mlir::OpAsmDialectInterface::OpAsmDialectInterface;
-
-public:
-    mlir::LogicalResult getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const final;
-};
-
-mlir::LogicalResult IERTDialectAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const {
-    if (const auto affineMapAttr = attr.dyn_cast<mlir::AffineMapAttr>()) {
-        if (const auto dimsOrder = DimsOrder::fromAffineMap(affineMapAttr.getValue())) {
-            if (const auto name = dimsOrder->getCanonicalName()) {
-                os << name.getValue();
-                return mlir::success();
-            }
-        }
-    }
-
-    return mlir::failure();
-}
-
-}  // namespace
 
 void vpux::IERT::IERTDialect::initialize() {
     addOperations<
@@ -55,8 +28,6 @@ void vpux::IERT::IERTDialect::initialize() {
 #include <vpux/compiler/dialect/IERT/generated/ops.cpp.inc>
 #undef GET_OP_LIST
             >();
-
-    addInterfaces<IERTDialectAsmHooks>();
 }
 
 mlir::Operation* vpux::IERT::IERTDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value,

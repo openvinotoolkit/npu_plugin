@@ -42,11 +42,3 @@ mlir::LogicalResult vpux::IE::MultiplyOp::inferReturnTypeComponents(
     }
     return mlir::success();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::MultiplyOp::getInputs() {
-    return {input1(), input2()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::MultiplyOp::getOutputs() {
-    return {output()};
-}

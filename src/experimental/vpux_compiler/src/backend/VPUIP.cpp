@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/backend/VPUIP.hpp"
 
+#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -135,10 +136,10 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
 }
 
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
-                                                              VPUIP::GraphOp graphOp, mlir::FuncOp graphFunc,
-                                                              ptrdiff_t taskCount) {
-    auto inputsInfo = to_vector<1>(graphOp.inputsInfo().getOps<VPUIP::TensorInfoOp>());
-    auto outputsInfo = to_vector<1>(graphOp.outputsInfo().getOps<VPUIP::TensorInfoOp>());
+                                                              VPUIP::GraphOp graphOp, IE::CNNNetworkOp netOp,
+                                                              mlir::FuncOp netFunc, ptrdiff_t taskCount) {
+    auto inputsInfo = netOp.getInputsInfo();
+    auto outputsInfo = netOp.getOutputsInfo();
 
     SmallVector<VPUIP::BlobWriter::TensorReference, 1> graphInputs, userInputs;
     graphInputs.reserve(inputsInfo.size());
@@ -148,21 +149,9 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         const auto ind = checked_cast<uint32_t>(p.index());
 
         auto userInfo = p.value();
-        auto val = graphFunc.getArgument(ind);
+        const auto val = netFunc.getArgument(ind);
 
-        const auto graphType = val.getType().cast<mlir::MemRefType>();
-
-        // Note: user input layout might not be same as graph shape, if 4D converter pass is applied.
-        // TODO: add an attribute on Module op to keep this info showing whether 4D converter is applied or not
-        auto graphShape = graphType.getShape();
-        size_t origDim = userInfo.layout().getNumDims();
-        size_t dimDiff = graphShape.size() - origDim;
-        std::vector<int64_t> origShape(origDim);
-        for (size_t i = 0; i < origDim; ++i) {
-            origShape[i] = graphShape[i + dimDiff];
-        }
-
-        const auto userType = mlir::MemRefType::get(origShape, userInfo.precision(), {userInfo.layout()});
+        const auto userType = userInfo.userType().cast<mlir::MemRefType>();
 
         graphInputs.push_back(
                 writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
@@ -180,21 +169,9 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         const auto funcArgInd = inputsInfo.size() + p.index();
 
         auto userInfo = p.value();
-        auto val = graphFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
+        const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
-        const auto graphType = val.getType().cast<mlir::MemRefType>();
-
-        // Note: user input layout might not be same as graph shape, if 4D converter pass is applied.
-        // TODO: add an attribute on Module op to keep this info showing whether 4D converter is applied or not
-        auto graphShape = graphType.getShape();
-        size_t origDim = userInfo.layout().getNumDims();
-        size_t dimDiff = graphShape.size() - origDim;
-        std::vector<int64_t> origShape(origDim);
-        for (size_t i = 0; i < origDim; ++i) {
-            origShape[i] = graphShape[i + dimDiff];
-        }
-
-        const auto userType = mlir::MemRefType::get(origShape, userInfo.precision(), {userInfo.layout()});
+        const auto userType = userInfo.userType().cast<mlir::MemRefType>();
 
         graphOutputs.push_back(
                 writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
@@ -210,7 +187,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     const auto serializedOptions = writer.createVector(options);
 
     const auto serializedVersion = createVersion(writer, graphOp.version());
-    const auto serializedName = writer.createString(graphOp.identifier());
+    const auto serializedName = writer.createString(module.getName().getValueOr("network"));
     const auto serializedGraphInputs = writer.createVector(graphInputs);
     const auto serializedUserInputs = writer.createVector(userInputs);
     const auto serializedGraphOutputs = writer.createVector(graphOutputs);
@@ -234,18 +211,21 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
 flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Logger log) {
     log.setName("VPUIP::BackEnd");
-    log.trace("Extract {0} from Module", VPUIP::GraphOp::getOperationName());
-    VPUIP::GraphOp graphOp;
-    mlir::FuncOp graphFunc;
-    VPUX_THROW_UNLESS(mlir::succeeded(VPUIP::GraphOp::getFromModule(module, graphOp, graphFunc)),
-                      "Invalid VPUIP Dialect IR");
+
+    log.trace("Extract '{0}' from Module", IE::CNNNetworkOp::getOperationName());
+    IE::CNNNetworkOp netOp;
+    mlir::FuncOp netFunc;
+    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
+
+    log.trace("Extract '{0}' from Module", VPUIP::GraphOp::getOperationName());
+    auto graphOp = VPUIP::GraphOp::getFromModule(module);
 
     BlobWriter writer(log.nest());
 
-    const auto allTasks = graphFunc.getOps<VPUIP::TaskOpInterface>();
+    const auto allTasks = netFunc.getOps<VPUIP::TaskOpInterface>();
     const auto taskCount = std::distance(allTasks.begin(), allTasks.end());
 
-    const auto header = createSummaryHeader(writer, module, graphOp, graphFunc, taskCount);
+    const auto header = createSummaryHeader(writer, module, graphOp, netOp, netFunc, taskCount);
 
     using TaskList = std::vector<BlobWriter::Task>;
     using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
@@ -275,14 +255,14 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
             ++constantTensorInd;
         } else if (auto barrierOp = mlir::dyn_cast<DeclareBarrierOp>(op)) {
             writer.createBarrier(barrierOp.barrier());
-        } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == graphFunc.getOperation()) {
+        } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == netFunc.getOperation()) {
             // do nothing
         } else {
             VPUX_THROW("Unknown Operation {0}", *op);
         }
     };
 
-    graphFunc.walk(callback);
+    netFunc.walk(callback);
 
     std::vector<BlobWriter::TaskList> taskLists;
     taskLists.reserve(tasksMap.size());

@@ -60,7 +60,8 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
             return mlir::success();
         } else {
             std::vector<int64_t> inDataShapeVec(inDataShape.begin(), inDataShape.end());
-            int64_t dividend = std::accumulate(inDataShape.begin(), inDataShape.end(), int64_t(1), std::multiplies<int64_t>());
+            int64_t dividend =
+                    std::accumulate(inDataShape.begin(), inDataShape.end(), int64_t(1), std::multiplies<int64_t>());
 
             for (size_t i = 0; i < outShapeVec.size(); ++i) {
                 auto& v = outShapeVec[i];
@@ -94,12 +95,4 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
     }
 
     return mlir::failure();
-}
-
-SmallVector<mlir::Value, 4> vpux::IE::ReshapeOp::getInputs() {
-    return {input1(), input2()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::ReshapeOp::getOutputs() {
-    return {output()};
 }

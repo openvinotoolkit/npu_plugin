@@ -19,9 +19,9 @@
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "mlir/Transforms/Passes.h"
 
 #include <mlir/Pass/PassManager.h>
+#include <mlir/Transforms/Passes.h>
 
 using namespace vpux;
 
@@ -48,11 +48,9 @@ ReferenceModePass::ReferenceModePass(Logger log)
     _log.setName(Base::getArgumentName());
 
     _pm.addPass(mlir::createCanonicalizerPass());
-    _pm.addPass(IE::createAdjustPrecisionForVPUPass(_log.nest()));
-    _pm.addPass(IE::createConvertNDOpsTo4DPass(_log.nest()));
+    _pm.addPass(IE::createAdjustForVPUPass(_log.nest()));
     _pm.addPass(createLowerIE2IERTPass(_log.nest()));
     _pm.addPass(createLowerIERT2VPUIPPass(_log.nest()));
-    _pm.addPass(VPUIP::createAssignTensorOffsetsDDRPass(_log.nest()));
     _pm.addPass(VPUIP::createAddLinearSchedulingPass(_log.nest()));
 }
 

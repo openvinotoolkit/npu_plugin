@@ -28,6 +28,7 @@
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
+#include "vpux/utils/core/string_utils.hpp"
 
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/MLIRContext.h>
@@ -82,6 +83,28 @@ VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
     }
 }
 
+class TimingLogger final : public mlir::PassManager::PassTimingConfig {
+public:
+    explicit TimingLogger(Logger log): _log(log) {
+    }
+
+public:
+    void printTiming(PrintCallbackFn printCallback) final;
+
+private:
+    Logger _log;
+};
+
+void TimingLogger::printTiming(PrintCallbackFn printCallback) {
+    std::string timingLog;
+    llvm::raw_string_ostream stream(timingLog);
+    printCallback(stream);
+
+    splitStringList(timingLog, '\n', [this](StringRef line) {
+        _log.info("{0}", line);
+    });
+}
+
 }  // namespace
 
 std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shared_ptr<ngraph::Function>& func,
@@ -112,6 +135,9 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
     addLogging(pm, log);
+    if (log.isActive(LogLevel::Info)) {
+        pm.enableTiming(std::make_unique<TimingLogger>(log));
+    }
 
     pm.addPass(createSetCompileParamsPass(getArchKind(config), log.nest()));
     pm.addPass(createReferenceModePass(log.nest()));

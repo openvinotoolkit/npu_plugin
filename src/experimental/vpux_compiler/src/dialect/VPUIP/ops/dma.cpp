@@ -16,32 +16,30 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include "vpux/utils/core/checked_cast.hpp"
+
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
-    const auto src = inputTensors().front();
-    const auto dst = outputTensors().front();
-
-    const auto srcOff = writer.getTensor(src);
-    const auto dstOff = writer.getTensor(dst);
+    const auto inputOff = writer.getTensor(input());
+    const auto outputOff = writer.getTensor(output());
 
     MVCNN::UPADMATaskBuilder builder(writer);
-    builder.add_src(srcOff);
-    builder.add_dst(dstOff);
+    builder.add_src(inputOff);
+    builder.add_dst(outputOff);
     return {builder.Finish().Union(), MVCNN::SpecificTask_UPADMATask};
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
-    const auto src = inputTensors().front();
-    const auto dst = outputTensors().front();
-
-    const auto srcOff = writer.getTensor(src);
-    const auto dstOff = writer.getTensor(dst);
+    const auto srcOff = writer.getTensor(input());
+    const auto dstOff = writer.getTensor(output());
 
     MVCNN::NNDMATaskBuilder builder(writer);
     builder.add_src(srcOff);
     builder.add_dst(dstOff);
+    builder.add_compression(compression());
+    builder.add_port(checked_cast<uint8_t>(port()));
     return {builder.Finish().Union(), MVCNN::SpecificTask_NNDMATask};
 }

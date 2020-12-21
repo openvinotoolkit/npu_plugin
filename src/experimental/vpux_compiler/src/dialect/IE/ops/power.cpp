@@ -70,11 +70,3 @@ mlir::LogicalResult vpux::IE::PowerOp::inferReturnTypeComponents(
     }
     return mlir::success();
 }
-
-SmallVector<mlir::Value, 4> vpux::IE::PowerOp::getInputs() {
-    return {input1(), input2()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::PowerOp::getOutputs() {
-    return {output()};
-}

@@ -1,8 +1,6 @@
 // RUN: vpux-translate --export-VPUIP -o %t %s && flatc --raw-binary --json %vpuip_schema_file% -- %t && FileCheck %s --input-file %basename_t.json
 
-#NC = affine_map<(d0, d1) -> (d0, d1)>
-
-module @test attributes {VPUIP.arch = "MA2490"} {
+module @Test attributes {VPUIP.arch = "MA2490"} {
 
 IERT.RunTimeResources
     availableMemory : {
@@ -30,7 +28,7 @@ IERT.RunTimeResources
         IERT.ExecutorResource 1 of "NCE_Cluster"
     }
 
-VPUIP.Graph "Test" at @main
+VPUIP.Graph
     options : "DynamicBarriers"
     version : {
         majorV = 3 : i32,
@@ -38,18 +36,21 @@ VPUIP.Graph "Test" at @main
         patchV = 0 : i32, hash = "",
         contextStr = "VPUX Compiler"
     }
+
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
-        VPUIP.TensorInfo "input", f32, #NC
+        IE.DataInfo "input" : memref<1x1000xf32>
     }
     outputsInfo : {
-        VPUIP.TensorInfo "softmax", f32, #NC
+        IE.DataInfo "softmax" : memref<1x1000xf32>
     }
 
-func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
-    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16>
+func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
+    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
     %1 = VPUIP.ConfigureBarrier -> !VPUIP.Barrier
-    VPUIP.SoftMaxUPA {axisInd = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>) updates(%1 : !VPUIP.Barrier)
-    VPUIP.UPADMA inputs(%0 : memref<1x1000xf16>) outputs(%arg1 : memref<1x1000xf16>) waits(%1 : !VPUIP.Barrier)
+    VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) updates(%1 : !VPUIP.Barrier)
+    VPUIP.UPADMA inputs(%0 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%1 : !VPUIP.Barrier)
     return
 }
 
@@ -62,10 +63,14 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 // CHECK:       name: "input",
 // CHECK:       dimensions: [
 // CHECK:           1,
+// CHECK:           1,
+// CHECK:           1,
 // CHECK:           1000
 // CHECK:       ],
 // CHECK:       strides: [
 // CHECK:           2.0,
+// CHECK:           2000.0,
+// CHECK:           2000.0,
 // CHECK:           2000.0,
 // CHECK:           2.0
 // CHECK:       ],
@@ -82,10 +87,14 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 // CHECK:       name: "softmax",
 // CHECK:       dimensions: [
 // CHECK:         1,
+// CHECK:         1,
+// CHECK:         1,
 // CHECK:         1000
 // CHECK:       ],
 // CHECK:       strides: [
 // CHECK:         2.0,
+// CHECK:         2000.0,
+// CHECK:         2000.0,
 // CHECK:         2000.0,
 // CHECK:         2.0
 // CHECK:       ],

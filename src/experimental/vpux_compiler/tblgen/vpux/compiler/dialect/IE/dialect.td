@@ -33,7 +33,9 @@ def IE_Dialect : Dialect {
     let cppNamespace = "vpux::IE";
 
     let dependentDialects = [
-        "mlir::StandardOpsDialect"
+        "mlir::StandardOpsDialect",
+        "mlir::linalg::LinalgDialect",
+        "mlir::quant::QuantizationDialect"
     ];
 
     let hasConstantMaterializer = 1;

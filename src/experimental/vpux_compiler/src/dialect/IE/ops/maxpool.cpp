@@ -17,13 +17,14 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
+#include "vpux/utils/core/error.hpp"
 
 #include <mlir/IR/PatternMatch.h>
+
 #include <ngraph/coordinate.hpp>
 #include <ngraph/op/max_pool.hpp>
 #include <ngraph/util.hpp>
-#include "ngraph/validation_util.hpp"
-#include "vpux/utils/core/error.hpp"
+#include <ngraph/validation_util.hpp>
 
 using namespace vpux;
 
@@ -79,12 +80,4 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(__outputShape, inType.getElementType());
 
     return mlir::success();
-}
-
-SmallVector<mlir::Value, 4> vpux::IE::MaxPoolOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::MaxPoolOp::getOutputs() {
-    return {output()};
 }

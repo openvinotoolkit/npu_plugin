@@ -1,21 +1,10 @@
 // RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --reference-mode %s | FileCheck %s
 
-// CHECK: #NC = affine_map<(d0, d1) -> (d0, d1)>
-
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
 
-// CHECK:       VPUIP.Graph "SingleLayer" at @main
+// CHECK:       VPUIP.Graph
 // CHECK-SAME:      options : "DynamicBarriers"
-IE.CNNNetwork "SingleLayer" at @main
-    inputsInfo : {
-        // CHECK: VPUIP.TensorInfo "input", f32, #NC
-        IE.DataInfo "input", f32, "NC"
-    }
-    outputsInfo : {
-        // CHECK: VPUIP.TensorInfo "softmax", f32, #NC
-        IE.DataInfo "softmax", f32, "NC"
-    }
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
@@ -23,6 +12,16 @@ IE.CNNNetwork "SingleLayer" at @main
 // CHECK:       usedExecutors
 // CHECK:           IERT.ExecutorResource 16 of "SHAVE_UPA"
 // CHECK:           IERT.ExecutorResource 1 of "NCE_Cluster"
+
+// CHECK: IE.CNNNetwork
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        IE.DataInfo "input" : memref<1x1000xf32>
+    }
+    outputsInfo : {
+        IE.DataInfo "softmax" : memref<1x1000xf32>
+    }
 
 // CHECK:       func @main(
 // CHECK-SAME:      %[[VAL_0:.*]]: memref<1x1x1x1000xf16>,
@@ -36,8 +35,6 @@ func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
     // CHECK-SAME:      isTrailingSWLayer
     // CHECK-SAME:      inputs(%[[VAL_0]] : memref<1x1x1x1000xf16>)
     // CHECK-SAME:      outputs(%[[VAL_1]] : memref<1x1x1x1000xf16>)
-
-    // CHECK:       return
 }
 
 }
@@ -47,19 +44,8 @@ func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
 // CHECK-LABEL: @ConstantLayer
 module @ConstantLayer {
 
-// CHECK:       VPUIP.Graph "ConstantLayer" at @main
+// CHECK:       VPUIP.Graph
 // CHECK-SAME:      options : "DynamicBarriers"
-IE.CNNNetwork "ConstantLayer" at @main
-    inputsInfo : {
-        // CHECK: VPUIP.TensorInfo "input", f32, #NCHW
-        IE.DataInfo "input", f32, "NCHW"
-    }
-    outputsInfo : {
-        // CHECK: VPUIP.TensorInfo "output1", f32, #NCHW
-        IE.DataInfo "output1", f32, "NCHW"
-        // CHECK: VPUIP.TensorInfo "output2", f32, #NCHW
-        IE.DataInfo "output2", f32, "NCHW"
-    }
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
@@ -67,6 +53,17 @@ IE.CNNNetwork "ConstantLayer" at @main
 // CHECK:       usedExecutors
 // CHECK:           IERT.ExecutorResource 16 of "SHAVE_UPA"
 // CHECK:           IERT.ExecutorResource 1 of "NCE_Cluster"
+
+// CHECK: IE.CNNNetwork
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        IE.DataInfo "input" : memref<1x2x2x2xf32>
+    }
+    outputsInfo : {
+        IE.DataInfo "output1" : memref<1x2x2x2xf32>
+        IE.DataInfo "output2" : memref<1x2x2x2xf32>
+    }
 
 // CHECK:       func @main(
 // CHECK-SAME:      %[[VAL_0:[a-z]*[a-z0-9]*]]: memref<1x2x2x2xf16>,
@@ -106,25 +103,24 @@ func @main(%arg0: tensor<1x2x2x2xf32>) -> (tensor<1x2x2x2xf32>, tensor<1x2x2x2xf
     // CHECK-SAME:      isTrailingSWLayer
     // CHECK-SAME:      inputs(%[[VAL_3]] : memref<1x2x2x2xf16>)
     // CHECK-SAME:      outputs(%[[VAL_2]] : memref<1x2x2x2xf16>)
-
-    // CHECK:       return
 }
 
 }
 
 // -----
 
-// CHECK: #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-
 // CHECK-LABEL: @OptimizeUselessSoftMaxFP32
 module @OptimizeUselessSoftMaxFP32 {
 
-IE.CNNNetwork "OptimizeUselessSoftMaxFP32" at @main
+// CHECK:       VPUIP.Graph
+// CHECK-SAME:      options : "DynamicBarriers"
+
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
     }
     outputsInfo : {
-        // CHECK: VPUIP.TensorInfo "prob", f32, #NCHW
-        IE.DataInfo "prob", f32, "NCHW"
+        IE.DataInfo "prob" : memref<1x2x4x2xf32>
     }
 
 // CHECK:       func @main(
@@ -154,11 +150,8 @@ func @main() -> tensor<1x2x4x2xf32> {
     // CHECK-SAME:      -> memref<1x2x4x2xf16>
 
     // CHECK:       VPUIP.NNDMA
-    // CHECK-SAME   inputs(%[[CST]] : memref<1x2x4x2xf16>)
-    // CHECK-SAME   outputs(%[[ARG]] : memref<1x2x4x2xf16>)
-
-    // CHECK:       return
-
+    // CHECK-SAME:      inputs(%[[CST]] : memref<1x2x4x2xf16>)
+    // CHECK-SAME:      outputs(%[[ARG]] : memref<1x2x4x2xf16>)
 }
 
 }

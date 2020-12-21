@@ -20,14 +20,6 @@
 
 using namespace vpux;
 
-SmallVector<mlir::Value, 4> vpux::VPUIP::SoftMaxUPAOp::getInputs() {
-    return inputTensors();
-}
-
-SmallVector<mlir::Value, 1> vpux::VPUIP::SoftMaxUPAOp::getOutputs() {
-    return outputTensors();
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftMaxUPAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
     const auto axisDim = getAxisDim();
 

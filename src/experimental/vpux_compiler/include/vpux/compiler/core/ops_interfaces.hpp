@@ -17,7 +17,6 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/dim.hpp"
-#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 
 #include "vpux/utils/core/range.hpp"
@@ -30,65 +29,14 @@
 #include <mlir/IR/Operation.h>
 
 namespace vpux {
-
-//
-// Forward declarations
-//
-
-class DataInfoInterface;
-class NetInfoInterface;
-
 namespace details {
 
 //
-// DataInfoInterface
-//
-
-mlir::LogicalResult verifyDataInfo(mlir::Operation* op);
-
-//
-// NetInfoInterface
-//
-
-mlir::LogicalResult verifyNetInfo(mlir::Operation* op);
-
-mlir::FailureOr<std::pair<mlir::Operation*, mlir::FuncOp>> getNetInfo(mlir::ModuleOp module);
-
-template <class ConcreteOp>
-mlir::LogicalResult getNetInfo(mlir::ModuleOp module, ConcreteOp& netInfo, mlir::FuncOp& netFunc) {
-    auto res = getNetInfo(module);
-    if (mlir::failed(res)) {
-        return mlir::failure();
-    }
-
-    if (!mlir::isa<ConcreteOp>(res->first)) {
-        return mlir::failure();
-    }
-
-    netInfo = mlir::cast<ConcreteOp>(res->first);
-    netFunc = res->second;
-
-    return mlir::success();
-}
-
-SmallVector<DataInfoInterface, 1> getDataInfoVec(mlir::Region& region);
-
-//
-// LayerInterface
+// Interface verifiers
 //
 
 mlir::LogicalResult verifyLayer(mlir::Operation* op);
-
-//
-// ConvertLayerInterface
-//
-
 mlir::LogicalResult verifyConvertLayer(mlir::Operation* op);
-
-//
-// SoftMaxLayerInterface
-//
-
 mlir::LogicalResult verifySoftMaxLayer(mlir::Operation* op);
 
 }  // namespace details

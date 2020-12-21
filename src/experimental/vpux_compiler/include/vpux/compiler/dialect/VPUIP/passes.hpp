@@ -31,20 +31,10 @@ namespace vpux {
 namespace VPUIP {
 
 //
-// SetCompileParams
+// Passes
 //
 
 std::unique_ptr<mlir::Pass> createSetCompileParamsPass(Optional<ArchKind> arch, Logger log = Logger::global());
-
-//
-// AssignTensorOffsetsDDR
-//
-
-std::unique_ptr<mlir::Pass> createAssignTensorOffsetsDDRPass(Logger log = Logger::global());
-
-//
-// AddLinearScheduling
-//
 
 std::unique_ptr<mlir::Pass> createAddLinearSchedulingPass(Logger log = Logger::global());
 

@@ -1,14 +1,25 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --adjust-precision-for-vpu %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --convert-precision-to-fp16 %s | FileCheck %s
+
+//
+// The 'convert-precision-to-fp16' pass:
+//
+//   * Updates both Function bodies and Function prototypes.
+//   * It shouldn't touch user types defined in `IE.CNNNetwork`.
+//   * It should update types for `Constant` operation.
+//
 
 // CHECK-LABEL: @FP32toFP16
 module @FP32toFP16 {
 
-IE.CNNNetwork "FP32toFP16" at @main
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data", f32, "NC"
+        // CHECK: IE.DataInfo "data" : memref<1x1000xf32>
+        IE.DataInfo "data" : memref<1x1000xf32>
     }
     outputsInfo : {
-        IE.DataInfo "prob", f32, "NC"
+        // CHECK: IE.DataInfo "prob" : memref<1x1000xf32>
+        IE.DataInfo "prob" : memref<1x1000xf32>
     }
 
 // CHECK: func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16>
@@ -28,11 +39,13 @@ func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
 // CHECK-LABEL: @ConstantLayer
 module @ConstantLayer {
 
-IE.CNNNetwork "ConstantLayer" at @main
+IE.CNNNetwork
+    entryPoint : @main
     inputsInfo : {
     }
     outputsInfo : {
-        IE.DataInfo "output", f32, "NCHW"
+        // CHECK: IE.DataInfo "output" : memref<1x2x2x2xf32>
+        IE.DataInfo "output" : memref<1x2x2x2xf32>
     }
 
 // CHECK: func @main() -> tensor<1x2x2x2xf16>

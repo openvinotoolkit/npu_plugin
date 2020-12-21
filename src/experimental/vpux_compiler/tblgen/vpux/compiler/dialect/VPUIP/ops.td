@@ -38,7 +38,7 @@ class VPUIP_Op<string mnemonic, list<OpTrait> traits = []> :
             traits
         >;
 
-class VPUIP_TaskOp<string mnemonic, VPUIP_TaskTypeVal taskType, list<OpTrait> traits = []> :
+class VPUIP_TaskOp<string mnemonic, list<OpTrait> traits = []> :
         VPUIP_Op<
             mnemonic,
             !listconcat(
@@ -49,21 +49,7 @@ class VPUIP_TaskOp<string mnemonic, VPUIP_TaskTypeVal taskType, list<OpTrait> tr
                     DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
                 ]
             )
-        > {
-    let extraClassDeclaration = [{
-        static vpux::VPUIP::TaskType getTaskType() {
-            return }] # taskType.enumVal # [{;
-        }
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        (`inputs` `(` $inputTensors^ `:` type($inputTensors) `)`)?
-        (`outputs` `(` $outputTensors^ `:` type($outputTensors) `)`)?
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-    }];
-}
+        >;
 
 //
 // GraphOp
@@ -73,74 +59,25 @@ def VPUIP_GraphOp :
         VPUIP_Op<
             "Graph",
             [
-                IsolatedFromAbove,
-                HasParent<"mlir::ModuleOp">,
-                SingleBlockImplicitTerminator<"vpux::VPUIP::EndOp">,
-                NoRegionArguments,
-                DeclareOpInterfaceMethods<NetInfoInterface>,
-                DeclareOpInterfaceMethods<SymbolUserOpInterface>
+                HasParent<"mlir::ModuleOp">
             ]
         > {
     let summary = "The root object for the VPUIP Execution Graph";
 
     let arguments = (ins
-        StrAttr:$identifier,
-        FlatSymbolRefAttr:$entryPoint,
         VPUIP_ExecutionFlag:$options,
         VPUIP_Version:$version
     );
 
-    let regions = (region
-        SizedRegion<1>:$inputsInfo,
-        SizedRegion<1>:$outputsInfo
-    );
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::GraphOp getFromModule(mlir::ModuleOp module);
+    }];
 
     let assemblyFormat = [{
         attr-dict
-        $identifier `at` $entryPoint
         `options` `:` $options
         `version` `:` $version
-        `inputsInfo` `:` $inputsInfo
-        `outputsInfo` `:` $outputsInfo
     }];
-}
-
-def VPUIP_TensorInfoOp :
-        VPUIP_Op<
-            "TensorInfo",
-            [
-                IsolatedFromAbove,
-                HasParent<"vpux::VPUIP::GraphOp">,
-                DeclareOpInterfaceMethods<DataInfoInterface>
-            ]
-        > {
-    let summary = "Information about user inputs/outputs tensors";
-
-    let arguments = (ins
-        StrAttr:$name,
-        TypeAttr:$precision,
-        AffineMapAttr:$layout
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        $name `,` $precision `,` $layout
-    }];
-}
-
-def VPUIP_EndOp :
-        VPUIP_Op<
-            "End",
-            [
-                NoSideEffect,
-                Terminator,
-                NativeOpTrait<"ReturnLike">,
-                HasParent<"vpux::VPUIP::GraphOp">
-            ]
-        > {
-    let summary = "End indicator for VPUIP Graph user inputs/outputs info lists";
-
-    let assemblyFormat = "attr-dict";
 }
 
 //
@@ -290,15 +227,11 @@ def VPUIP_DeclareBarrierOp :
 
 def VPUIP_ConfigureBarrierOp :
         VPUIP_TaskOp<
-            "ConfigureBarrier",
-            VPUIP_TaskType_Controller
+            "ConfigureBarrier"
         > {
     let summary = "A task to configure the setup for a barrier";
 
     let arguments = (ins
-        Variadic<AnyMemRef>:$inputTensors,
-        Variadic<AnyMemRef>:$outputTensors,
-
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers
     );
@@ -313,23 +246,66 @@ def VPUIP_ConfigureBarrierOp :
             [{
                 build($_builder, $_state,
                       vpux::VPUIP::BarrierType::get($_builder.getContext()),
-                      mlir::ValueRange {}, mlir::ValueRange {},
                       mlir::ValueRange {}, mlir::ValueRange {});
             }]
         >
     ];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::Controller;
+        }
     }];
 
     let assemblyFormat = [{
         attr-dict
-        (`inputs` `(` $inputTensors^ `:` type($inputTensors) `)`)?
-        (`outputs` `(` $outputTensors^ `:` type($outputTensors) `)`)?
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
+    }];
+}
+
+//
+// UPADMAOp
+//
+
+def VPUIP_UPADMAOp :
+        VPUIP_TaskOp<
+            "UPADMA"
+        > {
+    let summary = "UPA DMA task";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins "mlir::Value":$src, "mlir::Value":$dst),
+            [{
+                build($_builder, $_state,
+                      src, dst,
+                      mlir::ValueRange {}, mlir::ValueRange {});
+            }]
+        >
+    ];
+
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::UPADMA;
+        }
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
     }];
 }
 
@@ -339,20 +315,19 @@ def VPUIP_ConfigureBarrierOp :
 
 def VPUIP_NNDMAOp :
         VPUIP_TaskOp<
-            "NNDMA",
-            VPUIP_TaskType_NNDMA,
-            [
-                VPUIP_UPATaskTrait
-            ]
+            "NNDMA"
         > {
     let summary = "NN DMA task";
 
     let arguments = (ins
-        Variadic<AnyMemRef>:$inputTensors,
-        Variadic<AnyMemRef>:$outputTensors,
+        AnyMemRef:$input,
+        AnyMemRef:$output,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        UnitAttr:$compression,
+        DefaultValuedAttr<I32Attr, "0">:$port
     );
 
     let builders = [
@@ -360,45 +335,26 @@ def VPUIP_NNDMAOp :
             (ins "mlir::Value":$src, "mlir::Value":$dst),
             [{
                 build($_builder, $_state,
-                      mlir::ValueRange {src}, mlir::ValueRange {dst},
-                      mlir::ValueRange {}, mlir::ValueRange {});
+                      src, dst,
+                      mlir::ValueRange {}, mlir::ValueRange {},
+                      false);
             }]
         >
     ];
-}
 
-//
-// UPADMAOp
-//
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::NNDMA;
+        }
+    }];
 
-def VPUIP_UPADMAOp :
-        VPUIP_TaskOp<
-            "UPADMA",
-            VPUIP_TaskType_UPADMA,
-            [
-                VPUIP_UPATaskTrait
-            ]
-        > {
-    let summary = "UPA DMA task";
-
-    let arguments = (ins
-        Variadic<AnyMemRef>:$inputTensors,
-        Variadic<AnyMemRef>:$outputTensors,
-
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers
-    );
-
-    let builders = [
-        OpBuilderDAG<
-            (ins "mlir::Value":$src, "mlir::Value":$dst),
-            [{
-                build($_builder, $_state,
-                      mlir::ValueRange {src}, mlir::ValueRange {dst},
-                      mlir::ValueRange {}, mlir::ValueRange {});
-            }]
-        >
-    ];
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
 }
 
 //
@@ -408,9 +364,7 @@ def VPUIP_UPADMAOp :
 def VPUIP_SoftMaxUPAOp :
         VPUIP_TaskOp<
             "SoftMaxUPA",
-            VPUIP_TaskType_UPA,
             [
-                VPUIP_UPATaskTrait,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
@@ -419,8 +373,8 @@ def VPUIP_SoftMaxUPAOp :
     let summary = "SoftMax UPA SHAVE kernel";
 
     let arguments = (ins
-        Variadic<F16MemRef>:$inputTensors,
-        Variadic<F16MemRef>:$outputTensors,
+        F16MemRef:$input,
+        F16MemRef:$output,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -439,13 +393,21 @@ def VPUIP_SoftMaxUPAOp :
             ),
             [{
                 build($_builder, $_state,
-                      mlir::ValueRange {input}, mlir::ValueRange {output},
+                      input, output,
                       mlir::ValueRange {}, mlir::ValueRange {},
                       axisInd,
                       nullptr, nullptr);
             }]
         >
     ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
 }
 
 #endif

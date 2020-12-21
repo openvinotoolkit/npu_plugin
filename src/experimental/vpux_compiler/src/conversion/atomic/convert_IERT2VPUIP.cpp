@@ -130,7 +130,7 @@ void ConvertIERT2VPUIPPass::passBody() {
 
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<VPUIP::VPUIPDialect>();
-    target.addLegalOp<IERT::CNNNetworkOp, IERT::DataInfoOp, IERT::EndOp>();
+    target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp, IE::EndOp>();
     target.addLegalOp<IERT::RunTimeResourcesOp, IERT::MemoryResourceOp, IERT::ExecutorResourceOp>();
     target.addLegalOp<mlir::AllocOp, mlir::DeallocOp, mlir::GlobalMemrefOp>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
