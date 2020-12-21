@@ -146,7 +146,8 @@ void InferRequest::moveBlobForPreprocessingToInputs(
 #ifdef __aarch64__
 void InferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "execPreprocessing");
-    if ((_config.useSIPP() || _config.useM2I()) && IE::KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
+    if ((_config.useSIPP() || _config.useM2I() || _config.useSHAVE_only_M2I()) &&
+        IE::KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecKmbDataPreprocessing(inputs, _networkInputs, _config.graphColorFormat(),
                                               _config.numberOfSIPPShaves(), _config.SIPPLpi(),
                                               _config.numberOfPPPipes());
@@ -229,8 +230,15 @@ void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
                                             InferenceEngine::ColorFormat out_format, unsigned int numShaves,
                                             unsigned int lpi, unsigned int numPipes) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "execKmbDataPreprocessing");
-    IE_ASSERT(_config.useSIPP() || _config.useM2I());
-    const IE::KmbPreproc::Path ppPath = _config.useM2I() ? IE::KmbPreproc::Path::M2I : IE::KmbPreproc::Path::SIPP;
+    IE_ASSERT(_config.useSIPP() || _config.useM2I() || _config.useSHAVE_only_M2I());
+    IE::KmbPreproc::Path ppPath;
+    if (_config.useM2I()) {
+        ppPath = IE::KmbPreproc::Path::M2I;
+    } else if (_config.useSHAVE_only_M2I()) {
+        ppPath = IE::KmbPreproc::Path::SHAVE_ONLY_M2I;
+    } else {
+        ppPath = IE::KmbPreproc::Path::SIPP;
+    }
     IE::KmbPreproc::execDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi, numPipes,
                                           _netUniqueId, _deviceId, ppPath);
 }

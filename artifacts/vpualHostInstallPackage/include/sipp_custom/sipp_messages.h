@@ -1,11 +1,11 @@
 ///
 /// INTEL CONFIDENTIAL
 /// Copyright 2020. Intel Corporation.
-/// This software and the related documents are Intel copyrighted materials, 
-/// and your use of them is governed by the express license under which they were provided to you ("License"). 
-/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
+/// This software and the related documents are Intel copyrighted materials,
+/// and your use of them is governed by the express license under which they were provided to you ("License").
+/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or
 /// transmit this software or the related documents without Intel's prior written permission.
-/// This software and the related documents are provided as is, with no express or implied warranties, 
+/// This software and the related documents are provided as is, with no express or implied warranties,
 /// other than those that are expressly stated in the License.
 ///
 /// @file      sipp_api.h
@@ -72,7 +72,6 @@ public:
     SippFilter() : filterID(0), nameLength(0), pl(0), flags(0), outputWidth(0), outputHeight(0), numPlanes(0), bpp(0), name(nullptr), pipeline(nullptr), filter(0) {
         name != nullptr ? nameLength = strlen(name) : nameLength = 0;
     }
-
     SippFilter(uint64_t pl, uint32_t flags, uint32_t out_W, uint32_t out_H,
                uint32_t num_pl, uint32_t bpp, int filter, const char* name,
                void* pipeline) : filterID(0), nameLength(0), pl(pl), flags(flags), outputWidth(out_W), outputHeight(out_H),
@@ -88,7 +87,10 @@ public:
     SippFilter& operator=(const SippFilter&) = delete;
 
     // Move Constructors.
-    SippFilter(SippFilter&&) noexcept {}
+    SippFilter(SippFilter&&) noexcept : filterID(0), nameLength(0), pl(0), flags(0), outputWidth(0), outputHeight(0), numPlanes(0), bpp(0), name(nullptr), pipeline(nullptr), filter(0) {
+        name != nullptr ? nameLength = strlen(name) : nameLength = 0;
+    }
+
     SippFilter& operator=(SippFilter&&) noexcept { return *this; }
 
     uint32_t getFilterId() const {return filterID;}

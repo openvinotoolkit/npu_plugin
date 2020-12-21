@@ -28,7 +28,7 @@ class CmaData {
 
     int Create(std::string);    					/*< Open and map the allocation files. */
     int Create(size_t size);
-    CmaData(uint32_t device_id)
+    CmaData(uint32_t device_id = 0)
         : fd { -1 }
         , b_use_vpusmm { false }
         , buf { nullptr }
