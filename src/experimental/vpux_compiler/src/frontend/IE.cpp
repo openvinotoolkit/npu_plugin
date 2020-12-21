@@ -98,6 +98,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Minimum>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Maximum>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Add>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::FakeQuantize>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -159,6 +160,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset1::Minimum),
             MAP_ENTRY(ngraph::opset1::Maximum),
             MAP_ENTRY(ngraph::opset1::Add),
+            MAP_ENTRY(ngraph::opset1::FakeQuantize),
     };
 #undef MAP_ENTRY
 
@@ -557,6 +559,27 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto alphaAttr = getFP64Attr(_ctx, checked_cast<double>(alpha));
 
     auto op = builder.create<IE::EluOp>(createLocation(origNode), inputs[0], alphaAttr);
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<ngraph::opset1::FakeQuantize>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 5, "nGraph FakeQuantize node '{0}' has unsupported number of inputs '{1}'.",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto autob = origNode->get_auto_broadcast();
+    VPUX_THROW_UNLESS(validateElementwiseArgs(origNode.get(), autob),
+                      "nGraph FakeQuantize node '{0}' has uncompatible shapes of inputs.",
+                      origNode->get_input_shape(0));
+
+    const auto levels = origNode->get_levels();
+    VPUX_THROW_UNLESS(levels >= 2, "nGraph FakeQuantize node '{0}' has unsupported levels value '{1}'.",
+                      origNode->get_friendly_name(), levels);
+    const auto levelsAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(origNode->get_levels()));
+
+    auto op = builder.create<IE::FakeQuantizeOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3],
+                                                 inputs[4], levelsAttr, importBroadcastType(autob.m_type, builder));
     addOutputs(origNode, {op.getResult()});
 }
 

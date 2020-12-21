@@ -26,5 +26,9 @@ mlir::FailureOr<SmallVector<int64_t, 4>> broadcastEltwiseShape(llvm::ArrayRef<in
                                                                llvm::ArrayRef<int64_t> shape2,
                                                                vpux::IE::AutoBroadcastType broadcastType,
                                                                mlir::Location loc);
+
+mlir::FailureOr<SmallVector<int64_t, 4>> broadcastEltwiseShape(const std::vector<llvm::ArrayRef<int64_t>>& shapes,
+                                                               vpux::IE::AutoBroadcastType broadcastType,
+                                                               mlir::Location loc);
 }  // namespace IE
 }  // namespace vpux

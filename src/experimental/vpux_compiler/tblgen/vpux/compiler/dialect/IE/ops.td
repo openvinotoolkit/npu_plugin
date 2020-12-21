@@ -754,4 +754,37 @@ def IE_MaximumOp :
     }];
 }
 
+//
+// FakeQuantizeOp
+//
+
+def IE_FakeQuantizeOp :
+        IE_LayerOp<
+            "FakeQuantize",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine FakeQuantize layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$input_low,
+        RankedTensorOf<[F16, F32]>:$input_high,
+        RankedTensorOf<[F16, F32]>:$output_low,
+        RankedTensorOf<[F16, F32]>:$output_high,
+
+        I32Attr:$levels,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
 #endif
