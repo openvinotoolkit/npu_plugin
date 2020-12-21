@@ -256,6 +256,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_manager.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/MetaGraph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_registry.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_utils.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/kmb_default_configs.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/scheduling/scheduling_passes.cpp"
