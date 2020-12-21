@@ -195,6 +195,13 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
                 return $_op.filter();
             }]
         >,
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "mlir::Value", "bias", (ins),
+            [{
+                return $_op.bias();
+            }]
+        >,
 
         InterfaceMethod<
             "Get destination Value for the Operation",
@@ -207,7 +214,11 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
 
     let extraTraitClassDeclaration = [{
         vpux::SmallVector<mlir::Value, 4> getInputs() {
-            return {$_op.input(), $_op.filter()};
+            if ($_op.bias() != nullptr) {
+                return {$_op.input(), $_op.filter(), $_op.bias()};
+            } else {
+                return {$_op.input(), $_op.filter()};
+            }
         }
 
         vpux::SmallVector<mlir::Value, 1> getOutputs() {
