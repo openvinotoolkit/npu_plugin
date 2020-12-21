@@ -326,7 +326,7 @@ class Pipeline_Chains {
             if (!(ditr->second))
             {
               zero_in_degree_nodes[!parity].push_back(cop);
-              if (cop->isHardwarizable()) {
+              if (cop->isHardwarizable())
               {
                 dpu_levels[curr_depth].push_back(cop);
               }
