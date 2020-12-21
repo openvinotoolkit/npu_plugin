@@ -1049,7 +1049,7 @@ TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
 }
 
 // [Track number: D#45024]
-TEST_F(SmokeNetworkTest, text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
+TEST_F(SmokeNetworkTest, precommit_text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
 #ifdef _WIN32
     SKIP() << "SEH exception";
 #endif
