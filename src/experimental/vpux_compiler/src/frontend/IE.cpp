@@ -41,6 +41,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/shape.hpp>
 #include <ngraph/type/element_type.hpp>
 
@@ -84,6 +85,8 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Split>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Power>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Multiply>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convolution>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::AvgPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MaxPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Clamp>& origNode);
@@ -95,6 +98,13 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Unsqueeze>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Minimum>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Maximum>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Add>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::FakeQuantize>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MatMul>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Tanh>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Exp>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::HSwish>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Transpose>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -142,6 +152,8 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset1::Power),
             MAP_ENTRY(ngraph::opset1::Multiply),
             MAP_ENTRY(ngraph::opset1::Relu),
+            MAP_ENTRY(ngraph::opset1::Convolution),
+            MAP_ENTRY(ngraph::opset1::AvgPool),
             MAP_ENTRY(ngraph::opset1::MaxPool),
             MAP_ENTRY(ngraph::opset1::Gather),
             MAP_ENTRY(ngraph::opset1::Clamp),
@@ -153,6 +165,13 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset1::Unsqueeze),
             MAP_ENTRY(ngraph::opset1::Minimum),
             MAP_ENTRY(ngraph::opset1::Maximum),
+            MAP_ENTRY(ngraph::opset1::Add),
+            MAP_ENTRY(ngraph::opset1::FakeQuantize),
+            MAP_ENTRY(ngraph::opset1::MatMul),
+            MAP_ENTRY(ngraph::opset1::Tanh),
+            MAP_ENTRY(ngraph::opset1::Exp),
+            MAP_ENTRY(ngraph::opset4::HSwish),
+            MAP_ENTRY(ngraph::opset1::Transpose),
     };
 #undef MAP_ENTRY
 
@@ -335,12 +354,54 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     addOutputs(origNode, {op.getResult()});
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MatMul>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+    auto op = builder.create<IE::MatMulOp>(createLocation(origNode), inputs[0], inputs[1], origNode->get_transpose_a(),
+                                           origNode->get_transpose_b());
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convolution>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    mlir::ArrayAttr attrStride = importUInt32Array(origNode->get_strides());
+    mlir::ArrayAttr attrPadsBegin = importUInt32Array(origNode->get_pads_begin());
+    mlir::ArrayAttr attrPadsEnd = importUInt32Array(origNode->get_pads_end());
+    mlir::ArrayAttr attrDilation = importUInt32Array(origNode->get_dilations());
+
+    auto op = builder.create<IE::ConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], attrStride,
+                                                attrPadsBegin, attrPadsEnd, attrDilation);
+
+    addOutputs(origNode, {op.getResult()});
+}
+
 IE::RoundingTypeAttr importRoundingType(mlir::MLIRContext* ctx, ngraph::op::RoundingType roundingType) {
     if (roundingType == ngraph::op::RoundingType::FLOOR)
         return IE::RoundingTypeAttr::get(IE::RoundingType::FLOOR, ctx);
     else if (roundingType == ngraph::op::RoundingType::CEIL)
         return IE::RoundingTypeAttr::get(IE::RoundingType::CEIL, ctx);
     VPUX_THROW("Unsupported rounding type {0}", static_cast<int32_t>(roundingType));
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::AvgPool>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    mlir::ArrayAttr attrKernelSize = importUInt32Array(origNode->get_kernel());
+    mlir::ArrayAttr attrStride = importUInt32Array(origNode->get_strides());
+    mlir::ArrayAttr attrPadsBegin = importUInt32Array(origNode->get_pads_begin());
+    mlir::ArrayAttr attrPadsEnd = importUInt32Array(origNode->get_pads_end());
+    IE::RoundingTypeAttr attrRoundingType = importRoundingType(_ctx, origNode->get_rounding_type());
+
+    auto op = builder.create<IE::AvgPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
+                                            attrPadsBegin, attrPadsEnd, attrRoundingType);
+
+    addOutputs(origNode, {op.getResult()});
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MaxPool>& origNode) {
@@ -356,6 +417,25 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto op = builder.create<IE::MaxPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
                                             attrPadsBegin, attrPadsEnd, attrRoundingType);
+
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Add>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Add node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto autob = origNode->get_autob();
+    if (autob.m_type == ngraph::op::AutoBroadcastType::NONE) {
+        VPUX_THROW_UNLESS(origNode->get_input_shape(0) == origNode->get_input_shape(1),
+                          "Input shapes of Add node '{0}' are different.", origNode->get_friendly_name());
+    }
+
+    auto autoBroadcastType =
+            checked_cast<vpux::IE::AutoBroadcastType>(static_cast<vpux::IE::AutoBroadcastType>(autob.m_type));
+    auto autoBroadcastTypeAttr = vpux::IE::AutoBroadcastTypeAttr::get(autoBroadcastType, builder.getContext());
+    auto op = builder.create<IE::AddOp>(createLocation(origNode), inputs[0], inputs[1], autoBroadcastTypeAttr);
 
     addOutputs(origNode, {op.getResult()});
 }
@@ -479,15 +559,22 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     addOutputs(origNode, {op.getResult()});
 }
 
-SmallVector<mlir::Value, 4> NGraphImporter::getInputs(const OrigNodePtr& node) {
-    SmallVector<mlir::Value, 4> out;
-    out.reserve(node->get_input_size());
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Transpose>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() <= 2, "nGraph Transpose node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
 
-    for (const auto& input : node->inputs()) {
-        out.push_back(_importedVals.at(input.get_source_output()));
-    }
+    auto op = builder.create<IE::TransposeOp>(createLocation(origNode), inputs[0], inputs[1]);
+    addOutputs(origNode, {op.getResult()});
+}
 
-    return out;
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Tanh>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Tanh node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::TanhOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, {op.getResult()});
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Elu>& origNode) {
@@ -500,6 +587,56 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto op = builder.create<IE::EluOp>(createLocation(origNode), inputs[0], alphaAttr);
     addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::HSwish>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph HSwish node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::HSwishOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<ngraph::opset1::FakeQuantize>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 5, "nGraph FakeQuantize node '{0}' has unsupported number of inputs '{1}'.",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto autob = origNode->get_auto_broadcast();
+    VPUX_THROW_UNLESS(validateElementwiseArgs(origNode.get(), autob),
+                      "nGraph FakeQuantize node '{0}' has uncompatible shapes of inputs.",
+                      origNode->get_input_shape(0));
+
+    const auto levels = origNode->get_levels();
+    VPUX_THROW_UNLESS(levels >= 2, "nGraph FakeQuantize node '{0}' has unsupported levels value '{1}'.",
+                      origNode->get_friendly_name(), levels);
+    const auto levelsAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(origNode->get_levels()));
+
+    auto op = builder.create<IE::FakeQuantizeOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3],
+                                                 inputs[4], levelsAttr, importBroadcastType(autob.m_type, builder));
+    addOutputs(origNode, {op.getResult()});
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Exp>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Exp node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::ExpOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, {op.getResult()});
+}
+
+SmallVector<mlir::Value, 4> NGraphImporter::getInputs(const OrigNodePtr& node) {
+    SmallVector<mlir::Value, 4> out;
+    out.reserve(node->get_input_size());
+
+    for (const auto& input : node->inputs()) {
+        out.push_back(_importedVals.at(input.get_source_output()));
+    }
+
+    return out;
 }
 
 void NGraphImporter::addOutputs(const OrigNodePtr& node, mlir::ValueRange vals) {

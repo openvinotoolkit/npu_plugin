@@ -337,6 +337,34 @@ def IE_PowerOp :
 }
 
 //
+// AddOp
+//
+
+def IE_AddOp :
+        IE_LayerOp<
+            "Add",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine Add layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
 // MultiplyOp
 //
 
@@ -365,8 +393,73 @@ def IE_MultiplyOp :
 }
 
 //
+// ConvolutionOp
+//
+
+def IE_ConvolutionOp :
+        IE_LayerOp<
+            "Convolution",
+            [
+                ResultsAreFloatLike,
+            ]
+        > {
+    let summary = "InferenceEngine Convolution layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$filter,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        I32ArrayAttr:$dilations
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// AvgPoolOp
+//
+
+def IE_AvgPoolOp :
+        IE_LayerOp<
+            "AvgPool",
+            [
+                ResultsAreFloatLike,
+            ]
+        > {
+    let summary = "InferenceEngine AvgPool layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        I32ArrayAttr:$kernel_size,
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        IE_RoundingType:$rounding_type
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
 // MaxPoolOp
 //
+
 def IE_MaxPoolOp :
         IE_LayerOp<
             "MaxPool",
@@ -650,6 +743,175 @@ def IE_MaximumOp :
         AnyRankedTensor:$input1,
         AnyRankedTensor:$input2,
         IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// FakeQuantizeOp
+//
+
+def IE_FakeQuantizeOp :
+        IE_LayerOp<
+            "FakeQuantize",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine FakeQuantize layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$input_low,
+        RankedTensorOf<[F16, F32]>:$input_high,
+        RankedTensorOf<[F16, F32]>:$output_low,
+        RankedTensorOf<[F16, F32]>:$output_high,
+
+        I32Attr:$levels,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// MatMul
+//
+
+def IE_MatMulOp:
+        IE_LayerOp<
+            "MatMul",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine Power layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        UnitAttr:$transpose_a,
+        UnitAttr:$transpose_b
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+
+}
+
+//
+// TanhOp
+//
+
+def IE_TanhOp :
+        IE_LayerOp<
+            "Tanh",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType
+            ]
+        > {
+    let summary = "InferenceEngine Tanh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// ExpOp
+//
+
+def IE_ExpOp :
+        IE_LayerOp<
+            "Exp",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType
+            ]
+        > {
+    let summary = "InferenceEngine Exp layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// HSwishOp
+//
+
+def IE_HSwishOp :
+        IE_LayerOp<
+            "HSwish",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType
+            ]
+        > {
+    let summary = "InferenceEngine HSwish layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+//
+// TransposeOp
+//
+
+def IE_TransposeOp :
+        IE_LayerOp<
+            "Transpose"
+        > {
+    let summary = "InferenceEngine Transpose layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input1,
+        TensorOf<[AnyInteger]>:$input2
     );
 
     let results = (outs

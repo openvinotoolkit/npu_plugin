@@ -26,13 +26,13 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
+mlir::LogicalResult vpux::IE::AvgPoolOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    IE::MaxPoolOpAdaptor maxPool(operands, attrs);
-    if (mlir::failed(maxPool.verify(loc))) {
+    IE::AvgPoolOpAdaptor avgPool(operands, attrs);
+    if (mlir::failed(avgPool.verify(loc))) {
         return ::mlir::failure();
     }
 
@@ -44,22 +44,22 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
                 return result;
             };
 
-    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingBelow = convertArrayAttrToSmallVector(maxPool.pads_end());
-    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingAbove = convertArrayAttrToSmallVector(maxPool.pads_begin());
-    SmallVector<int64_t, MAX_NUM_DIMS> windowShape = convertArrayAttrToSmallVector(maxPool.kernel_size());
-    SmallVector<int64_t, MAX_NUM_DIMS> windowStrides = convertArrayAttrToSmallVector(maxPool.strides());
-    SmallVector<int64_t, MAX_NUM_DIMS> dataShape;
-    auto roundingType = maxPool.rounding_type().getValue();
+    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingBelow = convertArrayAttrToSmallVector(avgPool.pads_end());
+    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingAbove = convertArrayAttrToSmallVector(avgPool.pads_begin());
+    SmallVector<int64_t, MAX_NUM_DIMS> windowShape = convertArrayAttrToSmallVector(avgPool.kernel_size());
+    SmallVector<int64_t, MAX_NUM_DIMS> windowStrides = convertArrayAttrToSmallVector(avgPool.strides());
+    auto roundingType = avgPool.rounding_type().getValue();
 
-    auto inType = maxPool.input().getType().cast<mlir::RankedTensorType>().getElementType();
-    auto inShape = maxPool.input().getType().cast<mlir::RankedTensorType>().getShape();
+    auto inType = avgPool.input().getType().cast<mlir::RankedTensorType>().getElementType();
+    auto inShape = avgPool.input().getType().cast<mlir::RankedTensorType>().getShape();
 
     auto outputShape = ngraph::infer_batched_pooling_forward(
             nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
             ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
             ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
             ngraph::Shape(windowShape.begin(), windowShape.end()),
-            ngraph::Strides(windowStrides.begin(), windowStrides.end()), true,
+            ngraph::Strides(windowStrides.begin(), windowStrides.end()),
+            true, /* It is only used during assertion. True will make it pass */
             roundingType == vpux::IE::RoundingType::CEIL);
 
     auto __outputShape = outputShape.get_shape();
