@@ -72,7 +72,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
         }
 
         auto available = resources.getAvailableExecutor(
-                VPUIP::PhysicalProcessorAttr::get(VPUIP::PhysicalProcessor::SHAVE_UPA, op->getContext()));
+                VPUIP::PhysicalProcessorAttr::get(op->getContext(), VPUIP::PhysicalProcessor::SHAVE_UPA));
         if (available == nullptr) {
             return printTo(op->emitError(), "SHAVE_UPA executor is not avaialble in run-time");
         }

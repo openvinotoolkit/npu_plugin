@@ -60,7 +60,7 @@ def createDeclareTensorOp :
 def HasMemSpaceDDR :
         Constraint<CPred<[{
             $0.getType().cast<mlir::MemRefType>().getMemorySpace() ==
-                    vpux::VPUIP::PhysicalMemoryAttr::get(vpux::VPUIP::PhysicalMemory::DDR, $0.getContext())
+                    vpux::VPUIP::PhysicalMemoryAttr::get($0.getContext(), vpux::VPUIP::PhysicalMemory::DDR)
         }]>>;
 
 def RewriteStaticAlloc :
@@ -111,8 +111,8 @@ class createPoolingUPAOp<string method> :
             $_builder.create<vpux::VPUIP::PoolingUPAOp>(
                 $_loc, $0, $1,
                 vpux::VPUIP::PoolLayerTypeAttr::get(
-                    vpux::VPUIP::PoolLayerType::}] # method # [{,
-                    $_builder.getContext()
+                    $_builder.getContext(),
+                    vpux::VPUIP::PoolLayerType::}] # method # [{
                 ),
                 $2, $3, $4, $5,
                 nullptr)

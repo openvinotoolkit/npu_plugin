@@ -23,41 +23,41 @@ using namespace vpux;
 //
 
 mlir::IntegerType vpux::getInt32Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(32, ctx);
+    return mlir::IntegerType::get(ctx, 32);
 }
 
 mlir::IntegerType vpux::getInt64Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(64, ctx);
+    return mlir::IntegerType::get(ctx, 64);
 }
 
 mlir::IntegerType vpux::getSInt8Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(8, mlir::IntegerType::Signed, ctx);
+    return mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Signed);
 }
 
 mlir::IntegerType vpux::getSInt16Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(16, mlir::IntegerType::Signed, ctx);
+    return mlir::IntegerType::get(ctx, 16, mlir::IntegerType::Signed);
 }
 
 mlir::IntegerType vpux::getSInt32Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(32, mlir::IntegerType::Signed, ctx);
+    return mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Signed);
 }
 
 mlir::IntegerType vpux::getSInt64Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(64, mlir::IntegerType::Signed, ctx);
+    return mlir::IntegerType::get(ctx, 64, mlir::IntegerType::Signed);
 }
 
 mlir::IntegerType vpux::getUInt8Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(8, mlir::IntegerType::Unsigned, ctx);
+    return mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Unsigned);
 }
 
 mlir::IntegerType vpux::getUInt16Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(16, mlir::IntegerType::Unsigned, ctx);
+    return mlir::IntegerType::get(ctx, 16, mlir::IntegerType::Unsigned);
 }
 
 mlir::IntegerType vpux::getUInt32Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(32, mlir::IntegerType::Unsigned, ctx);
+    return mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Unsigned);
 }
 
 mlir::IntegerType vpux::getUInt64Type(mlir::MLIRContext* ctx) {
-    return mlir::IntegerType::get(64, mlir::IntegerType::Unsigned, ctx);
+    return mlir::IntegerType::get(ctx, 64, mlir::IntegerType::Unsigned);
 }

@@ -60,7 +60,7 @@ void LowerIERT2VPUIPPass::runOnOperation() {
     try {
         auto& ctx = getContext();
 
-        const auto ddrMemSpace = VPUIP::PhysicalMemoryAttr::get(VPUIP::PhysicalMemory::DDR, &ctx);
+        const auto ddrMemSpace = VPUIP::PhysicalMemoryAttr::get(&ctx, VPUIP::PhysicalMemory::DDR);
 
         _pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpace, _log.nest()));
         _pm.addPass(IERT::createStaticAllocationPass(ddrMemSpace, _log.nest()));
@@ -108,7 +108,7 @@ void LowerIERT2VPUIPPass::addGraphOp() {
     auto& ctx = getContext();
     auto module = getOperation();
 
-    const auto options = VPUIP::ExecutionFlagAttr::get(VPUIP::ExecutionFlag::NONE, &ctx);
+    const auto options = VPUIP::ExecutionFlagAttr::get(&ctx, VPUIP::ExecutionFlag::NONE);
 
     const auto version = VPUIP::VersionAttr::get(getInt32Attr(&ctx, 3),                         // majorV
                                                  getInt32Attr(&ctx, 11),                        // minorV
@@ -139,7 +139,7 @@ mlir::LogicalResult LowerIERT2VPUIPPass::setRunTimeResources() {
     }
 
     const auto getProcAttr = [&](VPUIP::PhysicalProcessor proc) {
-        return VPUIP::PhysicalProcessorAttr::get(proc, &ctx);
+        return VPUIP::PhysicalProcessorAttr::get(&ctx, proc);
     };
 
     if (auto available = resources.getAvailableExecutor(getProcAttr(VPUIP::PhysicalProcessor::SHAVE_UPA))) {
