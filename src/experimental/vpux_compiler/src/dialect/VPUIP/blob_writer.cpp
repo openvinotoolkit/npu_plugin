@@ -29,6 +29,8 @@
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <algorithm>
+
 using namespace vpux;
 
 VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op) {
@@ -336,9 +338,8 @@ VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirect
 }
 
 MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
-    const auto vec = to_vector<4>(attr.getValue() | reversed | transformed([](mlir::Attribute attr) {
-                                      return attr.cast<mlir::IntegerAttr>().getInt();
-                                  }));
+    auto vec = parseIntArrayAttr(attr);
+    std::reverse(vec.begin(), vec.end());
 
     VPUX_THROW_UNLESS(vec.size() <= 3, "Got wrong order array : {0}", vec);
 
@@ -350,7 +351,7 @@ MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
         y = checked_cast<uint8_t>(vec[1]);
     }
     if (vec.size() >= 3) {
-        x = checked_cast<uint8_t>(vec[2]);
+        z = checked_cast<uint8_t>(vec[2]);
     }
 
     return MVCNN::order3(x, y, z);

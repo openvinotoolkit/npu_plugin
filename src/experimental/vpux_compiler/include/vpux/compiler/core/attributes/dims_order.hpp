@@ -25,6 +25,7 @@
 
 #include <mlir/IR/AffineMap.h>
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/Value.h>
 
 #include <ie_layouts.h>
 
@@ -107,6 +108,7 @@ public:
     mlir::AffineMap toAffineMap(mlir::MLIRContext* ctx) const;
 
     static Optional<DimsOrder> fromType(mlir::MemRefType type);
+    static Optional<DimsOrder> fromValue(mlir::Value val);
 
 public:
     static DimsOrder fromIE(InferenceEngine::Layout layout);

@@ -18,6 +18,9 @@
 
 #include "vpux/compiler/utils/types.hpp"
 
+#include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/range.hpp"
+
 using namespace vpux;
 
 //
@@ -54,4 +57,28 @@ mlir::FloatAttr vpux::getFP32Attr(mlir::MLIRContext* ctx, float val) {
 
 mlir::FloatAttr vpux::getFP64Attr(mlir::MLIRContext* ctx, double val) {
     return mlir::FloatAttr::get(mlir::FloatType::getF64(ctx), val);
+}
+
+//
+// parse<scalar>ArrayAttr
+//
+
+SmallVector<int64_t, 4> vpux::parseIntArrayAttr(mlir::ArrayAttr arr) {
+    return to_vector<4>(arr.getValue() | transformed([](mlir::Attribute attr) {
+                            const auto intAttr = attr.dyn_cast_or_null<mlir::IntegerAttr>();
+                            VPUX_THROW_UNLESS(intAttr != nullptr, "Got non Integer Attribute '{0}' in Array", attr);
+                            VPUX_THROW_UNLESS(intAttr.getType().isSignlessInteger(),
+                                              "Integer Attribute '{0}' is not signless", intAttr);
+
+                            return intAttr.getInt();
+                        }));
+}
+
+SmallVector<double, 4> vpux::parseFPArrayAttr(mlir::ArrayAttr arr) {
+    return to_vector<4>(arr.getValue() | transformed([](mlir::Attribute attr) {
+                            const auto fpAttr = attr.dyn_cast_or_null<mlir::FloatAttr>();
+                            VPUX_THROW_UNLESS(fpAttr != nullptr, "Got non fpAttr Attribute '{0}' in Array", attr);
+
+                            return fpAttr.getValueAsDouble();
+                        }));
 }

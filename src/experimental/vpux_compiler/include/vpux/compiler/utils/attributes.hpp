@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "vpux/utils/core/small_vector.hpp"
+
 #include <mlir/IR/BuiltinAttributes.h>
 
 namespace vpux {
@@ -35,5 +37,12 @@ mlir::IntegerAttr getUInt64Attr(mlir::MLIRContext* ctx, uint64_t val);
 
 mlir::FloatAttr getFP32Attr(mlir::MLIRContext* ctx, float val);
 mlir::FloatAttr getFP64Attr(mlir::MLIRContext* ctx, double val);
+
+//
+// parse<scalar>ArrayAttr
+//
+
+SmallVector<int64_t, 4> parseIntArrayAttr(mlir::ArrayAttr arr);
+SmallVector<double, 4> parseFPArrayAttr(mlir::ArrayAttr arr);
 
 }  // namespace vpux
