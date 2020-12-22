@@ -18,10 +18,10 @@
 #define VPUX_COMPILER_DIALECT_VPUIP_OPS
 
 include "vpux/compiler/core/ops_interfaces.td"
-include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
-include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
 include "vpux/compiler/dialect/VPUIP/types.td"
+include "vpux/compiler/dialect/VPUIP/attributes.td"
+include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
 
 include "mlir/Interfaces/CopyOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -112,18 +112,7 @@ def VPUIP_DeclareTensorOp :
 
     let builders = [
         OpBuilderDAG<
-            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint64_t":$dataIndex),
-            [{
-                build($_builder, $_state, memory, locale,
-                      nullptr, // localeIndex
-                      dataIndex,
-                      nullptr, // sparsityIndex
-                      nullptr, // storageElementIndex
-                      nullptr, // storageElementSize
-                      nullptr, // leadingOffset
-                      nullptr  // trailingOffset
-                );
-            }]
+            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint64_t":$dataIndex)
         >
     ];
 
@@ -172,10 +161,7 @@ def VPUIP_DeclareConstantTensorOp :
 
     let builders = [
         OpBuilderDAG<
-            (ins "mlir::MemRefType":$type, "mlir::DenseElementsAttr":$content),
-            [{
-                build($_builder, $_state, type, content, nullptr);
-            }]
+            (ins "mlir::MemRefType":$type, "mlir::DenseElementsAttr":$content)
         >
     ];
 
@@ -208,12 +194,7 @@ def VPUIP_DeclareBarrierOp :
     );
 
     let builders = [
-        OpBuilderDAG<
-            (ins),
-            [{
-                build($_builder, $_state, vpux::VPUIP::BarrierType::get($_builder.getContext()));
-            }]
-        >
+        OpBuilderDAG<(ins)>
     ];
 
     let assemblyFormat = [{
@@ -241,14 +222,7 @@ def VPUIP_ConfigureBarrierOp :
     );
 
     let builders = [
-        OpBuilderDAG<
-            (ins),
-            [{
-                build($_builder, $_state,
-                      vpux::VPUIP::BarrierType::get($_builder.getContext()),
-                      mlir::ValueRange {}, mlir::ValueRange {});
-            }]
-        >
+        OpBuilderDAG<(ins)>
     ];
 
     let extraClassDeclaration = [{
@@ -285,12 +259,7 @@ def VPUIP_UPADMAOp :
 
     let builders = [
         OpBuilderDAG<
-            (ins "mlir::Value":$src, "mlir::Value":$dst),
-            [{
-                build($_builder, $_state,
-                      src, dst,
-                      mlir::ValueRange {}, mlir::ValueRange {});
-            }]
+            (ins "mlir::Value":$src, "mlir::Value":$dst)
         >
     ];
 
@@ -332,13 +301,7 @@ def VPUIP_NNDMAOp :
 
     let builders = [
         OpBuilderDAG<
-            (ins "mlir::Value":$src, "mlir::Value":$dst),
-            [{
-                build($_builder, $_state,
-                      src, dst,
-                      mlir::ValueRange {}, mlir::ValueRange {},
-                      false);
-            }]
+            (ins "mlir::Value":$src, "mlir::Value":$dst)
         >
     ];
 
@@ -358,6 +321,54 @@ def VPUIP_NNDMAOp :
 }
 
 //
+// ConvertUPAOp
+//
+
+def VPUIP_ConvertUPAOp :
+        VPUIP_TaskOp<
+            "ConvertUPA",
+            [
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<ConvertLayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "Convert UPA SHAVE kernel";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        OptionalAttr<F32Attr>:$scale,
+        OptionalAttr<F32Attr>:$bias,
+        UnitAttr:$fromDetectionOutput,
+        UnitAttr:$haveBatch,
+        OptionalAttr<I32Attr>:$batchID,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins "mlir::Value":$input, "mlir::Value":$output)
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
 // SoftMaxUPAOp
 //
 
@@ -365,6 +376,7 @@ def VPUIP_SoftMaxUPAOp :
         VPUIP_TaskOp<
             "SoftMaxUPA",
             [
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
@@ -390,14 +402,155 @@ def VPUIP_SoftMaxUPAOp :
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "mlir::IntegerAttr":$axisInd
-            ),
-            [{
-                build($_builder, $_state,
-                      input, output,
-                      mlir::ValueRange {}, mlir::ValueRange {},
-                      axisInd,
-                      nullptr, nullptr);
-            }]
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
+// PoolingUPAOp
+//
+
+def VPUIP_PoolingUPAOp :
+        VPUIP_TaskOp<
+            "PoolingUPA",
+            [
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "MAX and AVG Pooling UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        VPUIP_PoolLayerType:$type,
+        I32ArrayAttr:$kernel,
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$padsBegin,
+        I32ArrayAttr:$padsEnd,
+        UnitAttr:$excludePad,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$output,
+                "vpux::VPUIP::PoolLayerTypeAttr":$type,
+                "mlir::ArrayAttr":$kernel, "mlir::ArrayAttr":$strides,
+                "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd,
+                "mlir::UnitAttr":$excludePad
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
+// ConvolutionUPAOp
+//
+
+def VPUIP_ConvolutionUPAOp :
+        VPUIP_TaskOp<
+            "ConvolutionUPA",
+            [
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "Convolution UPA SHAVE kernel (reference implementation)";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$filter,
+        Optional<F16MemRef>:$bias,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$dilations,
+        I32ArrayAttr:$padsBegin,
+        I32ArrayAttr:$padsEnd,
+        I32Attr:$group,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$filter, "mlir::Value":$bias, "mlir::Value":$output,
+                "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$dilations,
+                "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $filter `:` type($filter) (`,` $bias^ `:` type($bias))? `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
+// ReLUUPAOp
+//
+
+def VPUIP_ReLUUPAOp :
+        VPUIP_TaskOp<
+            "ReLUUPA",
+            [
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "ReLU UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins "mlir::Value":$input, "mlir::Value":$output)
         >
     ];
 

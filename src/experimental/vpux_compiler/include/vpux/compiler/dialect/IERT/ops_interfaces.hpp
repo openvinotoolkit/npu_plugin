@@ -14,24 +14,32 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#pragma once
 
-#include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/small_vector.hpp"
 
-using namespace vpux;
+#include <mlir/IR/OpDefinition.h>
+#include <mlir/IR/Operation.h>
+#include <mlir/Interfaces/SideEffectInterfaces.h>
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareConstantTensorOp op) {
-    auto memref = op.memory().getType().cast<mlir::MemRefType>();
-    auto mem = getPhysicalMemory(memref);
+namespace vpux {
+namespace IERT {
 
-    if (mlir::failed(mem) || mem.getValue() != VPUIP::PhysicalMemory::DDR) {
-        return printTo(op.emitError(), "'{0}' has unsupported result memory space '{1}'",
-                       DeclareConstantTensorOp::getOperationName(), memref.getMemorySpace());
+//
+// RunTimeLayer
+//
+
+using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
+
+void getLayerEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
+
+template <typename ConcreteOp>
+class RunTimeLayer : public mlir::OpTrait::TraitBase<ConcreteOp, RunTimeLayer> {
+public:
+    void getEffects(SmallVectorImpl<MemoryEffect>& effects) {
+        getLayerEffects(this->getOperation(), effects);
     }
+};
 
-    return mlir::success();
-}
-
-mlir::OpFoldResult vpux::VPUIP::DeclareConstantTensorOp::fold(ArrayRef<mlir::Attribute>) {
-    return content();
-}
+}  // namespace IERT
+}  // namespace vpux

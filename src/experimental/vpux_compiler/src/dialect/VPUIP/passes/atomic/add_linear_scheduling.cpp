@@ -122,7 +122,7 @@ void AddLinearSchedulingPass::passBody() {
     _log.trace("Update VPUIP.Graph Operation 'options' attribute");
     auto options = graphOp.options();
     options = options | VPUIP::ExecutionFlag::DynamicBarriers;
-    graphOp.optionsAttr(VPUIP::ExecutionFlagAttr::get(options, module.getContext()));
+    graphOp.optionsAttr(VPUIP::ExecutionFlagAttr::get(module.getContext(), options));
 }
 
 //

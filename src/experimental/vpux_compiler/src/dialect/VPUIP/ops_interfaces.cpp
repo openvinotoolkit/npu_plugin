@@ -72,7 +72,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
         }
 
         auto available = resources.getAvailableExecutor(
-                VPUIP::PhysicalProcessorAttr::get(VPUIP::PhysicalProcessor::SHAVE_UPA, op->getContext()));
+                VPUIP::PhysicalProcessorAttr::get(op->getContext(), VPUIP::PhysicalProcessor::SHAVE_UPA));
         if (available == nullptr) {
             return printTo(op->emitError(), "SHAVE_UPA executor is not avaialble in run-time");
         }
@@ -105,8 +105,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
 // getTaskEffects
 //
 
-void vpux::VPUIP::getTaskEffects(
-        mlir::Operation* op, SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
+void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getTaskEffects");
 
     if (auto layer = mlir::dyn_cast<LayerInterface>(op)) {

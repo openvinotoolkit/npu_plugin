@@ -20,6 +20,23 @@
 
 using namespace vpux;
 
+//
+// DeclareTensorOp
+//
+
+void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type memory,
+                                         VPUIP::MemoryLocation locale, uint64_t dataIndex) {
+    build(builder, state, memory, locale,
+          nullptr,  // localeIndex
+          dataIndex,
+          nullptr,  // sparsityIndex
+          nullptr,  // storageElementIndex
+          nullptr,  // storageElementSize
+          nullptr,  // leadingOffset
+          nullptr   // trailingOffset
+    );
+}
+
 mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
     const auto locale = op.locale();
 
@@ -39,6 +56,31 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
     }
 
     // TODO: check other offsets
+
+    return mlir::success();
+}
+
+//
+// DeclareConstantTensorOp
+//
+
+void vpux::VPUIP::DeclareConstantTensorOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
+                                                 mlir::MemRefType type, mlir::DenseElementsAttr content) {
+    build(builder, state, type, content, false);
+}
+
+mlir::OpFoldResult vpux::VPUIP::DeclareConstantTensorOp::fold(ArrayRef<mlir::Attribute>) {
+    return content();
+}
+
+mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareConstantTensorOp op) {
+    auto memref = op.memory().getType().cast<mlir::MemRefType>();
+    auto mem = getPhysicalMemory(memref);
+
+    if (mlir::failed(mem) || mem.getValue() != VPUIP::PhysicalMemory::DDR) {
+        return printTo(op.emitError(), "'{0}' has unsupported result memory space '{1}'",
+                       DeclareConstantTensorOp::getOperationName(), memref.getMemorySpace());
+    }
 
     return mlir::success();
 }

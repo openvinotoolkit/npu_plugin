@@ -219,4 +219,23 @@ def VPUIP_ArchKind :
     let cppNamespace = "vpux::VPUIP";
 }
 
+//
+// PoolLayerType
+//
+
+def VPUIP_PoolLayerType_MAX : StrEnumAttrCase<"MAX">;
+def VPUIP_PoolLayerType_AVG : StrEnumAttrCase<"AVG">;
+
+def VPUIP_PoolLayerType :
+        StrEnumAttr<
+            "PoolLayerType",
+            "Type of Pooling layer",
+            [
+                VPUIP_PoolLayerType_MAX,
+                VPUIP_PoolLayerType_AVG,
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+}
+
 #endif

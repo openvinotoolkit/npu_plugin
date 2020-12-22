@@ -14,22 +14,17 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#ifndef VPUX_COMPILER_DIALECT_IERT_OPS_INTERFACES
+#define VPUX_COMPILER_DIALECT_IERT_OPS_INTERFACES
 
-#include "vpux/utils/core/format.hpp"
+include "mlir/IR/OpBase.td"
 
-using namespace vpux;
+//
+// RunTimeLayer
+//
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConfigureBarrierOp::serialize(vpux::VPUIP::BlobWriter& writer) {
-    const auto barrier = writer.createBarrier(this->barrier());
-
-    MVCNN::BarrierConfigurationTaskBuilder subBuilder(writer);
-    subBuilder.add_target(barrier);
-    const auto subTask = subBuilder.Finish();
-
-    MVCNN::ControllerTaskBuilder builder(writer);
-    builder.add_task_type(MVCNN::ControllerSubTask_BarrierConfigurationTask);
-    builder.add_task(subTask.Union());
-
-    return {builder.Finish().Union(), MVCNN::SpecificTask_ControllerTask};
+def IERT_RunTimeLayer : NativeOpTrait<"RunTimeLayer"> {
+    let cppNamespace = "vpux::IERT";
 }
+
+#endif

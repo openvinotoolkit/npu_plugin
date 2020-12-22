@@ -16,22 +16,25 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include "vpux/utils/core/checked_cast.hpp"
+
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
-void vpux::VPUIP::SoftMaxUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                      mlir::Value output, mlir::IntegerAttr axisInd) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, axisInd, nullptr, nullptr);
+void vpux::VPUIP::ReLUUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                   mlir::Value output) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, false);
 }
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftMaxUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto axisDim = getAxisDim();
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReLUUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto relu = MVCNN::CreateReluParams(writer);
 
-    MVCNN::SoftmaxParamsBuilder builder(writer);
-    builder.add_axis(checked_cast<uint32_t>(axisDim.ind()));
+    MVCNN::UnaryOpParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::UnaryOpNestedParams_ReluParams);
+    builder.add_nested_params(relu.Union());
     const auto paramsOff = builder.Finish();
 
-    return writer.createUPALayerTask(getOperation(), {paramsOff.Union(), MVCNN::SoftwareLayerParams_SoftmaxParams},
+    return writer.createUPALayerTask(getOperation(), {paramsOff.Union(), MVCNN::SoftwareLayerParams_UnaryOpParams},
                                      maxShaves(), isTrailingSWLayer());
 }

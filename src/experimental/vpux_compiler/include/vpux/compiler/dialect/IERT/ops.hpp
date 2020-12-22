@@ -18,6 +18,7 @@
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 
 #include "vpux/utils/core/mem_size.hpp"
 

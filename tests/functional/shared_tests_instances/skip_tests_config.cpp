@@ -9,7 +9,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-        ".*ActivationLayerTest.*",
         // TODO Tests failed due to starting infer on IA side
         ".*CorrectConfigAPITests.*",
 

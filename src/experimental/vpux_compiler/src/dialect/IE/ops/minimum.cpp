@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
+
 #include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;

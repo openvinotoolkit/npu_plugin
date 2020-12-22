@@ -19,6 +19,7 @@
 
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
+include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -40,7 +41,8 @@ class IERT_LayerOp<string mnemonic, list<OpTrait> traits = []> :
             !listconcat(
                 traits,
                 [
-                    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+                    IERT_RunTimeLayer,
+                    MemoryEffectsOpInterface,
                     DeclareOpInterfaceMethods<LayerInterface>
                 ]
             )
@@ -242,6 +244,7 @@ def IERT_ConvertOp :
             "Convert",
             [
                 SameOperandsShape,
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<ConvertLayerInterface>
             ]
         > {
@@ -263,6 +266,7 @@ def IERT_SoftMaxOp :
             [
                 SameOperandsShape,
                 SameOperandsElementType,
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>
             ]
         > {
@@ -273,6 +277,103 @@ def IERT_SoftMaxOp :
         MemRefOf<[F16, F32]>:$output,
 
         I32Attr:$axisInd
+    );
+}
+
+//
+// AvgPoolOp
+//
+
+def IERT_AvgPoolOp :
+        IERT_LayerOp<
+            "AvgPool",
+            [
+                SameOperandsElementType,
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time AvgPool layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32ArrayAttr:$kernel_size,
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end
+    );
+}
+
+//
+// MaxPoolOp
+//
+
+def IERT_MaxPoolOp :
+        IERT_LayerOp<
+            "MaxPool",
+            [
+                SameOperandsElementType,
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time MaxPool layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32ArrayAttr:$kernel_size,
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end
+    );
+}
+
+//
+// ConvolutionOp
+//
+
+def IERT_ConvolutionOp :
+        IERT_LayerOp<
+            "Convolution",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Convolution layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$filter,
+        Optional<MemRefOf<[F16, F32]>>:$bias,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        I32ArrayAttr:$dilations
+    );
+}
+
+//
+// ReLUOp
+//
+
+def IERT_ReLUOp :
+        IERT_LayerOp<
+            "ReLU",
+            [
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReLU layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output
     );
 }
 

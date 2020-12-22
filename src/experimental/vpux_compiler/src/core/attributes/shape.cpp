@@ -48,3 +48,9 @@ int64_t vpux::details::calcTotalShapeSize(ArrayRef<int64_t> shape) {
 ShapeRef vpux::getShape(mlir::ShapedType type) {
     return ShapeRef(type.getShape());
 }
+
+ShapeRef vpux::getShape(mlir::Value val) {
+    auto type = val.getType().dyn_cast_or_null<mlir::ShapedType>();
+    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
+    return getShape(type);
+}

@@ -24,7 +24,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/Dialect/Linalg/IR/LinalgStructuredOps.td"
 
 //
-// linalg.copy
+// linalg.copy -> VPUIP.NNDMA
 //
 
 def NullAttr : Attr<CPred<"$_self == nullptr">>;
@@ -46,7 +46,7 @@ def RewriteCopy :
         >;
 
 //
-// IERT.StaticAlloc
+// IERT.StaticAlloc -> VPUIP.DeclareTensor
 //
 
 def createDeclareTensorOp :
@@ -60,7 +60,7 @@ def createDeclareTensorOp :
 def HasMemSpaceDDR :
         Constraint<CPred<[{
             $0.getType().cast<mlir::MemRefType>().getMemorySpace() ==
-                    vpux::VPUIP::PhysicalMemoryAttr::get(vpux::VPUIP::PhysicalMemory::DDR, $0.getContext())
+                    vpux::VPUIP::PhysicalMemoryAttr::get($0.getContext(), vpux::VPUIP::PhysicalMemory::DDR)
         }]>>;
 
 def RewriteStaticAlloc :
@@ -73,7 +73,22 @@ def RewriteStaticAlloc :
         >;
 
 //
-// IERT.SoftMax
+// IERT.Convert -> VPUIP.ConvertUPA
+//
+
+def createConvertUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ConvertUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteConvert :
+        Pat<
+            (IERT_ConvertOp $input, $output),
+            (createConvertUPAOp $input, $output)
+        >;
+
+//
+// IERT.SoftMax -> VPUIP.SoftMaxUPA
 //
 
 def createSoftMaxUPAOp :
@@ -85,6 +100,67 @@ def RewriteSoftMax :
         Pat<
             (IERT_SoftMaxOp $input, $output, $axisInd),
             (createSoftMaxUPAOp $input, $output, $axisInd)
+        >;
+
+//
+// IERT.[Max|Avg]Pool -> VPUIP.PoolingUPA
+//
+
+class createPoolingUPAOp<string method> :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PoolingUPAOp>(
+                $_loc, $0, $1,
+                vpux::VPUIP::PoolLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::PoolLayerType::}] # method # [{
+                ),
+                $2, $3, $4, $5,
+                nullptr)
+        }]>;
+
+def RewriteAvgPool :
+        Pat<
+            (IERT_AvgPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
+            (createPoolingUPAOp<"AVG"> $input, $output, $kernel_size, $strides, $pads_begin, $pads_end)
+        >;
+
+def RewriteMaxPool :
+        Pat<
+            (IERT_MaxPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
+            (createPoolingUPAOp<"MAX"> $input, $output, $kernel_size, $strides, $pads_begin, $pads_end)
+        >;
+
+//
+// IERT.Convolution -> VPUIP.ConvolutionUPA
+//
+
+def createConvolutionUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ConvolutionUPAOp>(
+                $_loc, $0, $1,
+                $2.size() == 1 ? $2[0] : nullptr,
+                $3, $4, $5, $6, $7)
+        }]>;
+
+def RewriteConvolution :
+        Pat<
+            (IERT_ConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations),
+            (createConvolutionUPAOp $input, $filter, $bias, $output, $strides, $dilations, $pads_begin, $pads_end)
+        >;
+
+//
+// IERT.ReLU -> VPUIP.ReLUUPA
+//
+
+def createReLUUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReLUUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteReLU :
+        Pat<
+            (IERT_ReLUOp $input, $output),
+            (createReLUUPAOp $input, $output)
         >;
 
 #endif

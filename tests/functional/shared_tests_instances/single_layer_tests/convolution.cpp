@@ -12,14 +12,21 @@
 namespace LayerTestsDefinitions {
 
 class KmbConvolutionLayerTest: public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeImport() override {
-        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+    void SkipBeforeLoad() override {
+        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+            // Disabled for now due to hw incompatible dtype combination
+            // U8 input and FP16 weights
+            // Future PR will provide a mitigation and renable this test case
+            // Issue to track: CVS-39964
+            throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
+        }
     }
 };
 
-    TEST_P(KmbConvolutionLayerTest, CompareWithRefs) {
-        Run();
-    }
+TEST_P(KmbConvolutionLayerTest, CompareWithRefs) {
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -27,38 +34,34 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP16};
+    InferenceEngine::Precision::FP16
+};
 
-const InferenceEngine::Precision inPrc = InferenceEngine::Precision::U8;
-const InferenceEngine::Precision outPrc = InferenceEngine::Precision::FP16;
+const InferenceEngine::Precision inPrc = InferenceEngine::Precision::UNSPECIFIED;
+const InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED;
 
-const InferenceEngine::Layout inLayout = InferenceEngine::Layout::NHWC;
-const InferenceEngine::Layout outLayout = InferenceEngine::Layout::NHWC;
+const InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
+const InferenceEngine::Layout outLayout = InferenceEngine::Layout::ANY;
 
 /* ============= 2D Convolution ============= */
-/* original values were:
-const std::vector<InferenceEngine::SizeVector> dilations = {{1, 1}, {3, 1}};
-*/
+
 const std::vector<InferenceEngine::SizeVector> kernels = {{3, 3}, {3, 5}};
 const std::vector<InferenceEngine::SizeVector> strides = {{1, 1}, {1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}, {0, 3}};
 const std::vector<std::vector<ptrdiff_t>> padEnds = {{0, 0}, {0, 3}};
-const std::vector<InferenceEngine::SizeVector> dilations = {{1, 1}};
+const std::vector<InferenceEngine::SizeVector> dilations = {{1, 1}, {3, 1}};
 const std::vector<size_t> numOutCannels = {1, 5};
 const std::vector<ngraph::op::PadType> padTypes = {ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID};
 
 const auto conv2DParams_ExplicitPadding = ::testing::Combine(::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
     ::testing::ValuesIn(padBegins), ::testing::ValuesIn(padEnds), ::testing::ValuesIn(dilations),
     ::testing::ValuesIn(numOutCannels), ::testing::Values(ngraph::op::PadType::EXPLICIT));
+
 const auto conv2DParams_AutoPadValid = ::testing::Combine(::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
     ::testing::Values(std::vector<ptrdiff_t>({0, 0})), ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
     ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutCannels), ::testing::Values(ngraph::op::PadType::VALID));
 
-// Disabled for now due to hw incompatible dtype combination
-// U8 input and FP16 weights
-// Future PR will provide a mitigation and renable this test case
-// Issue to track: CVS-39964
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_ExplicitPadding, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_ExplicitPadding, KmbConvolutionLayerTest,
     ::testing::Combine(conv2DParams_ExplicitPadding,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(inPrc), ::testing::Values(outPrc),
@@ -67,11 +70,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_ExplicitPadding, KmbConvolu
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     ConvolutionLayerTest::getTestCaseName);
 
-// Disabled for now due to hw incompatible dtype combination
-// U8 input and FP16 weights
-// Future PR will provide a mitigation and renable this test case
-// Issue to track: CVS-39964
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_AutoPadValid, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid, KmbConvolutionLayerTest,
     ::testing::Combine(conv2DParams_AutoPadValid,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(inPrc), ::testing::Values(outPrc),
@@ -81,6 +80,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_AutoPadValid, KmbConvolutio
     ConvolutionLayerTest::getTestCaseName);
 
 /* ============= 3D Convolution ============= */
+
 const std::vector<InferenceEngine::SizeVector> kernels3d = {{3, 3, 3}};
 const std::vector<std::vector<ptrdiff_t>> paddings3d = {{0, 0, 0}};
 
@@ -122,4 +122,5 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution3D_AutoPadValid, KmbConvolutio
         ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     ConvolutionLayerTest::getTestCaseName);
+
 }  // namespace

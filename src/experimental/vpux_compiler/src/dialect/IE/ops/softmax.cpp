@@ -18,9 +18,6 @@
 
 #include "vpux/utils/core/checked_cast.hpp"
 
-#include <mlir/IR/PatternMatch.h>
-
-#include <precision_utils.h>
 #include <ngraph/type/float16.hpp>
 
 using namespace vpux;

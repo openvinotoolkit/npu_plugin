@@ -45,8 +45,9 @@ mlir::LogicalResult verifyUPATask(mlir::Operation* op);
 // getTaskEffects
 //
 
-void getTaskEffects(mlir::Operation* op,
-                    SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
+
+void getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
 
 }  // namespace VPUIP
 }  // namespace vpux

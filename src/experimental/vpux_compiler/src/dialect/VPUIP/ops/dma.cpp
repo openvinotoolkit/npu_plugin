@@ -22,7 +22,16 @@
 
 using namespace vpux;
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
+//
+// UPADMAOp
+//
+
+void vpux::VPUIP::UPADMAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value src,
+                                  mlir::Value dst) {
+    build(builder, state, src, dst, mlir::ValueRange{}, mlir::ValueRange{});
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto inputOff = writer.getTensor(input());
     const auto outputOff = writer.getTensor(output());
 
@@ -32,7 +41,16 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(vpux::VPUIP::Bl
     return {builder.Finish().Union(), MVCNN::SpecificTask_UPADMATask};
 }
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
+//
+// NNDMAOp
+//
+
+void vpux::VPUIP::NNDMAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value src,
+                                 mlir::Value dst) {
+    build(builder, state, src, dst, mlir::ValueRange{}, mlir::ValueRange{}, false);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto srcOff = writer.getTensor(input());
     const auto dstOff = writer.getTensor(output());
 

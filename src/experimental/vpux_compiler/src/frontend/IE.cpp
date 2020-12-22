@@ -60,7 +60,7 @@ std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result
 
 vpux::IE::AutoBroadcastTypeAttr importBroadcastType(ngraph::op::AutoBroadcastType bType, mlir::OpBuilder& builder) {
     auto autoBroadcastType = checked_cast<vpux::IE::AutoBroadcastType>(static_cast<vpux::IE::AutoBroadcastType>(bType));
-    return vpux::IE::AutoBroadcastTypeAttr::get(autoBroadcastType, builder.getContext());
+    return vpux::IE::AutoBroadcastTypeAttr::get(builder.getContext(), autoBroadcastType);
 }
 
 class NGraphImporter final {
@@ -79,6 +79,7 @@ private:
 
 private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Constant>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convert>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Softmax>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Tile>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Relu>& origNode);
@@ -146,6 +147,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
 
             MAP_ENTRY(ngraph::opset1::Constant),
+            MAP_ENTRY(ngraph::opset1::Convert),
             MAP_ENTRY(ngraph::opset1::Softmax),
             MAP_ENTRY(ngraph::opset1::Tile),
             MAP_ENTRY(ngraph::opset1::Split),
@@ -187,7 +189,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
         outputTypes.push_back(importTensor(result->get_input_partial_shape(0), result->get_input_element_type(0)));
     }
 
-    const auto funcType = mlir::FunctionType::get(makeArrayRef(inputTypes), makeArrayRef(outputTypes), _ctx);
+    const auto funcType = mlir::FunctionType::get(_ctx, makeArrayRef(inputTypes), makeArrayRef(outputTypes));
 
     auto func = mlir::FuncOp::create(mlir::UnknownLoc::get(_ctx), funcName, funcType);
 
@@ -277,6 +279,18 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto* op = dialect->materializeConstant(builder, value, tensorType, createLocation(origNode));
     addOutputs(origNode, op->getResults());
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convert>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Convert node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto dstType = importElemType(origNode->get_destination_type());
+    const auto dstTypeAttr = mlir::TypeAttr::get(dstType);
+
+    auto op = builder.create<IE::ConvertOp>(createLocation(origNode), inputs[0], dstTypeAttr);
+    addOutputs(origNode, {op.getResult()});
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Softmax>& origNode) {
@@ -373,7 +387,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     mlir::ArrayAttr attrPadsEnd = importUInt32Array(origNode->get_pads_end());
     mlir::ArrayAttr attrDilation = importUInt32Array(origNode->get_dilations());
 
-    auto op = builder.create<IE::ConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], attrStride,
+    auto op = builder.create<IE::ConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, attrStride,
                                                 attrPadsBegin, attrPadsEnd, attrDilation);
 
     addOutputs(origNode, {op.getResult()});
@@ -381,9 +395,9 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
 IE::RoundingTypeAttr importRoundingType(mlir::MLIRContext* ctx, ngraph::op::RoundingType roundingType) {
     if (roundingType == ngraph::op::RoundingType::FLOOR)
-        return IE::RoundingTypeAttr::get(IE::RoundingType::FLOOR, ctx);
+        return IE::RoundingTypeAttr::get(ctx, IE::RoundingType::FLOOR);
     else if (roundingType == ngraph::op::RoundingType::CEIL)
-        return IE::RoundingTypeAttr::get(IE::RoundingType::CEIL, ctx);
+        return IE::RoundingTypeAttr::get(ctx, IE::RoundingType::CEIL);
     VPUX_THROW("Unsupported rounding type {0}", static_cast<int32_t>(roundingType));
 }
 
@@ -434,7 +448,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto autoBroadcastType =
             checked_cast<vpux::IE::AutoBroadcastType>(static_cast<vpux::IE::AutoBroadcastType>(autob.m_type));
-    auto autoBroadcastTypeAttr = vpux::IE::AutoBroadcastTypeAttr::get(autoBroadcastType, builder.getContext());
+    auto autoBroadcastTypeAttr = vpux::IE::AutoBroadcastTypeAttr::get(builder.getContext(), autoBroadcastType);
     auto op = builder.create<IE::AddOp>(createLocation(origNode), inputs[0], inputs[1], autoBroadcastTypeAttr);
 
     addOutputs(origNode, {op.getResult()});

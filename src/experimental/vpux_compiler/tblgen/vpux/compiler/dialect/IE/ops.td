@@ -18,8 +18,8 @@
 #define VPUX_COMPILER_DIALECT_IE_OPS
 
 include "vpux/compiler/core/ops_interfaces.td"
-include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IE/dialect.td"
+include "vpux/compiler/dialect/IE/attributes.td"
 
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -48,7 +48,11 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
                     DeclareOpInterfaceMethods<InferShapedTypeOpInterface>
                 ]
             )
-        >;
+        > {
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
 
 //
 // CNNNetworkOp
@@ -175,6 +179,7 @@ def IE_ConvertOp :
         IE_LayerOp<
             "Convert",
             [
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ConvertLayerInterface>
             ]
@@ -191,10 +196,6 @@ def IE_ConvertOp :
         AnyRankedTensor:$output
     );
 
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
-
     let hasCanonicalizer = 1;
     let hasFolder = 1;
 }
@@ -209,6 +210,7 @@ def IE_SoftMaxOp :
             [
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>
             ]
@@ -224,10 +226,6 @@ def IE_SoftMaxOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 
     let hasFolder = 1;
 }
@@ -250,10 +248,6 @@ def IE_TileOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -265,7 +259,9 @@ def IE_ReLUOp :
             "ReLU",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine ReLU layer";
@@ -277,10 +273,6 @@ def IE_ReLUOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -296,16 +288,13 @@ def IE_SplitOp :
     let arguments = (ins
         AnyRankedTensor:$input,
         AnyRankedTensor:$axis,
+
         I32Attr:$num_splits
     );
 
     let results = (outs
         Variadic<AnyRankedTensor>:$outputs
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -324,16 +313,13 @@ def IE_PowerOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
+
         IE_AutoBroadcastType:$auto_broadcast
     );
 
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -352,16 +338,13 @@ def IE_AddOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
+
         IE_AutoBroadcastType:$auto_broadcast
     );
 
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -380,16 +363,13 @@ def IE_MultiplyOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
+
         IE_AutoBroadcastType:$auto_broadcast
     );
 
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -401,6 +381,8 @@ def IE_ConvolutionOp :
             "Convolution",
             [
                 ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Convolution layer";
@@ -408,6 +390,7 @@ def IE_ConvolutionOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
         RankedTensorOf<[F16, F32]>:$filter,
+        Optional<RankedTensorOf<[F16, F32]>>:$bias,
 
         I32ArrayAttr:$strides,
         I32ArrayAttr:$pads_begin,
@@ -419,9 +402,7 @@ def IE_ConvolutionOp :
         RankedTensorOf<[F16, F32]>:$output
     );
 
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
+    let hasCanonicalizer = 1;
 }
 
 //
@@ -433,6 +414,8 @@ def IE_AvgPoolOp :
             "AvgPool",
             [
                 ResultsAreFloatLike,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine AvgPool layer";
@@ -450,10 +433,6 @@ def IE_AvgPoolOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -465,6 +444,8 @@ def IE_MaxPoolOp :
             "MaxPool",
             [
                 ResultsAreFloatLike,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine MaxPool layer";
@@ -482,10 +463,6 @@ def IE_MaxPoolOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -507,10 +484,6 @@ def IE_GatherOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -522,7 +495,9 @@ def IE_ClampOp :
             "Clamp",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Clamp layer";
@@ -537,10 +512,6 @@ def IE_ClampOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -552,7 +523,9 @@ def IE_EluOp :
             "Elu",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Elu layer";
@@ -560,67 +533,54 @@ def IE_EluOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
 
-        F64Attr:$alpha    
+        F64Attr:$alpha
     );
 
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
 // ReshapeOp
-// 
+//
 
 def IE_ReshapeOp :
         IE_LayerOp<
             "Reshape"
         > {
-
     let summary = "InferenceEngine Reshape layer";
 
     let arguments = (ins
         AnyRankedTensor:$input1,
         1DTensorOf<[AnyInteger]>:$input2,
+
         UnitAttr:$special_zero
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
 // SqueezeOp
-// 
+//
 
 def IE_SqueezeOp :
         IE_LayerOp<
             "Squeeze"
         > {
-
     let summary = "InferenceEngine Squeeze layer";
 
     let arguments = (ins
         AnyRankedTensor:$input1,
-        TensorOf<[AnyInteger]>:$input2
+        1DTensorOf<[AnyInteger]>:$input2
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -632,7 +592,9 @@ def IE_SigmoidOp :
             "Sigmoid",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Sigmoid layer";
@@ -644,10 +606,6 @@ def IE_SigmoidOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -673,15 +631,11 @@ def IE_LRNOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
 // UnsqueezeOp
-// 
+//
 
 def IE_UnsqueezeOp :
         IE_LayerOp<
@@ -692,16 +646,12 @@ def IE_UnsqueezeOp :
 
     let arguments = (ins
         AnyRankedTensor:$input1,
-        TensorOf<[AnyInteger]>:$input2
+        1DTensorOf<[AnyInteger]>:$input2
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -717,16 +667,13 @@ def IE_MinimumOp :
     let arguments = (ins
         AnyRankedTensor:$input1,
         AnyRankedTensor:$input2,
+
         IE_AutoBroadcastType:$auto_broadcast
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -742,16 +689,13 @@ def IE_MaximumOp :
     let arguments = (ins
         AnyRankedTensor:$input1,
         AnyRankedTensor:$input2,
+
         IE_AutoBroadcastType:$auto_broadcast
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -781,10 +725,6 @@ def IE_FakeQuantizeOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -811,11 +751,6 @@ def IE_MatMulOp:
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
-
 }
 
 //
@@ -839,10 +774,6 @@ def IE_TanhOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -866,10 +797,6 @@ def IE_ExpOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -893,10 +820,6 @@ def IE_HSwishOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 //
@@ -917,10 +840,6 @@ def IE_TransposeOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-    }];
 }
 
 #endif
