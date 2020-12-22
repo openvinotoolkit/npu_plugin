@@ -76,6 +76,8 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convolution>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::AvgPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MaxPool>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::PriorBox>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::PriorBoxClustered>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Clamp>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Elu>& origNode);
@@ -164,6 +166,8 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset1::Convolution),
             MAP_ENTRY(ngraph::opset1::AvgPool),
             MAP_ENTRY(ngraph::opset1::MaxPool),
+            MAP_ENTRY(ngraph::opset1::PriorBox),
+            MAP_ENTRY(ngraph::opset1::PriorBoxClustered),
             MAP_ENTRY(ngraph::opset1::Gather),
             MAP_ENTRY(ngraph::opset1::Clamp),
             MAP_ENTRY(ngraph::opset1::Elu),
@@ -439,6 +443,39 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto op = builder.create<IE::AddOp>(createLocation(origNode), inputs[0], inputs[1],
                                         importBroadcastType(autob.m_type));
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::PriorBox>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto& attrs = origNode->get_attrs();
+
+    auto op = builder.create<IE::PriorBoxOp>(
+            createLocation(origNode), inputs[0], inputs[1], getFP32ArrayAttr(_ctx, attrs.min_size),
+            getFP32ArrayAttr(_ctx, attrs.max_size), getFP32ArrayAttr(_ctx, attrs.aspect_ratio),
+            mlir::BoolAttr::get(attrs.flip, _ctx), mlir::BoolAttr::get(attrs.clip, _ctx), getFP32Attr(_ctx, attrs.step),
+            getFP32Attr(_ctx, attrs.offset), getFP32ArrayAttr(_ctx, attrs.variance),
+            mlir::BoolAttr::get(attrs.scale_all_sizes, _ctx), getFP32ArrayAttr(_ctx, attrs.fixed_ratio),
+            getFP32ArrayAttr(_ctx, attrs.fixed_size), getFP32ArrayAttr(_ctx, attrs.density));
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<ngraph::opset1::PriorBoxClustered>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto& attrs = origNode->get_attrs();
+
+    auto op = builder.create<IE::PriorBoxClusteredOp>(
+            createLocation(origNode), inputs[0], inputs[1], getFP32ArrayAttr(_ctx, attrs.widths),
+            getFP32ArrayAttr(_ctx, attrs.heights), mlir::BoolAttr::get(attrs.clip, _ctx),
+            getFP32Attr(_ctx, attrs.step_widths), getFP32Attr(_ctx, attrs.step_heights),
+            getFP32Attr(_ctx, attrs.offset), getFP32ArrayAttr(_ctx, attrs.variances));
     addOutputs(origNode, op);
 }
 

@@ -466,6 +466,73 @@ def IE_MaxPoolOp :
 }
 
 //
+// PriorBoxOp
+//
+
+def IE_PriorBoxOp :
+        IE_LayerOp<
+            "PriorBox",
+            [
+                ResultsAreFloatLike,
+            ]
+        > {
+    let summary = "InferenceEngine PriorBox layer";
+
+    let arguments = (ins
+        RankedTensorOf<[SI64]>:$output_size,
+        RankedTensorOf<[SI64]>:$image_size,
+
+        F32ArrayAttr:$min_size,
+        F32ArrayAttr:$max_size,
+        F32ArrayAttr:$aspect_ratio,
+        BoolAttr:$flip,
+        BoolAttr:$clip,
+        F32Attr:$step,
+        F32Attr:$offset,
+        F32ArrayAttr:$variance,
+        BoolAttr:$scale_all_sizes,
+        F32ArrayAttr:$fixed_ratio,
+        F32ArrayAttr:$fixed_size,
+        F32ArrayAttr:$density
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// PriorBoxClusteredOp
+//
+
+def IE_PriorBoxClusteredOp :
+        IE_LayerOp<
+            "PriorBoxClustered",
+            [
+                ResultsAreFloatLike,
+            ]
+        > {
+    let summary = "InferenceEngine PriorBoxClustered layer";
+
+    let arguments = (ins
+        RankedTensorOf<[SI64]>:$output_size,
+        RankedTensorOf<[SI64]>:$image_size,
+
+        F32ArrayAttr:$widths,
+        F32ArrayAttr:$heights,
+        BoolAttr:$clip,
+        F32Attr:$step_widths,
+        F32Attr:$step_heights,
+        F32Attr:$offset,
+        F32ArrayAttr:$variance
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // GatherOp
 //
 
