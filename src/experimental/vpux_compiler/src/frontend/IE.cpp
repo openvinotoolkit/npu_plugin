@@ -102,6 +102,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::NormalizeL2>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Concat>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset2::ROIPooling>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::StridedSlice>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -189,6 +190,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset1::NormalizeL2),
             MAP_ENTRY(ngraph::opset1::Concat),
             MAP_ENTRY(ngraph::opset2::ROIPooling),
+            MAP_ENTRY(ngraph::opset1::StridedSlice),
     };
 
 #undef MAP_ENTRY
@@ -618,6 +620,24 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::ExpOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<ngraph::opset1::StridedSlice>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 4, "nGraph StridedSlice node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto attrBeginMask = getInt64ArrayAttr(_ctx, origNode->get_begin_mask());
+    auto attrEndMask = getInt64ArrayAttr(_ctx, origNode->get_end_mask());
+    auto attrNewAxisMask = getInt64ArrayAttr(_ctx, origNode->get_new_axis_mask());
+    auto attrShrinkAxisMask = getInt64ArrayAttr(_ctx, origNode->get_shrink_axis_mask());
+    auto attrEllipsisAxisMask = getInt64ArrayAttr(_ctx, origNode->get_ellipsis_mask());
+
+    auto op = builder.create<IE::StridedSliceOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3],
+                                                 attrBeginMask, attrEndMask, attrNewAxisMask, attrShrinkAxisMask,
+                                                 attrEllipsisAxisMask);
     addOutputs(origNode, op);
 }
 

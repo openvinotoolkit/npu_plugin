@@ -1061,4 +1061,32 @@ def IE_ROIPoolingOp :
     );
 }
 
+//
+// StridedSliceOp
+//
+
+def IE_StridedSliceOp :
+        IE_LayerOp<
+            "StridedSlice"
+        > {
+    let summary = "InferenceEngine StridedSlice layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$data,
+        1DTensorOf<[AnyInteger]>:$begin,
+        1DTensorOf<[AnyInteger]>:$end,
+        1DTensorOf<[AnyInteger]>:$stride,
+
+        I64ArrayAttr:$begin_mask,
+        I64ArrayAttr:$end_mask,
+        I64ArrayAttr:$new_axis_mask,
+        I64ArrayAttr:$shrink_axis_mask,
+        I64ArrayAttr:$ellipsis_mask
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
 #endif
