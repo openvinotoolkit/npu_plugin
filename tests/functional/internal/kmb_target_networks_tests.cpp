@@ -1060,15 +1060,15 @@ TEST_F(SmokeNetworkTest, precommit_text_detection_0004_tf_dense_int8_IRv10_from_
 }
 
 // [Track number: D#45024]
-TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
-#ifdef _WIN32
-    SKIP() << "SEH exception";
-#endif
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/public/text-detection-0003/tf/FP16-INT8/text-detection-0003-ww48.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserOutputPrecision("output", Precision::FP32));
-}
+// TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
+// #ifdef _WIN32
+//     SKIP() << "SEH exception";
+// #endif
+//     runTest(
+//             TestNetworkDesc("KMB_models/INT8/public/text-detection-0003/tf/FP16-INT8/text-detection-0003-ww48.xml")
+//                     .setUserInputPrecision("input", Precision::U8)
+//                     .setUserOutputPrecision("output", Precision::FP32));
+// }
 
 // Prevent DDR2DDR DMA Test
 TEST_F(SmokeNetworkTest, yolo_v4_subgraph_ddr_output_test) {
