@@ -623,7 +623,7 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
 
                             // Store SoH splits before cleaning subtensors
                             auto splitShapes = std::vector<mv::Shape>();
-                            if (possibleCombination == SoHToClustering)
+                            if (possibleCombination == SoHToClustering || possibleCombination == SoHToSoK)
                             {
                                 for (unsigned i=0; i<numClusters; ++i)
                                 {

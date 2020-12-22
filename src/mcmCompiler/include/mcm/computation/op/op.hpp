@@ -38,6 +38,7 @@ namespace mv
 
         void setInputTensor(Data::TensorIterator tensor, std::size_t idx, bool cascade = true);
         unsigned addInputTensor(Data::TensorIterator tensor);
+        void redefineOutputTensors();
 
         Data::TensorIterator getInputTensor(std::size_t idx);
         Data::TensorIterator getInputTensor(const std::string& label);
@@ -53,6 +54,7 @@ namespace mv
         bool isUPA() const;
         bool isSparsityConsumer() const;
         bool isHardwarizable() const;
+        bool isHwFusable() const;
         bool hasWeights() const;
         bool hasPWLActivation() const;
         bool hasFloatPrecision() const;

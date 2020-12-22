@@ -89,6 +89,7 @@
 #include <ngraph/op/detection_output.hpp>
 
 #include <ngraph/op/split.hpp>
+#include <ngraph/op/variadic_split.hpp>
 #include <ngraph/op/strided_slice.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
@@ -534,6 +535,7 @@ void convert(std::shared_ptr<ngraph::op::v0::Elu> elu, mv::OpModel& mcmModel, No
     auto alpha = elu->get_alpha();
 
     const auto mcmEluOutput = mcmModel.elu(opName, mcmData, alpha);
+    mcmEluOutput->setQuantParams(initialQuantParams());
 
     registerOutputs(elu, {mcmEluOutput}, mcmOutputsMap);
 }
@@ -1404,6 +1406,7 @@ void convert(std::shared_ptr<ngraph::op::v1::Maximum> maximum, mv::OpModel& mcmM
     IE_ASSERT(2u == mcmInputs.size());
     const auto& opName = maximum->get_friendly_name();
     auto mcmMax = mcmModel.eltwise(opName, mcmInputs, "Maximum");
+    mcmMax->setQuantParams(initialQuantParams());
     registerOutputs(maximum, {mcmMax}, mcmOutputsMap);
 }
 
@@ -1413,13 +1416,14 @@ void convert(std::shared_ptr<ngraph::op::v1::Minimum> minimum, mv::OpModel& mcmM
     IE_ASSERT(2u == mcmInputs.size());
     const auto& opName = minimum->get_friendly_name();
     auto mcmMin = mcmModel.eltwise(opName, mcmInputs, "Minimum");
+    mcmMin->setQuantParams(initialQuantParams());
     registerOutputs(minimum, {mcmMin}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto& opName = split->get_friendly_name();
     const auto mcmInputs = getMcmInputs(split, mcmOutputsMap);
-    IE_ASSERT(mcmInputs.size() == 2);
+    IE_ASSERT(mcmInputs.size() == 2u);
 
     // Find axis.
     const auto axis_node = split->input_value(1).get_node_shared_ptr();
@@ -1433,6 +1437,7 @@ void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel
         mv::Shape beginShape(startCoords);
         mv::Shape sizeShape(getWHCN(split->get_output_shape(i)));
         auto mcmSplit = mcmModel.slice(opName + ":" + std::to_string(i), mcmInputs.at(0), beginShape, sizeShape);
+        mcmSplit->setQuantParams(initialQuantParams());
         mcmOutputs.push_back(mcmSplit);
         startCoords[outDimSize - 1 - axis] += split->get_output_shape(i)[axis];
     }
@@ -1473,6 +1478,35 @@ void convert(std::shared_ptr<ngraph::op::TileIE> tileIE, mv::OpModel& mcmModel, 
     auto mcmTile = mcmModel.tile(opName, mcmInputs.at(0), axis, tiles);
 
     registerOutputs(tileIE, {mcmTile}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::VariadicSplit> variadicSplit,
+    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto& opName = variadicSplit->get_friendly_name();
+    const auto mcmInputs = getMcmInputs(variadicSplit, mcmOutputsMap);
+    IE_ASSERT(mcmInputs.size() == 3u);
+
+    for (size_t i = 1; i < mcmInputs.size(); i++) {
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
+    }
+
+    // Find axis.
+    const auto axis_node = variadicSplit->input_value(1).get_node_shared_ptr();
+    const auto axis_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(axis_node);
+    auto axis = axis_node_const->get_data_ptr<int64_t>()[0];
+
+    std::vector<size_t> startCoords(mcmInputs.at(0)->getShape().ndims());
+    std::vector<mv::Data::TensorIterator> mcmOutputs;
+    auto outDimSize = variadicSplit->get_output_shape(0).size();
+    for (size_t i = 0; i < variadicSplit->get_output_size(); ++i) {
+        mv::Shape beginShape(startCoords);
+        mv::Shape sizeShape(getWHCN(variadicSplit->get_output_shape(i)));
+        auto mcmSplit = mcmModel.slice(opName + ":" + std::to_string(i), mcmInputs.at(0), beginShape, sizeShape);
+        mcmSplit->setQuantParams(initialQuantParams());
+        mcmOutputs.push_back(mcmSplit);
+        startCoords[outDimSize - 1 - axis] += variadicSplit->get_output_shape(i)[axis];
+    }
+    registerOutputs(variadicSplit, mcmOutputs, mcmOutputsMap);
 }
 
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
@@ -1551,7 +1585,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::Split),
     MAP_ENTRY(ngraph::op::v1::StridedSlice),
     MAP_ENTRY(ngraph::op::v4::HSwish),
-    MAP_ENTRY(ngraph::op::TileIE)
+    MAP_ENTRY(ngraph::op::TileIE),
+    MAP_ENTRY(ngraph::op::v1::VariadicSplit)
 };
 
 #undef MAP_ENTRY
