@@ -33,6 +33,15 @@ std::size_t mv::realTensorSize(const mv::Data::TensorIterator tensorToSize, cons
     return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
 }
 
+std::size_t inferInputSize(std::size_t outputSize, std::size_t padding_start, std::size_t padding_end, std::size_t kernel_size, std::size_t kernel_stride)
+{
+    return ((outputSize -1) * kernel_stride) - padding_start - padding_end + kernel_size;
+}
+
+std::size_t inferOutputSize(std::size_t inputSize, std::size_t padding_start, std::size_t padding_end, std::size_t kernel_size, std::size_t kernel_stride)
+{
+    return ( inputSize + padding_start + padding_end - kernel_size) / kernel_stride + 1;
+}
 
 std::size_t mv::activationTensorSize(mv::Op& op, const mv::Data::TensorIterator tensorToSize, std::string clustering, const mv::Shape& streamingPool, bool isCMConv, int totalClusters, bool isInput, bool dilation)
 {
@@ -53,54 +62,51 @@ std::size_t mv::activationTensorSize(mv::Op& op, const mv::Data::TensorIterator 
 
     if(streamingPool["H"] > 1)
     {
-        auto newOutputSizes = tileSpatialOutputSize(fullTensorHeight, streamingPool["H"]);
-        streamedHeight = newOutputSizes.front();
-        if(streamedHeight < newOutputSizes.back())
-            streamedHeight = newOutputSizes.back();
+        size_t kernelSize = 1;
+        if(  (opType == "Conv") || (opType == "DepthwiseConv") )
+            kernelSize = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
+        else if (opType == "MaxPool")
+            kernelSize = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
 
-        // Kernel and padding will add extra lines to final size of streamed portion
-        size_t kHeight = 1;
+        unsigned short kernelStride;
+        if (op.hasAttr("stride"))
+            kernelStride = op.get<std::array<unsigned short, 2>>("stride")[mv::KERNEL_HEIGHT];
+        else
+            kernelStride = 1;//fake stride
+
         std::array<unsigned short, 4> padding;
-        
-        if(isInput)
-        {
-            unsigned short kernelStride;
-            if (op.hasAttr("stride"))
-                kernelStride = op.get<std::array<unsigned short, 2>>("stride")[mv::KERNEL_HEIGHT];
-            else
-                kernelStride = 1;//fake stride
-        
-            streamedHeight = streamedHeight * kernelStride;
-        }
-
-        if(  (op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") )
-            kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
-        else if (op.getOpType() == "MaxPool")
-            kHeight = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
         if (op.hasAttr("padding"))
             padding = op.get<std::array<unsigned short, 4>>("padding");
         else
             padding = {0, 0, 0, 0};
+        int padStart = padding[2];
+        int padEnd = padding[3];
 
-        size_t extraLines = 0;
+        auto outputSize = inferOutputSize(op.getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION], padStart, padEnd, kernelSize, kernelStride);
+        auto newOutputSizes = tileSpatialOutputSize(outputSize, streamingPool["H"]);
+        streamedHeight = newOutputSizes.front();
+        if(streamedHeight < newOutputSizes.back())
+            streamedHeight = newOutputSizes.back();
 
-        if(extraLines < kHeight-1)
+        if(isInput)
         {
-            extraLines = kHeight -1;
-        }
+            std::size_t largestTileHeight = 0;
+            for (std::size_t split = 0; split < streamingPool["H"]; split++)
+            {
+                std::size_t inferSize = 0;
+                if (split == 0)
+                    inferSize = inferInputSize(newOutputSizes[split],padStart,0,kernelSize,kernelStride);
+                else if (split == (streamingPool["H"]-1))
+                    inferSize = inferInputSize(newOutputSizes[split],0,padEnd,kernelSize,kernelStride);
+                else
+                    inferSize = inferInputSize(newOutputSizes[split],0,0,kernelSize,kernelStride);
 
-        if(padding[2] > padding[3])
-        {
-            if(padding[2] > extraLines)
-                extraLines = padding[2];
+                //Remember the largest tile size
+                if(inferSize >  largestTileHeight)
+                    largestTileHeight = inferSize;
+            }
+            streamedHeight = largestTileHeight;
         }
-        else
-        {
-            if(padding[3] > extraLines)
-                extraLines = padding[3];
-        }
-
-        streamedHeight += extraLines;
     }
     if(streamingPool["C"] > 1)
     {
