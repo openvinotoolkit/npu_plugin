@@ -1013,4 +1013,25 @@ def IE_NormalizeL2Op :
     );
 }
 
+//
+// ConcatOp
+//
+
+def IE_ConcatOp :
+        IE_LayerOp<
+            "Concat"
+        > {
+    let summary = "InferenceEngine Concat layer";
+
+    let arguments = (ins
+        Variadic<AnyRankedTensor>:$input,
+
+        I32Attr:$axis
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
 #endif

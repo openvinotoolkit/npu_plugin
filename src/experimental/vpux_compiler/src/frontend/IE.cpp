@@ -100,6 +100,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset2::ReorgYolo>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::DetectionOutput>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::NormalizeL2>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Concat>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -185,6 +186,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset2::ReorgYolo),
             MAP_ENTRY(ngraph::opset1::DetectionOutput),
             MAP_ENTRY(ngraph::opset1::NormalizeL2),
+            MAP_ENTRY(ngraph::opset1::Concat),
     };
 
 #undef MAP_ENTRY
@@ -614,6 +616,18 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::ExpOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Concat>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() >= 1, "nGraph Concat node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto axis = origNode->get_axis();
+    const auto axisAttr = getInt32Attr(_ctx, checked_cast<int32_t>(axis));
+
+    auto op = builder.create<IE::ConcatOp>(createLocation(origNode), inputs, axisAttr);
     addOutputs(origNode, op);
 }
 
