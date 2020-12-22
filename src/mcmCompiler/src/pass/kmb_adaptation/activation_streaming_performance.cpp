@@ -279,6 +279,15 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
 
     // Step 2. Calculate a possible number of streams using experimetnally found magic number
     // Idea is, if possible, allow multiple slices to fit in CMX to maximize paths
+    // For example, for first layer of YoloV2, (input=416*416*3, output=416*416*32)
+    // The GO will choose to stream this over H, just enough to fit or H=7
+    //      (416*416*3) + (416*416*32) = 6056960 / 7 = 865280, which is less than CMX (weights are under 1kb)
+    // Experimentally, we found highest performance gain when we plan to fit input and output
+    // slice, the next input slice, and the full weights in around 60% of CMX. This gives
+    // the scheduler plenty of room, and creates small slices that better overlap with compute
+    //      ((416*416*3)*2 + (416*416*32)) / (917504-(weights) * 0.6) = ~12.01 -> 13
+    // Note that input and output in these equations are the full tensors because the 
+    // getMemorySize call above is invoked without any streams {1,1,1,1,1}
     size_t magicStreams = std::ceil((2*input + output)/ ((clusterMemory-weights)*0.6));
     if(magicStreams < originalHStream)
         magicStreams = originalHStream; //If GO gave carved it up into smaller pieces, must be for a reason
