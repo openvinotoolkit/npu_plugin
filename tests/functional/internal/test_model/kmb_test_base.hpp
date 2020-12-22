@@ -600,6 +600,53 @@ public:
         float tolerance);
 };
 
+class KmbVasFDStage1Test : public KmbDetectionNetworkTest {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc, const TestImageDesc& image,
+            const float scoreThresh, const float boxTolerance,
+            const float probTolerance, const std::vector<std::string>& layerNames,
+            const std::vector<int>& anchorSz, const std::vector<int>& winScales,
+            const std::vector<int>& winLengths
+            );
+
+protected:
+    static std::vector<utils::BoundingBox> parseOutput(
+            const Blob::Ptr& blobProb, const Blob::Ptr& blobReg,
+            const int anchorSz, const int winScale,
+            const int winLen, const float scoreThresh);
+};
+
+class KmbVasFDStage2Test : public KmbDetectionNetworkTest {
+public:
+
+    struct Candidate {
+        float x_min;
+        float y_min;
+        float x_max;
+        float y_max;
+    };
+
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            const float threshold, const float boxTolerance, const float probTolerance,
+            const Candidate& candidate);
+
+protected:
+    static utils::BoundingBox parseOutput(
+            const Blob::Ptr& blobProb, const Blob::Ptr& blobReg,
+            const Candidate& candidate, const float threshold);
+};
+
+class KmbVasFRTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            const float threshold);
+};
+
 //
 // SmokeNetworkTest
 //
