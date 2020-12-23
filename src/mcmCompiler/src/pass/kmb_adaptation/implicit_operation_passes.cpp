@@ -68,12 +68,28 @@ bool isStridingOp(mv::Data::OpListIterator opIt)
 }
 }
 
+void propagateImplicitOpsFromOutput(mv::Op& op, mv::OpModel& om)
+{
+    for (auto input : op.getInputTensor())
+    {
+        input->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+        auto previousOp = om.getSourceOp(input);
+        auto opType = previousOp->getOpType();
+        if (opType == "Concat" || opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" ||
+            opType == "ImplicitOutput" || opType == "ImplicitUnion" || opType == "ImplicitJoin")
+            propagateImplicitOpsFromOutput(*previousOp, om);
+    }
+}
+
 void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
+
+    // Propagate throught implicit layers and set their tensor location to OUTPUT
+    propagateImplicitOpsFromOutput(*om.getOutput(), om);
 
     for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
     {
