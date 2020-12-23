@@ -56,15 +56,13 @@ void HDDL2_Remote_Blob_Tests::TearDown() {
 }
 
 //------------------------------------------------------------------------------
-// Track number: H#18012581010
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanCreateRemoteBlobUsingContext) {
+TEST_F(HDDL2_Remote_Blob_Tests, CanCreateRemoteBlobUsingContext) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     ASSERT_NO_THROW(remoteContextPtr->CreateBlob(tensorDesc, blobParams));
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_RemoteBlobFromRemoteMem_WillNotDestroyRemoteMemory_OnDestruction) {
+TEST_F(HDDL2_Remote_Blob_Tests, RemoteBlobFromRemoteMem_WillNotDestroyRemoteMemory_OnDestruction) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     const std::string memoryData = "Hello there!\n";
@@ -75,8 +73,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_RemoteBlobFromRemoteMem_WillNotDestroyR
     ASSERT_TRUE(remoteMemoryHelper.isRemoteTheSame(memoryData));
 }
 
-// Track number: H#18012581010
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetParams) {
+TEST_F(HDDL2_Remote_Blob_Tests, CanGetParams) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
@@ -86,8 +83,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetParams) {
     ASSERT_EQ(params, blobParams);
 }
 
-// Track number: H#18012581010
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetDeviceName) {
+TEST_F(HDDL2_Remote_Blob_Tests, CanGetDeviceName) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
@@ -98,8 +94,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetDeviceName) {
     ASSERT_NE(deviceName.find(pluginName), std::string::npos);
 }
 
-// Track number: H#18012581010
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetTensorDesc) {
+TEST_F(HDDL2_Remote_Blob_Tests, CanGetTensorDesc) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
@@ -109,9 +104,8 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetTensorDesc) {
     ASSERT_EQ(resultTensorDesc, tensorDesc);
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanChangeRemoteMemory) {
-    const std::string memoryData = "Hello from HDDL2 Plugin!\n";
+TEST_F(HDDL2_Remote_Blob_Tests, CanChangeRemoteMemory) {
+    const std::string memoryData = "Hello from VPUX Plugin!\n";
 
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
@@ -125,9 +119,8 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanChangeRemoteMemory) {
     ASSERT_TRUE(remoteMemoryHelper.isRemoteTheSame(memoryData));
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_NonLockedMemoryObject_CanNotChangeRemoteMemory) {
-    const std::string memoryData = "Hello from HDDL2 Plugin!\n";
+TEST_F(HDDL2_Remote_Blob_Tests, NonLockedMemoryObject_CanNotChangeRemoteMemory) {
+    const std::string memoryData = "Hello from VPUX Plugin!\n";
 
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
@@ -140,9 +133,8 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_NonLockedMemoryObject_CanNotChangeRemot
     ASSERT_FALSE(remoteMemoryHelper.isRemoteTheSame(memoryData));
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_MemoryLockedNotInLocalScope_CanNotChangeRemoteMemory) {
-    const std::string memoryData = "Hello from HDDL2 Plugin!\n";
+TEST_F(HDDL2_Remote_Blob_Tests, MemoryLockedNotInLocalScope_CanNotChangeRemoteMemory) {
+    const std::string memoryData = "Hello from VPUX Plugin!\n";
 
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);

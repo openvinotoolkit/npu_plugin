@@ -33,7 +33,7 @@ ParsedContextParams::ParsedContextParams(const InferenceEngine::ParamMap& paramM
         THROW_IE_EXCEPTION << PARAMS_ERROR_str << "Param map for context is empty.";
     }
     // Get workload id and based on it get HddlUniteContext
-    if (_paramMap.find(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)) == paramMap.end()) {
+    if (_paramMap.find(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)) == _paramMap.end()) {
         THROW_IE_EXCEPTION << PARAMS_ERROR_str << "Param map does not contain workload id information";
     }
     try {

@@ -43,32 +43,28 @@ void ImportNetwork_Tests::SetUp() {
     params = Remote_Context_Helper::wrapWorkloadIdToMap(_workloadId);
 }
 
-//-----------------------------------------------------------------------------
-// Track number: H#18012581010
-TEST_F(ImportNetwork_Tests, DISABLED_CanFindPlugin) {
+//------------------------------------------------------------------------------
+TEST_F(ImportNetwork_Tests, CanFindPlugin) {
     ASSERT_NO_THROW(ie.ImportNetwork(blobInfo.graphPath, pluginName));
 }
 
-// Track number: H#18012581010
-TEST_F(ImportNetwork_Tests, DISABLED_CanCreateExecutableNetwork) {
+TEST_F(ImportNetwork_Tests, CanCreateExecutableNetwork) {
     ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
 }
 
-// Track number: H#18012581010
-TEST_F(ImportNetwork_Tests, DISABLED_CanCreateExecutableNetworkWithConfig) {
+TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithConfig) {
     std::map<std::string, std::string> config = {};
     ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName, config));
 }
 
-TEST_F(ImportNetwork_Tests, DISABLED_CanCreateInferRequest) {
+TEST_F(ImportNetwork_Tests, CanCreateInferRequest) {
     IE::ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
 
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }
 
-// Track number: H#18012581010
-TEST_F(ImportNetwork_Tests, DISABLED_CanCreateExecutableNetworkWithStream) {
+TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithStream) {
     const std::map<std::string, std::string> config = {};
 
     std::filebuf blobFile;
@@ -83,8 +79,7 @@ TEST_F(ImportNetwork_Tests, DISABLED_CanCreateExecutableNetworkWithStream) {
     blobFile.close();
 }
 
-// Track number: H#18012581010
-TEST_F(ImportNetwork_Tests, DISABLED_canParseInputAndOutput) {
+TEST_F(ImportNetwork_Tests, canParseInputAndOutput) {
     const std::string expected_input_name = "data";
     const IE::Precision expected_input_precision = IE::Precision::U8;
     const IE::SizeVector expected_input_dims = {1, 3, 224, 224};
