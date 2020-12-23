@@ -108,5 +108,5 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
 }
 
 std::string vpux::getLibFilePath(const std::string& baseName) {
-    return FileUtils::makeSharedLibraryName(InferenceEngine::getIELibraryPath(), baseName + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName(InferenceEngine::getIELibraryPath(), baseName + IE_BUILD_POSTFIX);
 }
