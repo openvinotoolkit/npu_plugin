@@ -111,16 +111,13 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    auto convOps = om.getOps("Conv");
-    auto convDepthwiseOps = om.getOps("DepthwiseConv");
-    convOps.insert(convOps.end(),convDepthwiseOps.begin(),convDepthwiseOps.end());
+    // there is current list of the layers which might be converted to fp16
+    // if the option 'placeConversionToFloat' was set previously in them.
+    auto fp_ops = om.getOpsOfTypes({"Conv", "DepthwiseConv", "Eltwise"});
 
-    for (auto& opIt : convOps)
-    {
-        if (opIt->hasAttr("placeConversionToFloat"))
-        {
-            if (opIt->get<bool>("placeConversionToFloat"))
-            {
+    for (auto& ops: fp_ops) {
+        for (auto& opIt : ops.second) {
+            if(opIt->hasAttr("placeConversionToFloat") && opIt->get<bool>("placeConversionToFloat")) {
                 auto previousOpIt = om.getSourceOp(opIt->getInputTensor(0));
                 std::vector<double> inputScale = opIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
                 bool isHSwish = false;
@@ -135,6 +132,14 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                     // do not set FP16 for HSwish since it is UPA Taks and precision will be set later
                 } else {
                     placeEltwiseDequantize(om, opIt);
+
+                    if(opIt->getOpType() == "Eltwise") {
+                        for (auto sourceFlow = opIt.leftmostInput(); sourceFlow != om.flowEnd(); ++sourceFlow)
+                        {
+                            if (sourceFlow.source()->getName() == previousOpIt->getName())
+                                om.undefineFlow(sourceFlow);
+                        }
+                    }
                 }
                 //NOTE: For now take for granted that the next guy is a convolution
                 opIt->set<bool>("floatPrecision", true);
