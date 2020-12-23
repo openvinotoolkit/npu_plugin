@@ -526,7 +526,7 @@ class CMX_Concatenation {
     {
       ControlModel cmodel_local(omodel);
       bool is_dag = cmodel_local.isDag();
-      return is_dag;
+      return !is_dag;
     }
 
     template<typename ControlEdgeOutputIterator>

@@ -100,7 +100,7 @@ bool check_if_cycle_came_up_due_to_cmx_concat(mv::OpModel& omodel)
 {
   mv::ControlModel cmodel_local(omodel);
   bool is_dag = cmodel_local.isDag();
-  return is_dag;
+  return !is_dag;
 }
 
 void LpSchedulerPass(const mv::pass::PassEntry& pass,
