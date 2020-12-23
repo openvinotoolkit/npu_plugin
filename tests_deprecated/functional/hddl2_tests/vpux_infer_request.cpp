@@ -44,15 +44,13 @@ void InferRequest_Tests::SetUp() {
 }
 
 //------------------------------------------------------------------------------
-// Track number: H#18012581010
-TEST_F(InferRequest_Tests, DISABLED_CanCallInference) { ASSERT_NO_THROW(inferRequest.Infer()); }
+TEST_F(InferRequest_Tests, CanCallInference) { ASSERT_NO_THROW(inferRequest.Infer()); }
 
 //------------------------------------------------------------------------------
 // TODO [Add tests] Set NV12Blob preprocessing information inside cnnNetwork
 using InferRequest_SetBlob = InferRequest_Tests;
 
-// Track number: H#18012581010
-TEST_F(InferRequest_SetBlob, DISABLED_LocalBlob) {
+TEST_F(InferRequest_SetBlob, LocalBlob) {
     const std::string inputName = executableNetworkPtr->GetInputsInfo().begin()->first;
     IE::InputInfo::CPtr inputInfoPtr = executableNetworkPtr->GetInputsInfo().begin()->second;
 
@@ -64,8 +62,7 @@ TEST_F(InferRequest_SetBlob, DISABLED_LocalBlob) {
 }
 
 // TODO Simplify this test
-// Track number: H#18012581010
-TEST_F(InferRequest_SetBlob, DISABLED_RemoteBlob) {
+TEST_F(InferRequest_SetBlob, RemoteBlob) {
     WorkloadContext_Helper workloadContextHelper;
 
     const std::string inputName = executableNetworkPtr->GetInputsInfo().begin()->first;
@@ -100,8 +97,7 @@ void InferRequest_NV12::SetUp() {
 
 using InferRequest_NV12_SetBlob = InferRequest_NV12;
 // TODO Long test
-// Track number: H#18012581010
-TEST_F(InferRequest_NV12_SetBlob, DISABLED_NV12Blob_WithPreprocessData_long) {
+TEST_F(InferRequest_NV12_SetBlob, NV12Blob_WithPreprocessData_long) {
     ASSERT_EQ(executableNetworkPtr->GetInputsInfo().size(), 1);
 
     const std::string inputName = executableNetworkPtr->GetInputsInfo().begin()->first;
@@ -119,8 +115,7 @@ TEST_F(InferRequest_NV12_SetBlob, DISABLED_NV12Blob_WithPreprocessData_long) {
 //------------------------------------------------------------------------------
 using InferRequest_GetBlob = InferRequest_Tests;
 
-// Track number: H#18012581010
-TEST_F(InferRequest_GetBlob, DISABLED_GetOutputAfterInference) {
+TEST_F(InferRequest_GetBlob, GetOutputAfterInference) {
     ASSERT_NO_THROW(inferRequest.Infer());
 
     std::string outputName = executableNetworkPtr->GetOutputsInfo().begin()->first;
@@ -128,8 +123,7 @@ TEST_F(InferRequest_GetBlob, DISABLED_GetOutputAfterInference) {
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(outputName));
 }
 
-// Track number: H#18012581010
-TEST_F(InferRequest_GetBlob, DISABLED_InputRemoteBlobContainSameDataAsOnSet) {
+TEST_F(InferRequest_GetBlob, InputRemoteBlobContainSameDataAsOnSet) {
     WorkloadContext_Helper workloadContextHelper;
     const std::string inputName = executableNetworkPtr->GetInputsInfo().begin()->first;
     IE::InputInfo::CPtr inputInfoPtr = executableNetworkPtr->GetInputsInfo().begin()->second;
@@ -306,8 +300,7 @@ void InferenceWithCheckLayout::SetUp() {
     inferRequest = executableNetworkPtr->CreateInferRequest();
 }
 
-// Track number: H#18012581010
-TEST_F(InferenceWithCheckLayout, DISABLED_precommit_SyncInferenceAndCheckLayout) {
+TEST_F(InferenceWithCheckLayout, precommit_SyncInferenceAndCheckLayout) {
     const auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
     inferRequest.SetBlob(inputBlobName, cat227x227Blob);
     inferRequest.Infer();
@@ -318,8 +311,7 @@ TEST_F(InferenceWithCheckLayout, DISABLED_precommit_SyncInferenceAndCheckLayout)
     ASSERT_EQ(blobInputLayout, networkInputLayout);
 }
 
-// Track number: H#18012581010
-TEST_F(InferenceWithCheckLayout, DISABLED_precommit_CheckInputsLayoutAfterTwoInferences) {
+TEST_F(InferenceWithCheckLayout, precommit_CheckInputsLayoutAfterTwoInferences) {
     const auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
     const auto firstInputBlob = vpu::copyBlob(cat227x227Blob);
     inferRequest.SetBlob(inputBlobName, firstInputBlob);

@@ -25,8 +25,7 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 class HDDL2_Remote_Context_Tests : public CoreAPI_Tests {};
 
-// Track number: H#18012581010
-TEST_F(HDDL2_Remote_Context_Tests, DISABLED_CanCreateContextFromParams) {
+TEST_F(HDDL2_Remote_Context_Tests, CanCreateContextFromParams) {
     WorkloadID workloadId = WorkloadContext_Helper::createAndRegisterWorkloadContext();
 
     // Store id param_map
@@ -56,8 +55,7 @@ void HDDL2_Remote_Context_Manipulation_Tests::SetUp() {
     params = Remote_Context_Helper::wrapWorkloadIdToMap(workloadId);
 }
 
-// Track number: H#18012581010
-TEST_F(HDDL2_Remote_Context_Manipulation_Tests, DISABLED_CanGetDeviceName) {
+TEST_F(HDDL2_Remote_Context_Manipulation_Tests, CanGetDeviceName) {
     IE::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
 
     std::string deviceName;
@@ -65,8 +63,7 @@ TEST_F(HDDL2_Remote_Context_Manipulation_Tests, DISABLED_CanGetDeviceName) {
     ASSERT_GT(deviceName.size(), 0);
 }
 
-// Track number: H#18012581010
-TEST_F(HDDL2_Remote_Context_Manipulation_Tests, DISABLED_GetDeviceNameReturnCorrectFormat) {
+TEST_F(HDDL2_Remote_Context_Manipulation_Tests, GetDeviceNameReturnCorrectFormat) {
     IE::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
 
     const std::string deviceName = remoteContextPtr->getDeviceName();
@@ -74,8 +71,7 @@ TEST_F(HDDL2_Remote_Context_Manipulation_Tests, DISABLED_GetDeviceNameReturnCorr
     ASSERT_NE(deviceName.find(pluginName), std::string::npos);
 }
 
-// Track number: H#18012581010
-TEST_F(HDDL2_Remote_Context_Manipulation_Tests, DISABLED_CanGetParams) {
+TEST_F(HDDL2_Remote_Context_Manipulation_Tests, CanGetParams) {
     IE::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
 
     IE::ParamMap paramMap;
