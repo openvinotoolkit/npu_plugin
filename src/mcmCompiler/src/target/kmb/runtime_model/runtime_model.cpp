@@ -1093,6 +1093,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     sortedOps.insert(sortedOps.end(), sortedDMAOps.begin(), sortedDMAOps.end());
 
     int initialId = 0;
+    uint8_t port = 0;
 
     for(auto vecIt = sortedOps.begin(); vecIt != sortedOps.end(); ++vecIt)
     {
@@ -1105,7 +1106,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
             listToUse = &toBuild[0];
         else if(opType.find("DMA") != std::string::npos)
             listToUse = &toBuild[1];
-        auto tasks = buildTaskT(cm, compilationDescriptor, opIt);
+        auto tasks = buildTaskT(cm, compilationDescriptor, opIt, &port);
         for(auto& task: tasks)
             (*listToUse)->content.push_back(std::move(task));
     }
@@ -1121,7 +1122,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     unsigned n = barrierTasks.size();
     for(unsigned i = 0; i < n; ++i)
     {
-        auto tasks = buildTaskT(cm, compilationDescriptor, controlModel.switchContext(barrierTasks[i]));
+        auto tasks = buildTaskT(cm, compilationDescriptor, controlModel.switchContext(barrierTasks[i]), &port);
         for(auto& task: tasks)
             toBuild[2]->content.push_back(std::move(task));
     }
@@ -1156,7 +1157,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildBarrierTaskT(C
     return toReturn;
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, uint8_t* port)
 {
     std::vector<std::unique_ptr<MVCNN::TaskT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskT>>();
     std::string taskType(opIt->getOpType());
@@ -1176,7 +1177,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         else
         {
             std::string splitting = opIt->getOutputTensor(0)->get<std::string>("splitStrategy");
-            toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
+            toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting, port);
         }
     }
     else if(taskType == "NCE1Task")
@@ -1262,7 +1263,7 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
 }
 
 void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
-                               bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, std::uint8_t port, const std::string& srcAllocator, const std::string& dstAllocator)
+                               bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, uint8_t* port, int portLimit, const std::string& srcAllocator, const std::string& dstAllocator)
 {
     std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     std::unique_ptr<MVCNN::NNDMATaskT> tmp = std::unique_ptr<MVCNN::NNDMATaskT>(new MVCNN::NNDMATaskT());
@@ -1270,7 +1271,11 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
 
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, srcAllocator);
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, dstAllocator);
-    tmp->port = port;
+    tmp->port = (*port)++;
+    if (portLimit <= *port)
+    {
+        *port = 0;
+    }
 
     if(dmaToDma)
     {
@@ -1306,7 +1311,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
 
 void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::DmaDirection direction, mv::Element &compilationDescriptor,
                                bool padFinalOutput, bool dmaToDMA, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn,
-                               mv::Data::TensorIterator src, mv::Data::TensorIterator dst, std::uint8_t port, const std::string& srcAllocator,
+                               mv::Data::TensorIterator src, mv::Data::TensorIterator dst, uint8_t* port, int portLimit, const std::string& srcAllocator,
                                const std::string& dstAllocator)
 {
     mv::OpModel om(cm);
@@ -1325,7 +1330,11 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
             updateTensorReferenceT(cm, compilationDescriptor, src, dst, i, tmp->src, srcAllocator);
         }
 
-        tmp->port = port;
+        tmp->port = (*port)++;
+        if (portLimit <= *port)
+        {
+            *port = 0;
+        }
 
         if (direction != mv::DDR2NNCMX && direction != mv::CSRAM2NNCMX)
         {
@@ -1357,7 +1366,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
     }
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting, uint8_t* port)
 {
     mv::DataModel dm(cm);
     mv::OpModel om(cm);
@@ -1436,7 +1445,16 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         }
     }
 
-    std::uint8_t port = opIt->get<std::uint8_t>("port");
+    // TODO: We ought to use the port assigned during scheduling, but scheduling
+    //       doesn't currently get to see split DMAs, so it schedules an entire
+    //       split group onto a single DMA controller -- which is clearly incorrect.
+    //       So instead, we implement a simple round-robin port assignment.
+    auto globalConfig = cm.getGlobalConfigParams();
+    int portLimit = 1;
+    if (globalConfig->hasAttr("dmaControllers"))
+    {
+        portLimit = globalConfig->get<int>("dmaControllers");
+    }
 
     // Case 1 of MC DMAs - Source tensor is broadcasted, i.e. present in it's entirety
     // in all clusters, OR populated tensors going into clustering op
@@ -1454,7 +1472,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
-        case1MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, dmaToDma, toReturn, inputTensor, outputTensor, port);
+        case1MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, dmaToDma, toReturn, inputTensor, outputTensor, port, portLimit);
 
         if(inputTensor->isSparse())
         {
@@ -1464,7 +1482,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 dm.getTensor(inputTensor->getSparsityMap()->getName());
             case1MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
-                  tensorSparsityMap, port, "GraphFile", "VPU_CMX_NN");
+                  tensorSparsityMap, port, portLimit, "GraphFile", "VPU_CMX_NN");
           } else {
             auto inputSparsityMap =
                 dm.getTensor(inputTensor->getSparsityMap()->getName());
@@ -1477,10 +1495,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
             case1MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
-                  outputSparsityMap, port);
+                  outputSparsityMap, port, portLimit);
             case1MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputStorageElementTable,
-                  outputStorageElementTable, port);
+                  outputStorageElementTable, port, portLimit);
           }
         }
 
@@ -1498,7 +1516,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
         case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput,
-            dmaToDma, toReturn, inputTensor, outputTensor, port);
+            dmaToDma, toReturn, inputTensor, outputTensor, port, portLimit);
         // If the input tensor for a DMA task is sparse then we also need to
         // create DMA tasks which transfer Storage Element (SE) Table and
         // Sparsity Map (SM).
@@ -1509,7 +1527,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
-                  tensorSparsityMap, port, "GraphFile", "VPU_CMX_NN");
+                  tensorSparsityMap, port, portLimit, "GraphFile", "VPU_CMX_NN");
           } else {
             auto inputSparsityMap =
                 dm.getTensor(inputTensor->getSparsityMap()->getName());
@@ -1522,11 +1540,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
-                  outputSparsityMap, port);
+                  outputSparsityMap, port, portLimit);
 
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputStorageElementTable,
-                  outputStorageElementTable, port);
+                  outputStorageElementTable, port, portLimit);
           }
         }
         return toReturn;
@@ -3360,10 +3378,10 @@ std::unique_ptr<MVCNN::BarrierReferenceT> mv::RuntimeModel::buildBarrierReferenc
     return toBuild;
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, uint8_t* port)
 {
 
-    std::vector<std::unique_ptr<MVCNN::TaskT>> vecToBuild = buildSpecificTaskUnion(cm, compilationDescriptor, opIt);
+    std::vector<std::unique_ptr<MVCNN::TaskT>> vecToBuild = buildSpecificTaskUnion(cm, compilationDescriptor, opIt, port);
 
     for(auto& toBuild: vecToBuild)
     {
