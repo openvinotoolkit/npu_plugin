@@ -95,6 +95,14 @@ void LpSchedulerBuildTimeStamp(FILE *fptr) {
   fprintf(fptr, "[LpScheduler: build %s %s]\n", __DATE__, __TIME__);
 }
 
+
+bool check_if_cycle_came_up_due_to_cmx_concat(mv::OpModel& omodel)
+{
+  mv::ControlModel cmodel_local(omodel);
+  bool is_dag = cmodel_local.isDag();
+  return !is_dag;
+}
+
 void LpSchedulerPass(const mv::pass::PassEntry& pass,
     mv::ComputationModel& model, mv::TargetDescriptor&,
     mv::Element& passDesc, mv::Element&) {
@@ -133,6 +141,21 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
           upper_bound, ignore_these_concats);
   } else {
     input_dag.reset(cm);
+  }
+
+  if (check_if_cycle_came_up_due_to_cmx_concat(cm))
+  {
+    for (auto opA = cm.opBegin(); opA != cm.opEnd(); ++opA)
+    {
+      for (auto opB = cm.opBegin(); opB != cm.opEnd(); ++opB)
+      {
+        if (cm.pathExists(opA, opB) && cm.pathExists(opB, opA) && (opA->getName() != opB->getName()))
+        {
+          throw mv::RuntimeError("LpScheduler", "There is a dag in the OPModel between "
+            + opA->getName() + " and " + opB->getName());
+        }
+      }
+    }
   }
 
   if (passDesc.hasAttr("enable_inplace_eltwise")) {
