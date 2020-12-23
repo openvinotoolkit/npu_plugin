@@ -1070,6 +1070,18 @@ TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
                     .setUserOutputPrecision("output", Precision::FP32));
 }
 
+// Prevent DDR2DDR DMA Test
+TEST_F(SmokeNetworkTest, yolo_v4_subgraph_ddr_output_test) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/yolo_v4_subgraph/FP16-INT8/yolo_v4_subgraph.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP16));
+}
+
 
 // Regression on compilation due to latest rebase
 TEST_F(KmbVasFDStage1Test, DISABLED_precommit_vasfd_stage1) {
