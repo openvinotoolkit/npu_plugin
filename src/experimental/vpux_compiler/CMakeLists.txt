@@ -264,6 +264,9 @@ link_system_libraries(${OBJ_TARGET_NAME}
         MLIRLinalg
         MLIRShape
         flatbuffers
+        IE::ngraph
+        IE::inference_engine
+        IE::inference_engine_transformations
         # TODO: get rid of this dependency
         IE::vpu_common_lib
 )

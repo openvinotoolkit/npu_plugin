@@ -43,8 +43,18 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/shape.hpp>
 #include <ngraph/type/element_type.hpp>
+
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/op_conversions/convert_divide.hpp>
+#include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
+#include <transformations/op_conversions/convert_mod.hpp>
+#include <transformations/op_conversions/convert_negative.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
+#include <transformations/op_conversions/hsigmoid_decomposition.hpp>
+#include <transformations/op_conversions/hswish_decomposition.hpp>
 
 using namespace vpux;
 
@@ -1106,6 +1116,25 @@ std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result
     return resultInput->get_friendly_name() + portSuffix;
 }
 
+//
+// runNGraphPasses
+//
+
+void runNGraphPasses(std::shared_ptr<ngraph::Function> netGraph) {
+    const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
+    passConfig->disable<ngraph::pass::HSwishDecomposition>();
+    passConfig->disable<ngraph::pass::HSigmoidDecomposition>();
+    passConfig->disable<ngraph::pass::ConvertMinimum>();
+    passConfig->disable<ngraph::pass::ConvertSubtract>();
+    passConfig->disable<ngraph::pass::ConvertDivide>();
+    passConfig->disable<ngraph::pass::ConvertNegative>();
+
+    ngraph::pass::Manager manager(passConfig);
+    manager.register_pass<ngraph::pass::CommonOptimizations>();
+
+    manager.run_passes(netGraph);
+}
+
 }  // namespace
 
 //
@@ -1120,6 +1149,9 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
 
     const auto netGraph = cnnNet.getFunction();
     VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
+
+    log.trace("Run nGraph passes");
+    runNGraphPasses(netGraph);
 
     const auto inputsInfo = cnnNet.getInputsInfo();
     const auto outputsInfo = cnnNet.getOutputsInfo();
