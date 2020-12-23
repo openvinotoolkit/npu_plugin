@@ -6,6 +6,7 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/computation/model/iterator/tensor.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
 
 namespace mv {
 namespace scheduler {
@@ -67,7 +68,8 @@ class CMX_Concatenation {
         : dpu_in_(), dpu_out_(), reads_(), writes_(),
           concat_root_(operation_t(NULL)),
           representative_dpu_(operation_t(NULL)),
-          representative_dpu_depth_() {}
+          representative_dpu_depth_(),
+          lower_level_representative(false) {}
 
       bool is_valid() const {
         return !( (concat_root_ == operation_t(NULL)) || dpu_in_.empty() ||
@@ -320,6 +322,7 @@ class CMX_Concatenation {
       operation_t concat_root_;
       operation_t representative_dpu_; // representative DPU task from dpu_in_
       size_t representative_dpu_depth_;
+      bool lower_level_representative;
     }; // struct concat_subgraph_t //
 
     ////////////////////////////////////////////////////////////////////////////
@@ -459,10 +462,10 @@ class CMX_Concatenation {
     }
 
     template<typename ControlEdgeOutput>
-    void transform_op_model(ControlEdgeOutput output,
+    void transform_op_model(ControlEdgeOutput output, ControlEdgeOutput removeOutput,
         size_t cmx_size=917504UL) {
       std::list<concat_subgraph_t> concat_subgraphs;
-      transform_op_model(output, concat_subgraphs, cmx_size);
+      transform_op_model(output, removeOutput, concat_subgraphs, cmx_size);
     }
 
     template<typename T>
@@ -519,8 +522,81 @@ class CMX_Concatenation {
 
     }
 
+    bool check_if_cycle_came_up_due_to_cmx_concat(OpModel& omodel)
+    {
+      ControlModel cmodel_local(omodel);
+      bool is_dag = cmodel_local.isDag();
+      return is_dag;
+    }
+
+    template<typename ControlEdgeOutputIterator>
+    void untransform_cmx_subgraph_dpu_ins(concat_subgraph_t& subgraph,  ControlEdgeOutputIterator removeOutput) {
+      auto rep_dpu = subgraph.representative_dpu_;
+      auto rep_it = omodel_.getOp(rep_dpu->getName());
+      for (operation_t dpu : subgraph.dpu_in_)
+      {
+        auto dpu_in_it = omodel_.getOp(dpu->getName());
+        if (rep_dpu->getName() != dpu->getName())
+        {
+          if (omodel_.pathExists(rep_it, dpu_in_it))
+          {
+            auto sourceFlow = rep_it.leftmostInput();
+            while (sourceFlow != omodel_.flowEnd())
+            {
+              if ((sourceFlow.sink()->getName() == dpu_in_it->getName()) &&
+                (sourceFlow.source()->getName() == rep_dpu->getName()))
+              {
+                removeOutput = control_edge_t(rep_it, dpu_in_it);
+                omodel_.undefineFlow(sourceFlow);
+                dpu_in_it->set<size_t>(cmx_concat_attribute(), 0UL);
+                dpu_in_it->set<bool>(cmx_concat_writer_attribute(), false);
+                break;
+              }
+              ++sourceFlow;
+            }
+          }
+        }
+      }
+      rep_it->set<size_t>(cmx_concat_attribute(), 0UL);
+      rep_it->set<bool>(cmx_concat_writer_attribute(), false);
+      return;
+    }
+
+    void untransform_cmx_subgraph_dpu_levels(concat_subgraph_t& subgraph) {
+      auto rep_dpu = subgraph.representative_dpu_;
+      auto rep_it = omodel_.getOp(rep_dpu->getName());
+      for (operation_t dpu : subgraph.dpu_in_)
+      {
+        auto dpu_in_it = omodel_.getOp(dpu->getName());
+        auto appr_opIt = omodel_.getSourceOp(dpu_in_it->getInputTensor()[0]);
+
+        if (rep_dpu->getName() != dpu->getName())
+        {
+          while (appr_opIt->getOpType() != "DPUTask")
+          {
+            assertForEltwise(appr_opIt);
+            appr_opIt = omodel_.getSourceOp(appr_opIt->getInputTensor()[0]);
+          }
+          if (omodel_.pathExists(appr_opIt, rep_it))
+          {
+            auto sourceFlow = appr_opIt.leftmostInput();
+            while (sourceFlow != omodel_.flowEnd())
+            {
+              if ((sourceFlow.sink()->getName() == rep_it->getName()) &&
+                (sourceFlow.source()->getName() == appr_opIt->getName()))
+              {
+                omodel_.undefineFlow(sourceFlow);
+              }
+              ++sourceFlow;
+            }
+          }
+        }
+      }
+      return;
+    }
+
     template<typename ControlEdgeOutput, typename SubGraphContainer>
-    void transform_op_model(ControlEdgeOutput output,
+    void transform_op_model(ControlEdgeOutput output, ControlEdgeOutput removeOutput,
           SubGraphContainer& concat_subgraphs, size_t cmx_size=917504UL) {
 
       static_assert( std::is_same<concat_subgraph_t,
@@ -542,6 +618,16 @@ class CMX_Concatenation {
           transform_and_get_control_edges(subgraph, output);
           if (does_rep_dpu_has_lower_depth_than_others(subgraph)) {
             transform_concat_subgraph_depth(subgraph, output, temporary_dpu_depth_map);
+            subgraph.lower_level_representative = true;
+          }
+          if (check_if_cycle_came_up_due_to_cmx_concat(omodel_))
+          {
+            untransform_cmx_subgraph_dpu_ins(subgraph, removeOutput);
+            //NOTE: if subraph has edges due to different levels and still a cycle then remove these edges as well
+            if (check_if_cycle_came_up_due_to_cmx_concat(omodel_) &&
+              subgraph.lower_level_representative)
+              untransform_cmx_subgraph_dpu_levels(subgraph);
+            can_transform = false;
           }
         }
 

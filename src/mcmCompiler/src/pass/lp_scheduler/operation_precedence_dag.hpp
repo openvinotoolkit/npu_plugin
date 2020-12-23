@@ -420,9 +420,31 @@ class Operation_Dag {
       cmx_concat_algo_t cmx_concat_algo(omodel, ignore_concat_list);
 
       std::list<cmx_concat_subgraph_t> cmx_concat_subgraphs;
+      CmxConcatControlEdgeContainer cmx_concat_control_edges_remove_cycles;
       cmx_concat_algo.transform_op_model(
-          std::back_inserter(cmx_concat_control_edges), cmx_concat_subgraphs,
-            cmx_size);
+          std::back_inserter(cmx_concat_control_edges), std::back_inserter(cmx_concat_control_edges_remove_cycles),
+            cmx_concat_subgraphs, cmx_size);
+
+      //NOTE: iterate through the list with the cycle edges and remove them from the initial edges list
+      auto it = cmx_concat_control_edges_remove_cycles.begin();
+      while (it != cmx_concat_control_edges_remove_cycles.end())
+      {
+        //NOTE: std::find of the it in the cmx_concat_control_edges, and remove...
+        auto removeIt = cmx_concat_control_edges.begin();
+        while (removeIt != cmx_concat_control_edges.end())
+        {
+          if (removeIt == it)
+          {
+            removeIt = it;
+            break;
+          }
+          removeIt++;
+        }
+        if (removeIt != cmx_concat_control_edges.end())
+          cmx_concat_control_edges.erase(removeIt++);
+        else
+          ++it;
+      }
 
       cmx_concat_subgraphs_.clear();
       for (auto subg_itr=cmx_concat_subgraphs.begin();

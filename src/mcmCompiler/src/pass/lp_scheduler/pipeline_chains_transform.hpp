@@ -109,6 +109,12 @@ class Pipeline_Chains {
         sink_itr_ = o.sink_itr_;
         return *this;
       }
+
+      bool operator==(const control_edge_t& o) {
+        bool sourceQ = (source_itr_->getName() == o.source_itr_->getName());
+        bool sinkQ = (sink_itr_->getName() == o.sink_itr_->getName());
+        return (sourceQ && sinkQ);
+      }
       mv::Data::OpListIterator source_itr_;
       mv::Data::OpListIterator sink_itr_;
     }; // struct control_edge_t //
