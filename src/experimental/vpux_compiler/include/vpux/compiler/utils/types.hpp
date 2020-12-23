@@ -24,6 +24,8 @@ namespace vpux {
 // get<scalar>Type
 //
 
+mlir::IntegerType getInt8Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getInt16Type(mlir::MLIRContext* ctx);
 mlir::IntegerType getInt32Type(mlir::MLIRContext* ctx);
 mlir::IntegerType getInt64Type(mlir::MLIRContext* ctx);
 

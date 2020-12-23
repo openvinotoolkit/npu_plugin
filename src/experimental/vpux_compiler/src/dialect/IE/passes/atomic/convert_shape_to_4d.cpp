@@ -165,7 +165,7 @@ void ConvertShapeTo4DPass::passBody() {
         if (tensor.getShape().size() == TARGET_TENSOR_DIM) {
             return tensor;
         } else if (tensor.getShape().size() > TARGET_TENSOR_DIM) {
-            VPUX_THROW("Tensors with rank > 4 is not supporeted");
+            VPUX_THROW("Tensors with rank > 4 is not supported");
         } else {
             const auto nDimsToAdd = TARGET_TENSOR_DIM - tensor.getShape().size();
             SmallVector<int64_t> newShape(nDimsToAdd, 1);

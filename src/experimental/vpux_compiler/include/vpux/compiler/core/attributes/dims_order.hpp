@@ -115,12 +115,13 @@ public:
     InferenceEngine::Layout toIE() const;
 
 public:
-    Optional<StringRef> getCanonicalName() const;
+    Optional<StringLiteral> getCanonicalName() const;
 
 public:
     template <typename T, template <class> class Tag>
     auto toMemoryOrder(details::DimValuesRef<Dim, T, Tag> values) const -> details::DimValues<MemDim, T, Tag> {
-        assert(values.size() == numDims());
+        VPUX_THROW_UNLESS(values.size() == numDims(), "DimValues '{0}' are not compatible with DimsOrder '{1}'", values,
+                          *this);
 
         return to_container<details::DimValues<MemDim, T, Tag>>(toPermutation() | transformed([values](Dim d) {
                                                                     return values[d];
@@ -133,7 +134,8 @@ public:
 
     template <typename T, template <class> class Tag>
     auto toLogicalOrder(details::DimValuesRef<MemDim, T, Tag> values) const -> details::DimValues<Dim, T, Tag> {
-        assert(values.size() == numDims());
+        VPUX_THROW_UNLESS(values.size() == numDims(), "DimValues '{0}' are not compatible with DimsOrder '{1}'", values,
+                          *this);
 
         return to_container<details::DimValues<Dim, T, Tag>>(irange(values.size()) |
                                                              transformed([this, values](size_t dimInd) {

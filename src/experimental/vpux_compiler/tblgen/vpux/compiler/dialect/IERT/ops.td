@@ -490,7 +490,7 @@ def IERT_HSwishOp :
         IERT_LayerOp<
             "HSwish",
             [
-		SameOperandsShape,
+                SameOperandsShape,
                 SameOperandsElementType,
                 SingleInputAndResultLayer
             ]

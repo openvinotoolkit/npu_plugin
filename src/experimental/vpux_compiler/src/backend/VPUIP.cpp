@@ -262,7 +262,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
         } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == netFunc.getOperation()) {
             // do nothing
         } else {
-            VPUX_THROW("Unknown Operation {0}", *op);
+            VPUX_THROW("Unknown Operation '{0}'", op->getName());
         }
     };
 

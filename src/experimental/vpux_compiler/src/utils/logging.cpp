@@ -109,12 +109,12 @@ void vpux::addLogging(mlir::PassManager& pm, Logger log) {
 //
 
 void vpux::OpBuilderLogger::notifyOperationInserted(mlir::Operation* op) {
-    _log.trace("Add new Operation {0}", *op);
+    _log.trace("Add new Operation {0}", op->getName());
 }
 
 void vpux::OpBuilderLogger::notifyBlockCreated(mlir::Block* block) {
     if (auto* parent = block->getParentOp()) {
-        _log.trace("Add new Block for Operation {0}", *parent);
+        _log.trace("Add new Block for Operation {0}", parent->getName());
     } else {
         _log.trace("Add new Block without parent Operation");
     }

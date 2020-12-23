@@ -83,7 +83,7 @@ private:
 
 mlir::LogicalResult ConvertIERT2VPUIPPass::ConstantRewrite::matchAndRewrite(IERT::ConstantOp origOp,
                                                                             mlir::PatternRewriter& rewriter) const {
-    _log.trace("Found Constant Operation '{0}'", origOp);
+    _log.trace("Found Constant Operation '{0}'", origOp->getLoc());
 
     rewriter.replaceOpWithNewOp<VPUIP::DeclareConstantTensorOp>(origOp, origOp.getType(), origOp.value());
     _log.trace("Replaced with 'VPUIP.DeclareConstantTensorOp'");

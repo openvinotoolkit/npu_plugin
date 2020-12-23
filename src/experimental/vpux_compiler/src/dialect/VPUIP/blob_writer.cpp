@@ -255,27 +255,27 @@ MVCNN::DType vpux::VPUIP::BlobWriter::createDType(mlir::Type type) {
         return MVCNN::DType_FP16;
     } else if (type.isBF16()) {
         return MVCNN::DType_FP16;
-    } else if (type.isSignedInteger(8 * sizeof(int64_t))) {
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int64_t))) {
         return MVCNN::DType_I64;
-    } else if (type.isSignedInteger(8 * sizeof(int32_t))) {
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int32_t))) {
         return MVCNN::DType_I32;
-    } else if (type.isSignedInteger(8 * sizeof(int16_t))) {
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int16_t))) {
         return MVCNN::DType_I16;
-    } else if (type.isSignedInteger(8 * sizeof(int8_t))) {
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int8_t))) {
         return MVCNN::DType_I8;
     } else if (type.isSignedInteger(4)) {
         return MVCNN::DType_I4;
     } else if (type.isSignedInteger(2)) {
         return MVCNN::DType_I2;
-    } else if (type.isUnsignedInteger(8 * sizeof(uint64_t))) {
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint64_t))) {
         return MVCNN::DType_U64;
-    } else if (type.isUnsignedInteger(8 * sizeof(uint32_t))) {
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint32_t))) {
         return MVCNN::DType_U32;
-    } else if (type.isUnsignedInteger(8 * sizeof(uint16_t))) {
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint16_t))) {
         return MVCNN::DType_U16;
-    } else if (type.isUnsignedInteger(8 * sizeof(uint8_t))) {
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint8_t))) {
         return MVCNN::DType_U8;
-    } else if (type.isSignlessInteger(1)) {
+    } else if (type.isInteger(1)) {
         return MVCNN::DType_BIN;
     } else {
         VPUX_THROW("Unsupported element type {0}", type);

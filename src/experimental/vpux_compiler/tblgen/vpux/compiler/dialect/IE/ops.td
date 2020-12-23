@@ -869,8 +869,8 @@ def IE_TanhOp :
             [
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
-		SingleInputAndResultLayer,
-		DeclareOpInterfaceMethods<LayerInterface>
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Tanh layer";
@@ -917,8 +917,8 @@ def IE_HSwishOp :
             [
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
-		SingleInputAndResultLayer,
-		DeclareOpInterfaceMethods<LayerInterface>
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine HSwish layer";

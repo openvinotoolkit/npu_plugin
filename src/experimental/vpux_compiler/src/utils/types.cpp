@@ -22,6 +22,14 @@ using namespace vpux;
 // get<scalar>Type
 //
 
+mlir::IntegerType vpux::getInt8Type(mlir::MLIRContext* ctx) {
+    return mlir::IntegerType::get(ctx, 8);
+}
+
+mlir::IntegerType vpux::getInt16Type(mlir::MLIRContext* ctx) {
+    return mlir::IntegerType::get(ctx, 16);
+}
+
 mlir::IntegerType vpux::getInt32Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 32);
 }
