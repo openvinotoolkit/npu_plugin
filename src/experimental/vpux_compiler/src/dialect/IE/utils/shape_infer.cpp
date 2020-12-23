@@ -16,44 +16,49 @@
 
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 
-namespace vpux {
-namespace IE {
+using namespace vpux;
 
-mlir::FailureOr<SmallVector<int64_t, 4>> broadcastEltwiseShape(llvm::ArrayRef<int64_t> shape1,
-                                                               llvm::ArrayRef<int64_t> shape2,
-                                                               vpux::IE::AutoBroadcastType broadcastType,
-                                                               mlir::Location loc) {
-    if (broadcastType == vpux::IE::AutoBroadcastType::NONE_OR_EXPLICIT) {
+mlir::FailureOr<SmallVector<int64_t, 4>> vpux::IE::broadcastEltwiseShape(ArrayRef<int64_t> shape1,
+                                                                         ArrayRef<int64_t> shape2,
+                                                                         AutoBroadcastType broadcastType,
+                                                                         mlir::Location loc) {
+    if (broadcastType == AutoBroadcastType::NONE_OR_EXPLICIT) {
         if (shape1 != shape2) {
             return mlir::LogicalResult(
                     printTo(mlir::emitError(loc), "Input shapes must be equal in case BroadcastType is NONE"));
         }
+
         return to_vector<4>(shape1);
     } else if (broadcastType == vpux::IE::AutoBroadcastType::NUMPY) {
-        // calculate output shapes
         SmallVector<int64_t, 4> outShape(std::max(shape1.size(), shape2.size()), 0);
+
         auto in1ShapeIter = shape1.rbegin();
         auto in2ShapeIter = shape2.rbegin();
 
         for (auto outShapeRIter = outShape.rbegin(); outShapeRIter != outShape.rend(); ++outShapeRIter) {
             *outShapeRIter = std::max(in1ShapeIter != shape1.rend() ? *in1ShapeIter : 0,
                                       in2ShapeIter != shape2.rend() ? *in2ShapeIter : 0);
-            if (in1ShapeIter != shape1.rend())
+
+            if (in1ShapeIter != shape1.rend()) {
                 ++in1ShapeIter;
-            if (in2ShapeIter != shape2.rend())
+            }
+            if (in2ShapeIter != shape2.rend()) {
                 ++in2ShapeIter;
+            }
         }
+
         return outShape;
     }
-    return mlir::LogicalResult(printTo(mlir::emitError(loc), "Unsupported BroadcastType"));
+
+    return mlir::LogicalResult(printTo(mlir::emitError(loc), "Unsupported BroadcastType '{0}'", broadcastType));
 }
 
-mlir::FailureOr<SmallVector<int64_t, 4>> broadcastEltwiseShape(const std::vector<llvm::ArrayRef<int64_t>>& shapes,
-                                                               vpux::IE::AutoBroadcastType broadcastType,
-                                                               mlir::Location loc) {
+mlir::FailureOr<SmallVector<int64_t, 4>> vpux::IE::broadcastEltwiseShape(ArrayRef<ArrayRef<int64_t>> shapes,
+                                                                         AutoBroadcastType broadcastType,
+                                                                         mlir::Location loc) {
     if (shapes.size() < 2) {
         return mlir::LogicalResult(
-                printTo(mlir::emitError(loc), "Number of input shapes must be equal or greater than 2."));
+                printTo(mlir::emitError(loc), "Number of input shapes must be equal or greater than 2"));
     }
 
     if (broadcastType == vpux::IE::AutoBroadcastType::NONE_OR_EXPLICIT) {
@@ -63,17 +68,19 @@ mlir::FailureOr<SmallVector<int64_t, 4>> broadcastEltwiseShape(const std::vector
                         printTo(mlir::emitError(loc), "Input shapes must be equal in case BroadcastType is NONE"));
             }
         }
+
         return to_vector<4>(shapes[0]);
     } else {
         size_t rank = shapes[0].size();
-        for (size_t i = 1; i < shapes.size(); ++i)
+        for (size_t i = 1; i < shapes.size(); ++i) {
             rank = std::max(rank, shapes[i].size());
+        }
 
-        std::vector<int64_t> outShape(rank, 0);
-        for (size_t i = 0; i < outShape.size(); ++i)
+        SmallVector<int64_t, 4> outShape(rank, 0);
+        for (size_t i = 0; i < outShape.size(); ++i) {
             *(outShape.rbegin() + i) = *(shapes[0].rbegin() + i);
+        }
 
-        // calculate output shapes
         for (size_t i = 1; i < shapes.size(); ++i) {
             auto in1ShapeIter = outShape.rbegin();
             auto in2ShapeIter = shapes[i].rbegin();
@@ -81,17 +88,18 @@ mlir::FailureOr<SmallVector<int64_t, 4>> broadcastEltwiseShape(const std::vector
             for (auto outShapeRIter = outShape.rbegin(); outShapeRIter != outShape.rend(); ++outShapeRIter) {
                 *outShapeRIter = std::max(in1ShapeIter != outShape.rend() ? *in1ShapeIter : 0,
                                           in2ShapeIter != shapes[i].rend() ? *in2ShapeIter : 0);
-                if (in1ShapeIter != outShape.rend())
+
+                if (in1ShapeIter != outShape.rend()) {
                     ++in1ShapeIter;
-                if (in2ShapeIter != shapes[i + 1].rend())
+                }
+                if (in2ShapeIter != shapes[i].rend()) {
                     ++in2ShapeIter;
+                }
             }
         }
 
-        return to_vector<4>(makeArrayRef(outShape));
+        return outShape;
     }
-    return mlir::LogicalResult(printTo(mlir::emitError(loc), "Unsupported BroadcastType"));
-}
 
-}  // namespace IE
-}  // namespace vpux
+    return mlir::LogicalResult(printTo(mlir::emitError(loc), "Unsupported BroadcastType '{0}'", broadcastType));
+}

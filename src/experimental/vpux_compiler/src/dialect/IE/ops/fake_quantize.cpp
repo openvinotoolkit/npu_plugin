@@ -38,13 +38,15 @@ mlir::LogicalResult vpux::IE::FakeQuantizeOp::inferReturnTypeComponents(
     auto outputLowType = quantize.output_low().getType().cast<mlir::RankedTensorType>();
     auto outputHighType = quantize.output_high().getType().cast<mlir::RankedTensorType>();
     auto autob = quantize.auto_broadcast().getValue();
+
     auto outShapeOrResult =
             IE::broadcastEltwiseShape({inputType.getShape(), inputLowType.getShape(), inputHighType.getShape(),
                                        outputLowType.getShape(), outputHighType.getShape()},
                                       autob, loc);
-    mlir::LogicalResult result = outShapeOrResult;
-    if (result.value == mlir::LogicalResult::Success) {
+
+    if (mlir::succeeded(outShapeOrResult)) {
         inferredReturnShapes.emplace_back(outShapeOrResult.getValue(), inputType.getElementType());
     }
+
     return outShapeOrResult;
 }
