@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
@@ -37,6 +38,98 @@ mlir::IntegerAttr getUInt64Attr(mlir::MLIRContext* ctx, uint64_t val);
 
 mlir::FloatAttr getFP32Attr(mlir::MLIRContext* ctx, float val);
 mlir::FloatAttr getFP64Attr(mlir::MLIRContext* ctx, double val);
+
+//
+// get<scalar>ArrayAttr
+//
+
+template <class Range>
+mlir::ArrayAttr getInt32ArrayAttr(mlir::MLIRContext* ctx, Range range) {
+    SmallVector<mlir::Attribute, 4> attrs;
+
+    for (const auto val : range) {
+        attrs.push_back(getInt32Attr(ctx, checked_cast<uint32_t>(val)));
+    }
+
+    return mlir::ArrayAttr::get(attrs, ctx);
+}
+
+template <class Range>
+mlir::ArrayAttr getInt64ArrayAttr(mlir::MLIRContext* ctx, Range range) {
+    SmallVector<mlir::Attribute, 4> attrs;
+
+    for (const auto val : range) {
+        attrs.push_back(getInt64Attr(ctx, checked_cast<uint64_t>(val)));
+    }
+
+    return mlir::ArrayAttr::get(attrs, ctx);
+}
+
+template <class Range>
+mlir::ArrayAttr getSInt32ArrayAttr(mlir::MLIRContext* ctx, Range range) {
+    SmallVector<mlir::Attribute, 4> attrs;
+
+    for (const auto val : range) {
+        attrs.push_back(getSInt32Attr(ctx, checked_cast<int32_t>(val)));
+    }
+
+    return mlir::ArrayAttr::get(attrs, ctx);
+}
+
+template <class Range>
+mlir::ArrayAttr getSInt64ArrayAttr(mlir::MLIRContext* ctx, Range range) {
+    SmallVector<mlir::Attribute, 4> attrs;
+
+    for (const auto val : range) {
+        attrs.push_back(getSInt64Attr(ctx, checked_cast<int64_t>(val)));
+    }
+
+    return mlir::ArrayAttr::get(attrs, ctx);
+}
+
+template <class Range>
+mlir::ArrayAttr getUInt32ArrayAttr(mlir::MLIRContext* ctx, Range range) {
+    SmallVector<mlir::Attribute, 4> attrs;
+
+    for (const auto val : range) {
+        attrs.push_back(getUInt32Attr(ctx, checked_cast<uint32_t>(val)));
+    }
+
+    return mlir::ArrayAttr::get(attrs, ctx);
+}
+
+template <class Range>
+mlir::ArrayAttr getUInt64ArrayAttr(mlir::MLIRContext* ctx, Range range) {
+    SmallVector<mlir::Attribute, 4> attrs;
+
+    for (const auto val : range) {
+        attrs.push_back(getUInt64Attr(ctx, checked_cast<uint64_t>(val)));
+    }
+
+    return mlir::ArrayAttr::get(attrs, ctx);
+}
+
+template <class Range>
+mlir::ArrayAttr getFP32ArrayAttr(mlir::MLIRContext* ctx, Range range) {
+    SmallVector<mlir::Attribute, 4> attrs;
+
+    for (const auto val : range) {
+        attrs.push_back(getFP32Attr(ctx, checked_cast<float>(val)));
+    }
+
+    return mlir::ArrayAttr::get(attrs, ctx);
+}
+
+template <class Range>
+mlir::ArrayAttr getFP64ArrayAttr(mlir::MLIRContext* ctx, Range range) {
+    SmallVector<mlir::Attribute, 4> attrs;
+
+    for (const auto val : range) {
+        attrs.push_back(getFP64Attr(ctx, checked_cast<double>(val)));
+    }
+
+    return mlir::ArrayAttr::get(attrs, ctx);
+}
 
 //
 // parse<scalar>ArrayAttr

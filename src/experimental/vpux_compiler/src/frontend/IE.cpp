@@ -124,8 +124,6 @@ private:
     mlir::Type importElemType(const ngraph::element::Type& elemType);
     mlir::RankedTensorType importTensor(const ngraph::PartialShape& shape, const ngraph::element::Type& elemType);
     mlir::Location createLocation(const OrigNodePtr& node);
-    template <typename T>
-    mlir::ArrayAttr importUInt32Array(T& inArray);
     bool validateElementwiseArgs(ngraph::Node* node, const ngraph::op::AutoBroadcastSpec& autob);
 
 private:
@@ -235,16 +233,6 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
     builder.create<mlir::ReturnOp>(mlir::UnknownLoc::get(_ctx), makeArrayRef(funcOutputs));
 
     return func;
-}
-
-template <typename T>
-mlir::ArrayAttr NGraphImporter::importUInt32Array(T& inArray) {
-    SmallVector<mlir::Attribute, 4> vecArray;
-
-    for (auto& k : inArray)
-        vecArray.push_back(getInt32Attr(_ctx, checked_cast<uint32_t>(k)));
-
-    return mlir::ArrayAttr::get(vecArray, _ctx);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Constant>& origNode) {
@@ -382,10 +370,10 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    mlir::ArrayAttr attrStride = importUInt32Array(origNode->get_strides());
-    mlir::ArrayAttr attrPadsBegin = importUInt32Array(origNode->get_pads_begin());
-    mlir::ArrayAttr attrPadsEnd = importUInt32Array(origNode->get_pads_end());
-    mlir::ArrayAttr attrDilation = importUInt32Array(origNode->get_dilations());
+    mlir::ArrayAttr attrStride = getInt32ArrayAttr(_ctx, origNode->get_strides());
+    mlir::ArrayAttr attrPadsBegin = getInt32ArrayAttr(_ctx, origNode->get_pads_begin());
+    mlir::ArrayAttr attrPadsEnd = getInt32ArrayAttr(_ctx, origNode->get_pads_end());
+    mlir::ArrayAttr attrDilation = getInt32ArrayAttr(_ctx, origNode->get_dilations());
 
     auto op = builder.create<IE::ConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, attrStride,
                                                 attrPadsBegin, attrPadsEnd, attrDilation);
@@ -406,10 +394,10 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    mlir::ArrayAttr attrKernelSize = importUInt32Array(origNode->get_kernel());
-    mlir::ArrayAttr attrStride = importUInt32Array(origNode->get_strides());
-    mlir::ArrayAttr attrPadsBegin = importUInt32Array(origNode->get_pads_begin());
-    mlir::ArrayAttr attrPadsEnd = importUInt32Array(origNode->get_pads_end());
+    mlir::ArrayAttr attrKernelSize = getInt32ArrayAttr(_ctx, origNode->get_kernel());
+    mlir::ArrayAttr attrStride = getInt32ArrayAttr(_ctx, origNode->get_strides());
+    mlir::ArrayAttr attrPadsBegin = getInt32ArrayAttr(_ctx, origNode->get_pads_begin());
+    mlir::ArrayAttr attrPadsEnd = getInt32ArrayAttr(_ctx, origNode->get_pads_end());
     IE::RoundingTypeAttr attrRoundingType = importRoundingType(_ctx, origNode->get_rounding_type());
 
     auto op = builder.create<IE::AvgPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
@@ -423,10 +411,10 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    mlir::ArrayAttr attrKernelSize = importUInt32Array(origNode->get_kernel());
-    mlir::ArrayAttr attrStride = importUInt32Array(origNode->get_strides());
-    mlir::ArrayAttr attrPadsBegin = importUInt32Array(origNode->get_pads_begin());
-    mlir::ArrayAttr attrPadsEnd = importUInt32Array(origNode->get_pads_end());
+    mlir::ArrayAttr attrKernelSize = getInt32ArrayAttr(_ctx, origNode->get_kernel());
+    mlir::ArrayAttr attrStride = getInt32ArrayAttr(_ctx, origNode->get_strides());
+    mlir::ArrayAttr attrPadsBegin = getInt32ArrayAttr(_ctx, origNode->get_pads_begin());
+    mlir::ArrayAttr attrPadsEnd = getInt32ArrayAttr(_ctx, origNode->get_pads_end());
     IE::RoundingTypeAttr attrRoundingType = importRoundingType(_ctx, origNode->get_rounding_type());
 
     auto op = builder.create<IE::MaxPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,

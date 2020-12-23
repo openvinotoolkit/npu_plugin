@@ -49,6 +49,7 @@ AdjustForVPUPass::AdjustForVPUPass(Logger log)
 
     _pm.addPass(IE::createConvertShapeTo4DPass(_log.nest()));
     _pm.addPass(IE::createConvertPrecisionToFP16Pass(_log.nest()));
+    _pm.addPass(IE::createConvertPaddingsToFloorModePass(_log.nest()));
 }
 
 void AdjustForVPUPass::runOnOperation() {

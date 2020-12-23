@@ -55,6 +55,21 @@ def ConvertShapeTo4D : Pass<"convert-shape-to-4d", "mlir::ModuleOp"> {
 }
 
 //
+// ConvertPaddingsToFloorMode
+//
+
+def ConvertPaddingsToFloorMode : FunctionPass<"convert-paddings-to-floor-mode"> {
+    let summary = "Convert Convolution and Pooling layers paddings to FLOOR rouding mode";
+
+    let description = [{
+        This "atomic" pass updates padding attributes for Convolution and Pooling layers.
+        It switches layer rounding mode to FLOOR and updates paddings to satisfy output shape.
+    }];
+
+    let constructor = "vpux::IE::createConvertPaddingsToFloorModePass()";
+}
+
+//
 // AdjustForVPU
 //
 
