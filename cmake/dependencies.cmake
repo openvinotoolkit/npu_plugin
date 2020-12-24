@@ -6,10 +6,6 @@ cmake_policy(SET CMP0054 NEW)
 
 include(ExternalProject)
 
-include(models)
-include(dependency_solver)
-include(linux_name)
-
 if(COMMAND get_linux_name)
     get_linux_name(LINUX_OS_NAME)
 endif()
