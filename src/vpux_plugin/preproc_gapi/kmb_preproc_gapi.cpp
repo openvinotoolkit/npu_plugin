@@ -888,11 +888,13 @@ void PrivSHAVE_only_M2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
 
 PreprocEngine::PreprocEngine(unsigned int shaveFirst, unsigned int shaveLast,
                              unsigned int lpi, Path ppPath) {
-    IE_ASSERT(ppPath == Path::SIPP || ppPath == Path::M2I);
+    IE_ASSERT(ppPath == Path::SIPP || ppPath == Path::M2I || ppPath == Path::SHAVE_ONLY_M2I);
     if (ppPath == Path::SIPP) {
         _priv.reset(new PrivSIPP(shaveFirst, shaveLast, lpi));
     } else if (ppPath == Path::M2I) {
         _priv.reset(new PrivM2I());
+    } else if (ppPath == Path::SHAVE_ONLY_M2I) {
+        _priv.reset(new PrivSHAVE_only_M2I());
     } else {
         THROW_IE_EXCEPTION << "Error: unsupported preprocessing path with code "
                            << std::to_string(static_cast<int>(ppPath));
