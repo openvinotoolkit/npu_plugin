@@ -32,6 +32,7 @@
 #include "ngraph_mcm_frontend/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
 #include "ngraph_mcm_frontend/passes/replace_onnx_pattern_to_reorg.hpp"
+#include "ngraph_mcm_frontend/passes/fuse_scale_in_previous_weights_fq.hpp"
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -230,8 +231,9 @@ std::vector<char> compileNGraph(
         passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
         passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
         if (config.scaleShiftFusing()) {
-	    passManager.register_pass<FuseScaleShift>();
-	}
+	        passManager.register_pass<FuseScaleShift>();
+	    }
+        passManager.register_pass<FuseScaleAfterClamp>();
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
         passManager.register_pass<ReplaceScaleShiftWithMcmScale>();
