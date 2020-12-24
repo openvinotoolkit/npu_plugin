@@ -21,7 +21,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesByExperimentalCompiler 
 class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
-            throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
+            throw LayerTestsUtils::KmbSkipTestException("Unsupported activation types in MCM compiler");
         } else {
             const auto activationType = std::get<0>(GetParam()).first;
 

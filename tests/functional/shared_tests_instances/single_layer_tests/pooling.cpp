@@ -14,7 +14,9 @@ namespace LayerTestsDefinitions {
 class KmbPoolingLayerTest: public PoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
-            throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
+            if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+                throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
+            }
         } else {
             const auto& poolParams = std::get<0>(GetParam());
             const auto poolType = std::get<0>(poolParams);
