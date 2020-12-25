@@ -69,6 +69,22 @@ def IE_TopKSortType :
 }
 
 //
+// ROIPoolingMethod
+//
+
+def IE_ROIPoolingMethod :
+        StrEnumAttr<
+            "ROIPoolingMethod",
+            "ROIPoolingMethod that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"max">,
+                StrEnumAttrCase<"bilinear">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+}
+
+//
 // AutoBroadcastType
 //
 

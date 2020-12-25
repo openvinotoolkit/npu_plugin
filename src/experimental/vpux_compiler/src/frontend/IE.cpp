@@ -101,6 +101,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::DetectionOutput>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::NormalizeL2>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Concat>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset2::ROIPooling>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -187,6 +188,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset1::DetectionOutput),
             MAP_ENTRY(ngraph::opset1::NormalizeL2),
             MAP_ENTRY(ngraph::opset1::Concat),
+            MAP_ENTRY(ngraph::opset2::ROIPooling),
     };
 
 #undef MAP_ENTRY
@@ -616,6 +618,20 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::ExpOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset2::ROIPooling>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph ROIPooling node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto outputSize = getInt32ArrayAttr(_ctx, origNode->get_output_size());
+    const auto spatialScaleAttr = getFP32Attr(_ctx, origNode->get_spatial_scale());
+    const auto method = mlir::StringAttr::get(origNode->get_method(), _ctx).cast<IE::ROIPoolingMethodAttr>();
+
+    auto op = builder.create<IE::ROIPoolingOp>(createLocation(origNode), inputs[0], inputs[1], outputSize,
+                                               spatialScaleAttr, method);
     addOutputs(origNode, op);
 }
 

@@ -1034,4 +1034,31 @@ def IE_ConcatOp :
     );
 }
 
+//
+// ROIPoolingOp
+//
+
+def IE_ROIPoolingOp :
+        IE_LayerOp<
+            "ROIPooling",
+            [
+                ResultsAreFloatLike,
+            ]
+        > {
+    let summary = "InferenceEngine ROIPooling layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$coords,
+
+        I32ArrayAttr:$output_size,
+        F32Attr:$spatial_scale,
+        IE_ROIPoolingMethod:$method
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
 #endif
