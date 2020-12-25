@@ -842,4 +842,175 @@ def IE_TransposeOp :
     );
 }
 
+//
+// ProposalOp
+//
+
+def IE_ProposalOp :
+        IE_LayerOp<
+            "Proposal"
+        > {
+    let summary = "InferenceEngine Proposal layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$class_probs,
+        RankedTensorOf<[F16, F32]>:$bbox_deltas,
+        RankedTensorOf<[F16, F32]>:$image_shape,
+
+        IE_ProposalAttrs:$proposal_attrs
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// InterpolateOp
+//
+
+def IE_InterpolateOp :
+        IE_LayerOp<
+            "Interpolate"
+        > {
+    let summary = "InferenceEngine Interpolate layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$target_shape,
+
+        IE_InterpolateAttr:$attr
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// TopKOp
+//
+
+def IE_TopKOp :
+        IE_LayerOp<
+            "TopK"
+        > {
+    let summary = "InferenceEngine TopK layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        0DTensorOf<[AnyInteger]>:$k,
+
+        I64Attr:$axis,
+        IE_TopKMode:$mode,
+        IE_TopKSortType:$sort,
+        TypeAttr:$element_type
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output_values,
+        AnyRankedTensor:$target_shape
+    );
+}
+
+//
+// RegionYoloOp
+//
+
+def IE_RegionYoloOp :
+        IE_LayerOp<
+            "RegionYolo"
+        > {
+    let summary = "InferenceEngine RegionYolo layer";
+
+    let arguments = (ins
+        4DTensorOf<[AnyFloat]>:$input,
+
+        I32Attr:$coord,
+        I32Attr:$classes,
+        I32Attr:$regions,
+        BoolAttr:$do_softmax,
+        I64ArrayAttr:$mask,
+        I32Attr:$axis,
+        I32Attr:$end_axis,
+        F32ArrayAttr:$anchors
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ReorgYoloOp
+//
+
+def IE_ReorgYoloOp :
+        IE_LayerOp<
+            "ReorgYolo"
+        > {
+    let summary = "InferenceEngine ReorgYolo layer";
+
+    let arguments = (ins
+        4DTensorOf<[AnyInteger, AnyFloat]>:$input,
+
+        I32Attr:$stride
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// DetectionOutputOp
+//
+
+def IE_DetectionOutputOp :
+        IE_LayerOp<
+            "DetectionOutput",
+            [
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "InferenceEngine DetectionOutput layer";
+
+    let arguments = (ins
+        2DTensorOf<[AnyFloat]>:$box_logits,
+        2DTensorOf<[AnyFloat]>:$class_preds,
+        3DTensorOf<[AnyFloat]>:$proposals,
+        Optional<2DTensorOf<[AnyFloat]>>:$additional_preds,
+        Optional<2DTensorOf<[AnyFloat]>>:$additional_poposals,
+
+        IE_DetectionOutputAttrs:$attr
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// NormalizeL2Op
+//
+
+def IE_NormalizeL2Op :
+        IE_LayerOp<
+            "NormalizeL2"
+        > {
+    let summary = "InferenceEngine NormalizeL2 layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$data,
+        RankedTensorOf<[AnyInteger]>:$axes,
+
+        F32Attr:$eps,
+        IE_EpsMode:$eps_mod
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
 #endif
