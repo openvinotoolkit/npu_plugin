@@ -649,7 +649,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     const auto alpha = origNode->get_alpha();
-    const auto alphaAttr = getFP64Attr(_ctx, checked_cast<double>(alpha));
+    const auto alphaAttr = getFP32Attr(_ctx, checked_cast<float>(alpha));
 
     auto op = builder.create<IE::EluOp>(createLocation(origNode), inputs[0], alphaAttr);
     addOutputs(origNode, op);

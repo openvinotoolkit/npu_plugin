@@ -271,4 +271,40 @@ def ClampLayerInterface : OpInterface<"ClampLayerInterface"> {
     ];
 }
 
+//
+// EluLayerInterface
+//
+
+def EluLayerInterface : OpInterface<"EluLayerInterface"> {
+    let description = "Interface for Elu Layer";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "mlir::Value", "input", (ins),
+            [{
+                return $_op.input();
+            }]
+        >,
+        InterfaceMethod<
+            "Get destination Value for the Operation",
+            "mlir::Value", "output", (ins),
+            [{
+                return $_op.output();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get the scale for the negative factor",
+            "float", "getX", (ins),
+            [{}],
+            [{
+                return $_op.x().convertToFloat();
+            }]
+        >,
+    ];
+}
+
 #endif

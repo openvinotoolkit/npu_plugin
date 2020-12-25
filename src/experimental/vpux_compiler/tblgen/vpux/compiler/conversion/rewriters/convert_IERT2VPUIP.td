@@ -193,4 +193,19 @@ def RewriteClamp :
             (createClampUPAOp $input, $output, $min, $max)
         >;
 
+//
+// IERT.Elu -> VPUIP.EluUPA
+//
+
+def createEluUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::EluUPAOp>($_loc, $0, $1, $2)
+        }]>;
+
+def RewriteElu :
+        Pat<
+            (IERT_EluOp $input, $output, $x),
+            (createEluUPAOp $input, $output, $x)
+        >;
+
 #endif

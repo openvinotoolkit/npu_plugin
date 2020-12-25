@@ -593,7 +593,8 @@ def IE_EluOp :
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
                 SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EluLayerInterface>
             ]
         > {
     let summary = "InferenceEngine Elu layer";
@@ -601,7 +602,7 @@ def IE_EluOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
 
-        F64Attr:$alpha
+        F32Attr:$x
     );
 
     let results = (outs

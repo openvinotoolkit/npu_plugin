@@ -15,6 +15,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesByExperimentalCompiler 
     ngraph::helpers::Relu,
     ngraph::helpers::Sigmoid,
     ngraph::helpers::Clamp,
+    ngraph::helpers::Elu,
 };
 
 class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {

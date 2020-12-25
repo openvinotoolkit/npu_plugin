@@ -421,4 +421,28 @@ def IERT_ClampOp :
     );
 }
 
+//
+// EluOp
+//
+
+def IERT_EluOp :
+        IERT_LayerOp<
+            "Elu",
+            [
+                SameOperandsShape,
+                SameOperandsElementType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<EluLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Elu layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        F32Attr:$x
+    );
+}
+
 #endif
