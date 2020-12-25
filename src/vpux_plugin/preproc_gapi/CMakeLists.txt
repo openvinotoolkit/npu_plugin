@@ -43,6 +43,7 @@ link_system_libraries(${GAPI_LIB}
         kmb_utils
         ${GAPI_SIPP_LIBRARY}
         ${GAPI_M2I_LIBRARY}
+        vpux_al
         )
 
 if(ENABLE_CLANG_FORMAT)
