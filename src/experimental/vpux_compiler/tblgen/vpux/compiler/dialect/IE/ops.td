@@ -1156,4 +1156,31 @@ def IE_StridedSliceOp :
     );
 }
 
+//
+// DeconvolutionOp (ConvolutionBackprop in ngraph)
+//
+
+def IE_DeconvolutionOp:
+        IE_LayerOp<
+            "Deconvolution"
+        > {
+    let summary = "InferenceEngine Deconvolution layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$feature,
+        AnyRankedTensor:$filter,
+        Optional<1DTensorOf<[AnyInteger]>>:$output_shape,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        I32ArrayAttr:$dilations,
+        I32ArrayAttr:$output_padding
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
 #endif
