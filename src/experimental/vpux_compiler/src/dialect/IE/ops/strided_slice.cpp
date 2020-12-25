@@ -15,8 +15,10 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
+#include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <numeric>
@@ -30,51 +32,58 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::StridedSliceOpAdaptor slice(operands, attrs);
     if (mlir::failed(slice.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    std::function<ngraph::AxisSet(mlir::ArrayAttr && arrayAttr)> convertArrayAttrToAxisSet =
-            [](mlir::ArrayAttr&& arrayAttr) {
-                ngraph::AxisSet axis_set{};
-                for (size_t i = 0; i < static_cast<size_t>(arrayAttr.size()); ++i) {
-                    auto val = arrayAttr[i].dyn_cast<mlir::IntegerAttr>().getInt();
-                    if (val == 1) {
-                        axis_set.emplace(i);
-                    }
-                }
-                return axis_set;
-            };
+    const auto getAxisSetArr = [](mlir::ArrayAttr attr) {
+        ngraph::AxisSet axis_set;
 
-    std::function<std::vector<int64_t>(mlir::ConstantOp)> convertConstantOpToVector = [](mlir::ConstantOp constOp) {
-        auto denseElementArray = constOp.value().dyn_cast<mlir::DenseElementsAttr>();
-        if (!denseElementArray)
-            return std::vector<int64_t>();
+        const auto arr = parseIntArrayAttr(attr);
+        for (const auto& p : arr | indexed) {
+            if (p.value() == 1) {
+                axis_set.emplace(p.index());
+            }
+        }
 
-        auto elementsRange = denseElementArray.getValues<int64_t>();
-        return std::vector<int64_t>(elementsRange.begin(), elementsRange.end());
+        return axis_set;
     };
 
-    auto inDataType = slice.data().getType().cast<mlir::RankedTensorType>();
-    auto inDataShape = inDataType.getShape();
-    auto beginMask = convertArrayAttrToAxisSet(slice.begin_mask());
-    auto endMask = convertArrayAttrToAxisSet(slice.end_mask());
-    auto newAxisMask = convertArrayAttrToAxisSet(slice.new_axis_mask());
-    auto shrinkAxisMask = convertArrayAttrToAxisSet(slice.shrink_axis_mask());
-    auto ellipsisMask = convertArrayAttrToAxisSet(slice.ellipsis_mask());
+    const auto convertConstantOpToVector = [](mlir::ConstantOp constOp) -> std::vector<int64_t> {
+        if (constOp == nullptr) {
+            return {};
+        }
 
-    auto calculatedShape =
+        const auto denseElementArray = constOp.value().dyn_cast<mlir::DenseElementsAttr>();
+        if (denseElementArray == nullptr) {
+            return {};
+        }
+
+        return to_std_vector(denseElementArray.getValues<int64_t>());
+    };
+
+    const auto inDataType = slice.data().getType().cast<mlir::ShapedType>();
+    const auto inDataShape = inDataType.getShape();
+    const auto beginMask = getAxisSetArr(slice.begin_mask());
+    const auto endMask = getAxisSetArr(slice.end_mask());
+    const auto newAxisMask = getAxisSetArr(slice.new_axis_mask());
+    const auto shrinkAxisMask = getAxisSetArr(slice.shrink_axis_mask());
+    const auto ellipsisMask = getAxisSetArr(slice.ellipsis_mask());
+
+    const auto outputShape =
             ngraph::infer_slice_shape(nullptr, ngraph::Shape(inDataShape.begin(), inDataShape.end()),
                                       convertConstantOpToVector(slice.begin().getDefiningOp<mlir::ConstantOp>()),
                                       convertConstantOpToVector(slice.end().getDefiningOp<mlir::ConstantOp>()),
                                       convertConstantOpToVector(slice.stride().getDefiningOp<mlir::ConstantOp>()),
                                       beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
 
-    auto outputShape = calculatedShape.get_shape();
-    SmallVector<int64_t, MAX_NUM_DIMS> mlirOutputShape(outputShape.begin(), outputShape.end());
-    inferredReturnShapes.emplace_back(mlirOutputShape, inDataType.getElementType());
+    const auto shapeI64 = to_vector<4>(outputShape.get_shape() | transformed([](size_t val) {
+                                           return checked_cast<int64_t>(val);
+                                       }));
+    inferredReturnShapes.emplace_back(shapeI64, inDataType.getElementType());
+
     return mlir::success();
 }

@@ -15,6 +15,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/small_vector.hpp"
@@ -24,46 +25,22 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::PowerOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::PowerOpAdaptor power(operands, attrs);
     if (mlir::failed(power.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    if (power.auto_broadcast().getValue() == vpux::IE::AutoBroadcastType::NONE_OR_EXPLICIT) {
-        auto outType = power.input1().getType().cast<mlir::RankedTensorType>();
-        auto outShape = outType.getShape();
-        inferredReturnShapes.emplace_back(outShape, outType.getElementType());
-    } else {
-        auto inType1 = power.input1().getType().cast<mlir::RankedTensorType>();
-        auto inType2 = power.input2().getType().cast<mlir::RankedTensorType>();
-        auto inShape1 = inType1.getShape();
-        auto inShape2 = inType2.getShape();
-        size_t rank = std::max(inShape1.size(), inShape2.size());
+    const auto in1Type = power.input1().getType().cast<mlir::ShapedType>();
+    const auto in2Type = power.input2().getType().cast<mlir::ShapedType>();
 
-        std::vector<int64_t> shape;
-        shape.reserve(rank);
-        for (auto it1 = inShape1.rbegin(), it2 = inShape2.rbegin(); it1 != inShape1.rend() || it2 != inShape2.rend();) {
-            if (it1 == inShape1.rend() && it2 == inShape2.rend())
-                break;
+    const auto outShapeRes =
+            IE::broadcastEltwiseShape(in1Type.getShape(), in2Type.getShape(), power.auto_broadcast().getValue(), loc);
 
-            if (it1 != inShape1.rend() && it2 != inShape2.rend()) {
-                shape.push_back(std::max(*it1, *it2));
-                ++it1;
-                ++it2;
-            } else if (it1 != inShape1.rend() && it2 == inShape2.rend()) {
-                shape.push_back(*it1);
-                ++it1;
-            }
-            if (it1 == inShape1.rend() && it2 != inShape2.rend()) {
-                shape.push_back(*it2);
-                ++it2;
-            }
-        }
-        std::reverse(std::begin(shape), std::end(shape));
-
-        inferredReturnShapes.emplace_back(makeArrayRef(shape), inType1.getElementType());
+    if (mlir::succeeded(outShapeRes)) {
+        inferredReturnShapes.emplace_back(outShapeRes.getValue(), in1Type.getElementType());
     }
+
     return mlir::success();
 }

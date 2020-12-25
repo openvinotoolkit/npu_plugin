@@ -23,25 +23,27 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::RegionYoloOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::RegionYoloOpAdaptor regionYolo(operands, attrs);
     if (mlir::failed(regionYolo.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inType = regionYolo.input().getType().cast<mlir::RankedTensorType>();
+    const auto inType = regionYolo.input().getType().cast<mlir::ShapedType>();
 
     mlir::SmallVector<int64_t, 4> outputShape;
     if (regionYolo.do_softmax().getValue()) {
         for (int64_t i = 0; i < regionYolo.axis().getInt(); i++) {
             outputShape.push_back(inType.getShape()[i]);
         }
+
         size_t flat_dim = 1;
         for (int64_t i = regionYolo.axis().getInt(); i < regionYolo.end_axis().getInt() + 1; i++) {
             flat_dim *= inType.getShape()[i];
         }
         outputShape.push_back(flat_dim);
+
         for (size_t i = regionYolo.end_axis().getInt() + 1; i < inType.getShape().size(); i++) {
             outputShape.push_back(inType.getShape()[i]);
         }
@@ -52,7 +54,7 @@ mlir::LogicalResult vpux::IE::RegionYoloOp::inferReturnTypeComponents(
         outputShape.push_back(inType.getShape()[2]);
         outputShape.push_back(inType.getShape()[3]);
     }
-    inferredReturnShapes.emplace_back(outputShape, inType.getElementType());
 
+    inferredReturnShapes.emplace_back(outputShape, inType.getElementType());
     return mlir::success();
 }

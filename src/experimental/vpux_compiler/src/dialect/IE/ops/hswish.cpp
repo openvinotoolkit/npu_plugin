@@ -21,15 +21,14 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::HSwishOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::HSwishOpAdaptor hswish(operands, attrs);
     if (mlir::failed(hswish.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inType = hswish.input().getType().cast<mlir::RankedTensorType>();
-
+    const auto inType = hswish.input().getType().cast<mlir::ShapedType>();
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();

@@ -54,45 +54,49 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::MatMulOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::MatMulOpAdaptor matMul(operands, attrs);
     if (mlir::failed(matMul.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    const auto& inType1 = matMul.input1().getType().cast<mlir::RankedTensorType>();
-    const auto& inType2 = matMul.input2().getType().cast<mlir::RankedTensorType>();
-    const auto& inShape1 = inType1.getShape();
-    const auto& inShape2 = inType2.getShape();
-    const auto& inRank1 = inShape1.size();
-    const auto& inRank2 = inShape2.size();
+    const auto inType1 = matMul.input1().getType().cast<mlir::ShapedType>();
+    const auto inType2 = matMul.input2().getType().cast<mlir::ShapedType>();
+    const auto inShape1 = inType1.getShape();
+    const auto inShape2 = inType2.getShape();
+    const auto inRank1 = inShape1.size();
+    const auto inRank2 = inShape2.size();
     const auto transA = matMul.transpose_a() != nullptr;
     const auto transB = matMul.transpose_b() != nullptr;
 
     // Rightmost two axes are row & col. Remaining left axes are batch
     constexpr int kRowColIdxRange = 2;
 
-    std::vector<int64_t> outShape;
+    SmallVector<int64_t, 4> outShape;
     outShape.reserve(std::max(inRank1, inRank2));
 
     // Temporally transformed shapes
-    std::vector<int64_t> inShape1Trans = inShape1;
-    std::vector<int64_t> inShape2Trans = inShape2;
+    auto inShape1Trans = to_vector<4>(inShape1);
+    auto inShape2Trans = to_vector<4>(inShape2);
     std::reverse(inShape1Trans.begin(), inShape1Trans.end());
     std::reverse(inShape2Trans.begin(), inShape2Trans.end());
 
     // Apply transpose only when rank >= 2
-    if (transA && (inRank1 > 1))
+    if (transA && (inRank1 > 1)) {
         std::swap(inShape1Trans[0], inShape1Trans[1]);
-    if (transB && (inRank2 > 1))
+    }
+    if (transB && (inRank2 > 1)) {
         std::swap(inShape2Trans[0], inShape2Trans[1]);
+    }
 
     // Only use the dim when it is Mat
-    if (inRank2 >= kRowColIdxRange)
+    if (inRank2 >= kRowColIdxRange) {
         outShape.push_back(inShape2Trans[0]);
-    if (inRank1 >= kRowColIdxRange)
+    }
+    if (inRank1 >= kRowColIdxRange) {
         outShape.push_back(inShape1Trans[1]);
+    }
 
     // Process batch axes
     uint32_t idx1 = kRowColIdxRange;
@@ -113,8 +117,6 @@ mlir::LogicalResult vpux::IE::MatMulOp::inferReturnTypeComponents(
     }
     std::reverse(std::begin(outShape), std::end(outShape));
 
-    auto outType = mlir::RankedTensorType::get(outShape, inType1.getElementType());
-    inferredReturnShapes.emplace_back(outType.getShape(), outType.getElementType());
-
+    inferredReturnShapes.emplace_back(outShape, inType1.getElementType());
     return mlir::success();
 }

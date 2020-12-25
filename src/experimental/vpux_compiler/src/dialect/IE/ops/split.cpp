@@ -23,37 +23,42 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+
     IE::SplitOpAdaptor split(operands, attrs);
     if (mlir::failed(split.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inType = split.input().getType().cast<mlir::RankedTensorType>();
+    const auto inType = split.input().getType().cast<mlir::ShapedType>();
+
     auto inAxis = split.axis().getDefiningOp<mlir::ConstantOp>();
-    if (inAxis) {
-        auto denseElementArray = inAxis.value().dyn_cast<mlir::DenseElementsAttr>();
-        if (denseElementArray) {
-            auto elementsRange = denseElementArray.getValues<int64_t>();
-
-            // calculate output shapes
-            std::vector<int64_t> outShape = inType.getShape().vec();
-            auto elementsIter = elementsRange.begin();
-            if (elementsIter == elementsRange.end()) {
-                return ::mlir::failure();
-            }
-            if (outShape[*elementsIter] < split.num_splits().getInt() ||
-                outShape[*elementsIter] % split.num_splits().getInt() != 0) {
-                return ::mlir::failure();
-            }
-            outShape[*elementsIter] /= split.num_splits().getInt();
-
-            for (int i = 0; i < split.num_splits().getInt(); ++i) {
-                inferredReturnShapes.emplace_back(outShape, inType.getElementType());
-            }
-
-            return mlir::success();
-        }
+    if (inAxis == nullptr) {
+        return mlir::failure();
     }
-    return ::mlir::failure();
+
+    auto denseElementArray = inAxis.value().dyn_cast<mlir::DenseElementsAttr>();
+    if (denseElementArray == nullptr) {
+        return mlir::failure();
+    }
+
+    const auto elementsRange = denseElementArray.getValues<int64_t>();
+
+    auto elementsIter = elementsRange.begin();
+    if (elementsIter == elementsRange.end()) {
+        return mlir::failure();
+    }
+
+    auto outShape = to_vector<4>(inType.getShape());
+    if (outShape[*elementsIter] < split.num_splits().getInt() ||
+        outShape[*elementsIter] % split.num_splits().getInt() != 0) {
+        return mlir::failure();
+    }
+    outShape[*elementsIter] /= split.num_splits().getInt();
+
+    for (int i = 0; i < split.num_splits().getInt(); ++i) {
+        inferredReturnShapes.emplace_back(outShape, inType.getElementType());
+    }
+
+    return mlir::success();
 }

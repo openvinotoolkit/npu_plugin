@@ -23,38 +23,39 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::TopKOpAdaptor topK(operands, attrs);
     if (mlir::failed(topK.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inType = topK.input().getType().cast<mlir::RankedTensorType>();
+    const auto inType = topK.input().getType().cast<mlir::ShapedType>();
+    const auto inputShape = inType.getShape();
+
     auto kType = topK.k().getDefiningOp<mlir::ConstantOp>();
-
-    if (kType) {
-        auto kArray = kType.value().dyn_cast<mlir::DenseElementsAttr>();
-        VPUX_THROW_UNLESS(static_cast<size_t>(kArray.size()) == 1, "K input must be scalar");
-        if (kArray) {
-            auto elementsRange = kArray.getValues<int64_t>();
-
-            auto elementsIter = elementsRange.begin();
-            if (elementsIter == elementsRange.end()) {
-                return mlir::LogicalResult(printTo(mlir::emitError(loc), "TopK: 'axis' tensor is empty"));
-            }
-            auto inputShape = inType.getShape().vec();
-            mlir::SmallVector<int64_t, 4> outShape;
-            for (size_t i = 0; i < inputShape.size(); ++i) {
-                outShape.emplace_back(inputShape[i]);
-            }
-            outShape[topK.axis().getInt()] = checked_cast<int64_t>(*elementsIter);
-
-            inferredReturnShapes.emplace_back(outShape, inType.getElementType());
-
-            inferredReturnShapes.emplace_back(outShape, topK.element_type().getValue());
-            return mlir::success();
-        }
+    if (kType == nullptr) {
+        return mlir::failure();
     }
-    return mlir::LogicalResult(printTo(mlir::emitError(loc), "TopK: 'axis' input must be produced by ConstantOp"));
+
+    const auto kArray = kType.value().dyn_cast<mlir::DenseElementsAttr>();
+    if (kArray == nullptr) {
+        return mlir::failure();
+    }
+
+    VPUX_THROW_UNLESS(kArray.size() == 1, "K input must be scalar");
+
+    const auto elementsRange = kArray.getValues<int64_t>();
+    auto elementsIter = elementsRange.begin();
+
+    mlir::SmallVector<int64_t, 4> outShape;
+    for (size_t i = 0; i < inputShape.size(); ++i) {
+        outShape.push_back(inputShape[i]);
+    }
+    outShape[topK.axis().getInt()] = *elementsIter;
+
+    inferredReturnShapes.emplace_back(outShape, inType.getElementType());
+    inferredReturnShapes.emplace_back(outShape, topK.element_type().getValue());
+
+    return mlir::success();
 }

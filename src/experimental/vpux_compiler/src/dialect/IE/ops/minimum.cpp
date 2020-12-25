@@ -18,27 +18,29 @@
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
+#include "vpux/utils/core/small_vector.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::MinimumOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::MinimumOpAdaptor minimum(operands, attrs);
     if (mlir::failed(minimum.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto in1Type = minimum.input1().getType().cast<mlir::RankedTensorType>();
-    auto in2Type = minimum.input2().getType().cast<mlir::RankedTensorType>();
+    const auto in1Type = minimum.input1().getType().cast<mlir::ShapedType>();
+    const auto in2Type = minimum.input2().getType().cast<mlir::ShapedType>();
 
-    auto outShapeOrResult =
+    const auto outShapeRes =
             IE::broadcastEltwiseShape(in1Type.getShape(), in2Type.getShape(), minimum.auto_broadcast().getValue(), loc);
-    mlir::LogicalResult result = outShapeOrResult;
-    if (result.value == mlir::LogicalResult::Success) {
-        inferredReturnShapes.emplace_back(outShapeOrResult.getValue(), in1Type.getElementType());
+
+    if (mlir::succeeded(outShapeRes)) {
+        inferredReturnShapes.emplace_back(outShapeRes.getValue(), in1Type.getElementType());
     }
-    return outShapeOrResult;
+
+    return outShapeRes;
 }

@@ -23,44 +23,48 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::GatherOpAdaptor gather(operands, attrs);
     if (mlir::failed(gather.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inType = gather.input().getType().cast<mlir::RankedTensorType>();
-    auto inIndices = gather.indices().getType().cast<mlir::RankedTensorType>();
+    const auto inType = gather.input().getType().cast<mlir::ShapedType>();
+    const auto inputShape = inType.getShape();
+    const auto indicesShape = gather.indices().getType().cast<mlir::ShapedType>().getShape();
+
     auto inAxis = gather.axis().getDefiningOp<mlir::ConstantOp>();
+    if (inAxis == nullptr) {
+        return mlir::failure();
+    }
 
-    std::vector<int64_t> outShape;
-    outShape.reserve(inType.getShape().size() + inIndices.getShape().size() - 1);
+    const auto denseElementArray = inAxis.value().dyn_cast<mlir::DenseElementsAttr>();
+    if (denseElementArray == nullptr) {
+        return mlir::failure();
+    }
 
-    if (inAxis) {
-        auto denseElementArray = inAxis.value().dyn_cast<mlir::DenseElementsAttr>();
-        if (denseElementArray) {
-            auto elementsRange = denseElementArray.getValues<int64_t>();
+    const auto elementsRange = denseElementArray.getValues<int64_t>();
 
-            auto elementsIter = elementsRange.begin();
-            if (elementsIter == elementsRange.end()) {
-                return ::mlir::failure();
+    auto elementsIter = elementsRange.begin();
+    if (elementsIter == elementsRange.end()) {
+        return mlir::failure();
+    }
+
+    SmallVector<int64_t, 4> outShape;
+    outShape.reserve(inputShape.size() + indicesShape.size() - 1);
+
+    // calculate output shapes
+    for (size_t i = 0; i < inputShape.size(); ++i) {
+        if (i == checked_cast<size_t>(*elementsIter)) {
+            for (size_t j = 0; j < indicesShape.size(); ++j) {
+                outShape.push_back(indicesShape[j]);
             }
-            auto inputShape = inType.getShape().vec();
-            // calculate output shapes
-            for (size_t i = 0; i < inputShape.size(); ++i) {
-                if (i == checked_cast<size_t>(*elementsIter)) {
-                    auto indicesShape = inIndices.getShape().vec();
-                    for (size_t j = 0; j < indicesShape.size(); ++j) {
-                        outShape.push_back(indicesShape[j]);
-                    }
-                } else {
-                    outShape.push_back(inputShape[i]);
-                }
-            }
+        } else {
+            outShape.push_back(inputShape[i]);
         }
     }
-    inferredReturnShapes.emplace_back(outShape, inType.getElementType());
 
+    inferredReturnShapes.emplace_back(outShape, inType.getElementType());
     return mlir::success();
 }

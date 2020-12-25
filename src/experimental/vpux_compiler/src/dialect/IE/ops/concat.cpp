@@ -23,38 +23,31 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+
     IE::ConcatOpAdaptor concat(operands, attrs);
     if (mlir::failed(concat.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inputSize = concat.input().size();
-    auto inType = concat.input()[0].getType().cast<mlir::RankedTensorType>();
+    const auto numInputs = concat.input().size();
+    const auto inType = concat.input()[0].getType().cast<mlir::ShapedType>();
+    const auto inRank = inType.getRank();
+
     auto inAxis = concat.axis().getInt();
-    auto inShape = inType.getShape();
-    auto inTypeSize = inShape.size();
 
     // Check: axis. Negative value means counting dimension from the end
     if (inAxis < 0) {
-        inAxis += inTypeSize;
+        inAxis += inRank;
     }
-
-    // set out shspe
-    SmallVector<int64_t, 4> outShape(inTypeSize, 0);
 
     // init with first input
-    auto inShapeIter = inShape.begin();
-    for (auto outShapeIter = outShape.begin(); outShapeIter != outShape.end(); ++outShapeIter) {
-        *outShapeIter = *inShapeIter;
-        ++inShapeIter;
-    }
+    auto outShape = to_vector<4>(inType.getShape());
 
     // concat with rest inputs
-    for (uint32_t i = 1; i < inputSize; i++) {
-        auto type = concat.input()[i].getType().cast<mlir::RankedTensorType>();
-        auto shapeIter = type.getShape().begin();
-        outShape[inAxis] += shapeIter[inAxis];
+    for (size_t i = 1; i < numInputs; i++) {
+        const auto curInType = concat.input()[i].getType().cast<mlir::ShapedType>();
+        outShape[inAxis] += curInType.getShape()[inAxis];
     }
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());

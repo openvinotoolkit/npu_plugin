@@ -23,18 +23,19 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::DetectionOutputOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::DetectionOutputOpAdaptor detectionOutput(operands, attrs);
     if (mlir::failed(detectionOutput.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto boxLogitsType = detectionOutput.box_logits().getType().cast<mlir::RankedTensorType>();
+    const auto boxLogitsType = detectionOutput.box_logits().getType().cast<mlir::ShapedType>();
 
-    auto num_images = boxLogitsType.getShape()[0];
-    auto num_loc_classes =
+    const auto num_images = boxLogitsType.getShape()[0];
+    const auto num_loc_classes =
             detectionOutput.attr().share_location().getValue() ? 1 : detectionOutput.attr().num_classes().getInt();
+
     if (num_loc_classes <= 0) {
         return mlir::LogicalResult(printTo(mlir::emitError(loc), "Number of classes should be a natural number"));
     }
@@ -42,16 +43,19 @@ mlir::LogicalResult vpux::IE::DetectionOutputOp::inferReturnTypeComponents(
         return mlir::LogicalResult(printTo(
                 mlir::emitError(loc), "For [N, C, H, W] input shape, C should be divisible by num_loc_classes * 4."));
     }
-    auto num_prior_boxes = boxLogitsType.getShape()[1] / (num_loc_classes * 4);
+
+    const auto num_prior_boxes = boxLogitsType.getShape()[1] / (num_loc_classes * 4);
+    const auto keep_top_k = detectionOutput.attr().keep_top_k()[0].cast<mlir::IntegerAttr>().getInt();
+    const auto top_k = detectionOutput.attr().top_k().getInt();
+    const auto num_classes = detectionOutput.attr().num_classes().getInt();
+
     mlir::SmallVector<int64_t, 4> output_shape{1, 1};
-    if (detectionOutput.attr().keep_top_k()[0].dyn_cast<mlir::IntegerAttr>().getInt() > 0) {
-        output_shape.push_back(num_images *
-                               detectionOutput.attr().keep_top_k()[0].dyn_cast<mlir::IntegerAttr>().getInt());
-    } else if (detectionOutput.attr().top_k().getInt() > 0) {
-        output_shape.push_back(num_images * detectionOutput.attr().top_k().getInt() *
-                               detectionOutput.attr().num_classes().getInt());
+    if (keep_top_k > 0) {
+        output_shape.push_back(num_images * keep_top_k);
+    } else if (top_k > 0) {
+        output_shape.push_back(num_images * top_k * num_classes);
     } else {
-        output_shape.push_back(num_images * num_prior_boxes * detectionOutput.attr().num_classes().getInt());
+        output_shape.push_back(num_images * num_prior_boxes * num_classes);
     }
     output_shape.push_back(7);
 

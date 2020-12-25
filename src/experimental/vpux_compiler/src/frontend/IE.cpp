@@ -1108,6 +1108,10 @@ std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result
 
 }  // namespace
 
+//
+// importNetwork
+//
+
 mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet, Logger log) {
     log.setName("IE::FrontEnd");
 

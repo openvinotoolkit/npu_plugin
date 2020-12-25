@@ -23,14 +23,14 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::ReorgYoloOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::ReorgYoloOpAdaptor reorgYolo(operands, attrs);
     if (mlir::failed(reorgYolo.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inType = reorgYolo.input().getType().cast<mlir::RankedTensorType>();
+    const auto inType = reorgYolo.input().getType().cast<mlir::ShapedType>();
 
     if (reorgYolo.stride().getInt() <= 0) {
         return mlir::LogicalResult(printTo(mlir::emitError(loc), "Stride should be a natural number"));
@@ -53,7 +53,7 @@ mlir::LogicalResult vpux::IE::ReorgYoloOp::inferReturnTypeComponents(
         outputShape.push_back(inType.getShape()[i] / reorgYolo.stride().getInt());
         outputShape[1] *= reorgYolo.stride().getInt();
     }
-    inferredReturnShapes.emplace_back(outputShape, inType.getElementType());
 
+    inferredReturnShapes.emplace_back(outputShape, inType.getElementType());
     return mlir::success();
 }

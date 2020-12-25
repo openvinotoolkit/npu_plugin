@@ -25,21 +25,21 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::FakeQuantizeOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::FakeQuantizeOpAdaptor quantize(operands, attrs);
     if (mlir::failed(quantize.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inputType = quantize.input().getType().cast<mlir::RankedTensorType>();
-    auto inputLowType = quantize.input_low().getType().cast<mlir::RankedTensorType>();
-    auto inputHighType = quantize.input_high().getType().cast<mlir::RankedTensorType>();
-    auto outputLowType = quantize.output_low().getType().cast<mlir::RankedTensorType>();
-    auto outputHighType = quantize.output_high().getType().cast<mlir::RankedTensorType>();
-    auto autob = quantize.auto_broadcast().getValue();
+    const auto inputType = quantize.input().getType().cast<mlir::ShapedType>();
+    const auto inputLowType = quantize.input_low().getType().cast<mlir::ShapedType>();
+    const auto inputHighType = quantize.input_high().getType().cast<mlir::ShapedType>();
+    const auto outputLowType = quantize.output_low().getType().cast<mlir::ShapedType>();
+    const auto outputHighType = quantize.output_high().getType().cast<mlir::ShapedType>();
+    const auto autob = quantize.auto_broadcast().getValue();
 
-    auto outShapeOrResult =
+    const auto outShapeOrResult =
             IE::broadcastEltwiseShape({inputType.getShape(), inputLowType.getShape(), inputHighType.getShape(),
                                        outputLowType.getShape(), outputHighType.getShape()},
                                       autob, loc);
