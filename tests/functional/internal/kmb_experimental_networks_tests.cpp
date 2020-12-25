@@ -121,3 +121,13 @@ TEST_F(KmbClassifyNetworkTest, experimental_network_0000) {
         2, 0.1f);
 }
 
+TEST_F(AgeGenderNetworkTest, age_gender_recognition_retail_0013_FP16) {
+    if (!USE_EXPERIMENTAL_COMPILER) {
+        SKIP() << "Used only for experimental compiler";
+    }
+
+    runTest(
+        TestNetworkDesc("KMB_models/FP16/age-gender-recognition-retail-0013/caffe/age-gender-recognition-retail-0013.xml"),
+        TestImageDesc("62x62/face62.bmp"),
+        0.002f);
+}

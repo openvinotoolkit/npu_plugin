@@ -460,6 +460,10 @@ def VPUIP_PoolingUPAOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`

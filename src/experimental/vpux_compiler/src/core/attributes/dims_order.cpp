@@ -294,6 +294,15 @@ Optional<DimsOrder> vpux::DimsOrder::fromType(mlir::MemRefType type) {
     return fromAffineMap(maps[0]);
 }
 
+Optional<DimsOrder> vpux::DimsOrder::fromValue(mlir::Value val) {
+    const auto type = val.getType().dyn_cast<mlir::MemRefType>();
+    if (type == nullptr) {
+        return None;
+    }
+
+    return fromType(type);
+}
+
 DimsOrder vpux::DimsOrder::fromIE(InferenceEngine::Layout layout) {
     switch (layout) {
     case InferenceEngine::Layout::SCALAR:
