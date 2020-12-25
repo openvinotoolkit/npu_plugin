@@ -49,20 +49,6 @@ using namespace vpux;
 
 namespace {
 
-std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result) {
-    const auto* resultInput = result->get_input_node_ptr(0);
-    std::string portSuffix;
-    if (resultInput->get_output_size() != 1) {
-        portSuffix = "." + std::to_string(result->get_input_source_output(0).get_index());
-    }
-    return resultInput->get_friendly_name() + portSuffix;
-}
-
-vpux::IE::AutoBroadcastTypeAttr importBroadcastType(ngraph::op::AutoBroadcastType bType, mlir::OpBuilder& builder) {
-    auto autoBroadcastType = checked_cast<vpux::IE::AutoBroadcastType>(static_cast<vpux::IE::AutoBroadcastType>(bType));
-    return vpux::IE::AutoBroadcastTypeAttr::get(builder.getContext(), autoBroadcastType);
-}
-
 class NGraphImporter final {
 public:
     NGraphImporter(mlir::MLIRContext* ctx, const std::shared_ptr<const ngraph::Function>& netGraph, Logger log)
@@ -117,14 +103,15 @@ private:
 
 private:
     SmallVector<mlir::Value, 4> getInputs(const OrigNodePtr& node);
-    void addOutputs(const OrigNodePtr& node, mlir::ValueRange vals);
+    void addOutputs(const OrigNodePtr& node, mlir::Operation* op);
+    mlir::Location createLocation(const OrigNodePtr& node);
 
 private:
     static SmallVector<int64_t, 4> importShape(const ngraph::PartialShape& shape);
     mlir::Type importElemType(const ngraph::element::Type& elemType);
     mlir::RankedTensorType importTensor(const ngraph::PartialShape& shape, const ngraph::element::Type& elemType);
-    mlir::Location createLocation(const OrigNodePtr& node);
-    bool validateElementwiseArgs(ngraph::Node* node, const ngraph::op::AutoBroadcastSpec& autob);
+    IE::AutoBroadcastTypeAttr importBroadcastType(ngraph::op::AutoBroadcastType bType);
+    IE::RoundingTypeAttr importRoundingType(ngraph::op::RoundingType roundingType);
 
 private:
     mlir::MLIRContext* _ctx = nullptr;
@@ -134,12 +121,17 @@ private:
     NodeOutputMap _importedVals;
 };
 
+//
+// buildMainFunc
+//
+
 mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
     using Callback = void (NGraphImporter::*)(mlir::OpBuilder & builder, const OrigNodePtr& origNode);
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
 #define MAP_ENTRY(_NodeType_) \
     { _NodeType_::type_info, &NGraphImporter::parseDispatch<_NodeType_> }
+
     static const DispatchMap dispatchMap{
             {ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
             {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
@@ -173,6 +165,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
             MAP_ENTRY(ngraph::opset4::HSwish),
             MAP_ENTRY(ngraph::opset1::Transpose),
     };
+
 #undef MAP_ENTRY
 
     SmallVector<mlir::Type, 1> inputTypes;
@@ -201,7 +194,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
         _log.trace("Convert network Parameter {0}", paramNode->get_friendly_name());
 
         const auto funcInputVal = func.getArgument(paramIndex);
-        addOutputs(paramNode, {funcInputVal});
+        _importedVals.emplace(paramNode->output(0), funcInputVal);
     }
 
     for (const auto& origNode : _netGraph->get_ordered_ops()) {
@@ -235,6 +228,10 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
     return func;
 }
 
+//
+// Parsers
+//
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Constant>& origNode) {
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.empty(), "nGraph Constant node '{0}' has unsupported number of inputs '{1}'",
@@ -266,7 +263,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
 
     auto* op = dialect->materializeConstant(builder, value, tensorType, createLocation(origNode));
-    addOutputs(origNode, op->getResults());
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convert>& origNode) {
@@ -278,7 +275,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto dstTypeAttr = mlir::TypeAttr::get(dstType);
 
     auto op = builder.create<IE::ConvertOp>(createLocation(origNode), inputs[0], dstTypeAttr);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Softmax>& origNode) {
@@ -290,7 +287,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto axisAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(axis));
 
     auto op = builder.create<IE::SoftMaxOp>(createLocation(origNode), inputs[0], axisAttr);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Tile>& origNode) {
@@ -299,7 +296,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::TileOp>(createLocation(origNode), inputs[0], inputs[1]);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Relu>& origNode) {
@@ -308,7 +305,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::ReLUOp>(createLocation(origNode), inputs[0]);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Split>& origNode) {
@@ -318,8 +315,9 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     const auto num_splits = origNode->get_num_splits();
     const auto numSplitsAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(num_splits));
+
     auto op = builder.create<IE::SplitOp>(createLocation(origNode), inputs[0], inputs[1], numSplitsAttr);
-    addOutputs(origNode, {op.getResults()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Power>& origNode) {
@@ -327,15 +325,11 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Power node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto autob = origNode->get_autob();
-    VPUX_THROW_UNLESS(validateElementwiseArgs(origNode.get(), autob),
-                      "nGraph Power node '{0}' has uncompatible shapes of inputs. {1}, {2}",
-                      origNode->get_input_shape(0), origNode->get_input_shape(1));
+    const auto& autob = origNode->get_autob();
 
     auto op = builder.create<IE::PowerOp>(createLocation(origNode), inputs[0], inputs[1],
-                                          importBroadcastType(autob.m_type, builder));
-
-    addOutputs(origNode, {op.getResult()});
+                                          importBroadcastType(autob.m_type));
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Multiply>& origNode) {
@@ -343,26 +337,21 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Multiply node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto autob = origNode->get_autob();
-    if (autob.m_type == ngraph::op::AutoBroadcastType::NONE) {
-        VPUX_THROW_UNLESS(origNode->get_input_shape(0) == origNode->get_input_shape(1),
-                          "Inputs of Multiply node '{0}' must have same shape. {1} != {2}",
-                          origNode->get_friendly_name(), origNode->get_input_shape(0), origNode->get_input_shape(1));
-    }
+    const auto& autob = origNode->get_autob();
 
     auto op = builder.create<IE::MultiplyOp>(createLocation(origNode), inputs[0], inputs[1],
-                                             importBroadcastType(autob.m_type, builder));
-
-    addOutputs(origNode, {op.getResult()});
+                                             importBroadcastType(autob.m_type));
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MatMul>& origNode) {
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
+
     auto op = builder.create<IE::MatMulOp>(createLocation(origNode), inputs[0], inputs[1], origNode->get_transpose_a(),
                                            origNode->get_transpose_b());
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convolution>& origNode) {
@@ -370,23 +359,14 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    mlir::ArrayAttr attrStride = getInt32ArrayAttr(_ctx, origNode->get_strides());
-    mlir::ArrayAttr attrPadsBegin = getInt32ArrayAttr(_ctx, origNode->get_pads_begin());
-    mlir::ArrayAttr attrPadsEnd = getInt32ArrayAttr(_ctx, origNode->get_pads_end());
-    mlir::ArrayAttr attrDilation = getInt32ArrayAttr(_ctx, origNode->get_dilations());
+    const auto attrStride = getInt32ArrayAttr(_ctx, origNode->get_strides());
+    const auto attrPadsBegin = getInt32ArrayAttr(_ctx, origNode->get_pads_begin());
+    const auto attrPadsEnd = getInt32ArrayAttr(_ctx, origNode->get_pads_end());
+    const auto attrDilation = getInt32ArrayAttr(_ctx, origNode->get_dilations());
 
     auto op = builder.create<IE::ConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, attrStride,
                                                 attrPadsBegin, attrPadsEnd, attrDilation);
-
-    addOutputs(origNode, {op.getResult()});
-}
-
-IE::RoundingTypeAttr importRoundingType(mlir::MLIRContext* ctx, ngraph::op::RoundingType roundingType) {
-    if (roundingType == ngraph::op::RoundingType::FLOOR)
-        return IE::RoundingTypeAttr::get(ctx, IE::RoundingType::FLOOR);
-    else if (roundingType == ngraph::op::RoundingType::CEIL)
-        return IE::RoundingTypeAttr::get(ctx, IE::RoundingType::CEIL);
-    VPUX_THROW("Unsupported rounding type {0}", static_cast<int32_t>(roundingType));
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::AvgPool>& origNode) {
@@ -394,16 +374,16 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    mlir::ArrayAttr attrKernelSize = getInt32ArrayAttr(_ctx, origNode->get_kernel());
-    mlir::ArrayAttr attrStride = getInt32ArrayAttr(_ctx, origNode->get_strides());
-    mlir::ArrayAttr attrPadsBegin = getInt32ArrayAttr(_ctx, origNode->get_pads_begin());
-    mlir::ArrayAttr attrPadsEnd = getInt32ArrayAttr(_ctx, origNode->get_pads_end());
-    IE::RoundingTypeAttr attrRoundingType = importRoundingType(_ctx, origNode->get_rounding_type());
+    const auto attrKernelSize = getInt32ArrayAttr(_ctx, origNode->get_kernel());
+    const auto attrStride = getInt32ArrayAttr(_ctx, origNode->get_strides());
+    const auto attrPadsBegin = getInt32ArrayAttr(_ctx, origNode->get_pads_begin());
+    const auto attrPadsEnd = getInt32ArrayAttr(_ctx, origNode->get_pads_end());
+
+    const auto attrRoundingType = importRoundingType(origNode->get_rounding_type());
 
     auto op = builder.create<IE::AvgPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
                                             attrPadsBegin, attrPadsEnd, attrRoundingType);
-
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MaxPool>& origNode) {
@@ -411,16 +391,16 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    mlir::ArrayAttr attrKernelSize = getInt32ArrayAttr(_ctx, origNode->get_kernel());
-    mlir::ArrayAttr attrStride = getInt32ArrayAttr(_ctx, origNode->get_strides());
-    mlir::ArrayAttr attrPadsBegin = getInt32ArrayAttr(_ctx, origNode->get_pads_begin());
-    mlir::ArrayAttr attrPadsEnd = getInt32ArrayAttr(_ctx, origNode->get_pads_end());
-    IE::RoundingTypeAttr attrRoundingType = importRoundingType(_ctx, origNode->get_rounding_type());
+    const auto attrKernelSize = getInt32ArrayAttr(_ctx, origNode->get_kernel());
+    const auto attrStride = getInt32ArrayAttr(_ctx, origNode->get_strides());
+    const auto attrPadsBegin = getInt32ArrayAttr(_ctx, origNode->get_pads_begin());
+    const auto attrPadsEnd = getInt32ArrayAttr(_ctx, origNode->get_pads_end());
+
+    const auto attrRoundingType = importRoundingType(origNode->get_rounding_type());
 
     auto op = builder.create<IE::MaxPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
                                             attrPadsBegin, attrPadsEnd, attrRoundingType);
-
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Add>& origNode) {
@@ -428,18 +408,11 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Add node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto autob = origNode->get_autob();
-    if (autob.m_type == ngraph::op::AutoBroadcastType::NONE) {
-        VPUX_THROW_UNLESS(origNode->get_input_shape(0) == origNode->get_input_shape(1),
-                          "Input shapes of Add node '{0}' are different.", origNode->get_friendly_name());
-    }
+    const auto& autob = origNode->get_autob();
 
-    auto autoBroadcastType =
-            checked_cast<vpux::IE::AutoBroadcastType>(static_cast<vpux::IE::AutoBroadcastType>(autob.m_type));
-    auto autoBroadcastTypeAttr = vpux::IE::AutoBroadcastTypeAttr::get(builder.getContext(), autoBroadcastType);
-    auto op = builder.create<IE::AddOp>(createLocation(origNode), inputs[0], inputs[1], autoBroadcastTypeAttr);
-
-    addOutputs(origNode, {op.getResult()});
+    auto op = builder.create<IE::AddOp>(createLocation(origNode), inputs[0], inputs[1],
+                                        importBroadcastType(autob.m_type));
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode) {
@@ -448,8 +421,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::GatherOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2]);
-
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Reshape>& origNode) {
@@ -457,10 +429,9 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Reshape node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto specialz = origNode->get_special_zero();
-    auto op = builder.create<IE::ReshapeOp>(createLocation(origNode), inputs[0], inputs[1], specialz);
-
-    addOutputs(origNode, {op.getResult()});
+    auto op =
+            builder.create<IE::ReshapeOp>(createLocation(origNode), inputs[0], inputs[1], origNode->get_special_zero());
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Minimum>& origNode) {
@@ -468,17 +439,11 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Minimum node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto autob = origNode->get_autob();
-    if (autob.m_type != ngraph::op::AutoBroadcastType::NUMPY) {
-        VPUX_THROW_UNLESS(origNode->get_input_shape(0) == origNode->get_input_shape(1),
-                          "Inputs of Minimum node '{0}' must have same shape. {1} != {2}",
-                          origNode->get_friendly_name(), origNode->get_input_shape(0), origNode->get_input_shape(1));
-    }
+    const auto& autob = origNode->get_autob();
 
     auto op = builder.create<IE::MinimumOp>(createLocation(origNode), inputs[0], inputs[1],
-                                            importBroadcastType(autob.m_type, builder));
-
-    addOutputs(origNode, {op.getResult()});
+                                            importBroadcastType(autob.m_type));
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Maximum>& origNode) {
@@ -486,17 +451,11 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Maximum node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto autob = origNode->get_autob();
-    if (autob.m_type != ngraph::op::AutoBroadcastType::NUMPY) {
-        VPUX_THROW_UNLESS(origNode->get_input_shape(0) == origNode->get_input_shape(1),
-                          "Inputs of Maximum node '{0}' must have same shape. {1} != {2}",
-                          origNode->get_friendly_name(), origNode->get_input_shape(0), origNode->get_input_shape(1));
-    }
+    const auto& autob = origNode->get_autob();
 
     auto op = builder.create<IE::MaximumOp>(createLocation(origNode), inputs[0], inputs[1],
-                                            importBroadcastType(autob.m_type, builder));
-
-    addOutputs(origNode, {op.getResult()});
+                                            importBroadcastType(autob.m_type));
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Clamp>& origNode) {
@@ -504,14 +463,14 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Clamp node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto min = origNode->get_min();
-    auto max = origNode->get_max();
+    const auto min = origNode->get_min();
+    const auto max = origNode->get_max();
     const auto minAttr = getFP64Attr(_ctx, checked_cast<double>(min));
     const auto maxAttr = getFP64Attr(_ctx, checked_cast<double>(max));
 
     auto op = builder.create<IE::ClampOp>(createLocation(origNode), inputs[0], minAttr, maxAttr);
 
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Unsqueeze>& origNode) {
@@ -520,7 +479,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::UnsqueezeOp>(createLocation(origNode), inputs[0], inputs[1]);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::LRN>& origNode) {
@@ -528,10 +487,10 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph LRN node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto alpha = origNode->get_alpha();
-    auto beta = origNode->get_beta();
-    auto bias = origNode->get_bias();
-    auto size = origNode->get_nsize();
+    const auto alpha = origNode->get_alpha();
+    const auto beta = origNode->get_beta();
+    const auto bias = origNode->get_bias();
+    const auto size = origNode->get_nsize();
 
     const auto alphaAttr = getFP64Attr(_ctx, checked_cast<double>(alpha));
     const auto betaAttr = getFP64Attr(_ctx, checked_cast<double>(beta));
@@ -540,7 +499,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto op = builder.create<IE::LRNOp>(createLocation(origNode), inputs[0], inputs[1], alphaAttr, betaAttr, biasAttr,
                                         sizeAttr);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Sigmoid>& origNode) {
@@ -549,7 +508,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::SigmoidOp>(createLocation(origNode), inputs[0]);
-    addOutputs(origNode, {op.getResult()});
+
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Squeeze>& origNode) {
@@ -558,7 +518,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::SqueezeOp>(createLocation(origNode), inputs[0], inputs[1]);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Transpose>& origNode) {
@@ -567,7 +527,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::TransposeOp>(createLocation(origNode), inputs[0], inputs[1]);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Tanh>& origNode) {
@@ -576,7 +536,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::TanhOp>(createLocation(origNode), inputs[0]);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Elu>& origNode) {
@@ -588,7 +548,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto alphaAttr = getFP64Attr(_ctx, checked_cast<double>(alpha));
 
     auto op = builder.create<IE::EluOp>(createLocation(origNode), inputs[0], alphaAttr);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::HSwish>& origNode) {
@@ -597,7 +557,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::HSwishOp>(createLocation(origNode), inputs[0]);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder,
@@ -606,19 +566,13 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
     VPUX_THROW_UNLESS(inputs.size() == 5, "nGraph FakeQuantize node '{0}' has unsupported number of inputs '{1}'.",
                       origNode->get_friendly_name(), inputs.size());
 
-    const auto autob = origNode->get_auto_broadcast();
-    VPUX_THROW_UNLESS(validateElementwiseArgs(origNode.get(), autob),
-                      "nGraph FakeQuantize node '{0}' has uncompatible shapes of inputs.",
-                      origNode->get_input_shape(0));
+    const auto& autob = origNode->get_auto_broadcast();
 
-    const auto levels = origNode->get_levels();
-    VPUX_THROW_UNLESS(levels >= 2, "nGraph FakeQuantize node '{0}' has unsupported levels value '{1}'.",
-                      origNode->get_friendly_name(), levels);
     const auto levelsAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(origNode->get_levels()));
 
     auto op = builder.create<IE::FakeQuantizeOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3],
-                                                 inputs[4], levelsAttr, importBroadcastType(autob.m_type, builder));
-    addOutputs(origNode, {op.getResult()});
+                                                 inputs[4], levelsAttr, importBroadcastType(autob.m_type));
+    addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Exp>& origNode) {
@@ -627,8 +581,12 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::ExpOp>(createLocation(origNode), inputs[0]);
-    addOutputs(origNode, {op.getResult()});
+    addOutputs(origNode, op);
 }
+
+//
+// IR builder helpers
+//
 
 SmallVector<mlir::Value, 4> NGraphImporter::getInputs(const OrigNodePtr& node) {
     SmallVector<mlir::Value, 4> out;
@@ -641,15 +599,26 @@ SmallVector<mlir::Value, 4> NGraphImporter::getInputs(const OrigNodePtr& node) {
     return out;
 }
 
-void NGraphImporter::addOutputs(const OrigNodePtr& node, mlir::ValueRange vals) {
-    VPUX_THROW_UNLESS(vals.size() == node->get_output_size(),
-                      "Mismatch between orignal Node '{0}' number of outputs '{1}' and created number of outputs '{2}'",
-                      node->get_friendly_name(), node->get_output_size(), vals.size());
+void NGraphImporter::addOutputs(const OrigNodePtr& node, mlir::Operation* op) {
+    const auto results = op->getOpResults();
 
-    for (const auto& p : make_range(vals) | indexed) {
-        _importedVals.emplace(node->output(p.index()), p.value());
+    VPUX_THROW_UNLESS(results.size() == node->get_output_size(),
+                      "Mismatch between orignal Node '{0}' number of outputs '{1}' and created number of outputs '{2}'",
+                      node->get_friendly_name(), node->get_output_size(), results.size());
+
+    for (const auto& res : results) {
+        _importedVals.emplace(node->output(res.getResultNumber()), res);
     }
 }
+
+mlir::Location NGraphImporter::createLocation(const OrigNodePtr& node) {
+    const auto nodeName = mlir::Identifier::get(node->get_friendly_name(), _ctx);
+    return mlir::NameLoc::get(nodeName, _ctx);
+}
+
+//
+// nGraph attributes importers
+//
 
 SmallVector<int64_t, 4> NGraphImporter::importShape(const ngraph::PartialShape& shape) {
     VPUX_THROW_UNLESS(shape.rank().is_static(), "Dynamically ranked tensors are not supported");
@@ -698,33 +667,28 @@ mlir::RankedTensorType NGraphImporter::importTensor(const ngraph::PartialShape& 
     return mlir::RankedTensorType::get(makeArrayRef(importShape(shape)), importElemType(elemType));
 }
 
-mlir::Location NGraphImporter::createLocation(const OrigNodePtr& node) {
-    const auto nodeName = mlir::Identifier::get(node->get_friendly_name(), _ctx);
-    return mlir::NameLoc::get(nodeName, _ctx);
+IE::AutoBroadcastTypeAttr NGraphImporter::importBroadcastType(ngraph::op::AutoBroadcastType bType) {
+    switch (bType) {
+    case ngraph::op::AutoBroadcastType::NONE:
+        return IE::AutoBroadcastTypeAttr::get(_ctx, IE::AutoBroadcastType::NONE_OR_EXPLICIT);
+    case ngraph::op::AutoBroadcastType::NUMPY:
+        return IE::AutoBroadcastTypeAttr::get(_ctx, IE::AutoBroadcastType::NUMPY);
+    case ngraph::op::AutoBroadcastType::PDPD:
+        return IE::AutoBroadcastTypeAttr::get(_ctx, IE::AutoBroadcastType::PDPD);
+    default:
+        VPUX_THROW("Unknown AutoBroadcastType");
+    }
 }
 
-bool NGraphImporter::validateElementwiseArgs(ngraph::Node* node, const ngraph::op::AutoBroadcastSpec& autob) {
-    ngraph::element::Type element_type = node->get_input_element_type(0);
-    ngraph::PartialShape pshape = node->get_input_partial_shape(0);
-
-    if (node->get_input_size() > 1) {
-        for (size_t i = 1; i < node->get_input_size(); ++i) {
-            if (!ngraph::element::Type::merge(element_type, element_type, node->get_input_element_type(i)))
-                return false;
-
-            if (autob.m_type == ngraph::op::AutoBroadcastType::NONE) {
-                if (!ngraph::PartialShape::merge_into(pshape, node->get_input_partial_shape(i)))
-                    return false;
-            } else if (autob.m_type == ngraph::op::AutoBroadcastType::NUMPY ||
-                       autob.m_type == ngraph::op::AutoBroadcastType::PDPD) {
-                if (!ngraph::PartialShape::broadcast_merge_into(pshape, node->get_input_partial_shape(i), autob))
-                    return false;
-            } else {
-                return false;
-            }
-        }
+IE::RoundingTypeAttr NGraphImporter::importRoundingType(ngraph::op::RoundingType roundingType) {
+    switch (roundingType) {
+    case ngraph::op::RoundingType::FLOOR:
+        return IE::RoundingTypeAttr::get(_ctx, IE::RoundingType::FLOOR);
+    case ngraph::op::RoundingType::CEIL:
+        return IE::RoundingTypeAttr::get(_ctx, IE::RoundingType::CEIL);
+    default:
+        VPUX_THROW("Unknown RoundingType");
     }
-    return true;
 }
 
 mlir::AffineMap importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout) {
@@ -758,6 +722,8 @@ mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precis
         return getUInt64Type(ctx);
     } else if (precision == InferenceEngine::Precision::I32) {
         return getSInt32Type(ctx);
+    } else if (precision == InferenceEngine::Precision::U32) {
+        return getUInt32Type(ctx);
     } else if (precision == InferenceEngine::Precision::I16) {
         return getSInt16Type(ctx);
     } else if (precision == InferenceEngine::Precision::U16) {
@@ -783,6 +749,15 @@ mlir::MemRefType importBuffer(mlir::MLIRContext* ctx, const InferenceEngine::Ten
     }
 
     return mlir::MemRefType::get(shape, precision, affineMaps);
+}
+
+std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result) {
+    const auto* resultInput = result->get_input_node_ptr(0);
+    std::string portSuffix;
+    if (resultInput->get_output_size() != 1) {
+        portSuffix = "." + std::to_string(result->get_input_source_output(0).get_index());
+    }
+    return resultInput->get_friendly_name() + portSuffix;
 }
 
 }  // namespace

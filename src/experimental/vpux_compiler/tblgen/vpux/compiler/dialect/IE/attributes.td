@@ -23,37 +23,30 @@ include "vpux/compiler/dialect/IE/dialect.td"
 // AutoBroadcastType
 //
 
-def IE_AutoBroadcastType_NONE_OR_EXPLICIT : StrEnumAttrCase<"NONE_OR_EXPLICIT">;
-def IE_AutoBroadcastType_NUMPY            : StrEnumAttrCase<"NUMPY">;
-def IE_AutoBroadcastType_PDPD             : StrEnumAttrCase<"PDPD">;
-
 def IE_AutoBroadcastType :
         StrEnumAttr<
             "AutoBroadcastType",
             "Specifies rules used for auto-broadcasting of input tensors",
             [
-                IE_AutoBroadcastType_NONE_OR_EXPLICIT,
-                IE_AutoBroadcastType_NUMPY,
-                IE_AutoBroadcastType_PDPD,
+                StrEnumAttrCase<"NONE_OR_EXPLICIT">,
+                StrEnumAttrCase<"NUMPY">,
+                StrEnumAttrCase<"PDPD">,
             ]
         > {
     let cppNamespace = "vpux::IE";
 }
 
 //
-// Rounding type
+// RoundingType
 //
-
-def IE_RoundingType_FLOOR   : StrEnumAttrCase<"FLOOR">;
-def IE_RoundingType_CEIL    : StrEnumAttrCase<"CEIL">;
 
 def IE_RoundingType :
         StrEnumAttr<
             "RoundingType",
             "Rounding type that operations support",
             [
-                IE_RoundingType_FLOOR,
-                IE_RoundingType_CEIL
+                StrEnumAttrCase<"FLOOR">,
+                StrEnumAttrCase<"CEIL">,
             ]
         > {
     let cppNamespace = "vpux::IE";

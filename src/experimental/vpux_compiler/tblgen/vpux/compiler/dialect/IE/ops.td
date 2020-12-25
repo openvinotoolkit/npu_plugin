@@ -834,7 +834,7 @@ def IE_TransposeOp :
 
     let arguments = (ins
         AnyRankedTensor:$input1,
-        TensorOf<[AnyInteger]>:$input2
+        RankedTensorOf<[AnyInteger]>:$input2
     );
 
     let results = (outs
