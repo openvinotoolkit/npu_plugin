@@ -41,7 +41,7 @@ void Preprocessor::execDataPreprocessing(const PreprocTask& t, const int deviceI
 PreprocessorPool::PreprocessorPool(
     unsigned int shaveFirst, unsigned int shaveLast, unsigned int nPipelines, unsigned int lpi, Path ppPath)
     : _preprocs(nPipelines), _numberOfShaves(shaveLast + 1 - shaveFirst) {
-    IE_ASSERT(ppPath == Path::SIPP || ppPath == Path::M2I);
+    IE_ASSERT(ppPath == Path::SIPP || ppPath == Path::M2I || ppPath == Path::SHAVE_ONLY_M2I);
 
 
     auto shavesPerPipeline = _numberOfShaves / nPipelines;

@@ -14,7 +14,7 @@
 namespace InferenceEngine {
 namespace KmbPreproc {
 
-enum class Path : int { SIPP = 0, M2I };
+enum class Path : int { SIPP = 0, M2I, SHAVE_ONLY_M2I };
 
 bool isApplicable(const BlobMap& inputs, const std::map<std::string, PreProcessDataPtr>& preprocData,
                   InputsDataMap& networkInputs);
