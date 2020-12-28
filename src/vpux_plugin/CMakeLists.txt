@@ -149,31 +149,33 @@ list(APPEND ALL_PLUGINS ${VPUX_PLUGIN_TARGET})
 
 ie_register_plugins(MAIN_TARGET ${VPUX_PLUGIN_TARGET} POSSIBLE_PLUGINS ${ALL_PLUGINS})
 
+
 add_custom_target(mcm_compiler_copy ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/config"
-        "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/mcm_config"
+        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/mcm_config"
     COMMENT "[MCM Compiler] Copy config files"
 )
-
-add_custom_target(vpu_bin_copy ALL
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-        "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/vpu"
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
-        "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/vpu/"
-    COMMENT "[Firmware] Copy vpu.bin"
-)
+add_dependencies(${VPUX_PLUGIN_TARGET} frontend_mcm mcm_compiler_copy)
 
 if(AARCH64)
+    add_custom_target(vpu_bin_copy ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpu"
+        COMMAND ${CMAKE_COMMAND} -E copy
+            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpu/"
+        COMMENT "[Firmware] Copy vpu.bin"
+    )
     add_custom_target(vpual_copy ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory
-            "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/vpu"
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpu"
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/lib/"
-            "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/vpu/"
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpu/"
         COMMENT "[VPUAL] Copy libraries"
     )
+    add_dependencies(${VPUX_PLUGIN_TARGET} vpual_copy vpu_bin_copy)
 endif()
 
 if(ENABLE_HDDL2)
@@ -181,26 +183,25 @@ if(ENABLE_HDDL2)
         add_custom_target(hddl_unite_copy ALL
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${HDDL_UNITE}/bin/"
-                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>"
-            COMMENT "[HDDL Unite] Copy libraries"
-        )
+                "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}"
+            COMMENT "[HDDL Unite] Copy libraries")
     else()
         add_custom_target(hddl_unite_copy ALL
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${HDDL_UNITE}/lib/"
-                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>"
+                "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}"
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${HDDL_UNITE}/thirdparty/XLink/lib/"
-                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>"
+                "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/vpux_4"
+                "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux_4"
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${HDDL_UNITE_VPUX_4}/lib/"
-                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/vpux_4/"
+                "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux_4/"
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${HDDL_UNITE_VPUX_4}/thirdparty/XLink/lib/"
-                "$<TARGET_FILE_DIR:${VPUX_PLUGIN_TARGET}>/vpux_4/"
-            COMMENT "[HDDL Unite] Copy libraries"
-        )
+                "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux_4/"
+            COMMENT "[HDDL Unite] Copy libraries")
     endif()
+    add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend hddl_unite_copy)
 endif()
