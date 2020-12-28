@@ -202,7 +202,7 @@ namespace mv
         // TODO: We shouldn't need this. A const ref accessor to `subTensors_` should be good enough.
         inline bool hasSubTensors() const
         {
-            return subTensors_.size() > 0;
+            return !subTensors_.empty();
         }
 
         // TODO: We shouldn't need this. A const ref accessor to `subTensors_` should be good enough.
