@@ -35,22 +35,6 @@ void vpux::VPUIP::VPUIPDialect::initialize() {
             >();
 }
 
-mlir::Operation* vpux::VPUIP::VPUIPDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value,
-                                                                mlir::Type type, mlir::Location loc) {
-    if (!value.isa<mlir::DenseElementsAttr>()) {
-        printTo(mlir::emitError(loc), "Can't materialize VPUIP Constant from Attribute '{0}'", value);
-        return nullptr;
-    }
-
-    if (!type.isa<mlir::MemRefType>()) {
-        printTo(mlir::emitError(loc), "Can't materialize VPUIP Constant for Type '{0}'", type);
-        return nullptr;
-    }
-
-    return builder.create<VPUIP::DeclareConstantTensorOp>(loc, type.cast<mlir::MemRefType>(),
-                                                          value.cast<mlir::DenseElementsAttr>());
-}
-
 //
 // Generated
 //

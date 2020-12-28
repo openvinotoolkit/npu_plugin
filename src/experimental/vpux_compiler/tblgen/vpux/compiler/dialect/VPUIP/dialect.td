@@ -36,8 +36,6 @@ def VPUIP_Dialect : Dialect {
         "mlir::StandardOpsDialect",
         "mlir::quant::QuantizationDialect"
     ];
-
-    let hasConstantMaterializer = 1;
 }
 
 #endif

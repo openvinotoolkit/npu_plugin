@@ -38,8 +38,6 @@ def IERT_Dialect : Dialect {
         "mlir::linalg::LinalgDialect",
         "mlir::quant::QuantizationDialect"
     ];
-
-    let hasConstantMaterializer = 1;
 }
 
 #endif
