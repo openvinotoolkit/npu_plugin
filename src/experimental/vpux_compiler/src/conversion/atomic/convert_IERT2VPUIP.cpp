@@ -92,7 +92,7 @@ mlir::LogicalResult ConvertIERT2VPUIPPass::ConstantRewrite::matchAndRewrite(mlir
         return mlir::failure();
     }
 
-    auto module = origOp.getParentOfType<mlir::ModuleOp>();
+    auto module = origOp->getParentOfType<mlir::ModuleOp>();
     if (module == nullptr) {
         _log.trace("Failed to get parent Module Operation");
         return mlir::failure();

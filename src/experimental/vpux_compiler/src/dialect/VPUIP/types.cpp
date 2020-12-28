@@ -23,18 +23,6 @@
 using namespace vpux;
 
 //
-// BarrierType
-//
-
-mlir::Type vpux::VPUIP::BarrierType::parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& /*parser*/) {
-    return BarrierType::get(ctxt);
-}
-
-void vpux::VPUIP::BarrierType::print(mlir::DialectAsmPrinter& printer) const {
-    printer << BarrierType::getMnemonic();
-}
-
-//
 // Generated
 //
 
