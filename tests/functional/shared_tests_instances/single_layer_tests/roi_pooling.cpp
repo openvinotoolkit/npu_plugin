@@ -11,11 +11,11 @@
 namespace LayerTestsDefinitions {
 
     class KmbROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-        // SkipBeforeInfer() hangs KMB-board.
-        // [Track number: S#44493]
-        void SkipBeforeImport() override {
-            throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board "
-                                                        "if used SkipBeforeInfer()");
+        void SkipBeforeLoad() override {
+            if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+                // [Track number: S#44493]
+                throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+            }
         }
     };
 

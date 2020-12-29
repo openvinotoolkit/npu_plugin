@@ -18,7 +18,7 @@ class KmbConvolutionLayerTest: public ConvolutionLayerTest, virtual public Layer
             // U8 input and FP16 weights
             // Future PR will provide a mitigation and renable this test case
             // Issue to track: CVS-39964
-            throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
+            throw LayerTestsUtils::KmbSkipTestException("HW incompatible dtype combination with MCM compiler");
         }
     }
 };

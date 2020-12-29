@@ -12,8 +12,10 @@
 namespace SubgraphTestsDefinitions {
 
 class KmbQuantGroupConvLayerTest: public QuantGroupConvLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeImport() override {
-        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+    void SkipBeforeLoad() override {
+        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+            throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+        }
     }
 };
 
