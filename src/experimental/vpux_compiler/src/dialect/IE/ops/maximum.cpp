@@ -24,21 +24,22 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::MaximumOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::MaximumOpAdaptor maximum(operands, attrs);
     if (mlir::failed(maximum.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto in1Type = maximum.input1().getType().cast<mlir::RankedTensorType>();
-    auto in2Type = maximum.input2().getType().cast<mlir::RankedTensorType>();
+    const auto in1Type = maximum.input1().getType().cast<mlir::ShapedType>();
+    const auto in2Type = maximum.input2().getType().cast<mlir::ShapedType>();
 
-    auto outShapeOrResult =
+    const auto outShapeRes =
             IE::broadcastEltwiseShape(in1Type.getShape(), in2Type.getShape(), maximum.auto_broadcast().getValue(), loc);
-    mlir::LogicalResult result = outShapeOrResult;
-    if (result.value == mlir::LogicalResult::Success) {
-        inferredReturnShapes.emplace_back(outShapeOrResult.getValue(), in1Type.getElementType());
+
+    if (mlir::succeeded(outShapeRes)) {
+        inferredReturnShapes.emplace_back(outShapeRes.getValue(), in1Type.getElementType());
     }
-    return outShapeOrResult;
+
+    return outShapeRes;
 }

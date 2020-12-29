@@ -24,21 +24,22 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::MultiplyOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::MultiplyOpAdaptor multiply(operands, attrs);
     if (mlir::failed(multiply.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto in1Type = multiply.input1().getType().cast<mlir::RankedTensorType>();
-    auto in2Type = multiply.input2().getType().cast<mlir::RankedTensorType>();
+    const auto in1Type = multiply.input1().getType().cast<mlir::ShapedType>();
+    const auto in2Type = multiply.input2().getType().cast<mlir::ShapedType>();
 
-    auto outShapeOrResult = IE::broadcastEltwiseShape(in1Type.getShape(), in2Type.getShape(),
-                                                      multiply.auto_broadcast().getValue(), loc);
-    mlir::LogicalResult result = outShapeOrResult;
-    if (result.value == mlir::LogicalResult::Success) {
-        inferredReturnShapes.emplace_back(outShapeOrResult.getValue(), in1Type.getElementType());
+    const auto outShapeRes = IE::broadcastEltwiseShape(in1Type.getShape(), in2Type.getShape(),
+                                                       multiply.auto_broadcast().getValue(), loc);
+
+    if (mlir::succeeded(outShapeRes)) {
+        inferredReturnShapes.emplace_back(outShapeRes.getValue(), in1Type.getElementType());
     }
+
     return mlir::success();
 }

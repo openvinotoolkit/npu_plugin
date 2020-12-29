@@ -14,9 +14,9 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/dialect/IE/ops.hpp"
-
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -33,31 +33,23 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::ConvolutionOpAdaptor conv(operands, attrs);
     if (mlir::failed(conv.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    std::function<SmallVector<int64_t, MAX_NUM_DIMS>(mlir::ArrayAttr && arrayAttr)> convertArrayAttrToSmallVector =
-            [](mlir::ArrayAttr&& arrayAttr) {
-                SmallVector<int64_t, MAX_NUM_DIMS> result;
-                for (auto&& a : arrayAttr)
-                    result.push_back(a.dyn_cast<mlir::IntegerAttr>().getInt());
-                return result;
-            };
+    const auto inShape = conv.input().getType().cast<mlir::ShapedType>().getShape();
+    const auto inType = conv.input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto filterShape = conv.filter().getType().cast<mlir::ShapedType>().getShape();
 
-    auto inShape = conv.input().getType().cast<mlir::RankedTensorType>().getShape();
-    auto inType = conv.input().getType().cast<mlir::RankedTensorType>().getElementType();
-    auto filterShape = conv.filter().getType().cast<mlir::RankedTensorType>().getShape();
+    const auto dataPaddingBelow = parseIntArrayAttr(conv.pads_end());
+    const auto dataPaddingAbove = parseIntArrayAttr(conv.pads_begin());
+    const auto windowStrides = parseIntArrayAttr(conv.strides());
+    const auto windowDilations = parseIntArrayAttr(conv.dilations());
 
-    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingBelow = convertArrayAttrToSmallVector(conv.pads_end());
-    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingAbove = convertArrayAttrToSmallVector(conv.pads_begin());
-    SmallVector<int64_t, MAX_NUM_DIMS> windowStrides = convertArrayAttrToSmallVector(conv.strides());
-    SmallVector<int64_t, MAX_NUM_DIMS> windowDilations = convertArrayAttrToSmallVector(conv.dilations());
-
-    auto outputShape =
+    const auto outputShape =
             ngraph::infer_convolution_forward(nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
                                               ngraph::Strides(windowStrides.size(), 1),  // dummy data dilations
                                               ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
@@ -66,10 +58,11 @@ mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
                                               ngraph::Strides(windowStrides.begin(), windowStrides.end()),
                                               ngraph::Strides(windowDilations.begin(), windowDilations.end()));
 
-    auto __outputShape = outputShape.get_shape();
+    const auto shapeI64 = to_vector<4>(outputShape.get_shape() | transformed([](size_t val) {
+                                           return checked_cast<int64_t>(val);
+                                       }));
+    inferredReturnShapes.emplace_back(shapeI64, inType);
 
-    SmallVector<int64_t, MAX_NUM_DIMS> mlirOutputShape(__outputShape.begin(), __outputShape.end());
-    inferredReturnShapes.emplace_back(mlirOutputShape, inType);
     return mlir::success();
 }
 

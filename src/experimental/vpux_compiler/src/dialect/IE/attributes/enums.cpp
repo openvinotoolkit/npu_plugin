@@ -18,8 +18,6 @@
 
 #include <mlir/IR/BuiltinTypes.h>
 
-using namespace vpux;
-
 //
 // Generated
 //

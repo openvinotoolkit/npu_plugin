@@ -15,9 +15,11 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/range.hpp"
 
 #include <ngraph/coordinate.hpp>
 #include <ngraph/op/max_pool.hpp>
@@ -29,31 +31,23 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::AvgPoolOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::AvgPoolOpAdaptor avgPool(operands, attrs);
     if (mlir::failed(avgPool.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    std::function<SmallVector<int64_t, MAX_NUM_DIMS>(mlir::ArrayAttr && arrayAttr)> convertArrayAttrToSmallVector =
-            [](mlir::ArrayAttr&& arrayAttr) {
-                SmallVector<int64_t, MAX_NUM_DIMS> result;
-                for (auto&& a : arrayAttr)
-                    result.push_back(a.dyn_cast<mlir::IntegerAttr>().getInt());
-                return result;
-            };
+    const auto dataPaddingBelow = parseIntArrayAttr(avgPool.pads_end());
+    const auto dataPaddingAbove = parseIntArrayAttr(avgPool.pads_begin());
+    const auto windowShape = parseIntArrayAttr(avgPool.kernel_size());
+    const auto windowStrides = parseIntArrayAttr(avgPool.strides());
+    const auto roundingType = avgPool.rounding_type().getValue();
 
-    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingBelow = convertArrayAttrToSmallVector(avgPool.pads_end());
-    SmallVector<int64_t, MAX_NUM_DIMS> dataPaddingAbove = convertArrayAttrToSmallVector(avgPool.pads_begin());
-    SmallVector<int64_t, MAX_NUM_DIMS> windowShape = convertArrayAttrToSmallVector(avgPool.kernel_size());
-    SmallVector<int64_t, MAX_NUM_DIMS> windowStrides = convertArrayAttrToSmallVector(avgPool.strides());
-    auto roundingType = avgPool.rounding_type().getValue();
+    const auto inType = avgPool.input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto inShape = avgPool.input().getType().cast<mlir::ShapedType>().getShape();
 
-    auto inType = avgPool.input().getType().cast<mlir::RankedTensorType>().getElementType();
-    auto inShape = avgPool.input().getType().cast<mlir::RankedTensorType>().getShape();
-
-    auto outputShape = ngraph::infer_batched_pooling_forward(
+    const auto outputShape = ngraph::infer_batched_pooling_forward(
             nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
             ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
             ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
@@ -62,10 +56,10 @@ mlir::LogicalResult vpux::IE::AvgPoolOp::inferReturnTypeComponents(
             true, /* It is only used during assertion. True will make it pass */
             roundingType == vpux::IE::RoundingType::CEIL);
 
-    auto __outputShape = outputShape.get_shape();
-
-    SmallVector<int64_t, MAX_NUM_DIMS> mlirOutputShape(__outputShape.begin(), __outputShape.end());
-    inferredReturnShapes.emplace_back(mlirOutputShape, inType);
+    const auto shapeI64 = to_vector<4>(outputShape.get_shape() | transformed([](size_t val) {
+                                           return checked_cast<int64_t>(val);
+                                       }));
+    inferredReturnShapes.emplace_back(shapeI64, inType);
 
     return mlir::success();
 }

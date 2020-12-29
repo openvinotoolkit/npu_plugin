@@ -139,6 +139,24 @@ struct HasPrintFormat<Obj, decltype(std::declval<Obj>().printFormat(std::declval
 
 }  // namespace details
 
+//
+// `stringifyEnum` function handling.
+//
+
+namespace details {
+
+template <class Enum, typename = void>
+struct HasStringifyEnum {
+    static constexpr bool value = false;
+};
+
+template <class Enum>
+struct HasStringifyEnum<Enum, require_t<std::is_base_of<StringRef, decltype(stringifyEnum(std::declval<Enum>()))>>> {
+    static constexpr bool value = true;
+};
+
+}  // namespace details
+
 }  // namespace vpux
 
 //
@@ -212,7 +230,7 @@ template <typename T>
 struct format_provider<vpux::details::IntegerValuesRange<T>> final : vpux::ContainerFormatter {};
 
 template <typename Enum>
-struct format_provider<Enum, vpux::require_t<std::is_enum<Enum>>> final {
+struct format_provider<Enum, vpux::require_t<std::is_enum<Enum>, vpux::details::HasStringifyEnum<Enum>>> final {
     static void format(const Enum& val, llvm::raw_ostream& stream, StringRef style) {
         auto adapter = llvm::detail::build_format_adapter(stringifyEnum(val));
         adapter.format(stream, style);

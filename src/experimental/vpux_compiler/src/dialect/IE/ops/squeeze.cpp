@@ -26,44 +26,48 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::SqueezeOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::SqueezeOpAdaptor squeeze(operands, attrs);
     if (mlir::failed(squeeze.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inDataType = squeeze.input1().getType().cast<mlir::RankedTensorType>();
-    auto inDataShape = inDataType.getShape();
+    const auto inDataType = squeeze.input1().getType().cast<mlir::ShapedType>();
+    const auto inDataShape = inDataType.getShape();
+
     auto inAxes = squeeze.input2().getDefiningOp<mlir::ConstantOp>();
-    std::vector<int64_t> outShapeVec(inDataShape.begin(), inDataShape.end());
+    if (inAxes == nullptr) {
+        return mlir::failure();
+    }
 
-    if (inAxes) {
-        auto denseElementArray = inAxes.value().dyn_cast<mlir::DenseElementsAttr>();
-        if (!denseElementArray)
-            return mlir::failure();
+    const auto denseElementArray = inAxes.value().dyn_cast<mlir::DenseElementsAttr>();
+    if (denseElementArray == nullptr) {
+        return mlir::failure();
+    }
 
-        auto elementsRange = denseElementArray.getValues<int64_t>();
-        std::vector<int64_t> axesVec(elementsRange.begin(), elementsRange.end());
+    SmallVector<int64_t, 4> outShapeVec(inDataShape.begin(), inDataShape.end());
 
-        if (axesVec.size() == 0) {
-            for (auto it = outShapeVec.begin(); it != outShapeVec.end();) {
-                if (*it == 1) {
-                    it = outShapeVec.erase(it);
-                } else {
-                    ++it;
-                }
+    auto axesVec = to_vector<4>(denseElementArray.getValues<int64_t>());
+    if (axesVec.empty()) {
+        for (auto it = outShapeVec.begin(); it != outShapeVec.end();) {
+            if (*it == 1) {
+                it = outShapeVec.erase(it);
+            } else {
+                ++it;
             }
-        } else {
-            std::sort(axesVec.begin(), axesVec.end(), [](int64_t vl, int64_t vr) {
-                return vl > vr;
-            });
-            for (auto a : axesVec) {
-                if (a >= static_cast<int64_t>(outShapeVec.size()) || outShapeVec[a] != 1) {
-                    ::mlir::failure();
-                }
-                outShapeVec.erase(outShapeVec.begin() + a);
+        }
+    } else {
+        std::sort(axesVec.begin(), axesVec.end(), [](int64_t vl, int64_t vr) {
+            return vl > vr;
+        });
+
+        for (auto a : axesVec) {
+            if (a >= static_cast<int64_t>(outShapeVec.size()) || outShapeVec[a] != 1) {
+                return mlir::failure();
             }
+
+            outShapeVec.erase(outShapeVec.begin() + a);
         }
     }
 

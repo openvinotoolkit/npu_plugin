@@ -14,7 +14,7 @@ func @FuseConvAndBias(%arg0: tensor<1x3x300x300xf32>) -> tensor<1x16x300x300xf32
 
     %bias = constant dense<1.0> : tensor<1x16x1x1xf32>
     %1 = IE.Add(%0, %bias)
-        { auto_broadcast = "NONE_OR_EXPLICIT" } :
+        { auto_broadcast = "NUMPY" } :
         tensor<1x16x300x300xf32>, tensor<1x16x1x1xf32> -> tensor<1x16x300x300xf32>
 
     return %1 : tensor<1x16x300x300xf32>

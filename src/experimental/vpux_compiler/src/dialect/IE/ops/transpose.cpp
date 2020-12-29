@@ -26,46 +26,47 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::TransposeOpAdaptor transpose(operands, attrs);
     if (mlir::failed(transpose.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inDataType = transpose.input1().getType().cast<mlir::RankedTensorType>();
-    auto inDataShape = inDataType.getShape();
+    const auto inDataType = transpose.input1().getType().cast<mlir::ShapedType>();
+    const auto inDataShape = inDataType.getShape();
+
     auto inOrder = transpose.input2().getDefiningOp<mlir::ConstantOp>();
-    std::vector<int64_t> outShapeVec(inDataShape.begin(), inDataShape.end());
+    if (inOrder == nullptr) {
+        return mlir::failure();
+    }
 
-    if (inOrder) {
-        auto denseElementArray = inOrder.value().dyn_cast<mlir::DenseElementsAttr>();
-        if (!denseElementArray)
+    const auto denseElementArray = inOrder.value().dyn_cast<mlir::DenseElementsAttr>();
+    if (denseElementArray == nullptr) {
+        return mlir::failure();
+    }
+
+    auto inOrderVec = to_vector<4>(denseElementArray.getValues<int64_t>());
+
+    SmallVector<int64_t, 4> outShapeVec(inDataShape.begin(), inDataShape.end());
+    if (inOrderVec.size() == 0) {
+        std::reverse(outShapeVec.begin(), outShapeVec.end());
+    } else {
+        if (outShapeVec.size() != inOrderVec.size()) {
             return mlir::failure();
+        }
 
-        auto elementsRange = denseElementArray.getValues<int64_t>();
-        std::vector<int64_t> inOrderVec(elementsRange.begin(), elementsRange.end());
+        const auto outRank = static_cast<int64_t>(outShapeVec.size());
 
-        if (inOrderVec.size() == 0) {
-            std::reverse(outShapeVec.begin(), outShapeVec.end());
-        } else {
-            if (outShapeVec.size() != inOrderVec.size()) {
+        for (size_t i = 0; i < inOrderVec.size(); ++i) {
+            if (inOrderVec[i] >= outRank) {
                 return mlir::failure();
             }
 
-            int64_t outRank = static_cast<int64_t>(outShapeVec.size());
-            std::vector<int64_t> tmp(outShapeVec.begin(), outShapeVec.end());
-            for (size_t i = 0; i < inOrderVec.size(); ++i) {
-                if (inOrderVec[i] >= outRank) {
-                    return mlir::failure();
-                }
-                outShapeVec[i] = tmp[inOrderVec[i]];
-            }
+            outShapeVec[i] = inDataShape[inOrderVec[i]];
         }
-
-        inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), inDataType.getElementType());
-        return mlir::success();
     }
 
-    return mlir::failure();
+    inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), inDataType.getElementType());
+    return mlir::success();
 }

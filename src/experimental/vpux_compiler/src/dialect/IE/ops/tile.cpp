@@ -23,33 +23,37 @@ using namespace vpux;
 mlir::LogicalResult vpux::IE::TileOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::TileOpAdaptor tile(operands, attrs);
     if (mlir::failed(tile.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inType = tile.input().getType().cast<mlir::RankedTensorType>();
+    const auto inType = tile.input().getType().cast<mlir::ShapedType>();
+
     auto inRepeats = tile.repeats().getDefiningOp<mlir::ConstantOp>();
-    if (inRepeats) {
-        auto denseElementArray = inRepeats.value().dyn_cast<mlir::DenseElementsAttr>();
-        if (denseElementArray) {
-            auto elementsRange = denseElementArray.getValues<int64_t>();
-
-            // calculate output shape
-            auto outShape = inType.getShape().vec();
-            auto elementsIter = elementsRange.begin();
-            for (size_t i = 0; i < outShape.size(); ++i) {
-                if (elementsIter == elementsRange.end()) {
-                    return ::mlir::failure();
-                }
-                outShape[i] *= *elementsIter++;
-            }
-
-            inferredReturnShapes.emplace_back(outShape, inType.getElementType());
-            return mlir::success();
-        }
+    if (inRepeats == nullptr) {
+        return mlir::failure();
     }
-    return ::mlir::failure();
+
+    const auto denseElementArray = inRepeats.value().dyn_cast<mlir::DenseElementsAttr>();
+    if (denseElementArray == nullptr) {
+        return mlir::failure();
+    }
+
+    const auto elementsRange = denseElementArray.getValues<int64_t>();
+
+    auto outShape = to_vector<4>(inType.getShape());
+    auto elementsIter = elementsRange.begin();
+    for (size_t i = 0; i < outShape.size(); ++i) {
+        if (elementsIter == elementsRange.end()) {
+            return mlir::failure();
+        }
+
+        outShape[i] *= *elementsIter++;
+    }
+
+    inferredReturnShapes.emplace_back(outShape, inType.getElementType());
+    return mlir::success();
 }

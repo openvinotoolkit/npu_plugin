@@ -466,6 +466,73 @@ def IE_MaxPoolOp :
 }
 
 //
+// PriorBoxOp
+//
+
+def IE_PriorBoxOp :
+        IE_LayerOp<
+            "PriorBox",
+            [
+                ResultsAreFloatLike,
+            ]
+        > {
+    let summary = "InferenceEngine PriorBox layer";
+
+    let arguments = (ins
+        RankedTensorOf<[SI64]>:$output_size,
+        RankedTensorOf<[SI64]>:$image_size,
+
+        F32ArrayAttr:$min_size,
+        F32ArrayAttr:$max_size,
+        F32ArrayAttr:$aspect_ratio,
+        BoolAttr:$flip,
+        BoolAttr:$clip,
+        F32Attr:$step,
+        F32Attr:$offset,
+        F32ArrayAttr:$variance,
+        BoolAttr:$scale_all_sizes,
+        F32ArrayAttr:$fixed_ratio,
+        F32ArrayAttr:$fixed_size,
+        F32ArrayAttr:$density
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// PriorBoxClusteredOp
+//
+
+def IE_PriorBoxClusteredOp :
+        IE_LayerOp<
+            "PriorBoxClustered",
+            [
+                ResultsAreFloatLike,
+            ]
+        > {
+    let summary = "InferenceEngine PriorBoxClustered layer";
+
+    let arguments = (ins
+        RankedTensorOf<[SI64]>:$output_size,
+        RankedTensorOf<[SI64]>:$image_size,
+
+        F32ArrayAttr:$widths,
+        F32ArrayAttr:$heights,
+        BoolAttr:$clip,
+        F32Attr:$step_widths,
+        F32Attr:$step_heights,
+        F32Attr:$offset,
+        F32ArrayAttr:$variance
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // GatherOp
 //
 
@@ -834,7 +901,281 @@ def IE_TransposeOp :
 
     let arguments = (ins
         AnyRankedTensor:$input1,
-        TensorOf<[AnyInteger]>:$input2
+        RankedTensorOf<[AnyInteger]>:$input2
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ProposalOp
+//
+
+def IE_ProposalOp :
+        IE_LayerOp<
+            "Proposal"
+        > {
+    let summary = "InferenceEngine Proposal layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$class_probs,
+        RankedTensorOf<[F16, F32]>:$bbox_deltas,
+        RankedTensorOf<[F16, F32]>:$image_shape,
+
+        IE_ProposalAttrs:$proposal_attrs
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// InterpolateOp
+//
+
+def IE_InterpolateOp :
+        IE_LayerOp<
+            "Interpolate"
+        > {
+    let summary = "InferenceEngine Interpolate layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$target_shape,
+
+        IE_InterpolateAttr:$attr
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// TopKOp
+//
+
+def IE_TopKOp :
+        IE_LayerOp<
+            "TopK"
+        > {
+    let summary = "InferenceEngine TopK layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        0DTensorOf<[AnyInteger]>:$k,
+
+        I64Attr:$axis,
+        IE_TopKMode:$mode,
+        IE_TopKSortType:$sort,
+        TypeAttr:$element_type
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output_values,
+        AnyRankedTensor:$target_shape
+    );
+}
+
+//
+// RegionYoloOp
+//
+
+def IE_RegionYoloOp :
+        IE_LayerOp<
+            "RegionYolo"
+        > {
+    let summary = "InferenceEngine RegionYolo layer";
+
+    let arguments = (ins
+        4DTensorOf<[AnyFloat]>:$input,
+
+        I32Attr:$coord,
+        I32Attr:$classes,
+        I32Attr:$regions,
+        BoolAttr:$do_softmax,
+        I64ArrayAttr:$mask,
+        I32Attr:$axis,
+        I32Attr:$end_axis,
+        F32ArrayAttr:$anchors
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ReorgYoloOp
+//
+
+def IE_ReorgYoloOp :
+        IE_LayerOp<
+            "ReorgYolo"
+        > {
+    let summary = "InferenceEngine ReorgYolo layer";
+
+    let arguments = (ins
+        4DTensorOf<[AnyInteger, AnyFloat]>:$input,
+
+        I32Attr:$stride
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// DetectionOutputOp
+//
+
+def IE_DetectionOutputOp :
+        IE_LayerOp<
+            "DetectionOutput",
+            [
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "InferenceEngine DetectionOutput layer";
+
+    let arguments = (ins
+        2DTensorOf<[AnyFloat]>:$box_logits,
+        2DTensorOf<[AnyFloat]>:$class_preds,
+        3DTensorOf<[AnyFloat]>:$proposals,
+        Optional<2DTensorOf<[AnyFloat]>>:$additional_preds,
+        Optional<2DTensorOf<[AnyFloat]>>:$additional_poposals,
+
+        IE_DetectionOutputAttrs:$attr
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// NormalizeL2Op
+//
+
+def IE_NormalizeL2Op :
+        IE_LayerOp<
+            "NormalizeL2"
+        > {
+    let summary = "InferenceEngine NormalizeL2 layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$data,
+        RankedTensorOf<[AnyInteger]>:$axes,
+
+        F32Attr:$eps,
+        IE_EpsMode:$eps_mod
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ConcatOp
+//
+
+def IE_ConcatOp :
+        IE_LayerOp<
+            "Concat"
+        > {
+    let summary = "InferenceEngine Concat layer";
+
+    let arguments = (ins
+        Variadic<AnyRankedTensor>:$input,
+
+        I32Attr:$axis
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ROIPoolingOp
+//
+
+def IE_ROIPoolingOp :
+        IE_LayerOp<
+            "ROIPooling",
+            [
+                ResultsAreFloatLike,
+            ]
+        > {
+    let summary = "InferenceEngine ROIPooling layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$coords,
+
+        I32ArrayAttr:$output_size,
+        F32Attr:$spatial_scale,
+        IE_ROIPoolingMethod:$method
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// StridedSliceOp
+//
+
+def IE_StridedSliceOp :
+        IE_LayerOp<
+            "StridedSlice"
+        > {
+    let summary = "InferenceEngine StridedSlice layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$data,
+        1DTensorOf<[AnyInteger]>:$begin,
+        1DTensorOf<[AnyInteger]>:$end,
+        1DTensorOf<[AnyInteger]>:$stride,
+
+        I64ArrayAttr:$begin_mask,
+        I64ArrayAttr:$end_mask,
+        I64ArrayAttr:$new_axis_mask,
+        I64ArrayAttr:$shrink_axis_mask,
+        I64ArrayAttr:$ellipsis_mask
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// DeconvolutionOp (ConvolutionBackprop in ngraph)
+//
+
+def IE_DeconvolutionOp:
+        IE_LayerOp<
+            "Deconvolution"
+        > {
+    let summary = "InferenceEngine Deconvolution layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$feature,
+        AnyRankedTensor:$filter,
+        Optional<1DTensorOf<[AnyInteger]>>:$output_shape,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        I32ArrayAttr:$dilations,
+        I32ArrayAttr:$output_padding
     );
 
     let results = (outs
