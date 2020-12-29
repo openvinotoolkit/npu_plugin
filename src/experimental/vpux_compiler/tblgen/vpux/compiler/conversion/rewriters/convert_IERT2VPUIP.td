@@ -163,4 +163,18 @@ def RewriteReLU :
             (createReLUUPAOp $input, $output)
         >;
 
+//
+// IERT.Sigmoid -> VPUIP.SigmoidUPA
+//
+
+def createSigmoidUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SigmoidUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteSigmoid :
+        Pat<
+            (IERT_SigmoidOp $input, $output),
+            (createSigmoidUPAOp $input, $output)
+        >;
 #endif

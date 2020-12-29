@@ -38,3 +38,20 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReLUUPAOp::serialize(VPUIP::BlobWri
     return writer.createUPALayerTask(getOperation(), {paramsOff.Union(), MVCNN::SoftwareLayerParams_UnaryOpParams},
                                      maxShaves(), isTrailingSWLayer());
 }
+
+void vpux::VPUIP::SigmoidUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                      mlir::Value output) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, false);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SigmoidUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto sigmoid = MVCNN::CreateSigmoidParams(writer);
+
+    MVCNN::UnaryOpParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::UnaryOpNestedParams_SigmoidParams);
+    builder.add_nested_params(sigmoid.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(getOperation(), {paramsOff.Union(), MVCNN::SoftwareLayerParams_UnaryOpParams},
+                                     maxShaves(), isTrailingSWLayer());
+}
