@@ -52,6 +52,5 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvolutionUPAOp::serialize(VPUIP::
     builder.add_group(checked_cast<int32_t>(group()));
     const auto paramsOff = builder.Finish();
 
-    return writer.createUPALayerTask(getOperation(), {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvolutionParams},
-                                     maxShaves(), isTrailingSWLayer());
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvolutionParams});
 }

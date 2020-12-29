@@ -163,4 +163,49 @@ def RewriteReLU :
             (createReLUUPAOp $input, $output)
         >;
 
+//
+// IERT.Sigmoid -> VPUIP.SigmoidUPA
+//
+
+def createSigmoidUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SigmoidUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteSigmoid :
+        Pat<
+            (IERT_SigmoidOp $input, $output),
+            (createSigmoidUPAOp $input, $output)
+        >;
+
+//
+// IERT.Clamp -> VPUIP.ClampUPA
+//
+
+def createClampUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ClampUPAOp>($_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteClamp :
+        Pat<
+            (IERT_ClampOp $input, $output, $min, $max),
+            (createClampUPAOp $input, $output, $min, $max)
+        >;
+
+//
+// IERT.Elu -> VPUIP.EluUPA
+//
+
+def createEluUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::EluUPAOp>($_loc, $0, $1, $2)
+        }]>;
+
+def RewriteElu :
+        Pat<
+            (IERT_EluOp $input, $output, $x),
+            (createEluUPAOp $input, $output, $x)
+        >;
+
 #endif

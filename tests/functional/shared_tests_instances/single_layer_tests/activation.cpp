@@ -11,6 +11,13 @@
 
 namespace LayerTestsDefinitions {
 
+std::set<ngraph::helpers::ActivationTypes> supportedTypesByExperimentalCompiler {
+    ngraph::helpers::Relu,
+    ngraph::helpers::Sigmoid,
+    ngraph::helpers::Clamp,
+    ngraph::helpers::Elu,
+};
+
 class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
@@ -18,8 +25,11 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
         } else {
             const auto activationType = std::get<0>(GetParam()).first;
 
-            if (activationType != ngraph::helpers::Relu) {
-                throw LayerTestsUtils::KmbSkipTestException("Experimental compiler supports only ReLU activation type");
+            if (supportedTypesByExperimentalCompiler.find(activationType) ==
+                supportedTypesByExperimentalCompiler.end()) {
+                throw LayerTestsUtils::KmbSkipTestException("Experimental compiler doesn't supports activation type " +
+                                                            LayerTestsDefinitions::activationNames[activationType] +
+                                                            " yet");
             }
         }
     }
@@ -52,7 +62,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Log,     {{1.0f}}},
     {Sign,    {{1.0f}}},
     {Abs,     {{1.0f}}},
-    {Elu,     {{1.0f}}}
+    {Elu,     {{1.0f}}},
+    {Clamp,   {{-1.0f, 1.0f}}}
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {

@@ -227,4 +227,84 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
     }];
 }
 
+//
+// ClampLayerInterface
+//
+
+def ClampLayerInterface : OpInterface<"ClampLayerInterface"> {
+    let description = "Interface for Clamp Layer";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "mlir::Value", "input", (ins),
+            [{
+                return $_op.input();
+            }]
+        >,
+        InterfaceMethod<
+            "Get destination Value for the Operation",
+            "mlir::Value", "output", (ins),
+            [{
+                return $_op.output();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get the lower bound of the <min;max> range",
+            "float", "getMin", (ins),
+            [{}],
+            [{
+                return $_op.min().convertToFloat();
+            }]
+        >,
+        InterfaceMethod<
+            "Get the upper bound of the <min;max> range",
+            "float", "getMax", (ins),
+            [{}],
+            [{
+                return $_op.max().convertToFloat();
+            }]
+        >,
+    ];
+}
+
+//
+// EluLayerInterface
+//
+
+def EluLayerInterface : OpInterface<"EluLayerInterface"> {
+    let description = "Interface for Elu Layer";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "mlir::Value", "input", (ins),
+            [{
+                return $_op.input();
+            }]
+        >,
+        InterfaceMethod<
+            "Get destination Value for the Operation",
+            "mlir::Value", "output", (ins),
+            [{
+                return $_op.output();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get the scale for the negative factor",
+            "float", "getX", (ins),
+            [{}],
+            [{
+                return $_op.x().convertToFloat();
+            }]
+        >,
+    ];
+}
+
 #endif

@@ -377,4 +377,72 @@ def IERT_ReLUOp :
     );
 }
 
+//
+// SigmoidOp
+//
+
+def IERT_SigmoidOp :
+        IERT_LayerOp<
+            "Sigmoid",
+            [
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time Sigmoid layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
+// ClampOp
+//
+
+def IERT_ClampOp :
+        IERT_LayerOp<
+            "Clamp",
+            [
+                SameOperandsShape,
+                SameOperandsElementType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<ClampLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Clamp layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        F32Attr:$min,
+        F32Attr:$max
+    );
+}
+
+//
+// EluOp
+//
+
+def IERT_EluOp :
+        IERT_LayerOp<
+            "Elu",
+            [
+                SameOperandsShape,
+                SameOperandsElementType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<EluLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Elu layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        F32Attr:$x
+    );
+}
+
 #endif
