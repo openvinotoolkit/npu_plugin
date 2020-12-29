@@ -16,8 +16,7 @@
 
 #pragma once
 
-#include "vpux/compiler/core/attributes/dim.hpp"
-#include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/const_content.hpp"
 
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
@@ -50,6 +49,7 @@ public:
 // Layer verifiers
 //
 
+mlir::LogicalResult verifyConstant(mlir::Operation* op);
 mlir::LogicalResult verifyLayer(mlir::Operation* op);
 mlir::LogicalResult verifyConvertLayer(mlir::Operation* op);
 mlir::LogicalResult verifySoftMaxLayer(mlir::Operation* op);
