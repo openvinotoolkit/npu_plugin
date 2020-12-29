@@ -557,8 +557,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     const auto min = origNode->get_min();
     const auto max = origNode->get_max();
-    const auto minAttr = getFP64Attr(_ctx, checked_cast<double>(min));
-    const auto maxAttr = getFP64Attr(_ctx, checked_cast<double>(max));
+    const auto minAttr = getFP32Attr(_ctx, checked_cast<float>(min));
+    const auto maxAttr = getFP32Attr(_ctx, checked_cast<float>(max));
 
     auto op = builder.create<IE::ClampOp>(createLocation(origNode), inputs[0], minAttr, maxAttr);
     addOutputs(origNode, op);

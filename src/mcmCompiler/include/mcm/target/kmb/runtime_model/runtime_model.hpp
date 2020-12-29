@@ -36,7 +36,7 @@ namespace mv
                 auto hdeDef = td.hdeDef();
                 hde_.reset(new Hde(hdeDef.bitPerSymbol, hdeDef.maxNumberEncodedSymbols, 0, hdeDef.blockSize, false, hdeDef.bypassMode));
             }
-            
+
             std::unique_ptr<Hde> hde_ = nullptr;
             MVCNN::GraphFileT graphFile_;
             std::shared_ptr<std::vector<char>> binaryData_;
@@ -147,6 +147,7 @@ namespace mv
             static MVCNN::UPALayerTaskT * buildUPAHSwishTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPAConversionTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPAReluTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            static MVCNN::UPALayerTaskT * buildUPAClampTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
 
             // UTILS
             static unsigned countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt);
@@ -163,9 +164,9 @@ namespace mv
             static void case2MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT> > &toReturn, Data::TensorIterator src, Data::TensorIterator dst, uint8_t* port, int portLimit, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
             const MVCNN::GraphFileT& getGraphFile();
             void clear();
-    
+
             static Order stridesToOrder(std::vector<float> strides, std::vector<unsigned> dims);
-    
+
     };
 }
 

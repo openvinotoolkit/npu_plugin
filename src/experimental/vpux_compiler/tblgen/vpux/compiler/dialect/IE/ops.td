@@ -564,7 +564,8 @@ def IE_ClampOp :
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
                 SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<ClampLayerInterface>
             ]
         > {
     let summary = "InferenceEngine Clamp layer";
@@ -572,8 +573,8 @@ def IE_ClampOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
 
-        F64Attr:$min,
-        F64Attr:$max
+        F32Attr:$min,
+        F32Attr:$max
     );
 
     let results = (outs
@@ -676,7 +677,7 @@ def IE_SigmoidOp :
 }
 
 //
-// ClampOp
+// LRNOp
 //
 
 def IE_LRNOp :

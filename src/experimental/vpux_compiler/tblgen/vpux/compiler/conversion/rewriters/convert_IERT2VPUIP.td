@@ -177,4 +177,20 @@ def RewriteSigmoid :
             (IERT_SigmoidOp $input, $output),
             (createSigmoidUPAOp $input, $output)
         >;
+
+//
+// IERT.Clamp -> VPUIP.ClampUPA
+//
+
+def createClampUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ClampUPAOp>($_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteClamp :
+        Pat<
+            (IERT_ClampOp $input, $output, $min, $max),
+            (createClampUPAOp $input, $output, $min, $max)
+        >;
+
 #endif

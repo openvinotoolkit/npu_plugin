@@ -11,8 +11,11 @@
 
 namespace LayerTestsDefinitions {
 
-std::set<ngraph::helpers::ActivationTypes> supportedTypesByExperimentalCompiler{ngraph::helpers::Relu,
-                                                                                ngraph::helpers::Sigmoid};
+std::set<ngraph::helpers::ActivationTypes> supportedTypesByExperimentalCompiler {
+    ngraph::helpers::Relu,
+    ngraph::helpers::Sigmoid,
+    ngraph::helpers::Clamp,
+};
 
 class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
@@ -58,7 +61,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Log,     {{1.0f}}},
     {Sign,    {{1.0f}}},
     {Abs,     {{1.0f}}},
-    {Elu,     {{1.0f}}}
+    {Elu,     {{1.0f}}},
+    {Clamp,   {{-1.0f, 1.0f}}}
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {

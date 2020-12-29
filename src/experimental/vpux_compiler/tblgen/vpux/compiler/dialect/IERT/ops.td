@@ -396,4 +396,29 @@ def IERT_SigmoidOp :
     );
 }
 
+//
+// ClampOp
+//
+
+def IERT_ClampOp :
+        IERT_LayerOp<
+            "Clamp",
+            [
+                SameOperandsShape,
+                SameOperandsElementType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<ClampLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Clamp layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        F32Attr:$min,
+        F32Attr:$max
+    );
+}
+
 #endif
