@@ -238,6 +238,8 @@ add_kmb_compile_custom_cpp_kernels()
 
 if(ENABLE_HDDL2)
     if(UNIX)
+        set(PCIE_DRIVERS_KMB_ARCHIVE_VERSION RELEASE_ww51)
+        set(PCIE_DRIVERS_KMB_ARCHIVE_HASH "b8e17a49af18a4fc464feb9d9feeae9658c1b4c9f412205902e6841006945264")
         set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww51)
         set(HDDLUNITE_KMB_ARCHIVE_HASH "3d4964f6de90a037bbb9a09914607d1a5fe1484c5b75d20031b5cc0ae7edc557")
         set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww51)
@@ -258,6 +260,16 @@ if(ENABLE_HDDL2)
     endif()
 
     if(DEFINED IE_PATH_TO_DEPS)
+
+        reset_deps_cache(PCIE_DRIVERS)
+
+        if(UNIX)
+            RESOLVE_DEPENDENCY(PCIE_DRIVERS
+                    ARCHIVE_LIN "hddl2/kmb-pcie-drivers_${PCIE_DRIVERS_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"
+                    ENVIRONMENT "PCIE_DRIVERS"
+                    TARGET_PATH "${TEMP}/pcie_drivers")
+        endif()
+
         reset_deps_cache(HDDL_UNITE)
 
         RESOLVE_DEPENDENCY(HDDL_UNITE
