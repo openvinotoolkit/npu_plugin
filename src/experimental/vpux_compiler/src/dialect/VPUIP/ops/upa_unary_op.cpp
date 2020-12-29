@@ -22,6 +22,10 @@
 
 using namespace vpux;
 
+//
+// ReLUUPAOp
+//
+
 void vpux::VPUIP::ReLUUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                    mlir::Value output) {
     build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, false);
@@ -35,9 +39,12 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReLUUPAOp::serialize(VPUIP::BlobWri
     builder.add_nested_params(relu.Union());
     const auto paramsOff = builder.Finish();
 
-    return writer.createUPALayerTask(getOperation(), {paramsOff.Union(), MVCNN::SoftwareLayerParams_UnaryOpParams},
-                                     maxShaves(), isTrailingSWLayer());
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_UnaryOpParams});
 }
+
+//
+// SigmoidUPAOp
+//
 
 void vpux::VPUIP::SigmoidUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                       mlir::Value output) {
@@ -52,6 +59,5 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SigmoidUPAOp::serialize(VPUIP::Blob
     builder.add_nested_params(sigmoid.Union());
     const auto paramsOff = builder.Finish();
 
-    return writer.createUPALayerTask(getOperation(), {paramsOff.Union(), MVCNN::SoftwareLayerParams_UnaryOpParams},
-                                     maxShaves(), isTrailingSWLayer());
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_UnaryOpParams});
 }

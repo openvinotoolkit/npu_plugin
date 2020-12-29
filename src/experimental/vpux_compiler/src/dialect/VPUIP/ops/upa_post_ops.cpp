@@ -20,6 +20,10 @@
 
 using namespace vpux;
 
+//
+// ClampUPAOp
+//
+
 void vpux::VPUIP::ClampUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                     mlir::Value output, mlir::FloatAttr min, mlir::FloatAttr max) {
     build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, min, max, nullptr, nullptr);
@@ -36,6 +40,27 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ClampUPAOp::serialize(VPUIP::BlobWr
     builder.add_nested_params(clamp.Union());
     const auto paramsOff = builder.Finish();
 
-    return writer.createUPALayerTask(getOperation(), {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams},
-                                     maxShaves(), isTrailingSWLayer());
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
+// EluUPAOp
+//
+
+void vpux::VPUIP::EluUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                  mlir::Value output, mlir::FloatAttr x) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, x, nullptr, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EluUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const float x = getX();
+
+    const auto elu = MVCNN::CreateEluParams(writer, x);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_EluParams);
+    builder.add_nested_params(elu.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }

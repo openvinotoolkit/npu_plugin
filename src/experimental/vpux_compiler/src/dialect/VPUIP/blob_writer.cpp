@@ -81,10 +81,17 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir::Operation* op,
-                                                                            const SoftwareLayerParams& params,
-                                                                            Optional<uint32_t> maxShaves,
-                                                                            bool isTrailingSWLayer) {
-    auto layer = mlir::cast<LayerInterface>(op);
+                                                                            const SoftwareLayerParams& params) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createUPALayerTask");
+
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' is not a Layer", op->getName());
+
+    auto upaTask = mlir::dyn_cast<VPUIP::UPATaskOpInterface>(op);
+    VPUX_THROW_UNLESS(upaTask != nullptr, "Operation '{0}' is not a UPA Task", op->getName());
+
+    const auto maxShaves = upaTask.maxShaves();
+    const auto isTrailingSWLayer = upaTask.isTrailingSWLayer();
 
     const auto getTensorCb = [this](mlir::Value val) {
         return getTensor(val);

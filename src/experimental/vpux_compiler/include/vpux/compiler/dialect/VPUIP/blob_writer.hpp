@@ -74,8 +74,7 @@ public:
     Task createTask(mlir::Operation* op);
 
 public:
-    SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params,
-                                    Optional<uint32_t> maxShaves, bool isTrailingSWLayer);
+    SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
 
 public:
     TensorReference createTensor(StringRef name, mlir::MemRefType type, MemoryLocation locale,

@@ -41,6 +41,5 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvertUPAOp::serialize(VPUIP::Blob
     builder.add_batch_id(batchID);
     const auto paramsOff = builder.Finish();
 
-    return writer.createUPALayerTask(getOperation(), {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvertParams},
-                                     maxShaves(), isTrailingSWLayer());
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvertParams});
 }
