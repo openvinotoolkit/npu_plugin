@@ -64,3 +64,23 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EluUPAOp::serialize(VPUIP::BlobWrit
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
+
+//
+// HSwishUPAOp
+//
+
+void vpux::VPUIP::HSwishUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                     mlir::Value output) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::HSwishUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto hswish = MVCNN::CreateHSwishParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_HSwishParams);
+    builder.add_nested_params(hswish.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

@@ -877,7 +877,9 @@ def IE_HSwishOp :
             "HSwish",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+		SingleInputAndResultLayer,
+		DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine HSwish layer";
