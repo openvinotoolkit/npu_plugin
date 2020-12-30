@@ -16,6 +16,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesByExperimentalCompiler 
     ngraph::helpers::Sigmoid,
     ngraph::helpers::Clamp,
     ngraph::helpers::Elu,
+    ngraph::helpers::HSwish
 };
 
 class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
@@ -63,7 +64,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Sign,    {{1.0f}}},
     {Abs,     {{1.0f}}},
     {Elu,     {{1.0f}}},
-    {Clamp,   {{-1.0f, 1.0f}}}
+    {Clamp,   {{-1.0f, 1.0f}}},
+    {HSwish,     {{1.0f}}}
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {

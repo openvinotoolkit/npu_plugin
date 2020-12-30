@@ -208,4 +208,19 @@ def RewriteElu :
             (createEluUPAOp $input, $output, $x)
         >;
 
+//
+// IERT.HSwish -> VPUIP.HSwishUPA
+//
+
+def createHSwishUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::HSwishUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteHSwish :
+        Pat<
+            (IERT_HSwishOp $input, $output),
+            (createHSwishUPAOp $input, $output)
+        >;
+
 #endif

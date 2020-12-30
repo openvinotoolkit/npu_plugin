@@ -445,4 +445,25 @@ def IERT_EluOp :
     );
 }
 
+//
+// HSwishOp
+//
+
+def IERT_HSwishOp :
+        IERT_LayerOp<
+            "HSwish",
+            [
+		SameOperandsShape,
+                SameOperandsElementType,
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time HSwish layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
 #endif
