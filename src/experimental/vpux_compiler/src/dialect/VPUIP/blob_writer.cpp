@@ -303,7 +303,7 @@ VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesR
 }
 
 VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(mlir::MemRefType type) {
-    return createStrides(getStrides(type), type.getElementTypeBitWidth() / 8);
+    return createStrides(getStrides(type), type.getElementTypeBitWidth() / CHAR_BIT);
 }
 
 MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocation location) {
