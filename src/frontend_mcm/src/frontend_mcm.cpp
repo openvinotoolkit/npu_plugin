@@ -1932,8 +1932,19 @@ void FrontEndMcm::parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVect
     _logger->debug(FINISH_PARSING_STR, mvNormalize->getName());
 }
 
-void FrontEndMcm::parseCTCDecoder(const ie::CNNLayerPtr&, const McmNodeVector&) {
-    VPU_THROW_EXCEPTION << "CTCDecoder layer is not supported by kmbPlugin";
+void FrontEndMcm::parseCTCDecoder(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    IE_ASSERT(inputs.size() == 2);
+
+    logParsingStartHelper(_logger, layer, inputs);
+
+    auto data = inputs[0];
+    auto input1 = inputs[1];
+    auto merge_repeated = layer->GetParamAsBool("ctc_merge_repeated");
+    auto mvCTCDecoder = _modelMcm.cTCDecoder(layer->name, data->getMcmNode(), input1->getMcmNode(), merge_repeated);
+
+    bindOutput(mvCTCDecoder, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, mvCTCDecoder->getName());
 }
 
 void FrontEndMcm::parseInterp(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {

@@ -17,18 +17,21 @@ namespace mv
             auto seq = inputs[1];
             auto seqShape = seq->getShape();
 
-            if (seqShape.ndims() != 2)
+            if (seqShape.ndims() > 2)
             {
-                errMsg = "Invalid shape of seq tensor (input 1) - has to be 2-dimensional, received "
-                    + std::to_string(seqShape.ndims());
-                return {false, 1};
+                // truncate seq tensor
+                seqShape = {seqShape[seqShape.ndims() - 2], seqShape[seqShape.ndims() - 1]};
+            } else if (seqShape.ndims() < 2) {
+                errMsg = "Invalid shape of seq tensor (input 1)" + inputShape.toString();
+                return {false, 0};
             }
 
-            if (inputShape[mv::IO_CHANNEL_DIMENSION] != seqShape[0])
+            // check that sequence length is equal to logits tenstor length
+            if (inputShape[mv::IO_CHANNEL_DIMENSION] != seqShape[1])
             {
                 errMsg = "Invalid shape of seq tensor (input 1) - the dimension has to equal to the last dimension"
                     " of the input tensor which is " + std::to_string(inputShape[-1]);
-                return {false, 2};
+                return {false, 0};
             }
 
             return {true, 0};
