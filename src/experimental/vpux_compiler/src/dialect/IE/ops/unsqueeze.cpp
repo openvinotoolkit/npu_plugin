@@ -46,10 +46,10 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    auto axesVec = to_vector<4>(denseElementArray.getValues<int64_t>());
+    auto axesVec = to_small_vector(denseElementArray.getValues<int64_t>());
     std::sort(axesVec.begin(), axesVec.end());
 
-    SmallVector<int64_t, 4> outShapeVec(inDataShape.begin(), inDataShape.end());
+    SmallVector<int64_t> outShapeVec(inDataShape.begin(), inDataShape.end());
     const auto outRank = static_cast<int64_t>(outShapeVec.size() + axesVec.size());
 
     if (*axesVec.rbegin() >= outRank) {

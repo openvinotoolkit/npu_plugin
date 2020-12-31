@@ -46,9 +46,9 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    auto inOrderVec = to_vector<4>(denseElementArray.getValues<int64_t>());
+    auto inOrderVec = to_small_vector(denseElementArray.getValues<int64_t>());
 
-    SmallVector<int64_t, 4> outShapeVec(inDataShape.begin(), inDataShape.end());
+    SmallVector<int64_t> outShapeVec(inDataShape.begin(), inDataShape.end());
     if (inOrderVec.size() == 0) {
         std::reverse(outShapeVec.begin(), outShapeVec.end());
     } else {

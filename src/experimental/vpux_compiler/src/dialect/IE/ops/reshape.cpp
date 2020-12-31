@@ -49,7 +49,7 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
 
     const auto elementsRange = denseElementArray.getValues<int64_t>();
 
-    SmallVector<int64_t, 4> outShapeVec(elementsRange.begin(), elementsRange.end());
+    SmallVector<int64_t> outShapeVec(elementsRange.begin(), elementsRange.end());
 
     const auto zeroDims = std::count_if(outShapeVec.begin(), outShapeVec.end(), [](int64_t v) {
         return v == 0;
@@ -62,7 +62,7 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
         inferredReturnShapes.emplace_back(outShapeVec, inDataType.getElementType());
         return mlir::success();
     } else {
-        SmallVector<int64_t, 4> inDataShapeVec(inDataShape.begin(), inDataShape.end());
+        SmallVector<int64_t> inDataShapeVec(inDataShape.begin(), inDataShape.end());
 
         auto dividend = std::accumulate(inDataShape.begin(), inDataShape.end(), int64_t(1), std::multiplies<int64_t>());
 

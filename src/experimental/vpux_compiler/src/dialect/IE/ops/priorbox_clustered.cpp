@@ -45,7 +45,7 @@ mlir::LogicalResult vpux::IE::PriorBoxClusteredOp::inferReturnTypeComponents(
     const auto elementsRange = denseElementArray.getValues<int64_t>();
     VPUX_THROW_UNLESS(denseElementArray.size() == 2, "output_size of priorbox should be 2");
 
-    mlir::SmallVector<int64_t, 2> outShape{2, 4 * numPriors};
+    SmallVector<int64_t> outShape{2, 4 * numPriors};
     outShape[1] *= *elementsRange.begin();
     outShape[1] *= *(elementsRange.begin() + 1);
 

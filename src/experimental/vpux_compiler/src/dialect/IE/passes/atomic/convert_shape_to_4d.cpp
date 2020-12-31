@@ -219,7 +219,7 @@ void ConvertShapeTo4DPass::passBody() {
             VPUX_THROW("Tensors with rank > 4 is not supporeted");
         } else {
             const auto nDimsToAdd = TARGET_TENSOR_DIM - tensor.getShape().size();
-            SmallVector<int64_t, TARGET_TENSOR_DIM> newShape(nDimsToAdd, 1);
+            SmallVector<int64_t> newShape(nDimsToAdd, 1);
             for (auto s : tensor.getShape()) {
                 newShape.push_back(s);
             }

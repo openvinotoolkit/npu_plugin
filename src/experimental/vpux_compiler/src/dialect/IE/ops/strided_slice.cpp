@@ -80,9 +80,9 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
                                       convertConstantOpToVector(slice.stride().getDefiningOp<mlir::ConstantOp>()),
                                       beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
 
-    const auto shapeI64 = to_vector<4>(outputShape.get_shape() | transformed([](size_t val) {
-                                           return checked_cast<int64_t>(val);
-                                       }));
+    const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
+                                              return checked_cast<int64_t>(val);
+                                          }));
     inferredReturnShapes.emplace_back(shapeI64, inDataType.getElementType());
 
     return mlir::success();

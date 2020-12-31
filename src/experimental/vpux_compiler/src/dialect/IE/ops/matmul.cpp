@@ -73,12 +73,12 @@ mlir::LogicalResult vpux::IE::MatMulOp::inferReturnTypeComponents(
     // Rightmost two axes are row & col. Remaining left axes are batch
     constexpr int kRowColIdxRange = 2;
 
-    SmallVector<int64_t, 4> outShape;
+    SmallVector<int64_t> outShape;
     outShape.reserve(std::max(inRank1, inRank2));
 
     // Temporally transformed shapes
-    auto inShape1Trans = to_vector<4>(inShape1);
-    auto inShape2Trans = to_vector<4>(inShape2);
+    auto inShape1Trans = to_small_vector(inShape1);
+    auto inShape2Trans = to_small_vector(inShape2);
     std::reverse(inShape1Trans.begin(), inShape1Trans.end());
     std::reverse(inShape2Trans.begin(), inShape2Trans.end());
 

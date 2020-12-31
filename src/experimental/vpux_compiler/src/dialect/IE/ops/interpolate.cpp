@@ -49,7 +49,7 @@ mlir::LogicalResult vpux::IE::InterpolateOp::inferReturnTypeComponents(
 
     const auto elementsRange = denseElementArray.getValues<int64_t>();
 
-    mlir::SmallVector<int64_t, 4> outShape;
+    SmallVector<int64_t> outShape;
     for (size_t i = 0; i < inputShape.size(); ++i) {
         outShape.emplace_back(inputShape[i]);
     }

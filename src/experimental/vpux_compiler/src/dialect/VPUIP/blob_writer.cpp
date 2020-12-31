@@ -138,7 +138,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
             createIndirectDataReference(dataIndex, sparsityIndex, storageElementIndex, storageElementSize);
 
     const auto serializedLocale = createMemoryLocation(locale);
-    const auto serializedLocaleIndex = createVector(to_vector<1>(makeArrayRef({localeIndex.getValueOr(0)})));
+    const auto serializedLocaleIndex = createVector(to_small_vector(makeArrayRef({localeIndex.getValueOr(0)})));
 
     // TODO: get this from type.getElementType() (Quant Dialect)
     const auto quantZero = createVector(makeArrayRef<uint8_t>({0}));
@@ -209,7 +209,7 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
                           val, *userOp);
 
         using MemEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
-        SmallVector<MemEffect, 1> valEffects;
+        SmallVector<MemEffect> valEffects;
 
         opEffects.getEffectsOnValue(val, valEffects);
         VPUX_THROW_UNLESS(valEffects.size() == 1,

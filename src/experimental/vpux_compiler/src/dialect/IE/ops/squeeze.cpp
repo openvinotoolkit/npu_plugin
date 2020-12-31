@@ -46,9 +46,9 @@ mlir::LogicalResult vpux::IE::SqueezeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    SmallVector<int64_t, 4> outShapeVec(inDataShape.begin(), inDataShape.end());
+    SmallVector<int64_t> outShapeVec(inDataShape.begin(), inDataShape.end());
 
-    auto axesVec = to_vector<4>(denseElementArray.getValues<int64_t>());
+    auto axesVec = to_small_vector(denseElementArray.getValues<int64_t>());
     if (axesVec.empty()) {
         for (auto it = outShapeVec.begin(); it != outShapeVec.end();) {
             if (*it == 1) {

@@ -56,9 +56,9 @@ mlir::LogicalResult vpux::IE::AvgPoolOp::inferReturnTypeComponents(
             true, /* It is only used during assertion. True will make it pass */
             roundingType == vpux::IE::RoundingType::CEIL);
 
-    const auto shapeI64 = to_vector<4>(outputShape.get_shape() | transformed([](size_t val) {
-                                           return checked_cast<int64_t>(val);
-                                       }));
+    const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
+                                              return checked_cast<int64_t>(val);
+                                          }));
     inferredReturnShapes.emplace_back(shapeI64, inType);
 
     return mlir::success();

@@ -116,12 +116,12 @@ private:
     }
 
 private:
-    SmallVector<mlir::Value, 4> getInputs(const OrigNodePtr& node);
+    SmallVector<mlir::Value> getInputs(const OrigNodePtr& node);
     void addOutputs(const OrigNodePtr& node, mlir::Operation* op);
     mlir::Location createLocation(const OrigNodePtr& node);
 
 private:
-    static SmallVector<int64_t, 4> importShape(const ngraph::PartialShape& shape);
+    static SmallVector<int64_t> importShape(const ngraph::PartialShape& shape);
     mlir::Type importElemType(const ngraph::element::Type& elemType);
     mlir::RankedTensorType importTensor(const ngraph::PartialShape& shape, const ngraph::element::Type& elemType);
     IE::AutoBroadcastTypeAttr importBroadcastType(ngraph::op::AutoBroadcastType bType);
@@ -201,13 +201,13 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
 
 #undef MAP_ENTRY
 
-    SmallVector<mlir::Type, 1> inputTypes;
+    SmallVector<mlir::Type> inputTypes;
     inputTypes.reserve(_netGraph->get_parameters().size());
     for (const auto& param : _netGraph->get_parameters()) {
         inputTypes.push_back(importTensor(param->get_partial_shape(), param->get_element_type()));
     }
 
-    SmallVector<mlir::Type, 1> outputTypes;
+    SmallVector<mlir::Type> outputTypes;
     outputTypes.reserve(_netGraph->get_results().size());
     for (const auto& result : _netGraph->get_results()) {
         outputTypes.push_back(importTensor(result->get_input_partial_shape(0), result->get_input_element_type(0)));
@@ -241,7 +241,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
         (this->*parser)(builder, origNode);
     }
 
-    SmallVector<mlir::Value, 4> funcOutputs;
+    SmallVector<mlir::Value> funcOutputs;
     funcOutputs.reserve(_netGraph->get_results().size());
 
     for (const auto& p : _netGraph->get_results() | indexed) {
@@ -832,8 +832,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 // IR builder helpers
 //
 
-SmallVector<mlir::Value, 4> NGraphImporter::getInputs(const OrigNodePtr& node) {
-    SmallVector<mlir::Value, 4> out;
+SmallVector<mlir::Value> NGraphImporter::getInputs(const OrigNodePtr& node) {
+    SmallVector<mlir::Value> out;
     out.reserve(node->get_input_size());
 
     for (const auto& input : node->inputs()) {
@@ -864,10 +864,10 @@ mlir::Location NGraphImporter::createLocation(const OrigNodePtr& node) {
 // nGraph attributes importers
 //
 
-SmallVector<int64_t, 4> NGraphImporter::importShape(const ngraph::PartialShape& shape) {
+SmallVector<int64_t> NGraphImporter::importShape(const ngraph::PartialShape& shape) {
     VPUX_THROW_UNLESS(shape.rank().is_static(), "Dynamically ranked tensors are not supported");
 
-    SmallVector<int64_t, 4> out(checked_cast<size_t>(shape.rank().get_length()));
+    SmallVector<int64_t> out(checked_cast<size_t>(shape.rank().get_length()));
     for (const auto ind : irange(out.size())) {
         const auto& dim = shape[ind];
         out[ind] = dim.is_static() ? dim.get_length() : mlir::ShapedType::kDynamicSize;
@@ -1084,12 +1084,12 @@ mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precis
 }
 
 mlir::MemRefType importBuffer(mlir::MLIRContext* ctx, const InferenceEngine::TensorDesc& desc) {
-    SmallVector<int64_t, MAX_NUM_DIMS> shape(desc.getDims().size());
+    SmallVector<int64_t> shape(desc.getDims().size());
     std::copy(desc.getDims().begin(), desc.getDims().end(), shape.begin());
 
     const auto precision = importPrecision(ctx, desc.getPrecision());
 
-    SmallVector<mlir::AffineMap, 1> affineMaps;
+    SmallVector<mlir::AffineMap> affineMaps;
     if (auto layout = importLayout(ctx, desc.getLayout())) {
         affineMaps.push_back(layout);
     }

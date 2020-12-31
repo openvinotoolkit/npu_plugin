@@ -77,7 +77,7 @@ mlir::LogicalResult vpux::IE::PriorBoxOp::inferReturnTypeComponents(
     const auto priorBoxAttrs = getNGraphPriorBoxAttrs(priorBox);
     const auto numPriors = ngraph::op::PriorBox::number_of_priors(priorBoxAttrs);
 
-    mlir::SmallVector<int64_t, 2> outShape{2, 4 * numPriors};
+    SmallVector<int64_t> outShape{2, 4 * numPriors};
     outShape[1] *= *elementsRange.begin();
     outShape[1] *= *(elementsRange.begin() + 1);
 

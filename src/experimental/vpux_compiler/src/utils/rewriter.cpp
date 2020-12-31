@@ -32,7 +32,7 @@ mlir::LogicalResult vpux::rewriteFuncPrototype(mlir::FuncOp funcOp, mlir::TypeCo
         conversion.addInputs(checked_cast<uint32_t>(p.index()), newType);
     }
 
-    SmallVector<mlir::Type, 1> newResultTypes;
+    SmallVector<mlir::Type> newResultTypes;
     newResultTypes.reserve(funcOp.getNumResults());
     for (const auto& outType : funcType.getResults()) {
         newResultTypes.push_back(typeConverter.convertType(outType));

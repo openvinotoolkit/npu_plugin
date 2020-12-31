@@ -92,7 +92,7 @@ public:
     using details::DimBase<Dim>::DimBase;
 };
 
-using DimArr = SmallVector<Dim, MAX_NUM_DIMS>;
+using DimArr = SmallVector<Dim>;
 using DimArrRef = ArrayRef<Dim>;
 
 //
@@ -109,7 +109,7 @@ public:
     using details::DimBase<MemDim>::DimBase;
 };
 
-using MemDimArr = SmallVector<MemDim, MAX_NUM_DIMS>;
+using MemDimArr = SmallVector<MemDim>;
 using MemDimArrRef = ArrayRef<MemDim>;
 
 }  // namespace vpux

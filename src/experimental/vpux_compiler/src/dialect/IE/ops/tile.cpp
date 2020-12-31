@@ -44,7 +44,7 @@ mlir::LogicalResult vpux::IE::TileOp::inferReturnTypeComponents(
 
     const auto elementsRange = denseElementArray.getValues<int64_t>();
 
-    auto outShape = to_vector<4>(inType.getShape());
+    auto outShape = to_small_vector(inType.getShape());
     auto elementsIter = elementsRange.begin();
     for (size_t i = 0; i < outShape.size(); ++i) {
         if (elementsIter == elementsRange.end()) {

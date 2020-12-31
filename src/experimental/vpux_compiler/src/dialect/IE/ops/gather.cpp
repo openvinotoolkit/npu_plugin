@@ -51,7 +51,7 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    SmallVector<int64_t, 4> outShape;
+    SmallVector<int64_t> outShape;
     outShape.reserve(inputShape.size() + indicesShape.size() - 1);
 
     // calculate output shapes

@@ -32,7 +32,7 @@ mlir::LogicalResult vpux::IE::RegionYoloOp::inferReturnTypeComponents(
 
     const auto inType = regionYolo.input().getType().cast<mlir::ShapedType>();
 
-    mlir::SmallVector<int64_t, 4> outputShape;
+    SmallVector<int64_t> outputShape;
     if (regionYolo.do_softmax().getValue()) {
         for (int64_t i = 0; i < regionYolo.axis().getInt(); i++) {
             outputShape.push_back(inType.getShape()[i]);

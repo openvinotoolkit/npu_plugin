@@ -273,9 +273,9 @@ Optional<DimsOrder> vpux::DimsOrder::fromAffineMap(mlir::AffineMap map) {
 }
 
 mlir::AffineMap vpux::DimsOrder::toAffineMap(mlir::MLIRContext* ctx) const {
-    const auto permutation = to_vector<4>(toPermutation() | reversed | transformed([](Dim d) {
-                                              return static_cast<unsigned>(d.ind());
-                                          }));
+    const auto permutation = to_small_vector(toPermutation() | reversed | transformed([](Dim d) {
+                                                 return static_cast<unsigned>(d.ind());
+                                             }));
 
     return mlir::AffineMap::getPermutationMap(permutation, ctx);
 }

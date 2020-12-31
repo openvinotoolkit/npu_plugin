@@ -52,9 +52,8 @@ public:
     static const mlir::PatternBenefit specificBenefit;
 
 public:
-    static SmallVector<mlir::Value, 1> allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
-                                                       mlir::TypeConverter& typeConverter,
-                                                       mlir::ValueRange origResults);
+    static SmallVector<mlir::Value> allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
+                                                    mlir::TypeConverter& typeConverter, mlir::ValueRange origResults);
 
 private:
     void passBody();
@@ -81,15 +80,15 @@ void BufferizeIEPass::runOnFunction() {
 // allocateResults
 //
 
-SmallVector<mlir::Value, 1> BufferizeIEPass::allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
-                                                             mlir::TypeConverter& typeConverter,
-                                                             mlir::ValueRange origResults) {
-    return to_vector<1>(origResults | transformed([&](mlir::Value origVal) -> mlir::Value {
-                            auto origType = origVal.getType();
-                            auto memRefType = typeConverter.convertType(origType);
-                            auto allocOp = builder.create<mlir::AllocOp>(loc, memRefType.cast<mlir::MemRefType>());
-                            return allocOp.memref();
-                        }));
+SmallVector<mlir::Value> BufferizeIEPass::allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
+                                                          mlir::TypeConverter& typeConverter,
+                                                          mlir::ValueRange origResults) {
+    return to_small_vector(origResults | transformed([&](mlir::Value origVal) -> mlir::Value {
+                               auto origType = origVal.getType();
+                               auto memRefType = typeConverter.convertType(origType);
+                               auto allocOp = builder.create<mlir::AllocOp>(loc, memRefType.cast<mlir::MemRefType>());
+                               return allocOp.memref();
+                           }));
 }
 
 //

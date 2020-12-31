@@ -37,11 +37,11 @@ namespace vpux {
 template <typename ConcreteOp>
 class SingleInputAndResultLayer : public mlir::OpTrait::TraitBase<ConcreteOp, SingleInputAndResultLayer> {
 public:
-    vpux::SmallVector<mlir::Value, 4> getInputs() {
+    SmallVector<mlir::Value> getInputs() {
         return {mlir::cast<ConcreteOp>(this->getOperation()).input()};
     }
 
-    vpux::SmallVector<mlir::Value, 1> getOutputs() {
+    SmallVector<mlir::Value> getOutputs() {
         return {mlir::cast<ConcreteOp>(this->getOperation()).output()};
     }
 };

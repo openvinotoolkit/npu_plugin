@@ -49,7 +49,7 @@ mlir::LogicalResult vpux::IE::DetectionOutputOp::inferReturnTypeComponents(
     const auto top_k = detectionOutput.attr().top_k().getInt();
     const auto num_classes = detectionOutput.attr().num_classes().getInt();
 
-    mlir::SmallVector<int64_t, 4> output_shape{1, 1};
+    SmallVector<int64_t> output_shape{1, 1};
     if (keep_top_k > 0) {
         output_shape.push_back(num_images * keep_top_k);
     } else if (top_k > 0) {

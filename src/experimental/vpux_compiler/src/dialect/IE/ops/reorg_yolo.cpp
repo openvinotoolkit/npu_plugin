@@ -48,7 +48,7 @@ mlir::LogicalResult vpux::IE::ReorgYoloOp::inferReturnTypeComponents(
                 printTo(mlir::emitError(loc), "For [N, C, H, W] input shape, C >= (stride*stride) is required."));
     }
 
-    mlir::SmallVector<int64_t, 4> outputShape{inType.getShape()[0], inType.getShape()[1]};
+    SmallVector<int64_t> outputShape{inType.getShape()[0], inType.getShape()[1]};
     for (size_t i = 2; i < inType.getShape().size(); i++) {
         outputShape.push_back(inType.getShape()[i] / reorgYolo.stride().getInt());
         outputShape[1] *= reorgYolo.stride().getInt();

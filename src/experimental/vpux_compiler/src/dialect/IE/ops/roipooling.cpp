@@ -60,7 +60,7 @@ mlir::LogicalResult vpux::IE::ROIPoolingOp::inferReturnTypeComponents(
                                            "Pooled size attributes pooled_h and pooled_w should should be positive."));
     }
 
-    SmallVector<int64_t, 4> output_shape;
+    SmallVector<int64_t> output_shape;
     output_shape.push_back(inShapeCoord[0]);
     output_shape.push_back(inShapeFeatureMap[1]);
     output_shape.push_back(output_size[0]);

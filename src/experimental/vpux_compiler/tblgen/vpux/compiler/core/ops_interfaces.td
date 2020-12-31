@@ -31,7 +31,7 @@ def LayerInterface : OpInterface<"LayerInterface"> {
     let methods = [
         InterfaceMethod<
             "Get all inputs (tensors or memory buffers) for the Operation",
-            "vpux::SmallVector<mlir::Value, 4>", "getInputs", (ins),
+            "vpux::SmallVector<mlir::Value>", "getInputs", (ins),
             [{
                 return $_op.getInputs();
             }]
@@ -39,7 +39,7 @@ def LayerInterface : OpInterface<"LayerInterface"> {
 
         InterfaceMethod<
             "Get the outputs (tensors or memory buffers) for the Operation",
-            "vpux::SmallVector<mlir::Value, 1>", "getOutputs", (ins),
+            "vpux::SmallVector<mlir::Value>", "getOutputs", (ins),
             [{
                 return $_op.getOutputs();
             }]
@@ -213,7 +213,7 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
     ];
 
     let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value, 4> getInputs() {
+        vpux::SmallVector<mlir::Value> getInputs() {
             if ($_op.bias() != nullptr) {
                 return {$_op.input(), $_op.filter(), $_op.bias()};
             } else {
@@ -221,7 +221,7 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
             }
         }
 
-        vpux::SmallVector<mlir::Value, 1> getOutputs() {
+        vpux::SmallVector<mlir::Value> getOutputs() {
             return {$_op.output()};
         }
     }];

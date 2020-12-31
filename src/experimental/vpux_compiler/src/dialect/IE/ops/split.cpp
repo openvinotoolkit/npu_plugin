@@ -49,7 +49,7 @@ mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    auto outShape = to_vector<4>(inType.getShape());
+    auto outShape = to_small_vector(inType.getShape());
     if (outShape[*elementsIter] < split.num_splits().getInt() ||
         outShape[*elementsIter] % split.num_splits().getInt() != 0) {
         return mlir::failure();

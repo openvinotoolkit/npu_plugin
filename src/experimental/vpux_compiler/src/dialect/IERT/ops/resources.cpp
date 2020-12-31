@@ -66,7 +66,7 @@ mlir::LogicalResult vpux::IERT::verifyOp(IERT::RunTimeResourcesOp op) {
 }
 
 IERT::RunTimeResourcesOp vpux::IERT::RunTimeResourcesOp::getFromModule(mlir::ModuleOp module) {
-    auto ops = to_vector<1>(module.getOps<IERT::RunTimeResourcesOp>());
+    auto ops = to_small_vector(module.getOps<IERT::RunTimeResourcesOp>());
 
     if (ops.empty()) {
         return nullptr;

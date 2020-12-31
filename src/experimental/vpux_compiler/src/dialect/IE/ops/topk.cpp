@@ -48,7 +48,7 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     const auto elementsRange = kArray.getValues<int64_t>();
     auto elementsIter = elementsRange.begin();
 
-    mlir::SmallVector<int64_t, 4> outShape;
+    SmallVector<int64_t> outShape;
     for (size_t i = 0; i < inputShape.size(); ++i) {
         outShape.push_back(inputShape[i]);
     }

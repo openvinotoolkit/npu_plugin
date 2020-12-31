@@ -130,7 +130,7 @@ public:
 
     template <class Range>
     auto createVector(const Range& range) {
-        const auto vec = to_vector<4>(range);
+        const auto vec = to_small_vector(range);
         return _impl.CreateVector(vec.data(), vec.size());
     }
 

@@ -25,10 +25,10 @@
 namespace vpux {
 namespace IE {
 
-mlir::FailureOr<SmallVector<int64_t, 4>> broadcastEltwiseShape(ArrayRef<int64_t> shape1, ArrayRef<int64_t> shape2,
-                                                               AutoBroadcastType broadcastType, mlir::Location loc);
+mlir::FailureOr<SmallVector<int64_t>> broadcastEltwiseShape(ArrayRef<int64_t> shape1, ArrayRef<int64_t> shape2,
+                                                            AutoBroadcastType broadcastType, mlir::Location loc);
 
-mlir::FailureOr<SmallVector<int64_t, 4>> broadcastEltwiseShape(ArrayRef<ArrayRef<int64_t>> shapes,
-                                                               AutoBroadcastType broadcastType, mlir::Location loc);
+mlir::FailureOr<SmallVector<int64_t>> broadcastEltwiseShape(ArrayRef<ArrayRef<int64_t>> shapes,
+                                                            AutoBroadcastType broadcastType, mlir::Location loc);
 }  // namespace IE
 }  // namespace vpux

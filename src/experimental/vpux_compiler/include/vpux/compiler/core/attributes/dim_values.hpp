@@ -35,7 +35,7 @@ namespace details {
 template <typename T>
 class DimValuesBase {
 public:
-    using ContainerType = SmallVector<T, MAX_NUM_DIMS>;
+    using ContainerType = SmallVector<T>;
     using ValueType = T;
 
 public:
