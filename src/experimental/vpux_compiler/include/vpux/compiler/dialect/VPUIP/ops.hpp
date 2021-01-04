@@ -17,12 +17,15 @@
 #pragma once
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
 
+#include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -51,7 +54,7 @@ namespace VPUIP {
 
 mlir::LogicalResult verifyOp(DeclareTensorOp op);
 mlir::LogicalResult verifyOp(DeclareConstantTensorOp op);
-mlir::LogicalResult verifyOp(ConfigureBarrierOp op);
+mlir::LogicalResult verifyOp(PoolingUPAOp op);
 
 }  // namespace VPUIP
 }  // namespace vpux

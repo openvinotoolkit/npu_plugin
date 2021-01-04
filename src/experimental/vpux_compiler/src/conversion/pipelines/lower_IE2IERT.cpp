@@ -39,26 +39,11 @@ public:
     void runOnOperation() final;
 
 private:
-    struct DataInfo final {
-        mlir::StringAttr name;
-        mlir::TypeAttr precision;
-        mlir::AffineMapAttr layout;
-    };
-
-private:
     void passBody();
-
-    mlir::LogicalResult removeCnnNetworkOp();
-    mlir::LogicalResult restoreCnnNetworkOp();
 
 private:
     Logger _log;
     mlir::OpPassManager _pm;
-    mlir::LocationAttr _netInfoLoc;
-    mlir::StringAttr _netName;
-    mlir::FlatSymbolRefAttr _entryPoint;
-    SmallVector<DataInfo, 1> _inputsInfo;
-    SmallVector<DataInfo, 1> _outputsInfo;
 };
 
 LowerIE2IERTPass::LowerIE2IERTPass(Logger log)
@@ -89,76 +74,9 @@ void LowerIE2IERTPass::runOnOperation() {
 
 void LowerIE2IERTPass::passBody() {
     auto module = getOperation();
-
-    if (mlir::failed(removeCnnNetworkOp())) {
-        signalPassFailure();
-        return;
-    }
-
     if (mlir::failed(runPipeline(_pm, module))) {
         signalPassFailure();
-        return;
     }
-
-    if (mlir::failed(restoreCnnNetworkOp())) {
-        signalPassFailure();
-        return;
-    }
-}
-
-mlir::LogicalResult LowerIE2IERTPass::removeCnnNetworkOp() {
-    _log.trace("Remove IE::CNNNetwork Operation from IR");
-
-    auto module = getOperation();
-
-    IE::CNNNetworkOp netOp;
-    mlir::FuncOp netFunc;
-    if (mlir::failed(IE::CNNNetworkOp::getFromModule(module, netOp, netFunc))) {
-        _log.error("Failed to get IE::CNNNetwork Operation from module");
-        return mlir::failure();
-    }
-
-    _netInfoLoc = netOp.getLoc();
-    _netName = netOp.netNameAttr();
-    _entryPoint = netOp.entryPointAttr();
-
-    for (auto dataInfo : netOp.inputsInfo().getOps<IE::DataInfoOp>()) {
-        _inputsInfo.push_back(DataInfo{dataInfo.nameAttr(), dataInfo.precisionAttr(),
-                                       mlir::AffineMapAttr::get(getAffineMap(module.getContext(), dataInfo.layout()))});
-    }
-    for (auto dataInfo : netOp.outputsInfo().getOps<IE::DataInfoOp>()) {
-        _outputsInfo.push_back(
-                DataInfo{dataInfo.nameAttr(), dataInfo.precisionAttr(),
-                         mlir::AffineMapAttr::get(getAffineMap(module.getContext(), dataInfo.layout()))});
-    }
-
-    netOp.erase();
-
-    return mlir::success();
-}
-
-mlir::LogicalResult LowerIE2IERTPass::restoreCnnNetworkOp() {
-    _log.trace("Restore IERT::CNNNetwork Operation");
-
-    auto module = getOperation();
-
-    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
-
-    auto netOp = builder.create<IERT::CNNNetworkOp>(_netInfoLoc, _netName, _entryPoint);
-    IERT::CNNNetworkOp::ensureTerminator(netOp.inputsInfo(), builder, _netInfoLoc);
-    IERT::CNNNetworkOp::ensureTerminator(netOp.outputsInfo(), builder, _netInfoLoc);
-
-    builder.setInsertionPointToStart(&netOp.inputsInfo().front());
-    for (const auto& info : _inputsInfo) {
-        builder.create<IERT::DataInfoOp>(_netInfoLoc, info.name, info.precision, info.layout);
-    }
-
-    builder.setInsertionPointToStart(&netOp.outputsInfo().front());
-    for (const auto& info : _outputsInfo) {
-        builder.create<IERT::DataInfoOp>(_netInfoLoc, info.name, info.precision, info.layout);
-    }
-
-    return mlir::success();
 }
 
 }  // namespace

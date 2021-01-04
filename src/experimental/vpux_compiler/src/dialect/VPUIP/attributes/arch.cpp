@@ -34,13 +34,13 @@ const StringLiteral bandwidthAttrName = "VPUIP.bandwidth";
 }  // namespace
 
 void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
-    module.setAttr(archAttrName, VPUIP::ArchKindAttr::get(kind, module.getContext()));
+    module.setAttr(archAttrName, VPUIP::ArchKindAttr::get(module.getContext(), kind));
 
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
     auto resources = builder.create<IERT::RunTimeResourcesOp>(module.getLoc());
 
     const auto addMem = [&](VPUIP::PhysicalMemory kind, Byte size, double derateFactor, uint32_t bandwidth) {
-        auto mem = resources.addAvailableMemory(VPUIP::PhysicalMemoryAttr::get(kind, module.getContext()), size);
+        auto mem = resources.addAvailableMemory(VPUIP::PhysicalMemoryAttr::get(module.getContext(), kind), size);
         mem.setAttr(derateFactorAttrName, getFP64Attr(module.getContext(), derateFactor));
         mem.setAttr(bandwidthAttrName, getInt64Attr(module.getContext(), bandwidth));
     };
@@ -54,11 +54,11 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
     }
 
     const auto getProcKind = [&](VPUIP::PhysicalProcessor kind) {
-        return VPUIP::PhysicalProcessorAttr::get(kind, module.getContext());
+        return VPUIP::PhysicalProcessorAttr::get(module.getContext(), kind);
     };
 
     const auto getDmaKind = [&](VPUIP::DMAEngine kind) {
-        return VPUIP::DMAEngineAttr::get(kind, module.getContext());
+        return VPUIP::DMAEngineAttr::get(module.getContext(), kind);
     };
     resources.addAvailableExecutor(getProcKind(PhysicalProcessor::Leon_RT), 1);
     resources.addAvailableExecutor(getProcKind(PhysicalProcessor::Leon_NN), 1);

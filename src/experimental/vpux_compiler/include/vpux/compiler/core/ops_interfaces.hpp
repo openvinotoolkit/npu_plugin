@@ -17,7 +17,6 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/dim.hpp"
-#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 
 #include "vpux/utils/core/range.hpp"
@@ -32,66 +31,29 @@
 namespace vpux {
 
 //
-// Forward declarations
+// SingleInputAndResultLayer
 //
 
-class DataInfoInterface;
-class NetInfoInterface;
-
-namespace details {
-
-//
-// DataInfoInterface
-//
-
-mlir::LogicalResult verifyDataInfo(mlir::Operation* op);
-
-//
-// NetInfoInterface
-//
-
-mlir::LogicalResult verifyNetInfo(mlir::Operation* op);
-
-mlir::FailureOr<std::pair<mlir::Operation*, mlir::FuncOp>> getNetInfo(mlir::ModuleOp module);
-
-template <class ConcreteOp>
-mlir::LogicalResult getNetInfo(mlir::ModuleOp module, ConcreteOp& netInfo, mlir::FuncOp& netFunc) {
-    auto res = getNetInfo(module);
-    if (mlir::failed(res)) {
-        return mlir::failure();
+template <typename ConcreteOp>
+class SingleInputAndResultLayer : public mlir::OpTrait::TraitBase<ConcreteOp, SingleInputAndResultLayer> {
+public:
+    vpux::SmallVector<mlir::Value, 4> getInputs() {
+        return {mlir::cast<ConcreteOp>(this->getOperation()).input()};
     }
 
-    if (!mlir::isa<ConcreteOp>(res->first)) {
-        return mlir::failure();
+    vpux::SmallVector<mlir::Value, 1> getOutputs() {
+        return {mlir::cast<ConcreteOp>(this->getOperation()).output()};
     }
-
-    netInfo = mlir::cast<ConcreteOp>(res->first);
-    netFunc = res->second;
-
-    return mlir::success();
-}
-
-SmallVector<DataInfoInterface, 1> getDataInfoVec(mlir::Region& region);
+};
 
 //
-// LayerInterface
+// Layer verifiers
 //
 
 mlir::LogicalResult verifyLayer(mlir::Operation* op);
-
-//
-// ConvertLayerInterface
-//
-
 mlir::LogicalResult verifyConvertLayer(mlir::Operation* op);
-
-//
-// SoftMaxLayerInterface
-//
-
 mlir::LogicalResult verifySoftMaxLayer(mlir::Operation* op);
 
-}  // namespace details
 }  // namespace vpux
 
 //

@@ -86,20 +86,20 @@ bool vpux::Logger::isActive(LogLevel msgLevel) const {
 
 namespace {
 
-llvm::HighlightColor getColor(LogLevel msgLevel) {
+llvm::raw_ostream::Colors getColor(LogLevel msgLevel) {
     switch (msgLevel) {
     case LogLevel::Fatal:
     case LogLevel::Error:
-        return llvm::HighlightColor::Error;
+        return llvm::raw_ostream::RED;
     case LogLevel::Warning:
-        return llvm::HighlightColor::Warning;
+        return llvm::raw_ostream::YELLOW;
     case LogLevel::Info:
-        return llvm::HighlightColor::Note;
+        return llvm::raw_ostream::CYAN;
     case LogLevel::Debug:
     case LogLevel::Trace:
-        return llvm::HighlightColor::Remark;
+        return llvm::raw_ostream::GREEN;
     default:
-        return llvm::HighlightColor::Remark;
+        return llvm::raw_ostream::SAVEDCOLOR;
     }
 }
 
@@ -118,7 +118,7 @@ void vpux::Logger::addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_
     auto& baseStream = llvm::DebugFlag ? llvm::dbgs() : llvm::outs();
 #endif
 
-    llvm::WithColor colorStream(baseStream, color);
+    llvm::WithColor colorStream(baseStream, color, true, false, llvm::ColorMode::Auto);
     auto& stream = colorStream.get();
 
     printTo(stream, "[{0}] ", _name);

@@ -20,6 +20,7 @@
 #include "vpux/compiler/core/attributes/dim_values.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/Value.h>
 
 #include <cstdint>
 
@@ -72,6 +73,7 @@ using Shape = details::DimValues<Dim, int64_t, details::ShapeTag>;
 using ShapeRef = details::DimValuesRef<Dim, int64_t, details::ShapeTag>;
 
 ShapeRef getShape(mlir::ShapedType type);
+ShapeRef getShape(mlir::Value val);
 
 //
 // MemShape

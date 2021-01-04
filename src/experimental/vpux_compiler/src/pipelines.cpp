@@ -21,6 +21,7 @@
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include <mlir/Pass/PassManager.h>
+#include <mlir/Transforms/Passes.h>
 
 using namespace vpux;
 
@@ -46,11 +47,10 @@ ReferenceModePass::ReferenceModePass(Logger log)
         : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _log.setName(Base::getArgumentName());
 
-    _pm.addPass(IE::createConvertNDOpsTo4DPass(_log.nest()));
-    _pm.addPass(IE::createAdjustPrecisionForVPUPass(_log.nest()));
+    _pm.addPass(mlir::createCanonicalizerPass());
+    _pm.addPass(IE::createAdjustForVPUPass(_log.nest()));
     _pm.addPass(createLowerIE2IERTPass(_log.nest()));
     _pm.addPass(createLowerIERT2VPUIPPass(_log.nest()));
-    _pm.addPass(VPUIP::createAssignTensorOffsetsDDRPass(_log.nest()));
     _pm.addPass(VPUIP::createAddLinearSchedulingPass(_log.nest()));
 }
 

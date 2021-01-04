@@ -57,7 +57,7 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
                     alignCase = true;
                 }
                 auto quantize = om.uPATaskQuantize("Quantize" + task->getName() + std::to_string(id), {tensor});
-                quantize->setDType(outputDType);
+                quantize->setDType(dtypeNeededInInput);
                 quantize->setQuantParams(tensorQuantParams);
                 if (tensor->hasAttr("splitStrategy"))
                     quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
@@ -111,11 +111,15 @@ void addSliceQuantizationLayer(mv::OpModel & om, std::vector<mv::Data::OpListIte
         else
         {
             sliceInputs.push_back(slice->getInputTensor()[0]);
-            auto previousOpIt = om.getSourceOp(slice->getInputTensor(0));
-            for (auto sinkFlow = previousOpIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+        }
+
+        auto previousOpIt = om.getSourceOp(slice->getInputTensor(0));
+        for (auto sinkFlow = previousOpIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
+            if (sinkFlow.sink()->getName() == slice->getName())
             {
-                if (sinkFlow.sink()->getOpType() == "Slice")
-                    sliceFlows[slice->getInputTensor()[0]->getName()].push_back(sinkFlow);
+                sliceFlows[slice->getInputTensor()[0]->getName()].push_back(sinkFlow);
+                break;
             }
         }
     }
@@ -229,6 +233,8 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
                 outputFlow != om.flowEnd(); ++outputFlow) {
                 if (outputFlow.sink()->hasTypeTrait("executable")) {
                     executable_ops.push_back(outputFlow.sink());
+                } else if (outputFlow.sink()->getOpType() == "ImplicitOutput") {
+                    executable_ops.push_back(outputFlow.sink());
                 } else if (outputFlow.sink()->getOpType() != "Slice") {
                     op_itr_bfs.push(outputFlow.sink());
                 }
@@ -237,7 +243,9 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
         }
         for (auto op : executable_ops)
             if (std::find(dpuTasksFP16Names.begin(), dpuTasksFP16Names.end(),
-                    op->getName()) != dpuTasksFP16Names.end())
+                    op->getName()) != dpuTasksFP16Names.end() ||
+                op->getOpType() == "UPATask" ||
+                (op->getOpType() == "ImplicitOutput" && op->getOutputTensor(0)->getDType() == mv::DType("Float16")))
                 slicesFP16.push_back(slice);
     }
 

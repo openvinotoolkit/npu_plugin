@@ -25,7 +25,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 
-TEST(IE_FrontEndTest, PowerLayer) {
+TEST(IE_FrontEndTest, PowerLayerTest_SameShape) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{256, 56});
@@ -48,7 +48,7 @@ TEST(IE_FrontEndTest, PowerLayer) {
     EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
 }
 
-TEST(IE_FrontEndTest, PowerLayer_AutoBroadcastType_NUMPY) {
+TEST(IE_FrontEndTest, PowerLayerTest_AutoBroadcastType_NUMPY) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{8, 1, 6, 1});

@@ -12,9 +12,6 @@
 namespace LayerTestsDefinitions {
 
 class KmbReshapeLayerTest : public ReshapeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeImport() override {
-        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
-    }
     void SkipBeforeValidate() override {
         throw LayerTestsUtils::KmbSkipTestException("comparison fails");
     }
@@ -80,5 +77,40 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck4Dto4DTensor_pass_mcm, KmbReshapeLayer
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                             ::testing::Values(std::map<std::string, std::string>({}))),
                         ReshapeLayerTest::getTestCaseName);
+
+const std::vector<InferenceEngine::Precision> netPrecisionsNetworks = {
+        InferenceEngine::Precision::FP32,
+        // InferenceEngine::Precision::FP16,
+};
+
+//[Track number: S#46306]
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ReshapeCheckNetworkValues_1, KmbReshapeLayerTest,
+        ::testing::Combine(
+        ::testing::Values(true),
+        ::testing::ValuesIn(netPrecisionsNetworks),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(std::vector<size_t>{4}),
+        ::testing::Values(std::vector<size_t>{1, 1, 2, 2}),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(std::map<std::string, std::string>({}))),
+        ReshapeLayerTest::getTestCaseName);
+
+//[Track number: S#46306]
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ReshapeCheckNetworkValues_2, KmbReshapeLayerTest,
+        ::testing::Combine(
+        ::testing::Values(true),
+        ::testing::ValuesIn(netPrecisionsNetworks),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(std::vector<size_t>{1, 4, 2, 2}),
+        ::testing::Values(std::vector<size_t>{1, 2, 4, 2}),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(std::map<std::string, std::string>({}))),
+        ReshapeLayerTest::getTestCaseName);
 
 }  // namespace

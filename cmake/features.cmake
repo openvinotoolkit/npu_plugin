@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include(options)
-
-include(linux_name)
 if(COMMAND get_linux_name)
     get_linux_name(LINUX_OS_NAME)
 endif()

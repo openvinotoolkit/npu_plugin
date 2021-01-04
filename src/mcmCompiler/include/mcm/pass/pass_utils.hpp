@@ -19,27 +19,27 @@ namespace mv
     std::vector<mv::Control::OpListIterator> getOutputControlFlow(mv::ControlModel& om, mv::Control::OpListIterator opIt);
     void setInputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator op, const std::vector<mv::Control::OpListIterator>& inputControlFlows);
     void setOutputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator op, const std::vector<mv::Control::OpListIterator>& outputControlFlows);
+    void removeOperation(mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt);
     mv::Data::OpListIterator linkNewOperationsRemove(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt);
     mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt);
-    mv::Data::OpListIterator linkNewMultipleOperationsReplacement(mv::Data::OpListIterator parentOpIt, std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel & om, mv::Data::OpListIterator opIt);
     mv::Data::OpListIterator linkNewOperationsReplacementRemoveFlows(mv::Data::OpListIterator childOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt);
+    mv::Data::OpListIterator linkNewMultipleOperationsReplacement(mv::Data::OpListIterator parentOpIt, std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel & om, mv::Data::OpListIterator opIt);
+    mv::Data::OpListIterator linkNewMultipleOperationsReplacementRemoveFlows(mv::Data::OpListIterator parentOpIt, std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel & om, mv::Data::OpListIterator opIt);
+    mv::Data::TensorIterator insertDMAReplacementRemoveFlows(mv::OpModel& om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator input, mv::DmaDirection const& direction, int8_t const &port, std::vector<mv::Data::FlowListIterator> flows, std::vector<std::size_t> inSlots, std::vector<mv::Data::OpListIterator> sinks, std::string const& dmaOpName);
     std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor);
     bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice, mv::Target target);
+
+    mv::Data::TensorIterator dequantizeWeightsToFP16(
+        mv::Data::TensorIterator weightsTensor,
+        mv::Data::OpListIterator opIt,
+        mv::OpModel &om);
 
     bool isVectorsEqual(const std::vector<double>& left, const std::vector<double>& right);
     bool isEqualScale(const mv::QuantizationParams& left, const mv::QuantizationParams& right);
     bool isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right);
 
 }
-void calcZeroPointAndScalePerTensor(double outputMax,  double outputMin, double& outScale, int64_t& outZp);
-void calcZeroPointAndScalePerChannel(
-    std::vector<double> &floatMax,
-    std::vector<double> &floatMin,
-    std::vector<double> &quantScale,
-    std::vector<int64_t> &quantZp,
-    int64_t levels);
-void updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor);
-void updateInfMinMaxPerChannel(mv::Data::TensorIterator tensor);
+
 void provideAccuracyinPPEs(mv::ComputationModel& model);
 //template <class T>
 //std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName);

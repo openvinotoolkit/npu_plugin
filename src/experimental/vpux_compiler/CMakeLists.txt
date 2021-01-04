@@ -174,10 +174,12 @@ add_op_interfaces("core")
 
 add_dialect("IE")
 add_enum_attrs("IE")
+add_struct_attrs("IE")
 add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")
 
 add_dialect("IERT")
+add_passes("dialect/IERT" "IERT")
 
 add_dialect("VPUIP")
 add_op_interfaces("dialect/VPUIP")

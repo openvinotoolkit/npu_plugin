@@ -18,31 +18,20 @@
 
 #include "vpux/utils/core/checked_cast.hpp"
 
-#include <mlir/IR/PatternMatch.h>
-
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ReLUOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::ReLUOpAdaptor relu(operands, attrs);
     if (mlir::failed(relu.verify(loc))) {
-        return ::mlir::failure();
+        return mlir::failure();
     }
 
-    auto inType = relu.input().getType().cast<mlir::RankedTensorType>();
-
+    const auto inType = relu.input().getType().cast<mlir::ShapedType>();
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
-}
-
-SmallVector<mlir::Value, 4> vpux::IE::ReLUOp::getInputs() {
-    return {input()};
-}
-
-SmallVector<mlir::Value, 1> vpux::IE::ReLUOp::getOutputs() {
-    return {output()};
 }

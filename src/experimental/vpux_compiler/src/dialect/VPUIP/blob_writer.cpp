@@ -21,12 +21,15 @@
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 
+#include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/small_vector.hpp"
+
+#include <algorithm>
 
 using namespace vpux;
 
@@ -78,17 +81,24 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir::Operation* op,
-                                                                            const SoftwareLayerParams& params,
-                                                                            Optional<uint32_t> maxShaves,
-                                                                            bool isTrailingSWLayer) {
-    auto task = mlir::cast<VPUIP::TaskOpInterface>(op);
+                                                                            const SoftwareLayerParams& params) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createUPALayerTask");
+
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' is not a Layer", op->getName());
+
+    auto upaTask = mlir::dyn_cast<VPUIP::UPATaskOpInterface>(op);
+    VPUX_THROW_UNLESS(upaTask != nullptr, "Operation '{0}' is not a UPA Task", op->getName());
+
+    const auto maxShaves = upaTask.maxShaves();
+    const auto isTrailingSWLayer = upaTask.isTrailingSWLayer();
 
     const auto getTensorCb = [this](mlir::Value val) {
         return getTensor(val);
     };
 
-    const auto inputs = createVector(task.inputTensors() | transformed(getTensorCb));
-    const auto outputs = createVector(task.outputTensors() | transformed(getTensorCb));
+    const auto inputs = createVector(layer.getInputs() | transformed(getTensorCb));
+    const auto outputs = createVector(layer.getOutputs() | transformed(getTensorCb));
 
     MVCNN::UPALayerTaskBuilder builder(_impl);
     if (maxShaves.hasValue()) {
@@ -98,7 +108,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
         VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources definition");
 
         auto available = resources.getAvailableExecutor(
-                VPUIP::PhysicalProcessorAttr::get(VPUIP::PhysicalProcessor::SHAVE_UPA, op->getContext()));
+                VPUIP::PhysicalProcessorAttr::get(op->getContext(), VPUIP::PhysicalProcessor::SHAVE_UPA));
         VPUX_THROW_UNLESS(available != nullptr, "SHAVE_UPA executor is not avaialble in run-time");
 
         builder.add_maxShaves(checked_cast<uint8_t>(available.count()));
@@ -334,6 +344,26 @@ VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirect
     return builder.Finish();
 }
 
+MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
+    auto vec = parseIntArrayAttr(attr);
+    std::reverse(vec.begin(), vec.end());
+
+    VPUX_THROW_UNLESS(vec.size() <= 3, "Got wrong order array : {0}", vec);
+
+    uint8_t x = 0, y = 0, z = 0;
+    if (vec.size() >= 1) {
+        x = checked_cast<uint8_t>(vec[0]);
+    }
+    if (vec.size() >= 2) {
+        y = checked_cast<uint8_t>(vec[1]);
+    }
+    if (vec.size() >= 3) {
+        z = checked_cast<uint8_t>(vec[2]);
+    }
+
+    return MVCNN::order3(x, y, z);
+}
+
 VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(mlir::DenseElementsAttr content,
                                                                         bool csram_cacheable) {
     auto type = content.getType().cast<mlir::ShapedType>();
@@ -347,17 +377,23 @@ VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(mlir::De
     std::vector<uint64_t> alignedContent(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
     const auto rawData = content.getRawData();
-    VPUX_THROW_UNLESS(rawData.size() == totalByteSize, "Raw Size mismatch for const content : '{0}' vs '{1}'",
-                      rawData.size(), totalByteSize);
-
-    std::copy_n(reinterpret_cast<const uint8_t*>(rawData.data()), totalByteSize,
-                reinterpret_cast<uint8_t*>(alignedContent.data()));
+    if (content.isSplat()) {
+        loop_1d(LoopExecPolicy::Parallel, (totalByteSize / elemTypeByteSize), [&](int i) {
+            auto dst = reinterpret_cast<uint8_t*>(alignedContent.data()) + i * elemTypeByteSize;
+            std::copy_n(reinterpret_cast<const uint8_t*>(rawData.data()), elemTypeByteSize, dst);
+        });
+    } else {
+        VPUX_THROW_UNLESS(rawData.size() == totalByteSize, "Raw Size mismatch for const content : '{0}' vs '{1}'",
+                          rawData.size(), totalByteSize);
+        std::copy_n(reinterpret_cast<const uint8_t*>(rawData.data()), totalByteSize,
+                    reinterpret_cast<uint8_t*>(alignedContent.data()));
+    }
 
     const auto serializedContent = createVector(alignedContent);
 
     MVCNN::BinaryDataBuilder builder(_impl);
     builder.add_underlying_type(MVCNN::DType::DType_U8);
-    builder.add_length(alignedContent.size() * sizeof(uint64_t));
+    builder.add_length(totalByteSize);
     builder.add_data(serializedContent);
     builder.add_csram_cacheable(csram_cacheable);
     return builder.Finish();

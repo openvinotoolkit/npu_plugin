@@ -1,4 +1,5 @@
 ﻿#include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/pass/pass_quantization.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "mcm/utils/custom_math.hpp"
@@ -183,7 +184,12 @@ static mv::QuantizationParams computeAlignedQuantParams(mv::Data::OpListIterator
 
     double masterScale = 1.0;
     int64_t zeroPoint = 0;
-    calcZeroPointAndScalePerTensor(maxConcatScale, minConcatScale, masterScale, zeroPoint);
+    calcZeroPointAndScalePerTensor(
+        maxConcatScale,
+        minConcatScale,
+        masterScale,
+        zeroPoint,
+        mv::getDType(mv::Precision::U8));
 
     return {{zeroPoint},{masterScale},{minConcatScale},{maxConcatScale}};
 }
@@ -198,6 +204,19 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
 
     // NOTE: For concats that go to concats the solution need to be recursive
     // Covering 2 recursion rounds now
+
+    // Trim out float concats
+    auto new_end = std::remove_if(concats.begin(), concats.end(),
+                [](const mv::Data::OpListIterator op)
+                {
+                    for (auto tensor : op->getInputTensor())
+                        if (!(tensor->getDType().isDoubleType() ||
+                            tensor->getDType() == mv::DType("Float16")))
+                            return false;
+                    return true;
+                });
+    concats.erase(new_end, concats.end());
+
     std::vector<mv::Data::OpListIterator> childConcats;
     for(auto& concatIt : concats)
     {

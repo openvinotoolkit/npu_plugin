@@ -3,7 +3,7 @@
 //
 // The 'lower-IE-to-IERT' pass:
 //
-//   * Fully replaces IE Dialect with IERT Dielect.
+//   * Fully replaces IE Dialect with IERT Dielect (except `IE.CNNNetwork` Operation).
 //   * Changes all Values types from `tensor` to `memref`.
 //   * Changes Function results tensors to arguments.
 //   * Replaces `std.constant` Operations with `global_memref`/`get_global_memref`.
@@ -11,20 +11,17 @@
 //   * Inserts `std.dealloc` Operations for inner buffers.
 //
 
-// CHECK: #NC = affine_map<(d0, d1) -> (d0, d1)>
-
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
 
-// CHECK: IERT.CNNNetwork "SingleLayer" at @main
-IE.CNNNetwork "SingleLayer" at @main
+// CHECK: IE.CNNNetwork
+IE.CNNNetwork
+    entryPoint: @main
     inputsInfo : {
-        // CHECK: IERT.DataInfo "data", f32, #NC
-        IE.DataInfo "data", f32, "NC"
+        IE.DataInfo "data" : memref<1x1000xf32>
     }
     outputsInfo : {
-        // CHECK: IERT.DataInfo "prob", f32, #NC
-        IE.DataInfo "prob", f32, "NC"
+        IE.DataInfo "prob" : memref<1x1000xf32>
     }
 
 // CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x1000xf16>, [[ARG1:%arg[0-9]*]]: memref<1x1000xf16>) {
@@ -40,21 +37,19 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 
 // -----
 
-// CHECK: #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-
 // CHECK-LABEL: @ConstantLayer
 module @ConstantLayer {
 
-// CHECK: IERT.CNNNetwork "ConstantLayer" at @main
-IE.CNNNetwork "ConstantLayer" at @main
+// CHECK: global_memref "private" constant [[CST0:@[a-z0-9_]+]] : memref<1x2x2x2xf16>
+
+// CHECK: IE.CNNNetwork
+IE.CNNNetwork
+    entryPoint: @main
     inputsInfo : {
     }
     outputsInfo : {
-        // CHECK: IERT.DataInfo "output", f32, #NCHW
-        IE.DataInfo "output", f32, "NCHW"
+        IE.DataInfo "output" : memref<1x2x2x2xf32>
     }
-
-// CHECK: global_memref "private" constant [[CST0:@[a-z0-9_]+]] : memref<1x2x2x2xf16>
 
 // CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x2x2x2xf16>) {
 func @main() -> tensor<1x2x2x2xf16> {

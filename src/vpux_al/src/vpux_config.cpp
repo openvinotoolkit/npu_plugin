@@ -41,6 +41,8 @@ vpux::VPUXConfig::VPUXConfig() {
                                                                                VPUX_CONFIG_KEY(CSRAM_SIZE),
                                                                                VPUX_CONFIG_KEY(USE_M2I),
                                                                                VPU_KMB_CONFIG_KEY(USE_M2I),
+                                                                               VPUX_CONFIG_KEY(USE_SHAVE_ONLY_M2I),
+                                                                               VPU_KMB_CONFIG_KEY(USE_SHAVE_ONLY_M2I),
                                                                                VPUX_CONFIG_KEY(USE_SIPP),
                                                                                VPU_KMB_CONFIG_KEY(USE_SIPP),
                                                                                VPUX_CONFIG_KEY(PREPROCESSING_SHAVES),
@@ -90,6 +92,8 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_csramSize, config, VPUX_CONFIG_KEY(CSRAM_SIZE), parseInt);
     setOption(_useM2I, switches, config, VPUX_CONFIG_KEY(USE_M2I));
     setOption(_useM2I, switches, config, VPU_KMB_CONFIG_KEY(USE_M2I));
+    setOption(_useSHAVE_only_M2I, switches, config, VPUX_CONFIG_KEY(USE_SHAVE_ONLY_M2I));
+    setOption(_useSHAVE_only_M2I, switches, config, VPU_KMB_CONFIG_KEY(USE_SHAVE_ONLY_M2I));
     setOption(_useSIPP, switches, config, VPUX_CONFIG_KEY(USE_SIPP));
     setOption(_useSIPP, switches, config, VPU_KMB_CONFIG_KEY(USE_SIPP));
     setOption(_numberOfSIPPShaves, config, VPUX_CONFIG_KEY(PREPROCESSING_SHAVES), parseInt);
@@ -108,5 +112,5 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
 }
 
 std::string vpux::getLibFilePath(const std::string& baseName) {
-    return FileUtils::makeSharedLibraryName(InferenceEngine::getIELibraryPath(), baseName + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName(InferenceEngine::getIELibraryPath(), baseName + IE_BUILD_POSTFIX);
 }

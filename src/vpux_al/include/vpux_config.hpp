@@ -53,6 +53,9 @@ public:
     bool useM2I() const {
         return _useM2I;
     }
+    bool useSHAVE_only_M2I() const {
+        return _useSHAVE_only_M2I;
+    }
     bool useSIPP() const {
         return _useSIPP;
     }
@@ -80,7 +83,7 @@ protected:
     // Public options
     bool _performanceCounting = false;
     std::string _deviceId = "VPU-0";
-    int _throughputStreams = 1;
+    int _throughputStreams = 2;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::MA2490;
 
     // Private options
@@ -90,6 +93,7 @@ protected:
     // FIXME: Likely has to be true by default as well.
     // NB.: Currently applies to the detection use-case only
     bool _useM2I = false;
+    bool _useSHAVE_only_M2I = false;
     bool _useSIPP = true;
     int _numberOfSIPPShaves = 4;
     int _SIPPLpi = 8;

@@ -74,8 +74,7 @@ public:
     Task createTask(mlir::Operation* op);
 
 public:
-    SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params,
-                                    Optional<uint32_t> maxShaves, bool isTrailingSWLayer);
+    SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
 
 public:
     TensorReference createTensor(StringRef name, mlir::MemRefType type, MemoryLocation locale,
@@ -116,6 +115,8 @@ public:
     IndirectDataReference createIndirectDataReference(uint64_t dataIndex, Optional<uint64_t> sparsityIndex = None,
                                                       Optional<uint64_t> storageElementIndex = None,
                                                       Optional<uint32_t> storageElementSize = None);
+
+    static MVCNN::order3 createOrder3(mlir::ArrayAttr attr);
 
 public:
     auto createString(StringRef str) {

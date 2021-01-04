@@ -183,8 +183,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             auto outputDType = opIt->getOutputTensor(0)->getDType();
             bool mixedPrecisionA0B0WorkAround = false;
 
-            if((inputDType != outputDType) && outputDType != mv::DType("Int32") && opIt->get<std::string>("taskOp") == "Conv"
-                && target == mv::Target::ma2490)
+            if((inputDType != outputDType) && outputDType != mv::DType("Int32") &&
+                opIt->isHardwarizable() &&
+                opIt->get<std::string>("taskOp") != "Eltwise" &&
+                target == mv::Target::ma2490)
                 mixedPrecisionA0B0WorkAround = true;
 
             /*For multi-clustering we work on subtensors*/

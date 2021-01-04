@@ -18,16 +18,17 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/pipelines.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Support/MlirOptMain.h>
-
-#include <iostream>
+#include <mlir/Transforms/Passes.h>
 
 #include <cstdlib>
+#include <iostream>
 
 int main(int argc, char* argv[]) {
     try {
@@ -37,9 +38,11 @@ int main(int argc, char* argv[]) {
         registry.insert<vpux::VPUIP::VPUIPDialect>();
 
         vpux::IE::registerIEPasses();
+        vpux::IERT::registerIERTPasses();
         vpux::VPUIP::registerVPUIPPasses();
         vpux::registerConversionPasses();
         vpux::registerPipelinesPasses();
+        mlir::registerTransformsPasses();
 
         const auto res = mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, true);
 

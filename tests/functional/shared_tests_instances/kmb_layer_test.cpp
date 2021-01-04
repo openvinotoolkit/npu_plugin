@@ -3,6 +3,7 @@
 //
 
 #include "kmb_layer_test.hpp"
+#include "kmb_test_report.hpp"
 
 #include <ie_utils.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
@@ -14,12 +15,8 @@
 
 namespace LayerTestsUtils {
 
-#ifndef __aarch64__
 // might need to use CommonTestUtils::DEVICE_CPU for ref calc
 const TargetDevice testPlatformTargetDevice("VPUX");
-#else
-const TargetDevice testPlatformTargetDevice("VPUX");
-#endif
 
 const KmbTestEnvConfig KmbLayerTestsCommon::envConfig;
 
@@ -107,12 +104,16 @@ void KmbLayerTestsCommon::Run() {
 
     std::cout << "KmbLayerTestsCommon::BuildNetworkWithoutCompile" << std::endl;
     BuildNetworkWithoutCompile();
+    KmbTestReport& report = KmbTestReport::getInstance();
+    const auto& testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    report.run(testInfo);
 
     try {
         if (envConfig.IE_KMB_TESTS_RUN_COMPILER) {
             std::cout << "KmbLayerTestsCommon::Compile" << std::endl;
             SkipBeforeLoad();
             ASSERT_NO_THROW(executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration));
+            report.compiled(testInfo);
 
             if (envConfig.IE_KMB_TESTS_RUN_EXPORT) {
                 std::cout << "KmbLayerTestsCommon::ExportNetwork()" << std::endl;
@@ -123,21 +124,25 @@ void KmbLayerTestsCommon::Run() {
             SkipBeforeLoad();
             SkipBeforeImport();
             ImportNetwork();
+            report.imported(testInfo);
         }
 
         if (envConfig.IE_KMB_TESTS_RUN_INFER) {
             std::cout << "KmbLayerTestsCommon::Infer()" << std::endl;
             SkipBeforeInfer();
             Infer();
+            report.inferred(testInfo);
 
             std::cout << "KmbLayerTestsCommon::Validate()" << std::endl;
             SkipBeforeValidate();
             Validate();
+            report.validated(testInfo);
         } else {
             std::cout << "Skip KmbLayerTestsCommon::Infer()" << std::endl;
         }
     } catch (const KmbSkipTestException &e) {
         std::cout << "Skipping the test due to: " << e.what() << std::endl;
+        report.skipped(testInfo);
         SKIP() << "Skipping the test due to: " << e.what();
     }
 }

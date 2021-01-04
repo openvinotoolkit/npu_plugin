@@ -16,12 +16,9 @@
 
 #pragma once
 
-#include "vpux/compiler/core/attributes/dims_order.hpp"
-
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
-#include <mlir/IR/AffineMap.h>
 #include <mlir/IR/BuiltinAttributes.h>
 
 //
@@ -29,19 +26,3 @@
 //
 
 #include <vpux/compiler/dialect/IE/generated/attributes/enums.hpp.inc>
-
-//
-// Layout utilities
-//
-
-namespace vpux {
-namespace IE {
-
-int32_t getRank(Layout layout);
-
-DimsOrder getDimsOrder(Layout layout);
-
-mlir::AffineMap getAffineMap(mlir::MLIRContext* ctx, Layout layout);
-
-}  // namespace IE
-}  // namespace vpux

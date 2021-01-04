@@ -23,35 +23,18 @@ include "vpux/compiler/dialect/VPUIP/dialect.td"
 // Base classes
 //
 
-class VPUIP_TypeDef<string name> : TypeDef<VPUIP_Dialect, name> {
+class VPUIP_Type<string name> : TypeDef<VPUIP_Dialect, name> {
     let mnemonic = name;
-}
-
-class VPUIP_Type<VPUIP_TypeDef typeDef> :
-        DialectType<
-            VPUIP_Dialect,
-            CPred<"$_self.isa<vpux::VPUIP::" # typeDef.cppClassName # ">()">,
-            typeDef.summary
-        > {
-    let typeDescription = typeDef.description;
 }
 
 //
 // Barrier
 //
 
-def VPUIP_BarrierDef : VPUIP_TypeDef<"Barrier"> {
+def VPUIP_Barrier : VPUIP_Type<"Barrier"> {
     let summary = "VPUIP Barrier Type";
 
-    let description = [{
-        This object represents closely a Barrier in the device
-    }];
+    let description = "This object represents closely a Barrier in the device";
 }
-
-def VPUIP_Barrier :
-        VPUIP_Type<VPUIP_BarrierDef>,
-        BuildableType<
-            "vpux::VPUIP::BarrierType::get($_builder.getContext())"
-        >;
 
 #endif

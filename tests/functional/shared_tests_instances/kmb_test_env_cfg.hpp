@@ -20,9 +20,9 @@ public:
     std::string IE_KMB_TESTS_DUMP_PATH;
     std::string IE_KMB_TESTS_LOG_LEVEL;
 
-    bool IE_KMB_TESTS_RUN_COMPILER = !IS_ON_ARM;
+    bool IE_KMB_TESTS_RUN_COMPILER = true;
     bool IE_KMB_TESTS_RUN_EXPORT = !IS_ON_ARM;
-    bool IE_KMB_TESTS_RUN_IMPORT = IS_ON_ARM;
+    bool IE_KMB_TESTS_RUN_IMPORT = false;
     bool IE_KMB_TESTS_RUN_INFER = IS_ON_ARM;
 
     bool IE_KMB_TESTS_RAW_EXPORT = false;

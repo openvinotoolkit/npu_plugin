@@ -23,6 +23,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
 void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceBigInputChannels(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -83,6 +84,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replaceLargeKernelsFcn(pass, model);
     replaceLargeStridesFcn(pass, model);
     replaceAsymmetricStridesFcn(pass, model);
+    replaceBigInputChannels(pass, model);
     topKAsArgMaxFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     interpAsDepthConvFcn(pass, model);
@@ -742,11 +744,11 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
 
     for (auto& opIt : scaleOps)
     {
-        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-        auto sourceTensor = opIt->getInputTensor(0);
+        const auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        const auto sourceTensor = opIt->getInputTensor(0);
+        const auto weightsTensor = opIt->getInputTensor(1);
+        const auto inputShape = sourceTensor->getShape();
         auto parentOpIt = om.getSourceOp(sourceTensor);
-        auto weightsData = opIt->getInputTensor(1)->getData();
-        auto inputShape = sourceTensor->getShape();
         auto weightsTensorQuantizationParams = opIt->getInputTensor(1)->getQuantParams();
         auto outputTensorQuantizationParams = opIt->getOutputTensor(0)->getQuantParams();
         auto outputTensorType = opIt->getOutputTensor(0)->getDType();
@@ -754,13 +756,13 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
         if (parentOpIt->getOpType() == "Conv")
             continue;
 
-        auto finalDType = opIt->getInputTensor(1)->getDType();
+        auto finalDType = weightsTensor->getDType();
         if (sourceTensor->getDType() == mv::DType("UInt8")) {
             finalDType = sourceTensor->getDType();
         }
 
         auto weights = om.constantDataElement(opIt->getName() + "_weights",
-                                              weightsData,
+                                              weightsTensor->getData(),
                                               {FULLY_CONNECTED_KERNEL, FULLY_CONNECTED_KERNEL, inputShape[mv::IO_CHANNEL_DIMENSION], 1},
                                               finalDType,
                                               mv::Order::getZMajorID(4));
@@ -772,7 +774,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
 
         if (opIt->hasAttr("bias"))
         {
-            auto biasTensorName = opIt->get<std::string>("bias");
+            const auto biasTensorName = opIt->get<std::string>("bias");
             om.addAttr(om.getSourceOp(conv2D), "bias", biasTensorName);
         }
 
@@ -1855,4 +1857,236 @@ void detectEltWiseUpaInputs(const mv::pass::PassEntry& /*pass*/, mv::Computation
             opIt->set<bool>("upaInputs", true);
         }
     }
+}
+
+
+//  Generic big input channels replacement function
+// with partial sum convolutions and eltwise ADD subtree.
+//  Additional function to resolve the bias and post ops subsequent
+// to the original conv operation.
+//  Future optimizations may choose to reshape the activation and kernels
+// to shift the big input channels dimensionality in the kernel H W dimensions
+// which should be better for specific cases yet will not be able to service as
+// a generic solution due to limitations around kernel size and stride.
+// Note: should be run after "fullyConnectedAsConv2D" to capture the
+// FC layers with big input channels also
+void replaceBigInputChannels(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    // All other hardwarizable ops can be streamed over input channels
+    // to overcome to the 8192 limitation
+    for (auto convOp : om.getOps("Conv"))
+    {
+        auto inputChannels = convOp->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+        if (inputChannels <= mv::MAX_DIM_SIZE)
+            continue;
+
+        size_t numSplits = std::ceil((double)inputChannels / mv::MAX_DIM_SIZE);
+        size_t splitSize = std::ceil((double)inputChannels / numSplits);
+
+        auto inputTensor = convOp->getInputTensor(0);
+        auto weightTensor = convOp->getInputTensor(1);
+
+        // Step 1
+        // Slice Conv input and weights and create partial sums
+        std::vector<mv::Data::TensorIterator> adjustedConvs;
+        for (auto splitIdx = 0; splitIdx < numSplits; splitIdx ++) {
+
+            auto inputDisplacement = std::pair<mv::Shape, mv::Shape>(
+                {
+                    0,
+                    0,
+                    splitSize * splitIdx,
+                    0
+                },
+                {
+                    inputTensor->getShape()[mv::IO_WIDTH_DIMENSION],
+                    inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION],
+                    std::min(
+                        splitSize,
+                        inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] -
+                        splitSize * splitIdx
+                    ),
+                    inputTensor->getShape()[mv::IO_BATCH_DIMENSION]
+                });
+
+            auto inputSlice = om.slice(
+                "Slice" + inputTensor->getName() + "_inch_reduction_act" + std::to_string(splitIdx),
+                inputTensor,
+                inputDisplacement.first,
+                inputDisplacement.second);
+            inputSlice->setQuantParams(inputTensor->getQuantParams());
+            om.getSourceOp(inputSlice)->set<unsigned>("opId",
+                convOp->get<unsigned>("opId"));
+
+            auto wtDisplacement = std::pair<mv::Shape, mv::Shape>(
+                {
+                    0,
+                    0,
+                    splitSize * splitIdx,
+                    0
+                },
+                {
+                    weightTensor->getShape()[mv::KERNEL_WIDTH],
+                    weightTensor->getShape()[mv::KERNEL_HEIGHT],
+                    std::min(
+                        splitSize,
+                        weightTensor->getShape()[mv::KERNEL_INPUT_CHANNELS] -
+                        splitSize * splitIdx
+                    ),
+                    weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]
+                });
+
+            auto wtSlice = om.slice(
+                "Slice" + weightTensor->getName() + "_inch_reduction_wt" + std::to_string(splitIdx),
+                weightTensor,
+                wtDisplacement.first,
+                wtDisplacement.second);
+            wtSlice->setQuantParams(weightTensor->getQuantParams());
+            om.getSourceOp(wtSlice)->set<unsigned>("opId",
+                om.getSourceOp(weightTensor)->get<unsigned>("opId"));
+
+            auto newConvTensor = om.conv(
+                "Slice" + convOp->getName() + "_inch_reduction" + std::to_string(splitIdx),
+                inputSlice,
+                wtSlice,
+                convOp->get<std::array<unsigned short, 2>>("stride"),
+                convOp->get<std::array<unsigned short, 4>>("padding"),
+                convOp->get<unsigned>("dilationFactor"),
+                convOp->get<unsigned>("group"));
+
+            om.getSourceOp(newConvTensor)->setAttrs(convOp->getAttrs());
+            newConvTensor->setQuantParams(convOp->getOutputTensor(0)->getQuantParams());
+            newConvTensor->setDType(convOp->getOutputTensor(0)->getDType());
+            adjustedConvs.push_back(newConvTensor);
+        }
+
+        // Step 2
+        // Consider fusing the bias tensor in one partial sum
+
+        // !!! Bias is solved ealier on beacause of the requirement of adding bias
+        // before the requantization stage. A lucky conv is chosen at random to
+        // get fused with bias
+        // Clone the bias tensor and remove teh original occurence
+        auto biasOp = om.opEnd();
+        if (convOp.childrenSize() == 1 &&
+            convOp.leftmostChild()->getOpType() == "Bias")
+            biasOp = convOp.leftmostChild();
+
+        if(biasOp != om.opEnd())
+        {
+            auto luckyConvTensor = adjustedConvs.back();
+            auto biasConstOpClone = om.cloneOp(
+                om.getSourceOp(biasOp->getInputTensor(1)));
+
+            auto newBiasTensor = om.bias(
+                biasOp->getName() + "_inch_reduction_early_fused_bias",
+                luckyConvTensor,
+                biasConstOpClone->getOutputTensor(0));
+            om.getSourceOp(newBiasTensor)->set<unsigned>("opId",
+                biasOp->hasAttr("opId") ? biasOp->get<unsigned>("opId"):
+                convOp->get<unsigned>("opId"));
+            newBiasTensor->setQuantParams(convOp->getOutputTensor(0)->getQuantParams());
+            newBiasTensor->setDType(convOp->getOutputTensor(0)->getDType());
+
+            linkNewOperationsRemove(convOp, om.tensorEnd(), om, biasOp);
+
+            adjustedConvs.pop_back();
+            adjustedConvs.push_back(newBiasTensor);
+        }
+
+        // Step 3
+        // Add all partial sums in eltwise subtree
+
+        auto sumIdx = 0;
+        while (adjustedConvs.size() > 1)
+        {
+            auto partialSum = om.eltwise(
+                convOp->getName() + "_inch_reduction_eltwise_partial_sum" + std::to_string(sumIdx),
+                {
+                    *(adjustedConvs.end() - 1),
+                    *(adjustedConvs.end() - 2)
+                },
+                "Add");
+
+            om.getSourceOp(partialSum)->set<unsigned>("opId",
+                convOp->get<unsigned>("opId"));
+            partialSum->setQuantParams(convOp->getOutputTensor(0)->getQuantParams());
+            partialSum->setDType(convOp->getOutputTensor(0)->getDType());
+
+            adjustedConvs.pop_back();
+            adjustedConvs.pop_back();
+            adjustedConvs.push_back(partialSum);
+            sumIdx++;
+        }
+
+        // Step 4
+        // Consider the fusing of later on postops, provide
+        // an unity weights DW conv, best fit to fuse any post op
+        // since it supports per channel quant
+
+        // Eltwise has very limited support in terms of solving postOps
+        // be it Bias/Scale/Shift because of the lack of weights table,
+        // be it relu/leaky_relu/sigmoid because of current limitation of
+        // 1 single fixed post op per DPU execution, which is already consumed by
+        // the underlying eltwise operation type, "ADD" in this case
+        auto hasFusablePostOps = false;
+        for(auto childOp = convOp.leftmostChild(); childOp != om.opEnd(); ++childOp)
+            if (childOp->isHwFusable()) {
+                hasFusablePostOps = true;
+                break;
+            }
+
+        if (hasFusablePostOps) {
+
+            auto outDType = convOp->getOutputTensor(0)->getDType();
+            auto unityValue = 1.0;
+            auto unityWeightsData = std::vector<mv::DataElement>(
+                weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS],
+                mv::DataElement(outDType.isDoubleType(), unityValue));
+
+            // TODO: implement future generic handling for fp16 dtype cases
+            if (outDType == mv::DType("Float16"))
+                unityWeightsData = std::vector<mv::DataElement>(
+                weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS],
+                mv::DataElement(false, static_cast<int64_t>(mv::fp32_to_fp16(unityValue))));
+
+            double inf = std::numeric_limits<double>::infinity();
+            auto unityWeights = om.constantDataElement(
+                convOp->getName() + "_inch_reduction_fusable_op_wt",
+                unityWeightsData,
+                {1, 1, weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS], 1},
+                convOp->getOutputTensor(0)->getDType(),
+                mv::Order(mv::Order::getRowMajorID(4)));
+            unityWeights->setQuantParams({{0}, {1}, {-inf}, {inf}});
+
+            auto fusingTensor = om.depthwiseConv(
+                convOp->getName() + "_inch_reduction_fusable_op",
+                adjustedConvs[0],
+                unityWeights,
+                {1, 1},
+                {0, 0, 0, 0},
+                1);
+
+            om.getSourceOp(fusingTensor)->set<unsigned>("opId",
+                convOp->get<unsigned>("opId"));
+            om.getSourceOp(unityWeights)->set<unsigned>("opId",
+                convOp->get<unsigned>("opId"));
+
+            fusingTensor->setQuantParams(convOp->getOutputTensor(0)->getQuantParams());
+            fusingTensor->setDType(convOp->getOutputTensor(0)->getDType());
+            adjustedConvs.pop_back();
+            adjustedConvs.push_back(fusingTensor);
+        }
+
+        // Step 5
+        // Tie everything togheter
+        adjustedConvs[0]->set<mv::Tensor::MemoryLocation>("Location",
+            convOp->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location"));
+        linkNewMultipleOperationsReplacementRemoveFlows(om.getSourceOp(inputTensor), adjustedConvs, om, convOp);
+
+    }
+
 }

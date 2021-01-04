@@ -106,6 +106,16 @@ public:
             const int deviceId) override;
 };
 
+class PrivSHAVE_only_M2I final: public PreprocEngine::Priv {
+    std::unique_ptr<cv::GComputation> _comp = nullptr;
+
+public:
+    void go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+            const ResizeAlgorithm& algorithm,
+            ColorFormat in_fmt, ColorFormat out_fmt,
+            const int deviceId) override;
+};
+
 namespace {
 namespace G {
     struct Strides {int N; int C; int H; int W;};
@@ -773,9 +783,9 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     IE_ASSERT(in_fmt == NV12);
     IE_ASSERT(out_fmt == ColorFormat::RGB || out_fmt == ColorFormat::BGR);
 
-    if (out_fmt == ColorFormat::RGB) {
-        THROW_IE_EXCEPTION << "M2I PP: RGB output color format is not supported";
-    }
+    //if (out_fmt == ColorFormat::RGB) {
+    //    THROW_IE_EXCEPTION << "M2I PP: RGB output color format is not supported";
+    //}
 
     auto inNV12Blob = as<NV12Blob>(inBlob);
     IE_ASSERT(inNV12Blob != nullptr);
@@ -818,6 +828,62 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     const cv::GSliceID M2IsliceId = deviceId;
     _comp->apply(cv::gin(input_y, input_uv), cv::gout(output),
                  cv::compile_args(cv::gapi::preproc::m2i::kernels(), M2IsliceId));
+}
+
+void PrivSHAVE_only_M2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+                 const ResizeAlgorithm& algorithm,
+                 ColorFormat in_fmt, ColorFormat out_fmt, const int deviceId) {
+    // NB.: Still follow the same constraints as with SIPP
+    IE_ASSERT(algorithm == RESIZE_BILINEAR);
+    IE_ASSERT(in_fmt == NV12);
+    IE_ASSERT(out_fmt == ColorFormat::RGB || out_fmt == ColorFormat::BGR);
+
+    //if (out_fmt == ColorFormat::RGB) {
+    //    THROW_IE_EXCEPTION << "M2I PP: RGB output color format is not supported";
+    //}
+
+    auto inNV12Blob = as<NV12Blob>(inBlob);
+    IE_ASSERT(inNV12Blob != nullptr);
+
+    auto input_y  = bind_to_blob(inNV12Blob->y()).back();
+    auto input_uv = bind_to_blob(inNV12Blob->uv()).back();
+    auto output = bind_to_blob(outBlob).back(); // fixme: single output???
+
+    // FIXME: add batch??
+
+    if (!_comp) {
+        cv::GMat in_y;
+        cv::GMat in_uv;
+        cv::GMat  out_i; // in the case of interleaved output
+        cv::GMatP out_p; // in the case of planar output
+
+        const cv::gapi::m2i::CSC csc_code = [out_fmt]() {
+            switch (out_fmt) {
+            case ColorFormat::RGB: return cv::gapi::m2i::CSC::NV12toRGB;
+            case ColorFormat::BGR: return cv::gapi::m2i::CSC::NV12toBGR;
+            default: THROW_IE_EXCEPTION << "M2I PP: Unsupported color space conversion";
+            }
+        }();
+
+        cv::gapi::own::Size out_sz{output.cols, output.rows};
+        if (outBlob->getTensorDesc().getLayout() == NCHW) {
+            // planar output case
+            out_sz.height /= 3; // see details in bind_to_blob()
+            out_p = cv::gapi::M2Ip(in_y, in_uv, csc_code, out_sz);
+            _comp.reset(new cv::GComputation(GIn(in_y, in_uv), cv::GOut(out_p)));
+        } else {
+            // interleaved output case
+            out_i = cv::gapi::M2Ii(in_y, in_uv, csc_code, out_sz);
+            _comp.reset(new cv::GComputation(GIn(in_y, in_uv), cv::GOut(out_i)));
+        }
+        IE_ASSERT(_comp != nullptr);
+    }
+
+    // FIXME kmb-plugin API provides signed integer, g-api wants unsigned
+    const cv::GSliceID M2IsliceId = deviceId;
+    const cv::GShaveOnlyM2I M2IshaveOnly = true;
+    _comp->apply(cv::gin(input_y, input_uv), cv::gout(output),
+                 cv::compile_args(cv::gapi::preproc::m2i::kernels(), M2IsliceId, M2IshaveOnly));
 }
 
 PreprocEngine::PreprocEngine(unsigned int shaveFirst, unsigned int shaveLast,

@@ -12,8 +12,23 @@
 namespace LayerTestsDefinitions {
 
 class KmbPoolingLayerTest: public PoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeValidate() override {
-        throw LayerTestsUtils::KmbSkipTestException("comparison fails");
+    void SkipBeforeLoad() override {
+        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+            if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+                throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
+            }
+        } else {
+            const auto& poolParams = std::get<0>(GetParam());
+            const auto poolType = std::get<0>(poolParams);
+            const auto& strides = std::get<2>(poolParams);
+            const auto padType = std::get<6>(poolParams);
+
+            if (poolType == ngraph::helpers::PoolingTypes::AVG &&
+                padType == ngraph::op::PadType::VALID &&
+                (strides.at(0) != 1 || strides.at(1) != 1)) {
+                throw LayerTestsUtils::KmbSkipTestException("AVG pool with VALID PadType and strides != 1 produces inaccurate results");
+            }
+        }
     }
 };
 
@@ -28,109 +43,240 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+    InferenceEngine::Precision::FP16
+};
 
-const std::vector<InferenceEngine::SizeVector> kernels = {{3, 3}, {3, 5}};
-const std::vector<InferenceEngine::SizeVector> strides = {{1, 1}, {1, 2}};
-const std::vector<InferenceEngine::SizeVector> padBegins = {{0, 0}, {0, 2}};
-const std::vector<InferenceEngine::SizeVector> padEnds = {{0, 0}, {0, 2}};
-const std::vector<ngraph::op::RoundingType> roundingTypes = {
-    ngraph::op::RoundingType::CEIL, ngraph::op::RoundingType::FLOOR};
+const std::vector<InferenceEngine::SizeVector> inShapes = {
+    {1, 3, 30, 30}
+};
+
 ////* ========== Max Polling ========== */
-/* +========== Explicit Pad Floor Rounding ========== */
-const auto maxPool_ExplicitPad_FloorRounding_Params =
-    ::testing::Combine(::testing::Values(PoolingTypes::MAX), ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
-        ::testing::ValuesIn(padBegins), ::testing::ValuesIn(padEnds),
-        ::testing::Values(ngraph::op::RoundingType::FLOOR), ::testing::Values(ngraph::op::PadType::EXPLICIT),
-        ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MaxPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
-    ::testing::Combine(maxPool_ExplicitPad_FloorRounding_Params,
+/* +========== Explicit Pad Floor Rounding ========== */
+
+const std::vector<poolSpecificParams> maxPoolExplicitPadFloorRoundingParams = {
+    std::make_tuple(
+        PoolingTypes::MAX,
+        std::vector<size_t> {3, 3},  // kernel
+        std::vector<size_t> {1, 1},  // strides
+        std::vector<size_t> {0, 0},  // padBegins
+        std::vector<size_t> {0, 0},  // padEnds
+        ngraph::op::RoundingType::FLOOR,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+
+    std::make_tuple(
+        PoolingTypes::MAX,
+        std::vector<size_t> {3, 3},  // kernel
+        std::vector<size_t> {2, 2},  // strides
+        std::vector<size_t> {1, 1},  // padBegins
+        std::vector<size_t> {1, 1},  // padEnds
+        ngraph::op::RoundingType::FLOOR,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+
+    std::make_tuple(
+        PoolingTypes::MAX,
+        std::vector<size_t> {5, 5},  // kernel
+        std::vector<size_t> {2, 2},  // strides
+        std::vector<size_t> {2, 0},  // padBegins
+        std::vector<size_t> {2, 0},  // padEnds
+        ngraph::op::RoundingType::FLOOR,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_MaxPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(maxPoolExplicitPadFloorRoundingParams),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
 /* ========== Explicit Pad Ceil Rounding ========== */
-const auto maxPool_ExplicitPad_CeilRounding_Params =
-    ::testing::Combine(::testing::Values(PoolingTypes::MAX), ::testing::ValuesIn(kernels),
-        // TODO: Non 1 strides fails in ngraph reference implementation with error "The end corner is out of bounds at
-        // axis 3" thrown in the test body.
-        ::testing::Values(InferenceEngine::SizeVector({1, 1})), ::testing::ValuesIn(padBegins),
-        ::testing::ValuesIn(padEnds), ::testing::Values(ngraph::op::RoundingType::CEIL),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT),
-        ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MaxPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
-    ::testing::Combine(maxPool_ExplicitPad_CeilRounding_Params,
+const std::vector<poolSpecificParams> maxPoolExplicitPadCeilRoundingParams = {
+    std::make_tuple(
+        PoolingTypes::MAX,
+        std::vector<size_t> {3, 3},  // kernel
+        std::vector<size_t> {1, 1},  // strides
+        std::vector<size_t> {0, 0},  // padBegins
+        std::vector<size_t> {0, 0},  // padEnds
+        ngraph::op::RoundingType::FLOOR,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+
+    std::make_tuple(
+        PoolingTypes::MAX,
+        std::vector<size_t> {3, 3},  // kernel
+        std::vector<size_t> {2, 2},  // strides
+        std::vector<size_t> {1, 1},  // padBegins
+        std::vector<size_t> {2, 2},  // padEnds
+        ngraph::op::RoundingType::CEIL,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+
+    std::make_tuple(
+        PoolingTypes::MAX,
+        std::vector<size_t> {5, 5},  // kernel
+        std::vector<size_t> {2, 2},  // strides
+        std::vector<size_t> {2, 2},  // padBegins
+        std::vector<size_t> {3, 3},  // padEnds
+        ngraph::op::RoundingType::CEIL,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_MaxPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(maxPoolExplicitPadCeilRoundingParams),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
 ////* ========== Avg Pooling ========== */
-/* +========== Explicit Pad Ceil Rounding ========== */
-const auto avgPoolExplicitPadCeilRoundingParams =
-    ::testing::Combine(::testing::Values(PoolingTypes::AVG), ::testing::ValuesIn(kernels),
-        // TODO: Non 1 strides fails in ngraph reference implementation with error "The end corner is out of bounds at
-        // axis 3" thrown in the test body.
-        ::testing::Values(InferenceEngine::SizeVector({1, 1})),
-        // TODO: Non zero pads excluded because of accuracy mismatch
-        ::testing::Values(InferenceEngine::SizeVector({0, 0})), ::testing::Values(InferenceEngine::SizeVector({0, 0})),
-        ::testing::Values(ngraph::op::RoundingType::CEIL), ::testing::Values(ngraph::op::PadType::EXPLICIT),
-        ::testing::Values(true, false));
 
-INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
-    ::testing::Combine(avgPoolExplicitPadCeilRoundingParams,
+/* +========== Explicit Pad Floor Rounding ========== */
+
+const std::vector<poolSpecificParams> avgPoolExplicitPadFloorRoundingParams = {
+    std::make_tuple(
+        PoolingTypes::AVG,
+        std::vector<size_t> {3, 3},  // kernel
+        std::vector<size_t> {1, 1},  // strides
+        std::vector<size_t> {0, 0},  // padBegins
+        std::vector<size_t> {0, 0},  // padEnds
+        ngraph::op::RoundingType::FLOOR,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+
+    std::make_tuple(
+        PoolingTypes::AVG,
+        std::vector<size_t> {3, 3},  // kernel
+        std::vector<size_t> {2, 2},  // strides
+        std::vector<size_t> {1, 1},  // padBegins
+        std::vector<size_t> {1, 1},  // padEnds
+        ngraph::op::RoundingType::FLOOR,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+
+    std::make_tuple(
+        PoolingTypes::AVG,
+        std::vector<size_t> {5, 5},  // kernel
+        std::vector<size_t> {2, 2},  // strides
+        std::vector<size_t> {2, 0},  // padBegins
+        std::vector<size_t> {2, 0},  // padEnds
+        ngraph::op::RoundingType::FLOOR,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(avgPoolExplicitPadFloorRoundingParams),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
-/* +========== Explicit Pad Floor Rounding ========== */
-const auto avgPoolExplicitPadFloorRoundingParams =
-    ::testing::Combine(::testing::Values(PoolingTypes::AVG), ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
-        // TODO: Non zero pads excluded because of accuracy mismatch
-        ::testing::Values(InferenceEngine::SizeVector({0, 0})), ::testing::Values(InferenceEngine::SizeVector({0, 0})),
-        ::testing::Values(ngraph::op::RoundingType::FLOOR), ::testing::Values(ngraph::op::PadType::EXPLICIT),
-        ::testing::Values(true, false));
+/* +========== Explicit Pad Ceil Rounding ========== */
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_AvgPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
-    ::testing::Combine(avgPoolExplicitPadFloorRoundingParams,
+const std::vector<poolSpecificParams> avgPoolExplicitPadCeilRoundingParams = {
+    std::make_tuple(
+        PoolingTypes::AVG,
+        std::vector<size_t> {3, 3},  // kernel
+        std::vector<size_t> {1, 1},  // strides
+        std::vector<size_t> {0, 0},  // padBegins
+        std::vector<size_t> {0, 0},  // padEnds
+        ngraph::op::RoundingType::FLOOR,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+
+    std::make_tuple(
+        PoolingTypes::AVG,
+        std::vector<size_t> {3, 3},  // kernel
+        std::vector<size_t> {2, 2},  // strides
+        std::vector<size_t> {1, 1},  // padBegins
+        std::vector<size_t> {2, 2},  // padEnds
+        ngraph::op::RoundingType::CEIL,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+
+    std::make_tuple(
+        PoolingTypes::AVG,
+        std::vector<size_t> {5, 5},  // kernel
+        std::vector<size_t> {2, 2},  // strides
+        std::vector<size_t> {2, 2},  // padBegins
+        std::vector<size_t> {3, 3},  // padEnds
+        ngraph::op::RoundingType::CEIL,
+        ngraph::op::PadType::EXPLICIT,
+        false  // placeholder value - exclude pad not applicable for max pooling
+    ),
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(avgPoolExplicitPadCeilRoundingParams),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
 ////* ========== Avg and Max Polling Cases ========== */
+
 /*    ========== Valid Pad Rounding Not Applicable ========== */
-const auto allPools_ValidPad_Params = ::testing::Combine(::testing::Values(PoolingTypes::MAX, PoolingTypes::AVG),
-    ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides), ::testing::Values(InferenceEngine::SizeVector({0, 0})),
+
+const std::vector<InferenceEngine::SizeVector> kernels = {{3, 3}, {5, 5}};
+const std::vector<InferenceEngine::SizeVector> strides = {{1, 1}, {2, 2}};
+
+const auto allPoolsValidPadParams = ::testing::Combine(
+    ::testing::Values(PoolingTypes::MAX, PoolingTypes::AVG),
+    ::testing::ValuesIn(kernels),
+    ::testing::ValuesIn(strides),
     ::testing::Values(InferenceEngine::SizeVector({0, 0})),
-    ::testing::Values(
-        ngraph::op::RoundingType::FLOOR),  // placeholder value - Rounding Type not applicable for Valid pad type
+    ::testing::Values(InferenceEngine::SizeVector({0, 0})),
+    ::testing::Values(ngraph::op::RoundingType::FLOOR),  // placeholder value - Rounding Type not applicable for Valid pad type
     ::testing::Values(ngraph::op::PadType::VALID),
     ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MAX_and_AVGPool_ValidPad, KmbPoolingLayerTest,
-    ::testing::Combine(allPools_ValidPad_Params,
+INSTANTIATE_TEST_CASE_P(smoke_MAX_and_AVGPool_ValidPad, KmbPoolingLayerTest,
+    ::testing::Combine(
+        allPoolsValidPadParams,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 

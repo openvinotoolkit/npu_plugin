@@ -121,7 +121,9 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
     if (parentOpIt->getOpType() == "Conv" ||
         parentOpIt->getOpType() == "FullyConnected" ||
-        parentOpIt->getOpType() == "DepthwiseConv" || parentOpIt->getOpType() == "Deconv")
+        parentOpIt->getOpType() == "DepthwiseConv" ||
+        parentOpIt->getOpType() == "Deconv" ||
+        parentOpIt->getOpType() == "MaxPool")
     {
         auto bias = *opIt->getInputTensor(1);
         auto biasOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
@@ -175,31 +177,59 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
     mv::OpModel om(model);
     mv::DataModel dm(model);
     auto ppeOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+    auto parentOp = om.getSourceOp(opIt->getInputTensor(0));
 
-    if (opType == "LeakyRelu")
-        parentOpIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
-    else if (opIt->hasPWLActivation())
-    {
-        // Check for fuseable parentOp; else, execute in software
-        // Check for (multiple) children, if multiple children, can't fuse into the parents
-        auto optype = parentOpIt->getOpType();
-        auto nextOps = mv::findSinkLayers(dm, opIt->getInputTensor(0));
-        if (!(optype == "Conv" || optype == "DepthwiseConv" || optype == "CMConv") || (nextOps.size() != 1))
-        {
-            opIt->set<bool>("softwareExecuted", true);
-            return;
+    std::vector<mv::Data::OpListIterator> fusableParents;
+    auto isActivationAgnostic = [](mv::Data::OpListIterator &op)
+        {return op->isImplicit() || op->getOpType() == "Concat";};
+
+    if (!isActivationAgnostic(parentOp))
+        fusableParents.push_back(parentOp);
+    else {
+        std::queue<mv::Data::OpListIterator> op_itr_bfs;
+        op_itr_bfs.push(parentOp);
+        // BFS the implicit ops subtree to find all fusable parents
+        while (!op_itr_bfs.empty()) {
+            auto current_op_itr = op_itr_bfs.front();
+            for(auto parentIt = current_op_itr.leftmostParent();
+                parentIt != om.opEnd(); ++parentIt) {
+                if (parentIt->isImplicit() || parentIt->getOpType() == "Concat") {
+                    op_itr_bfs.push(parentIt);
+                } else {
+                    fusableParents.push_back(parentIt);
+                }
+            }
+            op_itr_bfs.pop();
         }
     }
-    std::vector<std::string> postOpTypes;
-    if (parentOpIt->hasAttr("postOpTypes"))
-        postOpTypes = parentOpIt->get<std::vector<std::string>>("postOpTypes");
 
-    postOpTypes.push_back(opType);
-    parentOpIt->set<std::vector<std::string>>("postOpTypes", postOpTypes);
+    // Check for siblings, normally of all sibling would be same opType
+    // one could proceed to attempt fuse all siblings.
+    // Have this as a future optimization, for now just mark it as
+    // software executed.
+    if (opIt.siblingsSize() || std::find_if(fusableParents.cbegin(),
+        fusableParents.cend(), [] (const mv::Data::OpListIterator &op)
+        {return !op->isHardwarizable();}) != fusableParents.cend())
+    {
+        opIt->set<bool>("softwareExecuted", true);
+        return;
+    }
 
-    auto sourceTensor = parentOpIt->getOutputTensor(0);
-    opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+    // Proceed with fusign postOp into each parentOp
+    for(auto parentIt : fusableParents) {
+        std::vector<std::string> postOpTypes;
+        if (parentIt->hasAttr("postOpTypes"))
+            postOpTypes = parentIt->get<std::vector<std::string>>("postOpTypes");
+        postOpTypes.push_back(opType);
+        parentIt->set<std::vector<std::string>>("postOpTypes", postOpTypes);
+
+        if (opType == "LeakyRelu")
+            parentIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
+    }
+
+    // Link direct postOp parent with postOp consumers
+    auto sourceTensor = parentOp->getOutputTensor(0);
+    opIt = linkNewOperationsFuse(parentOp, sourceTensor, om, opIt);
     if (ppeOutputMemoryLocation.isForced())
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);
 }

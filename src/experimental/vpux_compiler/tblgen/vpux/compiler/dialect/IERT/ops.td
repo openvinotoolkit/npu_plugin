@@ -19,6 +19,7 @@
 
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
+include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -40,7 +41,8 @@ class IERT_LayerOp<string mnemonic, list<OpTrait> traits = []> :
             !listconcat(
                 traits,
                 [
-                    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+                    IERT_RunTimeLayer,
+                    MemoryEffectsOpInterface,
                     DeclareOpInterfaceMethods<LayerInterface>
                 ]
             )
@@ -189,85 +191,6 @@ def IERT_ExecutorResourceOp :
 }
 
 //
-// CNNNetworkOp
-//
-
-def IERT_CNNNetworkOp :
-        IERT_Op<
-            "CNNNetwork",
-            [
-                IsolatedFromAbove,
-                HasParent<"mlir::ModuleOp">,
-                SingleBlockImplicitTerminator<"vpux::IERT::EndOp">,
-                NoRegionArguments,
-                DeclareOpInterfaceMethods<NetInfoInterface>,
-                DeclareOpInterfaceMethods<SymbolUserOpInterface>
-            ]
-        > {
-    let summary = "InferenceEngine CNN Network run-time description";
-
-    let description = [{
-        This operation is bound to MLIR Module and holds extra information about InferenceEngine CNN Network:
-
-          * Precision and layout for user-provided inputs.
-          * Precision and layout for user-provided outputs.
-          * Entry point (Function name) for the network inference.
-    }];
-
-    let arguments = (ins
-        StrAttr:$netName,
-        FlatSymbolRefAttr:$entryPoint
-    );
-
-    let regions = (region
-        SizedRegion<1>:$inputsInfo,
-        SizedRegion<1>:$outputsInfo
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        $netName `at` $entryPoint
-        `inputsInfo` `:` $inputsInfo
-        `outputsInfo` `:` $outputsInfo
-    }];
-}
-
-//
-// DataInfoOp
-//
-
-def IERT_DataInfoOp :
-        IERT_Op<
-            "DataInfo",
-            [
-                IsolatedFromAbove,
-                HasParent<"vpux::IERT::CNNNetworkOp">,
-                DeclareOpInterfaceMethods<DataInfoInterface>
-            ]
-        > {
-    let summary = "Information about InferenceEngine CNN Network input/output Data object";
-
-    let description = [{
-        This operation is bound to `IERT.CNNNetwork` Operation and holds information about Data object:
-
-          * Name
-          * User-defined precision (element type)
-          * User-defined layout
-    }];
-
-    let arguments = (ins
-        StrAttr:$name,
-        TypeAttr:$precision,
-        AffineMapAttr:$layout
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        $name `,` $precision `,` $layout
-    }];
-}
-
-//
 // EndOp
 //
 
@@ -278,12 +201,38 @@ def IERT_EndOp :
                 NoSideEffect,
                 Terminator,
                 NativeOpTrait<"ReturnLike">,
-                ParentOneOf<["vpux::IERT::RunTimeResourcesOp", "vpux::IERT::CNNNetworkOp"]>
+                HasParent<"vpux::IERT::RunTimeResourcesOp">
             ]
         > {
-    let summary = "End indicator for IERT operations with declarations";
+    let summary = "End indicator for IERT resources section";
 
     let assemblyFormat = "attr-dict";
+}
+
+//
+// StaticAllocOp
+//
+
+def IERT_StaticAllocOp :
+        IERT_Op<
+            "StaticAlloc",
+            [
+                NoSideEffect
+            ]
+        > {
+    let summary = "InferenceEngine run-time static buffer allocation";
+
+    let arguments = (ins
+        I64Attr:$offset
+    );
+
+    let results = (outs
+        AnyMemRef:$memory
+    );
+
+    let assemblyFormat = [{
+        `<` $offset `>` attr-dict `->` type(results)
+    }];
 }
 
 //
@@ -295,6 +244,7 @@ def IERT_ConvertOp :
             "Convert",
             [
                 SameOperandsShape,
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<ConvertLayerInterface>
             ]
         > {
@@ -316,6 +266,7 @@ def IERT_SoftMaxOp :
             [
                 SameOperandsShape,
                 SameOperandsElementType,
+                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>
             ]
         > {
@@ -326,6 +277,192 @@ def IERT_SoftMaxOp :
         MemRefOf<[F16, F32]>:$output,
 
         I32Attr:$axisInd
+    );
+}
+
+//
+// AvgPoolOp
+//
+
+def IERT_AvgPoolOp :
+        IERT_LayerOp<
+            "AvgPool",
+            [
+                SameOperandsElementType,
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time AvgPool layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32ArrayAttr:$kernel_size,
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end
+    );
+}
+
+//
+// MaxPoolOp
+//
+
+def IERT_MaxPoolOp :
+        IERT_LayerOp<
+            "MaxPool",
+            [
+                SameOperandsElementType,
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time MaxPool layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32ArrayAttr:$kernel_size,
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end
+    );
+}
+
+//
+// ConvolutionOp
+//
+
+def IERT_ConvolutionOp :
+        IERT_LayerOp<
+            "Convolution",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Convolution layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$filter,
+        Optional<MemRefOf<[F16, F32]>>:$bias,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        I32ArrayAttr:$dilations
+    );
+}
+
+//
+// ReLUOp
+//
+
+def IERT_ReLUOp :
+        IERT_LayerOp<
+            "ReLU",
+            [
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReLU layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
+// SigmoidOp
+//
+
+def IERT_SigmoidOp :
+        IERT_LayerOp<
+            "Sigmoid",
+            [
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time Sigmoid layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
+// ClampOp
+//
+
+def IERT_ClampOp :
+        IERT_LayerOp<
+            "Clamp",
+            [
+                SameOperandsShape,
+                SameOperandsElementType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<ClampLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Clamp layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        F32Attr:$min,
+        F32Attr:$max
+    );
+}
+
+//
+// EluOp
+//
+
+def IERT_EluOp :
+        IERT_LayerOp<
+            "Elu",
+            [
+                SameOperandsShape,
+                SameOperandsElementType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<EluLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Elu layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        F32Attr:$x
+    );
+}
+
+//
+// HSwishOp
+//
+
+def IERT_HSwishOp :
+        IERT_LayerOp<
+            "HSwish",
+            [
+		SameOperandsShape,
+                SameOperandsElementType,
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time HSwish layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output
     );
 }
 

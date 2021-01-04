@@ -3,7 +3,7 @@
 ## Merge Request Process
 
 1. Before the opening check that MR meets the requirements ([Request requirements](#request-requirements))
-2. The header of the MR must be filled out according to the MR template (need review template).
+2. The header of the MR must be filled out according to the MR template.
 3. MR must contain actual links to the CI results. [CI details](how-to-run-ci-jobs)
 4. MR must be reviewed ([Review process](#review-process))
 6. All discussions are resolved.
@@ -46,10 +46,8 @@
     * IE
         * IE-MDK functional tests [IE MDK](https://wiki.ith.intel.com/display/VPUWIKI/Functional+validation+CI)
         * Nets-validation performance and accuracy check [Nets-validation](https://wiki.ith.intel.com/display/VPUWIKI/Nets-validation+CI)
-    * MDK
-        * List of Jobs ???
     * If validation is failed due to infrastructure issues:
-         * It should be reported to CI-master\Maintainer\Teams-channel -OPEN
+         * It should be reported to CI-master\Maintainer\Teams-channel
 * If in the process of development or review new issues that should be fixed in a separated request
  have been found then appropriate ticket should be created
 

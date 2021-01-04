@@ -4,7 +4,7 @@
 
 #include "gtest/gtest.h"
 #include <iostream>
-#include "kmb_layer_test.hpp"
+#include "kmb_test_report.hpp"
 
 // Headers below are just for Yocto.
 #ifdef __aarch64__
@@ -39,5 +39,6 @@ int main(int argc, char **argv) {
 #endif
 
     ::testing::InitGoogleTest(&argc, argv);
+    ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::KmbTestReportEnvironment());
     return RUN_ALL_TESTS();
 }

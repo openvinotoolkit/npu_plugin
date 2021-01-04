@@ -30,7 +30,6 @@ if (UNIX)
                 ${CMAKE_CURRENT_SOURCE_DIR}/common
                 ${CMAKE_CURRENT_SOURCE_DIR}/regression_tests/helpers
                 ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include
-                ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
             DEFINES
                 -DKMB_ALPHA_TESTS_DATA_PATH="${MODELS_PATH}"
             LINK_LIBRARIES

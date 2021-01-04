@@ -186,6 +186,7 @@ public:
     static const bool EXPORT_BLOBS;
     static const std::string LOG_LEVEL;
     static const bool PRINT_PERF_COUNTERS;
+    static const bool USE_EXPERIMENTAL_COMPILER;
 
 public:
     void registerBlobGenerator(
@@ -598,6 +599,53 @@ public:
         const TestNetworkDesc& netDesc,
         const TestImageDesc& image,
         float tolerance);
+};
+
+class KmbVasFDStage1Test : public KmbDetectionNetworkTest {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc, const TestImageDesc& image,
+            const float scoreThresh, const float boxTolerance,
+            const float probTolerance, const std::vector<std::string>& layerNames,
+            const std::vector<int>& anchorSz, const std::vector<int>& winScales,
+            const std::vector<int>& winLengths
+            );
+
+protected:
+    static std::vector<utils::BoundingBox> parseOutput(
+            const Blob::Ptr& blobProb, const Blob::Ptr& blobReg,
+            const int anchorSz, const int winScale,
+            const int winLen, const float scoreThresh);
+};
+
+class KmbVasFDStage2Test : public KmbDetectionNetworkTest {
+public:
+
+    struct Candidate {
+        float x_min;
+        float y_min;
+        float x_max;
+        float y_max;
+    };
+
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            const float threshold, const float boxTolerance, const float probTolerance,
+            const Candidate& candidate);
+
+protected:
+    static utils::BoundingBox parseOutput(
+            const Blob::Ptr& blobProb, const Blob::Ptr& blobReg,
+            const Candidate& candidate, const float threshold);
+};
+
+class KmbVasFRTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            const float threshold);
 };
 
 //
