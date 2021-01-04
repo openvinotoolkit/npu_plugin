@@ -186,7 +186,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             if((inputDType != outputDType) && outputDType != mv::DType("Int32") &&
                 opIt->isHardwarizable() &&
                 opIt->get<std::string>("taskOp") != "Eltwise" &&
-                target == mv::Target::ma2490)
+                (target == mv::Target::ma2490 || target == mv::Target::ma3100)) //TBH is based on KMB-B0
                 mixedPrecisionA0B0WorkAround = true;
 
             /*For multi-clustering we work on subtensors*/
