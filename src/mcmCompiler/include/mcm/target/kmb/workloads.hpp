@@ -82,7 +82,7 @@ namespace mv
                                                   const mv::WorkloadSplitMode& split_mode,
                                                   const mv::pass::PassEntry& pass);
 
-        int partitionTensorWithZsplit(const mv::DPUModeList& modes, size_t nWorkloads, const mv::pass::PassEntry& pass, std::vector<std::size_t> validZTiles);
+        int partitionTensorWithZsplit(const mv::DPUModeList& modes, size_t nWorkloads, const mv::pass::PassEntry& pass, std::vector<std::size_t>& validZTiles);
 
         void populateWorkloadsFromPartitions(size_t nWorkloads,
                                             const mv::pass::PassEntry& pass,

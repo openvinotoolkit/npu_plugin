@@ -1042,7 +1042,6 @@ namespace mv {
             workload.MaxZ = Z ? Z - 1: 0;
 
             /*Select best MPE mode*/
-            //std::cout << " padding mode H " << padding.mode.H << " W " << padding.mode.W << std::endl;
             if(padding.mode.H == 4 && padding.mode.W == 4)
                 workload.MPEMode = mv::Matrix;
             else if ((padding.mode.H == 1 && padding.mode.W == 16) ||
@@ -1205,7 +1204,7 @@ void mv::Workloads::populateClusterID(int clusterID)
         workload->clusterID = clusterID;
 }
 
-int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, size_t nWorkloads, const mv::pass::PassEntry &pass, std::vector<std::size_t> validZTiles)
+int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, size_t nWorkloads, const mv::pass::PassEntry &pass, std::vector<std::size_t>& validZTiles)
 {
     pass.log(mv::Logger::MessageType::Debug, "Zsplit: layer=" + layerName_);
     unsigned C, H, W;
@@ -1266,7 +1265,6 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, s
         workload.algorithm = "Z-Tiling";
 
         /*Select best MPE mode*/
-        //std::cout << " best_padding mode H " << best_padding.mode.H << " W " << best_padding.mode.W << std::endl;
         if(best_padding.mode.H == 4 && best_padding.mode.W == 4)
             workload.MPEMode = mv::Matrix;
         else if ((best_padding.mode.H == 1 && best_padding.mode.W == 16) ||
