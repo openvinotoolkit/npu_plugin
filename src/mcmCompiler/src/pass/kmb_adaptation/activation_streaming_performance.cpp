@@ -270,6 +270,8 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
     auto globalParams = model.getGlobalConfigParams();
     size_t clusterMemory = globalParams->get<unsigned>("cmx");
     size_t totalClusters = globalParams->get<int>("Number_of_Clusters");
+    size_t totalDpus = globalParams->get<int>("Number_of_DPUs");
+    double dpuPerCluster = std::floor(totalDpus/totalClusters);
     auto clusteringStrategy = opIt->get<std::string>("splitStrategy");
 
     // Step 1. Decide which tensor will be the benchmark for how many streams we should do
@@ -296,7 +298,8 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
 
     // Can't exceed the max, which ensures at least one line of output for each stream to compute
     size_t maxStreams = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
-    if(clusteringStrategy == "SplitOverH") maxStreams = maxStreams/totalClusters;
+    if(clusteringStrategy == "SplitOverH") maxStreams = std::ceil((double)maxStreams/totalClusters);
+    maxStreams = std::ceil((double) maxStreams / dpuPerCluster);
 
     size_t proposedStreams = std::min(magicStreams, maxStreams); //will be in range [originalHStream, maxStream]
 
