@@ -504,6 +504,22 @@ void ensureCMXConcatsDMASPlacedCorrectly(const mv::pass::PassEntry&,
                     opIt->getOutputTensor()[0]->get<mv::Tensor::MemoryLocation>("Location")
                                                         == mv::Tensor::MemoryLocation::NNCMX)
                     opIt->set<bool>("cmxConcatenation", true);
+                
+                // The accuracy of depthwiseConvs that are stream over channels and where the input comes from a CMX concat does
+                // not work correctly Therefore here we mark concats that are inputs to depthwises that are streamed over C and
+                // non-cmx-able
+                if (opIt->getOpType() == "DepthwiseConv")
+                {
+                    std::cout << opIt->getName() << std::endl;
+                    bool isCStreaming = streaming_strategy[2].get<int>("C") > 1 ? true : false;
+                    std::cout << "c " << streaming_strategy[2].get<int>("C") << std::endl;
+                    if(isCStreaming)
+                    {
+                        auto sourceOp = om.getSourceOp(opIt->getInputTensor()[0]);
+                        std::cout << sourceOp->getName() << std::endl;
+                        sourceOp->set<bool>("avoidCmxConcat", true);
+                    }
+                }
 
                 //Note: GO can't make decisions about cmx concat across parallel branches
                 //TODO scheduler forces cmx concat, and creates an exceeding op! follow up with vamsi for fix
