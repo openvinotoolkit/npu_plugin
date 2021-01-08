@@ -36,16 +36,8 @@ public:
     using mlir::OpAsmDialectInterface::OpAsmDialectInterface;
 
 public:
-    void getAsmResultNames(mlir::Operation* op, mlir::OpAsmSetValueNameFn setNameFn) const final;
-
     mlir::LogicalResult getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const final;
 };
-
-void IEAsmHooks::getAsmResultNames(mlir::Operation* op, mlir::OpAsmSetValueNameFn setNameFn) const {
-    if (const auto nameLoc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
-        setNameFn(op->getResult(0), nameLoc.getName());
-    }
-}
 
 mlir::LogicalResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const {
     if (const auto affineMapAttr = attr.dyn_cast<mlir::AffineMapAttr>()) {
