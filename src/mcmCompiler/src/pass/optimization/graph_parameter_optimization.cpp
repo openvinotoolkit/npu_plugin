@@ -479,6 +479,12 @@ namespace mv
                     auto originalH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                     auto newOutputSizes = tileSpatialOutputSize(originalH, splits);
 
+                    //Reject H streams were the last stream isn't equal or smaller than the rest
+                    //Reject H streams were the last stream is 1, unless they are all 1
+                    if(newOutputSizes.back() > newOutputSizes.front() ||
+                        (newOutputSizes.back() == 1 && newOutputSizes.front() != 1)) 
+                            return false;
+
                     unsigned short kernelStride;
                     if (op.hasAttr("stride"))
                         kernelStride = op.get<std::array<unsigned short, 2>>("stride")[1];

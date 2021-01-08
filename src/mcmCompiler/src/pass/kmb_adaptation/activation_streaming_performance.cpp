@@ -87,6 +87,12 @@ bool validateHStream(mv::Data::OpListIterator opIt, std::string clustering, std:
         size_t originalH = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
         std::vector<std::size_t> newOutputSizes = mv::tileSpatialOutputSize(originalH, splits);
 
+        //Reject H streams were the last stream isn't equal or smaller than the rest
+        //Reject H streams were the last stream is 1, unless they are all 1
+        if(newOutputSizes.back() > newOutputSizes.front() ||
+            (newOutputSizes.back() == 1 && newOutputSizes.front() != 1)) 
+                return false;
+
         unsigned short kernelStride;
         if (opIt->hasAttr("stride"))
             kernelStride = opIt->get<std::array<unsigned short, 2>>("stride")[1];
@@ -191,6 +197,9 @@ bool isStreamOptimizable(mv::ComputationModel& model, mv::Data::OpListIterator o
 
     if (opIt->hasAttr("DilatedSubConv") && (opIt->get<bool>("DilatedSubConv")))
         return false;
+
+    // if(opIt->hasAttr("floatPrecision") && opIt->get<bool>("floatPrecision"))
+    //     return false;
 
     mv::OpModel om(model);
     auto globalParams = model.getGlobalConfigParams();
@@ -313,6 +322,23 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
     return optStream;
 }
 
+bool applySSDworkaround(mv::Data::OpListIterator opIt, bool enableCMConv)
+{
+    if(opIt->getOpType() == "Conv" && opIt->supportsCMConv() && enableCMConv)
+    {
+        if( opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 512 && 
+            opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 512 && 
+            opIt->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 && 
+            opIt->getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
+            opIt->getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3 &&
+            opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 &&
+            opIt->getInputTensor(0)->get<mv::DType>("dType") == mv::DType("UInt8") &&
+            opIt->getOutputTensor(0)->get<mv::DType>("dType") == mv::DType("UInt8"))
+                return true;
+    }
+    return false;
+}
+
 void saveNewStreamingStrategiesToJson(const mv::pass::PassEntry& pass, const mv::Attribute& streamingStrategyElements) {
     pass.log(mv::Logger::MessageType::Debug, "Saving New Streaming Strategies to JSON file");
     std::ofstream jsonOutputFile;
@@ -379,6 +405,11 @@ void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             
             // Step 1. Choose optimal stream over H number for this op
             auto newHstream = findOptimalStream(model, opIt, originalHStream);
+
+            // Temporary workaround for SSD512. Accuracy issues seen with CM stream over H
+            if(applySSDworkaround(opIt, enableChannelMajorConv))
+                newHstream = 22;
+
             // Step 2. Create the new streaming strategy and add to vector
             if(newHstream != originalHStream)
             {
