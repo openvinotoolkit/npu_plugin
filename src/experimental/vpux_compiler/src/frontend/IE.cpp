@@ -62,12 +62,13 @@ namespace {
 
 class NGraphImporter final {
 public:
-    NGraphImporter(mlir::MLIRContext* ctx, const std::shared_ptr<const ngraph::Function>& netGraph, Logger log)
-            : _ctx(ctx), _netGraph(netGraph), _log(log) {
+    NGraphImporter(mlir::MLIRContext* ctx, std::shared_ptr<const ngraph::Function> netGraph, bool sharedConstants,
+                   Logger log)
+            : _ctx(ctx), _netGraph(std::move(netGraph)), _sharedConstants(sharedConstants), _log(log) {
     }
 
 public:
-    mlir::FuncOp buildMainFunc(StringRef funcName);
+    mlir::FuncOp buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName);
 
 private:
     using OrigNode = ngraph::Node;
@@ -146,6 +147,7 @@ private:
 private:
     mlir::MLIRContext* _ctx = nullptr;
     std::shared_ptr<const ngraph::Function> _netGraph;
+    bool _sharedConstants = false;
     Logger _log;
 
     NodeOutputMap _importedVals;
@@ -155,7 +157,7 @@ private:
 // buildMainFunc
 //
 
-mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
+mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName) {
     using Callback = void (NGraphImporter::*)(mlir::OpBuilder & builder, const OrigNodePtr& origNode);
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
@@ -225,7 +227,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
 
     const auto funcType = mlir::FunctionType::get(_ctx, makeArrayRef(inputTypes), makeArrayRef(outputTypes));
 
-    auto func = mlir::FuncOp::create(mlir::UnknownLoc::get(_ctx), funcName, funcType);
+    auto func = moduleBuilder.create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx), funcName, funcType);
 
     OpBuilderLogger builderLog(_log.nest());
     auto builder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), &builderLog);
@@ -280,30 +282,27 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.empty(), "nGraph Constant node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto tensorType = importTensor(origNode->get_output_partial_shape(0), origNode->get_output_element_type(0));
-
-    auto elemType = tensorType.getElementType();
-    auto totalNumElems = tensorType.getNumElements();
-
-    mlir::DenseElementsAttr value;
-    if (elemType.isF32()) {
-        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::f32>();
-        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
-    } else if (elemType.isF16()) {
-        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::f16>();
-        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
-    } else if (elemType.isSignedInteger(64)) {
-        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::i64>();
-        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
-    } else if (elemType.isUnsignedInteger(64)) {
-        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::u64>();
-        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
-    } else {
-        VPUX_THROW("Element type '{0}' is not supported for Constant operation", elemType);
-    }
-
     auto* dialect = _ctx->getLoadedDialect<IE::IEDialect>();
     VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
+
+    const auto tensorType = importTensor(origNode->get_output_partial_shape(0), origNode->get_output_element_type(0));
+
+    const auto numElems = tensorType.getNumElements();
+    const auto elemTypeByteSize = tensorType.getElementTypeBitWidth() / CHAR_BIT;
+
+    mlir::ElementsAttr value;
+    if (_sharedConstants) {
+        const auto rawBuffer = StringRef(origNode->get_data_ptr<char>(), numElems * elemTypeByteSize);
+        value = mlir::OpaqueElementsAttr::get(dialect, tensorType, rawBuffer);
+    } else {
+        const auto rawBuffer = makeArrayRef(origNode->get_data_ptr<char>(), numElems * elemTypeByteSize);
+
+        bool isSplatBuffer = false;
+        VPUX_THROW_UNLESS(mlir::DenseElementsAttr::isValidRawBuffer(tensorType, rawBuffer, isSplatBuffer),
+                          "Constant node '{0}' has invalid buffer", origNode->get_friendly_name());
+
+        value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, rawBuffer, isSplatBuffer);
+    }
 
     auto* op = dialect->materializeConstant(builder, value, tensorType, createLocation(origNode));
     addOutputs(origNode, op);
@@ -1141,7 +1140,8 @@ void runNGraphPasses(std::shared_ptr<ngraph::Function> netGraph) {
 // importNetwork
 //
 
-mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet, Logger log) {
+mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet,
+                                              bool sharedConstants, Logger log) {
     log.setName("IE::FrontEnd");
 
     log.trace("Load IE::FrontEnd dependent Dialects");
@@ -1167,7 +1167,7 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
     IE::CNNNetworkOp::ensureTerminator(cnnOp.inputsInfo(), builder, cnnOp.getLoc());
     IE::CNNNetworkOp::ensureTerminator(cnnOp.outputsInfo(), builder, cnnOp.getLoc());
 
-    builder.setInsertionPointToStart(&cnnOp.inputsInfo().front());
+    auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), &builderLog);
     for (const auto& param : netGraph->get_parameters()) {
         const auto& inputName = param->get_friendly_name();
         const auto& userInput = inputsInfo.at(inputName);
@@ -1176,10 +1176,10 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
         const auto nameAttr = mlir::StringAttr::get(inputName, ctx);
         const auto userTypeAttr = mlir::TypeAttr::get(importBuffer(ctx, userDesc));
 
-        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
+        inputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }
 
-    builder.setInsertionPointToStart(&cnnOp.outputsInfo().front());
+    auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.outputsInfo().front(), &builderLog);
     for (const auto& result : netGraph->get_results()) {
         const auto& resultName = getValidOutputName(result);
         const auto& userOutput = outputsInfo.at(resultName);
@@ -1188,12 +1188,11 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
         const auto nameAttr = mlir::StringAttr::get(resultName, ctx);
         const auto userTypeAttr = mlir::TypeAttr::get(importBuffer(ctx, userDesc));
 
-        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
+        outputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }
 
-    NGraphImporter importer(ctx, netGraph, log);
-    const auto mainFunc = importer.buildMainFunc(mainFuncName.getValue());
-    module.push_back(mainFunc);
+    NGraphImporter importer(ctx, netGraph, sharedConstants, log);
+    importer.buildMainFunc(builder, mainFuncName.getValue());
 
     VPUX_THROW_UNLESS(mlir::succeeded(mlir::verify(module)),
                       "Failed to create a valid MLIR module for InferenceEngine IR");

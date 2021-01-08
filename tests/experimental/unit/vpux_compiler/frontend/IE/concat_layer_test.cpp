@@ -49,7 +49,7 @@ TEST(IE_FrontEndTest, ConcatLayer_importnetwork) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, ConcatLayer_an_input) {
@@ -73,7 +73,7 @@ TEST(IE_FrontEndTest, ConcatLayer_an_input) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, ConcatLayer_nagative_axis) {
@@ -100,5 +100,5 @@ TEST(IE_FrontEndTest, ConcatLayer_nagative_axis) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }

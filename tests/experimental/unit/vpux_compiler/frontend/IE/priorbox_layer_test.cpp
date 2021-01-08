@@ -46,5 +46,5 @@ TEST(IE_FrontEndTest, PriorBoxLayer) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }

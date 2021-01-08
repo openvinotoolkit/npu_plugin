@@ -44,7 +44,7 @@ static void testImportNetwork(std::shared_ptr<ngraph::opset1::Parameter> param1,
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 //

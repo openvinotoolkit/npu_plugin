@@ -45,7 +45,7 @@ TEST(IE_FrontEndTest, SqueezeLayerTest_ImportNetwork) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, SqueezeLayerTest_Axes) {
@@ -68,7 +68,7 @@ TEST(IE_FrontEndTest, SqueezeLayerTest_Axes) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, SqueezeLayerTest_ZeroTensor) {
@@ -91,5 +91,5 @@ TEST(IE_FrontEndTest, SqueezeLayerTest_ZeroTensor) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }

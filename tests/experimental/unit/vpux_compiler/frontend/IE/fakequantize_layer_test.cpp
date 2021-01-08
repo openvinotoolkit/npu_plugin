@@ -51,7 +51,7 @@ TEST(IE_FrontEndTest, FakeQuantizeLayerTest) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, FakeQuantizeLayerTest_AutoBroadcastNone) {
@@ -84,5 +84,5 @@ TEST(IE_FrontEndTest, FakeQuantizeLayerTest_AutoBroadcastNone) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }

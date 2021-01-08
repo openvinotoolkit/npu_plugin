@@ -53,7 +53,7 @@ TEST_P(IE_FrontEndTest_ReorgYolo, ReorgYoloLayer) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 const std::vector<ngraph::element::Type> inputDataType{ngraph::element::u32, ngraph::element::u64,
