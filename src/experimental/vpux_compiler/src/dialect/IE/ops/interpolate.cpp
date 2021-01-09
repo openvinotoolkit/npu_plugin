@@ -33,30 +33,25 @@ mlir::LogicalResult vpux::IE::InterpolateOp::inferReturnTypeComponents(
     const auto inType = interpolate.input().getType().cast<mlir::ShapedType>();
     const auto inputShape = inType.getShape();
 
-    auto targetShapeType = interpolate.target_shape().getDefiningOp<mlir::ConstantOp>();
-    if (targetShapeType == nullptr) {
+    auto targetShapeConst = interpolate.target_shape().getDefiningOp<ConstantInterface>();
+    if (targetShapeConst == nullptr) {
         return mlir::failure();
     }
 
-    const auto denseElementArray = targetShapeType.value().dyn_cast<mlir::DenseElementsAttr>();
-    if (denseElementArray == nullptr) {
-        return mlir::failure();
-    }
+    const auto targetShape = targetShapeConst.getContent().getValues<int64_t>();
 
-    VPUX_THROW_UNLESS(static_cast<size_t>(denseElementArray.size()) == interpolate.attr().axes().size(),
+    VPUX_THROW_UNLESS(targetShape.size() == interpolate.attr().axes().size(),
                       "Num of elements in traget shape tensor: {0} should be equal to number of indices in axes: {1}",
-                      denseElementArray.size(), interpolate.attr().axes().size());
-
-    const auto elementsRange = denseElementArray.getValues<int64_t>();
+                      targetShape.size(), interpolate.attr().axes().size());
 
     SmallVector<int64_t> outShape;
     for (size_t i = 0; i < inputShape.size(); ++i) {
         outShape.emplace_back(inputShape[i]);
     }
 
-    auto elementsIter = elementsRange.begin();
+    auto targetShapeIter = targetShape.begin();
     for (const auto& i : interpolate.attr().axes()) {
-        outShape[i.cast<mlir::IntegerAttr>().getInt()] = *elementsIter++;
+        outShape[i.cast<mlir::IntegerAttr>().getInt()] = *targetShapeIter++;
     }
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());

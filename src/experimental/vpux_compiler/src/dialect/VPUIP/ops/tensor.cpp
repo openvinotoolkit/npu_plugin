@@ -65,17 +65,13 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
 //
 
 void vpux::VPUIP::DeclareConstantTensorOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
-                                                 mlir::MemRefType type, mlir::DenseElementsAttr content) {
-    build(builder, state, type, content, false);
-}
-
-mlir::OpFoldResult vpux::VPUIP::DeclareConstantTensorOp::fold(ArrayRef<mlir::Attribute>) {
-    return content();
+                                                 mlir::MemRefType type, mlir::ElementsAttr value) {
+    build(builder, state, type, value, false);
 }
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareConstantTensorOp op) {
-    auto memref = op.memory().getType().cast<mlir::MemRefType>();
-    auto mem = getPhysicalMemory(memref);
+    const auto memref = op.getType();
+    const auto mem = getPhysicalMemory(memref);
 
     if (mlir::failed(mem) || mem.getValue() != VPUIP::PhysicalMemory::DDR) {
         return printTo(op.emitError(), "'{0}' has unsupported result memory space '{1}'",

@@ -69,53 +69,23 @@ void ConvertIERT2VPUIPPass::runOnFunction() {
 // ConstantRewrite
 //
 
-class ConvertIERT2VPUIPPass::ConstantRewrite final : public mlir::OpRewritePattern<mlir::GetGlobalMemrefOp> {
+class ConvertIERT2VPUIPPass::ConstantRewrite final : public mlir::OpRewritePattern<IERT::ConstantOp> {
 public:
-    ConstantRewrite(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<mlir::GetGlobalMemrefOp>(ctx), _log(log) {
+    ConstantRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::ConstantOp>(ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::GetGlobalMemrefOp origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IERT::ConstantOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertIERT2VPUIPPass::ConstantRewrite::matchAndRewrite(mlir::GetGlobalMemrefOp origOp,
+mlir::LogicalResult ConvertIERT2VPUIPPass::ConstantRewrite::matchAndRewrite(IERT::ConstantOp origOp,
                                                                             mlir::PatternRewriter& rewriter) const {
     _log.trace("Found Constant Operation '{0}'", origOp);
 
-    auto constantName = origOp.nameAttr();
-    if (constantName == nullptr) {
-        _log.trace("Failed to get constant name");
-        return mlir::failure();
-    }
-
-    auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    if (module == nullptr) {
-        _log.trace("Failed to get parent Module Operation");
-        return mlir::failure();
-    }
-
-    auto globalOp = module.lookupSymbol<mlir::GlobalMemrefOp>(constantName);
-    if (globalOp == nullptr) {
-        _log.trace("Failed to get GlobalMemrefOp Operation with name '{0}'", constantName);
-        return mlir::failure();
-    }
-
-    auto content = globalOp.initial_valueAttr().dyn_cast_or_null<mlir::DenseElementsAttr>();
-    if (content == nullptr) {
-        _log.trace("GlobalMemrefOp Operation '{0}' has no initial value", constantName);
-        return mlir::failure();
-    }
-
-    auto memrefType = globalOp.type().dyn_cast_or_null<mlir::MemRefType>();
-    VPUX_THROW_UNLESS(memrefType != nullptr, "GlobalMemrefOp Operation '{0}' has unsupported Type '{1}'", constantName,
-                      globalOp.type());
-
-    rewriter.replaceOpWithNewOp<VPUIP::DeclareConstantTensorOp>(origOp, memrefType, content);
-
+    rewriter.replaceOpWithNewOp<VPUIP::DeclareConstantTensorOp>(origOp, origOp.getType(), origOp.value());
     _log.trace("Replaced with 'VPUIP.DeclareConstantTensorOp'");
 
     return mlir::success();
@@ -132,7 +102,7 @@ void ConvertIERT2VPUIPPass::passBody() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp, IE::EndOp>();
     target.addLegalOp<IERT::RunTimeResourcesOp, IERT::MemoryResourceOp, IERT::ExecutorResourceOp>();
-    target.addLegalOp<mlir::AllocOp, mlir::DeallocOp, mlir::GlobalMemrefOp>();
+    target.addLegalOp<mlir::AllocOp, mlir::DeallocOp>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
 

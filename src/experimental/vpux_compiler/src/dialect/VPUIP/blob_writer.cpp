@@ -21,7 +21,6 @@
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 
-#include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -364,30 +363,17 @@ MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
     return MVCNN::order3(x, y, z);
 }
 
-VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(mlir::DenseElementsAttr content,
+VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ConstContentAttr content,
+                                                                        mlir::MemRefType actualType,
                                                                         bool csram_cacheable) {
-    auto type = content.getType().cast<mlir::ShapedType>();
-
-    auto elemType = type.getElementType();
-    const size_t elemTypeByteSize = elemType.getIntOrFloatBitWidth() / 8;
-
-    const size_t totalNumElements = type.getNumElements();
+    const size_t elemTypeByteSize = actualType.getElementType().getIntOrFloatBitWidth() / CHAR_BIT;
+    const size_t totalNumElements = actualType.getNumElements();
     const size_t totalByteSize = totalNumElements * elemTypeByteSize;
 
     std::vector<uint64_t> alignedContent(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
-    const auto rawData = content.getRawData();
-    if (content.isSplat()) {
-        loop_1d(LoopExecPolicy::Parallel, (totalByteSize / elemTypeByteSize), [&](int i) {
-            auto dst = reinterpret_cast<uint8_t*>(alignedContent.data()) + i * elemTypeByteSize;
-            std::copy_n(reinterpret_cast<const uint8_t*>(rawData.data()), elemTypeByteSize, dst);
-        });
-    } else {
-        VPUX_THROW_UNLESS(rawData.size() == totalByteSize, "Raw Size mismatch for const content : '{0}' vs '{1}'",
-                          rawData.size(), totalByteSize);
-        std::copy_n(reinterpret_cast<const uint8_t*>(rawData.data()), totalByteSize,
-                    reinterpret_cast<uint8_t*>(alignedContent.data()));
-    }
+    const auto buf = makeMutableArrayRef(reinterpret_cast<char*>(alignedContent.data()), totalByteSize);
+    content.convertTo(actualType, buf);
 
     const auto serializedContent = createVector(alignedContent);
 

@@ -57,7 +57,6 @@ public:
 
 public:
     class FuncOpConverter;
-    class ConstantOpConverter;
     class GenericOpConverter;
 
 public:
@@ -107,78 +106,6 @@ mlir::LogicalResult ConvertPrecisionToFP16Pass::FuncOpConverter::matchAndRewrite
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
 
     return rewriteFuncPrototype(funcOp, *converter, rewriter, _log);
-}
-
-//
-// ConstantOpConverter
-//
-
-class ConvertPrecisionToFP16Pass::ConstantOpConverter final : public mlir::OpConversionPattern<mlir::ConstantOp> {
-public:
-    ConstantOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<mlir::ConstantOp>(typeConverter, ctx, specificBenefit), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(mlir::ConstantOp origOp, ArrayRef<mlir::Value> operands,
-                                        mlir::ConversionPatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult ConvertPrecisionToFP16Pass::ConstantOpConverter::matchAndRewrite(
-        mlir::ConstantOp origOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Process Constant Operation '{0}'", origOp);
-
-    auto* converter = getTypeConverter();
-    VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
-
-    const auto origTensorType = origOp.getResult().getType().dyn_cast<mlir::RankedTensorType>();
-    if (origTensorType == nullptr) {
-        _log.trace("Unsupported result type '{0}'", origOp.getResult().getType());
-        return mlir::failure();
-    }
-
-    const auto origElemType = origTensorType.getElementType();
-    if (!origElemType.isF32()) {
-        _log.trace("Unsupported result precision '{0}'", origElemType);
-        return mlir::failure();
-    }
-
-    const auto origContent = origOp.value().dyn_cast<mlir::DenseElementsAttr>();
-    if (origContent == nullptr) {
-        _log.trace("Unsupported content attribute '{0}'", origOp.value());
-        return mlir::failure();
-    }
-
-    const auto newType = converter->convertType(origTensorType).cast<mlir::ShapedType>();
-
-    const auto totalNumElems = origTensorType.getNumElements();
-
-    mlir::DenseElementsAttr newContent;
-    if (origContent.isSplat()) {
-        const auto origValue = origContent.getSplatValue<float>();
-        const auto newValue = ngraph::float16(origValue);
-        newContent = mlir::DenseElementsAttr::get(newType, newValue);
-    } else {
-        const auto origValues = to_std_vector(origContent.getValues<float>());
-        std::vector<ngraph::float16> newValues(origValues.size());
-
-        loop_1d(LoopExecPolicy::Parallel, origValues.size(), [&](size_t i) {
-            newValues[i] = ngraph::float16(origValues[i]);
-        });
-
-        newContent = mlir::DenseElementsAttr::get(newType, makeArrayRef(newValues.data(), totalNumElems));
-    }
-
-    auto* dialect = rewriter.getContext()->getLoadedDialect<IE::IEDialect>();
-    VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
-
-    auto* newOp = dialect->materializeConstant(rewriter, newContent, newType, origOp.getLoc());
-    rewriter.replaceOp(origOp, newOp->getResults());
-
-    return mlir::success();
 }
 
 //
@@ -255,7 +182,6 @@ void ConvertPrecisionToFP16Pass::passBody() {
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
     target.addLegalOp<IE::ConvertOp>();
-    target.addDynamicallyLegalOp<mlir::ConstantOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
@@ -264,7 +190,6 @@ void ConvertPrecisionToFP16Pass::passBody() {
 
     mlir::OwningRewritePatternList patterns;
     patterns.insert<FuncOpConverter>(typeConverter, &ctx, _log.nest());
-    patterns.insert<ConstantOpConverter>(typeConverter, &ctx, _log.nest());
     patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
     IE::ConvertOp::getCanonicalizationPatterns(patterns, &ctx);
 

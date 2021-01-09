@@ -51,7 +51,6 @@ LowerIE2IERTPass::LowerIE2IERTPass(Logger log)
     _log.setName(Base::getArgumentName());
 
     _pm.addPass(createBufferizeIEPass(_log.nest()));
-    _pm.addPass(mlir::createTensorConstantBufferizePass());
     _pm.addPass(mlir::createFuncBufferizePass());
     _pm.addPass(mlir::createBufferResultsToOutParamsPass());
     _pm.addPass(mlir::createFinalizingBufferizePass());

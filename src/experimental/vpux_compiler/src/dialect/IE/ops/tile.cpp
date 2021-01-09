@@ -32,26 +32,20 @@ mlir::LogicalResult vpux::IE::TileOp::inferReturnTypeComponents(
 
     const auto inType = tile.input().getType().cast<mlir::ShapedType>();
 
-    auto inRepeats = tile.repeats().getDefiningOp<mlir::ConstantOp>();
-    if (inRepeats == nullptr) {
+    auto repeatsConst = tile.repeats().getDefiningOp<ConstantInterface>();
+    if (repeatsConst == nullptr) {
         return mlir::failure();
     }
 
-    const auto denseElementArray = inRepeats.value().dyn_cast<mlir::DenseElementsAttr>();
-    if (denseElementArray == nullptr) {
+    const auto repeats = repeatsConst.getContent().getValues<int64_t>();
+    if (repeats.size() != inType.getShape().size()) {
         return mlir::failure();
     }
-
-    const auto elementsRange = denseElementArray.getValues<int64_t>();
 
     auto outShape = to_small_vector(inType.getShape());
-    auto elementsIter = elementsRange.begin();
-    for (size_t i = 0; i < outShape.size(); ++i) {
-        if (elementsIter == elementsRange.end()) {
-            return mlir::failure();
-        }
 
-        outShape[i] *= *elementsIter++;
+    for (size_t i = 0; i < outShape.size(); ++i) {
+        outShape[i] *= repeats[i];
     }
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());

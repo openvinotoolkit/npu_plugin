@@ -129,39 +129,29 @@ def VPUIP_DeclareTensorOp :
 // DeclareConstantTensorOp
 //
 
-def DenseElementsAttr :
-        ElementsAttrBase<
-            CPred<"$_self.isa<mlir::DenseElementsAttr>()">,
-            "constant dense tensor attribute"
-        > {
-    let storageType = "mlir::DenseElementsAttr";
-    let returnType = "mlir::DenseElementsAttr";
-    let convertFromStorage = "$_self";
-}
-
 def VPUIP_DeclareConstantTensorOp :
         VPUIP_Op<
             "DeclareConstantTensorOp",
             [
                 ConstantLike,
-                NoSideEffect
+                NoSideEffect,
+                DeclareOpInterfaceMethods<ConstantInterface>
             ]
         > {
     let summary = "Constant TensorReference value declaration";
 
     let arguments = (ins
-        DenseElementsAttr:$content,
-
+        ElementsAttr:$value,
         UnitAttr:$csramCacheable
     );
 
     let results = (outs
-        AnyMemRef:$memory
+        AnyStaticShapeMemRef:$output
     );
 
     let builders = [
         OpBuilderDAG<
-            (ins "mlir::MemRefType":$type, "mlir::DenseElementsAttr":$content)
+            (ins "mlir::MemRefType":$type, "mlir::ElementsAttr":$value)
         >
     ];
 
@@ -170,10 +160,9 @@ def VPUIP_DeclareConstantTensorOp :
     }];
 
     let assemblyFormat = [{
-        $content attr-dict `->` type(results)
+        attr-dict
+        ($csramCacheable^)? type($output) `=` $value
     }];
-
-    let hasFolder = 1;
 }
 
 //

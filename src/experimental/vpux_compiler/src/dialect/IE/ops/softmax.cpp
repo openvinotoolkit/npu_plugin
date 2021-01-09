@@ -39,23 +39,16 @@ mlir::LogicalResult vpux::IE::SoftMaxOp::inferReturnTypeComponents(
 }
 
 mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(ArrayRef<mlir::Attribute>) {
-    auto shape = input().getType().cast<mlir::ShapedType>();
-    auto numElements = shape.getNumElements();
-    auto axis = axisInd();
+    const auto inType = input().getType().cast<mlir::ShapedType>();
+    const auto inShape = inType.getShape();
 
-    VPUX_THROW_UNLESS(axis < shape.getShape().size(), "Wrong axis idx {0} for {1} dim tensor", axis,
-                      shape.getShape().size());
-    if (shape.getShape()[axis] > 1L) {
+    const auto axis = axisInd();
+    VPUX_THROW_UNLESS(axis < inShape.size(), "Wrong axis idx {0} for {1} dim tensor", axis, inShape.size());
+
+    if (inShape[axis] > 1) {
         return nullptr;
     }
 
-    mlir::DenseElementsAttr denseAttrOfOnes;
-    if (shape.getElementType().isF32()) {
-        std::vector<float> arrayOfOnes(numElements, 1.0f);
-        denseAttrOfOnes = mlir::DenseElementsAttr::get(shape, makeArrayRef(arrayOfOnes.data(), numElements));
-    } else if (shape.getElementType().isF16()) {
-        std::vector<ngraph::float16> arrayOfOnes(numElements, 1.0f);
-        denseAttrOfOnes = mlir::DenseElementsAttr::get(shape, makeArrayRef(arrayOfOnes.data(), numElements));
-    }
-    return denseAttrOfOnes;
+    const auto valueType = mlir::RankedTensorType::get(inShape, mlir::Float32Type::get(getContext()));
+    return mlir::DenseElementsAttr::get(valueType, 1.0f);
 }

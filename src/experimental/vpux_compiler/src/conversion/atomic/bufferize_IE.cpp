@@ -45,6 +45,7 @@ public:
     void runOnFunction() final;
 
 public:
+    class ConstantRewrite;
     class LayerRewrite;
 
 public:
@@ -89,6 +90,39 @@ SmallVector<mlir::Value> BufferizeIEPass::allocateResults(mlir::Location loc, ml
                                auto allocOp = builder.create<mlir::AllocOp>(loc, memRefType.cast<mlir::MemRefType>());
                                return allocOp.memref();
                            }));
+}
+
+//
+// ConstantRewrite
+//
+
+class BufferizeIEPass::ConstantRewrite final : public mlir::OpConversionPattern<IE::ConstantOp> {
+public:
+    ConstantRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<IE::ConstantOp>(typeConverter, ctx, specificBenefit), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ConstantOp origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult BufferizeIEPass::ConstantRewrite::matchAndRewrite(IE::ConstantOp origOp, ArrayRef<mlir::Value>,
+                                                                      mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found Constant Operation '{0}'", origOp);
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    const auto newType = typeConverter->convertType(origOp.getType());
+
+    _log.trace("Create IERT analogue");
+    rewriter.replaceOpWithNewOp<IERT::ConstantOp>(origOp, newType, origOp.value());
+
+    return mlir::success();
 }
 
 //
@@ -159,12 +193,10 @@ void BufferizeIEPass::passBody() {
     target.addIllegalDialect<IE::IEDialect>();
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp, IE::EndOp>();
     target.addLegalOp<mlir::AllocOp>();
-    target.addDynamicallyLegalOp<mlir::ConstantOp>([&](mlir::ConstantOp op) {
-        return typeConverter.isLegal(op);
-    });
     mlir::populateBufferizeMaterializationLegality(target);
 
     mlir::OwningRewritePatternList patterns;
+    patterns.insert<ConstantRewrite>(typeConverter, &ctx, _log.nest());
     patterns.insert<LayerRewrite>(typeConverter, _log.nest());
 
     auto func = getFunction();

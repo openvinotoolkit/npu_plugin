@@ -34,29 +34,19 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
     const auto inputShape = inType.getShape();
     const auto indicesShape = gather.indices().getType().cast<mlir::ShapedType>().getShape();
 
-    auto inAxis = gather.axis().getDefiningOp<mlir::ConstantOp>();
-    if (inAxis == nullptr) {
+    auto axisConst = gather.axis().getDefiningOp<ConstantInterface>();
+    if (axisConst == nullptr) {
         return mlir::failure();
     }
 
-    const auto denseElementArray = inAxis.value().dyn_cast<mlir::DenseElementsAttr>();
-    if (denseElementArray == nullptr) {
-        return mlir::failure();
-    }
-
-    const auto elementsRange = denseElementArray.getValues<int64_t>();
-
-    auto elementsIter = elementsRange.begin();
-    if (elementsIter == elementsRange.end()) {
-        return mlir::failure();
-    }
+    const auto axis = axisConst.getContent().getValues<int64_t>()[0];
 
     SmallVector<int64_t> outShape;
     outShape.reserve(inputShape.size() + indicesShape.size() - 1);
 
     // calculate output shapes
     for (size_t i = 0; i < inputShape.size(); ++i) {
-        if (i == checked_cast<size_t>(*elementsIter)) {
+        if (i == checked_cast<size_t>(axis)) {
             for (size_t j = 0; j < indicesShape.size(); ++j) {
                 outShape.push_back(indicesShape[j]);
             }

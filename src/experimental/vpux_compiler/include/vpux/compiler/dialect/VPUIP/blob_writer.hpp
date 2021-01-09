@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "vpux/compiler/core/attributes/const_content.hpp"
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
@@ -92,7 +93,7 @@ public:
     TensorReference getTensor(mlir::Value val) const;
 
 public:
-    BinaryData createBinaryData(mlir::DenseElementsAttr content, bool csram_cacheable = false);
+    BinaryData createBinaryData(ConstContentAttr content, mlir::MemRefType actualType, bool csram_cacheable = false);
 
 public:
     Barrier createBarrier(mlir::Value val);

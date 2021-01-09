@@ -54,7 +54,6 @@ public:
 
 public:
     class FuncOpConverter;
-    class ConstantOpConverter;
     class GenericOpConverter;
 
 public:
@@ -107,56 +106,6 @@ mlir::LogicalResult ConvertShapeTo4DPass::FuncOpConverter::matchAndRewrite(
 }
 
 //
-// ConstantOpConverter
-//
-
-class ConvertShapeTo4DPass::ConstantOpConverter final : public mlir::OpConversionPattern<mlir::ConstantOp> {
-public:
-    ConstantOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<mlir::ConstantOp>(typeConverter, ctx, specificBenefit), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(mlir::ConstantOp origOp, ArrayRef<mlir::Value> operands,
-                                        mlir::ConversionPatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult ConvertShapeTo4DPass::ConstantOpConverter::matchAndRewrite(
-        mlir::ConstantOp origOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Process Constant Operation '{0}'", origOp);
-
-    auto* converter = getTypeConverter();
-    VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
-
-    const auto origTensorType = origOp.getResult().getType().dyn_cast<mlir::RankedTensorType>();
-    if (origTensorType == nullptr || origTensorType.getShape().size() == TARGET_TENSOR_DIM) {
-        _log.trace("Unsupported result type '{0}'", origOp.getResult().getType());
-        return mlir::failure();
-    }
-
-    auto origContent = origOp.value().dyn_cast<mlir::DenseElementsAttr>();
-    if (origContent == nullptr) {
-        _log.trace("Unsupported content attribute '{0}'", origOp.value());
-        return mlir::failure();
-    }
-
-    const auto newType = converter->convertType(origTensorType).cast<mlir::ShapedType>();
-
-    mlir::DenseElementsAttr newContent = origContent.reshape(newType);
-
-    auto* dialect = rewriter.getContext()->getLoadedDialect<IE::IEDialect>();
-    VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
-
-    auto* newOp = dialect->materializeConstant(rewriter, newContent, newType, origOp.getLoc());
-    rewriter.replaceOp(origOp, newOp->getResults());
-
-    return mlir::success();
-}
-
-//
 // GenericOpConverter
 //
 
@@ -187,8 +136,8 @@ mlir::LogicalResult ConvertShapeTo4DPass::GenericOpConverter::matchAndRewrite(
     mlir::BlockAndValueMapping mapper;
     mapper.map(origOperands, operands);
 
+    // TODO: implement this within op as an interface?
     if (auto softMaxOp = mlir::dyn_cast<IE::SoftMaxOp>(*origOp)) {
-        // TODO: implement this within op as an interface?
         auto newAxis = softMaxOp.axisInd() +
                        (TARGET_TENSOR_DIM -
                         origOp->getOperand(0).getType().dyn_cast<mlir::RankedTensorType>().getShape().size());
@@ -244,7 +193,6 @@ void ConvertShapeTo4DPass::passBody() {
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
     target.addLegalOp<mlir::linalg::TensorReshapeOp>();
-    target.addDynamicallyLegalOp<mlir::ConstantOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
@@ -253,7 +201,6 @@ void ConvertShapeTo4DPass::passBody() {
 
     mlir::OwningRewritePatternList patterns;
     patterns.insert<FuncOpConverter>(typeConverter, &ctx, _log.nest());
-    patterns.insert<ConstantOpConverter>(typeConverter, &ctx, _log.nest());
     patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
     mlir::linalg::TensorReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 

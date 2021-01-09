@@ -37,19 +37,12 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
     const auto inDataType = reshape.input1().getType().cast<mlir::ShapedType>();
     const auto inDataShape = inDataType.getShape();
 
-    auto inShape = reshape.input2().getDefiningOp<mlir::ConstantOp>();
-    if (inShape == nullptr) {
+    auto shapeConst = reshape.input2().getDefiningOp<ConstantInterface>();
+    if (shapeConst == nullptr) {
         return mlir::failure();
     }
 
-    auto denseElementArray = inShape.value().dyn_cast<mlir::DenseElementsAttr>();
-    if (denseElementArray == nullptr) {
-        return mlir::failure();
-    }
-
-    const auto elementsRange = denseElementArray.getValues<int64_t>();
-
-    SmallVector<int64_t> outShapeVec(elementsRange.begin(), elementsRange.end());
+    auto outShapeVec = to_small_vector(shapeConst.getContent().getValues<int64_t>());
 
     const auto zeroDims = std::count_if(outShapeVec.begin(), outShapeVec.end(), [](int64_t v) {
         return v == 0;
