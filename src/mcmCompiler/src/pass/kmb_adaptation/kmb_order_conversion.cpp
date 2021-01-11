@@ -56,6 +56,11 @@ void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model,
             else 
             {
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+                // the only dpu task that is supported currently with channel major(NCHW) order is the convolution and it outputs z-major(NHWC)
+                // the depthwise should accept z-major and output z-major as well
+                if (taskOp == "DepthwiseConv") {
+                    dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+                }
                 if (om.getSourceOp(dpuTask->getInputTensor(0))->getOpType() == "Slice")
                 {
                     auto inputImplicitOp = om.getSourceOp(dpuTask->getInputTensor(0));
