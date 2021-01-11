@@ -328,10 +328,10 @@ namespace
                             calcZeroPointAndScalePerTensor(
                                 newQuantMaxO.at(idx + tensorDim),
                                 newQuantMinO.at(idx + tensorDim),
-                                scaledQuantScaleO,
-                                scaledQuantZpO,
+                                levels,
                                 mv::getDType(mv::Precision::U8),
-                                levels);
+                                scaledQuantScaleO,
+                                scaledQuantZpO);
 
                             // To be able to use a dummy FQ input range
                             // of [0, levels] we must readapt both the original weights
@@ -347,10 +347,10 @@ namespace
                             calcZeroPointAndScalePerTensor(
                                 newQuantMaxO.at(idx),
                                 newQuantMinO.at(idx),
-                                scaledQuantScaleO,
-                                scaledQuantZpO,
+                                levels,
                                 mv::getDType(mv::Precision::U8),
-                                levels);
+                                scaledQuantScaleO,
+                                scaledQuantZpO);
                             std::transform(
                                 wtData.cbegin() + wtSetSize * idx,
                                 wtData.cbegin() + wtSetSize * (idx + 1),

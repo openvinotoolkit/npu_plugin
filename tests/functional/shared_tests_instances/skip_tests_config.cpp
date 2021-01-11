@@ -32,5 +32,8 @@ std::vector<std::string> disabledTestPatterns() {
 
         // [Track number: S#43484]
         ".*KmbMaxMinLayerTest.*",
+
+        // [Track number: S#46761]
+        ".*smoke_QuantGroupConv2D.*",
     };
 }

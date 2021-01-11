@@ -27,31 +27,23 @@ mv::DType mv::getDType(mv::Precision p) {
 int64_t mv::calculateZeroPoint(
     float low,
     float high,
-    mv::DType dtype,
-    int levels)
+    int levels,
+    mv::DType dtype)
 {
+    if ((low > 0.f) || (high < 0.f) || (low == high))
+        throw std::runtime_error("Unsupported FQ low/high");
+    if (levels > 256)
+        throw std::runtime_error("Unsupported FQ levels");
+
     int64_t zeroPoint = 0;
-    // Typical condition for symmetric case is low < 0, high > 0
-    if (dtype == mv::getDType(mv::Precision::U8)) {
-        //  MCM team provide this formula, need check
-        if ((low <= 0.f) && (high >= 0.f)) {
-            float x = -(levels - 1) * low / (high - low);
-            zeroPoint = std::round(x);
-        } else if (low >= 0.f) {
-            zeroPoint = 0;  // TODO Why not assert?
-        } else if (high <= 0.f) {
-            zeroPoint = (levels - 1);  // TODO Why not assert?
-        }
+
+    if (dtype == getDType(Precision::U8)) {
+        float x = -static_cast<float>(levels - 1.0f) * low / (high - low);
+        zeroPoint = static_cast<int64_t>(std::round(x));
     }
-    if (dtype == mv::getDType(mv::Precision::I8)) {
-        if ((low <= 0.f) && (high >= 0.f)) {
-            float x = -(levels - 1) * ((high + low) * 0.5f) / (high - low);
-            zeroPoint = std::round(x);
-        } else if (low > 0.f) {
-            zeroPoint = 127 - (levels - 1);  // TODO Why not assert?
-        } else if (high < 0.f) {
-            zeroPoint = 127;  // TODO Why not assert?
-        }
+    if (dtype == getDType(Precision::I8)) {
+        float x = -static_cast<float>(levels - 1.0f) * ((high + low) * 0.5f) / (high - low);
+        zeroPoint = static_cast<int64_t>(std::round(x));
     }
 
     return zeroPoint;
@@ -61,42 +53,44 @@ int64_t mv::calculateZeroPoint(
 // to produce a high enough variance, which impacts
 // quantized networks accuracy, some have slightly better accuracy
 // while the most of them have slightly worse accuracy.
-double mv::calculateScales(float low, float high, int levels) {
+double mv::calculateScale(float low, float high, int levels) {
     if (low == high)
-        return 1.0;
-    else
-        return static_cast<double>((high - low) / (levels - 1));
+        throw std::runtime_error("Unsupported FQ low/high");
+    if (levels > 256)
+        throw std::runtime_error("Unsupported FQ levels");
+
+    return static_cast<double>((high - low) / (levels - 1));
 }
 
 void mv::calcZeroPointAndScalePerTensor(
     double floatMax,
     double floatMin,
-    double& quantScale,
-    int64_t& quantZp,
+    int levels,
     mv::DType dtype,
-    int64_t levels)
+    double& quantScale,
+    int64_t& quantZp)
 {
-    quantScale = calculateScales(floatMin, floatMax, levels);
-    quantZp = calculateZeroPoint(floatMin, floatMax, dtype, levels);
+    quantScale = calculateScale(floatMin, floatMax, levels);
+    quantZp = calculateZeroPoint(floatMin, floatMax, levels, dtype);
 }
 
-void calcZeroPointAndScalePerChannel(
+void calcZeroPointsAndScalesPerChannel(
     std::vector<double> &floatMax,
     std::vector<double> &floatMin,
-    std::vector<double> &quantScale,
-    std::vector<int64_t> &quantZp,
+    int levels,
     mv::DType dtype,
-    int64_t levels)
+    std::vector<double> &quantScale,
+    std::vector<int64_t> &quantZp)
 {
     std::transform(floatMax.cbegin(), floatMax.cend(),
         floatMin.cbegin(), quantScale.begin(),
         [levels](const double &max,const double &min)
-        {return mv::calculateScales(min, max, levels);});
+        {return mv::calculateScale(min, max, levels);});
 
     std::transform(floatMax.cbegin(), floatMax.cend(),
         floatMin.cbegin(), quantZp.begin(),
         [dtype, levels](const double &max, const double &min)
-        {return mv::calculateZeroPoint(min, max, dtype, levels);});
+        {return mv::calculateZeroPoint(min, max, levels, dtype);});
 }
 
 void mv::updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor)
@@ -145,51 +139,53 @@ void mv::updateInfMinMaxPerChannel(mv::Data::TensorIterator tensor)
 
 //NOTE: workaround. merge_in_one is true for activations and false for weights
 mv::QuantizationParams mv::extractQuantParams(mv::Data::OpListIterator fqOp, bool merge_in_one, bool extract_input_params) {
-  assert(fqOp->getOpType() == "FakeQuantize");
+    if (fqOp->getOpType() != "FakeQuantize")
+        throw std::runtime_error("extractQuantParams works only with FQ layers");
 
-  auto inputs = fqOp->getInputTensor();
-  auto attrs = fqOp->getAttrs();
+    auto inputs = fqOp->getInputTensor();
+    auto attrs = fqOp->getAttrs();
 
-  auto levels = fqOp->get<unsigned>("levels");
+    auto levels = fqOp->get<unsigned>("levels");
 
-  std::vector<double> min_range;
-  std::vector<double> max_range;
+    std::vector<double> min_range;
+    std::vector<double> max_range;
 
-  if (extract_input_params) {
-      min_range = fqOp->getInputTensor(1)->getDoubleData();
-      max_range = fqOp->getInputTensor(2)->getDoubleData();
-  } else {
-      min_range = fqOp->getInputTensor(3)->getDoubleData();
-      max_range = fqOp->getInputTensor(4)->getDoubleData();
-  }
-
-  assert(min_range.size() != 0);
-
-  std::vector<int64_t> zero_points;
-  std::vector<double> scales;
-  std::vector<double> min;
-  std::vector<double> max;
-  if (merge_in_one) {
-    float output_min_value = *std::min_element(min_range.begin(), min_range.end());
-    float output_max_value = *std::max_element(max_range.begin(), max_range.end());
-
-    zero_points.push_back(calculateZeroPoint(output_min_value, output_max_value, getDType(Precision::U8), levels));
-    scales.push_back(calculateScales(output_min_value, output_max_value, levels));
-    min.push_back(output_min_value);
-    max.push_back(output_max_value);
-  } else {
-    for (size_t i = 0; i < min_range.size(); ++i) {
-      float min_value = min_range[i];
-      float max_value = max_range[i];
-
-      zero_points.push_back(calculateZeroPoint(min_value, max_value, getDType(Precision::U8), levels));
-      scales.push_back(calculateScales(min_value, max_value, levels));
-      min.push_back(min_value);
-      max.push_back(max_value);
+    if (extract_input_params) {
+        min_range = fqOp->getInputTensor(1)->getDoubleData();
+        max_range = fqOp->getInputTensor(2)->getDoubleData();
+    } else {
+        min_range = fqOp->getInputTensor(3)->getDoubleData();
+        max_range = fqOp->getInputTensor(4)->getDoubleData();
     }
-  }
 
-  return mv::QuantizationParams{zero_points, scales, min, max};
+    if (min_range.size() != max_range.size() || min_range.empty())
+        throw std::runtime_error("Unsupported FQ low/high");
+
+    std::vector<int64_t> zero_points;
+    std::vector<double> scales;
+    std::vector<double> min;
+    std::vector<double> max;
+    if (merge_in_one) {
+        float output_min_value = *std::min_element(min_range.begin(), min_range.end());
+        float output_max_value = *std::max_element(max_range.begin(), max_range.end());
+
+        zero_points.push_back(calculateZeroPoint(output_min_value, output_max_value, levels, getDType(Precision::U8)));
+        scales.push_back(calculateScale(output_min_value, output_max_value, levels));
+        min.push_back(output_min_value);
+        max.push_back(output_max_value);
+    } else {
+        for (size_t i = 0; i < min_range.size(); ++i) {
+            float min_value = min_range[i];
+            float max_value = max_range[i];
+
+            zero_points.push_back(calculateZeroPoint(min_value, max_value, levels, getDType(Precision::U8)));
+            scales.push_back(calculateScale(min_value, max_value, levels));
+            min.push_back(min_value);
+            max.push_back(max_value);
+        }
+    }
+
+    return mv::QuantizationParams{zero_points, scales, min, max};
 }
 
 mv::QuantizationParams mv::extractQuantParamsI(mv::Data::OpListIterator fqOp, bool merge_in_one) {
