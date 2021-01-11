@@ -1242,33 +1242,40 @@ std::vector<poolParams> calcPoolParams(const mv::Data::OpListIterator& opIt, con
     return  ans;
 }
 
+mv::Data::TensorIterator createPoolLayer(mv::OpModel& om, const std::string &type, const poolParams &params,
+                                         const mv::Data::TensorIterator &input, const std::string &name) {
+    mv::Data::TensorIterator op;
+    if (type == "AveragePool") {
+        op = om.averagePool(name,
+                            input,
+                            params.kernel,
+                            params.stride,
+                            params.padding,
+                            true); //exclude pad
+    }
+    else if (type == "MaxPool") {
+        op = om.maxPool(name,
+                        input,
+                        params.kernel,
+                        params.stride,
+                        params.padding,
+                        true); //exclude pad
+    }
+    else
+        throw std::runtime_error( "Error: Unsupported pooling type  " + type + " .Expected values: AveragePool, MaxPool");
+
+    return op;
+}
+
 bool splitPoolOp(mv::ComputationModel& model, const mv::Data::OpListIterator& opIt, const std::vector<poolParams> &poolParams) {
     mv::OpModel om(model);
-    mv::DataModel dm(model);
     auto sourceTensor = opIt->getInputTensor(0);
     auto parentOpIt = om.getSourceOp(sourceTensor);
 
     mv::Data::TensorIterator op0;
     auto dType = opIt->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
     auto quantParams = opIt->getOutputTensor(0)->getQuantParams();
-    if (opIt->getOpType() == "AveragePool") {
-        op0 = om.averagePool(opIt->getName() + "_AvgPool0",
-                         sourceTensor,
-                         poolParams[0].kernel,
-                         poolParams[0].stride,
-                         poolParams[0].padding,
-                         true); //exclude pad
-    }
-    else if (opIt->getOpType()== "MaxPool") {
-        op0 = om.maxPool(opIt->getName() + "_MaxPool0",
-                         sourceTensor,
-                         poolParams[0].kernel,
-                         poolParams[0].stride,
-                         poolParams[0].padding,
-                         true); //exclude pad
-    }
-    else
-        throw std::runtime_error( "Error: Op= " + opIt->getName() + " compiler doesn't support large kernel for a " + opIt->getOpType() );
+    op0 = createPoolLayer(om, opIt->getOpType(), poolParams[0], sourceTensor, opIt->getName() + "_Pool0");
 
     op0->setDType(dType);
     op0->setQuantParams(quantParams);
@@ -1279,7 +1286,6 @@ bool splitPoolOp(mv::ComputationModel& model, const mv::Data::OpListIterator& op
     }
 
     linkNewOperationsReplacement(parentOpIt, op0, om, opIt);
-
     // Remove old flow, remember to it to put next pool into model in correct place
     std::vector<mv::Data::OpListIterator> opsToLink;
     std::vector<std::size_t> inputSlots;
@@ -1301,25 +1307,7 @@ bool splitPoolOp(mv::ComputationModel& model, const mv::Data::OpListIterator& op
     mv::Data::TensorIterator op1;
     dType = input_op0->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
     quantParams = op0->getQuantParams();
-    if (input_op0->getOpType() == "AveragePool" ) {
-        op1 = om.averagePool(op0->getName() + "_AvgPool1",
-                         op0,
-                         poolParams[1].kernel,
-                         poolParams[1].stride,
-                         poolParams[1].padding,
-                         true); //exclude pad
-    }
-    else if (input_op0->getOpType() == "MaxPool") {
-
-        op1 = om.maxPool(op0->getName() + "_MaxPool1",
-                         op0,
-                         poolParams[1].kernel,
-                         poolParams[1].stride,
-                         poolParams[1].padding,
-                         true); //exclude pad
-    }
-    else
-        throw std::runtime_error( "Error: Op= " + input_op0->getName() + " compiler doesn't support large kernel for a " + input_op0->getOpType() );
+    op1 = createPoolLayer(om, input_op0->getOpType(), poolParams[1], op0, op0->getName() + "_Pool1");
 
     op1->setDType(dType);
     op1->setQuantParams(quantParams);
@@ -1338,7 +1326,6 @@ bool splitPoolOp(mv::ComputationModel& model, const mv::Data::OpListIterator& op
 }
 
 bool supportedCase(const mv::Data::OpListIterator& opIt) {
-    std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
     std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
     std::array<unsigned short, 2> kernel;
     if (opIt->hasAttr("kSize"))
@@ -1348,24 +1335,19 @@ bool supportedCase(const mv::Data::OpListIterator& opIt) {
     }
     auto kernelX = kernel[mv::KERNEL_WIDTH];
     auto kernelY = kernel[mv::KERNEL_HEIGHT];
-    auto strideX = stride[mv::STRIDE_WIDTH];
-    auto strideY = stride[mv::STRIDE_HEIGHT];
     auto sourceTensor = opIt->getInputTensor(0);
     auto inputShape = sourceTensor->getShape();
 
-    if ((kernelX <= mv::MAX_KERNEL && kernelY <= mv::MAX_KERNEL) || (kernelX != kernelY)) {
-        return false;
-    }
-
-    if ((inputShape[mv::IO_WIDTH_DIMENSION] == kernelX) && (inputShape[mv::IO_HEIGHT_DIMENSION] == kernelY)) {
-        return true;
-    } else if ((kernelX == strideX) && (kernelY == strideY)) {
+    // The best way for large AVG global pooling is SW layer (CVS-44261)
+    // Implementation in replaceLargeKernelsFcn() support kernels < 81, but more accurate then splitting to several Avg layers
+    // Solution: using new implamenation only for exteme cases (kernel > 81)
+    const int kernelLimitation = 81;
+    if ((kernelX == kernelY) && (kernelX > kernelLimitation) &&
+        (inputShape[mv::IO_WIDTH_DIMENSION] == kernelX) && (inputShape[mv::IO_HEIGHT_DIMENSION] == kernelY)) {
         return true;
     } else {
         return false;
     }
-
-    return false;
 }
 
 bool replaceLargeGlobalPooling(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
