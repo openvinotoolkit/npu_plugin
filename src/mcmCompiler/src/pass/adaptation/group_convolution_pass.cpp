@@ -29,13 +29,6 @@ namespace mv
 
 }
 
-// This is a helper function to get part of vector from equally divided slices
-template <typename T>
-static T getPartOfVec(T& vec, unsigned partIndex, unsigned totalNumberOfParts)
-{
-    return T(vec.cbegin() + partIndex * vec.size()/totalNumberOfParts, vec.cbegin() + (partIndex + 1) * vec.size()/totalNumberOfParts);
-}
-
 void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -94,35 +87,7 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
                 // weight quant params need to be divided if they are per channel
                 // same as weight tensor is divided along channel axis
-                mv::QuantizationParams weightQuantParamsPart = {{},{},{},{}};
-                auto zp_vec = weightQuantParams.getZeroPoint();
-                auto scale_vec = weightQuantParams.getScale();
-                auto min_vec = weightQuantParams.getMin();
-                auto max_vec = weightQuantParams.getMax();
-
-                if(zp_vec.size() > 1)
-                    zp_vec = getPartOfVec(zp_vec, branchId, group);
-                if(scale_vec.size() > 1)
-                    scale_vec = getPartOfVec(scale_vec, branchId, group);
-                if(min_vec.size() > 1)
-                    min_vec = getPartOfVec(min_vec, branchId, group);
-                if(max_vec.size() > 1)
-                    max_vec = getPartOfVec(max_vec, branchId, group);
-
-                if (weightQuantParams.hasAttr("shift") && weightQuantParams.hasAttr("mult"))
-                {
-                    auto shift_vec = weightQuantParams.getShift();
-                    auto mult_vec = weightQuantParams.getMult();
-
-                    if(shift_vec.size() > 1)
-                        shift_vec = getPartOfVec(shift_vec, branchId, group);
-                    if(mult_vec.size() > 1)
-                        mult_vec = getPartOfVec(mult_vec, branchId, group);
-
-                    weightQuantParamsPart = mv::QuantizationParams(zp_vec, scale_vec, min_vec, max_vec, shift_vec, mult_vec);
-                } else {
-                    weightQuantParamsPart = mv::QuantizationParams(zp_vec, scale_vec, min_vec, max_vec);
-                }
+                mv::QuantizationParams weightQuantParamsPart = weightQuantParams.getSlice(branchId, group);
 
                 auto weightsSlice = om.slice(weightSliceName,
                                              weightTensor,
@@ -141,19 +106,30 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                                              1);
                 newConvTensor->setDType(convOp->getOutputTensor(0)->getDType());
                 newConvTensor->setQuantParams(outputQuantParams);
-                om.getSourceOp(newConvTensor)->set<unsigned>("opId", convOp->get<unsigned>("opId"));
                 auto sliceConvOp = om.getSourceOp(newConvTensor);
+                sliceConvOp->set<unsigned>("opId", convOp->get<unsigned>("opId"));
                 if (convOp->hasAttr("bias"))
                 {
                     mv::Data::TensorIterator biasSliceTensor;
-                    std::vector<mv::DataElement> biasData;
-                    for (std::size_t i = branchId * outputChannels; i < branchId * outputChannels + outputChannels; i++)
-                        biasData.push_back(biasTensor->getData()[i]);
+                    std::vector<mv::DataElement> biasData = biasTensor->getData();
 
-                    biasSliceTensor = dm.defineTensor(mv::Tensor(biasName + "slice" + std::to_string(branchId), {outputChannels}, biasTensor->getDType(),
-                                        biasTensor->getOrder(), biasData, biasTensor->get<mv::QuantizationParams>("quantParams")));
+                    biasData = get_part_of_vec(biasData, branchId, group);
+
+                    biasSliceTensor = dm.defineTensor(biasName + "slice" + std::to_string(branchId), {outputChannels/group}, biasTensor->getDType(), biasTensor->getOrder(), biasData);
+
+                    if (biasTensor->isQuantized())
+                    {
+                        biasSliceTensor->setQuantParams(biasTensor->getQuantParams().getSlice(branchId, group));
+                    }
+
                     om.addAttr(sliceConvOp, "bias", biasSliceTensor->getName());
                 }
+
+                if (convOp->hasAttr("postOpTypes"))
+                {
+                    om.addAttr(sliceConvOp, "postOpTypes", convOp->get<std::vector<std::string>>("postOpTypes"));
+                }
+
                 convOutputs.push_back(newConvTensor);
             }
             auto concat = om.concat(convOp->getName() + "concat_",

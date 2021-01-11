@@ -1,5 +1,6 @@
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 #include <numeric>
 
 mv::QuantizationParams::QuantizationParams(const json::Value& content) : Element(content)
@@ -196,4 +197,41 @@ mv::QuantizationParams mv::QuantizationParams::empty() {
 mv::QuantizationParams mv::QuantizationParams::initial() {
     static double inf = std::numeric_limits<double>::infinity();
     return {{0}, {1}, {-inf}, {inf}};
+}
+
+// Return QuantizationParams which are created from an equally divided parts of each quantization parameter
+// in case it is a vector per channel. In case quant parameter is per tensor (vector size = 1) it is populated
+// without any change
+mv::QuantizationParams mv::QuantizationParams::getSlice(std::size_t slice_idx, std::size_t total_slices_number) {
+    mv::QuantizationParams quantParamsSlice = {{},{},{},{}};
+    auto zp_vec = getZeroPoint();
+    auto scale_vec = getScale();
+    auto min_vec = getMin();
+    auto max_vec = getMax();
+
+    if(zp_vec.size() > 1)
+        zp_vec = get_part_of_vec(zp_vec, slice_idx, total_slices_number);
+    if(scale_vec.size() > 1)
+        scale_vec = get_part_of_vec(scale_vec, slice_idx, total_slices_number);
+    if(min_vec.size() > 1)
+        min_vec = get_part_of_vec(min_vec, slice_idx, total_slices_number);
+    if(max_vec.size() > 1)
+        max_vec = get_part_of_vec(max_vec, slice_idx, total_slices_number);
+
+    if (hasAttr("shift") && hasAttr("mult"))
+    {
+        auto shift_vec = getShift();
+        auto mult_vec = getMult();
+
+        if(shift_vec.size() > 1)
+            shift_vec = get_part_of_vec(shift_vec, slice_idx, total_slices_number);
+        if(mult_vec.size() > 1)
+            mult_vec = get_part_of_vec(mult_vec, slice_idx, total_slices_number);
+
+        quantParamsSlice = mv::QuantizationParams(zp_vec, scale_vec, min_vec, max_vec, shift_vec, mult_vec);
+    } else {
+        quantParamsSlice = mv::QuantizationParams(zp_vec, scale_vec, min_vec, max_vec);
+    }
+
+    return quantParamsSlice;
 }

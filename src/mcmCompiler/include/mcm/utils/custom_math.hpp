@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <utility>
 #include <vector>
+#include <cassert>
 #include "include/mcm/tensor/dtype/dtype.hpp"
 
 
@@ -54,6 +55,15 @@ namespace mv
     uint16_t fp32_to_fp16(float value);
     uint16_t fp32_to_fp16(double value);
     float fp16_to_fp32(uint16_t value);
+
+    // This is a helper function to get part of vector from equally divided slices
+    template <typename T>
+    T get_part_of_vec(T& vec, unsigned partIndex, unsigned totalNumberOfParts)
+    {
+        assert(vec.size() % totalNumberOfParts == 0);
+        assert(partIndex < totalNumberOfParts);
+        return T(vec.cbegin() + partIndex * vec.size()/totalNumberOfParts, vec.cbegin() + (partIndex + 1) * vec.size()/totalNumberOfParts);
+    }
 }
 
 #endif
