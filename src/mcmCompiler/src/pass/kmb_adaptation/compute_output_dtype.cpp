@@ -197,13 +197,6 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
 
                 outputMaxC = maxIn[0] * sum_weight;
                 outputMinC = minIn[0] * sum_weight;
-//                if (outputMinC > outputMaxC)
-//                //could happen if weight is negative
-//                {
-//                    auto temp = outputMaxC;
-//                    outputMaxC = outputMinC;
-//                    outputMinC = temp;
-//                }
                 if (hasBias)
                 {
                     real_bias = ((int64_t) bias->at(k)) * biasScale;
@@ -351,91 +344,49 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
 void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
-    bool PredictionOfQuantizationOutput = false;
     auto returnedParams = model.getGlobalConfigParams();
-    if (returnedParams->hasAttr("PredictionOfQuantizationOutput"))
-        PredictionOfQuantizationOutput = returnedParams->get<bool>("PredictionOfQuantizationOutput");
 
-    if (PredictionOfQuantizationOutput)
+    if (returnedParams->hasAttr("PredictionOfQuantizationOutput") &&
+        returnedParams->get<bool>("PredictionOfQuantizationOutput")) {
         updateOutputQuantParams(pass, model);
-    else
-    {
-        const std::unordered_map <std::string, std::vector<std::size_t>>
-            hardwarizableOps =
-            {
-                {"Conv", {0}},
-                {"DepthwiseConv", {0}},
-                {"MaxPool", {0}},
-                {"Eltwise", {0, 1}}
-            };
+    } else {
+        for (auto& p : om.getOpsOfTypes({"Conv", "DepthwiseConv", "MaxPool", "Eltwise"})) {
+            for (auto& op : p.second) {
+                const auto& opType = p.first;
 
-        for (auto opType : hardwarizableOps)
-        {
-            auto opList = om.getOps(opType.first);
-
-            for (auto op : opList)
-            {
-                bool outputQuantized = !(!op->getOutputTensor()[0]->hasAttr("quantParams") ||
-                    op->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isEmpty() ||
-                    op->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral());
-
+                // TODO: Can we encapsulate isEmpty() inside isNeutral()?
                 bool inputQuantized = true;
-                for (auto tidx : opType.second)
-                    inputQuantized &= op->getInputTensor(tidx)->hasAttr("quantParams") &&
-                        !(op->getInputTensor(tidx)->get<mv::QuantizationParams>("quantParams").isNeutral() ||
-                        op->getInputTensor(tidx)->get<mv::QuantizationParams>("quantParams").isEmpty());
-
-                if (op->getOutputTensor()[0]->getDType() ==  mv::DType("Float16"))
-                {
-                    if (returnedParams->hasAttr("FloatOutput"))
-                    {
-                        if (returnedParams->get<bool>("FloatOutput"))
-                        {
-                            op->set<bool>("floatPrecision", true);
-                        }
-                    }
+                for (size_t i = 0; i < (opType == "Eltwise" ? 2 : 1); ++i) {
+                    inputQuantized &= !op->getInputTensor(i)->getQuantParams().isEmpty() &&
+                                      !op->getInputTensor(i)->getQuantParams().isNeutral();
                 }
-                else if (inputQuantized && !outputQuantized)
-                {
-                    if (returnedParams->hasAttr("Int32Output"))
-                    {
-                        if (returnedParams->get<bool>("Int32Output"))
-                        {
-                            op->getOutputTensor()[0]->setDType(mv::DType("Int32"));
-                        }
+                bool outputQuantized = !op->getOutputTensor()[0]->getQuantParams().isNeutral() &&
+                                       !op->getOutputTensor()[0]->getQuantParams().isEmpty();
+
+                if (op->getOutputTensor()[0]->getDType() ==  mv::DType("Float16")) {
+                    if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput")) {
+                        op->set<bool>("floatPrecision", true);
                     }
-                    //NOTE: HW limitation, in mixed mode the grids of the MPEs are conflicting between
-                    //each other, which leads to 1x1 workloads, so we will do an explicit conversion
-                    //in different cases
-                    if (returnedParams->hasAttr("FloatOutput"))
-                    {
-                        if (returnedParams->get<bool>("FloatOutput"))
-                        {
-                            if (op->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
-                            op->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1)
-                            {
-                                op->set<bool>("mixedToFloat", true);
-                                op->getOutputTensor()[0]->setDType(mv::DType("Float16"));
-                            }
-                            else
-                            {
-                                //NOTE: Eltwise quantize can support only per tensor quantization!!!
-                                bool perTensor = true;
-                                std::vector <double> absRelativeErrorScale;
-                                auto channelScale = op->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
-                                for (std::size_t i = 1; i < op->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale().size();
-                                    i++)
-                                    absRelativeErrorScale.push_back(std::abs(channelScale[i] - channelScale[0]));
-                                for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
-                                {
-                                    if (*it > 0.01f)
-                                    {
-                                        perTensor = false;
-                                        break;
-                                    }
-                                }
-                                if (perTensor)
-                                    op->set<bool>("placeConversionToFloat", true);
+                } else if (inputQuantized && !outputQuantized) {
+                    if (returnedParams->hasAttr("Int32Output") && returnedParams->get<bool>("Int32Output")) {
+                        op->getOutputTensor()[0]->setDType(mv::DType("Int32"));
+                    }
+                    // NOTE: HW limitation, in mixed mode the grids of the MPEs are conflicting between
+                    // each other, which leads to 1x1 workloads, so we will do an explicit conversion
+                    // in different cases
+                    if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput")) {
+                        if (op->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
+                            op->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) {
+                            op->set<bool>("mixedToFloat", true);
+                            op->getOutputTensor()[0]->setDType(mv::DType("Float16"));
+                        } else {
+                            const auto& channelScale = op->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
+                            bool perTensor = std::all_of(channelScale.begin(), channelScale.end(),
+                                                         [&](double x) {
+                                                             return std::abs(x - channelScale[0]) <= 0.01f;
+                                                         });
+                            if (perTensor) {
+                                op->set<bool>("placeConversionToFloat", true);
                             }
                         }
                     }

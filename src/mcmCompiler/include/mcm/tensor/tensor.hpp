@@ -61,9 +61,6 @@ namespace mv
             bool isDefault() { return (location_ == DEFAULT); }
             bool isForced() {return forced_;}
 
-//            void set(std::string &location) { location_ = namingMap[location]; }
-//            void set(const Location location) { location_ = location; }
-//            void set(const MemoryLocation& location) { location_ = location.location_; };
             bool relocate(Location newPlace)
             {
                 if(forced_)
@@ -202,14 +199,13 @@ namespace mv
         DataElement& operator()(const std::vector<std::size_t>& sub);
         const DataElement& operator()(const std::vector<std::size_t>& sub) const;
 
+        // TODO: We shouldn't need this. A const ref accessor to `subTensors_` should be good enough.
         inline bool hasSubTensors() const
         {
-            bool flag = false;
-            if (subTensors_.size() > 0)
-                flag = true;
-            return flag;
+            return !subTensors_.empty();
         }
 
+        // TODO: We shouldn't need this. A const ref accessor to `subTensors_` should be good enough.
         inline size_t numSubTensors() const
         {
             return subTensors_.size();
@@ -220,6 +216,10 @@ namespace mv
             return hasAttr("quantParams");
         }
 
+        mv::QuantizationParams getQuantParams() const {
+            return get<mv::QuantizationParams>("quantParams");
+        }
+
         inline bool isPopulated() const
         {
             return get<bool>("populated");
@@ -227,9 +227,7 @@ namespace mv
 
         inline bool isSparse() const
         {
-            if (hasAttr("sparse"))
-                return get<bool>("sparse");
-            return false;
+            return hasAttr("sparse") && get<bool>("sparse");
         }
 
         inline bool isBroadcasted() const
