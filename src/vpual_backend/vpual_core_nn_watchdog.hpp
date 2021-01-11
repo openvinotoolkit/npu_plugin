@@ -14,8 +14,10 @@
 // stated in the License.
 //
 
-#include <thread>
 #include <stdint.h>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 
 namespace vpux {
 
@@ -26,6 +28,7 @@ private:
     std::chrono::steady_clock::time_point _start;
 
     std::thread _abortThread;
+    std::condition_variable _cvPeriodic;
     std::function<void()> _abortProgram;
     vpu::Logger::Ptr _logger;
 
@@ -35,19 +38,24 @@ public:
              std::function<void()> abort_callback)  : _abortProgram(abort_callback), _logger(logger) {
 
         if (watchdog_milliseconds == 0) {
-            _logger->warning("Watchdog not enabled");
+            _logger->warning("[WATCHDOG] disabled");
             return;
         }
-        _logger->info("Starting timeout watchdog for %d ms", watchdog_milliseconds);
+        _logger->info("[WATCHDOG] Starting with timeout %d ms", watchdog_milliseconds);
         // Start a thread which will abort our program after a time.
         _abortThread = std::thread(&WatchDog::watchdog_thread, this, watchdog_milliseconds);
     }
 
     ~WatchDog() {
+        _logger->info("[WATCHDOG] stop initiated");
+        auto wd_stop_begins = std::chrono::steady_clock::now();
         _stopWatchdog = true;
         if (_abortThread.joinable()) {
+            _cvPeriodic.notify_one();
             _abortThread.join();
         }
+        auto wd_stopped_in = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - wd_stop_begins).count();
+        _logger->info("[WATCHDOG] stop completed in %f ms", wd_stopped_in);
     }
 
     WatchDog(const WatchDog&) = delete;
@@ -69,14 +77,21 @@ private:
     void watchdog_thread(const uint32_t timeout_ms) {
         using namespace std::chrono;
         _start = steady_clock::now();
+
+        std::mutex mtx;
+        std::unique_lock<std::mutex> lck(mtx);
+
         while (duration_cast<milliseconds>(steady_clock::now() - _start).count() < timeout_ms && !_stopWatchdog) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            _cvPeriodic.wait_for(lck, std::chrono::seconds(1));
             if (_pauseWatchdog) {
                 _start = steady_clock::now();
             }
         }
-        _logger->info("[WATCHDOG] triggered timeout of %d ms" , timeout_ms);
-        if (_stopWatchdog) return;
+        if (_stopWatchdog) {
+            _logger->info("[WATCHDOG] thread exited");
+            return;
+        }
+        _logger->warning("[WATCHDOG] triggered timeout of %d ms" , timeout_ms);
 
         _abortProgram();
     }
