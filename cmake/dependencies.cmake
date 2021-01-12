@@ -183,22 +183,22 @@ function(add_kmb_compile_custom_cpp_kernels)
                 VERBATIM)
     endforeach()
 
-#    if (DEFINED MV_TOOLS_PATH)
-#        foreach(cpp_file IN LISTS CPP_FILES)
-#            get_filename_component(cpp_file_name ${cpp_file} NAME_WE)
-#
-#            set(out_file "${DST_DIR}/${cpp_file_name}.elf")
-#            list(APPEND all_output_files ${out_file})
-#
-#            add_custom_command(
-#                    OUTPUT ${out_file}
-#                    COMMAND
-#                    python3 ${BUILD_COMMAND} --i ${cpp_file}  --t "${MV_TOOLS_PATH}" --o ${out_file}
-#                    MAIN_DEPENDENCY ${elf_file}
-#                    COMMENT "[KMB] Compile ${cpp_file}"
-#                    VERBATIM)
-#        endforeach()
-#    else()
+    if (DEFINED MV_TOOLS_PATH)
+        foreach(cpp_file IN LISTS CPP_FILES)
+            get_filename_component(cpp_file_name ${cpp_file} NAME_WE)
+
+            set(out_file "${DST_DIR}/${cpp_file_name}.elf")
+            list(APPEND all_output_files ${out_file})
+
+            add_custom_command(
+                    OUTPUT ${out_file}
+                    COMMAND
+                    python3 ${BUILD_COMMAND} --i ${cpp_file}  --t "${MV_TOOLS_PATH}" --o ${out_file}
+                    MAIN_DEPENDENCY ${elf_file}
+                    COMMENT "[KMB] Compile ${cpp_file}"
+                    VERBATIM)
+        endforeach()
+    else()
         foreach(elf_file IN LISTS ELF_FILES)
             get_filename_component(elf_file_name ${elf_file} NAME)
 
@@ -213,7 +213,7 @@ function(add_kmb_compile_custom_cpp_kernels)
                     COMMENT "[KMB] Copy ${elf_file} to ${DST_DIR}"
                     VERBATIM)
         endforeach()
-#    endif()
+    endif()
 
     add_custom_target(kmb_compile_custom_cpp_kernels
             DEPENDS ${all_output_files}
@@ -223,12 +223,11 @@ function(add_kmb_compile_custom_cpp_kernels)
     target_compile_definitions(kmb_custom_cpp_kernels INTERFACE "KMB_HAS_CUSTOM_CPP_KERNELS")
 endfunction()
 
-#-2683
-#if (NOT DEFINED MV_TOOLS_PATH)
-#    if(DEFINED MV_TOOLS_DIR AND DEFINED MV_TOOLS_VERSION)
-#        set(MV_TOOLS_PATH ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION})
-#    endif()
-#endif()
+if (NOT DEFINED MV_TOOLS_PATH)
+    if(DEFINED MV_TOOLS_DIR AND DEFINED MV_TOOLS_VERSION)
+        set(MV_TOOLS_PATH ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION})
+    endif()
+endif()
 
 add_kmb_compile_custom_cpp_kernels()
 
