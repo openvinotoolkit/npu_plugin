@@ -3,6 +3,8 @@ import sys
 import argparse
 import subprocess
 
+from tempfile import TemporaryDirectory
+
 # default parameters and templates
 
 MOVI_COMPILE_COMMAND_TEMPLATE = '-mcpu=ma2x8x -O3 -ffunction-sections -Wall -Wextra -Werror -S {pathToKernel} -I ./include -o {outFolder}/kernel.asmgen'
@@ -24,6 +26,7 @@ MOVI_COMPILE_COMMAND      = ''
 MOVI_ASM_COMMAND          = ''
 FIRST_PHASE_LINK_COMMAND  = ''
 SECOND_PHASE_LINK_COMMAND = ''
+PATH_TO_TMP_FOLDER        = ''
 
 def setEnvironment(args):
     global MOVI_COMPILE_COMMAND
@@ -31,25 +34,22 @@ def setEnvironment(args):
     global FIRST_PHASE_LINK_COMMAND
     global SECOND_PHASE_LINK_COMMAND
 
-    sourceDir = os.path.dirname(os.path.abspath(__file__)) + '/'
-
     pathToLdscripts = args.scripts  if args.scripts != '' else DEFAULT_LDSCRIPTS_PATH
     pathToOutputFile = args.output if args.output != '' else os.path.splitext(args.input)[0]+'.elf'
 
-    pathToOutTempFolder = os.path.join(sourceDir, TEMP_FOLDER_NAME)
     pathFirstPhaseScript = os.path.join(pathToLdscripts, FIRST_PHASE_SCRIPT_NAME)
     pathSecondPhaseScript = os.path.join(pathToLdscripts, LDSCRIPT_NAME)
 
+    sourceDir = os.path.dirname(os.path.abspath(__file__)) + '/'
     if not os.path.isabs(pathToOutputFile) :
         pathToOutputFile = sourceDir + pathToOutputFile
 
     os.makedirs(os.path.dirname(pathToOutputFile), exist_ok=True)
-    os.makedirs(pathToOutTempFolder, exist_ok=True)
 
-    MOVI_COMPILE_COMMAND      = MOVI_COMPILE_COMMAND_TEMPLATE.format(pathToKernel=args.input, outFolder=pathToOutTempFolder)
-    MOVI_ASM_COMMAND          = MOVI_ASM_COMMAND_TEMPLATE.format(outFolder=pathToOutTempFolder)
-    FIRST_PHASE_LINK_COMMAND  = FIRST_PHASE_LINK_COMMAND_TEMPLATE.format(firstPhaseScript=pathFirstPhaseScript, outFolder=pathToOutTempFolder, mvToolsDir=args.tools)
-    SECOND_PHASE_LINK_COMMAND = SECOND_PHASE_LINK_COMMAND_TEMPLATE.format(secondPhaseScript=pathSecondPhaseScript, outFolder=pathToOutTempFolder, outFile=pathToOutputFile)
+    MOVI_COMPILE_COMMAND      = MOVI_COMPILE_COMMAND_TEMPLATE.format(pathToKernel=args.input, outFolder=PATH_TO_TMP_FOLDER)
+    MOVI_ASM_COMMAND          = MOVI_ASM_COMMAND_TEMPLATE.format(outFolder=PATH_TO_TMP_FOLDER)
+    FIRST_PHASE_LINK_COMMAND  = FIRST_PHASE_LINK_COMMAND_TEMPLATE.format(firstPhaseScript=pathFirstPhaseScript, outFolder=PATH_TO_TMP_FOLDER, mvToolsDir=args.tools)
+    SECOND_PHASE_LINK_COMMAND = SECOND_PHASE_LINK_COMMAND_TEMPLATE.format(secondPhaseScript=pathSecondPhaseScript, outFolder=PATH_TO_TMP_FOLDER, outFile=pathToOutputFile)
 
 def run_tool(tool, args):
     isCompleted = False
@@ -82,14 +82,16 @@ parser.add_argument('--o', dest='output', default='',
                         help=f'output file name')
 
 args = parser.parse_args()
-setEnvironment(args)
 
-try:
-    run_tool(f'{args.tools}/linux64/bin/moviCompile', MOVI_COMPILE_COMMAND)
-    run_tool(f'{args.tools}/linux64/bin/moviAsm', MOVI_ASM_COMMAND)
-    run_tool(f'{args.tools}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld', FIRST_PHASE_LINK_COMMAND)
-    run_tool(f'{args.tools}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld', SECOND_PHASE_LINK_COMMAND)
-except Exception as ex:
-    command, stderr = ex.args
-    print(f'Build failed.\nCommand line:\n{command}\nError:\n{stderr}\n')
-    exit(1)    
+with TemporaryDirectory() as PATH_TO_TMP_FOLDER:
+    setEnvironment(args)
+
+    try:
+        run_tool(f'{args.tools}/linux64/bin/moviCompile', MOVI_COMPILE_COMMAND)
+        run_tool(f'{args.tools}/linux64/bin/moviAsm', MOVI_ASM_COMMAND)
+        run_tool(f'{args.tools}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld', FIRST_PHASE_LINK_COMMAND)
+        run_tool(f'{args.tools}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld', SECOND_PHASE_LINK_COMMAND)
+    except Exception as ex:
+        command, stderr = ex.args
+        print(f'Build failed.\nCommand line:\n{command}\nError:\n{stderr}\n')
+        exit(1)    
