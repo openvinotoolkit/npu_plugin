@@ -868,7 +868,9 @@ def IE_TanhOp :
             "Tanh",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+		SingleInputAndResultLayer,
+		DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Tanh layer";

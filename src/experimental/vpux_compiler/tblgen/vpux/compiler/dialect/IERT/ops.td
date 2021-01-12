@@ -503,4 +503,25 @@ def IERT_HSwishOp :
     );
 }
 
+//
+// TanhOp
+//
+
+def IERT_TanhOp :
+        IERT_LayerOp<
+            "Tanh",
+            [
+                SameOperandsShape,
+                SameOperandsElementType,
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time Tanh layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
 #endif
