@@ -223,4 +223,19 @@ def RewriteHSwish :
             (createHSwishUPAOp $input, $output)
         >;
 
+//
+// IERT.Tanh -> VPUIP.TanhUPA
+//
+
+def createTanhUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::TanhUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteTanh :
+        Pat<
+            (IERT_TanhOp $input, $output),
+            (createTanhUPAOp $input, $output)
+        >;
+
 #endif
