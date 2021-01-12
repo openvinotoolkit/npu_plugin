@@ -77,7 +77,7 @@ std::size_t predictSubTensorShape(std::size_t heightShape, unsigned int numClust
 
 // The sparsity maps relative to populated tensors have to be generated BEFORE the dma passes.
 // As they have to be DMAed into CMX.
-static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -93,7 +93,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             bool weightsSparsity = dpuTask->hasAttr("weightsSparsity") ? dpuTask->get<bool>("weightsSparsity") : false;
             std::string taskOp = dpuTask->get<std::string>("taskOp");
             pass.log(mv::Logger::MessageType::Debug, " taskOp "  + dpuTask->get<std::string>("taskOp"));
-            bool isChannelMajorConv = taskOp == "ChannelMajorConvolution";
+            bool isChannelMajorConv = (taskOp == "ChannelMajorConvolution") && (td.getTarget() != mv::Target::ma3720);
             bool isPooling = taskOp == "MaxPool";
             bool isDepthWiseConv = taskOp == "DepthwiseConv";
 
@@ -372,9 +372,9 @@ bool checkActivationSparsitySourceOpConditions(mv::Data::FlowListIterator flow)
     return false;
 }
 
-bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice)
+bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice, mv::Target target)
 {
-    if (referenceDevice != "A0")
+    if (target != mv::Target::ma2490 || referenceDevice != "A0")
         return false;
     auto source = flow.source();
     auto sink = flow.sink();
@@ -408,13 +408,14 @@ bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow, std::string refere
 // 1) SplitOverH ZMajorConvolution with kernel > 1 (A0 HW bug)
 // 2) Float ZMajorConvolution and Eltwise DPU task (A0 HW bug)
 
-static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::DataModel dm(model);
     mv::OpModel om(model);
     auto globalParams = model.getGlobalConfigParams();
     auto referenceDevice = globalParams->get<std::string>("referenceDevice");
+    auto target = td.getTarget();
 
     for(auto tensor = dm.tensorBegin(); tensor != dm.tensorEnd(); ++tensor)
     {
@@ -443,8 +444,8 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
         {
             auto flow = dm.getDataFlow(flowStr);
             if (flow.sink()->isSparsityConsumer() &&
-                (checkA0SOHSparsityBug(flow, referenceDevice) ||
-                checkA0FloatSparsityBug(flow, referenceDevice)) &&
+                (checkA0SOHSparsityBug(flow, referenceDevice, target) ||
+                checkA0FloatSparsityBug(flow, referenceDevice, target)) &&
                 !compilerSolvesSparsity(flow))
             {
                 tensorNeedsSparsity = true;

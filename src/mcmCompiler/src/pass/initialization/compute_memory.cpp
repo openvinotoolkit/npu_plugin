@@ -44,14 +44,14 @@ static void computeMemoryFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
     if(globalConfig->hasAttr("cmx"))
     {
         //Bypass safety factor
-        unsigned userMemory = globalConfig->get<int>("cmx");
+        int userMemory = globalConfig->get<int>("cmx");
         if(userMemory <= cmxPerCluster)
             cmx = userMemory;
     }
 
     auto updatedCmx = cmx * safetyFactor;
 
-    globalConfig->set<unsigned>("cmx", updatedCmx); // this has cmx including safety factor
+    globalConfig->set<int>("cmx", updatedCmx); // this has cmx including safety factor
     globalConfig->set<unsigned>("totalCmx", cmx); // use the lower value of the two total CMX - target vs user requested
     globalConfig->set<unsigned>("clusters", clusters);
 }

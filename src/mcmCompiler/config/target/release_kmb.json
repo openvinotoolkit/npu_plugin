@@ -499,6 +499,29 @@
                 "totalNumber": 4
             }
         ],
+        "processors":
+        [
+            {
+                "name": "LeonRT",
+                "totalNumber": 1
+            },
+            {
+                "name": "LeonNN",
+                "totalNumber": 1
+            },
+            {
+                "name": "UPAShaves",
+                "totalNumber": 1
+            },
+            {
+                "name": "NNShaves",
+                "totalNumber": 0
+            },
+            {
+                "name": "ARM",
+                "totalNumber": 2
+            }
+        ],
         "huffman_decode_engine":
         [
             {

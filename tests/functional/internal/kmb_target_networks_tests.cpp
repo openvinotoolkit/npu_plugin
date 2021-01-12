@@ -1122,3 +1122,20 @@ TEST_F(KmbVasFRTest, precommit_vasfr_feature) {
         TestImageDesc("112x112/Charlize_Theron_0001.jpg", ImageFormat::BGR),
         0.6f);
 }
+
+// MTL target compilation test
+TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8_MTL) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong detection results");//At the moment no EVM is setup so cannot run
+    runTest(
+                    TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::U8) //currently FP16 is not supported by runtime
+                    .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_mtl-sc"},
+                                       {"VPU_COMPILER_TARGET_DESCRIPTOR", "release_mtl"},
+                                       {"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "NO"}}),
+
+
+            "224x224/cat3.bmp",
+            3, 0.05);
+}

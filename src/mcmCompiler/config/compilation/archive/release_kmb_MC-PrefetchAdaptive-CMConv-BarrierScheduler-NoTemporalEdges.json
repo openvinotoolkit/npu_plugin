@@ -10,7 +10,6 @@
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
-                "UpaShaves": 1,
                 "WorkloadCost": 300,
                 "DDRScratch": 20971520,
                 "cmx": 917504,

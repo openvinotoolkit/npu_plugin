@@ -806,7 +806,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderMetaI
 }
 
 
-std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> originalHeader)
+std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, const mv::TargetDescriptor& td, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> originalHeader)
 {
     mv::OpModel om(cm);
 
@@ -817,7 +817,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     toBuild->version = std::move(originalHeader->version);
     toBuild->original_structure = std::move(originalHeader->original_structure);
-    toBuild->resources = buildResourcesT(cm, compilationDescriptor);
+    toBuild->resources = buildResourcesT(cm, td, compilationDescriptor);
     toBuild->identifier = cm.getName();
 
     // Support multiple inputs
@@ -901,27 +901,41 @@ std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT(ComputationMode
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel& cm, mv::Element& /*compilationDescriptor*/)
+MVCNN::PhysicalProcessor mapProcessorName(const string& processorName)
+{
+    if (processorName == "LeonRT")
+        return MVCNN::PhysicalProcessor_LEON_RT;
+    if (processorName == "LeonNN")
+        return MVCNN::PhysicalProcessor_LEON_NN;
+    if (processorName == "UPAShaves")
+        return MVCNN::PhysicalProcessor_UPA_SHV;
+    if (processorName == "NNShaves")
+        return MVCNN::PhysicalProcessor_NN_SHV;
+    if (processorName == "ARM")
+        return MVCNN::PhysicalProcessor_ARM;
+    return MVCNN::PhysicalProcessor_NULL;
+}
+
+std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel& cm, const mv::TargetDescriptor& td, mv::Element& compilationDescriptor)
+
 {
     std::unique_ptr<MVCNN::ResourcesT> toBuild = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
     auto globalConfigurationParams = cm.getGlobalConfigParams();
 
     toBuild->processor_allocation = std::vector<std::unique_ptr<MVCNN::ProcessorMappingT>>();
-    if(globalConfigurationParams->hasAttr("UpaShaves")){
-        std::unique_ptr<MVCNN::ProcessorMappingT> upaSHVProcessor =
-            std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
-        upaSHVProcessor->item= MVCNN::PhysicalProcessor_UPA_SHV;
-        setIfPresent<double, int>(upaSHVProcessor->number, *globalConfigurationParams , "UpaShaves");
-        toBuild->processor_allocation.push_back(std::move(upaSHVProcessor));
-    }
-    if(globalConfigurationParams->hasAttr("Number_of_Clusters")){
-        std::unique_ptr<MVCNN::ProcessorMappingT> NNClusterProcessor =
-            std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
-        NNClusterProcessor->item= MVCNN::PhysicalProcessor_NCE_Cluster ;
-        setIfPresent<double, int>(NNClusterProcessor->number, *globalConfigurationParams , "Number_of_Clusters");
-        toBuild->processor_allocation.push_back(std::move(NNClusterProcessor));
-    }
-    if(globalConfigurationParams->hasAttr("Number_of_DPUs")){
+
+    auto processDefs = td.processorDefs();
+    for (const auto &proc : processDefs)
+    {
+        std::unique_ptr<MVCNN::ProcessorMappingT> processorEntry =
+             std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
+        processorEntry->item = mapProcessorName(proc.first);
+        processorEntry->number = proc.second;
+        if (processorEntry->item != MVCNN::PhysicalProcessor_NULL)
+            toBuild->processor_allocation.push_back(std::move(processorEntry));
+     }
+  
+     if(globalConfigurationParams->hasAttr("Number_of_DPUs")){
         std::unique_ptr<MVCNN::ProcessorMappingT> NNDPUProcessor =
             std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
         NNDPUProcessor->item= MVCNN::PhysicalProcessor_NCE_PerClusterDPU;
@@ -932,6 +946,13 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
         }
         toBuild->processor_allocation.push_back(std::move(NNDPUProcessor));
     }
+
+    //clusters
+    std::unique_ptr<MVCNN::ProcessorMappingT> NNClusterProcessor =
+        std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
+    NNClusterProcessor->item= MVCNN::PhysicalProcessor_NCE_Cluster ;
+    setIfPresent<double, int>(NNClusterProcessor->number, *globalConfigurationParams , "Number_of_Clusters");
+    toBuild->processor_allocation.push_back(std::move(NNClusterProcessor));
 
     toBuild->memory_sizes = std::vector<std::unique_ptr<MVCNN::MemoryMappingT>>();
     if(globalConfigurationParams->hasAttr("totalCmx")){
@@ -1996,7 +2017,12 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
             return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
         case mv::MPE_Mode::Vector_FP16:
             return MVCNN::MPE_Mode::MPE_Mode_VECTOR_FP16;
-
+        case mv::MPE_Mode::CUBOID_16x16:
+            return MVCNN::MPE_Mode::MPE_Mode_CUBOID_16x16;
+        case mv::MPE_Mode::CUBOID_4x16:
+            return MVCNN::MPE_Mode::MPE_Mode_CUBOID_4x16;
+        case mv::MPE_Mode::CUBOID_8x16:
+            return MVCNN::MPE_Mode::MPE_Mode_CUBOID_8x16;
         default:
             return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
     }
@@ -3529,7 +3555,7 @@ void mv::RuntimeModel::buildHeader(ComputationModel &cm, Element &compilationDes
     graphFile_.header = buildSummaryHeaderMetaInformations(cm, compilationDescriptor);
 }
 
-void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compilationDescriptor)
+void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDescriptor& td, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
     mv::DataModel dm(cm);
@@ -3538,8 +3564,10 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
     auto globalConfigurationParameters = cm.getGlobalConfigParams();
     auto huffmanCompression = globalConfigurationParameters->get<bool>("HuffmanCompression");
+    bool hasCSRAM = (globalConfigurationParameters->hasAttr("csramLimit") &&
+                        globalConfigurationParameters->get<int>("csramLimit") != 0);
 
-    graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header));
+    graphFile_.header = buildSummaryHeaderT(cm, td, compilationDescriptor, std::move(graphFile_.header));
 
     // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
@@ -3582,7 +3610,8 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
             // including program inputs and spilled tensors.  This is fine; the cacheable info will only be
             // accessed for tensors that we're actually adding to the output.
             auto direction = opIterator->get<mv::DmaDirection>("direction");
-            if (direction != mv::DmaDirectionEnum::NNCMX2UPACMX &&
+            if (hasCSRAM &&
+                direction != mv::DmaDirectionEnum::NNCMX2UPACMX &&
                 direction != mv::DmaDirectionEnum::UPACMX2NNCMX &&
                 direction != mv::DmaDirectionEnum::DDR2UPACMX   &&
                 direction != mv::DmaDirectionEnum::UPACMX2DDR)

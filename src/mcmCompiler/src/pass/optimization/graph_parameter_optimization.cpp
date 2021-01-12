@@ -51,11 +51,12 @@ namespace mv
         {
 
         public:
-            StrategyManagerKmb(OpModel& model,mv::Element& passDesc) :
+            StrategyManagerKmb(OpModel& model,mv::Element& passDesc, mv::TargetDescriptor& td) :
                 StrategyManager(model,passDesc)
             {
                 auto globalParams = model.getGlobalConfigParams();
                 enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
+                target = td.getTarget();
             }
 
             size_t totalClusters=4;
@@ -78,6 +79,7 @@ namespace mv
             bool globalForceSpilling=false;
             bool enableChannelMajorConv=false;
             double safetyFactor=1.0;
+            mv::Target target = mv::Target::ma2490;
             double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
             double cmxPipeLineWeightsOverhead=34816.0;
             enum class FailCause
@@ -1286,8 +1288,8 @@ namespace mv
                 auto isCMConv = false;
                 auto clusterStrategy = clustering.get<std::string>();
 
-                if(enableChannelMajorConv && op.supportsCMConv())
-                    isCMConv = true;
+                if(enableChannelMajorConv && op.supportsCMConv() && target != mv::Target::ma3720)
+                     isCMConv = true;
 
                 if (op.hasAttr("DilatedSubConv") && (op.get<bool>("DilatedSubConv")))
                     dilatedLayerInputMemory = true;
@@ -1488,7 +1490,7 @@ namespace mv
 
                 if(op.getOpType() == "Conv" &&
                     op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
-                    !isCMConv && referenceDevice == "A0")
+                    !isCMConv && target == mv::Target::ma2490 && referenceDevice == "A0")
                         return true;
 
                 return false;
@@ -1513,7 +1515,7 @@ namespace mv
                 if (op.isSparsityConsumer() &&
                     op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
                     !isCMConv &&
-                    referenceDevice == "A0")
+                    target == mv::Target::ma2490 && referenceDevice == "A0")
                 {
                     return true;
                 }
@@ -1525,7 +1527,7 @@ namespace mv
                     if( clustering == "SplitOverH" &&
                         (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1) &&
                         !isCMConv &&
-                        referenceDevice == "A0")
+                        target == mv::Target::ma2490 && referenceDevice == "A0")
                         {
                             return true;
                         }
@@ -1536,7 +1538,7 @@ namespace mv
 
              //Channel major conv, pooling and depthwise will get fake sparsity, so need to check memory constraints as if real sparsity
             bool requiresFakeActivationSparsity(Op& op){
-                if(enableChannelMajorConv && op.supportsCMConv())
+                if(enableChannelMajorConv && op.supportsCMConv() && target != mv::Target::ma3720)
                     return true;
 
                 if(op.getOpType() == "MaxPool")
@@ -1673,7 +1675,7 @@ namespace mv
                 if(childOpType == "Eltwise" && (child["eltwiseParentSpilling"].get<bool>() != parentSpilling))
                     return INF;
 
-                if( violatesClusteringStrategyRules(parentOp, childOp, parent, child) )
+                if(violatesClusteringStrategyRules(parentOp, childOp, parent, child))
                 {
                     log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() +
@@ -1699,7 +1701,8 @@ namespace mv
                         return INF;
                 }
 
-                if(enableChannelMajorConv){
+                if(enableChannelMajorConv && target != mv::Target::ma3720)
+                {
                     if( violatesChannelMajorRules(parentOp, childOp, parent, child) )
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
@@ -2064,7 +2067,7 @@ namespace mv
                 if (spillForCM && !parentSpilling)
                     return true;
 
-                if( isChildChanMajor )
+                if(isChildChanMajor)
                 {
                     //Note: If SOHOverlapped input requires SOH CMconv, and vice versa
                     if(childClustering == "SplitOverH" &&
@@ -2460,12 +2463,12 @@ namespace mv
 static void GraphParameterOptimizationFcn(
     const mv::pass::PassEntry& ,
     mv::ComputationModel& model,
-    mv::TargetDescriptor& /*td*/, mv::Element& passDesc,
+    mv::TargetDescriptor& td, mv::Element& passDesc,
     mv::Element&
 )
 {
     mv::OpModel om(model);
-    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc);
+    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc, td);
 
     strategyManager.updateValuesFromJSON();
     strategyManager.updateDefaultValues();
