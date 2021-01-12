@@ -371,7 +371,7 @@ void saveNewStreamingStrategiesToJson(const mv::pass::PassEntry& pass, const mv:
 // tensor will be located. We skip extra streams in the case that the GO can't predict tensor location
 // such as after an explicit concat (could be CMXed later). For simplicity, we also only consider ops
 // that were already streaming over H, but this pass could be extended to consider non-streaming ops.
-void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     mv::OpModel om(model);
     auto globalParams = model.getGlobalConfigParams();
@@ -387,6 +387,7 @@ void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationM
     auto streamingStrategies = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
     std::vector<mv::Element> newStreamingStrategies;
 
+    int streamCount=0;
     for(auto streamingStrategy : streamingStrategies)
     {
         std::string nodeName = streamingStrategy.get<std::string>("name_filter");
@@ -435,9 +436,31 @@ void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationM
         {
             newStreamingStrategies.emplace_back(std::move(streamingStrategy));
         }
+
+        // check # streams added
+        auto strategySelected = newStreamingStrategies.back();
+        auto streamsSelected = strategySelected.get<std::vector<mv::Element>>("splits");
+        
+        // Streams are mostly 1's, so multiply total streams added
+        int streamsAdded =  streamsSelected[0].get<int>("W") * 
+                            streamsSelected[1].get<int>("H") * 
+                            streamsSelected[2].get<int>("C") *
+                            streamsSelected[3].get<int>("K") *
+                            streamsSelected[4].get<int>("N");
+        
+        streamCount += streamsAdded;
     }
 
     //Step 4. Save the streaming strategies into the compilation descriptor to be read by the streaming pass
-    globalParams->set<std::vector<mv::Element>>("streaming_strategy", newStreamingStrategies);
-    saveNewStreamingStrategiesToJson(pass, newStreamingStrategies);
+    // 1050 streams equals ~ 7000 tasks which causes the runtime load/parse time to increase to >10 seconds.
+    // vpuMgr currently times out all calls to the VPU that don't return in < 10secs
+    int MAX_STREAM_COUNT = 1000;
+    if (passDesc.hasAttr("max_streams"))
+        MAX_STREAM_COUNT = passDesc.get<int>("max_streams");
+
+    if (streamCount < MAX_STREAM_COUNT)
+    {
+        globalParams->set<std::vector<mv::Element>>("streaming_strategy", newStreamingStrategies);
+        saveNewStreamingStrategiesToJson(pass, newStreamingStrategies);
+    }
 }

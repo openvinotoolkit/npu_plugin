@@ -143,7 +143,10 @@
                 }
             },
             "StoreGraphOptimizerDecisions",
-            "AddActivationStreaming",
+            {
+                "name" : "AddActivationStreaming",
+                "max_streams" : 1000
+            },
             "ComputeSparsitySolution",
             "StreamingOperations",
             "StreamBinaryDataWeights",
