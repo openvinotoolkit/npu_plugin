@@ -52,18 +52,16 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
         return axis_set;
     };
 
-    const auto convertConstantOpToVector = [](mlir::ConstantOp constOp) -> std::vector<int64_t> {
-        if (constOp == nullptr) {
-            return {};
-        }
+    auto beginConst = slice.begin().getDefiningOp<ConstantInterface>();
+    auto endConst = slice.end().getDefiningOp<ConstantInterface>();
+    auto strideConst = slice.stride().getDefiningOp<ConstantInterface>();
+    if (beginConst == nullptr || endConst == nullptr || strideConst == nullptr) {
+        return mlir::failure();
+    }
 
-        const auto denseElementArray = constOp.value().dyn_cast<mlir::DenseElementsAttr>();
-        if (denseElementArray == nullptr) {
-            return {};
-        }
-
-        return to_std_vector(denseElementArray.getValues<int64_t>());
-    };
+    const auto begin = to_std_vector(beginConst.getContent().getValues<int64_t>());
+    const auto end = to_std_vector(endConst.getContent().getValues<int64_t>());
+    const auto stride = to_std_vector(strideConst.getContent().getValues<int64_t>());
 
     const auto inDataType = slice.data().getType().cast<mlir::ShapedType>();
     const auto inDataShape = inDataType.getShape();
@@ -74,15 +72,12 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
     const auto ellipsisMask = getAxisSetArr(slice.ellipsis_mask());
 
     const auto outputShape =
-            ngraph::infer_slice_shape(nullptr, ngraph::Shape(inDataShape.begin(), inDataShape.end()),
-                                      convertConstantOpToVector(slice.begin().getDefiningOp<mlir::ConstantOp>()),
-                                      convertConstantOpToVector(slice.end().getDefiningOp<mlir::ConstantOp>()),
-                                      convertConstantOpToVector(slice.stride().getDefiningOp<mlir::ConstantOp>()),
-                                      beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
+            ngraph::infer_slice_shape(nullptr, ngraph::Shape(inDataShape.begin(), inDataShape.end()), begin, end,
+                                      stride, beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
 
-    const auto shapeI64 = to_vector<4>(outputShape.get_shape() | transformed([](size_t val) {
-                                           return checked_cast<int64_t>(val);
-                                       }));
+    const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
+                                              return checked_cast<int64_t>(val);
+                                          }));
     inferredReturnShapes.emplace_back(shapeI64, inDataType.getElementType());
 
     return mlir::success();

@@ -33,26 +33,21 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     const auto inType = topK.input().getType().cast<mlir::ShapedType>();
     const auto inputShape = inType.getShape();
 
-    auto kType = topK.k().getDefiningOp<mlir::ConstantOp>();
-    if (kType == nullptr) {
+    auto kConst = topK.k().getDefiningOp<ConstantInterface>();
+    if (kConst == nullptr) {
         return mlir::failure();
     }
 
-    const auto kArray = kType.value().dyn_cast<mlir::DenseElementsAttr>();
-    if (kArray == nullptr) {
-        return mlir::failure();
+    const auto kVals = kConst.getContent().getValues<int64_t>();
+    if (kVals.size() != 1) {
+        return printTo(mlir::emitError(loc), "K input must be scalar");
     }
 
-    VPUX_THROW_UNLESS(kArray.size() == 1, "K input must be scalar");
-
-    const auto elementsRange = kArray.getValues<int64_t>();
-    auto elementsIter = elementsRange.begin();
-
-    mlir::SmallVector<int64_t, 4> outShape;
+    SmallVector<int64_t> outShape;
     for (size_t i = 0; i < inputShape.size(); ++i) {
         outShape.push_back(inputShape[i]);
     }
-    outShape[topK.axis().getInt()] = *elementsIter;
+    outShape[topK.axis().getInt()] = kVals[0];
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
     inferredReturnShapes.emplace_back(outShape, topK.element_type().getValue());

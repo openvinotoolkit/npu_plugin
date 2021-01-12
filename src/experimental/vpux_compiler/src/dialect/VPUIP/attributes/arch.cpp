@@ -34,15 +34,15 @@ const StringLiteral bandwidthAttrName = "VPUIP.bandwidth";
 }  // namespace
 
 void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
-    module.setAttr(archAttrName, VPUIP::ArchKindAttr::get(module.getContext(), kind));
+    module->setAttr(archAttrName, VPUIP::ArchKindAttr::get(module.getContext(), kind));
 
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
     auto resources = builder.create<IERT::RunTimeResourcesOp>(module.getLoc());
 
     const auto addMem = [&](VPUIP::PhysicalMemory kind, Byte size, double derateFactor, uint32_t bandwidth) {
         auto mem = resources.addAvailableMemory(VPUIP::PhysicalMemoryAttr::get(module.getContext(), kind), size);
-        mem.setAttr(derateFactorAttrName, getFP64Attr(module.getContext(), derateFactor));
-        mem.setAttr(bandwidthAttrName, getInt64Attr(module.getContext(), bandwidth));
+        mem->setAttr(derateFactorAttrName, getFP64Attr(module.getContext(), derateFactor));
+        mem->setAttr(bandwidthAttrName, getInt64Attr(module.getContext(), bandwidth));
     };
 
     resources.addAvailableMemory(nullptr, 1_GB);
@@ -75,7 +75,7 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
 }
 
 VPUIP::ArchKind vpux::VPUIP::getArch(mlir::ModuleOp module) {
-    auto attr = module.getAttr(archAttrName);
+    auto attr = module->getAttr(archAttrName);
     VPUX_THROW_UNLESS(attr != nullptr, "Module doesn't contain '{0}' attribute", archAttrName);
     VPUX_THROW_UNLESS(attr.isa<VPUIP::ArchKindAttr>(), "Module attribute '{0}' has unsupported value '{1}'",
                       archAttrName, attr);
@@ -87,7 +87,7 @@ double vpux::VPUIP::getMemoryDerateFactor(IERT::MemoryResourceOp mem) {
     VPUX_THROW_UNLESS(mem.kindAttr().isa<VPUIP::PhysicalMemoryAttr>(), "Unsupported memory resource kind '{0}'",
                       mem.kind());
 
-    auto attr = mem.getAttr(derateFactorAttrName);
+    auto attr = mem->getAttr(derateFactorAttrName);
     VPUX_THROW_UNLESS(attr != nullptr, "Memory resource '{0}' has no '{1}' attribute", mem.kind(),
                       derateFactorAttrName);
     VPUX_THROW_UNLESS(attr.isa<mlir::FloatAttr>(), "Memory resource '{0}' has wrong '{1}' attribute : '{2}'",
@@ -101,7 +101,7 @@ uint32_t vpux::VPUIP::getMemoryBandwidth(IERT::MemoryResourceOp mem) {
     VPUX_THROW_UNLESS(mem.kindAttr().isa<VPUIP::PhysicalMemoryAttr>(), "Unsupported memory resource kind '{0}'",
                       mem.kind());
 
-    auto attr = mem.getAttr(bandwidthAttrName);
+    auto attr = mem->getAttr(bandwidthAttrName);
     VPUX_THROW_UNLESS(attr != nullptr, "Memory resource '{0}' has no '{1}' attribute", mem.kind(), bandwidthAttrName);
     VPUX_THROW_UNLESS(attr.isa<mlir::IntegerAttr>(), "Memory resource '{0}' has wrong '{1}' attribute : '{2}'",
                       mem.kind(), bandwidthAttrName, attr);

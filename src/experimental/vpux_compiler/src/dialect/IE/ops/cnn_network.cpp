@@ -38,8 +38,8 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
                        entryPoint());
     }
 
-    auto inputsInfo = to_vector<1>(this->inputsInfo().getOps<IE::DataInfoOp>());
-    auto outputsInfo = to_vector<1>(this->outputsInfo().getOps<IE::DataInfoOp>());
+    auto inputsInfo = to_small_vector(this->inputsInfo().getOps<IE::DataInfoOp>());
+    auto outputsInfo = to_small_vector(this->outputsInfo().getOps<IE::DataInfoOp>());
 
     const auto netFuncType = netFunc.getType();
     const auto isBufferized = netFuncType.getNumResults() == 0;
@@ -186,7 +186,7 @@ SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getOutputsInfo() {
 }
 
 void vpux::IE::CNNNetworkOp::getFromModule(mlir::ModuleOp module, CNNNetworkOp& netInfo, mlir::FuncOp& netFunc) {
-    auto netOps = to_vector<1>(module.getOps<CNNNetworkOp>());
+    auto netOps = to_small_vector(module.getOps<CNNNetworkOp>());
 
     VPUX_THROW_UNLESS(netOps.size() == 1, "Can't have more than one 'IE::CNNNetworkOp' Operation in Module, got '{0}'",
                       netOps.size());

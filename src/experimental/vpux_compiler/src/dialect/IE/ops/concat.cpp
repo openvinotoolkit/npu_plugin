@@ -42,7 +42,7 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
     }
 
     // init with first input
-    auto outShape = to_vector<4>(inType.getShape());
+    auto outShape = to_small_vector(inType.getShape());
 
     // concat with rest inputs
     for (size_t i = 1; i < numInputs; i++) {

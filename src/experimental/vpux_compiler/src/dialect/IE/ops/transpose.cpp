@@ -36,34 +36,29 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
     const auto inDataType = transpose.input1().getType().cast<mlir::ShapedType>();
     const auto inDataShape = inDataType.getShape();
 
-    auto inOrder = transpose.input2().getDefiningOp<mlir::ConstantOp>();
-    if (inOrder == nullptr) {
+    auto orderConst = transpose.input2().getDefiningOp<ConstantInterface>();
+    if (orderConst == nullptr) {
         return mlir::failure();
     }
 
-    const auto denseElementArray = inOrder.value().dyn_cast<mlir::DenseElementsAttr>();
-    if (denseElementArray == nullptr) {
-        return mlir::failure();
-    }
+    auto order = orderConst.getContent().getValues<int64_t>();
 
-    auto inOrderVec = to_vector<4>(denseElementArray.getValues<int64_t>());
-
-    SmallVector<int64_t, 4> outShapeVec(inDataShape.begin(), inDataShape.end());
-    if (inOrderVec.size() == 0) {
+    SmallVector<int64_t> outShapeVec(inDataShape.begin(), inDataShape.end());
+    if (order.size() == 0) {
         std::reverse(outShapeVec.begin(), outShapeVec.end());
     } else {
-        if (outShapeVec.size() != inOrderVec.size()) {
+        if (outShapeVec.size() != order.size()) {
             return mlir::failure();
         }
 
         const auto outRank = static_cast<int64_t>(outShapeVec.size());
 
-        for (size_t i = 0; i < inOrderVec.size(); ++i) {
-            if (inOrderVec[i] >= outRank) {
+        for (size_t i = 0; i < order.size(); ++i) {
+            if (order[i] >= outRank) {
                 return mlir::failure();
             }
 
-            outShapeVec[i] = inDataShape[inOrderVec[i]];
+            outShapeVec[i] = inDataShape[order[i]];
         }
     }
 

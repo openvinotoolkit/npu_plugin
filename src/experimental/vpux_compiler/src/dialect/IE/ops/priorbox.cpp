@@ -61,25 +61,20 @@ mlir::LogicalResult vpux::IE::PriorBoxOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    auto outputSize = priorBox.output_size().getDefiningOp<mlir::ConstantOp>();
-    if (outputSize == nullptr) {
+    auto outputSizeConst = priorBox.output_size().getDefiningOp<ConstantInterface>();
+    if (outputSizeConst == nullptr) {
         return mlir::failure();
     }
 
-    const auto denseElementArray = outputSize.value().dyn_cast<mlir::DenseElementsAttr>();
-    if (denseElementArray == nullptr) {
-        return mlir::failure();
-    }
-
-    const auto elementsRange = denseElementArray.getValues<int64_t>();
-    VPUX_THROW_UNLESS(denseElementArray.size() == 2, "output_size of priorbox should be 2");
+    const auto outputSize = outputSizeConst.getContent().getValues<int64_t>();
+    VPUX_THROW_UNLESS(outputSize.size() == 2, "output_size of priorbox should be 2");
 
     const auto priorBoxAttrs = getNGraphPriorBoxAttrs(priorBox);
     const auto numPriors = ngraph::op::PriorBox::number_of_priors(priorBoxAttrs);
 
-    mlir::SmallVector<int64_t, 2> outShape{2, 4 * numPriors};
-    outShape[1] *= *elementsRange.begin();
-    outShape[1] *= *(elementsRange.begin() + 1);
+    SmallVector<int64_t> outShape{2, 4 * numPriors};
+    outShape[1] *= outputSize[0];
+    outShape[1] *= outputSize[1];
 
     inferredReturnShapes.emplace_back(outShape, mlir::Float32Type::get(ctx));
     return mlir::success();

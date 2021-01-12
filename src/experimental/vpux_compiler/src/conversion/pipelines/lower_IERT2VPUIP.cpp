@@ -44,7 +44,6 @@ private:
 
     void addGraphOp();
     mlir::LogicalResult setRunTimeResources();
-    mlir::LogicalResult removeGlobalMemRefOp();
 
 private:
     Logger _log;
@@ -88,11 +87,6 @@ void LowerIERT2VPUIPPass::passBody() {
     addGraphOp();
 
     if (mlir::failed(setRunTimeResources())) {
-        signalPassFailure();
-        return;
-    }
-
-    if (mlir::failed(removeGlobalMemRefOp())) {
         signalPassFailure();
         return;
     }
@@ -151,30 +145,6 @@ mlir::LogicalResult LowerIERT2VPUIPPass::setRunTimeResources() {
     }
 
     return mlir::success();
-}
-
-//
-// removeGlobalMemRefOp
-//
-
-mlir::LogicalResult LowerIERT2VPUIPPass::removeGlobalMemRefOp() {
-    _log.trace("Remove GlobalMemRef Operations from module");
-
-    auto module = getOperation();
-
-    auto callback = [&](mlir::GlobalMemrefOp op) -> mlir::WalkResult {
-        auto uses = op.getSymbolUses(module);
-        if (uses.hasValue() && !uses->empty()) {
-            _log.error("GlobalMemrefOp Operation '{0}' still has uses in IR", op);
-            return mlir::failure();
-        }
-
-        op.erase();
-
-        return mlir::success();
-    };
-
-    return mlir::success(!module.walk(callback).wasInterrupted());
 }
 
 }  // namespace

@@ -56,7 +56,7 @@ TEST_P(IE_FrontEndTest_TopK, TopKLayer) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 const std::vector<ngraph::element::Type> inputDataType{
         ngraph::element::f16,

@@ -141,7 +141,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     auto inputsInfo = netOp.getInputsInfo();
     auto outputsInfo = netOp.getOutputsInfo();
 
-    SmallVector<VPUIP::BlobWriter::TensorReference, 1> graphInputs, userInputs;
+    SmallVector<VPUIP::BlobWriter::TensorReference> graphInputs, userInputs;
     graphInputs.reserve(inputsInfo.size());
     userInputs.reserve(inputsInfo.size());
 
@@ -160,7 +160,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
                 writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
     }
 
-    SmallVector<VPUIP::BlobWriter::TensorReference, 1> graphOutputs, userOutputs;
+    SmallVector<VPUIP::BlobWriter::TensorReference> graphOutputs, userOutputs;
     graphOutputs.reserve(outputsInfo.size());
     userOutputs.reserve(outputsInfo.size());
 
@@ -180,7 +180,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
                 writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
     }
 
-    SmallVector<int8_t, 1> options;
+    SmallVector<int8_t> options;
     if (VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers)) {
         options.push_back(static_cast<int8_t>(MVCNN::ExecutionFlag_DynamicBarriers));
     }
@@ -246,10 +246,14 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
 
             ++tempTensorInd;
         } else if (auto tensorOp = mlir::dyn_cast<DeclareConstantTensorOp>(op)) {
-            const auto binData = writer.createBinaryData(tensorOp.content(), tensorOp.csramCacheable());
+            const auto content = tensorOp.getContent();
+            const auto actualType = tensorOp.getType();
+            const auto csramCacheable = tensorOp.csramCacheable();
+
+            const auto binData = writer.createBinaryData(content, actualType, csramCacheable);
             binaryData.push_back(binData);
 
-            writer.createTensor(tensorOp.memory(), llvm::formatv("constant-{0}", tempTensorInd).str(),
+            writer.createTensor(tensorOp.output(), llvm::formatv("constant-{0}", constantTensorInd).str(),
                                 MemoryLocation::GraphFile, checked_cast<uint32_t>(constantTensorInd), 0);
 
             ++constantTensorInd;

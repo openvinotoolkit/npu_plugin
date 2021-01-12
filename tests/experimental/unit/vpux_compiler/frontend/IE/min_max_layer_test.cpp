@@ -46,7 +46,7 @@ TEST(IE_FrontEndTest, MinimumLayer) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, MinimumLayer_AutoBroadcastType_NUMPY) {
@@ -69,7 +69,7 @@ TEST(IE_FrontEndTest, MinimumLayer_AutoBroadcastType_NUMPY) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, MaximumLayer) {
@@ -93,7 +93,7 @@ TEST(IE_FrontEndTest, MaximumLayer) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, MaximumLayer_AutoBroadcastType_NUMPY) {
@@ -116,5 +116,5 @@ TEST(IE_FrontEndTest, MaximumLayer_AutoBroadcastType_NUMPY) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }

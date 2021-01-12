@@ -172,6 +172,43 @@ def IE_EndOp :
 }
 
 //
+// ConstantOp
+//
+
+def IE_ConstantOp :
+        IE_Op<
+            "Constant",
+            [
+                ConstantLike,
+                NoSideEffect,
+                DeclareOpInterfaceMethods<ConstantInterface>
+            ]
+        > {
+    let summary = "Constant tensor declaration";
+
+    let description = [{
+        This operation can perform extra transformations for constant content:
+
+        * Reshape
+        * Relayout
+        * Precision conversion
+    }];
+
+    let arguments = (ins
+        ElementsAttr:$value
+    );
+
+    let results = (outs
+        AnyStaticShapeTensor:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        type($output) `=` $value
+    }];
+}
+
+//
 // ConvertOp
 //
 

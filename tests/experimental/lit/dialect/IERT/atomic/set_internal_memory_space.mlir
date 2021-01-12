@@ -58,17 +58,16 @@ IE.CNNNetwork
         IE.DataInfo "out" : memref<1x48x30x30xf32>
     }
 
-global_memref "private" constant @cst0 : memref<48x3x3x3xf32> = dense<1.0>
-global_memref "private" constant @cst1 : memref<1x48x1x1xf32> = dense<1.0>
-
 func @main(%in: memref<1x3x62x62xf32>, %out: memref<1x48x30x30xf32>) {
-    // CHECK: get_global_memref [[CST0:@[_a-z0-9]*]] : memref<48x3x3x3xf32>
-    %cst0 = get_global_memref @cst0 : memref<48x3x3x3xf32>
-    // CHECK: get_global_memref [[CST1:@[_a-z0-9]*]] : memref<1x48x1x1xf32>
-    %cst1 = get_global_memref @cst1 : memref<1x48x1x1xf32>
+    // CHECK: IERT.Constant memref<48x3x3x3xf32>
+    %cst0 = IERT.Constant memref<48x3x3x3xf32> = dense<1.0> : tensor<48x3x3x3xf32>
+
+    // CHECK: IERT.Constant memref<1x48x1x1xf32>
+    %cst1 = IERT.Constant memref<1x48x1x1xf32> = dense<1.0> : tensor<1x48x1x1xf32>
 
     // CHECK: alloc() : memref<1x48x60x60xf32, "DDR">
     %temp0 = alloc() : memref<1x48x60x60xf32>
+
     // CHECK: memref<1x3x62x62xf32>, memref<48x3x3x3xf32>, memref<1x48x1x1xf32>, memref<1x48x60x60xf32, "DDR">
     IERT.Convolution(%in, %cst0, %cst1, %temp0)
         {
@@ -81,6 +80,7 @@ func @main(%in: memref<1x3x62x62xf32>, %out: memref<1x48x30x30xf32>) {
 
     // CHECK: alloc() : memref<1x48x30x30xf32, "DDR">
     %temp1 = alloc() : memref<1x48x30x30xf32>
+
     // CHECK: memref<1x48x60x60xf32, "DDR">, memref<1x48x30x30xf32, "DDR">
     IERT.MaxPool(%temp0, %temp1)
         {
@@ -91,11 +91,13 @@ func @main(%in: memref<1x3x62x62xf32>, %out: memref<1x48x30x30xf32>) {
             strides = [2 : i32, 2 : i32]
         } :
         memref<1x48x60x60xf32>, memref<1x48x30x30xf32>
+
     // CHECK: dealloc [[TEMP0:%[_a-z0-9]*]] : memref<1x48x60x60xf32, "DDR">
     dealloc %temp0 : memref<1x48x60x60xf32>
 
     // CHECK: memref<1x48x30x30xf32, "DDR">, memref<1x48x30x30xf32>
     IERT.ReLU(%temp1, %out) : memref<1x48x30x30xf32>, memref<1x48x30x30xf32>
+
     // CHECK: dealloc [[TEMP1:%[_a-z0-9]*]] : memref<1x48x30x30xf32, "DDR">
     dealloc %temp1 : memref<1x48x30x30xf32>
 

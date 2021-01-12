@@ -30,6 +30,40 @@
 using namespace vpux;
 
 //
+// ConstantInterface
+//
+
+mlir::LogicalResult vpux::verifyConstant(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyConstant");
+
+    if (!op->hasTrait<mlir::OpTrait::ConstantLike>()) {
+        return printTo(op->emitError(), "Operation '{0}' is not a ConstantLike", op->getName());
+    }
+
+    auto constant = mlir::dyn_cast<ConstantInterface>(op);
+    if (constant == nullptr) {
+        return printTo(op->emitError(), "Operation '{0}' is not a Constant", op->getName());
+    }
+
+    const auto contentType = constant.getContentType();
+    const auto actualType = constant.getActualType();
+
+    if (!contentType.hasStaticShape()) {
+        return printTo(op->emitError(), "Can't use dynamic shape for '{0}' Operation content", op->getName());
+    }
+    if (!actualType.hasStaticShape()) {
+        return printTo(op->emitError(), "Can't use dynamic shape for '{0}' Operation result", op->getName());
+    }
+
+    if (contentType.getNumElements() != actualType.getNumElements()) {
+        return printTo(op->emitError(), "Content type '{0}' and actual type '{1}' are not compatible", contentType,
+                       actualType);
+    }
+
+    return mlir::success();
+}
+
+//
 // LayerInterface
 //
 

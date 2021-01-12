@@ -236,6 +236,43 @@ def IERT_StaticAllocOp :
 }
 
 //
+// ConstantOp
+//
+
+def IERT_ConstantOp :
+        IERT_Op<
+            "Constant",
+            [
+                ConstantLike,
+                NoSideEffect,
+                DeclareOpInterfaceMethods<ConstantInterface>
+            ]
+        > {
+    let summary = "Constant memory buffer declaration";
+
+    let description = [{
+        This operation can perform extra transformations for constant content:
+
+        * Reshape
+        * Relayout
+        * Precision conversion
+    }];
+
+    let arguments = (ins
+        ElementsAttr:$value
+    );
+
+    let results = (outs
+        AnyStaticShapeMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        type($output) `=` $value
+    }];
+}
+
+//
 // ConvertOp
 //
 

@@ -26,7 +26,7 @@
 namespace vpux {
 namespace IE {
 
-mlir::OwningModuleRef importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet,
+mlir::OwningModuleRef importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet, bool sharedConstants,
                                     Logger log = Logger::global());
 
 }  // namespace IE

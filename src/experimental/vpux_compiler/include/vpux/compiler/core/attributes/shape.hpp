@@ -82,4 +82,7 @@ ShapeRef getShape(mlir::Value val);
 using MemShape = details::DimValues<MemDim, int64_t, details::ShapeTag>;
 using MemShapeRef = details::DimValuesRef<MemDim, int64_t, details::ShapeTag>;
 
+MemShape getMemIndexND(int64_t memIndex1D, MemShapeRef memShape);
+int64_t getMemIndex1D(MemShapeRef memIndexND, MemShapeRef memShape);
+
 }  // namespace vpux

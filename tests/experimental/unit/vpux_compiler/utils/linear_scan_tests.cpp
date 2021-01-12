@@ -88,10 +88,10 @@ TEST_F(LinearScanTests, Alloc) {
         r3.size = 2;
 
         ASSERT_TRUE(s.alloc({&r1, &r2}));
-        ASSERT_EQ(s.liveRanges(), (SmallVector<LiveRange*, 2>{&r1, &r2}));
+        ASSERT_EQ(s.liveRanges(), (SmallVector<LiveRange*>{&r1, &r2}));
 
         ASSERT_TRUE(s.alloc({&r3}));
-        ASSERT_EQ(s.liveRanges(), (SmallVector<LiveRange*, 2>{&r1, &r3}));
+        ASSERT_EQ(s.liveRanges(), (SmallVector<LiveRange*>{&r1, &r3}));
 
         ASSERT_FALSE(r1.spilled);
         ASSERT_TRUE(r2.spilled);
@@ -124,10 +124,10 @@ TEST_F(LinearScanTests, Alloc) {
         r3.size = 2;
 
         ASSERT_TRUE(s.alloc({&r1, &r2}, false));
-        ASSERT_EQ(s.liveRanges(), (SmallVector<LiveRange*, 2>{&r1, &r2}));
+        ASSERT_EQ(s.liveRanges(), (SmallVector<LiveRange*>{&r1, &r2}));
 
         ASSERT_FALSE(s.alloc({&r3}, false));
-        ASSERT_EQ(s.liveRanges(), (SmallVector<LiveRange*, 2>{&r1, &r2}));
+        ASSERT_EQ(s.liveRanges(), (SmallVector<LiveRange*>{&r1, &r2}));
 
         ASSERT_FALSE(r1.spilled);
         ASSERT_FALSE(r2.spilled);

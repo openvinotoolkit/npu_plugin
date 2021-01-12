@@ -14,28 +14,27 @@
 // stated in the License.
 //
 
-#ifndef VPUX_COMPILER_DIALECT_VPUIP
-#define VPUX_COMPILER_DIALECT_VPUIP
+#pragma once
 
-include "mlir/IR/OpBase.td"
+#include <mlir/IR/Attributes.h>
+#include <mlir/IR/Types.h>
 
-def VPUIP_Dialect : Dialect {
-    let summary = "VPU NN RunTime Dialect";
+#include <functional>
 
-    let description = [{
-        The `VPUIP` Dialect represents NN RunTime IR in terms of MLIR framework.
-    }];
+namespace std {
 
-    let name = "VPUIP";
+template <>
+struct hash<mlir::Attribute> final {
+    size_t operator()(mlir::Attribute obj) const {
+        return mlir::hash_value(obj);
+    }
+};
 
-    let cppNamespace = "vpux::VPUIP";
+template <>
+struct hash<mlir::Type> final {
+    size_t operator()(mlir::Type obj) const {
+        return mlir::hash_value(obj);
+    }
+};
 
-    let dependentDialects = [
-        "vpux::IE::IEDialect",
-        "vpux::IERT::IERTDialect",
-        "mlir::StandardOpsDialect",
-        "mlir::quant::QuantizationDialect"
-    ];
-}
-
-#endif
+}  // namespace std

@@ -70,7 +70,7 @@ TEST_P(StridedSliceLayerTest, TestWithParam) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 const auto strided_slice_import_network_params = ::testing::Values(StridedSliceInputParams{

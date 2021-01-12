@@ -78,25 +78,20 @@ mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
     const auto outputPadding = parseIntArrayAttr(convBackpropData.output_padding());
 
     if (outputShape != nullptr) {
-        const SmallVector<ngraph::Dimension, 2> nDataShape(std::next(featureShape.begin(), 2), featureShape.end());
-        const SmallVector<ngraph::Dimension, 2> nFilterShape(std::next(filterShape.begin(), 2), filterShape.end());
+        const SmallVector<ngraph::Dimension> nDataShape(std::next(featureShape.begin(), 2), featureShape.end());
+        const SmallVector<ngraph::Dimension> nFilterShape(std::next(filterShape.begin(), 2), filterShape.end());
 
-        auto outputShapeConstOp = outputShape.getDefiningOp<mlir::ConstantOp>();
-        if (outputShapeConstOp == nullptr) {
+        auto outputShapeConst = outputShape.getDefiningOp<ConstantInterface>();
+        if (outputShapeConst == nullptr) {
             return mlir::failure();
         }
 
-        const auto outputShapeDenseElementAttr = outputShapeConstOp.value().dyn_cast<mlir::DenseElementsAttr>();
-        if (outputShapeDenseElementAttr == nullptr) {
-            return mlir::failure();
-        }
+        const auto outputShapeContent = outputShapeConst.getContent().getValues<int64_t>();
 
-        const auto elementRange = outputShapeDenseElementAttr.getValues<int64_t>();
-
-        SmallVector<int64_t, MAX_NUM_DIMS> mlirOutputShape;
+        SmallVector<int64_t> mlirOutputShape;
         mlirOutputShape.push_back(featureShape[0]);
         mlirOutputShape.push_back(filterShape[1]);
-        std::copy(elementRange.begin(), elementRange.end(), std::back_inserter(mlirOutputShape));
+        std::copy(outputShapeContent.begin(), outputShapeContent.end(), std::back_inserter(mlirOutputShape));
 
         inferredReturnShapes.emplace_back(mlirOutputShape, featureType);
     } else {
@@ -116,7 +111,7 @@ mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
                 __resultShape);
         const auto resultShape = ngraph::PartialShape{__resultShape}.get_shape();
 
-        SmallVector<int64_t, MAX_NUM_DIMS> mlirOutputShape;
+        SmallVector<int64_t> mlirOutputShape;
         mlirOutputShape.push_back(featureShape[0]);
         mlirOutputShape.push_back(filterShape[1]);
         std::copy(resultShape.begin(), resultShape.end(), std::back_inserter(mlirOutputShape));

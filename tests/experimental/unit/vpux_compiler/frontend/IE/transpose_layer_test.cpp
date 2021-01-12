@@ -47,7 +47,7 @@ TEST(IE_FrontEndTest, TransposeLayerTest_ImportNetwork) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, TransposeLayerTest_NotSpecified) {
@@ -70,5 +70,5 @@ TEST(IE_FrontEndTest, TransposeLayerTest_NotSpecified) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }

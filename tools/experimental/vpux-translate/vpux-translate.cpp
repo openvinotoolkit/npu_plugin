@@ -68,7 +68,7 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ct
     mlir::OwningModuleRef module;
 
     try {
-        module = IE::importNetwork(ctx, cnnNet);
+        module = IE::importNetwork(ctx, cnnNet, false);
     } catch (const std::exception& ex) {
         printTo(llvm::errs(), "Failed to translate IE IR {0} to MLIR : {1}", netFileName, ex.what());
         return nullptr;

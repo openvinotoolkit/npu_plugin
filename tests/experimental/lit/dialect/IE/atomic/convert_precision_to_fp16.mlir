@@ -50,23 +50,10 @@ IE.CNNNetwork
 
 // CHECK: func @main() -> tensor<1x2x2x2xf16>
 func @main() -> tensor<1x2x2x2xf32> {
-    %0 = constant
-        dense<[
-            [
-                [
-                    [1.0, 2.0],
-                    [3.0, 4.0]
-                ],
-                [
-                    [5.0, 6.0],
-                    [7.0, 8.0]
-                ]
-            ]
-        ]> : tensor<1x2x2x2xf32>
-    // CHECK:       %[[OUT:.*]] = constant
-    // CHECK-SAME:      tensor<1x2x2x2xf16>
-
+    %0 = IE.Constant tensor<1x2x2x2xf32> = dense<1.0> : tensor<1x2x2x2xf32>
     return %0 : tensor<1x2x2x2xf32>
+
+    // CHECK: %[[OUT:.*]] = IE.Constant tensor<1x2x2x2xf16> = dense<1.000000e+00> : tensor<1x2x2x2xf32>
     // CHECK: return %[[OUT]] : tensor<1x2x2x2xf16>
 }
 

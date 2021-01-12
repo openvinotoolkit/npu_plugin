@@ -20,6 +20,70 @@
 include "mlir/IR/OpBase.td"
 
 //
+// ConstantInterface
+//
+
+def ConstantInterface : OpInterface<"ConstantInterface"> {
+    let description = "Interface for Constant Tensor/Buffer Declaration";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the constant content from the Operation",
+            "vpux::ConstContentAttr", "getContent", (ins),
+            [{}],
+            [{
+                return $_op.value().template cast<vpux::ConstContentAttr>();
+            }]
+        >,
+        InterfaceMethod<
+            "Get the content Type",
+            "mlir::ShapedType", "getContentType", (ins),
+            [{}],
+            [{
+                return $_op.getContent().getType();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get resulting Value for the Operation",
+            "mlir::Value", "output", (ins),
+            [{
+                return $_op.output();
+            }]
+        >,
+        InterfaceMethod<
+            "Get the output Value Type",
+            "mlir::ShapedType", "getActualType", (ins),
+            [{}],
+            [{
+                return $_op.getType();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Convert Content to actual output Type",
+            "void", "convertTo", (ins "MutableArrayRef<char>":$buf),
+            [{}],
+            [{
+                $_op.getContent().convertTo($_op.getActualType(), buf);
+            }]
+        >,
+    ];
+
+    let verify = [{
+        return vpux::verifyConstant($_op);
+    }];
+
+    let extraTraitClassDeclaration = [{
+        static mlir::OpFoldResult foldTrait(mlir::Operation* op, mlir::ArrayRef<mlir::Attribute>) {
+            return mlir::cast<vpux::ConstantInterface>(op).getContent();
+        }
+    }];
+}
+
+//
 // LayerInterface
 //
 
@@ -31,7 +95,7 @@ def LayerInterface : OpInterface<"LayerInterface"> {
     let methods = [
         InterfaceMethod<
             "Get all inputs (tensors or memory buffers) for the Operation",
-            "vpux::SmallVector<mlir::Value, 4>", "getInputs", (ins),
+            "vpux::SmallVector<mlir::Value>", "getInputs", (ins),
             [{
                 return $_op.getInputs();
             }]
@@ -39,7 +103,7 @@ def LayerInterface : OpInterface<"LayerInterface"> {
 
         InterfaceMethod<
             "Get the outputs (tensors or memory buffers) for the Operation",
-            "vpux::SmallVector<mlir::Value, 1>", "getOutputs", (ins),
+            "vpux::SmallVector<mlir::Value>", "getOutputs", (ins),
             [{
                 return $_op.getOutputs();
             }]
@@ -213,7 +277,7 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
     ];
 
     let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value, 4> getInputs() {
+        vpux::SmallVector<mlir::Value> getInputs() {
             if ($_op.bias() != nullptr) {
                 return {$_op.input(), $_op.filter(), $_op.bias()};
             } else {
@@ -221,7 +285,7 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
             }
         }
 
-        vpux::SmallVector<mlir::Value, 1> getOutputs() {
+        vpux::SmallVector<mlir::Value> getOutputs() {
             return {$_op.output()};
         }
     }];

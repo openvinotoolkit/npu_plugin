@@ -30,21 +30,6 @@ void vpux::IERT::IERTDialect::initialize() {
             >();
 }
 
-mlir::Operation* vpux::IERT::IERTDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value,
-                                                              mlir::Type type, mlir::Location loc) {
-    if (!value.isa<mlir::DenseElementsAttr>()) {
-        printTo(mlir::emitError(loc), "Can't materialize IERT Constant from Attribute '{0}'", value);
-        return nullptr;
-    }
-
-    if (!type.isa<mlir::MemRefType>()) {
-        printTo(mlir::emitError(loc), "Can't materialize IERT Constant for Type '{0}'", type);
-        return nullptr;
-    }
-
-    return builder.create<mlir::ConstantOp>(loc, type, value);
-}
-
 //
 // Generated
 //

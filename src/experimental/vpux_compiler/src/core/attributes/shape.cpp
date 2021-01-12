@@ -16,6 +16,8 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 
+#include "vpux/utils/core/error.hpp"
+
 #include <algorithm>
 #include <numeric>
 
@@ -53,4 +55,51 @@ ShapeRef vpux::getShape(mlir::Value val) {
     auto type = val.getType().dyn_cast_or_null<mlir::ShapedType>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
     return getShape(type);
+}
+
+//
+// MemShape
+//
+
+MemShape vpux::getMemIndexND(int64_t memIndex1D, MemShapeRef memShape) {
+    MemShape memIndexND(memShape.size());
+
+    int64_t tempIndex1D = memIndex1D;
+    for (size_t ind = 0; ind < memIndexND.size(); ++ind) {
+        const auto md = MemDim(ind);
+        const auto mdSize = memShape[md];
+
+        memIndexND[md] = tempIndex1D % mdSize;
+        tempIndex1D = (tempIndex1D - memIndexND[md]) / mdSize;
+
+        VPUX_THROW_UNLESS(tempIndex1D >= 0, "Memory index 1D '{0}' is not compatible with memory shape '{1}'",
+                          memIndex1D, memShape);
+    }
+
+    VPUX_THROW_UNLESS(tempIndex1D == 0, "Memory index 1D '{0}' is not compatible with memory shape '{1}'", memIndex1D,
+                      memShape);
+
+    return memIndexND;
+}
+
+int64_t vpux::getMemIndex1D(MemShapeRef memIndexND, MemShapeRef memShape) {
+    VPUX_THROW_UNLESS(memIndexND.size() == memShape.size(),
+                      "Memory index ND '{0}' is not compatible with memory shape '{1}'", memIndexND, memShape);
+
+    int64_t memIndex1D = 0;
+
+    int64_t tempSize = 1;
+    for (size_t ind = 0; ind < memShape.size(); ++ind) {
+        const auto md = MemDim(ind);
+        const auto mdSize = memShape[md];
+        const auto mdInd = memIndexND[md];
+
+        VPUX_THROW_UNLESS(mdInd < mdSize, "Memory index ND '{0}' is not compatible with memory shape '{1}'", memIndexND,
+                          memShape);
+
+        memIndex1D += mdInd * tempSize;
+        tempSize *= mdSize;
+    }
+
+    return memIndex1D;
 }

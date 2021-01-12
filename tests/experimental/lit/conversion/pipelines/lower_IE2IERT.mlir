@@ -40,8 +40,6 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 // CHECK-LABEL: @ConstantLayer
 module @ConstantLayer {
 
-// CHECK: global_memref "private" constant [[CST0:@[a-z0-9_]+]] : memref<1x2x2x2xf16>
-
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork
     entryPoint: @main
@@ -53,23 +51,10 @@ IE.CNNNetwork
 
 // CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x2x2x2xf16>) {
 func @main() -> tensor<1x2x2x2xf16> {
-    %0 = constant
-        dense<[
-            [
-                [
-                    [1.0, 2.0],
-                    [3.0, 4.0]
-                ],
-                [
-                    [5.0, 6.0],
-                    [7.0, 8.0]
-                ]
-            ]
-        ]> : tensor<1x2x2x2xf16>
-
+    %0 = IE.Constant tensor<1x2x2x2xf16> = dense<1.0> : tensor<1x2x2x2xf32>
     return %0 : tensor<1x2x2x2xf16>
 
-    // CHECK: [[VAR0:%[0-9]*]] = get_global_memref [[CST0]] : memref<1x2x2x2xf16>
+    // CHECK: [[VAR0:%[0-9]*]] = IERT.Constant memref<1x2x2x2xf16> = dense<1.000000e+00> : tensor<1x2x2x2xf32>
     // CHECK: linalg.copy([[VAR0]], [[ARG0]]) : memref<1x2x2x2xf16>, memref<1x2x2x2xf16>
     // CHECK: return
 }

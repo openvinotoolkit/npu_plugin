@@ -21,28 +21,25 @@
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/OpImplementation.h>
+#include <mlir/Interfaces/DecodeAttributesInterfaces.h>
 
 using namespace vpux;
 
 namespace {
 
-class IEDialectAsmHooks final : public mlir::OpAsmDialectInterface {
+//
+// IEAsmHooks
+//
+
+class IEAsmHooks final : public mlir::OpAsmDialectInterface {
 public:
     using mlir::OpAsmDialectInterface::OpAsmDialectInterface;
 
 public:
-    void getAsmResultNames(mlir::Operation* op, mlir::OpAsmSetValueNameFn setNameFn) const final;
-
     mlir::LogicalResult getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const final;
 };
 
-void IEDialectAsmHooks::getAsmResultNames(mlir::Operation* op, mlir::OpAsmSetValueNameFn setNameFn) const {
-    if (const auto nameLoc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
-        setNameFn(op->getResult(0), nameLoc.getName());
-    }
-}
-
-mlir::LogicalResult IEDialectAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const {
+mlir::LogicalResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const {
     if (const auto affineMapAttr = attr.dyn_cast<mlir::AffineMapAttr>()) {
         if (const auto dimsOrder = DimsOrder::fromAffineMap(affineMapAttr.getValue())) {
             if (const auto name = dimsOrder->getCanonicalName()) {
@@ -55,7 +52,49 @@ mlir::LogicalResult IEDialectAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_
     return mlir::failure();
 }
 
+//
+// IEDecodeAttributesHooks
+//
+
+class IEDecodeAttributesHooks final : public mlir::DialectDecodeAttributesInterface {
+public:
+    using mlir::DialectDecodeAttributesInterface::DialectDecodeAttributesInterface;
+
+public:
+    mlir::LogicalResult decode(mlir::OpaqueElementsAttr input, mlir::ElementsAttr& output) const final;
+};
+
+mlir::LogicalResult IEDecodeAttributesHooks::decode(mlir::OpaqueElementsAttr input, mlir::ElementsAttr& output) const {
+    if (input.getDialect()->getTypeID() != mlir::TypeID::get<IE::IEDialect>()) {
+        return mlir::failure();
+    }
+
+    const auto type = input.getType();
+    const auto bytes = input.getValue();
+
+    if (!type.hasStaticShape()) {
+        return mlir::failure();
+    }
+    if (!type.getElementType().isa<mlir::FloatType>() && !type.getElementType().isa<mlir::IntegerType>()) {
+        return mlir::failure();
+    }
+
+    const auto rawBuffer = makeArrayRef(bytes.data(), bytes.size());
+
+    bool isSplatBuffer = false;
+    if (!mlir::DenseElementsAttr::isValidRawBuffer(type, rawBuffer, isSplatBuffer)) {
+        return mlir::failure();
+    }
+
+    output = mlir::DenseElementsAttr::getFromRawBuffer(type, rawBuffer, isSplatBuffer);
+    return mlir::success();
+}
+
 }  // namespace
+
+//
+// initialize
+//
 
 void vpux::IE::IEDialect::initialize() {
     addOperations<
@@ -64,12 +103,16 @@ void vpux::IE::IEDialect::initialize() {
 #undef GET_OP_LIST
             >();
 
-    addInterfaces<IEDialectAsmHooks>();
+    addInterfaces<IEAsmHooks, IEDecodeAttributesHooks>();
 }
+
+//
+// materializeConstant
+//
 
 mlir::Operation* vpux::IE::IEDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value,
                                                           mlir::Type type, mlir::Location loc) {
-    if (!value.isa<mlir::DenseElementsAttr>()) {
+    if (!value.isa<ConstContentAttr>()) {
         printTo(mlir::emitError(loc), "Can't materialize IE Constant from Attribute '{0}'", value);
         return nullptr;
     }
@@ -79,7 +122,7 @@ mlir::Operation* vpux::IE::IEDialect::materializeConstant(mlir::OpBuilder& build
         return nullptr;
     }
 
-    return builder.create<mlir::ConstantOp>(loc, type, value);
+    return builder.create<IE::ConstantOp>(loc, type, value.cast<mlir::ElementsAttr>());
 }
 
 //

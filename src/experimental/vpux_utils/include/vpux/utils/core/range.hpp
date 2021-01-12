@@ -225,6 +225,12 @@ auto irange(T size) {
 using llvm::to_vector;
 
 template <class Range>
+auto to_small_vector(Range&& range) {
+    using ValueType = std::decay_t<decltype(*std::begin(range))>;
+    return SmallVector<ValueType>(std::begin(range), std::end(range));
+}
+
+template <class Range>
 auto to_std_vector(Range&& range) {
     using ValueType = std::decay_t<decltype(*std::begin(range))>;
     return std::vector<ValueType>(std::begin(range), std::end(range));

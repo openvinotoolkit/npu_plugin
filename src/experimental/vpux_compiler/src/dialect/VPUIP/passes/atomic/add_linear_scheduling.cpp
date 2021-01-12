@@ -130,7 +130,7 @@ void AddLinearSchedulingPass::passBody() {
 //
 
 void AddLinearSchedulingPass::collectTrailingUPATasks(mlir::FuncOp graphFunc) {
-    auto tasks = to_vector<16>(graphFunc.getOps<VPUIP::TaskOpInterface>());
+    auto tasks = to_small_vector(graphFunc.getOps<VPUIP::TaskOpInterface>());
 
     for (auto curTask : tasks | reversed) {
         auto innerLog = _log.nest();

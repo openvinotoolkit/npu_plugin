@@ -45,7 +45,7 @@ TEST(IE_FrontEndTest, ReshapeLayerTest_ImportNetwork) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, ReshapeLayerTest_OneSpecialZeroWithNegative) {
@@ -68,7 +68,7 @@ TEST(IE_FrontEndTest, ReshapeLayerTest_OneSpecialZeroWithNegative) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, ReshapeLayerTest_TwoSpecialZeroWithNegative) {
@@ -91,7 +91,7 @@ TEST(IE_FrontEndTest, ReshapeLayerTest_TwoSpecialZeroWithNegative) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, ReshapeLayerTest_OneSpecialZeroLastWithNegative) {
@@ -114,7 +114,7 @@ TEST(IE_FrontEndTest, ReshapeLayerTest_OneSpecialZeroLastWithNegative) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
 
 TEST(IE_FrontEndTest, ReshapeLayerTest_OneSpecialZeroFirstWithNegative) {
@@ -137,5 +137,5 @@ TEST(IE_FrontEndTest, ReshapeLayerTest_OneSpecialZeroFirstWithNegative) {
     ctx.loadDialect<vpux::IE::IEDialect>();
     ctx.loadDialect<mlir::StandardOpsDialect>();
 
-    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl));
+    EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }

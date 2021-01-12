@@ -43,8 +43,18 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/shape.hpp>
 #include <ngraph/type/element_type.hpp>
+
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/op_conversions/convert_divide.hpp>
+#include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
+#include <transformations/op_conversions/convert_mod.hpp>
+#include <transformations/op_conversions/convert_negative.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
+#include <transformations/op_conversions/hsigmoid_decomposition.hpp>
+#include <transformations/op_conversions/hswish_decomposition.hpp>
 
 using namespace vpux;
 
@@ -52,12 +62,13 @@ namespace {
 
 class NGraphImporter final {
 public:
-    NGraphImporter(mlir::MLIRContext* ctx, const std::shared_ptr<const ngraph::Function>& netGraph, Logger log)
-            : _ctx(ctx), _netGraph(netGraph), _log(log) {
+    NGraphImporter(mlir::MLIRContext* ctx, std::shared_ptr<const ngraph::Function> netGraph, bool sharedConstants,
+                   Logger log)
+            : _ctx(ctx), _netGraph(std::move(netGraph)), _sharedConstants(sharedConstants), _log(log) {
     }
 
 public:
-    mlir::FuncOp buildMainFunc(StringRef funcName);
+    mlir::FuncOp buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName);
 
 private:
     using OrigNode = ngraph::Node;
@@ -116,12 +127,12 @@ private:
     }
 
 private:
-    SmallVector<mlir::Value, 4> getInputs(const OrigNodePtr& node);
+    SmallVector<mlir::Value> getInputs(const OrigNodePtr& node);
     void addOutputs(const OrigNodePtr& node, mlir::Operation* op);
     mlir::Location createLocation(const OrigNodePtr& node);
 
 private:
-    static SmallVector<int64_t, 4> importShape(const ngraph::PartialShape& shape);
+    static SmallVector<int64_t> importShape(const ngraph::PartialShape& shape);
     mlir::Type importElemType(const ngraph::element::Type& elemType);
     mlir::RankedTensorType importTensor(const ngraph::PartialShape& shape, const ngraph::element::Type& elemType);
     IE::AutoBroadcastTypeAttr importBroadcastType(ngraph::op::AutoBroadcastType bType);
@@ -136,6 +147,7 @@ private:
 private:
     mlir::MLIRContext* _ctx = nullptr;
     std::shared_ptr<const ngraph::Function> _netGraph;
+    bool _sharedConstants = false;
     Logger _log;
 
     NodeOutputMap _importedVals;
@@ -145,7 +157,7 @@ private:
 // buildMainFunc
 //
 
-mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
+mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName) {
     using Callback = void (NGraphImporter::*)(mlir::OpBuilder & builder, const OrigNodePtr& origNode);
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
@@ -201,13 +213,13 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
 
 #undef MAP_ENTRY
 
-    SmallVector<mlir::Type, 1> inputTypes;
+    SmallVector<mlir::Type> inputTypes;
     inputTypes.reserve(_netGraph->get_parameters().size());
     for (const auto& param : _netGraph->get_parameters()) {
         inputTypes.push_back(importTensor(param->get_partial_shape(), param->get_element_type()));
     }
 
-    SmallVector<mlir::Type, 1> outputTypes;
+    SmallVector<mlir::Type> outputTypes;
     outputTypes.reserve(_netGraph->get_results().size());
     for (const auto& result : _netGraph->get_results()) {
         outputTypes.push_back(importTensor(result->get_input_partial_shape(0), result->get_input_element_type(0)));
@@ -215,7 +227,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
 
     const auto funcType = mlir::FunctionType::get(_ctx, makeArrayRef(inputTypes), makeArrayRef(outputTypes));
 
-    auto func = mlir::FuncOp::create(mlir::UnknownLoc::get(_ctx), funcName, funcType);
+    auto func = moduleBuilder.create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx), funcName, funcType);
 
     OpBuilderLogger builderLog(_log.nest());
     auto builder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), &builderLog);
@@ -241,7 +253,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
         (this->*parser)(builder, origNode);
     }
 
-    SmallVector<mlir::Value, 4> funcOutputs;
+    SmallVector<mlir::Value> funcOutputs;
     funcOutputs.reserve(_netGraph->get_results().size());
 
     for (const auto& p : _netGraph->get_results() | indexed) {
@@ -270,30 +282,27 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.empty(), "nGraph Constant node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto tensorType = importTensor(origNode->get_output_partial_shape(0), origNode->get_output_element_type(0));
-
-    auto elemType = tensorType.getElementType();
-    auto totalNumElems = tensorType.getNumElements();
-
-    mlir::DenseElementsAttr value;
-    if (elemType.isF32()) {
-        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::f32>();
-        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
-    } else if (elemType.isF16()) {
-        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::f16>();
-        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
-    } else if (elemType.isSignedInteger(64)) {
-        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::i64>();
-        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
-    } else if (elemType.isUnsignedInteger(64)) {
-        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::u64>();
-        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
-    } else {
-        VPUX_THROW("Element type '{0}' is not supported for Constant operation", elemType);
-    }
-
     auto* dialect = _ctx->getLoadedDialect<IE::IEDialect>();
     VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
+
+    const auto tensorType = importTensor(origNode->get_output_partial_shape(0), origNode->get_output_element_type(0));
+
+    const auto numElems = tensorType.getNumElements();
+    const auto elemTypeByteSize = tensorType.getElementTypeBitWidth() / CHAR_BIT;
+
+    mlir::ElementsAttr value;
+    if (_sharedConstants) {
+        const auto rawBuffer = StringRef(origNode->get_data_ptr<char>(), numElems * elemTypeByteSize);
+        value = mlir::OpaqueElementsAttr::get(dialect, tensorType, rawBuffer);
+    } else {
+        const auto rawBuffer = makeArrayRef(origNode->get_data_ptr<char>(), numElems * elemTypeByteSize);
+
+        bool isSplatBuffer = false;
+        VPUX_THROW_UNLESS(mlir::DenseElementsAttr::isValidRawBuffer(tensorType, rawBuffer, isSplatBuffer),
+                          "Constant node '{0}' has invalid buffer", origNode->get_friendly_name());
+
+        value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, rawBuffer, isSplatBuffer);
+    }
 
     auto* op = dialect->materializeConstant(builder, value, tensorType, createLocation(origNode));
     addOutputs(origNode, op);
@@ -832,8 +841,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 // IR builder helpers
 //
 
-SmallVector<mlir::Value, 4> NGraphImporter::getInputs(const OrigNodePtr& node) {
-    SmallVector<mlir::Value, 4> out;
+SmallVector<mlir::Value> NGraphImporter::getInputs(const OrigNodePtr& node) {
+    SmallVector<mlir::Value> out;
     out.reserve(node->get_input_size());
 
     for (const auto& input : node->inputs()) {
@@ -864,10 +873,10 @@ mlir::Location NGraphImporter::createLocation(const OrigNodePtr& node) {
 // nGraph attributes importers
 //
 
-SmallVector<int64_t, 4> NGraphImporter::importShape(const ngraph::PartialShape& shape) {
+SmallVector<int64_t> NGraphImporter::importShape(const ngraph::PartialShape& shape) {
     VPUX_THROW_UNLESS(shape.rank().is_static(), "Dynamically ranked tensors are not supported");
 
-    SmallVector<int64_t, 4> out(checked_cast<size_t>(shape.rank().get_length()));
+    SmallVector<int64_t> out(checked_cast<size_t>(shape.rank().get_length()));
     for (const auto ind : irange(out.size())) {
         const auto& dim = shape[ind];
         out[ind] = dim.is_static() ? dim.get_length() : mlir::ShapedType::kDynamicSize;
@@ -1084,12 +1093,12 @@ mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precis
 }
 
 mlir::MemRefType importBuffer(mlir::MLIRContext* ctx, const InferenceEngine::TensorDesc& desc) {
-    SmallVector<int64_t, MAX_NUM_DIMS> shape(desc.getDims().size());
+    SmallVector<int64_t> shape(desc.getDims().size());
     std::copy(desc.getDims().begin(), desc.getDims().end(), shape.begin());
 
     const auto precision = importPrecision(ctx, desc.getPrecision());
 
-    SmallVector<mlir::AffineMap, 1> affineMaps;
+    SmallVector<mlir::AffineMap> affineMaps;
     if (auto layout = importLayout(ctx, desc.getLayout())) {
         affineMaps.push_back(layout);
     }
@@ -1106,13 +1115,33 @@ std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result
     return resultInput->get_friendly_name() + portSuffix;
 }
 
+//
+// runNGraphPasses
+//
+
+void runNGraphPasses(std::shared_ptr<ngraph::Function> netGraph) {
+    const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
+    passConfig->disable<ngraph::pass::HSwishDecomposition>();
+    passConfig->disable<ngraph::pass::HSigmoidDecomposition>();
+    passConfig->disable<ngraph::pass::ConvertMinimum>();
+    passConfig->disable<ngraph::pass::ConvertSubtract>();
+    passConfig->disable<ngraph::pass::ConvertDivide>();
+    passConfig->disable<ngraph::pass::ConvertNegative>();
+
+    ngraph::pass::Manager manager(passConfig);
+    manager.register_pass<ngraph::pass::CommonOptimizations>();
+
+    manager.run_passes(netGraph);
+}
+
 }  // namespace
 
 //
 // importNetwork
 //
 
-mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet, Logger log) {
+mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet,
+                                              bool sharedConstants, Logger log) {
     log.setName("IE::FrontEnd");
 
     log.trace("Load IE::FrontEnd dependent Dialects");
@@ -1120,6 +1149,9 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
 
     const auto netGraph = cnnNet.getFunction();
     VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
+
+    log.trace("Run nGraph passes");
+    runNGraphPasses(netGraph);
 
     const auto inputsInfo = cnnNet.getInputsInfo();
     const auto outputsInfo = cnnNet.getOutputsInfo();
@@ -1135,7 +1167,7 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
     IE::CNNNetworkOp::ensureTerminator(cnnOp.inputsInfo(), builder, cnnOp.getLoc());
     IE::CNNNetworkOp::ensureTerminator(cnnOp.outputsInfo(), builder, cnnOp.getLoc());
 
-    builder.setInsertionPointToStart(&cnnOp.inputsInfo().front());
+    auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), &builderLog);
     for (const auto& param : netGraph->get_parameters()) {
         const auto& inputName = param->get_friendly_name();
         const auto& userInput = inputsInfo.at(inputName);
@@ -1144,10 +1176,10 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
         const auto nameAttr = mlir::StringAttr::get(inputName, ctx);
         const auto userTypeAttr = mlir::TypeAttr::get(importBuffer(ctx, userDesc));
 
-        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
+        inputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }
 
-    builder.setInsertionPointToStart(&cnnOp.outputsInfo().front());
+    auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.outputsInfo().front(), &builderLog);
     for (const auto& result : netGraph->get_results()) {
         const auto& resultName = getValidOutputName(result);
         const auto& userOutput = outputsInfo.at(resultName);
@@ -1156,12 +1188,11 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
         const auto nameAttr = mlir::StringAttr::get(resultName, ctx);
         const auto userTypeAttr = mlir::TypeAttr::get(importBuffer(ctx, userDesc));
 
-        builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
+        outputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }
 
-    NGraphImporter importer(ctx, netGraph, log);
-    const auto mainFunc = importer.buildMainFunc(mainFuncName.getValue());
-    module.push_back(mainFunc);
+    NGraphImporter importer(ctx, netGraph, sharedConstants, log);
+    importer.buildMainFunc(builder, mainFuncName.getValue());
 
     VPUX_THROW_UNLESS(mlir::succeeded(mlir::verify(module)),
                       "Failed to create a valid MLIR module for InferenceEngine IR");

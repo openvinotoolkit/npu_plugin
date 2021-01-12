@@ -54,7 +54,7 @@ template <class LiveRange, class Handler>
 class LinearScan final {
 public:
     using Direction = Partitioner::Direction;
-    using LiveRangeVector = SmallVector<LiveRange, 16>;
+    using LiveRangeVector = SmallVector<LiveRange>;
     using LiveRangeIter = typename LiveRangeVector::iterator;
     using AllocatedAddrs = std::unordered_map<const LiveRange*, std::pair<AddressType, AddressType>>;
 

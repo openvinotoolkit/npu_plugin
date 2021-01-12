@@ -23,7 +23,7 @@
 using namespace vpux;
 
 Strides vpux::getStrides(mlir::MemRefType type) {
-    const auto elemByteSize = type.getElementTypeBitWidth() / 8;
+    const auto elemByteSize = type.getElementTypeBitWidth() / CHAR_BIT;
 
     if (const auto dimsOrder = DimsOrder::fromType(type)) {
         const auto shape = getShape(type);
@@ -50,7 +50,7 @@ Strides vpux::getStrides(mlir::MemRefType type) {
 }
 
 int64_t vpux::getTypeByteSize(mlir::MemRefType type) {
-    const auto elemByteSize = type.getElementTypeBitWidth() / 8;
+    const auto elemByteSize = type.getElementTypeBitWidth() / CHAR_BIT;
 
     if (type.getRank() == 0) {
         return elemByteSize;

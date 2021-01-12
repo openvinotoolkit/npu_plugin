@@ -32,29 +32,18 @@ mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
 
     const auto inType = split.input().getType().cast<mlir::ShapedType>();
 
-    auto inAxis = split.axis().getDefiningOp<mlir::ConstantOp>();
-    if (inAxis == nullptr) {
+    auto axisConst = split.axis().getDefiningOp<ConstantInterface>();
+    if (axisConst == nullptr) {
         return mlir::failure();
     }
 
-    auto denseElementArray = inAxis.value().dyn_cast<mlir::DenseElementsAttr>();
-    if (denseElementArray == nullptr) {
+    const auto axis = axisConst.getContent().getValues<int64_t>()[0];
+
+    auto outShape = to_small_vector(inType.getShape());
+    if (outShape[axis] < split.num_splits().getInt() || outShape[axis] % split.num_splits().getInt() != 0) {
         return mlir::failure();
     }
-
-    const auto elementsRange = denseElementArray.getValues<int64_t>();
-
-    auto elementsIter = elementsRange.begin();
-    if (elementsIter == elementsRange.end()) {
-        return mlir::failure();
-    }
-
-    auto outShape = to_vector<4>(inType.getShape());
-    if (outShape[*elementsIter] < split.num_splits().getInt() ||
-        outShape[*elementsIter] % split.num_splits().getInt() != 0) {
-        return mlir::failure();
-    }
-    outShape[*elementsIter] /= split.num_splits().getInt();
+    outShape[axis] /= split.num_splits().getInt();
 
     for (int i = 0; i < split.num_splits().getInt(); ++i) {
         inferredReturnShapes.emplace_back(outShape, inType.getElementType());

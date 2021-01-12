@@ -120,7 +120,7 @@ class StrideReqsRef;
 
 class StrideReqs final {
 public:
-    using ContainerType = SmallVector<DimStrideReq, MAX_NUM_DIMS>;
+    using ContainerType = SmallVector<DimStrideReq>;
 
     using value_type = typename ContainerType::value_type;
 

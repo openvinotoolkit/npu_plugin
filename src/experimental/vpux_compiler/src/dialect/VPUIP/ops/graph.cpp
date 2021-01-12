@@ -19,7 +19,7 @@
 using namespace vpux;
 
 VPUIP::GraphOp vpux::VPUIP::GraphOp::getFromModule(mlir::ModuleOp module) {
-    auto graphOps = to_vector<1>(module.getOps<GraphOp>());
+    auto graphOps = to_small_vector(module.getOps<GraphOp>());
 
     VPUX_THROW_UNLESS(graphOps.size() == 1, "Can't have more than one 'VPUIP::GraphOp' Operation in Module, got '{0}'",
                       graphOps.size());
