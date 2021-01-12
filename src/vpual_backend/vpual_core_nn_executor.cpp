@@ -126,6 +126,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
     const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
     const std::shared_ptr<Pipeline>& other_pipe,
+    const std::shared_ptr<WatchDog>& wd,
     const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
@@ -185,7 +186,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
         _outputPhysAddrs.push_back(outPhysAddr);
         outputOffset += descOut.totalSize;
     }
-    initWatchDog();
+    _wd = wd;
 }
 #endif
 
@@ -592,9 +593,9 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "pull");
     _logger->info("pull started");
     NnExecResponseMsg response;
-    _wd->Start();
+    _wd->Start((uintptr_t)this);
     auto status = _nnXlinkPlg->WaitForResponse(response);
-    _wd->Pause();
+    _wd->Pause((uintptr_t)this);
     if (X_LINK_SUCCESS != status) {
         _logger->error("pull: WaitForResponse failed");
         THROW_IE_EXCEPTION << "VpualCoreNNExecutor::pull: WaitForResponse failed" << status;
@@ -679,7 +680,7 @@ InferenceEngine::Parameter VpualCoreNNExecutor::getParameter(const std::string&)
 
 Executor::Ptr VpualCoreNNExecutor::clone() const {
 #if defined(__arm__) || defined(__aarch64__)
-    return std::make_shared<VpualCoreNNExecutor>(_networkDescription, _allocator, _nnXlinkPlg, _nnCorePlg, _pipe, _config);
+    return std::make_shared<VpualCoreNNExecutor>(_networkDescription, _allocator, _nnXlinkPlg, _nnCorePlg, _pipe, _wd, _config);
 #else
     THROW_IE_EXCEPTION << "VpualCoreNNExecutor::clone not implemented for x86_64";
 #endif
