@@ -48,9 +48,17 @@ void vpux::IE::ConvertOp::getCanonicalizationPatterns(mlir::OwningRewritePattern
     populateWithGenerated(context, patterns);
 }
 
-mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute>) {
+mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute> operands) {
     if (inputType() == outputType()) {
         return input();
+    }
+
+    VPUX_THROW_UNLESS(operands.size() == 1, "Wrong number of operands : {0}", operands.size());
+
+    if (const auto attr = operands[0].dyn_cast_or_null<ConstContentAttr>()) {
+        if (attr.getType().getElementType() == inputType().getElementType()) {
+            return attr;
+        }
     }
 
     return nullptr;
