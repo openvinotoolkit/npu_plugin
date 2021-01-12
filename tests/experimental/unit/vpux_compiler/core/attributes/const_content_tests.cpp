@@ -168,8 +168,32 @@ TEST(ConstContentAttrTest, CanReshape) {
     ASSERT_NE(contentAttr, nullptr);
 
     const auto newType = mlir::RankedTensorType::get({1, 3, 3, 2}, mlir::Float32Type::get(&ctx));
-    std::vector<float> newVals(newType.getNumElements());
 
+    std::vector<float> newVals(newType.getNumElements());
+    const auto buf = makeMutableArrayRef(reinterpret_cast<char*>(newVals.data()), newVals.size() * sizeof(float));
+    contentAttr.convertTo(newType, buf);
+
+    EXPECT_EQ(newVals, vals);
+}
+
+TEST(ConstContentAttrTest, CanReshapeMemRef) {
+    mlir::MLIRContext ctx;
+
+    const auto baseType = mlir::RankedTensorType::get({1, 9, 2}, mlir::Float32Type::get(&ctx));
+
+    std::vector<float> vals(baseType.getNumElements());
+    for (size_t i = 0; i < vals.size(); ++i) {
+        vals[i] = static_cast<float>(i);
+    }
+
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto contentAttr = baseAttr.dyn_cast<ConstContentAttr>();
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto newType = mlir::MemRefType::get({1, 3, 3, 2}, mlir::Float32Type::get(&ctx));
+
+    std::vector<float> newVals(newType.getNumElements());
     const auto buf = makeMutableArrayRef(reinterpret_cast<char*>(newVals.data()), newVals.size() * sizeof(float));
     contentAttr.convertTo(newType, buf);
 

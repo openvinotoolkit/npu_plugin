@@ -282,9 +282,6 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.empty(), "nGraph Constant node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto* dialect = _ctx->getLoadedDialect<IE::IEDialect>();
-    VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
-
     const auto tensorType = importTensor(origNode->get_output_partial_shape(0), origNode->get_output_element_type(0));
 
     const auto numElems = tensorType.getNumElements();
@@ -292,6 +289,9 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     mlir::ElementsAttr value;
     if (_sharedConstants) {
+        auto* dialect = _ctx->getLoadedDialect<IE::IEDialect>();
+        VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
+
         const auto rawBuffer = StringRef(origNode->get_data_ptr<char>(), numElems * elemTypeByteSize);
         value = mlir::OpaqueElementsAttr::get(dialect, tensorType, rawBuffer);
     } else {
@@ -304,7 +304,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
         value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, rawBuffer, isSplatBuffer);
     }
 
-    auto* op = dialect->materializeConstant(builder, value, tensorType, createLocation(origNode));
+    auto op = builder.create<IE::ConstantOp>(createLocation(origNode), tensorType, value);
     addOutputs(origNode, op);
 }
 

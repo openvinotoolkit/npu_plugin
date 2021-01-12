@@ -16,9 +16,8 @@
 
 #include "vpux/compiler/core/attributes/const_content.hpp"
 
+#include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/error.hpp"
-
-#include <llvm/Support/Parallel.h>
 
 using namespace vpux;
 
@@ -44,12 +43,15 @@ const char* vpux::details::ConstContentBase::getData(ptrdiff_t actualMemInd1D) c
     const auto baseDimsOrder = DimsOrder::fromNumDims(_shape.size());
     const auto actualDimsOrder = _actualDimsOrder.getValueOr(baseDimsOrder);
 
-    if (actualDimsOrder == baseDimsOrder) {
+    if (actualDimsOrder == baseDimsOrder || actualDimsOrder == DimsOrder::fromNumDims(actualDimsOrder.numDims())) {
         const auto rawIndex = checked_cast<size_t>(actualMemInd1D * elemByteSize);
         VPUX_THROW_UNLESS(rawIndex < _data.size(), "Out-of-bound access in ConstContent");
 
         return _data.data() + rawIndex;
     }
+
+    VPUX_THROW_UNLESS(actualDimsOrder.numDims() == baseDimsOrder.numDims(), "Can't reorder from '{0}' to '{1}'",
+                      baseDimsOrder, actualDimsOrder);
 
     //
     // `actualMemInd1D` - 1D memory index for `actualDimsOrder`
@@ -93,10 +95,6 @@ bool vpux::ConstContentAttr::classof(mlir::Attribute attr) {
     return false;
 }
 
-mlir::ShapedType vpux::ConstContentAttr::getType() const {
-    return cast<mlir::ElementsAttr>().getType();
-}
-
 namespace {
 
 template <class Range>
@@ -108,7 +106,7 @@ void fillBuf(const Range& range, MutableArrayRef<char> buf) {
                       "Buffer with byte size '{0}' is not enough to hold actual elements with '{1}' byte size",
                       buf.size(), range.size() * VALUE_BYTE_SIZE);
 
-    llvm::parallelForEachN(0, range.size(), [&](size_t i) {
+    loop_1d(LoopExecPolicy::Parallel, range.size(), [&](size_t i) {
         auto* bufPtr = reinterpret_cast<value_type*>(buf.data() + i * VALUE_BYTE_SIZE);
         *bufPtr = range[i];
     });
@@ -163,8 +161,12 @@ bool vpux::ConstContentAttr::isSplat() const {
         return dense.isSplat();
     }
 
-    // OpaqueElementsAttr is always non splat
-    return false;
+    bool isSplatBuffer = false;
+    if (!mlir::DenseElementsAttr::isValidRawBuffer(getType(), getRawData(), isSplatBuffer)) {
+        return false;
+    }
+
+    return isSplatBuffer;
 }
 
 ArrayRef<char> vpux::ConstContentAttr::getRawData() const {
@@ -175,12 +177,4 @@ ArrayRef<char> vpux::ConstContentAttr::getRawData() const {
     const auto opaque = cast<mlir::OpaqueElementsAttr>();
     const auto bytes = opaque.getValue();
     return makeArrayRef(bytes.data(), bytes.size());
-}
-
-mlir::DenseElementsAttr vpux::ConstContentAttr::getSplatDenseElements() const {
-    const auto dense = dyn_cast<mlir::DenseElementsAttr>();
-    VPUX_THROW_UNLESS(dense != nullptr, "getSplatValue was called for non DenseElementsAttr");
-    VPUX_THROW_UNLESS(dense.isSplat(), "getSplatValue was called for non splat ConstContent");
-
-    return dense;
 }
