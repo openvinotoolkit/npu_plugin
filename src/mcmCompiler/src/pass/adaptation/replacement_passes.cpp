@@ -1269,13 +1269,12 @@ mv::Data::TensorIterator createPoolLayer(mv::OpModel& om, const std::string &typ
 
 bool splitPoolOp(mv::ComputationModel& model, const mv::Data::OpListIterator& opIt, const std::vector<poolParams> &poolParams) {
     mv::OpModel om(model);
-    auto sourceTensor = opIt->getInputTensor(0);
+    auto sourceTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
     auto parentOpIt = om.getSourceOp(sourceTensor);
 
-    mv::Data::TensorIterator op0;
-    auto dType = opIt->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
-    auto quantParams = opIt->getOutputTensor(0)->getQuantParams();
-    op0 = createPoolLayer(om, opIt->getOpType(), poolParams[0], sourceTensor, opIt->getName() + "_Pool0");
+    auto dType = sourceTensor->getDType();
+    auto quantParams = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getQuantParams();
+    auto op0 = createPoolLayer(om, opIt->getOpType(), poolParams[0], sourceTensor, opIt->getName() + "_Pool0");
 
     op0->setDType(dType);
     op0->setQuantParams(quantParams);
@@ -1304,10 +1303,8 @@ bool splitPoolOp(mv::ComputationModel& model, const mv::Data::OpListIterator& op
         om.undefineFlow(flowsToRemove[flowIdx]);
     }
 
-    mv::Data::TensorIterator op1;
     dType = input_op0->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
-    quantParams = op0->getQuantParams();
-    op1 = createPoolLayer(om, input_op0->getOpType(), poolParams[1], op0, op0->getName() + "_Pool1");
+    auto op1 = createPoolLayer(om, input_op0->getOpType(), poolParams[1], op0, op0->getName() + "_Pool1");
 
     op1->setDType(dType);
     op1->setQuantParams(quantParams);
@@ -1335,7 +1332,7 @@ bool supportedCase(const mv::Data::OpListIterator& opIt) {
     }
     auto kernelX = kernel[mv::KERNEL_WIDTH];
     auto kernelY = kernel[mv::KERNEL_HEIGHT];
-    auto sourceTensor = opIt->getInputTensor(0);
+    auto sourceTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
     auto inputShape = sourceTensor->getShape();
 
     // The best way for large AVG global pooling is SW layer (CVS-44261)
@@ -1356,21 +1353,23 @@ bool replaceLargeGlobalPooling(const mv::pass::PassEntry& pass, mv::ComputationM
     mv::OpModel om(model);
     std::vector<std::string> opList = {"AveragePool", "MaxPool"};
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
-    std::vector <mv::Data::OpListIterator> ops;
-    ops.reserve(operations["AveragePool"].size() + operations["MaxPool"].size() );
-    ops.insert(ops.end(), operations["AveragePool"].begin(), operations["AveragePool"].end());
-    ops.insert(ops.end(), operations["MaxPool"].begin(), operations["MaxPool"].end());
     bool isReplaced = false;
 
-    for (auto &opIt : ops) {
-        if (!supportedCase(opIt))
-            continue;
-
-        auto poolParams = calcPoolParams(opIt, pass);
-        if (poolParams.empty()) {
+    for (const auto &opType : opList) {
+        if (operations.count(opType) == 0) {
             continue;
         }
-        isReplaced = splitPoolOp(model, opIt, poolParams);
+        auto ops = operations[opType];
+        for (auto &opIt : ops) {
+            if (!supportedCase(opIt))
+                continue;
+
+            auto poolParams = calcPoolParams(opIt, pass);
+            if (poolParams.empty()) {
+                continue;
+            }
+            isReplaced = splitPoolOp(model, opIt, poolParams);
+        }
     }
     return isReplaced;
 }
