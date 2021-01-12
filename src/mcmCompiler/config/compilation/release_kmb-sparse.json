@@ -8,7 +8,6 @@
                 "referenceDevice": "A0",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
-                "UpaShaves": 1,
                 "WorkloadCost": 300,
                 "DDRScratch": 31457280,
                 "cmx": 917504,

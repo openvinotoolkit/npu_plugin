@@ -11,6 +11,9 @@ std::string mv::TargetDescriptor::toString(Target target)
         case Target::ma3100:
             return "ma3100";
 
+        case Target::ma3720:
+            return "ma3720";
+
         default:
             return "unknown";
 
@@ -24,6 +27,9 @@ mv::Target mv::TargetDescriptor::toTarget(const std::string& str)
 
     if (str == "ma3100")
         return Target::ma3100;
+
+    if (str == "ma3720")
+        return Target::ma3720;
 
     return Target::Unknown;
 }
@@ -49,6 +55,8 @@ void mv::TargetDescriptor::reset()
     memoryDefs_.clear();
     nceDefs_.clear();
     dtypeSupport_.clear();
+    processorDefs_.clear();
+    workloadConfigs_.clear();
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
@@ -345,7 +353,147 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
             }
         }
 
- if (jsonDescriptor["resources"]["huffman_decode_engine"].valueType() != json::JSONType::Array)
+        if (jsonDescriptor["resources"].hasKey("processors"))
+        {
+            if (jsonDescriptor["resources"]["processors"].valueType() != json::JSONType::Array)
+            {
+                reset();
+                return false;
+            }
+            else
+            {
+
+                for (std::size_t i = 0; i < jsonDescriptor["resources"]["processors"].size(); ++i)
+                {
+
+                    std::string name;
+                    std::size_t totalNumber;
+
+                    if (!jsonDescriptor["resources"]["processors"][i].hasKey("name") ||
+                        !jsonDescriptor["resources"]["processors"][i].hasKey("totalNumber"))
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    if (jsonDescriptor["resources"]["processors"][i]["name"].valueType() != json::JSONType::String ||
+                        jsonDescriptor["resources"]["processors"][i]["totalNumber"].valueType() != json::JSONType::NumberInteger)
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    name = jsonDescriptor["resources"]["processors"][i]["name"].get<std::string>();
+                    totalNumber = jsonDescriptor["resources"]["processors"][i]["totalNumber"].get<long long>();
+
+                    if (totalNumber < 0)
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    processorDefs_[name] = {totalNumber};
+
+                }
+
+            }
+        }
+        if (jsonDescriptor.hasKey("workloads"))
+        {
+            if (!jsonDescriptor["workloads"].hasKey("General"))
+            {
+                reset();
+                return false;
+            }
+
+            std::vector<std::string> keys = jsonDescriptor["workloads"].getKeys();
+            for (std::size_t l = 0; l < keys.size(); ++l)
+            {
+                std::string opStr = keys.at(l);
+                WorkloadConfig newConfig;
+
+                if (jsonDescriptor["workloads"][opStr].hasKey("mpe_modes"))
+                {
+                    if (jsonDescriptor["workloads"][opStr]["mpe_modes"].valueType() != json::JSONType::Array)
+                    {
+                        reset();
+                        return false;
+                    }
+                    else
+                    {
+                        for (std::size_t i = 0; i < jsonDescriptor["workloads"][opStr]["mpe_modes"].size(); ++i)
+                        {
+                            if (jsonDescriptor["workloads"][opStr]["mpe_modes"][i].valueType() != json::JSONType::Array ||
+                                jsonDescriptor["workloads"][opStr]["mpe_modes"][i].size() != 2 ||
+                                jsonDescriptor["workloads"][opStr]["mpe_modes"][i][0].valueType() != json::JSONType::NumberInteger ||
+                                jsonDescriptor["workloads"][opStr]["mpe_modes"][i][1].valueType() != json::JSONType::NumberInteger)
+                            {
+                                reset();
+                                return false;
+                            }
+                            else
+                            {
+                                DPUMode newMode;
+                                newMode.H = jsonDescriptor["workloads"][opStr]["mpe_modes"][i][0].get<long long>();
+                                newMode.W = jsonDescriptor["workloads"][opStr]["mpe_modes"][i][1].get<long long>();
+                                newConfig.dpuModes.push_back(newMode);
+                            }
+                        }
+
+                    }
+                }
+                if (jsonDescriptor["workloads"][opStr].hasKey("algorithms"))
+                {
+                    if (jsonDescriptor["workloads"][opStr]["algorithms"].valueType() != json::JSONType::Array)
+                    {
+                        reset();
+                        return false;
+                    }
+                    else
+                    {
+                        for (std::size_t i = 0; i < jsonDescriptor["workloads"][opStr]["algorithms"].size(); ++i)
+                        {
+                            if (jsonDescriptor["workloads"][opStr]["algorithms"][i].valueType() != json::JSONType::String)
+                            {
+                                reset();
+                                return false;
+                            }
+                            else
+                            {
+                                newConfig.algorithms.push_back(jsonDescriptor["workloads"][opStr]["algorithms"][i].get<std::string>());
+                            }
+                        }
+
+                    }
+                }
+                if (jsonDescriptor["workloads"][opStr].hasKey("valid_ztiling"))
+                {
+                    if (jsonDescriptor["workloads"][opStr]["valid_ztiling"].valueType() != json::JSONType::Array)
+                    {
+                        reset();
+                        return false;
+                    }
+                    else
+                    {
+                        for (std::size_t i = 0; i < jsonDescriptor["workloads"][opStr]["valid_ztiling"].size(); ++i)
+                        {
+                            if (jsonDescriptor["workloads"][opStr]["valid_ztiling"][i].valueType() != json::JSONType::NumberInteger)
+                            {
+                                reset();
+                                return false;
+                            }
+                            else
+                            {
+                                newConfig.validZTiles.push_back(jsonDescriptor["workloads"][opStr]["valid_ztiling"][i].get<long long>());
+                            }
+                        }
+
+                    }
+                }
+                workloadConfigs_[opStr] = newConfig;
+            }
+        }
+        if (jsonDescriptor["resources"]["huffman_decode_engine"].valueType() != json::JSONType::Array)
         {
             reset();
             return false;
@@ -551,6 +699,16 @@ const mv::HdeDescriptor& mv::TargetDescriptor::hdeDef() const
 const std::vector<mv::DataTypeSupport>& mv::TargetDescriptor::dtypeSupport() const
 {
     return dtypeSupport_;
+}
+
+const std::map<std::string, std::size_t>& mv::TargetDescriptor::processorDefs() const
+{
+    return processorDefs_;
+}
+
+const std::map<std::string, mv::WorkloadConfig>& mv::TargetDescriptor::getWorkloadConfigs() const
+{
+    return workloadConfigs_;
 }
 
 std::string mv::TargetDescriptor::getLogID() const

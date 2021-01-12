@@ -7,8 +7,8 @@ import os
 import sys
 import shutil
 
-build_root = "../build/"
-required_files = [("python/api/", "composition_api.py"), ("python/api/", "_composition_api.so"), ("lib/", "libcm.so")]
+build_root = "../../../build/"
+required_files = [("src/mcmCompiler/python/api/", "composition_api.py"), ("python/api/", "_composition_api.so")]#, ("lib/", "libmcmCompiler.so")]
 
 if not os.path.isdir(build_root):
     sys.exit("Build directory not found, build the project using CMake first")

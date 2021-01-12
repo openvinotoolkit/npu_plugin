@@ -73,10 +73,10 @@ namespace mv
             static void updateTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator s, Data::TensorIterator d, unsigned clusterId, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, const std::string &allocatorName = "");
             static std::unique_ptr<MVCNN::GraphNodeT> buildGraphNodeT(ComputationModel &cm, Element&, Data::OpListIterator op);
             static std::unique_ptr<MVCNN::SourceStructureT> buildSourceStructureT(ComputationModel &cm, Element& compilationDescriptor);
-            static std::unique_ptr<MVCNN::SummaryHeaderT> buildSummaryHeaderT(ComputationModel& cm, Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> originalHeader);
+            static std::unique_ptr<MVCNN::SummaryHeaderT> buildSummaryHeaderT(ComputationModel& cm, const mv::TargetDescriptor& td, Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> originalHeader);
             static std::unique_ptr<MVCNN::SummaryHeaderT> buildSummaryHeaderMetaInformations(ComputationModel& cm, mv::Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::VersionT> buildVersionT(ComputationModel&, Element& compilationDescriptor);
-            static std::unique_ptr<MVCNN::ResourcesT> buildResourcesT(ComputationModel&, Element& compilationDescriptor);
+            static std::unique_ptr<MVCNN::ResourcesT> buildResourcesT(ComputationModel&, const mv::TargetDescriptor& td, Element& compilationDescriptor);
             std::unique_ptr<MVCNN::BinaryDataT> buildBinaryDataT(ComputationModel&, Element&, mv::Tensor& t, bool huffmanCompression, bool csramCacheable);
             static std::vector<std::unique_ptr<MVCNN::TaskListT>> buildTaskListT(ComputationModel& cm, Element& compilationDescriptor);
             static std::vector<std::unique_ptr<MVCNN::BarrierT>> buildBarrierTable(ComputationModel& cm, Element& compilationDescriptor);
@@ -157,7 +157,7 @@ namespace mv
             void serialize();
             void deserialize(const std::string& path);
             void deserialize(const char *buffer, int length);
-            void buildGraphFile(ComputationModel& cm, Element& compilationDescriptor);
+            void buildGraphFile(ComputationModel& cm, const mv::TargetDescriptor& td, Element& compilationDescriptor);
             void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
             void serializeHelper(const std::function<void(MVCNN::GraphFileT& graphFileInstance)>& serializeFcn);
             std::shared_ptr<std::vector<char>> getBlob();

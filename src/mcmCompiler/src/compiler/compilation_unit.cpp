@@ -8,9 +8,11 @@
 
 const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/target/release_kmb.json";
 const std::string mv::CompilationUnit::ma3100DefTargetDescPath_ = "/config/target/release_thb.json";
+const std::string mv::CompilationUnit::ma3720DefTargetDescPath_ = "/config/target/release_mtl.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
 const std::string mv::CompilationUnit::ma3100DefCompDescPath_ = "/config/compilation/release_kmb.json";
+const std::string mv::CompilationUnit::ma3720DefCompDescPath_ = "/config/compilation/release_mtl-sc.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
@@ -120,6 +122,11 @@ bool mv::CompilationUnit::loadCompilationDescriptor(Target target)
             descPath = utils::projectRootPath() + ma3100DefCompDescPath_;
             break;
         }
+        case Target::ma3720:
+        {
+            descPath = utils::projectRootPath() + ma3720DefCompDescPath_;
+            break;
+        }
         default:
             return false;
     }
@@ -144,6 +151,13 @@ bool mv::CompilationUnit::loadTargetDescriptor(Target target)
             std::string descPath = utils::projectRootPath() + ma3100DefTargetDescPath_;
             return loadTargetDescriptor(descPath);
         }
+
+        case Target::ma3720:
+        {
+            std::string descPath = utils::projectRootPath() + ma3720DefTargetDescPath_;
+            return loadTargetDescriptor(descPath);
+        }
+
 
         default:
             return false;

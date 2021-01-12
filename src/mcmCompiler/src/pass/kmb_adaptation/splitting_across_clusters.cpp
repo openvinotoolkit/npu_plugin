@@ -503,7 +503,7 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
     return newSubTensors;
 }
 
-void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -555,7 +555,8 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                     {
                         if (sinkOperators[0]->getOpType() == "DPUTask")
                         {
-                            if (sinkOperators[0]->get<std::string>("taskOp") == "ChannelMajorConvolution")
+                            if (sinkOperators[0]->get<std::string>("taskOp") == "ChannelMajorConvolution" &&
+                                td.getTarget() != mv::Target::ma3720)
                             {
                                 if (sinkOperators[0]->get<std::string>("splitStrategy") == "SplitOverH")
                                 {
@@ -588,7 +589,8 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                             auto nextSinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
                             if (nextSinkOperators[0]->getOpType() == "DPUTask")
                             {
-                                if (nextSinkOperators[0]->get<std::string>("taskOp") == "ChannelMajorConvolution")
+                                if (nextSinkOperators[0]->get<std::string>("taskOp") == "ChannelMajorConvolution" &&
+                                    td.getTarget() != mv::Target::ma3720)
                                 {
                                      if (nextSinkOperators[0]->get<std::string>("splitStrategy") == "SplitOverH")
                                      {
