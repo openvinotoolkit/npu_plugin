@@ -68,7 +68,7 @@ TEST_F(WatchDogTests, cannot_pause_invalid_watcher) {
     ASSERT_ANY_THROW(wd1.Pause());
 
     wd1.Start();
-    ASSERT_ANY_THROW(wd1.Pause((uintptr_t)this));
+    ASSERT_ANY_THROW(wd1.Pause(this));
 }
 
 TEST_F(WatchDogTests, cannot_double_start) {
@@ -136,8 +136,8 @@ TEST_F(WatchDogTests, can_watch_for_multiple_infer_reqs_independently) {
 
     vpux::WatchDog wd1(100, test_logger, mock_callback, MS10);
     char threads[2];
-    intptr_t threadPtrs[2] = {
-        (intptr_t)(&threads[0]), (intptr_t)&threads[1]
+    void* threadPtrs[2] = {
+        &threads[0], &threads[1]
     };
 
     // no notify

@@ -72,8 +72,28 @@ public:
     WatchDog(WatchDog&&) = delete;
     WatchDog& operator=(WatchDog&&) = delete;
 
-    // Reset our timeout.
-    void Start(uintptr_t id = 0) {
+    // start watching our timeout
+    void Start() {
+        StartImpl(0);
+    }
+    template <class Id>
+    typename std::enable_if<std::is_pointer<Id>::value, void>::type
+    Start(Id id) {
+        StartImpl(reinterpret_cast<uintptr_t>(id));
+    }
+
+    // Reset our timeout
+    void Pause() {
+        PauseImpl(0);
+    }
+    template <class Id>
+    typename std::enable_if<std::is_pointer<Id>::value, void>::type
+    Pause(Id id) {
+        PauseImpl(reinterpret_cast<uintptr_t>(id));
+    }
+
+private:
+    void StartImpl(uintptr_t id) {
         std::unique_lock<std::mutex> lk(watchersAccess);
 
         auto & watcher = _watchers[id];
@@ -82,8 +102,7 @@ public:
         }
         watcher = std::chrono::steady_clock::now();
     }
-
-    void Pause(uintptr_t id = 0) {
+    void PauseImpl(uintptr_t id) {
         std::unique_lock<std::mutex> lk(watchersAccess);
         auto watcher = _watchers.find(id);
         if (watcher == _watchers.end() ||
@@ -93,7 +112,6 @@ public:
         watcher->second = std::chrono::steady_clock::time_point{};
     }
 
-private:
     // If we don't get kicked then we will abort the program.
     void watchdog_thread(const uint32_t timeout_ms) {
         using namespace std::chrono;

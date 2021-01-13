@@ -593,9 +593,9 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "pull");
     _logger->info("pull started");
     NnExecResponseMsg response;
-    _wd->Start((uintptr_t)this);
+    _wd->Start(this);
     auto status = _nnXlinkPlg->WaitForResponse(response);
-    _wd->Pause((uintptr_t)this);
+    _wd->Pause(this);
     if (X_LINK_SUCCESS != status) {
         _logger->error("pull: WaitForResponse failed");
         THROW_IE_EXCEPTION << "VpualCoreNNExecutor::pull: WaitForResponse failed" << status;
