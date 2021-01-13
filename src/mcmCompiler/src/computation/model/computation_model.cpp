@@ -669,6 +669,29 @@ void mv::ComputationModel::setGlobalConfigParams(mv::Element& element)
     *globalConfigParams_ = element;
 }
 
+void mv::ComputationModel::addGlobalConfigParams(mv::Element& element)
+{
+    auto keys = element.attrsKeys();
+    for (auto it = keys.begin(); it != keys.end(); ++it)
+    {
+        // do not overwrite params set by config of CDs
+        if (!(globalConfigParams_->hasAttr(*it)))
+            globalConfigParams_->set(*it, element.get(*it));
+    }
+}
+
+bool mv::ComputationModel::hasGlobalConfigParam(const std::string& name) const
+{
+    return globalConfigParams_->hasAttr(name);
+}
+
+mv::Attribute mv::ComputationModel::getGlobalConfigParam(const std::string& name) const
+{   
+    if (!hasGlobalConfigParam(name))
+        throw ArgumentError(*this, "globalConfigParams:name", name, "Does not exist");
+    return globalConfigParams_->get(name);
+}
+
 mv::BufferMap& mv::ComputationModel::bufferMap()
 {
     return *bufferMap_;

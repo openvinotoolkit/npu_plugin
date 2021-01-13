@@ -26,7 +26,7 @@
 #if defined(__arm__) || defined(__aarch64__)
 #include <sys/mman.h>
 #include <unistd.h>
-#include <vpusmm/vpusmm.h>
+#include <vpumgr.h>
 #endif
 
 namespace vpu {
@@ -48,7 +48,8 @@ size_t getFileSize(std::istream& strm) {
 #if defined(__arm__) || defined(__aarch64__)
 class MemChunk {
 public:
-    MemChunk(void* virtAddr, size_t size, int fd): _virtAddr(virtAddr), _size(size), _fd(fd) {}
+    MemChunk(void* virtAddr, size_t size, int fd): _virtAddr(virtAddr), _size(size), _fd(fd) {
+    }
     ~MemChunk() {
         if (_virtAddr != nullptr) {
             vpusmm_unimport_dmabuf(_fd);
@@ -142,15 +143,15 @@ void readNV12FileHelper(const std::string& filePath, size_t sizeToRead, uint8_t*
 }
 
 InferenceEngine::Blob::Ptr fromNV12File(const std::string& filePath, size_t imageWidth, size_t imageHeight,
-    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator>& allocator) {
+                                        std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator>& allocator) {
     const size_t expectedSize = imageWidth * (imageHeight * 3 / 2);
     uint8_t* imageData = reinterpret_cast<uint8_t*>(allocator->allocate(expectedSize));
     readNV12FileHelper(filePath, expectedSize, imageData, 0);
 
-    InferenceEngine::TensorDesc planeY(
-        InferenceEngine::Precision::U8, {1, 1, imageHeight, imageWidth}, InferenceEngine::Layout::NHWC);
-    InferenceEngine::TensorDesc planeUV(
-        InferenceEngine::Precision::U8, {1, 2, imageHeight / 2, imageWidth / 2}, InferenceEngine::Layout::NHWC);
+    InferenceEngine::TensorDesc planeY(InferenceEngine::Precision::U8, {1, 1, imageHeight, imageWidth},
+                                       InferenceEngine::Layout::NHWC);
+    InferenceEngine::TensorDesc planeUV(InferenceEngine::Precision::U8, {1, 2, imageHeight / 2, imageWidth / 2},
+                                        InferenceEngine::Layout::NHWC);
     const size_t offset = imageHeight * imageWidth;
 
     InferenceEngine::Blob::Ptr blobY = InferenceEngine::make_shared_blob<uint8_t>(planeY, imageData);
@@ -169,7 +170,7 @@ std::ifstream& skipMagic(std::ifstream& blobStream) {
 
     blobStream.seekg(0, blobStream.beg);
     blobStream.read(magic.data(), magic.size());
-    auto exportedWithName = (exportMagic == magic);
+    auto exportedWithName = (InferenceEngine::exportMagic == magic);
     if (exportedWithName) {
         std::string tmp;
         std::getline(blobStream, tmp);

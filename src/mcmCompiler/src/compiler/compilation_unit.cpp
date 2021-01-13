@@ -8,9 +8,11 @@
 
 const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/target/release_kmb.json";
 const std::string mv::CompilationUnit::ma3100DefTargetDescPath_ = "/config/target/release_thb.json";
+const std::string mv::CompilationUnit::ma3720DefTargetDescPath_ = "/config/target/release_mtl.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
 const std::string mv::CompilationUnit::ma3100DefCompDescPath_ = "/config/compilation/release_kmb.json";
+const std::string mv::CompilationUnit::ma3720DefCompDescPath_ = "/config/compilation/release_mtl-sc.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
@@ -95,20 +97,11 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
     // query recorded model settings
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
     mv::Element globalParams = passList[0];
-    if (globalParams.hasAttr("recorded_model") )
+    if (globalParams.hasAttr("recorded_model") && globalParams.get<bool>("recorded_model"))
     {
-        bool recordModel = globalParams.get<bool>("recorded_model");
-        if (recordModel)
-        {
-            bool recordWeightsAsText = false;
-            if (globalParams.hasAttr("weights_form") )
-            {
-                std::string weights = globalParams.get<std::string>("weights_form");
-                if ( (weights == "text") || (weights == "Text") || (weights == "TEXT") )
-                    recordWeightsAsText = true;
-            }
-            model_->initRecordingFile("templateExampleNew.cpp", recordWeightsAsText);
-        }
+        bool recordWeightsAsText = 
+            globalParams.hasAttr("recordWeightsAsText") ? globalParams.get<bool>("recordWeightsAsText") : false;
+        model_->initRecordingFile("templateExampleNew.cpp", recordWeightsAsText);
     }
     return true;
 }
@@ -127,6 +120,11 @@ bool mv::CompilationUnit::loadCompilationDescriptor(Target target)
         case Target::ma3100:
         {
             descPath = utils::projectRootPath() + ma3100DefCompDescPath_;
+            break;
+        }
+        case Target::ma3720:
+        {
+            descPath = utils::projectRootPath() + ma3720DefCompDescPath_;
             break;
         }
         default:
@@ -153,6 +151,13 @@ bool mv::CompilationUnit::loadTargetDescriptor(Target target)
             std::string descPath = utils::projectRootPath() + ma3100DefTargetDescPath_;
             return loadTargetDescriptor(descPath);
         }
+
+        case Target::ma3720:
+        {
+            std::string descPath = utils::projectRootPath() + ma3720DefTargetDescPath_;
+            return loadTargetDescriptor(descPath);
+        }
+
 
         default:
             return false;

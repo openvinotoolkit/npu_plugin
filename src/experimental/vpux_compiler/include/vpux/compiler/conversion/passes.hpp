@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/utils/core/logger.hpp"
@@ -30,10 +32,28 @@
 namespace vpux {
 
 //
-// IE2VPUIP
+// BufferizeIE
 //
 
-std::unique_ptr<mlir::Pass> createConvertIE2VPUIPPass(uint32_t maxUPAShaves = 1, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createBufferizeIEPass(Logger log = Logger::global());
+
+//
+// LowerIE2IERT
+//
+
+std::unique_ptr<mlir::Pass> createLowerIE2IERTPass(Logger log = Logger::global());
+
+//
+// ConvertIERT2VPUIP
+//
+
+std::unique_ptr<mlir::Pass> createConvertIERT2VPUIPPass(Logger log = Logger::global());
+
+//
+// LowerIERT2VPUIP
+//
+
+std::unique_ptr<mlir::Pass> createLowerIERT2VPUIPPass(Logger log = Logger::global());
 
 //
 // Generated

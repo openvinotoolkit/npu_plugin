@@ -83,11 +83,19 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
         outputTensor->setShape({outputShape[mv::IO_WIDTH_DIMENSION], outputShape[mv::IO_HEIGHT_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION], outputShape[mv::IO_BATCH_DIMENSION]});
         for (const auto& flowName : outputTensor->getFlowNames())
             propagateShapeChange(om, flowName);
+
+        addCropNode(om, sink, outputTensor, outputShape[mv::IO_CHANNEL_DIMENSION]);
     }
 }
 
 void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels)
 {
+    auto cropOpName = outputTensor->getName() + "_crop";
+
+    // check if already there's a crop for output tensor
+    if (om.checkOp(cropOpName))
+       return;
+
     std::vector<mv::Data::OpListIterator> opsToLink;
     std::vector<std::size_t> inputSlots;
     std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
@@ -101,8 +109,6 @@ void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::Tens
         flowsToRemove.push_back(sinkFlow);
     }
 
-    //TODO check if already there's a crop? or maybe move this to separate pass
-    auto cropOpName = outputTensor->getName() + "_crop";
     auto quantParams = outputTensor->getQuantParams();
 
     auto croppedTensor = om.crop(cropOpName,
@@ -312,7 +318,7 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
     }
 }
 
-void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -328,7 +334,8 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
         auto opIt = *vecIt;
         auto taskOp = opIt->get<std::string>("taskOp");
         if(taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "MaxPool" ||
-            taskOp == "Eltwise")
+            taskOp == "Eltwise" ||
+            (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3720)) //channel major as zmajor in MTL
         {
             auto numInputs = 1;
             if (taskOp == "Eltwise")
@@ -337,7 +344,7 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
             {
                 auto inputTensor = opIt->getInputTensor(i);
                 auto parentOpIt = om.getSourceOp(inputTensor);
-                if (parentOpIt->getOpType() != "Align" && inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % pad != 0)
+                if (inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % pad != 0)
                 {
                     inputTensor->set<bool>("alignment", true);
                     opIt->set<bool>("alignment", true);
@@ -346,20 +353,14 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     std::vector<std::size_t> inputSlots;
                     std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
 
-                    auto sourceFlowStart = parentOpIt.leftmostOutput();
-                    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+                    for (auto sinkFlow = parentOpIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
                     {
-                        auto opType = sinkFlow.sink()->getOpType();
-                        if (opType == "DPUTask")
-                        {
-                            auto taskType = sinkFlow.sink()->get<std::string>("taskOp");
-                            if((taskType == "Conv") || (taskType == "DepthwiseConv") || (taskType == "MaxPool") || (taskType == "Eltwise"))
-                            {
-                                opsToLink.push_back(sinkFlow.sink());
-                                inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-                                flowsToRemove.push_back(sinkFlow);
-                            }
-                        }
+                        if (sinkFlow.sink()->getOpType() != "DPUTask")
+                            continue;
+
+                        opsToLink.push_back(sinkFlow.sink());
+                        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+                        flowsToRemove.push_back(sinkFlow);
                     }
 
                     auto alignOpName = inputTensor->getName() + "_align";
@@ -376,21 +377,17 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     //If ParentOp memory location of Align is in DDR, then Align can get any strategy and should get strategy of the child Op instead of parent
                     //Enables RetinaFace compilation, applicable to other networks too
                     auto outputTensorMemoryLocation = mv::Tensor::MemoryLocation::NNCMX;
-                    auto parentMemoryLocation = parentOpIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+                    alignedTensor->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
                     auto alignOp = om.getOp(alignOpName);
                     alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
+
+                    auto parentMemoryLocation = parentOpIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
                     if(parentOpIt->isImplicit() && parentMemoryLocation == mv::Tensor::MemoryLocation::DDR)
-                    {
-                        alignedTensor->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
                         if (opIt->hasAttr("splitStrategy"))
                             alignOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
-                    }
-                    else{
-                        alignedTensor->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
+                    else
                         if (parentOpIt->hasAttr("splitStrategy"))
                             alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
-                    }
-
 
                     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
                     {
@@ -400,6 +397,8 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     {
                         opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
                         opsToLink[op]->set<bool>("alignment", true);
+                        if (opsToLink[op]->getOpType() == "Copy")
+                            opsToLink[op]->redefineOutputTensors();
                         om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
 
                         // If Copy follows Align, cascade aligned output shape
@@ -455,7 +454,7 @@ void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationMode
     }
 }
 
-void alignPopulatedTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void alignPopulatedTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -477,17 +476,23 @@ void alignPopulatedTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel
             mv::Shape alignedShape;
             //NOTE: only Convs have weights (=) alignment
             auto taskOp = layer->get<std::string>("taskOp");
+            if (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3720)
+                continue;
+
             std::size_t outputChannelsPadded = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
 
-            if (taskOp == "Conv" || taskOp == "ChannelMajorConvolution")
+            if (taskOp == "Conv" ||
+                (taskOp == "ChannelMajorConvolution" && td.getTarget() != mv::Target::ma3720))
                 alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
                                                     inputTensorShape[mv::IO_CHANNEL_DIMENSION], outputTensorShape[mv::IO_CHANNEL_DIMENSION]});
+
             else if (taskOp == "DepthwiseConv")
             {
                 alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
                                                             inputTensorShape[mv::IO_CHANNEL_DIMENSION], 1});
                 outputChannelsPadded = inputTensorShape[mv::IO_CHANNEL_DIMENSION];
             }
+
             alignWeightsTensor(om, weightsTensor, alignedShape);
             if(layer->hasAttr("bias"))
             {

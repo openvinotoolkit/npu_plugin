@@ -43,7 +43,7 @@ class CMX_Concatenation {
     struct control_edge_t {
       control_edge_t(mv::Data::OpListIterator src,
             mv::Data::OpListIterator sink)
-          : source_itr_(src) , sink_itr_(sink) { } 
+          : source_itr_(src) , sink_itr_(sink) { }
 
       mv::Data::OpListIterator source_itr_;
       mv::Data::OpListIterator sink_itr_;
@@ -82,7 +82,7 @@ class CMX_Concatenation {
           output_size +=
            (const_cast<mv::Op *>(*itr))->getOutputTensor(0UL)->getClusterSize();
         }
-        size_t concat_output_size = 
+        size_t concat_output_size =
             (const_cast<mv::Op *>(concat_root_)->getOutputTensor(0UL))->
               getClusterSize();
         return std::max(output_size, concat_output_size);
@@ -144,7 +144,7 @@ class CMX_Concatenation {
 
         size_t mbuffer_size = master_buffer_size();
         fprintf(fptr, "[root_concat]: %s mbuffer_size=%zu\n",
-              concat_root_->getName().c_str(), mbuffer_size); 
+              concat_root_->getName().c_str(), mbuffer_size);
 
         size_t total_cmx_memory = 0UL;
         for (auto itr=dpu_in_.begin(); itr!=dpu_in_.end(); ++itr) {
@@ -263,7 +263,7 @@ class CMX_Concatenation {
         }
 
         // STEP-1: initialize dpu_ops_which_need_depth //
-        for (auto itr=dpu_in_.begin(); itr!=dpu_in_.end(); ++itr) { 
+        for (auto itr=dpu_in_.begin(); itr!=dpu_in_.end(); ++itr) {
           dpu_ops_which_need_depth.insert( *itr );
         }
 
@@ -319,7 +319,7 @@ class CMX_Concatenation {
       op_list_t writes_;
       operation_t concat_root_;
       operation_t representative_dpu_; // representative DPU task from dpu_in_
-      size_t representative_dpu_depth_; 
+      size_t representative_dpu_depth_;
     }; // struct concat_subgraph_t //
 
     ////////////////////////////////////////////////////////////////////////////
@@ -379,6 +379,62 @@ class CMX_Concatenation {
       return total_sub_graphs;
     }
 
+    // NOTE: Currently recursively backwards for eltwise dpu task is not supported
+    void assertForEltwise(mv::Data::OpListIterator opIt) const
+    {
+      if (opIt->getOpType() == "DPUTask" && opIt->get<std::string>("taskOp") == "Eltwise")
+      {
+        throw RuntimeError("LpScheduler", "Currently going recursively backwards for eltwise dpu task is not supported.");
+      }
+    }
+
+    void assertForInvalidPseudoEdge(mv::Data::OpListIterator source, mv::Data::OpListIterator sink) const
+    {
+      if (source->isImplicit() || sink->isImplicit())
+        throw RuntimeError("LpScheduler", "Currently pseudoEdge with source/sink implicit is not supported.");
+    }
+
+    template<typename ControlEdgeOutput>
+    void transform_concat_subgraph_depth(const concat_subgraph_t& subgraph,
+        ControlEdgeOutput , std::unordered_map<operation_t, size_t> ) {
+      operation_t dpu_rep = subgraph.representative_dpu_;
+      //NOTE: In the vector we keep the level of every source of the pseudo edge, cause the biggest + 1
+      // will become the new representative dpu
+      std::vector <std::size_t> depth_keeper(subgraph.dpu_in_.size(), 0);
+      for (auto dpu_in = subgraph.dpu_in_.begin();
+            dpu_in != subgraph.dpu_in_.end(); dpu_in++) {
+        auto opIt = *dpu_in;
+        if (opIt->getName() != dpu_rep->getName())
+        {
+          auto source = omodel_.getOp(opIt->getName());
+          auto appr_opIt = omodel_.getSourceOp(source->getInputTensor()[0]);
+          auto sink = omodel_.getOp(dpu_rep->getName());
+
+          // TODO(vamsikku): only choose the input which has highest depth //
+          while (appr_opIt->getOpType() != "DPUTask")
+          {
+            assertForEltwise(appr_opIt);
+            appr_opIt = omodel_.getSourceOp(appr_opIt->getInputTensor()[0]);
+          }
+
+          if (!omodel_.pathExists(appr_opIt, sink))
+          {
+            auto src_tensor_itr = appr_opIt->getOutputTensor()[0];
+            assertForInvalidPseudoEdge(appr_opIt, sink);
+            auto itr = dpu_depth_map_.find(opIt);
+            size_t dpu_depth = itr->second;
+            depth_keeper.push_back(dpu_depth);
+            mv::Data::FlowListIterator flow_itr =
+              omodel_.defineFlow(src_tensor_itr, sink , 0UL);
+            flow_itr->set<bool>("pseudo_data_flow", true);
+          }
+
+        }
+      }
+      dpu_depth_map_[dpu_rep] = *max_element(depth_keeper.begin(), depth_keeper.end()) + 1;
+      return;
+    }
+
     template<typename OutputIterator>
     size_t locate_all_concat_subgraphs(OutputIterator output) {
       size_t total_sub_graphs = 0UL;
@@ -409,6 +465,60 @@ class CMX_Concatenation {
       transform_op_model(output, concat_subgraphs, cmx_size);
     }
 
+    template<typename T>
+    bool is_weight_read(T op) const {
+      mv::Data::OpListIterator oitr = omodel_.getOp(op->getName());
+      if (oitr->getOpType() != "DMATask") { return false; }
+
+      // indegree must be 1 and
+      auto pitr = oitr.leftmostParent();
+      auto pitr_next = pitr;
+      ++pitr_next;
+      if (pitr_next != omodel_.opEnd()) { return false; }
+
+      return (pitr->getOpType() == "ConstantDataElement") ||
+        (pitr->getOpType() == "ConstantInt");
+    }
+
+    template<typename T, typename OutputIterator>
+    void get_weight_read_inputs(T dpu_op, OutputIterator output) const {
+      mv::Data::OpListIterator oitr = omodel_.getOp(dpu_op->getName());
+      for (auto pitr=oitr.leftmostParent(); pitr!=omodel_.opEnd(); ++pitr) {
+        if (is_weight_read(pitr)) {
+          output = &(*pitr);
+        }
+      }
+    }
+
+    //NOTE: For all subgraphs on cmx the depth of rep dpu >= depth of others across all subgraphs
+    template<typename T, typename P>
+    void validate_dpu_ins_level(T concat_subgraphs, P cmx_size) const
+    {
+      for (auto sitr=concat_subgraphs.begin(); sitr!=concat_subgraphs.end();
+          ++sitr)
+      {
+        concat_subgraph_t& subgraph = *sitr;
+        bool can_transform =
+            is_cmx_concateable_in_current_opmodel(subgraph, cmx_size);
+        if (!can_transform)
+          continue;
+        operation_t dpu_rep = subgraph.representative_dpu_;
+        auto itr = dpu_depth_map_.find(dpu_rep);
+        size_t dpu_rep_depth = itr->second;
+
+        for (operation_t dpu : subgraph.dpu_in_)
+        {
+          auto dpu_in = dpu_depth_map_.find(dpu);
+          if (dpu_in->first->getName() != dpu_rep->getName())
+          {
+            if (dpu_rep_depth < dpu_in->second)
+              throw RuntimeError("LpScheduler", "Wrong levels in the concat subgraph.");
+          }
+        }
+      }
+
+    }
+
     template<typename ControlEdgeOutput, typename SubGraphContainer>
     void transform_op_model(ControlEdgeOutput output,
           SubGraphContainer& concat_subgraphs, size_t cmx_size=917504UL) {
@@ -420,6 +530,9 @@ class CMX_Concatenation {
       FILE *fptr = fopen("cmx_concat_report.txt", "w");
 
       locate_concat_subgraphs(std::back_inserter(concat_subgraphs));
+      //NOTE: Pseudo edges will be added in the representative tasks with lower depth
+      //so I need to keep their new depth as the compute_depth_function does not update the depth
+      std::unordered_map<operation_t, size_t> temporary_dpu_depth_map;
       for (auto sitr=concat_subgraphs.begin(); sitr!=concat_subgraphs.end();
             ++sitr) {
         concat_subgraph_t& subgraph = *sitr;
@@ -427,25 +540,50 @@ class CMX_Concatenation {
             is_cmx_concateable_in_current_opmodel(subgraph, cmx_size);
         if (can_transform) {
           transform_and_get_control_edges(subgraph, output);
+          if (does_rep_dpu_has_lower_depth_than_others(subgraph)) {
+            transform_concat_subgraph_depth(subgraph, output, temporary_dpu_depth_map);
+          }
         }
 
 
         if (fptr) {
-          fprintf(fptr, "concat = %s transformed_to_cmx = %s\n",
+          fprintf(fptr, "=====================================\n");
+          fprintf(fptr, "concat = %s transformed_to_cmx = %s rep=%s \n",
               subgraph.concat_root_->getName().c_str(),
-              can_transform ? "YES" : "NO");
+              can_transform ? "YES" : "NO",
+              subgraph.representative_dpu_->getName().c_str());
+          fprintf(fptr, "READS:\n");
+          for (auto ditr = subgraph.dpu_in_.begin();
+                ditr != subgraph.dpu_in_.end(); ++ditr) {
+            std::list<operation_t> read_list;
+            get_weight_read_inputs(*ditr, std::back_inserter(read_list));
+            size_t total_read_size = 0UL;
+            fprintf(fptr, "dpu_name=%s\n", (*ditr)->getName().c_str());
+            for (auto ritr = read_list.begin(); ritr != read_list.end();
+                  ++ritr) {
+              size_t rsize = (const_cast<mv::Op *>(*ritr))->
+                  getOutputTensor(0UL)->getClusterSize();
+              fprintf(fptr, "r=%s size=%lu : ",
+                    (*ritr)->getName().c_str(), rsize);
+              total_read_size += rsize;
+            }
+            fprintf(fptr, "total_read_size=%lu\n\n", total_read_size);
+          }
+          fprintf(fptr, "=====================================\n");
         }
       }
 
       if (fptr) {
         fclose(fptr);
       }
+      validate_dpu_ins_level(concat_subgraphs, cmx_size);
+
     }
 
     bool has_no_cmx_concat_flag(const concat_subgraph_t& subgraph) const {
       mv::Data::OpListIterator concat_op =
           omodel_.getOp((subgraph.concat_root_)->getName());
-      return concat_op->hasAttr("avoid_cmx_concat") && 
+      return concat_op->hasAttr("avoid_cmx_concat") &&
           concat_op->get("avoid_cmx_concat");
     }
 
@@ -475,14 +613,15 @@ class CMX_Concatenation {
 
     //TODO(vamsikku): temporary work around partially written concat buffer //
     bool does_rep_dpu_has_lower_depth_than_others(
-        const concat_subgraph_t& subgraph) const {
+        const concat_subgraph_t& subgraph) const
+    {
       operation_t dpu_rep = subgraph.representative_dpu_;
       size_t dpu_rep_depth;
       {
         auto itr = dpu_depth_map_.find(dpu_rep);
         if (itr == dpu_depth_map_.end()) {
           throw RuntimeError("LpScheduler", "DPU missing in depth map");
-	}
+        }
         dpu_rep_depth = itr->second;
       }
 
@@ -493,12 +632,21 @@ class CMX_Concatenation {
       return false;
     }
 
-    bool is_this_an_unsupported_concat(const concat_subgraph_t& subgraph) const{
-      return has_no_cmx_concat_flag(subgraph) ||
-        does_this_concat_have_any_crops(subgraph) ||
-        is_this_a_complex_concat(subgraph) ||
-        does_rep_dpu_has_lower_depth_than_others(subgraph) ||
+    bool is_this_an_unsupported_concat(const concat_subgraph_t& subgraph) const
+    {
+      //NOTE: using variables so we can print the reason, in case of concats fail to cmx transfrom
+      bool has_no_cmx_concat_flagC = has_no_cmx_concat_flag(subgraph);
+      bool does_this_concat_have_any_cropsC = does_this_concat_have_any_crops(subgraph);
+      bool is_this_a_complex_concatC = is_this_a_complex_concat(subgraph);
+      bool does_this_concat_childs_service_compiler_provided_sparsityC =
         does_this_concat_childs_service_compiler_provided_sparsity(subgraph);
+      bool does_this_concat_subgraph_create_cyclic_dag = concat_subgraph_leads_cycle(subgraph);
+
+      return has_no_cmx_concat_flagC ||
+        does_this_concat_have_any_cropsC ||
+        is_this_a_complex_concatC ||
+        does_this_concat_childs_service_compiler_provided_sparsityC ||
+        does_this_concat_subgraph_create_cyclic_dag;
     }
 
     bool does_this_concat_have_any_parents_or_children_of_this_op_type(
@@ -539,7 +687,7 @@ class CMX_Concatenation {
           size_t curr_size = 0UL;
           if (is_the_output_of_this_op_in_cmx(pop)) {
               curr_size = pop->getOutputTensor(0UL)->getClusterSize();
-          } 
+          }
           total_size += curr_size;
         } else {
           total_size += total_input_cmx_memory_of_implicit_op(&(*pop));
@@ -547,7 +695,7 @@ class CMX_Concatenation {
       }
       return total_size;
     }
-    
+
 
     template<typename T>
     bool is_implicit_concat(T op) const {
@@ -701,7 +849,7 @@ class CMX_Concatenation {
             ++itr) {
         // NOTE if the DPU in the current opmodel is connected to a CMX concat
         // then the output size is the CMX concat buffer size //
-        max_output_size = 
+        max_output_size =
           std::max(max_output_size,
               is_this_dpu_op_writing_into_cmx_concat(*itr) ?
               get_cmx_concat_buffer_size_driven_by_this_dpu(*itr) :
@@ -715,8 +863,7 @@ class CMX_Concatenation {
 
     bool is_cmx_concateable_in_current_opmodel(
         const concat_subgraph_t& subgraph, size_t cmx_size,
-        FILE* /*fptr */=NULL) const {
-
+        FILE *fptr=NULL) const {
       if (is_this_an_unsupported_concat(subgraph)) { return false; }
 
       size_t max_input_size =
@@ -813,7 +960,6 @@ class CMX_Concatenation {
 
       mv::OpModel &om = omodel_;
       operation_t d_star = subgraph.representative_dpu_;
-
       op_list_t& reads = subgraph.reads_;
       op_list_t& writes = subgraph.writes_;
 
@@ -830,6 +976,9 @@ class CMX_Concatenation {
       for (auto witr=writes.begin(); witr!=writes.end(); ++witr) {
         om.removeOp(om.getOp( (*witr)->getName() ));
       }
+
+      reads = {};
+      writes = {};
 
       // STEP-1: change the memory location concat from DDR to CMX //
       mv::Tensor::MemoryLocation cmx_location("NNCMX");
@@ -957,7 +1106,7 @@ class CMX_Concatenation {
         printf("short_circuit_read_or_write(%s) must be unit-indegree\n",
               op->getName().c_str());
         fflush(stdout);
-        throw RuntimeError("LpScheduler", 
+        throw RuntimeError("LpScheduler",
             "Read/Write must have unit indegree and unit outdegree");
       }
 
@@ -983,6 +1132,32 @@ class CMX_Concatenation {
       }
     }
 
+    bool concat_subgraph_leads_cycle(const concat_subgraph_t& subgraph) const {
+      mv::OpModel &om = omodel_;
+      op_list_t reads = subgraph.reads_;
+
+      //NOTE: find if this concat leads to the mixed mode eltwise and decline the cyclic dag graph
+      for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+      {
+        for (auto inputTensor : opIt->getInputTensor())
+        {
+          for (auto ritr=reads.begin(); ritr != reads.end(); ++ritr)
+          {
+            auto it = om.getOp( (*ritr)->getName() );
+            if ((it->getOutputTensor()[0]->getName() == inputTensor->getName()) &&
+              opIt->getOpType() == "DPUTask" && opIt->hasAttr("mixedToFloat"))
+            {
+              if (opIt->get<std::string>("taskOp") == "Eltwise" && opIt->get<bool>("mixedToFloat"))
+              {
+                return true;
+              }
+            }
+          }
+        }
+      }
+      return false;
+    }
+
     bool is_root_concat(mv::Data::OpListIterator op_itr) const {
       if (!is_implicit_concat(op_itr)) { return false; }
       // no children should be concats //
@@ -991,7 +1166,7 @@ class CMX_Concatenation {
       }
       return true;
     }
-   
+
     template<typename OpIterator>
     bool is_dpu_op(OpIterator op) const {
       return op->getOpType() == "DPUTask";
@@ -1054,7 +1229,7 @@ class CMX_Concatenation {
 
       mv::OpModel &om = omodel_;
       mv::Data::OpListIterator op_itr = om.getOp(op->getName());
-        
+
       std::list<mv::Data::OpListIterator> bfs_list;
       std::unordered_set<operation_t> marked_nodes;
 
@@ -1158,6 +1333,32 @@ class CMX_Concatenation {
       return (total_dpu_concats + total_dma_writes);
     }
 
+    void ensureOperationComeFromSameStreamHaveSameDepth()
+    {
+      //NOTE: ensure that the operations coming from the same stream have the same depth, this
+      //might have changed in the opmodel cause of the prefetch that happens in chains
+      std::unordered_map<std::string, std::vector<operation_t>> sameStreamingOperationNames;
+
+      for (auto it : dpu_depth_map_)
+      {
+        if (it.first->hasAttr("parentOpName"))
+          sameStreamingOperationNames[it.first->get<std::string>("parentOpName")].push_back(it.first);
+      }
+
+      for (auto it : sameStreamingOperationNames)
+      {
+        std::set<size_t> setOfLevels;
+        for (auto opIt : it.second)
+          setOfLevels.insert(dpu_depth_map_[opIt]);
+        if (setOfLevels.size() > 1)
+        {
+          auto minLevel = setOfLevels.begin();
+          for (auto opIt : it.second)
+            dpu_depth_map_[opIt] = *minLevel;
+        }
+      }
+    }
+
     void compute_dpu_depth_map() {
       dpu_depth_map_.clear();
       mv::OpModel &model = omodel_;
@@ -1205,6 +1406,7 @@ class CMX_Concatenation {
         zero_in_degree_nodes[parity].clear();
         curr_depth++;
       }
+      ensureOperationComeFromSameStreamHaveSameDepth();
       //////////////////////////////////////////////////////////////////////////
 
     }

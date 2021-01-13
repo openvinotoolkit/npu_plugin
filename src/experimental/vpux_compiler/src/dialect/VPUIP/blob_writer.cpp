@@ -98,43 +98,67 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     return {builder.Finish().Union(), MVCNN::SpecificTask_UPALayerTask};
 }
 
-VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(StringRef name, mlir::MemRefType type,
-                                                                         MemoryLocation location, uint64_t offset) {
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
+        StringRef name, mlir::MemRefType type, MemoryLocation locale, Optional<uint32_t> localeIndex,
+        uint64_t dataIndex, Optional<uint64_t> sparsityIndex, Optional<uint64_t> storageElementIndex,
+        Optional<uint32_t> storageElementSize, Optional<uint32_t> leadingOffset, Optional<uint32_t> trailingOffset,
+        Optional<float> density_rate, Optional<uint8_t> swizzling_key) {
     const auto serializedName = createString(name);
+
     const auto serializedDataType = createDType(type.getElementType());
     const auto serializedDims = createDims(type);
     const auto serializedStrides = createStrides(type);
-    const auto serializedLocation = createMemoryLocation(location);
-    const auto serializedOffset = createIndirectDataReference(offset);
+    const auto dimsOrder = DimsOrder::fromType(type);
+    VPUX_THROW_UNLESS(dimsOrder.hasValue(), "Can't get DimsOrder from MemRef Type '{0}'", type);
 
-    const auto localeIndex = createVector(makeArrayRef<uint32_t>({0}));
+    const auto serializedDataReference =
+            createIndirectDataReference(dataIndex, sparsityIndex, storageElementIndex, storageElementSize);
+
+    const auto serializedLocale = createMemoryLocation(locale);
+    const auto serializedLocaleIndex = createVector(to_vector<1>(makeArrayRef({localeIndex.getValueOr(0)})));
+
+    // TODO: get this from type.getElementType() (Quant Dialect)
     const auto quantZero = createVector(makeArrayRef<uint8_t>({0}));
     const auto quantMult = createVector(makeArrayRef<uint16_t>({1}));
     const auto quantShift = createVector(makeArrayRef<uint8_t>({0}));
-
-    const auto dimsOrder = DimsOrder::fromType(type);
-    VPUX_THROW_UNLESS(dimsOrder.hasValue(), "Can't get DimsOrder from MemRef Type {0}", type);
 
     MVCNN::TensorReferenceBuilder builder(_impl);
     builder.add_name(serializedName);
     builder.add_dimensions(serializedDims);
     builder.add_strides(serializedStrides);
-    builder.add_data(serializedOffset);
-    builder.add_locale(serializedLocation);
-    builder.add_locale_index(localeIndex);
+    builder.add_data(serializedDataReference);
+    builder.add_locale(serializedLocale);
+    builder.add_locale_index(serializedLocaleIndex);
     builder.add_data_dtype(serializedDataType);
     builder.add_quant_zero(quantZero);
     builder.add_quant_mult(quantMult);
     builder.add_quant_shift(quantShift);
     builder.add_order(dimsOrder->code());
+    if (leadingOffset.hasValue()) {
+        builder.add_leading_offset(leadingOffset.getValue());
+    }
+    if (trailingOffset.hasValue()) {
+        builder.add_trailing_offset(trailingOffset.getValue());
+    }
+    if (density_rate.hasValue()) {
+        builder.add_density_rate(density_rate.getValue());
+    }
+    if (swizzling_key.hasValue()) {
+        builder.add_swizzling_key(swizzling_key.getValue());
+    }
     return builder.Finish();
 }
 
-VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(mlir::Value val, StringRef name,
-                                                                         MemoryLocation location, uint64_t offset) {
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
+        mlir::Value val, StringRef name, MemoryLocation locale, Optional<uint32_t> localeIndex, uint64_t dataIndex,
+        Optional<uint64_t> sparsityIndex, Optional<uint64_t> storageElementIndex, Optional<uint32_t> storageElementSize,
+        Optional<uint32_t> leadingOffset, Optional<uint32_t> trailingOffset, Optional<float> density_rate,
+        Optional<uint8_t> swizzling_key) {
     VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value {0} was already serialized", val);
 
-    const auto off = createTensor(name, val.getType().cast<mlir::MemRefType>(), location, offset);
+    const auto off = createTensor(name, val.getType().cast<mlir::MemRefType>(), locale, localeIndex, dataIndex,
+                                  sparsityIndex, storageElementIndex, storageElementSize, leadingOffset, trailingOffset,
+                                  density_rate, swizzling_key);
 
     _tensors.insert({val, off});
 
@@ -280,9 +304,20 @@ MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocati
 #undef CASE
 }
 
-VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirectDataReference(uint64_t offset) {
+VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirectDataReference(
+        uint64_t dataIndex, Optional<uint64_t> sparsityIndex, Optional<uint64_t> storageElementIndex,
+        Optional<uint32_t> storageElementSize) {
     MVCNN::IndirectDataReferenceBuilder builder(_impl);
-    builder.add_data_index(offset);
+    builder.add_data_index(dataIndex);
+    if (sparsityIndex.hasValue()) {
+        builder.add_sparsity_index(sparsityIndex.getValue());
+    }
+    if (storageElementIndex.hasValue()) {
+        builder.add_storage_element_index(storageElementIndex.getValue());
+    }
+    if (storageElementSize.hasValue()) {
+        builder.add_storage_element_size(storageElementSize.getValue());
+    }
     return builder.Finish();
 }
 
@@ -296,21 +331,20 @@ VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(mlir::De
     const size_t totalNumElements = type.getNumElements();
     const size_t totalByteSize = totalNumElements * elemTypeByteSize;
 
-    std::vector<uint64_t> alignedContent(alignVal(totalByteSize, sizeof(uint64_t)));
+    std::vector<uint64_t> alignedContent(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
     const auto rawData = content.getRawData();
-    VPUX_THROW_UNLESS(rawData.size() == totalByteSize, "Raw Size mismatch for const content : {0} vs {1}",
+    VPUX_THROW_UNLESS(rawData.size() == totalByteSize, "Raw Size mismatch for const content : '{0}' vs '{1}'",
                       rawData.size(), totalByteSize);
 
     std::copy_n(reinterpret_cast<const uint8_t*>(rawData.data()), totalByteSize,
                 reinterpret_cast<uint8_t*>(alignedContent.data()));
 
-    const auto serializedDataType = createDType(elemType);
     const auto serializedContent = createVector(alignedContent);
 
     MVCNN::BinaryDataBuilder builder(_impl);
-    builder.add_underlying_type(serializedDataType);
-    builder.add_length(checked_cast<uint64_t>(totalByteSize));
+    builder.add_underlying_type(MVCNN::DType::DType_U8);
+    builder.add_length(alignedContent.size() * sizeof(uint64_t));
     builder.add_data(serializedContent);
     builder.add_csram_cacheable(csram_cacheable);
     return builder.Finish();

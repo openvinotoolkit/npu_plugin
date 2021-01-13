@@ -17,9 +17,9 @@
 #ifndef VPUX_COMPILER_DIALECT_IE_OPS
 #define VPUX_COMPILER_DIALECT_IE_OPS
 
+include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IE/dialect.td"
-include "vpux/compiler/dialect/IE/ops_interfaces.td"
 
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -43,8 +43,10 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
                 traits,
                 [
                     NoSideEffect,
-                    DeclareOpInterfaceMethods<InferTypeOpInterface>,
-                    DeclareOpInterfaceMethods<InferShapedTypeOpInterface>
+                    NativeOpTrait<"InferTensorType">,
+                    InferTypeOpInterface,
+                    DeclareOpInterfaceMethods<InferShapedTypeOpInterface>,
+                    DeclareOpInterfaceMethods<LayerInterface>
                 ]
             )
         >;
@@ -61,7 +63,7 @@ def IE_CNNNetworkOp :
                 HasParent<"mlir::ModuleOp">,
                 SingleBlockImplicitTerminator<"vpux::IE::EndOp">,
                 NoRegionArguments,
-                IE_NetworkInformation,
+                DeclareOpInterfaceMethods<NetInfoInterface>,
                 DeclareOpInterfaceMethods<SymbolUserOpInterface>
             ]
         > {
@@ -85,19 +87,11 @@ def IE_CNNNetworkOp :
         SizedRegion<1>:$outputsInfo
     );
 
-    let verifier = [{
-        return vpux::IE::verifyOp(*this);
-    }];
-
     let assemblyFormat = [{
         attr-dict
         $netName `at` $entryPoint
         `inputsInfo` `:` $inputsInfo
         `outputsInfo` `:` $outputsInfo
-    }];
-
-    let extraClassDeclaration = [{
-        static mlir::LogicalResult getFromModule(mlir::ModuleOp module, vpux::IE::CNNNetworkOp& netOp, mlir::FuncOp& netFunc);
     }];
 }
 
@@ -106,7 +100,8 @@ def IE_DataInfoOp :
             "DataInfo",
             [
                 IsolatedFromAbove,
-                HasParent<"vpux::IE::CNNNetworkOp">
+                HasParent<"vpux::IE::CNNNetworkOp">,
+                DeclareOpInterfaceMethods<DataInfoInterface>
             ]
         > {
     let summary = "Information about InferenceEngine CNN Network input/output Data object";
@@ -151,7 +146,10 @@ def IE_EndOp :
 
 def IE_ConvertOp :
         IE_LayerOp<
-            "Convert"
+            "Convert",
+            [
+                DeclareOpInterfaceMethods<ConvertLayerInterface>
+            ]
         > {
     let summary = "InferenceEngine Convert layer";
 
@@ -183,7 +181,7 @@ def IE_SoftMaxOp :
             [
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
-                DeclareOpInterfaceMethods<IE_SoftMaxLayerInterface>
+                DeclareOpInterfaceMethods<SoftMaxLayerInterface>
             ]
         > {
     let summary = "InferenceEngine SoftMax layer";

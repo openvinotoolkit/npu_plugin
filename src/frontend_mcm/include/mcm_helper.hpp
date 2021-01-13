@@ -54,6 +54,8 @@ protected:                                      \
     type VPU_COMBINE(_, name) = defVal;         \
                                                 \
 public:                                         \
-    inline const type& name() const { return VPU_COMBINE(_, name); }
+    inline const type& name() const {           \
+        return VPU_COMBINE(_, name);            \
+    }
 
 }  // namespace vpu

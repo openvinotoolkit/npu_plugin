@@ -19,7 +19,7 @@ std::vector<std::string> devices = {
 };
 
 std::pair<std::string, std::string> plugins[] = {
-        std::make_pair(std::string("kmbPlugin"), std::string(CommonTestUtils::DEVICE_KEEMBAY)),
+        std::make_pair(std::string("VPUXPlugin"), std::string(CommonTestUtils::DEVICE_KEEMBAY)),
 };
 
 //

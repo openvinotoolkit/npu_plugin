@@ -1,15 +1,15 @@
 ///
 /// INTEL CONFIDENTIAL
 /// Copyright 2020. Intel Corporation.
-/// This software and the related documents are Intel copyrighted materials, 
-/// and your use of them is governed by the express license under which they were provided to you ("License"). 
-/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
+/// This software and the related documents are Intel copyrighted materials,
+/// and your use of them is governed by the express license under which they were provided to you ("License").
+/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or
 /// transmit this software or the related documents without Intel's prior written permission.
-/// This software and the related documents are provided as is, with no express or implied warranties, 
+/// This software and the related documents are provided as is, with no express or implied warranties,
 /// other than those that are expressly stated in the License.
 ///
 /// @file      VpuData.h
-/// 
+///
 
 #ifndef __VPU_DATA_H__
 #define __VPU_DATA_H__
@@ -69,6 +69,10 @@ class VpuData {
 
     // Size getter.
     size_t size() const { return size_; }
+    // Buf getter.
+    unsigned char* buf() { return buf_; }
+
+    uint64_t Paddr() const { return phys_addr_; };
 };
 
 #endif // __VPU_DATA_H__

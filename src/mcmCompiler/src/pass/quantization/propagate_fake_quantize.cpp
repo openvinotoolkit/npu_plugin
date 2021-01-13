@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "include/mcm/pass/pass_quantization.hpp"
 #include <math.h>
 
 static void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
@@ -28,118 +29,6 @@ static const mv::QuantizationParams& initial_quant_params() {
     return init;
 }
 
-enum class Precision {
-    Default,
-    U8,
-    I8,
-    FP16,
-    I32,
-    FP32,
-};
-
-mv::DType getDType(Precision p) {
-    static const std::map<Precision, mv::DType> types {
-            {Precision::Default, mv::DType("Default")},
-            {Precision::U8, mv::DType("UInt8")},
-            {Precision::I8, mv::DType("Int8")},
-            {Precision::FP16, mv::DType("Float16")},
-            {Precision::I32, mv::DType("Int32")},
-            {Precision::FP32, mv::DType("Float32")},
-    };
-
-    return types.at(p);
-}
-
-int64_t calculateZeroPoint(float low, float high, int levels, mv::DType dtype) {
-    int64_t zeroPoint = 0;
-
-    // Typical condition for symmetric case is low < 0, high > 0
-    if (dtype == getDType(Precision::U8)) {
-        //  MCM team provide this formula, need check
-        if ((low <= 0.f) && (high >= 0.f)) {
-            float x = -(levels - 1) * low / (high - low);
-            zeroPoint = std::round(x);
-        } else if (low >= 0.f) {
-            zeroPoint = 0;  // TODO Why not assert?
-        } else if (high <= 0.f) {
-            zeroPoint = (levels - 1);  // TODO Why not assert?
-        }
-    }
-    if (dtype == getDType(Precision::I8)) {
-        if ((low <= 0.f) && (high >= 0.f)) {
-            float x = -(levels - 1) * ((high + low) * 0.5f) / (high - low);
-            zeroPoint = std::round(x);
-        } else if (low > 0.f) {
-            zeroPoint = 127 - (levels - 1);  // TODO Why not assert?
-        } else if (high < 0.f) {
-            zeroPoint = 127;  // TODO Why not assert?
-        }
-    }
-
-    return zeroPoint;
-}
-
-double calculateScales(float low, float high, int levels) {
-    return static_cast<double>((high - low) / (levels - 1));
-}
-
-//NOTE: workaround. merge_in_one is true for activations and false for weights
-mv::QuantizationParams extractQuantParams(mv::Data::OpListIterator fqOp, bool merge_in_one, bool extract_input_params = false) {
-  assert(fqOp->getOpType() == "FakeQuantize");
-
-  auto inputs = fqOp->getInputTensor();
-  auto attrs = fqOp->getAttrs();
-
-  auto levels = fqOp->get<unsigned>("levels");
-
-  std::vector<double> min_range;
-  std::vector<double> max_range;
-
-  if (extract_input_params) {
-      min_range = fqOp->getInputTensor(1)->getDoubleData();
-      max_range = fqOp->getInputTensor(2)->getDoubleData();
-  } else {
-      min_range = fqOp->getInputTensor(3)->getDoubleData();
-      max_range = fqOp->getInputTensor(4)->getDoubleData();
-  }
-
-  assert(min_range.size() != 0);
-
-  std::vector<int64_t> zero_points;
-  std::vector<double> scales;
-  std::vector<double> min;
-  std::vector<double> max;
-  if (merge_in_one) {
-    float output_min_value = *std::min_element(min_range.begin(), min_range.end());
-    float output_max_value = *std::max_element(max_range.begin(), max_range.end());
-
-    zero_points.push_back(calculateZeroPoint(output_min_value, output_max_value, levels, getDType(Precision::U8)));
-    scales.push_back(calculateScales(output_min_value, output_max_value, levels));
-    min.push_back(output_min_value);
-    max.push_back(output_max_value);
-  } else {
-    for (size_t i = 0; i < min_range.size(); ++i) {
-      float min_value = min_range[i];
-      float max_value = max_range[i];
-
-      zero_points.push_back(calculateZeroPoint(min_value, max_value, levels, getDType(Precision::U8)));
-      scales.push_back(calculateScales(min_value, max_value, levels));
-      min.push_back(min_value);
-      max.push_back(max_value);
-    }
-  }
-
-  return mv::QuantizationParams{zero_points, scales, min, max};
-}
-
-mv::QuantizationParams extractQuantParamsI(mv::Data::OpListIterator fqOp, bool merge_in_one) {
-    return extractQuantParams(fqOp, merge_in_one, true);
-}
-
-mv::QuantizationParams extractQuantParamsO(mv::Data::OpListIterator fqOp, bool merge_in_one) {
-    return extractQuantParams(fqOp, merge_in_one, false);
-}
-
 template<typename T>
 T clamp(const T& value, const T& min, const T& max) {
     assert(min < max);
@@ -157,13 +46,13 @@ bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
     }
 
     if (op->getOpType() == "AveragePool") {
-        return om.getSourceOp(op->getOutputTensor(0))->getOpType() == "FakeQuantize";
+        return om.getSourceOp(op->getInputTensor(0))->getOpType() == "FakeQuantize";
     }
 
     assert(op->getInputTensor().size() > 1);
     return (om.getSourceOp(op->getInputTensor(1))->getOpType() == "FakeQuantize") ||
-            op->getInputTensor(1)->getDType() == getDType(Precision::U8) ||
-            op->getInputTensor(1)->getDType() == getDType(Precision::I8);
+            op->getInputTensor(1)->getDType() == getDType(mv::Precision::U8) ||
+            op->getInputTensor(1)->getDType() == getDType(mv::Precision::I8);
 }
 
 mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Data::OpListIterator op) {
@@ -216,23 +105,21 @@ void setQuantizationParams(mv::Data::OpListIterator& op, mv::QuantizationParams 
     }
 }
 
-bool areAllInputQuantParamsEqual(mv::OpModel & om, mv::Data::OpListIterator op) {
+bool areInputScalesEqual(mv::OpModel & om, mv::Data::OpListIterator op, bool zeroPointCheck) {
     std::vector<mv::QuantizationParams> input_params;
     for (size_t i = 0; i < op->getInputTensor().size(); ++i) {
         input_params.push_back(getParentQuantParams(om, op, i));
     }
 
-    if (input_params.empty()) {
-        return true;
-    }
+    auto isScaleEqual = [](const mv::QuantizationParams& left, const mv::QuantizationParams& right) -> bool {
+        return mv::isVectorsEqual(left.getScale(), right.getScale());
+    };
 
-    for (auto& param : input_params) {
-        if (!isEqualScale(param, input_params[0])) {
-            return false;
-        }
-    }
-
-    return true;
+    return std::adjacent_find(input_params.begin(), input_params.end(),
+            [&](const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
+                return !isScaleEqual(left, right) &&
+                       (zeroPointCheck || left.getZeroPoint() != right.getZeroPoint());
+    }) == input_params.end();
 }
 
 //NOTE: here is FQ operation parameters propagation algorithm.
@@ -250,21 +137,23 @@ bool areAllInputQuantParamsEqual(mv::OpModel & om, mv::Data::OpListIterator op) 
 // Exceptions:
 // For AveragePool. If we didn't find output quant params, just get parents qunat_params
 // For scale and bias right after the Input op we save parameters propagated from the Kmb-Plugin as a workaround
-void propagateParameters(mv::ComputationModel& model) {
+void propagateParameters(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
     mv::OpModel om(model);
     mv::QuantizationParams quant_params{{}, {}, {}, {}};
     auto sorted_ops = om.topologicalSort();
     for (auto& op : sorted_ops) {
-        if (op->getOpType() == "Concat") {
-            if (false == areAllInputQuantParamsEqual(om, op) )
-            {
-                throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: inputs of the Concat do not have the same QuantParams"));
-            }
+        if (op->getOpType() == "Eltwise" || op->getOpType() == "Concat") {
+            if (false == areInputScalesEqual(om, op, op->getOpType() == "Concat") )
+                pass.log(mv::Logger::MessageType::Warning, "Inputs of layer type " + op->getOpType() +
+                    " : " + op->getName() + " do not have the same QuantParams");
         }
 
-        if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
-            || op->getOpType() == "Interp" || op->getOpType() == "Normalize" //Interp might be used for re-quantize, need the quant params
-            || op->getOpType() == "Deconv") {
+        if ((isQuantizableOp(op) && isOpQuantized(om, op))
+            || op->getOpType() == "Constant"
+            || op->getOpType() == "ConstantDataElement" // NOTE: float16 case is not handled here
+            || op->getOpType() == "Interp"
+            || op->getOpType() == "Normalize" //Interp might be used for re-quantize, need the quant params
+            || op->getOpType() == "Deconv") { 
             quant_params = findOutputQuantParams(model, op);
 
             if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params())) {
@@ -302,10 +191,11 @@ void getWeightsDims(const mv::Shape& shape, size_t& OC, size_t& IC, size_t& KH, 
 mv::Data::OpListIterator quantizeConstOp(mv::OpModel& om, mv::Data::OpListIterator operation,
         mv::QuantizationParams quant_paramsI, mv::QuantizationParams quant_paramsO, mv::DType precision) {
     // TODO: fp16 tensors. need to handle
-    assert(operation->getOpType() == "Constant");
+    assert(operation->getOpType() == "Constant" ||
+        operation->getOpType() == "ConstantDataElement");
 
     auto originalTensor = operation->getOutputTensor(0);
-    assert(originalTensor->getDType() != getDType(Precision::FP16));
+    assert(originalTensor->getDType() != getDType(mv::Precision::FP16));
 
     auto shape = operation->getOutputTensor(0)->getShape();
 
@@ -335,10 +225,10 @@ mv::Data::OpListIterator quantizeConstOp(mv::OpModel& om, mv::Data::OpListIterat
             auto new_value = clamp<double>(src_data[i], low, high);
             new_value = std::round((new_value - low) / scale);
 
-            if (precision == getDType(Precision::U8)) {
+            if (precision == getDType(mv::Precision::U8)) {
                 uint8_t value = clamp<double>(new_value, 0, 255);
                 quantized_weights[i] = value;
-            } else if (precision == getDType(Precision::I8)) {
+            } else if (precision == getDType(mv::Precision::I8)) {
                 int8_t value = clamp<double>(new_value, -128, 127);
                 quantized_weights[i] = value;
             } else {
@@ -364,13 +254,14 @@ void quantizeConst(mv::ComputationModel& model) {
 
     for (auto& fq : fq_ops) {
         auto op = om.getSourceOp(fq->getInputTensor(0));
-        if (op->getOpType() != "Constant") {
+        if (op->getOpType() != "Constant" &&
+            op->getOpType() != "ConstantDataElement") {
             continue;
         }
 
         auto data_tensor = op->getOutputTensor(0);
-        if (data_tensor->getDType() == getDType(Precision::I8) ||
-            data_tensor->getDType() == getDType(Precision::U8)) {
+        if (data_tensor->getDType() == getDType(mv::Precision::I8) ||
+            data_tensor->getDType() == getDType(mv::Precision::U8)) {
             // Weights would already be quantized
             // Do nothing
             return;
@@ -378,7 +269,7 @@ void quantizeConst(mv::ComputationModel& model) {
 
         auto quant_paramsI = extractQuantParamsI(fq, false);
         auto quant_paramsO = extractQuantParamsO(fq, false);
-        quantizeConstOp(om, op, quant_paramsI, quant_paramsO, getDType(Precision::U8));
+        quantizeConstOp(om, op, quant_paramsI, quant_paramsO, getDType(mv::Precision::U8));
     }
 }
 
@@ -406,7 +297,7 @@ mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpL
     std::vector<int64_t> zeroPoints;
     auto bias_dtype = biasOp->getInputTensor(1)->getDType();
 
-    if (bias_dtype == getDType(Precision::FP32)) {
+    if (bias_dtype == getDType(mv::Precision::FP32)) {
         auto bias_data = biasOp->getInputTensor(1)->getDoubleData();
 
         for (size_t i = 0; i < bias_data.size(); ++i) {
@@ -429,7 +320,7 @@ mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpL
         auto quantized_data = om.constantInt(om.getSourceOp(biasOp->getInputTensor(1))->getName() + ":quantized",
                                              newBiasData,
                                              original_tensor->getShape(),
-                                             getDType(Precision::I32),
+                                             getDType(mv::Precision::I32),
                                              original_tensor->getOrder());
         quantized_data->setQuantParams(input_quant_params);
 
@@ -441,7 +332,7 @@ mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpL
 
         auto parent_op = mv::linkNewOperationsReplacement(om.getSourceOp(biasOp->getInputTensor(0)), quantize_bias_tensor, om, biasOp);
         return findSinkLayers(dm, parent_op->getOutputTensor(0)).at(0);
-    } else if (bias_dtype == getDType(Precision::I32)) {
+    } else if (bias_dtype == getDType(mv::Precision::I32)) {
         // Do nothing
     } else {
         std::runtime_error("Unsupported bias data type");
@@ -591,14 +482,20 @@ void quantizeIO(mv::ComputationModel& model) {
                     std::vector<double> min;
                     std::vector<double> max;
 
+                    // TODO: Input scale fusing cannot be performed if per channel parameters (scale, bias)
+                    // are very different from each other. Add conditional code which will check
+                    // similarity of elements of realBiasValue and realScaleValue
+
                     float output_min_value = (realBiasValue[0] * realScaleValue[0] +
                     realBiasValue[1] * realScaleValue[1] + realBiasValue[2] * realScaleValue[2]) / 3;
 
                     float output_max_value = ((realBiasValue[0] + 255) * realScaleValue[0] +
                     (realBiasValue[1] + 255) * realScaleValue[1] + (realBiasValue[2] + 255) * realScaleValue[2]) / 3;
 
-                    zero_points.push_back(calculateZeroPoint(output_min_value, output_max_value, levels, getDType(Precision::U8)));
-                    scales.push_back(calculateScales(output_min_value, output_max_value, levels));
+                    zero_points.push_back(mv::calculateZeroPoint(output_min_value,
+                        output_max_value, getDType(mv::Precision::U8), levels));
+                    scales.push_back(mv::calculateScales(output_min_value,
+                        output_max_value, levels));
                     min.push_back(output_min_value);
                     max.push_back(output_max_value);
 
@@ -640,13 +537,20 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
             auto scaleTensor = current_op->getInputTensor(1);
             auto originalConstOp = om.getSourceOp(scaleTensor);
             auto scaleData = scaleTensor->getDoubleData();
-            auto quantizedScaleData = std::vector<int64_t>(scaleData.size(), 1);
+            auto quantizedScaleData = std::vector<int64_t>(scaleData.size(), 127+127);
+            for (size_t c = 0; c < scaleData.size(); c++) {
+                if (scaleData[c] < 0) {
+                    scaleData[c] = -scaleData[c];
+                    quantizedScaleData[c] = 127-127;
+                }
+                scaleData[c] /= 127.0;
+            }
 
-            mv::QuantizationParams scalesQuantParams = {{0}, scaleData, {-inf}, {inf}};
+            mv::QuantizationParams scalesQuantParams = {{127}, scaleData, {-inf}, {inf}};
             auto quantized_const_tensor =
                 om.constantInt(originalConstOp->getName() + ":quantized",
                                quantizedScaleData, scaleTensor->getShape(),
-                               getDType(Precision::U8), scaleTensor->getOrder());
+                               getDType(mv::Precision::U8), scaleTensor->getOrder());
             quantized_const_tensor->setQuantParams(scalesQuantParams);
             if (originalConstOp->hasAttr("opId")) {
                 unsigned currentOpId = originalConstOp->get<unsigned>("opId");
@@ -770,8 +674,8 @@ void fakeQuantizeConst(mv::ComputationModel& model)
         }
 
         const auto origTensor = origOp->getOutputTensor(0);
-        if (origTensor->getDType() == getDType(Precision::I8) ||
-            origTensor->getDType() == getDType(Precision::U8))
+        if (origTensor->getDType() == mv::getDType(mv::Precision::I8) ||
+            origTensor->getDType() == mv::getDType(mv::Precision::U8))
         {
             // Weights would already be quantized
             // Do nothing
@@ -817,7 +721,7 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     quantizeInputScaleShift(model);
     quantizeIO(model);
 
-    propagateParameters(model);
+    propagateParameters(pass, model);
 
     quantizeConst(model);
     quantizeBias(model);

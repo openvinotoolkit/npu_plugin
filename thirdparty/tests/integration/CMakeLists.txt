@@ -22,7 +22,7 @@ endif()
 
 if (INTEGRATION_TESTS_ENABLE_IE)
     add_definitions(-DINTEGRATION_TESTS_ENABLE_IE)
-    set(LINK_LIBRARIES IE::gtest IE::gtest_main NN vpusmm IE::ieTestHelpers)
+    set(LINK_LIBRARIES IE::gtest IE::gtest_main NN vpumgr IE::ieTestHelpers)
 else()
     find_package(GTest REQUIRED)
 
@@ -35,7 +35,7 @@ else()
             -DINTEGRATION_TESTS_INPUT_FILE="${INTEGRATION_TESTS_INPUT_FILE}"
     )
 
-    set(LINK_LIBRARIES ${GTEST_LIBRARIES} NN vpusmm)
+    set(LINK_LIBRARIES ${GTEST_LIBRARIES} NN vpumgr)
 endif()
 
 addIeTargetTest(
@@ -53,7 +53,7 @@ addIeTargetTest(
         kmbTestData
     LABELS
         VPU
-        kmbPlugin
+        VPUXPlugin
 )
 
 if (UNIX)

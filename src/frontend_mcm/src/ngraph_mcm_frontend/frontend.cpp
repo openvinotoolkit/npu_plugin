@@ -32,6 +32,7 @@
 #include "ngraph_mcm_frontend/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
 #include "ngraph_mcm_frontend/passes/replace_onnx_pattern_to_reorg.hpp"
+#include "ngraph_mcm_frontend/passes/fuse_scale_in_previous_weights_fq.hpp"
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -155,6 +156,7 @@ std::vector<char> compileNGraph(
         auto& mcmCompDesc = mcmCompiler.compilationDescriptor();
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.mcmLogLevel()));
+        mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.removePermuteNoOp());
 
         if (config.referenceMode()) {
             mcmCompDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
@@ -179,6 +181,21 @@ std::vector<char> compileNGraph(
             graphFileInstance.header->identifier = netName;
         };
         mcmCompDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
+
+        if (!config.mcmCompilationPassBanList().empty()) {
+            std::stringstream banList{config.mcmCompilationPassBanList()};
+            std::string groupPassPair;
+            while (std::getline(banList, groupPassPair, ';')) {
+                const auto delim = groupPassPair.find(',');
+                VPU_THROW_UNLESS(delim != std::string::npos,
+                                 "McmCompilationPassBanList parsing error: provided value '%s'"
+                                 "should have comma separated Group,Pass string",
+                                 groupPassPair);
+                const auto group = groupPassPair.substr(0, delim);
+                const auto pass = groupPassPair.substr(delim + 1, std::string::npos);
+                mcmCompDesc.remove(group, pass);
+            }
+        }
 
         IE_ASSERT(mcmCompiler.initialize());
     }
@@ -213,7 +230,10 @@ std::vector<char> compileNGraph(
 
         passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
         passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
-        passManager.register_pass<FuseScaleShift>();
+        if (config.scaleShiftFusing()) {
+	        passManager.register_pass<FuseScaleShift>();
+	    }
+        passManager.register_pass<FuseScaleAfterClamp>();
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
         passManager.register_pass<ReplaceScaleShiftWithMcmScale>();

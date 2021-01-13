@@ -52,8 +52,8 @@ class HDDL2RemoteAllocator : public vpux::Allocator {
 public:
     using Ptr = std::shared_ptr<HDDL2RemoteAllocator>;
 
-    explicit HDDL2RemoteAllocator(
-        const HddlUnite::WorkloadContext::Ptr& contextPtr, const LogLevel logLevel = LogLevel::None);
+    explicit HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr,
+                                  const LogLevel logLevel = LogLevel::None);
 
     ~HDDL2RemoteAllocator() override = default;
 
@@ -90,8 +90,8 @@ public:
     // TODO To remove. Specific KMB API
     void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept override;
 
-    void* wrapRemoteMemoryOffset(
-        const int& remoteMemoryFd, const size_t size, const size_t& memOffset) noexcept override;
+    void* wrapRemoteMemoryOffset(const int& remoteMemoryFd, const size_t size,
+                                 const size_t& memOffset) noexcept override;
 
     unsigned long getPhysicalAddress(void* handle) noexcept override;
 

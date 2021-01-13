@@ -1,4 +1,5 @@
 #include "include/mcm/pass/pass_utils.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 
 std::vector<std::pair<mv::Data::OpListIterator,size_t>> mv::getOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator &opIt, bool deleteOp)
 {
@@ -62,6 +63,27 @@ void mv::setOutputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator 
 {
     for(auto& outputOp: outputControlFlows)
         cm.defineFlow(op, outputOp);
+}
+
+void mv::removeOperation(mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt)
+{
+    auto paramOp = opIt.leftmostParent();
+    while(paramOp != om.opEnd())
+    {
+        if (paramOp->getOutputTensor(0) != sourceTensor &&
+            (paramOp->getOpType() == "Constant" ||
+            paramOp->getOpType() == "ConstantInt" ||
+            paramOp->getOpType() == "ConstantDataElement"))
+        {
+            auto backUp = paramOp;
+            ++paramOp;
+            om.removeOp(backUp);
+        }
+        else
+            ++paramOp;
+    }
+
+    om.removeOp(opIt);
 }
 
 mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator parentOpIt,
@@ -149,13 +171,12 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterat
 mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpListIterator parentOpIt,
                                                       std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel & om, mv::Data::OpListIterator opIt)
 {
-    
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
     std::vector<std::size_t> inputSlots;
     //consumers
     for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
-    {                
+    {
         opsToLink.push_back(sinkFlow.sink());
         inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
     }
@@ -179,7 +200,56 @@ mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpLi
 
     om.removeOp(opIt);
     opIt = parentOpIt;
-    
+
+    for (auto sourceTensorIt = sourceTensors.begin(); sourceTensorIt != sourceTensors.end(); sourceTensorIt++)
+    {
+        if(*sourceTensorIt == om.tensorEnd())
+            *sourceTensorIt = parentOpIt->getOutputTensor(0);
+
+        for (unsigned j = 0; j < opsToLink.size(); ++j)
+        {
+            opsToLink[j]->setInputTensor(*sourceTensorIt, inputSlots[j], false);
+            om.defineFlow(*sourceTensorIt, opsToLink[j], inputSlots[j]);
+        }
+    }
+
+    return opIt;
+}
+
+mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacementRemoveFlows(mv::Data::OpListIterator parentOpIt,
+                                                      std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel & om, mv::Data::OpListIterator opIt)
+{
+
+    //Important: do not change the order of this ops
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    //consumers
+    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+    }
+
+    for (auto sinkFlow = opIt.leftmostInput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        if (std::find(sourceTensors.begin(), sourceTensors.end(), sinkFlow->getTensor()) != sourceTensors.end())
+        {
+            auto op = sinkFlow.source();
+            if (op->getOpType() == "Constant" ||
+                op->getOpType() == "ConstantInt" ||
+                op->getOpType() == "ConstantDataElement") {
+                auto flowToRemove = sinkFlow;
+                ++sinkFlow;
+                om.undefineFlow(flowToRemove);
+            }
+        }
+        else
+            ++sinkFlow;
+    }
+
+    om.removeOp(opIt);
+    opIt = parentOpIt;
+
     for (auto sourceTensorIt = sourceTensors.begin(); sourceTensorIt != sourceTensors.end(); sourceTensorIt++)
     {
         if(*sourceTensorIt == om.tensorEnd())
@@ -208,14 +278,14 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacementRemoveFlows(mv::Data::O
         inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
         flowsToRemove.push_back(sinkFlow);
     }
-    
+
     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
     {
         om.undefineFlow(flowsToRemove[flowIdx]);
     }
     om.removeOp(opIt);
     opIt = childOpIt;
-    
+
     //create links
     for(unsigned op = 0 ; op < opsToLink.size(); ++op)
     {
@@ -225,62 +295,96 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacementRemoveFlows(mv::Data::O
     return opIt;
 }
 
-void calcZeroPointAndScalePerTensor(double outputMax,  double outputMin, double& outScale, int64_t& outZp)
+mv::Data::TensorIterator mv::insertDMAReplacementRemoveFlows(mv::OpModel& om, mv::Data::OpListIterator opIt,
+    mv::Data::TensorIterator input, mv::DmaDirection const& direction, int8_t const &port,
+    std::vector<mv::Data::FlowListIterator> flows, std::vector<std::size_t> inSlots,
+    std::vector<mv::Data::OpListIterator> sinks, std::string const& dmaOpName)
 {
-    outScale = (outputMax - outputMin)/255;
-    if (outputMin >= 0.0)
-        outZp = 0;
-    else if (outputMax <= 0.0)
-        outZp = 255;
-    else if ((outputMin < 0.0) && (outputMax > 0.0))
+    mv::DataModel dm(om);
+    auto dmaTaskOut = om.dMATask(dmaOpName, input, direction, port);
+    dmaTaskOut->setQuantParams(input->getQuantParams());
+    auto dmaTaskOp = om.getSourceOp(dmaTaskOut);
+
+    dmaTaskOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+
+    for(std::size_t idx = 0; idx < flows.size(); ++idx)
     {
-        auto max_diff = (outputMax/(std::abs(outputMin) + outputMax)) * 255;
-        outZp = std::ceil(255 - max_diff);
+        auto sink = sinks.at(idx);
+        auto slot = inSlots.at(idx);
+        om.undefineFlow(flows.at(idx));
+        sink->setInputTensor(dmaTaskOut, slot, false);
+        om.defineFlow(dmaTaskOp, 0, sink, slot);
     }
+
+    return dmaTaskOut;
 }
 
-void updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor)
+mv::Data::TensorIterator mv::dequantizeWeightsToFP16(
+    mv::Data::TensorIterator tensor,
+    mv::Data::OpListIterator childOp,
+    mv::OpModel &om)
 {
-    auto& tensorQuantization = tensor->get<mv::QuantizationParams>("quantParams");
+    // For both fast access by avoiding data transposing
+    // and ease of data interation set order to channel major
+    // of arbitrary dimensions
+    auto tensorShape = tensor->getShape();
+    auto backupOrder = tensor->getOrder();
+    tensor->setOrder(Order::getColMajorID(tensorShape.ndims()));
 
-    //Note: if input Tensor has min, max of infs...we need to compute them
-    if (tensorQuantization.infinitelimits())
+    auto numChannels = childOp->getOpType() == "DepthwiseConv" ||
+        (childOp->getOpType() == "DPUTask" &&
+        childOp->get<std::string>("taskOp") == "DepthwiseConv") ?
+        tensorShape[mv::KERNEL_INPUT_CHANNELS] :
+        tensorShape[mv::KERNEL_OUTPUT_CHANNELS];
+    auto wSetSize = tensorShape.totalSize() / numChannels;
+
+    auto quantTensorData = tensor->getIntData();
+    auto quantParams = tensor->getQuantParams();
+
+    // Step 1 dequantized the weights data
+    auto dequantTensorData = std::vector<double>(quantTensorData.size());
+    for(std::size_t chIdx = 0; chIdx < numChannels; chIdx++)
     {
-        //Quantization equation Real = scale(Quantized - zeroPoint)
-        double maximumFloat = tensorQuantization.getScale()[0] * (255 - tensorQuantization.getZeroPoint()[0]);
-        double minimumFloat = -tensorQuantization.getZeroPoint()[0] * tensorQuantization.getScale()[0];
-        if (minimumFloat == -0)
-            minimumFloat = 0;
-
-        mv::QuantizationParams newTensorQuantization(tensorQuantization.getZeroPoint(),
-                                                    tensorQuantization.getScale(),{minimumFloat},{maximumFloat});
-        tensor->setQuantParams(newTensorQuantization);
+        auto chScale = quantParams.getScale(chIdx);
+        auto chZp = quantParams.getZeroPoint(chIdx);
+        std::transform(
+            quantTensorData.cbegin() + chIdx * wSetSize,
+            quantTensorData.cbegin() + (chIdx + 1) * wSetSize,
+            dequantTensorData.begin() + chIdx * wSetSize,
+            [chScale, chZp] (const int64_t &intVal)
+            {return static_cast<double>(intVal - chZp) * chScale;});
     }
-}
 
-void updateInfMinMaxPerChannel(mv::Data::TensorIterator tensor)
-{
-    auto& tensorQuantization = tensor->get<mv::QuantizationParams>("quantParams");
+    // Step 2 explicit conversion to fp16
+    auto dequantFP16TensorData = std::vector<int64_t>(dequantTensorData.size());
+    std::transform(
+        dequantTensorData.cbegin(),
+        dequantTensorData.cend(),
+        dequantFP16TensorData.begin(),
+        [] (const double &floatVal)
+        {return mv::fp32_to_fp16(floatVal);});
 
-    //Note: Do not care if populated or unpopulated....batch = 1
-    if (tensorQuantization.infinitelimits())
-    {
-        std::vector <double> maximums, minimums;
-        double maximumFloat, minimumFloat;
-        for (uint32_t channel = 0; channel < tensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]; channel++)
-        {
-            //Quantization equation Real = scale(Quantized - zeroPoint)
-            maximumFloat = tensorQuantization.getScale()[channel] * (255 - tensorQuantization.getZeroPoint()[0]);
-            minimumFloat = -tensorQuantization.getZeroPoint()[0] * tensorQuantization.getScale()[channel];
-            if (minimumFloat == -0)
-                minimumFloat = 0;
-            maximums.push_back(maximumFloat);
-            minimums.push_back(minimumFloat);
-        }
-        mv::QuantizationParams newTensorQuantization(tensorQuantization.getZeroPoint(),
-                                                    tensorQuantization.getScale(),minimums, maximums);
-        tensor->setQuantParams(newTensorQuantization);
-    }
+    // Step 3 create new constantInt op due to FP16 internal representation
+    // and link correctly
+    auto sourceIntOp = om.getSourceOp(tensor);
+    auto attrsToCopy = tensor->getAttrs(
+        {"dType", "Shape", "order", "sourceOp", "flows", "quantParams"});
+    auto dequantFP16Weights = om.constantInt(
+        sourceIntOp->getName() + "_dequantFP16",
+        dequantFP16TensorData,
+        tensor->getShape(),
+        mv::DType("Float16"),
+        tensor->getOrder()
+    );
+    om.getSourceOp(dequantFP16Weights)->set<unsigned>("opId",
+        sourceIntOp->get<unsigned>("opId"));
+    dequantFP16Weights->setAttrs(attrsToCopy);
+    dequantFP16Weights->setQuantParams(mv::QuantizationParams::initial());
+
+    dequantFP16Weights->setOrder(backupOrder);
+    om.getSourceOp(dequantFP16Weights)->set<mv::Order>("order", backupOrder);
+
+    return dequantFP16Weights;
 }
 
 //template <class T>
@@ -365,9 +469,9 @@ std::vector<mv::Data::OpListIterator> mv::findSinkLayers(mv::DataModel &dataMode
     return sinkOperations;
 }
 
-bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice)
+bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice, mv::Target target)
 {
-    if (referenceDevice != "A0")
+    if (target != mv::Target::ma2490 || referenceDevice != "A0")
         return false;
     auto sink = flow.sink();
     auto tensor = flow->getTensor();

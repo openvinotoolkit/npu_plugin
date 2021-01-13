@@ -16,6 +16,8 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/OpImplementation.h>
 
 using namespace vpux;
@@ -46,6 +48,21 @@ void vpux::IE::IEDialect::initialize() {
             >();
 
     addInterfaces<IEDialectAsmHooks>();
+}
+
+mlir::Operation* vpux::IE::IEDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value,
+                                                          mlir::Type type, mlir::Location loc) {
+    if (!value.isa<mlir::DenseElementsAttr>()) {
+        printTo(mlir::emitError(loc), "Can't materialize IE Constant from Attribute '{0}'", value);
+        return nullptr;
+    }
+
+    if (!type.isa<mlir::RankedTensorType>()) {
+        printTo(mlir::emitError(loc), "Can't materialize IE Constant for Type '{0}'", type);
+        return nullptr;
+    }
+
+    return builder.create<mlir::ConstantOp>(loc, type, value);
 }
 
 //

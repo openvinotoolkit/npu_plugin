@@ -17,8 +17,8 @@
 #include "vpux/compiler/dialect/VPUIP/attributes/structs.hpp"
 
 #include <mlir/IR/Builders.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Identifier.h>
-#include <mlir/IR/StandardTypes.h>
 #include <mlir/IR/Types.h>
 
 //

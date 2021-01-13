@@ -32,8 +32,12 @@ public:
     const std::shared_ptr<IDevice> getDevice(const std::string& specificDeviceName) const override;
     const std::shared_ptr<IDevice> getDevice(const InferenceEngine::ParamMap& map) const override;
     const std::vector<std::string> getDeviceNames() const override;
-    const std::string getName() const override { return "HDDL2"; }
-    std::unordered_set<std::string> getSupportedOptions() const override { return _config.getRunTimeOptions(); }
+    const std::string getName() const override {
+        return "HDDL2";
+    }
+    std::unordered_set<std::string> getSupportedOptions() const override {
+        return _config.getRunTimeOptions();
+    }
 
     // TODO remove static and make them private
     static bool isServiceAvailable(const vpu::Logger::Ptr& logger = nullptr);

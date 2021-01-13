@@ -56,8 +56,6 @@ void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
           "may be the graph is disconnected!");
     exit(1);
   }
-
-
   // we now have a valid barrier schedule remove tailing
 }
 
@@ -66,36 +64,38 @@ void barrierSchedulerPass(const mv::pass::PassEntry&,
     mv::Element& passDesc, mv::Element&) {
 
   // For SC there are 8 barriers and for MC there are 32 barriers //
-  size_t producer_bound = 256UL;
-  size_t real_physical_barriers =
-    (size_t) passDesc.get<int>("real_physical_barriers");
-  size_t barrier_bound = (real_physical_barriers/2UL);
+  std::map<std::string, size_t> barrier_config =
+    {{"real_physical_barriers", 0}, {"barrier_bound", 0}, {"producer_bound", 256UL}};
+  std::map<std::string, bool> barrier_remove =
+    {{"remove_barriers_in_upa_tail", false}, {"remove_redundant_wait_barriers", false}};
 
-  if (passDesc.hasAttr("barrier_bound")) {
-    barrier_bound = (size_t) passDesc.get<int>("barrier_bound");
+  for (auto &attr : barrier_config)
+  {
+    if (model.hasGlobalConfigParam(attr.first))
+      attr.second = (size_t) model.getGlobalConfigParam(attr.first).get<int>();
+    else if (passDesc.hasAttr(attr.first))
+      attr.second = (size_t) passDesc.get<int>(attr.first);
   }
 
-  if (passDesc.hasAttr("producer_bound")) {
-    producer_bound = (size_t) passDesc.get<int>("producer_bound");
-  }
+  if (barrier_config["barrier_bound"] == 0)
+    barrier_config["barrier_bound"] = (barrier_config["real_physical_barriers"]/2UL);
 
-  if (barrier_bound > (real_physical_barriers/2UL)) {
+  if (barrier_config["barrier_bound"] > (barrier_config["real_physical_barriers"]/2UL)) {
     fprintf(stderr, "[BarrierSchedulerError]: barrier_bound must be atmost"
         " twice the real barriers");
     exit(1);
   }
-
-
-  bool remove_barriers_in_upa_tail =
-    (passDesc.hasAttr("remove_barriers_in_upa_tail") &&
-      passDesc.get<bool>("remove_barriers_in_upa_tail"));
-  bool remove_redundant_wait_barriers = 
-    (passDesc.hasAttr("remove_redundant_wait_barriers") &&
-      passDesc.get<bool>("remove_redundant_wait_barriers"));
+  
+  for (auto &attr : barrier_remove)
+  {
+    if (model.hasGlobalConfigParam(attr.first))
+      attr.second = (size_t) model.getGlobalConfigParam(attr.first).get<bool>();
+    else if (passDesc.hasAttr(attr.first))
+      attr.second = (size_t) passDesc.get<bool>(attr.first);
+  }
 
   mv::ControlModel cm(model);
-  dynamicallyAdjustScheduleToMeetRuntimeProblems(cm, barrier_bound,
-      real_physical_barriers, producer_bound, remove_barriers_in_upa_tail,
-      remove_redundant_wait_barriers);
-
+  dynamicallyAdjustScheduleToMeetRuntimeProblems(cm, barrier_config["barrier_bound"],
+      barrier_config["real_physical_barriers"], barrier_config["producer_bound"], 
+      barrier_remove["remove_barriers_in_upa_tail"], barrier_remove["remove_redundant_wait_barriers"]);
 }

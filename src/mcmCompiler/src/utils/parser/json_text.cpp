@@ -85,8 +85,12 @@ const std::map<mv::JSONTextParser::ParserState, std::map<mv::JSONTextParser::JSO
     }
 };
 
-mv::JSONTextParser::JSONTextParser(unsigned bufferLength) :
-bufferLength_(bufferLength)
+const std::string mv::JSONTextParser::fileComposeKeyword_ = "@FILE@";
+const std::string mv::JSONTextParser::enableMergeKey_ = "@MERGE@";
+
+mv::JSONTextParser::JSONTextParser(bool composable, unsigned bufferLength) :
+bufferLength_(bufferLength),
+composable_(composable)
 {
     if (bufferLength_ == 0)
         throw ArgumentError(*this, "bufferLength", std::to_string(bufferLength_), "Defined as 0");
@@ -349,7 +353,40 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
 
 
                 case JSONSymbol::String:
-                    newValue = currentSymbol.second;
+                    if (composable_ && currentSymbol.second.rfind(fileComposeKeyword_, 0) == 0)
+                    {
+                        std::string filePath = fileName.substr(0, fileName.find_last_of("\\/"))
+                            + currentSymbol.second.substr(fileComposeKeyword_.length());
+                        if (lastKey == enableMergeKey_)
+                        {
+                            if (jsonHierarchy.top()->valueType() == json::JSONType::Object)
+                            {
+                                JSONTextParser innerParser(composable_, bufferLength_);
+                                json::Value mergeObj;
+                                if (!innerParser.parseFile(filePath, mergeObj))
+                                    throw ParsingError(*this, fileName, "Loading file \"" +
+                                        filePath + "\" failed during attempt of composition");
+                                auto keys = mergeObj.getKeys();
+                                for (auto it = keys.begin(); it != keys.end(); ++it)
+                                    jsonHierarchy.top()->emplace({*it, mergeObj[*it]});
+                            }
+                            else
+                            {
+                                throw ParsingError(*this, fileName, "Merging file as set of pairs key:value is possible only"
+                                    " when the parent entity type is JSON::Object, where given is " + 
+                                    json::Value::typeName(jsonHierarchy.top()->valueType()));
+                            }
+                        }
+                        else
+                        {
+                            JSONTextParser innerParser(composable_, bufferLength_);
+                            if (!innerParser.parseFile(filePath, newValue))
+                                throw ParsingError(*this, fileName, "Loading file \"" +
+                                        filePath + "\" failed during attempt of composition");
+                        } 
+                    }
+                    else
+                        newValue = currentSymbol.second;
                     break;
 
                 case JSONSymbol::True:
@@ -370,7 +407,7 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
 
             if (jsonHierarchy.top()->valueType() == json::JSONType::Array)
                 jsonHierarchy.top()->append(newValue);
-            else
+            else if (lastKey != enableMergeKey_)
                 jsonHierarchy.top()->emplace({lastKey, newValue});
 
         }

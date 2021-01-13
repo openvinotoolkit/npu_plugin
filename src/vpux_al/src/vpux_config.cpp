@@ -26,30 +26,37 @@
 namespace IE = InferenceEngine;
 
 vpux::VPUXConfig::VPUXConfig() {
-    _compileOptions = merge(vpux::VPUXConfigBase::getCompileOptions(), {
-                                                                           VPUX_CONFIG_KEY(PLATFORM),
-                                                                           VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER),
-                                                                       });
+    _compileOptions =
+            merge(vpux::VPUXConfigBase::getCompileOptions(), {
+                                                                     VPUX_CONFIG_KEY(PLATFORM),
+                                                                     VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER),
+                                                             });
     _runTimeOptions = merge(vpux::VPUXConfigBase::getRunTimeOptions(), {
-                                                                           CONFIG_KEY(PERF_COUNT),
-                                                                           CONFIG_KEY(DEVICE_ID),
-                                                                           VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
-                                                                           KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
-                                                                           VPUX_CONFIG_KEY(PLATFORM),
-                                                                           VPUX_CONFIG_KEY(GRAPH_COLOR_FORMAT),
-                                                                           VPUX_CONFIG_KEY(CSRAM_SIZE),
-                                                                           VPUX_CONFIG_KEY(USE_M2I),
-                                                                           VPU_KMB_CONFIG_KEY(USE_M2I),
-                                                                           VPUX_CONFIG_KEY(USE_SIPP),
-                                                                           VPU_KMB_CONFIG_KEY(USE_SIPP),
-                                                                           VPUX_CONFIG_KEY(PREPROCESSING_SHAVES),
-                                                                           VPUX_CONFIG_KEY(PREPROCESSING_LPI),
-                                                                           VPUX_CONFIG_KEY(EXECUTOR_STREAMS),
-                                                                           VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS),
+                                                                               CONFIG_KEY(PERF_COUNT),
+                                                                               CONFIG_KEY(DEVICE_ID),
+                                                                               VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
+                                                                               KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+                                                                               VPUX_CONFIG_KEY(PLATFORM),
+                                                                               VPUX_CONFIG_KEY(GRAPH_COLOR_FORMAT),
+                                                                               VPUX_CONFIG_KEY(CSRAM_SIZE),
+                                                                               VPUX_CONFIG_KEY(USE_M2I),
+                                                                               VPU_KMB_CONFIG_KEY(USE_M2I),
+                                                                               VPUX_CONFIG_KEY(USE_SHAVE_ONLY_M2I),
+                                                                               VPU_KMB_CONFIG_KEY(USE_SHAVE_ONLY_M2I),
+                                                                               VPUX_CONFIG_KEY(USE_SIPP),
+                                                                               VPU_KMB_CONFIG_KEY(USE_SIPP),
+                                                                               VPUX_CONFIG_KEY(PREPROCESSING_SHAVES),
+                                                                               VPUX_CONFIG_KEY(PREPROCESSING_LPI),
+                                                                               VPUX_CONFIG_KEY(PREPROCESSING_PIPES),
+                                                                               VPUX_CONFIG_KEY(EXECUTOR_STREAMS),
+                                                                               VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS),
+                                                                               VPUX_CONFIG_KEY(INFERENCE_TIMEOUT),
                                                                        });
 }
 
-void vpux::VPUXConfig::parseFrom(const vpux::VPUXConfig& other) { parse(other.getConfig()); }
+void vpux::VPUXConfig::parseFrom(const vpux::VPUXConfig& other) {
+    parse(other.getConfig());
+}
 
 void vpux::VPUXConfig::parseEnvironment() {
 #ifndef NDEBUG
@@ -64,34 +71,40 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
 
     // Public options
     setOption(_performanceCounting, switches, config, CONFIG_KEY(PERF_COUNT));
+
     setOption(_deviceId, config, CONFIG_KEY(DEVICE_ID));
     setOption(_throughputStreams, config, VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
     setOption(_throughputStreams, config, KMB_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
     static const std::unordered_map<std::string, IE::VPUXConfigParams::VPUXPlatform> vpuxPlatform = {
-        {VPUX_CONFIG_VALUE(MA2490), IE::VPUXConfigParams::VPUXPlatform::MA2490},
-        {VPUX_CONFIG_VALUE(MA2490_B0), IE::VPUXConfigParams::VPUXPlatform::MA2490_B0},
-        {VPUX_CONFIG_VALUE(MA3100), IE::VPUXConfigParams::VPUXPlatform::MA3100},
-        {VPUX_CONFIG_VALUE(MA3720), IE::VPUXConfigParams::VPUXPlatform::MA3720}};
+            {VPUX_CONFIG_VALUE(MA2490), IE::VPUXConfigParams::VPUXPlatform::MA2490},
+            {VPUX_CONFIG_VALUE(MA2490_B0), IE::VPUXConfigParams::VPUXPlatform::MA2490_B0},
+            {VPUX_CONFIG_VALUE(MA3100), IE::VPUXConfigParams::VPUXPlatform::MA3100},
+            {VPUX_CONFIG_VALUE(MA3720), IE::VPUXConfigParams::VPUXPlatform::MA3720}};
     setOption(_platform, vpuxPlatform, config, VPUX_CONFIG_KEY(PLATFORM));
 
     // Private options
+    setOption(_inferenceTimeoutMs, config, VPUX_CONFIG_KEY(INFERENCE_TIMEOUT), parseInt);
     setOption(_useNGraphParser, switches, config, VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER));
     static const std::unordered_map<std::string, IE::ColorFormat> colorFormat = {
-        {VPUX_CONFIG_VALUE(BGR), IE::ColorFormat::BGR}, {VPUX_CONFIG_VALUE(RGB), IE::ColorFormat::RGB}};
+            {VPUX_CONFIG_VALUE(BGR), IE::ColorFormat::BGR},
+            {VPUX_CONFIG_VALUE(RGB), IE::ColorFormat::RGB}};
     setOption(_graphColorFormat, colorFormat, config, VPUX_CONFIG_KEY(GRAPH_COLOR_FORMAT));
     setOption(_csramSize, config, VPUX_CONFIG_KEY(CSRAM_SIZE), parseInt);
     setOption(_useM2I, switches, config, VPUX_CONFIG_KEY(USE_M2I));
     setOption(_useM2I, switches, config, VPU_KMB_CONFIG_KEY(USE_M2I));
+    setOption(_useSHAVE_only_M2I, switches, config, VPUX_CONFIG_KEY(USE_SHAVE_ONLY_M2I));
+    setOption(_useSHAVE_only_M2I, switches, config, VPU_KMB_CONFIG_KEY(USE_SHAVE_ONLY_M2I));
     setOption(_useSIPP, switches, config, VPUX_CONFIG_KEY(USE_SIPP));
     setOption(_useSIPP, switches, config, VPU_KMB_CONFIG_KEY(USE_SIPP));
     setOption(_numberOfSIPPShaves, config, VPUX_CONFIG_KEY(PREPROCESSING_SHAVES), parseInt);
     IE_ASSERT(_numberOfSIPPShaves > 0 && _numberOfSIPPShaves <= 16)
-        << "VPUXConfig::parse attempt to set invalid number of shaves for SIPP: '" << _numberOfSIPPShaves
-        << "', valid numbers are from 1 to 16";
+            << "VPUXConfig::parse attempt to set invalid number of shaves for SIPP: '" << _numberOfSIPPShaves
+            << "', valid numbers are from 1 to 16";
     setOption(_SIPPLpi, config, VPUX_CONFIG_KEY(PREPROCESSING_LPI), parseInt);
     IE_ASSERT(0 < _SIPPLpi && _SIPPLpi <= 16 && vpu::isPowerOfTwo(_SIPPLpi))
-        << "VPUXConfig::parse attempt to set invalid lpi value for SIPP: '" << _SIPPLpi
-        << "',  valid values are 1, 2, 4, 8, 16";
+            << "VPUXConfig::parse attempt to set invalid lpi value for SIPP: '" << _SIPPLpi
+            << "',  valid values are 1, 2, 4, 8, 16";
+    setOption(_numberOfPPPipes, config, VPUX_CONFIG_KEY(PREPROCESSING_PIPES), parseInt);
     setOption(_executorStreams, config, VPUX_CONFIG_KEY(EXECUTOR_STREAMS), parseInt);
     setOption(_executorStreams, config, VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS), parseInt);
 

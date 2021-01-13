@@ -99,7 +99,7 @@ std::tuple<int,int, int, int, int> getGlobalCompilationDescriptorConf(const mv::
     return std::make_tuple(nDPUxCluster, nWorkloads, nClusters, pad, workloadCost);
 }
 
-void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc, mv::Element&)
+void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
     mv::OpModel om(model);
@@ -116,6 +116,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
     /*Get the worklaods algorithm*/
     std::vector<std::string> algorithms = getTensorSplitAlgorithms(passDesc, pass);
+    std::vector<std::size_t> valid_ztiling = {16};
 
     /*get cost function*/
     auto costFuntion = mv::Workloads::getCostFunction(passDesc, pass);
@@ -129,12 +130,14 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     auto workloadCost = std::get<4>(compilationConfigs);
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     auto referenceDevice = globalParams->get<std::string>("referenceDevice");
+    auto target = td.getTarget();
 
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "DPUTask")
         {
-            pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
+            auto taskOp = opIt->get<std::string>("taskOp");
+            pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + taskOp);
 
             depthWiseSOHA0Workaround = false;
             /*Get number of clusters*/
@@ -146,20 +149,31 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
             /* For Deptwise convolution, Max pooling and CM convolution MPE mode must be (1,16)*/
             /* This should be moved to a target descriptor*/
+            auto configs = td.getWorkloadConfigs();
 
-            if((opIt->get<std::string>("taskOp") == "DepthwiseConv") || (opIt->get<std::string>("taskOp") == "MaxPool") 
-                || (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution"))
-                dpuModes = {{1, 16}};
+            if (configs.empty())
+            {
+                if((taskOp == "DepthwiseConv") || (taskOp == "MaxPool")
+                    || (taskOp == "ChannelMajorConvolution"))
+                    dpuModes = {{1, 16}};
+                else
+                    dpuModes = {{4,4},{1, 16}};
+
+                if (opIt->getOutputTensor()[0]->getDType() == mv::DType("Float16"))
+                    dpuModes = {{1,4}};
+            }
             else
-                dpuModes = {{4,4},{1, 16}};
-
-            if (opIt->getOutputTensor()[0]->getDType() == mv::DType("Float16"))
-                dpuModes = {{1,4}};
-
+            {
+                if (configs.find(taskOp) != configs.end())
+                    dpuModes = configs[taskOp].dpuModes;
+                else
+                    dpuModes = configs["General"].dpuModes;
+            }
             /*Depthwise cov SOH A0 workaround*/
-            if(((opIt->get<std::string>("taskOp") == "DepthwiseConv") ||
-                        (opIt->get<std::string>("taskOp") == "MaxPool")) &&
-                    (opIt->get<std::string>("splitStrategy") == "SplitOverH") && referenceDevice == "A0") {
+            if(((taskOp == "DepthwiseConv") ||
+                    (taskOp == "MaxPool")) &&
+                    (opIt->get<std::string>("splitStrategy") == "SplitOverH") &&
+                    (target == mv::Target::ma2490 && referenceDevice == "A0")) {
                 depthWiseSOHA0Workaround = true;
                 opIt->set<std::string>("Depthwise_SOH_A0_bug", "True");
             }
@@ -169,7 +183,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             auto outputDType = opIt->getOutputTensor(0)->getDType();
             bool mixedPrecisionA0B0WorkAround = false;
 
-            if((inputDType != outputDType) && outputDType != mv::DType("Int32") && opIt->get<std::string>("taskOp") == "Conv")
+            if((inputDType != outputDType) && outputDType != mv::DType("Int32") &&
+                opIt->isHardwarizable() &&
+                opIt->get<std::string>("taskOp") != "Eltwise" &&
+                (target == mv::Target::ma2490 || target == mv::Target::ma3100)) //TBH is based on KMB-B0
                 mixedPrecisionA0B0WorkAround = true;
 
             /*For multi-clustering we work on subtensors*/
@@ -190,9 +207,35 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /* Sparse tensors don't use z-tiling*/
                 /* This should be moved to a target descriptor*/
                 if(subTensor.isSparse())
+                {
+                    //TODO : is this still true for MTL??
                     algorithms = {"Rectangle"};
+                }
                 else
-                    algorithms = {"Rectangle", "Z-Tiling"};
+                {
+                    if (configs.empty())
+                    {
+                        algorithms = {"Rectangle", "Z-Tiling"};
+                    }
+                    else
+                    {
+                        auto entryName = taskOp;
+                        if (configs.find(taskOp) == configs.end())
+                        {
+                            entryName = "General";
+                        }
+                        algorithms = configs[entryName].algorithms;
+                        if (configs[entryName].validZTiles.empty())
+                        {
+                            valid_ztiling = {16};
+                        }
+                        else
+                        {
+                            valid_ztiling = configs[entryName].validZTiles;
+                        }
+                    }
+                }
+
 
                 pass.log(mv::Logger::MessageType::Debug, "The shape of subtensor for cluster " + std::to_string(clusterNumber) + "is: " + subTensor.getShape().toString());
 
@@ -200,7 +243,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 if(nWorkloadsCompilationDescriptor)
                     nWorkloadsSplitPool.push_back(nWorkloadsCompilationDescriptor);
                 else
-                    nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(subTensor, nDPUxCluster, dpuModes, 50);
+                    nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(subTensor, nDPUxCluster, dpuModes, 50, valid_ztiling);
 
                 if(mixedPrecisionA0B0WorkAround)
                 {
@@ -312,7 +355,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             bool ztilingFail = false;
                             int ztilingResult = 0;
 
-                            ztilingResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithZsplit(dpuModes, nWorkloads, pass);
+                            ztilingResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithZsplit(dpuModes, nWorkloads, pass, valid_ztiling);
 
                             if (ztilingResult != 1)
                             {

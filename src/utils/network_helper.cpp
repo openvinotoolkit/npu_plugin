@@ -30,8 +30,8 @@ ie::Blob::Ptr CNNNetworkHelper::makeNewBlobPtr(const ie::TensorDesc& desc) {
 }
 
 IE_SUPPRESS_DEPRECATED_START
-void CNNNetworkHelper::updateBlobs(
-    const ie::CNNLayer& quantizeLayer, int constLayerIndex, const std::vector<float>& values) {
+void CNNNetworkHelper::updateBlobs(const ie::CNNLayer& quantizeLayer, int constLayerIndex,
+                                   const std::vector<float>& values) {
     ie::CNNLayerPtr blobLayer = CNNNetworkHelper::getParent(quantizeLayer, constLayerIndex);
     if (blobLayer == nullptr) {
         THROW_IE_EXCEPTION << "layer is absent";
@@ -91,8 +91,8 @@ int CNNNetworkHelper::onWeightsInDepth(const ie::CNNLayer& layer) {
     const std::vector<ie::CNNLayerPtr> children = getChildren(layer);
     for (const ie::CNNLayerPtr& child : children) {
         if ((ie::details::CaselessEq<std::string>()(child->type, "Convolution") ||
-                ie::details::CaselessEq<std::string>()(child->type, "FullyConnected") ||
-                ie::details::CaselessEq<std::string>()(child->type, "Gemm")) &&
+             ie::details::CaselessEq<std::string>()(child->type, "FullyConnected") ||
+             ie::details::CaselessEq<std::string>()(child->type, "Gemm")) &&
             (child->insData.size() >= 2lu)) {
             const std::vector<ie::CNNLayerPtr> parents = getParentsRecursivelyExceptTypes(*child, {}, 1);
             for (const ie::CNNLayerPtr& parent : parents) {
@@ -198,7 +198,8 @@ bool CNNNetworkHelper::isBlobPrecisionSupported(const ie::Precision precision) {
 }
 
 void CNNNetworkHelper::fillBlobByFP32(ie::Blob::Ptr& dstBlob, const float* srcData) {
-    if (dstBlob == nullptr) THROW_IE_EXCEPTION << "Invalid blob";
+    if (dstBlob == nullptr)
+        THROW_IE_EXCEPTION << "Invalid blob";
 
     const auto& precision = dstBlob->getTensorDesc().getPrecision();
     const size_t dataSize = dstBlob->size();
@@ -254,8 +255,8 @@ void CNNNetworkHelper::fillBlobByFP32(ie::Blob::Ptr& dstBlob, float value) {
     }
 }
 
-ie::CNNLayerPtr CNNNetworkHelper::getParent(
-    const ie::CNNLayer& layer, const size_t index, const std::string& ignoreLayerType) {
+ie::CNNLayerPtr CNNNetworkHelper::getParent(const ie::CNNLayer& layer, const size_t index,
+                                            const std::string& ignoreLayerType) {
     if (index >= layer.insData.size()) {
         return nullptr;
     }
@@ -294,8 +295,8 @@ ie::CNNLayerPtr CNNNetworkHelper::getParent(
     return inputLayer;
 }
 
-std::vector<ie::CNNLayerPtr> CNNNetworkHelper::getParents(
-    const ie::CNNLayer& layer, const std::string& exceptionLayerName) {
+std::vector<ie::CNNLayerPtr> CNNNetworkHelper::getParents(const ie::CNNLayer& layer,
+                                                          const std::string& exceptionLayerName) {
     std::vector<ie::CNNLayerPtr> parents;
     for (const ie::DataWeakPtr insDataWeak : layer.insData) {
         const ie::DataPtr insData = insDataWeak.lock();
@@ -316,7 +317,7 @@ std::vector<ie::CNNLayerPtr> CNNNetworkHelper::getParents(
 }
 
 std::vector<ie::CNNLayerPtr> CNNNetworkHelper::getParentsRecursivelyExceptTypes(
-    const ie::CNNLayer& layer, const std::unordered_set<std::string>& exceptionLayerTypes, const int portIndex) {
+        const ie::CNNLayer& layer, const std::unordered_set<std::string>& exceptionLayerTypes, const int portIndex) {
     std::vector<ie::CNNLayerPtr> parents;
     size_t i = 0ul;
     for (ie::DataWeakPtr insDataWeak : layer.insData) {
@@ -342,7 +343,7 @@ std::vector<ie::CNNLayerPtr> CNNNetworkHelper::getParentsRecursivelyExceptTypes(
 
             if (exceptionLayerTypes.find(parent->type) != exceptionLayerTypes.end()) {
                 const std::vector<ie::CNNLayerPtr> tmpParents =
-                    CNNNetworkHelper::getParentsRecursivelyExceptTypes(*parent, exceptionLayerTypes);
+                        CNNNetworkHelper::getParentsRecursivelyExceptTypes(*parent, exceptionLayerTypes);
                 parents.insert(parents.end(), tmpParents.begin(), tmpParents.end());
             } else {
                 parents.push_back(parent);
@@ -354,8 +355,8 @@ std::vector<ie::CNNLayerPtr> CNNNetworkHelper::getParentsRecursivelyExceptTypes(
     return parents;
 }
 
-std::vector<ie::CNNLayerPtr> CNNNetworkHelper::getChildren(
-    const ie::CNNLayer& layer, const std::string& exceptionLayerName) {
+std::vector<ie::CNNLayerPtr> CNNNetworkHelper::getChildren(const ie::CNNLayer& layer,
+                                                           const std::string& exceptionLayerName) {
     std::vector<ie::CNNLayerPtr> children;
     for (const ie::DataPtr outData : layer.outData) {
         const std::map<std::string, ie::CNNLayerPtr>& inputTo = getInputTo(outData);

@@ -41,7 +41,7 @@ static std::string getFirstAvailableDeviceId(const InferenceEngine::Core& ieCore
     return firstDeviceId;
 }
 
-TEST_F(vpuLayersTests, remoteCtx) {
+TEST_F(vpuLayersTests, DISABLED_remoteCtx) {
     const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     const std::string refInputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input.bin";
     const std::string refOutputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output.bin";
@@ -102,7 +102,7 @@ TEST_F(vpuLayersTests, remoteCtx) {
     ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
 }
 
-TEST_F(vpuLayersTests, remoteCtxNV12) {
+TEST_F(vpuLayersTests, DISABLED_remoteCtxNV12) {
     const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     const std::string refInputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input-dog-1080x1080-nv12.bin";
     const std::string refOutputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
@@ -186,7 +186,7 @@ struct Image {
     int remoteMemoryFd[2];
 };
 
-static Blob::Ptr wrapImageToBlob(const Image& image, const RemoteContext::Ptr& contextPtr, bool useOffsets) {
+static Blob::Ptr wrapImageToBlob(const Image& image, const InferenceEngine::RemoteContext::Ptr& contextPtr, bool useOffsets) {
     const size_t& imageWidth = image.width;
     const size_t& imageHeight = image.height;
     TensorDesc planeY(Precision::U8, {1, 1, imageHeight, imageWidth}, Layout::NHWC);
@@ -227,7 +227,7 @@ static Blob::Ptr wrapImageToBlob(const Image& image, const RemoteContext::Ptr& c
 
 class VpuRemoteCtxTests : public vpuLayersTests, public testing::WithParamInterface<bool> {};
 
-TEST_P(VpuRemoteCtxTests, remoteCtxNV12WithROI) {
+TEST_P(VpuRemoteCtxTests, DISABLED_remoteCtxNV12WithROI) {
     const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
     const std::string refInputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input-dog-1080x1080-nv12.bin";
     const std::string refOutputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
@@ -298,7 +298,7 @@ TEST_P(VpuRemoteCtxTests, remoteCtxNV12WithROI) {
 
 INSTANTIATE_TEST_CASE_P(RemoteCtxWithROI, VpuRemoteCtxTests, ::testing::ValuesIn({true, false}));
 
-TEST_F(vpuLayersTests, incompatibleRemoteCtx) {
+TEST_F(vpuLayersTests, DISABLED_incompatibleRemoteCtx) {
     const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
 
     InferenceEngine::Core ie;
@@ -320,7 +320,7 @@ TEST_F(vpuLayersTests, incompatibleRemoteCtx) {
     ASSERT_ANY_THROW(invalidContextPtr = ie.CreateContext(deviceName, invalidCtxParams));
 }
 
-TEST_F(vpuLayersTests, keyDeviceId) {
+TEST_F(vpuLayersTests, DISABLED_keyDeviceId) {
     const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
 
     InferenceEngine::Core ie;

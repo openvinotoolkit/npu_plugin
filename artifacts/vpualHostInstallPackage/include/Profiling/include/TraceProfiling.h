@@ -91,9 +91,10 @@ struct UtilisationStatistics {
 class TraceProfiling : private VpualStub {
   private:
     uint16_t profilingChannelId = XLINK_INVALID_CHANNEL_ID;
+    bool sm_enabled;
 
   public:
-    TraceProfiling(uint32_t device_id) : VpualStub("TraceProfiling", device_id) {};
+    TraceProfiling(uint32_t device_id) : VpualStub("TraceProfiling", device_id), sm_enabled(false) {};
 
     void Create(uint32_t pBaseAddr0, uint32_t size, uint32_t pBaseAddr1, uint32_t size1, uint8_t *vAddr0, uint8_t *vAddr1, uint32_t alignment = 64);
     void Delete();
@@ -159,6 +160,13 @@ class TraceProfiling : private VpualStub {
      * @return [int] - 0 on success, failure otherwise.
      */
     int StatisticsMonitorDisable();
+
+    /**
+     * Check whether statistics monitoring has been enabled.
+     *
+     * @return [bool] - true if enabled, false if not enabled.
+     */
+    bool StatisticsMonitorIsEnabled();
 
     /**
      * Set the length of the window over which utilisation statistics will be

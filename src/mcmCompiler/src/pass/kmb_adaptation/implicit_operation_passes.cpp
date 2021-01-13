@@ -24,6 +24,41 @@ namespace mv
     }
 }
 
+// Recursively search up or down (based on provided iterator) for concat ops in the chain of
+// Implicit operations. Stop the search if concat op was located or if operation is not an implicit operation.
+template <typename T>
+void searchImplicitOpsChainForConcatRecursive(T (mv::detail::OpListIterator::*getIterator)(void), mv::Data::OpListIterator exploreOp, std::vector<mv::Data::OpListIterator>& concatOps, mv::OpModel& om)
+{
+    for(T nextOp = (exploreOp.*getIterator)(); nextOp != om.opEnd(); ++nextOp)
+    {
+        auto opType = nextOp->getOpType();
+        if(opType == "Concat" || opType == "ImplicitConcat")
+        {
+            concatOps.push_back(nextOp);
+        }
+        else if(!nextOp->hasTypeTrait("executable"))
+        {
+            searchImplicitOpsChainForConcatRecursive(getIterator, nextOp, concatOps, om);
+        }
+    }
+}
+
+void updateConcatForSliceOpInDdr(mv::Data::OpListIterator sliceOp, mv::OpModel& om)
+{
+    // Search for any Concat operation within a sequence of Implicit operations in the
+    // chain with this Slice op. Store those ops in a vector
+    std::vector<mv::Data::OpListIterator> concatOps;
+    // Search for concat recursively up in the graph
+    searchImplicitOpsChainForConcatRecursive(&mv::detail::OpListIterator::leftmostParent, sliceOp, concatOps, om);
+    // Search for concat recursively down in the graph
+    searchImplicitOpsChainForConcatRecursive(&mv::detail::OpListIterator::leftmostChild, sliceOp, concatOps, om);
+    // Configure "avoid_cmx_concat" in detected Concat operations to prevent LpScheduler
+    // from placing them in CMX
+    for (auto& concatOp : concatOps)
+    {
+        concatOp->set<bool>("avoid_cmx_concat", true);
+    }
+}
 
 //TODO:: unify all these enums.....
 static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
@@ -39,12 +74,57 @@ static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
       {"DDR2OUTPUT",mv::DmaDirectionEnum::DDR2DDR}
 };
 
+namespace {
+bool isStridingOp(mv::Data::OpListIterator opIt)
+{
+    if (opIt->getOpType() == "Slice" || opIt->getOpType() == "Crop")
+    {
+        auto const inputTensor = opIt->getInputTensor(0);
+        auto const inOrder = inputTensor->getOrder();
+        auto const inShape = inputTensor->getShape();
+
+        std::size_t dim = inOrder.lastContiguousDimensionIndex();
+        for ( ; dim >= inOrder.firstContiguousDimensionIndex() ; --dim) {
+            if (inShape[inOrder[dim]] > 1)
+                break;
+        }
+
+        auto const sliceSz = inShape - opIt->getOutputTensor(0)->getShape();
+        auto const majorDim = inOrder[dim];
+
+        for (std::size_t idx = 0; idx < sliceSz.ndims(); idx++)
+        {
+            if (idx != majorDim && sliceSz[idx] != 0)
+                return true;
+        }
+    }
+
+    return false;
+}
+}
+
+void propagateImplicitOpsFromOutput(mv::Op& op, mv::OpModel& om)
+{
+    for (auto input : op.getInputTensor())
+    {
+        input->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+        auto previousOp = om.getSourceOp(input);
+        auto opType = previousOp->getOpType();
+        if (opType == "Concat" || opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" ||
+            opType == "ImplicitOutput" || opType == "ImplicitUnion" || opType == "ImplicitJoin")
+            propagateImplicitOpsFromOutput(*previousOp, om);
+    }
+}
+
 void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
+
+    // Propagate throught implicit layers and set their tensor location to OUTPUT
+    propagateImplicitOpsFromOutput(*om.getOutput(), om);
 
     for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
     {
@@ -76,6 +156,9 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
             pass.log(mv::Logger::MessageType::Warning, "found OP " + opIt->getName() + " already decided as implicit. Skipping");
             continue;
         }
+
+        if (opType == "Slice" && opIt->hasAttr("force_slice_in_DDR") && opIt->get<bool>("force_slice_in_DDR"))
+            updateConcatForSliceOpInDdr(opIt, om);
 
         pass.log(mv::Logger::MessageType::Debug, "Solving: # " + opIt->getName() + " #");
 
@@ -252,6 +335,15 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 if (compensatorOutput->hasAttr("quantParams"))
                     compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(outQuantParams.getShift(), outQuantParams.getMult());
 
+                // For a slice with "force_slice_in_DDR" attribute DMA is injected just to have the tensor go through DDR and then back to CMX.
+                // In such case "broadcast" attribute should be set in the DMA input tensor in case it was in input to slice operation to have
+                // an indication for DMA task that whole tensor is present in each cluster and have single DMA task generated by runtime model
+                if (opType == "Slice" && opIt->hasAttr("force_slice_in_DDR") && opIt->get<bool>("force_slice_in_DDR") &&
+                    inputTensor->hasAttr("broadcasted") && inputTensor->get<bool>("broadcasted"))
+                {
+                    outputTensor->set<bool>("broadcasted", true);
+                }
+
                 pass.log(mv::Logger::MessageType::Debug,"Adding new DMA OP: # " + compensatorOutput->getName() +
                                                             " as output to # " + opIt->getName());
                 om.getSourceOp(compensatorOutput)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
@@ -282,6 +374,42 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 }
             }
             opIt->get<mv::ImplicitFlow>("ImplicitFlow").resolve();
+
+            // DPUs have no way of resolving input strides implicitly
+            // hence they need to be provided the sliced compact tensor directly
+            // Exception from this rule can be considered cases where sridimg is resolved
+            // as part of activation sparsity logic; currently only DilatedConv uses sparsity
+            // so it satisfies the stides also.
+            if (outputLocation == mv::Tensor::MemoryLocation::NNCMX && isStridingOp(opIt))
+            {
+                for (auto tensor : opIt->getOutputTensor())
+                {
+                    std::vector<mv::Data::FlowListIterator> flowsToRemove;
+                    std::vector<std::size_t> inSlots;
+                    std::vector<mv::Data::OpListIterator> flowSinks;
+                    auto const& flows = tensor->get<std::set<std::string>>("flows");
+                    for(auto const& flowStr : flows)
+                    {
+                        auto flow = dm.getDataFlow(flowStr);
+                        auto sinkOp = flow.sink();
+                        if (sinkOp->getOpType() == "DPUTask" &&
+                            !(sinkOp->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
+                            sinkOp->get<bool>("activationSparsityCompilerSolvingForDilatedConv")))
+                        {
+                            flowsToRemove.push_back(flow);
+                            flowSinks.push_back(sinkOp);
+                            inSlots.push_back(flow->get<std::size_t>("sinkInput"));
+                        }
+                    }
+                    if (!flowsToRemove.empty()) {
+                        auto dmaTaskOut = mv::insertDMAReplacementRemoveFlows(om, opIt, tensor,
+                            mv::DmaDirection(mv::DmaDirectionEnum::NNCMX2DDR),
+                            0, flowsToRemove, inSlots, flowSinks,
+                            tensor->getName() + "_unstrided");
+                        dmaTaskOut->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+                    }
+                }
+            }
         }
     }
 }

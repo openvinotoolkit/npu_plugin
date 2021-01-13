@@ -22,10 +22,18 @@ addIeTargetTest(
         IE::ngraph_reference
         IE::format_reader
         kmb_utils
-        kmb_custom_kernels
+        kmb_custom_ocl_kernels
+        kmb_custom_cpp_kernels
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\"
     LABELS
         KMB
 )
+
+if(ENABLE_EXPERIMENTAL_MLIR)
+    target_compile_definitions(${TARGET_NAME}
+        PRIVATE
+            ENABLE_EXPERIMENTAL_MLIR
+    )
+endif()

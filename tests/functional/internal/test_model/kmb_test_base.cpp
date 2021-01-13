@@ -723,6 +723,17 @@ std::string getTestModelsBasePath() {
 #endif
 }
 
+std::string getExperimentalModelsPath() {
+    if (const auto envVar = std::getenv("EXPERIMENTAL_MODELS_PATH"))
+        return std::string(envVar);
+    else
+#ifdef EXPERIMENTAL_MODELS_PATH
+        return EXPERIMENTAL_MODELS_PATH;
+#else
+        return {};
+#endif
+}
+
 }  // namespace
 
 std::string KmbNetworkTestBase::getTestModelsPath() {
@@ -768,7 +779,11 @@ Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, size_t chann
 
 CNNNetwork KmbNetworkTestBase::readNetwork(const TestNetworkDesc& netDesc, bool fillUserInfo) {
     std::ostringstream modelPath;
-    modelPath << getTestModelsPath() << "/" << netDesc.irFileName();
+
+    if (netDesc.isExperimental())
+        modelPath << getExperimentalModelsPath() << "/" << netDesc.irFileName();
+    else
+        modelPath << getTestModelsPath() << "/" << netDesc.irFileName();
 
     auto net = core->ReadNetwork(modelPath.str());
 
@@ -859,6 +874,10 @@ void KmbNetworkTestBase::runTest(
         if (DUMP_PATH.empty()) {
             SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
         }
+    }
+
+    if (netDesc.isExperimental() && getExperimentalModelsPath().empty()) {
+        SKIP() << "EXPERIMENTAL_MODELS_PATH is not set";
     }
 
     auto exeNet = getExecNetwork(netDesc);
@@ -1592,4 +1611,227 @@ std::ostream& operator<<(std::ostream& stream, const PersonAttrRecNetworkTest::P
     }
     stream << std::endl;
     return stream;
+}
+
+
+void KmbVasFDStage1Test::runTest(
+    const TestNetworkDesc& netDesc, const TestImageDesc& image,
+    const float scoreThresh, const float boxTolerance, const float probTolerance,
+    const std::vector<std::string>& layerNames, const std::vector<int>& anchorSz,
+    const std::vector<int>& winScales, const std::vector<int>& winLengths) {
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap& inputsDesc) {
+        IE_ASSERT(inputsDesc.size() == 1);
+        IE_ASSERT(actualBlobs.size() == 18u &&
+                  actualBlobs.size() == refBlobs.size());
+        IE_ASSERT(layerNames.size() == anchorSz.size() &&
+                  anchorSz.size() == winScales.size() &&
+                  winScales.size() == winLengths.size());
+
+        for (int idx = 0; idx < layerNames.size(); ++idx) {
+            const int anchorSize = anchorSz.at(idx);
+            const int winScale = winScales.at(idx);
+            const int winLength = winLengths.at(idx);
+
+            const std::string probName = layerNames.at(idx) + "/prob";
+            const std::string regName  = layerNames.at(idx) + "/bb";
+
+            auto actProbBlob = actualBlobs.at(probName);
+            auto actRegBlob  = actualBlobs.at(regName);
+
+            auto refProbBlob = refBlobs.at(probName);
+            auto refRegBlob  = refBlobs.at(regName);
+
+            auto actualOutput = parseOutput(
+                toFP32(toLayout(actProbBlob, InferenceEngine::NCHW)),
+                toFP32(toLayout(actRegBlob, InferenceEngine::NCHW)),
+                anchorSize, winScale, winLength, scoreThresh);
+            auto refOutput = parseOutput(
+                toFP32(toLayout(refProbBlob, InferenceEngine::NCHW)),
+                toFP32(toLayout(refRegBlob, InferenceEngine::NCHW)),
+                anchorSize, winScale, winLength, scoreThresh);
+
+            checkBBoxOutputs(actualOutput, refOutput, 1, 1, boxTolerance, probTolerance);
+        }
+    };
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
+
+std::vector<utils::BoundingBox> KmbVasFDStage1Test::parseOutput(
+    const Blob::Ptr& blobProb, const Blob::Ptr& blobReg, const int anchorSz,
+    const int winScale, const int winLen, const float scoreThresh) {
+    const float scaleFactor = 2;
+    const int anchorSize = anchorSz * anchorSz;
+    const auto outputHeight = blobProb->getTensorDesc().getDims().at(2);
+    const auto outputWidth = blobProb->getTensorDesc().getDims().at(3);
+    const auto channelSz = outputHeight * outputWidth;
+
+    float start = 1.5;
+    if (anchorSz % 3 == 0) {
+        start = -anchorSz / 3.0f;
+    } else if (anchorSz % 2 == 0) {
+        start = -anchorSz / 2.0f + 0.5f;
+    }
+
+    std::vector<utils::BoundingBox> out;
+    out.reserve(channelSz * anchorSize);
+
+    const auto ptrP = blobProb->cbuffer().as<const float*>();
+    const auto ptrR = blobReg->cbuffer().as<const float*>();
+    IE_ASSERT(ptrP != nullptr && ptrR != nullptr);
+
+    for (size_t anchorIdx = 0; anchorIdx < anchorSize; ++anchorIdx) {
+        const auto prob = ptrP + (anchorIdx + anchorSize) * channelSz;
+        const auto reg  = ptrR + 4 * anchorIdx * channelSz;
+
+        const float winTransX = (start + (anchorIdx % anchorSz)) / anchorSz;
+        const float winTransY = (start + (anchorIdx / anchorSz)) / anchorSz;
+
+        for (size_t h = 0; h < outputHeight; ++h) {
+            for (size_t w = 0; w < outputWidth; ++w) {
+                const size_t hwOffset = h * outputWidth + w;
+                const float score = prob[hwOffset];
+                if (score < scoreThresh) {
+                    continue;
+                }
+
+                const float regx = reg[hwOffset] * winLen;
+                const float regy = reg[1 * channelSz + hwOffset] * winLen;
+                const float regw = reg[2 * channelSz + hwOffset] * winLen;
+                const float regh = reg[3 * channelSz + hwOffset] * winLen;
+
+                const float xmin = scaleFactor * ((w + winTransX) * winScale - 0.5f + regx) + 0.5f;
+                const float ymin = scaleFactor * ((h + winTransY) * winScale - 0.5f + regy) + 0.5f;
+                const float width = scaleFactor * (winLen + regw) + 0.5f;
+                const float height = scaleFactor * (winLen + regh) + 0.5f;
+
+                utils::BoundingBox bb(0, xmin, ymin, xmin + width, ymin + height, score);
+
+                out.push_back(bb);
+            }
+        }
+    }
+
+    return out;
+}
+
+void KmbVasFDStage2Test::runTest(
+    const TestNetworkDesc& netDesc, const TestImageDesc& image,
+    const float threshold, const float boxTolerance, const float probTolerance,
+    const Candidate& candidate) {
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap& inputsDesc) {
+        IE_ASSERT(inputsDesc.size() == 1);
+        IE_ASSERT(actualBlobs.size() == 3u &&
+                  actualBlobs.size() == refBlobs.size());
+
+        const std::string probName = "prob_fd";
+        const std::string regName  = "fc_bb";
+
+        auto actProbBlob = actualBlobs.at(probName);
+        auto actRegBlob  = actualBlobs.at(regName);
+
+        auto refProbBlob = refBlobs.at(probName);
+        auto refRegBlob  = refBlobs.at(regName);
+
+        std::vector<utils::BoundingBox> bboxesActual;
+        std::vector<utils::BoundingBox> bboxesRef;
+
+        bboxesActual.push_back(parseOutput(
+            toFP32(actProbBlob), toFP32(actRegBlob), candidate, threshold));
+        bboxesRef.push_back(parseOutput(
+            toFP32(refProbBlob), toFP32(refRegBlob), candidate, threshold));
+
+        checkBBoxOutputs(bboxesActual, bboxesRef, 1, 1, boxTolerance, probTolerance);
+    };
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
+
+utils::BoundingBox KmbVasFDStage2Test::parseOutput(
+    const Blob::Ptr& blobProb, const Blob::Ptr& blobReg,
+    const Candidate& candidate, const float threshold) {
+    const auto ptrP = blobProb->cbuffer().as<const float*>();
+    const auto ptrR = blobReg->cbuffer().as<const float*>();
+    IE_ASSERT(ptrP != nullptr && ptrR != nullptr);
+
+    const float score = ptrP[1];
+    if (score < threshold)
+        return utils::BoundingBox(-1, 0, 0, 0, 0, score);
+
+    float width  = candidate.x_max - candidate.x_min;
+    float height = candidate.y_max - candidate.y_min;
+
+    const float centerX = candidate.x_min + (width - 1) / 2;
+    const float centerY = candidate.y_min + (height - 1) / 2;
+
+    const float regX = ptrR[0] * width;
+    const float regY = ptrR[1] * height;
+    const float regW = ptrR[2] * width;
+    const float regH = ptrR[3] * height;
+
+    width  += regW + 0.5f;
+    height += regH + 0.5f;
+
+    const float xmin = centerX + regX - (width - 0.5f) / 2.0f + 0.5f;
+    const float ymin = centerY + regY - (height - 0.5f) / 2.0f + 0.5f;
+
+    return utils::BoundingBox(0, xmin, ymin, xmin + width, ymin + height, score);
+}
+
+void KmbVasFRTest::runTest(
+    const TestNetworkDesc& netDesc, const TestImageDesc& image, const float threshold) {
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap& inputsDesc) {
+        IE_ASSERT(inputsDesc.size() == 1);
+        IE_ASSERT(actualBlobs.size() == 1u &&
+                  actualBlobs.size() == refBlobs.size());
+
+        const float GRN_BIAS = 0.000001;
+
+        auto actualOutput = toFP32(actualBlobs.begin()->second);
+        auto refOutput    = toFP32(refBlobs.begin()->second);
+
+        IE_ASSERT(actualOutput->size() == refOutput->size());
+
+        auto actualData = actualOutput->buffer().as<float*>();
+        auto refData = refOutput->buffer().as<float*>();
+
+        float actSum = GRN_BIAS;
+        float refSum = GRN_BIAS;
+        for (size_t i = 0; i < actualOutput->size(); ++i) {
+            actSum += actualData[i] * actualData[i];
+            refSum += refData[i] * refData[i];
+        }
+
+        float dotProduct = 0;
+        for (size_t i = 0; i < actualOutput->size(); ++i) {
+            dotProduct += (actualData[i] / sqrt(actSum)) * (refData[i] / sqrt(refSum));
+        }
+
+        dotProduct = (dotProduct + 1) / 2;
+
+        ASSERT_GT(dotProduct, threshold);
+    };
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }

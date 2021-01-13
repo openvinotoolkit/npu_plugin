@@ -66,10 +66,10 @@ static std::string getMcmLogLevel(LogLevel lvl) {
     }
 }
 
-std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
-    const std::string& tensorName, const InferenceEngine::TensorDesc& tensorInfo) {
+std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string& tensorName,
+                                                              const InferenceEngine::TensorDesc& tensorInfo) {
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild =
-        std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
+            std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
     toBuild->name = tensorName;
     const InferenceEngine::SizeVector& dimVec = tensorInfo.getDims();
     for (const size_t& dim : dimVec) {
@@ -82,8 +82,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     return toBuild;
 }
 
-void MCMAdapter::compileNetwork(
-    InferenceEngine::ICNNNetwork& network, const MCMConfig& config, std::vector<char>& blob) {
+void MCMAdapter::compileNetwork(InferenceEngine::ICNNNetwork& network, const MCMConfig& config,
+                                std::vector<char>& blob) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "compileNetwork");
     auto unit = std::make_shared<mv::CompilationUnit>(network.getName());
 
@@ -91,7 +91,7 @@ void MCMAdapter::compileNetwork(
         THROW_IE_EXCEPTION << "CompilationUnit have not been created.";
     }
     bool ti_proc_ok =
-        !InferenceEngine::NetPass::CombineRNNSeq(network) ? InferenceEngine::NetPass::UnrollTI(network) : true;
+            !InferenceEngine::NetPass::CombineRNNSeq(network) ? InferenceEngine::NetPass::UnrollTI(network) : true;
     if (!ti_proc_ok)
         THROW_IE_EXCEPTION << "Plugin doesn't support Tensor Iterator in pure form. "
                               "None TI optimization pattern has been applied successfully";
@@ -104,7 +104,7 @@ void MCMAdapter::compileNetwork(
 
     const auto& targetName = config.mcmTargetDesciptor();
     const auto targetPath =
-        getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + config.mcmTargetDesciptor() + ".json";
+            getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + config.mcmTargetDesciptor() + ".json";
 
     // TODO: This hack needs to be fixed
     auto compDescName = config.mcmCompilationDesciptor();
@@ -124,7 +124,7 @@ void MCMAdapter::compileNetwork(
     ///
 
     const auto compDescPath =
-        getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" + compDescName + ".json";
+            getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" + compDescName + ".json";
 
     const auto& resultsPath = config.mcmCompilationResultsPath();
     auto resultNames = config.mcmCompilationResults();
@@ -181,6 +181,7 @@ void MCMAdapter::compileNetwork(
 
     compDesc.setPassArg("GlobalConfigParams", "verbose", getMcmLogLevel(config.mcmLogLevel()));
     compDesc.setPassArg("GlobalConfigParams", "ScaleFuseInput", config.scaleFuseInput());
+    compDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.removePermuteNoOp());
 
     if (config.referenceMode()) {
         compDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
@@ -198,12 +199,12 @@ void MCMAdapter::compileNetwork(
 
         for (const auto& inInfo : inputMap) {
             graphFileInstance.header->in_tensor_desc.push_back(
-                buildTensorReference(inInfo.first, inInfo.second->getTensorDesc()));
+                    buildTensorReference(inInfo.first, inInfo.second->getTensorDesc()));
         }
 
         for (const auto& outInfo : outputMap) {
             graphFileInstance.header->out_tensor_desc.push_back(
-                buildTensorReference(outInfo.first, outInfo.second->getTensorDesc()));
+                    buildTensorReference(outInfo.first, outInfo.second->getTensorDesc()));
         }
 
         graphFileInstance.header->identifier = network.getName();
@@ -216,9 +217,9 @@ void MCMAdapter::compileNetwork(
         while (std::getline(banList, groupPassPair, ';')) {
             const auto delim = groupPassPair.find(',');
             VPU_THROW_UNLESS(delim != std::string::npos,
-                "McmCompilationPassBanList parsing error: provided value '%s'"
-                "should have comma separated Group,Pass string",
-                groupPassPair);
+                             "McmCompilationPassBanList parsing error: provided value '%s'"
+                             "should have comma separated Group,Pass string",
+                             groupPassPair);
             const auto group = groupPassPair.substr(0, delim);
             const auto pass = groupPassPair.substr(delim + 1, std::string::npos);
             compDesc.remove(group, pass);
@@ -283,10 +284,12 @@ std::set<std::string> MCMAdapter::getSupportedLayers(InferenceEngine::ICNNNetwor
     return frontEnd->checkSupportedLayers(network);
 }
 
-bool vpu::MCMAdapter::isMCMCompilerAvailable() { return true; }
+bool vpu::MCMAdapter::isMCMCompilerAvailable() {
+    return true;
+}
 
-vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(
-    const std::vector<char>& outBlob, const MCMConfig& config) {
+vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const std::vector<char>& outBlob,
+                                                               const MCMConfig& config) {
     Logger::Ptr logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
     if (logger == nullptr) {
         THROW_IE_EXCEPTION << "Logger has not been created";

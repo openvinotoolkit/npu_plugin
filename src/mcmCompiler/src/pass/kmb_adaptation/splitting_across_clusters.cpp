@@ -503,8 +503,7 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
     return newSubTensors;
 }
 
-// Pass role: Splitting Strategies propagation algorithm may create an incompatibility
-void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -541,17 +540,23 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
             {
                 auto outputTensor = opIt->getOutputTensor(0);
                 auto inputTensor = opIt->getInputTensor(0);
-
+                
                 if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX &&
                     !outputTensor->isPopulated())
                 {
                     std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
 
+                    //FOR THE COPY OPERATION RESPONSIBLE IS ONLY THE PASS THAT  ASSIGNS THE STRATEGIES
+                    //NOT FOR ALL THE IMPLICIT CAUSE WE MIGHT HAVE SLICE WHEN WE STREAM
+                    if (sinkOperators[0]->getOpType() == "Copy" )
+                        continue;
+
                     if (opIt->getOutputTensor(0)->get<std::string>("splitStrategy") != "SplitOverHOverlapped")
                     {
                         if (sinkOperators[0]->getOpType() == "DPUTask")
                         {
-                            if (sinkOperators[0]->get<std::string>("taskOp") == "ChannelMajorConvolution")
+                            if (sinkOperators[0]->get<std::string>("taskOp") == "ChannelMajorConvolution" &&
+                                td.getTarget() != mv::Target::ma3720)
                             {
                                 if (sinkOperators[0]->get<std::string>("splitStrategy") == "SplitOverH")
                                 {
@@ -584,7 +589,8 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                             auto nextSinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
                             if (nextSinkOperators[0]->getOpType() == "DPUTask")
                             {
-                                if (nextSinkOperators[0]->get<std::string>("taskOp") == "ChannelMajorConvolution")
+                                if (nextSinkOperators[0]->get<std::string>("taskOp") == "ChannelMajorConvolution" &&
+                                    td.getTarget() != mv::Target::ma3720)
                                 {
                                      if (nextSinkOperators[0]->get<std::string>("splitStrategy") == "SplitOverH")
                                      {
@@ -605,7 +611,7 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                     if (sinkOperators[0]->getOpType() == "DMATask") {
                         continue;
                     }
-
+                    
                     auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
                     auto tensorStrategy = outputTensor->get<std::string>("splitStrategy");
                     std::pair<std::string, std::string> possibleCombination(tensorStrategy, opStrategy);
@@ -619,7 +625,7 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
 
                             // Store SoH splits before cleaning subtensors
                             auto splitShapes = std::vector<mv::Shape>();
-                            if (possibleCombination == SoHToClustering)
+                            if (possibleCombination == SoHToClustering || possibleCombination == SoHToSoK)
                             {
                                 for (unsigned i=0; i<numClusters; ++i)
                                 {
@@ -627,34 +633,25 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                                 }
                             }
 
-                            inputTensor->cleanSubtensors();
+                            std::vector <mv::Data::TensorIterator> vectorSubs = {};
                             outputTensor->cleanSubtensors();
                             if (possibleCombination == clusteringToSoH || possibleCombination == HKSwitchToHKSwitch ||
                                  possibleCombination == SoKToSoH || possibleCombination == SoKToHKSwitch ||
                                  possibleCombination == ClusteringToHKSwitch || possibleCombination == HKSwitchToSoH)
                             {
+                                inputTensor->cleanSubtensors();
                                 inputTensor->set<std::string>("overwriteStrategy", "ClusteringToSoH");
+                                vectorSubs = {inputTensor, outputTensor};
                             }
                             else if ((possibleCombination == SoHToClustering || possibleCombination == SoHToSoK))
                             {
                                 inputTensor->set<std::string>("overwriteStrategy", "SoHToClustering");
+                                vectorSubs = {outputTensor};
                             }
+
                             // ... and splitting has to be done again!!! <- Price for efficiency
-                            subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);
-                            //NOTE: The soh->clustering will be solved with 4 dmas, adding offset instead of 1 direct
-                            if (inputTensor->hasAttr("overwriteStrategy") && inputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
-                            {
-                                // Update Clustering H-axis offsets based on SoH splits
-                                auto leading_offset = 0;
-                                auto bpp = inputTensor->getDType().getSizeInBytes();
-                                for (unsigned i=0; i<numClusters; ++i)
-                                {
-                                    auto offset = inputTensor->getSubTensor(i).get<std::vector<std::size_t>>("offset");
-                                    offset[mv::IO_HEIGHT_DIMENSION] = leading_offset;
-                                    inputTensor->getSubTensor(i).set<std::vector<std::size_t>>("offset", offset);
-                                    leading_offset += splitShapes[i][mv::IO_HEIGHT_DIMENSION] * bpp;
-                                }
-                            }
+                            subTensorsGen(model, vectorSubs, numClusters, pass);
+
                         }
                     }
                 }
@@ -664,6 +661,7 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
     return;
 
 }
+
 
 
 // Pass role: In case that the scheduler inserts spilling reads/writes we might meet a case where the input of the dpu task will be out of

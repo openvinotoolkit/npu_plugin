@@ -32,7 +32,7 @@
 #include "ie_macro.hpp"
 
 #if defined(__arm__) || defined(__aarch64__)
-#include <vpusmm/vpusmm.h>
+#include <vpumgr.h>
 #endif
 
 namespace vpu {
@@ -214,7 +214,9 @@ void* NativeAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
 #endif
 }
 
-int NativeAllocator::getFileDescByVirtAddr(void*) { return -1; }
+int NativeAllocator::getFileDescByVirtAddr(void*) {
+    return -1;
+}
 
 NativeAllocator::~NativeAllocator() {
 #if defined(__arm__) || defined(__aarch64__)

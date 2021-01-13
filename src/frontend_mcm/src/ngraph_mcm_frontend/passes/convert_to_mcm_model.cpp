@@ -43,10 +43,13 @@
 
 #include "ngraph/op/prelu.hpp"
 #include <ngraph/op/roi_pooling.hpp>
+#include <ngraph/op/psroi_pooling.hpp>
 
 #include "ngraph/op/region_yolo.hpp"
 
 #include "ngraph/op/reorg_yolo.hpp"
+
+#include "ngraph/op/ctc_greedy_decoder.hpp"
 
 #include <ngraph/op/power.hpp>
 #include <legacy/ngraph_ops/relu_ie.hpp>
@@ -88,6 +91,8 @@
 #include <ngraph/op/detection_output.hpp>
 
 #include <ngraph/op/split.hpp>
+#include <ngraph/op/variadic_split.hpp>
+#include <ngraph/op/strided_slice.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
@@ -112,6 +117,7 @@
 #include <include/mcm/tensor/tiling.hpp>
 #include <vpu/utils/error.hpp>
 #include <converters.hpp>
+#include <custom_layer/custom_layer.hpp>
 
 namespace {
 
@@ -308,7 +314,8 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
     if (mvShape.ndims() == 1) {
         for (auto&& consumerNode : constant->get_users()) {
             if (ngraph::op::GatherIE::type_info == consumerNode->get_type_info() ||
-                ngraph::op::v1::Split::type_info == consumerNode->get_type_info()) {
+                ngraph::op::v1::Split::type_info == consumerNode->get_type_info() ||
+                ngraph::op::v1::StridedSlice::type_info == consumerNode->get_type_info()) {
                 mvShape = mv::Shape::augment_major(mvShape, 4);
                 // int64 precision for indices is not supported by runtime yet
                 if (ngraph::element::i64 == constant->get_element_type()) {
@@ -530,6 +537,7 @@ void convert(std::shared_ptr<ngraph::op::v0::Elu> elu, mv::OpModel& mcmModel, No
     auto alpha = elu->get_alpha();
 
     const auto mcmEluOutput = mcmModel.elu(opName, mcmData, alpha);
+    mcmEluOutput->setQuantParams(initialQuantParams());
 
     registerOutputs(elu, {mcmEluOutput}, mcmOutputsMap);
 }
@@ -814,6 +822,27 @@ void convert(std::shared_ptr<ngraph::op::v0::ROIPooling> roipool, mv::OpModel& m
         spatial_scale, roi_pooling_method, num_rois);
     roipoolOutput->setQuantParams(initialQuantParams());
     registerOutputs(roipool, {roipoolOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::PSROIPooling> psroipool, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    auto mcmInputs = getMcmInputs(psroipool, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto& opName = psroipool->get_friendly_name();
+    const std::size_t output_dim = psroipool->get_output_dim();
+    const std::size_t group_size = psroipool->get_group_size();
+    const float spatial_scale  = psroipool->get_spatial_scale();
+    const int spatial_bins_x = psroipool->get_spatial_bins_x();
+    const int spatial_bins_y = psroipool->get_spatial_bins_y();
+    const std::string mode = psroipool->get_mode();
+    IE_ASSERT(4u == psroipool->get_output_shape(0).size());
+    const std::size_t pooled_h = psroipool->get_output_shape(0)[2];
+    const std::size_t pooled_w = psroipool->get_output_shape(0)[3];
+
+    const auto roipoolOutput = mcmModel.pSROIPooling(opName, mcmInputs, output_dim, group_size, spatial_scale, pooled_h,
+        pooled_w, spatial_bins_x, spatial_bins_y, mode);
+    roipoolOutput->setQuantParams(initialQuantParams());
+
+    registerOutputs(psroipool, {roipoolOutput}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<ngraph::op::PriorBoxIE> priorbox, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -1289,22 +1318,21 @@ void convert(std::shared_ptr<ngraph::op::NormalizeIE> normalizeIE, mv::OpModel& 
     const auto mcmData = mcmInputs.at(0);
     const auto& opName = normalizeIE->get_friendly_name();
 
-    const double eps = normalizeIE->get_eps();
-    auto const_axis = std::dynamic_pointer_cast<ngraph::op::Constant> (normalizeIE->input(1).get_source_output().get_node_shared_ptr());
-    IE_ASSERT(nullptr != const_axis);
-    const auto& axis = const_axis->cast_vector<size_t>();
-    const bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
+    auto weights_node = std::dynamic_pointer_cast<ngraph::op::Constant> (normalizeIE->input(1).get_source_output().get_node_shared_ptr());
+    IE_ASSERT(nullptr != weights_node);
+    const auto weights_shape = weights_node->get_shape();
+    std::vector<double> weights = weights_node->cast_vector<double>();
+    mv::Shape weights_shape_4d = (weights_shape.size() == 4) ? weights_shape : mv::Shape {1, weights_shape[0], 1, 1};
 
-    const size_t weightsSize = mcmData->getShape()[2];
-    const mv::Shape weightsShape = {1, weightsSize, 1, 1};
-    std::vector<double> weightsData (weightsSize, 1.0); // see convert_normalizel2_to_normalize_ie.cpp
-    bool channel_shared = false;
+    const bool channel_shared = normalizeIE->get_channel_shared();
+    const bool across_spatial = normalizeIE->get_across_spatial();
+    const double eps = normalizeIE->get_eps();
 
     for (size_t i = 1; i < mcmInputs.size(); i++) {
         mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
     }
 
-    auto mvWeightsValues = mcmModel.constant("", weightsData, weightsShape, mv::DType("Float32"), mv::Order::getZMajorID(4));
+    auto mvWeightsValues = mcmModel.constant("", weights, weights_shape_4d, mv::DType("Float32"), mv::Order::getZMajorID(4));
 
     auto mvNormalizeOutput = mcmModel.normalize(opName, mcmData, mvWeightsValues, eps, across_spatial, channel_shared);
     mvNormalizeOutput->setQuantParams(initialQuantParams());
@@ -1380,6 +1408,7 @@ void convert(std::shared_ptr<ngraph::op::v1::Maximum> maximum, mv::OpModel& mcmM
     IE_ASSERT(2u == mcmInputs.size());
     const auto& opName = maximum->get_friendly_name();
     auto mcmMax = mcmModel.eltwise(opName, mcmInputs, "Maximum");
+    mcmMax->setQuantParams(initialQuantParams());
     registerOutputs(maximum, {mcmMax}, mcmOutputsMap);
 }
 
@@ -1389,13 +1418,14 @@ void convert(std::shared_ptr<ngraph::op::v1::Minimum> minimum, mv::OpModel& mcmM
     IE_ASSERT(2u == mcmInputs.size());
     const auto& opName = minimum->get_friendly_name();
     auto mcmMin = mcmModel.eltwise(opName, mcmInputs, "Minimum");
+    mcmMin->setQuantParams(initialQuantParams());
     registerOutputs(minimum, {mcmMin}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto& opName = split->get_friendly_name();
     const auto mcmInputs = getMcmInputs(split, mcmOutputsMap);
-    IE_ASSERT(mcmInputs.size() == 2);
+    IE_ASSERT(mcmInputs.size() == 2u);
 
     // Find axis.
     const auto axis_node = split->input_value(1).get_node_shared_ptr();
@@ -1409,10 +1439,36 @@ void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel
         mv::Shape beginShape(startCoords);
         mv::Shape sizeShape(getWHCN(split->get_output_shape(i)));
         auto mcmSplit = mcmModel.slice(opName + ":" + std::to_string(i), mcmInputs.at(0), beginShape, sizeShape);
+        mcmSplit->setQuantParams(initialQuantParams());
         mcmOutputs.push_back(mcmSplit);
         startCoords[outDimSize - 1 - axis] += split->get_output_shape(i)[axis];
     }
     registerOutputs(split, mcmOutputs, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::StridedSlice> stridedSlice, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto& opName = stridedSlice->get_friendly_name();
+    const auto mcmInputs = getMcmInputs(stridedSlice, mcmOutputsMap);
+
+    const auto begin_node = stridedSlice->input_value(1).get_node_shared_ptr();
+    const auto end_node = stridedSlice->input_value(2).get_node_shared_ptr();
+    const auto stride_node = stridedSlice->input_value(3).get_node_shared_ptr();
+    const auto begin_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(begin_node);
+    const auto end_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(end_node);
+    const auto stride_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(stride_node);
+
+    // Remove unused constant inputs.
+    for (size_t i = 1; i < mcmInputs.size(); ++i) {
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
+    }
+
+    mv::Shape beginShape(getWHCN(begin_node_const->cast_vector<size_t>()));
+    mv::Shape endShape(getWHCN(end_node_const->cast_vector<size_t>()));
+    mv::Shape strideShape(getWHCN(stride_node_const->cast_vector<size_t>()));
+
+    auto mcmStridedSlice = mcmModel.stridedSlice(opName, mcmInputs.at(0), beginShape, endShape, strideShape);
+
+    registerOutputs(stridedSlice, {mcmStridedSlice}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<ngraph::op::TileIE> tileIE, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -1425,6 +1481,47 @@ void convert(std::shared_ptr<ngraph::op::TileIE> tileIE, mv::OpModel& mcmModel, 
 
     registerOutputs(tileIE, {mcmTile}, mcmOutputsMap);
 }
+
+void convert(std::shared_ptr<ngraph::op::v1::VariadicSplit> variadicSplit,
+    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto& opName = variadicSplit->get_friendly_name();
+    const auto mcmInputs = getMcmInputs(variadicSplit, mcmOutputsMap);
+    IE_ASSERT(mcmInputs.size() == 3u);
+
+    for (size_t i = 1; i < mcmInputs.size(); i++) {
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
+    }
+
+    // Find axis.
+    const auto axis_node = variadicSplit->input_value(1).get_node_shared_ptr();
+    const auto axis_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(axis_node);
+    auto axis = axis_node_const->get_data_ptr<int64_t>()[0];
+
+    std::vector<size_t> startCoords(mcmInputs.at(0)->getShape().ndims());
+    std::vector<mv::Data::TensorIterator> mcmOutputs;
+    auto outDimSize = variadicSplit->get_output_shape(0).size();
+    for (size_t i = 0; i < variadicSplit->get_output_size(); ++i) {
+        mv::Shape beginShape(startCoords);
+        mv::Shape sizeShape(getWHCN(variadicSplit->get_output_shape(i)));
+        auto mcmSplit = mcmModel.slice(opName + ":" + std::to_string(i), mcmInputs.at(0), beginShape, sizeShape);
+        mcmSplit->setQuantParams(initialQuantParams());
+        mcmOutputs.push_back(mcmSplit);
+        startCoords[outDimSize - 1 - axis] += variadicSplit->get_output_shape(i)[axis];
+    }
+    registerOutputs(variadicSplit, mcmOutputs, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::CTCGreedyDecoder> CTCGreedyDecoder, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(CTCGreedyDecoder, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+
+    auto mcmCTCGreedyDecoder = mcmModel.cTCDecoder(CTCGreedyDecoder->get_friendly_name(),
+                                                   mcmInputs.at(0), mcmInputs.at(1),
+                                                   CTCGreedyDecoder->get_ctc_merge_repeated());
+
+    registerOutputs(CTCGreedyDecoder, {mcmCTCGreedyDecoder}, mcmOutputsMap);
+}
+
 
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
@@ -1456,6 +1553,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::Result),
     MAP_ENTRY(ngraph::op::Constant),
     MAP_ENTRY(ngraph::op::v0::ROIPooling),
+    MAP_ENTRY(ngraph::op::v0::PSROIPooling),
     MAP_ENTRY(McmConv),
     MAP_ENTRY(McmBias),
     MAP_ENTRY(McmScale),
@@ -1499,8 +1597,11 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::Maximum),
     MAP_ENTRY(ngraph::op::v1::Minimum),
     MAP_ENTRY(ngraph::op::v1::Split),
+    MAP_ENTRY(ngraph::op::v1::StridedSlice),
     MAP_ENTRY(ngraph::op::v4::HSwish),
-    MAP_ENTRY(ngraph::op::TileIE)
+    MAP_ENTRY(ngraph::op::TileIE),
+    MAP_ENTRY(ngraph::op::v1::VariadicSplit),
+    MAP_ENTRY(ngraph::op::CTCGreedyDecoder)
 };
 
 #undef MAP_ENTRY
@@ -1530,8 +1631,8 @@ void ConvertNode(const std::shared_ptr<ngraph::Node> op, mv::OpModel& mcmModel, 
 
 // clang-format on
 
-void ConvertToMcmModel::parseCustom(
-    std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+void ConvertToMcmModel::parseCustom(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel,
+                                    NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(node, mcmOutputsMap);
 
     auto parser = vpu::CustomLayerParserNGraph(node, mcmInputs);
@@ -1546,32 +1647,18 @@ void ConvertToMcmModel::parseCustom(
 
     int stageIdx = 0;
     for (const auto& kernel : customLayer->kernels()) {
-        const auto sortedKernelBindings = [&] {
-            auto bindings = std::vector<vpu::CustomKernel::BindingParameter>{};
-            bindings.reserve(kernel.arguments().size());
+        const auto stage = parser.parseKernelArguments(kernel->bindings());
 
-            for (const auto& arg : kernel.arguments()) {
-                const auto& binding = kernel.bindings().find(arg.name);
-                VPU_THROW_UNLESS(binding != kernel.bindings().end(),
-                    "Failed to bind '%s' custom layer. "
-                    "Can't find kernel argument '%s' in binding list.",
-                    customLayer->layerName(), arg.name);
-                bindings.push_back(binding->second);
-            }
+        const auto kernelData = parser.resolveKernelArguments(*kernel, stage.arguments);
+        const auto stageOutputs = parser.resolveStageOutputs(*customLayer, stage.outputs);
 
-            return bindings;
-        }();
+        vpu::OperationFactory opFactory{stageIdx,     mcmModel,     kernelData,
+                                        stage.inputs, stageOutputs, node->get_friendly_name()};
 
-        const auto stage = parser.parseKernelArguments(sortedKernelBindings);
+        kernel->accept(opFactory);
+        auto custom = opFactory.result();
 
-        const auto kernelData = parser.resolveKernelArguments(kernel, stage.arguments);
-        const auto stageOutputs = parser.resolveStageOutputs(kernel, *customLayer, stage.outputs);
-
-        const auto layerName = node->get_friendly_name() + "_custom" +
-                               (customLayer->kernels().size() > 1 ? (":" + std::to_string(stageIdx)) : (""));
         stageIdx++;
-
-        auto custom = mcmModel.custom(layerName, stage.inputs, kernel.kernelBinary(), kernelData, stageOutputs);
 
         const auto sourceOp = mcmModel.getSourceOp(custom);
         const auto mcmOutputTensors = sourceOp->getOutputTensor();
@@ -1606,11 +1693,12 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
         for (const auto& op : func->get_parameters()) {
             if (op->get_friendly_name() == _ioMap.at(inputInfo.first)) {
                 ConvertNode(op, _mcmModel, _mcmOutputsMap, inputInfo.second->getInputData(), allowNCHWInput,
-                    allowU8InputForFp16Models);
+                            allowU8InputForFp16Models);
                 isFound = true;
             }
         }
-        if (!isFound) THROW_IE_EXCEPTION << "Input not found: " << inputInfo.first;
+        if (!isFound)
+            THROW_IE_EXCEPTION << "Input not found: " << inputInfo.first;
     }
 
     if (!_config.customLayers().empty()) {
@@ -1624,9 +1712,12 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
     }
 
     for (const auto& op : func->get_ordered_ops()) {
-        if (ngraph::op::Parameter::type_info == op->get_type_info()) continue;
-        if (ngraph::op::Result::type_info == op->get_type_info()) continue;
-        if (ngraph::op::Constant::type_info == op->get_type_info()) continue;
+        if (ngraph::op::Parameter::type_info == op->get_type_info())
+            continue;
+        if (ngraph::op::Result::type_info == op->get_type_info())
+            continue;
+        if (ngraph::op::Constant::type_info == op->get_type_info())
+            continue;
 
         const auto customLayersForType = _customLayers.find(op->description());
 
@@ -1649,7 +1740,8 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
                 isFound = true;
             }
         }
-        if (!isFound) THROW_IE_EXCEPTION << "Output not found: " << outputInfo.first;
+        if (!isFound)
+            THROW_IE_EXCEPTION << "Output not found: " << outputInfo.first;
     }
 
     return false;

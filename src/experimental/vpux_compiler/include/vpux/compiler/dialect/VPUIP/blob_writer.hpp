@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "vpux/compiler/core/dims_order.hpp"
 #include "vpux/compiler/core/shape.hpp"
 #include "vpux/compiler/core/strides.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
@@ -27,8 +28,8 @@
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Operation.h>
-#include <mlir/IR/StandardTypes.h>
 #include <mlir/IR/Value.h>
 
 #include <flatbuffers/flatbuffers.h>
@@ -77,10 +78,24 @@ public:
                                     bool isTrailingSWLayer);
 
 public:
-    TensorReference createTensor(StringRef name, mlir::MemRefType type, MemoryLocation location, uint64_t offset);
-    TensorReference createTensor(mlir::Value val, StringRef name, MemoryLocation location, uint64_t offset);
+    TensorReference createTensor(StringRef name, mlir::MemRefType type, MemoryLocation locale,
+                                 Optional<uint32_t> localeIndex, uint64_t dataIndex,
+                                 Optional<uint64_t> sparsityIndex = None, Optional<uint64_t> storageElementIndex = None,
+                                 Optional<uint32_t> storageElementSize = None, Optional<uint32_t> leadingOffset = None,
+                                 Optional<uint32_t> trailingOffset = None, Optional<float> density_rate = None,
+                                 Optional<uint8_t> swizzling_key = None);
+    TensorReference createTensor(mlir::Value val, StringRef name, MemoryLocation locale, Optional<uint32_t> localeIndex,
+                                 uint64_t dataIndex, Optional<uint64_t> sparsityIndex = None,
+                                 Optional<uint64_t> storageElementIndex = None,
+                                 Optional<uint32_t> storageElementSize = None, Optional<uint32_t> leadingOffset = None,
+                                 Optional<uint32_t> trailingOffset = None, Optional<float> density_rate = None,
+                                 Optional<uint8_t> swizzling_key = None);
     TensorReference getTensor(mlir::Value val) const;
 
+public:
+    BinaryData createBinaryData(mlir::DenseElementsAttr content, bool csram_cacheable = false);
+
+public:
     Barrier createBarrier(mlir::Value val);
     Barrier getBarrier(mlir::Value val) const;
 
@@ -98,9 +113,9 @@ public:
     Vector<float> createStrides(mlir::MemRefType type);
 
     static MVCNN::MemoryLocation createMemoryLocation(MemoryLocation location);
-    IndirectDataReference createIndirectDataReference(uint64_t offset);
-
-    BinaryData createBinaryData(mlir::DenseElementsAttr content, bool csram_cacheable);
+    IndirectDataReference createIndirectDataReference(uint64_t dataIndex, Optional<uint64_t> sparsityIndex = None,
+                                                      Optional<uint64_t> storageElementIndex = None,
+                                                      Optional<uint32_t> storageElementSize = None);
 
 public:
     auto createString(StringRef str) {

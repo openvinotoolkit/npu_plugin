@@ -22,46 +22,29 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::verifySoftMaxLayer(mlir::Operation* op) {
-    auto layer = mlir::cast<SoftMaxLayerInterface>(op);
+mlir::LogicalResult vpux::IE::SoftMaxOp::inferReturnTypeComponents(
+        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
+        mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+    auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    const auto inRank = layer.getInputShape().size();
-    const auto axisInd = layer.getAxisDim().ind();
-
-    if (axisInd < 0 || checked_cast<size_t>(axisInd) >= inRank) {
-        return printTo(op->emitError(), "'{0}' axis index '{1}' is out of input tensor rank '{2}'",
-                       op->getName().getStringRef(), axisInd, inRank);
+    IE::SoftMaxOpAdaptor softMax(operands, attrs);
+    if (mlir::failed(softMax.verify(loc))) {
+        return ::mlir::failure();
     }
 
-    return mlir::success();
-}
-
-ShapeRef vpux::IE::SoftMaxOp::getInputShape() {
-    return ShapeRef(input().getType().cast<mlir::RankedTensorType>().getShape());
-}
-
-Dim vpux::IE::SoftMaxOp::getAxisDim() {
-    return Dim(axisInd());
-}
-
-mlir::LogicalResult vpux::IE::SoftMaxOp::inferReturnTypes(mlir::MLIRContext* ctx, Optional<mlir::Location> loc,
-                                                          mlir::ValueRange operands, mlir::DictionaryAttr attributes,
-                                                          mlir::RegionRange regions,
-                                                          SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    return mlir::detail::inferReturnTensorTypes(SoftMaxOp::inferReturnTypeComponents, ctx, loc, operands, attributes,
-                                                regions, inferredReturnTypes);
-}
-
-mlir::LogicalResult vpux::IE::SoftMaxOp::inferReturnTypeComponents(
-        mlir::MLIRContext*, Optional<mlir::Location>, mlir::ValueRange operands, mlir::DictionaryAttr,
-        mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    VPUX_THROW_UNLESS(operands.size() == 1, "Got wrong number of operands : {0}", operands.size());
-
-    const auto inType = operands[0].getType().cast<mlir::RankedTensorType>();
+    auto inType = softMax.input().getType().cast<mlir::RankedTensorType>();
 
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
+}
+
+SmallVector<mlir::Value, 4> vpux::IE::SoftMaxOp::getInputs() {
+    return {input()};
+}
+
+SmallVector<mlir::Value, 1> vpux::IE::SoftMaxOp::getOutputs() {
+    return {output()};
 }
 
 namespace IE_SoftMax {

@@ -78,10 +78,8 @@ Blob::Ptr generateCoords(const TensorDesc& desc, size_t width, size_t height) {
 
 class KmbPSROIPoolingLayerTests : public KmbLayerTestBase,
                                   public testing::WithParamInterface<PSROIPoolingTestParams> {};
-
-/* FIXME: mcmCompiler doesn't support multiple inputs with float precision
- * [Track number: D#3036] */
-TEST_P(KmbPSROIPoolingLayerTests, DISABLED_AccuracyTest) {
+// [Track number: D#3458]
+TEST_P(KmbPSROIPoolingLayerTests, AccuracyTest) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     const auto& p = GetParam();
 

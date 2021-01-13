@@ -26,7 +26,6 @@ TEST(MaxTopologicalCut, lessThanCMXMemory)
 
     unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
     unit.compilationDescriptor().remove("serialize","GenerateBlobKmb");
-    unit.compilationDescriptor().setPassArg("GlobalConfigParams", "MemoryHack", false);
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -772,7 +771,6 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
 
     unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
     unit.compilationDescriptor().remove("serialize","GenerateBlobKmb");
-    unit.compilationDescriptor().setPassArg("GlobalConfigParams", "MemoryHack", false);
     unit.compilationDescriptor().remove("finalize", "TensorGraphColoring");
 
     unit.initialize();

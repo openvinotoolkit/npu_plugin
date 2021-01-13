@@ -25,7 +25,7 @@ using namespace KmbRegressionTarget;
 
 #if defined(__arm__) || defined(__aarch64__)
 
-TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobInput) {
+TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlobInput) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
@@ -159,7 +159,7 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
 
 using kmbSetBlob = vpuLayersTests;
 
-TEST_F(kmbSetBlob, compareSetBlobAllocation) {
+TEST_F(kmbSetBlob, DISABLED_compareSetBlobAllocation) {
     std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
     std::string resnetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";
 

@@ -20,7 +20,7 @@
 
 #include "vpux/utils/core/format.hpp"
 
-#include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
@@ -28,9 +28,12 @@ using namespace vpux;
 // getTaskEffects
 //
 
-void vpux::VPUIP::getTaskEffects(
+void vpux::VPUIP::details::getTaskEffects(
         mlir::Operation* op, SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
-    auto task = mlir::cast<TaskOpInterface>(op);
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getTaskEffects");
+
+    auto task = mlir::dyn_cast<TaskOpInterface>(op);
+    VPUX_THROW_UNLESS(task != nullptr, "Got non Task Operation '{0}' in getTaskEffects", op->getName());
 
     for (const auto input : task.inputTensors()) {
         auto inputType = input.getType().cast<mlir::MemRefType>();
@@ -54,19 +57,52 @@ void vpux::VPUIP::getTaskEffects(
 }
 
 //
+// UPATaskTrait
+//
+
+mlir::LogicalResult vpux::VPUIP::details::verifyUPATaskTrait(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyUPATaskTrait");
+
+    auto task = mlir::dyn_cast<TaskOpInterface>(op);
+    if (task == nullptr) {
+        return printTo(op->emitError(), "Operation '{0}' is not a VPUIP Task", op->getName());
+    }
+
+    auto inputs = to_vector<4>(task.inputTensors());
+    auto outputs = to_vector<1>(task.outputTensors());
+
+    for (auto val : concat<mlir::Value>(inputs, outputs)) {
+        auto type = val.getType().cast<mlir::MemRefType>();
+        auto mem = getPhysicalMemory(type);
+
+        if (mlir::failed(mem)) {
+            return printTo(op->emitError(), "Operation '{0}' has argument with unsupported memory space '{1}'",
+                           op->getName(), type.getMemorySpace());
+        }
+
+        if (mem.getValue() == PhysicalMemory::CMX_NN) {
+            return printTo(op->emitError(), "'{0}' can't operate with '{1}' PhysicalMemory", op->getName(),
+                           mem.getValue());
+        }
+    }
+
+    return mlir::success();
+}
+
+//
 // UPATaskOpInterface
 //
 
-mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
+mlir::LogicalResult vpux::VPUIP::details::verifyUPATask(mlir::Operation* op) {
     auto upaTask = mlir::cast<UPATaskOpInterface>(op);
 
     auto task = mlir::dyn_cast<TaskOpInterface>(op);
     if (task == nullptr) {
-        return printTo(op->emitError(), "UPA Task {0} doesn't have TaskOpInterface", op->getName());
+        return printTo(op->emitError(), "UPA Task '{0}' doesn't have TaskOpInterface", op->getName());
     }
 
     if (task.getTaskType() != VPUIP::TaskType::UPA) {
-        return printTo(op->emitError(), "UPA Task {0} has wrong TaskType {1}", op->getName(), task.getTaskType());
+        return printTo(op->emitError(), "UPA Task '{0}' has wrong TaskType '{1}'", op->getName(), task.getTaskType());
     }
 
     if (upaTask.isTrailingSWLayer()) {

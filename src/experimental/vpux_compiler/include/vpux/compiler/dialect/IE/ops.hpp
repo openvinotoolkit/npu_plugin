@@ -16,8 +16,8 @@
 
 #pragma once
 
+#include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
-#include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -36,15 +36,3 @@
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/IE/generated/ops.hpp.inc>
 #undef GET_OP_CLASSES
-
-//
-// Operation verifiers
-//
-
-namespace vpux {
-namespace IE {
-
-mlir::LogicalResult verifyOp(CNNNetworkOp op);
-
-}  // namespace IE
-}  // namespace vpux

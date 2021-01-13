@@ -58,7 +58,7 @@ public:
     DimStrideReq() = default;
 
     DimStrideReq(MemDim memDim, StrideReqKind kind, int64_t extraValue)
-        : _memDim(memDim), _kind(kind), _extraValue(extraValue) {
+            : _memDim(memDim), _kind(kind), _extraValue(extraValue) {
         verifyAttrs(_kind, _extraValue);
     }
 

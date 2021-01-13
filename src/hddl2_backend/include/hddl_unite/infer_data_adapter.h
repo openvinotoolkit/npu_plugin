@@ -47,8 +47,8 @@ public:
     InferDataAdapter& operator=(const InferDataAdapter&) = delete;
     InferDataAdapter& operator=(const InferDataAdapter&&) = delete;
     explicit InferDataAdapter(const vpux::NetworkDescription::CPtr& networkDescription,
-        const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
-        const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR);
+                              const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
+                              const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR);
 
 public:
     using Ptr = std::shared_ptr<InferDataAdapter>;
@@ -58,7 +58,9 @@ public:
 
     void waitInferDone() const;
 
-    HddlUnite::Inference::InferData::Ptr& getHDDLUniteInferData() { return _inferDataPtr; }
+    HddlUnite::Inference::InferData::Ptr& getHDDLUniteInferData() {
+        return _inferDataPtr;
+    }
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getHDDLUnitePerfCounters() const;
 
     std::string getOutputData(const std::string& outputName);
@@ -69,7 +71,7 @@ private:
 private:
     const vpux::NetworkDescription::CPtr& _networkDescription;
 
-    const int _asyncInferenceWaitTimeoutMs = 10000;
+    const int _asyncInferenceWaitTimeoutMs = 30000;
     std::vector<HddlUnite::Inference::AuxBlob::Type> _auxBlob;
     HddlUnite::WorkloadContext::Ptr _workloadContext = nullptr;
     HddlUnite::Inference::InferData::Ptr _inferDataPtr = nullptr;

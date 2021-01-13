@@ -18,7 +18,7 @@ namespace mv
     }
 }
 
-void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
  MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -31,7 +31,7 @@ void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model,
         {
             //handle channel major convolution (only possible if enabled in comp descriptor)
             auto taskOp = dpuTask->get<std::string>("taskOp");
-            if (taskOp == "ChannelMajorConvolution")
+            if (taskOp == "ChannelMajorConvolution" && td.getTarget() != mv::Target::ma3720)
             {
                 // ChannelMajorConvolution is the only operation that requires input tensor in OUR ColMajor
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
@@ -56,12 +56,17 @@ void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model,
             else 
             {
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+                // the only dpu task that is supported currently with channel major(NCHW) order is the convolution and it outputs z-major(NHWC)
+                // the depthwise should accept z-major and output z-major as well
+                if (taskOp == "DepthwiseConv") {
+                    dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+                }
                 if (om.getSourceOp(dpuTask->getInputTensor(0))->getOpType() == "Slice")
                 {
                     auto inputImplicitOp = om.getSourceOp(dpuTask->getInputTensor(0));
                     inputImplicitOp->getInputTensor(0)->setOrder(mv::Order::getZMajorID(4));
                 }
-                if(taskOp == "Conv")
+                if(taskOp == "Conv" || (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3720))
                 {
                     mv::Order targetOrder("NHWC");
                     dpuTask->getInputTensor(1)->setOrder(targetOrder);

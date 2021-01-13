@@ -23,15 +23,18 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
 void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceBigInputChannels(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void markCMCompatibleConvsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+void replaceLargeGlobalPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -76,11 +79,14 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
                        mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     fullyConnectedAsConv2DFcn(pass, model);
+    replaceStridedSliceWithStridedConvConcat(pass, model);
     replacePoolReshapePatternFcn(pass, model);
     replaceExpReduceSumMultipyFcn(pass, model);
+    replaceLargeGlobalPoolingFcn(pass, model);
     replaceLargeKernelsFcn(pass, model);
     replaceLargeStridesFcn(pass, model);
     replaceAsymmetricStridesFcn(pass, model);
+    replaceBigInputChannels(pass, model);
     topKAsArgMaxFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     interpAsDepthConvFcn(pass, model);
@@ -292,6 +298,89 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry&, mv::ComputationModel&
     }
 }
 
+// Replaces StridedSlice layer with equivalent network of slices -> strided convolution -> concat
+// layers. The slice operations will split the input tensor strided-channel-wise. The outputs of
+// each of the slice operations will be passed into a strided convolution to capture the height
+// and width strided behavior. The outputs of the strided convolution will then be concated channel-
+// wise, to yield the equivalent strided slice result.
+//
+// NOTE: Currently, mixed convolution with mixed scaled inputs do not work properly. Wait for the
+// generic fix.
+void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::ComputationModel& model) {
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+
+    for (auto& opIt : om.getOps("StridedSlice")) {
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        auto sourceTensor = opIt->getInputTensor(0);
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+        auto beginShape = opIt->get<mv::Shape>("begin");
+        auto endShape = opIt->get<mv::Shape>("end");
+        auto strideShape = opIt->get<mv::Shape>("stride");
+
+        std::vector<mv::Data::TensorIterator> convOutputTensors, sliceOutputTensors;
+        mv::Shape innerSliceBeginShape(beginShape);
+        mv::Shape innerSliceSizeShape(opIt->getInputTensor(0)->getShape());
+        size_t k = mv::IO_CHANNEL_DIMENSION;
+        innerSliceSizeShape[k] = 1;
+
+        // Create slices from strided steps.
+        for (size_t c = beginShape[k]; c < endShape[k]; c += strideShape[k]) {
+            auto mcmSlice = om.slice(opIt->getName() + "_slice_" + std::to_string(c),
+                                     opIt->getInputTensor(0), innerSliceBeginShape,
+                                     innerSliceSizeShape);
+            mcmSlice->setQuantParams(opIt->getInputTensor(0)->getQuantParams());
+            auto sliceOp = om.getSourceOp(mcmSlice);
+            if (opIt->hasAttr("opId")) {
+                unsigned currentOpId = opIt->get<unsigned>("opId");
+                sliceOp->set<unsigned>("opId", currentOpId);
+            }
+            innerSliceBeginShape[k] += strideShape[k];
+            sliceOutputTensors.push_back(mcmSlice);
+        }
+
+        // Create strided convolutions on the outputs of the slices.
+        for (size_t c = beginShape[k]; c < endShape[k]; c += strideShape[k]) {
+
+            std::vector<int64_t> constantWeights{255};
+            mv::Shape constantShape({1, 1, 1, 1});
+            auto constantOutputTensor = om.constantInt(
+                    opIt->getName() + "_constant_" + std::to_string(c), constantWeights,
+                    constantShape, mv::DType("UInt8"), mv::Order::getColMajorID(4));
+
+            std::array<unsigned short, 2> kernelStrides = {
+                (unsigned short)strideShape[mv::IO_WIDTH_DIMENSION],
+                (unsigned short)strideShape[mv::IO_HEIGHT_DIMENSION]};
+
+            std::array<unsigned short, 4> padding = {0, 0, 0, 0};
+
+            auto mcmConv = om.conv(opIt->getName() + "_conv_" + std::to_string(c),
+                                   sliceOutputTensors[c], constantOutputTensor, kernelStrides,
+                                   padding);
+            mcmConv->setQuantParams(sliceOutputTensors[c]->getQuantParams());
+
+            auto convOp = om.getSourceOp(mcmConv);
+            auto constantOp = om.getSourceOp(constantOutputTensor);
+            if (opIt->hasAttr("opId")) {
+                unsigned currentOpId = opIt->get<unsigned>("opId");
+                convOp->set<unsigned>("opId", currentOpId);
+                constantOp->set<unsigned>("opId", currentOpId);
+            }
+            convOutputTensors.push_back(mcmConv);
+        }
+
+        auto mcmConcat = om.concat(opIt->getName() + "_concat", convOutputTensors, "C");
+        auto concatOp = om.getSourceOp(mcmConcat);
+        if (opIt->hasAttr("opId")) {
+            unsigned currentOpId = opIt->get<unsigned>("opId");
+            concatOp->set<unsigned>("opId", currentOpId);
+        }
+        linkNewOperationsReplacement(parentOpIt, mcmConcat, om, opIt);
+        mcmConcat->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        mcmConcat->setQuantParams(convOutputTensors[0]->getQuantParams());
+    }
+}
+
 //NOTE: This pass will handle cases that we have Convs -> Eltwise for testing ResNet first of all....
 //General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
 void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -369,14 +458,14 @@ static void markCMCompatibleConvsFcn(const mv::pass::PassEntry&, mv::Computation
     }
 }
 
-static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
 
     // Skip pass if C-Major isn't enabled
-    if (!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")))
+    if (!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")) || td.getTarget() == mv::Target::ma3720)
         return;
 
     // Change Input op to C-Major
@@ -657,11 +746,11 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
 
     for (auto& opIt : scaleOps)
     {
-        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-        auto sourceTensor = opIt->getInputTensor(0);
+        const auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        const auto sourceTensor = opIt->getInputTensor(0);
+        const auto weightsTensor = opIt->getInputTensor(1);
+        const auto inputShape = sourceTensor->getShape();
         auto parentOpIt = om.getSourceOp(sourceTensor);
-        auto weightsData = opIt->getInputTensor(1)->getData();
-        auto inputShape = sourceTensor->getShape();
         auto weightsTensorQuantizationParams = opIt->getInputTensor(1)->getQuantParams();
         auto outputTensorQuantizationParams = opIt->getOutputTensor(0)->getQuantParams();
         auto outputTensorType = opIt->getOutputTensor(0)->getDType();
@@ -669,13 +758,13 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
         if (parentOpIt->getOpType() == "Conv")
             continue;
 
-        auto finalDType = opIt->getInputTensor(1)->getDType();
+        auto finalDType = weightsTensor->getDType();
         if (sourceTensor->getDType() == mv::DType("UInt8")) {
             finalDType = sourceTensor->getDType();
         }
 
         auto weights = om.constantDataElement(opIt->getName() + "_weights",
-                                              weightsData,
+                                              weightsTensor->getData(),
                                               {FULLY_CONNECTED_KERNEL, FULLY_CONNECTED_KERNEL, inputShape[mv::IO_CHANNEL_DIMENSION], 1},
                                               finalDType,
                                               mv::Order::getZMajorID(4));
@@ -687,7 +776,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
 
         if (opIt->hasAttr("bias"))
         {
-            auto biasTensorName = opIt->get<std::string>("bias");
+            const auto biasTensorName = opIt->get<std::string>("bias");
             om.addAttr(om.getSourceOp(conv2D), "bias", biasTensorName);
         }
 
@@ -1110,6 +1199,185 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& , mv::ComputationMo
 
             linkNewOperationsReplacement(it, ap, om, opIt);
         }
+    }
+}
+
+namespace {
+    struct poolParams {
+        std::array<unsigned short, 4> padding;
+        std::array<unsigned short, 2> kernel;
+        std::array<unsigned short, 2> stride;
+    };
+}
+
+std::vector<poolParams> calcPoolParams(const mv::Data::OpListIterator& opIt, const mv::pass::PassEntry& pass) {
+    std::array<unsigned short, 2> kSize;
+    kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+
+    auto kernelSize = kSize[mv::KERNEL_WIDTH];
+    auto outputShape = opIt->getOutputTensor()[0]->getShape();
+
+    std::pair<unsigned short, unsigned short> factors;
+
+    // If average pool kernel size is greater than 11, we will try to split it in several avg pools
+    // Limitations: Symmetric case, split without residue
+    // For example: 14x14 -> 7x7 + 2x2
+    //              17x17 -> can't be processed in that pass, need replace by deptwise
+
+    std::vector<std::pair<unsigned short, unsigned short>> allFactors = getFactorsList(kernelSize);
+    if (allFactors.empty()) {
+        return {};
+    } else {
+        factors = allFactors.back();
+    }
+    pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kernelSize) + " , factor1=" + std::to_string(factors.first)+ " , factor2=" + std::to_string(factors.second));
+
+    std::array<unsigned short, 4> padding = {0, 0, 0, 0};
+    std::array<unsigned short, 2> newKernel = {factors.first, factors.first};
+    std::array<unsigned short, 2> newKernel_1 = {factors.second, factors.second};
+
+    poolParams first  = {padding, newKernel, newKernel};
+    poolParams second  = {padding, newKernel_1, newKernel_1};
+    std::vector<poolParams> ans  = {first, second};
+    return  ans;
+}
+
+mv::Data::TensorIterator createPoolLayer(mv::OpModel& om, const std::string &type, const poolParams &params,
+                                         const mv::Data::TensorIterator &input, const std::string &name) {
+    mv::Data::TensorIterator op;
+    if (type == "AveragePool") {
+        op = om.averagePool(name,
+                            input,
+                            params.kernel,
+                            params.stride,
+                            params.padding,
+                            true); //exclude pad
+    }
+    else if (type == "MaxPool") {
+        op = om.maxPool(name,
+                        input,
+                        params.kernel,
+                        params.stride,
+                        params.padding,
+                        true); //exclude pad
+    }
+    else
+        throw std::runtime_error( "Error: Unsupported pooling type  " + type + " .Expected values: AveragePool, MaxPool");
+
+    return op;
+}
+
+bool splitPoolOp(mv::ComputationModel& model, const mv::Data::OpListIterator& opIt, const std::vector<poolParams> &poolParams) {
+    mv::OpModel om(model);
+    auto sourceTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
+    auto parentOpIt = om.getSourceOp(sourceTensor);
+
+    auto dType = sourceTensor->getDType();
+    auto quantParams = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getQuantParams();
+    auto op0 = createPoolLayer(om, opIt->getOpType(), poolParams[0], sourceTensor, opIt->getName() + "_Pool0");
+
+    op0->setDType(dType);
+    op0->setQuantParams(quantParams);
+    if(opIt->hasAttr("opId")) {
+        unsigned currentOpId = opIt->get<unsigned>("opId");
+        op0->set<unsigned>("opId", currentOpId);
+        om.getSourceOp(op0)->set<unsigned>("opId", currentOpId);
+    }
+
+    linkNewOperationsReplacement(parentOpIt, op0, om, opIt);
+    // Remove old flow, remember to it to put next pool into model in correct place
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+    auto input_op0 = om.getSourceOp(op0);
+    auto sourceFlowStart = input_op0.leftmostOutput();
+
+    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow) {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+        flowsToRemove.push_back(sinkFlow);
+    }
+    // Remove old flow before creating new dw
+    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++) {
+        om.undefineFlow(flowsToRemove[flowIdx]);
+    }
+
+    dType = input_op0->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
+    auto op1 = createPoolLayer(om, input_op0->getOpType(), poolParams[1], op0, op0->getName() + "_Pool1");
+
+    op1->setDType(dType);
+    op1->setQuantParams(quantParams);
+    if (input_op0->hasAttr("opId")) {
+        unsigned currentOpId = input_op0->get<unsigned>("opId");
+        op1->set<unsigned>("opId", currentOpId);
+        om.getSourceOp(op1)->set<unsigned>("opId", currentOpId);
+    }
+
+    for(unsigned op = 0 ; op < opsToLink.size(); ++op) {
+        opsToLink[op]->setInputTensor(op1, inputSlots[op], false);
+        om.defineFlow(op1, opsToLink[op], inputSlots[op]);
+    }
+
+    return true;
+}
+
+bool supportedCase(const mv::Data::OpListIterator& opIt) {
+    std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
+    std::array<unsigned short, 2> kernel;
+    if (opIt->hasAttr("kSize"))
+        kernel = opIt->get<std::array<unsigned short, 2>>("kSize");
+    else {
+        throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: pool op doesn't have a kSize param"));
+    }
+    auto kernelX = kernel[mv::KERNEL_WIDTH];
+    auto kernelY = kernel[mv::KERNEL_HEIGHT];
+    auto sourceTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
+    auto inputShape = sourceTensor->getShape();
+
+    // The best way for large AVG global pooling is SW layer (CVS-44261)
+    // Implementation in replaceLargeKernelsFcn() support kernels < 81, but more accurate then splitting to several Avg layers
+    // Solution: using new implamenation only for exteme cases (kernel > 81)
+    const int kernelLimitation = 81;
+    if ((kernelX == kernelY) && (kernelX > kernelLimitation) &&
+        (inputShape[mv::IO_WIDTH_DIMENSION] == kernelX) && (inputShape[mv::IO_HEIGHT_DIMENSION] == kernelY)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool replaceLargeGlobalPooling(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    std::vector<std::string> opList = {"AveragePool", "MaxPool"};
+    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
+    bool isReplaced = false;
+
+    for (const auto &opType : opList) {
+        if (operations.count(opType) == 0) {
+            continue;
+        }
+        auto ops = operations[opType];
+        for (auto &opIt : ops) {
+            if (!supportedCase(opIt))
+                continue;
+
+            auto poolParams = calcPoolParams(opIt, pass);
+            if (poolParams.empty()) {
+                continue;
+            }
+            isReplaced = splitPoolOp(model, opIt, poolParams);
+        }
+    }
+    return isReplaced;
+}
+
+void replaceLargeGlobalPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+    bool splitting = true;
+    while (splitting) {
+        splitting = replaceLargeGlobalPooling(pass, model);
     }
 }
 
@@ -1770,4 +2038,236 @@ void detectEltWiseUpaInputs(const mv::pass::PassEntry& /*pass*/, mv::Computation
             opIt->set<bool>("upaInputs", true);
         }
     }
+}
+
+
+//  Generic big input channels replacement function
+// with partial sum convolutions and eltwise ADD subtree.
+//  Additional function to resolve the bias and post ops subsequent
+// to the original conv operation.
+//  Future optimizations may choose to reshape the activation and kernels
+// to shift the big input channels dimensionality in the kernel H W dimensions
+// which should be better for specific cases yet will not be able to service as
+// a generic solution due to limitations around kernel size and stride.
+// Note: should be run after "fullyConnectedAsConv2D" to capture the
+// FC layers with big input channels also
+void replaceBigInputChannels(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    // All other hardwarizable ops can be streamed over input channels
+    // to overcome to the 8192 limitation
+    for (auto convOp : om.getOps("Conv"))
+    {
+        auto inputChannels = convOp->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+        if (inputChannels <= mv::MAX_DIM_SIZE)
+            continue;
+
+        size_t numSplits = std::ceil((double)inputChannels / mv::MAX_DIM_SIZE);
+        size_t splitSize = std::ceil((double)inputChannels / numSplits);
+
+        auto inputTensor = convOp->getInputTensor(0);
+        auto weightTensor = convOp->getInputTensor(1);
+
+        // Step 1
+        // Slice Conv input and weights and create partial sums
+        std::vector<mv::Data::TensorIterator> adjustedConvs;
+        for (auto splitIdx = 0; splitIdx < numSplits; splitIdx ++) {
+
+            auto inputDisplacement = std::pair<mv::Shape, mv::Shape>(
+                {
+                    0,
+                    0,
+                    splitSize * splitIdx,
+                    0
+                },
+                {
+                    inputTensor->getShape()[mv::IO_WIDTH_DIMENSION],
+                    inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION],
+                    std::min(
+                        splitSize,
+                        inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] -
+                        splitSize * splitIdx
+                    ),
+                    inputTensor->getShape()[mv::IO_BATCH_DIMENSION]
+                });
+
+            auto inputSlice = om.slice(
+                "Slice" + inputTensor->getName() + "_inch_reduction_act" + std::to_string(splitIdx),
+                inputTensor,
+                inputDisplacement.first,
+                inputDisplacement.second);
+            inputSlice->setQuantParams(inputTensor->getQuantParams());
+            om.getSourceOp(inputSlice)->set<unsigned>("opId",
+                convOp->get<unsigned>("opId"));
+
+            auto wtDisplacement = std::pair<mv::Shape, mv::Shape>(
+                {
+                    0,
+                    0,
+                    splitSize * splitIdx,
+                    0
+                },
+                {
+                    weightTensor->getShape()[mv::KERNEL_WIDTH],
+                    weightTensor->getShape()[mv::KERNEL_HEIGHT],
+                    std::min(
+                        splitSize,
+                        weightTensor->getShape()[mv::KERNEL_INPUT_CHANNELS] -
+                        splitSize * splitIdx
+                    ),
+                    weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]
+                });
+
+            auto wtSlice = om.slice(
+                "Slice" + weightTensor->getName() + "_inch_reduction_wt" + std::to_string(splitIdx),
+                weightTensor,
+                wtDisplacement.first,
+                wtDisplacement.second);
+            wtSlice->setQuantParams(weightTensor->getQuantParams());
+            om.getSourceOp(wtSlice)->set<unsigned>("opId",
+                om.getSourceOp(weightTensor)->get<unsigned>("opId"));
+
+            auto newConvTensor = om.conv(
+                "Slice" + convOp->getName() + "_inch_reduction" + std::to_string(splitIdx),
+                inputSlice,
+                wtSlice,
+                convOp->get<std::array<unsigned short, 2>>("stride"),
+                convOp->get<std::array<unsigned short, 4>>("padding"),
+                convOp->get<unsigned>("dilationFactor"),
+                convOp->get<unsigned>("group"));
+
+            om.getSourceOp(newConvTensor)->setAttrs(convOp->getAttrs());
+            newConvTensor->setQuantParams(convOp->getOutputTensor(0)->getQuantParams());
+            newConvTensor->setDType(convOp->getOutputTensor(0)->getDType());
+            adjustedConvs.push_back(newConvTensor);
+        }
+
+        // Step 2
+        // Consider fusing the bias tensor in one partial sum
+
+        // !!! Bias is solved ealier on beacause of the requirement of adding bias
+        // before the requantization stage. A lucky conv is chosen at random to
+        // get fused with bias
+        // Clone the bias tensor and remove teh original occurence
+        auto biasOp = om.opEnd();
+        if (convOp.childrenSize() == 1 &&
+            convOp.leftmostChild()->getOpType() == "Bias")
+            biasOp = convOp.leftmostChild();
+
+        if(biasOp != om.opEnd())
+        {
+            auto luckyConvTensor = adjustedConvs.back();
+            auto biasConstOpClone = om.cloneOp(
+                om.getSourceOp(biasOp->getInputTensor(1)));
+
+            auto newBiasTensor = om.bias(
+                biasOp->getName() + "_inch_reduction_early_fused_bias",
+                luckyConvTensor,
+                biasConstOpClone->getOutputTensor(0));
+            om.getSourceOp(newBiasTensor)->set<unsigned>("opId",
+                biasOp->hasAttr("opId") ? biasOp->get<unsigned>("opId"):
+                convOp->get<unsigned>("opId"));
+            newBiasTensor->setQuantParams(convOp->getOutputTensor(0)->getQuantParams());
+            newBiasTensor->setDType(convOp->getOutputTensor(0)->getDType());
+
+            linkNewOperationsRemove(convOp, om.tensorEnd(), om, biasOp);
+
+            adjustedConvs.pop_back();
+            adjustedConvs.push_back(newBiasTensor);
+        }
+
+        // Step 3
+        // Add all partial sums in eltwise subtree
+
+        auto sumIdx = 0;
+        while (adjustedConvs.size() > 1)
+        {
+            auto partialSum = om.eltwise(
+                convOp->getName() + "_inch_reduction_eltwise_partial_sum" + std::to_string(sumIdx),
+                {
+                    *(adjustedConvs.end() - 1),
+                    *(adjustedConvs.end() - 2)
+                },
+                "Add");
+
+            om.getSourceOp(partialSum)->set<unsigned>("opId",
+                convOp->get<unsigned>("opId"));
+            partialSum->setQuantParams(convOp->getOutputTensor(0)->getQuantParams());
+            partialSum->setDType(convOp->getOutputTensor(0)->getDType());
+
+            adjustedConvs.pop_back();
+            adjustedConvs.pop_back();
+            adjustedConvs.push_back(partialSum);
+            sumIdx++;
+        }
+
+        // Step 4
+        // Consider the fusing of later on postops, provide
+        // an unity weights DW conv, best fit to fuse any post op
+        // since it supports per channel quant
+
+        // Eltwise has very limited support in terms of solving postOps
+        // be it Bias/Scale/Shift because of the lack of weights table,
+        // be it relu/leaky_relu/sigmoid because of current limitation of
+        // 1 single fixed post op per DPU execution, which is already consumed by
+        // the underlying eltwise operation type, "ADD" in this case
+        auto hasFusablePostOps = false;
+        for(auto childOp = convOp.leftmostChild(); childOp != om.opEnd(); ++childOp)
+            if (childOp->isHwFusable()) {
+                hasFusablePostOps = true;
+                break;
+            }
+
+        if (hasFusablePostOps) {
+
+            auto outDType = convOp->getOutputTensor(0)->getDType();
+            auto unityValue = 1.0;
+            auto unityWeightsData = std::vector<mv::DataElement>(
+                weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS],
+                mv::DataElement(outDType.isDoubleType(), unityValue));
+
+            // TODO: implement future generic handling for fp16 dtype cases
+            if (outDType == mv::DType("Float16"))
+                unityWeightsData = std::vector<mv::DataElement>(
+                weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS],
+                mv::DataElement(false, static_cast<int64_t>(mv::fp32_to_fp16(unityValue))));
+
+            double inf = std::numeric_limits<double>::infinity();
+            auto unityWeights = om.constantDataElement(
+                convOp->getName() + "_inch_reduction_fusable_op_wt",
+                unityWeightsData,
+                {1, 1, weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS], 1},
+                convOp->getOutputTensor(0)->getDType(),
+                mv::Order(mv::Order::getRowMajorID(4)));
+            unityWeights->setQuantParams({{0}, {1}, {-inf}, {inf}});
+
+            auto fusingTensor = om.depthwiseConv(
+                convOp->getName() + "_inch_reduction_fusable_op",
+                adjustedConvs[0],
+                unityWeights,
+                {1, 1},
+                {0, 0, 0, 0},
+                1);
+
+            om.getSourceOp(fusingTensor)->set<unsigned>("opId",
+                convOp->get<unsigned>("opId"));
+            om.getSourceOp(unityWeights)->set<unsigned>("opId",
+                convOp->get<unsigned>("opId"));
+
+            fusingTensor->setQuantParams(convOp->getOutputTensor(0)->getQuantParams());
+            fusingTensor->setDType(convOp->getOutputTensor(0)->getDType());
+            adjustedConvs.pop_back();
+            adjustedConvs.push_back(fusingTensor);
+        }
+
+        // Step 5
+        // Tie everything togheter
+        adjustedConvs[0]->set<mv::Tensor::MemoryLocation>("Location",
+            convOp->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location"));
+        linkNewMultipleOperationsReplacementRemoveFlows(om.getSourceOp(inputTensor), adjustedConvs, om, convOp);
+
+    }
+
 }

@@ -340,7 +340,105 @@
 
     "dtype":
     {
-        "global": "Float16"
+        "global": "Float16",
+        "hwCompatibilityCases": [
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "UInt8"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "Float16"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "UInt8"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "UInt8"
+                    }
+                ]
+            },
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "UInt8"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "Float16"
+                    }
+                ]
+            },
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "UInt8"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "Float16"
+                    }
+                ]
+            },
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "UInt8"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "Float16"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "Float16"
+                    }
+                ]
+            }
+        ]
     },
 
     "resources":
@@ -399,6 +497,29 @@
             {
                 "name": "Clusters",
                 "totalNumber": 4
+            }
+        ],
+        "processors":
+        [
+            {
+                "name": "LeonRT",
+                "totalNumber": 1
+            },
+            {
+                "name": "LeonNN",
+                "totalNumber": 1
+            },
+            {
+                "name": "UPAShaves",
+                "totalNumber": 1
+            },
+            {
+                "name": "NNShaves",
+                "totalNumber": 0
+            },
+            {
+                "name": "ARM",
+                "totalNumber": 2
             }
         ],
         "huffman_decode_engine":

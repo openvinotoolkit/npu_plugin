@@ -204,12 +204,11 @@ std::unique_ptr<MVCNN::SourceStructureT> mv::RuntimeModel::buildSourceStructureT
     std::unique_ptr<MVCNN::SourceStructureT> toBuild = std::unique_ptr<MVCNN::SourceStructureT>(new MVCNN::SourceStructureT());
 
     mv::OpModel opModel(cm);
-    auto inputOp = opModel.getInput();
-    toBuild->first_ID.push_back(inputOp->get<unsigned>("opId"));
+    for (auto inputOp : opModel.getNetworkInputs())
+        toBuild->first_ID.push_back(inputOp->get<unsigned>("opId"));
     toBuild->nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(opModel.opsCount());
     unsigned i = 0;
 
-    //auto ops = opModel.topologicalSort();
     for(auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
         toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, opIt);
 
@@ -807,7 +806,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderMetaI
 }
 
 
-std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> originalHeader)
+std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, const mv::TargetDescriptor& td, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> originalHeader)
 {
     mv::OpModel om(cm);
 
@@ -818,7 +817,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     toBuild->version = std::move(originalHeader->version);
     toBuild->original_structure = std::move(originalHeader->original_structure);
-    toBuild->resources = buildResourcesT(cm, compilationDescriptor);
+    toBuild->resources = buildResourcesT(cm, td, compilationDescriptor);
     toBuild->identifier = cm.getName();
 
     // Support multiple inputs
@@ -902,42 +901,103 @@ std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT(ComputationMode
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel& cm, mv::Element& /*compilationDescriptor*/)
+MVCNN::PhysicalProcessor mapProcessorName(const string& processorName)
+{
+    if (processorName == "LeonRT")
+        return MVCNN::PhysicalProcessor_LEON_RT;
+    if (processorName == "LeonNN")
+        return MVCNN::PhysicalProcessor_LEON_NN;
+    if (processorName == "UPAShaves")
+        return MVCNN::PhysicalProcessor_UPA_SHV;
+    if (processorName == "NNShaves")
+        return MVCNN::PhysicalProcessor_NN_SHV;
+    if (processorName == "ARM")
+        return MVCNN::PhysicalProcessor_ARM;
+    return MVCNN::PhysicalProcessor_NULL;
+}
+
+std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel& cm, const mv::TargetDescriptor& td, mv::Element& compilationDescriptor)
+
 {
     std::unique_ptr<MVCNN::ResourcesT> toBuild = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
     auto globalConfigurationParams = cm.getGlobalConfigParams();
 
     toBuild->processor_allocation = std::vector<std::unique_ptr<MVCNN::ProcessorMappingT>>();
-    if(globalConfigurationParams->hasAttr("UpaShaves")){
-        std::unique_ptr<MVCNN::ProcessorMappingT> upaSHVProcessor =
+
+    auto processDefs = td.processorDefs();
+    for (const auto &proc : processDefs)
+    {
+        std::unique_ptr<MVCNN::ProcessorMappingT> processorEntry =
+             std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
+        processorEntry->item = mapProcessorName(proc.first);
+        processorEntry->number = proc.second;
+        if (processorEntry->item != MVCNN::PhysicalProcessor_NULL)
+            toBuild->processor_allocation.push_back(std::move(processorEntry));
+     }
+  
+     if(globalConfigurationParams->hasAttr("Number_of_DPUs")){
+        std::unique_ptr<MVCNN::ProcessorMappingT> NNDPUProcessor =
             std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
-        upaSHVProcessor->item= MVCNN::PhysicalProcessor_UPA_SHV;
-        setIfPresent<double, int>(upaSHVProcessor->number, *globalConfigurationParams , "UpaShaves");
-        toBuild->processor_allocation.push_back(std::move(upaSHVProcessor));
-    }
-    if(globalConfigurationParams->hasAttr("Number_of_Clusters")){
-        std::unique_ptr<MVCNN::ProcessorMappingT> NNClusterProcessor =
-            std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
-        NNClusterProcessor->item= MVCNN::PhysicalProcessor_NCE_Cluster ;
-        setIfPresent<double, int>(NNClusterProcessor->number, *globalConfigurationParams , "Number_of_Clusters");
-        toBuild->processor_allocation.push_back(std::move(NNClusterProcessor));
+        NNDPUProcessor->item= MVCNN::PhysicalProcessor_NCE_PerClusterDPU;
+        setIfPresent<double, int>(NNDPUProcessor->number, *globalConfigurationParams , "Number_of_DPUs");
+        if(globalConfigurationParams->hasAttr("Number_of_Clusters")){
+            int clusterNumber = globalConfigurationParams->get<int>("Number_of_Clusters");
+            NNDPUProcessor->number = NNDPUProcessor->number / (double)clusterNumber;
+        }
+        toBuild->processor_allocation.push_back(std::move(NNDPUProcessor));
     }
 
+    //clusters
+    std::unique_ptr<MVCNN::ProcessorMappingT> NNClusterProcessor =
+        std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
+    NNClusterProcessor->item= MVCNN::PhysicalProcessor_NCE_Cluster ;
+    setIfPresent<double, int>(NNClusterProcessor->number, *globalConfigurationParams , "Number_of_Clusters");
+    toBuild->processor_allocation.push_back(std::move(NNClusterProcessor));
+
     toBuild->memory_sizes = std::vector<std::unique_ptr<MVCNN::MemoryMappingT>>();
-    if(globalConfigurationParams->hasAttr("cmx")){
+    if(globalConfigurationParams->hasAttr("totalCmx")){
         std::unique_ptr<MVCNN::MemoryMappingT> cmxMemorySize =
             std::unique_ptr<MVCNN::MemoryMappingT>(new MVCNN::MemoryMappingT());
         cmxMemorySize->item= MVCNN::PhysicalMem_NN_CMX;
-        setIfPresent<double, unsigned>(cmxMemorySize->number, *globalConfigurationParams , "cmx");
+        setIfPresent<double, unsigned>(cmxMemorySize->number, *globalConfigurationParams , "totalCmx");
         toBuild->memory_sizes.push_back(std::move(cmxMemorySize));
     }
     if(globalConfigurationParams->hasAttr("DDRScratch")){
         std::unique_ptr<MVCNN::MemoryMappingT> DDRMemorySize =
             std::unique_ptr<MVCNN::MemoryMappingT>(new MVCNN::MemoryMappingT());
         DDRMemorySize->item= MVCNN::PhysicalMem_DDR;
-        setIfPresent<double, int>(DDRMemorySize->number, *globalConfigurationParams , "DDRScratch");
+        // Set DDR scratch value to high watermark, which is saved in BufferMap
+        // Actually globalConfigParams in cm is also reset by high watermark so they're the same
+        DDRMemorySize->number= (cm.bufferMap().getScratch()) ? cm.bufferMap().getScratch()->getSize() : 0;
         toBuild->memory_sizes.push_back(std::move(DDRMemorySize));
     }
+
+    toBuild->memory_bandwidth = std::vector<std::unique_ptr<MVCNN::MemoryRelationshipMappingT>>();
+    if(globalConfigurationParams->hasAttr("memoryBandwidth")){
+        std::unique_ptr<MVCNN::MemoryRelationshipMappingT> ddrToCMX =
+            std::unique_ptr<MVCNN::MemoryRelationshipMappingT>(new MVCNN::MemoryRelationshipMappingT());
+        ddrToCMX->from_item= MVCNN::PhysicalMem_DDR;
+        ddrToCMX->to_item= MVCNN::PhysicalMem_NN_CMX;
+        setIfPresent<double, int>(ddrToCMX->number, *globalConfigurationParams , "memoryBandwidth");
+        toBuild->memory_bandwidth.push_back(std::move(ddrToCMX));
+
+        std::unique_ptr<MVCNN::MemoryRelationshipMappingT> cmxToDDR =
+            std::unique_ptr<MVCNN::MemoryRelationshipMappingT>(new MVCNN::MemoryRelationshipMappingT());
+        cmxToDDR->from_item= MVCNN::PhysicalMem_NN_CMX;
+        cmxToDDR->to_item= MVCNN::PhysicalMem_DDR;
+        setIfPresent<double, int>(cmxToDDR->number, *globalConfigurationParams , "memoryBandwidth");
+        toBuild->memory_bandwidth.push_back(std::move(cmxToDDR));
+    }
+
+    toBuild->processor_frequencies = std::vector<std::unique_ptr<MVCNN::ProcessorMappingT>>();
+    if(globalConfigurationParams->hasAttr("systemClockMhz")){
+        std::unique_ptr<MVCNN::ProcessorMappingT> dpuFreq =
+            std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
+        dpuFreq->item= MVCNN::PhysicalProcessor_NCE_Cluster;
+        setIfPresent<double, int>(dpuFreq->number, *globalConfigurationParams , "systemClockMhz");
+        toBuild->processor_frequencies.push_back(std::move(dpuFreq));
+    }
+
     return toBuild;
 }
 
@@ -954,8 +1014,14 @@ std::vector<uint64_t> packToInt64(const std::vector<T>& origData, mv::DType dtyp
 
     for(unsigned i = 0; i < finalLength; ++i)
         for(unsigned j = 0; j < nElementToPack; ++j)
-            if ((i*nElementToPack + j) < dataSize)
-                toReturn[i] ^= origData[i*nElementToPack + j] << (j * origDataSize);
+            if ((i*nElementToPack + j) < dataSize) {
+                // When the elements packed in the less significant part ot he long unsingned int value
+                // are negative, the sign extension gets copied over the more significant parts. As a result,
+                // when the next element gets packed it wil have its bits flipped due to XOR.
+                // That's why the mask is needed.
+                const long unsigned int mask = (static_cast<long unsigned int>(1) << origDataSize) - 1;
+                toReturn[i] ^= (origData[i*nElementToPack + j] & mask) << (j * origDataSize);
+            }
 
     return toReturn;
 }
@@ -1295,13 +1361,6 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_WIDTH_DIMENSION, false);
             }
         }
-        if (direction == mv::NNCMX2DDR && (om.getSourceOp(src) != om.opEnd()) &&
-              om.getSourceOp(src)->getOpType() == "Crop")
-        {
-            if (om.getSourceOp(om.getSourceOp(src)->getInputTensor(0))->getOpType() == "DPUTask")
-                if (om.getSourceOp(om.getSourceOp(src)->getInputTensor(0))->get<std::string>("taskOp") == "DepthwiseConv")
-                    alignTensor(cm, tmp->src, src->getSubTensor(i), IO_WIDTH_DIMENSION, false);
-        }
 
 
 
@@ -1346,6 +1405,19 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 sourceIsBroadCasted = true;
         }
     }
+    else if (direction == mv::DmaDirectionEnum::NNCMX2DDR)
+    {
+        if (outputTensor->hasAttr("overwriteStrategy"))
+        {
+            if (outputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+            {
+                sourceIsBroadCasted = false;
+                splitting = "SoHToClustering";
+            }
+            else if (outputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
+                sourceIsBroadCasted = true;
+        }
+    }
 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
 
@@ -1366,34 +1438,23 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
         auto sinkOperators = findSinkLayers(dm, omOpIt->getOutputTensor(0));
 
-        if (sinkOperators[0]->getOpType() == "Align")
+        if ((sinkOperators[0]->getOpType() == "Align" && sinkOperators[0]->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped") ||
+            (omOpIt->getOutputTensor(0)->hasAttr("splitStrategy") && omOpIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
         {
-            if (sinkOperators[0]->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
+            if (parentOp->getOpType() == "DMATask")
             {
+                // Indicate dmaToDma case if we have DMA(CMX2DDR)->DMA(DDR2CMX)
                 auto parentDirection = parentOp->get<mv::DmaDirection>("direction");
                 if (parentDirection == mv::NNCMX2DDR && direction == mv::DDR2NNCMX)
-                {
                     dmaToDma = true;
-                }
             }
-        }
-        else if (omOpIt->getOutputTensor(0)->hasAttr("splitStrategy"))
-        {
-            if (omOpIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
+            else if ((parentOp->getOpType() == "ImplicitConcat" && direction == mv::DDR2NNCMX))
             {
-                if (parentOp->getOpType() == "DMATask")
-                {
-                    auto parentDirection = parentOp->get<mv::DmaDirection>("direction");
-                    if (parentDirection == mv::NNCMX2DDR && direction == mv::DDR2NNCMX)
-                        dmaToDma = true;
-                }
-                else if ((parentOp->getOpType() == "ImplicitConcat" && direction == mv::DDR2NNCMX))
-                {
-                    dmaToDma = true;
-                }
+                // Indicate dmaToDma case if we have DMA(CMX2DDR)->ImplicitConcat->DMA(DDR2CMX)
+                // TODO: Concat case should be revisited as concat might happen in CMX
+                dmaToDma = true;
             }
         }
-
     }
 
     std::uint8_t port = opIt->get<std::uint8_t>("port");
@@ -1956,7 +2017,12 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
             return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
         case mv::MPE_Mode::Vector_FP16:
             return MVCNN::MPE_Mode::MPE_Mode_VECTOR_FP16;
-
+        case mv::MPE_Mode::CUBOID_16x16:
+            return MVCNN::MPE_Mode::MPE_Mode_CUBOID_16x16;
+        case mv::MPE_Mode::CUBOID_4x16:
+            return MVCNN::MPE_Mode::MPE_Mode_CUBOID_4x16;
+        case mv::MPE_Mode::CUBOID_8x16:
+            return MVCNN::MPE_Mode::MPE_Mode_CUBOID_8x16;
         default:
             return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
     }
@@ -2867,10 +2933,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& /*c
     return toBuild;
 }
 
-MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomOclTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto toBuild = new MVCNN::UPALayerTaskT();
-    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CustomLayerParams;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CustomLayerOclParams;
 
     for (size_t i = 0; i < opIt->inputSlots(); i++) {
         const auto input = opIt->getInputTensor(i);
@@ -2882,7 +2948,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomTask(ComputationModel& cm
         toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
     }
 
-    auto softParams = new MVCNN::CustomLayerParamsT();
+    auto softParams = new MVCNN::CustomLayerOclParamsT();
     toBuild->softLayerParams.value = softParams;
 
     softParams->leonPreambleID = -1u;  // unused
@@ -2910,6 +2976,48 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomTask(ComputationModel& cm
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomCppTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CustomLayerCppParams;
+
+    for (size_t i = 0; i < opIt->inputSlots(); i++) {
+        const auto input = opIt->getInputTensor(i);
+        toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    }
+
+    for (size_t i = 0; i < opIt->outputSlots(); i++) {
+        const auto output = opIt->getOutputTensor(i);
+        toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+    }
+
+    auto softParams = new MVCNN::CustomLayerCppParamsT();
+    toBuild->softLayerParams.value = softParams;
+
+    softParams->leonPreambleID = -1u;  // unused
+
+    const auto pack = [](const std::vector<uint8_t>& src) {
+        auto packed = std::vector<uint64_t>(ceil_division(src.size(), 8));
+        for (size_t i = 0; i < src.size(); i++) {
+            ((uint8_t *) packed.data())[i] = src[i];
+        }
+        return packed;
+    };
+
+    const auto paramData = opIt->get<std::vector<uint8_t>>("paramData");
+    softParams->paramData = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
+    softParams->paramData->underlying_type = MVCNN::DType::DType_U8;
+    softParams->paramData->data = pack(paramData);
+    softParams->paramData->length = paramData.size();
+
+    const auto kernelData = opIt->get<std::vector<uint8_t>>("kernelData");
+    softParams->kernelData = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
+    softParams->kernelData->underlying_type = MVCNN::DType::DType_U8;
+    softParams->kernelData->data = pack(kernelData);
+    softParams->kernelData->length = kernelData.size();
+
+    return toBuild;
+}
 
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADeconvTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -3156,6 +3264,24 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationMo
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReluTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_UnaryOpParams;
+    auto softLayerParamsValue = new MVCNN::UnaryOpParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::UnaryOpNestedParams_ReluParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -3205,8 +3331,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAPriorboxTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Argmax")
         toReturn[0]->task.value = buildUPAArgmaxTask(cm, compilationDescriptor, opIt);
-    else if(underlyingTask == "Custom")
-        toReturn[0]->task.value = buildUPACustomTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "CustomOcl")
+        toReturn[0]->task.value = buildUPACustomOclTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "CustomCpp")
+        toReturn[0]->task.value = buildUPACustomCppTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "topK")
         toReturn[0]->task.value = buildUPATopKTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Deconv")
@@ -3225,6 +3353,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAHSwishTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Conversion")
         toReturn[0]->task.value = buildUPAConversionTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Relu")
+        toReturn[0]->task.value = buildUPAReluTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 
@@ -3334,14 +3464,24 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
                 {
                     if (inputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
                         sourceIsBroadCasted = false;
+                    else if (inputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+                        sourceIsBroadCasted = true;
                 }
             }
-            //NOTE: In case I spill from soh and I bring a sok tensor is not broadcasted
-            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverH" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK")
-                    || (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK"))
-                toReturn = 1;
-            // NOTE: a sok tensor might come from a different strategy op
-            else if(!sourceIsBroadCasted)
+            else if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2DDR)
+            {
+                auto outputTensor = opIt->getOutputTensor(0);
+                // inputTensor->setShape(outputTensor->getShape());
+                 if (outputTensor->hasAttr("overwriteStrategy"))
+                 {
+                     if (outputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
+                         sourceIsBroadCasted = true;
+                     else if (outputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+                         sourceIsBroadCasted = false;
+                 }
+            }
+
+            if(!sourceIsBroadCasted)
                 toReturn = numClusters;
             else
                 toReturn = 1;
@@ -3415,7 +3555,7 @@ void mv::RuntimeModel::buildHeader(ComputationModel &cm, Element &compilationDes
     graphFile_.header = buildSummaryHeaderMetaInformations(cm, compilationDescriptor);
 }
 
-void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compilationDescriptor)
+void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDescriptor& td, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
     mv::DataModel dm(cm);
@@ -3424,8 +3564,10 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
     auto globalConfigurationParameters = cm.getGlobalConfigParams();
     auto huffmanCompression = globalConfigurationParameters->get<bool>("HuffmanCompression");
+    bool hasCSRAM = (globalConfigurationParameters->hasAttr("csramLimit") &&
+                        globalConfigurationParameters->get<int>("csramLimit") != 0);
 
-    graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header));
+    graphFile_.header = buildSummaryHeaderT(cm, td, compilationDescriptor, std::move(graphFile_.header));
 
     // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
@@ -3468,7 +3610,8 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
             // including program inputs and spilled tensors.  This is fine; the cacheable info will only be
             // accessed for tensors that we're actually adding to the output.
             auto direction = opIterator->get<mv::DmaDirection>("direction");
-            if (direction != mv::DmaDirectionEnum::NNCMX2UPACMX &&
+            if (hasCSRAM &&
+                direction != mv::DmaDirectionEnum::NNCMX2UPACMX &&
                 direction != mv::DmaDirectionEnum::UPACMX2NNCMX &&
                 direction != mv::DmaDirectionEnum::DDR2UPACMX   &&
                 direction != mv::DmaDirectionEnum::UPACMX2DDR)

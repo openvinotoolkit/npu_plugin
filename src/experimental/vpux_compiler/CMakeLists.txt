@@ -170,11 +170,14 @@ macro(add_rewriters subdir)
     unset(rewriters_sources)
 endmacro()
 
+add_op_interfaces("core")
+
 add_enum_attrs("dialect/IE")
-add_op_interfaces("dialect/IE")
 add_dialect("IE")
 add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")
+
+add_dialect("IERT")
 
 add_op_interfaces("dialect/VPUIP")
 add_enum_attrs("dialect/VPUIP")
@@ -185,6 +188,8 @@ add_passes("dialect/VPUIP" "VPUIP")
 
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")
+
+add_passes("pipelines" "Pipelines")
 
 file(GLOB_RECURSE TBLGEN_SOURCES "*.td")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TBLGEN_SOURCES})
@@ -255,6 +260,7 @@ link_system_libraries(${OBJ_TARGET_NAME}
         MLIRTranslation
         MLIRStandardOpsTransforms
         MLIRLinalg
+        MLIRShape
         flatbuffers
         # TODO: get rid of this dependency
         IE::vpu_common_lib

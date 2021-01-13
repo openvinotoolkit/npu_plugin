@@ -89,3 +89,29 @@ inline std::ostream& operator<<(std::ostream& os, const Pad2D& p) {
 ngraph::element::Type precisionToType(const Precision& precision);
 
 Precision typeToPrecision(const ngraph::element::Type& type);
+
+//
+// Custom layers
+//
+
+enum class KernelType : int {
+    Native,
+    Ocl,
+    Cpp,
+};
+
+inline std::ostream& operator<<(std::ostream& os, const KernelType& p) {
+    switch (p) {
+        case KernelType::Native:
+            vpu::formatPrint(os, "Native");
+            break;
+        case KernelType::Ocl:
+            vpu::formatPrint(os, "OCL");
+            break;
+        case KernelType::Cpp:
+            vpu::formatPrint(os, "CPP");
+            break;
+    }
+
+    return os;
+}

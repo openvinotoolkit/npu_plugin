@@ -157,7 +157,7 @@ void printTopResults(const Blob::Ptr& referenceOutputBlob, const Blob::Ptr& outp
     }
 }
 
-TEST_P(VpuInferWithPath, canDoInferenceOnImportedBlob) {
+TEST_P(VpuInferWithPath, DISABLED_canDoInferenceOnImportedBlob) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string modelFilePath = ModelsPath() + blobsInfo._graphPath;
 
@@ -170,7 +170,7 @@ TEST_P(VpuInferWithPath, canDoInferenceOnImportedBlob) {
     ASSERT_NO_THROW(inferRequest.Infer());
 }
 
-TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
+TEST_P(VpuInferWithPath, DISABLED_compareInferenceOutputWithReference) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -226,7 +226,7 @@ class VpuInferAndCompareTestsWithParam :
     public vpuLayersTests,
     public testing::WithParamInterface<std::tuple<bool, modelBlobsInfo>> {};
 
-TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
+TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
     std::tuple<bool, modelBlobsInfo> paramTuple = GetParam();
     bool isSync = std::get<0>(paramTuple);
     modelBlobsInfo blobsInfo = std::get<1>(paramTuple);
@@ -315,7 +315,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
     }
 }
 
-TEST_P(VpuInferWithPath, asyncInferCallback) {
+TEST_P(VpuInferWithPath, DISABLED_asyncInferCallback) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -401,7 +401,7 @@ TEST_P(VpuInferWithPath, asyncInferCallback) {
     }
 }
 
-TEST_P(VpuInferWithPath, asyncInferCallbackRecursive) {
+TEST_P(VpuInferWithPath, DISABLED_asyncInferCallbackRecursive) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -481,7 +481,7 @@ const static std::vector<bool> isSyncVec = {false, true};
 INSTANTIATE_TEST_CASE_P(precommit, VpuInferAndCompareTestsWithParam,
     ::testing::Combine(::testing::ValuesIn(isSyncVec), ::testing::ValuesIn(pathToPreCompiledGraph)));
 
-TEST_P(VpuInferWithPath, compareOutputsTwoNetworks) {
+TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -575,7 +575,7 @@ const static std::vector<TopNetTest> pathToTop3PreCompiledGraph = {
 
 class VpuInferWithPathForTop3Net : public vpuLayersTests, public testing::WithParamInterface<TopNetTest> {};
 
-TEST_P(VpuInferWithPathForTop3Net, canDoInferenceOnTop3ImportedBlobs) {
+TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
     modelBlobsInfo blobsInfo = GetParam().info;
     std::string modelFilePath = ModelsPath() + blobsInfo._graphPath;
     std::string inputDataPath = ModelsPath() + blobsInfo._inputPath;

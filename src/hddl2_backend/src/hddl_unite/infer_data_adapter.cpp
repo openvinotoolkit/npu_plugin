@@ -42,8 +42,8 @@ static void checkDataNotNull(const IE::DataPtr& desc) {
 //  It useful for if user set NV12 blob, run inference, and after call set blob with BGR blob, not NV
 //  This will require recreating of BlobDesc due to different color format / size;
 void InferDataAdapter::createInferData() {
-    _inferDataPtr = HddlUnite::Inference::makeInferData(
-        _auxBlob, _workloadContext, maxRoiNum, _networkDescription->getDeviceOutputsInfo().size());
+    _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, _workloadContext, maxRoiNum,
+                                                        _networkDescription->getDeviceOutputsInfo().size());
     if (_inferDataPtr.get() == nullptr) {
         THROW_IE_EXCEPTION << "InferDataAdapter: Failed to create Unite inferData";
     }
@@ -55,7 +55,7 @@ void InferDataAdapter::createInferData() {
 
         const bool isInput = true;
         std::shared_ptr<BlobDescriptorAdapter> blobDescriptorPtr(
-            new BlobDescriptorAdapter(getBlobType(_haveRemoteContext), blobDesc, _graphColorFormat, isInput));
+                new BlobDescriptorAdapter(getBlobType(_haveRemoteContext), blobDesc, _graphColorFormat, isInput));
 
         _inputs[inputName] = blobDescriptorPtr;
     }
@@ -67,7 +67,7 @@ void InferDataAdapter::createInferData() {
 
         const bool isInput = false;
         std::shared_ptr<BlobDescriptorAdapter> blobDescriptorPtr(
-            new BlobDescriptorAdapter(getBlobType(_haveRemoteContext), blobDesc, _graphColorFormat, isInput));
+                new BlobDescriptorAdapter(getBlobType(_haveRemoteContext), blobDesc, _graphColorFormat, isInput));
 
         const auto HDDLUniteBlobDesc = blobDescriptorPtr->createUniteBlobDesc(isInput);
         _inferDataPtr->createBlob(outputName, HDDLUniteBlobDesc, isInput);
@@ -77,12 +77,13 @@ void InferDataAdapter::createInferData() {
 }
 //------------------------------------------------------------------------------
 InferDataAdapter::InferDataAdapter(const vpux::NetworkDescription::CPtr& networkDescription,
-    const HddlUnite::WorkloadContext::Ptr& workloadContext, const InferenceEngine::ColorFormat colorFormat)
-    : _networkDescription(networkDescription),
-      _workloadContext(workloadContext),
-      _graphColorFormat(colorFormat),
-      _haveRemoteContext(workloadContext != nullptr),
-      _needUnitePreProcessing(true) {
+                                   const HddlUnite::WorkloadContext::Ptr& workloadContext,
+                                   const InferenceEngine::ColorFormat colorFormat)
+        : _networkDescription(networkDescription),
+          _workloadContext(workloadContext),
+          _graphColorFormat(colorFormat),
+          _haveRemoteContext(workloadContext != nullptr),
+          _needUnitePreProcessing(true) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
     if (networkDescription == nullptr) {
         THROW_IE_EXCEPTION << "InferDataAdapter: NetworkDescription is null";
@@ -94,13 +95,14 @@ void InferDataAdapter::setPreprocessFlag(const bool preprocessingRequired) {
     _needUnitePreProcessing = preprocessingRequired;
 }
 
-static bool isInputBlobDescAlreadyCreated(
-    const HddlUnite::Inference::InferData::Ptr& inferDataPtr, const std::string inputBlobName) {
+static bool isInputBlobDescAlreadyCreated(const HddlUnite::Inference::InferData::Ptr& inferDataPtr,
+                                          const std::string inputBlobName) {
     const auto& inputBlobs = inferDataPtr->getInBlobs();
-    auto result = std::find_if(inputBlobs.begin(), inputBlobs.end(),
-        [&inputBlobName](const std::pair<std::string, HddlUnite::Inference::InBlob::Ptr>& element) {
-            return element.first == inputBlobName;
-        });
+    auto result =
+            std::find_if(inputBlobs.begin(), inputBlobs.end(),
+                         [&inputBlobName](const std::pair<std::string, HddlUnite::Inference::InBlob::Ptr>& element) {
+                             return element.first == inputBlobName;
+                         });
     return result != inputBlobs.end();
 }
 
@@ -119,7 +121,7 @@ void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob
     if (!blobDescSuitable) {
         const auto& deviceInputInfo = _networkDescription->getDeviceInputsInfo().at(inputName);
         std::shared_ptr<BlobDescriptorAdapter> newBlobDescriptorPtr(
-            new BlobDescriptorAdapter(blob, _graphColorFormat, deviceInputInfo));
+                new BlobDescriptorAdapter(blob, _graphColorFormat, deviceInputInfo));
 
         _inputs[inputName] = newBlobDescriptorPtr;
         blobDescriptorPtr = newBlobDescriptorPtr;

@@ -12,9 +12,9 @@
 namespace LayerTestsDefinitions {
 
 class KmbCTCGreedyDecoderLayerTest: public CTCGreedyDecoderLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override {
-        return CTCGreedyDecoderLayerTest::CalculateRefs();
-    };
+    void SkipBeforeImport() override {
+        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+    }
 };
 
 TEST_P(KmbCTCGreedyDecoderLayerTest, CompareWithRefs) {
@@ -34,9 +34,9 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 const std::vector<bool> mergeRepeated = {true, false};
 
 const std::vector<InferenceEngine::SizeVector> inputShapes = {
-    InferenceEngine::SizeVector {1, 100, 1, 1},
-    InferenceEngine::SizeVector {1, 3, 4, 3},
-    InferenceEngine::SizeVector {2, 3, 4, 5},
+    InferenceEngine::SizeVector { 88, 1, 71 },
+    InferenceEngine::SizeVector { 10, 1, 16 },
+    InferenceEngine::SizeVector { 5, 4, 3 },
 };
 
 const auto params = testing::Combine(
@@ -52,7 +52,7 @@ const auto params = testing::Combine(
 
 // TODO: [Track number: C#40001]
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_CTCDecoder,
+    CTCGreedyDecoder,
     KmbCTCGreedyDecoderLayerTest,
     params,
     CTCGreedyDecoderLayerTest::getTestCaseName

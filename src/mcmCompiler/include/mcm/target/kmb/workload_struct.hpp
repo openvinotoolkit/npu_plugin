@@ -14,7 +14,10 @@ namespace mv
     {
         Vector,
         Matrix,
-        Vector_FP16
+        Vector_FP16,
+        CUBOID_16x16,
+        CUBOID_8x16,
+        CUBOID_4x16
     };
     struct Workload
     {

@@ -18,7 +18,7 @@
 
 #include "vpux/compiler/core/dims_order.hpp"
 
-#include <mlir/IR/Attributes.h>
+#include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/OpImplementation.h>
 
 using namespace vpux;
@@ -62,6 +62,22 @@ void vpux::VPUIP::VPUIPDialect::initialize() {
             >();
 
     addInterfaces<VPUIPDialectAsmHooks>();
+}
+
+mlir::Operation* vpux::VPUIP::VPUIPDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value,
+                                                                mlir::Type type, mlir::Location loc) {
+    if (!value.isa<mlir::DenseElementsAttr>()) {
+        printTo(mlir::emitError(loc), "Can't materialize VPUIP Constant from Attribute '{0}'", value);
+        return nullptr;
+    }
+
+    if (!type.isa<mlir::MemRefType>()) {
+        printTo(mlir::emitError(loc), "Can't materialize VPUIP Constant for Type '{0}'", type);
+        return nullptr;
+    }
+
+    return builder.create<VPUIP::DeclareConstantTensorOp>(loc, type.cast<mlir::MemRefType>(),
+                                                          value.cast<mlir::DenseElementsAttr>());
 }
 
 mlir::Type vpux::VPUIP::VPUIPDialect::parseType(mlir::DialectAsmParser& parser) const {

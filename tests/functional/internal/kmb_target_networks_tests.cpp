@@ -244,10 +244,10 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
         0.6, 0.4, 0.4, false);
 }
 
-#ifdef KMB_HAS_CUSTOM_KERNELS
+#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
-        getIELibraryPath() + "/kmb_custom_kernels/yolov2.xml");
+        getIELibraryPath() + "/kmb_custom_ocl_kernels/yolov2.xml");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -257,7 +257,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
         TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
-#endif  // KMB_HAS_CUSTOM_KERNELS
+#endif  // KMB_HAS_CUSTOM_OCL_KERNELS
 
 // KMB : Bad inference results. Possible bug in test system.
 // [Track number: S#28790]
@@ -271,7 +271,13 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
         0.6, 0.4, 0.4, false);
 }
 
+
+// Compilation fails on windows
+// [Track number: D#44765]
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32) {
+#ifdef _WIN32
+    SKIP() << "LpScheduler - RuntimeError: input is not a DAG";
+#endif
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -281,10 +287,10 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
         0.6, 0.4, 0.4, false);
 }
 
-#ifdef KMB_HAS_CUSTOM_KERNELS
+#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
-        getIELibraryPath() + "/kmb_custom_kernels/yolov2.xml");
+        getIELibraryPath() + "/kmb_custom_ocl_kernels/yolov2.xml");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -294,9 +300,14 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
         TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
-#endif  // KMB_HAS_CUSTOM_KERNELS
+#endif  // KMB_HAS_CUSTOM_OCL_KERNELS
 
+// Compilation fails on windows
+// [Track number: D#44765]
 TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
+#ifdef _WIN32
+    SKIP() << "LpScheduler - RuntimeError: input is not a DAG";
+#endif
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -377,7 +388,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_f
         1, 0.05f);
 }
 
-TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_legacy_parser) {
+TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_googlenet_v3_tf_dense_int8_IRv10_legacy_parser) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/googlenet-v3/googlenet_v3_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -773,8 +784,6 @@ TEST_F(KmbRFCNNetworkTest, DISABLED_rfcn_resnet50_caffe_IRV10_fp16_int8) {
 // End of test-set for IRv10 FP16 to INT8 quantization
 ////////////////////////////////////////////////////////////
 
-// Bad accuracy
-// [Track number: S#39421]
 TEST_F(KmbClassifyNetworkTest, emotion_recognition_retail_0003) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/emotions-recognition-retail-0003/emotions-recognition-retail-0003_int8_from_fp16.xml")
@@ -903,7 +912,11 @@ TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
 }
 
 // TODO Create ticket
-TEST_F(HeadPoseEstimationNetworkTest, head_pose_estimation_adas_0001) {
+// Disabled for now due to hw incompatible dtype combination
+// U8 input and FP16 weights
+// Future PR will provide a mitigation and renable this test case
+// Issue to track: CVS-39964
+TEST_F(HeadPoseEstimationNetworkTest, DISABLED_head_pose_estimation_adas_0001) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/head_pose_estimation_adas_0001/head-pose-estimation-adas-0001.xml")
@@ -956,18 +969,37 @@ TEST_F(KmbDetectionNetworkTest, person_detection_retail_0013) {
         0.1f, 0.3f);
 }
 
-// C++ exception with description "Caught exception during unit run:
-// propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams
-// [Track number: S#40387]
-TEST_F(KmbClassifyNetworkTest, DISABLED_densenet_121) {
+
+TEST_F(KmbClassifyNetworkTest, densenet_121_caffe_dense_int8_IRv10) {
     runTest(
-        TestNetworkDesc("KMB_models/INT8/public/densenet-121/densenet-121.xml")
-            .setUserInputPrecision("input", Precision::U8),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+        TestNetworkDesc("KMB_models/INT8/public/densenet-121/caffe/densenet_121_caffe_dense_int8_IRv10-ww42.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserOutputPrecision("output", Precision::FP32),
+        TestImageDesc("224x224/watch.bmp", ImageFormat::BGR),
         1,
         0.3f);
 }
 
+
+TEST_F(KmbClassifyNetworkTest, densenet_121_tf_dense_int8_IRv10) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/densenet-121/tf/densenet_121_tf_dense_int8_IRv10-ww42.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserOutputPrecision("output", Precision::FP32),
+        TestImageDesc("224x224/watch.bmp", ImageFormat::BGR),
+        1,
+        0.3f);
+}
+
+TEST_F(KmbClassifyNetworkTest, densenet_169_caffe_dense_int8_IRv10) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/densenet-169/caffe/densenet_169_caffe_dense_int8_IRv10-ww42.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserOutputPrecision("output", Precision::FP32),
+        TestImageDesc("224x224/rattlesnake.bmp", ImageFormat::BGR),
+        1,
+        0.3f);
+}
 // C++ exception with description "Cannot convert layer "efficientnet-b0/model/stem/swish_f32"
 // due to unsupported layer type "Swish"
 // [Track number: D#3769]
@@ -983,7 +1015,11 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_efficientnet_b0) {
 // C++ exception with description "Cannot convert layer "MobilenetV3/Conv/hard_swish/mul_1"
 // due to unsupported layer type "HSwish"
 // [Track number: D#3775]
-TEST_F(KmbClassifyNetworkTest, mobilenet_v3_small) {
+// Disabled for now due to hw incompatible dtype combination
+// U8 input and FP16 weights
+// Future PR will provide a mitigation and renable this test case
+// Issue to track: CVS-39964
+TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_small) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     runTest(
         TestNetworkDesc("KMB_models/FP16-INT8/private/mobilenet-v3-small-1.0-224/mobilenet-v3-small-1.0-224.xml")
@@ -1010,4 +1046,96 @@ TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
         TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
         0.3f,
         0.1f, 0.3f);
+}
+
+// [Track number: D#45024]
+TEST_F(SmokeNetworkTest, precommit_text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/text-detection-0004/tf/FP16-INT8/text-detection-0004-ww48.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32));
+}
+
+// [Track number: D#45024]
+TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/text-detection-0003/tf/FP16-INT8/text-detection-0003-ww48.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32));
+}
+
+// Prevent DDR2DDR DMA Test
+TEST_F(SmokeNetworkTest, yolo_v4_subgraph_ddr_output_test) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/yolo_v4_subgraph/FP16-INT8/yolo_v4_subgraph.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP16));
+}
+
+
+// Regression on compilation due to latest rebase
+TEST_F(KmbVasFDStage1Test, DISABLED_precommit_vasfd_stage1) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+    const std::string inputName = "data";
+    const std::vector<std::string> layerNames = {
+        "b12", "b16", "b24", "b32", "b48",
+        "b64", "b96", "b128", "b192"};
+    const std::vector<int> anchorSizes = {4, 3, 2, 3, 2, 3, 2, 3, 2};
+    const std::vector<int> windowScales = {8, 8, 8, 16, 16, 32, 32, 64, 64};
+    const std::vector<int> windowLengths = {12, 16, 24, 32, 48, 64, 96, 128, 192};
+
+    runTest(
+        TestNetworkDesc("KMB_models/FP16/face_detection_stage1/vasfd_stage1.xml")
+            .setUserInputLayout(inputName, Layout::NHWC)
+            .setUserInputPrecision(inputName, Precision::FP16),
+    TestImageDesc("320x240/Alma_Powell_0_0.1133.jpg", ImageFormat::BGR),
+    0.35f, 0.1f, 0.3f, layerNames, anchorSizes, windowScales, windowLengths);
+}
+
+
+TEST_F(KmbVasFDStage2Test, precommit_vasfd_stage2) {
+    const std::string inputName = "data";
+    const KmbVasFDStage2Test::Candidate candidate = {118.36408299, 50.26568365, 158.98897427, 125.54895544};
+    runTest(
+        TestNetworkDesc("KMB_models/FP16-INT8/private/face_detection_stage2/vasfd_stage2.xml")
+            .setUserInputPrecision(inputName, Precision::U8),
+        TestImageDesc("48x48/Alma_Powell_0_0.1133.jpg", ImageFormat::BGR),
+        0.5f, 1, 0.3f, candidate);
+}
+
+
+TEST_F(KmbVasFRTest, precommit_vasfr_feature) {
+    const std::string inputName = "input_data";
+    runTest(
+        TestNetworkDesc("KMB_models/FP16-INT8/private/face_recognition/vasfr_feature.xml")
+            .setUserInputPrecision(inputName, Precision::U8),
+        TestImageDesc("112x112/Charlize_Theron_0001.jpg", ImageFormat::BGR),
+        0.6f);
+}
+
+// MTL target compilation test
+TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8_MTL) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong detection results");//At the moment no EVM is setup so cannot run
+    runTest(
+                    TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::U8) //currently FP16 is not supported by runtime
+                    .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_mtl-sc"},
+                                       {"VPU_COMPILER_TARGET_DESCRIPTOR", "release_mtl"},
+                                       {"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "NO"}}),
+
+
+            "224x224/cat3.bmp",
+            3, 0.05);
 }

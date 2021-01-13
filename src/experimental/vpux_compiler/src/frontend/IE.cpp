@@ -37,7 +37,7 @@
 #include <ie_precision.hpp>
 
 #include <ngraph/function.hpp>
-#include <ngraph/ops.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/shape.hpp>
 #include <ngraph/type/element_type.hpp>
 
@@ -48,7 +48,7 @@ namespace {
 class NGraphImporter final {
 public:
     NGraphImporter(mlir::MLIRContext* ctx, const std::shared_ptr<const ngraph::Function>& netGraph, Logger log)
-        : _ctx(ctx), _netGraph(netGraph), _log(log) {
+            : _ctx(ctx), _netGraph(netGraph), _log(log) {
     }
 
 public:
@@ -60,7 +60,8 @@ private:
     using NodeOutputMap = std::unordered_map<ngraph::Output<OrigNode>, mlir::Value>;
 
 private:
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::v1::Softmax>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Constant>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Softmax>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -78,6 +79,7 @@ private:
     static SmallVector<int64_t, 4> importShape(const ngraph::PartialShape& shape);
     mlir::Type importElemType(const ngraph::element::Type& elemType);
     mlir::RankedTensorType importTensor(const ngraph::PartialShape& shape, const ngraph::element::Type& elemType);
+    mlir::Location createLocation(const OrigNodePtr& node);
 
 private:
     mlir::MLIRContext* _ctx = nullptr;
@@ -100,7 +102,8 @@ const NGraphImporter::DispatchMap NGraphImporter::dispatchMap{
         {ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
         {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
 
-        MAP_ENTRY(ngraph::op::v1::Softmax),
+        MAP_ENTRY(ngraph::opset1::Constant),
+        MAP_ENTRY(ngraph::opset1::Softmax),
 };
 
 #undef MAP_ENTRY
@@ -166,18 +169,49 @@ mlir::FuncOp NGraphImporter::buildMainFunc(StringRef funcName) {
     return func;
 }
 
-void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::v1::Softmax>& origNode) {
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Constant>& origNode) {
     const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Softmax node {0} has unsupported number of inputs {1}",
+    VPUX_THROW_UNLESS(inputs.empty(), "nGraph Constant node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto tensorType = importTensor(origNode->get_output_partial_shape(0), origNode->get_output_element_type(0));
+
+    auto elemType = tensorType.getElementType();
+    auto totalNumElems = tensorType.getNumElements();
+
+    mlir::DenseElementsAttr value;
+    if (elemType.isF32()) {
+        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::f32>();
+        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
+    } else if (elemType.isF16()) {
+        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::f16>();
+        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
+    } else if (elemType.isSignedInteger(64)) {
+        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::i64>();
+        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
+    } else if (elemType.isUnsignedInteger(64)) {
+        const auto* ptr = origNode->get_data_ptr<ngraph::element::Type_t::u64>();
+        value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(ptr, totalNumElems));
+    } else {
+        VPUX_THROW("Element type '{0}' is not supported for Constant operation", elemType);
+    }
+
+    auto* dialect = _ctx->getLoadedDialect<IE::IEDialect>();
+    VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
+
+    auto* op = dialect->materializeConstant(builder, value, tensorType, createLocation(origNode));
+    addOutputs(origNode, op->getResults());
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Softmax>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Softmax node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
     const auto axis = origNode->get_axis();
     const auto axisAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(axis));
 
-    const auto nodeName = mlir::Identifier::get(origNode->get_friendly_name(), _ctx);
-    const auto loc = mlir::NameLoc::get(nodeName, _ctx);
-
-    auto op = builder.create<IE::SoftMaxOp>(loc, inputs[0], axisAttr);
+    auto op = builder.create<IE::SoftMaxOp>(createLocation(origNode), inputs[0], axisAttr);
     addOutputs(origNode, {op.getResult()});
 }
 
@@ -193,6 +227,10 @@ SmallVector<mlir::Value, 4> NGraphImporter::getInputs(const OrigNodePtr& node) {
 }
 
 void NGraphImporter::addOutputs(const OrigNodePtr& node, mlir::ValueRange vals) {
+    VPUX_THROW_UNLESS(vals.size() == node->get_output_size(),
+                      "Mismatch between orignal Node '{0}' number of outputs '{1}' and created number of outputs '{2}'",
+                      node->get_friendly_name(), node->get_output_size(), vals.size());
+
     for (const auto& p : make_range(vals) | indexed) {
         _importedVals.emplace(node->output(p.index()), p.value());
     }
@@ -243,6 +281,11 @@ mlir::Type NGraphImporter::importElemType(const ngraph::element::Type& elemType)
 mlir::RankedTensorType NGraphImporter::importTensor(const ngraph::PartialShape& shape,
                                                     const ngraph::element::Type& elemType) {
     return mlir::RankedTensorType::get(makeArrayRef(importShape(shape)), importElemType(elemType));
+}
+
+mlir::Location NGraphImporter::createLocation(const OrigNodePtr& node) {
+    const auto nodeName = mlir::Identifier::get(node->get_friendly_name(), _ctx);
+    return mlir::NameLoc::get(nodeName, _ctx);
 }
 
 IE::LayoutAttr importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout) {
@@ -316,8 +359,9 @@ mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetw
 
     auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(_ctx),
                                                   mlir::StringAttr::get(cnnNet.getName(), _ctx), mainFuncName);
+    IE::CNNNetworkOp::ensureTerminator(cnnOp.inputsInfo(), builder, cnnOp.getLoc());
+    IE::CNNNetworkOp::ensureTerminator(cnnOp.outputsInfo(), builder, cnnOp.getLoc());
 
-    cnnOp.inputsInfo().push_back(new mlir::Block);
     builder.setInsertionPointToStart(&cnnOp.inputsInfo().front());
     for (const auto& param : netGraph->get_parameters()) {
         const auto& inputName = param->get_friendly_name();
@@ -328,9 +372,7 @@ mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetw
                                        importPrecision(_ctx, userDesc.getPrecision()),
                                        importLayout(_ctx, userDesc.getLayout()));
     }
-    builder.create<IE::EndOp>(mlir::UnknownLoc::get(_ctx));
 
-    cnnOp.outputsInfo().push_back(new mlir::Block);
     builder.setInsertionPointToStart(&cnnOp.outputsInfo().front());
     for (const auto& result : netGraph->get_results()) {
         const auto* resultInput = result->get_input_node_ptr(0);
@@ -342,7 +384,6 @@ mlir::OwningModuleRef vpux::IE::FrontEnd::importNetwork(InferenceEngine::CNNNetw
                                        importPrecision(_ctx, userDesc.getPrecision()),
                                        importLayout(_ctx, userDesc.getLayout()));
     }
-    builder.create<IE::EndOp>(mlir::UnknownLoc::get(_ctx));
 
     NGraphImporter importer(_ctx, netGraph, _log);
     const auto mainFunc = importer.buildMainFunc(mainFuncName.getValue());

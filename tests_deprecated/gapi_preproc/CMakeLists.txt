@@ -27,7 +27,7 @@ endif()
 
 target_link_libraries(${TARGET}
     PRIVATE
-        ${HDDL2_PLUGIN_STATIC_TARGET}
+        ${VPUX_PLUGIN_STATIC_TARGET}
         gapi_test_computations
         IE::gtest IE::gtest_main
         opencv_core opencv_imgproc)

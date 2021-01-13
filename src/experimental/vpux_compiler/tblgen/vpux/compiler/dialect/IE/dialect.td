@@ -35,6 +35,8 @@ def IE_Dialect : Dialect {
     let dependentDialects = [
         "mlir::StandardOpsDialect"
     ];
+
+    let hasConstantMaterializer = 1;
 }
 
 #endif

@@ -22,7 +22,7 @@
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <mlir/IR/AffineMap.h>
-#include <mlir/IR/Attributes.h>
+#include <mlir/IR/BuiltinAttributes.h>
 
 //
 // Generated

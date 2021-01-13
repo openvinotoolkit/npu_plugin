@@ -27,12 +27,12 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
     auto netFunc = symbolTable.lookupNearestSymbolFrom<mlir::FuncOp>(*this, entryPointAttr());
 
     if (netFunc == nullptr) {
-        return printTo(emitError(), "'{0}' entryPoint '@{1}' doesn't refer to existing Function",
-                       CNNNetworkOp::getOperationName(), entryPoint());
+        return printTo(emitError(), "'{0}' entryPoint '@{1}' doesn't refer to existing Function", getOperationName(),
+                       entryPoint());
     }
 
-    auto inputsInfo = to_vector<1>(this->inputsInfo().getOps<DataInfoOp>());
-    auto outputsInfo = to_vector<1>(this->outputsInfo().getOps<DataInfoOp>());
+    auto inputsInfo = to_vector<1>(this->inputsInfo().getOps<IE::DataInfoOp>());
+    auto outputsInfo = to_vector<1>(this->outputsInfo().getOps<IE::DataInfoOp>());
 
     const auto netFuncType = netFunc.getType();
 
@@ -40,7 +40,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
         return printTo(emitError(),
                        "'{0}' entryPoint '@{1}' inputs count '{2}' doesn't match "
                        "userInputs count '{3}'",
-                       CNNNetworkOp::getOperationName(), entryPoint(), netFuncType.getNumInputs(), inputsInfo.size());
+                       getOperationName(), entryPoint(), netFuncType.getNumInputs(), inputsInfo.size());
     }
 
     for (const auto ind : irange(netFuncType.getNumInputs())) {
@@ -50,7 +50,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
             return printTo(emitError(),
                            "'{0}' entryPoint '@{1}' input #{2} is not a "
                            "'RankedTensor'",
-                           CNNNetworkOp::getOperationName(), entryPoint(), ind);
+                           getOperationName(), entryPoint(), ind);
         }
 
         const auto userLayout = inputsInfo[ind].layout();
@@ -59,7 +59,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
             return printTo(emitError(),
                            "'{0}' entryPoint '@{1}' input #{2} is not compatible "
                            "with userLayout '{3}'",
-                           CNNNetworkOp::getOperationName(), entryPoint(), ind, userLayout);
+                           getOperationName(), entryPoint(), ind, userLayout);
         }
     }
 
@@ -67,7 +67,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
         return printTo(emitError(),
                        "'{0}' entryPoint '@{1}' outputs count '{2}' doesn't match "
                        "userOutputs count '{3}'",
-                       CNNNetworkOp::getOperationName(), entryPoint(), netFuncType.getNumResults(), outputsInfo.size());
+                       getOperationName(), entryPoint(), netFuncType.getNumResults(), outputsInfo.size());
     }
 
     for (const auto ind : irange(netFuncType.getNumResults())) {
@@ -77,7 +77,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
             return printTo(emitError(),
                            "'{0}' entryPoint '@{1}' output #{2} is not a "
                            "'RankedTensor'",
-                           CNNNetworkOp::getOperationName(), entryPoint(), ind);
+                           getOperationName(), entryPoint(), ind);
         }
 
         const auto userLayout = outputsInfo[ind].layout();
@@ -86,37 +86,13 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
             return printTo(emitError(),
                            "'{0}' entryPoint '@{1}' output #{2} is not compatible "
                            "with userLayout '{3}'",
-                           CNNNetworkOp::getOperationName(), entryPoint(), ind, userLayout);
+                           getOperationName(), entryPoint(), ind, userLayout);
         }
     }
 
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::IE::CNNNetworkOp::getFromModule(mlir::ModuleOp module, CNNNetworkOp& netOp,
-                                                          mlir::FuncOp& netFunc) {
-    auto netOps = to_vector<1>(module.getOps<CNNNetworkOp>());
-    if (netOps.size() != 1) {
-        return printTo(module.emitError(), "Module {0} doesn't contain IE.{1} Operation", module.getName(),
-                       CNNNetworkOp::getOperationName());
-    }
-
-    netOp = netOps.front();
-    netFunc = module.lookupSymbol<mlir::FuncOp>(netOp.entryPointAttr());
-
-    return mlir::success(netFunc != nullptr);
-}
-
-mlir::LogicalResult vpux::IE::verifyOp(CNNNetworkOp op) {
-    if (mlir::failed(checkNetworkDataInfoBlock<CNNNetworkOp, DataInfoOp, EndOp>(
-                op, op.inputsInfo().front().getOperations(), "inputInfo"))) {
-        return mlir::failure();
-    }
-
-    if (mlir::failed(checkNetworkDataInfoBlock<CNNNetworkOp, DataInfoOp, EndOp>(
-                op, op.outputsInfo().front().getOperations(), "outputsInfo"))) {
-        return mlir::failure();
-    }
-
-    return mlir::success();
+DimsOrder vpux::IE::DataInfoOp::getDimsOrder() {
+    return IE::getDimsOrder(layout());
 }

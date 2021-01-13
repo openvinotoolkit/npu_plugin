@@ -26,38 +26,40 @@
 using namespace vpu;
 
 const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
-    static const std::unordered_set<std::string> options =
-        merge(vpux::VPUXConfig::getCompileOptions(), {
-                                                         VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR_PATH),
-                                                         VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR),
-                                                         VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR_PATH),
-                                                         VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR),
-                                                         VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB),
-                                                         VPU_COMPILER_CONFIG_KEY(PARSING_ONLY),
-                                                         VPU_COMPILER_CONFIG_KEY(GENERATE_JSON),
-                                                         VPU_COMPILER_CONFIG_KEY(GENERATE_DOT),
-                                                         VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS_PATH),
-                                                         VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS),
-                                                         VPU_COMPILER_CONFIG_KEY(LOG_LEVEL),
-                                                         VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT),
-                                                         VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT),
-                                                         VPU_COMPILER_CONFIG_KEY(SERIALIZE_CNN_BEFORE_COMPILE_FILE),
-                                                         VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
-                                                         VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST),
-                                                         VPU_COMPILER_CONFIG_KEY(SCALE_FUSE_INPUT),
-                                                         VPU_COMPILER_CONFIG_KEY(REFERENCE_MODE),
-                                                         VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT),
-                                                         VPU_COMPILER_CONFIG_KEY(ALLOW_U8_INPUT_FOR_FP16_MODELS),
-                                                     });
+    static const std::unordered_set<std::string> options = merge(
+            vpux::VPUXConfig::getCompileOptions(), {
+                                                           VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR_PATH),
+                                                           VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR),
+                                                           VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR_PATH),
+                                                           VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR),
+                                                           VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB),
+                                                           VPU_COMPILER_CONFIG_KEY(PARSING_ONLY),
+                                                           VPU_COMPILER_CONFIG_KEY(GENERATE_JSON),
+                                                           VPU_COMPILER_CONFIG_KEY(GENERATE_DOT),
+                                                           VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS_PATH),
+                                                           VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS),
+                                                           VPU_COMPILER_CONFIG_KEY(LOG_LEVEL),
+                                                           VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT),
+                                                           VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT),
+                                                           VPU_COMPILER_CONFIG_KEY(SERIALIZE_CNN_BEFORE_COMPILE_FILE),
+                                                           VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
+                                                           VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST),
+                                                           VPU_COMPILER_CONFIG_KEY(SCALE_FUSE_INPUT),
+                                                           VPU_COMPILER_CONFIG_KEY(REFERENCE_MODE),
+                                                           VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT),
+                                                           VPU_COMPILER_CONFIG_KEY(ALLOW_U8_INPUT_FOR_FP16_MODELS),
+                                                           VPU_COMPILER_CONFIG_KEY(SCALESHIFT_FUSING),
+                                                           VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP),
+                                                   });
 
     return options;
 }
 
 void MCMConfig::parse(const std::map<std::string, std::string>& config) {
-    static const std::unordered_map<std::string, LogLevel> logLevels = {{CONFIG_VALUE(LOG_NONE), LogLevel::None},
-        {CONFIG_VALUE(LOG_ERROR), LogLevel::Error}, {CONFIG_VALUE(LOG_WARNING), LogLevel::Warning},
-        {CONFIG_VALUE(LOG_INFO), LogLevel::Info}, {CONFIG_VALUE(LOG_DEBUG), LogLevel::Debug},
-        {CONFIG_VALUE(LOG_TRACE), LogLevel::Trace}};
+    static const std::unordered_map<std::string, LogLevel> logLevels = {
+            {CONFIG_VALUE(LOG_NONE), LogLevel::None},       {CONFIG_VALUE(LOG_ERROR), LogLevel::Error},
+            {CONFIG_VALUE(LOG_WARNING), LogLevel::Warning}, {CONFIG_VALUE(LOG_INFO), LogLevel::Info},
+            {CONFIG_VALUE(LOG_DEBUG), LogLevel::Debug},     {CONFIG_VALUE(LOG_TRACE), LogLevel::Trace}};
 
     vpux::VPUXConfig::parse(config);
 
@@ -94,4 +96,8 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_allowNCHWLayoutForMcmModelInput, switches, config, VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT));
 
     setOption(_allowU8InputForFp16Models, switches, config, VPU_COMPILER_CONFIG_KEY(ALLOW_U8_INPUT_FOR_FP16_MODELS));
+
+    setOption(_scaleShiftFusing, switches, config, VPU_COMPILER_CONFIG_KEY(SCALESHIFT_FUSING));
+
+    setOption(_removePermuteNoOp, switches, config, VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP));
 }

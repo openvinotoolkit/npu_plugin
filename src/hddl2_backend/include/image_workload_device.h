@@ -33,11 +33,15 @@ namespace HDDL2 {
 class ImageWorkloadDevice final : public IDevice {
 public:
     explicit ImageWorkloadDevice(const std::string& name = "");
-    std::shared_ptr<Allocator> getAllocator() const override { return nullptr; }
+    std::shared_ptr<Allocator> getAllocator() const override {
+        return nullptr;
+    }
     // For generic device no specific allocator can be provided
     std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) const override;
 
-    std::string getName() const override { return _name; }
+    std::string getName() const override {
+        return _name;
+    }
 
     Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;
 

@@ -51,11 +51,12 @@ namespace mv
         {
 
         public:
-            StrategyManagerKmb(OpModel& model,mv::Element& passDesc) :
+            StrategyManagerKmb(OpModel& model,mv::Element& passDesc, mv::TargetDescriptor& td) :
                 StrategyManager(model,passDesc)
             {
                 auto globalParams = model.getGlobalConfigParams();
                 enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
+                target = td.getTarget();
             }
 
             size_t totalClusters=4;
@@ -78,7 +79,9 @@ namespace mv
             bool globalForceSpilling=false;
             bool enableChannelMajorConv=false;
             double safetyFactor=1.0;
+            mv::Target target = mv::Target::ma2490;
             double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
+            double cmxPipeLineWeightsOverhead=34816.0;
             enum class FailCause
             {
                 Pass,
@@ -105,6 +108,7 @@ namespace mv
                 SparsitySpilling,
                 DeConvSubConvSOKHeight,
                 SpiltOverHForLayer79InACLNet,
+                SpiltOverHForLayer97and113ModelE,
                 SplitOverHOverlappedWronglyComputed,
                 SoftwareDeconvolutionSet,
                 UpaHKSwitch
@@ -135,25 +139,22 @@ namespace mv
                 {FailCause::SparsitySpilling, "SparsitySpilling"},
                 {FailCause::DeConvSubConvSOKHeight, "DeConvSubConvSOKHeight"},
                 {FailCause::SpiltOverHForLayer79InACLNet, "SpiltOverHForLayer79InACLNet"},
+                {FailCause::SpiltOverHForLayer97and113ModelE, "SpiltOverHForLayer97and113ModelE"},
                 {FailCause::SoftwareDeconvolutionSet, "SoftwareDeconvolutionSet"},
                 {FailCause::UpaHKSwitch, "UpaHKSwitch"}
             };
 
             void readGlobalConfigs()
-            {
-                referenceDevice = globalConfig_["referenceDevice"].get<std::string>();
-                totalClusters = globalConfig_["totalClusters"].get<int>();
-                clusterMemoryKb = globalConfig_["clusterMemory"].get<int>();
-                dpuPerCluster = globalConfig_["dpuPerCluster"].get<int>();
-                ddrBandwidth = globalConfig_["ddrBandwidth"].get<int>();
-                sysClock = globalConfig_["systemClockMhz"].get<int>();
+            { 
+                referenceDevice = model_.getGlobalConfigParam("referenceDevice").get<std::string>();
+                totalClusters = model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
+                clusterMemoryKb = (int)model_.getGlobalConfigParam("totalCmx").get<unsigned>() / 1024;
+                dpuPerCluster = model_.getGlobalConfigParam("Number_of_DPUs").get<int>() / totalClusters;
                 createStrategyDots = globalConfig_["createStrategyDots"].get<bool>();
                 dotFileLocation = globalConfig_["dotFileLocation"].get<std::string>();
                 jsonOutFileName = globalConfig_["jsonOutFileName"].get<std::string>();
-                safetyFactor = globalConfig_["FathomSafetyFactor"].get<double>();
                 //Input is in Kb
                 clusterMemory = (double)clusterMemoryKb * 1024.0 * safetyFactor;
-
                 globalEnableStreaming = globalStrategies_["enableStreaming"].get<bool>();
                 globalEnablePipelining = globalStrategies_["enablePipelining"].get<bool>();
                 globalEnablePrefetching = globalStrategies_["enablePrefetching"].get<bool>();
@@ -473,16 +474,16 @@ namespace mv
                 {
                     uint16_t kernelH;
                     std::array<unsigned short, 4> padding;
-                                       
+
                     auto originalH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                     auto newOutputSizes = tileSpatialOutputSize(originalH, splits);
-                                       
+
                     unsigned short kernelStride;
                     if (op.hasAttr("stride"))
                         kernelStride = op.get<std::array<unsigned short, 2>>("stride")[1];
                     else
                         kernelStride = 1;//fake stride
-                    
+
                     if (op.hasAttr("padding"))
                         padding = op.get<std::array<unsigned short, 4>>("padding");
                     else
@@ -844,6 +845,39 @@ namespace mv
                 bool isStreaming = ((streamShape["W"] * streamShape["H"] * streamShape["C"]
                                                             * streamShape["K"] * streamShape["B"]) > 1) ? true : false;
 
+                // NOTE: This is a temporary workaround till we are able to identify the chains before graph
+                // optimizer and control the cmx percentage that we want the weigths to receive described in
+                // https://jira.devtools.intel.com/browse/CVS-43222
+                {
+                    if (op.getOpType() == "Conv")
+                    {
+                        if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,512,1}) &&
+                            op.getInputTensor()[1]->getShape() == mv::Shape({3,3,512,1024}) &&
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
+                        {
+                            if(globalEnablePipelining && streamShape["K"] != 8)
+                                return FailCause::cmxConcatDecision;
+                        }
+
+                        if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}) &&
+                            op.getInputTensor()[1]->getShape() == mv::Shape({3,3,1024,1024}) &&
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
+                        {
+                            if(globalEnablePipelining && streamShape["K"] != 8)
+                                return FailCause::cmxConcatDecision;
+                        }
+
+                        if (op.getInputTensor()[0]->getShape() == mv::Shape({1,1,2048,1}) &&
+                            op.getInputTensor()[1]->getShape() == mv::Shape({1,1,2048,1000}) &&
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({1,1,1000,1}))
+                        {
+                            if(globalEnablePipelining && streamShape["K"] != 4 && streamShape["K"] != 2)
+                                return FailCause::cmxConcatDecision;
+                        }
+                    }
+
+                }
+
                 // A proper decision on CMX concat for explicit concat or eltwise streaming cannot
                 // be made with the information on hand. Will not optimize strategies for these.
                 // In later pass, we will mark those that can fit in CMX
@@ -994,7 +1028,6 @@ namespace mv
                 if(strategy["outputSparsity"].get<bool>() &&
                     isStreaming)
                     return FailCause::SparsitySpilling;
-
                 if(requiresFakeActivationSparsity(op) && strategy["inputSparsity"].get<bool>())
                     return FailCause::RealSparseForFakeSparseOp;
 
@@ -1053,6 +1086,15 @@ namespace mv
                 if (clustering == "SplitOverH" &&
                     (streamShape["H"] > 1) && !spilling)
                     return FailCause::SpiltOverHWithStreamOverHInCMX;
+                
+                // This is intended to be a temporary workaround for ModelE, layer '97' & '113', which does work with SOH
+                // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 80 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 48 &&
+                    op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 80 &&
+                    op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 48 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
+                    return FailCause::SpiltOverHForLayer97and113ModelE;
 
                 // This is intended to be a temporary workaround for ACLnet, layer '79', which does work with SOH
                 // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
@@ -1076,6 +1118,7 @@ namespace mv
                                 return FailCause::SoftwareDeconvolutionSet;
                      }
                 }
+           
                 //temporarily disable the SplitOverHOverlapped for custom network kernel size 7x7 subtensors not correct
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 &&
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72 &&
@@ -1245,8 +1288,8 @@ namespace mv
                 auto isCMConv = false;
                 auto clusterStrategy = clustering.get<std::string>();
 
-                if(enableChannelMajorConv && op.supportsCMConv())
-                    isCMConv = true;
+                if(enableChannelMajorConv && op.supportsCMConv() && target != mv::Target::ma3720)
+                     isCMConv = true;
 
                 if (op.hasAttr("DilatedSubConv") && (op.get<bool>("DilatedSubConv")))
                     dilatedLayerInputMemory = true;
@@ -1447,7 +1490,7 @@ namespace mv
 
                 if(op.getOpType() == "Conv" &&
                     op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
-                    !isCMConv && referenceDevice == "A0")
+                    !isCMConv && target == mv::Target::ma2490 && referenceDevice == "A0")
                         return true;
 
                 return false;
@@ -1472,7 +1515,7 @@ namespace mv
                 if (op.isSparsityConsumer() &&
                     op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
                     !isCMConv &&
-                    referenceDevice == "A0")
+                    target == mv::Target::ma2490 && referenceDevice == "A0")
                 {
                     return true;
                 }
@@ -1484,7 +1527,7 @@ namespace mv
                     if( clustering == "SplitOverH" &&
                         (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1) &&
                         !isCMConv &&
-                        referenceDevice == "A0")
+                        target == mv::Target::ma2490 && referenceDevice == "A0")
                         {
                             return true;
                         }
@@ -1495,7 +1538,7 @@ namespace mv
 
              //Channel major conv, pooling and depthwise will get fake sparsity, so need to check memory constraints as if real sparsity
             bool requiresFakeActivationSparsity(Op& op){
-                if(enableChannelMajorConv && op.supportsCMConv())
+                if(enableChannelMajorConv && op.supportsCMConv() && target != mv::Target::ma3720)
                     return true;
 
                 if(op.getOpType() == "MaxPool")
@@ -1632,7 +1675,7 @@ namespace mv
                 if(childOpType == "Eltwise" && (child["eltwiseParentSpilling"].get<bool>() != parentSpilling))
                     return INF;
 
-                if( violatesClusteringStrategyRules(parentOp, childOp, parent, child) )
+                if(violatesClusteringStrategyRules(parentOp, childOp, parent, child))
                 {
                     log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() +
@@ -1658,7 +1701,8 @@ namespace mv
                         return INF;
                 }
 
-                if(enableChannelMajorConv){
+                if(enableChannelMajorConv && target != mv::Target::ma3720)
+                {
                     if( violatesChannelMajorRules(parentOp, childOp, parent, child) )
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
@@ -1756,7 +1800,6 @@ namespace mv
                         return INF;
                     }
                 }
-
                 //Note: these are full cost, across all streams, used in serial computation
                 //Also used to calculate sparsity overhead vs. speedup in child
                 auto pFullComp = computeTime(parentOp,parent);
@@ -1946,18 +1989,39 @@ namespace mv
                 {
                     if (childClustering == "HKSwitch")
                         return true;
+
+                    bool modelAWA = false;
+                    if (childOp.getOpType() == "Conv" && childOp.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 80 &&
+                        childOp.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 44 && childOp.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 44 &&
+                        childOp.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 72 && childOp.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 22 &&
+                        childOp.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 22 && childOp.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
+                        childOp.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
+                    {
+                        modelAWA = true;
+                    }
+                    if (childOp.getOpType() == "Conv" && childOp.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 48 &&
+                        childOp.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 22 && childOp.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 22 &&
+                        childOp.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 48 && childOp.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 22 &&
+                        childOp.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 22 && childOp.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
+                        childOp.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
+                    {
+                        modelAWA = true;
+                    }
+
                     //NOTE: For now I disable parent spill SOH->child (Clustering, K) for Z major convs
+                    //Workaround added to enable SplitOverH for ModelA - Perf
                     if (parentClustering == "SplitOverH" && ((childClustering == "Clustering" && childOpType !=  "Output") ||
-                                                              childClustering == "SplitOverK"))
+                                                              childClustering == "SplitOverK") && !modelAWA)
+
                     {
                         if (!(enableChannelMajorConv &&
                             ((parentOpType == "Conv" &&
                             parentOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16) ||
                             (childOpType == "Conv" &&
                             childOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16))) )
-                            {
-                                return true;
-                            }
+
+                            return true;
+
                     }
                 }
                 else
@@ -2003,7 +2067,7 @@ namespace mv
                 if (spillForCM && !parentSpilling)
                     return true;
 
-                if( isChildChanMajor )
+                if(isChildChanMajor)
                 {
                     //Note: If SOHOverlapped input requires SOH CMconv, and vice versa
                     if(childClustering == "SplitOverH" &&
@@ -2302,12 +2366,6 @@ namespace mv
                 if(stream["H"] > 1 && stream["K"] > 1)
                     return false;
 
-                //Note: avoid pipelining small weights. Need to be more than 1/5 memory
-                // heuristic, not an exact science as to why 1/5 seems to be working well
-                //or else perfromance is killed...
-                if(op.getInputTensor(1)->computeTotalSize() < (clusterMemory * 0.2))
-                    return false;
-
                 size_t input, output, weights;
                 // in case initialization in memorySize fails
                 input = output = weights = 0;
@@ -2320,6 +2378,11 @@ namespace mv
                                                                 requiresFakeActivationSparsity(op),
                                                                 spilling,
                                                                 parentSpilling);
+
+                //Note: avoid pipelining small weights. This number came out of experiments, when
+                // the overhead starts to appear...
+                if(weights < cmxPipeLineWeightsOverhead)
+                    return false;
 
                 if(stream["K"] > 1) // Full activation in CMX, stream weights
                 {
@@ -2400,12 +2463,12 @@ namespace mv
 static void GraphParameterOptimizationFcn(
     const mv::pass::PassEntry& ,
     mv::ComputationModel& model,
-    mv::TargetDescriptor& /*td*/, mv::Element& passDesc,
+    mv::TargetDescriptor& td, mv::Element& passDesc,
     mv::Element&
 )
 {
     mv::OpModel om(model);
-    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc);
+    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc, td);
 
     strategyManager.updateValuesFromJSON();
     strategyManager.updateDefaultValues();

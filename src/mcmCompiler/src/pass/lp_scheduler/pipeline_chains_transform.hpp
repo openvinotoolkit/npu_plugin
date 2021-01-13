@@ -46,6 +46,19 @@ class Pipeline_Chains {
         }
       }
 
+      void set_chain_pipeline_attribute(mv::OpModel& om) const {
+        for (operation_t dpu_op : dpu_chain_) {
+          mv::Data::OpListIterator dpu_op_itr = om.getOp(dpu_op->getName());
+          dpu_op_itr->set<bool>("chain_pipelined_dpu", true);
+        }
+      }
+
+      void set_chain_pipeline_attribute(mv::OpModel& om,
+          operation_t dpu_op) const {
+        mv::Data::OpListIterator dpu_op_itr = om.getOp(dpu_op->getName());
+        dpu_op_itr->set<bool>("chain_pipelined_dpu", true);
+      }
+
       void print(FILE *fptr=stdout) {
         if (dpu_chain_.size() < 2UL) { return; }
 
@@ -86,9 +99,9 @@ class Pipeline_Chains {
     struct control_edge_t {
       control_edge_t(mv::Data::OpListIterator src,
             mv::Data::OpListIterator sink)
-          : source_itr_(src) , sink_itr_(sink) { } 
+          : source_itr_(src) , sink_itr_(sink) { }
 
-      control_edge_t(const control_edge_t& o) : source_itr_(o.source_itr_), 
+      control_edge_t(const control_edge_t& o) : source_itr_(o.source_itr_),
         sink_itr_(o.sink_itr_) {}
 
       control_edge_t& operator=(const control_edge_t& o) {
@@ -112,10 +125,10 @@ class Pipeline_Chains {
     bool is_weight_read(T op) const {
       mv::Data::OpListIterator oitr = omodel_.getOp(op->getName());
       if (oitr->getOpType() != "DMATask") { return false; }
-      // indegree must be 1 and 
+      // indegree must be 1 and
       auto pitr = oitr.leftmostParent();
       auto pitr_next = pitr;
-      
+
       ++pitr_next;
       if (pitr_next != omodel_.opEnd()) { return false; }
 
@@ -131,7 +144,7 @@ class Pipeline_Chains {
       size_t return_value = 0UL;
       for (auto pitr=oitr.leftmostParent(); pitr!=omodel_.opEnd(); ++pitr) {
         operation_t pop = &(*pitr);
-        if (is_weight_read(pop)) { 
+        if (is_weight_read(pop)) {
           return_value += pitr->getOutputTensor(0UL)->getClusterSize();
         }
       }
@@ -215,8 +228,56 @@ class Pipeline_Chains {
       return !(op_has_this_attribute(dpu_op, "needsODUoffset"));
     }
 
+    bool is_eltwise_with_soh_runtime_sparsity(operation_t dpu_op) const {
+      auto op_itr = omodel_.getOp(dpu_op->getName());
+      bool is_eltwise_with_soh_runtime_sparsity_flag = false;
+      if (op_itr->getOpType() == "DPUTask")
+      {
+        if (op_itr->get<std::string>("taskOp") == "Eltwise" &&
+          op_itr->get<std::string>("splitStrategy") == "SplitOverH" &&
+          op_itr->get<bool>("inputActivationSparsity"))
+          is_eltwise_with_soh_runtime_sparsity_flag = true;
+
+      }
+      return is_eltwise_with_soh_runtime_sparsity_flag;
+    }
+
+    void postProcessImplicitOperationsForDAG(std::map<size_t, op_list_t> &dpu_levels, operation_t opIt, std::size_t depth)
+    {
+      mv::OpModel &model = omodel_;
+      auto cop = *opIt;
+      auto previousActivationOperation = model.getSourceOp(cop.getInputTensor()[0]);
+      //NOTE: in the level we meet slice operations we need to move their following
+      // streaming operations in the level of slice
+      if (opIt->getOpType() == "DPUTask" && previousActivationOperation->getOpType() == "Slice")
+      {
+        dpu_levels[depth].remove(opIt);
+        dpu_levels[depth - 1].push_back(opIt);
+
+      }
+    }
+
+    void clearEmptyDepth(std::map<size_t, op_list_t> &dpu_levels)
+    {
+      //NOTE: after moving streming operations to slice level we might come with empty list
+      for (auto leveling_dag = dpu_levels.cbegin(); leveling_dag != dpu_levels.cend();)
+      {
+        if (leveling_dag->second.size() == 0)
+          dpu_levels.erase(leveling_dag++);
+        else
+          ++leveling_dag;
+      }
+    }
+
+      template<typename LevelItr>
+      bool can_this_level_be_appended_to_chain(LevelItr itr)
+      {
+        return ( (itr->second.size() == 1UL) || comeFromTheSameParentStream(itr->second) );
+      }
+
     template<typename OutputIterator>
-    void locate_longer_chains(OutputIterator output) {
+    void locate_longer_chains(OutputIterator output)
+    {
       std::map<size_t, op_list_t> dpu_levels;
 
       mv::OpModel &model = omodel_;
@@ -224,55 +285,67 @@ class Pipeline_Chains {
       std::list<operation_t> zero_in_degree_nodes[2UL];
       std::unordered_map<operation_t, size_t> in_degree_map;
       size_t curr_depth = 0;
-
       // STEP-0: compute the in-degree's of all nodes //
-      for (auto op_itr = model.opBegin(); op_itr != model.opEnd(); ++op_itr) {
+      //NOTE: in_degree means the number of inputs of an op, and the pseudo data flows
+      //if an op is zero_in_degree goes to zero_in_degree_nodes, like constants
+      for (auto op_itr = model.opBegin(); op_itr != model.opEnd(); ++op_itr)
+      {
         size_t in_degree = 0;
-        for (auto pitr=op_itr.leftmostParent(); pitr!=model.opEnd(); ++pitr) {
+        for (auto pitr=op_itr.leftmostParent(); pitr!=model.opEnd(); ++pitr)
           ++in_degree;
-        }
+
         operation_t op = &(*op_itr);
         in_degree_map[ op ] = in_degree;
-        if (!in_degree) {
+        if (!in_degree)
           zero_in_degree_nodes[0].push_back(op);
-        }
       }
 
-      while (!zero_in_degree_nodes[curr_depth%2UL].empty()) {
+      // NOTE: Topological sort according to zero_in_degree algorithm,
+      // link: https://www.geeksforgeeks.org/topological-sorting-indegree-based-solution/
+      // STEP-1: populate the dpu-levels map, pretty much
+      // takes the opmodel as a dag and provides the ops that are on which level
+      // e.g. A->B->C , A->D then (2, {B,D} )
+      while (!zero_in_degree_nodes[curr_depth%2UL].empty())
+      {
         bool parity = ((curr_depth%2UL) == 1UL);
         for (auto zitr=zero_in_degree_nodes[parity].begin();
-              zitr!=zero_in_degree_nodes[parity].end(); ++zitr) {
-
+              zitr!=zero_in_degree_nodes[parity].end(); ++zitr)
+        {
           // update the in-degree //
           mv::Data::OpListIterator zop_itr = model.getOp((*zitr)->getName());
-          for (auto citr=zop_itr.leftmostChild(); citr!=model.opEnd(); ++citr) {
+          for (auto citr=zop_itr.leftmostChild(); citr!=model.opEnd(); ++citr)
+          {
             operation_t cop = &(*citr);
             auto ditr = in_degree_map.find(cop);
-            if ( (ditr == in_degree_map.end()) || (ditr->second == 0UL) ) {
+            if ( (ditr == in_degree_map.end()) || (ditr->second == 0UL) )
+            {
               throw "Missing entry in the in-degree map (or)"
                   " invalid in-degree for op= " + cop->getName();
             }
             --(ditr->second);
-            if (!(ditr->second)) {
+            if (!(ditr->second))
+            {
               zero_in_degree_nodes[!parity].push_back(cop);
-              if (cop->getOpType() == "DPUTask") {
+              if (cop->getOpType() == "DPUTask")
+              {
                 dpu_levels[curr_depth].push_back(cop);
               }
+              postProcessImplicitOperationsForDAG(dpu_levels, cop, curr_depth);
             }
           }
         }
         zero_in_degree_nodes[parity].clear();
         curr_depth++;
       }
-      //////////////////////////////////////////////////////////////////////////
-
-
+      clearEmptyDepth(dpu_levels);
 
       auto level_itr = dpu_levels.begin();
-      while (level_itr != dpu_levels.end()) {
-
+      while (level_itr != dpu_levels.end())
+      {
         const op_list_t & dpu_list = level_itr->second;
-        if ((dpu_list.size() > 1UL)) {
+        //NOTE: if your dpu_list size is bigger than 1 but you belong to same streaming op, no problem!!
+        if ((dpu_list.size() > 1UL) && !(comeFromTheSameParentStream(dpu_list)))
+        {
           ++level_itr;
           continue;
         }
@@ -281,33 +354,49 @@ class Pipeline_Chains {
         auto next_level_itr = level_itr;
         op_list_t dpu_chain;
 
-        do{
-          operation_t current_dpu_op = (next_level_itr->second).front();
-          if (!is_this_dpu_selectable_into_the_chain(current_dpu_op)) { break; }
-          //TODO(vamsikku): also avoid chains with breaks and pivots //
-          //check if the current dpu_op has an incoming edge which is not yet
-          //in the chain. 
+        //NOTE: chain means a linear subgraph, when you find in the dpu_levels
+        // a list of dpus with level > 1 you stop attaching in the chain
+        do
+        {
+          for (auto opIt : next_level_itr->second)
+          {
+            operation_t current_dpu_op = opIt;
+            // if (!is_this_dpu_selectable_into_the_chain(current_dpu_op)) { break; }
+            //NOTE: the logic of not inserting the ops that have odu_offset is extended as It looks,
+            // like that even by inserting ops that are previous or next from the ones with odu_offset
+            // create crc missmatch. For now empty the chain in case of finding ops that previously needed odu_offset.
+            if (is_eltwise_with_soh_runtime_sparsity(current_dpu_op))
+            {
+              dpu_chain.clear();
+              break;
+            }
+            //TODO(vamsikku): also avoid chains with breaks and pivots //
+            //check if the current dpu_op has an incoming edge which is not yet
+            //in the chain.
 
-          dpu_chain.push_back(current_dpu_op);
+            dpu_chain.push_back(current_dpu_op);
+          }
           ++next_level_itr;
         }
         while ((next_level_itr != dpu_levels.end()) &&
-                  ((next_level_itr->second).size() == 1UL));
+                can_this_level_be_appended_to_chain(next_level_itr));
 
-        if (dpu_chain.size() > 1UL) {
+        if (dpu_chain.size() > 1UL)
+        {
           // create a subgraph //
           chain_subgraph_t chain_subgraph;
           chain_subgraph.dpu_chain_ = dpu_chain;
           std::list<op_list_t> &input_reads = chain_subgraph.weight_reads_;
           // now create reads //
-          for (operation_t dpu_op : chain_subgraph.dpu_chain_) {
+          for (operation_t dpu_op : chain_subgraph.dpu_chain_)
+          {
             op_list_t weight_reads;
             get_weight_read_inputs(dpu_op, std::back_inserter(weight_reads));
             input_reads.push_back(weight_reads);
           }
           output = chain_subgraph;
         }
-      
+
         // make progress //
         if (level_itr == next_level_itr) { ++next_level_itr; }
 
@@ -315,6 +404,39 @@ class Pipeline_Chains {
       }
     }
 
+  //NOTE: This function will check if all the dpus that are in the same
+  //level are coming from different stream parent ops, or if they are
+  //not streaming at all and the actual level of the ops are > 1
+  bool comeFromTheSameParentStream(op_list_t operationLevelStream) const
+  {
+      bool comeFromTheSameParentStream = false;
+      std::set<std::string> parentOpStreamNames;
+      std::size_t numberOfOpsOnLevelWithNoStream = 0;
+      parentOpStreamNames.clear();
+
+      for (auto i : operationLevelStream)
+      {
+          if (!i->hasAttr("parentOpName"))
+          {
+            numberOfOpsOnLevelWithNoStream++;
+            continue;
+          }
+          else
+            parentOpStreamNames.insert(i->get<std::string>("parentOpName"));
+      }
+
+      if ((parentOpStreamNames.size() == 1) &&
+          (numberOfOpsOnLevelWithNoStream == 0))
+          comeFromTheSameParentStream = true;
+
+      if ((parentOpStreamNames.size() == 0) &&
+          (numberOfOpsOnLevelWithNoStream == 1))
+          comeFromTheSameParentStream = true;
+
+
+
+      return comeFromTheSameParentStream;
+  }
 
     template<typename OutputIterator>
     void locate_chains(OutputIterator output) {
@@ -415,7 +537,7 @@ class Pipeline_Chains {
          *             v        v               v
          *  (head)-->[DPU1]-->[DPU2]-->.....->[DPU-N]
          *
-         *    transform with a pseduo op chain 
+         *    transform with a pseduo op chain
          *
          *  Output: G_sub U G_sub_pseduo
          *
@@ -427,7 +549,7 @@ class Pipeline_Chains {
          *              v
          *           [PSEDUO-3]-->[read-4]
          *              .
-         *              . 
+         *              .
          *              .
          *           [PSEUDO-N-1]-->[read-N]
          */
@@ -463,7 +585,7 @@ class Pipeline_Chains {
                 om.getOp(weight_read->getName());
             weight_read_itr->set<bool>("pipeline_data_start", true);
             auto chain_head_itr = om.getOp(chain_head->getName());
-            //om.defineFlow(chain_head_itr->getOutputTensor(0UL), 
+            //om.defineFlow(chain_head_itr->getOutputTensor(0UL),
              //     weight_read_itr, 0UL);
           }
         }
@@ -534,7 +656,7 @@ class Pipeline_Chains {
     }
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
-    void transform_op_model(ControlEdgeOutput /*output*/,
+    void transform_op_model(ControlEdgeOutput,
         SubGraphContainer& chain_subgraphs, size_t select_stages=0UL,
         FILE *fptr=stdout) {
 
@@ -545,17 +667,18 @@ class Pipeline_Chains {
       chain_subgraphs.clear();
       locate_longer_chains(std::back_inserter(chain_subgraphs));
 
-
-      for (chain_subgraph_t chain_subgraph : chain_subgraphs) {
+      for (chain_subgraph_t chain_subgraph : chain_subgraphs)
+      {
         const std::list<op_list_t>& weight_reads = chain_subgraph.weight_reads_;
         const op_list_t& dpu_chain = chain_subgraph.dpu_chain_;
         assert(!dpu_chain.empty() && "dpu_chain is empty");
+        if (dpu_chain.size() <= 3UL) { continue; }
+
 
         chain_subgraph.print(fptr);
         //compute_working_memory_for_eltwise_chain(chain_subgraph);
         auto curr_dpu_itr = dpu_chain.begin();
         auto curr_itr = weight_reads.begin();
-
 
         auto pprev_dpu_itr = curr_dpu_itr;
 
@@ -571,7 +694,8 @@ class Pipeline_Chains {
 
         size_t curr_dpu_index = 2UL;
         std::unordered_map<operation_t, size_t> stage_memory;
-        while (curr_dpu_itr != dpu_chain.end()) {
+        while (curr_dpu_itr != dpu_chain.end())
+        {
           if (curr_itr == weight_reads.end())
             throw RuntimeError("transform_op_model", "curr_itr == weight_reads.end()");
           const op_list_t & curr_read_list = *curr_itr;
@@ -581,26 +705,29 @@ class Pipeline_Chains {
           if (!pprev_read_list.empty())
           {
             auto net_dpu_itr = pprev_dpu_itr;
-            for (size_t sl=0; (sl<select_stages) &&
+            for (size_t sl=0; (sl < select_stages) &&
                   (net_dpu_itr != dpu_chain.begin()); ++sl) { --net_dpu_itr; }
             mv::Data::OpListIterator src_itr =
                 omodel_.getOp((*net_dpu_itr)->getName());
 
             size_t demand = 0UL;
-            for (operation_t curr_read_op : curr_read_list ){
+            for (operation_t curr_read_op : curr_read_list )
+            {
               mv::Data::OpListIterator curr_read_op_itr =
                   omodel_.getOp(curr_read_op->getName());
               demand +=
                   (curr_read_op_itr->getOutputTensor(0UL))->getClusterSize();
             }
 
-            if (stage_memory.find((*net_dpu_itr)) == stage_memory.end()) {
+            if (stage_memory.find((*net_dpu_itr)) == stage_memory.end())
+            {
               auto net_dpu_op_itr = omodel_.getOp((*net_dpu_itr)->getName());
               stage_memory[*net_dpu_itr] =
                 (net_dpu_op_itr->getOutputTensor(0UL))->getClusterSize();
               auto next_dpu_itr = net_dpu_itr;
               ++next_dpu_itr;
-              if (next_dpu_itr != dpu_chain.end()) {
+              if (next_dpu_itr != dpu_chain.end())
+              {
                 auto next_dpu_op_itr =
                     omodel_.getOp((*next_dpu_itr)->getName());
                 stage_memory[*net_dpu_itr] +=
@@ -609,13 +736,13 @@ class Pipeline_Chains {
             }
 
             //TODO(vamsikku): parameterize this based on CMX availablity //
-            if ( (stage_memory[*net_dpu_itr] + demand) > 700000) {
+            if ( (stage_memory[*net_dpu_itr] + demand) > 700000)
               goto MOVE_TO_NEXT_SUBGRAPH;
-            }
 
             stage_memory[*net_dpu_itr] += demand;
 
-            for (operation_t curr_read_op : curr_read_list ){
+            for (operation_t curr_read_op : curr_read_list )
+            {
               mv::Data::OpListIterator sink_itr =
                   omodel_.getOp(curr_read_op->getName());
               sink_itr->set<bool>("pipeline_flow_control", true);
@@ -625,6 +752,7 @@ class Pipeline_Chains {
                 mv::Data::FlowListIterator flow_itr =
                     omodel_.defineFlow(src_tensor_itr, sink_itr, 0UL);
                 flow_itr->set<bool>("pseudo_data_flow", true);
+                src_itr->set<bool>("chain_pipelined_dpu", true);
               }
             }
           }
@@ -641,7 +769,7 @@ MOVE_TO_NEXT_SUBGRAPH:
         printf("\n\n");
         printf("======================\n");
         for (auto itr=stage_memory.begin(); itr!=stage_memory.end(); ++itr) {
-          printf("[stage_memory] op=%s demand=%lu\n", 
+          printf("[stage_memory] op=%s demand=%lu\n",
               (itr->first->getName()).c_str(), itr->second);
         }
         printf("======================\n");
@@ -657,7 +785,7 @@ MOVE_TO_NEXT_SUBGRAPH:
 
     }
 
-    void transform_inplace_eltwise_chain(const chain_subgraph_t& /*eltwise_chain*/){
+    void transform_inplace_eltwise_chain(const chain_subgraph_t& ){
     }
 
     size_t compute_working_memory_for_eltwise_chain(
@@ -702,7 +830,7 @@ MOVE_TO_NEXT_SUBGRAPH:
       size_t max_dpu_demand = 0UL;
       {
         auto dpu_itr = dpu_chain.begin();
-        auto prev_dpu_itr = dpu_itr; 
+        auto prev_dpu_itr = dpu_itr;
         ++dpu_itr;
 
         size_t curr_dpu_demand, curr_dpu_memory;
@@ -766,4 +894,3 @@ MOVE_TO_NEXT_SUBGRAPH:
 
 
 #endif
-

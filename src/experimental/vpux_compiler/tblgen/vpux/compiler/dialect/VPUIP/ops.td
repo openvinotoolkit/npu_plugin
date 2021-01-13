@@ -17,7 +17,7 @@
 #ifndef VPUX_COMPILER_DIALECT_VPUIP_OPS
 #define VPUX_COMPILER_DIALECT_VPUIP_OPS
 
-include "vpux/compiler/dialect/IE/ops_interfaces.td"
+include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
@@ -50,10 +50,6 @@ class VPUIP_TaskOp<string mnemonic, VPUIP_TaskTypeVal taskType, list<OpTrait> tr
                 ]
             )
         > {
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
-
     let extraClassDeclaration = [{
         static vpux::VPUIP::TaskType getTaskType() {
             return }] # taskType.enumVal # [{;
@@ -81,7 +77,7 @@ def VPUIP_GraphOp :
                 HasParent<"mlir::ModuleOp">,
                 SingleBlockImplicitTerminator<"vpux::VPUIP::EndOp">,
                 NoRegionArguments,
-                IE_NetworkInformation,
+                DeclareOpInterfaceMethods<NetInfoInterface>,
                 DeclareOpInterfaceMethods<SymbolUserOpInterface>
             ]
         > {
@@ -100,10 +96,6 @@ def VPUIP_GraphOp :
         SizedRegion<1>:$outputsInfo
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
-
     let assemblyFormat = [{
         attr-dict
         $identifier `at` $entryPoint
@@ -113,10 +105,6 @@ def VPUIP_GraphOp :
         `inputsInfo` `:` $inputsInfo
         `outputsInfo` `:` $outputsInfo
     }];
-
-    let extraClassDeclaration = [{
-        static mlir::LogicalResult getFromModule(mlir::ModuleOp module, vpux::VPUIP::GraphOp& graphOp, mlir::FuncOp& graphFunc);
-    }];
 }
 
 def VPUIP_TensorInfoOp :
@@ -124,7 +112,8 @@ def VPUIP_TensorInfoOp :
             "TensorInfo",
             [
                 IsolatedFromAbove,
-                HasParent<"vpux::VPUIP::GraphOp">
+                HasParent<"vpux::VPUIP::GraphOp">,
+                DeclareOpInterfaceMethods<DataInfoInterface>
             ]
         > {
     let summary = "Information about user inputs/outputs tensors";
@@ -166,31 +155,103 @@ def VPUIP_DeclareTensorOp :
                 NoSideEffect
             ]
         > {
-    let summary = "MemRef value declaration";
+    let summary = "TensorReference value declaration";
 
     let arguments = (ins
         VPUIP_MemoryLocation:$locale,
         OptionalAttr<I32Attr>:$localeIndex,
 
-        DefaultValuedAttr<I64Attr, "0">:$leadingOffset,
-        DefaultValuedAttr<I64Attr, "0">:$trailingOffset,
-
-        OptionalAttr<I64Attr>:$dataIndex,
+        I64Attr:$dataIndex,
         OptionalAttr<I64Attr>:$sparsityIndex,
-        OptionalAttr<I64Attr>:$storageElementIndex
+        OptionalAttr<I64Attr>:$storageElementIndex,
+        OptionalAttr<I32Attr>:$storageElementSize,
+
+        OptionalAttr<I32Attr>:$leadingOffset,
+        OptionalAttr<I32Attr>:$trailingOffset
     );
 
     let results = (outs
         AnyMemRef:$memory
     );
 
+    let builders = [
+        OpBuilderDAG<
+            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint64_t":$dataIndex),
+            [{
+                build($_builder, $_state, memory, locale,
+                      nullptr, // localeIndex
+                      dataIndex,
+                      nullptr, // sparsityIndex
+                      nullptr, // storageElementIndex
+                      nullptr, // storageElementSize
+                      nullptr, // leadingOffset
+                      nullptr  // trailingOffset
+                );
+            }]
+        >
+    ];
+
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
     }];
 
     let assemblyFormat = [{
-        $locale (`:` $localeIndex^)? attr-dict `->` type(results)
+        $locale (`[` $localeIndex^ `]`)? `<` $dataIndex `>` attr-dict `->` type(results)
     }];
+}
+
+//
+// DeclareConstantTensorOp
+//
+
+def DenseElementsAttr :
+        ElementsAttrBase<
+            CPred<"$_self.isa<mlir::DenseElementsAttr>()">,
+            "constant dense tensor attribute"
+        > {
+    let storageType = "mlir::DenseElementsAttr";
+    let returnType = "mlir::DenseElementsAttr";
+    let convertFromStorage = "$_self";
+}
+
+def VPUIP_DeclareConstantTensorOp :
+        VPUIP_Op<
+            "DeclareConstantTensorOp",
+            [
+                ConstantLike,
+                NoSideEffect
+            ]
+        > {
+    let summary = "Constant TensorReference value declaration";
+
+    let arguments = (ins
+        DenseElementsAttr:$content,
+
+        UnitAttr:$csramCacheable
+    );
+
+    let results = (outs
+        AnyMemRef:$memory
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins "mlir::MemRefType":$type, "mlir::DenseElementsAttr":$content),
+            [{
+                build($_builder, $_state, type, content, nullptr);
+            }]
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        $content attr-dict `->` type(results)
+    }];
+
+    let hasFolder = 1;
 }
 
 //
@@ -259,6 +320,10 @@ def VPUIP_ConfigureBarrierOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         (`inputs` `(` $inputTensors^ `:` type($inputTensors) `)`)?
@@ -276,7 +341,10 @@ def VPUIP_ConfigureBarrierOp :
 def VPUIP_UPADMAOp :
         VPUIP_TaskOp<
             "UPADMA",
-            VPUIP_TaskType_UPADMA
+            VPUIP_TaskType_UPADMA,
+            [
+                VPUIP_UPATaskTrait
+            ]
         > {
     let summary = "UPA DMA task";
 
@@ -309,7 +377,9 @@ def VPUIP_SoftMaxUPAOp :
             "SoftMaxUPA",
             VPUIP_TaskType_UPA,
             [
-                DeclareOpInterfaceMethods<IE_SoftMaxLayerInterface>,
+                VPUIP_UPATaskTrait,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<SoftMaxLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
         > {
@@ -341,6 +411,19 @@ def VPUIP_SoftMaxUPAOp :
                       mlir::ValueRange {}, mlir::ValueRange {},
                       axisInd, maxShaves,
                       nullptr);
+            }]
+        >,
+
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$output,
+                "mlir::IntegerAttr":$axisInd
+            ),
+            [{
+                build($_builder, $_state,
+                      input, output,
+                      axisInd,
+                      $_builder.getI32IntegerAttr(1));
             }]
         >
     ];

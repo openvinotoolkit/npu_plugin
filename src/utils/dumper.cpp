@@ -21,7 +21,7 @@
 namespace utils {
 
 void dumpBlobHelper(const InferenceEngine::Blob::Ptr& blobPtr, const std::string& dst, const vpu::Logger::Ptr& logger,
-    const std::string& blobType) {
+                    const std::string& blobType) {
     static unsigned dumpCounter = 0;
     std::ostringstream inputFullPath;
     inputFullPath << dst;
@@ -39,7 +39,7 @@ void dumpBlobHelper(const InferenceEngine::Blob::Ptr& blobPtr, const std::string
 }
 
 void dumpBlobs(const InferenceEngine::BlobMap& blobMap, const std::string& dstPath, const std::string& blobType,
-    const vpu::Logger::Ptr& logger) {
+               const vpu::Logger::Ptr& logger) {
     if (dstPath.empty()) {
         logger->warning("dumpBlobs: destination path is not set.");
         return;

@@ -65,7 +65,7 @@ void ParsedRemoteBlobParams::parse() {
         if (_paramMap.find(IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC)) != _paramMap.end()) {
             try {
                 _originalTensorDesc =
-                    _paramMap.at(IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC)).as<std::shared_ptr<IE::TensorDesc>>();
+                        _paramMap.at(IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC)).as<std::shared_ptr<IE::TensorDesc>>();
             } catch (...) {
                 THROW_IE_EXCEPTION << "Original tensor desc have incorrect type information";
             }

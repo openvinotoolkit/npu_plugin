@@ -23,8 +23,8 @@ static void GlobalConfigParamsFcn(const mv::pass::PassEntry& pass, mv::Computati
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    //set the global params to be this pass's compilation descriptor element
-    model.setGlobalConfigParams(compilationDescriptor);
+    //add global params to be this pass's compilation descriptor element
+    model.addGlobalConfigParams(compilationDescriptor);
 
     if (compilationDescriptor.hasAttr("verbose"))
     {

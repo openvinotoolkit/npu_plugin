@@ -106,7 +106,10 @@ void decideConcatLocationFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         {"SplitOverK", "SplitOverH"},
         {"SplitOverK", "HKSwitch"},
         {"HKSwitch", "SplitOverH"},
-        {"HKSwitch", "HKSwitch"}
+        {"HKSwitch", "HKSwitch"},
+        {"Clustering", "SplitOverH"},
+        {"Clustering", "SplitOverHOverlapped"},
+        {"Clustering", "HKSwitch"}
     };
 
 

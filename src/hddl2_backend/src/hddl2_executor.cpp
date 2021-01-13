@@ -87,8 +87,8 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
         inputForInference = make_blob_with_precision(TensorDesc);
         inputForInference->allocate();
 
-        ie_memcpy(
-            inputForInference->buffer(), inputForInference->byteSize(), actualInput->buffer(), actualInput->byteSize());
+        ie_memcpy(inputForInference->buffer(), inputForInference->byteSize(), actualInput->buffer(),
+                  actualInput->byteSize());
     } else {
         if (actualInput->getTensorDesc().getDims().size() == 3) {
             // 3D CHW input
@@ -101,8 +101,8 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
             IE_ASSERT(memBlobTmp != nullptr);
             auto memBlobActualInput = IE::as<IE::MemoryBlob>(actualInput);
             IE_ASSERT(memBlobActualInput != nullptr);
-            std::memcpy(
-                memBlobTmp->wmap().as<uint8_t*>(), memBlobActualInput->rmap().as<uint8_t*>(), actualInput->byteSize());
+            std::memcpy(memBlobTmp->wmap().as<uint8_t*>(), memBlobActualInput->rmap().as<uint8_t*>(),
+                        actualInput->byteSize());
             inputForInference = toLayout(tmpBlobPtr, expectedLayout);
         } else {
             // 4D to 4D input conversion
@@ -113,20 +113,20 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
     return inputForInference;
 }
 //------------------------------------------------------------------------------
+std::atomic<size_t> HDDL2Executor::_executorIdCounter{0};
+std::map<size_t, std::weak_ptr<vpu::HDDL2Plugin::HddlUniteGraph>> HDDL2Executor::_uniteGraphMap;
+
 HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
-    const VPUXConfig& config, const std::shared_ptr<vpux::Allocator>& allocator,
-    const HddlUnite::WorkloadContext::Ptr& workloadContext) {
+                                                  const VPUXConfig& config,
+                                                  const std::shared_ptr<vpux::Allocator>& allocator,
+                                                  const HddlUnite::WorkloadContext::Ptr& workloadContext) {
     auto logger = std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput());
     vpux::HDDL2::HDDL2Executor::Ptr executor = nullptr;
 
     try {
         executor = std::make_shared<vpux::HDDL2::HDDL2Executor>(networkDesc, config, allocator, workloadContext);
     } catch (const IE::details::InferenceEngineException& exception) {
-        if (exception.hasStatus() && exception.getStatus() == IE::StatusCode::NETWORK_NOT_LOADED) {
-            logger->error(FAILED_LOAD_NETWORK.c_str());
-        } else {
-            logger->error("%s%s", EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
-        }
+        logger->error("%s%s", EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
     } catch (const std::exception& exception) {
         logger->error("%s%s", EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
     }
@@ -134,27 +134,29 @@ HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription
 }
 
 HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
-    const std::shared_ptr<vpux::Allocator>& allocator, const HddlUnite::WorkloadContext::Ptr& workloadContext)
-    // TODO Make executor logger name unique
-    : _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())),
-      _network(network),
-      _allocatorPtr(allocator),
-      _workloadContext(workloadContext) {
+                             const std::shared_ptr<vpux::Allocator>& allocator,
+                             const HddlUnite::WorkloadContext::Ptr& workloadContext)
+        // TODO Make executor logger name unique
+        : _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())),
+          _network(network),
+          _allocatorPtr(allocator),
+          _workloadContext(workloadContext),
+          _baseExecutorId(_executorIdCounter++) {
     _config.parseFrom(config);
-    loadGraphToDevice();
-    _inferDataPtr =
-        std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
+    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext,
+                                                                         _config.graphColorFormat());
 }
 
 HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
-    : _config(ex._config),
-      _logger(std::make_shared<vpu::Logger>("Executor", _config.logLevel(), vpu::consoleOutput())),
-      _network(ex._network),
-      _uniteGraphPtr(ex._uniteGraphPtr),
-      _allocatorPtr(ex._allocatorPtr),
-      _workloadContext(ex._workloadContext) {
-    _inferDataPtr =
-        std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
+        : _config(ex._config),
+          _logger(std::make_shared<vpu::Logger>("Executor", _config.logLevel(), vpu::consoleOutput())),
+          _network(ex._network),
+          _uniteGraphPtr(ex._uniteGraphPtr),
+          _allocatorPtr(ex._allocatorPtr),
+          _workloadContext(ex._workloadContext),
+          _baseExecutorId(ex._baseExecutorId) {
+    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext,
+                                                                         _config.graphColorFormat());
 }
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
@@ -162,12 +164,26 @@ void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
-void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs) { push(inputs, {}); }
+void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs) {
+    push(inputs, {});
+}
 
 void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) {
     // TODO [Design flaw] InferData need to know if preprocessing required on creation [Track number: S#31308]
     bool needUnitePreProcessing = false;
     IE::BlobMap updatedInputs;
+
+    try {
+        loadGraphToDevice();
+    } catch (const IE::details::InferenceEngineException& exception) {
+        if (exception.hasStatus() && exception.getStatus() == IE::StatusCode::NETWORK_NOT_LOADED) {
+            _logger->error(FAILED_LOAD_NETWORK.c_str());
+        } else {
+            _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
+        }
+    } catch (const std::exception& exception) {
+        _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
+    }
 
     const auto& networkInputs = _network->getInputsInfo();
     const auto& deviceInputs = _network->getDeviceInputsInfo();
@@ -175,11 +191,11 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
     if (inputs.size() != networkInputs.size()) {
         _logger->warning("Amount of blobs and network inputs mismatch!\n"
                          "Blobs: %d, network inputs: %d",
-            inputs.size(), networkInputs.size());
+                         inputs.size(), networkInputs.size());
     } else if (networkInputs.size() != deviceInputs.size()) {
         _logger->warning("Amount of network inputs and expected device inputs mismatch!\n"
                          "Network inputs: %d, Device inputs: %d",
-            networkInputs.size(), deviceInputs.size());
+                         networkInputs.size(), deviceInputs.size());
     }
 
     for (const auto& networkInput : networkInputs) {
@@ -250,8 +266,6 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
 
         const auto deviceOutputPrecision = deviceTensorDesc.getPrecision();
         const auto blobOutputPrecision = outputBlobTensorDesc.getPrecision();
-        const auto deviceOutputLayout = deviceTensorDesc.getLayout();
-        const auto blobOutputLayout = outputBlobTensorDesc.getLayout();
 
         if (deviceOutputPrecision == IE::Precision::FP32 || blobOutputPrecision == IE::Precision::FP32) {
             if (deviceOutputPrecision == IE::Precision::U8 || blobOutputPrecision == IE::Precision::U8) {
@@ -273,40 +287,24 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
         copyDataToBlob(deviceOutputBlob, outputUniteData.data(), outputUniteData.size());
         outputBlobPtr = toPrecision(deviceOutputBlob, blobOutputPrecision);
 
-        // Currently we have outputBlob with device layout and user precision
-        if (blobOutputLayout == deviceOutputLayout) {
-            outputs[outputName] = outputBlobPtr;
+        if (deviceTensorDesc.getDims().size() == outputBlobTensorDesc.getDims().size()) {
+            outputBlobPtr = toLayout(outputBlobPtr, outputBlobTensorDesc.getLayout());
         } else {
-            IE::Blob::Ptr rightOutputBlobPtr = nullptr;
-            if (is2DTensor(outputBlobTensorDesc.getDims()) || is2DTensor(deviceTensorDesc.getDims())) {
-                rightOutputBlobPtr = make_blob_with_precision(outputBlobTensorDesc);
-                rightOutputBlobPtr->allocate();
-                auto memBlobRightOut = IE::as<IE::MemoryBlob>(rightOutputBlobPtr);
-                IE_ASSERT(memBlobRightOut != nullptr);
-                auto memBlobOut = IE::as<IE::MemoryBlob>(outputBlobPtr);
-                IE_ASSERT(memBlobOut != nullptr);
-                std::memcpy(memBlobRightOut->wmap().as<uint8_t*>(), memBlobOut->rmap().as<uint8_t*>(),
-                    outputBlobPtr->byteSize());
-            } else {
-                // Both of them are not 2D
-                if (outputBlobTensorDesc.getDims().size() == 3) {
-                    // 3D CHW output
-                    IE::Blob::Ptr tmpBlobPtr = toLayout(outputBlobPtr, IE::Layout::NCHW);
-                    rightOutputBlobPtr = make_blob_with_precision(outputBlobTensorDesc);
-                    rightOutputBlobPtr->allocate();
-                    auto memBlobRightOut = IE::as<IE::MemoryBlob>(rightOutputBlobPtr);
-                    IE_ASSERT(memBlobRightOut != nullptr);
-                    auto memBlobTmp = IE::as<IE::MemoryBlob>(tmpBlobPtr);
-                    IE_ASSERT(memBlobTmp != nullptr);
-                    std::memcpy(memBlobRightOut->wmap().as<uint8_t*>(), memBlobTmp->rmap().as<uint8_t*>(),
-                        tmpBlobPtr->byteSize());
-                } else {
-                    // 4D to 4D
-                    rightOutputBlobPtr = toLayout(outputBlobPtr, blobOutputLayout);
-                }
+            // FIXME If device and output layout dims are different, we do plain copy (see below)
+            // Will be different behavior with channel minor and channel major layouts
+            if (deviceTensorDesc.getLayout() == IE::Layout::NHWC &&
+                outputBlobTensorDesc.getLayout() == IE::Layout::CHW) {
+                outputBlobPtr = toLayout(outputBlobPtr, IE::Layout::NCHW);
             }
-            outputs[outputName] = rightOutputBlobPtr;
         }
+
+        auto memOutputBlob = IE::as<IE::MemoryBlob>(foundOutputBlob->second);
+        IE_ASSERT(memOutputBlob != nullptr);
+        auto memDeviceBlob = IE::as<IE::MemoryBlob>(outputBlobPtr);
+        IE_ASSERT(memDeviceBlob != nullptr);
+        auto memOutputLock = memOutputBlob->wmap();
+        auto memDeviceLock = memDeviceBlob->rmap();
+        std::memcpy(memOutputLock.as<uint8_t*>(), memDeviceLock.as<uint8_t*>(), outputBlobPtr->byteSize());
     }
 }  // namespace HDDL2
 
@@ -323,9 +321,9 @@ bool HDDL2Executor::isPreProcessingSupported(const PreprocMap& preProcMap) const
     for (const auto& input : preProcMap) {
         const auto& preProcInfo = input.second;
         const auto preProcessingSupported =
-            preProcSupported(preProcInfo.getResizeAlgorithm(), preProcInfo.getColorFormat());
+                preProcSupported(preProcInfo.getResizeAlgorithm(), preProcInfo.getColorFormat());
         _logger->debug("Preprocessing for color format '{}' resize algorithm '{}' is {}.", preProcInfo.getColorFormat(),
-            preProcInfo.getResizeAlgorithm(), preProcessingSupported ? "supported" : "not supported");
+                       preProcInfo.getResizeAlgorithm(), preProcessingSupported ? "supported" : "not supported");
         isPreProcSupported &= preProcessingSupported;
     }
     return isPreProcSupported;
@@ -345,16 +343,33 @@ void HDDL2Executor::loadGraphToDevice() {
     const auto csram_size = _config.CSRAMSize();
     hddlUniteConfig.insert(std::make_pair("CSRAM_SIZE", std::to_string(csram_size)));
 
-    if (_workloadContext == nullptr) {
-        _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
-            _network, _config.deviceId(), hddlUniteConfig, _config.logLevel());
-    } else {
-        _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
-            _network, _workloadContext, hddlUniteConfig, _config.logLevel());
+    // Graph hasn't been initialized yet
+    if (_uniteGraphPtr == nullptr) {
+        std::lock_guard<std::mutex> lock(_uniteGraphMapMutex);
+        const auto findUniteGraph = _uniteGraphMap.find(_baseExecutorId);
+        // No graph in the map - need to load it to the device and add to the map
+        if (findUniteGraph == _uniteGraphMap.end()) {
+            if (_workloadContext == nullptr) {
+                _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
+                        _network, _config.deviceId(), hddlUniteConfig, _config.logLevel());
+            } else {
+                _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
+                        _network, _workloadContext, hddlUniteConfig, _config.logLevel());
+            }
+            _uniteGraphMap[_baseExecutorId] = _uniteGraphPtr;
+        } else {
+            // Graph was found - use it
+            _uniteGraphPtr = findUniteGraph->second.lock();
+            if (_uniteGraphPtr == nullptr) {
+                THROW_IE_EXCEPTION << "HddlUnite graph was found but deleted.";
+            }
+        }
     }
 }
 
-Executor::Ptr HDDL2Executor::clone() const { return std::make_shared<HDDL2Executor>(*this); }
+Executor::Ptr HDDL2Executor::clone() const {
+    return std::make_shared<HDDL2Executor>(*this);
+}
 
 }  // namespace HDDL2
 }  // namespace vpux

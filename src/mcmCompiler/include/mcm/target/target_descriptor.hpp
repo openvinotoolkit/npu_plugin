@@ -18,12 +18,22 @@
 
 namespace mv
 {
+    struct DPUMode { unsigned H, W; };
+    using  DPUModeList = std::vector<mv::DPUMode>;
 
     enum class Target
     {
         ma2490,
         ma3100,
+        ma3720,
         Unknown
+    };
+
+    struct WorkloadConfig
+    {
+        std::vector<std::size_t> validZTiles;
+        std::vector<std::string> algorithms;
+        DPUModeList dpuModes;
     };
 
     struct HdeDescriptor
@@ -33,6 +43,14 @@ namespace mv
         std::size_t blockSize;
         std::size_t maxNumberEncodedSymbols;
         bool bypassMode;
+    };
+
+    typedef std::vector<std::pair<std::string, std::string>> DataTypeSet;
+
+    struct DataTypeSupport
+    {
+        DataTypeSet failCase;
+        DataTypeSet mitigation;
     };
 
     class TargetDescriptor : public LogSender
@@ -50,7 +68,6 @@ namespace mv
             std::size_t totalNumber;
         };
 
-
         static Target toTarget(const std::string& str);
         const static unsigned jsonParserBufferLenght_ = 128;
 
@@ -61,7 +78,11 @@ namespace mv
         std::map<std::string, MemoryDescriptor> memoryDefs_;
         HdeDescriptor hdeDef_;
         std::map<std::string, NceDescriptor> nceDefs_;
+        std::map<std::string, std::size_t> processorDefs_;
         std::map<std::string, mv::Element> serialDescriptions_;
+        std::map<std::string, WorkloadConfig> workloadConfigs_;
+        std::vector<DataTypeSupport> dtypeSupport_;
+
     public:
 
         TargetDescriptor(const std::string& filePath = "");
@@ -88,7 +109,10 @@ namespace mv
 
         const std::map<std::string, MemoryDescriptor>& memoryDefs() const;
         const std::map<std::string, NceDescriptor>& nceDefs() const;
+        const std::map<std::string, std::size_t>& processorDefs() const;
         const HdeDescriptor& hdeDef() const;
+        const std::map<std::string, WorkloadConfig> & getWorkloadConfigs() const;
+        const std::vector<mv::DataTypeSupport> & dtypeSupport() const;
 
         std::string getLogID() const override;
 

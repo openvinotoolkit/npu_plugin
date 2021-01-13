@@ -26,7 +26,8 @@ struct StageOutput {
     std::string argName;
 
     StageOutput(bool is_buffer, int buffer_size, int port_index, std::string arg_name)
-        : isBuffer(is_buffer), bufferSize(buffer_size), portIndex(port_index), argName{std::move(arg_name)} {}
+            : isBuffer(is_buffer), bufferSize(buffer_size), portIndex(port_index), argName{std::move(arg_name)} {
+    }
 };
 
 struct StageInfo {
@@ -43,28 +44,24 @@ class CustomLayerParserNGraph {
     std::map<std::string, std::string> _layerParam;
     std::unordered_map<int, mv::Data::TensorIterator> _buffers;
 
-private:
-    static SmallVector<int> calcSizesFromParams(const std::vector<size_t>& dims,
-        const SmallVector<std::string>& bufferSizeRules, std::map<std::string, std::string> layerParams);
-
 public:
     CustomLayerParserNGraph(std::shared_ptr<ngraph::Node>& node, std::vector<mv::Data::TensorIterator> inputs);
 
-    std::vector<uint8_t> resolveKernelArguments(
-        const CustomKernel& kernel, const vpu::SmallVector<uint32_t>& kernelArgs);
+    std::vector<uint8_t> resolveKernelArguments(const CustomKernel& kernel,
+                                                const vpu::SmallVector<uint32_t>& kernelArgs);
 
-    std::vector<mv::TensorInfo> resolveStageOutputs(
-        const CustomKernel& kernel, const CustomLayer& customLayer, const std::vector<StageOutput>& stageOutputs);
+    std::vector<mv::TensorInfo> resolveStageOutputs(const CustomLayer& customLayer,
+                                                    const std::vector<StageOutput>& stageOutputs);
 
-    StageInfo parseKernelArguments(const std::vector<CustomKernel::BindingParameter>& bindings);
+    StageInfo parseKernelArguments(const SmallVector<CustomKernel::BindingParameter>& bindings);
     uint32_t parseBufferSize(const CustomKernel::BindingParameter& binding);
     void addBuffer(int port, const mv::Data::TensorIterator& bufferIt);
 };
 
-std::vector<vpu::CustomLayer::Ptr> getSuitableCustomLayers(
-    const std::vector<vpu::CustomLayer::Ptr>& customLayers, const std::shared_ptr<ngraph::Node>& node);
+std::vector<vpu::CustomLayer::Ptr> getSuitableCustomLayers(const std::vector<vpu::CustomLayer::Ptr>& customLayers,
+                                                           const std::shared_ptr<ngraph::Node>& node);
 
-vpu::CustomLayer::Ptr findMatchingCustomLayer(
-    const std::vector<vpu::CustomLayer::Ptr>& customLayers, const std::vector<mv::Data::TensorIterator>& inputs);
+vpu::CustomLayer::Ptr findMatchingCustomLayer(const std::vector<vpu::CustomLayer::Ptr>& customLayers,
+                                              const std::vector<mv::Data::TensorIterator>& inputs);
 
 }  // namespace vpu

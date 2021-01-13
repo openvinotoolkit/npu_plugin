@@ -8,6 +8,7 @@
 #include <allocators.hpp>
 #include <blob_factory.hpp>
 #include <blob_transform.hpp>
+#include <ie_core.hpp>
 #include <ie_preprocess.hpp>
 #include <ie_preprocess_data.hpp>
 #include <kmb_preproc.hpp>
@@ -15,6 +16,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <thread>
+#include "vpux_params_private_options.h"
 
 #include "gapi_test_computations.hpp"
 
@@ -147,12 +149,24 @@ public:
         }));
         return ptr;
     }
+    int fd(void* ptr) {
+       return m_alloc.getFileDescByVirtAddr(ptr);
+    }
 };
 
+InferenceEngine::RemoteContext::Ptr remoteContext() {
+    static InferenceEngine::Core core;
+    InferenceEngine::ParamMap ctxParams{{InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), "VPU-0"}};
+    static auto ctx = core.CreateContext("VPUX", ctxParams);
+    return ctx;
+}
+
+enum class BlobAPI { Remote, Default };
 // FIXME: copy-paste from cropResize_tests.hpp
 template <InferenceEngine::Precision::ePrecision PRC>
 InferenceEngine::Blob::Ptr img2Blob(
-    const std::vector<cv::Mat>& imgs, InferenceEngine::Layout layout, AllocHelper& allocator) {
+    const std::vector<cv::Mat>& imgs, InferenceEngine::Layout layout, AllocHelper& allocator,
+    BlobAPI blobApi, int alignment) {
     using data_t = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     using namespace InferenceEngine;
 
@@ -184,22 +198,43 @@ InferenceEngine::Blob::Ptr img2Blob(
     size_t height = imgs[0].size().height;
     size_t width = imgs[0].size().width;
 
+    const auto align = [](int v, int a) { return (v+a-1)/a*a; };
+    size_t step = align(width, alignment);
+
     SizeVector dims = {imgs.size(), channels, height, width};
-    auto buf = reinterpret_cast<data_t*>(allocator.alloc(width * height * channels));
-    Blob::Ptr resultBlob = make_shared_blob<data_t>(TensorDesc(PRC, dims, layout), buf);
+    auto bdims = (layout == NCHW) ? SizeVector{1, channels, height, width} : SizeVector{1, height, width, channels};
+    auto bufSz = step*height*channels;
+    auto buf = reinterpret_cast<data_t*>(allocator.alloc(bufSz));
+    auto order = (layout == NCHW) ? SizeVector{0,1,2,3} : SizeVector{0,2,3,1};
+    size_t offset = 0u;
+    SizeVector dimOffsets{0,0,0,0};
+    auto strides = (layout == NCHW) ? SizeVector{channels*height*step, height*step, step, 1}
+                                    : SizeVector{height*step*channels, step*channels, channels, 1};
+    InferenceEngine::BlockingDesc bd(bdims, order, offset, dimOffsets, strides);
+    auto desc = TensorDesc(PRC, dims, bd);
+    Blob::Ptr resultBlob;
+    if (blobApi == BlobAPI::Default) {
+        resultBlob = make_shared_blob<data_t>(desc, buf);
+    } else {
+        InferenceEngine::ParamMap blobParams = {
+            { InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), allocator.fd(buf) },
+            { InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE), reinterpret_cast<KmbHandleParam>(buf) },
+        };
+        resultBlob = remoteContext()->CreateBlob(desc, blobParams);
+    }
+    IE_ASSERT(resultBlob != nullptr);
 
-    data_t* blobData = resultBlob->buffer().as<data_t*>();
-
+    data_t* blobData = static_cast<data_t*>(buf);
     for (size_t i = 0; i < imgs.size(); ++i) {
         auto& img = imgs[i];
-        auto batch_offset = i * channels * height * width;
+        auto batch_offset = i * channels * height * step;
 
         switch (layout) {
         case Layout::NCHW: {
             for (size_t c = 0; c < channels; c++) {
                 for (size_t h = 0; h < height; h++) {
                     for (size_t w = 0; w < width; w++) {
-                        blobData[batch_offset + c * width * height + h * width + w] = img_value(img, h, w, c);
+                        blobData[batch_offset + c * step * height + h * step + w] = img_value(img, h, w, c);
                     }
                 }
             }
@@ -208,7 +243,7 @@ InferenceEngine::Blob::Ptr img2Blob(
             for (size_t h = 0; h < height; h++) {
                 for (size_t w = 0; w < width; w++) {
                     for (size_t c = 0; c < channels; c++) {
-                        blobData[batch_offset + h * width * channels + w * channels + c] = img_value(img, h, w, c);
+                        blobData[batch_offset + h * step * channels + w * channels + c] = img_value(img, h, w, c);
                     }
                 }
             }
@@ -221,8 +256,9 @@ InferenceEngine::Blob::Ptr img2Blob(
 }
 
 template <InferenceEngine::Precision::ePrecision PRC>
-InferenceEngine::Blob::Ptr img2Blob(cv::Mat& img, InferenceEngine::Layout layout, AllocHelper& allocator) {
-    return img2Blob<PRC>(std::vector<cv::Mat>({img}), layout, allocator);
+InferenceEngine::Blob::Ptr img2Blob(cv::Mat& img, InferenceEngine::Layout layout, AllocHelper& allocator,
+                                    BlobAPI blobApi = BlobAPI::Default, int alignment = 1) {
+    return img2Blob<PRC>(std::vector<cv::Mat>({img}), layout, allocator, blobApi, alignment);
 }
 
 template <InferenceEngine::Precision::ePrecision PRC>
@@ -237,13 +273,15 @@ void Blob2Img(const InferenceEngine::Blob::Ptr& blobP, cv::Mat& img, InferenceEn
     CV_Assert(cv::DataType<data_t>::depth == img.depth());
 
     data_t* blobData = blobP->buffer().as<data_t*>();
+    auto strides = blobP->getTensorDesc().getBlockingDesc().getStrides();
+    auto step = (layout == NCHW) ? strides[2] : strides[1];
 
     switch (layout) {
     case Layout::NCHW: {
         for (size_t c = 0; c < channels; c++) {
             for (size_t h = 0; h < height; h++) {
                 for (size_t w = 0; w < width; w++) {
-                    img.ptr<data_t>(h, w)[c] = blobData[c * width * height + h * width + w];
+                    img.ptr<data_t>(h, w)[c] = blobData[c * step * height + h * step + w];
                 }
             }
         }
@@ -252,7 +290,7 @@ void Blob2Img(const InferenceEngine::Blob::Ptr& blobP, cv::Mat& img, InferenceEn
         for (size_t h = 0; h < height; h++) {
             for (size_t w = 0; w < width; w++) {
                 for (size_t c = 0; c < channels; c++) {
-                    img.ptr<data_t>(h, w)[c] = blobData[h * width * channels + w * channels + c];
+                    img.ptr<data_t>(h, w)[c] = blobData[h * step * channels + w * channels + c];
                 }
             }
         }
@@ -302,30 +340,6 @@ cv::Rect getFullImageRoi(cv::Size size) {
     rect.width = size.width;
     rect.height = size.height;
     return rect;
-}
-
-std::pair<InferenceEngine::Blob::Ptr, InferenceEngine::Blob::Ptr> img2NV12Blobs(const cv::Mat& img, AllocHelper& allocator)
-{
-    IE_ASSERT(img.channels() == 1);
-    using namespace InferenceEngine;
-    constexpr auto prec = Precision::U8;
-    constexpr auto layout = Layout::NHWC;
-    using data_t = typename InferenceEngine::PrecisionTrait<prec>::value_type;
-    size_t yW = img.cols;
-    size_t yH = img.rows/3*2;
-    size_t uvW = yW/2;
-    size_t uvH = yH/2;
-
-    SizeVector  yDims{1, 1,  yH,  yW};
-    SizeVector uvDims{1, 2, uvH, uvW};
-
-    auto buf = reinterpret_cast<data_t*>(allocator.alloc(img.rows*img.cols));
-    Blob::Ptr  yBlob = make_shared_blob<data_t>(TensorDesc(prec,  yDims, layout), buf);
-    Blob::Ptr uvBlob = make_shared_blob<data_t>(TensorDesc(prec, uvDims, layout), buf + yW*yH);
-
-    std::copy_n(img.data, img.rows*img.cols, buf);
-
-    return std::make_pair(yBlob, uvBlob);
 }
 }  // anonymous namespace
 
@@ -487,10 +501,17 @@ std::ostream& operator << (std::ostream& os, InferenceEngine::KmbPreproc::Path p
     }
 }
 
+struct AllocTestParams { BlobAPI blobApi; size_t alignment; bool shouldThrow; };
+std::ostream& operator<<(std::ostream& os, const AllocTestParams& p) {
+    os << p.alignment << ", " << p.shouldThrow;
+    return os;
+}
+
 struct KmbPreprocEngineTest : public TestWithParam<std::tuple<
     std::pair<cv::Size, cv::Size>,
     InferenceEngine::ColorFormat,
-    InferenceEngine::KmbPreproc::Path>> {};
+    InferenceEngine::KmbPreproc::Path,
+    AllocTestParams>> {};
 TEST_P(KmbPreprocEngineTest, TestNV12Resize) {
     using namespace InferenceEngine;
 
@@ -502,25 +523,21 @@ TEST_P(KmbPreprocEngineTest, TestNV12Resize) {
     ColorFormat out_fmt;
     std::pair<cv::Size,cv::Size> sizes;
     KmbPreproc::Path preprocPath;
-    std::tie(sizes, out_fmt, preprocPath) = GetParam();
+    AllocTestParams ap{};
+    std::tie(sizes, out_fmt, preprocPath, ap) = GetParam();
     cv::Size y_size, out_size;
     std::tie(y_size, out_size) = sizes;
     cv::Size uv_size {y_size.width / 2, y_size.height / 2};
 
     cv::Mat in_mat(cv::Size{y_size.width, y_size.height*3/2}, CV_8UC1);
+    cv::randu(in_mat, cv::Scalar::all(0), cv::Scalar::all(255));
     cv::Mat y_mat(y_size, CV_8UC1, in_mat.data);
     cv::Mat uv_mat(uv_size, CV_8UC2, in_mat.ptr<uchar>(y_mat.rows, 0));
     cv::Mat out_mat(out_size, CV_8UC3);
-    cv::randu(y_mat, cv::Scalar::all(0), cv::Scalar::all(255));
-    cv::randu(uv_mat, cv::Scalar::all(0), cv::Scalar::all(255));
 
     AllocHelper allocator;
-    auto nv12blobs = (preprocPath == KmbPreproc::Path::SIPP)
-                     ? std::make_pair(img2Blob<prec>( y_mat, Layout::NHWC, allocator),
-                                      img2Blob<prec>(uv_mat, Layout::NHWC, allocator))
-                     : img2NV12Blobs(in_mat, allocator);
-    auto  y_blob = nv12blobs.first;
-    auto uv_blob = nv12blobs.second;
+    auto  y_blob = img2Blob<prec>( y_mat, Layout::NHWC, allocator, ap.blobApi, ap.alignment);
+    auto uv_blob = img2Blob<prec>(uv_mat, Layout::NHWC, allocator, ap.blobApi, ap.alignment);
 
     auto out_blob = img2Blob<prec>(out_mat, out_layout, allocator);
 
@@ -542,7 +559,12 @@ TEST_P(KmbPreprocEngineTest, TestNV12Resize) {
         auto in_blob = make_shared_blob<NV12Blob>(y_roi_blob, uv_roi_blob);
 
         int deviceId = 0;
-        pe.preproc(in_blob, out_blob, interp, in_fmt, out_fmt, deviceId);
+        if (ap.shouldThrow) {
+            EXPECT_ANY_THROW(pe.preproc(in_blob, out_blob, interp, in_fmt, out_fmt, deviceId));
+            return;
+        } else {
+            EXPECT_NO_THROW(pe.preproc(in_blob, out_blob, interp, in_fmt, out_fmt, deviceId));
+        }
 
         Blob2Img<prec>(out_blob, out_mat, out_layout);
 
@@ -564,20 +586,39 @@ INSTANTIATE_TEST_CASE_P(Preproc, KmbPreprocEngineTest,
                         Combine(Values(std::make_pair(cv::Size(1920, 1080), cv::Size(416, 416))),
                                 Values(InferenceEngine::ColorFormat::BGR,
                                        InferenceEngine::ColorFormat::RGB),
-                                Values(InferenceEngine::KmbPreproc::Path::SIPP)));
+                                Values(InferenceEngine::KmbPreproc::Path::SIPP),
+                                Values(AllocTestParams{BlobAPI::Default, 1, false},
+                                       AllocTestParams{BlobAPI::Default, 256, false},
+                                       // Should throw an exception from outMeta of nv12toRgb
+                                       // since calculated from step width of uv will be 1920
+                                       AllocTestParams{BlobAPI::Default, 1920, true},
+                                       AllocTestParams{BlobAPI::Remote, 1, false},
+                                       AllocTestParams{BlobAPI::Remote, 256, false},
+                                       AllocTestParams{BlobAPI::Remote, 1920, false})));
 
 // FIXME: hsdes ticket https://hsdes.intel.com/appstore/article/#/1508160288
 INSTANTIATE_TEST_CASE_P(DISABLED_Preproc, KmbPreprocEngineTest,
                         Combine(Values(std::make_pair(cv::Size(1920, 1080), cv::Size(224, 224))),
                                 Values(InferenceEngine::ColorFormat::BGR,
                                        InferenceEngine::ColorFormat::RGB),
-                                Values(InferenceEngine::KmbPreproc::Path::SIPP)));
+                                Values(InferenceEngine::KmbPreproc::Path::SIPP),
+                                Values(AllocTestParams{BlobAPI::Default, 1, false})));
 
-// FIXME: doesn't converge with opencv, need to figure out tollerance
+// FIXME: doesn't converge with opencv, need to figure out tolerance
 INSTANTIATE_TEST_CASE_P(DISABLED_PreprocM2I, KmbPreprocEngineTest,
                         Combine(Values(std::make_pair(cv::Size(1920, 1080), cv::Size(416, 416))),
                                 Values(InferenceEngine::ColorFormat::BGR),
-                                Values(InferenceEngine::KmbPreproc::Path::M2I)));
+                                Values(InferenceEngine::KmbPreproc::Path::M2I),
+                                Values(AllocTestParams{BlobAPI::Default, 1, false},
+                                       AllocTestParams{BlobAPI::Default, 256, false},
+                                       // Should throw an exception since M2I doesn't support
+                                       // different step values for Y and UV
+                                       AllocTestParams{BlobAPI::Default, 1920, true},
+                                       AllocTestParams{BlobAPI::Remote, 1, false},
+                                       AllocTestParams{BlobAPI::Remote, 256, false},
+                                       // Should throw an exception since M2I doesn't support
+                                       // different step values for Y and UV
+                                       AllocTestParams{BlobAPI::Remote, 1920, true})));
 
 struct KmbPreprocPoolTest: public TestWithParam<std::tuple<
     std::tuple<cv::Size, cv::Size, cv::Size>,
@@ -638,12 +679,8 @@ TEST_P(KmbPreprocPoolTest, TestNV12Resize)
             cv::randu(y_mat, cv::Scalar::all(0), cv::Scalar::all(255));
             cv::randu(uv_mat, cv::Scalar::all(128), cv::Scalar::all(128));
 
-            auto nv12blobs = (preprocPath == KmbPreproc::Path::SIPP)
-                             ? std::make_pair(img2Blob<prec>( y_mat, Layout::NHWC, allocator),
-                                              img2Blob<prec>(uv_mat, Layout::NHWC, allocator))
-                             : img2NV12Blobs(in_mat, allocator);
-            y_blob  = nv12blobs.first;
-            uv_blob = nv12blobs.second;
+            y_blob  = img2Blob<prec>( y_mat, Layout::NHWC, allocator);
+            uv_blob = img2Blob<prec>(uv_mat, Layout::NHWC, allocator);
             out_blob = img2Blob<prec>(out_mat, out_layout, allocator);
 
             inName = "input0";
@@ -688,10 +725,11 @@ TEST_P(KmbPreprocPoolTest, TestNV12Resize)
 
             unsigned int nShaves = 4;
             unsigned int lpi = 8;
+            unsigned int nPipes = 1;
             const std::string graphId = "1";
             const int deviceId = 0;
             KmbPreproc::execDataPreprocessing(
-                ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, out_fmt, nShaves, lpi, graphId, deviceId, ctx.preprocPath);
+                ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, out_fmt, nShaves, lpi, nPipes, graphId, deviceId, ctx.preprocPath);
         }
 
 #if 0

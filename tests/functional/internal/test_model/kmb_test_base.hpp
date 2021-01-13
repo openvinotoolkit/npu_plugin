@@ -71,7 +71,7 @@ using namespace InferenceEngine;
         *os << #name ": " << ::testing::PrintToString((name::param_type)(param));           \
     }
 
-PRETTY_PARAM(UseCustomLayers, bool);
+PRETTY_PARAM(UseCustomLayers, KernelType);
 
 // #define RUN_SKIPPED_TESTS
 
@@ -269,6 +269,8 @@ protected:
 class TestNetworkDesc final {
 public:
     explicit TestNetworkDesc(std::string irFileName) : _irFileName(std::move(irFileName)) {}
+    explicit TestNetworkDesc(std::string irFileName, bool isExperimental) :
+        _irFileName(std::move(irFileName)), _isExperimental(isExperimental) {}
 
     TestNetworkDesc& setUserInputPrecision(
             const std::string& name,
@@ -322,6 +324,10 @@ public:
         return _compileConfig;
     }
 
+    bool isExperimental() const {
+        return _isExperimental;
+    }
+
     bool isCompilationForced() const {
         return _forceCompilation;
     }
@@ -347,6 +353,7 @@ private:
 
     std::map<std::string, std::string> _compileConfig;
     bool _forceCompilation = false;
+    const bool _isExperimental = false;
 };
 
 //
@@ -591,6 +598,53 @@ public:
         const TestNetworkDesc& netDesc,
         const TestImageDesc& image,
         float tolerance);
+};
+
+class KmbVasFDStage1Test : public KmbDetectionNetworkTest {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc, const TestImageDesc& image,
+            const float scoreThresh, const float boxTolerance,
+            const float probTolerance, const std::vector<std::string>& layerNames,
+            const std::vector<int>& anchorSz, const std::vector<int>& winScales,
+            const std::vector<int>& winLengths
+            );
+
+protected:
+    static std::vector<utils::BoundingBox> parseOutput(
+            const Blob::Ptr& blobProb, const Blob::Ptr& blobReg,
+            const int anchorSz, const int winScale,
+            const int winLen, const float scoreThresh);
+};
+
+class KmbVasFDStage2Test : public KmbDetectionNetworkTest {
+public:
+
+    struct Candidate {
+        float x_min;
+        float y_min;
+        float x_max;
+        float y_max;
+    };
+
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            const float threshold, const float boxTolerance, const float probTolerance,
+            const Candidate& candidate);
+
+protected:
+    static utils::BoundingBox parseOutput(
+            const Blob::Ptr& blobProb, const Blob::Ptr& blobReg,
+            const Candidate& candidate, const float threshold);
+};
+
+class KmbVasFRTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            const float threshold);
 };
 
 //

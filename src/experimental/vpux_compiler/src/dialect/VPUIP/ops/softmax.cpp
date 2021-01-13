@@ -16,59 +16,16 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(SoftMaxUPAOp op) {
-    if (op.inputTensors().size() != 1) {
-        return printTo(op.emitError(), "'{0}' must have 1 input tensor, got {1}", SoftMaxUPAOp::getOperationName(),
-                       op.inputTensors().size());
-    }
-
-    if (op.outputTensors().size() != 1) {
-        return printTo(op.emitError(), "'{0}' must have 1 output tensor, got {1}", SoftMaxUPAOp::getOperationName(),
-                       op.outputTensors().size());
-    }
-
-    const auto src = op.inputTensors().front();
-    const auto dst = op.outputTensors().front();
-
-    const auto srcType = src.getType().cast<mlir::MemRefType>();
-    const auto dstType = dst.getType().cast<mlir::MemRefType>();
-
-    const auto srcMem = getPhysicalMemory(srcType);
-    const auto dstMem = getPhysicalMemory(dstType);
-
-    if (mlir::failed(srcMem)) {
-        return printTo(op.emitError(), "Input tensor for Operation '{0}' has unsupported memory space '{1}'",
-                       SoftMaxUPAOp::getOperationName(), srcType.getMemorySpace());
-    }
-    if (mlir::failed(dstMem)) {
-        return printTo(op.emitError(), "Output tensor for Operation '{0}' has unsupported memory space '{1}'",
-                       SoftMaxUPAOp::getOperationName(), dstType.getMemorySpace());
-    }
-
-    if (srcMem.getValue() != PhysicalMemory::DDR && srcMem.getValue() != PhysicalMemory::CSRAM) {
-        return printTo(op.emitError(), "'{0}' can't operate with '{1}' PhysicalMemory",
-                       SoftMaxUPAOp::getOperationName(), srcMem.getValue());
-    }
-    if (srcMem.getValue() != PhysicalMemory::DDR && srcMem.getValue() != PhysicalMemory::CSRAM) {
-        return printTo(op.emitError(), "'{0}' can't operate with '{1}' PhysicalMemory",
-                       SoftMaxUPAOp::getOperationName(), dstMem.getValue());
-    }
-
-    return mlir::success();
+SmallVector<mlir::Value, 4> vpux::VPUIP::SoftMaxUPAOp::getInputs() {
+    return inputTensors();
 }
 
-ShapeRef vpux::VPUIP::SoftMaxUPAOp::getInputShape() {
-    const auto src = inputTensors().front();
-    const auto srcType = src.getType().cast<mlir::MemRefType>();
-    return ShapeRef(srcType.getShape());
-}
-
-Dim vpux::VPUIP::SoftMaxUPAOp::getAxisDim() {
-    return Dim(axisInd());
+SmallVector<mlir::Value, 1> vpux::VPUIP::SoftMaxUPAOp::getOutputs() {
+    return outputTensors();
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftMaxUPAOp::serialize(vpux::VPUIP::BlobWriter& writer) {

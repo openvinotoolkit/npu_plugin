@@ -66,8 +66,7 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
         RESOLVE_DEPENDENCY(VPU_CLC_MA2X9X
             ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X9X_VERSION}.tar.gz"
             TARGET_PATH "${TEMP}/vpu/clc/ma2x9x/${VPU_CLC_MA2X9X_VERSION}"
-            ENVIRONMENT "VPU_CLC_MA2X9X_COMMAND"
-            SHA256 "0a864bd0e11cee2d85ac7e451dddae19216c8bc9bb50e1a8e0151ab97d5e3c8d")
+            ENVIRONMENT "VPU_CLC_MA2X9X_COMMAND")
         debug_message(STATUS "VPU_CLC_MA2X9X=" ${VPU_CLC_MA2X9X})
 
         update_deps_cache(
@@ -86,14 +85,14 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
 endif()
 
 #
-# `kmb_custom_kernels` CMake target
+# `kmb_custom_ocl_kernels` CMake target
 #
 
-add_library(kmb_custom_kernels INTERFACE)
+add_library(kmb_custom_ocl_kernels INTERFACE)
 
-function(add_kmb_compile_custom_kernels)
-    set(SRC_DIR "${CMAKE_SOURCE_DIR}/src/custom_kernels")
-    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/kmb_custom_kernels")
+function(add_kmb_compile_custom_ocl_kernels)
+    set(SRC_DIR "${CMAKE_SOURCE_DIR}/src/custom_ocl_kernels")
+    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/kmb_custom_ocl_kernels")
 
     file(MAKE_DIRECTORY "${DST_DIR}")
 
@@ -136,20 +135,102 @@ function(add_kmb_compile_custom_kernels)
             VERBATIM)
     endforeach()
 
-    add_custom_target(kmb_compile_custom_kernels
+    add_custom_target(kmb_compile_custom_ocl_kernels
         DEPENDS ${all_output_files}
-        COMMENT "[KMB] Compile custom kernels")
+        COMMENT "[KMB] Compile custom ocl kernels")
 
-    add_dependencies(kmb_custom_kernels kmb_compile_custom_kernels)
+    add_dependencies(kmb_custom_ocl_kernels kmb_compile_custom_ocl_kernels)
 endfunction()
 
 if(VPU_CLC_MA2X9X_COMMAND)
-    add_kmb_compile_custom_kernels()
+    add_kmb_compile_custom_ocl_kernels()
 endif()
 
 if(VPU_CLC_MA2X9X_COMMAND OR CMAKE_CROSSCOMPILING)
-    target_compile_definitions(kmb_custom_kernels INTERFACE "KMB_HAS_CUSTOM_KERNELS")
+    target_compile_definitions(kmb_custom_ocl_kernels INTERFACE "KMB_HAS_CUSTOM_OCL_KERNELS")
 endif()
+
+#
+# `kmb_custom_cpp_kernels` CMake target
+#
+
+add_library(kmb_custom_cpp_kernels INTERFACE)
+
+function(add_kmb_compile_custom_cpp_kernels)
+    set(BUILD_COMMAND "${CMAKE_SOURCE_DIR}/src/custom_cpp_kernels/tools/build_kernel.py")
+
+    set(SRC_DIR "${CMAKE_SOURCE_DIR}/src/custom_cpp_kernels")
+    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/kmb_custom_cpp_kernels")
+
+    file(MAKE_DIRECTORY "${DST_DIR}")
+
+    file(GLOB XML_FILES "${SRC_DIR}/*.xml")
+    file(GLOB CPP_FILES "${SRC_DIR}/*.cpp")
+    file(GLOB ELF_FILES "${SRC_DIR}/*.elf")
+
+    foreach(xml_file IN LISTS XML_FILES)
+        get_filename_component(xml_file_name ${xml_file} NAME)
+
+        set(out_file "${DST_DIR}/${xml_file_name}")
+        list(APPEND all_output_files ${out_file})
+
+        add_custom_command(
+                OUTPUT ${out_file}
+                COMMAND
+                ${CMAKE_COMMAND} -E copy ${xml_file} ${out_file}
+                MAIN_DEPENDENCY ${xml_file}
+                COMMENT "[KMB] Copy ${xml_file} to ${DST_DIR}"
+                VERBATIM)
+    endforeach()
+
+#    if (DEFINED MV_TOOLS_PATH)
+#        foreach(cpp_file IN LISTS CPP_FILES)
+#            get_filename_component(cpp_file_name ${cpp_file} NAME_WE)
+#
+#            set(out_file "${DST_DIR}/${cpp_file_name}.elf")
+#            list(APPEND all_output_files ${out_file})
+#
+#            add_custom_command(
+#                    OUTPUT ${out_file}
+#                    COMMAND
+#                    python3 ${BUILD_COMMAND} --i ${cpp_file}  --t "${MV_TOOLS_PATH}" --o ${out_file}
+#                    MAIN_DEPENDENCY ${elf_file}
+#                    COMMENT "[KMB] Compile ${cpp_file}"
+#                    VERBATIM)
+#        endforeach()
+#    else()
+        foreach(elf_file IN LISTS ELF_FILES)
+            get_filename_component(elf_file_name ${elf_file} NAME)
+
+            set(out_file "${DST_DIR}/${elf_file_name}")
+            list(APPEND all_output_files ${out_file})
+
+            add_custom_command(
+                    OUTPUT ${out_file}
+                    COMMAND
+                    ${CMAKE_COMMAND} -E copy ${elf_file} ${out_file}
+                    MAIN_DEPENDENCY ${elf_file}
+                    COMMENT "[KMB] Copy ${elf_file} to ${DST_DIR}"
+                    VERBATIM)
+        endforeach()
+#    endif()
+
+    add_custom_target(kmb_compile_custom_cpp_kernels
+            DEPENDS ${all_output_files}
+            COMMENT "[KMB] Compile custom C++ kernels")
+
+    add_dependencies(kmb_custom_cpp_kernels kmb_compile_custom_cpp_kernels)
+    target_compile_definitions(kmb_custom_cpp_kernels INTERFACE "KMB_HAS_CUSTOM_CPP_KERNELS")
+endfunction()
+
+#-2683
+#if (NOT DEFINED MV_TOOLS_PATH)
+#    if(DEFINED MV_TOOLS_DIR AND DEFINED MV_TOOLS_VERSION)
+#        set(MV_TOOLS_PATH ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION})
+#    endif()
+#endif()
+
+add_kmb_compile_custom_cpp_kernels()
 
 #
 # HDDLUnite
@@ -157,14 +238,16 @@ endif()
 
 if(ENABLE_HDDL2)
     if(UNIX)
-        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww44)
-        set(HDDLUNITE_TBH_ARCHIVE_VERSION RELEASE_TBH_ww44)
-        set(HDDLUNITE_KMB_ARCHIVE_HASH "04df19c47aa4b11e3254f997e892c00eb29ac2e1ce61846282eb462401412077")
-        set(HDDLUNITE_TBH_ARCHIVE_HASH "cebc6864a6d20c435d379f6757e9ffea38eea17073bb5363db85a098b476a84d")
+        set(PCIE_DRIVERS_KMB_ARCHIVE_VERSION RELEASE_ww51)
+        set(PCIE_DRIVERS_KMB_ARCHIVE_HASH "b8e17a49af18a4fc464feb9d9feeae9658c1b4c9f412205902e6841006945264")
+        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww51)
+        set(HDDLUNITE_KMB_ARCHIVE_HASH "3d4964f6de90a037bbb9a09914607d1a5fe1484c5b75d20031b5cc0ae7edc557")
+        set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww51)
+        set(HDDLUNITE_VPUX_4_ARCHIVE_HASH "28d47e59d767ee2c0804b63c1c5d4ac37aa2e1238fe6fb49aca24ad777dfa524")
         set(ARCH_FORMAT ".tgz")
     else()
-        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww44_Windows)
-        set(HDDLUNITE_KMB_ARCHIVE_HASH "f1da749d21b6c9190443a3dc681e65397cd1270f44003140dfb8d1350b7ef1e0")
+        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww51_Windows)
+        set(HDDLUNITE_KMB_ARCHIVE_HASH "7db757bdb0ec297af307cf15711ecc260e914ba50878fda7f677d2822bb43798")
         set(ARCH_FORMAT ".zip")
     endif()
 
@@ -177,19 +260,27 @@ if(ENABLE_HDDL2)
     endif()
 
     if(DEFINED IE_PATH_TO_DEPS)
+
+        reset_deps_cache(PCIE_DRIVERS)
+
+        if(UNIX)
+            RESOLVE_DEPENDENCY(PCIE_DRIVERS
+                    ARCHIVE_LIN "hddl2/kmb-pcie-drivers_${PCIE_DRIVERS_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"
+                    ENVIRONMENT "PCIE_DRIVERS"
+                    TARGET_PATH "${TEMP}/pcie_drivers")
+        endif()
+
         reset_deps_cache(HDDL_UNITE)
 
         RESOLVE_DEPENDENCY(HDDL_UNITE
                 ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"
                 ENVIRONMENT "HDDL_UNITE"
-                TARGET_PATH "${TEMP}/hddl_unite"
-                SHA256 ${HDDLUNITE_KMB_ARCHIVE_HASH})
+                TARGET_PATH "${TEMP}/hddl_unite")
         if(UNIX)
-            RESOLVE_DEPENDENCY(HDDL_UNITE_TBH
-                    ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_TBH_ARCHIVE_VERSION}${ARCH_FORMAT}"
-                    ENVIRONMENT "HDDL_UNITE_TBH"
-                    TARGET_PATH "${TEMP}/tbh/hddl_unite"
-                    SHA256 ${HDDLUNITE_TBH_ARCHIVE_HASH})
+            RESOLVE_DEPENDENCY(HDDL_UNITE_VPUX_4
+                    ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_VPUX_4_ARCHIVE_VERSION}${ARCH_FORMAT}"
+                    ENVIRONMENT "HDDL_UNITE_VPUX_4"
+                    TARGET_PATH "${TEMP}/vpux_4/hddl_unite")
         endif()
 
         unset(IE_PATH_TO_DEPS)

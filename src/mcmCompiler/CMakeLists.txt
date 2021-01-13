@@ -174,9 +174,11 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/pass_manager.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_utils.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/pass_quantization.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/quantization/cmconv_shapeBased_selection.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/quantization/propagate_fake_quantize.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/quantization/resolve_fq_after_branching_slice.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/compute_memory.cpp"
@@ -186,6 +188,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_output_node.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_input_node.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/use_reference_ops.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/collapse_branched_scale.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/group_convolution_pass.cpp"
@@ -213,6 +216,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_task_graph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/task_multiple_postops.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/bias_fixed_point_compute.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/ensure_dtype_compatibility.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/task_memory_location.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/strategy_from_layers_to_tensors.cpp"
@@ -233,6 +237,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/real_pad_tensors.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming/spatial_split_streaming.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_quantize.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/concat_fusion.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/force_serialize.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/mark_trailing_upatasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/implicit_output_dtype_update.cpp"
@@ -262,8 +267,6 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/validation/basic_checks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/emulation/decide_precision.cpp"
-
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_update_barriers.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/op_model_cutter.cpp"
@@ -273,6 +276,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/pipeline_transform.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_dmas_from_concat.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/recompute_implicit_memory_locations.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/pipeline_across_parallel_branches.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
@@ -348,6 +352,9 @@ target_link_libraries(mcmCompiler
         ${EMULATOR}
 )
 
+if(ENABLE_MCM_COMPILER_PYTHON)
+    add_subdirectory(python/api)
+endif()
 #############################################################################################
 ### Package
 #############################################################################################

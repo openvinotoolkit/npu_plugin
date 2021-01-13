@@ -34,6 +34,24 @@ TEST_F(KmbNetworkTestBase, split_conv_concat) {
         init_input, check);
 }
 
+TEST_F(KmbNetworkTestBase, customnet_conv_strided_slice) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results due to precision issues"); // TODO: create JIRA ticket
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage("28x28/image_1_28x28.bmp", inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    const auto check = [=](const BlobMap& actualBlobs, const BlobMap& refBlobs, const ConstInputsDataMap&) {
+        compareWithReference(actualBlobs, refBlobs, 1e-2f, CompareMethod::Absolute);
+    };
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/customnets/conv_strided_slice.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32),
+        init_input, check);
+}
+
 TEST_F(KmbClassifyNetworkTest, precommit_customnet1_tf_int8_dense_grayscale_fashionmnist) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hangs on infer");  // [Track number: S#43799]
     runTest(
@@ -87,3 +105,19 @@ TEST_F(KmbClassifyNetworkTest, customnet_tanh) {
         "28x28/image_1_28x28.bmp",
         1, 0.5f);
 }
+
+namespace {
+constexpr bool EXPERIMENTAL = true;
+} // namespace
+
+TEST_F(KmbClassifyNetworkTest, experimental_network_0000) {
+    runTest(
+        TestNetworkDesc("emotions-recognition-retail-0003/emotions-recognition-retail-0003_int8_from_fp16.xml", EXPERIMENTAL)
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputLayout("output", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32),
+        "vpu/emotions-recognition-retail-0003.png",
+        2, 0.1f);
+}
+

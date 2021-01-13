@@ -16,46 +16,9 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
-
-mlir::LogicalResult vpux::VPUIP::verifyOp(UPADMAOp op) {
-    if (op.inputTensors().size() != 1) {
-        return printTo(op.emitError(), "'{0}' must have 1 input tensor, got {1}", UPADMAOp::getOperationName(),
-                       op.inputTensors().size());
-    }
-
-    if (op.outputTensors().size() != 1) {
-        return printTo(op.emitError(), "'{0}' must have 1 output tensor, got {1}", UPADMAOp::getOperationName(),
-                       op.outputTensors().size());
-    }
-
-    const auto src = op.inputTensors().front();
-    const auto dst = op.outputTensors().front();
-
-    const auto srcType = src.getType().cast<mlir::MemRefType>();
-    const auto dstType = dst.getType().cast<mlir::MemRefType>();
-
-    const auto srcMem = getPhysicalMemory(srcType);
-    const auto dstMem = getPhysicalMemory(dstType);
-
-    if (mlir::failed(srcMem)) {
-        return printTo(op.emitError(), "Input tensor for Operation '{0}' has unsupported memory space '{1}'",
-                       UPADMAOp::getOperationName(), srcType.getMemorySpace());
-    }
-    if (mlir::failed(dstMem)) {
-        return printTo(op.emitError(), "Output tensor for Operation '{0}' has unsupported memory space '{1}'",
-                       UPADMAOp::getOperationName(), dstType.getMemorySpace());
-    }
-
-    if (srcMem.getValue() == PhysicalMemory::CMX_NN || dstMem.getValue() == PhysicalMemory::CMX_NN) {
-        return printTo(op.emitError(), "'{0}' can't copy from '{1}' to '{2}'", UPADMAOp::getOperationName(),
-                       srcMem.getValue(), dstMem.getValue());
-    }
-
-    return mlir::success();
-}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(vpux::VPUIP::BlobWriter& writer) {
     const auto src = inputTensors().front();

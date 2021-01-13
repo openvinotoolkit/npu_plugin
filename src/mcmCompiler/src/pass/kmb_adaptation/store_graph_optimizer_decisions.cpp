@@ -53,8 +53,9 @@ void storeStrategy(mv::Data::OpListIterator& opIt, std::vector<mv::Element>& str
 
 void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    ensureCMXConcatsDMASPlacedCorrectly(pass, model);
     storeLayerSplitStrategyFcn(pass, model);
+    ensureCMXConcatsDMASPlacedCorrectly(pass, model);
+
     storeLayerSparsityStrategyFcn(pass, model);
     storeLayerPipeliningStrategyFcn(pass, model);
     storeTensorPlacementFcn(pass, model);
@@ -509,7 +510,15 @@ void ensureCMXConcatsDMASPlacedCorrectly(const mv::pass::PassEntry&,
                     opIt->getOutputTensor()[0]->get<mv::Tensor::MemoryLocation>("Location")
                                                         == mv::Tensor::MemoryLocation::DDR)
                     opIt->set<bool>("avoidCmxConcat", true);
-
+                
+                if (opIt->isHardwarizable() && streaming_strategy[1].get<int>("H") > 1 &&
+                        opIt->hasAttr("splitStrategy"))
+                {
+                    if (opIt->get<std::string>("splitStrategy") == "SplitOverH")
+                    {
+                        opIt->set<bool>("avoidCmxConcat", true);
+                    }
+                }
             }
             else if (opIt->getOpType() == "Concat")
             { //Note: GO does not have sufficient information to good decisions across parallel branches, so all explict concat layer

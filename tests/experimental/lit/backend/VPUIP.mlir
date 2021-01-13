@@ -30,7 +30,7 @@ VPUIP.Graph "Test" at @main
     }
 
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
-    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" {dataIndex = 0 : i64} -> memref<1x1000xf16>
+    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16>
     %1 = VPUIP.ConfigureBarrier -> !VPUIP.Barrier
     VPUIP.SoftMaxUPA {axisInd = 1 : i32, maxShaves = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>) updates(%1 : !VPUIP.Barrier)
     VPUIP.UPADMA inputs(%0 : memref<1x1000xf16>) outputs(%arg1 : memref<1x1000xf16>) waits(%1 : !VPUIP.Barrier)

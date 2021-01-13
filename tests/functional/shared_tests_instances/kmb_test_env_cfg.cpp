@@ -30,30 +30,44 @@ KmbTestEnvConfig::KmbTestEnvConfig() {
     if (auto var = std::getenv("IE_KMB_TESTS_DEVICE_NAME")) {
         IE_KMB_TESTS_DEVICE_NAME = var;
     }
+
     if (auto var = std::getenv("IE_KMB_TESTS_DUMP_PATH")) {
         IE_KMB_TESTS_DUMP_PATH = var;
     }
+
     if (auto var = std::getenv("IE_KMB_TESTS_LOG_LEVEL")) {
         IE_KMB_TESTS_LOG_LEVEL = var;
     }
+
+    if (auto var = std::getenv("IE_KMB_TESTS_RUN_COMPILER")) {
+        IE_KMB_TESTS_RUN_COMPILER = strToBool("IE_KMB_TESTS_RUN_COMPILER", var);
+    }
+
+    if (auto var = std::getenv("IE_KMB_TESTS_RUN_EXPORT")) {
+        IE_KMB_TESTS_RUN_EXPORT = strToBool("IE_KMB_TESTS_RUN_EXPORT", var);
+    }
+
+    if (auto var = std::getenv("IE_KMB_TESTS_RUN_IMPORT")) {
+        IE_KMB_TESTS_RUN_IMPORT = strToBool("IE_KMB_TESTS_RUN_IMPORT", var);
+    }
+
+    if (auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
+        IE_KMB_TESTS_RUN_INFER = strToBool("IE_KMB_TESTS_RUN_INFER", var);
+    }
+
     if (auto var = std::getenv("IE_KMB_TESTS_RAW_EXPORT")) {
         IE_KMB_TESTS_RAW_EXPORT = strToBool("IE_KMB_TESTS_RAW_EXPORT", var);
     }
-    if (auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
-        IE_KMB_TESTS_RUN_INFER = strToBool("IE_KMB_TESTS_RUN_INFER", var);
-    } else {
-        IE_KMB_TESTS_RUN_INFER = true;
-    }
-    if (auto var = std::getenv("IE_KMB_TESTS_RUN_IMPORT")) {
-        IE_KMB_TESTS_RUN_IMPORT = strToBool("IE_KMB_TESTS_RUN_IMPORT", var);
-    } else {
-        IE_KMB_TESTS_RUN_IMPORT = false;
-    }
+
     if (auto var = std::getenv("IE_KMB_TESTS_LONG_FILE_NAME")) {
         IE_KMB_TESTS_LONG_FILE_NAME = strToBool("IE_KMB_TESTS_LONG_FILE_NAME", var);
-    } else {
-        IE_KMB_TESTS_LONG_FILE_NAME = false;
     }
+
+#ifdef ENABLE_EXPERIMENTAL_MLIR
+    if (auto var = std::getenv("IE_VPUX_USE_EXPERIMENTAL_COMPILER")) {
+        IE_VPUX_USE_EXPERIMENTAL_COMPILER = strToBool("IE_VPUX_USE_EXPERIMENTAL_COMPILER", var);
+    }
+#endif
 }
 
 }  // namespace LayerTestsUtils

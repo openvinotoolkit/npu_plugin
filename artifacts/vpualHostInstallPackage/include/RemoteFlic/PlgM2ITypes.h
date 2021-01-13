@@ -1,3 +1,6 @@
+/*
+* {% copyright %}
+*/
 #ifndef __PLG_M2I_TYPES_H__
 #define __PLG_M2I_TYPES_H__
 #include <iostream>
@@ -70,8 +73,6 @@ typedef struct
 
     uint32_t nrTasks;
 
-    uint32_t storeInterleaved;
-
     uint32_t descPtr;
 }M2IObj;
 // ##################################################################
@@ -108,15 +109,9 @@ class M2IDesc{
   // M2I Config
   M2ICfg cfg;
 
-  // PS: This should be removed and replaced by a proper type
-  // in the output spec
-  bool storeInterleaved;
-
 public:
-  M2IDesc():
-    nrTasks(0),
-    storeInterleaved(false)
-    {};
+  M2IDesc():nrTasks(0), vpuData(nullptr){};
+
 
   ~M2IDesc(){};
 
@@ -141,9 +136,7 @@ public:
 
   M2IStatus AddTask(const M2ITask& task)
   {
-    // This is a bit confusing, M2I supports only BGR output
-    // Currently, there is no available type for BGR
-    if(!(task.outFrm.spec.type == RGB888)){
+    if(!((task.outFrm.spec.type == RGB888p) || (task.outFrm.spec.type == RGB888i) || (task.outFrm.spec.type == BGR888p) || (task.outFrm.spec.type == BGR888i))){
         std::cerr << "ERROR: Unsupported input frame type: " << task.outFrm.spec.type << std::endl;
         return INVALID_PARAMS;
     }
@@ -217,13 +210,6 @@ public:
   VpuData* GetVpuData() const
   {
     return vpuData;
-  }
-
-  // This should be removed and replaced by a
-  // coresponding interleaved output type in the spec
-  void SetInterleaved(const bool enabled)
-  {
-    this->storeInterleaved = enabled;
   }
 
 };

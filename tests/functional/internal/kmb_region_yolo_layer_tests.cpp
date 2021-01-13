@@ -93,9 +93,9 @@ const std::vector<RegionYoloTestParams> RegionYoloParams = {
     };
 
 const std::vector<UseCustomLayers> RegionYoloCustomLayersParams = {
-    UseCustomLayers(false),
-#ifdef KMB_HAS_CUSTOM_KERNELS
-    UseCustomLayers(true)
+    KernelType::Native,
+#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
+    KernelType::Ocl
 #endif
 };
 

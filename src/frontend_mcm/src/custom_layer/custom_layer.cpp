@@ -33,8 +33,8 @@ void assertExactlyOneOccurrence(const pugi::xml_node& node, const SmallVector<st
     for (const auto& name : childs) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty(), "Required parameter %s is not found", name);
-        VPU_THROW_UNLESS(
-            child.next_sibling(name.c_str()).empty(), "Found several definitions of the parameter %s", name);
+        VPU_THROW_UNLESS(child.next_sibling(name.c_str()).empty(), "Found several definitions of the parameter %s",
+                         name);
     }
 }
 
@@ -49,7 +49,7 @@ void assertZeroOrOneOccurrence(const pugi::xml_node& node, const SmallVector<std
     for (const auto& name : childNames) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty() || child.next_sibling(name.c_str()).empty(),
-            "Found several definitions of the parameter %s", name);
+                         "Found several definitions of the parameter %s", name);
     }
 }
 
@@ -57,8 +57,8 @@ void assertNoEmptyAttributes(const pugi::xml_node& customLayer) {
     const auto checkAttributes = [&customLayer](const pugi::xml_node& node) {
         for (const auto& attr : node.attributes()) {
             VPU_THROW_UNLESS(strlen(attr.value()) != 0,
-                "Wrong custom layer XML: Custom layer %s has node <%s> with an empty attribute %s",
-                customLayer.attribute("name").value(), node.name(), attr.name());
+                             "Wrong custom layer XML: Custom layer %s has node <%s> with an empty attribute %s",
+                             customLayer.attribute("name").value(), node.name(), attr.name());
         }
     };
 
@@ -72,7 +72,7 @@ void assertNoEmptyAttributes(const pugi::xml_node& customLayer) {
 }  // namespace
 
 ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLayer::loadFromFile(
-    const std::string& configFile, bool canBeMissed) {
+        const std::string& configFile, bool canBeMissed) {
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load_file(configFile.c_str());
 
@@ -82,7 +82,7 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
             return {};
         } else {
             VPU_THROW_FORMAT("Failed to load custom layer configuration file %s : %s at offset %s", configFile,
-                res.description(), res.offset);
+                             res.description(), res.offset);
         }
     }
 
@@ -95,7 +95,8 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
 #endif
 
     VPU_THROW_UNLESS(abs_path_ptr != nullptr,
-        "Failed to load custom layer configuration file %s : can't get canonicalized absolute path", configFile);
+                     "Failed to load custom layer configuration file %s : can't get canonicalized absolute path",
+                     configFile);
 
     std::string abs_file_name(path);
 
@@ -125,11 +126,12 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
 CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLayer): _configDir(std::move(configDir)) {
     const auto cmp = ie::details::CaselessEq<std::string>{};
     const auto nodeName = customLayer.name();
-    VPU_THROW_UNLESS(
-        cmp(nodeName, "CustomLayer"), "Wrong custom layer XML : Node is not CustomLayer, but %s", nodeName);
+    VPU_THROW_UNLESS(cmp(nodeName, "CustomLayer"), "Wrong custom layer XML : Node is not CustomLayer, but %s",
+                     nodeName);
 
     const auto nodeType = XMLParseUtils::GetStrAttr(customLayer, "type");
-    VPU_THROW_UNLESS(cmp(nodeType, "MVCL"), "Wrong custom layer XML : Type is not MVCL, but %s", nodeType);
+    VPU_THROW_UNLESS(cmp(nodeType, "MVCL") || cmp(nodeType, "CPP"),
+                     "Wrong custom layer XML. Supported types: MVCL and CPP. Parsed type: %s", nodeType);
 
     const auto version = XMLParseUtils::GetIntAttr(customLayer, "version");
     VPU_THROW_UNLESS(version == 1, "Wrong custom layer XML : only version 1 is supported");
@@ -155,29 +157,38 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
         return nodes;
     }();
 
+    bool isCl = nodeType == "MVCL";
+    auto createKernel = [&](const pugi::xml_node& node, const std::string& configDir) -> std::shared_ptr<CustomKernel> {
+        if (isCl) {
+            return std::make_shared<CustomKernelOcl>(node, configDir);
+        }
+
+        return std::make_shared<CustomKernelCpp>(node, configDir);
+    };
+
     if (kernelNodes.size() == 1) {
-        _kernels.emplace_back(kernelNodes.front(), _configDir);
+        _kernels.emplace_back(createKernel(kernelNodes.front(), _configDir));
     } else {
-        auto stageOrder = std::map<int, CustomKernel>{};
+        auto stageOrder = std::map<int, CustomKernel::Ptr>{};
         for (const auto& kernel : kernelNodes) {
             const auto stageAttr = kernel.attribute("stage");
             VPU_THROW_UNLESS(stageAttr,
-                "Error while binding %s custom layer: for multi-kernel binding, "
-                "each kernel should be provided with 'stage' attribute.",
-                _layerName);
+                             "Error while binding %s custom layer: for multi-kernel binding, "
+                             "each kernel should be provided with 'stage' attribute.",
+                             _layerName);
 
             const auto stageNum = std::stod(stageAttr.value());
             VPU_THROW_UNLESS(stageOrder.find(stageNum) == stageOrder.end(),
-                "Error while binding %s custom layer: found duplicating stage id.", _layerName);
+                             "Error while binding %s custom layer: found duplicating stage id.", _layerName);
 
-            stageOrder.emplace(stageNum, CustomKernel{kernel, _configDir});
+            stageOrder.emplace(stageNum, createKernel(kernel, _configDir));
         }
 
         VPU_THROW_UNLESS(stageOrder.size() > 0, "Error stage order for %s layer is empty", _layerName);
-        VPU_THROW_UNLESS(
-            stageOrder.begin()->first == 0, "Error while binding %s custom layer: Stage 0 is not found.", _layerName);
+        VPU_THROW_UNLESS(stageOrder.begin()->first == 0, "Error while binding %s custom layer: Stage 0 is not found.",
+                         _layerName);
         VPU_THROW_UNLESS(static_cast<size_t>(stageOrder.rbegin()->first) == stageOrder.size() - 1,
-            "Error while binding %s custom layer: Kernels should have stage id from 0 to N.", _layerName);
+                         "Error while binding %s custom layer: Kernels should have stage id from 0 to N.", _layerName);
 
         for (auto& stage : stageOrder) {
             _kernels.push_back(std::move(stage.second));
@@ -197,13 +208,12 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
     };
 
     for (const auto& kernel : _kernels) {
-        for (const auto& binding : kernel.bindings()) {
-            const auto& param = binding.second;
-            if (param.type == CustomParamType::Input) {
-                addPorts(_inputs, param);
+        for (const auto& binding : kernel->bindings()) {
+            if (binding.type == CustomParamType::Input) {
+                addPorts(_inputs, binding);
             }
-            if (param.type == CustomParamType::Output) {
-                addPorts(_outputs, param);
+            if (binding.type == CustomParamType::Output) {
+                addPorts(_outputs, binding);
             }
         }
     }
@@ -212,14 +222,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
 bool CustomLayer::isLegalSizeRule(const std::string& rule, std::map<std::string, std::string> layerParams) {
     {
         auto sizes = SmallVector<std::pair<std::string, std::string>>{
-            {"b", "1"},
-            {"B", "1"},
-            {"f", "1"},
-            {"F", "1"},
-            {"y", "1"},
-            {"Y", "1"},
-            {"x", "1"},
-            {"X", "1"},
+                {"b", "1"}, {"B", "1"}, {"f", "1"}, {"F", "1"}, {"y", "1"}, {"Y", "1"}, {"x", "1"}, {"X", "1"},
         };
 
         std::move(begin(sizes), end(sizes), inserter(layerParams, end(layerParams)));
@@ -303,5 +306,62 @@ bool CustomLayer::meetsWhereRestrictions(const std::map<std::string, std::string
     }
     return true;
 }
+
+SizeRuleValidator::SizeRuleValidator(CustomLayer::Ptr customLayer,
+                                     const std::map<std::string, std::string>& cnnLayerParams, Logger::Ptr logger)
+        : _customLayer(std::move(customLayer)), _cnnLayerParams(cnnLayerParams), _logger(std::move(logger)) {
+}
+
+void SizeRuleValidator::visitCpp(const CustomKernelCpp&) {
+    _result = true;
+}
+
+void SizeRuleValidator::visitCL(const CustomKernelOcl& kernel) {
+    const auto& gws = kernel.globalGridSizeRules();
+    const auto& lws = kernel.localGridSizeRules();
+
+    const auto validSizeRule = [&](const std::string& rule) {
+        return CustomLayer::isLegalSizeRule(rule, _cnnLayerParams);
+    };
+
+    const auto validGridSizes =
+            std::all_of(begin(gws), end(gws), validSizeRule) && std::all_of(begin(lws), end(lws), validSizeRule);
+
+    const decltype(lws.size()) workGroupDims = 3;
+    VPU_THROW_UNLESS(lws.size() <= workGroupDims,
+                     "Failed to parse '%s' custom layer binding list. Local work group size count "
+                     "is greater than 3.",
+                     _customLayer->layerName());
+    VPU_THROW_UNLESS(gws.size() <= workGroupDims,
+                     "Failed to parse '%s' custom layer binding list. Global work group size count "
+                     "is greater than 3.",
+                     _customLayer->layerName());
+
+    _result = validGridSizes;
+    if (!_result && _logger) {
+        _logger->debug("Not suitable: Work group grid sizes are not valid");
+    }
+}
+
+OperationFactory::OperationFactory(int stageIdx, mv::OpModel& modelMcm, const std::vector<uint8_t>& kernelData,
+                                   const std::vector<mv::Data::TensorIterator>& stageInputs,
+                                   const std::vector<mv::TensorInfo>& stageOutputs, const std::string& friendlyName)
+        : _stageIdx(stageIdx),
+          _modelMcm(modelMcm),
+          _kernelData(kernelData),
+          _stageInputs(stageInputs),
+          _stageOutputs(stageOutputs),
+          _friendlyName(friendlyName) {
+}
+
+void OperationFactory::visitCpp(const CustomKernelCpp& kernel) {
+    const auto layerName = _friendlyName + "_CustomCpp:" + std::to_string(_stageIdx);
+    _result = _modelMcm.customCpp(layerName, _stageInputs, kernel.kernelBinary(), _kernelData, _stageOutputs);
+};
+
+void OperationFactory::visitCL(const CustomKernelOcl& kernel) {
+    const auto layerName = _friendlyName + "_CustomOcl:" + std::to_string(_stageIdx);
+    _result = _modelMcm.customOcl(layerName, _stageInputs, kernel.kernelBinary(), _kernelData, _stageOutputs);
+};
 
 }  // namespace vpu

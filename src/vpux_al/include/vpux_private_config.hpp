@@ -55,6 +55,15 @@ DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_SHAVES);
 DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_LPI);
 
 /**
+ * @brief [Only for VPUX Plugin]
+ * Type: integer, default is 1.
+ * Number of preprocessing pipelines to be used by particular network,
+ * these pipelines will work in parallel and make preprocessing
+ * for all infer requests of this network
+ */
+DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_PIPES);
+
+/**
  * @brief [Only for VPUAL Subplugin]
  * Type: "YES", "NO", default is "NO"
  * This option allows to use Media-to-Inference (M2I) module for image pre-processing
@@ -68,6 +77,23 @@ DECLARE_VPUX_CONFIG_KEY(USE_M2I);
  * This option allows to use Media-to-Inference (M2I) module for image pre-processing
  */
 DECLARE_VPU_KMB_CONFIG_KEY(USE_M2I);
+
+/**
+ * @brief [Only for VPUAL Subplugin]
+ * Type: "YES", "NO", default is "NO"
+ * This option allows to use Media-to-Inference (M2I)
+ * SHAVE only version module for image pre-processing
+ */
+DECLARE_VPUX_CONFIG_KEY(USE_SHAVE_ONLY_M2I);
+
+/**
+ * @deprecated Use VPUX_USE_SHAVE_ONLY_M2I instead
+ * @brief [Only for VPUAL Subplugin]
+ * Type: "YES", "NO", default is "NO"
+ * This option allows to use Media-to-Inference (M2I)
+ * SHAVE only version module for image pre-processing
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(USE_SHAVE_ONLY_M2I);
 
 /**
  * @brief [Only for VPUAL Subplugin]
@@ -98,6 +124,20 @@ DECLARE_VPUX_CONFIG_KEY(EXECUTOR_STREAMS);
  * Number of executor streams
  */
 DECLARE_VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS);
+
+/**
+ * @brief [Only for vpu compiler]
+ * Type: "YES/NO", default is "NO".
+ * Enable nGraph frontend
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER);
+
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: integer, default is 5 minutes = 60 * 1000 * 5.
+ * Time interval during which to wait for backend pull to complete
+ */
+DECLARE_VPUX_CONFIG_KEY(INFERENCE_TIMEOUT);
 
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine
