@@ -131,7 +131,7 @@ private:
     std::string _mcmTargetDesciptor = "release_kmb";
 
     std::string _mcmCompilationDesciptorPath = "mcm_config/compilation";
-    std::string _mcmCompilationDesciptor = "release_kmb";
+    std::string _mcmCompilationDesciptor = "";
 
     bool _mcmGenerateBlob = true;
     bool _mcmGenerateJSON = true;
