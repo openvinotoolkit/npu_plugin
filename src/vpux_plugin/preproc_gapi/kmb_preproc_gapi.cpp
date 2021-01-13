@@ -203,8 +203,8 @@ cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
             }
             const auto& r_dims = r_desc.get()->getDims();
             if (r_desc.get()->getLayout() == Layout::NHWC) {
-                int w = r_dims[2];
-                int h = r_dims[1];
+                int w = r_dims[3];
+                int h = r_dims[2];
                 sz = {w, h};
             } else if (r_desc.get()->getLayout() == Layout::NCHW) { // FIXME: need to verify
                 int w = r_dims[3];
