@@ -19,11 +19,10 @@ namespace mv
 
         static const std::string ma2490DefTargetDescPath_;
         static const std::string ma3100DefTargetDescPath_;
-        static const std::string ma3720DefTargetDescPath_;
 
         static const std::string ma2490DefCompDescPath_;
         static const std::string ma3100DefCompDescPath_;
-        static const std::string ma3720DefCompDescPath_;
+        static const std::string ma2490EmulatorCompDescPath_;
         static const std::string compositionalModelRecordingsPath_;
         static const unsigned jsonParserBufferLength_ = 256;
 
@@ -35,6 +34,9 @@ namespace mv
         TargetDescriptor targetDescriptor_;
         CompilationDescriptor compDescriptor_;
         bool preCompiled_;
+
+        void deepCopy(mv::OpModel& copyTo);
+        void generateExpectedResults();
 
     public:
 

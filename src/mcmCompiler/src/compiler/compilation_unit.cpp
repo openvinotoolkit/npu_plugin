@@ -1,4 +1,5 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
+#include "emu/manager.hpp"
 
 #ifdef _MSC_VER
 // Force linking relevant global objects (registry entries),
@@ -8,11 +9,10 @@
 
 const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/target/release_kmb.json";
 const std::string mv::CompilationUnit::ma3100DefTargetDescPath_ = "/config/target/release_thb.json";
-const std::string mv::CompilationUnit::ma3720DefTargetDescPath_ = "/config/target/release_mtl.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
 const std::string mv::CompilationUnit::ma3100DefCompDescPath_ = "/config/compilation/release_kmb.json";
-const std::string mv::CompilationUnit::ma3720DefCompDescPath_ = "/config/compilation/release_mtl-sc.json";
+const std::string mv::CompilationUnit::ma2490EmulatorCompDescPath_ = "/contrib/mcm-emulator/config/compilation/emulator_kmb_SC-Prefetch1.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
@@ -97,11 +97,20 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
     // query recorded model settings
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
     mv::Element globalParams = passList[0];
-    if (globalParams.hasAttr("recorded_model") && globalParams.get<bool>("recorded_model"))
+    if (globalParams.hasAttr("recorded_model") )
     {
-        bool recordWeightsAsText = 
-            globalParams.hasAttr("recordWeightsAsText") ? globalParams.get<bool>("recordWeightsAsText") : false;
-        model_->initRecordingFile("templateExampleNew.cpp", recordWeightsAsText);
+        bool recordModel = globalParams.get<bool>("recorded_model");
+        if (recordModel)
+        {
+            bool recordWeightsAsText = false;
+            if (globalParams.hasAttr("weights_form") )
+            {
+                std::string weights = globalParams.get<std::string>("weights_form");
+                if ( (weights == "text") || (weights == "Text") || (weights == "TEXT") )
+                    recordWeightsAsText = true;
+            }
+            model_->initRecordingFile("templateExampleNew.cpp", recordWeightsAsText);
+        }
     }
     return true;
 }
@@ -120,11 +129,6 @@ bool mv::CompilationUnit::loadCompilationDescriptor(Target target)
         case Target::ma3100:
         {
             descPath = utils::projectRootPath() + ma3100DefCompDescPath_;
-            break;
-        }
-        case Target::ma3720:
-        {
-            descPath = utils::projectRootPath() + ma3720DefCompDescPath_;
             break;
         }
         default:
@@ -151,13 +155,6 @@ bool mv::CompilationUnit::loadTargetDescriptor(Target target)
             std::string descPath = utils::projectRootPath() + ma3100DefTargetDescPath_;
             return loadTargetDescriptor(descPath);
         }
-
-        case Target::ma3720:
-        {
-            std::string descPath = utils::projectRootPath() + ma3720DefTargetDescPath_;
-            return loadTargetDescriptor(descPath);
-        }
-
 
         default:
             return false;
@@ -217,6 +214,15 @@ mv::Element mv::CompilationUnit::run()
     output.set<std::string>("ModelName", model_->getName());
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
     passManager_.loadPassList(passList);
+
+    // generate emulator results
+    mv::Element globalParams = passList[0];
+    bool emulator=false;
+    if (globalParams.hasAttr("emulator_results") )
+        emulator = globalParams.get<bool>("emulator_results");
+
+    if (emulator)
+        generateExpectedResults();
 
     while (!passManager_.completed())
     {
@@ -291,4 +297,62 @@ const mv::BufferMap& mv::CompilationUnit::getBufferMap() const
 void mv::CompilationUnit::getName(char* name, unsigned bufferSize) const
 {
     strncpy(name, model_->getName().c_str(), bufferSize);
+}
+
+/**
+ * Generates a deep copy of the opmodel
+ */
+void mv::CompilationUnit::deepCopy(mv::OpModel& copyModel)
+{
+    // store all the copied tensors
+    std::map<std::string, mv::Data::TensorIterator> copiedTensorIterators;
+    for(auto opIterator = model_->opBegin(); opIterator != model_->opEnd(); ++opIterator)
+    {
+        // getAttrs() returns map, defineOp() requires vector
+        std::vector<std::pair<std::string, mv::Attribute>> vectAttrs;
+        for (const auto &attr : opIterator->getAttrs())
+            vectAttrs.push_back(attr);
+
+        // Get references to input tensors for this Op
+        std::vector<mv::Data::TensorIterator> copiedInputTensorsToOp;
+        std::vector<mv::Data::TensorIterator> originalInputTensors = opIterator->getInputTensor();
+        for (auto tensIt = originalInputTensors.begin(); tensIt != originalInputTensors.end(); ++tensIt)
+        {
+            mv::Data::TensorIterator originalTensorIt = *tensIt;
+            mv::Data::TensorIterator copiedTensorIt = copiedTensorIterators.at(originalTensorIt->getName().substr(0, originalTensorIt->getName().length() -2) );
+            copiedInputTensorsToOp.push_back(copiedTensorIt);
+        }
+
+        mv::Data::TensorIterator returnIt = copyModel.defineOp(opIterator->getOpType(), copiedInputTensorsToOp, vectAttrs, opIterator->getName(), false, false);
+        copiedTensorIterators.emplace(opIterator->getName(), returnIt);
+    }
+}
+
+void mv::CompilationUnit::generateExpectedResults()
+{
+    log(mv::Logger::MessageType::Debug, "Initializing emulator...");
+    std::cout << "Initializing emulator..." << std::endl;
+    mv::CompilationUnit emUnit(model_->getName());
+    mv::OpModel& emOM = emUnit.model();
+    deepCopy(emOM);
+
+    emUnit.loadTargetDescriptor(mv::Target::ma2490);
+    std::string emuCompPath = utils::projectRootPath() + ma2490EmulatorCompDescPath_;
+    std::cout <<  "loading Comp desc: " << emuCompPath << std::endl;
+    emUnit.loadCompilationDescriptor(emuCompPath);
+    emUnit.compilationDescriptor().setPassArg("GlobalConfigParams", "emulator_results", false); // prevent infinite loop
+
+    emUnit.initialize();
+    emUnit.run();
+    std::cout << "Emulator Compilation completed..." << std::endl;
+
+    // initialize the Emulator Manager
+    mv::emu::Manager emulatorManager(emOM);
+
+    // set input tensor values - filename is in emulator config
+    emulatorManager.populateInput();
+
+    std::cout << "Generating results..." << std::endl;
+    emulatorManager.run();
+    std::cout << "Results complete. Generating blob..." << std::endl;
 }

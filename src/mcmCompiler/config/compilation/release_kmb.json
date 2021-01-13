@@ -5,6 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "recorded_model": false,
                 "recordWeightsAsText": false,
+                "emulator_results": true,
                 "referenceDevice": "A0",
                 "systemClockMhz" : 500,
                 "memoryBandwidth" : 16,
