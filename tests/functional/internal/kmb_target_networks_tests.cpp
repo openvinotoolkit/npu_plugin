@@ -926,25 +926,21 @@ TEST_F(HeadPoseEstimationNetworkTest, DISABLED_head_pose_estimation_adas_0001) {
 }
 
 TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0234) {
-    const std::string input_name = "input";
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0234.xml")
                 .setUserInputPrecision("input", Precision::U8)
                 .setUserInputLayout("input", Layout::NHWC)
                 .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR), 0.2f);
+        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR), 0.02f);
 }
 
-// [Track number: D#40011]
-TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0238) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
-    const std::string input_name = "input";
+TEST_F(PersonAttrRecNetworkTest, precommit_person_attribute_recognitnion_crossroad_0238) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml")
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR), 0.35f);
+        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR), 0.07f);
 }
 
 // C++ exception with description "Tile layer is not supported by kmbPlugin
