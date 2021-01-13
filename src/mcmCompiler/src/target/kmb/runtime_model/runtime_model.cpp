@@ -596,13 +596,21 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     auto numericStrides = t->computeNumericStrides();
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
 
-    // TODO
-    // Double check whether the change is correct
-    if(*tensorAllocatorName == "VPU_CMX_NN" || *tensorAllocatorName == "ProgrammableOutput" ||
-		    (*tensorAllocatorName == "VPU_DDR_Heap" && !subtensor.getOrder().isColMajor()))
-    {
+    if (*tensorAllocatorName == "VPU_CMX_NN" || *tensorAllocatorName == "ProgrammableOutput" ||
+        (*tensorAllocatorName == "VPU_DDR_Heap" && !subtensor.getOrder().isColMajor())) {
+        // NOTE: if I go from a k-split strategy to splitOverH i need to use my whole tensor,
+        // cause the parent is full on its location, if I go from soh to soh i will dma the subs
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-        numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
+        bool attrIsEqual = false;
+        if ((*masterBuffer)->getData()->hasAttr("splitStrategy")) {
+            const auto attrData = (*masterBuffer)->getData()->get<std::string>("splitStrategy");
+            attrIsEqual = (attrData == "SplitOverH" || attrData == "SplitOverHOverlapped" || attrData == "HKSwitch");
+        }
+
+        if (attrIsEqual)
+            numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
+        else
+            numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
     }
 

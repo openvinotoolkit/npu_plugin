@@ -2348,10 +2348,7 @@ namespace mv
                 auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
                 auto spilling = strategy["spilling"].get<bool>();
 
-                //Note: it is possible to change this to an && condition, but it alters the pipeline staging
-                //For simplicity we first do a 2 stage pipeline of weights read and compute, assuming
-                //input and output activations are in / will stay in cmx
-                if(spilling || parentSpilling)
+                if(parentSpilling)
                     return false;
 
                 if(clustering == "SplitOverH" || clustering == "HKSwitch")
