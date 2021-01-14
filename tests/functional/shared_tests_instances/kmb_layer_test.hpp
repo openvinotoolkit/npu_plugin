@@ -27,7 +27,13 @@ protected:
     void BuildNetworkWithoutCompile();
     virtual void ImportNetwork();
     void ExportNetwork();
+    void ImportInput();
+    void ExportInput();
+    void ImportReference(std::vector<std::vector<std::uint8_t>>& refs);
+    void ExportReference(const std::vector<std::vector<std::uint8_t>>& refs);
 
+    void GenerateInputs();
+    void Infer() override;
     void Validate() override;
     void Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;
     std::vector<std::vector<std::uint8_t>> CalculateRefs() override;

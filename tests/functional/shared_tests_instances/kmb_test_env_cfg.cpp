@@ -55,6 +55,22 @@ KmbTestEnvConfig::KmbTestEnvConfig() {
         IE_KMB_TESTS_RUN_INFER = strToBool("IE_KMB_TESTS_RUN_INFER", var);
     }
 
+    if (auto var = std::getenv("IE_KMB_TESTS_EXPORT_INPUT")) {
+        IE_KMB_TESTS_EXPORT_INPUT = strToBool("IE_KMB_TESTS_EXPORT_INPUT", var);
+    }
+
+    if (auto var = std::getenv("IE_KMB_TESTS_EXPORT_REF")) {
+        IE_KMB_TESTS_EXPORT_REF = strToBool("IE_KMB_TESTS_EXPORT_REF", var);
+    }
+
+    if (auto var = std::getenv("IE_KMB_TESTS_IMPORT_INPUT")) {
+        IE_KMB_TESTS_IMPORT_INPUT = strToBool("IE_KMB_TESTS_IMPORT_INPUT", var);
+    }
+
+    if (auto var = std::getenv("IE_KMB_TESTS_IMPORT_REF")) {
+        IE_KMB_TESTS_IMPORT_REF = strToBool("IE_KMB_TESTS_IMPORT_REF", var);
+    }
+
     if (auto var = std::getenv("IE_KMB_TESTS_RAW_EXPORT")) {
         IE_KMB_TESTS_RAW_EXPORT = strToBool("IE_KMB_TESTS_RAW_EXPORT", var);
     }

@@ -8,7 +8,11 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbDetectionOutputLayerTest: public DetectionOutputLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class KmbDetectionOutputLayerTest: public DetectionOutputLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void Infer() override {
+        DetectionOutputLayerTest::Infer();
+    }
+};
 
 TEST_P(KmbDetectionOutputLayerTest, CompareWithRefs) {
     LayerTestsUtils::KmbLayerTestsCommon::Run();

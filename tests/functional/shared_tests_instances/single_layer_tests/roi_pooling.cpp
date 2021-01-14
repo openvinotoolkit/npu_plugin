@@ -11,6 +11,9 @@
 namespace LayerTestsDefinitions {
 
     class KmbROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        void Infer() override {
+            ROIPoolingLayerTest::Infer();
+        }
         void SkipBeforeLoad() override {
             if (envConfig.IE_KMB_TESTS_RUN_INFER) {
                 // [Track number: S#44493]
