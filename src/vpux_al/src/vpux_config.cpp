@@ -76,6 +76,7 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_throughputStreams, config, VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
     setOption(_throughputStreams, config, KMB_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
     static const std::unordered_map<std::string, IE::VPUXConfigParams::VPUXPlatform> vpuxPlatform = {
+            {VPUX_CONFIG_VALUE(AUTO), IE::VPUXConfigParams::VPUXPlatform::AUTO},
             {VPUX_CONFIG_VALUE(MA2490), IE::VPUXConfigParams::VPUXPlatform::MA2490},
             {VPUX_CONFIG_VALUE(MA2490_B0), IE::VPUXConfigParams::VPUXPlatform::MA2490_B0},
             {VPUX_CONFIG_VALUE(MA3100), IE::VPUXConfigParams::VPUXPlatform::MA3100},

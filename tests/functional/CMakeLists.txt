@@ -24,6 +24,7 @@ addIeTargetTest(
         kmb_utils
         kmb_custom_ocl_kernels
         kmb_custom_cpp_kernels
+        common_tests_helpers
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\"

@@ -26,7 +26,7 @@ namespace vpux {
 
 class VpualDevice final : public IDevice {
 public:
-    VpualDevice(const std::string& name);
+    VpualDevice(const std::string& name, const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform);
     std::shared_ptr<Allocator> getAllocator() const override;
     std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) const override;
 
@@ -38,6 +38,7 @@ public:
 private:
     std::shared_ptr<Allocator> _allocator;
     const std::string _name;
+    const InferenceEngine::VPUXConfigParams::VPUXPlatform _platform;
     // TODO: config is used in executor only
     // it makes sense to store it only there
     VpualConfig _config;

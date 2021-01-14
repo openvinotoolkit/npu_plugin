@@ -25,7 +25,8 @@
 
 namespace vpux {
 
-VpualDevice::VpualDevice(const std::string& name): _name(name) {
+VpualDevice::VpualDevice(const std::string& name,
+    const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform): _name(name), _platform(platform) {
     const auto id = utils::extractIdFromDeviceName(name);
     _allocator = std::make_shared<VpusmmAllocator>(id);
 }
@@ -42,7 +43,7 @@ std::shared_ptr<Executor> VpualDevice::createExecutor(
     std::shared_ptr<Executor> executor = nullptr;
     const auto id = utils::extractIdFromDeviceName(_name);
     if (_config.useCoreNN()) {
-        executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _config);
+        executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _platform, _config);
     } else {
         executor = std::make_shared<VpualFlicNNExecutor>(networkDescription, vpusmmAllocator, id, _config);
     }
