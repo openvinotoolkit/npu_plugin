@@ -443,6 +443,40 @@ def IE_ConvolutionOp :
 }
 
 //
+// GroupConvolutionOp
+//
+
+def IE_GroupConvolutionOp :
+        IE_LayerOp<
+            "GroupConvolution",
+            [
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine GroupConvolution layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$filter,
+        Optional<RankedTensorOf<[F16, F32]>>:$bias,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        I32ArrayAttr:$dilations,
+        OptionalAttr<I32Attr>:$groups
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
+
+//
 // AvgPoolOp
 //
 

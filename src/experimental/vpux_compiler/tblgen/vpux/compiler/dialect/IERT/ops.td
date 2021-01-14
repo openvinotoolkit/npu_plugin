@@ -396,6 +396,35 @@ def IERT_ConvolutionOp :
 }
 
 //
+// GroupConvolutionOp
+//
+
+def IERT_GroupConvolutionOp :
+        IERT_LayerOp<
+            "GroupConvolution",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time GroupConvolution layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$filter,
+        Optional<MemRefOf<[F16, F32]>>:$bias,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        I32ArrayAttr:$dilations,
+        OptionalAttr<I32Attr>:$groups
+    );
+}
+
+//
 // ReLUOp
 //
 

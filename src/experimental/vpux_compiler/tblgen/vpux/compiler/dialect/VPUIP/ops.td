@@ -490,7 +490,7 @@ def VPUIP_ConvolutionUPAOp :
         I32ArrayAttr:$dilations,
         I32ArrayAttr:$padsBegin,
         I32ArrayAttr:$padsEnd,
-        I32Attr:$group,
+        I32Attr:$groups,
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
@@ -501,7 +501,8 @@ def VPUIP_ConvolutionUPAOp :
             (ins
                 "mlir::Value":$input, "mlir::Value":$filter, "mlir::Value":$bias, "mlir::Value":$output,
                 "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$dilations,
-                "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd
+                "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd,
+                "uint32_t":$groups
             )
         >
     ];
