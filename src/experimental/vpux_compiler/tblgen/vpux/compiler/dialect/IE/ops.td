@@ -658,8 +658,8 @@ def IE_ReshapeOp :
     let summary = "InferenceEngine Reshape layer";
 
     let arguments = (ins
-        AnyRankedTensor:$input1,
-        1DTensorOf<[AnyInteger]>:$input2,
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$shape,
 
         UnitAttr:$special_zero
     );
@@ -667,6 +667,8 @@ def IE_ReshapeOp :
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let hasFolder = 1;
 }
 
 //
