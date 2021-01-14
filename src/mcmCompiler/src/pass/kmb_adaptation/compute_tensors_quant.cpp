@@ -187,9 +187,10 @@ static mv::QuantizationParams computeAlignedQuantParams(mv::Data::OpListIterator
     calcZeroPointAndScalePerTensor(
         maxConcatScale,
         minConcatScale,
+        256,
+        mv::getDType(mv::Precision::U8),
         masterScale,
-        zeroPoint,
-        mv::getDType(mv::Precision::U8));
+        zeroPoint);
 
     return {{zeroPoint},{masterScale},{minConcatScale},{maxConcatScale}};
 }
