@@ -23,6 +23,7 @@
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -52,26 +53,26 @@ StringLiteral stringifyEnum(StrideReqKind val);
 
 class DimStrideReq final {
 public:
-    static void verifyAttrs(StrideReqKind kind, int64_t extraValue);
+    static void verifyAttrs(StrideReqKind kind, Bit extraValue);
 
 public:
     DimStrideReq() = default;
 
-    DimStrideReq(MemDim memDim, StrideReqKind kind, int64_t extraValue)
+    DimStrideReq(MemDim memDim, StrideReqKind kind, Bit extraValue)
             : _memDim(memDim), _kind(kind), _extraValue(extraValue) {
         verifyAttrs(_kind, _extraValue);
     }
 
 public:
     static DimStrideReq compact(MemDim memDim) {
-        return DimStrideReq(memDim, StrideReqKind::Compact, 0);
+        return DimStrideReq(memDim, StrideReqKind::Compact, 0_Bit);
     }
 
-    static DimStrideReq aligned(MemDim memDim, int64_t alignment) {
+    static DimStrideReq aligned(MemDim memDim, Bit alignment) {
         return DimStrideReq(memDim, StrideReqKind::Aligned, alignment);
     }
 
-    static DimStrideReq fixed(MemDim memDim, int64_t fixedValue) {
+    static DimStrideReq fixed(MemDim memDim, Bit fixedValue) {
         return DimStrideReq(memDim, StrideReqKind::Fixed, fixedValue);
     }
 
@@ -84,18 +85,18 @@ public:
         return _kind;
     }
 
-    int64_t extraValue() const {
-        return _extraValue;
-    }
-
-    int64_t alignment() const {
+    Bit alignment() const {
         assert(kind() == StrideReqKind::Aligned);
-        return extraValue();
+        return Bit(_extraValue);
     }
 
-    int64_t fixedValue() const {
+    Bit fixedValue() const {
         assert(kind() == StrideReqKind::Fixed);
-        return extraValue();
+        return Bit(_extraValue);
+    }
+
+    Bit extraValue() const {
+        return _extraValue;
     }
 
 public:
@@ -104,7 +105,7 @@ public:
 private:
     MemDim _memDim;
     StrideReqKind _kind = StrideReqKind::Compact;
-    int64_t _extraValue = 0;
+    Bit _extraValue;
 };
 
 bool operator==(const DimStrideReq& req1, const DimStrideReq& req2);
@@ -152,15 +153,15 @@ public:
     Optional<DimStrideReq> operator[](MemDim memDim) const;
 
 public:
-    void calcStrides(MemStrides& memStrides, int64_t elemByteSize, MemShapeRef memShape) const;
+    void calcStrides(MemStrides& memStrides, Bit elemSize, MemShapeRef memShape) const;
 
-    MemStrides calcStrides(int64_t elemByteSize, MemShapeRef memShape) const;
-
-public:
-    bool checkStrides(MemStridesRef memStrides, int64_t elemByteSize, MemShapeRef memShape) const;
+    MemStrides calcStrides(Bit elemSize, MemShapeRef memShape) const;
 
 public:
-    StrideReqs join(StrideReqsRef other, int64_t elemByteSize, MemShapeRef memShape) const;
+    bool checkStrides(MemStridesRef memStrides, Bit elemSize, MemShapeRef memShape) const;
+
+public:
+    StrideReqs join(StrideReqsRef other, Bit elemSize, MemShapeRef memShape) const;
 
 public:
     size_t size() const {
@@ -252,15 +253,15 @@ public:
     Optional<DimStrideReq> operator[](MemDim memDim) const;
 
 public:
-    void calcStrides(MemStrides& memStrides, int64_t elemByteSize, MemShapeRef memShape) const;
+    void calcStrides(MemStrides& memStrides, Bit elemSize, MemShapeRef memShape) const;
 
-    MemStrides calcStrides(int64_t elemByteSize, MemShapeRef memShape) const;
-
-public:
-    bool checkStrides(MemStridesRef memStrides, int64_t elemByteSize, MemShapeRef memShape) const;
+    MemStrides calcStrides(Bit elemSize, MemShapeRef memShape) const;
 
 public:
-    StrideReqs join(StrideReqsRef other, int64_t elemByteSize, MemShapeRef memShape) const;
+    bool checkStrides(MemStridesRef memStrides, Bit elemSize, MemShapeRef memShape) const;
+
+public:
+    StrideReqs join(StrideReqsRef other, Bit elemSize, MemShapeRef memShape) const;
 
 public:
     size_t size() const {

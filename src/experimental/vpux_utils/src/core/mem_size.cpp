@@ -20,6 +20,8 @@ using namespace vpux;
 
 StringLiteral vpux::stringifyEnum(MemType val) {
     switch (val) {
+    case MemType::Bit:
+        return "Bit";
     case MemType::Byte:
         return "Byte";
     case MemType::KB:

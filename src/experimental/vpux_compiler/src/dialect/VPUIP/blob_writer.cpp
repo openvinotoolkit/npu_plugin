@@ -292,17 +292,24 @@ VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(mlir::Me
     return createDims(getShape(type));
 }
 
-VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesRef strides, int64_t elemByteSize) {
-    Strides temp{elemByteSize};
+VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesRef strides, Bit elemSize) {
+    Strides temp;
+    temp.push_back(elemSize);
     temp.append(strides.begin(), strides.end());
 
-    return createVector(temp | transformed([](int64_t val) {
-                            return checked_cast<float>(val);
-                        }));
+    const auto cvtBitStrideToByteFP = [](Bit val) {
+        if (val.count() % CHAR_BIT == 0) {
+            return checked_cast<float>(Byte(val).count());
+        }
+
+        return checked_cast<float>(val.count()) / CHAR_BIT;
+    };
+
+    return createVector(temp | transformed(cvtBitStrideToByteFP));
 }
 
 VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(mlir::MemRefType type) {
-    return createStrides(getStrides(type), type.getElementTypeBitWidth() / CHAR_BIT);
+    return createStrides(getStrides(type), getElemTypeSize(type));
 }
 
 MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocation location) {
@@ -366,9 +373,9 @@ MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
 VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ConstContentAttr content,
                                                                         mlir::MemRefType actualType,
                                                                         bool csram_cacheable) {
-    const size_t elemTypeByteSize = actualType.getElementType().getIntOrFloatBitWidth() / CHAR_BIT;
+    const Byte elemTypeSize = getElemTypeSize(actualType);
     const size_t totalNumElements = actualType.getNumElements();
-    const size_t totalByteSize = totalNumElements * elemTypeByteSize;
+    const size_t totalByteSize = totalNumElements * elemTypeSize.count();
 
     std::vector<uint64_t> alignedContent(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
 

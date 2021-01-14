@@ -23,7 +23,6 @@
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/mask.hpp"
-#include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/slice.hpp"
@@ -242,19 +241,6 @@ struct format_provider<vpux::Mask> final {
     static void format(const vpux::Mask& mask, llvm::raw_ostream& stream, StringRef style) {
         auto adapter = llvm::detail::build_format_adapter(mask.asRange());
         adapter.format(stream, style);
-    }
-};
-
-template <vpux::MemType TYPE>
-struct format_provider<vpux::MemSize<TYPE>> final {
-    static void format(const vpux::MemSize<TYPE>& size, llvm::raw_ostream& stream, StringRef style) {
-        auto adapter1 = llvm::detail::build_format_adapter(size.count());
-        adapter1.format(stream, style);
-
-        stream << " ";
-
-        auto adapter2 = llvm::detail::build_format_adapter(TYPE);
-        adapter2.format(stream, style);
     }
 };
 

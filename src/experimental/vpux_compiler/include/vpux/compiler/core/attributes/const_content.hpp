@@ -18,6 +18,7 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/utils/data_convert.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
@@ -112,8 +113,8 @@ public:
         return getType().getElementType();
     }
 
-    auto getElementTypeBitWidth() const {
-        return getType().getElementTypeBitWidth();
+    auto getElemTypeSize() const {
+        return vpux::getElemTypeSize(getType());
     }
 
     auto getSizeInBits() const {

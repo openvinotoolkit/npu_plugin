@@ -19,7 +19,10 @@
 #include "vpux/compiler/core/attributes/dim_values.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 
+#include "vpux/utils/core/mem_size.hpp"
+
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/Value.h>
 
 namespace vpux {
 
@@ -28,6 +31,8 @@ namespace vpux {
 //
 
 namespace details {
+
+bool isDynamicDimValues(ArrayRef<Bit> strides);
 
 template <class Base>
 class StridesTag : public Base {
@@ -47,21 +52,27 @@ public:
 }  // namespace details
 
 //
+// TypeSize
+//
+
+Bit getElemTypeSize(mlir::Type type);
+Byte getTypeTotalSize(mlir::MemRefType type);
+
+//
 // Strides
 //
 
-using Strides = details::DimValues<Dim, int64_t, details::StridesTag>;
-using StridesRef = details::DimValuesRef<Dim, int64_t, details::StridesTag>;
+using Strides = details::DimValues<Dim, Bit, details::StridesTag>;
+using StridesRef = details::DimValuesRef<Dim, Bit, details::StridesTag>;
 
 Strides getStrides(mlir::MemRefType type);
-
-int64_t getTypeByteSize(mlir::MemRefType type);
+Strides getStrides(mlir::Value val);
 
 //
 // MemStrides
 //
 
-using MemStrides = details::DimValues<MemDim, int64_t, details::StridesTag>;
-using MemStridesRef = details::DimValuesRef<MemDim, int64_t, details::StridesTag>;
+using MemStrides = details::DimValues<MemDim, Bit, details::StridesTag>;
+using MemStridesRef = details::DimValuesRef<MemDim, Bit, details::StridesTag>;
 
 }  // namespace vpux

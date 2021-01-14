@@ -38,13 +38,13 @@ const char* vpux::details::ConstContentBase::getData(ptrdiff_t actualMemInd1D) c
         return _data.data();
     }
 
-    const auto elemByteSize = _baseType.getIntOrFloatBitWidth() / CHAR_BIT;
+    const Byte elemSize = getElemTypeSize(_baseType);
 
     const auto baseDimsOrder = DimsOrder::fromNumDims(_shape.size());
     const auto actualDimsOrder = _actualDimsOrder.getValueOr(baseDimsOrder);
 
     if (actualDimsOrder == baseDimsOrder || actualDimsOrder == DimsOrder::fromNumDims(actualDimsOrder.numDims())) {
-        const auto rawIndex = checked_cast<size_t>(actualMemInd1D * elemByteSize);
+        const auto rawIndex = checked_cast<size_t>(actualMemInd1D * elemSize.count());
         VPUX_THROW_UNLESS(rawIndex < _data.size(), "Out-of-bound access in ConstContent");
 
         return _data.data() + rawIndex;
@@ -68,7 +68,7 @@ const char* vpux::details::ConstContentBase::getData(ptrdiff_t actualMemInd1D) c
     const auto baseMemIndexND = baseDimsOrder.toMemoryOrder(indexND);
     const auto baseMemIndex1D = getMemIndex1D(baseMemIndexND, baseMemShape);
 
-    const auto rawIndex = checked_cast<size_t>(baseMemIndex1D * elemByteSize);
+    const auto rawIndex = checked_cast<size_t>(baseMemIndex1D * elemSize.count());
     VPUX_THROW_UNLESS(rawIndex < _data.size(), "Out-of-bound access in ConstContent");
 
     return _data.data() + rawIndex;
@@ -85,11 +85,11 @@ bool vpux::ConstContentAttr::classof(mlir::Attribute attr) {
 
     if (const auto opaque = attr.dyn_cast<mlir::OpaqueElementsAttr>()) {
         const size_t numElems = opaque.getNumElements();
-        const size_t elemTypeByteSize = opaque.getType().getElementTypeBitWidth() / CHAR_BIT;
+        const Byte elemTypeSize = vpux::getElemTypeSize(opaque.getType());
 
         const auto bytes = opaque.getValue();
 
-        return bytes.size() == numElems * elemTypeByteSize;
+        return bytes.size() == numElems * elemTypeSize.count();
     }
 
     return false;

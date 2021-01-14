@@ -17,6 +17,7 @@
 #include "vpux/compiler/frontend/IE.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -285,17 +286,17 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto tensorType = importTensor(origNode->get_output_partial_shape(0), origNode->get_output_element_type(0));
 
     const auto numElems = tensorType.getNumElements();
-    const auto elemTypeByteSize = tensorType.getElementTypeBitWidth() / CHAR_BIT;
+    const Byte elemTypeSize = getElemTypeSize(tensorType);
 
     mlir::ElementsAttr value;
     if (_sharedConstants) {
         auto* dialect = _ctx->getLoadedDialect<IE::IEDialect>();
         VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
 
-        const auto rawBuffer = StringRef(origNode->get_data_ptr<char>(), numElems * elemTypeByteSize);
+        const auto rawBuffer = StringRef(origNode->get_data_ptr<char>(), numElems * elemTypeSize.count());
         value = mlir::OpaqueElementsAttr::get(dialect, tensorType, rawBuffer);
     } else {
-        const auto rawBuffer = makeArrayRef(origNode->get_data_ptr<char>(), numElems * elemTypeByteSize);
+        const auto rawBuffer = makeArrayRef(origNode->get_data_ptr<char>(), numElems * elemTypeSize.count());
 
         bool isSplatBuffer = false;
         VPUX_THROW_UNLESS(mlir::DenseElementsAttr::isValidRawBuffer(tensorType, rawBuffer, isSplatBuffer),
