@@ -17,6 +17,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -29,6 +30,66 @@
 #include <ngraph/validation_util.hpp>
 
 using namespace vpux;
+
+//
+// FuseConvAndBias
+//
+
+namespace {
+
+class FuseConvAndBias final : public mlir::OpRewritePattern<IE::AddOp> {
+public:
+    using mlir::OpRewritePattern<IE::AddOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::AddOp biasOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::AddOp biasOp, mlir::PatternRewriter& rewriter) const {
+    static const auto N = Dim(0);
+    static const auto C = Dim(1);
+    static const auto H = Dim(2);
+    static const auto W = Dim(3);
+
+    if (!biasOp.input1().hasOneUse()) {
+        return mlir::failure();
+    }
+
+    auto convOp = mlir::dyn_cast_or_null<ConvolutionLayerInterface>(biasOp.input1().getDefiningOp());
+    if (convOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (convOp->getNumOperands() != 2 || convOp.bias() != nullptr) {
+        return mlir::failure();
+    }
+
+    auto convOutShape = getShape(convOp.output());
+    auto biasShape = getShape(biasOp.input2());
+
+    if (convOutShape.size() != 4 || biasShape.size() != 4) {
+        return mlir::failure();
+    }
+    if (biasShape[N] != 1 || biasShape[H] != 1 || biasShape[W] != 1) {
+        return mlir::failure();
+    }
+    if (biasShape[C] != convOutShape[C]) {
+        return mlir::failure();
+    }
+
+    auto* newConv = rewriter.clone(*convOp);
+    newConv->insertOperands(newConv->getNumOperands(), biasOp.input2());
+
+    rewriter.replaceOp(biasOp, newConv->getOpResults());
+
+    return mlir::success();
+}
+
+}  // namespace
+
+//
+// Convolution
+//
 
 mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
@@ -65,58 +126,6 @@ mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
-
-namespace {
-
-class FuseConvAndBias final : public mlir::OpRewritePattern<IE::ConvolutionOp> {
-public:
-    using mlir::OpRewritePattern<IE::ConvolutionOp>::OpRewritePattern;
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
-};
-
-mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ConvolutionOp convOp, mlir::PatternRewriter& rewriter) const {
-    static const auto N = Dim(0);
-    static const auto C = Dim(1);
-    static const auto H = Dim(2);
-    static const auto W = Dim(3);
-
-    if (!convOp.output().hasOneUse()) {
-        return mlir::failure();
-    }
-
-    auto& use = *convOp.output().getUses().begin();
-
-    auto biasOp = mlir::dyn_cast_or_null<IE::AddOp>(use.getOwner());
-    if (biasOp == nullptr) {
-        return mlir::failure();
-    }
-    if (use.getOperandNumber() != 0) {
-        return mlir::failure();
-    }
-
-    auto convOutShape = getShape(biasOp.input1());
-    auto biasShape = getShape(biasOp.input2());
-
-    if (convOutShape.size() != 4 || biasShape.size() != 4) {
-        return mlir::failure();
-    }
-    if (biasShape[N] != 1 || biasShape[H] != 1 || biasShape[W] != 1) {
-        return mlir::failure();
-    }
-    if (biasShape[C] != convOutShape[C]) {
-        return mlir::failure();
-    }
-
-    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(biasOp, convOp.input(), convOp.filter(), biasOp.input2(),
-                                                   convOp.strides(), convOp.pads_begin(), convOp.pads_end(),
-                                                   convOp.dilations());
-
-    return mlir::success();
-}
-
-}  // namespace
 
 void vpux::IE::ConvolutionOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
                                                           mlir::MLIRContext* context) {
