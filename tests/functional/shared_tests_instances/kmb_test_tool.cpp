@@ -55,6 +55,32 @@ ExecutableNetwork KmbTestTool::importNetwork(const std::shared_ptr<InferenceEngi
     }
 }
 
+void KmbTestTool::importBlob(InferenceEngine::Blob::Ptr blob, const std::string& fsName) {
+    IE_ASSERT(!envConfig.IE_KMB_TESTS_DUMP_PATH.empty());
+
+    const auto fileName = vpu::formatString("%v/%v", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName);
+    std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
+    if (!file.is_open())
+        THROW_IE_EXCEPTION << "importBlob(). Can't open file " << fileName;
+
+    file.read(blob->cbuffer().as<char*>(), static_cast<std::streamsize>(blob->byteSize()));
+    if (!file)
+        THROW_IE_EXCEPTION << "exportBlob(). Error when reading file " << fileName;
+}
+
+void KmbTestTool::exportBlob(const InferenceEngine::Blob::Ptr blob, const std::string& fsName) {
+    IE_ASSERT(!envConfig.IE_KMB_TESTS_DUMP_PATH.empty());
+
+    const auto fileName = vpu::formatString("%v/%v", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName);
+    std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
+    if (!file.is_open())
+        THROW_IE_EXCEPTION << "exportBlob(). Can't open file " << fileName;
+
+    file.write(blob->cbuffer().as<const char*>(), static_cast<std::streamsize>(blob->byteSize()));
+    if (!file)
+        THROW_IE_EXCEPTION << "exportBlob(). Error when writing file " << fileName;
+}
+
 unsigned long int FNV_hash(const std::string &str)
 {
   const unsigned char* p = reinterpret_cast<const unsigned char *>(str.c_str());
@@ -70,22 +96,21 @@ std::string cleanName(std::string name) {
     std::replace_if(
         name.begin(), name.end(),
         [](char c) {
-            return !std::isalnum(c);
+            return !(std::isalnum(c) || c == '.');
         },
         '_');
     return name;
 }
 
-std::string filesysName(const testing::TestInfo* testInfo, bool limitAbsPathLength) {
+std::string filesysName(const testing::TestInfo* testInfo, const std::string& ext, bool limitAbsPathLength) {
 
-    constexpr char ext[] = ".net";
-    constexpr size_t maxExpectedFileNameLen = 256, maxExpectedDirLen = 100, extLen = sizeof(ext) / sizeof(ext[0]);
+    const size_t maxExpectedFileNameLen = 256, maxExpectedDirLen = 100, extLen = ext.size();
     const size_t maxFileNameLen = (limitAbsPathLength ? maxExpectedFileNameLen - maxExpectedDirLen : maxExpectedFileNameLen),
         maxNoExtLen = maxFileNameLen - extLen, maxNoExtShortenedLen = maxNoExtLen - 20 - 1;
     const auto testName = vpu::formatString("%v_%v", testInfo->test_case_name(), testInfo->name());
-    const auto fnameNoExt = (testName.size() < maxNoExtLen) ? testName : vpu::formatString("%v_%v", testName.substr(0, maxNoExtShortenedLen), FNV_hash(testName));
+    auto fnameNoExt = (testName.size() < maxNoExtLen) ? testName : vpu::formatString("%v_%v", testName.substr(0, maxNoExtShortenedLen), FNV_hash(testName));
 
-    return cleanName(fnameNoExt).append(ext);
+    return cleanName(fnameNoExt.append(ext));
 }
 
 }  // namespace LayerTestsUtils

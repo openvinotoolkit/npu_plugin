@@ -21,8 +21,10 @@ public:
 
     void exportNetwork(InferenceEngine::ExecutableNetwork& exeNet, const std::string& fsName);
     InferenceEngine::ExecutableNetwork importNetwork(const std::shared_ptr<InferenceEngine::Core>& core, const std::string& fsName);
+    void exportBlob(const InferenceEngine::Blob::Ptr blob, const std::string& fsName);
+    void importBlob(InferenceEngine::Blob::Ptr blob, const std::string& fsName);
 };
 
-std::string filesysName(const testing::TestInfo* testInfo, bool limitAbsPathLength);
+std::string filesysName(const testing::TestInfo* testInfo, const std::string& ext, bool limitAbsPathLength);
 
 }  // namespace LayerTestsUtils

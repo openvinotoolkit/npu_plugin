@@ -12,6 +12,7 @@
 #include "kmb_test_tool.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include <vpu/utils/error.hpp>
 
 namespace LayerTestsUtils {
 
@@ -36,17 +37,113 @@ void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
 void KmbLayerTestsCommon::ImportNetwork() {
     IE_ASSERT(core != nullptr);
     executableNetwork = kmbTestTool.importNetwork(core,
-        filesysName(testing::UnitTest::GetInstance()->current_test_info(), !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+        filesysName(testing::UnitTest::GetInstance()->current_test_info(), ".net", !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
 }
 
 void KmbLayerTestsCommon::ExportNetwork() {
     kmbTestTool.exportNetwork(executableNetwork,
-        filesysName(testing::UnitTest::GetInstance()->current_test_info(), !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+        filesysName(testing::UnitTest::GetInstance()->current_test_info(), ".net", !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+}
+
+void KmbLayerTestsCommon::ExportInput() {
+    int i = 0;
+    for (const auto &input : executableNetwork.GetInputsInfo()) {
+        const auto &info = input.second;
+        const auto ext = vpu::formatString(".%v.%v", info->name(), "in");
+        kmbTestTool.exportBlob(inputs[i++],
+            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+    }
+}
+
+void KmbLayerTestsCommon::ImportInput() {
+    // infer request should be adapted afterwards
+    int i = 0;
+    for (const auto &input : executableNetwork.GetInputsInfo()) {
+        const auto &info = input.second;
+        const auto ext = vpu::formatString(".%v.%v", info->name(), "in");
+        InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info->getTensorDesc());
+        blob->allocate();
+        kmbTestTool.importBlob(blob,
+            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+        inputs[i++] = blob;
+    }
+}
+
+void KmbLayerTestsCommon::ExportReference(const std::vector<std::vector<std::uint8_t>>& refs) {
+    for (size_t i = 0; i < refs.size(); ++i) {
+        auto& ref = refs[i];
+        auto referenceBlob = InferenceEngine::make_shared_blob<uint8_t>(
+            InferenceEngine::TensorDesc{
+                InferenceEngine::Precision::U8,
+                InferenceEngine::SizeVector{ref.size()},
+                InferenceEngine::Layout::C
+            }, const_cast<std::uint8_t*>(&ref[0]), ref.size());
+        const auto ext = vpu::formatString(".%v.%v", i, "ref");
+        kmbTestTool.exportBlob(referenceBlob,
+            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+    }
+}
+
+void KmbLayerTestsCommon::ImportReference(std::vector<std::vector<std::uint8_t>>& refs) {
+    for (size_t i = 0; i < refs.size(); ++i) {
+        auto& ref = refs[i];
+        auto referenceBlob = InferenceEngine::make_shared_blob<uint8_t>(
+            InferenceEngine::TensorDesc{
+                InferenceEngine::Precision::U8,
+                InferenceEngine::SizeVector{ref.size()},
+                InferenceEngine::Layout::C
+            }, &ref[0], ref.size());
+        const auto ext = vpu::formatString(".%v.%v", i, "ref");
+        kmbTestTool.importBlob(referenceBlob,
+            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+    }
+}
+
+void KmbLayerTestsCommon::GenerateInputs() {
+    for (const auto &input : executableNetwork.GetInputsInfo()) {
+        const auto &info = input.second;
+        auto blob = GenerateInput(*info);
+        inputs.push_back(blob);
+    }
+}
+
+void KmbLayerTestsCommon::Infer() {
+    inferRequest = executableNetwork.CreateInferRequest();
+
+    int i = 0;
+    for (const auto &input : executableNetwork.GetInputsInfo()) {
+        const auto &info = input.second;
+        auto blob = inputs[i++];
+        inferRequest.SetBlob(info->name(), blob);
+    }
+
+    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
+        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
+        auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
+        inferRequest.SetBatch(batchSize);
+    }
+    inferRequest.Infer();
 }
 
 void KmbLayerTestsCommon::Validate() {
     std::cout << "LayerTestsCommon::Validate()" << std::endl;
-    LayerTestsCommon::Validate();
+
+    auto expectedOutputs = CalculateRefs();
+    const auto &actualOutputs = GetOutputs();
+
+    if (envConfig.IE_KMB_TESTS_IMPORT_REF) {
+        std::cout << "KmbLayerTestsCommon::ImportReference()" << std::endl;
+        ImportReference(expectedOutputs);
+    }
+
+    if (expectedOutputs.empty()) {
+        return;
+    }
+
+    IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
+        << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+
+    Compare(expectedOutputs, actualOutputs);
 }
 
 void KmbLayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
@@ -126,13 +223,29 @@ void KmbLayerTestsCommon::Run() {
             ImportNetwork();
             report.imported(testInfo);
         }
-
+        GenerateInputs();
+        if (envConfig.IE_KMB_TESTS_EXPORT_INPUT) {
+            std::cout << "KmbLayerTestsCommon::ExportInput()" << std::endl;
+            ExportInput();
+        }
+        if (envConfig.IE_KMB_TESTS_IMPORT_INPUT) {
+            std::cout << "KmbLayerTestsCommon::ImportInput()" << std::endl;
+            ImportInput();
+        }
         if (envConfig.IE_KMB_TESTS_RUN_INFER) {
             std::cout << "KmbLayerTestsCommon::Infer()" << std::endl;
             SkipBeforeInfer();
             Infer();
             report.inferred(testInfo);
-
+        }
+        if (envConfig.IE_KMB_TESTS_EXPORT_REF) {
+            std::cout << "KmbLayerTestsCommon::ExportReference()" << std::endl;
+            if (!envConfig.IE_KMB_TESTS_RUN_INFER) {
+                THROW_IE_EXCEPTION << "CalculateRefs requires infer results as for now";
+            }
+            ExportReference(CalculateRefs());
+        }
+        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
             std::cout << "KmbLayerTestsCommon::Validate()" << std::endl;
             SkipBeforeValidate();
             Validate();
