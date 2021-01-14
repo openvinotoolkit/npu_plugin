@@ -104,3 +104,43 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::TanhUPAOp::serialize(VPUIP::BlobWri
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
+
+//
+// ReLUUPAOp
+//
+
+void vpux::VPUIP::ReLUUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                   mlir::Value output) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, false);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReLUUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto relu = MVCNN::CreateReluParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_ReluParams);
+    builder.add_nested_params(relu.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
+// SigmoidUPAOp
+//
+
+void vpux::VPUIP::SigmoidUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                      mlir::Value output) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, false);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SigmoidUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto sigmoid = MVCNN::CreateSigmoidParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_SigmoidParams);
+    builder.add_nested_params(sigmoid.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
