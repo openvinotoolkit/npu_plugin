@@ -60,6 +60,7 @@ public:
         const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
         const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
         const std::shared_ptr<Pipeline>& other_pipe,
+        const std::shared_ptr<WatchDog>& watchDog,
         const VpualConfig& config);
 #endif
 
@@ -81,7 +82,7 @@ private:
     vpu::Logger::Ptr _logger;
 
 #if defined(__arm__) || defined(__aarch64__)
-    std::unique_ptr<WatchDog> _wd;
+    std::shared_ptr<WatchDog> _wd;
     std::shared_ptr<NnXlinkPlg> _nnXlinkPlg = nullptr;
     std::shared_ptr<NnCorePlg> _nnCorePlg = nullptr;
     // pipeline has to be deleted before NNCore plug-in
