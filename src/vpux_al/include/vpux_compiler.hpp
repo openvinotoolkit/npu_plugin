@@ -104,8 +104,6 @@ public:
     virtual std::shared_ptr<vpux::INetworkDescription> parse(std::istream& stream, const VPUXConfig& config = {},
                                                              const std::string& graphName = "");
 
-    virtual std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network) = 0;
-
     virtual std::unordered_set<std::string> getSupportedOptions() {
         return {};
     };
@@ -152,10 +150,6 @@ public:
     std::shared_ptr<vpux::NetworkDescription> parse(std::istream& stream, const VPUXConfig& config = {},
                                                     const std::string& graphName = "") {
         return std::make_shared<NetworkDescription>(_actual->parse(stream, config, graphName), _actual);
-    }
-
-    std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network) {
-        return _actual->getSupportedLayers(network);
     }
 
     std::unordered_set<std::string> getSupportedOptions() {
