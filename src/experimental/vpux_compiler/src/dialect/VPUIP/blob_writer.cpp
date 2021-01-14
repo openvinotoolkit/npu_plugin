@@ -28,6 +28,8 @@
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <mlir/Dialect/Quant/QuantTypes.h>
+
 #include <algorithm>
 
 using namespace vpux;
@@ -139,9 +141,28 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     const auto serializedLocale = createMemoryLocation(locale);
     const auto serializedLocaleIndex = createVector(to_small_vector(makeArrayRef({localeIndex.getValueOr(0)})));
 
-    // TODO: get this from type.getElementType() (Quant Dialect)
-    const auto quantZero = createVector(makeArrayRef<uint8_t>({0}));
-    const auto quantMult = createVector(makeArrayRef<uint16_t>({1}));
+    Vector<uint8_t> quantZero;
+    Vector<uint16_t> quantMult;
+
+    if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        const auto zero = checked_cast<uint8_t>(qType.getZeroPoint());
+        const auto mult = ngraph::float16(static_cast<float>(qType.getScale())).to_bits();
+
+        quantZero = createVector(makeArrayRef(zero));
+        quantMult = createVector(makeArrayRef(mult));
+    } else if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        quantZero = createVector(qType.getZeroPoints() | transformed([](int64_t val) {
+                                     return checked_cast<uint8_t>(val);
+                                 }));
+        quantMult = createVector(qType.getScales() | transformed([](double val) {
+                                     return ngraph::float16(static_cast<float>(val)).to_bits();
+                                 }));
+    } else {
+        quantZero = createVector(makeArrayRef<uint8_t>(0));
+        quantMult = createVector(makeArrayRef<uint16_t>(1));
+    }
+
+    // TODO: can this be retrived from QuantizedType?
     const auto quantShift = createVector(makeArrayRef<uint8_t>({0}));
 
     MVCNN::TensorReferenceBuilder builder(_impl);
@@ -277,6 +298,8 @@ MVCNN::DType vpux::VPUIP::BlobWriter::createDType(mlir::Type type) {
         return MVCNN::DType_U8;
     } else if (type.isInteger(1)) {
         return MVCNN::DType_BIN;
+    } else if (type.isa<mlir::quant::QuantizedType>()) {
+        return createDType(type.cast<mlir::quant::QuantizedType>().getStorageType());
     } else {
         VPUX_THROW("Unsupported element type {0}", type);
     }

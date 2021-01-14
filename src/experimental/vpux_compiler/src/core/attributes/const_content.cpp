@@ -19,6 +19,8 @@
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/error.hpp"
 
+#include <mlir/Dialect/Quant/QuantTypes.h>
+
 using namespace vpux;
 
 //
@@ -79,6 +81,14 @@ const char* vpux::details::ConstContentBase::getData(ptrdiff_t actualMemInd1D) c
 //
 
 bool vpux::ConstContentAttr::classof(mlir::Attribute attr) {
+    if (!attr.isa<mlir::ElementsAttr>()) {
+        return false;
+    }
+
+    if (!attr.cast<mlir::ElementsAttr>().getType().getElementType().isIntOrFloat()) {
+        return false;
+    }
+
     if (attr.isa<mlir::DenseElementsAttr>()) {
         return true;
     }
@@ -151,6 +161,14 @@ void vpux::ConstContentAttr::convertTo(mlir::ShapedType actualType, MutableArray
         fillBuf(getValues<ngraph::float16>(actualDimsOrder), buf);
     } else if (actualElemType.isBF16()) {
         fillBuf(getValues<ngraph::bfloat16>(actualDimsOrder), buf);
+    } else if (const auto qType = actualElemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        if (qType.getStorageType().isSignedInteger(8)) {
+            fillBuf(getValues<int8_t>(actualDimsOrder), buf);
+        } else if (qType.getStorageType().isInteger(8)) {
+            fillBuf(getValues<uint8_t>(actualDimsOrder), buf);
+        } else {
+            VPUX_THROW("Unsupported quantized storage type '{0}'", qType.getStorageType());
+        }
     } else {
         VPUX_THROW("Unsupported element type '{0}'", actualElemType);
     }
