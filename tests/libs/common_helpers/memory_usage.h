@@ -22,7 +22,7 @@ inline void procMemUsage(double& vm_usage, double& res_usage) {
     vm_usage = 0.0;
     res_usage = 0.0;
 
-#if !defined(_WIN32) && !defined(__arm__) && !defined(__aarch64__)
+#if !defined(_WIN32)
 
     std::ifstream stat_stream("/proc/self/stat", std::ios_base::in);
 
