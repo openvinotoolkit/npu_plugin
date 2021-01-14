@@ -24,9 +24,6 @@
 
 class MCMCompiler final : public vpux::ICompiler {
 public:
-    std::shared_ptr<vpux::INetworkDescription> compile(InferenceEngine::ICNNNetwork& network,
-                                                       const vpux::VPUXConfig& config) override;
-
     std::shared_ptr<vpux::INetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
                                                        const std::string& netName,
                                                        const InferenceEngine::InputsDataMap& inputsInfo,

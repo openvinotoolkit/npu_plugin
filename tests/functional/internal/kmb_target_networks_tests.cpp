@@ -233,17 +233,6 @@ INSTANTIATE_TEST_CASE_P(all_layouts, KmbYoloV3NetworkTestWithSpecificLayout,
 // Start of test-set for KMB-alpha IRv10
 //////////////////////////////////////////
 
-TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(NO)}}),
-        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
-        0.6, 0.4, 0.4, false);
-}
-
 #ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
@@ -301,22 +290,6 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
         0.6, 0.4, 0.4, false);
 }
 #endif  // KMB_HAS_CUSTOM_OCL_KERNELS
-
-// Compilation fails on windows
-// [Track number: D#44765]
-TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
-#ifdef _WIN32
-    SKIP() << "LpScheduler - RuntimeError: input is not a DAG";
-#endif
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(NO)}}),
-        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
-        0.6, 0.4, 0.4, false);
-}
 
 // Wrong detection results
 // [Track number: S#41494]
@@ -386,17 +359,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_f
             .setUserOutputPrecision("output", Precision::FP32),
         TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
         1, 0.05f);
-}
-
-TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_googlenet_v3_tf_dense_int8_IRv10_legacy_parser) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/googlenet-v3/googlenet_v3_tf_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(NO)}}),
-        TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
-        1, 0.1f);
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32) {

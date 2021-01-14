@@ -22,7 +22,7 @@
 using namespace InferenceEngine;
 
 //------------------------------------------------------------------------------
-enum typeOfGraph { fromImportedGraph, fromCompiledGraph };
+enum typeOfGraph { fromImportedGraph };
 
 //------------------------------------------------------------------------------
 class Graph_Common_UnitTests : public ::testing::Test, public ::testing::WithParamInterface<typeOfGraph> {
@@ -40,10 +40,6 @@ void Graph_Common_UnitTests::SetUp() {
     if (GetParam() == fromImportedGraph) {
         const std::string modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
         ASSERT_NO_THROW(networkPtr = compiler->parse(modelToImport));
-    } else {
-        ModelPooling_Helper modelPoolingHelper;
-        CNNNetwork network = modelPoolingHelper.getNetwork();
-        ASSERT_NO_THROW(networkPtr = compiler->compile(network));
     }
 }
 
@@ -52,8 +48,6 @@ std::string Graph_Common_UnitTests::PrintToStringParamName::operator()(
     auto createdFrom = info.param;
     if (createdFrom == fromImportedGraph) {
         return "fromImportedGraph";
-    } else if (createdFrom == fromCompiledGraph) {
-        return "fromCompiledGraph";
     } else {
         return "Unknown params";
     }
@@ -81,7 +75,7 @@ TEST_P(Graph_Common_UnitTests, getGraphBlob_ReturnNotEmpty) {
 }
 
 //------------------------------------------------------------------------------
-const static std::vector<typeOfGraph> createdFrom = {fromImportedGraph, fromCompiledGraph};
+const static std::vector<typeOfGraph> createdFrom = {fromImportedGraph};
 
 INSTANTIATE_TEST_CASE_P(GraphFrom, Graph_Common_UnitTests, ::testing::ValuesIn(createdFrom),
     Graph_Common_UnitTests::PrintToStringParamName());

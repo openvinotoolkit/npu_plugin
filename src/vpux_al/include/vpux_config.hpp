@@ -41,9 +41,6 @@ public:
     }
 
     // Private options
-    bool useNGraphParser() const {
-        return _useNGraphParser;
-    }
     InferenceEngine::ColorFormat graphColorFormat() const {
         return _graphColorFormat;
     }
@@ -87,7 +84,6 @@ protected:
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::MA2490;
 
     // Private options
-    bool _useNGraphParser = true;
     InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;
     uint64_t _csramSize = 0;
     // FIXME: Likely has to be true by default as well.
