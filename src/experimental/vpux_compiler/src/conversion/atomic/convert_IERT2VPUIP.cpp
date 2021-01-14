@@ -46,6 +46,7 @@ public:
 
 public:
     class ConstantRewrite;
+    class FakeQuantizeRewrite;
 
 private:
     void passBody();
@@ -92,6 +93,44 @@ mlir::LogicalResult ConvertIERT2VPUIPPass::ConstantRewrite::matchAndRewrite(IERT
 }
 
 //
+// FakeQuantizeRewrite
+//
+
+class ConvertIERT2VPUIPPass::FakeQuantizeRewrite final : public mlir::OpRewritePattern<IERT::FakeQuantizeOp> {
+public:
+    FakeQuantizeRewrite(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IERT::FakeQuantizeOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(IERT::FakeQuantizeOp origOp,
+                                                                                mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found FakeQuantize Operation '{0}'", origOp->getLoc());
+
+    auto inLowConst = origOp.input_low().getDefiningOp<ConstantInterface>();
+    auto inHighConst = origOp.input_high().getDefiningOp<ConstantInterface>();
+    auto outLowConst = origOp.output_low().getDefiningOp<ConstantInterface>();
+    auto outHighConst = origOp.output_high().getDefiningOp<ConstantInterface>();
+
+    if (inLowConst == nullptr || inHighConst == nullptr || outLowConst == nullptr || outHighConst == nullptr) {
+        _log.trace("[{0}] Got non constant parameters \n", origOp->getLoc());
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<VPUIP::FakeQuantizeUPAOp>(origOp, origOp.input(), origOp.output(), origOp.levels(),
+                                                          inLowConst.getContent(), inHighConst.getContent(),
+                                                          outLowConst.getContent(), outHighConst.getContent());
+
+    return mlir::success();
+}
+
+//
 // passBody
 //
 
@@ -108,6 +147,7 @@ void ConvertIERT2VPUIPPass::passBody() {
 
     mlir::OwningRewritePatternList patterns;
     patterns.insert<ConstantRewrite>(&ctx, _log.nest());
+    patterns.insert<FakeQuantizeRewrite>(&ctx, _log.nest());
     populateWithGenerated(&ctx, patterns);
 
     auto func = getFunction();

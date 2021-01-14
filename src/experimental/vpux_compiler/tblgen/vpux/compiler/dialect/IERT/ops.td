@@ -553,4 +553,36 @@ def IERT_TanhOp :
     );
 }
 
+//
+// FakeQuantizeOp
+//
+
+def IERT_FakeQuantizeOp :
+        IERT_LayerOp<
+            "FakeQuantize"
+        > {
+    let summary = "InferenceEngine FakeQuantize layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$input_low,
+        MemRefOf<[F16, F32]>:$input_high,
+        MemRefOf<[F16, F32]>:$output_low,
+        MemRefOf<[F16, F32]>:$output_high,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32Attr:$levels
+    );
+
+    let extraClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {input(), input_low(), input_high(), output_low(), output_high()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {output()};
+        }
+    }];
+}
+
 #endif

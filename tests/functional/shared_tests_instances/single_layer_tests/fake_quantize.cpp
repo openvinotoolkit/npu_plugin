@@ -10,17 +10,18 @@
 namespace LayerTestsDefinitions {
 
 class KmbFakeQuantizeLayerTest : public FakeQuantizeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-//    void SkipBeforeImport() override {
-//        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
-//    }
-    void SkipBeforeValidate() override {
-        throw LayerTestsUtils::KmbSkipTestException("comparison fails");
+    void SkipBeforeLoad() override {
+        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+            // [Track number: S#42747]
+            throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
+        }
     }
 };
 
-TEST_P(KmbFakeQuantizeLayerTest, FakeQuantizeCheck) {
+TEST_P(KmbFakeQuantizeLayerTest, CompareWithRefs) {
     Run();
 }
+
 } // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -32,8 +33,8 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP16
 };
 
-const std::vector<std::vector<size_t>> inputShapes = {{1, 1, 1, 1}, {3, 10, 5, 6}};
-const std::vector<std::vector<size_t>> constShapes = {{1}};
+const std::vector<std::vector<size_t>> inputShapes = {{1, 3, 10, 10}};
+const std::vector<std::vector<size_t>> constShapes = {{1}, {1, 3, 1, 1}};
 const std::vector<size_t> levels = {16, 255, 256};
 
 const std::pair<std::string, std::map<std::string, std::string>> config = {};

@@ -848,7 +848,8 @@ def IE_FakeQuantizeOp :
         IE_LayerOp<
             "FakeQuantize",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine FakeQuantize layer";
@@ -867,6 +868,16 @@ def IE_FakeQuantizeOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
+
+    let extraClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {input(), input_low(), input_high(), output_low(), output_high()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {output()};
+        }
+    }];
 }
 
 //
