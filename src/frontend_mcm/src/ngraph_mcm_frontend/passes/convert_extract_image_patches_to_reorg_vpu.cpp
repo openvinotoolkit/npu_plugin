@@ -43,7 +43,7 @@ ConvertExtractImagePatchesToReorgYoloVPU::ConvertExtractImagePatchesToReorgYoloV
          *
          */
 
-        if (!extract_image_patches || m_transformation_callback(extract_image_patches)) {
+        if (!extract_image_patches || transformation_callback(extract_image_patches)) {
             return false;
         }
 
