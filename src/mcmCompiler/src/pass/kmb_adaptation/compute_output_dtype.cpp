@@ -288,6 +288,12 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
                     newKernelOp->set<mv::DType>("dType",  mv::DType("Float16"));
                     mv::setOutputDataFlow(om, newKernel, outputDataFlows);
                 }
+                // In case there is an Input->Conversion sequence then tensor precision doesn't have to be
+                // limited to FP16
+                else if (kernelOp->getOpType() == "Input" && kernelOp.leftmostOutput().sink()->getOpType() == "Conversion")
+                {
+                    ++kernelOp;
+                }
                 else
                 {
                     outputTensor->setDType(mv::DType("Float16"));
