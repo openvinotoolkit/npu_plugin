@@ -30,6 +30,7 @@
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/logger.hpp>
+#include <vpu/utils/enums.hpp>
 
 #include "vpual_config.hpp"
 #include "vpusmm_allocator.hpp"
@@ -57,7 +58,9 @@ void VpualCoreNNExecutor::initWatchDog() {
 #endif
 
 VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-    const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId, const VpualConfig& config)
+    const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId,
+    const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform,
+    const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
       _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
@@ -99,11 +102,13 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
                   _allocator->free(buffer);
               }
           }),
-      _outputBuffer(nullptr, [this](uint8_t* buffer) {
-          if (_allocator != nullptr) {
-              _allocator->free(buffer);
-          }
-      }) {
+      _outputBuffer(nullptr,
+          [this](uint8_t* buffer) {
+              if (_allocator != nullptr) {
+                  _allocator->free(buffer);
+              }
+          }),
+      _platform(platform) {
 #if defined(__arm__) || defined(__aarch64__)
     std::size_t inputsTotalSize = 0;
     for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
@@ -265,6 +270,10 @@ static uint8_t* setPrefetchHelper(const std::shared_ptr<NnCorePlg>& nnCorePtr,
 
     return preFetchVirtAddr;
 }
+
+const static vpu::EnumSet<InferenceEngine::VPUXConfigParams::VPUXPlatform> platformsWithCSRAM = {
+    InferenceEngine::VPUXConfigParams::VPUXPlatform::MA3100,
+};
 }  // namespace
 #endif
 
@@ -332,13 +341,37 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     _logger->info("Blob Version: %d %d %d", static_cast<int>(blobVersion.major), static_cast<int>(blobVersion.minor),
         static_cast<int>(blobVersion.patch));
     _scratchBuffers = setScratchHelper(_nnCorePlg, nThreads, _allocator, _logger);
+    auto detectedPlatform = _platform;
+    auto configPlatform = _config.platform();
+    auto targetPlatform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
+    if (configPlatform == InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO) {
+        // use detected platfrom when auto detect is set
+        targetPlatform = detectedPlatform;
+    } else {
+        // alternatively, use platform from user config
+        targetPlatform = configPlatform;
+    }
+
     const uint32_t csramUserSize = _config.CSRAMSize();
+    const bool platformHasCSRAM = std::any_of(platformsWithCSRAM.begin(), platformsWithCSRAM.end(),
+        [targetPlatform](const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform) -> bool {
+            return targetPlatform == platform;
+        }
+    );
+    uint32_t preFetchSize = 0;
     if (csramUserSize != 0) {
-        // if user set the size manually, use that amount
-        _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, csramUserSize, _csramAllocator, _logger));
+        if (platformHasCSRAM) {
+            // if user set the size manually, use that amount
+            preFetchSize = csramUserSize;
+        } else {
+            _logger->warning("VPUX_CSRAM_SIZE is not equal to zero, but the platform cannot allocate CSRAM");
+        }
     } else {
         // otherwise, get the size from NN Core plug-in
-        const uint32_t preFetchSize = _nnCorePlg->GetPrefetchBufferSize();
+        preFetchSize = _nnCorePlg->GetPrefetchBufferSize();
+    }
+
+    if (platformHasCSRAM) {
         _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, preFetchSize, _csramAllocator, _logger));
     }
 
