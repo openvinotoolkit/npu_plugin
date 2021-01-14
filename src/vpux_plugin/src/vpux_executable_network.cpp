@@ -84,56 +84,19 @@ ExecutableNetwork::ExecutableNetwork(IE::ICNNNetwork& network, const Device::Ptr
         : ExecutableNetwork(config, device) {
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
-    if (_config.useNGraphParser()) {
-        if (const auto func = network.getFunction()) {
-            _logger->info("Using NGraph parser");
-            IE::InputsDataMap inputsInfo;
-            network.getInputsInfo(inputsInfo);
+    if (const auto func = network.getFunction()) {
+        IE::InputsDataMap inputsInfo;
+        network.getInputsInfo(inputsInfo);
 
-            IE::OutputsDataMap outputsInfo;
-            network.getOutputsInfo(outputsInfo);
+        IE::OutputsDataMap outputsInfo;
+        network.getOutputsInfo(outputsInfo);
 
-            _networkPtr = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
-        } else {
-            _logger->warning("Failed to read NGraph network");
-            THROW_IE_EXCEPTION << "Failed to read NGraph network";
-        }
+        _networkPtr = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
     } else {
-        _logger->warning("Using Legacy parser");
-        // HACK: convert nGraph to old CNNNetwork to fix LP transformations
-        std::shared_ptr<IE::ICNNNetwork> convertedNetwork;
-        auto actualNetwork = &network;
-
-        if (network.getFunction()) {
-            auto nGraphFunc = network.getFunction();
-            ngraph::pass::Manager manager;
-            ngraph::pass::ConvertPriorBox().run_on_function(
-                    nGraphFunc);  // strict requirement: ConvertPriorBox should be first
-
-            manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
-            manager.run_passes(nGraphFunc);
-            // Disable shape inference (WA for generic operations)
-            ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
-
-            // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-
-            ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(nGraphFunc);
-            ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
-            ngraph::pass::ConstantFolding().run_on_function(nGraphFunc);
-            ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
-
-            manager.register_pass<ngraph::pass::ReduceL1Decomposition>();  // in CommonOptimizations.
-            manager.register_pass<ngraph::pass::ReduceL2Decomposition>();
-            manager.register_pass<ngraph::pass::ConvertReduceToPooling>();
-            manager.run_passes(nGraphFunc);
-            ngraph::pass::ConstantFolding().run_on_function(nGraphFunc);
-
-            convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network, true);
-            actualNetwork = convertedNetwork.get();
-        }
-
-        _networkPtr = _compiler->compile(*actualNetwork, _config);
+        _logger->warning("Failed to read NGraph network");
+        THROW_IE_EXCEPTION << "Failed to read NGraph network";
     }
+
     _executorPtr = createExecutor(_networkPtr, config, device);
     ConfigureStreamsExecutor(network.getName());
 }

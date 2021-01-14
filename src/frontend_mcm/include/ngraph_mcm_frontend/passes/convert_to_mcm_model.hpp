@@ -22,6 +22,7 @@
 #include <ie_icnn_network.hpp>
 #include <ie_input_info.hpp>
 #include <include/mcm/op_model.hpp>
+#include <mcm_config.hpp>
 #include <memory>
 #include <ngraph/pass/pass.hpp>
 

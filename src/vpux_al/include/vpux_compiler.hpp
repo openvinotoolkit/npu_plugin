@@ -89,9 +89,6 @@ public:
     using Ptr = std::shared_ptr<ICompiler>;
     using CPtr = std::shared_ptr<const ICompiler>;
 
-    virtual std::shared_ptr<INetworkDescription> compile(InferenceEngine::ICNNNetwork& network,
-                                                         const VPUXConfig& config = {}) = 0;
-
     virtual std::shared_ptr<INetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
                                                          const std::string& netName,
                                                          const InferenceEngine::InputsDataMap& inputsInfo,
@@ -133,11 +130,6 @@ public:
     static Ptr create(CompilerType t);
 
     Compiler(std::string libpath): _actual(std::move(libpath)){};
-
-    std::shared_ptr<vpux::NetworkDescription> compile(InferenceEngine::ICNNNetwork& network,
-                                                      const vpux::VPUXConfig& config = {}) {
-        return std::make_shared<NetworkDescription>(_actual->compile(network, config), _actual);
-    }
 
     std::shared_ptr<vpux::NetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
                                                       const std::string& netName,
