@@ -131,7 +131,7 @@ unsigned getMinStreamOverH(mv::ComputationModel& model, mv::Data::OpListIterator
 {
     auto globalParams = model.getGlobalConfigParams();
     size_t totalClusters = globalParams->get<int>("Number_of_Clusters");
-    size_t clusterMemory = globalParams->get<unsigned>("cmx");
+    size_t clusterMemory = globalParams->get<unsigned>("totalCmx");
     auto clusterStrategy = opIt->get<std::string>("splitStrategy");
 
     size_t input, output, weights;
@@ -175,7 +175,7 @@ unsigned findOptimalValidStream(mv::ComputationModel& model, mv::Data::OpListIte
 {
     auto globalParams = model.getGlobalConfigParams();
     size_t totalClusters = globalParams->get<int>("Number_of_Clusters");
-    size_t clusterMemory = globalParams->get<unsigned>("cmx");
+    size_t clusterMemory = globalParams->get<unsigned>("totalCmx");
     auto clusterStrategy = opIt->get<std::string>("splitStrategy");
 
     for(unsigned splits = startStream; splits >= 1; splits--)
@@ -277,7 +277,7 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
 {
     mv::OpModel om(model);
     auto globalParams = model.getGlobalConfigParams();
-    size_t clusterMemory = globalParams->get<unsigned>("cmx");
+    size_t clusterMemory = globalParams->get<unsigned>("totalCmx");
     size_t totalClusters = globalParams->get<int>("Number_of_Clusters");
     size_t totalDpus = globalParams->get<int>("Number_of_DPUs");
     double dpuPerCluster = std::floor(totalDpus/totalClusters);
@@ -322,30 +322,13 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
     return optStream;
 }
 
-bool applySSDworkaround(mv::Data::OpListIterator opIt, bool enableCMConv)
-{
-    if(opIt->getOpType() == "Conv" && opIt->supportsCMConv() && enableCMConv)
-    {
-        if( opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 512 && 
-            opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 512 && 
-            opIt->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 && 
-            opIt->getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
-            opIt->getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3 &&
-            opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 &&
-            opIt->getInputTensor(0)->get<mv::DType>("dType") == mv::DType("UInt8") &&
-            opIt->getOutputTensor(0)->get<mv::DType>("dType") == mv::DType("UInt8"))
-                return true;
-    }
-    return false;
-}
-
 void saveNewStreamingStrategiesToJson(const mv::pass::PassEntry& pass, const mv::Attribute& streamingStrategyElements) {
     pass.log(mv::Logger::MessageType::Debug, "Saving New Streaming Strategies to JSON file");
     std::ofstream jsonOutputFile;
     std::string jsonOutFileName = "./output/mcmCompiler_new_h_streaming_strategy_output.json";
     jsonOutputFile.open(jsonOutFileName, std::ios::out);
     if (!(jsonOutputFile.is_open()))
-        pass.log(mv::Logger::MessageType::Debug, "AddOptimalChainPipeliningStrategies Could not open output file " + jsonOutFileName);
+        pass.log(mv::Logger::MessageType::Debug, "AddActivationStreaming could not open output file " + jsonOutFileName);
 
     auto currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::string timeStamp(ctime(&currentTime));
@@ -406,10 +389,6 @@ void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             
             // Step 1. Choose optimal stream over H number for this op
             auto newHstream = findOptimalStream(model, opIt, originalHStream);
-
-            // Temporary workaround for SSD512. Accuracy issues seen with CM stream over H
-            if(applySSDworkaround(opIt, enableChannelMajorConv))
-                newHstream = 22;
 
             // Step 2. Create the new streaming strategy and add to vector
             if(newHstream != originalHStream)
