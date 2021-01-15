@@ -25,7 +25,6 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(MA2490)}},
 
     // Private options
-    {{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}},
     {{"VPUX_GRAPH_COLOR_FORMAT", "RGB"}},
     {{"VPUX_CSRAM_SIZE", "2097152"}},
     {{"VPUX_USE_M2I", CONFIG_VALUE(YES)}},
@@ -52,7 +51,6 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
     {{VPUX_CONFIG_KEY(PLATFORM), "SOME_PLATFORM"}},
 
     // Private options
-    {{"VPU_COMPILER_USE_NGRAPH_PARSER", "YEP"}},
     {{"VPUX_GRAPH_COLOR_FORMAT", "NV12"}},
     {{"VPUX_CSRAM_SIZE", "ABC-1"}},
     {{"VPUX_USE_M2I", "YEP"}},
