@@ -19,6 +19,4 @@ endif()
 
 add_subdirectory(test_classification)
 
-if(ENABLE_EXPERIMENTAL_MLIR)
-    add_subdirectory(experimental)
-endif()
+add_subdirectory(experimental)
