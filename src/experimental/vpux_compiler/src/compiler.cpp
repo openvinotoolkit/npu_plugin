@@ -42,11 +42,6 @@
 using namespace vpux;
 using namespace InferenceEngine;
 
-std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(ICNNNetwork&, const VPUXConfig&) {
-    VPUX_THROW("VPUX Compiler doesn't support InferenceEngine IR prior to v10 "
-               "version");
-}
-
 namespace {
 
 LogLevel getLogLevel(const VPUXConfig& config) {
@@ -179,10 +174,6 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
 std::shared_ptr<vpux::INetworkDescription> vpux::CompilerImpl::parse(const std::vector<char>& compiledNetwork,
                                                                      const vpux::VPUXConfig&, const std::string&) {
     return std::make_shared<VPUIP::NetworkDescription>(compiledNetwork);
-}
-
-std::set<std::string> vpux::CompilerImpl::getSupportedLayers(InferenceEngine::ICNNNetwork&) {
-    VPUX_THROW("VPUX Compiler doesn't support HETERO mode");
 }
 
 std::unordered_set<std::string> vpux::CompilerImpl::getSupportedOptions() {
