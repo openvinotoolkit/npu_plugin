@@ -1,8 +1,7 @@
+// {% copyright %}
 /*GPL-2.0-only */
 /*
  * VPU resource manager Linux Kernel API
- *
- * Copyright (C) 2018-2019 Intel Corporation
  *
  */
 #ifndef __RESMGR_RH_UAPI_H

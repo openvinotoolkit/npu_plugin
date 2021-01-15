@@ -1,8 +1,7 @@
+// {% copyright %}
 /* GPL-2.0-only */
 /*
  * resource manager Linux Kernel API
- *
- * Copyright (C) 2018-2019 Intel Corporation
  *
  */
 #ifndef __RESMGR_LH_UAPI_H

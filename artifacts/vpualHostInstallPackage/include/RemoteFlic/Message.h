@@ -1,12 +1,4 @@
-///
-/// INTEL CONFIDENTIAL
-/// Copyright 2020. Intel Corporation.
-/// This software and the related documents are Intel copyrighted materials, 
-/// and your use of them is governed by the express license under which they were provided to you ("License"). 
-/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
-/// transmit this software or the related documents without Intel's prior written permission.
-/// This software and the related documents are provided as is, with no express or implied warranties, 
-/// other than those that are expressly stated in the License.
+// {% copyright %}
 ///
 /// @file      Message.h
 /// @copyright All code copyright Movidius Ltd 2018, all rights reserved.
@@ -39,20 +31,20 @@ class Message
     PluginStub *parent;
 };
 
-/** Slave reciever template class. */
+/** Secondary reciever template class. */
 template <typename T>
 class SReceiver : public Message
 {
 };
 
-/** Master reciever template class. */
+/** Primary reciever template class. */
 template <typename T>
 class MReceiver : public Message
 {
 };
 
 /**
- * Master sender template class.
+ * Primary sender template class.
  * Contains Link method to Link with a compatable SReceiver.
  */
 template <typename T>
@@ -65,11 +57,12 @@ class MSender : private VpualStub, public Message
     // TODO - May be gcc bug, but we need this declaration to help with initialisation.
     //        Copy-elision should occur, so we will never use it.
     MSender(const MSender&); // Declare copy ctor, but don't define.
+    MSender& operator=(const MSender&) = delete;
 
     /**
-     * Link to a compatable slave receiver.
+     * Link to a compatable secondary receiver.
      *
-     * @param r slave reciever of the same type (T) to Link with.
+     * @param r secondary reciever of the same type (T) to Link with.
      */
     void Link(SReceiver<T> *r)
     {
@@ -93,7 +86,7 @@ class MSender : private VpualStub, public Message
 };
 
 /**
- * Slave receiver template class.
+ * Secondary receiver template class.
  * Contains Link method to Link with a compatable MReceiver.
  */
 template <typename T>
@@ -104,9 +97,9 @@ class SSender : private VpualStub, public Message
     SSender(uint32_t device_id);
 
     /**
-     * Link to a compatable master receiver.
+     * Link to a compatable primary receiver.
      *
-     * @param r master reciever of the same type (T) to Link with.
+     * @param r primary reciever of the same type (T) to Link with.
      */
     void Link(MReceiver<T> *r)
     {
