@@ -131,7 +131,7 @@ unsigned getMinStreamOverH(mv::ComputationModel& model, mv::Data::OpListIterator
 {
     auto globalParams = model.getGlobalConfigParams();
     size_t totalClusters = globalParams->get<int>("Number_of_Clusters");
-    size_t clusterMemory = globalParams->get<unsigned>("totalCmx");
+    size_t clusterMemory = globalParams->get<int>("cmx");
     auto clusterStrategy = opIt->get<std::string>("splitStrategy");
 
     size_t input, output, weights;
@@ -175,7 +175,7 @@ unsigned findOptimalValidStream(mv::ComputationModel& model, mv::Data::OpListIte
 {
     auto globalParams = model.getGlobalConfigParams();
     size_t totalClusters = globalParams->get<int>("Number_of_Clusters");
-    size_t clusterMemory = globalParams->get<unsigned>("totalCmx");
+    size_t clusterMemory = globalParams->get<int>("cmx");
     auto clusterStrategy = opIt->get<std::string>("splitStrategy");
 
     for(unsigned splits = startStream; splits >= 1; splits--)
@@ -277,7 +277,7 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
 {
     mv::OpModel om(model);
     auto globalParams = model.getGlobalConfigParams();
-    size_t clusterMemory = globalParams->get<unsigned>("totalCmx");
+    size_t clusterMemory = globalParams->get<int>("cmx");
     size_t totalClusters = globalParams->get<int>("Number_of_Clusters");
     size_t totalDpus = globalParams->get<int>("Number_of_DPUs");
     double dpuPerCluster = std::floor(totalDpus/totalClusters);
