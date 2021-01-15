@@ -496,8 +496,6 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
     json::Object root;
     root["target"] = toString(target_);
     root["dtype"] = globalDType_.toString();
-    root["ops"] = json::Array();
-
 
     descFile << root.stringifyPretty();
     descFile.close();
