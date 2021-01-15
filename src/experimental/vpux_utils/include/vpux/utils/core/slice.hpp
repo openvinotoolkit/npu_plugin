@@ -16,7 +16,9 @@
 
 #pragma once
 
-#include <cassert>
+#include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/format.hpp"
+
 #include <cstdint>
 
 namespace vpux {
@@ -26,7 +28,7 @@ public:
     Slice() = default;
 
     Slice(int64_t begin, int64_t end): _begin(begin), _end(end) {
-        assert(end >= begin);
+        VPUX_THROW_UNLESS(end >= begin, "Wrong slice range '[{0}, {1})'", begin, end);
     }
 
 public:
@@ -53,9 +55,14 @@ public:
 
     // Represents `this` range as sub-slice of the `parent`.
     Slice asSubSlice(const Slice& parent) const {
-        assert(parent.contains(*this));
+        VPUX_THROW_UNLESS(parent.contains(*this), "Slice '{0}' is not a sub-slice of '{1}'", *this, parent);
 
         return {begin() - parent.begin(), end() - parent.begin()};
+    }
+
+public:
+    void printFormat(llvm::raw_ostream& stream) const {
+        printTo(stream, "[{0}, {1})", begin(), end());
     }
 
 private:

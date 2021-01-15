@@ -16,6 +16,8 @@
 
 #include "vpux/utils/core/checked_cast.hpp"
 
+#include <details/ie_exception.hpp>
+
 #include <gtest/gtest.h>
 
 using namespace vpux;
@@ -61,7 +63,7 @@ TEST(CheckedCast, ValidCases) {
 }
 
 TEST(CheckedCast, InvalidThrowsException) {
-    using Exception = std::runtime_error;
+    using Exception = InferenceEngine::details::InferenceEngineException;
 
     const int8_t valI8 = -10;
     const int16_t valI16 = -10;
