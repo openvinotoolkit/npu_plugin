@@ -23,6 +23,7 @@ include "vpux/compiler/dialect/VPUIP/types.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
 
+include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/CopyOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -765,6 +766,105 @@ def VPUIP_TanhUPAOp :
             (ins "mlir::Value":$input, "mlir::Value":$output)
         >
     ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
+// FakeQuantizeUPAOp
+//
+
+def VPUIP_FakeQuantizeUPAOp :
+        VPUIP_TaskOp<
+            "FakeQuantizeUPA",
+            [
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "FakeQuantize UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        I32Attr:$levels,
+        ElementsAttr:$input_low,
+        ElementsAttr:$input_high,
+        ElementsAttr:$output_low,
+        ElementsAttr:$output_high,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$output,
+                "uint32_t":$levels,
+                "mlir::ElementsAttr":$input_low, "mlir::ElementsAttr":$input_high,
+                "mlir::ElementsAttr":$output_low, "mlir::ElementsAttr":$output_high
+            )
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
+// QuantCastUPAOp
+//
+
+def VPUIP_QuantCastUPAOp :
+        VPUIP_TaskOp<
+            "QuantCastUPA",
+            [
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "FakeQuantize UPA SHAVE kernel";
+
+    let arguments = (ins
+        MemRefOf<[F16, quant_QuantizedType]>:$input,
+        MemRefOf<[F16, quant_QuantizedType]>:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<(ins "mlir::Value":$input, "mlir::Value":$output)>
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
 
     let assemblyFormat = [{
         attr-dict
