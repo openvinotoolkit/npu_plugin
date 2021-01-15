@@ -78,9 +78,7 @@ static const std::vector<ConfigMap> emptyConfigs = {
 };
 
 static const std::vector<ConfigMap> compileConfigs = {
-    { },
-    { {"VPU_COMPILER_USE_NGRAPH_PARSER", "YES"} },
-    { {"VPU_COMPILER_USE_NGRAPH_PARSER", "NO" } }
+    { }
 };
 
 static const std::vector<ConfigMap> baseInferConfigs = {
