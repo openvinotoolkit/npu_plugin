@@ -98,6 +98,8 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel & om, mv::Data::OpListI
                 padding,
                 1,
                 opIt->get<unsigned>("group"));
+        subConv->setDType(mv::DType("Float16"));
+        subConv->setQuantParams(neutralQuantParams);
     }
     else
     {
@@ -107,9 +109,9 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel & om, mv::Data::OpListI
                 {1, 1},
                 padding,
                 1);
+        subConv->setDType(mv::DType("UInt8"));
+        subConv->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
     }
-    subConv->setDType(mv::DType("Float16"));
-    subConv->setQuantParams(neutralQuantParams);
 
     auto subConvOp = om.getSourceOp(subConv);
     subConvOp->set<bool>("DeconvSubConv", true);
@@ -356,8 +358,13 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
     auto deconvOps = om.getOps("Deconv");
     for (auto& opIt : deconvOps)
     {
-        if (opIt->get<bool>("is_depthwise"))
+        bool is_transInterp = false;
+        if (opIt->hasAttr("is_transInterp")) {
+            is_transInterp = opIt->get<bool>("is_transInterp");
+        }
+        if (opIt->get<bool>("is_depthwise") && !is_transInterp)
             continue;
+        bool isDepthwise = opIt->get<bool>("is_depthwise");
         auto nextOp = findSinkLayers(dm, opIt->getOutputTensor(0))[0];
         auto deconvKernel = opIt->getInputTensor(1);
         auto deconvKernelOp = om.getSourceOp(deconvKernel);
@@ -440,7 +447,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
         om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", strideFactor * strideFactor);
 
-        if (nextOp->getOpType() == "Output" || nextOp->getOutputTensor(0)->getDType() == mv::DType("UInt8"))
+        if ((isDepthwise == false) && (nextOp->getOpType() == "Output" || nextOp->getOutputTensor(0)->getDType() == mv::DType("UInt8")))
         {
             auto dataUint8 = om.uPATaskQuantize("", {concatIt});
             dataUint8->setDType(mv::DType("UInt8"));
