@@ -46,6 +46,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParam
     {Sigmoid,  {{1.0f}}},
     {Relu,     {{1.0f}}},
     {SoftPlus, {{1.0f}}},
+    {Mish,     {{1.0f}}},
 //  {Swish,   {{1.0f}, {0.5f}, {2.0f}}}, // #-46239: incorrect `beta` rank for Swish test
 };
 
