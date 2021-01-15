@@ -81,7 +81,7 @@ void placeReQuantizeDepthwiseBefore(
     om.defineFlow(reQuantizeDepthwise, opIt, index);
 }
 
-void addFQAfter(mv::OpModel& om, mv::Data::TensorIterator& sourceTensor, mv::Data::OpListIterator& fqOp)
+void addFQAfter(mv::OpModel& om, const mv::Data::TensorIterator& sourceTensor, const mv::Data::OpListIterator& fqOp)
 {
     if (fqOp->getOpType() != "FakeQuantize")
     {
@@ -143,7 +143,7 @@ void addFQAfter(mv::OpModel& om, mv::Data::TensorIterator& sourceTensor, mv::Dat
     Op --|                      => Op --- FQ_0 --|
          | --- Slice_1 --- FQ_1                  | --- Slice_1 --- DW Conv --- FQ_1 --- ...
 */
-void moveFQBeforeSlice(mv::DataModel& dm, mv::Data::TensorIterator& parent)
+void moveFQBeforeSlice(mv::DataModel& dm, const mv::Data::TensorIterator& parent)
 {
     mv::OpModel om(dm);
     auto children = findSinkLayers(dm, parent);
@@ -247,50 +247,43 @@ void moveFQBeforeSlice(mv::DataModel& dm, mv::Data::TensorIterator& parent)
     (Quantizable Op) --|
                        | --- Slice --- FQ
 */
-void resolveFQAfterBranchingSlicesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void resolveFQAfterBranchingSlicesFcn(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS);
 
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
+    auto alreadyInVec = [](const std::vector<mv::Data::TensorIterator>& tensorVec, const mv::Data::TensorIterator& tensor) -> bool {
+        return std::find(tensorVec.cbegin(), tensorVec.cend(), tensor) != tensorVec.cend();
+    };
+
     auto sliceOps = om.getOps("Slice");
-    for (auto slice = sliceOps.begin(); slice != sliceOps.end(); )
+    std::vector<mv::Data::TensorIterator> sliceInputs;
+    sliceInputs.reserve(sliceOps.size());
+    for (auto slice = sliceOps.begin(); slice != sliceOps.end(); slice++)
     {
         auto inputTensor = (*slice)->getInputTensor()[0]; 
         auto prevOp = om.getSourceOp(inputTensor);
-        bool increment = true;
 
         for (auto& out : prevOp->getOutputTensor())
         {
-            if (inputTensor->getName() == out->getName())
+            if(alreadyInVec(sliceInputs, out))
+                continue;
+
+            auto children = findSinkLayers(dm, out);
+
+            // Apply transformation only if all children are Slice Ops
+            if (std::all_of(children.cbegin(), children.cend(),
+                [](const mv::Data::OpListIterator& op) { return op->getOpType() == "Slice"; }))
             {
-                auto children = findSinkLayers(dm, out);
-
-                // Apply transformation only if all children are Slice Ops
-                if (std::find_if(children.begin(), children.end(),
-                                 [](mv::Data::OpListIterator& op) { return op->getOpType() != "Slice"; })
-                    ==  children.end())
-                {
-
-                    moveFQBeforeSlice(dm, out);
-
-                    // Remove all Slice ops with out as source tensor from vector
-                    sliceOps.erase(
-                        std::remove_if(sliceOps.begin(), sliceOps.end(), [&](mv::Data::OpListIterator& crtOp)
-                        {
-                            return std::find(children.begin(), children.end(), crtOp) != children.end();
-                        }),
-                        sliceOps.end()
-                    );
-
-                    increment = false;
-                }
+                sliceInputs.push_back(out);
             }
-            break;
         }
+    }
 
-        if (increment)
-            ++slice;
+    for (const auto& tensor : sliceInputs)
+    {
+        moveFQBeforeSlice(dm, tensor);
     }
 }
