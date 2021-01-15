@@ -20,7 +20,7 @@ namespace mv
 };*/
 
 namespace
-{ 
+{
     // TODO
     // Check whether the function will be used in the future?
 #if defined(DISABLE_UNUSED_FUNCTIONS_REMOVAL)
@@ -138,9 +138,9 @@ namespace
                     T_str = "int64_t";
                 else if (T_in == "d")
                     T_str = "double";
-                else 
+                else
                     T_str = T_in;
-                
+
                 std::string weightsFilename = std::string("./data/") + paramName + std::string(".bin");
                 *codeOut << "read<" << T_str << "," << T_str << ">(WEIGHTS_FOLDER + \"" << weightsFilename << "\")";
                 write<T,T>(attr, weightsFilename);
@@ -155,10 +155,10 @@ namespace
 
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I == std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
-    printParams(std::ostream* /* codeOut */, 
-                std::ostream* /* dataOut */, 
-                const std::string& /* outVarName */, 
-                const std::vector<std::string>& /* paramNames */, 
+    printParams(std::ostream* /* codeOut */,
+                std::ostream* /* dataOut */,
+                const std::string& /* outVarName */,
+                const std::vector<std::string>& /* paramNames */,
                 const ParamTuple& /* paramValues */)
     {
         //This function is empty because it is a recursion end point. Executed when I == std::tuple_size::value.
@@ -533,7 +533,7 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
         throw OpError("OpRegistry", "Attempt of obtaining CompositionAPI declaration for an unregistered op type " + opType);
 
     OpEntry* const opPtr = instance().find(opType);
-    
+
     if (!opPtr)
         throw MasterError("OpRegistry", "Registered op type " + opType +
             " not found in the op registry");
@@ -1012,6 +1012,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     incStream << "#include \"" << "include/mcm/compositional_model.hpp" << "\"" << eol;
     incStream << "#include \"include/mcm/computation/model/base_op_model.hpp\"" << eol << eol;
     incStream << "#include \"include/mcm/compiler/compilation_profiler.hpp\"" << eol << eol;
+    incStream << "#include \"include/mcm/algorithms/is_dag.hpp\"" << eol << eol;
 
     incStream << "namespace mv" << eol << eol;
     incStream << "{" << eol << eol;
@@ -1023,6 +1024,8 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     incStream << tab << tab << "OpModel(const std::string& name);" << eol;
     incStream << tab << tab << "OpModel(ComputationModel& model);" << eol;
     incStream << tab << tab << "virtual ~OpModel();" << eol << eol;
+    incStream << tab << tab << "bool isDag();" << eol << eol;
+    incStream << tab << tab << "mv::Data::OpListIterator cycleResponsible();" << eol << eol;
 
     auto opsList = getOpTypes({});
     for (auto it = opsList.begin(); it != opsList.end(); ++it)
@@ -1099,6 +1102,16 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 
     srcStream << "mv::OpModel::~OpModel()" << eol;
     srcStream << "{" << eol;
+    srcStream << "}" << eol << eol;
+
+    srcStream << "bool mv::OpModel::isDag()" << eol;
+    srcStream << "{" << eol;
+    srcStream << "return mv::isDAG(dataGraph_);" << eol;
+    srcStream << "}" << eol << eol;
+
+    srcStream << "mv::Data::OpListIterator mv::OpModel::cycleResponsible()" << eol;
+    srcStream << "{" << eol;
+    srcStream << "return  mv::getNodeInCycle(dataGraph_).second;" << eol;
     srcStream << "}" << eol << eol;
     srcStream.close();
 }

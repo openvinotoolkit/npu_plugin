@@ -128,7 +128,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     auto attrsToCopy = op->getAttrs({"shape", "bias"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
     bool mixedToFloat = false;
-    
+
     if(op->hasAttr("mixedToFloat"))
         mixedToFloat = op->get<bool>("mixedToFloat");
 
@@ -426,7 +426,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     }
     if(avoidCmxConcat)
         om.getSourceOp(concat)->set<bool>("avoid_cmx_concat", true);
-        
+
     if(mixedToFloat)
         om.getSourceOp(concat)->set<bool>("mixedToFloat", mixedToFloat);
 
@@ -604,6 +604,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         // where we don't want the same datatype for output as the input tensors
         newTensor->setDType(op->getOutputTensor(0)->getDType());
         auto newOp = om.getSourceOp(newTensor);
+        newOp->set<bool>("shareWeights", true);
 
         newOp->setAttrs(attrsToCopy);
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
@@ -817,7 +818,7 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
         // where we don't want the same datatype for output as the input tensors
         newTensor->setDType(op->getOutputTensor(0)->getDType());
         auto newOp = om.getSourceOp(newTensor);
-        newOp->set<std::string>("parentOpName", op->getName());
+        newOp->set<bool>("shareWeights", true);
 
         newOp->setAttrs(attrsToCopy);
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
