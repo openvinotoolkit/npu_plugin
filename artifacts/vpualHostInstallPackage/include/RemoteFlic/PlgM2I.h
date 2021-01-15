@@ -1,3 +1,4 @@
+// {% copyright %}
 ///
 /// @file      PlgM2I.h
 /// @copyright All code copyright Movidius Ltd 2018, all rights reserved.

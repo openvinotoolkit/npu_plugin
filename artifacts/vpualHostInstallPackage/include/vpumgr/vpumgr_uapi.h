@@ -1,6 +1,6 @@
+// {% copyright %}
 /* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note
  * VPU manager Linux Kernel API
- * Copyright (C) 2020-2021 Intel Corporation
  *
  */
 #ifndef __VPUMGR_UAPI_H
