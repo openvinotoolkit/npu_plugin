@@ -149,7 +149,7 @@ struct local_pass_util {
     mv::Data::OpListIterator sink_itr = om.getOp(sink_op->getName());
     mv::Data::TensorIterator src_tensor_itr = src_itr->getOutputTensor(0UL);
 
-    if (!om.pathExists(src_itr, sink_itr))
+    if (!om.pathExists(src_itr, sink_itr) && !om.pathExists(sink_itr, src_itr))
     {
       mv::Data::FlowListIterator flow_itr =
           om.defineFlow(src_tensor_itr, sink_itr, 0UL);

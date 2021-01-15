@@ -109,6 +109,12 @@ class Pipeline_Chains {
         sink_itr_ = o.sink_itr_;
         return *this;
       }
+
+      bool operator==(const control_edge_t& o) {
+        bool sourceQ = (source_itr_->getName() == o.source_itr_->getName());
+        bool sinkQ = (sink_itr_->getName() == o.sink_itr_->getName());
+        return (sourceQ && sinkQ);
+      }
       mv::Data::OpListIterator source_itr_;
       mv::Data::OpListIterator sink_itr_;
     }; // struct control_edge_t //
@@ -269,11 +275,16 @@ class Pipeline_Chains {
       }
     }
 
-      template<typename LevelItr>
-      bool can_this_level_be_appended_to_chain(LevelItr itr)
-      {
-        return ( (itr->second.size() == 1UL) || comeFromTheSameParentStream(itr->second) );
-      }
+    template<typename LevelItr>
+    bool can_this_level_be_appended_to_chain(LevelItr itr)
+    {
+      return ( (itr->second.size() == 1UL) || comeFromTheSameParentStream(itr->second) );
+    }
+
+    bool is_sharing_weights_operation(operation_t dpu_op) const {
+      auto op_itr = omodel_.getOp(dpu_op->getName());
+      return (op_itr->hasAttr("shareWeights") && op_itr->get<bool>("shareWeights"));
+    }
 
     template<typename OutputIterator>
     void locate_longer_chains(OutputIterator output)
@@ -370,6 +381,10 @@ class Pipeline_Chains {
               dpu_chain.clear();
               break;
             }
+
+            if (is_sharing_weights_operation(current_dpu_op))
+              continue;
+
             //TODO(vamsikku): also avoid chains with breaks and pivots //
             //check if the current dpu_op has an incoming edge which is not yet
             //in the chain.
@@ -749,10 +764,13 @@ class Pipeline_Chains {
               mv::Data::TensorIterator src_tensor_itr
                   = src_itr->getOutputTensor(0UL);
               {
-                mv::Data::FlowListIterator flow_itr =
-                    omodel_.defineFlow(src_tensor_itr, sink_itr, 0UL);
-                flow_itr->set<bool>("pseudo_data_flow", true);
-                src_itr->set<bool>("chain_pipelined_dpu", true);
+                if (!omodel_.pathExists(sink_itr, src_itr) && !omodel_.pathExists(src_itr, sink_itr))
+                {
+                  mv::Data::FlowListIterator flow_itr =
+                      omodel_.defineFlow(src_tensor_itr, sink_itr, 0UL);
+                  flow_itr->set<bool>("pseudo_data_flow", true);
+                  src_itr->set<bool>("chain_pipelined_dpu", true);
+                }
               }
             }
           }

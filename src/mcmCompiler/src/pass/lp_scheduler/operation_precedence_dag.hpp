@@ -421,8 +421,7 @@ class Operation_Dag {
 
       std::list<cmx_concat_subgraph_t> cmx_concat_subgraphs;
       cmx_concat_algo.transform_op_model(
-          std::back_inserter(cmx_concat_control_edges), cmx_concat_subgraphs,
-            cmx_size);
+          std::back_inserter(cmx_concat_control_edges), cmx_concat_subgraphs);
 
       cmx_concat_subgraphs_.clear();
       for (auto subg_itr=cmx_concat_subgraphs.begin();
