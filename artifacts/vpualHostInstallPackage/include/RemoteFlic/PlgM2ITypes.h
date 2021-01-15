@@ -94,13 +94,14 @@ typedef enum{
 #endif
 
 class M2IDesc{
-  // Input frame
-  ImgFrame inFrm;
-
   // List of tasks
   // The descriptor will be allocated in a vpusmm region
   // that will have its size aligned to 4KB anyway
   M2ITask  taskList[MAX_M2I_TASK_LST_SZ];
+
+  // Input frame
+  ImgFrame inFrm;
+
   uint32_t nrTasks;
 
   // Pointer to the underlying VPU region
