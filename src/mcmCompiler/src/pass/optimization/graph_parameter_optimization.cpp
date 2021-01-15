@@ -1097,7 +1097,7 @@ namespace mv
                     (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
 
-                if (clustering == "SplitOverH" && op.getOpType() == "Maxpool" &&
+                if (clustering == "SplitOverH" && op.getOpType() == "MaxPool" &&
                     (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
                 //NOTE: This is not a HACK!!! if an operation is assigned with streamOverH + SplitOverH
