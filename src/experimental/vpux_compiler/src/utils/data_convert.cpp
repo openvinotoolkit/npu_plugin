@@ -32,18 +32,18 @@ struct CvtHelper final {
 };
 
 template <>
-struct CvtHelper<ngraph::float16> final {
+struct CvtHelper<float16> final {
     template <typename In>
-    static ngraph::float16 cvt(In val) {
-        return ngraph::float16(checked_cast<float>(val));
+    static float16 cvt(In val) {
+        return float16(checked_cast<float>(val));
     }
 };
 
 template <>
-struct CvtHelper<ngraph::bfloat16> final {
+struct CvtHelper<bfloat16> final {
     template <typename In>
-    static ngraph::bfloat16 cvt(In val) {
-        return ngraph::bfloat16(checked_cast<float>(val));
+    static bfloat16 cvt(In val) {
+        return bfloat16(checked_cast<float>(val));
     }
 };
 
@@ -72,10 +72,10 @@ T vpux::convertData(const char* data, mlir::Type baseType) {
     } else if (baseType.isF64()) {
         return CvtHelper<T>::cvt(*reinterpret_cast<const double*>(data));
     } else if (baseType.isF16()) {
-        const auto& temp = *reinterpret_cast<const ngraph::float16*>(data);
+        const auto& temp = *reinterpret_cast<const float16*>(data);
         return CvtHelper<T>::cvt(static_cast<float>(temp));
     } else if (baseType.isBF16()) {
-        const auto& temp = *reinterpret_cast<const ngraph::bfloat16*>(data);
+        const auto& temp = *reinterpret_cast<const bfloat16*>(data);
         return CvtHelper<T>::cvt(static_cast<float>(temp));
     } else {
         VPUX_THROW("Unsupported element type '{0}'", baseType);
@@ -96,7 +96,7 @@ template int64_t convertData<int64_t>(const char* data, mlir::Type baseType);
 
 template float convertData<float>(const char* data, mlir::Type baseType);
 template double convertData<double>(const char* data, mlir::Type baseType);
-template ngraph::float16 convertData<ngraph::float16>(const char* data, mlir::Type baseType);
-template ngraph::bfloat16 convertData<ngraph::bfloat16>(const char* data, mlir::Type baseType);
+template float16 convertData<float16>(const char* data, mlir::Type baseType);
+template bfloat16 convertData<bfloat16>(const char* data, mlir::Type baseType);
 
 }  // namespace vpux

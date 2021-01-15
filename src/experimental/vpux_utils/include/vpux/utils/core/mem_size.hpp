@@ -157,6 +157,10 @@ template <MemType TYPE>
 MemSize<TYPE> operator+(MemSize<TYPE> size1, MemSize<TYPE> size2) {
     return MemSize<TYPE>(size1.count() + size2.count());
 }
+template <MemType TYPE>
+int64_t operator%(MemSize<TYPE> size1, MemSize<TYPE> size2) {
+    return size1.count() % size2.count();
+}
 
 template <MemType TYPE>
 MemSize<TYPE> operator*(MemSize<TYPE> size, int64_t mult) {
@@ -165,6 +169,10 @@ MemSize<TYPE> operator*(MemSize<TYPE> size, int64_t mult) {
 template <MemType TYPE>
 MemSize<TYPE> operator*(int64_t mult, MemSize<TYPE> size) {
     return MemSize<TYPE>(size.count() * mult);
+}
+template <MemType TYPE>
+MemSize<TYPE> operator/(MemSize<TYPE> size, int64_t div) {
+    return MemSize<TYPE>(size.count() / div);
 }
 
 template <MemType TYPE>
@@ -190,11 +198,6 @@ bool operator<(MemSize<TYPE> size1, MemSize<TYPE> size2) {
 template <MemType TYPE>
 bool operator<=(MemSize<TYPE> size1, MemSize<TYPE> size2) {
     return size1.count() <= size2.count();
-}
-
-template <MemType TYPE>
-int64_t operator%(MemSize<TYPE> size1, MemSize<TYPE> size2) {
-    return size1.count() % size2.count();
 }
 
 using Bit = MemSize<MemType::Bit>;

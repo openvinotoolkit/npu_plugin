@@ -22,12 +22,11 @@
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
+#include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
-
-#include <ngraph/type/float16.hpp>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -114,7 +113,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::QuantCastUPAOp::serialize(BlobWrite
                                                                 : outType.cast<mlir::quant::QuantizedType>();
 
     const auto getRawFP16 = [](auto val) {
-        const auto valFP16 = ngraph::float16(val);
+        const auto valFP16 = float16(val);
         return valFP16.to_bits();
     };
 

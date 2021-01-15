@@ -21,6 +21,7 @@
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 
+#include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -146,7 +147,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
 
     if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>()) {
         const auto zero = checked_cast<uint8_t>(qType.getZeroPoint());
-        const auto mult = ngraph::float16(static_cast<float>(qType.getScale())).to_bits();
+        const auto mult = float16(static_cast<float>(qType.getScale())).to_bits();
 
         quantZero = createVector(makeArrayRef(zero));
         quantMult = createVector(makeArrayRef(mult));
@@ -155,7 +156,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
                                      return checked_cast<uint8_t>(val);
                                  }));
         quantMult = createVector(qType.getScales() | transformed([](double val) {
-                                     return ngraph::float16(static_cast<float>(val)).to_bits();
+                                     return float16(static_cast<float>(val)).to_bits();
                                  }));
     } else {
         quantZero = createVector(makeArrayRef<uint8_t>(0));

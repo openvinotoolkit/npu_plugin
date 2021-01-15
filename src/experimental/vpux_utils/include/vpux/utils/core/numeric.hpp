@@ -31,13 +31,6 @@
 namespace vpux {
 
 //
-// FP16 type
-//
-
-// FP16 storage type for unsupported CPUs.
-using fp16_t = short;
-
-//
 // Integer arithmetic
 //
 

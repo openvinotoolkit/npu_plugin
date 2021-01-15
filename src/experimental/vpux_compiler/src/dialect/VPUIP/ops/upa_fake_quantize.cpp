@@ -22,18 +22,18 @@
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
+#include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
-
-#include <ngraph/type/float16.hpp>
 
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
+    static const Byte FP16_SIZE = 16_Bit;
     static const Byte SHAVE_LIB_DATA_SIZE = 112_KB;
 
     const auto inShape = getShape(op.input());
@@ -80,7 +80,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
     const auto md0 = memShape[MemDim(0)];
     const auto md1 = memShape[MemDim(1)];
 
-    if (checked_cast<int64_t>(md0 * md1 * sizeof(fp16_t)) >= SHAVE_LIB_DATA_SIZE.count() / 2) {
+    if (md0 * md1 * FP16_SIZE >= SHAVE_LIB_DATA_SIZE / 2) {
         return printTo(op.emitError(), "Memory buffers doesn't fit to kernel inner CMX buffer");
     }
 
@@ -96,13 +96,12 @@ void vpux::VPUIP::FakeQuantizeUPAOp::build(mlir::OpBuilder& builder, mlir::Opera
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FakeQuantizeUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto getRawFP16 = [](const ngraph::float16& val) {
+    const auto getRawFP16 = [](const float16& val) {
         return val.to_bits();
     };
 
     const auto getVecFP16 = [&](mlir::ElementsAttr attr) {
-        return writer.createVector(attr.cast<ConstContentAttr>().getValues<ngraph::float16>() |
-                                   transformed(getRawFP16));
+        return writer.createVector(attr.cast<ConstContentAttr>().getValues<float16>() | transformed(getRawFP16));
     };
 
     const auto input_low = getVecFP16(this->input_low());

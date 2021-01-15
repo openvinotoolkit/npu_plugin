@@ -36,8 +36,6 @@
 
 #include <precision_utils.h>
 
-#include <ngraph/type/float16.hpp>
-
 using namespace vpux;
 
 namespace {
