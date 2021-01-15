@@ -102,11 +102,9 @@ void mv::ControlModel::removeGroupElement(Control::FlowListIterator element, Gro
 }
 
 mv::Control::StageIterator mv::ControlModel::addStage()
-{   
-    
+{
     auto it = stages_->emplace(stages_->size(), std::make_shared<Stage>(*this, stages_->size()));
     return it.first;
-
 }
 
 mv::Control::StageIterator mv::ControlModel::getStage(std::size_t stageIdx)
@@ -119,7 +117,7 @@ void mv::ControlModel::removeStage(Control::StageIterator stage)
 
     if (!isValid(stage))
         throw ArgumentError(*this, "stage", "invalid", "Invalid stage iterator passed for stage deletion");
-    
+
     stage->clear();
     stages_->erase(stage->getIdx());
 
@@ -191,13 +189,13 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterat
     }
     else
     {
-        log(Logger::MessageType::Error, "Unable to define new control flow between " + 
+        log(Logger::MessageType::Error, "Unable to define new control flow between " +
             sourceOp->getName() + " and " + sinkOp->getName());
     }
 
     return flowEnd();
 
-} 
+}
 
 mv::Control::FlowListIterator mv::ControlModel::defineFlow(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp)
 {
@@ -271,8 +269,8 @@ std::vector<mv::Control::OpListIterator> mv::ControlModel::schedulingSortDMA()
         }
         // If the DMA level and DPU scheduling number are equal then sort on the scheduling number assinged by the scheduler
         return schedulingNumberA < schedulingNumberB;
-         
- 
+
+
     });
 
     return toSort;
@@ -334,6 +332,11 @@ bool mv::ControlModel::isDag()
     return mv::isDAG(controlGraph_);
 }
 
+mv::Control::OpListIterator mv::ControlModel::cycleResponsible()
+{
+    return  mv::getNodeInCycle(controlGraph_).second;
+}
+
 void mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
 {
 
@@ -353,7 +356,7 @@ std::string mv::ControlModel::getLogID() const
 mv::Control::FlowListIterator mv::ControlModel::checkControlFlow(mv::Control::OpListIterator source, mv::Control::OpListIterator sink)
 {
     mv::Control::FlowListIterator toReturn = flowEnd();
-    
+
     for(auto outFlow = source.leftmostOutput(); outFlow != flowEnd(); ++outFlow)
     {
         if(outFlow.sink() == sink)

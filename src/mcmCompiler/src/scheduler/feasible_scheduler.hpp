@@ -1674,16 +1674,18 @@ class Feasible_Memory_Schedule_Generator {
 
 
       bool has_cycle = false;
+      std::string cycleResponsible;
       for (auto deg_itr=in_degree_map.begin(); deg_itr!=in_degree_map.end();
             ++deg_itr) {
         if (deg_itr->second) {
+          cycleResponsible = traits::operation_name(deg_itr->first);
           has_cycle = true;
           break;
         }
       }
 
       if (has_cycle) {
-        throw RuntimeError("LpScheduler", "input is not a DAG\n");
+        throw RuntimeError("LpScheduler", "input is not a DAG due to " + cycleResponsible + "\n");
       }
     }
 
