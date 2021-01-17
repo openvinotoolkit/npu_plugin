@@ -70,6 +70,7 @@ LogLevel getLogLevel(const VPUXConfig& config) {
 
 VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
     switch (config.platform()) {
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::MA2490:
         return VPUIP::ArchKind::MA2490;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::MA2490_B0:

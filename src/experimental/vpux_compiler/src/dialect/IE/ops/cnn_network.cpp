@@ -89,8 +89,9 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
     for (const auto ind : irange(outputsInfo.size())) {
         const auto rawInd = inputsInfo.size() + ind;
 
-        const auto funcType = isBufferized ? netFuncType.getInput(static_cast<uint32_t>(rawInd)).dyn_cast<mlir::ShapedType>()
-                                           : netFuncType.getResult(static_cast<uint32_t>(ind)).dyn_cast<mlir::ShapedType>();
+        const auto funcType = isBufferized
+                                      ? netFuncType.getInput(static_cast<uint32_t>(rawInd)).dyn_cast<mlir::ShapedType>()
+                                      : netFuncType.getResult(static_cast<uint32_t>(ind)).dyn_cast<mlir::ShapedType>();
 
         if (funcType == nullptr) {
             return printTo(emitError(), "'{0}' entryPoint '@{1}' output #{2} is not a 'ShapedType'", getOperationName(),
