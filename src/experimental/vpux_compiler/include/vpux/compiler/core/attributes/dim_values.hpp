@@ -126,11 +126,25 @@ public:
         _cont.insert(pos, std::move(val));
     }
 
+    void erase(iterator pos) {
+        _cont.erase(pos);
+    }
+    void erase(iterator b, iterator e) {
+        _cont.erase(b, e);
+    }
+
     void resize(size_t newSize) {
         _cont.resize(newSize);
     }
     void resize(size_t newSize, const ValueType& newValue) {
         _cont.resize(newSize, newValue);
+    }
+
+    void pop_back() {
+        _cont.pop_back();
+    }
+    void pop_back_n(size_t numVals) {
+        _cont.pop_back_n(numVals);
     }
 
     void clear() {
