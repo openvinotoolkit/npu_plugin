@@ -9,7 +9,7 @@ It is based on [MLIR framework](https://mlir.llvm.org/) and utilizes its API and
 
 ### Goals
 
-The **VPUX NN Compiler** is designed to achive the following goals:
+The **VPUX NN Compiler** is designed to achieve the following goals:
 
 * Improve network coverage for current VPU generation.
 * Make new network enablement process lighter and faster.
@@ -46,21 +46,21 @@ The **VPUX NN Compiler** architecture and its implementation is based on the fol
 
 For more details about the first two principles please refer to [separate chapter](architectural_stability.md).
 
-The third principle is achivied by MLIR architecture - Dialects concept.
+The third principle is achievied by MLIR architecture - Dialects concept.
 The **VPUX NN Compiler** consists of several Dialects with different level of details.
 The IR is lowered from high level abstractions to more detailed representation step-by-step during compilation pipeline.
 
-The forth principle encourages using such MLIR concepts as Operation Traits and Interfaces.
-They allow to reduce code duplication and group similar Operations unser single API.
+The fourth principle encourages using such MLIR concepts as Operation Traits and Interfaces.
+They allow to reduce code duplication and group similar Operations under a single API.
 Operation Interfaces also allows to write more generic passes, which are not bound to particular operation set.
 
-The fifth principle declarase that each Pass in compilation pipeline must represent one single transformation
+The fifth principle declares that each Pass in compilation pipeline must represent one single transformation
 to reach one particular goal (either IR adaptation or IR optimization).
 Such "atomic" pass is easier to be covered by unit testing.
 The "atomic" passes can be joined togerther in the compilation chain inside "pipeline" pass.
 The "pipeline" pass doesn't perform IR transformation on its own, instead it creates internal
 pipeline of other passes (either "atomic" or another "pipeline") using MLIR dynamic pass manager feature.
-The goal of "pipeline" pass is to establish correct order of underlying passes, while keep actual transformation logic inside them.
+The goal of "pipeline" pass is to establish correct order of underlying passes, while keeping actual transformation logic inside them.
 
 ## Architecture
 
@@ -117,7 +117,7 @@ It is used to collect various requirements for strides from different places and
 It supports the following requirements:
 
 * `Any` - means that there is no special requirements for particular dimension.
-* `Compact` - the stride for this dimension must no introduce gaps between neighbour elements in this dimension.
+* `Compact` - the stride for this dimension must not introduce gaps between neighbour elements in this dimension.
 * `Aligned` - the byte stride for this dimension must be aligned by particular value.
 * `Fixed` - the stride for this dimension must be equal to fixed value.
 
@@ -148,7 +148,7 @@ func @main(%input: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
 }
 ```
 
-The network inputs and outputs information (names, precision, layout) is hold in separate Operation - `IE.CNNNetwork`.
+The network inputs and outputs information (names, precision, layout) is held in separate Operation - `IE.CNNNetwork`.
 
 ```MLIR
 IE.CNNNetwork {

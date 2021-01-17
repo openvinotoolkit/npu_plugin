@@ -13,11 +13,11 @@ It improves developer experience and allow to satisfy the following scalability 
 
 Since the NN compiler contains a set of complex optimization passes with dependencies on each other,
 any change in it might introduce new issues.
-This increases the time for new features/network enablement, sometime dramatically.
+This increases the time for new features/network enablement, sometimes dramatically.
 This document discusses some ways to reduce this complexity on architectural level and speed up development process.
 
 Each NN compiler has its own intermediate representation of the model, which it works on.
-The compiler passes modify this model in place and share some information throw it.
+The compiler passes modify this model in place and share some information threw it.
 The IR itself, just like any other object, should have so called valid state, or some combination of internal invariants.
 Each compiler pass shouldn't break this valid state.
 The violation of this rule is one of the most cause of issues with new networks/features.
@@ -30,7 +30,7 @@ The API should do this automatically and prevent IR transformations that break t
 
 The debuggability in that scope is a set of extra helper methods, which helps to find the IR validity violation.
 It should point to exact place, where the issue happened and provide as much information as possible to the developer.
-This will reduce time spend on issue debugging.
+This will reduce time spent on issue debugging.
 
 ## IR Valid State
 
@@ -63,7 +63,7 @@ We will use term IR information for the full set of the attributes, bound to its
 
 First, we should divide these attributes onto several sections:
 
-1. **Primary attributes**. Those attributes define the IR, or, in another word, the IR object can't exist without those attributes.
+1. **Primary attributes**. Those attributes define the IR, or, in other words, the IR object can't exist without those attributes.
    Example of such attributes: the type of the IR node (data or operation), shape for tensor,
    mandatory parameter for NN layer (strides for Convolution, axis for SoftMax).
 2. **Compilation attributes**. Those attributes do not exist at the beginning of the compilation process,
