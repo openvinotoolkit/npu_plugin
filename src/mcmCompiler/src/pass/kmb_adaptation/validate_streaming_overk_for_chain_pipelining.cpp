@@ -223,7 +223,7 @@ void assignNewSrategies(mv::ComputationModel& model, std::vector<mv::Element>& n
     }
 }
 
-void saveNewStreamingStrategiesToJson(const mv::pass::PassEntry& pass, const mv::Attribute& streamingStrategyElements) {
+void saveNewStreamingStrategiesToJson1(const mv::pass::PassEntry& pass, const mv::Attribute& streamingStrategyElements) {
     pass.log(mv::Logger::MessageType::Debug, "Saving New Streaming Strategies to JSON file");
     std::ofstream jsonOutputFile;
     std::string jsonOutFileName = "./output/mcmCompiler_new_streaming_strategy_output.json";
@@ -660,6 +660,6 @@ std::pair<size_t, double> fullWeightsSizeForOpandOptimalKStreaming(std::string m
 
         // Step5: Save the new strategies
         compDesc->set("streaming_strategy", newStreamingStrategies);
-        saveNewStreamingStrategiesToJson(pass, newStreamingStrategies);
+        saveNewStreamingStrategiesToJson1(pass, newStreamingStrategies);
      }
  }

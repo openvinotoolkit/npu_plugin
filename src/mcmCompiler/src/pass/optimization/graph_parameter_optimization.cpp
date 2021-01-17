@@ -1328,20 +1328,7 @@ namespace mv
                 }
                 return executableInHW;
             }
-
-            // If output tensor is larger than CMX, even when SplitOverH (divided by totalClusters)
- // this op will always spill back to DDR
- bool willAlwaysSpill(mv::Op& op)
- {
- auto outputTensorSize = op.getOutputTensor(0)->computeTotalSize();
- outputTensorSize = (outputTensorSize / totalClusters);
- if(outputTensorSize > clusterMemory)
- return true;
- 
- return false;
- }
-
-
+            
             double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
             {
                 auto INF = inf_;
