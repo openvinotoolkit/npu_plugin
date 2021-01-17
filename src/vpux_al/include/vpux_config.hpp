@@ -84,7 +84,7 @@ protected:
     bool _performanceCounting = false;
     std::string _deviceId = "VPU-0";
     int _throughputStreams = 2;
-    InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::MA2490;
+    InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
 
     // Private options
     bool _useNGraphParser = true;
