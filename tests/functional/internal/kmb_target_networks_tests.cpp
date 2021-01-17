@@ -983,10 +983,30 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_small) {
 	0.3f);
 }
 
-TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128) {
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_U8) {
     runTest(
 	TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
 	    .setUserInputPrecision("input", Precision::U8),
+	TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+        1,
+        0.3f);
+}
+
+// This test checks correctness of handling FP16 input in case of quantized model
+// for which inner network precision will be U8
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP16) {
+    runTest(
+	TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
+	    .setUserInputPrecision("input", Precision::FP16),
+	TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+        1,
+        0.3f);
+}
+
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP32) {
+    runTest(
+	TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
+	    .setUserInputPrecision("input", Precision::FP32),
 	TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
         1,
         0.3f);
