@@ -80,8 +80,8 @@ MVCNN::PhysicalProcessor createPhysicalProcessor(VPUIP::PhysicalProcessor proc) 
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
                                                                     IERT::ExecutorResourceOp res) {
-    auto kind = res.kindAttr().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
-    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", kind);
+    const auto kind = res.kindAttr().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
+    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", res.kindAttr());
 
     MVCNN::ProcessorMappingBuilder builder(writer);
     builder.add_item(createPhysicalProcessor(kind.getValue()));
@@ -106,8 +106,8 @@ MVCNN::PhysicalMem createPhysicalMem(VPUIP::PhysicalMemory mem) {
 }
 
 flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer, IERT::MemoryResourceOp res) {
-    auto kind = res.kindAttr().dyn_cast_or_null<VPUIP::PhysicalMemoryAttr>();
-    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown memory space kind '{0}'", kind);
+    const auto kind = res.kindAttr().dyn_cast_or_null<VPUIP::PhysicalMemoryAttr>();
+    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown memory space kind '{0}'", res.kindAttr());
 
     MVCNN::MemoryMappingBuilder builder(writer);
     builder.add_item(createPhysicalMem(kind.getValue()));
@@ -212,12 +212,12 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Logger log) {
     log.setName("VPUIP::BackEnd");
 
-    log.trace("Extract '{0}' from Module", IE::CNNNetworkOp::getOperationName());
+    log.trace("Extract 'IE.{0}' from Module", IE::CNNNetworkOp::getOperationName());
     IE::CNNNetworkOp netOp;
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    log.trace("Extract '{0}' from Module", VPUIP::GraphOp::getOperationName());
+    log.trace("Extract 'VPUIP.{0}' from Module", VPUIP::GraphOp::getOperationName());
     auto graphOp = VPUIP::GraphOp::getFromModule(module);
 
     BlobWriter writer(log.nest());
@@ -236,7 +236,11 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
     size_t tempTensorInd = 0;
     size_t constantTensorInd = 0;
     const auto callback = [&](mlir::Operation* op) {
+        log.trace("Serialize Operation '{0}' at '{1}'", op->getName(), op->getLoc());
+
         if (auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op)) {
+            log.nest().trace("Got '{0}' Task", task.getTaskType());
+
             tasksMap[task.getTaskType()].push_back(writer.createTask(task));
         } else if (auto tensorOp = mlir::dyn_cast<DeclareTensorOp>(op)) {
             writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
@@ -245,15 +249,18 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
                                 tensorOp.trailingOffset());
 
             ++tempTensorInd;
-        } else if (auto tensorOp = mlir::dyn_cast<DeclareConstantTensorOp>(op)) {
-            const auto content = tensorOp.getContent();
-            const auto actualType = tensorOp.getType();
-            const auto csramCacheable = tensorOp.csramCacheable();
+        } else if (auto constOp = mlir::dyn_cast<DeclareConstantTensorOp>(op)) {
+            log.nest().trace("Got constant with actual type '{0} and storage type '{1}'", constOp.getActualType(),
+                             constOp.getContentType());
+
+            const auto content = constOp.getContent();
+            const auto actualType = constOp.getType();
+            const auto csramCacheable = constOp.csramCacheable();
 
             const auto binData = writer.createBinaryData(content, actualType, csramCacheable);
             binaryData.push_back(binData);
 
-            writer.createTensor(tensorOp.output(), llvm::formatv("constant-{0}", constantTensorInd).str(),
+            writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constantTensorInd).str(),
                                 MemoryLocation::GraphFile, checked_cast<uint32_t>(constantTensorInd), 0);
 
             ++constantTensorInd;
@@ -262,7 +269,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
         } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == netFunc.getOperation()) {
             // do nothing
         } else {
-            VPUX_THROW("Unknown Operation '{0}'", op->getName());
+            VPUX_THROW("Unknown Operation '{0}' at '{1}'", op->getName(), op->getLoc());
         }
     };
 
@@ -270,8 +277,10 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
 
     std::vector<BlobWriter::TaskList> taskLists;
     taskLists.reserve(tasksMap.size());
-    for (const auto& taskList : tasksMap | map_values) {
-        const auto serializedTaskList = writer.createVector(taskList);
+    for (const auto& taskList : tasksMap) {
+        log.trace("Serialize task list '{0}'", taskList.first);
+
+        const auto serializedTaskList = writer.createVector(taskList.second);
 
         MVCNN::TaskListBuilder builder(writer);
         builder.add_content(serializedTaskList);

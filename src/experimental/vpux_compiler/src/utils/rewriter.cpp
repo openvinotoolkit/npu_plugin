@@ -16,6 +16,8 @@
 
 #include "vpux/compiler/utils/rewriter.hpp"
 
+#include "vpux/compiler/utils/error.hpp"
+
 #include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
@@ -39,7 +41,7 @@ mlir::LogicalResult vpux::rewriteFuncPrototype(mlir::FuncOp funcOp, mlir::TypeCo
     }
 
     if (mlir::failed(rewriter.convertRegionTypes(&funcOp.getBody(), typeConverter, &conversion))) {
-        return printTo(funcOp.emitError(), "Failed to convert Function arguments");
+        return errorAt(funcOp, "Failed to convert Function arguments");
     }
 
     rewriter.updateRootInPlace(funcOp, [&]() {

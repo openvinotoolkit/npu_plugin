@@ -72,7 +72,7 @@ void BufferizeIEPass::runOnFunction() {
 
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
+        errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
@@ -112,7 +112,7 @@ private:
 
 mlir::LogicalResult BufferizeIEPass::ConstantRewrite::matchAndRewrite(IE::ConstantOp origOp, ArrayRef<mlir::Value>,
                                                                       mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Found Constant Operation '{0}'", origOp);
+    _log.trace("Found Constant Operation '{0}'", origOp->getLoc());
 
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
@@ -151,7 +151,7 @@ mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operati
         return mlir::failure();
     }
 
-    _log.trace("Found Layer Operation '{0}'", *origOp);
+    _log.trace("Found Layer Operation '{0}'", origOp->getLoc());
 
     auto origInputs = layerOp.getInputs();
     auto origOutputs = layerOp.getOutputs();

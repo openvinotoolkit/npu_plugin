@@ -17,6 +17,7 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/const_content.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"

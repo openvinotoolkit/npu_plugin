@@ -42,8 +42,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
 
     if (locale == MemoryLocation::ProgrammableInput || locale == MemoryLocation::ProgrammableOutput ||
         locale == MemoryLocation::GraphFile) {
-        return printTo(op.emitError(), "MemoryLocation '{0}' can't be used in '{1}'", locale,
-                       DeclareTensorOp::getOperationName());
+        return errorAt(op, "MemoryLocation '{0}' can't be used for temporary tensor", locale);
     }
 
     // TODO: check localeIndex
@@ -51,8 +50,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
     const auto memref = op.memory().getType().cast<mlir::MemRefType>();
 
     if (!isMemoryCompatible(locale, memref)) {
-        return printTo(op.emitError(), "'{0}' locale '{1}' is not compatible with memory space '{2}'",
-                       DeclareTensorOp::getOperationName(), locale, memref.getMemorySpace());
+        return errorAt(op, "Locale '{0}' is not compatible with memory space '{1}'", locale, memref.getMemorySpace());
     }
 
     // TODO: check other offsets
@@ -74,8 +72,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareConstantTensorOp op) {
     const auto mem = getPhysicalMemory(memref);
 
     if (mlir::failed(mem) || mem.getValue() != VPUIP::PhysicalMemory::DDR) {
-        return printTo(op.emitError(), "'{0}' has unsupported result memory space '{1}'",
-                       DeclareConstantTensorOp::getOperationName(), memref.getMemorySpace());
+        return errorAt(op, "Unsupported result memory space '{0}'", memref.getMemorySpace());
     }
 
     return mlir::success();

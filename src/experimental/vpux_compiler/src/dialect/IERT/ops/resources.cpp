@@ -38,27 +38,29 @@ void vpux::IERT::RunTimeResourcesOp::build(mlir::OpBuilder& builder, ::mlir::Ope
 }
 
 mlir::LogicalResult vpux::IERT::verifyOp(IERT::RunTimeResourcesOp op) {
-    for (auto& res : op.availableMemory().getOps()) {
-        if (!mlir::isa<IERT::MemoryResourceOp>(&res) && !mlir::isa<IERT::EndOp>(&res)) {
-            return printTo(op.emitError(), "Got unsupported Operation '{0}' in 'availableMemory' region",
-                           res.getName());
+    for (auto& resOp : op.availableMemory().getOps()) {
+        if (!mlir::isa<IERT::MemoryResourceOp>(&resOp) && !mlir::isa<IERT::EndOp>(&resOp)) {
+            return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'availableMemory' region", resOp.getName(),
+                           resOp.getLoc());
         }
     }
-    for (auto& res : op.usedMemory().getOps()) {
-        if (!mlir::isa<IERT::MemoryResourceOp>(&res) && !mlir::isa<IERT::EndOp>(&res)) {
-            return printTo(op.emitError(), "Got unsupported Operation '{0}' in 'usedMemory' region", res.getName());
+    for (auto& resOp : op.usedMemory().getOps()) {
+        if (!mlir::isa<IERT::MemoryResourceOp>(&resOp) && !mlir::isa<IERT::EndOp>(&resOp)) {
+            return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'usedMemory' region", resOp.getName(),
+                           resOp.getLoc());
         }
     }
 
-    for (auto& res : op.availableExecutors().getOps()) {
-        if (!mlir::isa<IERT::ExecutorResourceOp>(&res) && !mlir::isa<IERT::EndOp>(&res)) {
-            return printTo(op.emitError(), "Got unsupported Operation '{0}' in 'availableExecutors' region",
-                           res.getName());
+    for (auto& resOp : op.availableExecutors().getOps()) {
+        if (!mlir::isa<IERT::ExecutorResourceOp>(&resOp) && !mlir::isa<IERT::EndOp>(&resOp)) {
+            return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'availableExecutors' region",
+                           resOp.getName(), resOp.getLoc());
         }
     }
-    for (auto& res : op.usedExecutors().getOps()) {
-        if (!mlir::isa<IERT::ExecutorResourceOp>(&res) && !mlir::isa<IERT::EndOp>(&res)) {
-            return printTo(op.emitError(), "Got unsupported Operation '{0}' in 'usedExecutors' region", res.getName());
+    for (auto& resOp : op.usedExecutors().getOps()) {
+        if (!mlir::isa<IERT::ExecutorResourceOp>(&resOp) && !mlir::isa<IERT::EndOp>(&resOp)) {
+            return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'usedExecutors' region", resOp.getName(),
+                           resOp.getLoc());
         }
     }
 

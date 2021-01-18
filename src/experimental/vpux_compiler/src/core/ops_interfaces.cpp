@@ -37,27 +37,26 @@ mlir::LogicalResult vpux::verifyConstant(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyConstant");
 
     if (!op->hasTrait<mlir::OpTrait::ConstantLike>()) {
-        return printTo(op->emitError(), "Operation '{0}' is not a ConstantLike", op->getName());
+        return errorAt(op, "Operation '{0}' is not a ConstantLike", op->getName());
     }
 
     auto constant = mlir::dyn_cast<ConstantInterface>(op);
     if (constant == nullptr) {
-        return printTo(op->emitError(), "Operation '{0}' is not a Constant", op->getName());
+        return errorAt(op, "Operation '{0}' is not a Constant", op->getName());
     }
 
     const auto contentType = constant.getContentType();
     const auto actualType = constant.getActualType();
 
     if (!contentType.hasStaticShape()) {
-        return printTo(op->emitError(), "Can't use dynamic shape for '{0}' Operation content", op->getName());
+        return errorAt(op, "Can't use dynamic shape for constant content");
     }
     if (!actualType.hasStaticShape()) {
-        return printTo(op->emitError(), "Can't use dynamic shape for '{0}' Operation result", op->getName());
+        return errorAt(op, "Can't use dynamic shape for constant result value");
     }
 
     if (contentType.getNumElements() != actualType.getNumElements()) {
-        return printTo(op->emitError(), "Content type '{0}' and actual type '{1}' are not compatible", contentType,
-                       actualType);
+        return errorAt(op, "Content type '{0}' and actual type '{1}' are not compatible", contentType, actualType);
     }
 
     return mlir::success();
@@ -72,11 +71,11 @@ mlir::LogicalResult vpux::verifyLayer(mlir::Operation* op) {
 
     auto layer = mlir::dyn_cast<LayerInterface>(op);
     if (layer == nullptr) {
-        return printTo(op->emitError(), "Operation '{0}' is not a Layer", op->getName());
+        return errorAt(op, "Operation '{0}' is not a Layer", op->getName());
     }
 
     if (op->getOperands().empty()) {
-        return printTo(op->emitError(), "Layer Operation '{0}' has no operands", op->getName());
+        return errorAt(op, "Layer Operation has no operands");
     }
 
     bool isTensorLayer = false;
@@ -87,15 +86,13 @@ mlir::LogicalResult vpux::verifyLayer(mlir::Operation* op) {
 
         if (type.isa<mlir::RankedTensorType>() || type.isa<mlir::shape::ShapeType>()) {
             if (isMemRefLayer) {
-                return printTo(op->emitError(), "Layer Operation '{0}' has a mix of Tensor/Shape and MemRef types",
-                               op->getName());
+                return errorAt(op, "Layer Operation has a mix of Tensor/Shape and MemRef types");
             }
 
             isTensorLayer = true;
         } else if (type.isa<mlir::MemRefType>()) {
             if (isTensorLayer) {
-                return printTo(op->emitError(), "Layer Operation '{0}' has a mix of Tensor/Shape and MemRef types",
-                               op->getName());
+                return errorAt(op, "Layer Operation has a mix of Tensor/Shape and MemRef types");
             }
 
             isMemRefLayer = true;
@@ -103,8 +100,7 @@ mlir::LogicalResult vpux::verifyLayer(mlir::Operation* op) {
     }
 
     if (!isTensorLayer && !isMemRefLayer) {
-        return printTo(op->emitError(), "Layer Operation '{0}' has no Tensor/Shape or MemRef types operands",
-                       op->getName());
+        return errorAt(op, "Layer Operation has no Tensor/Shape or MemRef types operands");
     }
 
     for (auto res : op->getResults()) {
@@ -112,16 +108,14 @@ mlir::LogicalResult vpux::verifyLayer(mlir::Operation* op) {
 
         if (type.isa<mlir::RankedTensorType>() || type.isa<mlir::shape::ShapeType>()) {
             if (isMemRefLayer) {
-                return printTo(op->emitError(), "Layer Operation '{0}' has a mix of Tensor/Shape and MemRef types",
-                               op->getName());
+                return errorAt(op, "Layer Operation has a mix of Tensor/Shape and MemRef types");
             }
         } else if (type.isa<mlir::MemRefType>()) {
             if (isTensorLayer) {
-                return printTo(op->emitError(), "Layer Operation '{0}' has a mix of Tensor/Shape and MemRef types",
-                               op->getName());
+                return errorAt(op, "Layer Operation has a mix of Tensor/Shape and MemRef types");
             }
 
-            return printTo(op->emitError(), "Layer Operation '{0}' can return MemRef types", op->getName());
+            return errorAt(op, "Layer Operation can't return MemRef types");
         }
     }
 
@@ -129,16 +123,15 @@ mlir::LogicalResult vpux::verifyLayer(mlir::Operation* op) {
     auto outputs = layer.getOutputs();
 
     if (outputs.empty()) {
-        return printTo(op->emitError(), "Layer Operation '{0}' has no outputs", op->getName());
+        return errorAt(op, "Layer Operation has no outputs");
     }
 
     for (auto var : concat<mlir::Value>(inputs, outputs)) {
         auto type = var.getType();
 
         if (!type.isa<mlir::ShapedType>()) {
-            return printTo(op->emitError(),
-                           "Layer Operation '{0}' has input/output with wrong Type, expected ShapedType, got '{1}'",
-                           op->getName(), type);
+            return errorAt(op, "Layer Operation has input/output with wrong Type, expected ShapedType, got '{0}'",
+                           type);
         }
     }
 
@@ -155,13 +148,12 @@ template <class ConcreteLayer>
 mlir::FailureOr<std::pair<LayerInterface, ConcreteLayer>> getLayer(mlir::Operation* op, StringRef comment) {
     auto base = mlir::dyn_cast<LayerInterface>(op);
     if (base == nullptr) {
-        return mlir::LogicalResult(printTo(op->emitError(), "Operation '{0}' is not a Layer", op->getName()));
+        return errorAt(op, "Operation is not a Layer");
     }
 
     auto actual = mlir::dyn_cast<ConcreteLayer>(op);
     if (actual == nullptr) {
-        return mlir::LogicalResult(
-                printTo(op->emitError(), "Operation '{0}' is not a {1} Layer", op->getName(), comment));
+        return errorAt(op, "Operation is not a {0} Layer", comment);
     }
 
     return std::make_pair(base, actual);
@@ -170,12 +162,12 @@ mlir::FailureOr<std::pair<LayerInterface, ConcreteLayer>> getLayer(mlir::Operati
 mlir::LogicalResult verifyLayerInputsOutputs(LayerInterface layer, size_t numInputs, size_t numOutputs,
                                              StringRef comment) {
     if (layer.getInputs().size() != numInputs) {
-        return printTo(layer.emitError(), "{0} Layer '{1}' has wrong number of inputs '{2}', expected '{3}'", comment,
-                       layer.getOperation()->getName(), layer.getInputs().size(), numInputs);
+        return errorAt(layer, "{0} Layer has wrong number of inputs '{1}', expected '{2}'", comment,
+                       layer.getInputs().size(), numInputs);
     }
     if (layer.getOutputs().size() != numOutputs) {
-        return printTo(layer.emitError(), "{0} Layer '{1}' has wrong number of outputs '{2}', expected '{3}'", comment,
-                       layer.getOperation()->getName(), layer.getOutputs().size(), numOutputs);
+        return errorAt(layer, "{0} Layer has wrong number of outputs '{1}', expected '{2}'", comment,
+                       layer.getOutputs().size(), numOutputs);
     }
 
     return mlir::success();
@@ -202,8 +194,8 @@ mlir::LogicalResult vpux::verifyConvertLayer(mlir::Operation* op) {
     auto outputType = convert.outputType();
 
     if (inputType.getShape() != outputType.getShape()) {
-        return printTo(op->emitError(), "Convert Layer '{0}' has different shapes for input ('{1}') and output ('{2}')",
-                       op->getName(), inputType.getShape(), outputType.getShape());
+        return errorAt(op, "Convert Layer has different shapes for input '{0}' and output '{1}'", inputType.getShape(),
+                       outputType.getShape());
     }
 
     return mlir::success();
@@ -232,22 +224,20 @@ mlir::LogicalResult vpux::verifySoftMaxLayer(mlir::Operation* op) {
     auto outputType = softMax.outputType();
 
     if (inputType.getShape() != outputType.getShape()) {
-        return printTo(op->emitError(), "SoftMax Layer '{0}' has different shapes for input ('{1}') and output ('{2}')",
-                       op->getName(), inputType.getShape(), outputType.getShape());
+        return errorAt(op, "SoftMax Layer has different shapes for input '{0}' and output '{1}'", inputType.getShape(),
+                       outputType.getShape());
     }
 
     if (inputType.getElementType() != outputType.getElementType()) {
-        return printTo(op->emitError(),
-                       "SoftMax Layer '{0}' has different element type for input ('{1}') and output ('{2}')",
-                       op->getName(), inputType.getElementType(), outputType.getElementType());
+        return errorAt(op, "SoftMax Layer has different element type for input '{0}' and output '{1}'",
+                       inputType.getElementType(), outputType.getElementType());
     }
 
     const auto workRank = inputType.getShape().size();
     const auto axisInd = softMax.getAxisDim().ind();
 
     if (axisInd < 0 || checked_cast<size_t>(axisInd) >= workRank) {
-        return printTo(op->emitError(), "SoftMax Layer '{0}' axis index '{1}' is out of working rank '{2}'",
-                       op->getName(), axisInd, workRank);
+        return errorAt(op, "SoftMax Layer axis index '{0}' is out of working rank '{1}'", axisInd, workRank);
     }
 
     return mlir::success();

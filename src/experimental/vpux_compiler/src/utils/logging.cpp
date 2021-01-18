@@ -75,23 +75,23 @@ public:
     }
 
     void runBeforePass(mlir::Pass* pass, mlir::Operation* op) final {
-        _log.trace("Start Pass {0} on Operation {1}", pass->getName(), op->getName());
+        _log.trace("Start Pass {0} on Operation {1}", pass->getName(), op->getLoc());
     }
 
     void runAfterPass(mlir::Pass* pass, mlir::Operation* op) {
-        _log.trace("End Pass {0} on Operation {1}", pass->getName(), op->getName());
+        _log.trace("End Pass {0} on Operation {1}", pass->getName(), op->getLoc());
     }
 
     void runAfterPassFailed(mlir::Pass* pass, mlir::Operation* op) {
-        _log.error("Failed Pass {0} on Operation {1}", pass->getName(), op->getName());
+        _log.error("Failed Pass {0} on Operation {1}", pass->getName(), op->getLoc());
     }
 
     void runBeforeAnalysis(StringRef name, mlir::TypeID, mlir::Operation* op) {
-        _log.trace("Start Analysis {0} on Operation {1}", name, op->getName());
+        _log.trace("Start Analysis {0} on Operation {1}", name, op->getLoc());
     }
 
     void runAfterAnalysis(StringRef name, mlir::TypeID, mlir::Operation* op) {
-        _log.trace("End Analysis {0} on Operation {1}", name, op->getName());
+        _log.trace("End Analysis {0} on Operation {1}", name, op->getLoc());
     }
 
 private:
@@ -109,12 +109,12 @@ void vpux::addLogging(mlir::PassManager& pm, Logger log) {
 //
 
 void vpux::OpBuilderLogger::notifyOperationInserted(mlir::Operation* op) {
-    _log.trace("Add new Operation {0}", op->getName());
+    _log.trace("Add new Operation {0}", op->getLoc());
 }
 
 void vpux::OpBuilderLogger::notifyBlockCreated(mlir::Block* block) {
     if (auto* parent = block->getParentOp()) {
-        _log.trace("Add new Block for Operation {0}", parent->getName());
+        _log.trace("Add new Block for Operation {0}", parent->getLoc());
     } else {
         _log.trace("Add new Block without parent Operation");
     }

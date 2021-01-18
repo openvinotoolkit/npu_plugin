@@ -63,11 +63,13 @@ mlir::LogicalResult vpux::IE::PriorBoxOp::inferReturnTypeComponents(
 
     auto outputSizeConst = priorBox.output_size().getDefiningOp<ConstantInterface>();
     if (outputSizeConst == nullptr) {
-        return mlir::failure();
+        return errorAt(loc, "Only constant input is supported for output_size");
     }
 
     const auto outputSize = outputSizeConst.getContent().getValues<int64_t>();
-    VPUX_THROW_UNLESS(outputSize.size() == 2, "output_size of priorbox should be 2");
+    if (outputSize.size() != 2) {
+        return errorAt(loc, "output_size of priorbox should be 2");
+    }
 
     const auto priorBoxAttrs = getNGraphPriorBoxAttrs(priorBox);
     const auto numPriors = ngraph::op::PriorBox::number_of_priors(priorBoxAttrs);
@@ -77,5 +79,6 @@ mlir::LogicalResult vpux::IE::PriorBoxOp::inferReturnTypeComponents(
     outShape[1] *= outputSize[1];
 
     inferredReturnShapes.emplace_back(outShape, mlir::Float32Type::get(ctx));
+
     return mlir::success();
 }

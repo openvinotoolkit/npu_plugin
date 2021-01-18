@@ -58,7 +58,7 @@ void AddLinearSchedulingPass::runOnOperation() {
     try {
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
+        errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
@@ -82,7 +82,7 @@ void AddLinearSchedulingPass::passBody() {
     const auto callback = [&](mlir::Operation* op) {
         auto innerLog = _log.nest();
 
-        innerLog.trace("Process Operation '{0}'", *op);
+        innerLog.trace("Process Operation '{0}'", op->getLoc());
 
         auto curTask = mlir::dyn_cast<VPUIP::TaskOpInterface>(op);
         if (curTask == nullptr) {
@@ -100,7 +100,7 @@ void AddLinearSchedulingPass::passBody() {
         }
 
         if (auto prevTask = getPrevTask(op)) {
-            innerLog.trace("It has dependency on previous task '{0}'", prevTask);
+            innerLog.trace("It has dependency on previous task '{0}'", prevTask->getLoc());
 
             const auto prevBarriers = prevTask.updateBarriers();
             curTask.waitBarriersMutable().append(prevBarriers);
@@ -135,7 +135,7 @@ void AddLinearSchedulingPass::collectTrailingUPATasks(mlir::FuncOp graphFunc) {
     for (auto curTask : tasks | reversed) {
         auto innerLog = _log.nest();
 
-        innerLog.trace("Process Task '{0}'", curTask);
+        innerLog.trace("Process Task '{0}'", curTask->getLoc());
 
         if (curTask.getTaskType() != VPUIP::TaskType::UPA) {
             innerLog.trace("Is it not an UPA task, stop processing");
@@ -146,7 +146,7 @@ void AddLinearSchedulingPass::collectTrailingUPATasks(mlir::FuncOp graphFunc) {
         for (auto updateBarrier : curTask.updateBarriers()) {
             for (auto* depOp : updateBarrier.getUsers()) {
                 if (!mlir::isa<VPUIP::UPATaskOpInterface>(depOp)) {
-                    innerLog.trace("Is has non UPA dependent task '{0}'", *depOp);
+                    innerLog.trace("Is has non UPA dependent task '{0}'", depOp->getLoc());
 
                     hasNonUPADep = true;
                     break;

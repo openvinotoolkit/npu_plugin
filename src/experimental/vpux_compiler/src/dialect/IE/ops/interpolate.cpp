@@ -35,14 +35,16 @@ mlir::LogicalResult vpux::IE::InterpolateOp::inferReturnTypeComponents(
 
     auto targetShapeConst = interpolate.target_shape().getDefiningOp<ConstantInterface>();
     if (targetShapeConst == nullptr) {
-        return mlir::failure();
+        return errorAt(loc, "Only constant input is supported for target_shape");
     }
 
     const auto targetShape = targetShapeConst.getContent().getValues<int64_t>();
 
-    VPUX_THROW_UNLESS(targetShape.size() == interpolate.attr().axes().size(),
-                      "Num of elements in traget shape tensor: {0} should be equal to number of indices in axes: {1}",
-                      targetShape.size(), interpolate.attr().axes().size());
+    if (targetShape.size() != interpolate.attr().axes().size()) {
+        return errorAt(loc,
+                       "Num of elements in traget shape tensor: {0} should be equal to number of indices in axes: {1}",
+                       targetShape.size(), interpolate.attr().axes().size());
+    }
 
     SmallVector<int64_t> outShape;
     for (size_t i = 0; i < inputShape.size(); ++i) {

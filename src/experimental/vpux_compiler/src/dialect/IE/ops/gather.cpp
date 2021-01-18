@@ -36,7 +36,7 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
 
     auto axisConst = gather.axis().getDefiningOp<ConstantInterface>();
     if (axisConst == nullptr) {
-        return mlir::failure();
+        return errorAt(loc, "Only constant input is supported for axis");
     }
 
     const auto axis = axisConst.getContent().getValues<int64_t>()[0];
@@ -56,5 +56,6 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
     }
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
+
     return mlir::success();
 }

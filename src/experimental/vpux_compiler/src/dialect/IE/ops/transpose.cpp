@@ -33,12 +33,12 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inDataType = transpose.input1().getType().cast<mlir::ShapedType>();
+    const auto inDataType = transpose.input().getType().cast<mlir::ShapedType>();
     const auto inDataShape = inDataType.getShape();
 
-    auto orderConst = transpose.input2().getDefiningOp<ConstantInterface>();
+    auto orderConst = transpose.order().getDefiningOp<ConstantInterface>();
     if (orderConst == nullptr) {
-        return mlir::failure();
+        return errorAt(loc, "Only constant input is supported for order");
     }
 
     auto order = orderConst.getContent().getValues<int64_t>();
@@ -48,7 +48,7 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
         std::reverse(outShapeVec.begin(), outShapeVec.end());
     } else {
         if (outShapeVec.size() != order.size()) {
-            return mlir::failure();
+            return errorAt(loc, "Order vector size doesn't match input rank");
         }
 
         const auto outRank = static_cast<int64_t>(outShapeVec.size());
@@ -63,5 +63,6 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
     }
 
     inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), inDataType.getElementType());
+
     return mlir::success();
 }

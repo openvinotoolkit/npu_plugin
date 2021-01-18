@@ -56,7 +56,7 @@ void ConvertPaddingsToFloorModePass::runOnFunction() {
     try {
         passBody();
     } catch (const std::exception& e) {
-        printTo(getFunction().emitError(), "{0} Pass failed : {1}", getName(), e.what());
+        errorAt(getFunction(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }

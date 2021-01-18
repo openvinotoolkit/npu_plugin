@@ -34,8 +34,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
     auto netFunc = symbolTable.lookupNearestSymbolFrom<mlir::FuncOp>(*this, entryPointAttr());
 
     if (netFunc == nullptr) {
-        return printTo(emitError(), "'{0}' entryPoint '@{1}' doesn't refer to existing Function", getOperationName(),
-                       entryPoint());
+        return errorAt(*this, "entryPoint '@{0}' doesn't refer to existing Function", entryPoint());
     }
 
     auto inputsInfo = to_small_vector(this->inputsInfo().getOps<IE::DataInfoOp>());
@@ -46,23 +45,20 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
 
     if (isBufferized) {
         if (netFuncType.getNumInputs() != inputsInfo.size() + outputsInfo.size()) {
-            return printTo(emitError(),
-                           "'{0}' entryPoint '@{1}' inputs count '{2}' doesn't match userInputs count '{3}' and "
-                           "userOutputs count '{4}'",
-                           getOperationName(), entryPoint(), netFuncType.getNumInputs(), inputsInfo.size(),
-                           outputsInfo.size());
+            return errorAt(*this,
+                           "entryPoint '@{0}' inputs count '{1}' doesn't match userInputs count '{2}' and "
+                           "userOutputs count '{3}'",
+                           entryPoint(), netFuncType.getNumInputs(), inputsInfo.size(), outputsInfo.size());
         }
     } else {
         if (netFuncType.getNumInputs() != inputsInfo.size()) {
-            return printTo(emitError(),
-                           "'{0}' entryPoint '@{1}' inputs count '{2}' doesn't match userInputs count '{3}'",
-                           getOperationName(), entryPoint(), netFuncType.getNumInputs(), inputsInfo.size());
+            return errorAt(*this, "entryPoint '@{0}' inputs count '{1}' doesn't match userInputs count '{2}'",
+                           entryPoint(), netFuncType.getNumInputs(), inputsInfo.size());
         }
 
         if (netFuncType.getNumResults() != outputsInfo.size()) {
-            return printTo(emitError(),
-                           "'{0}' entryPoint '@{1}' outputs count '{2}' doesn't match userOutputs count '{3}'",
-                           getOperationName(), entryPoint(), netFuncType.getNumResults(), outputsInfo.size());
+            return errorAt(*this, "entryPoint '@{0}' outputs count '{1}' doesn't match userOutputs count '{2}'",
+                           entryPoint(), netFuncType.getNumResults(), outputsInfo.size());
         }
     }
 
@@ -70,19 +66,18 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
         const auto funcType = netFuncType.getInput(static_cast<uint32_t>(ind)).dyn_cast<mlir::ShapedType>();
 
         if (funcType == nullptr) {
-            return printTo(emitError(), "'{0}' entryPoint '@{1}' input #{2} is not a 'ShapedType'", getOperationName(),
-                           entryPoint(), ind);
+            return errorAt(*this, "entryPoint '@{0}' input #{1} is not a 'ShapedType'", entryPoint(), ind);
         }
 
         const auto userType = inputsInfo[ind].userType().dyn_cast<mlir::ShapedType>();
 
         if (userType == nullptr) {
-            return printTo(emitError(), "'{0}' user input #{1} is not a 'ShapedType'", getOperationName(), ind);
+            return errorAt(*this, "User input #{0} is not a 'ShapedType'", ind);
         }
 
         if (funcType.getNumElements() != userType.getNumElements()) {
-            return printTo(emitError(), "'{0}' entryPoint '@{1}' input #{2} is not compatible with user type '{3}'",
-                           getOperationName(), entryPoint(), ind, userType);
+            return errorAt(*this, "entryPoint '@{0}' input #{1} is not compatible with user type '{2}'", entryPoint(),
+                           ind, userType);
         }
     }
 
@@ -94,19 +89,18 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
                                       : netFuncType.getResult(static_cast<uint32_t>(ind)).dyn_cast<mlir::ShapedType>();
 
         if (funcType == nullptr) {
-            return printTo(emitError(), "'{0}' entryPoint '@{1}' output #{2} is not a 'ShapedType'", getOperationName(),
-                           entryPoint(), ind);
+            return errorAt(*this, "entryPoint '@{0}' output #{1} is not a 'ShapedType'", entryPoint(), ind);
         }
 
         const auto userType = outputsInfo[ind].userType().dyn_cast<mlir::ShapedType>();
 
         if (userType == nullptr) {
-            return printTo(emitError(), "'{0}' user output #{1} is not a 'ShapedType'", getOperationName(), ind);
+            return errorAt(*this, "User output #{0} is not a 'ShapedType'", ind);
         }
 
         if (funcType.getNumElements() != userType.getNumElements()) {
-            return printTo(emitError(), "'{0}' entryPoint '@{1}' output #{2} is not compatible with user type '{3}'",
-                           getOperationName(), entryPoint(), ind, userType);
+            return errorAt(*this, "entryPoint '@{0}' output #{1} is not compatible with user type '{2}'", entryPoint(),
+                           ind, userType);
         }
     }
 
@@ -117,8 +111,7 @@ namespace {
 
 mlir::LogicalResult verifyDataInfoRegion(mlir::Operation* op, mlir::Region& region, StringRef regionName) {
     if (region.getBlocks().size() != 1) {
-        return printTo(op->emitError(), "'{0}' Region for Operation '{1}' must contain exact 1 Block", regionName,
-                       op->getName());
+        return errorAt(op, "'{0}' Region must contain exact 1 Block", regionName);
     }
 
     auto& allOps = region.front().getOperations();
@@ -129,15 +122,13 @@ mlir::LogicalResult verifyDataInfoRegion(mlir::Operation* op, mlir::Region& regi
 
         if (static_cast<size_t>(p.index()) == totalNumOps - 1) {
             if (!mlir::isa<IE::EndOp>(infoOp)) {
-                return printTo(op->emitError(),
-                               "'{0}' Region for Operation '{1}' must end with Terminator '{2}', got '{3}'", regionName,
-                               op->getName(), IE::EndOp::getOperationName(), infoOp.getName());
+                return errorAt(op, "'{0}' Region must end with Terminator '{1}', got '{2}'", regionName,
+                               IE::EndOp::getOperationName(), infoOp.getName());
             }
         } else {
             if (!mlir::isa<IE::DataInfoOp>(infoOp)) {
-                return printTo(op->emitError(),
-                               "'{0}' Region for Operation '{1}' must contain only DataInfo operations, got '{2}'",
-                               regionName, op->getName(), infoOp.getName());
+                return errorAt(op, "'{0}' Region must contain only DataInfo operations, got '{1}'", regionName,
+                               infoOp.getName());
             }
         }
     }
@@ -151,7 +142,7 @@ mlir::LogicalResult vpux::IE::verifyOp(CNNNetworkOp op) {
     auto entryPointAttr = op.entryPointAttr();
 
     if (entryPointAttr == nullptr) {
-        return printTo(op->emitError(), "Operation '{0}' entryPoint attribute is NULL", op->getName());
+        return errorAt(op, "entryPoint attribute is NULL");
     }
 
     if (mlir::failed(verifyDataInfoRegion(op, op.inputsInfo(), "inputInfo"))) {
@@ -165,15 +156,14 @@ mlir::LogicalResult vpux::IE::verifyOp(CNNNetworkOp op) {
     auto outputsInfo = op.getOutputsInfo();
 
     if (outputsInfo.empty()) {
-        return printTo(op->emitError(), "Operation '{0}' has no outputs", op->getName());
+        return errorAt(op, "Operation has no user outputs information");
     }
 
     std::unordered_set<StringRef> usedNames;
     for (auto info : concat<IE::DataInfoOp>(inputsInfo, outputsInfo)) {
         const auto res = usedNames.insert(info.name()).second;
         if (!res) {
-            return printTo(op->emitError(), "Operation '{0}' has duplicating DataInfo name '{1}'", op->getName(),
-                           info.name());
+            return errorAt(op, "Operation has duplicating DataInfo name '{0}'", info.name());
         }
     }
 
@@ -209,20 +199,18 @@ mlir::LogicalResult vpux::IE::verifyOp(DataInfoOp op) {
     const auto userType = op.userType().dyn_cast<mlir::MemRefType>();
 
     if (userType == nullptr) {
-        return printTo(op.emitError(), "'{0}' userType is not a 'MemRefType', got '{1}'", op->getName(), userType);
+        return errorAt(op, "User type is not a 'MemRefType', got '{0}'", userType);
     }
 
     const auto precision = userType.getElementType();
 
     if (!(precision.isSignedInteger() || precision.isUnsignedInteger() || precision.isa<mlir::FloatType>())) {
-        return printTo(op->emitError(),
-                       "Operation '{0}' has unsupported userType precision '{1}', it must be either Float or Integer",
-                       op->getName(), precision);
+        return errorAt(op, "Operation has unsupported userType precision '{0}', it must be either Float or Integer",
+                       precision);
     }
 
     if (!DimsOrder::fromType(userType).hasValue()) {
-        return printTo(op->emitError(), "Operation '{0}' userType '{1}' has unsupported layout", op->getName(),
-                       userType);
+        return errorAt(op, "User type '{0}' has unsupported layout", userType);
     }
 
     return mlir::success();

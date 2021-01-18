@@ -61,7 +61,7 @@ void ConvertIERT2VPUIPPass::runOnFunction() {
 
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
+        errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
