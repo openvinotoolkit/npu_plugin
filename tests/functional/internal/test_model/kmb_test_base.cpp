@@ -297,26 +297,6 @@ ExecutableNetwork KmbTestBase::getExecNetwork(
     return exeNet;
 }
 
-namespace {
-
-bool tensorIter(SizeVector& ind, const TensorDesc& desc) {
-    const auto& dims = desc.getDims();
-
-    for (auto i = static_cast<ptrdiff_t>(dims.size() - 1); i >= 0; --i) {
-        const auto ui = static_cast<size_t>(i);
-
-        if (++ind[ui] < dims[ui]) {
-            return true;
-        }
-
-        ind[ui] = 0;
-    }
-
-    return false;
-}
-
-}
-
 void KmbTestBase::compareOutputs(
         const Blob::Ptr& refOutput, const Blob::Ptr& actualOutput,
         const float tolerance, const CompareMethod method) {
@@ -337,14 +317,9 @@ void KmbTestBase::compareOutputs(
 
         const auto printCount = std::min<size_t>(refOutput->size(), 10);
 
-        SizeVector tensorInd(refDesc.getDims().size());
-
         for (size_t i = 0; i < printCount; ++i) {
-            const auto refOffset = refDesc.offset(tensorInd);
-            const auto actualOffset = actualDesc.offset(tensorInd);
-
-            const auto refVal = refPtr[refOffset];
-            const auto actualVal = actualPtr[actualOffset];
+            const auto refVal = refPtr[i];
+            const auto actualVal = actualPtr[i];
 
             const auto absdiff = std::fabs(refVal - actualVal);
 
@@ -353,10 +328,6 @@ void KmbTestBase::compareOutputs(
                       << " actual : " << std::setw(10) << actualVal
                       << " absdiff : " << std::setw(10) << absdiff
                       << std::endl;
-
-            if (!tensorIter(tensorInd, refDesc)) {
-                break;
-            }
         }
     }
 
