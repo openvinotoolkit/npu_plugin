@@ -489,6 +489,7 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
         compDesc->set("split_strategy", multiClusterStrategyElements);
         compDesc->set("sparsity_strategy", sparsityStrategyElements);
         compDesc->set("pipelining_strategy", pipeliningStrategyElements);
+        compDesc->set("tensor_placement_override", locationStrategyElements);
     }
 
     if (enableSaveStrategyToJsonFile)
