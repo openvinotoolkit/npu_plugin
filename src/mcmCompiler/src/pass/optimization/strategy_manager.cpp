@@ -542,6 +542,7 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 
         auto outTensor = op->getOutputTensor(0);
         auto executable = op->hasTypeTrait("executable") ? true : false;
+        op->set<bool>("goPredictsSpill", spilling);
 
         bool isStreaming = ((streamShape["W"] * streamShape["H"] * streamShape["C"] 
                                             * streamShape["K"] * streamShape["B"]) > 1) ? true : false;
