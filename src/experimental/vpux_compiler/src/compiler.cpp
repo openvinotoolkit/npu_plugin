@@ -112,6 +112,23 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
                                                                  const std::string&, const InputsDataMap& inputsInfo,
                                                                  const OutputsDataMap& outputsInfo,
                                                                  const VPUXConfig& config) {
+    // TODO: move this to config class
+    bool enablePassVerifier = true;
+    std::string crashReproducerFile;
+    bool localReproducer = true;
+
+#ifdef VPUX_DEVELOPER_BUILD
+    if (const auto env = std::getenv("IE_VPUX_ENABLE_PASS_VERIFIER")) {
+        enablePassVerifier = std::stoi(env);
+    }
+    if (const auto env = std::getenv("IE_VPUX_CRASH_REPRODUCER_FILE")) {
+        crashReproducerFile = env;
+    }
+    if (const auto env = std::getenv("IE_VPUX_GEN_LOCAL_REPRODUCER")) {
+        localReproducer = std::stoi(env);
+    }
+#endif
+
     Logger log("vpux-compiler", getLogLevel(config));
 
     CNNNetwork cnnNet(func);
@@ -135,7 +152,13 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     auto module = IE::importNetwork(&ctx, cnnNet, true, log.nest());
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
+
     addLogging(pm, log);
+    pm.enableVerifier(enablePassVerifier);
+    if (!crashReproducerFile.empty()) {
+        pm.enableCrashReproducerGeneration(crashReproducerFile, localReproducer);
+    }
+
     if (log.isActive(LogLevel::Info)) {
         pm.enableTiming(std::make_unique<TimingLogger>(log));
     }
