@@ -15,10 +15,28 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/utils/subspaces.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
+
+mlir::LogicalResult vpux::VPUIP::verifyOp(SoftMaxUPAOp op) {
+    const auto inShape = getShape(op.input());
+    const auto axis = op.getAxisDim();
+
+    if (inShape[axis] == 1) {
+        return errorAt(op, "Softmax on 1 element doesn't make sense (dim along the 'axis' equal 1)");
+    }
+
+    const auto cmxSizeLimit = Byte(SHAVE_LIB_DATA_SIZE) - Byte(8 * FP16_SIZE);
+    if (Byte(inShape[axis] * FP16_SIZE) > cmxSizeLimit) {
+        return errorAt(op, "Axis '{0}' dimension '{1}' exceeds local CMX buffer limitation '{2}'", axis, inShape[axis],
+                       cmxSizeLimit);
+    }
+
+    return mlir::success();
+}
 
 void vpux::VPUIP::SoftMaxUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                       mlir::Value output, mlir::IntegerAttr axisInd) {

@@ -16,9 +16,44 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
+
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
+
+//
+// verifyPostOp
+//
+
+mlir::LogicalResult vpux::VPUIP::verifyPostOp(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyPostOp");
+
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    if (layer == nullptr) {
+        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+    }
+
+    auto inputs = layer.getInputs();
+    auto outputs = layer.getOutputs();
+    for (auto val : concat<mlir::Value>(inputs, outputs)) {
+        const auto shape = getShape(val);
+        const auto order = DimsOrder::fromValue(val);
+        const auto elemSize = getElemTypeSize(val.getType());
+        const auto strides = getStrides(val);
+        const auto memShape = order->toMemoryOrder(shape);
+        const auto memStrides = order->toMemoryOrder(strides);
+
+        // TODO : can we fix that limitation?
+        const auto strideReqs = StrideReqs::compact(shape.size()).remove(MemDim(1));
+
+        if (!strideReqs.checkStrides(memStrides, elemSize, memShape)) {
+            return errorAt(op, "Memory strides '{0}' do not match requirements '{1}'", memStrides, strideReqs);
+        }
+    }
+
+    return mlir::success();
+}
 
 //
 // ClampUPAOp

@@ -135,4 +135,28 @@ def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
     }];
 }
 
+//
+// SameShape
+//
+
+def VPUIP_SameShape : NativeOpTrait<"SameShape"> {
+    let cppNamespace = "vpux::VPUIP";
+}
+
+//
+// SameElementType
+//
+
+def VPUIP_SameElementType : NativeOpTrait<"SameElementType"> {
+    let cppNamespace = "vpux::VPUIP";
+}
+
+//
+// SameDimsOrder
+//
+
+def VPUIP_SameDimsOrder : NativeOpTrait<"SameDimsOrder"> {
+    let cppNamespace = "vpux::VPUIP";
+}
+
 #endif

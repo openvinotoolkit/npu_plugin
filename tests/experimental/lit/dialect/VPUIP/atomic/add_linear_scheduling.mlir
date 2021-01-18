@@ -16,34 +16,34 @@ VPUIP.Graph
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : memref<1x1000xf16>
+        IE.DataInfo "data" : memref<1x1x1x1000xf16>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : memref<1x1000xf16>
+        IE.DataInfo "prob" : memref<1x1x1x1000xf16>
     }
 
-func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
-    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16>
-    VPUIP.UPADMA inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>)
+func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
+    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
+    VPUIP.UPADMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>)
     // CHECK:       %[[B0:.*]] = VPUIP.ConfigureBarrier
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      updates(%[[B0]] : !VPUIP.Barrier)
 
-    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1000xf16>
-    VPUIP.UPADMA inputs(%0 : memref<1x1000xf16>) outputs(%1 : memref<1x1000xf16>)
+    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1x1x1000xf16>
+    VPUIP.UPADMA inputs(%0 : memref<1x1x1x1000xf16>) outputs(%1 : memref<1x1x1x1000xf16>)
     // CHECK:       %[[B1:.*]] = VPUIP.ConfigureBarrier
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B0]] : !VPUIP.Barrier)
     // CHECK-SAME:      updates(%[[B1]] : !VPUIP.Barrier)
 
-    %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16>
-    VPUIP.UPADMA inputs(%1 : memref<1x1000xf16>) outputs(%2 : memref<1x1000xf16>)
+    %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
+    VPUIP.UPADMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%2 : memref<1x1x1x1000xf16>)
     // CHECK:       %[[B2:.*]] = VPUIP.ConfigureBarrier
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B1]] : !VPUIP.Barrier)
     // CHECK-SAME:      updates(%[[B2]] : !VPUIP.Barrier)
 
-    VPUIP.UPADMA inputs(%2 : memref<1x1000xf16>) outputs(%arg1 : memref<1x1000xf16>)
+    VPUIP.UPADMA inputs(%2 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>)
     // CHECK:       VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B2]] : !VPUIP.Barrier)
 
@@ -70,25 +70,25 @@ VPUIP.Graph
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : memref<1x1000xf16>
+        IE.DataInfo "data" : memref<1x1x1x1000xf16>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : memref<1x1000xf16>
+        IE.DataInfo "prob" : memref<1x1x1x1000xf16>
     }
 
-func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
-    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16>
-    VPUIP.SoftMaxUPA {axisInd = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>)
+func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
+    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
+    VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>)
     // CHECK:       VPUIP.SoftMaxUPA
     // CHECK-SAME:      isTrailingSWLayer
 
-    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1000xf16>
-    VPUIP.SoftMaxUPA {axisInd = 1 : i32} inputs(%0 : memref<1x1000xf16>) outputs(%1 : memref<1x1000xf16>)
+    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1x1x1000xf16>
+    VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%0 : memref<1x1x1x1000xf16>) outputs(%1 : memref<1x1x1x1000xf16>)
     // CHECK:       VPUIP.SoftMaxUPA
     // CHECK-SAME:      isTrailingSWLayer
 
-    %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16>
-    VPUIP.SoftMaxUPA {axisInd = 1 : i32} inputs(%1 : memref<1x1000xf16>) outputs(%arg1 : memref<1x1000xf16>)
+    %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
+    VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%1 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>)
     // CHECK:       VPUIP.SoftMaxUPA
     // CHECK-SAME:      isTrailingSWLayer
 

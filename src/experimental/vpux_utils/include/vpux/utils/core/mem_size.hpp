@@ -158,6 +158,10 @@ MemSize<TYPE> operator+(MemSize<TYPE> size1, MemSize<TYPE> size2) {
     return MemSize<TYPE>(size1.count() + size2.count());
 }
 template <MemType TYPE>
+MemSize<TYPE> operator-(MemSize<TYPE> size1, MemSize<TYPE> size2) {
+    return MemSize<TYPE>(size1.count() - size2.count());
+}
+template <MemType TYPE>
 int64_t operator%(MemSize<TYPE> size1, MemSize<TYPE> size2) {
     return size1.count() % size2.count();
 }

@@ -32,25 +32,24 @@ namespace {
 mlir::LogicalResult poolSizesCheck(VPUIP::PoolingUPAOp op, int64_t sizeI, int64_t sizeO, int64_t kernel, int64_t stride,
                                    int64_t lPad, int64_t rPad) {
     if (sizeI <= 0 || sizeO <= 0 || kernel <= 0 || stride <= 0) {
-        return printTo(op.emitError(), "sizeI, sizeO kernel, stride negative values do not make sense");
+        return errorAt(op, "sizeI, sizeO kernel, stride negative values do not make sense");
     }
 
     if (lPad < 0) {
-        return printTo(op.emitError(), "Left/top side padding can not be negative '{0}'", lPad);
+        return errorAt(op, "Left/top side padding can not be negative '{0}'", lPad);
     }
     if (rPad < 0) {
-        return printTo(op.emitError(), "Right/bottom side padding can not be negative '{0}'", rPad);
+        return errorAt(op, "Right/bottom side padding can not be negative '{0}'", rPad);
     }
 
     if (lPad > (kernel - 1)) {
-        return printTo(op.emitError(), "Left/top padding is too big '{0}'", lPad);
+        return errorAt(op, "Left/top padding is too big '{0}'", lPad);
     }
     if ((sizeO - 1) * stride - lPad > sizeI - 1) {
-        return printTo(op.emitError(), "Output size is too big, the last kernel application is out of real data '{0}'",
-                       sizeO);
+        return errorAt(op, "Output size is too big, the last kernel application is out of real data '{0}'", sizeO);
     }
     if ((sizeO - 1) * stride - lPad + (kernel - 1) > sizeI - 1 + rPad) {
-        return printTo(op.emitError(), "The last kernel application is out of input size + rPad range");
+        return errorAt(op, "The last kernel application is out of input size + rPad range");
     }
 
     return mlir::success();
@@ -67,35 +66,11 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PoolingUPAOp op) {
     const auto inShape = getShape(op.input());
     const auto outShape = getShape(op.output());
 
-    if (inShape.size() != 4) {
-        return printTo(op.emitError(), "Got unsupported input shape '{0}', only 4D is supported", inShape);
-    }
-    if (outShape.size() != 4) {
-        return printTo(op.emitError(), "Got unsupported output shape '{0}', only 4D is supported", outShape);
-    }
     if (inShape[N] != outShape[N]) {
-        return printTo(op.emitError(), "Input batch '{0}' doesn't match with output '{1}'", inShape[N], outShape[N]);
+        return errorAt(op, "Input batch '{0}' doesn't match with output '{1}'", inShape[N], outShape[N]);
     }
     if (inShape[C] != outShape[C]) {
-        return printTo(op.emitError(), "Input number of channels '{0}' doesn't match with output '{1}'", inShape[C],
-                       outShape[C]);
-    }
-
-    const auto inOrder = DimsOrder::fromValue(op.input());
-    const auto outOrder = DimsOrder::fromValue(op.output());
-
-    if (!inOrder.hasValue()) {
-        return printTo(op.emitError(), "Input Type '{0}' has unknown DimsOrder", op.input().getType());
-    }
-    if (!outOrder.hasValue()) {
-        return printTo(op.emitError(), "Output Type '{0}' has unknown DimsOrder", op.output().getType());
-    }
-    if (inOrder.getValue() != DimsOrder::NCHW && inOrder.getValue() != DimsOrder::NHWC) {
-        return printTo(op.emitError(), "Got unsupported input DimsOrder '{0}', only NCHW and NHWC are supported",
-                       inOrder);
-    }
-    if (inOrder != outOrder) {
-        return printTo(op.emitError(), "Input DimsOrder '{0}' doesn't match with output '{1}'", inOrder, outOrder);
+        return errorAt(op, "Input number of channels '{0}' doesn't match with output '{1}'", inShape[C], outShape[C]);
     }
 
     const auto kernel = parseIntArrayAttr(op.kernel());
@@ -104,23 +79,23 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PoolingUPAOp op) {
     const auto padsEnd = parseIntArrayAttr(op.padsEnd());
 
     if (kernel.size() != 2) {
-        return printTo(op.emitError(), "Got unsupported kernel '{0}', only 2D is supported", kernel);
+        return errorAt(op, "Got unsupported kernel '{0}', only 2D is supported", kernel);
     }
     if (strides.size() != 2) {
-        return printTo(op.emitError(), "Got unsupported strides '{0}', only 2D is supported", strides);
+        return errorAt(op, "Got unsupported strides '{0}', only 2D is supported", strides);
     }
     if (padsBegin.size() != 2) {
-        return printTo(op.emitError(), "Got unsupported padsBegin '{0}', only 2D is supported", padsBegin);
+        return errorAt(op, "Got unsupported padsBegin '{0}', only 2D is supported", padsBegin);
     }
     if (padsEnd.size() != 2) {
-        return printTo(op.emitError(), "Got unsupported padsEnd '{0}', only 2D is supported", padsEnd);
+        return errorAt(op, "Got unsupported padsEnd '{0}', only 2D is supported", padsEnd);
     }
 
     const auto kernelY = kernel[0];
     const auto kernelX = kernel[1];
 
     if (kernelY < 2 || kernelY > 64 || kernelX < 2 || kernelX > 64) {
-        return printTo(op.emitError(), "Got unsupported kernel '{0}', only up to 64 is supported", kernel);
+        return errorAt(op, "Got unsupported kernel '{0}', only up to 64 is supported", kernel);
     }
 
     const auto strideY = strides[0];

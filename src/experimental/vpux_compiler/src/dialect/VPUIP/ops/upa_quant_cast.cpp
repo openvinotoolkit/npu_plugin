@@ -39,62 +39,31 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
 
     if (!((inType.isF16() && outType.isa<mlir::quant::QuantizedType>()) ||
           (inType.isa<mlir::quant::QuantizedType>() && outType.isF16()))) {
-        return printTo(op.emitError(), "Unsupported quantize/dequantize conversion '{0}' -> '{1}'", inType, outType);
+        return errorAt(op, "Unsupported quantize/dequantize conversion '{0}' -> '{1}'", inType, outType);
     }
 
     const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
                                                                 : outType.cast<mlir::quant::QuantizedType>();
 
     if (!qType.getStorageType().isSignlessInteger(8)) {
-        return printTo(op.emitError(), "Unsupported quantized storage type '{0}'", qType.getStorageType());
+        return errorAt(op, "Unsupported quantized storage type '{0}'", qType.getStorageType());
     }
 
     if (qType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         // TODO: support per-channel zero point
         const auto zeroPoints = qType.cast<mlir::quant::UniformQuantizedPerAxisType>().getZeroPoints();
         if (zeroPoints.empty()) {
-            return printTo(op.emitError(), "Missing zero points");
+            return errorAt(op, "Missing zero points");
         }
 
         const auto firstVal = zeroPoints[0];
         for (auto val : zeroPoints.drop_front()) {
             if (val != firstVal) {
-                return printTo(op.emitError(), "Only splat zero points are supported");
+                return errorAt(op, "Only splat zero points are supported");
             }
         }
     } else if (!qType.isa<mlir::quant::UniformQuantizedType>()) {
-        return printTo(op.emitError(), "Unsupported quantized type '{0}'", qType);
-    }
-
-    const auto inShape = getShape(op.input());
-    const auto outShape = getShape(op.output());
-
-    if (inShape.size() != 4) {
-        return printTo(op.emitError(), "Got unsupported input shape '{0}', only 4D is supported", inShape);
-    }
-    if (outShape.size() != 4) {
-        return printTo(op.emitError(), "Got unsupported output shape '{0}', only 4D is supported", outShape);
-    }
-    if (inShape != outShape) {
-        return printTo(op.emitError(), "Input shape '{0}' doesn't match with output shape '{1}'", inShape, outShape);
-    }
-
-    const auto inOrder = DimsOrder::fromValue(op.input());
-    const auto outOrder = DimsOrder::fromValue(op.output());
-
-    if (!inOrder.hasValue()) {
-        return printTo(op.emitError(), "Input Type '{0}' has unknown DimsOrder", op.input().getType());
-    }
-    if (!outOrder.hasValue()) {
-        return printTo(op.emitError(), "Output Type '{0}' has unknown DimsOrder", op.output().getType());
-    }
-
-    if (inOrder.getValue() != DimsOrder::NCHW && inOrder.getValue() != DimsOrder::NHWC) {
-        return printTo(op.emitError(), "Got unsupported input DimsOrder '{0}', only NCHW and NHWC are supported",
-                       inOrder);
-    }
-    if (inOrder != outOrder) {
-        return printTo(op.emitError(), "Input DimsOrder '{0}' doesn't match with output '{1}'", inOrder, outOrder);
+        return errorAt(op, "Unsupported quantized type '{0}'", qType);
     }
 
     return mlir::success();

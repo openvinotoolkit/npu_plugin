@@ -33,38 +33,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
-    static const Byte FP16_SIZE = 16_Bit;
-    static const Byte SHAVE_LIB_DATA_SIZE = 112_KB;
-
     const auto inShape = getShape(op.input());
-    const auto outShape = getShape(op.output());
-
-    if (inShape.size() != 4) {
-        return printTo(op.emitError(), "Got unsupported input shape '{0}', only 4D is supported", inShape);
-    }
-    if (outShape.size() != 4) {
-        return printTo(op.emitError(), "Got unsupported output shape '{0}', only 4D is supported", outShape);
-    }
-    if (inShape != outShape) {
-        return printTo(op.emitError(), "Input shape '{0}' doesn't match with output shape '{1}'", inShape, outShape);
-    }
-
     const auto inOrder = DimsOrder::fromValue(op.input());
-    const auto outOrder = DimsOrder::fromValue(op.output());
-
-    if (!inOrder.hasValue()) {
-        return printTo(op.emitError(), "Input Type '{0}' has unknown DimsOrder", op.input().getType());
-    }
-    if (!outOrder.hasValue()) {
-        return printTo(op.emitError(), "Output Type '{0}' has unknown DimsOrder", op.output().getType());
-    }
-    if (inOrder.getValue() != DimsOrder::NCHW && inOrder.getValue() != DimsOrder::NHWC) {
-        return printTo(op.emitError(), "Got unsupported input DimsOrder '{0}', only NCHW and NHWC are supported",
-                       inOrder);
-    }
-    if (inOrder != outOrder) {
-        return printTo(op.emitError(), "Input DimsOrder '{0}' doesn't match with output '{1}'", inOrder, outOrder);
-    }
 
     const Byte elemSize = getElemTypeSize(op.input().getType().cast<mlir::MemRefType>());
     const auto inStrides = getStrides(op.input());
@@ -74,14 +44,14 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
 
     const auto strideReqs = StrideReqs::compact(inShape.size());
     if (!strideReqs.checkStrides(memStrides, elemSize, memShape)) {
-        return printTo(op.emitError(), "Only compact strides are supported");
+        return errorAt(op, "Only compact strides are supported");
     }
 
     const auto md0 = memShape[MemDim(0)];
     const auto md1 = memShape[MemDim(1)];
 
-    if (md0 * md1 * FP16_SIZE >= SHAVE_LIB_DATA_SIZE / 2) {
-        return printTo(op.emitError(), "Memory buffers doesn't fit to kernel inner CMX buffer");
+    if (Byte(md0 * md1 * FP16_SIZE) >= Byte(SHAVE_LIB_DATA_SIZE / 2)) {
+        return errorAt(op, "Memory buffers doesn't fit to inner CMX buffer");
     }
 
     return mlir::success();

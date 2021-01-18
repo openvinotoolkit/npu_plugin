@@ -16,11 +16,43 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include "vpux/compiler/utils/hash.hpp"
+#include "vpux/compiler/utils/types.hpp"
+
 #include "vpux/utils/core/checked_cast.hpp"
+#include "vpux/utils/core/hash.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 
+#include <unordered_set>
+
 using namespace vpux;
+
+mlir::LogicalResult vpux::VPUIP::verifyOp(ConvertUPAOp op) {
+    const mlir::Type GF_U8 = getUInt8Type(op.getContext());
+    const mlir::Type GF_FP16 = mlir::Float16Type::get(op.getContext());
+    const mlir::Type GF_FP32 = mlir::Float32Type::get(op.getContext());
+    const mlir::Type GF_INT32 = getSInt32Type(op.getContext());
+
+    const std::unordered_set<std::pair<mlir::Type, mlir::Type>> supportedConversions{
+            {GF_FP16, GF_FP32}, {GF_FP16, GF_INT32}, {GF_FP32, GF_FP16}, {GF_INT32, GF_FP16}, {GF_U8, GF_FP16},
+            {GF_U8, GF_FP32},   {GF_FP16, GF_U8},    {GF_FP32, GF_U8},   {GF_INT32, GF_U8},
+    };
+
+    const auto inType = op.input().getType();
+    const auto outType = op.output().getType();
+
+    if (supportedConversions.find({inType, outType}) == supportedConversions.end()) {
+        return errorAt(op, "Unsupported conversion type '");
+    }
+
+    const auto batchID = op.batchID().getValueOr(0);
+    if (!op.haveBatch() && batchID != 0) {
+        return errorAt(op, "Invalid batch parameters");
+    }
+
+    return mlir::success();
+}
 
 void vpux::VPUIP::ConvertUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                       mlir::Value output) {

@@ -18,6 +18,7 @@
 #define VPUX_COMPILER_DIALECT_VPUIP_OPS
 
 include "vpux/compiler/core/ops_interfaces.td"
+include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/types.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
@@ -235,7 +236,14 @@ def VPUIP_ConfigureBarrierOp :
 
 def VPUIP_UPADMAOp :
         VPUIP_TaskOp<
-            "UPADMA"
+            "UPADMA",
+            [
+                SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
         > {
     let summary = "UPA DMA task";
 
@@ -274,7 +282,14 @@ def VPUIP_UPADMAOp :
 
 def VPUIP_NNDMAOp :
         VPUIP_TaskOp<
-            "NNDMA"
+            "NNDMA",
+            [
+                SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
         > {
     let summary = "NN DMA task";
 
@@ -319,6 +334,8 @@ def VPUIP_ConvertUPAOp :
             "ConvertUPA",
             [
                 SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ConvertLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
@@ -349,6 +366,10 @@ def VPUIP_ConvertUPAOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -367,6 +388,9 @@ def VPUIP_SoftMaxUPAOp :
             "SoftMaxUPA",
             [
                 SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
@@ -396,6 +420,10 @@ def VPUIP_SoftMaxUPAOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -414,6 +442,8 @@ def VPUIP_PoolingUPAOp :
             "PoolingUPA",
             [
                 SingleInputAndResultLayer,
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -471,6 +501,8 @@ def VPUIP_ConvolutionUPAOp :
         VPUIP_TaskOp<
             "ConvolutionUPA",
             [
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
@@ -526,6 +558,9 @@ def VPUIP_ReLUUPAOp :
             "ReLUUPA",
             [
                 SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -549,6 +584,10 @@ def VPUIP_ReLUUPAOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -567,6 +606,9 @@ def VPUIP_SigmoidUPAOp :
             "SigmoidUPA",
             [
                 SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -590,6 +632,10 @@ def VPUIP_SigmoidUPAOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -608,6 +654,9 @@ def VPUIP_HSwishUPAOp :
             "HSwishUPA",
             [
                 SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -631,6 +680,10 @@ def VPUIP_HSwishUPAOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -649,6 +702,9 @@ def VPUIP_ClampUPAOp :
             "ClampUPA",
             [
                 SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ClampLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
@@ -679,6 +735,10 @@ def VPUIP_ClampUPAOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -697,6 +757,9 @@ def VPUIP_EluUPAOp :
             "EluUPA",
             [
                 SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<EluLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
@@ -726,6 +789,10 @@ def VPUIP_EluUPAOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -744,6 +811,9 @@ def VPUIP_TanhUPAOp :
             "TanhUPA",
             [
                 SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -767,6 +837,10 @@ def VPUIP_TanhUPAOp :
         >
     ];
 
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -785,6 +859,9 @@ def VPUIP_FakeQuantizeUPAOp :
             "FakeQuantizeUPA",
             [
                 SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameElementType,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -841,6 +918,8 @@ def VPUIP_QuantCastUPAOp :
             "QuantCastUPA",
             [
                 SingleInputAndResultLayer,
+                VPUIP_SameShape,
+                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]

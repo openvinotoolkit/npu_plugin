@@ -52,11 +52,17 @@
 namespace vpux {
 namespace VPUIP {
 
+constexpr Bit FP16_SIZE = 16_Bit;
+constexpr KB SHAVE_LIB_DATA_SIZE = 112_KB;
+
 mlir::LogicalResult verifyOp(DeclareTensorOp op);
 mlir::LogicalResult verifyOp(DeclareConstantTensorOp op);
+mlir::LogicalResult verifyOp(ConvertUPAOp op);
+mlir::LogicalResult verifyOp(SoftMaxUPAOp op);
 mlir::LogicalResult verifyOp(PoolingUPAOp op);
 mlir::LogicalResult verifyOp(FakeQuantizeUPAOp op);
 mlir::LogicalResult verifyOp(QuantCastUPAOp op);
+mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 
 }  // namespace VPUIP
 }  // namespace vpux
