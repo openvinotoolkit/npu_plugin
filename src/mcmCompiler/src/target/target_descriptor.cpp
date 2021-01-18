@@ -51,7 +51,6 @@ void mv::TargetDescriptor::reset()
 {
     target_ = Target::Unknown;
     globalDType_ = DType("Float16");
-    ops_.clear();
     memoryDefs_.clear();
     nceDefs_.clear();
     dtypeSupport_.clear();
@@ -163,88 +162,6 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
                 }
                 dtypeSupport_.push_back(dtypeSupportCase);
-            }
-        }
-    }
-
-    if (jsonDescriptor["ops"].valueType() != json::JSONType::Object)
-    {
-        reset();
-        return false;
-    }
-    else
-    {
-
-        std::vector<std::string> keys = jsonDescriptor["ops"].getKeys();
-
-        for (unsigned i = 0; i < keys.size(); ++i)
-        {
-            std::string opStr = keys.at(i);
-            if (!op::OpRegistry::checkOpType(opStr))
-            {
-                reset();
-                return false;
-            }
-            ops_.insert(opStr);
-            mv::Element e(opStr);
-
-            for (unsigned j = 0; j < jsonDescriptor["ops"][opStr].size(); ++j) // Resource
-            {
-                std::vector<std::string> resource_keys = jsonDescriptor["ops"][opStr].getKeys();
-                std::string platform_name = resource_keys[j];
-
-                std::vector<std::string> serial_list;
-                for (unsigned k = 0; k < jsonDescriptor["ops"][opStr][platform_name]["serial_description"].size(); ++k) // Resource
-                {
-                    std::string v = jsonDescriptor["ops"][opStr][platform_name]["serial_description"][k].get<std::string>();
-                    serial_list.push_back(v);
-                }
-
-                e.set<std::vector<std::string>>("serial_view", serial_list);
-
-                serialDescriptions_.insert(std::make_pair(opStr+":"+platform_name, e));
-
-            }
-        }
-    }
-
-    if (jsonDescriptor["postOps"].valueType() != json::JSONType::Object)
-    {
-        reset();
-        return false;
-    }
-    else
-    {
-
-        std::vector<std::string> keys = jsonDescriptor["postOps"].getKeys();
-
-        for (unsigned i = 0; i < keys.size(); ++i)
-        {
-            std::string opStr = keys.at(i);
-            if (!op::OpRegistry::checkOpType(opStr))
-            {
-                reset();
-                return false;
-            }
-            postOps_.insert(opStr);
-            mv::Element e(opStr);
-
-            for (unsigned j = 0; j < jsonDescriptor["ops"][opStr].size(); ++j) // Resource
-            {
-                std::vector<std::string> resource_keys = jsonDescriptor["ops"][opStr].getKeys();
-                std::string platform_name = resource_keys[j];
-
-                std::vector<std::string> serial_list;
-                for (unsigned k = 0; k < jsonDescriptor["ops"][opStr][platform_name]["serial_description"].size(); ++k) // Resource
-                {
-                    std::string v = jsonDescriptor["ops"][opStr][platform_name]["serial_description"][k].get<std::string>();
-                    serial_list.push_back(v);
-                }
-
-                e.set<std::vector<std::string>>("serial_view", serial_list);
-
-                serialDescriptions_.insert(std::make_pair(opStr+":"+platform_name, e));
-
             }
         }
     }
@@ -579,10 +496,6 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
     json::Object root;
     root["target"] = toString(target_);
     root["dtype"] = globalDType_.toString();
-    root["ops"] = json::Array();
-
-    for (auto it = ops_.begin(); it != ops_.end(); ++it)
-        root["ops"].append(*it);
 
     descFile << root.stringifyPretty();
     descFile.close();
@@ -601,44 +514,6 @@ void mv::TargetDescriptor::setTarget(Target target)
 void mv::TargetDescriptor::setDType(DType dType)
 {
     globalDType_ = dType;
-}
-
-bool mv::TargetDescriptor::defineOp(const std::string& op)
-{
-    if (ops_.find(op) == ops_.end())
-    {
-        if (!op::OpRegistry::checkOpType(op))
-            return false;
-
-        ops_.insert(op);
-        return true;
-    }
-    return false;
-}
-
-bool mv::TargetDescriptor::undefineOp(const std::string& op)
-{
-    auto opIt = ops_.find(op);
-    if (opIt != ops_.end())
-    {
-        ops_.erase(op);
-        return true;
-    }
-    return false;
-}
-
-bool mv::TargetDescriptor::opSupported(const std::string& op) const
-{
-    if (ops_.find(op) != ops_.end())
-        return true;
-    return false;
-}
-
-bool mv::TargetDescriptor::opSupportedAsPostOp(const std::string& op) const
-{
-    if (postOps_.find(op) != postOps_.end())
-        return true;
-    return false;
 }
 
 
@@ -674,11 +549,6 @@ mv::Target mv::TargetDescriptor::getTarget() const
 mv::DType mv::TargetDescriptor::getDType() const
 {
     return globalDType_;
-}
-
-mv::Element mv::TargetDescriptor::getSerialDefinition(std::string op_name, std::string platform_name) const
-{
-    return serialDescriptions_.at(op_name+":"+platform_name);
 }
 
 const std::map<std::string, mv::TargetDescriptor::MemoryDescriptor>& mv::TargetDescriptor::memoryDefs() const

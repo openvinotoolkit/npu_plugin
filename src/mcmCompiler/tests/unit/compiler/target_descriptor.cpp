@@ -43,16 +43,12 @@ TEST_P(TargetDescriptorTest, compose)
 {
 
     mv::TargetDescriptor desc;
-    
+
     desc.setTarget(GetParam());
     desc.setDType(mv::DType("Float16"));
 
-    desc.defineOp("Conv");
-
     ASSERT_EQ(desc.getTarget(), GetParam());
     ASSERT_EQ(desc.getDType(), mv::DType("Float16"));
-    ASSERT_TRUE(desc.opSupported("Conv"));
-    ASSERT_FALSE(desc.opSupported("UndefinedOp"));
 
 }
 
@@ -66,7 +62,6 @@ TEST(ThbDmaControllerCount, load_from_file)
     mv::TargetDescriptor desc;
     ASSERT_TRUE(desc.load(getDescPath(mv::Target::ma3100)));
     ASSERT_EQ(desc.nceDefs().at("DMAControllers").totalNumber, 2);
-
 }
 
 
