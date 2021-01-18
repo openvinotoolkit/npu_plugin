@@ -47,7 +47,8 @@ struct vpux::StaticAllocation::Handler final {
         const auto type = val.getType().dyn_cast<mlir::MemRefType>();
         VPUX_THROW_UNLESS(type != nullptr, "StaticAllocation can work only with MemRef Type, got '{0}'", val.getType());
 
-        return checked_cast<AddressType>(getTypeByteSize(type));
+        const Byte totalSize = getTypeTotalSize(type);
+        return checked_cast<AddressType>(totalSize.count());
     }
 
     AddressType getAlignment(mlir::Value) const {
@@ -66,8 +67,9 @@ struct vpux::StaticAllocation::Handler final {
         VPUX_THROW_UNLESS(parent._valOffsets.count(val) == 0, "Value '{0}' was already allocated", val);
 
         parent._valOffsets.insert({val, checked_cast<int64_t>(addr)});
-        parent._maxAllocatedSize = Byte(
-                std::max(parent._maxAllocatedSize.count(), alignVal<uint64_t>(addr + getSize(val), getAlignment(val))));
+
+        const auto endAddr = alignVal<int64_t>(addr + getSize(val), getAlignment(val));
+        parent._maxAllocatedSize = Byte(std::max(parent._maxAllocatedSize.count(), endAddr));
     }
 
     void freed(mlir::Value) const {

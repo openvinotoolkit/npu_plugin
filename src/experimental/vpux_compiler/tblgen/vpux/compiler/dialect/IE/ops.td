@@ -443,6 +443,40 @@ def IE_ConvolutionOp :
 }
 
 //
+// GroupConvolutionOp
+//
+
+def IE_GroupConvolutionOp :
+        IE_LayerOp<
+            "GroupConvolution",
+            [
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine GroupConvolution layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$filter,
+        Optional<RankedTensorOf<[F16, F32]>>:$bias,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        I32ArrayAttr:$dilations,
+        OptionalAttr<I32Attr>:$groups
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
+
+//
 // AvgPoolOp
 //
 
@@ -658,8 +692,8 @@ def IE_ReshapeOp :
     let summary = "InferenceEngine Reshape layer";
 
     let arguments = (ins
-        AnyRankedTensor:$input1,
-        1DTensorOf<[AnyInteger]>:$input2,
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$shape,
 
         UnitAttr:$special_zero
     );
@@ -667,6 +701,8 @@ def IE_ReshapeOp :
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let hasFolder = 1;
 }
 
 //
@@ -812,7 +848,8 @@ def IE_FakeQuantizeOp :
         IE_LayerOp<
             "FakeQuantize",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine FakeQuantize layer";
@@ -831,6 +868,16 @@ def IE_FakeQuantizeOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
+
+    let extraClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {input(), input_low(), input_high(), output_low(), output_high()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {output()};
+        }
+    }];
 }
 
 //
@@ -869,8 +916,8 @@ def IE_TanhOp :
             [
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
-		SingleInputAndResultLayer,
-		DeclareOpInterfaceMethods<LayerInterface>
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Tanh layer";
@@ -917,8 +964,8 @@ def IE_HSwishOp :
             [
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
-		SingleInputAndResultLayer,
-		DeclareOpInterfaceMethods<LayerInterface>
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine HSwish layer";

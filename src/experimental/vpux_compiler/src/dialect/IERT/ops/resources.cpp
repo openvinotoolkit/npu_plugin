@@ -104,8 +104,8 @@ IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::getAvailableMemory(mlir::
 IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::setUsedMemory(mlir::Attribute kind, Byte size) {
     auto available = getAvailableMemory(kind);
     VPUX_THROW_UNLESS(available != nullptr, "Memory kind '{0}' is not registered as available", kind);
-    VPUX_THROW_UNLESS(size.count() <= available.byteSize(),
-                      "Memory kind '{0}' used size '{1}' exceeds available size '{2}'", kind, size, available.size());
+    VPUX_THROW_UNLESS(size <= available.size(), "Memory kind '{0}' used size '{1}' exceeds available size '{2}'", kind,
+                      size, available.size());
 
     auto byteSizeAttr = getInt64Attr(getContext(), size.count());
 

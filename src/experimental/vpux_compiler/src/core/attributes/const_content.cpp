@@ -16,9 +16,10 @@
 
 #include "vpux/compiler/core/attributes/const_content.hpp"
 
+#include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/error.hpp"
 
-#include <llvm/Support/Parallel.h>
+#include <mlir/Dialect/Quant/QuantTypes.h>
 
 using namespace vpux;
 
@@ -39,17 +40,20 @@ const char* vpux::details::ConstContentBase::getData(ptrdiff_t actualMemInd1D) c
         return _data.data();
     }
 
-    const auto elemByteSize = _baseType.getIntOrFloatBitWidth() / CHAR_BIT;
+    const Byte elemSize = getElemTypeSize(_baseType);
 
     const auto baseDimsOrder = DimsOrder::fromNumDims(_shape.size());
     const auto actualDimsOrder = _actualDimsOrder.getValueOr(baseDimsOrder);
 
-    if (actualDimsOrder == baseDimsOrder) {
-        const auto rawIndex = checked_cast<size_t>(actualMemInd1D * elemByteSize);
+    if (actualDimsOrder == baseDimsOrder || actualDimsOrder == DimsOrder::fromNumDims(actualDimsOrder.numDims())) {
+        const auto rawIndex = checked_cast<size_t>(actualMemInd1D * elemSize.count());
         VPUX_THROW_UNLESS(rawIndex < _data.size(), "Out-of-bound access in ConstContent");
 
         return _data.data() + rawIndex;
     }
+
+    VPUX_THROW_UNLESS(actualDimsOrder.numDims() == baseDimsOrder.numDims(), "Can't reorder from '{0}' to '{1}'",
+                      baseDimsOrder, actualDimsOrder);
 
     //
     // `actualMemInd1D` - 1D memory index for `actualDimsOrder`
@@ -66,7 +70,7 @@ const char* vpux::details::ConstContentBase::getData(ptrdiff_t actualMemInd1D) c
     const auto baseMemIndexND = baseDimsOrder.toMemoryOrder(indexND);
     const auto baseMemIndex1D = getMemIndex1D(baseMemIndexND, baseMemShape);
 
-    const auto rawIndex = checked_cast<size_t>(baseMemIndex1D * elemByteSize);
+    const auto rawIndex = checked_cast<size_t>(baseMemIndex1D * elemSize.count());
     VPUX_THROW_UNLESS(rawIndex < _data.size(), "Out-of-bound access in ConstContent");
 
     return _data.data() + rawIndex;
@@ -77,24 +81,28 @@ const char* vpux::details::ConstContentBase::getData(ptrdiff_t actualMemInd1D) c
 //
 
 bool vpux::ConstContentAttr::classof(mlir::Attribute attr) {
+    if (!attr.isa<mlir::ElementsAttr>()) {
+        return false;
+    }
+
+    if (!attr.cast<mlir::ElementsAttr>().getType().getElementType().isIntOrFloat()) {
+        return false;
+    }
+
     if (attr.isa<mlir::DenseElementsAttr>()) {
         return true;
     }
 
     if (const auto opaque = attr.dyn_cast<mlir::OpaqueElementsAttr>()) {
         const size_t numElems = opaque.getNumElements();
-        const size_t elemTypeByteSize = opaque.getType().getElementTypeBitWidth() / CHAR_BIT;
+        const Byte elemTypeSize = vpux::getElemTypeSize(opaque.getType());
 
         const auto bytes = opaque.getValue();
 
-        return bytes.size() == numElems * elemTypeByteSize;
+        return bytes.size() == numElems * elemTypeSize.count();
     }
 
     return false;
-}
-
-mlir::ShapedType vpux::ConstContentAttr::getType() const {
-    return cast<mlir::ElementsAttr>().getType();
 }
 
 namespace {
@@ -108,7 +116,7 @@ void fillBuf(const Range& range, MutableArrayRef<char> buf) {
                       "Buffer with byte size '{0}' is not enough to hold actual elements with '{1}' byte size",
                       buf.size(), range.size() * VALUE_BYTE_SIZE);
 
-    llvm::parallelForEachN(0, range.size(), [&](size_t i) {
+    loop_1d(LoopExecPolicy::Parallel, range.size(), [&](size_t i) {
         auto* bufPtr = reinterpret_cast<value_type*>(buf.data() + i * VALUE_BYTE_SIZE);
         *bufPtr = range[i];
     });
@@ -153,6 +161,14 @@ void vpux::ConstContentAttr::convertTo(mlir::ShapedType actualType, MutableArray
         fillBuf(getValues<ngraph::float16>(actualDimsOrder), buf);
     } else if (actualElemType.isBF16()) {
         fillBuf(getValues<ngraph::bfloat16>(actualDimsOrder), buf);
+    } else if (const auto qType = actualElemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        if (qType.getStorageType().isSignedInteger(8)) {
+            fillBuf(getValues<int8_t>(actualDimsOrder), buf);
+        } else if (qType.getStorageType().isInteger(8)) {
+            fillBuf(getValues<uint8_t>(actualDimsOrder), buf);
+        } else {
+            VPUX_THROW("Unsupported quantized storage type '{0}'", qType.getStorageType());
+        }
     } else {
         VPUX_THROW("Unsupported element type '{0}'", actualElemType);
     }
@@ -163,8 +179,12 @@ bool vpux::ConstContentAttr::isSplat() const {
         return dense.isSplat();
     }
 
-    // OpaqueElementsAttr is always non splat
-    return false;
+    bool isSplatBuffer = false;
+    if (!mlir::DenseElementsAttr::isValidRawBuffer(getType(), getRawData(), isSplatBuffer)) {
+        return false;
+    }
+
+    return isSplatBuffer;
 }
 
 ArrayRef<char> vpux::ConstContentAttr::getRawData() const {
@@ -175,12 +195,4 @@ ArrayRef<char> vpux::ConstContentAttr::getRawData() const {
     const auto opaque = cast<mlir::OpaqueElementsAttr>();
     const auto bytes = opaque.getValue();
     return makeArrayRef(bytes.data(), bytes.size());
-}
-
-mlir::DenseElementsAttr vpux::ConstContentAttr::getSplatDenseElements() const {
-    const auto dense = dyn_cast<mlir::DenseElementsAttr>();
-    VPUX_THROW_UNLESS(dense != nullptr, "getSplatValue was called for non DenseElementsAttr");
-    VPUX_THROW_UNLESS(dense.isSplat(), "getSplatValue was called for non splat ConstContent");
-
-    return dense;
 }

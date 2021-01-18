@@ -55,6 +55,8 @@ namespace VPUIP {
 mlir::LogicalResult verifyOp(DeclareTensorOp op);
 mlir::LogicalResult verifyOp(DeclareConstantTensorOp op);
 mlir::LogicalResult verifyOp(PoolingUPAOp op);
+mlir::LogicalResult verifyOp(FakeQuantizeUPAOp op);
+mlir::LogicalResult verifyOp(QuantCastUPAOp op);
 
 }  // namespace VPUIP
 }  // namespace vpux

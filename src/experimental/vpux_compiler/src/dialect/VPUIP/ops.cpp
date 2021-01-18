@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/OpImplementation.h>
 

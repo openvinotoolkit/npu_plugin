@@ -17,6 +17,7 @@
 #include "vpux/compiler/frontend/IE.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -85,6 +86,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Power>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Multiply>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Convolution>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::GroupConvolution>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::ConvolutionBackpropData>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::AvgPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::MaxPool>& origNode);
@@ -177,6 +179,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
             MAP_ENTRY(ngraph::opset1::Multiply),
             MAP_ENTRY(ngraph::opset1::Relu),
             MAP_ENTRY(ngraph::opset1::Convolution),
+            MAP_ENTRY(ngraph::opset1::GroupConvolution),
             MAP_ENTRY(ngraph::opset1::ConvolutionBackpropData),
             MAP_ENTRY(ngraph::opset1::AvgPool),
             MAP_ENTRY(ngraph::opset1::MaxPool),
@@ -282,20 +285,20 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.empty(), "nGraph Constant node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto* dialect = _ctx->getLoadedDialect<IE::IEDialect>();
-    VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
-
     const auto tensorType = importTensor(origNode->get_output_partial_shape(0), origNode->get_output_element_type(0));
 
     const auto numElems = tensorType.getNumElements();
-    const auto elemTypeByteSize = tensorType.getElementTypeBitWidth() / CHAR_BIT;
+    const Byte elemTypeSize = getElemTypeSize(tensorType);
 
     mlir::ElementsAttr value;
     if (_sharedConstants) {
-        const auto rawBuffer = StringRef(origNode->get_data_ptr<char>(), numElems * elemTypeByteSize);
+        auto* dialect = _ctx->getLoadedDialect<IE::IEDialect>();
+        VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
+
+        const auto rawBuffer = StringRef(origNode->get_data_ptr<char>(), numElems * elemTypeSize.count());
         value = mlir::OpaqueElementsAttr::get(dialect, tensorType, rawBuffer);
     } else {
-        const auto rawBuffer = makeArrayRef(origNode->get_data_ptr<char>(), numElems * elemTypeByteSize);
+        const auto rawBuffer = makeArrayRef(origNode->get_data_ptr<char>(), numElems * elemTypeSize.count());
 
         bool isSplatBuffer = false;
         VPUX_THROW_UNLESS(mlir::DenseElementsAttr::isValidRawBuffer(tensorType, rawBuffer, isSplatBuffer),
@@ -304,7 +307,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
         value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, rawBuffer, isSplatBuffer);
     }
 
-    auto* op = dialect->materializeConstant(builder, value, tensorType, createLocation(origNode));
+    auto op = builder.create<IE::ConstantOp>(createLocation(origNode), tensorType, value);
     addOutputs(origNode, op);
 }
 
@@ -408,6 +411,22 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto op = builder.create<IE::ConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, attrStride,
                                                 attrPadsBegin, attrPadsEnd, attrDilation);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<ngraph::opset1::GroupConvolution>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto attrStride = getInt32ArrayAttr(_ctx, origNode->get_strides());
+    const auto attrPadsBegin = getInt32ArrayAttr(_ctx, origNode->get_pads_begin());
+    const auto attrPadsEnd = getInt32ArrayAttr(_ctx, origNode->get_pads_end());
+    const auto attrDilation = getInt32ArrayAttr(_ctx, origNode->get_dilations());
+
+    auto op = builder.create<IE::GroupConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], nullptr,
+                                                     attrStride, attrPadsBegin, attrPadsEnd, attrDilation, nullptr);
     addOutputs(origNode, op);
 }
 

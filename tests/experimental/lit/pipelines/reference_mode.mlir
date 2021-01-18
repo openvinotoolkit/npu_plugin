@@ -4,7 +4,7 @@
 module @SingleLayer {
 
 // CHECK:       VPUIP.Graph
-// CHECK-SAME:      options : "DynamicBarriers"
+// CHECK-SAME:      options : DynamicBarriers
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
@@ -45,7 +45,7 @@ func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
 module @ConstantLayer {
 
 // CHECK:       VPUIP.Graph
-// CHECK-SAME:      options : "DynamicBarriers"
+// CHECK-SAME:      options : DynamicBarriers
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
@@ -113,7 +113,7 @@ func @main(%arg0: tensor<1x2x2x2xf32>) -> (tensor<1x2x2x2xf32>, tensor<1x2x2x2xf
 module @OptimizeUselessSoftMaxFP32 {
 
 // CHECK:       VPUIP.Graph
-// CHECK-SAME:      options : "DynamicBarriers"
+// CHECK-SAME:      options : DynamicBarriers
 
 IE.CNNNetwork
     entryPoint : @main

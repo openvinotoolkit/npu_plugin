@@ -15,8 +15,12 @@
 //
 
 #include "vpux/compiler/core/attributes/const_content.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/range.hpp"
+
+#include <mlir/Dialect/Quant/QuantOps.h>
+#include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include <gtest/gtest.h>
 
@@ -168,10 +172,63 @@ TEST(ConstContentAttrTest, CanReshape) {
     ASSERT_NE(contentAttr, nullptr);
 
     const auto newType = mlir::RankedTensorType::get({1, 3, 3, 2}, mlir::Float32Type::get(&ctx));
-    std::vector<float> newVals(newType.getNumElements());
 
+    std::vector<float> newVals(newType.getNumElements());
     const auto buf = makeMutableArrayRef(reinterpret_cast<char*>(newVals.data()), newVals.size() * sizeof(float));
     contentAttr.convertTo(newType, buf);
 
     EXPECT_EQ(newVals, vals);
+}
+
+TEST(ConstContentAttrTest, CanReshapeMemRef) {
+    mlir::MLIRContext ctx;
+
+    const auto baseType = mlir::RankedTensorType::get({1, 9, 2}, mlir::Float32Type::get(&ctx));
+
+    std::vector<float> vals(baseType.getNumElements());
+    for (size_t i = 0; i < vals.size(); ++i) {
+        vals[i] = static_cast<float>(i);
+    }
+
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto contentAttr = baseAttr.dyn_cast<ConstContentAttr>();
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto newType = mlir::MemRefType::get({1, 3, 3, 2}, mlir::Float32Type::get(&ctx));
+
+    std::vector<float> newVals(newType.getNumElements());
+    const auto buf = makeMutableArrayRef(reinterpret_cast<char*>(newVals.data()), newVals.size() * sizeof(float));
+    contentAttr.convertTo(newType, buf);
+
+    EXPECT_EQ(newVals, vals);
+}
+
+TEST(ConstContentAttrTest, QuantizedTypeAccess) {
+    mlir::MLIRContext ctx;
+    ctx.loadDialect<mlir::quant::QuantizationDialect>();
+
+    const auto baseType = mlir::RankedTensorType::get({1, 16}, getUInt8Type(&ctx));
+
+    std::vector<uint8_t> vals(baseType.getNumElements());
+    for (size_t i = 0; i < vals.size(); ++i) {
+        vals[i] = static_cast<uint8_t>(i);
+    }
+
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto contentAttr = baseAttr.dyn_cast<ConstContentAttr>();
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto quantType = mlir::quant::UniformQuantizedType::get(0, getInt8Type(&ctx), mlir::Float32Type::get(&ctx),
+                                                                  0.078431372549019607, 128, 0, 255);
+
+    const auto accessType = mlir::RankedTensorType::get(baseType.getShape(), quantType);
+
+    std::vector<uint8_t> storageVals(accessType.getNumElements());
+    const auto buf =
+            makeMutableArrayRef(reinterpret_cast<char*>(storageVals.data()), storageVals.size() * sizeof(uint8_t));
+    contentAttr.convertTo(accessType, buf);
+
+    EXPECT_EQ(storageVals, vals);
 }

@@ -23,6 +23,7 @@
 #include "vpux/utils/core/logger.hpp"
 
 #include <mlir/Dialect/Linalg/IR/LinalgOps.h>
+#include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
@@ -34,6 +35,8 @@ namespace vpux {
 //
 // Passes
 //
+
+std::unique_ptr<mlir::Pass> createLowerIE2QuantPass(Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createBufferizeIEPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createLowerIE2IERTPass(Logger log = Logger::global());

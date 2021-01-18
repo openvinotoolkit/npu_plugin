@@ -4,8 +4,8 @@
 module @linear_dma_graph {
 
 VPUIP.Graph
-    // CHECK: options : "DynamicBarriers"
-    options : "NONE"
+    // CHECK: options : DynamicBarriers
+    options : NONE
     version : {
         majorV = 3 : i32,
         minorV = 11 : i32,
@@ -58,8 +58,8 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
 module @linear_upa_graph {
 
 VPUIP.Graph
-    // CHECK: options : "DynamicBarriers"
-    options : "NONE"
+    // CHECK: options : DynamicBarriers
+    options : NONE
     version : {
         majorV = 3 : i32,
         minorV = 11 : i32,

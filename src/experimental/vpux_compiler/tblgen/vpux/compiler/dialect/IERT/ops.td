@@ -396,6 +396,35 @@ def IERT_ConvolutionOp :
 }
 
 //
+// GroupConvolutionOp
+//
+
+def IERT_GroupConvolutionOp :
+        IERT_LayerOp<
+            "GroupConvolution",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time GroupConvolution layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$filter,
+        Optional<MemRefOf<[F16, F32]>>:$bias,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32ArrayAttr:$strides,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        I32ArrayAttr:$dilations,
+        OptionalAttr<I32Attr>:$groups
+    );
+}
+
+//
 // ReLUOp
 //
 
@@ -490,7 +519,7 @@ def IERT_HSwishOp :
         IERT_LayerOp<
             "HSwish",
             [
-		SameOperandsShape,
+                SameOperandsShape,
                 SameOperandsElementType,
                 SingleInputAndResultLayer
             ]
@@ -522,6 +551,38 @@ def IERT_TanhOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output
     );
+}
+
+//
+// FakeQuantizeOp
+//
+
+def IERT_FakeQuantizeOp :
+        IERT_LayerOp<
+            "FakeQuantize"
+        > {
+    let summary = "InferenceEngine FakeQuantize layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$input_low,
+        MemRefOf<[F16, F32]>:$input_high,
+        MemRefOf<[F16, F32]>:$output_low,
+        MemRefOf<[F16, F32]>:$output_high,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32Attr:$levels
+    );
+
+    let extraClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {input(), input_low(), input_high(), output_low(), output_high()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {output()};
+        }
+    }];
 }
 
 #endif

@@ -18,9 +18,11 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/utils/data_convert.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/range.hpp"
 
@@ -87,16 +89,14 @@ public:
 // ConstContentAttr
 //
 
-class ConstContentAttr final : public mlir::Attribute {
+class ConstContentAttr final : public mlir::ElementsAttr {
 public:
-    using mlir::Attribute::Attribute;
+    using mlir::ElementsAttr::ElementsAttr;
 
 public:
     static bool classof(mlir::Attribute attr);
 
 public:
-    mlir::ShapedType getType() const;
-
     auto getRank() const {
         return getType().getRank();
     }
@@ -113,8 +113,8 @@ public:
         return getType().getElementType();
     }
 
-    auto getElementTypeBitWidth() const {
-        return getType().getElementTypeBitWidth();
+    auto getElemTypeSize() const {
+        return vpux::getElemTypeSize(getType());
     }
 
     auto getSizeInBits() const {
@@ -134,20 +134,14 @@ public:
 public:
     bool isSplat() const;
 
-    mlir::Attribute getSplatValue() const {
-        return getSplatDenseElements().getSplatValue();
-    }
-
     template <typename T>
     auto getSplatValue() const {
-        return getSplatDenseElements().getSplatValue<T>();
+        VPUX_THROW_UNLESS(isSplat(), "Expected the attribute to be a splat");
+        return *getValues<T>().begin();
     }
 
 public:
     ArrayRef<char> getRawData() const;
-
-private:
-    mlir::DenseElementsAttr getSplatDenseElements() const;
 };
 
 }  // namespace vpux

@@ -24,9 +24,9 @@ using namespace vpux;
 void vpux::VPUIP::ConvolutionUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                           mlir::Value filter, mlir::Value bias, mlir::Value output,
                                           mlir::ArrayAttr strides, mlir::ArrayAttr dilations, mlir::ArrayAttr padsBegin,
-                                          mlir::ArrayAttr padsEnd) {
+                                          mlir::ArrayAttr padsEnd, uint32_t groups) {
     build(builder, state, input, filter, bias, output, mlir::ValueRange{}, mlir::ValueRange{}, strides, dilations,
-          padsBegin, padsEnd, 1, nullptr, false);
+          padsBegin, padsEnd, groups, nullptr, false);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvolutionUPAOp::serialize(VPUIP::BlobWriter& writer) {
@@ -38,8 +38,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvolutionUPAOp::serialize(VPUIP::
     const auto padsBegin = VPUIP::BlobWriter::createOrder3(this->padsBegin());
     const auto padsEnd = VPUIP::BlobWriter::createOrder3(this->padsEnd());
 
-    const auto filterType = filter().getType().cast<mlir::ShapedType>();
-    const auto filterShape = getShape(filterType);
+    const auto filterShape = getShape(filter());
     const auto kernel =
             MVCNN::order3(checked_cast<uint8_t>(filterShape[dX]), checked_cast<uint8_t>(filterShape[dY]), 0);
 
@@ -49,7 +48,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvolutionUPAOp::serialize(VPUIP::
     builder.add_dilations(&dilations);
     builder.add_pads_begin(&padsBegin);
     builder.add_pads_end(&padsEnd);
-    builder.add_group(checked_cast<int32_t>(group()));
+    builder.add_group(checked_cast<int32_t>(groups()));
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvolutionParams});

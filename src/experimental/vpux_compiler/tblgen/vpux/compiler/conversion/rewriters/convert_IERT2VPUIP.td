@@ -139,13 +139,32 @@ def createConvolutionUPAOp :
             $_builder.create<vpux::VPUIP::ConvolutionUPAOp>(
                 $_loc, $0, $1,
                 $2.size() == 1 ? $2[0] : nullptr,
-                $3, $4, $5, $6, $7)
+                $3, $4, $5, $6, $7, 1)
         }]>;
 
 def RewriteConvolution :
         Pat<
             (IERT_ConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations),
             (createConvolutionUPAOp $input, $filter, $bias, $output, $strides, $dilations, $pads_begin, $pads_end)
+        >;
+
+def createGroupConvolutionUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ConvolutionUPAOp>(
+                $_loc, $0, $1,
+                $2.size() == 1 ? $2[0] : nullptr,
+                $3, $4, $5, $6, $7, $8.getInt())
+        }]>;
+
+def HasGroupsAttr : Constraint<CPred<"$0 != nullptr">>;
+
+def RewriteGroupConvolution :
+        Pat<
+            (IERT_GroupConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations, $groups),
+            (createGroupConvolutionUPAOp $input, $filter, $bias, $output, $strides, $dilations, $pads_begin, $pads_end, $groups),
+            [
+                (HasGroupsAttr $groups)
+            ]
         >;
 
 //

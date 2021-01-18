@@ -348,34 +348,38 @@ InferenceEngine::Layout vpux::DimsOrder::toIE() const {
     }
 }
 
-Optional<StringRef> vpux::DimsOrder::getCanonicalName() const {
+Optional<StringLiteral> vpux::DimsOrder::getCanonicalName() const {
     if (*this == DimsOrder()) {
-        return StringRef("SCALAR");
+        return StringLiteral("SCALAR");
     } else if (*this == DimsOrder::C) {
-        return StringRef("C");
+        return StringLiteral("C");
     } else if (*this == DimsOrder::NC) {
-        return StringRef("NC");
+        return StringLiteral("NC");
     } else if (*this == DimsOrder::CHW) {
-        return StringRef("CHW");
+        return StringLiteral("CHW");
     } else if (*this == DimsOrder::HWC) {
-        return StringRef("HWC");
+        return StringLiteral("HWC");
     } else if (*this == DimsOrder::HCW) {
-        return StringRef("HCW");
+        return StringLiteral("HCW");
     } else if (*this == DimsOrder::NCHW) {
-        return StringRef("NCHW");
+        return StringLiteral("NCHW");
     } else if (*this == DimsOrder::NHWC) {
-        return StringRef("NHWC");
+        return StringLiteral("NHWC");
     } else if (*this == DimsOrder::NHCW) {
-        return StringRef("NHCW");
+        return StringLiteral("NHCW");
     } else if (*this == DimsOrder::NCDHW) {
-        return StringRef("NCDHW");
+        return StringLiteral("NCDHW");
     } else if (*this == DimsOrder::NDHWC) {
-        return StringRef("NDHWC");
+        return StringLiteral("NDHWC");
     } else {
         return None;
     }
 }
 
 void vpux::DimsOrder::printFormat(llvm::raw_ostream& stream) const {
-    printTo(stream, "{0}", toPermutation());
+    if (const auto name = getCanonicalName()) {
+        stream << name.getValue();
+    } else {
+        printTo(stream, "{0}", toPermutation());
+    }
 }

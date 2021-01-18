@@ -28,6 +28,8 @@
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <mlir/Dialect/Quant/QuantTypes.h>
+
 #include <algorithm>
 
 using namespace vpux;
@@ -139,9 +141,28 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     const auto serializedLocale = createMemoryLocation(locale);
     const auto serializedLocaleIndex = createVector(to_small_vector(makeArrayRef({localeIndex.getValueOr(0)})));
 
-    // TODO: get this from type.getElementType() (Quant Dialect)
-    const auto quantZero = createVector(makeArrayRef<uint8_t>({0}));
-    const auto quantMult = createVector(makeArrayRef<uint16_t>({1}));
+    Vector<uint8_t> quantZero;
+    Vector<uint16_t> quantMult;
+
+    if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        const auto zero = checked_cast<uint8_t>(qType.getZeroPoint());
+        const auto mult = ngraph::float16(static_cast<float>(qType.getScale())).to_bits();
+
+        quantZero = createVector(makeArrayRef(zero));
+        quantMult = createVector(makeArrayRef(mult));
+    } else if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        quantZero = createVector(qType.getZeroPoints() | transformed([](int64_t val) {
+                                     return checked_cast<uint8_t>(val);
+                                 }));
+        quantMult = createVector(qType.getScales() | transformed([](double val) {
+                                     return ngraph::float16(static_cast<float>(val)).to_bits();
+                                 }));
+    } else {
+        quantZero = createVector(makeArrayRef<uint8_t>(0));
+        quantMult = createVector(makeArrayRef<uint16_t>(1));
+    }
+
+    // TODO: can this be retrived from QuantizedType?
     const auto quantShift = createVector(makeArrayRef<uint8_t>({0}));
 
     MVCNN::TensorReferenceBuilder builder(_impl);
@@ -255,28 +276,30 @@ MVCNN::DType vpux::VPUIP::BlobWriter::createDType(mlir::Type type) {
         return MVCNN::DType_FP16;
     } else if (type.isBF16()) {
         return MVCNN::DType_FP16;
-    } else if (type.isSignedInteger(8 * sizeof(int64_t))) {
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int64_t))) {
         return MVCNN::DType_I64;
-    } else if (type.isSignedInteger(8 * sizeof(int32_t))) {
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int32_t))) {
         return MVCNN::DType_I32;
-    } else if (type.isSignedInteger(8 * sizeof(int16_t))) {
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int16_t))) {
         return MVCNN::DType_I16;
-    } else if (type.isSignedInteger(8 * sizeof(int8_t))) {
+    } else if (type.isSignedInteger(CHAR_BIT * sizeof(int8_t))) {
         return MVCNN::DType_I8;
     } else if (type.isSignedInteger(4)) {
         return MVCNN::DType_I4;
     } else if (type.isSignedInteger(2)) {
         return MVCNN::DType_I2;
-    } else if (type.isUnsignedInteger(8 * sizeof(uint64_t))) {
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint64_t))) {
         return MVCNN::DType_U64;
-    } else if (type.isUnsignedInteger(8 * sizeof(uint32_t))) {
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint32_t))) {
         return MVCNN::DType_U32;
-    } else if (type.isUnsignedInteger(8 * sizeof(uint16_t))) {
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint16_t))) {
         return MVCNN::DType_U16;
-    } else if (type.isUnsignedInteger(8 * sizeof(uint8_t))) {
+    } else if (type.isInteger(CHAR_BIT * sizeof(uint8_t))) {
         return MVCNN::DType_U8;
-    } else if (type.isSignlessInteger(1)) {
+    } else if (type.isInteger(1)) {
         return MVCNN::DType_BIN;
+    } else if (type.isa<mlir::quant::QuantizedType>()) {
+        return createDType(type.cast<mlir::quant::QuantizedType>().getStorageType());
     } else {
         VPUX_THROW("Unsupported element type {0}", type);
     }
@@ -292,17 +315,24 @@ VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(mlir::Me
     return createDims(getShape(type));
 }
 
-VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesRef strides, int64_t elemByteSize) {
-    Strides temp{elemByteSize};
+VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesRef strides, Bit elemSize) {
+    Strides temp;
+    temp.push_back(elemSize);
     temp.append(strides.begin(), strides.end());
 
-    return createVector(temp | transformed([](int64_t val) {
-                            return checked_cast<float>(val);
-                        }));
+    const auto cvtBitStrideToByteFP = [](Bit val) {
+        if (val.count() % CHAR_BIT == 0) {
+            return checked_cast<float>(Byte(val).count());
+        }
+
+        return checked_cast<float>(val.count()) / CHAR_BIT;
+    };
+
+    return createVector(temp | transformed(cvtBitStrideToByteFP));
 }
 
 VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(mlir::MemRefType type) {
-    return createStrides(getStrides(type), type.getElementTypeBitWidth() / CHAR_BIT);
+    return createStrides(getStrides(type), getElemTypeSize(type));
 }
 
 MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocation location) {
@@ -366,9 +396,9 @@ MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
 VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ConstContentAttr content,
                                                                         mlir::MemRefType actualType,
                                                                         bool csram_cacheable) {
-    const size_t elemTypeByteSize = actualType.getElementType().getIntOrFloatBitWidth() / CHAR_BIT;
+    const Byte elemTypeSize = getElemTypeSize(actualType);
     const size_t totalNumElements = actualType.getNumElements();
-    const size_t totalByteSize = totalNumElements * elemTypeByteSize;
+    const size_t totalByteSize = totalNumElements * elemTypeSize.count();
 
     std::vector<uint64_t> alignedContent(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
