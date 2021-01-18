@@ -508,13 +508,10 @@ void ensureCMXConcatsDMASPlacedCorrectly(const mv::pass::PassEntry&,
                 // non-cmx-able
                 if (opIt->getOpType() == "DepthwiseConv")
                 {
-                    std::cout << opIt->getName() << std::endl;
                     bool isCStreaming = streaming_strategy[2].get<int>("C") > 1 ? true : false;
-                    std::cout << "c " << streaming_strategy[2].get<int>("C") << std::endl;
                     if(isCStreaming)
                     {
                         auto sourceOp = om.getSourceOp(opIt->getInputTensor()[0]);
-                        std::cout << sourceOp->getName() << std::endl;
                         sourceOp->set<bool>("avoidCmxConcat", true);
                     }
                 }
