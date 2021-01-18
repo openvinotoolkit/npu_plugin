@@ -561,6 +561,7 @@ mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpL
         if (needs_conversion) {
             if (isQuantizableOp(parent_op)) {
                 parent_op->set<bool>("placeConversionToFloat", true);
+                parent_op->set<bool>("biasOverflow", true);
             }
         }
 
