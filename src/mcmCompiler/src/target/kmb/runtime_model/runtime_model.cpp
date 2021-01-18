@@ -489,20 +489,23 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
 
+        // acording to the runtime code, Zero point only uses first value of array.
+        // mult and shift are only used for eltwise output, not for other outputs.
+        // https://github.com/movidius/vpuip_2/blob/develop/system/nn/nce_lib/src/2490/ppe_task.cpp
         auto quantZero = quantizationParams.getZeroPoint();
-        toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+        toBuild->quant_zero = std::vector<unsigned char>(1, quantZero[0]);
 
         std::vector<unsigned> quantMult = {};
         if (quantizationParams.hasAttr("mult"))
             quantMult = quantizationParams.getMult();
         quantMult = reduceQuantVector_(quantMult);
-        toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+        toBuild->quant_mult = std::vector<unsigned short int>(1, quantMult[0]);
 
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
-        toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+        toBuild->quant_shift = std::vector<unsigned char>(1, quantShift[0]);
         toBuild->quant_post_shift_right = quantizationParams.getPostShift();
     }
 
@@ -779,22 +782,24 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
 
+        // acording to the runtime code, Zero point only uses first value of array.
+        // mult and shift are only used for eltwise output, not for other outputs.
+        // https://github.com/movidius/vpuip_2/blob/develop/system/nn/nce_lib/src/2490/ppe_task.cpp
         auto quantZero = quantizationParams.getZeroPoint();
-        toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+        toBuild->quant_zero = std::vector<unsigned char>(1, quantZero[0]);
 
         std::vector<unsigned> quantMult = {};
         if (quantizationParams.hasAttr("mult"))
             quantMult = quantizationParams.getMult();
         quantMult = reduceQuantVector_(quantMult);
-        toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+        toBuild->quant_mult = std::vector<unsigned short int>(1, quantMult[0]);
 
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
-        toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+        toBuild->quant_shift = std::vector<unsigned char>(1, quantShift[0]);
         toBuild->quant_post_shift_right = quantizationParams.getPostShift();
-
     }
 
     return toBuild;
