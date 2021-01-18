@@ -49,8 +49,6 @@ namespace mv
 
 bool validateKStream(mv::Op& op, size_t split, bool spilling, std::string strategy = "SplitOverK") {
 
-    std::cout << op.getName() << " " << split << " " << spilling << std::endl;
-
     if (op.getOpType() == "Conv" && strategy == "SplitOverK") {
         auto weightsShape = op.getInputTensor(1)->getShape();
         auto numOutChannels = weightsShape[mv::KERNEL_OUTPUT_CHANNELS];
@@ -67,7 +65,6 @@ bool validateKStream(mv::Op& op, size_t split, bool spilling, std::string strate
             return false;
     }
     
-    std::cout << "returning true " << std::endl; 
     return true;
 }
 
@@ -461,7 +458,6 @@ std::tuple<std::vector<mv::Element>, std::string, bool> getGraphOptimizerAssigne
 
             // Get the streaming strategy assigned by graph optimizer
             streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
-            //graphOptimizerAssignedStategies.first = streaming_strategy;
 
             // Get the MC strategy assigned by graph optimizer
             for (auto s : multiClusterStrategyList) {
@@ -469,7 +465,6 @@ std::tuple<std::vector<mv::Element>, std::string, bool> getGraphOptimizerAssigne
                 std::regex exp(name_filter);
                 if (std::regex_match(opIt->getName(), exp))
                     mcStrategy = s.get<std::string>("strategy");
-                //graphOptimizerAssignedStategies.second = mcStrategy;
             }
 
             for (auto s : tensorMemoryLocation) {
@@ -478,12 +473,10 @@ std::tuple<std::vector<mv::Element>, std::string, bool> getGraphOptimizerAssigne
                 if (std::regex_match(opIt->getName(), exp))
                     memoryLocation = s.get<std::string>("mem_location");
                 
-                std::cout << opName << " " << memoryLocation << std::endl;
                 if(memoryLocation == "CMX")
                     spilling = false;
                 else if(memoryLocation == "DDR")
                     spilling = true;
-                //graphOptimizerAssignedStategies.second = mcStrategy;
             }
             break;
         }
