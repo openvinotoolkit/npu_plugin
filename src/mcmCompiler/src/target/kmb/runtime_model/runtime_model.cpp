@@ -1939,7 +1939,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (opIt->hasAttr("padding"))
     {
         auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
-        if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
+        if(opIt->get<std::string>("splitStrategy") == "SplitOverH" && opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
         {
             unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
             kernelPadding = getNewPadding(kernelPadding, clusterId, numClusters);
