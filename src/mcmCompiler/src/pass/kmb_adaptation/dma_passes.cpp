@@ -95,6 +95,8 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationMo
                     inputTensorDmaOp->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
                 if(pipelineWeights && inputOp->getOpType() != "Slice")
                     inputTensorDmaOp->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
+                if(i==1 && opIt->hasAttr("multiple_weight_out_degree"))
+                    inputTensorDmaOp->set<bool>("multiple_weight_out_degree", true);
 
                 for(auto flowStr: flows)
                 {

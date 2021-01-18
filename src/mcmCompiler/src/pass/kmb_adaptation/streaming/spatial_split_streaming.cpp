@@ -608,6 +608,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
 
         newOp->setAttrs(attrsToCopy);
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
+        if (newOp->hasWeights())
+            newOp->set<bool>("multiple_weight_out_degree", true);
 
         newTensors[split] = newTensor;
 
