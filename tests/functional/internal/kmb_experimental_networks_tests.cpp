@@ -122,12 +122,19 @@ TEST_F(KmbClassifyNetworkTest, experimental_network_0000) {
 }
 
 TEST_F(AgeGenderNetworkTest, age_gender_recognition_retail_0013_FP16) {
+    runTest(
+        TestNetworkDesc("KMB_models/FP16/age-gender-recognition-retail-0013/caffe/age-gender-recognition-retail-0013.xml"),
+        "62x62/face62.bmp",
+        0.002f);
+}
+
+TEST_F(AgeGenderNetworkTest, age_gender_recognition_retail_0013_FP16_INT8) {
     if (!USE_EXPERIMENTAL_COMPILER) {
-        SKIP() << "Used only for experimental compiler";
+        SKIP_ON("VPUX", "Compilation failure with types mismatch");
     }
 
     runTest(
-        TestNetworkDesc("KMB_models/FP16/age-gender-recognition-retail-0013/caffe/age-gender-recognition-retail-0013.xml"),
-        TestImageDesc("62x62/face62.bmp"),
-        0.002f);
+        TestNetworkDesc("KMB_models/FP16-INT8/private/age-gender-recognition-retail-0013/caffe/age-gender-recognition-retail-0013.xml"),
+        "62x62/face62.bmp",
+        0.02f);
 }
