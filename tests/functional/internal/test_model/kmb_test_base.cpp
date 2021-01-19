@@ -910,7 +910,7 @@ void KmbNetworkTestBase::runTest(
         std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
         checkLayouts(actualOutputs,    netDesc.outputLayouts());
         checkPrecisions(actualOutputs, netDesc.outputPrecisions());
-		checkCallback(actualOutputs, refOutputBlobs, inputsInfo);
+        checkCallback(actualOutputs, refOutputBlobs, inputsInfo);
     }
 }
 
@@ -1350,7 +1350,7 @@ void AgeGenderNetworkTest::runTest(const TestNetworkDesc& netDesc,
           auto ref_it = refBlobs.find(actualBlob.first);
           ASSERT_TRUE(ref_it != refBlobs.end());
           std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
-          compareOutputs(actualBlob.second, ref_it->second, tolerance, CompareMethod::Absolute);
+          compareOutputs(ref_it->second, actualBlob.second, tolerance, CompareMethod::Absolute);
       }
     };
 
@@ -1387,31 +1387,31 @@ void VehicleAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
     const auto check = [=](const BlobMap& actualBlobs,
                            const BlobMap& refBlobs,
                            const ConstInputsDataMap&) {
-      ASSERT_EQ(actualBlobs.size(), refBlobs.size());
-      // FIXME 'color' and 'type' names might be specific to vehicle_attributes_recognition_barrier_0042
-      // find a way to make it more generic when necessary
-      auto actualColours = parseOutput(toFP32(actualBlobs.find("color")->second));
-      auto actualTypes = parseOutput(toFP32(actualBlobs.find("type")->second));
-      auto topColourIdx = actualColours.at(0).first;
-      auto topTypeIdx = actualTypes.at(0).first;
-      auto topColourName = COLOURS.at(topColourIdx);
-      auto topTypeName = VEHICLES.at(topTypeIdx);
-      std::cout << "Actual output: " << topColourName << " " << topTypeName << std::endl;
+        ASSERT_EQ(actualBlobs.size(), refBlobs.size());
+        // FIXME 'color' and 'type' names might be specific to vehicle_attributes_recognition_barrier_0042
+        // find a way to make it more generic when necessary
+        auto actualColours = parseOutput(toFP32(actualBlobs.find("color")->second));
+        auto actualTypes = parseOutput(toFP32(actualBlobs.find("type")->second));
+        auto topColourIdx = actualColours.at(0).first;
+        auto topTypeIdx = actualTypes.at(0).first;
+        auto topColourName = COLOURS.at(topColourIdx);
+        auto topTypeName = VEHICLES.at(topTypeIdx);
+        std::cout << "Actual output: " << topColourName << " " << topTypeName << std::endl;
 
-      auto refColours = parseOutput(toFP32(refBlobs.find("color")->second));
-      auto refTypes = parseOutput(toFP32(refBlobs.find("type")->second));
-      auto refColourIdx = refColours.at(0).first;
-      auto refTypeIdx = refTypes.at(0).first;
-      auto refColourName = COLOURS.at(refColourIdx);
-      auto refTypeName = VEHICLES.at(refTypeIdx);
-      std::cout << "Reference output: " << refColourName << " " << refTypeName << std::endl;
+        auto refColours = parseOutput(toFP32(refBlobs.find("color")->second));
+        auto refTypes = parseOutput(toFP32(refBlobs.find("type")->second));
+        auto refColourIdx = refColours.at(0).first;
+        auto refTypeIdx = refTypes.at(0).first;
+        auto refColourName = COLOURS.at(refColourIdx);
+        auto refTypeName = VEHICLES.at(refTypeIdx);
+        std::cout << "Reference output: " << refColourName << " " << refTypeName << std::endl;
 
-      for (const auto& actualBlob : actualBlobs) {
-          auto ref_it = refBlobs.find(actualBlob.first);
-          ASSERT_TRUE(ref_it != refBlobs.end());
-	  std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
-          compareOutputs(actualBlob.second, ref_it->second, tolerance, CompareMethod::Absolute);
-      }
+        for (const auto& actualBlob : actualBlobs) {
+            auto ref_it = refBlobs.find(actualBlob.first);
+            ASSERT_TRUE(ref_it != refBlobs.end());
+            std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
+            compareOutputs(ref_it->second, actualBlob.second, tolerance, CompareMethod::Absolute);
+        }
     };
 
     KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
@@ -1435,7 +1435,7 @@ void HeadPoseEstimationNetworkTest::runTest(const TestNetworkDesc& netDesc,
           auto ref_it = refBlobs.find(actualBlob.first);
           ASSERT_TRUE(ref_it != refBlobs.end());
           std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
-          compareOutputs(actualBlob.second, ref_it->second, tolerance, CompareMethod::Absolute);
+          compareOutputs(ref_it->second, actualBlob.second, tolerance, CompareMethod::Absolute);
       }
     };
 
@@ -1480,7 +1480,7 @@ void KmbRFCNNetworkTest::runTest(
             auto ref_it = refBlobs.find(actualBlob.first);
             ASSERT_TRUE(ref_it != refBlobs.end());
             std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
-            compareOutputs(actualBlob.second, ref_it->second, 0.f, CompareMethod::Absolute);
+            compareOutputs(ref_it->second, actualBlob.second, 0.f, CompareMethod::Absolute);
         }
     };
 
@@ -1510,7 +1510,7 @@ void KmbRetinaFaceNetworkTest::runTest(
             auto ref_it = refBlobs.find(actualBlob.first);
             ASSERT_TRUE(ref_it != refBlobs.end());
             std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
-            compareOutputs(actualBlob.second, ref_it->second, 0.7f, CompareMethod::Absolute);
+            compareOutputs(ref_it->second, actualBlob.second, 0.7f, CompareMethod::Absolute);
         }
     };
 
