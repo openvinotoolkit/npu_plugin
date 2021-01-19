@@ -553,11 +553,9 @@ int main(int argc, char* argv[]) {
                     std::cout << "PASSED" << std::endl;
                 } else {
                     std::cout << "FAILED" << std::endl;
-                    return EXIT_FAILURE;
                 }
             } else {
-                std::cout << "Unknown mode " << FLAGS_mode << std::endl;
-                return EXIT_FAILURE;
+                std::cout << "Unsupported mode " << FLAGS_mode << std::endl;
             }
         } else {
             size_t outputInd = 0;
