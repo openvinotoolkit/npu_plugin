@@ -24,14 +24,14 @@ TEST(IE_FrontEndTest, PriorBoxLayer) {
         auto imageSize = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ngraph::Shape{2});
 
         ngraph::op::PriorBoxAttrs attrs;
-        attrs.min_size = std::vector<float>{16.0};
-        attrs.max_size = std::vector<float>{38.46};
-        attrs.aspect_ratio = std::vector<float>{2.0};
+        attrs.min_size = std::vector<float>{16.0f};
+        attrs.max_size = std::vector<float>{38.46f};
+        attrs.aspect_ratio = std::vector<float>{2.0f};
         attrs.clip = false;
         attrs.flip = true;
-        attrs.step = 16.0;
-        attrs.offset = 0.5;
-        attrs.variance = std::vector<float>{0.1, 0.1, 0.2, 0.2};
+        attrs.step = 16.0f;
+        attrs.offset = 0.5f;
+        attrs.variance = std::vector<float>{0.1f, 0.1f, 0.2f, 0.2f};
         auto priorBox = std::make_shared<ngraph::opset1::PriorBox>(outputSize, imageSize, attrs);
         priorBox->set_friendly_name("PriorBox");
         auto result = std::make_shared<ngraph::op::Result>(priorBox);

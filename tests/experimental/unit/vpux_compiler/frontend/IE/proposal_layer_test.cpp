@@ -30,11 +30,11 @@ TEST(IE_FrontEndTest, ProposalLayer) {
     attr.base_size = 256;
     attr.pre_nms_topn = 2147483647;
     attr.post_nms_topn = 100;
-    attr.nms_thresh = 0.699999988079;
+    attr.nms_thresh = 0.699999988079f;
     attr.feat_stride = 16;
     attr.min_size = 1;
-    attr.ratio = {0.5, 1.0, 2.0};
-    attr.scale = {0.25, 0.5, 1.0, 2.0};
+    attr.ratio = {0.5f, 1.0f, 2.0f};
+    attr.scale = {0.25f, 0.5f, 1.0f, 2.0f};
     attr.clip_before_nms = true;
     attr.clip_after_nms = false;
     attr.normalize = true;
