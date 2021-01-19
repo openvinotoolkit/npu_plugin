@@ -580,13 +580,13 @@ namespace mv
                     auto memFitCheck = memorySize(op,totalClusters,enableChannelMajorConv, clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,{1,1,1,split,streams["B"]},fSparsity, spilling);
                     if( pipelined && //pipelining weights requires 2 weights streams to fit
                         (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + 2*std::get<2>(memFitCheck) < clusterMemory) &&
-                        validateKStream(op, clustering, split, spilling) )
+                        validateKStream(op, clustering, split, spilling, totalClusters) )
                     {
                         return split;
                     }
                     else if(!pipelined &&
                             (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
-                            validateKStream(op, clustering, split, spilling) )
+                            validateKStream(op, clustering, split, spilling, totalClusters) )
                     {
                         return split;
                     }
@@ -609,35 +609,11 @@ namespace mv
                     //TODO can we steal some logic from nested streaming to jump to the next "best" K
                     // would be useful for when many streams over K are needed just to fit and we
                     // run into +1 doesn't result in a differing number of channels in final task...
-                    if(validateKStream(op, clustering, split, spilling))
+                    if(validateKStream(op, clustering, split, spilling, totalClusters))
                         return split;
                 }
 
                 return 0;
-            }
-
-            bool validateKStream(mv::Op& op, mv::Attribute clustering, size_t split, bool spilling)
-            {
-                if( op.getOpType() == "Conv" &&
-                    clustering.get<std::string>() == "SplitOverK")
-                {
-                    auto weightsShape = op.getInputTensor(1)->getShape();
-                    auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
-                    if((numOutChannels/split * totalClusters) < 16)
-                        return false;
-                }
-                if(!spilling)
-                {
-                    auto outputShape = op.getOutputTensor(0)->getShape();
-                    size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
-                    //ok it fits, now make sure that if we are !spilling that there's no crop
-                    size_t outputChannelSlice = ceil((double)outputChannelSize/(double)split);
-                    size_t lastSlice = outputChannelSize - outputChannelSlice*(split - 1);
-                    if (!(outputChannelSlice%16 == 0 && lastSlice%16 == 0)) //would need crop
-                        return false;
-                }
-
-                return true;
             }
 
             // Note: Find suitable stream over C values
