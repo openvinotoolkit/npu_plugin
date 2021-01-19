@@ -33,6 +33,7 @@
 #include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
 #include "ngraph_mcm_frontend/passes/replace_onnx_pattern_to_reorg.hpp"
 #include "ngraph_mcm_frontend/passes/fuse_scale_in_previous_weights_fq.hpp"
+#include "ngraph_mcm_frontend/passes/insert_maxpool.hpp"
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -243,6 +244,7 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ngraph::pass::ConstantFolding>();
         passManager.register_pass<BroadcastEltwiseInputs>();
         passManager.register_pass<MergeTopKConvert>();
+        passManager.register_pass<InsertMaxPool>();
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config);
 
         const auto start = std::chrono::high_resolution_clock::now();
