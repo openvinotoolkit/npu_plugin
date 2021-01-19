@@ -67,7 +67,12 @@ const std::shared_ptr<Device> EngineBackend::getDevice(const InferenceEngine::Pa
 }
 
 //------------------------------------------------------------------------------
-std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const InferenceEngine::ParamMap& /*params*/) {
+std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const InferenceEngine::ParamMap& params) {
+    auto logLevel = vpu::LogLevel::Warning;
+    if (params.find(CONFIG_KEY(LOG_LEVEL)) != params.end()) {
+        logLevel = params.at(CONFIG_KEY(LOG_LEVEL));
+    }
+    vpu::Logger logger("EngineBackendConfigurator", logLevel, vpu::consoleOutput());
 #if defined(__arm__) || defined(__aarch64__)
     const auto type = EngineBackendType::VPUAL;
 #else
@@ -90,15 +95,13 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
             return std::shared_ptr<EngineBackend>(new EngineBackend());
         }
     } catch (const InferenceEngine::details::InferenceEngineException& e) {
-        std::cout << "Could not find a suitable backend. Will be used null backend" << std::endl;
-        std::cout << e.what() << std::endl;
+        logger.warning("Could not find a suitable backend. Will be used null backend: %s", e.what());
         return nullptr;
     } catch (const std::exception& e) {
-        std::cout << "Could not find a suitable backend. Will be used null backend" << std::endl;
-        std::cout << e.what() << std::endl;
+        logger.warning("Could not find a suitable backend. Will be used null backend: %s", e.what());
         return nullptr;
     } catch (...) {
-        std::cout << "Could not find a suitable backend. Will be used null backend" << std::endl;
+        logger.warning("Could not find a suitable backend. Will be used null backend");
         return nullptr;
     }
 }
