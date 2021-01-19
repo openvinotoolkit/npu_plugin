@@ -132,7 +132,7 @@ TEST_F(KmbClassifyNetworkTest, efficient_b0_cars) {
             1, 0.1f);
 }
 
-TEST_F(KmbClassifyNetworkTest, efficient_b0_dogs) {
+TEST_F(KmbClassifyNetworkTest, precommit_efficient_b0_dogs) {
     runTest(
             TestNetworkDesc("efficientnet-b0-stanford-dogs/caffe2/FP16-INT8/efficientnet-b0-stanford-dogs.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -140,7 +140,7 @@ TEST_F(KmbClassifyNetworkTest, efficient_b0_dogs) {
                     .setUserOutputPrecision("output", Precision::FP32)
                     .enableLPTRefMode(),
             TestImageDesc("vpu/efficient/dog_1.jpg", ImageFormat::RGB),
-            1, 0.1f);
+            1, 0.13f);
 }
 
 TEST_F(KmbClassifyNetworkTest, efficient_b0_aircrafts) {
