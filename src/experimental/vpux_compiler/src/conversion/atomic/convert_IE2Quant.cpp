@@ -196,7 +196,7 @@ private:
 };
 
 mlir::LogicalResult ConvertIE2QuantPass::UseConstFakeQuant::matchAndRewrite(IE::FakeQuantizeOp origOp,
-                                                                          mlir::PatternRewriter& rewriter) const {
+                                                                            mlir::PatternRewriter& rewriter) const {
     _log.trace("Got FakeQuantize Operation '{0}'", origOp->getLoc());
 
     auto inLowConst = origOp.input_low().getDefiningOp<ConstantInterface>();
@@ -265,7 +265,7 @@ private:
 };
 
 mlir::LogicalResult ConvertIE2QuantPass::UseDequantize::matchAndRewrite(IE::FakeQuantizeOp origOp,
-                                                                      mlir::PatternRewriter& rewriter) const {
+                                                                        mlir::PatternRewriter& rewriter) const {
     _log.trace("Got FakeQuantize Operation '{0}'", origOp->getLoc());
 
     auto inConst = origOp.input().getDefiningOp<ConstantInterface>();
