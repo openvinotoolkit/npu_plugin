@@ -169,14 +169,18 @@ mlir::LogicalResult vpux::VPUIP::verifySameShape(mlir::Operation* op) {
         return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
     }
 
-    const auto input = layer.getInputs().front();
-    const auto output = layer.getOutputs().front();
+    auto inputs = layer.getInputs();
+    auto outputs = layer.getOutputs();
 
-    const auto inShape = getShape(input);
-    const auto outShape = getShape(output);
+    const auto firstInput = inputs.front();
+    const auto mainShape = getShape(firstInput);
 
-    if (inShape != outShape) {
-        return errorAt(op, "Input shape '{0}' doesn't match with output '{1}'", inShape, outShape);
+    for (const auto& val : concat<mlir::Value>(inputs, outputs)) {
+        const auto shape = getShape(val);
+
+        if (shape != mainShape) {
+            return errorAt(op, "Operation's input/output shapes mismatch");
+        }
     }
 
     return mlir::success();
@@ -194,14 +198,18 @@ mlir::LogicalResult vpux::VPUIP::verifySameElementType(mlir::Operation* op) {
         return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
     }
 
-    const auto input = layer.getInputs().front();
-    const auto output = layer.getOutputs().front();
+    auto inputs = layer.getInputs();
+    auto outputs = layer.getOutputs();
 
-    const auto inElemType = input.getType().cast<mlir::ShapedType>().getElementType();
-    const auto outElemType = output.getType().cast<mlir::ShapedType>().getElementType();
+    const auto firstInput = inputs.front();
+    const auto mainElemType = firstInput.getType().cast<mlir::ShapedType>().getElementType();
 
-    if (inElemType != outElemType) {
-        return errorAt(op, "Input element type '{0}' doesn't match with output '{1}'", inElemType, outElemType);
+    for (const auto& val : concat<mlir::Value>(inputs, outputs)) {
+        const auto elemType = val.getType().cast<mlir::ShapedType>().getElementType();
+
+        if (elemType != mainElemType) {
+            return errorAt(op, "Operation's input/output element types mismatch");
+        }
     }
 
     return mlir::success();
@@ -219,14 +227,18 @@ mlir::LogicalResult vpux::VPUIP::verifySameDimsOrder(mlir::Operation* op) {
         return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
     }
 
-    const auto input = layer.getInputs().front();
-    const auto output = layer.getOutputs().front();
+    auto inputs = layer.getInputs();
+    auto outputs = layer.getOutputs();
 
-    const auto inOrder = DimsOrder::fromValue(input);
-    const auto outOrder = DimsOrder::fromValue(output);
+    const auto firstInput = inputs.front();
+    const auto mainOrder = DimsOrder::fromValue(firstInput);
 
-    if (inOrder != outOrder) {
-        return errorAt(op, "Input DimsOrder '{0}' doesn't match with output '{1}'", inOrder, outOrder);
+    for (const auto& val : concat<mlir::Value>(inputs, outputs)) {
+        const auto order = DimsOrder::fromValue(val);
+
+        if (order != mainOrder) {
+            return errorAt(op, "Operation's input/output layout mismatch");
+        }
     }
 
     return mlir::success();
