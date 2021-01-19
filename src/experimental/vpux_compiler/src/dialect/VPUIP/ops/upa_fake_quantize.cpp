@@ -22,49 +22,19 @@
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
+#include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
-
-#include <ngraph/type/float16.hpp>
 
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
-    static const Byte SHAVE_LIB_DATA_SIZE = 112_KB;
-
     const auto inShape = getShape(op.input());
-    const auto outShape = getShape(op.output());
-
-    if (inShape.size() != 4) {
-        return printTo(op.emitError(), "Got unsupported input shape '{0}', only 4D is supported", inShape);
-    }
-    if (outShape.size() != 4) {
-        return printTo(op.emitError(), "Got unsupported output shape '{0}', only 4D is supported", outShape);
-    }
-    if (inShape != outShape) {
-        return printTo(op.emitError(), "Input shape '{0}' doesn't match with output shape '{1}'", inShape, outShape);
-    }
-
     const auto inOrder = DimsOrder::fromValue(op.input());
-    const auto outOrder = DimsOrder::fromValue(op.output());
-
-    if (!inOrder.hasValue()) {
-        return printTo(op.emitError(), "Input Type '{0}' has unknown DimsOrder", op.input().getType());
-    }
-    if (!outOrder.hasValue()) {
-        return printTo(op.emitError(), "Output Type '{0}' has unknown DimsOrder", op.output().getType());
-    }
-    if (inOrder.getValue() != DimsOrder::NCHW && inOrder.getValue() != DimsOrder::NHWC) {
-        return printTo(op.emitError(), "Got unsupported input DimsOrder '{0}', only NCHW and NHWC are supported",
-                       inOrder);
-    }
-    if (inOrder != outOrder) {
-        return printTo(op.emitError(), "Input DimsOrder '{0}' doesn't match with output '{1}'", inOrder, outOrder);
-    }
 
     const Byte elemSize = getElemTypeSize(op.input().getType().cast<mlir::MemRefType>());
     const auto inStrides = getStrides(op.input());
@@ -74,14 +44,14 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
 
     const auto strideReqs = StrideReqs::compact(inShape.size());
     if (!strideReqs.checkStrides(memStrides, elemSize, memShape)) {
-        return printTo(op.emitError(), "Only compact strides are supported");
+        return errorAt(op, "Only compact strides are supported");
     }
 
     const auto md0 = memShape[MemDim(0)];
     const auto md1 = memShape[MemDim(1)];
 
-    if (checked_cast<int64_t>(md0 * md1 * sizeof(fp16_t)) >= SHAVE_LIB_DATA_SIZE.count() / 2) {
-        return printTo(op.emitError(), "Memory buffers doesn't fit to kernel inner CMX buffer");
+    if (Byte(md0 * md1 * FP16_SIZE) >= Byte(SHAVE_LIB_DATA_SIZE / 2)) {
+        return errorAt(op, "Memory buffers doesn't fit to inner CMX buffer");
     }
 
     return mlir::success();
@@ -96,13 +66,12 @@ void vpux::VPUIP::FakeQuantizeUPAOp::build(mlir::OpBuilder& builder, mlir::Opera
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FakeQuantizeUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto getRawFP16 = [](const ngraph::float16& val) {
+    const auto getRawFP16 = [](const float16& val) {
         return val.to_bits();
     };
 
     const auto getVecFP16 = [&](mlir::ElementsAttr attr) {
-        return writer.createVector(attr.cast<ConstContentAttr>().getValues<ngraph::float16>() |
-                                   transformed(getRawFP16));
+        return writer.createVector(attr.cast<ConstContentAttr>().getValues<float16>() | transformed(getRawFP16));
     };
 
     const auto input_low = getVecFP16(this->input_low());

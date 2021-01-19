@@ -35,12 +35,12 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
 
     auto kConst = topK.k().getDefiningOp<ConstantInterface>();
     if (kConst == nullptr) {
-        return mlir::failure();
+        return errorAt(loc, "Only constant input is supported for k");
     }
 
     const auto kVals = kConst.getContent().getValues<int64_t>();
     if (kVals.size() != 1) {
-        return printTo(mlir::emitError(loc), "K input must be scalar");
+        return errorAt(loc, "K input must be scalar");
     }
 
     SmallVector<int64_t> outShape;

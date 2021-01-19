@@ -40,7 +40,9 @@
 #include <ngraph/ops.hpp>
 #include <ngraph/partial_shape.hpp>
 #include <ngraph/shape.hpp>
+#include <ngraph/type/bfloat16.hpp>
 #include <ngraph/type/element_type.hpp>
+#include <ngraph/type/float16.hpp>
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/DenseMapInfo.h>

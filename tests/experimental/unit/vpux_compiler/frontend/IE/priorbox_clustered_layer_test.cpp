@@ -24,13 +24,13 @@ TEST(IE_FrontEndTest, PriorBoxClusteredLayer) {
         auto imageSize = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ngraph::Shape{2});
 
         ngraph::op::PriorBoxClusteredAttrs attrs;
-        attrs.widths = std::vector<float>{86.0, 13.0, 57.0, 39.0, 68.0, 34.0, 142.0, 50.0, 23.0};
-        attrs.heights = std::vector<float>{44.0, 10.0, 30.0, 19.0, 94.0, 32.0, 61.0, 53.0, 17.0};
+        attrs.widths = std::vector<float>{86.0f, 13.0f, 57.0f, 39.0f, 68.0f, 34.0f, 142.0f, 50.0f, 23.0f};
+        attrs.heights = std::vector<float>{44.0f, 10.0f, 30.0f, 19.0f, 94.0f, 32.0f, 61.0f, 53.0f, 17.0f};
         attrs.clip = false;
-        attrs.step_widths = 16.0;
-        attrs.step_heights = 16.0;
-        attrs.offset = 0.5;
-        attrs.variances = std::vector<float>{0.1, 0.1, 0.2, 0.2};
+        attrs.step_widths = 16.0f;
+        attrs.step_heights = 16.0f;
+        attrs.offset = 0.5f;
+        attrs.variances = std::vector<float>{0.1f, 0.1f, 0.2f, 0.2f};
         auto priorBoxClustered = std::make_shared<ngraph::opset1::PriorBoxClustered>(outputSize, imageSize, attrs);
         priorBoxClustered->set_friendly_name("PriorBoxClustered");
         auto result = std::make_shared<ngraph::op::Result>(priorBoxClustered);

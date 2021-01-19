@@ -36,8 +36,6 @@
 
 #include <precision_utils.h>
 
-#include <ngraph/type/float16.hpp>
-
 using namespace vpux;
 
 namespace {
@@ -77,7 +75,7 @@ void ConvertPrecisionToFP16Pass::runOnOperation() {
     try {
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
+        errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
@@ -128,7 +126,7 @@ private:
 
 mlir::LogicalResult ConvertPrecisionToFP16Pass::GenericOpConverter::matchAndRewrite(
         mlir::Operation* origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Process Operation '{0}'", *origOp);
+    _log.trace("Process Operation '{0}'", origOp->getLoc());
 
     auto* converter = getTypeConverter();
     VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");

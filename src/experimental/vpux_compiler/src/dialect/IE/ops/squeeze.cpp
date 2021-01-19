@@ -33,12 +33,12 @@ mlir::LogicalResult vpux::IE::SqueezeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inDataType = squeeze.input1().getType().cast<mlir::ShapedType>();
+    const auto inDataType = squeeze.input().getType().cast<mlir::ShapedType>();
     const auto inDataShape = inDataType.getShape();
 
-    auto axesConst = squeeze.input2().getDefiningOp<ConstantInterface>();
+    auto axesConst = squeeze.axes().getDefiningOp<ConstantInterface>();
     if (axesConst == nullptr) {
-        return mlir::failure();
+        return errorAt(loc, "Only constant input is supported for axes");
     }
 
     auto axes = to_small_vector(axesConst.getContent().getValues<int64_t>());
@@ -60,7 +60,7 @@ mlir::LogicalResult vpux::IE::SqueezeOp::inferReturnTypeComponents(
 
         for (auto a : axes) {
             if (a >= static_cast<int64_t>(outShapeVec.size()) || outShapeVec[a] != 1) {
-                return mlir::failure();
+                return errorAt(loc, "Wrong axes value '{0}'", a);
             }
 
             outShapeVec.erase(outShapeVec.begin() + a);

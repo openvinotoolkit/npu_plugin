@@ -34,12 +34,13 @@ mlir::LogicalResult vpux::IE::TileOp::inferReturnTypeComponents(
 
     auto repeatsConst = tile.repeats().getDefiningOp<ConstantInterface>();
     if (repeatsConst == nullptr) {
-        return mlir::failure();
+        return errorAt(loc, "Only constant input is supported for repeats");
     }
 
     const auto repeats = repeatsConst.getContent().getValues<int64_t>();
+
     if (repeats.size() != inType.getShape().size()) {
-        return mlir::failure();
+        return errorAt(loc, "Repeats vector size doesn't match input rank");
     }
 
     auto outShape = to_small_vector(inType.getShape());
@@ -49,5 +50,6 @@ mlir::LogicalResult vpux::IE::TileOp::inferReturnTypeComponents(
     }
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
+
     return mlir::success();
 }

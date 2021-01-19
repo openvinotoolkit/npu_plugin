@@ -28,8 +28,7 @@ namespace {
 mlir::FailureOr<SmallVector<int64_t>> getReshapeOutputShape(mlir::Location loc, IE::ReshapeOpAdaptor reshape) {
     auto shapeConst = reshape.shape().getDefiningOp<ConstantInterface>();
     if (shapeConst == nullptr) {
-        return mlir::LogicalResult(
-                printTo(mlir::emitError(loc), "Reshape with non-constant output shape is not supported"));
+        return errorAt(loc, "Only constant input is supported for shape");
     }
 
     auto shapeVec = to_small_vector(shapeConst.getContent().getValues<int64_t>());
@@ -44,7 +43,7 @@ mlir::FailureOr<SmallVector<int64_t>> getReshapeOutputShape(mlir::Location loc, 
     });
 
     if (negativeDims > 1) {
-        return mlir::LogicalResult(printTo(mlir::emitError(loc), "Shape can not contain more than 1 negative value"));
+        return errorAt(loc, "Shape can not contain more than 1 negative value");
     }
 
     if (!(zeroDims != 0 && specialZero) && negativeDims == 0) {
@@ -61,15 +60,13 @@ mlir::FailureOr<SmallVector<int64_t>> getReshapeOutputShape(mlir::Location loc, 
                 if (i < inShape.size()) {
                     v = inShape[i];
                 } else {
-                    return mlir::LogicalResult(printTo(
-                            mlir::emitError(loc), "Shape value at '{0}' is out of range '{1}'", i, inShape.size()));
+                    return errorAt(loc, "Shape value at '{0}' is out of range '{1}'", i, inShape.size());
                 }
             }
 
             if (v > 0) {
                 if (dividend % v != 0) {
-                    return mlir::LogicalResult(
-                            printTo(mlir::emitError(loc), "Shape value at '{0}' ('{1}') is invalid", i, v));
+                    return errorAt(loc, "Shape value at '{0}' ('{1}') is invalid", i, v);
                 }
 
                 dividend /= v;

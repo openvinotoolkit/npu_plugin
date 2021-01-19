@@ -29,23 +29,23 @@ IE.CNNNetwork
         IE.DataInfo "prob" : memref<1x1000xf32>
     }
 
-// CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x1000xf16>, [[ARG1:%arg[0-9]*]]: memref<1x1000xf16>) {
-func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) {
-    %0 = IERT.StaticAlloc<0> -> memref<1x1000xf16, "DDR">
-    IERT.SoftMax(%arg0, %0) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16, "DDR">
-    linalg.copy(%0, %arg1) : memref<1x1000xf16, "DDR">, memref<1x1000xf16>
+// CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x1x1x1000xf16>, [[ARG1:%arg[0-9]*]]: memref<1x1x1x1000xf16>) {
+func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
+    %0 = IERT.StaticAlloc<0> -> memref<1x1x1x1000xf16, "DDR">
+    IERT.SoftMax(%arg0, %0) {axisInd = 3 : i32} : memref<1x1x1x1000xf16>, memref<1x1x1x1000xf16, "DDR">
+    linalg.copy(%0, %arg1) : memref<1x1x1x1000xf16, "DDR">, memref<1x1x1x1000xf16>
     return
 
-    // CHECK:       [[VAR0:%[0-9]*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16, "DDR">
+    // CHECK:       [[VAR0:%[0-9]*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16, "DDR">
 
     // CHECK:       VPUIP.SoftMaxUPA
-    // CHECK-SAME:      axisInd = 1
-    // CHECK-SAME:      inputs([[ARG0]] : memref<1x1000xf16>)
-    // CHECK-SAME:      outputs([[VAR0]] : memref<1x1000xf16, "DDR">)
+    // CHECK-SAME:      axisInd = 3
+    // CHECK-SAME:      inputs([[ARG0]] : memref<1x1x1x1000xf16>)
+    // CHECK-SAME:      outputs([[VAR0]] : memref<1x1x1x1000xf16, "DDR">)
 
     // CHECK:       VPUIP.NNDMA
-    // CHECK-SAME:      inputs([[VAR0]] : memref<1x1000xf16, "DDR">)
-    // CHECK-SAME:      outputs([[ARG1]] : memref<1x1000xf16>)
+    // CHECK-SAME:      inputs([[VAR0]] : memref<1x1x1x1000xf16, "DDR">)
+    // CHECK-SAME:      outputs([[ARG1]] : memref<1x1x1x1000xf16>)
 }
 
 }

@@ -56,7 +56,7 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
     auto endConst = slice.end().getDefiningOp<ConstantInterface>();
     auto strideConst = slice.stride().getDefiningOp<ConstantInterface>();
     if (beginConst == nullptr || endConst == nullptr || strideConst == nullptr) {
-        return mlir::failure();
+        return errorAt(loc, "Only constant input is supported for begin, end and stride");
     }
 
     const auto begin = to_std_vector(beginConst.getContent().getValues<int64_t>());

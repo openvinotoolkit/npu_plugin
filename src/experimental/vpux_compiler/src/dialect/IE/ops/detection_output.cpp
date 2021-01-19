@@ -37,11 +37,10 @@ mlir::LogicalResult vpux::IE::DetectionOutputOp::inferReturnTypeComponents(
             detectionOutput.attr().share_location().getValue() ? 1 : detectionOutput.attr().num_classes().getInt();
 
     if (num_loc_classes <= 0) {
-        return mlir::LogicalResult(printTo(mlir::emitError(loc), "Number of classes should be a natural number"));
+        return errorAt(loc, "Number of classes should be a natural number");
     }
     if (boxLogitsType.getShape()[1] % (num_loc_classes * 4) != 0) {
-        return mlir::LogicalResult(printTo(
-                mlir::emitError(loc), "For [N, C, H, W] input shape, C should be divisible by num_loc_classes * 4."));
+        return errorAt(loc, "C dimension should be divisible by num_loc_classes * 4");
     }
 
     const auto num_prior_boxes = boxLogitsType.getShape()[1] / (num_loc_classes * 4);

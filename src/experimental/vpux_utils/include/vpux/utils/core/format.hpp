@@ -25,7 +25,6 @@
 #include "vpux/utils/core/mask.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/range.hpp"
-#include "vpux/utils/core/slice.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 #include "vpux/utils/core/type_traits.hpp"
@@ -241,23 +240,6 @@ struct format_provider<vpux::Mask> final {
     static void format(const vpux::Mask& mask, llvm::raw_ostream& stream, StringRef style) {
         auto adapter = llvm::detail::build_format_adapter(mask.asRange());
         adapter.format(stream, style);
-    }
-};
-
-template <>
-struct format_provider<vpux::Slice> final {
-    static void format(const vpux::Slice& slice, llvm::raw_ostream& stream, StringRef style) {
-        stream << '[';
-
-        auto adapter1 = llvm::detail::build_format_adapter(slice.begin());
-        adapter1.format(stream, style);
-
-        stream << ", ";
-
-        auto adapter2 = llvm::detail::build_format_adapter(slice.end());
-        adapter2.format(stream, style);
-
-        stream << ')';
     }
 };
 

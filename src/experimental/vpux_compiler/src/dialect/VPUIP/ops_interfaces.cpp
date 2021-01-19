@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 
@@ -34,17 +35,17 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
 
     auto task = mlir::dyn_cast<TaskOpInterface>(op);
     if (task == nullptr) {
-        return printTo(op->emitError(), "Operation '{0}' doesn't implement VPUIP UPATask interface", op->getName());
+        return errorAt(op, "Operation '{0}' doesn't implement VPUIP UPATask interface", op->getName());
     }
 
     auto upaTask = mlir::dyn_cast<UPATaskOpInterface>(op);
     if (upaTask == nullptr) {
-        return printTo(op->emitError(), "Operation '{0}' doesn't implement VPUIP UPATask interface", op->getName());
+        return errorAt(op, "Operation '{0}' doesn't implement VPUIP UPATask interface", op->getName());
     }
 
     auto layer = mlir::dyn_cast<LayerInterface>(op);
     if (layer == nullptr) {
-        return printTo(op->emitError(), "Operation '{0}' doesn't implement Layer interface", op->getName());
+        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
     }
 
     auto inputs = layer.getInputs();
@@ -55,30 +56,52 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
         auto mem = getPhysicalMemory(type);
 
         if (mlir::failed(mem)) {
-            return printTo(op->emitError(), "Operation '{0}' has argument with unsupported memory space '{1}'",
-                           op->getName(), type.getMemorySpace());
+            return errorAt(op, "Unsupported memory space '{0}'", type.getMemorySpace());
         }
 
         if (mem.getValue() == PhysicalMemory::CMX_NN) {
-            return printTo(op->emitError(), "'{0}' can't operate with '{1}' PhysicalMemory", op->getName(),
-                           mem.getValue());
+            return errorAt(op, "Can't operate with '{0}' PhysicalMemory", mem.getValue());
+        }
+
+        const auto shape = getShape(val);
+        if (shape.size() != 4) {
+            return errorAt(op, "Got unsupported shape '{0}', only 4D is supported", shape);
+        }
+
+        const auto order = DimsOrder::fromValue(val);
+        if (!order.hasValue()) {
+            return errorAt(op, "Type '{0}' has unknown DimsOrder", type);
+        }
+        if (order.getValue() != DimsOrder::NCHW && order.getValue() != DimsOrder::NHWC) {
+            return errorAt(op, "Got unsupported input DimsOrder '{0}', only NCHW and NHWC are supported", order);
+        }
+
+        const auto elemSize = getElemTypeSize(type);
+        const auto strides = getStrides(val);
+        const auto memShape = order->toMemoryOrder(shape);
+        const auto memStrides = order->toMemoryOrder(strides);
+
+        const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(0)));
+
+        if (!strideReqs.checkStrides(memStrides, elemSize, memShape)) {
+            return errorAt(op, "Memory strides '{0}' do not match requirements '{1}'", memStrides, strideReqs);
         }
     }
 
     if (upaTask.maxShaves().hasValue()) {
         auto resources = IERT::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
         if (resources == nullptr) {
-            return printTo(op->emitError(), "Missing IERT run-time resources definition");
+            return errorAt(op, "Missing IERT run-time resources definition");
         }
 
         auto available = resources.getAvailableExecutor(
                 VPUIP::PhysicalProcessorAttr::get(op->getContext(), VPUIP::PhysicalProcessor::SHAVE_UPA));
         if (available == nullptr) {
-            return printTo(op->emitError(), "SHAVE_UPA executor is not avaialble in run-time");
+            return errorAt(op, "SHAVE_UPA executor is not avaialble in run-time");
         }
         if (upaTask.maxShaves().getValue() > available.count()) {
-            return printTo(op->emitError(), "Operation 'maxShaves' attribute '{0}' exceeds available count '{1}'",
-                           upaTask.maxShaves(), available.count());
+            return errorAt(op, "maxShaves attribute '{0}' exceeds available count '{1}'", upaTask.maxShaves(),
+                           available.count());
         }
     }
 
@@ -88,11 +111,11 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
                 auto depTask = mlir::dyn_cast<VPUIP::TaskOpInterface>(depOp);
 
                 if (depTask == nullptr) {
-                    return printTo(op->emitError(), "Trailing UPA Task has non-SW dependency : {0}", *depOp);
+                    return errorAt(op, "Trailing UPA Task has non-SW dependency : '{0}'", depOp->getLoc());
                 }
 
                 if (depTask.getTaskType() != VPUIP::TaskType::UPA) {
-                    return printTo(op->emitError(), "Trailing UPA Task has non-SW dependency : {0}", *depOp);
+                    return errorAt(op, "Trailing UPA Task has non-SW dependency : '{0}'", depOp->getLoc());
                 }
             }
         }
@@ -132,6 +155,81 @@ void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffe
     for (const auto updateBarrier : task.updateBarriers()) {
         effects.emplace_back(mlir::MemoryEffects::Write::get(), updateBarrier, VPUIP::BarrierResource::get());
     }
+}
+
+//
+// SameShape
+//
+
+mlir::LogicalResult vpux::VPUIP::verifySameShape(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameShape");
+
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    if (layer == nullptr) {
+        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+    }
+
+    const auto input = layer.getInputs().front();
+    const auto output = layer.getOutputs().front();
+
+    const auto inShape = getShape(input);
+    const auto outShape = getShape(output);
+
+    if (inShape != outShape) {
+        return errorAt(op, "Input shape '{0}' doesn't match with output '{1}'", inShape, outShape);
+    }
+
+    return mlir::success();
+}
+
+//
+// SameElementType
+//
+
+mlir::LogicalResult vpux::VPUIP::verifySameElementType(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameElementType");
+
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    if (layer == nullptr) {
+        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+    }
+
+    const auto input = layer.getInputs().front();
+    const auto output = layer.getOutputs().front();
+
+    const auto inElemType = input.getType().cast<mlir::ShapedType>().getElementType();
+    const auto outElemType = output.getType().cast<mlir::ShapedType>().getElementType();
+
+    if (inElemType != outElemType) {
+        return errorAt(op, "Input element type '{0}' doesn't match with output '{1}'", inElemType, outElemType);
+    }
+
+    return mlir::success();
+}
+
+//
+// SameDimsOrder
+//
+
+mlir::LogicalResult vpux::VPUIP::verifySameDimsOrder(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameDimsOrder");
+
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    if (layer == nullptr) {
+        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+    }
+
+    const auto input = layer.getInputs().front();
+    const auto output = layer.getOutputs().front();
+
+    const auto inOrder = DimsOrder::fromValue(input);
+    const auto outOrder = DimsOrder::fromValue(output);
+
+    if (inOrder != outOrder) {
+        return errorAt(op, "Input DimsOrder '{0}' doesn't match with output '{1}'", inOrder, outOrder);
+    }
+
+    return mlir::success();
 }
 
 //

@@ -55,7 +55,7 @@ void SetInternalMemorySpacePass::runOnFunction() {
 
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "{0} failed : {1}", getName(), e.what());
+        errorAt(getOperation(), "{0} failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
@@ -66,7 +66,7 @@ void SetInternalMemorySpacePass::runOnFunction() {
 
 void SetInternalMemorySpacePass::passBody() {
     const auto callback = [this](mlir::AllocOp allocOp) {
-        _log.trace("Got Alloc Operation '{0}'", allocOp);
+        _log.trace("Got Alloc Operation '{0}'", allocOp->getLoc());
 
         const auto origType = allocOp.memref().getType().dyn_cast<mlir::MemRefType>();
         VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}' for Alloc operation",

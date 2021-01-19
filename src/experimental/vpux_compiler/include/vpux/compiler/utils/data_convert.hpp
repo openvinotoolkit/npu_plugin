@@ -16,10 +16,9 @@
 
 #pragma once
 
-#include <mlir/IR/Types.h>
+#include "vpux/utils/IE/float16.hpp"
 
-#include <ngraph/type/bfloat16.hpp>
-#include <ngraph/type/float16.hpp>
+#include <mlir/IR/Types.h>
 
 namespace vpux {
 
@@ -38,7 +37,7 @@ extern template int64_t convertData<int64_t>(const char* data, mlir::Type baseTy
 
 extern template float convertData<float>(const char* data, mlir::Type baseType);
 extern template double convertData<double>(const char* data, mlir::Type baseType);
-extern template ngraph::float16 convertData<ngraph::float16>(const char* data, mlir::Type baseType);
-extern template ngraph::bfloat16 convertData<ngraph::bfloat16>(const char* data, mlir::Type baseType);
+extern template float16 convertData<float16>(const char* data, mlir::Type baseType);
+extern template bfloat16 convertData<bfloat16>(const char* data, mlir::Type baseType);
 
 }  // namespace vpux

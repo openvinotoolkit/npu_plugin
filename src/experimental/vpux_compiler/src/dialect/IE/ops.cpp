@@ -113,12 +113,12 @@ void vpux::IE::IEDialect::initialize() {
 mlir::Operation* vpux::IE::IEDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value,
                                                           mlir::Type type, mlir::Location loc) {
     if (!value.isa<ConstContentAttr>()) {
-        printTo(mlir::emitError(loc), "Can't materialize IE Constant from Attribute '{0}'", value);
+        errorAt(loc, "Can't materialize IE Constant from Attribute '{0}'", value);
         return nullptr;
     }
 
     if (!type.isa<mlir::RankedTensorType>()) {
-        printTo(mlir::emitError(loc), "Can't materialize IE Constant for Type '{0}'", type);
+        errorAt(loc, "Can't materialize IE Constant for Type '{0}'", type);
         return nullptr;
     }
 

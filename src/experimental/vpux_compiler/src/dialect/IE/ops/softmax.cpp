@@ -18,8 +18,6 @@
 
 #include "vpux/utils/core/checked_cast.hpp"
 
-#include <ngraph/type/float16.hpp>
-
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::SoftMaxOp::inferReturnTypeComponents(

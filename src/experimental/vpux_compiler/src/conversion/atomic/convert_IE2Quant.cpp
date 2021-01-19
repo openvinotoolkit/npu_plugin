@@ -35,12 +35,12 @@ using namespace vpux;
 namespace {
 
 //
-// LowerIE2QuantPass
+// ConvertIE2QuantPass
 //
 
-class LowerIE2QuantPass final : public LowerIE2QuantBase<LowerIE2QuantPass> {
+class ConvertIE2QuantPass final : public ConvertIE2QuantBase<ConvertIE2QuantPass> {
 public:
-    explicit LowerIE2QuantPass(Logger log): _log(log) {
+    explicit ConvertIE2QuantPass(Logger log): _log(log) {
         _log.setName(Base::getArgumentName());
     }
 
@@ -80,16 +80,16 @@ private:
     Logger _log;
 };
 
-const mlir::PatternBenefit LowerIE2QuantPass::lowBenefit(1);
-const mlir::PatternBenefit LowerIE2QuantPass::highBenefit(2);
+const mlir::PatternBenefit ConvertIE2QuantPass::lowBenefit(1);
+const mlir::PatternBenefit ConvertIE2QuantPass::highBenefit(2);
 
-void LowerIE2QuantPass::runOnFunction() {
+void ConvertIE2QuantPass::runOnFunction() {
     try {
         _log.trace("Run on Function '@{0}'", getFunction().sym_name());
 
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
+        errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
@@ -98,7 +98,7 @@ void LowerIE2QuantPass::runOnFunction() {
 // getConstFakeQuantParams
 //
 
-mlir::FailureOr<LowerIE2QuantPass::ConstFakeQuantParams> LowerIE2QuantPass::getConstFakeQuantParams(
+mlir::FailureOr<ConvertIE2QuantPass::ConstFakeQuantParams> ConvertIE2QuantPass::getConstFakeQuantParams(
         IE::FakeQuantizeOp origOp, Logger log) {
     ConstFakeQuantParams params;
 
@@ -182,7 +182,7 @@ mlir::FailureOr<LowerIE2QuantPass::ConstFakeQuantParams> LowerIE2QuantPass::getC
 // UseConstFakeQuant
 //
 
-class LowerIE2QuantPass::UseConstFakeQuant final : public mlir::OpRewritePattern<IE::FakeQuantizeOp> {
+class ConvertIE2QuantPass::UseConstFakeQuant final : public mlir::OpRewritePattern<IE::FakeQuantizeOp> {
 public:
     UseConstFakeQuant(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<IE::FakeQuantizeOp>(ctx, highBenefit), _log(log) {
@@ -195,7 +195,7 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult LowerIE2QuantPass::UseConstFakeQuant::matchAndRewrite(IE::FakeQuantizeOp origOp,
+mlir::LogicalResult ConvertIE2QuantPass::UseConstFakeQuant::matchAndRewrite(IE::FakeQuantizeOp origOp,
                                                                           mlir::PatternRewriter& rewriter) const {
     _log.trace("Got FakeQuantize Operation '{0}'", origOp->getLoc());
 
@@ -251,7 +251,7 @@ mlir::LogicalResult LowerIE2QuantPass::UseConstFakeQuant::matchAndRewrite(IE::Fa
 // UseDequantize
 //
 
-class LowerIE2QuantPass::UseDequantize final : public mlir::OpRewritePattern<IE::FakeQuantizeOp> {
+class ConvertIE2QuantPass::UseDequantize final : public mlir::OpRewritePattern<IE::FakeQuantizeOp> {
 public:
     UseDequantize(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<IE::FakeQuantizeOp>(ctx, lowBenefit), _log(log) {
@@ -264,7 +264,7 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult LowerIE2QuantPass::UseDequantize::matchAndRewrite(IE::FakeQuantizeOp origOp,
+mlir::LogicalResult ConvertIE2QuantPass::UseDequantize::matchAndRewrite(IE::FakeQuantizeOp origOp,
                                                                       mlir::PatternRewriter& rewriter) const {
     _log.trace("Got FakeQuantize Operation '{0}'", origOp->getLoc());
 
@@ -353,7 +353,7 @@ mlir::LogicalResult LowerIE2QuantPass::UseDequantize::matchAndRewrite(IE::FakeQu
 // passBody
 //
 
-void LowerIE2QuantPass::passBody() {
+void ConvertIE2QuantPass::passBody() {
     auto& ctx = getContext();
 
     mlir::OwningRewritePatternList patterns;
@@ -369,9 +369,9 @@ void LowerIE2QuantPass::passBody() {
 }  // namespace
 
 //
-// createLowerIE2QuantPass
+// createConvertIE2QuantPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::createLowerIE2QuantPass(Logger log) {
-    return std::make_unique<LowerIE2QuantPass>(log);
+std::unique_ptr<mlir::Pass> vpux::createConvertIE2QuantPass(Logger log) {
+    return std::make_unique<ConvertIE2QuantPass>(log);
 }

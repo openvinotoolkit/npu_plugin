@@ -34,14 +34,18 @@ mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
 
     auto axisConst = split.axis().getDefiningOp<ConstantInterface>();
     if (axisConst == nullptr) {
-        return mlir::failure();
+        return errorAt(loc, "Only constant input is supported for axis");
+    }
+
+    if (axisConst.getContent().size() != 1) {
+        return errorAt(loc, "Axis must be a scalar");
     }
 
     const auto axis = axisConst.getContent().getValues<int64_t>()[0];
 
     auto outShape = to_small_vector(inType.getShape());
     if (outShape[axis] < split.num_splits().getInt() || outShape[axis] % split.num_splits().getInt() != 0) {
-        return mlir::failure();
+        return errorAt(loc, "Unsupported num_splits parameter");
     }
     outShape[axis] /= split.num_splits().getInt();
 

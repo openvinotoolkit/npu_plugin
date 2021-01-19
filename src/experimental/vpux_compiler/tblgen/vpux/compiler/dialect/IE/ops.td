@@ -716,8 +716,8 @@ def IE_SqueezeOp :
     let summary = "InferenceEngine Squeeze layer";
 
     let arguments = (ins
-        AnyRankedTensor:$input1,
-        1DTensorOf<[AnyInteger]>:$input2
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$axes
     );
 
     let results = (outs
@@ -787,8 +787,8 @@ def IE_UnsqueezeOp :
     let summary = "InferenceEngine Unsqueeze layer";
 
     let arguments = (ins
-        AnyRankedTensor:$input1,
-        1DTensorOf<[AnyInteger]>:$input2
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$axes
     );
 
     let results = (outs
@@ -990,8 +990,8 @@ def IE_TransposeOp :
     let summary = "InferenceEngine Transpose layer";
 
     let arguments = (ins
-        AnyRankedTensor:$input1,
-        RankedTensorOf<[AnyInteger]>:$input2
+        AnyRankedTensor:$input,
+        RankedTensorOf<[AnyInteger]>:$order
     );
 
     let results = (outs

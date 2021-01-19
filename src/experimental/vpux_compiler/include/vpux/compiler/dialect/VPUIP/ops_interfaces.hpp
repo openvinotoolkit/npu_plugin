@@ -49,6 +49,48 @@ using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effe
 
 void getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
 
+//
+// SameShape
+//
+
+mlir::LogicalResult verifySameShape(mlir::Operation* op);
+
+template <typename ConcreteOp>
+class SameShape : public mlir::OpTrait::TraitBase<ConcreteOp, SameShape> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameShape(op);
+    }
+};
+
+//
+// SameElementType
+//
+
+mlir::LogicalResult verifySameElementType(mlir::Operation* op);
+
+template <typename ConcreteOp>
+class SameElementType : public mlir::OpTrait::TraitBase<ConcreteOp, SameElementType> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameElementType(op);
+    }
+};
+
+//
+// SameDimsOrder
+//
+
+mlir::LogicalResult verifySameDimsOrder(mlir::Operation* op);
+
+template <typename ConcreteOp>
+class SameDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameDimsOrder> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameDimsOrder(op);
+    }
+};
+
 }  // namespace VPUIP
 }  // namespace vpux
 

@@ -83,7 +83,7 @@ mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
 
         auto outputShapeConst = outputShape.getDefiningOp<ConstantInterface>();
         if (outputShapeConst == nullptr) {
-            return mlir::failure();
+            return errorAt(loc, "Only constant input is supported for output_shape");
         }
 
         const auto outputShapeContent = outputShapeConst.getContent().getValues<int64_t>();

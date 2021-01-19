@@ -14,27 +14,18 @@
 // stated in the License.
 //
 
-#include "vpux/utils/core/error.hpp"
-
-#include "vpux/utils/core/logger.hpp"
-
-#include <details/ie_exception.hpp>
-
-using namespace vpux;
-
 //
-// Exceptions
+// FP16 and BF16 implementation
 //
 
-[[noreturn]] void vpux::details::throwFormat(StringRef file, int line, std::string message) {
-    VPUX_UNUSED(file);
-    VPUX_UNUSED(line);
+#pragma once
 
-#ifdef NDEBUG
-    Logger::global().error("Got exception : {0}", message);
-#else
-    Logger::global().error("Got exception in {0}:{1} : {2}", file, line, message);
-#endif
+#include <ngraph/type/bfloat16.hpp>
+#include <ngraph/type/float16.hpp>
 
-    throw InferenceEngine::details::InferenceEngineException(file.str(), line, message);
-}
+namespace vpux {
+
+using ngraph::bfloat16;
+using ngraph::float16;
+
+}  // namespace vpux

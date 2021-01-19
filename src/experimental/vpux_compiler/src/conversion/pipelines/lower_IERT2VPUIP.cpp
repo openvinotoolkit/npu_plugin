@@ -67,7 +67,7 @@ void LowerIERT2VPUIPPass::runOnOperation() {
 
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "{0} Pass failed : {1}", getName(), e.what());
+        errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
@@ -129,7 +129,7 @@ mlir::LogicalResult LowerIERT2VPUIPPass::setRunTimeResources() {
 
     auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
     if (resources == nullptr) {
-        return printTo(module.emitError(), "Failed to get 'IERT.RunTimeResources' Operation from Module");
+        return errorAt(module, "Failed to get 'IERT.RunTimeResources' Operation from Module");
     }
 
     const auto getProcAttr = [&](VPUIP::PhysicalProcessor proc) {

@@ -24,8 +24,7 @@ mlir::FailureOr<SmallVector<int64_t>> vpux::IE::broadcastEltwiseShape(ArrayRef<i
                                                                       mlir::Location loc) {
     if (broadcastType == AutoBroadcastType::NONE_OR_EXPLICIT) {
         if (shape1 != shape2) {
-            return mlir::LogicalResult(
-                    printTo(mlir::emitError(loc), "Input shapes must be equal in case BroadcastType is NONE"));
+            return errorAt(loc, "Input shapes must be equal in case BroadcastType is NONE");
         }
 
         return to_small_vector(shape1);
@@ -50,22 +49,20 @@ mlir::FailureOr<SmallVector<int64_t>> vpux::IE::broadcastEltwiseShape(ArrayRef<i
         return outShape;
     }
 
-    return mlir::LogicalResult(printTo(mlir::emitError(loc), "Unsupported BroadcastType '{0}'", broadcastType));
+    return errorAt(loc, "Unsupported BroadcastType '{0}'", broadcastType);
 }
 
 mlir::FailureOr<SmallVector<int64_t>> vpux::IE::broadcastEltwiseShape(ArrayRef<ArrayRef<int64_t>> shapes,
                                                                       AutoBroadcastType broadcastType,
                                                                       mlir::Location loc) {
     if (shapes.size() < 2) {
-        return mlir::LogicalResult(
-                printTo(mlir::emitError(loc), "Number of input shapes must be equal or greater than 2"));
+        return errorAt(loc, "Number of input shapes must be equal or greater than 2");
     }
 
     if (broadcastType == vpux::IE::AutoBroadcastType::NONE_OR_EXPLICIT) {
         for (size_t i = 1; i < shapes.size(); ++i) {
             if (shapes[0] != shapes[i]) {
-                return mlir::LogicalResult(
-                        printTo(mlir::emitError(loc), "Input shapes must be equal in case BroadcastType is NONE"));
+                return errorAt(loc, "Input shapes must be equal in case BroadcastType is NONE");
             }
         }
 
@@ -101,5 +98,5 @@ mlir::FailureOr<SmallVector<int64_t>> vpux::IE::broadcastEltwiseShape(ArrayRef<A
         return outShape;
     }
 
-    return mlir::LogicalResult(printTo(mlir::emitError(loc), "Unsupported BroadcastType '{0}'", broadcastType));
+    return errorAt(loc, "Unsupported BroadcastType '{0}'", broadcastType);
 }

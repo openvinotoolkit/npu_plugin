@@ -237,7 +237,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
 
     for (const auto& p : _netGraph->get_parameters() | indexed) {
         const auto& paramNode = p.value();
-        const auto paramIndex = p.index();
+        const auto paramIndex = checked_cast<uint32_t>(p.index());
 
         _log.trace("Convert network Parameter {0}", paramNode->get_friendly_name());
 
@@ -1054,8 +1054,8 @@ IE::DetectionOutputAttr NGraphImporter::importDetectionOutputAttrs(const ngraph:
     const auto decreaseLabel_idAttr = mlir::BoolAttr::get(val.decrease_label_id, _ctx);
     const auto normalizedAttr = mlir::BoolAttr::get(val.normalized, _ctx);
 
-    const auto inputHeightAttr = getUInt32Attr(_ctx, val.input_height);
-    const auto inputWidthAttr = getUInt32Attr(_ctx, val.input_width);
+    const auto inputHeightAttr = getUInt32Attr(_ctx, checked_cast<uint32_t>(val.input_height));
+    const auto inputWidthAttr = getUInt32Attr(_ctx, checked_cast<uint32_t>(val.input_width));
 
     const auto objectnessScoreAttr = getFP32Attr(_ctx, val.objectness_score);
 

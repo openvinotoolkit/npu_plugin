@@ -34,11 +34,13 @@ mlir::LogicalResult vpux::IE::PriorBoxClusteredOp::inferReturnTypeComponents(
 
     auto outputSizeConst = priorBoxClustered.output_size().getDefiningOp<ConstantInterface>();
     if (outputSizeConst == nullptr) {
-        return mlir::failure();
+        return errorAt(loc, "Only constant input is supported for output_size");
     }
 
     const auto outputSize = outputSizeConst.getContent().getValues<int64_t>();
-    VPUX_THROW_UNLESS(outputSize.size() == 2, "output_size of priorbox should be 2");
+    if (outputSize.size() != 2) {
+        return errorAt(loc, "output_size of priorbox should be 2");
+    }
 
     SmallVector<int64_t> outShape{2, 4 * numPriors};
     outShape[1] *= outputSize[0];

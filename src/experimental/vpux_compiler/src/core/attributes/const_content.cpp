@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/core/attributes/const_content.hpp"
 
+#include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/error.hpp"
 
@@ -158,9 +159,9 @@ void vpux::ConstContentAttr::convertTo(mlir::ShapedType actualType, MutableArray
     } else if (actualElemType.isF64()) {
         fillBuf(getValues<double>(actualDimsOrder), buf);
     } else if (actualElemType.isF16()) {
-        fillBuf(getValues<ngraph::float16>(actualDimsOrder), buf);
+        fillBuf(getValues<float16>(actualDimsOrder), buf);
     } else if (actualElemType.isBF16()) {
-        fillBuf(getValues<ngraph::bfloat16>(actualDimsOrder), buf);
+        fillBuf(getValues<bfloat16>(actualDimsOrder), buf);
     } else if (const auto qType = actualElemType.dyn_cast<mlir::quant::QuantizedType>()) {
         if (qType.getStorageType().isSignedInteger(8)) {
             fillBuf(getValues<int8_t>(actualDimsOrder), buf);

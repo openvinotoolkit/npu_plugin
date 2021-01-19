@@ -14,27 +14,24 @@
 // stated in the License.
 //
 
-#include "vpux/utils/core/error.hpp"
+#pragma once
 
-#include "vpux/utils/core/logger.hpp"
+#include "vpux/utils/core/format.hpp"
 
-#include <details/ie_exception.hpp>
+#include <mlir/IR/Location.h>
+#include <mlir/IR/Operation.h>
+#include <mlir/Pass/Pass.h>
 
-using namespace vpux;
+namespace vpux {
 
-//
-// Exceptions
-//
-
-[[noreturn]] void vpux::details::throwFormat(StringRef file, int line, std::string message) {
-    VPUX_UNUSED(file);
-    VPUX_UNUSED(line);
-
-#ifdef NDEBUG
-    Logger::global().error("Got exception : {0}", message);
-#else
-    Logger::global().error("Got exception in {0}:{1} : {2}", file, line, message);
-#endif
-
-    throw InferenceEngine::details::InferenceEngineException(file.str(), line, message);
+template <typename... Args>
+mlir::LogicalResult errorAt(mlir::Location loc, StringRef format, Args&&... args) {
+    return printTo(mlir::emitError(loc), format.data(), std::forward<Args>(args)...);
 }
+
+template <typename... Args>
+mlir::LogicalResult errorAt(mlir::Operation* op, StringRef format, Args&&... args) {
+    return printTo(op->emitError(), format.data(), std::forward<Args>(args)...);
+}
+
+}  // namespace vpux

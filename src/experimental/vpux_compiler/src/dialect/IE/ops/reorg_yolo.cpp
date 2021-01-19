@@ -33,19 +33,16 @@ mlir::LogicalResult vpux::IE::ReorgYoloOp::inferReturnTypeComponents(
     const auto inType = reorgYolo.input().getType().cast<mlir::ShapedType>();
 
     if (reorgYolo.stride().getInt() <= 0) {
-        return mlir::LogicalResult(printTo(mlir::emitError(loc), "Stride should be a natural number"));
+        return errorAt(loc, "Stride should be a natural number");
     }
     if (inType.getShape()[2] % reorgYolo.stride().getInt() != 0) {
-        return mlir::LogicalResult(
-                printTo(mlir::emitError(loc), "For [N, C, H, W] input shape, H should be divisible by stride."));
+        return errorAt(loc, "Input H should be divisible by stride.");
     }
     if (inType.getShape()[3] % reorgYolo.stride().getInt() != 0) {
-        return mlir::LogicalResult(
-                printTo(mlir::emitError(loc), "For [N, C, H, W] input shape, W should be divisible by stride."));
+        return errorAt(loc, "Input W should be divisible by stride.");
     }
     if (inType.getShape()[1] < reorgYolo.stride().getInt() * reorgYolo.stride().getInt()) {
-        return mlir::LogicalResult(
-                printTo(mlir::emitError(loc), "For [N, C, H, W] input shape, C >= (stride*stride) is required."));
+        return errorAt(loc, "Input C >= (stride*stride) is required.");
     }
 
     SmallVector<int64_t> outputShape{inType.getShape()[0], inType.getShape()[1]};

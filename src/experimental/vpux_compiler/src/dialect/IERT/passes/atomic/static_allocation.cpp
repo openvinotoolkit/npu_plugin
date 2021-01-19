@@ -75,7 +75,7 @@ void StaticAllocationPass::runOnOperation() {
 
         passBody();
     } catch (const std::exception& e) {
-        printTo(getOperation().emitError(), "{0} failed : {1}", getName(), e.what());
+        errorAt(getOperation(), "{0} failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
@@ -100,13 +100,13 @@ private:
 
 mlir::LogicalResult StaticAllocationPass::AllocRewrite::matchAndRewrite(mlir::AllocOp origOp,
                                                                         mlir::PatternRewriter& rewriter) const {
-    _log.trace("Found Alloc Operation '{0}'", origOp);
+    _log.trace("Found Alloc Operation '{0}'", origOp->getLoc());
 
     const auto val = origOp.memref();
 
     const auto offset = _allocInfo.get().getValOffset(val);
     if (!offset.hasValue()) {
-        _log.error("Value '{0}' was not allocated", val);
+        _log.error("Value '{0}' was not allocated", val.getLoc());
         return mlir::failure();
     }
 
@@ -136,17 +136,18 @@ private:
 
 mlir::LogicalResult StaticAllocationPass::DeallocRewrite::matchAndRewrite(
         mlir::DeallocOp origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Found Dealloc Operation '{0}'", origOp);
+    _log.trace("Found Dealloc Operation '{0}'", origOp->getLoc());
 
     VPUX_THROW_UNLESS(newOperands.size() == 1, "Got wrong newOperands count {0}", newOperands.size());
 
     auto* producer = newOperands[0].getDefiningOp();
     if (producer == nullptr) {
-        _log.error("Value '{0}' has no producer", newOperands[0]);
+        _log.error("Value '{0}' has no producer", newOperands[0].getLoc());
         return mlir::failure();
     }
     if (!mlir::isa<IERT::StaticAllocOp>(producer)) {
-        _log.error("Value '{0}' was produced by unsupported Operation '{1}'", newOperands[0], producer->getName());
+        _log.error("Value '{0}' was produced by unsupported Operation '{1}'", newOperands[0].getLoc(),
+                   producer->getLoc());
         return mlir::failure();
     }
 

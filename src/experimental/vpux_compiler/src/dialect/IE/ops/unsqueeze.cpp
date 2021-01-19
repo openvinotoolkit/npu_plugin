@@ -33,12 +33,12 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inDataType = unsqueeze.input1().getType().cast<mlir::ShapedType>();
+    const auto inDataType = unsqueeze.input().getType().cast<mlir::ShapedType>();
     const auto inDataShape = inDataType.getShape();
 
-    auto axesConst = unsqueeze.input2().getDefiningOp<ConstantInterface>();
+    auto axesConst = unsqueeze.axes().getDefiningOp<ConstantInterface>();
     if (axesConst == nullptr) {
-        return mlir::failure();
+        return errorAt(loc, "Only constant input is supported for axes");
     }
 
     auto axes = to_small_vector(axesConst.getContent().getValues<int64_t>());
@@ -47,8 +47,8 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
     SmallVector<int64_t> outShapeVec(inDataShape.begin(), inDataShape.end());
     const auto outRank = static_cast<int64_t>(outShapeVec.size() + axes.size());
 
-    if (*axes.rbegin() >= outRank) {
-        return mlir::failure();
+    if (axes.back() >= outRank) {
+        return errorAt(loc, "Axis '{0}' is out of input shape range", axes.back());
     }
 
     for (auto a : axes) {
@@ -56,5 +56,6 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
     }
 
     inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), inDataType.getElementType());
+
     return mlir::success();
 }
