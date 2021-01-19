@@ -3347,6 +3347,24 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAEluTask(mv::ComputationModel &cm
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATanhTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_TanhParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -3424,6 +3442,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAClampTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Elu")
         toReturn[0]->task.value = buildUPAEluTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Tanh")
+        toReturn[0]->task.value = buildUPATanhTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 

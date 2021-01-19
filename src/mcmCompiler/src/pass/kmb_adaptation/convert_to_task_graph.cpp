@@ -753,6 +753,20 @@ mv::Data::TensorIterator convertHSwishToUPATask(mv::OpModel& om, const std::vect
     return hswish;
 }
 
+mv::Data::TensorIterator convertTanhToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& /*attrs*/,
+                                                const std::string& name, bool /*software*/,
+                                                const mv::QuantizationParams& quantParams,
+                                                const mv::DType& outputTensorType,
+                                                const mv::Order& outputTensorOrder)
+{
+    auto tanh = om.uPATaskTanh(name, inputs);
+    tanh->setDType(outputTensorType);
+    tanh->setQuantParams(quantParams);
+    tanh->setOrder(outputTensorOrder);
+    return tanh;
+}
+
 mv::Data::TensorIterator convertConversionToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                                 const std::map<std::string, mv::Attribute>& attrs,
                                                 const std::string& name, bool /*software*/,
@@ -802,7 +816,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
-                                                       "RefConv", "Gather", "HSwish", "Conversion", "Relu"};
+                                                       "RefConv", "Gather", "HSwish", "Conversion", "Relu", "Tanh"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -843,7 +857,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Gather", convertGatherToUPATask},
     {"HSwish", convertHSwishToUPATask},
     {"Conversion", convertConversionToUPATask},
-    {"Relu", convertReluToUPATask}
+    {"Relu", convertReluToUPATask},
+    {"Tanh", convertTanhToUPATask}
     };
 
     // Layer types that given current compiler state, it's
