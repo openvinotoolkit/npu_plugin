@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --lower-IE-to-quant %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --convert-IE-to-quant %s | FileCheck %s
 
 // CHECK-LABEL: @SingleQuantParams
 func @SingleQuantParams(%arg0: tensor<1x3x30x30xf32>) -> tensor<1x3x30x30xf32> {

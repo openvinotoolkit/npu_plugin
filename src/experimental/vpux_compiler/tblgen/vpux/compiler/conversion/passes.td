@@ -20,13 +20,13 @@
 include "mlir/Pass/PassBase.td"
 
 //
-// LowerIE2Quant
+// ConvertIE2Quant
 //
 
-def LowerIE2Quant : FunctionPass<"lower-IE-to-quant"> {
+def ConvertIE2Quant : FunctionPass<"convert-IE-to-quant"> {
     let summary = "Converts IE FakeQuantize operations to analogues from quant Dialect";
 
-    let constructor = "vpux::createLowerIE2QuantPass()";
+    let constructor = "vpux::createConvertIE2QuantPass()";
 
     let dependentDialects = [
         "mlir::quant::QuantizationDialect"
