@@ -256,7 +256,9 @@ std::vector<char> compileNGraph(
 
         const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
             const bool skipLayers =
-                (std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node) != nullptr);
+                std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
+                std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node);
+
             return skipLayers;
         };
 
