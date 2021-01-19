@@ -2947,7 +2947,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACTCDecoderTask(ComputationModel
     auto softLayerParamsValue = new MVCNN::CTCDecoderParamsT();
 
     // Fill in required params
-    softLayerParamsValue->ctc_merge_repeated = opIt->get<bool>("ctc_merge_repeated");
+    softLayerParamsValue->ctc_merge_repeated = false;//opIt->get<bool>("ctc_merge_repeated");
 
     toBuild->softLayerParams.value = softLayerParamsValue;
 
