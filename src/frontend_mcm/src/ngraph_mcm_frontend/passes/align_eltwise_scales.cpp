@@ -135,6 +135,10 @@ bool AlignEltwiseScales::run_on_node(std::shared_ptr<ngraph::Node> node)
     if (std::dynamic_pointer_cast<McmEltwise>(node) ||
         std::dynamic_pointer_cast<ngraph::op::v1::Add>(node) ||
         std::dynamic_pointer_cast<ngraph::op::Eltwise>(node)) {
+        if (std::dynamic_pointer_cast<ngraph::op::Eltwise>(node)->eltwise_type == ELTWISE_TYPE::Prod) {
+            return false;
+        }
+
         auto inputs = getInputsFQ(node);
 
         size_t maxValues = 1;
