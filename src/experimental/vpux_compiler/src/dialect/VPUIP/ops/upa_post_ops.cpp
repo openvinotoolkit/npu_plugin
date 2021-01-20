@@ -179,3 +179,45 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SigmoidUPAOp::serialize(VPUIP::Blob
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
+
+//
+// PRelu
+//
+
+void vpux::VPUIP::PReluUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                    mlir::Value negative_slope, mlir::Value output) {
+    build(builder, state, input, negative_slope, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PReluUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto prelu = MVCNN::CreatePReluParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_PReluParams);
+    builder.add_nested_params(prelu.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
+// LeakyRelu
+//
+
+void vpux::VPUIP::LeakyReluUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                        mlir::Value output, mlir::FloatAttr negative_slope) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, negative_slope, nullptr, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LeakyReluUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const float negative_slope = getNegativeSlope();
+
+    const auto leaky_relu = MVCNN::CreateLeakyReluParams(writer, negative_slope);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_LeakyReluParams);
+    builder.add_nested_params(leaky_relu.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

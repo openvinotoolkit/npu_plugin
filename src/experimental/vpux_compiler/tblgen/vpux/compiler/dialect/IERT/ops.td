@@ -585,4 +585,51 @@ def IERT_FakeQuantizeOp :
     }];
 }
 
+//
+// PReluOp
+//
+
+def IERT_PReluOp :
+        IERT_LayerOp<
+            "PRelu",
+            [
+                SameOperandsElementType,
+		DeclareOpInterfaceMethods<PReluLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time PRelu layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+	MemRefOf<[F16, F32]>:$negative_slope,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
+// LeakyReluOp
+//
+
+def IERT_LeakyReluOp :
+        IERT_LayerOp<
+            "LeakyRelu",
+            [
+                SingleInputAndResultLayer,
+		SameOperandsElementType,
+		SameOperandsShape,
+		DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time LeakyRelu layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        F32Attr:$negative_slope
+    );
+}
+
 #endif

@@ -371,4 +371,86 @@ def EluLayerInterface : OpInterface<"EluLayerInterface"> {
     ];
 }
 
+//
+// PReluLayerInterface
+//
+
+def PReluLayerInterface : OpInterface<"PReluLayerInterface"> {
+    let description = "Interface for PRelu Layer";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "mlir::Value", "input", (ins),
+            [{
+                return $_op.input();
+            }]
+        >,
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "mlir::Value", "negative_slope", (ins),
+            [{
+                return $_op.negative_slope();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get destination Value for the Operation",
+            "mlir::Value", "output", (ins),
+            [{
+                return $_op.output();
+            }]
+        >,
+    ];
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {$_op.input(), $_op.negative_slope()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
+
+}
+
+//
+// LeakyReluLayerInterface
+//
+
+def LeakyReluLayerInterface : OpInterface<"LeakyReluLayerInterface"> {
+    let description = "Interface for LeakyRelu Layer";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "mlir::Value", "input", (ins),
+            [{
+                return $_op.input();
+            }]
+        >,
+        InterfaceMethod<
+            "Get destination Value for the Operation",
+            "mlir::Value", "output", (ins),
+            [{
+                return $_op.output();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "float", "getNegativeSlope", (ins),
+	    [{}],
+            [{
+                return $_op.negative_slope().convertToFloat();
+            }]
+        >,
+    ];
+}
+
 #endif
