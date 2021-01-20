@@ -70,8 +70,8 @@ public:
     explicit Logger(StringLiteral name, LogLevel lvl);
 
 public:
-    Logger nest() const;
-    Logger nest(StringLiteral name) const;
+    Logger nest(size_t inc = 1) const;
+    Logger nest(StringLiteral name, size_t inc = 1) const;
 
 public:
     auto name() const {

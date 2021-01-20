@@ -64,13 +64,13 @@ Logger& vpux::Logger::global() {
 vpux::Logger::Logger(StringLiteral name, LogLevel lvl): _name(name), _logLevel(lvl) {
 }
 
-Logger vpux::Logger::nest() const {
-    return nest(name());
+Logger vpux::Logger::nest(size_t inc) const {
+    return nest(name(), inc);
 }
 
-Logger vpux::Logger::nest(StringLiteral name) const {
+Logger vpux::Logger::nest(StringLiteral name, size_t inc) const {
     Logger nested(name, level());
-    nested._indentLevel = _indentLevel + 1;
+    nested._indentLevel = _indentLevel + inc;
     return nested;
 }
 

@@ -49,6 +49,8 @@ ReferenceModePass::ReferenceModePass(Logger log)
 
     _pm.addPass(mlir::createCanonicalizerPass());
     _pm.addPass(IE::createAdjustForVPUPass(_log.nest()));
+    _pm.addPass(IE::createUseUserPrecisionPass(_log.nest()));
+    _pm.addPass(mlir::createCanonicalizerPass());
     _pm.addPass(createLowerIE2IERTPass(_log.nest()));
     _pm.addPass(createLowerIERT2VPUIPPass(_log.nest()));
     _pm.addPass(VPUIP::createAddLinearSchedulingPass(_log.nest()));

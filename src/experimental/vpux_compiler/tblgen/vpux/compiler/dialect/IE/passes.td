@@ -87,4 +87,20 @@ def AdjustForVPU : Pass<"adjust-for-vpu", "mlir::ModuleOp"> {
     ];
 }
 
+//
+// UseUserPrecision
+//
+
+def UseUserPrecision : Pass<"use-user-precision", "mlir::ModuleOp"> {
+    let summary = "Use user precisions for entry point function prototype";
+
+    let description = [{
+        This "atomic" pass updates the CNNNetwork entry point function prototype
+        and use user-provided precisions for its operands and results.
+        The pass inserts Convert operations from/to topology precisions.
+    }];
+
+    let constructor = "vpux::IE::createUseUserPrecisionPass()";
+}
+
 #endif
