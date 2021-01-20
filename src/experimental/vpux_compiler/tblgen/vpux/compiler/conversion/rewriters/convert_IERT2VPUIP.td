@@ -257,4 +257,36 @@ def RewriteTanh :
             (createTanhUPAOp $input, $output)
         >;
 
+//
+// IERT.PRelu -> VPUIP.PReluUPA
+//
+
+def createPReluUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PReluUPAOp>(
+                $_loc, $0, $1, $2)
+        }]>;
+
+def RewritePRelu :
+        Pat<
+            (IERT_PReluOp $input, $negative_slope, $output),
+            (createPReluUPAOp $input, $negative_slope, $output)
+        >;
+
+//
+// IERT.LeakyRelu -> VPUIP.LeakyReluUPA
+//
+
+def createLeakyReluUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::LeakyReluUPAOp>(
+                $_loc, $0, $1, $2)
+        }]>;
+
+def RewriteLeakyRelu :
+        Pat<
+            (IERT_LeakyReluOp $input, $output, $negative_slope),
+            (createLeakyReluUPAOp $input, $output, $negative_slope)
+        >;
+
 #endif

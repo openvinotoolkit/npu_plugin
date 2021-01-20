@@ -24,7 +24,9 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesByExperimentalCompiler 
     ngraph::helpers::Clamp,
     ngraph::helpers::Elu,
     ngraph::helpers::HSwish,
-    ngraph::helpers::Tanh
+    ngraph::helpers::Tanh,
+    ngraph::helpers::PReLu,
+    ngraph::helpers::LeakyRelu
 };
 
 class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
@@ -81,7 +83,9 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Abs,      {{1.0f}}},
     {Elu,      {{1.0f}}},
     {Clamp,    {{-1.0f, 1.0f}}},
-    {HSwish,   {{1.0f}}}
+    {HSwish,   {{1.0f}}},
+    {PReLu,    {{0.01f}}},
+    {LeakyRelu,{{0.01f}}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {

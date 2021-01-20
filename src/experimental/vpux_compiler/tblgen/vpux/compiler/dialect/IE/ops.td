@@ -1273,4 +1273,57 @@ def IE_DeconvolutionOp:
     );
 }
 
+//
+// PReluOp
+//
+
+def IE_PReluOp :
+        IE_LayerOp<
+            "PRelu",
+	    [
+		DeclareOpInterfaceMethods<PReluLayerInterface>,
+		DeclareOpInterfaceMethods<LayerInterface>
+	    ]
+        > {
+    let summary = "InferenceEngine PRelu layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$negative_slope
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
+
+//
+// LeakyReluOp
+//
+
+def IE_LeakyReluOp :
+        IE_LayerOp<
+            "LeakyRelu",
+            [
+                SingleInputAndResultLayer,
+		SameOperandsAndResultType,
+		DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine LeakyRelu layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        
+	F32Attr:$negative_slope
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
 #endif
