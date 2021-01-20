@@ -25,6 +25,8 @@
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
+#include <llvm/Support/WithColor.h>
+
 #include <utility>
 
 #include <cassert>
@@ -90,6 +92,10 @@ public:
     }
 
     bool isActive(LogLevel msgLevel) const;
+
+public:
+    static llvm::raw_ostream& getBaseStream();
+    static llvm::WithColor getLevelStream(LogLevel msgLevel);
 
 public:
     template <typename... Args>

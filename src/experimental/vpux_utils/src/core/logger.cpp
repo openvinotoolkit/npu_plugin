@@ -17,7 +17,6 @@
 #include "vpux/utils/core/logger.hpp"
 
 #include <llvm/Support/Debug.h>
-#include <llvm/Support/WithColor.h>
 
 #include <cstdio>
 
@@ -84,6 +83,14 @@ bool vpux::Logger::isActive(LogLevel msgLevel) const {
 #endif
 }
 
+llvm::raw_ostream& vpux::Logger::getBaseStream() {
+#ifdef NDEBUG
+    return llvm::outs();
+#else
+    return llvm::DebugFlag ? llvm::dbgs() : llvm::outs();
+#endif
+}
+
 namespace {
 
 llvm::raw_ostream::Colors getColor(LogLevel msgLevel) {
@@ -105,20 +112,17 @@ llvm::raw_ostream::Colors getColor(LogLevel msgLevel) {
 
 }  // namespace
 
+llvm::WithColor vpux::Logger::getLevelStream(LogLevel msgLevel) {
+    const auto color = getColor(msgLevel);
+    return llvm::WithColor(getBaseStream(), color, true, false, llvm::ColorMode::Auto);
+}
+
 void vpux::Logger::addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_base& msg) const {
     if (!isActive(msgLevel)) {
         return;
     }
 
-    const auto color = getColor(msgLevel);
-
-#ifdef NDEBUG
-    auto& baseStream = llvm::outs();
-#else
-    auto& baseStream = llvm::DebugFlag ? llvm::dbgs() : llvm::outs();
-#endif
-
-    llvm::WithColor colorStream(baseStream, color, true, false, llvm::ColorMode::Auto);
+    auto colorStream = getLevelStream(msgLevel);
     auto& stream = colorStream.get();
 
     printTo(stream, "[{0}] ", _name);

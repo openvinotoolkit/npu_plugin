@@ -28,11 +28,14 @@
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
+#include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_utils.hpp"
 
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Pass/PassManager.h>
+
+#include <llvm/Support/Regex.h>
 
 #include <cpp/ie_cnn_network.h>
 #include <description_buffer.hpp>
@@ -111,6 +114,8 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     bool enablePassVerifier = true;
     std::string crashReproducerFile;
     bool localReproducer = true;
+    Optional<llvm::Regex> irPrintingFilter;
+    bool printFullIR = false;
 
 #ifdef VPUX_DEVELOPER_BUILD
     if (const auto env = std::getenv("IE_VPUX_ENABLE_PASS_VERIFIER")) {
@@ -121,6 +126,21 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     }
     if (const auto env = std::getenv("IE_VPUX_GEN_LOCAL_REPRODUCER")) {
         localReproducer = std::stoi(env);
+    }
+    if (const auto env = std::getenv("IE_VPUX_IR_PRINTING_FILTER")) {
+        const StringRef filter(env);
+
+        if (!filter.empty()) {
+            irPrintingFilter = llvm::Regex(filter, llvm::Regex::IgnoreCase);
+
+            std::string regexErr;
+            if (!irPrintingFilter->isValid(regexErr)) {
+                VPUX_THROW("Invalid regural expression '{0}' : {1}", filter, regexErr);
+            }
+        }
+    }
+    if (const auto env = std::getenv("IE_VPUX_PRINT_FULL_IR")) {
+        printFullIR = std::stoi(env);
     }
 #endif
 
@@ -153,15 +173,36 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     if (!crashReproducerFile.empty()) {
         pm.enableCrashReproducerGeneration(crashReproducerFile, localReproducer);
     }
-
     if (log.isActive(LogLevel::Info)) {
         pm.enableTiming(std::make_unique<TimingLogger>(log));
+    }
+    if (irPrintingFilter.hasValue()) {
+        const auto shouldPrintForPass = [&](mlir::Pass* pass, mlir::Operation*) {
+            return irPrintingFilter->match(pass->getName()) || irPrintingFilter->match(pass->getArgument());
+        };
+
+        auto colorStream = Logger::getLevelStream(LogLevel::Trace);
+        auto& stream = colorStream.get();
+
+        mlir::OpPrintingFlags flags;
+        flags.elideLargeElementsAttrs(8);
+
+        if (printFullIR) {
+            ctx.disableMultithreading();
+        }
+
+        pm.enableIRPrinting(shouldPrintForPass, shouldPrintForPass, printFullIR, false, stream, flags);
     }
 
     pm.addPass(createSetCompileParamsPass(getArchKind(config), log.nest()));
     pm.addPass(createReferenceModePass(log.nest()));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module.get())), "Compilation failed");
+
+    if (irPrintingFilter.hasValue()) {
+        auto& stream = Logger::getBaseStream();
+        stream.flush();
+    }
 
     const auto blob = VPUIP::exportToBlob(module.get(), log);
 
