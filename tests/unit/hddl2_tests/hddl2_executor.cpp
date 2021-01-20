@@ -36,7 +36,7 @@ void Executor_UnitTests::SetUp() {
 
 //------------------------------------------------------------------------------
 using Executor_NoDevice = Executor_UnitTests;
-TEST_F(Executor_NoDevice, createExecutor_NoDevice_ReturnNull) {
+TEST_F(Executor_NoDevice, DISABLED_createExecutor_NoDevice_ReturnNull) {
     SKIP_IF_DEVICE();
     auto executor = HDDL2Executor::prepareExecutor(networkDescPtr, config, nullptr);
     ASSERT_EQ(executor, nullptr);
