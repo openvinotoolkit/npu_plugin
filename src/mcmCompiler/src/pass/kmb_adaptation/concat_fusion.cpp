@@ -27,9 +27,9 @@ bool haveMatchingDimensions(mv::Data::OpListIterator op1, mv::Data::OpListIterat
 {
     bool matching_width_dimension = 
         (op1->getInputTensor(0UL)->getShape()[mv::IO_WIDTH_DIMENSION] == op2->getInputTensor(0UL)->getShape()[mv::IO_WIDTH_DIMENSION]);
-    bool matching_hight_dimension = 
+    bool matching_height_dimension = 
         (op1->getInputTensor(0UL)->getShape()[mv::IO_HEIGHT_DIMENSION] == op2->getInputTensor(0UL)->getShape()[mv::IO_HEIGHT_DIMENSION]);
-    return matching_width_dimension && matching_hight_dimension;
+    return matching_width_dimension && matching_height_dimension;
 }
 
 void locateConcatPairs(mv::ComputationModel& model, std::vector<pairs> &acceptableFusedConcats)
