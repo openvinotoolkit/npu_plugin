@@ -756,6 +756,39 @@ Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, size_t chann
     return blob;
 }
 
+Blob::Ptr KmbNetworkTestBase::loadBinFile(const TestBinFileDesc& binFile, size_t channels, size_t height, size_t width) {
+    std::ostringstream filePath;
+    const auto binFileShape = binFile.getShape();
+    IE_ASSERT(channels == binFileShape[1]);
+    IE_ASSERT(height == binFileShape[2]);
+    IE_ASSERT(width == binFileShape[3]);
+
+    filePath << getTestDataPath() << "/" << binFile.fileName();
+
+    std::ifstream file(filePath.str().c_str(), std::ios_base::in | std::ios_base::binary | std::ios::ate);
+    if (!file.is_open())
+        THROW_IE_EXCEPTION << "Load input file failed. Can't open file " << filePath.str();
+
+    file.seekg(0, std::ios::end);
+    int file_size = file.tellg();
+    file.seekg (0, std::ios::beg);
+
+    IE_ASSERT(file_size == binFile.getSize());
+
+    const auto tensorDesc = TensorDesc(binFile.getPrecision(), binFileShape, Layout::NHWC);
+
+    const auto blob = make_blob_with_precision(tensorDesc);
+    blob->allocate();
+
+    const auto blobPtr = blob->buffer().as<char*>();
+    IE_ASSERT(blobPtr != nullptr);
+
+    file.read(blobPtr, static_cast<std::streamsize>(blob->byteSize()));
+    file.close();
+
+    return blob;
+}
+
 CNNNetwork KmbNetworkTestBase::readNetwork(const TestNetworkDesc& netDesc, bool fillUserInfo) {
     std::ostringstream modelPath;
 
@@ -926,9 +959,68 @@ void KmbNetworkTestBase::registerSingleImage(const TestImageDesc& image, const s
         });
 };
 
+void KmbNetworkTestBase::registerSingleBinFile(const TestBinFileDesc& file, const std::string& inputName, const TensorDesc inputDesc)  {
+    registerBlobGenerator(
+        inputName,
+        inputDesc,
+        [file](const TensorDesc& desc) {
+          const auto blob = loadBinFile(file, desc.getDims()[1], desc.getDims()[2], desc.getDims()[3]);
+          IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
+
+          return toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());
+        });
+};
+
 //
 // KmbClassifyNetworkTest
 //
+void KmbClassifyNetworkTest::checkCallbackHelper(const BlobMap& actualBlobs,
+                                                 const BlobMap& refBlobs,
+                                                 const size_t topK, const float probTolerance) {
+    IE_ASSERT(actualBlobs.size() == 1u &&
+                actualBlobs.size() == refBlobs.size());
+    auto actualBlob = actualBlobs.begin()->second;
+    auto refBlob    = refBlobs.begin()->second;
+
+    ASSERT_EQ(refBlob->getTensorDesc().getDims(), actualBlob->getTensorDesc().getDims());
+
+    auto actualOutput = parseOutput(toFP32(actualBlob));
+    auto refOutput    = parseOutput(toFP32(refBlob));
+
+    ASSERT_GE(actualOutput.size(), topK);
+    actualOutput.resize(topK);
+
+    ASSERT_GE(refOutput.size(), topK);
+    refOutput.resize(topK);
+
+    std::cout << "Ref Top:" << std::endl;
+    for (size_t i = 0; i < topK; ++i) {
+        std::cout << i << " : " << refOutput[i].first << " : " << refOutput[i].second << std::endl;
+    }
+
+    std::cout << "Actual top:" << std::endl;
+    for (size_t i = 0; i < topK; ++i) {
+        std::cout << i << " : " << actualOutput[i].first << " : " << actualOutput[i].second << std::endl;
+    }
+
+    for (const auto& refElem : refOutput) {
+        const auto actualIt = std::find_if(
+            actualOutput.cbegin(), actualOutput.cend(),
+            [&refElem](const std::pair<int, float> arg) {
+                return refElem.first == arg.first;
+            });
+        ASSERT_NE(actualIt, actualOutput.end());
+
+        const auto& actualElem = *actualIt;
+
+        if(refElem.second > actualElem.second) {
+            const auto probDiff = std::fabs(refElem.second - actualElem.second);
+            EXPECT_LE(probDiff, probTolerance)
+                << refElem.first << " : " << refElem.second << " vs " << actualElem.second;
+        }
+    }
+};
+
 
 void KmbClassifyNetworkTest::runTest(
         const TestNetworkDesc& netDesc,
@@ -937,53 +1029,30 @@ void KmbClassifyNetworkTest::runTest(
     const auto check = [=](const BlobMap& actualBlobs,
                            const BlobMap& refBlobs,
                            const ConstInputsDataMap&) {
-        IE_ASSERT(actualBlobs.size() == 1u &&
-                  actualBlobs.size() == refBlobs.size());
-        auto actualBlob = actualBlobs.begin()->second;
-        auto refBlob    = refBlobs.begin()->second;
-
-        ASSERT_EQ(refBlob->getTensorDesc().getDims(), actualBlob->getTensorDesc().getDims());
-
-        auto actualOutput = parseOutput(toFP32(actualBlob));
-        auto refOutput    = parseOutput(toFP32(refBlob));
-
-        ASSERT_GE(actualOutput.size(), topK);
-        actualOutput.resize(topK);
-
-        ASSERT_GE(refOutput.size(), topK);
-        refOutput.resize(topK);
-
-        std::cout << "Ref Top:" << std::endl;
-        for (size_t i = 0; i < topK; ++i) {
-            std::cout << i << " : " << refOutput[i].first << " : " << refOutput[i].second << std::endl;
-        }
-
-        std::cout << "Actual top:" << std::endl;
-        for (size_t i = 0; i < topK; ++i) {
-            std::cout << i << " : " << actualOutput[i].first << " : " << actualOutput[i].second << std::endl;
-        }
-
-        for (const auto& refElem : refOutput) {
-            const auto actualIt = std::find_if(
-                actualOutput.cbegin(), actualOutput.cend(),
-                [&refElem](const std::pair<int, float> arg) {
-                    return refElem.first == arg.first;
-                });
-            ASSERT_NE(actualIt, actualOutput.end());
-
-            const auto& actualElem = *actualIt;
-
-            if(refElem.second > actualElem.second) {
-                const auto probDiff = std::fabs(refElem.second - actualElem.second);
-                EXPECT_LE(probDiff, probTolerance)
-                    << refElem.first << " : " << refElem.second << " vs " << actualElem.second;
-            }
-        }
+        checkCallbackHelper(actualBlobs, refBlobs, topK, probTolerance);
     };
 
     const auto init_input = [=](const ConstInputsDataMap& inputs) {
         IE_ASSERT(inputs.size() == 1);
         registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
+
+void KmbClassifyNetworkTest::runTest(
+        const TestNetworkDesc& netDesc,
+        const TestBinFileDesc& file,
+        const size_t topK, const float probTolerance) {
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap&) {
+        checkCallbackHelper(actualBlobs, refBlobs, topK, probTolerance);
+    };
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleBinFile(file, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
     };
 
     KmbNetworkTestBase::runTest(netDesc, init_input, check);
