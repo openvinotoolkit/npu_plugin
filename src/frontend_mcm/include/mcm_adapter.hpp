@@ -30,10 +30,6 @@ struct MetaInfo {
 
 bool isMCMCompilerAvailable();
 
-void compileNetwork(InferenceEngine::ICNNNetwork& network, const MCMConfig& config, std::vector<char>& outBlob);
-
-std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network, const MCMConfig& config);
-
 MetaInfo deserializeMetaData(const std::vector<char>& outBlob, const MCMConfig& config);
 }  // namespace MCMAdapter
 }  // namespace vpu

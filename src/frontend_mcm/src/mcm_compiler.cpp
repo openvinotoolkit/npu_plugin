@@ -19,16 +19,6 @@
 #include <mcm_network_description.hpp>
 #include <ngraph_mcm_frontend/frontend.hpp>
 
-std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(InferenceEngine::ICNNNetwork& network,
-                                                                const vpux::VPUXConfig& config) {
-    std::vector<char> compiledNetwork;
-    auto copy = _config;
-    copy.parseFrom(config);
-
-    vpu::MCMAdapter::compileNetwork(network, copy, compiledNetwork);
-    return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, copy, network.getName());
-}
-
 std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(const std::shared_ptr<ngraph::Function>& func,
                                                                 const std::string& netName,
                                                                 const ie::InputsDataMap& inputsInfo,
@@ -48,10 +38,6 @@ std::shared_ptr<vpux::INetworkDescription> MCMCompiler::parse(const std::vector<
     copy.parseFrom(config);
 
     return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, copy, graphName);
-}
-
-std::set<std::string> MCMCompiler::getSupportedLayers(InferenceEngine::ICNNNetwork& network) {
-    return vpu::MCMAdapter::getSupportedLayers(network, _config);
 }
 
 std::unordered_set<std::string> MCMCompiler::getSupportedOptions() {
