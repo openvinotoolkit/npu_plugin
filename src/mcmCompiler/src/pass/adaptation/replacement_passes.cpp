@@ -1733,8 +1733,13 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
     //concat iteratively on the line vertically on the width axis and the vector of Horizontally Concats to be concatenated Vertically
     mv::Data::TensorIterator opConcat;
     std::vector <mv::Data::TensorIterator> opsSlicesConcatHorizontally;
-    const unsigned int hslices = width/widthSlice;
-    const unsigned int vslices = height/heightSlice;
+
+    size_t hslices = widthSlice > 1 ?
+                    std::ceil(static_cast<float>(width + initialPadding[mv::PADDING_LEFT]
+                              + initialPadding[mv::PADDING_RIGHT] - kSize[mv::KERNEL_WIDTH]) / widthSlice) : 1;
+    size_t vslices = heightSlice > 1 ?
+                    std::ceil(static_cast<float>(height + initialPadding[mv::PADDING_TOP]
+                              + initialPadding[mv::PADDING_BOT] - kSize[mv::KERNEL_HEIGHT]) / heightSlice) : 1;
 
     auto outputQuantParams = operation->getOutputTensor(0)->getQuantParams();
     auto dType = operation->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
@@ -1749,19 +1754,22 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                                 0, 0};
             //window of the slice equal to the stride as the stride becomes 1x1 (if stride equal (MAX+1)x(MAX+1))so we have one operation per slicing with strides dimension
             //if tensor is sliced on a dimension, kernel is the window size, if not, the actual dimension does not change
-            branchWidth = (hslices > 1) ? stride[mv::STRIDE_HORIZONTAL] : width;
-            branchHeight = (vslices > 1) ? stride[mv::STRIDE_VERTICAL] : height;
             //when slicing on a dimension the stride becomes 1
             model.log(mv::Logger::MessageType::Debug, "newStride hor=" + std::to_string(newStride[mv::STRIDE_HORIZONTAL])+ " , newStride vert=" + std::to_string(newStride[mv::STRIDE_VERTICAL]));
-            branchInputSize = {branchWidth,
-                               branchHeight,
-                               inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
-                               inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
 
             padding = { static_cast<unsigned short>((i == 0)       ? initialPadding[mv::PADDING_LEFT]  : 0),
                         static_cast<unsigned short>((i == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0),
                         static_cast<unsigned short>((j == 0)       ? initialPadding[mv::PADDING_TOP]   : 0),
                         static_cast<unsigned short>((j == vslices) ? initialPadding[mv::PADDING_BOT]   : 0) };
+
+            mv::Shape branchInputSize = {
+                            std::max(hslices > 1 ? stride[mv::IO_WIDTH_DIMENSION]
+                                                 : width, (size_t)kSize[mv::KERNEL_WIDTH]) - padding[mv::PADDING_TOP] - padding[mv::PADDING_RIGHT],
+                            std::max(vslices > 1 ? stride[mv::IO_HEIGHT_DIMENSION]
+                                                 : height, (size_t)kSize[mv::KERNEL_HEIGHT]) - padding[mv::PADDING_LEFT] - padding[mv::PADDING_BOT],
+                            inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
+                            inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
+
             std::string sliceName ("Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j));
             auto quantParams = inputTensor->getQuantParams();
             auto sliceInput = om.slice("Slice" + operation->getName() +  sliceName,
