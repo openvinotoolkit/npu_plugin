@@ -734,6 +734,17 @@ mv::Data::TensorIterator convertReluToUPATask(mv::OpModel& om, const std::vector
     return relu;
 }
 
+mv::Data::TensorIterator convertSoftPlusToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& /*attrs*/,
+                                                const std::string& name, bool /*software*/,
+                                                const mv::QuantizationParams& quantParams = mv::QuantizationParams::empty(),
+                                                const mv::DType& outputTensorType = mv::DType("Default"))
+{
+    auto softplus = om.uPATaskSoftPlus(name, inputs);
+    softplus->setDType(outputTensorType);
+    softplus->setQuantParams(quantParams);
+    return softplus;
+}
 
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -748,7 +759,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
-                                                       "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu"};
+                                                       "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "SoftPlus"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -790,7 +801,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"HSwish", convertHSwishToUPATask},
     {"Swish", convertSwishToUPATask},
     {"Conversion", convertConversionToUPATask},
-    {"Relu", convertReluToUPATask}
+    {"Relu", convertReluToUPATask},
+    {"SoftPlus", convertSoftPlusToUPATask}
     };
 
     // Layer types that given current compiler state, it's
