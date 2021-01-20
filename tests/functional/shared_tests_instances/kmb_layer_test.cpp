@@ -70,30 +70,36 @@ void KmbLayerTestsCommon::ImportInput() {
 }
 
 void KmbLayerTestsCommon::ExportReference(const std::vector<std::vector<std::uint8_t>>& refs) {
-    for (size_t i = 0; i < refs.size(); ++i) {
-        auto& ref = refs[i];
+    size_t i = 0;
+    for (const auto &output : executableNetwork.GetOutputsInfo()) {
+        const auto &name = output.first;
+
+        auto& ref = refs[i++];
         auto referenceBlob = InferenceEngine::make_shared_blob<uint8_t>(
             InferenceEngine::TensorDesc{
                 InferenceEngine::Precision::U8,
                 InferenceEngine::SizeVector{ref.size()},
                 InferenceEngine::Layout::C
             }, const_cast<std::uint8_t*>(&ref[0]), ref.size());
-        const auto ext = vpu::formatString(".%v.%v", i, "ref");
+        const auto ext = vpu::formatString(".%v.%v", name, "ref");
         kmbTestTool.exportBlob(referenceBlob,
             filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
 }
 
 void KmbLayerTestsCommon::ImportReference(std::vector<std::vector<std::uint8_t>>& refs) {
-    for (size_t i = 0; i < refs.size(); ++i) {
-        auto& ref = refs[i];
+    size_t i = 0;
+    for (const auto &output : executableNetwork.GetOutputsInfo()) {
+        const auto &name = output.first;
+
+        auto& ref = refs[i++];
         auto referenceBlob = InferenceEngine::make_shared_blob<uint8_t>(
             InferenceEngine::TensorDesc{
                 InferenceEngine::Precision::U8,
                 InferenceEngine::SizeVector{ref.size()},
                 InferenceEngine::Layout::C
             }, &ref[0], ref.size());
-        const auto ext = vpu::formatString(".%v.%v", i, "ref");
+        const auto ext = vpu::formatString(".%v.%v", name, "ref");
         kmbTestTool.importBlob(referenceBlob,
             filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
@@ -180,8 +186,7 @@ std::vector<std::vector<std::uint8_t>> KmbLayerTestsCommon::CalculateRefs() {
     }
 
     if (outPrc == InferenceEngine::Precision::UNSPECIFIED) {
-        auto actualOutputs = GetOutputs();
-        outPrc = actualOutputs[0]->getTensorDesc().getPrecision();
+        outPrc = executableNetwork.GetOutputsInfo().begin()->second->getTensorDesc().getPrecision();;
     }
     if (outPrc == InferenceEngine::Precision::FP16) {
         outPrc = InferenceEngine::Precision::FP32;
@@ -240,9 +245,6 @@ void KmbLayerTestsCommon::Run() {
         }
         if (envConfig.IE_KMB_TESTS_EXPORT_REF) {
             std::cout << "KmbLayerTestsCommon::ExportReference()" << std::endl;
-            if (!envConfig.IE_KMB_TESTS_RUN_INFER) {
-                THROW_IE_EXCEPTION << "CalculateRefs requires infer results as for now";
-            }
             ExportReference(CalculateRefs());
         }
         if (envConfig.IE_KMB_TESTS_RUN_INFER) {
