@@ -214,7 +214,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/permute_as_implicit.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_implicitOps.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/update_implicit_layers_quatization_params.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/validate_streaming_overk_for_chain_pipelining.cpp"
+    #"${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/validate_streaming_overk_for_chain_pipelining.cpp"
 
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_weights.cpp"
@@ -238,7 +238,8 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/splitting_across_clusters.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_graph_optimizer_decisions.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/activation_streaming_performance.cpp"
+    #"${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/activation_streaming_performance.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_sparsity_solution.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_workload_strategy.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/implicit_operation_passes.cpp"
@@ -269,6 +270,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/MetaGraph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_utils.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/streaming_performance.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/kmb_default_configs.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/scheduling/scheduling_passes.cpp"
