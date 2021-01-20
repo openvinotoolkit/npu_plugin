@@ -53,12 +53,7 @@ public:
     void runOnOperation() final;
 
 public:
-    class FuncOpConverter;
     class GenericOpConverter;
-
-public:
-    static const mlir::PatternBenefit genericBenefit;
-    static const mlir::PatternBenefit specificBenefit;
 
 private:
     void passBody();
@@ -66,9 +61,6 @@ private:
 private:
     Logger _log;
 };
-
-const mlir::PatternBenefit ConvertShapeTo4DPass::genericBenefit(1);
-const mlir::PatternBenefit ConvertShapeTo4DPass::specificBenefit(2);
 
 void ConvertShapeTo4DPass::runOnOperation() {
     try {
@@ -80,39 +72,13 @@ void ConvertShapeTo4DPass::runOnOperation() {
 }
 
 //
-// FuncOpConverter
-//
-
-class ConvertShapeTo4DPass::FuncOpConverter final : public mlir::OpConversionPattern<mlir::FuncOp> {
-public:
-    FuncOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<mlir::FuncOp>(typeConverter, ctx, specificBenefit), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(mlir::FuncOp funcOp, ArrayRef<mlir::Value> operands,
-                                        mlir::ConversionPatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult ConvertShapeTo4DPass::FuncOpConverter::matchAndRewrite(
-        mlir::FuncOp funcOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
-    auto* converter = getTypeConverter();
-    VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
-
-    return rewriteFuncPrototype(funcOp, *converter, rewriter, _log);
-}
-
-//
 // GenericOpConverter
 //
 
 class ConvertShapeTo4DPass::GenericOpConverter final : public mlir::ConversionPattern {
 public:
     GenericOpConverter(mlir::TypeConverter& shapeConverter, Logger log)
-            : mlir::ConversionPattern(genericBenefit, shapeConverter, MatchAnyOpTypeTag{}), _log(log) {
+            : mlir::ConversionPattern(1 /*benefit*/, shapeConverter, MatchAnyOpTypeTag{}), _log(log) {
     }
 
 public:
@@ -160,6 +126,12 @@ mlir::LogicalResult ConvertShapeTo4DPass::GenericOpConverter::matchAndRewrite(
 void ConvertShapeTo4DPass::passBody() {
     auto& ctx = getContext();
 
+    const auto cvtType = [](mlir::OpBuilder& builder, mlir::RankedTensorType type, mlir::ValueRange inputs,
+                            mlir::Location loc) -> mlir::Value {
+        VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
+        return builder.createOrFold<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
+    };
+
     mlir::TypeConverter typeConverter;
     typeConverter.addConversion([](mlir::RankedTensorType tensor) {
         if (tensor.getShape().size() == TARGET_TENSOR_DIM) {
@@ -175,16 +147,8 @@ void ConvertShapeTo4DPass::passBody() {
             return mlir::RankedTensorType::get(newShape, tensor.getElementType());
         }
     });
-    typeConverter.addSourceMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
-                                              mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
-        VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
-        return builder.createOrFold<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
-    });
-    typeConverter.addTargetMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
-                                              mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
-        VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
-        return builder.createOrFold<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
-    });
+    typeConverter.addSourceMaterialization(cvtType);
+    typeConverter.addTargetMaterialization(cvtType);
 
     const auto isLegalOp = [&](mlir::Operation* op) {
         return typeConverter.isLegal(op);
@@ -200,12 +164,12 @@ void ConvertShapeTo4DPass::passBody() {
     });
 
     mlir::OwningRewritePatternList patterns;
-    patterns.insert<FuncOpConverter>(typeConverter, &ctx, _log.nest());
+    mlir::populateFuncOpTypeConversionPattern(patterns, &ctx, typeConverter);
     patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
     mlir::linalg::TensorReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto module = getOperation();
-    if (mlir::failed(mlir::applyPartialConversion(module.getOperation(), target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
         signalPassFailure();
     }
 }
