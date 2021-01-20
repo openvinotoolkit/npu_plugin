@@ -238,8 +238,8 @@ std::vector<char> compileNGraph(
         passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
         passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
         if (config.scaleShiftFusing()) {
-	        passManager.register_pass<FuseScaleShift>();
-	    }
+            passManager.register_pass<FuseScaleShift>();
+        }
         passManager.register_pass<FuseScaleAfterClamp>();
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
