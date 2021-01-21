@@ -33,46 +33,59 @@ namespace mv
 void placeNeutralMaxPoolBefore(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
-    auto concats = om.getOps("Concat");
+    auto operations = om.getOpsOfTypes({"Concat", "Eltwise"});
 
-    for (auto& concatOp : concats)
+    for (auto& ops : operations)
     {
-        auto numInputs = concatOp->getInputTensor().size();
-        unsigned short numUPAOps = 0;
-
-        for (size_t i = 0; i < numInputs; i++)
+        for (auto& opIt : ops.second) 
         {
-            auto sourceOp = om.getSourceOp(concatOp->getInputTensor(i));
-            if (sourceOp->isUPA() || sourceOp->getOpType() == "UPATask")
-                numUPAOps++;
-        }
-        if (numUPAOps == 0 || numUPAOps == numInputs) //no mixed upa + dpu
-            continue;
+            auto numInputs = opIt->getInputTensor().size();
+            unsigned short numUPAOps = 0;
 
-        for (size_t i = 0; i < numInputs; i++)
-        {
-            auto sourceOp = om.getSourceOp(concatOp->getInputTensor(i));
-            if (sourceOp->isUPA() || sourceOp->getOpType() == "UPATask")
+            for (size_t i = 0; i < numInputs; i++)
             {
-                auto inputFlow = concatOp.leftmostInput();
-                auto outputTensor = sourceOp->getOutputTensor(0);
-                auto neutralMaxPool = om.maxPool(concatOp->getName() + "MaxPool", outputTensor, {1,1}, {1,1}, {0, 0, 0, 0}, false);
-                neutralMaxPool->setDType(mv::DType("UInt8"));
-                neutralMaxPool->setQuantParams(outputTensor->getQuantParams());
-                auto maxPoolOp = om.getSourceOp(neutralMaxPool);
-                maxPoolOp->set<unsigned>("opId", sourceOp->get<unsigned>("opId"));
-                while(inputFlow != om.flowEnd())
+                auto sourceOp = om.getSourceOp(opIt->getInputTensor(i));
+                if (sourceOp->isUPA() || sourceOp->getOpType() == "UPATask")
+                    numUPAOps++;
+            }
+            if (numUPAOps == 0 || numUPAOps == numInputs) //no mixed upa + dpu
+                continue;
+
+            for (size_t i = 0; i < numInputs; i++)
+            {
+                auto sourceOp = om.getSourceOp(opIt->getInputTensor(i));
+                if (sourceOp->isUPA() || sourceOp->getOpType() == "UPATask")
                 {
-                    auto tensor = inputFlow->getTensor();
-                    if (tensor->getName() == outputTensor->getName())
+                    if (opIt->getOpType() == "Concat")
                     {
-                        auto slot = inputFlow->get<size_t>("sinkInput");
-                        om.undefineFlow(inputFlow);
-                        concatOp->setInputTensor(neutralMaxPool, slot, false);
-                        om.defineFlow(neutralMaxPool, concatOp, slot);
-                        break;
+                        sourceOp = om.getSourceOp(opIt->getInputTensor(0UL));
+                        std::cout << opIt->getName() << std::endl;
+                        auto inputFlow = opIt.leftmostInput();
+                        auto outputTensor = sourceOp->getOutputTensor(0);
+                        auto neutralMaxPool = om.maxPool(opIt->getName() + "MaxPool", outputTensor, {1,1}, {1,1}, {0, 0, 0, 0}, false);
+                        neutralMaxPool->setDType(mv::DType("UInt8"));
+                        neutralMaxPool->setQuantParams(outputTensor->getQuantParams());
+                        auto maxPoolOp = om.getSourceOp(neutralMaxPool);
+                        maxPoolOp->set<unsigned>("opId", sourceOp->get<unsigned>("opId"));
+                        while(inputFlow != om.flowEnd())
+                        {
+                            auto tensor = inputFlow->getTensor();
+                            if (tensor->getName() == outputTensor->getName())
+                            {
+                                auto slot = inputFlow->get<size_t>("sinkInput");
+                                om.undefineFlow(inputFlow);
+                                opIt->setInputTensor(neutralMaxPool, slot, false);
+                                om.defineFlow(neutralMaxPool, opIt, slot);
+                                break;
+                            }
+                            ++inputFlow;
+                        }
                     }
-                    ++inputFlow;
+                    else
+                    {
+                        // prevent HKSwitch for Eltwise with UPA + DPU inputs
+                        opIt->set<bool>("HKSwitchNoAccuracy", true);
+                    }
                 }
             }
         }

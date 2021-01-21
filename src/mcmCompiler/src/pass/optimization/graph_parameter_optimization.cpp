@@ -1362,7 +1362,9 @@ namespace mv
                     return INF;
 
                 //Note: Synchronize across parallel branches so we can keep track of eltwise parent activation in ddr or cmx
-                if(childOpType == "Eltwise" && (child["eltwiseParentSpilling"].get<bool>() != parentSpilling))
+                // and prevent HKSwitch for Eltwise with dpu + upa inputs
+                if(childOpType == "Eltwise" && ((child["eltwiseParentSpilling"].get<bool>() != parentSpilling) ||
+                    (childClustering == "HKSwitch" && childOp.hasAttr("HKSwitchNoAccuracy"))))
                     return INF;
 
                 if(violatesClusteringStrategyRules(parentOp, childOp, parent, child))
