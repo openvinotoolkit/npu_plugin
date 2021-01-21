@@ -10,7 +10,7 @@ void streamingForPerformanceFnc(const mv::pass::PassEntry& pass, mv::Computation
 
 namespace mv {
 namespace pass {
-MV_REGISTER_PASS(streamingForPerformance)
+MV_REGISTER_PASS(StreamingForPerformance)
         .setFunc(streamingForPerformanceFnc)
         .setDescription("");
 }
