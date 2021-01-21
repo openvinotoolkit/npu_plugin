@@ -83,7 +83,6 @@ void fillPadTensor(std::vector<mv::Data::TensorIterator>& concatedTensors,
         pad = om.constant("",
                          newData,
                          newShape,
-                         /*{inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[2], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},*/
                          input->getDType(),
                          input->getOrder());
     }
@@ -109,18 +108,18 @@ void padInputTensor(mv::Data::OpListIterator& opIt, mv::OpModel& om)
     std::size_t otherDimSize = inputTensorShape[mv::IO_CHANNEL_DIMENSION] * inputTensorShape[mv::IO_BATCH_DIMENSION];
 
     // Create top/bottom padding, width of original tensor, height of t/b padding
-    size_t topSize = inputTensorShape[mv::IO_WIDTH_DIMENSION] * originalPadding[2];
-    size_t bottomSize = inputTensorShape[mv::IO_WIDTH_DIMENSION] * originalPadding[3];
+    size_t topSize = inputTensorShape[mv::IO_WIDTH_DIMENSION] * originalPadding[mv::PADDING_TOP];
+    size_t bottomSize = inputTensorShape[mv::IO_WIDTH_DIMENSION] * originalPadding[mv::PADDING_BOT];
 
     std::vector<mv::Data::TensorIterator> concatedTensors;
 
     fillPadTensor(concatedTensors, om, topSize * otherDimSize, opId,
-                  {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[2], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                  {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[mv::PADDING_TOP], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
                   inputTensor);
 
     concatedTensors.emplace_back(inputTensor);
     fillPadTensor(concatedTensors, om, bottomSize * otherDimSize, opId,
-                  {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[3], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                  {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[mv::PADDING_BOT], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
                   inputTensor);
 
     if (concatedTensors.size() > 1) {
@@ -135,18 +134,18 @@ void padInputTensor(mv::Data::OpListIterator& opIt, mv::OpModel& om)
 
     concatedTensors.clear();
 
-    size_t newHeight = inputTensorShape[mv::IO_HEIGHT_DIMENSION] + originalPadding[2] + originalPadding[3];
+    size_t newHeight = inputTensorShape[mv::IO_HEIGHT_DIMENSION] + originalPadding[mv::PADDING_TOP] + originalPadding[mv::PADDING_BOT];
     // Create left/right padding, height of (original tensor+ t/b padding), width of l/r padding
-    size_t leftSize = newHeight * originalPadding[0];
-    size_t rightSize = newHeight * originalPadding[1];
+    size_t leftSize = newHeight * originalPadding[mv::PADDING_LEFT];
+    size_t rightSize = newHeight * originalPadding[mv::PADDING_RIGHT];
 
     fillPadTensor(concatedTensors, om, leftSize * otherDimSize, opId,
-                  {originalPadding[0], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                  {originalPadding[mv::PADDING_LEFT], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
                   inputTensor);
 
     concatedTensors.emplace_back(inputTensor);
     fillPadTensor(concatedTensors, om, rightSize * otherDimSize, opId,
-                  {originalPadding[1], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                  {originalPadding[mv::PADDING_RIGHT], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
                   inputTensor);
 
     if (concatedTensors.size() > 1) {
