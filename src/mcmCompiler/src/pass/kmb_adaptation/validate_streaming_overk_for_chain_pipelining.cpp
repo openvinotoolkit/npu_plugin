@@ -213,9 +213,11 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
     bool isKStreaming = false;
 
     // Header for the network analysis report
-    fprintf(fptr, "%s :  %s :  %s :  %s :  %s :  %s :  %s :  %s", "chainId", "OpName", "kStreaming", "Hstreaming",
-            "MultiCluster", "TotalSize(Inc WT)", "OutputChannels", "WeightsPerCluster(Inc WT)");
-    fprintf(fptr, "\n");
+    if (nullptr != fptr) {
+        fprintf(fptr, "%s :  %s :  %s :  %s :  %s :  %s :  %s :  %s", "chainId", "OpName", "kStreaming", "Hstreaming",
+                "MultiCluster", "TotalSize(Inc WT)", "OutputChannels", "WeightsPerCluster(Inc WT)");
+        fprintf(fptr, "\n");
+    }
 
     for (subgraph_t chain_subgraph : chainSubgraphs) {
         streamsSizes.clear();  // clear stream sizes for chain i
@@ -274,12 +276,14 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
                             size_t alignedFullOutputChannels =
                                     mv::round_up(opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], 16);
 
-                            fprintf(fptr, "%zu : %s :  %zu : %zu  : %s : %zu : %zu : %zu ", chainID,
-                                    (opIt->getName()).c_str(), streaming_strategy[3].get<int>("K"),
-                                    streaming_strategy[1].get<int>("H"), mcStrategy.c_str(),
-                                    weightsPerCluster * nClusters * streaming_strategy[3].get<int>("K"),
-                                    alignedFullOutputChannels, weightsPerCluster);
-                            fprintf(fptr, "\n");
+                            if (nullptr != fptr) {
+                                fprintf(fptr, "%zu : %s :  %zu : %zu  : %s : %zu : %zu : %zu ", chainID,
+                                        (opIt->getName()).c_str(), streaming_strategy[3].get<int>("K"),
+                                        streaming_strategy[1].get<int>("H"), mcStrategy.c_str(),
+                                        weightsPerCluster * nClusters * streaming_strategy[3].get<int>("K"),
+                                        alignedFullOutputChannels, weightsPerCluster);
+                                fprintf(fptr, "\n");
+                            }
                         }
                     }
                 }
@@ -293,18 +297,22 @@ std::map<size_t, size_t> getMinWeightsPerClusterSizePerChain(std::list<subgraph_
 
         chainID++;
     }
-    fprintf(fptr, "End of network analysis\n");
-    fprintf(fptr, "\n");
+    if (nullptr != fptr) {
+        fprintf(fptr, "End of network analysis\n");
+        fprintf(fptr, "\n");
+    }
 
     return minWeightsPerClusterPerChain;
 }
 
 void createHeaderforNetworkAnalysisFile(FILE* fptr = stdout) {
-    fprintf(fptr, "%s :  %s :  %s :  %s :  %s :  %s :  %s :  %s :  %s : %s :  %s :  %s", "chainId", "OpName",
-            "Default kStreaming", "Default Hstreaming", "MultiCluster", "TotalSize(Inc WT)", "OutputChannels",
-            "WeightsPerCluster(Inc WT)", "MinWeightsPerClusterInChain", "optimalNumberOfKStreams", "maxNumberKStreams",
-            "NewKStreams");
-    fprintf(fptr, "\n");
+    if (nullptr != fptr) {
+        fprintf(fptr, "%s :  %s :  %s :  %s :  %s :  %s :  %s :  %s :  %s : %s :  %s :  %s", "chainId", "OpName",
+                "Default kStreaming", "Default Hstreaming", "MultiCluster", "TotalSize(Inc WT)", "OutputChannels",
+                "WeightsPerCluster(Inc WT)", "MinWeightsPerClusterInChain", "optimalNumberOfKStreams",
+                "maxNumberKStreams", "NewKStreams");
+        fprintf(fptr, "\n");
+    }
 }
 
 void writeStatsToFile(unsigned chainID, std::string opName, int kStreaming, int hStreaming,
@@ -312,13 +320,15 @@ void writeStatsToFile(unsigned chainID, std::string opName, int kStreaming, int 
                       size_t weightsPerClusterPerOp, size_t minWeightsPerClusterPerChain,
                       double optimalNumberOfKStreams, double maxpossibleStreams, double newKStreams,
                       FILE* fptr = stdout) {
-    fprintf(fptr,
-            "%zu : %s :  %zu : %zu  : %s : %zu : %zu : %zu : %zu : %.1f : %.1f : "
-            "%.1f ",
-            chainID, opName.c_str(), kStreaming, hStreaming, multiclusterStrategy.c_str(), fullweightsSize,
-            alignedFullOutputChannels, weightsPerClusterPerOp, minWeightsPerClusterPerChain, optimalNumberOfKStreams,
-            maxpossibleStreams, newKStreams);
-    fprintf(fptr, "\n");
+    if (nullptr != fptr) {
+        fprintf(fptr,
+                "%zu : %s :  %zu : %zu  : %s : %zu : %zu : %zu : %zu : %.1f : %.1f : "
+                "%.1f ",
+                chainID, opName.c_str(), kStreaming, hStreaming, multiclusterStrategy.c_str(), fullweightsSize,
+                alignedFullOutputChannels, weightsPerClusterPerOp, minWeightsPerClusterPerChain,
+                optimalNumberOfKStreams, maxpossibleStreams, newKStreams);
+        fprintf(fptr, "\n");
+    }
 }
 
 // Get the strategy assigned by GO
@@ -592,10 +602,9 @@ void validateStreamingOverKForChainPipeliningFnc(const mv::pass::PassEntry& pass
     if (!minWeightsPerClusterPerChain.empty()) {
         evaluateAndAssignStrategies(chainSubgraphs, pass, model, minWeightsPerClusterPerChain, weightsPerClusterPerOp,
                                     fptr);
-
         // Step4: Assign the new strategies
         assignNewSrategies(model, newStreamingStrategies, globalParams);
-
+        
         // Step5: Save the new strategies
         globalParams->set("streaming_strategy", newStreamingStrategies);
         saveNewStreamingStrategiesToJson(pass, newStreamingStrategies,
