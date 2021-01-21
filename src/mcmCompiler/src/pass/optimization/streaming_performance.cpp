@@ -8,9 +8,16 @@ mv::StreamingPerformance::StreamingPerformance(mv::ComputationModel& model, mv::
     tensorMemoryLocation_ = globalParams_->get<std::vector<mv::Element>>("tensor_placement_override");
     nClusters_ = globalParams_->get<int>("Number_of_Clusters");
     enableChannelMajorConv_ = globalParams_->get<bool>("enable_channel_major_conv");
+
+    if (mv::isDebugFilesEnabled()) {
+        fptr_ = fopen("./weight_streaming_network_analysis_report.txt", "w");
+        if (nullptr == fptr_) {
+            throw mv::RuntimeError("StreamingPerformance", "Cannot open file for writing");
+        }
+    }
 }
 
-void mv::StreamingPerformance::evaluateStreamingOverKStrategies()
+void mv::StreamingPerformance::increaseStreamingOverKforPerformance()
 {
     chainSubgraphs_ = pipelineChains_.get_chain_subgraphs(2UL);
 
@@ -103,17 +110,12 @@ std::map<size_t, size_t> mv::StreamingPerformance::calculateMininumWeightsSizePe
     std::map<size_t, size_t> minWeightsPerClusterPerChain;
 
     
-    FILE* fptr = nullptr;
-    if (mv::isDebugFilesEnabled()) {
-        fptr = fopen("./weight_streaming_network_analysis_report.txt", "w");
-        if (nullptr == fptr) {
-            throw mv::RuntimeError("StreamingPerformance", "Cannot open file for writing");
-        }
-    }
     // Header for the network analysis report
-    fprintf(fptr, "%s :  %s :  %s :  %s :  %s :  %s :  %s :  %s", "chainId", "OpName", "kStreaming", "Hstreaming",
-            "MultiCluster", "TotalSize(Inc WT)", "OutputChannels", "WeightsPerCluster(Inc WT)");
-    fprintf(fptr, "\n");
+    if (mv::isDebugFilesEnabled()) {
+        fprintf(fptr_, "%s :  %s :  %s :  %s :  %s :  %s :  %s :  %s", "chainId", "OpName", "kStreaming", "Hstreaming",
+                "MultiCluster", "TotalSize(Inc WT)", "OutputChannels", "WeightsPerCluster(Inc WT)");
+        fprintf(fptr_, "\n");
+    }
 
     for (subgraph_t chain_subgraph : chainSubgraphs_) {
         streamsSizes.clear(); 
@@ -170,12 +172,14 @@ std::map<size_t, size_t> mv::StreamingPerformance::calculateMininumWeightsSizePe
                             size_t alignedFullOutputChannels =
                                     mv::round_up(opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], 16);
 
-                            fprintf(fptr, "%zu : %s :  %zu : %zu  : %s : %zu : %zu : %zu ", chainID,
+                            if (mv::isDebugFilesEnabled()) {
+                            fprintf(fptr_, "%zu : %s :  %zu : %zu  : %s : %zu : %zu : %zu ", chainID,
                                     (opIt->getName()).c_str(), streaming_strategy[3].get<int>("K"),
                                     streaming_strategy[1].get<int>("H"), mcStrategy.c_str(),
                                     weightsPerCluster * nClusters_ * streaming_strategy[3].get<int>("K"),
                                     alignedFullOutputChannels, weightsPerCluster);
-                            fprintf(fptr, "\n");
+                            fprintf(fptr_, "\n");
+                            }
                         }
                     }
                 }
@@ -189,8 +193,10 @@ std::map<size_t, size_t> mv::StreamingPerformance::calculateMininumWeightsSizePe
 
         chainID++;
     }
-    fprintf(fptr, "End of network analysis\n");
-    fprintf(fptr, "\n");
+    if (mv::isDebugFilesEnabled()) {
+        fprintf(fptr_, "End of network analysis\n");
+        fprintf(fptr_, "\n");
+    }
 
     return minWeightsPerClusterPerChain;
 }
@@ -286,7 +292,7 @@ void mv::StreamingPerformance::assignNewSrategies() {
     globalParams->set("streaming_strategy", newStrategies_);
 }
 
-std::pair<size_t, double> mv::StreamingPerformance::fullWeightsSizeForOpandOptimalKStreaming(std::string multiclusterStrategy,
+std::pair<size_t, double> mv::StreamingPerformance::calculatefullWeightsSizeForOpandOptimalKStreaming(std::string multiclusterStrategy,
                                                                    size_t weightsPerClusterforOp,
                                                                    size_t minWeightsPerClusterPerChain,
                                                                    bool isKStreaming, int numberOfkStreams
@@ -331,6 +337,19 @@ std::pair<size_t, double> mv::StreamingPerformance::fullWeightsSizeForOpandOptim
     toReturn.second = optimalNumberOfKStreams;
 
     return toReturn;
+}
+
+void mv::StreamingPerformance::writeStatsToFile(unsigned chainID, std::string opName, int kStreaming, int hStreaming,
+                      std::string multiclusterStrategy, size_t fullweightsSize, size_t alignedFullOutputChannels,
+                      size_t weightsPerClusterPerOp, size_t minWeightsPerClusterPerChain,
+                      double optimalNumberOfKStreams, double maxpossibleStreams, double newKStreams) {
+    fprintf(fptr_,
+            "%zu : %s :  %zu : %zu  : %s : %zu : %zu : %zu : %zu : %.1f : %.1f : "
+            "%.1f ",
+            chainID, opName.c_str(), kStreaming, hStreaming, multiclusterStrategy.c_str(), fullweightsSize,
+            alignedFullOutputChannels, weightsPerClusterPerOp, minWeightsPerClusterPerChain, optimalNumberOfKStreams,
+            maxpossibleStreams, newKStreams);
+    fprintf(fptr_, "\n");
 }
 
 void mv::StreamingPerformance::evaluateAndAssignStrategies() {
@@ -389,7 +408,7 @@ void mv::StreamingPerformance::evaluateAndAssignStrategies() {
                     !isHStreaming) {
                     fullWeightsSizeOptimalKStreaming = {0, 0};
                     if (minWeightsPerClusterPerChain_[chainID] > 0)
-                        fullWeightsSizeOptimalKStreaming = fullWeightsSizeForOpandOptimalKStreaming(
+                        fullWeightsSizeOptimalKStreaming = calculatefullWeightsSizeForOpandOptimalKStreaming(
                                 graphOptimizerMultiClusterStrategy.get<std::string>(), weightsPerCluster,
                                 minWeightsPerClusterPerChain_[chainID], isKStreaming,
                                 graphOptimizerStreamingStrategy[3].get<int>("K"));
@@ -412,13 +431,16 @@ void mv::StreamingPerformance::evaluateAndAssignStrategies() {
                         if (minWeightsPerClusterPerChain_[chainID] < minWeightsPerClusterPerChainConstant_)
                             minWeightsPerClusterPerChain_[chainID] = minWeightsPerClusterPerChainConstant_;
 
-                        // writeStatsToFile(
-                        //         chainID, (opIt->getName()).c_str(), graphOptimizerStreamingStrategy[3].get<int>("K"),
-                        //         graphOptimizerStreamingStrategy[1].get<int>("H"),
-                        //         graphOptimizerMultiClusterStrategy.get<std::string>().c_str(), fullWeightsSize,
-                        //         alignedFullOutputChannels, weightsPerClusterPerOp_.find(opIt->getName())->second,
-                        //         minWeightsPerClusterPerChain_[chainID], optimalNumberOfKStreams, maxpossibleStreams,
-                        //         optimalNumberOfKStreams, fptr);
+                        if (mv::isDebugFilesEnabled()) {
+                            writeStatsToFile(chainID, (opIt->getName()).c_str(),
+                                             graphOptimizerStreamingStrategy[3].get<int>("K"),
+                                             graphOptimizerStreamingStrategy[1].get<int>("H"),
+                                             graphOptimizerMultiClusterStrategy.get<std::string>().c_str(),
+                                             fullWeightsSize, alignedFullOutputChannels,
+                                             weightsPerClusterPerOp_.find(opIt->getName())->second,
+                                             minWeightsPerClusterPerChain_[chainID], optimalNumberOfKStreams,
+                                             maxpossibleStreams, optimalNumberOfKStreams);
+                        }
 
                         opIt->set<unsigned>("optimalNumberOfKStreams", optimalNumberOfKStreams);
 
@@ -427,13 +449,18 @@ void mv::StreamingPerformance::evaluateAndAssignStrategies() {
                     else if (optimalNumberOfKStreams > maxpossibleStreams) {
                         if (minWeightsPerClusterPerChain_[chainID] < minWeightsPerClusterPerChainConstant_)
                             minWeightsPerClusterPerChain_[chainID] = minWeightsPerClusterPerChainConstant_;
-                        // writeStatsToFile(
-                        //         chainID, (opIt->getName()).c_str(), graphOptimizerStreamingStrategy[3].get<int>("K"),
-                        //         graphOptimizerStreamingStrategy[1].get<int>("H"),
-                        //         graphOptimizerMultiClusterStrategy.get<std::string>().c_str(), fullWeightsSize,
-                        //         alignedFullOutputChannels, weightsPerClusterPerOp.find(opIt->getName())->second,
-                        //         minWeightsPerClusterPerChain[chainID], optimalNumberOfKStreams, maxpossibleStreams,
-                        //         maxpossibleStreams, fptr);
+
+                        if (mv::isDebugFilesEnabled()) {
+                            writeStatsToFile(chainID, (opIt->getName()).c_str(),
+                                             graphOptimizerStreamingStrategy[3].get<int>("K"),
+                                             graphOptimizerStreamingStrategy[1].get<int>("H"),
+                                             graphOptimizerMultiClusterStrategy.get<std::string>().c_str(),
+                                             fullWeightsSize, alignedFullOutputChannels,
+                                             weightsPerClusterPerOp_.find(opIt->getName())->second,
+                                             minWeightsPerClusterPerChain_[chainID], optimalNumberOfKStreams,
+                                             maxpossibleStreams, maxpossibleStreams);
+                        }
+
                         opIt->set<unsigned>("optimalNumberOfKStreams", maxpossibleStreams);
                     }
                 }
