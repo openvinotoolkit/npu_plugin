@@ -153,3 +153,33 @@ TEST_F(KmbClassifyNetworkTest, efficient_b0_aircrafts) {
             TestImageDesc("vpu/efficient/aircraft_1.jpg", ImageFormat::RGB),
             1, 0.15f);
 }
+
+TEST_F(KmbClassifyNetworkTest, mobilenet_v3_cars) {
+    runTest(
+            TestNetworkDesc("mobilenet-v3-small-stanford-cars/caffe2/FP16-INT8/mobilenet-v3-small-stanford-cars.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPrecision("output", Precision::FP32),
+            TestImageDesc("vpu/efficient/car_1.jpg", ImageFormat::RGB),
+            1, 0.15f);
+}
+
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v3_dogs) {
+    runTest(
+            TestNetworkDesc("mobilenet-v3-small-stanford-dogs/caffe2/FP16-INT8/mobilenet-v3-small-stanford-dogs.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPrecision("output", Precision::FP32),
+            TestImageDesc("vpu/efficient/dog_1.jpg", ImageFormat::RGB),
+            1, 0.15f);
+}
+
+TEST_F(KmbClassifyNetworkTest, mobilenet_v3_aircrafts) {
+    runTest(
+            TestNetworkDesc("mobilenet-v3-small-aircrafts/caffe2/FP16-INT8/mobilenet-v3-small-aircrafts.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPrecision("output", Precision::FP32),
+            TestImageDesc("vpu/efficient/aircraft_1.jpg", ImageFormat::RGB),
+            1, 0.15f);
+}
