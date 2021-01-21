@@ -21,6 +21,7 @@ include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/dialect.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 
+include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -217,6 +218,7 @@ def IE_ConvertOp :
             "Convert",
             [
                 SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<CastOpInterface>,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ConvertLayerInterface>
             ]
