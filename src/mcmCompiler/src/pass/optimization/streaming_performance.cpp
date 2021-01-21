@@ -1,14 +1,18 @@
 #include "include/mcm/pass/graphOptimizations/streaming_performace.hpp"
 
-mv::StreamingPerformance::StreamingPerformance(mv::ComputationModel& model, mv::OpModel& omodel): model_(model), omodel_(omodel), pipelineChains_(omodel_)
-{
+mv::StreamingPerformance::StreamingPerformance(mv::ComputationModel& model, mv::OpModel& omodel)
+        : model_(model),
+          omodel_(omodel),
+          pipelineChains_(omodel_),
+          nClusters_(model.getGlobalConfigParams()->get<int>("Number_of_Clusters")),
+          enableChannelMajorConv_(model.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")) {
+    
+
     globalParams_ = model.getGlobalConfigParams();
     streamingStrategyList_ = globalParams_->get<std::vector<mv::Element>>("streaming_strategy");
     multiClusterStrategyList_ = globalParams_->get<std::vector<mv::Element>>("split_strategy");
     tensorMemoryLocation_ = globalParams_->get<std::vector<mv::Element>>("tensor_placement_override");
-    nClusters_ = globalParams_->get<int>("Number_of_Clusters");
-    enableChannelMajorConv_ = globalParams_->get<bool>("enable_channel_major_conv");
-
+   
     if (mv::isDebugFilesEnabled()) {
         fptr_ = fopen("./weight_streaming_network_analysis_report.txt", "w");
         if (nullptr == fptr_) {
@@ -19,25 +23,25 @@ mv::StreamingPerformance::StreamingPerformance(mv::ComputationModel& model, mv::
 
 void mv::StreamingPerformance::increaseStreamingOverKforPerformance()
 {
+    // Step 1: Get the subgraph chains
     chainSubgraphs_ = pipelineChains_.get_chain_subgraphs(2UL);
-
+    // Step 2: Get the minimum weights per cluster in a chain
     minWeightsPerClusterPerChain_ = calculateMininumWeightsSizePerClusterPerChain();
-
-     // Step 3: Calculate more optimal streaming over K strategies
+    // Step 3: Calculate more optimal streaming over K strategies
     if (!minWeightsPerClusterPerChain_.empty()) {
-        evaluateAndAssignStrategies();
+        evaluateGraphOptimizerAssignedKStreamingStrategies();
 
         // Step4: Assign the new strategies
         assignNewSrategies();
 
-        mv::saveNewStreamingStrategiesToJson1(newStrategies_);
-                                         
+        mv::saveNewStreamingStrategiesToJson(newStrategies_);                               
     }
 
 }
 
 size_t mv::StreamingPerformance::calculateperClusterWeightsSize(mv::Op& op, const mv::Attribute& clustering,
-                                                                bool weightsSparsity, const mv::Shape& streamConfig) {
+                                                                const bool weightsSparsity,
+                                                                const mv::Shape& streamConfig) {
     auto div = [](unsigned x, unsigned y) -> unsigned {
         return (x + y - 1) / y;
     };
@@ -144,7 +148,7 @@ std::map<size_t, size_t> mv::StreamingPerformance::calculateMininumWeightsSizePe
                                 mcStrategy = s.get<std::string>("strategy");
                         }
 
-                        // The operation must be already assigned stream over K and SOK and not be sream over H to be
+                        // The operation must be already assigned stream over K and SOK and not be stream over H to be
                         // considered for a new K stream strategy
                         if (isKStreaming && mcStrategy == "SplitOverK" && !isHStreaming) {
                             if (op->hasAttr("splitStrategy"))
@@ -202,7 +206,7 @@ std::map<size_t, size_t> mv::StreamingPerformance::calculateMininumWeightsSizePe
 }
 
 // Get the strategy assigned by GO
-std::tuple<std::vector<mv::Element>, mv::Attribute, bool> mv::StreamingPerformance::getGraphOptimizerAssignedStategies(std::string opName) {
+std::tuple<std::vector<mv::Element>, mv::Attribute, bool> mv::StreamingPerformance::getGraphOptimizerAssignedStategies(const std::string opName) {
     mv::Data::OpListIterator opIt;
     std::vector<mv::Element> streaming_strategy;
     std::string mcStrategy;
@@ -252,7 +256,6 @@ std::tuple<std::vector<mv::Element>, mv::Attribute, bool> mv::StreamingPerforman
 
 void mv::StreamingPerformance::assignNewSrategies() {
     
-
     for (auto layerNameStrategy : streamingStrategyList_) {
         std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
         if (nodeName != "Example") {
@@ -287,16 +290,16 @@ void mv::StreamingPerformance::assignNewSrategies() {
             }
         }
     }
+
     // Step5: Save the new strategies
     std::shared_ptr<mv::Element> globalParams = model_.getGlobalConfigParams();
     globalParams->set("streaming_strategy", newStrategies_);
 }
 
-std::pair<size_t, double> mv::StreamingPerformance::calculatefullWeightsSizeForOpandOptimalKStreaming(std::string multiclusterStrategy,
-                                                                   size_t weightsPerClusterforOp,
-                                                                   size_t minWeightsPerClusterPerChain,
-                                                                   bool isKStreaming, int numberOfkStreams
-                                                                   ) {
+std::pair<size_t, double> mv::StreamingPerformance::calculatefullWeightsSizeForOpandOptimalKStreaming(
+        const std::string multiclusterStrategy, const size_t weightsPerClusterforOp,
+        size_t minWeightsPerClusterPerChain, const bool isKStreaming, const int numberOfkStreams) {
+
     size_t fullWeightsSize = 0;
     size_t optimalNumberOfKStreams = 0;
     std::pair<size_t, double> toReturn;
@@ -339,10 +342,10 @@ std::pair<size_t, double> mv::StreamingPerformance::calculatefullWeightsSizeForO
     return toReturn;
 }
 
-void mv::StreamingPerformance::writeStatsToFile(unsigned chainID, std::string opName, int kStreaming, int hStreaming,
-                      std::string multiclusterStrategy, size_t fullweightsSize, size_t alignedFullOutputChannels,
-                      size_t weightsPerClusterPerOp, size_t minWeightsPerClusterPerChain,
-                      double optimalNumberOfKStreams, double maxpossibleStreams, double newKStreams) {
+void mv::StreamingPerformance::writeStatsToFile(const unsigned chainID, const std::string opName,const int kStreaming,const int hStreaming,
+                      const std::string multiclusterStrategy,const size_t fullweightsSize,const size_t alignedFullOutputChannels,
+                      const size_t weightsPerClusterPerOp,const size_t minWeightsPerClusterPerChain,
+                      const double optimalNumberOfKStreams,const double maxpossibleStreams,const double newKStreams) {
     fprintf(fptr_,
             "%zu : %s :  %zu : %zu  : %s : %zu : %zu : %zu : %zu : %.1f : %.1f : "
             "%.1f ",
@@ -352,7 +355,7 @@ void mv::StreamingPerformance::writeStatsToFile(unsigned chainID, std::string op
     fprintf(fptr_, "\n");
 }
 
-void mv::StreamingPerformance::evaluateAndAssignStrategies() {
+void mv::StreamingPerformance::evaluateGraphOptimizerAssignedKStreamingStrategies() {
     
     unsigned chainID = 0;
     size_t fullweightsSize = 0;
@@ -397,7 +400,7 @@ void mv::StreamingPerformance::evaluateAndAssignStrategies() {
 
                 // Calculate the max possible K streams based on the multi-cluster strategy
                 maxpossibleStreams = floor(alignedFullOutputChannels /
-                                           minOutputChannels_[graphOptimizerMultiClusterStrategy.get<std::string>()]);
+                                           minOutputChannels_.at(graphOptimizerMultiClusterStrategy.get<std::string>()));
 
                 // Get the weights per cluster for this op
                 weightsPerCluster = weightsPerClusterPerOp_.find(opIt->getName())->second;
