@@ -335,7 +335,7 @@ bool mv::Op::isUPA() const
                                         "PSROIPooling", "Resample", "Quantize", "Resample", "Reshape",
                                         "RegionYolo", "ReorgYolo", "DetectionOutput", "Interp", "Norm",
                                         "Priorbox","Argmax","Permute","CustomOcl","CustomCpp","Sigmoid","Deconv","Tile",
-                                        "RefConv", "Gather", "HSwish", "Relu", "Conversion", "Tanh"};
+                                        "RefConv", "Gather", "HSwish", "Relu", "Conversion", "Tanh", "SoftPlus"};
     log(Logger::MessageType::Debug, "isUPA method is called for:" + getOpType());
     if (std::count(upaTypes.begin(), upaTypes.end(), getOpType()))
     {

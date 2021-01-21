@@ -802,6 +802,19 @@ mv::Data::TensorIterator convertReluToUPATask(mv::OpModel& om, const std::vector
     return relu;
 }
 
+mv::Data::TensorIterator convertSoftPlusToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& /*attrs*/,
+                                                const std::string& name, bool /*software*/,
+                                                const mv::QuantizationParams& quantParams,
+                                                const mv::DType& outputTensorType,
+                                                const mv::Order& outputTensorOrder)
+{
+    auto softplus = om.uPATaskSoftPlus(name, inputs);
+    softplus->setDType(outputTensorType);
+    softplus->setQuantParams(quantParams);
+    softplus->setOrder(outputTensorOrder);
+    return softplus;
+}
 
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -816,7 +829,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
-                                                       "RefConv", "Gather", "HSwish", "Conversion", "Relu", "Tanh"};
+                                                       "RefConv", "Gather", "HSwish", "Conversion", "Relu", "Tanh", "SoftPlus"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -858,7 +871,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"HSwish", convertHSwishToUPATask},
     {"Conversion", convertConversionToUPATask},
     {"Relu", convertReluToUPATask},
-    {"Tanh", convertTanhToUPATask}
+    {"Tanh", convertTanhToUPATask},
+    {"SoftPlus", convertSoftPlusToUPATask}
     };
 
     // Layer types that given current compiler state, it's
