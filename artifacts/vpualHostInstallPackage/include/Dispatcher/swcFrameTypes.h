@@ -1,12 +1,4 @@
-///
-/// INTEL CONFIDENTIAL
-/// Copyright 2020. Intel Corporation.
-/// This software and the related documents are Intel copyrighted materials, 
-/// and your use of them is governed by the express license under which they were provided to you ("License"). 
-/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
-/// transmit this software or the related documents without Intel's prior written permission.
-/// This software and the related documents are provided as is, with no express or implied warranties, 
-/// other than those that are expressly stated in the License.
+// {% copyright %}
 ///
 /// @file      swcFrameTypes.h
 /// @copyright All code copyright Movidius Ltd 2013, all rights reserved
@@ -71,6 +63,8 @@ typedef struct frameElements
 
 static inline uint32_t size_from_framespec(const frameSpec *spec)
 {
+    if(!spec) throw std::invalid_argument("Argument must not be NULL");
+
     switch (spec->type)
     {
     case RAW8:
@@ -86,7 +80,7 @@ static inline uint32_t size_from_framespec(const frameSpec *spec)
     case RAW16:
         return spec->stride * spec->height * 2;
     default:
-        std::cerr << "Error - Unsupported frametype: " << spec->type << std::endl;
+        throw std::invalid_argument("Error - Unsupported frametype: ");
         {}
     }
     return 0;
