@@ -8,7 +8,7 @@
 
 #include "pass/lp_scheduler/barrier_scheduler_pass.hpp"
 
-#define HW_TIMER_ABSOLUTE_ADDR  0x203300BC  
+#define HW_TIMER_ABSOLUTE_ADDR  0x208200BC  
 
 static void AddTaskProfilingDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -25,6 +25,7 @@ namespace mv
 
 void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Control::StageIterator stageIt, const mv::pass::PassEntry& pass,
                                   mv::ComputationModel& model);
+void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, const mv::Element& passDesc, const std::vector<mv::Barrier>& barriers);
 
 
@@ -56,7 +57,27 @@ static mv::Control::OpListIterator findParentDPUorUPATask(mv::Control::OpListIte
     return ret;
 }
 
-void AddDMAtoBarrier(mv::Control::OpListIterator barrierOp, std::string dmaName, unsigned layerNumber, unsigned parentDMA, unsigned opId, mv::ComputationModel& model, mv::Data::TensorIterator &profilingTensor, std::vector<mv::Data::TensorIterator> &profilingDmas)
+void FillDMAAttributes(mv::Data::OpListIterator dmaOp, unsigned opId, unsigned layerNumber, unsigned schedulingNumber)
+{
+    dmaOp->set<unsigned>("opId", opId);
+    dmaOp->set<unsigned>("layerNumber", layerNumber);
+    dmaOp->set<unsigned>("DPU-schedule-number", schedulingNumber);
+    dmaOp->set<unsigned>("schedulingNumber", schedulingNumber);
+}
+
+void PushBackSchedulingNumbers(mv::ControlModel cm, unsigned schedulingNumber)
+{
+    for(auto opIt = cm.opBegin(); opIt != cm.opEnd(); ++opIt) {
+        if(opIt->hasAttr("schedulingNumber")) {
+            auto number = opIt->get<unsigned>("schedulingNumber");
+            if (number >= schedulingNumber) {
+                opIt->set<unsigned>("schedulingNumber", number+1);
+            }
+        }
+    }
+}
+
+void AddDMAtoBarrier(mv::Control::OpListIterator barrierOp, std::string dmaName, unsigned layerNumber, unsigned schedulingNumber, unsigned parentDMA, unsigned opId, mv::ComputationModel& model, mv::Data::TensorIterator &profilingTensor, std::vector<mv::Data::TensorIterator> &profilingDmas)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -64,15 +85,13 @@ void AddDMAtoBarrier(mv::Control::OpListIterator barrierOp, std::string dmaName,
     auto& barrier = barrierOp->get<mv::Barrier>("Barrier");
     auto barrierName = barrierOp->getName();
 
+    PushBackSchedulingNumbers(cm, schedulingNumber);
+
     auto profilingDma = om.dMATask(dmaName+"_"+to_string(parentDMA)+"_"+to_string(layerNumber), profilingTensor, mv::DmaDirectionEnum::HW2DDR, 0);
     profilingDmas.push_back(profilingDma);
 
     auto profilingDmaOp = om.getSourceOp(profilingDma);
-    profilingDmaOp->set<unsigned>("opId", opId);
-    profilingDmaOp->set<unsigned>("layerNumber", layerNumber);
-    //schedulingNumber is always 0 as this DMA has the higist prio under the same barrier
-    profilingDmaOp->set<unsigned>("DPU-schedule-number", 0);
-    profilingDmaOp->set<unsigned>("schedulingNumber", 0);
+    FillDMAAttributes(profilingDmaOp, opId, layerNumber, schedulingNumber);
     profilingDmaOp->set("BarrierDeps", mv::BarrierDependencies());
     auto& barrierRef = profilingDmaOp->get<mv::BarrierDependencies>("BarrierDeps");
     barrierRef.addWaitBarrier(barrier.getIndex());
@@ -120,6 +139,11 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         enable_profiling = true;
     if (passDesc.hasAttr("force_profiling") && passDesc.get<bool>("force_profiling"))
         enable_profiling = true;
+
+    /* Check if the profiling data should be gathered to CMX */
+    bool enable_cmx = false;
+    if (passDesc.hasAttr("enable_cmx") && passDesc.get<bool>("enable_cmx"))
+        enable_cmx = true;
 
     if (!enable_profiling) return;
 
@@ -173,7 +197,7 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                 /* Add DMA to the first parent barrier */
                 for(auto parentOp = opIt.leftmostParent(); parentOp != cm.opEnd(); ++parentOp) {
                     if (parentOp->getOpType() == "BarrierTask") {
-                        AddDMAtoBarrier(parentOp, dmaName+"_PROFBEGIN", 1, 0, opId, model, profilingTensor, profilingDmas);
+                        AddDMAtoBarrier(parentOp, dmaName+"_PROFBEGIN", 1, 0, 0, opId, model, profilingTensor, profilingDmas);
                         TaskDMAMap[parentOp->getName()] = profilingDmas.size()-1;
                         break;
                     }
@@ -190,7 +214,7 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
             layerNumber++;
             dmaName += (!lastTask) ? "_PROFMIDDLE" : "_PROFEND";
-            AddDMAtoBarrier(barrierOp, dmaName, layerNumber, parentDMA, opId, model, profilingTensor, profilingDmas);
+            AddDMAtoBarrier(barrierOp, dmaName, layerNumber, opIt->get<unsigned>("schedulingNumber")+1, parentDMA, opId, model, profilingTensor, profilingDmas);
             TaskDMAMap[opIt->getName()] = profilingDmas.size()-1;
         }
     }
@@ -199,15 +223,15 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         throw std::logic_error("No profiling DMAs added during Task loop");
         return;
     }
+
+    std::vector<mv::Data::OpListIterator> postProcessingOps;
+
     /*
      * Combine all DMAs by creating implicitConcat
      */
     auto ProfilingConcat = om.implicitConcat("ProfilingConcat", profilingDmas);
-    //Perform ResolveImplicitOperations pass manually
     auto ProfilingConcatOp = om.getSourceOp(ProfilingConcat);
-    ProfilingConcatOp->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
-    ProfilingConcatOp->get<mv::ImplicitFlow>("ImplicitFlow").resolve();
-
+    postProcessingOps.push_back(ProfilingConcatOp);
     /* 
      * Memory allocation 
      */
@@ -216,30 +240,59 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     auto stageIt = cm.getStage(0);
     profilingTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::BLOB);
     dm.allocateTensor("GraphFile", stageIt, profilingTensor);
-    auto OutputLocation = mv::Tensor::MemoryLocation::OUTPUT;
+    auto OutputLocation =  (enable_cmx) ? mv::Tensor::MemoryLocation::NNCMX : mv::Tensor::MemoryLocation::OUTPUT;
     for (auto profilingDma: profilingDmas) {
-        /* This set the "locale": "ProgrammableOutput" in blob */
         profilingDma->set<mv::Tensor::MemoryLocation>("Location", OutputLocation);
-        dm.allocateTensor("ProgrammableOutput", stageIt, profilingDma);
+        if (!enable_cmx) dm.allocateTensor("ProgrammableOutput", stageIt, profilingDma);
     }
     ProfilingConcat->set<mv::Tensor::MemoryLocation>("Location", OutputLocation);
-    dm.allocateTensor("ProgrammableOutput", stageIt, ProfilingConcat);
+    ProfilingConcat->set<std::string>("splitStrategy", "SplitOverH");
+
+
+    auto ProfilingCopy = om.copy("ProfilingCopy", ProfilingConcat);
+    ProfilingCopy->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+    auto ProfilingCopyOp = om.getSourceOp(ProfilingCopy);
+    postProcessingOps.push_back(ProfilingCopyOp);
+    dm.allocateTensor("ProgrammableOutput", stageIt, ProfilingCopy);
+    ProfilingCopyOp->set<unsigned>("opId", 0);
 
     /* 
      * Create additional output from network 
      */
-    auto profilingOutput = om.output("profilingOutput", ProfilingConcat, {"Default"}, true);
-    auto profilingOutputTensor = dm.defineTensor("profilingOutput", ProfilingConcat->getShape(), ProfilingConcat->getDType(), ProfilingConcat->getOrder());
-    ProfilingConcat->set<uint8_t>("outputIndex", om.getNetworkOutputs().size()-1);
+    auto profilingOutput = om.output("profilingOutput", ProfilingCopy, {"Default"}, true);
+    auto profilingOutputTensor = dm.defineTensor("profilingOutput", ProfilingCopy->getShape(), ProfilingCopy->getDType(), ProfilingCopy->getOrder());
+    ProfilingCopy->set<uint8_t>("outputIndex", om.getNetworkOutputs().size()-1);
+
     /* 
      * Execute postprocessing passes 
      */
-    allocateImplicitOperationsOp(ProfilingConcatOp, stageIt, pass, model);
+    for (auto OpIt : postProcessingOps)
+        resolveImplicitOperationsOp(OpIt, pass, model);
 
-#if 1
-    //Check if network still pass the schedule check, TODO: dynamicaly get real barriers count
-    auto success = mv::lp_scheduler::Control_Model_Barrier_Checker::check_schedule(cm, 32);
-    printf("[BarrierSimulatorCheckPass]: %s\n", success ? "PASSED" : "FAILED"); 
+    /* Output memory should be allocated manually and after resolving of impisit operations */
+    auto newTensor = ProfilingCopyOp->getInputTensor(0);
+    dm.allocateTensor("ProgrammableOutput", stageIt, newTensor);
+
+    for (auto OpIt : postProcessingOps)
+        allocateImplicitOperationsOp(OpIt, stageIt, pass, model);
+
+    /* Add Fill mandatory attibutes for CMX2DDR DMA */
+    auto copyDMA = ProfilingCopyOp.leftmostParent();
+    if (copyDMA->getOpType() == "DMATask") {
+        auto lastDMA = om.getSourceOp(profilingDmas.back());
+        FillDMAAttributes(copyDMA, 0, lastDMA->get<unsigned>("layerNumber")+1, lastDMA->get<unsigned>("schedulingNumber")+1);
+    }
+    
+#if 0
+    /* Add barier before copyDMA */
+    std::vector<mv::Barrier> barriers;
+    std::set<std::string> producers, consumers;
+    producers.insert(om.getSourceOp(profilingDmas.back())->getName());
+    consumers.insert(copyDMA->getName());
+    mv::Barrier new_barrier(producers, consumers);
+    barriers.push_back(new_barrier);
+    insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
+    mv::lp_scheduler::Control_Model_Barrier_Scheduler::renumberBarrierTasks(om);
 #endif
 
     /* Debug info */

@@ -7,6 +7,7 @@
 #include <set>
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"
+#include "include/mcm/base/exception/logic_error.hpp"
 #include "include/mcm/computation/model/iterator/tensor.hpp"
 #include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/logger/log_sender.hpp"
