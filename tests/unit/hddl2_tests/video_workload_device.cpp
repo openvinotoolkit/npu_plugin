@@ -37,8 +37,8 @@ protected:
 void VideoWorkloadDevice_UnitTests::SetUp() {
     if (canWorkWithDevice()) {
         _remoteContextHelperPtr = std::make_shared<vpu::HDDL2Plugin::RemoteContext_Helper>();
-    const IE::ParamMap _deviceParams = _remoteContextHelperPtr->wrapWorkloadIdToMap( _remoteContextHelperPtr->getWorkloadId());
-    device = std::make_shared<VideoWorkloadDevice>(_deviceParams);
+        const IE::ParamMap _deviceParams = _remoteContextHelperPtr->wrapWorkloadIdToMap( _remoteContextHelperPtr->getWorkloadId());
+        device = std::make_shared<VideoWorkloadDevice>(_deviceParams);
     }
 }
 
