@@ -124,8 +124,8 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
     }
 
     for (size_t ic = 0; ic < input_fq_data1.size(); ++ic) {
-        input_fq_data1[ic] = input_min;
-        input_fq_data2[ic] = input_max;
+        input_fq_data1[ic] = 0;
+        input_fq_data2[ic] = input_fq_levels - 1;
         input_fq_data3[ic] = input_min;
         input_fq_data4[ic] = input_max;
     }

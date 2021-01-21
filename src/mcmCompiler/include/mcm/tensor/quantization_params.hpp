@@ -82,6 +82,7 @@ namespace mv
         virtual std::string toString() const override;
         virtual bool isEmpty() const;
         virtual bool isNeutral() const;
+        virtual bool isInitial() const;
         virtual bool infinitelimits() const;
 
         static QuantizationParams empty();
