@@ -1085,3 +1085,30 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_fp16
             "224x224/cat3.bmp",
             3, 0.05);
 }
+
+TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8_MTL) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong detection results");  // At the moment no EVM is setup so cannot run
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8.xml")
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::U8)  // currently FP16 is not supported by runtime
+                .setUserOutputLayout("output", Layout::NHWC)
+                .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_mtl-sc"},
+                                   {"VPU_COMPILER_TARGET_DESCRIPTOR", "release_mtl"},
+                                   {"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "NO"}}),
+            TestImageDesc("227x227/watch.bmp", ImageFormat::RGB),
+            1, 0.5f);
+}
+
+TEST_F(KmbClassifyNetworkTest, shufflenet_v2_x1_0_pytorch) {
+    runTest(
+            TestNetworkDesc("KMB_models/FP16-INT8/public/shufflenet-v2-x1_0-pytorch/shufflenet-v2-x1_0-pytorch.xml")
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NCHW)
+                .setUserOutputPrecision("output", Precision::FP32)
+                .setUserOutputLayout("output", Layout::NC),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
+            3, 0.5f);
+}
+
