@@ -23,7 +23,7 @@ void streamingForPerformanceFnc(const mv::pass::PassEntry& pass, mv::Computation
 mv::OpModel om(model);
 mv::StreamingPerformance streamingPerformance(model,om);
 
-streamingPerformance.evaluateStreamingOverKStrategies();
+streamingPerformance.increaseStreamingOverKforPerformance();
 
 // Step 2: Get the min weights per cluster in a chain
 //getMinWeightsPerClusterSizePerChain(chainSubgraphs, pass, model, weightsPerClusterPerOp, fptr);
