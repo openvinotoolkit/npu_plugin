@@ -152,55 +152,6 @@ void KmbLayerTestsCommon::Validate() {
     Compare(expectedOutputs, actualOutputs);
 }
 
-void KmbLayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
-    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
-        const auto& expected = expectedOutputs[outputIndex];
-        const auto& actual = actualOutputs[outputIndex];
-
-        // TODO: The compare function only supports I32 and FP32 precision.
-        switch (actual->getTensorDesc().getPrecision()) {
-            case InferenceEngine::Precision::FP16:
-                LayerTestsCommon::Compare(expected, toPrecision(actual, InferenceEngine::Precision::FP32));
-                break;
-            case InferenceEngine::Precision::U8:
-                LayerTestsCommon::Compare(expected, toPrecision(actual, InferenceEngine::Precision::I32));
-                break;
-            default:
-                LayerTestsCommon::Compare(expected, actual);
-        }
-    }
-}
-
-std::vector<std::vector<std::uint8_t>> KmbLayerTestsCommon::CalculateRefs() {
-    std::cout << "LayerTestsCommon::CalculateRefs() beg" << std::endl;
-
-    // TODO: The calculate reference function not support FP16 precision.
-    //       The compare function only supports I32 and FP32 precision.
-    for (auto& input_blob : inputs) {
-        if (input_blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
-            input_blob = toPrecision(input_blob, InferenceEngine::Precision::FP32);
-        }
-        if (input_blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::U8) {
-            input_blob = toPrecision(input_blob, InferenceEngine::Precision::I32);
-        }
-    }
-
-    if (outPrc == InferenceEngine::Precision::UNSPECIFIED) {
-        outPrc = executableNetwork.GetOutputsInfo().begin()->second->getTensorDesc().getPrecision();;
-    }
-    if (outPrc == InferenceEngine::Precision::FP16) {
-        outPrc = InferenceEngine::Precision::FP32;
-    }
-    if (outPrc == InferenceEngine::Precision::U8) {
-        outPrc = InferenceEngine::Precision::I32;
-    }
-
-    auto res = LayerTestsCommon::CalculateRefs();
-    std::cout << "LayerTestsCommon::CalculateRefs() end" << std::endl;
-
-    return res;
-}
-
 void KmbLayerTestsCommon::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
