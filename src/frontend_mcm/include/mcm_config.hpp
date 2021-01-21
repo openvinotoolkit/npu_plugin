@@ -125,7 +125,7 @@ protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:
-    LogLevel _mcmLogLevel = LogLevel::None;
+    LogLevel _mcmLogLevel = LogLevel::Info;
 
     std::string _mcmTargetDesciptorPath = "mcm_config/target";
     std::string _mcmTargetDesciptor = "release_kmb";
