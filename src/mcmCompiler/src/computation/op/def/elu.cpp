@@ -37,7 +37,7 @@ namespace mv
     namespace op {
         MV_REGISTER_OP(Elu)
         .setInputs({"data"})
-        .setOptionalArg<unsigned>("alpha", 1)
+        .setOptionalArg<double>("alpha", 1)
         .setOutputs({"output"})
         .setInputCheck(op_elu::inputCheckFcn)
         .setOutputDef(op_elu::outputDefFcn)

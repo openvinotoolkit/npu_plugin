@@ -3329,7 +3329,7 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAEluTask(mv::ComputationModel &cm
     auto output = opIt->getOutputTensor(0);
     auto toBuild = new MVCNN::UPALayerTaskT();
 
-    float x = opIt->get<float>("x");
+    const auto x = opIt->get<double>("alpha");
 
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
     auto softLayerParamsValue = new MVCNN::PostOpsParamsT();

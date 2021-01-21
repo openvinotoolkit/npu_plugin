@@ -16,7 +16,8 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypes {
     ngraph::helpers::Sigmoid,
     ngraph::helpers::HSwish,
     ngraph::helpers::Tanh,
-    ngraph::helpers::SoftPlus
+    ngraph::helpers::SoftPlus,
+    ngraph::helpers::Elu
 };
 
 std::set<ngraph::helpers::ActivationTypes> supportedTypesByExperimentalCompiler {
@@ -78,16 +79,18 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Sigmoid,  {{1.0f}}},
     {Tanh,     {{1.0f}}},
     {Relu,     {{1.0f}}},
-    {Exp,      {{1.0f}}},
-    {Log,      {{1.0f}}},
-    {Sign,     {{1.0f}}},
-    {Abs,      {{1.0f}}},
     {Elu,      {{1.0f}}},
     {Clamp,    {{-1.0f, 1.0f}}},
     {HSwish,   {{1.0f}}},
     {PReLu,    {{0.01f}}},
     {LeakyRelu,{{0.01f}}},
-    {SoftPlus, {{1.0f}}}
+    {SoftPlus, {{1.0f}}},
+#if 0 // Unsupported layers
+    {Exp,      {{1.0f}}},
+    {Log,      {{1.0f}}},
+    {Sign,     {{1.0f}}},
+    {Abs,      {{1.0f}}},
+#endif
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
