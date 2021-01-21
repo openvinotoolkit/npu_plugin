@@ -16,8 +16,7 @@ namespace mv
     std::tuple<std::size_t,std::size_t,std::size_t> memorySize(mv::Op& op, int totalClusters, bool enableChannelMajorConv, std::string clustering, 
                                             bool inputActivationSparsity, bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig,
                                             bool fakeSparsity, bool spilling = false, bool parentSpilling = true);
-    void saveNewStreamingStrategiesToJson(const mv::pass::PassEntry& pass, const mv::Attribute& streamingStrategyElements, std::string passName);
-     void saveNewStreamingStrategiesToJson1(const mv::Attribute& streamingStrategyElements);
+    void saveNewStreamingStrategiesToJson(const mv::Attribute& streamingStrategyElements);
     bool validateKStream(mv::Op& op, mv::Attribute clustering, size_t split, bool spilling, size_t nClusters);
 }
 
