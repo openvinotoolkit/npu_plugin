@@ -15,7 +15,8 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypes {
     ngraph::helpers::Relu,
     ngraph::helpers::Sigmoid,
     ngraph::helpers::HSwish,
-    ngraph::helpers::Tanh
+    ngraph::helpers::Tanh,
+    ngraph::helpers::SoftPlus
 };
 
 std::set<ngraph::helpers::ActivationTypes> supportedTypesByExperimentalCompiler {
@@ -85,7 +86,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Clamp,    {{-1.0f, 1.0f}}},
     {HSwish,   {{1.0f}}},
     {PReLu,    {{0.01f}}},
-    {LeakyRelu,{{0.01f}}}
+    {LeakyRelu,{{0.01f}}},
+    {SoftPlus, {{1.0f}}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
