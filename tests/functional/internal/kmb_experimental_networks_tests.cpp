@@ -129,7 +129,7 @@ TEST_F(KmbClassifyNetworkTest, efficient_b0_cars) {
                     .setUserOutputPrecision("output", Precision::FP32)
                     .enableLPTRefMode(),
             TestImageDesc("vpu/efficient/car_1.jpg", ImageFormat::RGB),
-            1, 0.1f);
+            1, 0.15f);
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_efficient_b0_dogs) {
@@ -140,7 +140,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_efficient_b0_dogs) {
                     .setUserOutputPrecision("output", Precision::FP32)
                     .enableLPTRefMode(),
             TestImageDesc("vpu/efficient/dog_1.jpg", ImageFormat::RGB),
-            1, 0.13f);
+            1, 0.15f);
 }
 
 TEST_F(KmbClassifyNetworkTest, efficient_b0_aircrafts) {
@@ -151,5 +151,5 @@ TEST_F(KmbClassifyNetworkTest, efficient_b0_aircrafts) {
                     .setUserOutputPrecision("output", Precision::FP32)
                     .enableLPTRefMode(),
             TestImageDesc("vpu/efficient/aircraft_1.jpg", ImageFormat::RGB),
-            1, 0.1f);
+            1, 0.15f);
 }
