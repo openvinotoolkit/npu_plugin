@@ -63,10 +63,11 @@ namespace VPUXConfigParams {
  * @brief VPUX device
  */
 enum class VPUXPlatform: int {
+    AUTO            = 0,    // auto detection
     MA2490          = 1,    // Keem bay A0
     MA2490_B0       = 2,    // Keem bay B0
     MA3100          = 3,    // Thunder bay harbor A0
-    MA3720          = 4     // Meteor lake
+    MA3720          = 4,    // Meteor lake
 };
 
 /**
@@ -76,6 +77,7 @@ enum class VPUXPlatform: int {
  * If specified device is not available then creating infer request will throw an exception.
  */
 DECLARE_VPUX_CONFIG_KEY(PLATFORM);
+DECLARE_VPUX_CONFIG_VALUE(AUTO);
 DECLARE_VPUX_CONFIG_VALUE(MA2490);
 DECLARE_VPUX_CONFIG_VALUE(MA2490_B0);
 DECLARE_VPUX_CONFIG_VALUE(MA3100);

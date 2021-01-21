@@ -1,3 +1,2 @@
-
-VPUIP2: ef2d0b82c4fd919b1603642ebf3f88512dc7ffa1
-                    
+tag:ci_tag_gold2_vpu_release_21ww03.4.1
+commit:71f67c21ff5323419f842fc45059e9ac386eec9d

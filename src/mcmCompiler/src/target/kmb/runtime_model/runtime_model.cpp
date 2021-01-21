@@ -489,20 +489,23 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
 
+        // acording to the runtime code, Zero point only uses first value of array.
+        // mult and shift are only used for eltwise output, not for other outputs.
+        // https://github.com/movidius/vpuip_2/blob/develop/system/nn/nce_lib/src/2490/ppe_task.cpp
         auto quantZero = quantizationParams.getZeroPoint();
-        toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+        toBuild->quant_zero = std::vector<unsigned char>(1, quantZero[0]);
 
         std::vector<unsigned> quantMult = {};
         if (quantizationParams.hasAttr("mult"))
             quantMult = quantizationParams.getMult();
         quantMult = reduceQuantVector_(quantMult);
-        toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+        toBuild->quant_mult = std::vector<unsigned short int>(1, quantMult[0]);
 
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
-        toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+        toBuild->quant_shift = std::vector<unsigned char>(1, quantShift[0]);
         toBuild->quant_post_shift_right = quantizationParams.getPostShift();
     }
 
@@ -596,13 +599,21 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     auto numericStrides = t->computeNumericStrides();
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
 
-    // TODO
-    // Double check whether the change is correct
-    if(*tensorAllocatorName == "VPU_CMX_NN" || *tensorAllocatorName == "ProgrammableOutput" ||
-		    (*tensorAllocatorName == "VPU_DDR_Heap" && !subtensor.getOrder().isColMajor()))
-    {
+    if (*tensorAllocatorName == "VPU_CMX_NN" || *tensorAllocatorName == "ProgrammableOutput" ||
+        (*tensorAllocatorName == "VPU_DDR_Heap" && !subtensor.getOrder().isColMajor())) {
+        // NOTE: if I go from a k-split strategy to splitOverH i need to use my whole tensor,
+        // cause the parent is full on its location, if I go from soh to soh i will dma the subs
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-        numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
+        bool attrIsEqual = false;
+        if ((*masterBuffer)->getData()->hasAttr("splitStrategy")) {
+            const auto attrData = (*masterBuffer)->getData()->get<std::string>("splitStrategy");
+            attrIsEqual = (attrData == "SplitOverH" || attrData == "SplitOverHOverlapped" || attrData == "HKSwitch");
+        }
+
+        if (attrIsEqual)
+            numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
+        else
+            numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
     }
 
@@ -771,22 +782,24 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
 
+        // acording to the runtime code, Zero point only uses first value of array.
+        // mult and shift are only used for eltwise output, not for other outputs.
+        // https://github.com/movidius/vpuip_2/blob/develop/system/nn/nce_lib/src/2490/ppe_task.cpp
         auto quantZero = quantizationParams.getZeroPoint();
-        toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+        toBuild->quant_zero = std::vector<unsigned char>(1, quantZero[0]);
 
         std::vector<unsigned> quantMult = {};
         if (quantizationParams.hasAttr("mult"))
             quantMult = quantizationParams.getMult();
         quantMult = reduceQuantVector_(quantMult);
-        toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+        toBuild->quant_mult = std::vector<unsigned short int>(1, quantMult[0]);
 
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
-        toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+        toBuild->quant_shift = std::vector<unsigned char>(1, quantShift[0]);
         toBuild->quant_post_shift_right = quantizationParams.getPostShift();
-
     }
 
     return toBuild;
@@ -1879,7 +1892,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (opIt->hasAttr("padding"))
     {
         auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
-        if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
+        if(opIt->get<std::string>("splitStrategy") == "SplitOverH" && opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
         {
             unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
             kernelPadding = getNewPadding(kernelPadding, clusterId, numClusters);
@@ -3230,6 +3243,25 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAHSwishTask(mv::ComputationModel 
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPASwishTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_SwishParams;
+    softLayerParamsValue->nested_params.AsSwishParams()->beta = opIt->get<double>("beta");
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -3247,8 +3279,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationMo
         softLayerParamsValue->scale = input->getQuantParams().getScale()[0];
         softLayerParamsValue->bias  = -input->getQuantParams().getZeroPoint()[0] / input->getQuantParams().getScale()[0];
     }
-    else if ((output->getDType() == mv::DType("Float16") || output->getDType() == mv::DType("Float32")) &&
-              input->getDType() == mv::DType("UInt8"))
+    else if ((input->getDType() == mv::DType("Float16") || input->getDType() == mv::DType("Float32")) &&
+              output->getDType() == mv::DType("UInt8"))
     {
         softLayerParamsValue->scale = 1.0 / input->getQuantParams().getScale()[0];
         softLayerParamsValue->bias  = input->getQuantParams().getZeroPoint()[0];
@@ -3274,6 +3306,24 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReluTask(ComputationModel& cm, 
     auto softLayerParamsValue = new MVCNN::UnaryOpParamsT();
 
     softLayerParamsValue->nested_params.type = MVCNN::UnaryOpNestedParams_ReluParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPASoftPlusTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_SoftPlusParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
@@ -3351,10 +3401,14 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAGatherTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "HSwish")
         toReturn[0]->task.value = buildUPAHSwishTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Swish")
+        toReturn[0]->task.value = buildUPASwishTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Conversion")
         toReturn[0]->task.value = buildUPAConversionTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Relu")
         toReturn[0]->task.value = buildUPAReluTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "SoftPlus")
+        toReturn[0]->task.value = buildUPASoftPlusTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 

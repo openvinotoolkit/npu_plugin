@@ -31,12 +31,15 @@ public:
     std::shared_ptr<VideoWorkloadDevice> device = nullptr;
 
 protected:
-    vpu::HDDL2Plugin::RemoteContext_Helper _remoteContextHelper;
+    vpu::HDDL2Plugin::RemoteContext_Helper::Ptr _remoteContextHelperPtr = nullptr;
     void SetUp() override;
 };
 void VideoWorkloadDevice_UnitTests::SetUp() {
-    const IE::ParamMap _deviceParams = _remoteContextHelper.wrapWorkloadIdToMap( _remoteContextHelper.getWorkloadId());
+    if (canWorkWithDevice()) {
+        _remoteContextHelperPtr = std::make_shared<vpu::HDDL2Plugin::RemoteContext_Helper>();
+    const IE::ParamMap _deviceParams = _remoteContextHelperPtr->wrapWorkloadIdToMap( _remoteContextHelperPtr->getWorkloadId());
     device = std::make_shared<VideoWorkloadDevice>(_deviceParams);
+    }
 }
 
 
@@ -56,7 +59,7 @@ TEST_F(VideoWorkloadDevice_UnitTests, constructor_CorrectAllocatorParams) {
 
     RemoteMemory_Helper _remoteMemoryHelper;
     const HddlUnite::RemoteMemory::Ptr remoteMemory =
-        _remoteMemoryHelper.allocateRemoteMemory(_remoteContextHelper.getWorkloadId(), 1);
+        _remoteMemoryHelper.allocateRemoteMemory(_remoteContextHelperPtr->getWorkloadId(), 1);
 
     IE::ParamMap correctParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory}};
     std::shared_ptr<vpux::Allocator> allocator = nullptr;

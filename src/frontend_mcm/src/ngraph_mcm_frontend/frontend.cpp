@@ -136,15 +136,22 @@ std::vector<char> compileNGraph(
         VPU_LOGGER_SECTION(log);
 
         bool layoutNCHW = true;
-        auto compDescName = config.mcmCompilationDesciptor();
         for (const auto& netInput : inputsInfo) {
             if (netInput.second->getLayout() != InferenceEngine::Layout::NCHW) {
                 layoutNCHW = false;
                 break;
             }
         }
+
+        std::string compDescName;
         if (layoutNCHW) {
             compDescName = "release_kmb_with_CM_Conv";
+        } else {
+            compDescName = "release_kmb";
+        }
+
+        if (!config.mcmCompilationDesciptor().empty()) {
+            compDescName = config.mcmCompilationDesciptor();
         }
 
         const auto targetPath = ie::getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + config.mcmTargetDesciptor() + ".json";
@@ -249,7 +256,9 @@ std::vector<char> compileNGraph(
 
         const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
             const bool skipLayers =
-                (std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node) != nullptr);
+                std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
+                std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node);
+
             return skipLayers;
         };
 

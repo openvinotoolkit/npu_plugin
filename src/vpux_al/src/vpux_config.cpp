@@ -26,11 +26,9 @@
 namespace IE = InferenceEngine;
 
 vpux::VPUXConfig::VPUXConfig() {
-    _compileOptions =
-            merge(vpux::VPUXConfigBase::getCompileOptions(), {
-                                                                     VPUX_CONFIG_KEY(PLATFORM),
-                                                                     VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER),
-                                                             });
+    _compileOptions = merge(vpux::VPUXConfigBase::getCompileOptions(), {
+                                                                               VPUX_CONFIG_KEY(PLATFORM),
+                                                                       });
     _runTimeOptions = merge(vpux::VPUXConfigBase::getRunTimeOptions(), {
                                                                                CONFIG_KEY(PERF_COUNT),
                                                                                CONFIG_KEY(DEVICE_ID),
@@ -59,11 +57,6 @@ void vpux::VPUXConfig::parseFrom(const vpux::VPUXConfig& other) {
 }
 
 void vpux::VPUXConfig::parseEnvironment() {
-#ifndef NDEBUG
-    if (const auto envVar = std::getenv("KMB_USE_LEGACY_PARSER")) {
-        _useNGraphParser = !std::stoi(envVar);
-    }
-#endif
 }
 
 void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
@@ -76,6 +69,7 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_throughputStreams, config, VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
     setOption(_throughputStreams, config, KMB_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
     static const std::unordered_map<std::string, IE::VPUXConfigParams::VPUXPlatform> vpuxPlatform = {
+            {VPUX_CONFIG_VALUE(AUTO), IE::VPUXConfigParams::VPUXPlatform::AUTO},
             {VPUX_CONFIG_VALUE(MA2490), IE::VPUXConfigParams::VPUXPlatform::MA2490},
             {VPUX_CONFIG_VALUE(MA2490_B0), IE::VPUXConfigParams::VPUXPlatform::MA2490_B0},
             {VPUX_CONFIG_VALUE(MA3100), IE::VPUXConfigParams::VPUXPlatform::MA3100},
@@ -84,7 +78,6 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
 
     // Private options
     setOption(_inferenceTimeoutMs, config, VPUX_CONFIG_KEY(INFERENCE_TIMEOUT), parseInt);
-    setOption(_useNGraphParser, switches, config, VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER));
     static const std::unordered_map<std::string, IE::ColorFormat> colorFormat = {
             {VPUX_CONFIG_VALUE(BGR), IE::ColorFormat::BGR},
             {VPUX_CONFIG_VALUE(RGB), IE::ColorFormat::RGB}};

@@ -26,80 +26,162 @@
 #include <numeric>
 #include <algorithm>
 #include <vector>
+#include <ngraph/ops.hpp>
 
-int64_t calcZeroPoint(
-        double low, double high, size_t levels,
-        const ngraph::element::Type& elemType) {
-    IE_ASSERT(low < high);
-    IE_ASSERT(levels > 1);
+int64_t calculateZeroPoint(float low, float high, int levels, const ngraph::element::Type& elemType) {
+    IE_ASSERT((low <= 0.f) && (high >= 0.f) && (low != high));
+    IE_ASSERT(levels <= 256);
 
-    int64_t zepoPoint = 0;
+    int zeroPoint = 0;
 
-    if (elemType == ngraph::element::i8) {
-        if ((low <= 0.0) && (high >= 0.0)) {
-            const double x = -static_cast<double>(levels - 1) * ((high + low) * 0.5) / (high - low);
-            zepoPoint = static_cast<int64_t>(std::ceil(x));
-        } else if (low > 0.0) {
-            zepoPoint = 127 - static_cast<int64_t>(levels - 1);
-        } else if (high < 0.0) {
-            zepoPoint = 127;
-        }
-    } else if (elemType == ngraph::element::u8) {
-        if ((low <= 0.0) && (high >= 0.0)) {
-            const double x = -static_cast<double>(levels - 1) * low / (high - low);
-            zepoPoint = static_cast<int64_t>(std::ceil(x));
-        } else if (low >= 0.0) {
-            zepoPoint = 0;
-        } else if (high <= 0.0) {
-            zepoPoint = static_cast<int64_t>(levels - 1);
-        }
+    if (elemType == ngraph::element::u8) {
+        float x = -static_cast<float>(levels - 1) * low / (high - low);
+        zeroPoint = static_cast<int>(std::round(x));
+    } else if (elemType == ngraph::element::i8) {
+        float x = -static_cast<float>(levels - 1) * ((high + low) * 0.5f) / (high - low);
+        zeroPoint = static_cast<int>(std::round(x));
     } else {
         THROW_IE_EXCEPTION << "Unsupported element type " << elemType;
     }
 
-    return zepoPoint;
+    return zeroPoint;
 }
 
-std::vector<int64_t> calcZeroPoints(
+std::vector<int64_t> calculateZeroPoints(
         const std::vector<double>& low,
         const std::vector<double>& high,
-        size_t levels,
+        int levels,
         const ngraph::element::Type& elemType) {
     IE_ASSERT(high.size() == low.size());
 
     std::vector<int64_t> out(high.size());
 
     for (size_t i = 0; i < out.size(); ++i) {
-        out[i] = calcZeroPoint(low[i], high[i], levels, elemType);
+        out[i] = calculateZeroPoint(low[i], high[i], levels, elemType);
     }
 
     return out;
 }
 
-double calcScale(double low, double high, size_t levels) {
-    IE_ASSERT(low < high);
-    IE_ASSERT(levels > 1);
+double calculateScale(float low, float high, int levels) {
+    IE_ASSERT(low != high);
+    IE_ASSERT(levels <= 256);
 
-    return (high - low) / (levels - 1);
+    return static_cast<double>((high - low) / static_cast<float>(levels - 1));
 }
 
-std::vector<double> calcScales(
+std::vector<double> calculateScales(
         const std::vector<double>& low,
         const std::vector<double>& high,
-        size_t levels) {
+        int levels) {
     IE_ASSERT(high.size() == low.size());
 
     std::vector<double> out(high.size());
 
     for (size_t i = 0; i < out.size(); ++i) {
-        out[i] = calcScale(low[i], high[i], levels);
+        out[i] = calculateScale(low[i], high[i], levels);
     }
 
     return out;
 }
 
 double clamp(double val, double low, double high) {
+    IE_ASSERT(low <= high);
     return std::min(high, std::max(low, val));
+}
+
+bool different(double v1, double v2) {
+    return std::abs(v1 - v2) > std::max(std::max(std::abs(v1), std::abs(v2)) * 0.000001, 0.000001);
+}
+
+void align_zp(float &min, float &max, const int max_levels) {
+    double zp = calculateZeroPoint(min, max, max_levels, ngraph::element::u8);
+    double scale = calculateScale(min, max, max_levels);
+    min = static_cast<float>((0.0 - zp) * scale);
+    max = static_cast<float>((max_levels - 1.0 - zp) * scale);
+}
+
+bool is_fq_agnostic(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ngraph::op::v1::Split>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v1::StridedSlice>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v0::Tile>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v1::VariadicSplit>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v0::Concat>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v0::Interpolate>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v1::MaxPool>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v1::ReduceMax>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v0::ReorgYolo>(node) != nullptr ||
+            (std::dynamic_pointer_cast<ngraph::op::v1::Reshape>(node) != nullptr &&
+             std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(node->output(0).get_target_inputs().begin()->get_node()->shared_from_this()) == nullptr) ||
+            std::dynamic_pointer_cast<ngraph::op::v1::Transpose>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v0::Squeeze>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v0::Unsqueeze>(node) != nullptr);
+}
+
+void replace_node_if_changed(const std::shared_ptr<ngraph::op::v0::Constant>& node, const std::vector<double> &data, const std::string &name_postfix) {
+    auto new_node = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f64, node->get_shape(), data.data());
+    if (node->get_element_type() == ngraph::element::f32) {
+        new_node = std::make_shared<ngraph::op::v0::Constant>(node->get_element_type(), node->get_shape(), new_node->cast_vector<float>().data());
+    }
+    if (node->get_element_type() == ngraph::element::f16) {
+        new_node = std::make_shared<ngraph::op::v0::Constant>(node->get_element_type(), node->get_shape(), new_node->cast_vector<ngraph::float16>().data());
+    }
+    if (node->get_element_type() == ngraph::element::u8) {
+        new_node = std::make_shared<ngraph::op::v0::Constant>(node->get_element_type(), node->get_shape(), new_node->cast_vector<unsigned char>().data());
+    }
+
+    if (node->get_friendly_name().find(name_postfix) == std::string::npos)
+        new_node->set_friendly_name(node->get_friendly_name() + name_postfix);
+    else
+        new_node->set_friendly_name(node->get_friendly_name());
+
+    bool changed = false;
+    auto node_vals = node->cast_vector<double>();
+    auto new_node_vals = new_node->cast_vector<double>();
+    for (size_t i = 0; i < node_vals.size(); i++) {
+        changed |= different(node_vals[i], new_node_vals[i]);
+    }
+
+    if (changed)
+        ngraph::replace_node(node, new_node);
+}
+
+bool replace_node_if_changed(const std::shared_ptr<ngraph::op::v0::Constant>& node, const ngraph::element::Type_t type, const std::vector<float> &data, const std::string &name_postfix) {
+    auto new_node = std::make_shared<ngraph::op::v0::Constant>(type, data.size() == 1 ? ngraph::Shape(0) : ngraph::Shape({data.size(),1,1,1}), data.data());
+    if (node->get_friendly_name().find(name_postfix) == std::string::npos)
+        new_node->set_friendly_name(node->get_friendly_name() + name_postfix);
+    else
+        new_node->set_friendly_name(node->get_friendly_name());
+
+    bool changed = false;
+    auto node_vals = node->cast_vector<double>();
+    auto new_node_vals = new_node->cast_vector<double>();
+    for (size_t i = 0; i < node_vals.size(); i++) {
+        changed |= different(node_vals[i], new_node_vals[i]);
+    }
+
+    if (changed)
+        ngraph::replace_node(node, new_node);
+
+    return changed;
+}
+
+void replace_node_if_changed(const std::shared_ptr<ngraph::op::v0::Constant>& node, const ngraph::element::Type_t type, const float data, const std::string &name_postfix) {
+    auto new_node = std::make_shared<ngraph::op::v0::Constant>(type, ngraph::Shape(0), data);
+    if (node->get_friendly_name().find(name_postfix) == std::string::npos)
+        new_node->set_friendly_name(node->get_friendly_name() + name_postfix);
+    else
+        new_node->set_friendly_name(node->get_friendly_name());
+
+    bool changed = false;
+    auto node_vals = node->cast_vector<double>();
+    auto new_node_vals = new_node->cast_vector<double>();
+    for (size_t i = 0; i < node_vals.size(); i++) {
+        changed |= different(node_vals[i], new_node_vals[i]);
+    }
+
+    if (changed)
+        ngraph::replace_node(node, new_node);
 }
 
 int64_t quantizeVal(
@@ -164,7 +246,7 @@ std::vector<std::shared_ptr<ngraph::Node>> getAnyInputsFQ(std::shared_ptr<ngraph
         auto input = layers.top();
         layers.pop();
         visited.insert(input);
-        if ((dynamic_cast<ngraph::op::v0::FakeQuantize*>(input.get())) && 
+        if ((dynamic_cast<ngraph::op::v0::FakeQuantize*>(input.get())) &&
             (nullptr == dynamic_cast<ngraph::op::v0::Constant*>(input->input_value(0).get_node()))) {
             result.push_back(input);
         } else {

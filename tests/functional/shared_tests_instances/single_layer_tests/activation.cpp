@@ -38,12 +38,15 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Log,     {{1.0f}}},
     {Sign,    {{1.0f}}},
     {Abs,     {{1.0f}}},
-    {Elu,     {{1.0f}}}
+    {Elu,     {{1.0f}}},
+    {Swish,   {{1.0f}}},
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
-    {Sigmoid, {{1.0f}}},
-    {Relu,    {{1.0f}}}
+    {Sigmoid,  {{1.0f}}},
+    {Relu,     {{1.0f}}},
+    {SoftPlus, {{1.0f}}},
+//  {Swish,   {{1.0f}, {0.5f}, {2.0f}}}, // #-46239: incorrect `beta` rank for Swish test
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {

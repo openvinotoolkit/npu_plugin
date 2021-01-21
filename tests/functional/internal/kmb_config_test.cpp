@@ -78,9 +78,7 @@ static const std::vector<ConfigMap> emptyConfigs = {
 };
 
 static const std::vector<ConfigMap> compileConfigs = {
-    { },
-    { {"VPU_COMPILER_USE_NGRAPH_PARSER", "YES"} },
-    { {"VPU_COMPILER_USE_NGRAPH_PARSER", "NO" } }
+    { }
 };
 
 static const std::vector<ConfigMap> baseInferConfigs = {
@@ -92,12 +90,14 @@ static const std::vector<ConfigMap> baseInferConfigs = {
     { {"VPUX_THROUGHPUT_STREAMS", "1" } },
     { {"VPUX_THROUGHPUT_STREAMS", "2"} },
     { {"VPUX_CSRAM_SIZE", "0"} },
-    // { {"VPUX_CSRAM_SIZE", "2097152"} },
+    { {"VPUX_CSRAM_SIZE", "2097152"} },
     { {"VPUX_EXECUTOR_STREAMS", "1"} },
     { {"VPUX_VPUAL_USE_CORE_NN", "YES"} },
     { {"VPUX_VPUAL_USE_CORE_NN", "NO"} },
     { {"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "YES"} },
-    { {"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "NO"} }
+    { {"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "NO"} },
+    { {"VPUX_PLATFORM", "AUTO"} },
+    { {"VPUX_PLATFORM", "MA2490"} },
 };
 
 static const std::vector<ConfigMap> colorFormatConfigs = {

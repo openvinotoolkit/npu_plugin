@@ -183,22 +183,22 @@ function(add_kmb_compile_custom_cpp_kernels)
                 VERBATIM)
     endforeach()
 
-#    if (DEFINED MV_TOOLS_PATH)
-#        foreach(cpp_file IN LISTS CPP_FILES)
-#            get_filename_component(cpp_file_name ${cpp_file} NAME_WE)
-#
-#            set(out_file "${DST_DIR}/${cpp_file_name}.elf")
-#            list(APPEND all_output_files ${out_file})
-#
-#            add_custom_command(
-#                    OUTPUT ${out_file}
-#                    COMMAND
-#                    python3 ${BUILD_COMMAND} --i ${cpp_file}  --t "${MV_TOOLS_PATH}" --o ${out_file}
-#                    MAIN_DEPENDENCY ${elf_file}
-#                    COMMENT "[KMB] Compile ${cpp_file}"
-#                    VERBATIM)
-#        endforeach()
-#    else()
+    if (DEFINED MV_TOOLS_PATH)
+        foreach(cpp_file IN LISTS CPP_FILES)
+            get_filename_component(cpp_file_name ${cpp_file} NAME_WE)
+
+            set(out_file "${DST_DIR}/${cpp_file_name}.elf")
+            list(APPEND all_output_files ${out_file})
+
+            add_custom_command(
+                    OUTPUT ${out_file}
+                    COMMAND
+                    python3 ${BUILD_COMMAND} --i ${cpp_file}  --t "${MV_TOOLS_PATH}" --o ${out_file}
+                    MAIN_DEPENDENCY ${elf_file}
+                    COMMENT "[KMB] Compile ${cpp_file}"
+                    VERBATIM)
+        endforeach()
+    else()
         foreach(elf_file IN LISTS ELF_FILES)
             get_filename_component(elf_file_name ${elf_file} NAME)
 
@@ -213,7 +213,7 @@ function(add_kmb_compile_custom_cpp_kernels)
                     COMMENT "[KMB] Copy ${elf_file} to ${DST_DIR}"
                     VERBATIM)
         endforeach()
-#    endif()
+    endif()
 
     add_custom_target(kmb_compile_custom_cpp_kernels
             DEPENDS ${all_output_files}
@@ -223,12 +223,11 @@ function(add_kmb_compile_custom_cpp_kernels)
     target_compile_definitions(kmb_custom_cpp_kernels INTERFACE "KMB_HAS_CUSTOM_CPP_KERNELS")
 endfunction()
 
-#-2683
-#if (NOT DEFINED MV_TOOLS_PATH)
-#    if(DEFINED MV_TOOLS_DIR AND DEFINED MV_TOOLS_VERSION)
-#        set(MV_TOOLS_PATH ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION})
-#    endif()
-#endif()
+if (NOT DEFINED MV_TOOLS_PATH)
+    if(DEFINED MV_TOOLS_DIR AND DEFINED MV_TOOLS_VERSION)
+        set(MV_TOOLS_PATH ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION})
+    endif()
+endif()
 
 add_kmb_compile_custom_cpp_kernels()
 
@@ -238,10 +237,10 @@ add_kmb_compile_custom_cpp_kernels()
 
 if(ENABLE_HDDL2)
     if(UNIX)
-        set(PCIE_DRIVERS_KMB_ARCHIVE_VERSION RELEASE_ww51)
-        set(PCIE_DRIVERS_KMB_ARCHIVE_HASH "b8e17a49af18a4fc464feb9d9feeae9658c1b4c9f412205902e6841006945264")
-        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww51)
-        set(HDDLUNITE_KMB_ARCHIVE_HASH "3d4964f6de90a037bbb9a09914607d1a5fe1484c5b75d20031b5cc0ae7edc557")
+        set(PCIE_DRIVERS_KMB_ARCHIVE_VERSION RELEASE_ww02_2021)
+        set(PCIE_DRIVERS_KMB_ARCHIVE_HASH "c84f42f9eca5270c8b47c8f022cec47d85c66c1d840120962e069277d449266e")
+        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww02_2021)
+        set(HDDLUNITE_KMB_ARCHIVE_HASH "0cade9b1b1e5fa6c61dc99d11c2959dd00c6dacdda32a8025f9a5ff954a2bf1a")
         set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww51)
         set(HDDLUNITE_VPUX_4_ARCHIVE_HASH "28d47e59d767ee2c0804b63c1c5d4ac37aa2e1238fe6fb49aca24ad777dfa524")
         set(ARCH_FORMAT ".tgz")

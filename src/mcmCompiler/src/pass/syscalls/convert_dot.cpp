@@ -23,7 +23,14 @@ namespace mv
     }
 
 }
-
+namespace mv
+{
+    void convertDotFromModel(const std::string& outputFile)
+    {
+        int ret = system(("dot -Tsvg " + outputFile + " -o " + outputFile+".svg").c_str());
+        (void)ret;
+    }
+}
 void convertDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

@@ -62,7 +62,7 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             avoidCmxConcatenation = concat->get<bool>("avoid_cmx_concat");
         if(concat->hasAttr("mixedToFloat"))
             mixedToFloat = concat->get<bool>("mixedToFloat");
-
+        
         auto outputLocation = concat->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto opId = concat->get<unsigned>("opId");
         auto outputFlows = mv::getOutputDataFlow(om, concat);

@@ -4,14 +4,20 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/pass/pass_quantization.hpp"
-#include <math.h>
 
 static void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
+static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
+
 
 namespace mv
 {
     namespace pass
     {
+        MV_REGISTER_PASS(DecideComputePrecision)
+        .setFunc(decideComputePrecisionFcn)
+        .setDescription(
+            "This pass checks FQ node after input and makes decision on internal network compute precision"
+        );
 
         MV_REGISTER_PASS(FakeQuantize)
         .setFunc(quantizeGraphFcn)
@@ -19,6 +25,215 @@ namespace mv
             "This pass propagate parameters from FakeQuantize ops to all other operations and quantize const data"
         );
     }
+}
+
+// This recursive function will traverse down and update each op output tensor precision to destination type
+static void updateChildrenPrecisionRecursiveDown(mv::Data::OpListIterator exploreOp, mv::OpModel& om, mv::DType dataType)
+{
+    for(auto nextOp = exploreOp.leftmostChild(); nextOp != om.opEnd(); ++nextOp)
+    {
+        auto opType = nextOp->getOpType();
+        if(opType != "Output" && opType != "Constant")
+        {
+            auto outputTensors = nextOp->getOutputTensor();
+
+            // If precision is already properly set skip this path
+            if (outputTensors[0]->getDType() == dataType)
+            {
+                continue;
+            }
+
+            for (auto& outputTensor : outputTensors)
+            {
+                outputTensor->setDType(dataType);
+            }
+            updateChildrenPrecisionRecursiveDown(nextOp, om, dataType);
+        }
+    }
+}
+
+// This recursive function will search down for FakeQuantize operations. It will stop until either FQ is encountered
+// or if it got to output or DPU task
+static void getFakeQuantizeRecursiveDown(mv::Data::OpListIterator exploreOp, std::vector<mv::Data::OpListIterator>& fqOps, std::vector<bool>& fqExistStatus, mv::OpModel& om)
+{
+    for(auto nextOp = exploreOp.leftmostChild(); nextOp != om.opEnd(); ++nextOp)
+    {
+        auto opType = nextOp->getOpType();
+        if (opType == "FakeQuantize")
+        {
+            fqOps.push_back(nextOp);
+            fqExistStatus.push_back(true);
+        }
+        else if (nextOp->isHardwarizable())
+        {
+            // If we got to DPU task here than it means function didn't encounter FQ node
+            // when traversing from input
+            fqExistStatus.push_back(false);
+
+        }
+        else if(opType != "Output")
+        {
+            getFakeQuantizeRecursiveDown(nextOp, fqOps, fqExistStatus, om);
+        }
+    }
+}
+
+// This pass will analyze if network inputs contain also FakeQuantize operations which would allow to make
+// computation in a lower precision then input precision.
+// Currently it is limited in making decision if with FP32/16 input precision computation can be done
+// in U8 - this will happen if FQ levels match U8 precision
+static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS);
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    if (om.getOps("FakeQuantize").empty())
+    {
+        return;
+    }
+
+    auto networkInputs = om.getNetworkInputs();
+    // Vector of FakeQuantize operations for input node
+    std::vector<mv::Data::OpListIterator> inputFqOps;
+    std::vector<bool> fqExistStatusVec;
+
+    for (size_t i = 0; i < networkInputs.size(); i++)
+    {
+        auto inputDtype = networkInputs[i]->get<mv::DType>("dType");
+        // Check network input precision. If it is already U8 then there
+        // is no need to analize FQ ops as we are alrady at the lowest compute precision
+        // and no need to convert from FP16/32 to U8
+        if (inputDtype != mv::DType("Float16") && inputDtype != mv::DType("Float32"))
+            continue;
+
+        getFakeQuantizeRecursiveDown(networkInputs[i], inputFqOps, fqExistStatusVec, om);
+    }
+
+    // Check if all FP inputs have FQ before reaching DPU task
+    for (auto fqExistStatus : fqExistStatusVec)
+    {
+        if (!fqExistStatus)
+        {
+            return;
+        }
+    }
+
+    // Check if all input paths have FQ with 256 levels that allow to change precision to U8
+    unsigned fqLevels;
+    for (auto& inputFqOp : inputFqOps)
+    {
+        // Check FQ op levels. If it is above 256 then we cannot convert to U8
+        fqLevels = inputFqOp->get<unsigned>("levels");
+        if (fqLevels > 256)
+        {
+            pass.log(mv::Logger::MessageType::Warning, "Input is served by FakeQuantize " + inputFqOp->getName() + " which has " +
+                std::to_string(fqLevels) + " levels - not supported case for transition to U8 compute precision");
+            return;
+        }
+    }
+
+    // Check if DPU tasks weight inputs have FQ operations which allow
+    // for U8 compute precision
+    auto ops = om.getOps();
+    for(auto& opIt : ops)
+    {
+        if (!opIt->hasWeights())
+            continue;
+
+        auto weightTensor = opIt->getInputTensor(1);
+        if (weightTensor->getDType() == mv::DType("UInt8"))
+        {
+            // If weight tensor is already U8 then no need to check FQ op
+            continue;
+        }
+
+        auto parentOp = om.getSourceOp(weightTensor);
+        std::string parentOpType;
+        // Analyze weight input branch and check it if has any FQ node
+        while(true)
+        {
+            if (!parentOp)
+                return;
+
+            parentOpType = parentOp->getOpType();
+            if (parentOpType == "FakeQuantize")
+            {
+                // If there are more than 256 levels of quantization
+                // then it means we cannot convert to U8, thus exit early
+                fqLevels = parentOp->get<unsigned>("levels");
+                if (fqLevels > 256)
+                {
+                    pass.log(mv::Logger::MessageType::Warning, "Weight input is served by FakeQuantize " + parentOp->getName() + " which has " +
+                        std::to_string(fqLevels) + " levels - not supported case for transition to U8 compute precision");
+                    return;
+                }
+                // Else move to next DPU task and stop analyzing this branch
+                else
+                {
+                    break;
+                }
+            }
+            else if (parentOpType == "Constant")
+            {
+                pass.log(mv::Logger::MessageType::Warning, "Weight input " + parentOp->getName() +
+                " doesn't have FakeQuantize operation - not supported case for transition to U8 compute precision");
+                return;
+            }
+            parentOp = parentOp.leftmostParent();
+        }
+    }
+
+
+    // Store all conversion ops in a vector. Later it will be used as
+    // a starting point for data type update
+    std::vector<mv::Data::OpListIterator> conversionOps;
+
+    // Insert Conversion from FP to U8 node after each FQ with 256 levels
+    for (auto& inputFqOp : inputFqOps)
+    {
+        std::vector<mv::Data::OpListIterator> opsToLink;
+        std::vector<std::size_t> inputSlots;
+        std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+        auto sourceFlowStart = inputFqOp.leftmostOutput();
+
+        for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
+            opsToLink.push_back(sinkFlow.sink());
+            inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+            flowsToRemove.push_back(sinkFlow);
+        }
+
+        auto outputTensor = inputFqOp->getOutputTensor(0);
+
+        // Create a conversion layer: FQ->Conversion
+        auto conversionOutput = om.conversion(om.getSourceOp(inputFqOp->getInputTensor(0))->getName() + "_convert_to_U8", inputFqOp->getOutputTensor(0), mv::DType("UInt8"));
+        conversionOutput->setQuantParams(outputTensor->getQuantParams());
+
+        conversionOps.push_back(om.getSourceOp(conversionOutput));
+
+        // Remove previous flows: FQ->SomeOps
+        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+        {
+            om.undefineFlow(flowsToRemove[flowIdx]);
+        }
+
+        // Define new flows: Conversion->SomeOps
+        for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+        {
+            opsToLink[op]->setInputTensor(conversionOutput, inputSlots[op], false);
+            om.defineFlow(conversionOutput, opsToLink[op], inputSlots[op]);
+        }
+    }
+
+    // Recursively update all children nodes with U8 data type
+    for (auto& conversionOp : conversionOps)
+    {
+        updateChildrenPrecisionRecursiveDown(conversionOp, om, mv::DType("UInt8"));
+    }
+
 }
 
 static double inf = std::numeric_limits<double>::infinity();
@@ -31,7 +246,8 @@ static const mv::QuantizationParams& initial_quant_params() {
 
 template<typename T>
 T clamp(const T& value, const T& min, const T& max) {
-    assert(min < max);
+    if (min > max)
+        throw std::runtime_error("Unsupported clamp params");
     return std::max(min, std::min(max, value));
 }
 
@@ -40,7 +256,7 @@ static bool isQuantizableOp(mv::Data::OpListIterator op) {
     return quantizable_ops.count(op->getOpType());
 }
 
-bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
+bool isOpQuantized(mv::OpModel& om, const mv::Data::OpListIterator& op) {
     if (!isQuantizableOp(op)) {
         return false;
     }
@@ -55,7 +271,7 @@ bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
             op->getInputTensor(1)->getDType() == getDType(mv::Precision::I8);
 }
 
-mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Data::OpListIterator op) {
+mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, const mv::Data::OpListIterator& op) {
     //NOTE: If we have more than one child we have several cases
     //ALL branches without FQ -> initial quant params and float output
     //FQ only on one branch -> set this quant_params
@@ -63,19 +279,17 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     //FQ with different quant params -> assert
 
     mv::DataModel dm(model);
-    auto idx = 0;
     auto current_ops = findSinkLayers(dm, op->getOutputTensor(0));
 
     while(current_ops.size() == 1 && current_ops[0]->getOpType() != "FakeQuantize" && current_ops[0]->getOpType() != "Output" && current_ops[0]->getOpType() != "Deconv") {
-        idx = (current_ops[0]->getOpType() == "TopK") ? 1 : 0;
+        auto idx = (current_ops[0]->getOpType() == "TopK") ? 1 : 0;
         current_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(idx));
-        assert(current_ops[0]->getOutputTensor().size() < 2);
     }
 
     std::vector<mv::QuantizationParams> outQuantParams;
-    for (size_t i = 0; i < current_ops.size(); i++) {
-        if (current_ops[i]->getOpType() == "FakeQuantize") {
-            outQuantParams.push_back(extractQuantParamsO(current_ops[i], op->getOpType() != "Constant"));
+    for (auto& current_op : current_ops) {
+        if (current_op->getOpType() == "FakeQuantize") {
+            outQuantParams.push_back(extractQuantParamsO(current_op, op->getOpType() != "Constant"));
         }
     }
 
@@ -93,19 +307,21 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
 }
 
 mv::QuantizationParams getParentQuantParams(mv::OpModel& /*om*/, const mv::Data::OpListIterator& op, size_t parent_idx = 0) {
-    assert(op->getInputTensor().size() > 0);
+    if (op->getInputTensor().empty())
+        throw std::runtime_error("Parent op not exist");
     auto inputTensor = op->getInputTensor(parent_idx);
-    assert(inputTensor->hasAttr("quantParams"));
+    if (!inputTensor->hasAttr("quantParams"))
+        throw std::runtime_error("Unsupported FQ levels");
     return inputTensor->get<mv::QuantizationParams>("quantParams");
 }
 
-void setQuantizationParams(mv::Data::OpListIterator& op, mv::QuantizationParams quant_params) {
+void setQuantizationParams(mv::Data::OpListIterator& op, const mv::QuantizationParams& quant_params) {
     for (auto& tensor: op->getOutputTensor()) {
         tensor->set<mv::QuantizationParams>("quantParams", quant_params);
     }
 }
 
-bool areInputScalesEqual(mv::OpModel & om, mv::Data::OpListIterator op, bool zeroPointCheck) {
+bool areAllInputQuantParamsEqual(mv::OpModel & om, const mv::Data::OpListIterator& op, bool zeroPointCheck) {
     std::vector<mv::QuantizationParams> input_params;
     for (size_t i = 0; i < op->getInputTensor().size(); ++i) {
         input_params.push_back(getParentQuantParams(om, op, i));
@@ -143,17 +359,18 @@ void propagateParameters(const mv::pass::PassEntry& pass, mv::ComputationModel& 
     auto sorted_ops = om.topologicalSort();
     for (auto& op : sorted_ops) {
         if (op->getOpType() == "Eltwise" || op->getOpType() == "Concat") {
-            if (false == areInputScalesEqual(om, op, op->getOpType() == "Concat") )
-                pass.log(mv::Logger::MessageType::Warning, "Inputs of layer type " + op->getOpType() +
-                    " : " + op->getName() + " do not have the same QuantParams");
+            if (!areAllInputQuantParamsEqual(om, op, op->getOpType() == "Concat"))
+            {
+                throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: inputs of the Concat do not have the same QuantParams"));
+            }
         }
 
-        if ((isQuantizableOp(op) && isOpQuantized(om, op))
-            || op->getOpType() == "Constant"
-            || op->getOpType() == "ConstantDataElement" // NOTE: float16 case is not handled here
-            || op->getOpType() == "Interp"
-            || op->getOpType() == "Normalize" //Interp might be used for re-quantize, need the quant params
-            || op->getOpType() == "Deconv") { 
+        if ((isQuantizableOp(op) && isOpQuantized(om, op)) ||  // NOTE: float16 case is not handled here
+            op->getOpType() == "Constant" ||
+            op->getOpType() == "ConstantDataElement" ||        // NOTE: float16 case is not handled here
+            op->getOpType() == "Interp" ||                     //Interp might be used for re-quantize, need the quant params
+            op->getOpType() == "Normalize" ||
+            op->getOpType() == "Deconv") {
             quant_params = findOutputQuantParams(model, op);
 
             if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params())) {
@@ -178,7 +395,7 @@ void propagateParameters(const mv::pass::PassEntry& pass, mv::ComputationModel& 
 void getWeightsDims(const mv::Shape& shape, size_t& OC, size_t& IC, size_t& KH, size_t& KW) {
     auto new_shape = shape;
     if (new_shape.ndims() == 2) {
-        new_shape = new_shape.augment(new_shape, 4);
+        new_shape = mv::Shape::augment(new_shape, 4);
     }
 
     OC = new_shape[mv::KERNEL_OUTPUT_CHANNELS];
@@ -188,14 +405,16 @@ void getWeightsDims(const mv::Shape& shape, size_t& OC, size_t& IC, size_t& KH, 
 }
 
 //NOTE: Bias is not a const op.
-mv::Data::OpListIterator quantizeConstOp(mv::OpModel& om, mv::Data::OpListIterator operation,
-        mv::QuantizationParams quant_paramsI, mv::QuantizationParams quant_paramsO, mv::DType precision) {
+mv::Data::OpListIterator quantizeConstOp(mv::OpModel& om, const mv::Data::OpListIterator& operation,
+        const mv::QuantizationParams& quant_paramsI, const mv::QuantizationParams& quant_paramsO, const mv::DType& precision) {
     // TODO: fp16 tensors. need to handle
-    assert(operation->getOpType() == "Constant" ||
-        operation->getOpType() == "ConstantDataElement");
+    if (operation->getOpType() != "Constant" &&
+        operation->getOpType() != "ConstantDataElement")
+        throw std::runtime_error("quantizeConstOp expected Constant layer type");
 
     auto originalTensor = operation->getOutputTensor(0);
-    assert(originalTensor->getDType() != getDType(mv::Precision::FP16));
+    if (originalTensor->getDType() == getDType(mv::Precision::FP16))
+        throw std::runtime_error("quantizeConstOp expected not floating point type");
 
     auto shape = operation->getOutputTensor(0)->getShape();
 
@@ -215,25 +434,14 @@ mv::Data::OpListIterator quantizeConstOp(mv::OpModel& om, mv::Data::OpListIterat
         std::swap(OC, IC);
     }
 
-    //TODO: rewrite. We can do it only for ochannel loop
     for (size_t oc = 0; oc < OC; ++oc) {
         auto scale = quant_paramsI.getScale(oc);
         auto low = min[min.size() > 1 ? oc : 0];
         auto high = max[max.size() > 1 ? oc : 0];
 
-        for (size_t i = oc * IC * KW * KH; i < (oc+1) * IC * KW * KH; ++i) {
-            auto new_value = clamp<double>(src_data[i], low, high);
-            new_value = std::round((new_value - low) / scale);
-
-            if (precision == getDType(mv::Precision::U8)) {
-                uint8_t value = clamp<double>(new_value, 0, 255);
-                quantized_weights[i] = value;
-            } else if (precision == getDType(mv::Precision::I8)) {
-                int8_t value = clamp<double>(new_value, -128, 127);
-                quantized_weights[i] = value;
-            } else {
-                throw std::runtime_error("Unexpected dtype");
-            }
+        for (size_t i = 0; i < IC * KW * KH; ++i) {
+            auto w = clamp<double>(src_data[oc * IC * KW * KH + i], low, high);
+            quantized_weights[oc * IC * KW * KH + i] = std::round((w - low) / scale);
         }
     }
 
@@ -276,13 +484,12 @@ void quantizeConst(mv::ComputationModel& model) {
 //NOTE: To quantize bias we use quantization parameters of input op and activations weights;
 // Input-> Activation(e.g. Conv) -> Bias
 // In current mcm approach it doesn't matter which qunat_params were set on bias
-mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpListIterator biasOp, mv::QuantizationParams input_quant_params,
-                                      mv::QuantizationParams weights_params) {
+mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpListIterator biasOp,
+                                      const mv::QuantizationParams& input_quant_params,
+                                      const mv::QuantizationParams& weights_params) {
     mv::OpModel om(model);
     mv::DataModel dm(model);
     auto tensor_data = biasOp->getInputTensor(1)->getData();
-
-    bool is_broadcasted = input_quant_params.isScalePerTensor() && weights_params.isScalePerTensor();
 
     if (!input_quant_params.isScalePerTensor() && input_quant_params.getScale().size() != tensor_data.size()) {
         throw std::runtime_error("Bias and Activation quant params size mismatch");
@@ -293,8 +500,6 @@ mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpL
     }
 
     std::vector<int64_t> newBiasData(tensor_data.size(), 0);
-    std::vector<double> biasScales;
-    std::vector<int64_t> zeroPoints;
     auto bias_dtype = biasOp->getInputTensor(1)->getDType();
 
     if (bias_dtype == getDType(mv::Precision::FP32)) {
@@ -305,14 +510,7 @@ mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpL
             auto weights_scale = weights_params.getScale(i);
 
             auto bias_scale = activation_scale * weights_scale;
-            biasScales.push_back(bias_scale);
-            zeroPoints.push_back(0);
             newBiasData[i] = std::round(bias_data[i] / bias_scale);
-        }
-
-        if (is_broadcasted) {
-            biasScales.resize(1);
-            zeroPoints.resize(1);
         }
 
         auto original_tensor = biasOp->getInputTensor(1);
@@ -335,7 +533,7 @@ mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpL
     } else if (bias_dtype == getDType(mv::Precision::I32)) {
         // Do nothing
     } else {
-        std::runtime_error("Unsupported bias data type");
+        throw std::runtime_error("Unsupported bias data type");
     }
 
     return biasOp;
@@ -365,8 +563,7 @@ void quantizeIO(mv::ComputationModel& model) {
     auto implicit_inputs = om.getOps("ImplicitInput");
     inputs.insert(inputs.end(), implicit_inputs.begin(), implicit_inputs.end());
     mv::DataModel dm(om);
-    for (size_t idx = 0; idx < inputs.size(); idx++) {
-        auto input = inputs.at(idx);
+    for (auto input : inputs) {
         auto current_ops = findSinkLayers(dm, input->getOutputTensor(0));
 
         mv::QuantizationParams inputQuantParams = input->getOutputTensor(0)->getQuantParams();
@@ -374,143 +571,11 @@ void quantizeIO(mv::ComputationModel& model) {
             inputQuantParams = extractQuantParams(current_ops[0], input->getOpType() != "Constant");
         }
 
-        std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
-        bool scaleFuseInput = globalParams->hasAttr("ScaleFuseInput") ? globalParams->get<bool>("ScaleFuseInput") : false;
-
-        //Fuse scaleshift(multiply+add) into quantization parameters to boost performance
-        if(current_ops.size() == 1 && current_ops[0]->getOpType() == "Scale" && scaleFuseInput) {
-            auto child_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(0));
-            if(child_ops.size() == 1 && child_ops[0]->getOpType() == "Bias") {
-                auto next_child_ops = findSinkLayers(dm, child_ops[0]->getOutputTensor(0));
-                if(next_child_ops.size() == 1 && next_child_ops[0]->getOpType() == "FakeQuantize") {
-                    auto inputC = input->getOutputTensor(0)->getShape()[2];
-
-                    if (current_ops[0]->getInputTensor(1)->isFloatingPointType()) {
-                        std::runtime_error("Unsupported fuse scaleshift DType");
-                    }
-                    std::vector<int64_t> scaleData = current_ops[0]->getInputTensor(1)->getIntData();
-                    auto biasData = child_ops[0]->getInputTensor(1)->getIntData();
-                    std::vector<double> realScaleValue(inputC);
-                    std::vector<double> realBiasValue(inputC);
-
-                    //calculate real scale values
-                    auto scaleDataQuantParams = current_ops[0]->getInputTensor(1)->getQuantParams();
-                    auto s = scaleDataQuantParams.get<std::vector<double>>("scale");
-                    auto zp = scaleDataQuantParams.get<std::vector<int64_t>>("zeroPoint");
-                    std::vector<double> s_extend(inputC);
-                    std::vector<int64_t> zp_extend(inputC);
-                    std::vector<int64_t> scaleData_extend(inputC);
-
-                    if (s.size() < inputC) {
-                        assert(s.size() == 1);
-                        for (size_t i = 0; i < inputC; i++) {
-                            s_extend[i] = s[0];
-                        }
-                    }
-                    else {
-                        s_extend = s;
-                    }
-
-                    if (zp.size() < inputC) {
-                        assert(zp.size() == 1);
-                        for (size_t i = 0; i < inputC; i++) {
-                            zp_extend[i] = zp[0];
-                        }
-                    }
-                    else {
-                        zp_extend = zp;
-                    }
-
-                    if (scaleData.size() < inputC) {
-                        assert(scaleData.size() == 1);
-                        for (size_t i = 0; i < inputC; i++) {
-                            scaleData_extend[i] = scaleData[0];
-                        }
-                    }
-                    else {
-                        scaleData_extend = scaleData;
-                    }
-
-                    for (size_t i = 0; i < inputC; i++) {
-                        realScaleValue[i] = (scaleData_extend[i] - zp_extend[i]) * s_extend[i];
-                    }
-
-                    //calculate real bias values
-                    auto biasDataQuantParams = child_ops[0]->getInputTensor(1)->getQuantParams();
-                    s = biasDataQuantParams.get<std::vector<double>>("scale");
-                    zp = biasDataQuantParams.get<std::vector<int64_t>>("zeroPoint");
-                    std::vector<int64_t> biasData_extend(inputC);
-
-                    if (s.size() < inputC) {
-                        assert(s.size() == 1);
-                        for (size_t i = 0; i < inputC; i++) {
-                            s_extend[i] = s[0];
-                        }
-                    }
-                    else {
-                        s_extend = s;
-                    }
-
-                    if (zp.size() < inputC) {
-                        assert(zp.size() == 1);
-                        for (size_t i = 0; i < inputC; i++) {
-                            zp_extend[i] = zp[0];
-                        }
-                    }
-                    else {
-                        zp_extend = zp;
-                    }
-
-                    if (biasData.size() < inputC) {
-                        assert(biasData.size() == 1);
-                        for (size_t i = 0; i < inputC; i++) {
-                            biasData_extend[i] = biasData[0];
-                        }
-                    }
-                    else {
-                        biasData_extend = biasData;
-                    };
-
-                    for (size_t i = 0; i < inputC; i++) {
-                        realBiasValue[i] = (biasData_extend[i] - zp_extend[i]) * s_extend[i];
-                    }
-
-                    //update new zp/scale/min/max
-                    auto levels = next_child_ops[0]->get<unsigned>("levels");
-                    std::vector<int64_t> zero_points;
-                    std::vector<double> scales;
-                    std::vector<double> min;
-                    std::vector<double> max;
-
-                    // TODO: Input scale fusing cannot be performed if per channel parameters (scale, bias)
-                    // are very different from each other. Add conditional code which will check
-                    // similarity of elements of realBiasValue and realScaleValue
-
-                    float output_min_value = (realBiasValue[0] * realScaleValue[0] +
-                    realBiasValue[1] * realScaleValue[1] + realBiasValue[2] * realScaleValue[2]) / 3;
-
-                    float output_max_value = ((realBiasValue[0] + 255) * realScaleValue[0] +
-                    (realBiasValue[1] + 255) * realScaleValue[1] + (realBiasValue[2] + 255) * realScaleValue[2]) / 3;
-
-                    zero_points.push_back(mv::calculateZeroPoint(output_min_value,
-                        output_max_value, getDType(mv::Precision::U8), levels));
-                    scales.push_back(mv::calculateScales(output_min_value,
-                        output_max_value, levels));
-                    min.push_back(output_min_value);
-                    max.push_back(output_max_value);
-
-                    inputQuantParams = mv::QuantizationParams{zero_points, scales, min, max};
-
-                    linkNewOperationsRemove(input, input->getOutputTensor(0), om, current_ops[0]);
-                    linkNewOperationsRemove(input, input->getOutputTensor(0), om, child_ops[0]);
-                }
-            }
-        }
-
         setQuantizationParams(input, inputQuantParams);
     }
 
-    assert(om.getOps("Output").size() == 1);
+    if (om.getOps("Output").size() != 1)
+        throw std::runtime_error("Only one Output op expected");
     auto output = om.getOps("Output").at(0);
     setQuantizationParams(output, mv::QuantizationParams::empty());
 }
@@ -525,12 +590,13 @@ void removeFQ(const mv::pass::PassEntry&, mv::ComputationModel& model) {
     }
 }
 
-void quantizeInputScaleShift(mv::ComputationModel& model) {
+void quantizeScaleShift(mv::ComputationModel& model) {
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
     // Quantize all Scale
-    // Extend Scale to whole netwrok, not only for Input, networks e.g.Facenet need it
+    // Extend Scale to whole netwrok, not only for Input, networks e.g. Facenet need it
+    // actually will be DW Conv
     auto scaleOps = om.getOps("Scale");
     for (auto& current_op : scaleOps) {
         if (current_op->getInputTensor(1)->isDoubleType()) {
@@ -560,24 +626,13 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
             mv::linkNewOperationsReplacement(mv::Data::OpListIterator(), quantized_const_tensor, om, originalConstOp);
 
             setQuantizationParams(current_op, findOutputQuantParams(om, current_op));
-
-            // Quantize input bias
-            // olny if scale-fuse starts
-            std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
-            if(globalParams->hasAttr("ScaleFuseInput") ? globalParams->get<bool>("ScaleFuseInput") : false){
-                current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0);
-                if (current_op->getOpType() == "Bias" && current_op->getInputTensor(1)->isFloatingPointType()) {
-                    auto bias_op = quantizeBias(model, current_op, initial_quant_params(), scalesQuantParams);
-                    setQuantizationParams(bias_op, getParentQuantParams(om, bias_op));
-                }
-            }
         }
     }
 }
 
 void fakeQuantizeConstOp(
         mv::OpModel& om,
-        mv::Data::OpListIterator origOp,
+        const mv::Data::OpListIterator& origOp,
         mv::Data::OpListIterator fqOp,
         const mv::QuantizationParams& inputQP,
         const mv::QuantizationParams& outputQP)
@@ -718,7 +773,7 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
         return;
     }
 
-    quantizeInputScaleShift(model);
+    quantizeScaleShift(model);
     quantizeIO(model);
 
     propagateParameters(pass, model);

@@ -85,6 +85,7 @@
 #include <ngraph/op/maximum.hpp>
 #include <ngraph/op/minimum.hpp>
 #include <ngraph/op/hswish.hpp>
+#include <ngraph/op/softplus.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -102,6 +103,7 @@
 #include <legacy/ngraph_ops/topk_ie.hpp>
 #include <legacy/ngraph_ops/proposal_ie.hpp>
 #include <legacy/ngraph_ops/tile_ie.hpp>
+#include <legacy/ngraph_ops/swish_ie.hpp>
 
 #include <ngraph/variant.hpp>
 
@@ -547,6 +549,27 @@ void convert(std::shared_ptr<ngraph::op::v4::HSwish> hswish, mv::OpModel& mcmMod
     IE_ASSERT(1u == mcmInputs.size());
     const auto mcmOpOutput = mcmModel.hSwish(hswish->get_friendly_name(), mcmInputs.at(0));
     registerOutputs(hswish, {mcmOpOutput}, mcmOutputsMap);
+}
+
+// TODO: Replace SwishIE with v4::Swish -- to process
+//       beta parameter as 2nd (optional) input tensor
+// #-46185: Swish expects Beta parameter as attribute
+void convert(std::shared_ptr<ngraph::op::SwishIE> swish_ie, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(swish_ie, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    auto beta = swish_ie->get_alpha();
+    const auto& opName = swish_ie->get_friendly_name();
+    const auto& opInput = mcmInputs.at(0);
+    const auto mcmOpOutput = mcmModel.swish(opName, opInput, beta);
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(swish_ie, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v4::SoftPlus> softplus, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(softplus, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto mcmOpOutput = mcmModel.softPlus(softplus->get_friendly_name(), mcmInputs.at(0));
+    registerOutputs(softplus, {mcmOpOutput}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<McmEltwise> eltwise, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -1599,9 +1622,11 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::Split),
     MAP_ENTRY(ngraph::op::v1::StridedSlice),
     MAP_ENTRY(ngraph::op::v4::HSwish),
+    MAP_ENTRY(ngraph::op::SwishIE),
     MAP_ENTRY(ngraph::op::TileIE),
     MAP_ENTRY(ngraph::op::v1::VariadicSplit),
-    MAP_ENTRY(ngraph::op::CTCGreedyDecoder)
+    MAP_ENTRY(ngraph::op::CTCGreedyDecoder),
+    MAP_ENTRY(ngraph::op::v4::SoftPlus)
 };
 
 #undef MAP_ENTRY

@@ -421,8 +421,7 @@ class Operation_Dag {
 
       std::list<cmx_concat_subgraph_t> cmx_concat_subgraphs;
       cmx_concat_algo.transform_op_model(
-          std::back_inserter(cmx_concat_control_edges), cmx_concat_subgraphs,
-            cmx_size);
+          std::back_inserter(cmx_concat_control_edges), cmx_concat_subgraphs);
 
       cmx_concat_subgraphs_.clear();
       for (auto subg_itr=cmx_concat_subgraphs.begin();
@@ -654,8 +653,9 @@ class Operation_Dag {
 
 
     static size_t eviction_priority(const dag_t& , const operation_t& op) {
-      if (op->hasAttr("cmx_concatable")) { return 2UL; }
-      return (op->getOpType() == "DPUTask") ? 1UL : 0UL;
+      if (op->hasAttr("cmx_concatable")) { return 3UL; }
+      else if (op->getOpType() == "DPUTask") { return 2UL; }
+      return (op->hasAttr("multiple_weight_out_degree")) ? 1UL : 0UL;
     }
 
     static const char* operation_name(const operation_t& op) {

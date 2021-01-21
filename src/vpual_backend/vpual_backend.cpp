@@ -33,6 +33,11 @@ namespace vpux {
 
 namespace {
 
+struct PlatformInfo {
+    std::string _name;
+    InferenceEngine::VPUXConfigParams::VPUXPlatform _platform;
+};
+
 #if defined(__arm__) || defined(__aarch64__)
 std::shared_ptr<xlink_handle> getHandleById(const uint32_t& devId) {
     auto xlinkHandlePtr = std::make_shared<xlink_handle>();
@@ -60,6 +65,28 @@ std::string getNameByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
     return "VPU-" + std::to_string(sliceId);
 }
 
+const static std::map<uint32_t, InferenceEngine::VPUXConfigParams::VPUXPlatform> platformIdMap = {
+    {0, InferenceEngine::VPUXConfigParams::VPUXPlatform::MA2490},  // KMB
+    {1, InferenceEngine::VPUXConfigParams::VPUXPlatform::MA3100},  // TBH prime
+    {2, InferenceEngine::VPUXConfigParams::VPUXPlatform::MA3100},  // TBH
+    {4, InferenceEngine::VPUXConfigParams::VPUXPlatform::MA3720},  // MTL
+};
+
+InferenceEngine::VPUXConfigParams::VPUXPlatform getPlatformByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
+    // bits 7-4 define platform
+    // right shift to omit bits 0-3. after that platform code is stored in bits 3-0
+    // apply b1111 mask to discard anything but platform code
+    uint32_t platformId = (devHandle->sw_device_id >> 4) & 0xf;
+    return platformIdMap.at(platformId);
+}
+
+PlatformInfo getPlatformInfo(const std::shared_ptr<xlink_handle>& devHandle) {
+    PlatformInfo result;
+    result._name = getNameByHandle(devHandle);
+    result._platform = getPlatformByHandle(devHandle);
+    return result;
+}
+
 bool isVPUDevice(const uint32_t deviceId) {
     // bits 26-24 define interface type
     // 000 - IPC
@@ -72,8 +99,8 @@ bool isVPUDevice(const uint32_t deviceId) {
 }
 #endif
 
-std::vector<std::string> getAvailableDevices() {
-    std::vector<std::string> deviceNameList;
+std::vector<PlatformInfo> getAvailableDevices() {
+    std::vector<PlatformInfo> platformInfoList;
 #if defined(__arm__) || defined(__aarch64__)
     xlink_error initResult = xlink_initialize();
     if (initResult != X_LINK_SUCCESS) {
@@ -102,9 +129,9 @@ std::vector<std::string> getAvailableDevices() {
     std::copy_if(devHandleList.begin(), devHandleList.end(), std::back_inserter(freeDevIdList), isDeviceFree);
 
     // get names of free devices
-    std::transform(freeDevIdList.begin(), freeDevIdList.end(), std::back_inserter(deviceNameList), getNameByHandle);
+    std::transform(freeDevIdList.begin(), freeDevIdList.end(), std::back_inserter(platformInfoList), getPlatformInfo);
 #endif
-    return deviceNameList;
+    return platformInfoList;
 }
 
 }  // namespace
@@ -119,8 +146,8 @@ const std::map<std::string, std::shared_ptr<IDevice>> VpualEngineBackend::create
     auto deviceIds = getAvailableDevices();
     std::map<std::string, std::shared_ptr<IDevice>> devices;
     for (const auto& id : deviceIds) {
-        devices.insert({id, std::make_shared<VpualDevice>(id)});
-        _logger->info("Device %s found.", id);
+        devices.insert({id._name, std::make_shared<VpualDevice>(id._name, id._platform)});
+        _logger->info("Device %s found.", id._name);
     }
 
     return devices;

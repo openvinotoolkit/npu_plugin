@@ -233,17 +233,6 @@ INSTANTIATE_TEST_CASE_P(all_layouts, KmbYoloV3NetworkTestWithSpecificLayout,
 // Start of test-set for KMB-alpha IRv10
 //////////////////////////////////////////
 
-TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(NO)}}),
-        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
-        0.6, 0.4, 0.4, false);
-}
-
 #ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
@@ -301,22 +290,6 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
         0.6, 0.4, 0.4, false);
 }
 #endif  // KMB_HAS_CUSTOM_OCL_KERNELS
-
-// Compilation fails on windows
-// [Track number: D#44765]
-TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_legacy_parser) {
-#ifdef _WIN32
-    SKIP() << "LpScheduler - RuntimeError: input is not a DAG";
-#endif
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(NO)}}),
-        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
-        0.6, 0.4, 0.4, false);
-}
 
 // Wrong detection results
 // [Track number: S#41494]
@@ -386,17 +359,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_f
             .setUserOutputPrecision("output", Precision::FP32),
         TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
         1, 0.05f);
-}
-
-TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_googlenet_v3_tf_dense_int8_IRv10_legacy_parser) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/googlenet-v3/googlenet_v3_tf_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(NO)}}),
-        TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
-        1, 0.1f);
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32) {
@@ -1060,15 +1022,15 @@ TEST_F(SmokeNetworkTest, precommit_text_detection_0004_tf_dense_int8_IRv10_from_
 }
 
 // [Track number: D#45024]
-TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
-#ifdef _WIN32
-    SKIP() << "SEH exception";
-#endif
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/public/text-detection-0003/tf/FP16-INT8/text-detection-0003-ww48.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserOutputPrecision("output", Precision::FP32));
-}
+// TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
+// #ifdef _WIN32
+//     SKIP() << "SEH exception";
+// #endif
+//     runTest(
+//             TestNetworkDesc("KMB_models/INT8/public/text-detection-0003/tf/FP16-INT8/text-detection-0003-ww48.xml")
+//                     .setUserInputPrecision("input", Precision::U8)
+//                     .setUserOutputPrecision("output", Precision::FP32));
+// }
 
 // Prevent DDR2DDR DMA Test
 TEST_F(SmokeNetworkTest, yolo_v4_subgraph_ddr_output_test) {
@@ -1124,13 +1086,14 @@ TEST_F(KmbVasFRTest, precommit_vasfr_feature) {
 }
 
 // MTL target compilation test
+// [Track number: C#46795]
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8_MTL) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong detection results");//At the moment no EVM is setup so cannot run
+    SKIP() << "LpScheduler - RuntimeError: Precondition violation";
     runTest(
                     TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserInputPrecision("input", Precision::U8)
-                    .setUserOutputPrecision("output", Precision::U8) //currently FP16 is not supported by runtime
+                    .setUserOutputPrecision("output", Precision::U8)  // currently FP16 is not supported by runtime
                     .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_mtl-sc"},
                                        {"VPU_COMPILER_TARGET_DESCRIPTOR", "release_mtl"},
                                        {"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "NO"}}),
@@ -1138,4 +1101,19 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_fp16
 
             "224x224/cat3.bmp",
             3, 0.05);
+}
+
+TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8_MTL) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong detection results");  // At the moment no EVM is setup so cannot run
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8.xml")
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::U8)  // currently FP16 is not supported by runtime
+                .setUserOutputLayout("output", Layout::NHWC)
+                .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_mtl-sc"},
+                                   {"VPU_COMPILER_TARGET_DESCRIPTOR", "release_mtl"},
+                                   {"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "NO"}}),
+            TestImageDesc("227x227/watch.bmp", ImageFormat::RGB),
+            1, 0.5f);
 }

@@ -9,7 +9,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-        ".*ActivationLayerTest.*",
         // TODO Tests failed due to starting infer on IA side
         ".*CorrectConfigAPITests.*",
 
@@ -32,5 +31,8 @@ std::vector<std::string> disabledTestPatterns() {
 
         // [Track number: S#43484]
         ".*KmbMaxMinLayerTest.*",
+
+        // [Track number: S#46761]
+        ".*smoke_QuantGroupConv2D.*",
     };
 }

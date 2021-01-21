@@ -41,9 +41,6 @@ public:
     }
 
     // Private options
-    bool useNGraphParser() const {
-        return _useNGraphParser;
-    }
     InferenceEngine::ColorFormat graphColorFormat() const {
         return _graphColorFormat;
     }
@@ -84,10 +81,9 @@ protected:
     bool _performanceCounting = false;
     std::string _deviceId = "VPU-0";
     int _throughputStreams = 2;
-    InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::MA2490;
+    InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
 
     // Private options
-    bool _useNGraphParser = true;
     InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;
     uint64_t _csramSize = 0;
     // FIXME: Likely has to be true by default as well.

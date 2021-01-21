@@ -126,13 +126,6 @@ DECLARE_VPUX_CONFIG_KEY(EXECUTOR_STREAMS);
 DECLARE_VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS);
 
 /**
- * @brief [Only for vpu compiler]
- * Type: "YES/NO", default is "NO".
- * Enable nGraph frontend
- */
-DECLARE_VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER);
-
-/**
  * @brief [Only for VPUX Plugin]
  * Type: integer, default is 5 minutes = 60 * 1000 * 5.
  * Time interval during which to wait for backend pull to complete

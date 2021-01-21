@@ -30,6 +30,7 @@
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/logger.hpp>
+#include <vpu/utils/enums.hpp>
 
 #include "vpual_config.hpp"
 #include "vpusmm_allocator.hpp"
@@ -57,7 +58,9 @@ void VpualCoreNNExecutor::initWatchDog() {
 #endif
 
 VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-    const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId, const VpualConfig& config)
+    const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId,
+    const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform,
+    const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
       _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
@@ -79,6 +82,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
                   pipePtr->Delete();
               }
           }),
+      _mutex(new Semaphore()),
       blob_file(nullptr,
           [this](void* blobFilePtr) {
               if (_allocator != nullptr) {
@@ -99,11 +103,13 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
                   _allocator->free(buffer);
               }
           }),
-      _outputBuffer(nullptr, [this](uint8_t* buffer) {
-          if (_allocator != nullptr) {
-              _allocator->free(buffer);
-          }
-      }) {
+      _outputBuffer(nullptr,
+          [this](uint8_t* buffer) {
+              if (_allocator != nullptr) {
+                  _allocator->free(buffer);
+              }
+          }),
+      _platform(platform) {
 #if defined(__arm__) || defined(__aarch64__)
     std::size_t inputsTotalSize = 0;
     for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
@@ -126,6 +132,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
     const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
     const std::shared_ptr<Pipeline>& other_pipe,
+    const std::shared_ptr<WatchDog>& wd,
+    const std::shared_ptr<Semaphore>& other_mutex,
     const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
@@ -135,6 +143,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
       _nnXlinkPlg(other_nnXlinkPlg),
       _nnCorePlg(other_nnCorePlg),
       _pipe(other_pipe),
+      _mutex(other_mutex),
       blob_file(nullptr,
           [this](void* blobFilePtr) {
               if (_allocator != nullptr) {
@@ -159,6 +168,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
               _allocator->free(buffer);
           }
       }) {
+    if(_config.executorStreams() > 1)
+        _mutex->count_one();
     std::size_t inputsTotalSize = 0;
     for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
         const auto& tensorDesc = in.second->getTensorDesc();
@@ -185,7 +196,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
         _outputPhysAddrs.push_back(outPhysAddr);
         outputOffset += descOut.totalSize;
     }
-    initWatchDog();
+    _wd = wd;
 }
 #endif
 
@@ -265,6 +276,10 @@ static uint8_t* setPrefetchHelper(const std::shared_ptr<NnCorePlg>& nnCorePtr,
 
     return preFetchVirtAddr;
 }
+
+const static vpu::EnumSet<InferenceEngine::VPUXConfigParams::VPUXPlatform> platformsWithCSRAM = {
+    InferenceEngine::VPUXConfigParams::VPUXPlatform::MA3100,
+};
 }  // namespace
 #endif
 
@@ -332,13 +347,37 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     _logger->info("Blob Version: %d %d %d", static_cast<int>(blobVersion.major), static_cast<int>(blobVersion.minor),
         static_cast<int>(blobVersion.patch));
     _scratchBuffers = setScratchHelper(_nnCorePlg, nThreads, _allocator, _logger);
+    auto detectedPlatform = _platform;
+    auto configPlatform = _config.platform();
+    auto targetPlatform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
+    if (configPlatform == InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO) {
+        // use detected platfrom when auto detect is set
+        targetPlatform = detectedPlatform;
+    } else {
+        // alternatively, use platform from user config
+        targetPlatform = configPlatform;
+    }
+
     const uint32_t csramUserSize = _config.CSRAMSize();
+    const bool platformHasCSRAM = std::any_of(platformsWithCSRAM.begin(), platformsWithCSRAM.end(),
+        [targetPlatform](const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform) -> bool {
+            return targetPlatform == platform;
+        }
+    );
+    uint32_t preFetchSize = 0;
     if (csramUserSize != 0) {
-        // if user set the size manually, use that amount
-        _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, csramUserSize, _csramAllocator, _logger));
+        if (platformHasCSRAM) {
+            // if user set the size manually, use that amount
+            preFetchSize = csramUserSize;
+        } else {
+            _logger->warning("VPUX_CSRAM_SIZE is not equal to zero, but the platform cannot allocate CSRAM");
+        }
     } else {
         // otherwise, get the size from NN Core plug-in
-        const uint32_t preFetchSize = _nnCorePlg->GetPrefetchBufferSize();
+        preFetchSize = _nnCorePlg->GetPrefetchBufferSize();
+    }
+
+    if (platformHasCSRAM) {
         _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, preFetchSize, _csramAllocator, _logger));
     }
 
@@ -534,6 +573,8 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
         request.outputTensors.push_back(inferOutput);
     }
 
+    if(_config.executorStreams() > 1)
+        _mutex->wait();
     auto status = _nnXlinkPlg->RequestInference(request);
     if (MVNCI_SUCCESS != status) {
         _logger->error("push: RequestInference failed");
@@ -592,9 +633,11 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "pull");
     _logger->info("pull started");
     NnExecResponseMsg response;
-    _wd->Start();
+    _wd->Start(this);
     auto status = _nnXlinkPlg->WaitForResponse(response);
-    _wd->Pause();
+    if(_config.executorStreams() > 1)
+        _mutex->notify();
+    _wd->Pause(this);
     if (X_LINK_SUCCESS != status) {
         _logger->error("pull: WaitForResponse failed");
         THROW_IE_EXCEPTION << "VpualCoreNNExecutor::pull: WaitForResponse failed" << status;
@@ -679,7 +722,7 @@ InferenceEngine::Parameter VpualCoreNNExecutor::getParameter(const std::string&)
 
 Executor::Ptr VpualCoreNNExecutor::clone() const {
 #if defined(__arm__) || defined(__aarch64__)
-    return std::make_shared<VpualCoreNNExecutor>(_networkDescription, _allocator, _nnXlinkPlg, _nnCorePlg, _pipe, _config);
+    return std::make_shared<VpualCoreNNExecutor>(_networkDescription, _allocator, _nnXlinkPlg, _nnCorePlg, _pipe, _wd, _mutex, _config);
 #else
     THROW_IE_EXCEPTION << "VpualCoreNNExecutor::clone not implemented for x86_64";
 #endif

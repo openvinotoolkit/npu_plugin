@@ -38,6 +38,7 @@
 #include "vpual_config.hpp"
 #include "vpual_core_nn_watchdog.hpp"
 #include "vpusmm_allocator.hpp"
+#include "Semaphore.h"
 
 namespace ie = InferenceEngine;
 
@@ -48,8 +49,11 @@ public:
     using Ptr = std::shared_ptr<VpualCoreNNExecutor>;
 
     virtual ~VpualCoreNNExecutor();
-    VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
-        const uint32_t deviceId, const VpualConfig& config);
+    VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
+        const VpusmmAllocator::Ptr& allocator,
+        const uint32_t deviceId,
+        const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform,
+        const VpualConfig& config);
 
 #if defined(__arm__) || defined(__aarch64__)
     VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
@@ -57,6 +61,8 @@ public:
         const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
         const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
         const std::shared_ptr<Pipeline>& other_pipe,
+        const std::shared_ptr<WatchDog>& watchDog,
+        const std::shared_ptr<Semaphore>& other_mutex,
         const VpualConfig& config);
 #endif
 
@@ -78,12 +84,13 @@ private:
     vpu::Logger::Ptr _logger;
 
 #if defined(__arm__) || defined(__aarch64__)
-    std::unique_ptr<WatchDog> _wd;
+    std::shared_ptr<WatchDog> _wd;
     std::shared_ptr<NnXlinkPlg> _nnXlinkPlg = nullptr;
     std::shared_ptr<NnCorePlg> _nnCorePlg = nullptr;
     // pipeline has to be deleted before NNCore plug-in
     // otherwise it leads to 'Bus error'
     std::shared_ptr<Pipeline> _pipe = nullptr;
+    std::shared_ptr<Semaphore> _mutex = nullptr;
     std::unique_ptr<void, std::function<void(void*)>> blob_file = nullptr;
     std::unique_ptr<BlobHandle_t> _blobHandle = nullptr;
 
@@ -105,6 +112,7 @@ private:
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preFetchBuffer;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _inputBuffer;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _outputBuffer;
+    InferenceEngine::VPUXConfigParams::VPUXPlatform _platform;
 
     std::vector<uint32_t> _outputPhysAddrs;
 };

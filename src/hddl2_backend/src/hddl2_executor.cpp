@@ -181,8 +181,10 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         } else {
             _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
         }
+        THROW_IE_EXCEPTION << "Couldn't load the graph into the device.";
     } catch (const std::exception& exception) {
         _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
+        THROW_IE_EXCEPTION << "Couldn't load the graph into the device.";
     }
 
     const auto& networkInputs = _network->getInputsInfo();
