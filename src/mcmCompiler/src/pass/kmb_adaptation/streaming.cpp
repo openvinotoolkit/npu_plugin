@@ -5,26 +5,19 @@
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/pass/graphOptimizations/streaming_performace.hpp"
 
-void streamingForPerformanceFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
-                                                 mv::TargetDescriptor&, mv::Element&, mv::Element&);
+void streamingForPerformanceFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&,
+                                mv::Element&, mv::Element&);
 
 namespace mv {
 namespace pass {
-MV_REGISTER_PASS(StreamingForPerformance)
-        .setFunc(streamingForPerformanceFnc)
-        .setDescription("");
+MV_REGISTER_PASS(StreamingForPerformance).setFunc(streamingForPerformanceFnc).setDescription("");
 }
 } 
 
+void streamingForPerformanceFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&,
+                                mv::Element& passDesc, mv::Element&) {
+    mv::OpModel om(model);
+    mv::StreamingPerformance streamingPerformance(model, om);
 
-
-void streamingForPerformanceFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
-                                                 mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&) {
-mv::OpModel om(model);
-mv::StreamingPerformance streamingPerformance(model,om);
-
-streamingPerformance.increaseStreamingOverKforPerformance();
-
-// Step 2: Get the min weights per cluster in a chain
-//getMinWeightsPerClusterSizePerChain(chainSubgraphs, pass, model, weightsPerClusterPerOp, fptr);
+    streamingPerformance.increaseStreamingOverKforPerformance();
 }
