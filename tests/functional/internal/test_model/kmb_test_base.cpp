@@ -812,7 +812,11 @@ ExecutableNetwork KmbNetworkTestBase::getExecNetwork(
 
 BlobMap KmbNetworkTestBase::calcRefOutput(
             const TestNetworkDesc& netDesc,
-            const BlobMap& inputs){
+            const BlobMap& inputs,
+            const bool& enableLPTRef){
+    if (enableLPTRef) {
+        core->SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(YES)}}, "CPU");
+    }
     const auto refNet = readNetwork(netDesc, false);
     auto refExeNet = core->LoadNetwork(refNet, REF_DEVICE_NAME);
 
@@ -901,8 +905,7 @@ void KmbNetworkTestBase::runTest(
 
     if (RUN_REF_CODE) {
         std::cout << "=== CALC REFERENCE WITH " << REF_DEVICE_NAME << std::endl;
-
-        refOutputBlobs = calcRefOutput(netDesc, inputs);
+        refOutputBlobs = calcRefOutput(netDesc, inputs, netDesc.isLPTRefModeEnabled());
 
         if (EXPORT_BLOBS) {
             std::cout << "    === EXPORT REFERENCE" << std::endl;

@@ -395,10 +395,6 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationMod
 
     for (auto& opIt : eltWiseOps)
     {
-        auto eltwiseType = opIt->get<std::string>("eltwiseType");
-        if(eltwiseType == "Multiply" || eltwiseType == "Divide")
-            continue;
-
         auto firstEltwiseInputTensor = opIt->getInputTensor(0);
         auto secondEltwiseInputTensor = opIt->getInputTensor(1);
 

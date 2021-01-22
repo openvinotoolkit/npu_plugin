@@ -148,6 +148,26 @@ bool mv::QuantizationParams:: isNeutral() const
     return is_neutral;
 }
 
+bool mv::QuantizationParams:: isInitial() const
+{
+    static double inf = std::numeric_limits<double>::infinity();
+
+    auto zp = get<std::vector<int64_t>>("zeroPoint");
+    auto scale = get<std::vector<double>>("scale");
+    auto min = get<std::vector<double>>("min");
+    auto max = get<std::vector<double>>("max");
+
+    // Initial quant params are per tensor with following values:
+    // zp = 0, scale = 1, min = -inf, max = inf
+    if (zp.size() != 1 || scale.size() != 1 || min.size() != 1 || max.size() != 1)
+        return false;
+
+    if (zp[0] != 0 || scale[0] != 1 || min[0] != -inf || max[0] != inf)
+        return false;
+
+    return true;
+}
+
 bool mv::QuantizationParams:: infinitelimits() const
 {
     bool is_infinite = false;
