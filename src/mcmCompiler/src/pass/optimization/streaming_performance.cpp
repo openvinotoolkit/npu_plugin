@@ -21,6 +21,11 @@ mv::StreamingPerformance::StreamingPerformance(mv::ComputationModel& model, mv::
     }
 }
 
+mv::StreamingPerformance::~StreamingPerformance()
+{
+    fclose(fptr_);
+}
+
 void mv::StreamingPerformance::increaseStreamingOverKforPerformance()
 {
     // Step 1: Get the subgraph chains
@@ -212,8 +217,6 @@ std::tuple<std::vector<mv::Element>, mv::Attribute, bool> mv::StreamingPerforman
     std::string mcStrategy;
     std::string memoryLocation;
     mv::Attribute multiClusterStrategy;
-
-    std::pair<std::vector<mv::Element>, std::string> graphOptimizerAssignedStategies;
     bool spilling = false;
 
     for (auto layerNameStrategy : streamingStrategyList_) {
