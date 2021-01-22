@@ -23,7 +23,7 @@
                 "enableStreaming": true,
                 "enablePipelining": true,
                 "enablePrefetching": true,
-                "enableWeightsSparsity": false,
+                "enableWeightsSparsity": true,
                 "real_physical_barriers": 32,
                 "barrier_bound": 16
             }
