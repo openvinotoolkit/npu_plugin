@@ -18,7 +18,6 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
@@ -33,8 +32,6 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/Transforms/DialectConversion.h>
-
-#include <precision_utils.h>
 
 using namespace vpux;
 
@@ -54,12 +51,7 @@ public:
     void runOnOperation() final;
 
 public:
-    class FuncOpConverter;
     class GenericOpConverter;
-
-public:
-    static const mlir::PatternBenefit genericBenefit;
-    static const mlir::PatternBenefit specificBenefit;
 
 private:
     void passBody();
@@ -67,9 +59,6 @@ private:
 private:
     Logger _log;
 };
-
-const mlir::PatternBenefit ConvertPrecisionToFP16Pass::genericBenefit(1);
-const mlir::PatternBenefit ConvertPrecisionToFP16Pass::specificBenefit(2);
 
 void ConvertPrecisionToFP16Pass::runOnOperation() {
     try {
@@ -81,39 +70,13 @@ void ConvertPrecisionToFP16Pass::runOnOperation() {
 }
 
 //
-// FuncOpConverter
-//
-
-class ConvertPrecisionToFP16Pass::FuncOpConverter final : public mlir::OpConversionPattern<mlir::FuncOp> {
-public:
-    FuncOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<mlir::FuncOp>(typeConverter, ctx, specificBenefit), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(mlir::FuncOp funcOp, ArrayRef<mlir::Value> operands,
-                                        mlir::ConversionPatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult ConvertPrecisionToFP16Pass::FuncOpConverter::matchAndRewrite(
-        mlir::FuncOp funcOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
-    auto* converter = getTypeConverter();
-    VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
-
-    return rewriteFuncPrototype(funcOp, *converter, rewriter, _log);
-}
-
-//
 // GenericOpConverter
 //
 
 class ConvertPrecisionToFP16Pass::GenericOpConverter final : public mlir::ConversionPattern {
 public:
     GenericOpConverter(mlir::TypeConverter& typeConverter, Logger log)
-            : mlir::ConversionPattern(genericBenefit, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
+            : mlir::ConversionPattern(1 /*benefit*/, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
     }
 
 public:
@@ -154,6 +117,12 @@ mlir::LogicalResult ConvertPrecisionToFP16Pass::GenericOpConverter::matchAndRewr
 void ConvertPrecisionToFP16Pass::passBody() {
     auto& ctx = getContext();
 
+    const auto cvtType = [](mlir::OpBuilder& builder, mlir::RankedTensorType type, mlir::ValueRange inputs,
+                            mlir::Location loc) -> mlir::Value {
+        VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
+        return builder.createOrFold<IE::ConvertOp>(loc, inputs[0], mlir::TypeAttr::get(type.getElementType()));
+    };
+
     mlir::TypeConverter typeConverter;
     typeConverter.addConversion([](mlir::RankedTensorType tensor) {
         if (tensor.getElementType().isF32()) {
@@ -162,16 +131,8 @@ void ConvertPrecisionToFP16Pass::passBody() {
             return tensor;
         }
     });
-    typeConverter.addSourceMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
-                                              mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
-        VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
-        return builder.createOrFold<IE::ConvertOp>(loc, inputs[0], mlir::TypeAttr::get(type.getElementType()));
-    });
-    typeConverter.addTargetMaterialization([](mlir::OpBuilder& builder, mlir::RankedTensorType type,
-                                              mlir::ValueRange inputs, mlir::Location loc) -> mlir::Value {
-        VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
-        return builder.createOrFold<IE::ConvertOp>(loc, inputs[0], mlir::TypeAttr::get(type.getElementType()));
-    });
+    typeConverter.addSourceMaterialization(cvtType);
+    typeConverter.addTargetMaterialization(cvtType);
 
     const auto isLegalOp = [&](mlir::Operation* op) {
         return typeConverter.isLegal(op);
@@ -187,12 +148,12 @@ void ConvertPrecisionToFP16Pass::passBody() {
     });
 
     mlir::OwningRewritePatternList patterns;
-    patterns.insert<FuncOpConverter>(typeConverter, &ctx, _log.nest());
+    mlir::populateFuncOpTypeConversionPattern(patterns, &ctx, typeConverter);
     patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
     IE::ConvertOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto module = getOperation();
-    if (mlir::failed(mlir::applyPartialConversion(module.getOperation(), target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
         signalPassFailure();
     }
 }

@@ -10,3 +10,14 @@ func @ConstFold() -> tensor<1x16xf16> {
     // CHECK-NOT:   IE.Convert
     // CHECK:       return %[[VAL0]]
 }
+
+// -----
+
+// CHECK-LABEL: @SameType
+func @SameType(%arg0: tensor<1x2x3x4xf32>) -> tensor<1x2x3x4xf32> {
+    %0 = IE.Convert(%arg0) {dstType = f32} : tensor<1x2x3x4xf32> -> tensor<1x2x3x4xf32>
+    return %0 : tensor<1x2x3x4xf32>
+
+    // CHECK-NOT:   IE.Convert
+    // CHECK:       return %arg0 : tensor<1x2x3x4xf32>
+}

@@ -39,11 +39,11 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ConvertUPAOp op) {
             {GF_U8, GF_FP32},   {GF_FP16, GF_U8},    {GF_FP32, GF_U8},   {GF_INT32, GF_U8},
     };
 
-    const auto inType = op.input().getType();
-    const auto outType = op.output().getType();
+    const auto inType = op.input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto outType = op.output().getType().cast<mlir::ShapedType>().getElementType();
 
     if (supportedConversions.find({inType, outType}) == supportedConversions.end()) {
-        return errorAt(op, "Unsupported conversion type '");
+        return errorAt(op, "Unsupported conversion type : '{0}' -> '{1}'", inType, outType);
     }
 
     const auto batchID = op.batchID().getValueOr(0);

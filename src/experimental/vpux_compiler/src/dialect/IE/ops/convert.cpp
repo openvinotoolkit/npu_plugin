@@ -37,6 +37,21 @@ mlir::LogicalResult vpux::IE::ConvertOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
+bool vpux::IE::ConvertOp::areCastCompatible(mlir::TypeRange inputs, mlir::TypeRange outputs) {
+    if (inputs.size() != 1 || outputs.size() != 1) {
+        return false;
+    }
+
+    const auto input = inputs.front().dyn_cast<mlir::RankedTensorType>();
+    const auto output = outputs.front().dyn_cast<mlir::RankedTensorType>();
+
+    if (!input || !output || input.getShape() != output.getShape()) {
+        return false;
+    }
+
+    return true;
+}
+
 namespace {
 
 #include <vpux/compiler/dialect/IE/rewriters/generated/convert.hpp.inc>
@@ -49,10 +64,6 @@ void vpux::IE::ConvertOp::getCanonicalizationPatterns(mlir::OwningRewritePattern
 }
 
 mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute> operands) {
-    if (inputType() == outputType()) {
-        return input();
-    }
-
     VPUX_THROW_UNLESS(operands.size() == 1, "Wrong number of operands : {0}", operands.size());
 
     if (const auto attr = operands[0].dyn_cast_or_null<ConstContentAttr>()) {

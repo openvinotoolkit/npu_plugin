@@ -21,6 +21,7 @@ include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/dialect.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 
+include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -217,6 +218,7 @@ def IE_ConvertOp :
             "Convert",
             [
                 SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<CastOpInterface>,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ConvertLayerInterface>
             ]
@@ -1280,10 +1282,10 @@ def IE_DeconvolutionOp:
 def IE_PReluOp :
         IE_LayerOp<
             "PRelu",
-	    [
-		DeclareOpInterfaceMethods<PReluLayerInterface>,
-		DeclareOpInterfaceMethods<LayerInterface>
-	    ]
+            [
+                DeclareOpInterfaceMethods<PReluLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
         > {
     let summary = "InferenceEngine PRelu layer";
 
@@ -1308,8 +1310,8 @@ def IE_LeakyReluOp :
             "LeakyRelu",
             [
                 SingleInputAndResultLayer,
-		SameOperandsAndResultType,
-		DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
+                SameOperandsAndResultType,
+                DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
                 DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
@@ -1318,7 +1320,7 @@ def IE_LeakyReluOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
         
-	F32Attr:$negative_slope
+        F32Attr:$negative_slope
     );
 
     let results = (outs

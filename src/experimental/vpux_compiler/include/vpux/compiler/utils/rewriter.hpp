@@ -16,15 +16,19 @@
 
 #pragma once
 
+#include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/logger.hpp"
 
+#include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
-#include <mlir/IR/PatternMatch.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 namespace vpux {
 
-mlir::LogicalResult rewriteFuncPrototype(mlir::FuncOp funcOp, mlir::TypeConverter& typeConverter,
-                                         mlir::ConversionPatternRewriter& rewriter, Logger log = Logger::global());
+using CvtOpBuilderCb = FuncRef<mlir::Operation*(mlir::OpBuilder&, mlir::Location, mlir::Value, mlir::Type)>;
+
+mlir::LogicalResult convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
+                                ArrayRef<mlir::Type> newResultTypes, CvtOpBuilderCb cvtOpBuilder,
+                                Logger log = Logger::global());
 
 }  // namespace vpux
