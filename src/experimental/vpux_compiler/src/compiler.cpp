@@ -110,6 +110,10 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
                                                                  const std::string&, const InputsDataMap& inputsInfo,
                                                                  const OutputsDataMap& outputsInfo,
                                                                  const VPUXConfig& config) {
+    //
+    // Parse config options
+    //
+
     // TODO: move this to config class
     bool enablePassVerifier = true;
     std::string crashReproducerFile;
@@ -144,18 +148,11 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     }
 #endif
 
+    //
+    // Initialize compiler
+    //
+
     Logger log("vpux-compiler", getLogLevel(config));
-
-    CNNNetwork cnnNet(func);
-
-    for (const auto& p : inputsInfo) {
-        cnnNet.getInputsInfo().at(p.first)->setPrecision(p.second->getPrecision());
-        cnnNet.getInputsInfo().at(p.first)->setLayout(p.second->getLayout());
-    }
-    for (const auto& p : outputsInfo) {
-        cnnNet.getOutputsInfo().at(p.first)->setPrecision(p.second->getPrecision());
-        cnnNet.getOutputsInfo().at(p.first)->setLayout(p.second->getLayout());
-    }
 
     mlir::MLIRContext ctx;
     addLogging(ctx, log);
@@ -163,8 +160,6 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     ctx.loadDialect<IE::IEDialect>();
     ctx.loadDialect<IERT::IERTDialect>();
     ctx.loadDialect<VPUIP::VPUIPDialect>();
-
-    auto module = IE::importNetwork(&ctx, cnnNet, true, log.nest());
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
 
@@ -184,18 +179,33 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
         auto colorStream = Logger::getLevelStream(LogLevel::Trace);
         auto& stream = colorStream.get();
 
-        mlir::OpPrintingFlags flags;
-        flags.elideLargeElementsAttrs(8);
-
         if (printFullIR) {
             ctx.disableMultithreading();
         }
 
-        pm.enableIRPrinting(shouldPrintForPass, shouldPrintForPass, printFullIR, false, stream, flags);
+        pm.enableIRPrinting(shouldPrintForPass, shouldPrintForPass, printFullIR, false, stream);
     }
 
     pm.addPass(createSetCompileParamsPass(getArchKind(config), log.nest()));
     pm.addPass(createReferenceModePass(log.nest()));
+
+    //
+    // Process the network
+    //
+
+    CNNNetwork cnnNet(func);
+
+    for (const auto& p : inputsInfo) {
+        cnnNet.getInputsInfo().at(p.first)->setPrecision(p.second->getPrecision());
+        cnnNet.getInputsInfo().at(p.first)->setLayout(p.second->getLayout());
+    }
+    for (const auto& p : outputsInfo) {
+        cnnNet.getOutputsInfo().at(p.first)->setPrecision(p.second->getPrecision());
+        cnnNet.getOutputsInfo().at(p.first)->setLayout(p.second->getLayout());
+    }
+
+    const bool sharedConstants = !irPrintingFilter.hasValue();
+    auto module = IE::importNetwork(&ctx, cnnNet, sharedConstants, log.nest());
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module.get())), "Compilation failed");
 
@@ -205,6 +215,10 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     }
 
     const auto blob = VPUIP::exportToBlob(module.get(), log);
+
+    //
+    // Return compiled blob and meta-data
+    //
 
     std::vector<char> compiledNetwork(blob.size());
     std::copy_n(reinterpret_cast<const char*>(blob.data()), blob.size(), compiledNetwork.data());
