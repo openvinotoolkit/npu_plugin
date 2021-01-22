@@ -1388,7 +1388,14 @@ namespace mv
                     return INF;
 
                 //Note: Synchronize across parallel branches so we can keep track of eltwise parent activation in ddr or cmx
-                if(childOpType == "Eltwise" && (child["eltwiseParentSpilling"].get<bool>() != parentSpilling))
+                if(childOpType == "Eltwise" && ((child["eltwiseParentSpilling"].get<bool>() != parentSpilling)))
+                    return INF;
+                
+                //Note: Retinaface-mobilenetv2 accuracy issue, no issue found in blob
+                if(childOpType == "Eltwise" && childClustering == "HKSwitch" && parentOpType == "Conv" && 
+                    childOp.getInputTensor(0UL)->getShape() == mv::Shape({80,80,64,1}) &&
+                    parentOp.getInputTensor(0UL)->getShape() == mv::Shape({80,80,48,1}) &&
+                    parentOp.getInputTensor(1UL)->getShape() == mv::Shape({1,1,48,64}))
                     return INF;
 
                 if(violatesClusteringStrategyRules(parentOp, childOp, parent, child))
