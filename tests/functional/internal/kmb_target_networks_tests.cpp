@@ -1128,3 +1128,14 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
             TestImageDesc("227x227/watch.bmp", ImageFormat::RGB),
             1, 0.5f);
 }
+
+TEST_F(KmbClassifyNetworkTest, shufflenet_v2_x1_0_pytorch) {
+    runTest(
+            TestNetworkDesc("KMB_models/FP16-INT8/public/shufflenet-v2-x1_0-pytorch/shufflenet-v2-x1_0-pytorch.xml")
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NCHW)
+                .setUserOutputPrecision("output", Precision::FP32)
+                .setUserOutputLayout("output", Layout::NC),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
+            3, 0.5f);
+}
