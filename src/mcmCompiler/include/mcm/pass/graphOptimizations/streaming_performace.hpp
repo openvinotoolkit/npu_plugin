@@ -6,6 +6,7 @@ namespace mv {
 class StreamingPerformance {
 public:
     StreamingPerformance(mv::ComputationModel& model, mv::OpModel& omodel);
+    ~StreamingPerformance();
     void increaseStreamingOverKforPerformance();
 
 private:
