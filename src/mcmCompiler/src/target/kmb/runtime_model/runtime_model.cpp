@@ -1667,8 +1667,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildHWDMATaskT(Com
     /* The size of HW DMA operation is hardcoded to 4 bytes */
     tmp->src->dimensions = std::vector<uint32_t>{1,1,1,1};
     tmp->src->strides = std::vector<float>{4,4,4,4,4};
-    tmp->src->locale = (MVCNN::MemoryLocation)9;
-    //tmp->src->locale = MVCNN::MemoryLocation_ProgrammableInput;
+    tmp->src->locale = MVCNN::MemoryLocation_AbsoluteAddr;
     tmp->src->locale_index = std::vector<unsigned int>(1,0);
     tmp->src->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
     tmp->src->data->data_index = int64_t(inputData);

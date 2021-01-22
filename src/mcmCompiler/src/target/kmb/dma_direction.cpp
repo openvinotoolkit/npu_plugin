@@ -10,8 +10,8 @@ const std::unordered_map<mv::DmaDirectionEnum, std::string, mv::DmaDirectionEnum
     {mv::DmaDirectionEnum::DDR2DDR, "DDR2DDR"},
     {mv::DmaDirectionEnum::DDR2UPACMX, "DDR2UPACMX"},
     {mv::DmaDirectionEnum::UPACMX2DDR, "UPACMX2DDR"},
-    {mv::DmaDirectionEnum::CSRAM2NNCMX, "CSRAM2NNCMX"}
-
+    {mv::DmaDirectionEnum::CSRAM2NNCMX, "CSRAM2NNCMX"},
+    {mv::DmaDirectionEnum::HW2DDR, "HW2DDR"}
 };
 
 mv::DmaDirection::DmaDirection(DmaDirectionEnum value) :
