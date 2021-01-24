@@ -8,7 +8,7 @@ Hde::Hde(uint32_t bitPerSymbol, uint32_t maxNumberEncodedSymbols, uint32_t verbo
     codec_.reset(new huffmanCodec(bitPerSymbol, maxNumberEncodedSymbols, verbosity, blockSize, pStatsOnly, bypassMode));
 }
 
-std::pair<std::vector<int64_t>, uint32_t> Hde::hdeCompress(std::vector<int64_t>& data, mv::Tensor& t)
+std::pair<std::vector<int64_t>, uint32_t> Hde::compress(std::vector<int64_t>& data, mv::Tensor& t)
 {
     if(data.empty()) {
         throw mv::ArgumentError("hde", "hdeCompress", "0", "Empty data vector");
@@ -41,7 +41,7 @@ std::pair<std::vector<int64_t>, uint32_t> Hde::hdeCompress(std::vector<int64_t>&
     }
 }
 
-std::pair<std::vector<int64_t>, uint32_t> Hde::hdeCompress(std::vector<int64_t>& data, mv::Data::TensorIterator& /*t*/)
+std::pair<std::vector<int64_t>, uint32_t> Hde::compress(std::vector<int64_t>& data, mv::Data::TensorIterator& /*t*/)
 {
     if(data.empty()) {
         throw mv::ArgumentError("hde", "hdeCompress", "0", "Empty data vector");
@@ -73,7 +73,7 @@ std::pair<std::vector<int64_t>, uint32_t> Hde::hdeCompress(std::vector<int64_t>&
     }
 }
 
-std::vector<uint8_t> Hde::hdeDecompress(std::vector<uint8_t>& compressedData)
+std::vector<uint8_t> Hde::decompress(std::vector<uint8_t>& compressedData)
 {
     uint32_t comprssedSize = compressedData.size();
     auto deCompressedBufferSize = compressedData.size() * 5;
