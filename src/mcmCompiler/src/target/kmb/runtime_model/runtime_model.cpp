@@ -141,6 +141,26 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
+mv::RuntimeModel::RuntimeModel(const mv::TargetDescriptor& td)
+{
+    if (td.getTarget() == mv::Target::ma2490)
+    {
+        auto hdeDef = std::dynamic_pointer_cast<mv::HdeDescriptor>(td.codecDef());
+        auto hde = new Hde(hdeDef->bitPerSymbol, hdeDef->maxNumberEncodedSymbols, 0, hdeDef->blockSize, false, hdeDef->bypassMode);
+        codec_.reset(hde);
+    }
+    else if (td.getTarget() == mv::Target::ma3720)
+    {
+        auto btcDef = std::dynamic_pointer_cast<mv::BTCDescriptor>(td.codecDef());
+        auto btc = new BTC(btcDef->bufferAlignment, btcDef->bitmapPreprocEnable, false, btcDef->bypassMode, 0);
+        codec_.reset(btc);
+    }
+    else
+    {
+        throw std::runtime_error("Unsupported target selected. Please check target descriptor.");
+    }
+}
+
 //Note: 16/8 used below depend on the dtype
 void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, const size_t dimension, bool padFinalOutput)
 {
@@ -1091,7 +1111,7 @@ std::vector<uint64_t> packToInt64(const std::vector<T>& origData, mv::DType dtyp
     return toReturn;
 }
 
-std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t, bool huffmanCompression, bool csramCacheable)
+std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t, bool compression, bool csramCacheable)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
@@ -1100,14 +1120,14 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
      * These should be comprssed for additional performance
     */
 
-    if(huffmanCompression && t.isPopulatedTensor() && t.getDType() != mv::DType("Float16"))
+    if(compression && t.isPopulatedTensor() && t.getDType() != mv::DType("Float16"))
     {
         auto weightSizeKb = t.computeTotalSize() / 1024;
 
         //Minimum size that can be compressed is 4kB
         if(weightSizeKb > 4) {
             auto dataPacked = t.getDataPacked();
-            auto compressedData = hde_->hdeCompress(dataPacked, t);
+            auto compressedData = codec_->compress(dataPacked, t);
             toBuild->data = packToInt64(compressedData.first, t.getDType());
 
             //sometimes even if the tensor is > 4KB it might not be compressable
@@ -4001,7 +4021,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
     unsigned numClusters = dm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     auto globalConfigurationParameters = cm.getGlobalConfigParams();
-    auto huffmanCompression = globalConfigurationParameters->get<bool>("HuffmanCompression");
+    auto compression = globalConfigurationParameters->get<bool>("HuffmanCompression");
     bool hasCSRAM = (globalConfigurationParameters->hasAttr("csramLimit") &&
                         globalConfigurationParameters->get<int>("csramLimit") != 0);
 
@@ -4078,7 +4098,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
     std::sort(toSort.begin(), toSort.end(), [](mv::Tensor * t1, mv::Tensor * t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
     for(auto& tIt : toSort)
     {
-        graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt, huffmanCompression, csramCacheable.count(tIt) != 0));
+        graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt, compression, csramCacheable.count(tIt) != 0));
     }
     // TASKS
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);

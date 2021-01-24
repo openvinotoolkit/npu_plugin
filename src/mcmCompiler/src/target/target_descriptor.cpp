@@ -37,7 +37,7 @@ mv::Target mv::TargetDescriptor::toTarget(const std::string& str)
 mv::TargetDescriptor::TargetDescriptor(const std::string& filePath) :
 target_(Target::Unknown),
 globalDType_("Float16"),
-hdeDef_({0,0,0,0,false}),
+codecDef_(),
 generalConfigs_({false, false, 7})//KMB default: HW PRELU MULT is I8, so 7 precision bits are available
 {
 
@@ -462,7 +462,8 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 workloadConfigs_[opStr] = newConfig;
             }
         }
-        if (jsonDescriptor["resources"]["huffman_decode_engine"].valueType() != json::JSONType::Array)
+        if ((jsonDescriptor["target"].get<std::string>() == "ma2490" && jsonDescriptor["resources"]["huffman_decode_engine"].valueType() != json::JSONType::Array)
+            || (jsonDescriptor["target"].get<std::string>() == "ma3720" && jsonDescriptor["resources"]["bitcompactor"].valueType() != json::JSONType::Array))
         {
             reset();
             return false;
@@ -470,61 +471,121 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
         else
         {
 
-            for (std::size_t i = 0; i < jsonDescriptor["resources"]["huffman_decode_engine"].size(); ++i)
+            if (jsonDescriptor["target"].get<std::string>() == "ma2490")
             {
-
-                std::string name;
-                std::size_t numberOfHDEModules;
-                std::size_t bitPerSymbol;
-                std::size_t blockSize;
-                std::size_t maxNumberEncodedSymbols;
-                bool bypassMode;
-
-
-                if (!jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("name") ||
-                    !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("numberOfHDEModules") ||
-                    !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("bitPerSymbol") ||
-                    !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("blockSize") ||
-                    !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("maxNumberEncodedSymbols") ||
-                    !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("bypassMode"))
+                for (std::size_t i = 0; i < jsonDescriptor["resources"]["huffman_decode_engine"].size(); ++i)
                 {
-                    reset();
-                    return false;
-                }
 
-                if (jsonDescriptor["resources"]["huffman_decode_engine"][i]["name"].valueType() != json::JSONType::String ||
-                    jsonDescriptor["resources"]["huffman_decode_engine"][i]["numberOfHDEModules"].valueType() != json::JSONType::NumberInteger ||
-                    jsonDescriptor["resources"]["huffman_decode_engine"][i]["bitPerSymbol"].valueType() != json::JSONType::NumberInteger ||
-                    jsonDescriptor["resources"]["huffman_decode_engine"][i]["blockSize"].valueType() != json::JSONType::NumberInteger ||
-                    jsonDescriptor["resources"]["huffman_decode_engine"][i]["maxNumberEncodedSymbols"].valueType() != json::JSONType::NumberInteger ||
-                    jsonDescriptor["resources"]["huffman_decode_engine"][i]["bypassMode"].valueType() != json::JSONType::Bool)
+                    std::string name;
+                    std::size_t numberOfHDEModules;
+                    std::size_t bitPerSymbol;
+                    std::size_t blockSize;
+                    std::size_t maxNumberEncodedSymbols;
+                    bool bypassMode;
+
+                    if (!jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("name") ||
+                        !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("numberOfHDEModules") ||
+                        !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("bitPerSymbol") ||
+                        !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("blockSize") ||
+                        !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("maxNumberEncodedSymbols") ||
+                        !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("bypassMode"))
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    if (jsonDescriptor["resources"]["huffman_decode_engine"][i]["name"].valueType() != json::JSONType::String ||
+                        jsonDescriptor["resources"]["huffman_decode_engine"][i]["numberOfHDEModules"].valueType() != json::JSONType::NumberInteger ||
+                        jsonDescriptor["resources"]["huffman_decode_engine"][i]["bitPerSymbol"].valueType() != json::JSONType::NumberInteger ||
+                        jsonDescriptor["resources"]["huffman_decode_engine"][i]["blockSize"].valueType() != json::JSONType::NumberInteger ||
+                        jsonDescriptor["resources"]["huffman_decode_engine"][i]["maxNumberEncodedSymbols"].valueType() != json::JSONType::NumberInteger ||
+                        jsonDescriptor["resources"]["huffman_decode_engine"][i]["bypassMode"].valueType() != json::JSONType::Bool)
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    name = jsonDescriptor["resources"]["huffman_decode_engine"][i]["name"].get<std::string>();
+                    numberOfHDEModules = jsonDescriptor["resources"]["huffman_decode_engine"][i]["numberOfHDEModules"].get<long long>();
+                    bitPerSymbol = jsonDescriptor["resources"]["huffman_decode_engine"][i]["bitPerSymbol"].get<long long>();
+                    blockSize = jsonDescriptor["resources"]["huffman_decode_engine"][i]["blockSize"].get<long long>();
+                    maxNumberEncodedSymbols = jsonDescriptor["resources"]["huffman_decode_engine"][i]["maxNumberEncodedSymbols"].get<long long>();
+                    bypassMode = jsonDescriptor["resources"]["huffman_decode_engine"][i]["bypassMode"].get<bool>();
+
+                    // TODO
+                    // is it required as comparison of unsigned expression < 0 is always false
+                    if (std::less<size_t>()(numberOfHDEModules, 0U))
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    auto hdeDef = std::make_shared<HdeDescriptor>();
+
+                    hdeDef->numberOfHDEModules = numberOfHDEModules;
+                    hdeDef->bitPerSymbol = bitPerSymbol;
+                    hdeDef->blockSize = blockSize;
+                    hdeDef->maxNumberEncodedSymbols = maxNumberEncodedSymbols;
+                    hdeDef->bypassMode = bypassMode;
+
+                    codecDef_ = hdeDef;
+                }
+            }
+
+            else if (jsonDescriptor["target"].get<std::string>() == "ma3720")
+            {
+                for (std::size_t i = 0; i < jsonDescriptor["resources"]["bitcompactor"].size(); ++i)
                 {
-                    reset();
-                    return false;
+
+                    std::string name;
+                    std::size_t numCompressionModules;
+                    std::size_t bufferAlignment;
+                    std::size_t bitmapPreprocEnable;
+                    bool bypassMode;
+
+
+                    if (!jsonDescriptor["resources"]["bitcompactor"][i].hasKey("name") ||
+                        !jsonDescriptor["resources"]["bitcompactor"][i].hasKey("numCompressionModules") ||
+                        !jsonDescriptor["resources"]["bitcompactor"][i].hasKey("bufferAlignment") ||
+                        !jsonDescriptor["resources"]["bitcompactor"][i].hasKey("bitmapPreprocEnable") ||
+                        !jsonDescriptor["resources"]["bitcompactor"][i].hasKey("bypassMode"))
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    if (jsonDescriptor["resources"]["bitcompactor"][i]["name"].valueType() != json::JSONType::String ||
+                        jsonDescriptor["resources"]["bitcompactor"][i]["numCompressionModules"].valueType() != json::JSONType::NumberInteger ||
+                        jsonDescriptor["resources"]["bitcompactor"][i]["bufferAlignment"].valueType() != json::JSONType::NumberInteger ||
+                        jsonDescriptor["resources"]["bitcompactor"][i]["bitmapPreprocEnable"].valueType() != json::JSONType::NumberInteger ||
+                        jsonDescriptor["resources"]["bitcompactor"][i]["bypassMode"].valueType() != json::JSONType::Bool)
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    name = jsonDescriptor["resources"]["bitcompactor"][i]["name"].get<std::string>();
+                    numCompressionModules = jsonDescriptor["resources"]["bitcompactor"][i]["numCompressionModules"].get<long long>();
+                    bufferAlignment = jsonDescriptor["resources"]["bitcompactor"][i]["bufferAlignment"].get<long long>();
+                    bitmapPreprocEnable = jsonDescriptor["resources"]["bitcompactor"][i]["bitmapPreprocEnable"].get<long long>();
+                    bypassMode = jsonDescriptor["resources"]["bitcompactor"][i]["bypassMode"].get<bool>();
+
+                    if (std::less<size_t>()(numCompressionModules, 0U))
+                    {
+                        reset();
+                        return false;
+                    }
+
+                    auto btcDef = std::make_shared<BTCDescriptor>();
+
+                    btcDef->numCompressionModules = numCompressionModules;
+                    btcDef->bufferAlignment = bufferAlignment;
+                    btcDef->bitmapPreprocEnable = bitmapPreprocEnable;
+                    btcDef->bypassMode = bypassMode;
+
+                    codecDef_ = btcDef;
+
                 }
-
-                name = jsonDescriptor["resources"]["huffman_decode_engine"][i]["name"].get<std::string>();
-                numberOfHDEModules = jsonDescriptor["resources"]["huffman_decode_engine"][i]["numberOfHDEModules"].get<long long>();
-                bitPerSymbol = jsonDescriptor["resources"]["huffman_decode_engine"][i]["bitPerSymbol"].get<long long>();
-                blockSize = jsonDescriptor["resources"]["huffman_decode_engine"][i]["blockSize"].get<long long>();
-                maxNumberEncodedSymbols = jsonDescriptor["resources"]["huffman_decode_engine"][i]["maxNumberEncodedSymbols"].get<long long>();
-                bypassMode = jsonDescriptor["resources"]["huffman_decode_engine"][i]["bypassMode"].get<bool>();
-
-                // TODO
-                // is it required as comparison of unsigned expression < 0 is always false
-                if (std::less<size_t>()(numberOfHDEModules, 0U))
-                {
-                    reset();
-                    return false;
-                }
-
-                hdeDef_.numberOfHDEModules = numberOfHDEModules;
-                hdeDef_.bitPerSymbol = bitPerSymbol;
-                hdeDef_.blockSize = blockSize;
-                hdeDef_.maxNumberEncodedSymbols = maxNumberEncodedSymbols;
-                hdeDef_.bypassMode = bypassMode;
-
-
             }
 
         }
@@ -613,9 +674,9 @@ const std::map<std::string, mv::TargetDescriptor::NceDescriptor>& mv::TargetDesc
     return nceDefs_;
 }
 
-const mv::HdeDescriptor& mv::TargetDescriptor::hdeDef() const
+const std::shared_ptr<mv::CodecDescriptor>& mv::TargetDescriptor::codecDef() const
 {
-    return hdeDef_;
+    return codecDef_;
 }
 
 const std::vector<mv::DataTypeSupport>& mv::TargetDescriptor::dtypeSupport() const

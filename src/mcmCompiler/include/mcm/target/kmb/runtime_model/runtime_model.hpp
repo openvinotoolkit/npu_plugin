@@ -13,6 +13,7 @@
 #include "include/mcm/target/kmb/ppe_layer_type.hpp"
 #include "include/mcm/target/kmb/ppe_fixed_function.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
+#include "include/mcm/utils/compression/btc.hpp"
 #include "include/mcm/utils/compression/hde.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 
@@ -31,13 +32,9 @@ namespace mv
     class RuntimeModel
     {
         private:
-            RuntimeModel(const mv::TargetDescriptor& td)
-            {
-                auto hdeDef = td.hdeDef();
-                hde_.reset(new Hde(hdeDef.bitPerSymbol, hdeDef.maxNumberEncodedSymbols, 0, hdeDef.blockSize, false, hdeDef.bypassMode));
-            }
+            RuntimeModel(const mv::TargetDescriptor& td);
 
-            std::unique_ptr<Hde> hde_ = nullptr;
+            std::unique_ptr<Compressor> codec_ = nullptr;
             MVCNN::GraphFileT graphFile_;
             std::shared_ptr<std::vector<char>> binaryData_;
             static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
