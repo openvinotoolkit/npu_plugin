@@ -27,13 +27,6 @@ add_library(${TARGET_NAME} STATIC ${SOURCES})
 
 enable_warnings_as_errors(${TARGET_NAME})
 
-if(ENABLE_EXPERIMENTAL_MLIR)
-    target_compile_definitions(${TARGET_NAME}
-        PRIVATE
-            ENABLE_EXPERIMENTAL_MLIR
-    )
-endif()
-
 target_include_directories(${TARGET_NAME}
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"

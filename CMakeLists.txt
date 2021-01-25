@@ -57,10 +57,8 @@ print_enabled_kmb_features()
 # Build configuration
 #
 
-if(ENABLE_EXPERIMENTAL_MLIR)
-    set(CMAKE_CXX_STANDARD 14)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
-endif()
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(UNIX)
     ie_add_compiler_flags(-Wno-undef)
@@ -79,29 +77,27 @@ ie_cpack_add_component(${KMB_DEVICE_NAME} REQUIRED)
 
 add_subdirectory(thirdparty)
 
-if(ENABLE_EXPERIMENTAL_MLIR)
-    set(LLVM_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/llvm-project/llvm")
-    set(LLVM_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/llvm-project/llvm")
+set(LLVM_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/llvm-project/llvm")
+set(LLVM_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/llvm-project/llvm")
 
-    set(MLIR_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/llvm-project/mlir")
-    set(MLIR_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/llvm-project/llvm/tools/mlir")
+set(MLIR_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/llvm-project/mlir")
+set(MLIR_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/llvm-project/llvm/tools/mlir")
 
-    set(LLVM_INCLUDE_DIRS
-        "${LLVM_SOURCE_DIR}/include"
-        "${LLVM_BINARY_DIR}/include"
-    )
+set(LLVM_INCLUDE_DIRS
+    "${LLVM_SOURCE_DIR}/include"
+    "${LLVM_BINARY_DIR}/include"
+)
 
-    set(MLIR_INCLUDE_DIRS
-        "${MLIR_SOURCE_DIR}/include"
-        "${MLIR_BINARY_DIR}/include"
-    )
+set(MLIR_INCLUDE_DIRS
+    "${MLIR_SOURCE_DIR}/include"
+    "${MLIR_BINARY_DIR}/include"
+)
 
-    list(APPEND CMAKE_MODULE_PATH
-        "${LLVM_SOURCE_DIR}/cmake/modules"
-    )
+list(APPEND CMAKE_MODULE_PATH
+    "${LLVM_SOURCE_DIR}/cmake/modules"
+)
 
-    include(cmake/tblgen.cmake)
-endif()
+include(cmake/tblgen.cmake)
 
 if(ENABLE_DEVELOPER_BUILD)
     add_compile_definitions(VPUX_DEVELOPER_BUILD)
@@ -110,9 +106,7 @@ endif()
 add_subdirectory(src)
 
 if(ENABLE_TESTS)
-    if(ENABLE_EXPERIMENTAL_MLIR)
-        include(cmake/lit_tests.cmake)
-    endif()
+    include(cmake/lit_tests.cmake)
 
     add_subdirectory(tests)
     add_subdirectory(tests_deprecated)

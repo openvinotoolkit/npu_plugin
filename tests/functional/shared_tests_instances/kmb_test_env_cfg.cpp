@@ -79,11 +79,9 @@ KmbTestEnvConfig::KmbTestEnvConfig() {
         IE_KMB_TESTS_LONG_FILE_NAME = strToBool("IE_KMB_TESTS_LONG_FILE_NAME", var);
     }
 
-#ifdef ENABLE_EXPERIMENTAL_MLIR
     if (auto var = std::getenv("IE_VPUX_USE_EXPERIMENTAL_COMPILER")) {
         IE_VPUX_USE_EXPERIMENTAL_COMPILER = strToBool("IE_VPUX_USE_EXPERIMENTAL_COMPILER", var);
     }
-#endif
 }
 
 }  // namespace LayerTestsUtils

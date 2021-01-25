@@ -20,6 +20,4 @@ endif()
 add_subdirectory(test_classification)
 add_subdirectory(single-image-test)
 
-if(ENABLE_EXPERIMENTAL_MLIR)
-    add_subdirectory(experimental)
-endif()
+add_subdirectory(experimental)

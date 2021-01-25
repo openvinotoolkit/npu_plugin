@@ -33,6 +33,4 @@ if(ENABLE_ZEROAPI_BACKEND)
 endif()
 add_subdirectory(vpux_plugin)
 
-if(ENABLE_EXPERIMENTAL_MLIR)
-    add_subdirectory(experimental)
-endif()
+add_subdirectory(experimental)
