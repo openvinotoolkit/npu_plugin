@@ -663,11 +663,10 @@ void vpuLayersTests::ReferenceGraph(const CNNNetwork& net) {
     uint16_t* refBlobRawDataFp16 = referenceInput->buffer();
     ASSERT_NE(inputBlobRawDataFp16, nullptr);
     ie_memcpy(refBlobRawDataFp16, realInput->byteSize(), inputBlobRawDataFp16, count * sizeof(uint16_t));
-    const ICNNNetwork& network = net;
     for (size_t ind = 0; ind < _testNet.size(); ++ind) {
         if (_testNet[ind].fillWeights != nullptr) {
             auto& refLayer = _referenceGraph.callbacks[ind];
-            CNNLayerPtr layer = CommonTestUtils::getLayerByName(&network, _testNet[ind].layer_name);
+            CNNLayerPtr layer = CommonTestUtils::getLayerByName(net, _testNet[ind].layer_name);
             if (layer->type == "PReLU") {
                 /* PReLU is a custom layer */
                 auto it = layer->blobs.find("weights");

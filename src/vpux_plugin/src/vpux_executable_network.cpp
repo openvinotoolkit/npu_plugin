@@ -80,16 +80,13 @@ ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
-ExecutableNetwork::ExecutableNetwork(IE::ICNNNetwork& network, const Device::Ptr& device, const VPUXConfig& config)
+ExecutableNetwork::ExecutableNetwork(IE::CNNNetwork& network, const Device::Ptr& device, const VPUXConfig& config)
         : ExecutableNetwork(config, device) {
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
     if (const auto func = network.getFunction()) {
-        IE::InputsDataMap inputsInfo;
-        network.getInputsInfo(inputsInfo);
-
-        IE::OutputsDataMap outputsInfo;
-        network.getOutputsInfo(outputsInfo);
+        IE::InputsDataMap inputsInfo = network.getInputsInfo();
+        IE::OutputsDataMap outputsInfo = network.getOutputsInfo();
 
         _networkPtr = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
     } else {

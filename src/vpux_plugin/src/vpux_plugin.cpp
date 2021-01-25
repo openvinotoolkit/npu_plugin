@@ -66,18 +66,19 @@ Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)), _met
 //      Load network
 //------------------------------------------------------------------------------
 IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
-    const IE::ICNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& networkConfig) {
+    const IE::CNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& networkConfig) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "LoadExeNetwork");
-    std::shared_ptr<IE::ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    IE::CNNNetwork clonedNetwork = cloneNetwork(network);
 
-    auto implNetwork = std::dynamic_pointer_cast<IE::details::CNNNetworkImpl>(clonedNetwork);
+    auto implNetwork = std::dynamic_pointer_cast<IE::details::CNNNetworkImpl>(
+        static_cast<IE::ICNNNetwork::Ptr>(clonedNetwork));
     if (implNetwork) {
-        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+        // valid for CNNNetworkImpl only, while there's no API in CNNNetwork to change network
         IE::ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
     }
 
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork, device, networkConfig);
+    return std::make_shared<ExecutableNetwork>(clonedNetwork, device, networkConfig);
 }
 
 IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(

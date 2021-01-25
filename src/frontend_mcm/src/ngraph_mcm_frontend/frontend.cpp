@@ -65,7 +65,7 @@ namespace {
     std::map<std::string, std::string> MapInputOutputInfoToNgraphOps(const std::shared_ptr<ngraph::Function>& func,
         const ie::InputsDataMap& inputsInfo,
         const ie::OutputsDataMap& outputsInfo) {
-        // Due to historical reasons, ICNNNetwork::getOutputsInfo() does not match excatly
+        // Due to historical reasons, CNNNetwork::getOutputsInfo() does not match excatly
         // to ngraph::op::v0::Result::get_friendly_name(), actual get_friendly_name() may be have arbitary different.
         // Instead getOutputsInfo() returns names of nodes, who produces input to ngraph::op::v0::Result,
         // This expected to be fixed in 2021.2
