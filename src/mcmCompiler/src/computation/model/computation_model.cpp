@@ -8,7 +8,7 @@ name_(name), type_(type), size_(shape.totalSize()), order_(order), shape_(shape)
 
 }
 
-const char* mv::BufferEntry::getName() const 
+const char* mv::BufferEntry::getName() const
 {
     return name_.c_str();
 }
@@ -134,9 +134,9 @@ binary_(std::make_shared<mv::RuntimeBinary>()),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
 globalConfigParams_(std::make_shared<mv::Element>("GlobalConfigParams")),
-ops_(std::make_shared<std::unordered_map<std::string, Data::OpListIterator>>()),
-dataFlows_(std::make_shared<std::unordered_map<std::string, Data::FlowListIterator>>()),
-controlFlows_(std::make_shared<std::unordered_map<std::string, Control::FlowListIterator>>()),
+ops_(std::make_shared<std::map<std::string, Data::OpListIterator>>()),
+dataFlows_(std::make_shared<std::map<std::string, Data::FlowListIterator>>()),
+controlFlows_(std::make_shared<std::map<std::string, Control::FlowListIterator>>()),
 tensors_(std::make_shared<std::map<std::string, std::shared_ptr<Tensor>>>()),
 groups_(std::make_shared<std::map<std::string, std::shared_ptr<Group>>>()),
 stages_(std::make_shared<std::map<std::size_t, std::shared_ptr<Stage>>>()),
@@ -509,7 +509,7 @@ mv::json::Array mv::ComputationModel::controlFlowToJSON() const
     json::Array control_flow;
     for (auto controlIt = controlGraph_.edge_begin(); controlIt != controlGraph_.edge_end(); ++controlIt)
         control_flow.append((*controlIt).toJSON());
-    
+
     log(Logger::MessageType::Debug, "control Flows in computation model: " + control_flow.stringify());
     return control_flow;
 }
@@ -686,7 +686,7 @@ bool mv::ComputationModel::hasGlobalConfigParam(const std::string& name) const
 }
 
 mv::Attribute mv::ComputationModel::getGlobalConfigParam(const std::string& name) const
-{   
+{
     if (!hasGlobalConfigParam(name))
         throw ArgumentError(*this, "globalConfigParams:name", name, "Does not exist");
     return globalConfigParams_->get(name);
@@ -703,5 +703,5 @@ bool mv::operator==(const mv::BufferEntry& lhs, const mv::BufferEntry& rhs) {
         lhs.size_ == rhs.size_ &&
         lhs.order_ == rhs.order_ &&
         lhs.shape_ == rhs.shape_ &&
-        lhs.dtype_ == rhs.dtype_; 
+        lhs.dtype_ == rhs.dtype_;
 }
