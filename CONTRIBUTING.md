@@ -23,6 +23,12 @@
 * No warnings have been introduced
 * Does only one thing (Feature / Bug Fix / Optimization / Refactoring)
 * Must be up-to-date with target branch
+* Your MR must not contain merge commits. Next development flow required:
+    * Create the feature branch based on HEAD of target branch
+    * If you want to integrate changes from target branch use `git fetch` and `git rebase` commands. For example:
+        * `git fetch`
+        * `git rebase origin/master`
+    * Resolve the conflicts and use `git push feature_branch_name -f`
 * Contains list of logically separated commits. Each commit as a separate small task
     * Each commit has clear description what and why has been done
         * With Jira number when applicable
