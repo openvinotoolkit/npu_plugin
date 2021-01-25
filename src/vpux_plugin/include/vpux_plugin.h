@@ -68,7 +68,7 @@ public:
     InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& map) override;
 
 private:
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetwork(const InferenceEngine::ICNNNetwork& network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetwork(const InferenceEngine::CNNNetwork& network,
                                                                    std::shared_ptr<Device>& device,
                                                                    const VPUXConfig& networkConfig);
 
