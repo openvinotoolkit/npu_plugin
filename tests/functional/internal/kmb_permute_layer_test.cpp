@@ -21,6 +21,7 @@
 struct PermuteTestParams final {
     TensorDesc in_desc_;
     std::vector<int64_t> order_;
+    std::string permute_nd_ = InferenceEngine::PluginConfigParams::NO;
 
     PermuteTestParams& in_desc(TensorDesc in_desc) {
         this->in_desc_ = std::move(in_desc);
@@ -31,11 +32,17 @@ struct PermuteTestParams final {
         this->order_= std::move(order);
         return *this;
     }
+
+    PermuteTestParams& permute_nd(const std::string& permute_nd) {
+        this->permute_nd_= permute_nd;
+        return *this;
+    }
 };
 
 std::ostream& operator<<(std::ostream& os, const PermuteTestParams& p) {
-    vpu::formatPrint(os, "[in_dims:%v, in_precision:%v, in_layout:%v, order:%v]",
-            p.in_desc_.getDims(), p.in_desc_.getPrecision(), p.in_desc_.getLayout(), p.order_);
+    vpu::formatPrint(os, "[in_dims:%v, in_precision:%v, in_layout:%v, order:%v, permute_nd:%s]",
+            p.in_desc_.getDims(), p.in_desc_.getPrecision(), p.in_desc_.getLayout(), p.order_,
+            p.permute_nd_);
     return os;
 }
 
@@ -71,9 +78,10 @@ TEST_P(KmbPermuteLayerTests, Accuracy) {
         }
     );
 
-    const auto keepNoopPermute = CompileConfig{{
-        VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP),
-        InferenceEngine::PluginConfigParams::NO}};
+    const auto keepNoopPermute = CompileConfig{
+        { VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP), InferenceEngine::PluginConfigParams::NO},
+        { "VPU_COMPILER_ALLOW_PERMUTE_ND", p.permute_nd_},
+    };
 
     const auto netBuidler = [&](TestNetwork& testNet) {
         testNet
@@ -118,6 +126,12 @@ const std::vector<PermuteTestParams> supportedCases {
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NHWC})
         .order({0, 1, 2, 3}),
+
+    ///// use permuteND
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
+        .order({0, 1, 2, 3})
+        .permute_nd(InferenceEngine::PluginConfigParams::YES),
 };
 
 // NB: Please note that these test cases doesn't include cases when batch not equal to one
@@ -134,6 +148,24 @@ const std::vector<PermuteTestParams> unsupportedCases {
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 18, 19, 19}, Layout::NCHW})
         .order({0, 2, 3, 1}),
+
+    ///// use permuteND
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
+        .order({0, 2, 3, 1})
+        .permute_nd(InferenceEngine::PluginConfigParams::YES),
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
+        .order({0, 3, 2, 1})
+        .permute_nd(InferenceEngine::PluginConfigParams::YES),
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
+        .order({0, 3, 1, 2})
+        .permute_nd(InferenceEngine::PluginConfigParams::YES),
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
+        .order({0, 1, 3, 2})
+        .permute_nd(InferenceEngine::PluginConfigParams::YES),
 };
 
 INSTANTIATE_TEST_CASE_P(precommit_SupportedCases, KmbPermuteLayerTests, testing::ValuesIn(supportedCases));

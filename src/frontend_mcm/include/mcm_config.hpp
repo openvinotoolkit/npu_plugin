@@ -121,6 +121,10 @@ public:
         return _removePermuteNoOp;
     }
 
+    bool allowPermuteND() const {
+        return _allowPermuteND;
+    }
+
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
@@ -162,6 +166,8 @@ private:
     bool _scaleShiftFusing = true;
 
     bool _removePermuteNoOp = true;
+
+    bool _allowPermuteND = false;
 };
 
 }  //  namespace vpu

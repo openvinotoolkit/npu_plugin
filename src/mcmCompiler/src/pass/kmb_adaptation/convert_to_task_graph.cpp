@@ -560,6 +560,24 @@ mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vec
     return upaPermute;
 }
 
+mv::Data::TensorIterator convertPermuteNDToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool /*software*/,
+                                    const mv::QuantizationParams& quantParams,
+                                    const mv::DType& outputTensorType,
+                                    const mv::Order& outputTensorOrder)
+{
+    auto order = attrs.at("perm_order").get<std::vector<int64_t>>();
+
+    auto upaPermute = om.uPATaskPermuteND(name, inputs, order);
+    upaPermute->setDType(outputTensorType);
+    upaPermute->setQuantParams(quantParams);
+    auto upaPermuteOp = om.getSourceOp(upaPermute);
+
+    upaPermuteOp->set<std::vector<int64_t>>("perm_order", order);
+
+    return upaPermute;
+}
+
 mv::Data::TensorIterator convertInterpToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool /*software*/,
                                     const mv::QuantizationParams& quantParams,
@@ -860,7 +878,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
-                                                       "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu"};
+                                                       "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu",
+                                                       "PermuteND"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -890,6 +909,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Priorbox", convertPriorboxToUPATask},
     {"Argmax", convertArgmaxToUPATask},
     {"Permute", convertPermuteToUPATask},
+    {"PermuteND", convertPermuteNDToUPATask},
     {"CustomOcl", convertCustomOclToUPATask},
     {"CustomCpp", convertCustomCppToUPATask},
     {"Sigmoid", convertSigmoidToUPATask},

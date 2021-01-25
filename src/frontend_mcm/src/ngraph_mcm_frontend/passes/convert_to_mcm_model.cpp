@@ -122,7 +122,7 @@
 namespace {
 
 using Callback = void (*)(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-InferenceEngine::DataPtr, bool, bool);
+InferenceEngine::DataPtr, bool, bool, bool);
 using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
 std::vector<mv::Data::TensorIterator> getMcmInputs(std::shared_ptr<ngraph::Node> node, const NodeOutputToMcmMap& mcmOutputsMap) {
@@ -718,7 +718,8 @@ void convert(std::shared_ptr<ngraph::op::v0::Concat> concat, mv::OpModel& mcmMod
     registerOutputs(concat, {mcmConcatOutput}, mcmOutputsMap);
 }
 
-void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
+    bool allowPermuteND) {
     const auto mcmInputs = getMcmInputs(permute, mcmOutputsMap);
     IE_ASSERT(2 ==  mcmInputs.size());
     const auto mcmData = mcmInputs.at(0);
@@ -738,7 +739,13 @@ void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mc
         mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
     }
 
-    auto mcmPermuteOutput = mcmModel.permute(opName, mcmData, mv::Order(newOrder));
+    mv::Data::TensorIterator mcmPermuteOutput{};
+    if (allowPermuteND) {
+        std::vector<int64_t> permNDOrder(orderIndices.begin(), orderIndices.end());
+        mcmPermuteOutput = mcmModel.permuteND(opName, mcmData, permNDOrder);
+    } else {
+        mcmPermuteOutput = mcmModel.permute(opName, mcmData, mv::Order(newOrder));
+    }
 
     // Workaround to avoid parsing stage crash:
     // 'ArgumentError: attribute identifer quantParams - Undefined identifier'
@@ -1536,7 +1543,7 @@ void convert(std::shared_ptr<ngraph::op::v1::VariadicSplit> variadicSplit,
 
 template <typename T>
 void convertDispatch(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-    InferenceEngine::DataPtr /*unused*/, bool /*unused*/, bool /*unused*/) {
+    InferenceEngine::DataPtr /*unused*/, bool /*unused*/, bool /*unused*/, bool /*unused*/) {
     convert(std::dynamic_pointer_cast<T>(node), mcmModel, mcmOutputsMap);
 }
 
@@ -1544,15 +1551,23 @@ void convertDispatch(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, 
 template<>
 void convertDispatch<ngraph::op::Parameter>(std::shared_ptr<ngraph::Node> node,
     mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr ieData, bool allowNCHWInput,
-    bool allowU8InputForFp16Models) {
+    bool allowU8InputForFp16Models, bool /*unused*/) {
     convert(std::dynamic_pointer_cast<ngraph::op::Parameter>(node), mcmModel, mcmOutputsMap, ieData, allowNCHWInput,
             allowU8InputForFp16Models);
 }
 
 template<>
 void convertDispatch<ngraph::op::Result>(std::shared_ptr<ngraph::Node> node,
-    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr ieData, bool /*unused*/, bool /*unused*/) {
+    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr ieData, bool /*unused*/, bool /*unused*/,
+    bool /*unused*/) {
     convert(std::dynamic_pointer_cast<ngraph::op::Result>(node), mcmModel, mcmOutputsMap, ieData);
+}
+
+template<>
+void convertDispatch<ngraph::op::Transpose>(std::shared_ptr<ngraph::Node> node,
+    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr /*unused*/, bool /*unused*/,
+    bool /*unused*/, bool allowPermuteND) {
+    convert(std::dynamic_pointer_cast<ngraph::op::Transpose>(node), mcmModel, mcmOutputsMap, allowPermuteND);
 }
 
 #define MAP_ENTRY(__OP__) {__OP__::type_info, convertDispatch<__OP__>}
@@ -1617,13 +1632,13 @@ static const DispatchMap dispatchMap {
 #undef MAP_ENTRY
 
 void ConvertNode(const std::shared_ptr<ngraph::Node> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-    InferenceEngine::DataPtr ieData, bool allowNCHWInput, bool allowU8InputForFp16Models) {
+    InferenceEngine::DataPtr ieData, bool allowNCHWInput, bool allowU8InputForFp16Models, bool allowPermuteND) {
     const auto dispatchIt = dispatchMap.find(op->get_type_info());
     if (dispatchIt != dispatchMap.end()) {
         const auto convertor = dispatchIt->second;
         if (convertor != nullptr) {
             try {
-                convertor(op, mcmModel, mcmOutputsMap, ieData, allowNCHWInput, allowU8InputForFp16Models);
+                convertor(op, mcmModel, mcmOutputsMap, ieData, allowNCHWInput, allowU8InputForFp16Models, allowPermuteND);
             } catch (const std::runtime_error& ex) {
                 THROW_IE_EXCEPTION << "Convertor for operation " << op->get_friendly_name()
                                    << " failed due to runtime error " << ex.what();
@@ -1698,12 +1713,13 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
     // Provide an opportunity to use NCHW layout for McmModel inputs
     const auto allowNCHWInput = _config.allowNCHWLayoutForMcmModelInput();
     const auto allowU8InputForFp16Models = _config.allowU8InputForFp16Models();
+    const auto allowPermuteND = _config.allowPermuteND();
     for (const auto& inputInfo : _networkInputs) {
         bool isFound = false;
         for (const auto& op : func->get_parameters()) {
             if (op->get_friendly_name() == _ioMap.at(inputInfo.first)) {
                 ConvertNode(op, _mcmModel, _mcmOutputsMap, inputInfo.second->getInputData(), allowNCHWInput,
-                            allowU8InputForFp16Models);
+                            allowU8InputForFp16Models, allowPermuteND);
                 isFound = true;
             }
         }
@@ -1717,7 +1733,7 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
 
     for (const auto& op : func->get_ordered_ops()) {
         if (ngraph::op::Constant::type_info == op->get_type_info()) {
-            ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr, false, false);
+            ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr, false, false, allowPermuteND);
         }
     }
 
@@ -1739,14 +1755,14 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
             }
         }
 
-        ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr, false, false);
+        ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr, false, false, allowPermuteND);
     }
 
     for (const auto& outputInfo : _networkOutputs) {
         bool isFound = false;
         for (const auto& op : func->get_results()) {
             if (op->get_friendly_name() == _ioMap.at(outputInfo.first)) {
-                ConvertNode(op, _mcmModel, _mcmOutputsMap, outputInfo.second, false, false);
+                ConvertNode(op, _mcmModel, _mcmOutputsMap, outputInfo.second, false, false, allowPermuteND);
                 isFound = true;
             }
         }
