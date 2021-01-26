@@ -50,7 +50,7 @@ LowerIE2IERTPass::LowerIE2IERTPass(Logger log)
         : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _log.setName(Base::getArgumentName());
 
-    _pm.addPass(createBufferizeIEPass(_log.nest()));
+    _pm.addPass(createConvertIE2IERTPass(_log.nest()));
     _pm.addPass(mlir::createFuncBufferizePass());
     _pm.addPass(mlir::createBufferResultsToOutParamsPass());
     _pm.addPass(mlir::createFinalizingBufferizePass());

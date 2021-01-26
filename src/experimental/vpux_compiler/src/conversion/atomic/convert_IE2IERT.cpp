@@ -32,12 +32,12 @@ using namespace vpux;
 namespace {
 
 //
-// BufferizeIEPass
+// ConvertIE2IERTPass
 //
 
-class BufferizeIEPass final : public BufferizeIEBase<BufferizeIEPass> {
+class ConvertIE2IERTPass final : public ConvertIE2IERTBase<ConvertIE2IERTPass> {
 public:
-    explicit BufferizeIEPass(Logger log): _log(log) {
+    explicit ConvertIE2IERTPass(Logger log): _log(log) {
         _log.setName(Base::getArgumentName());
     }
 
@@ -63,10 +63,10 @@ private:
     Logger _log;
 };
 
-const mlir::PatternBenefit BufferizeIEPass::genericBenefit(1);
-const mlir::PatternBenefit BufferizeIEPass::specificBenefit(2);
+const mlir::PatternBenefit ConvertIE2IERTPass::genericBenefit(1);
+const mlir::PatternBenefit ConvertIE2IERTPass::specificBenefit(2);
 
-void BufferizeIEPass::runOnFunction() {
+void ConvertIE2IERTPass::runOnFunction() {
     try {
         _log.trace("Run on Function '@{0}'", getFunction().sym_name());
 
@@ -81,9 +81,9 @@ void BufferizeIEPass::runOnFunction() {
 // allocateResults
 //
 
-SmallVector<mlir::Value> BufferizeIEPass::allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
-                                                          mlir::TypeConverter& typeConverter,
-                                                          mlir::ValueRange origResults) {
+SmallVector<mlir::Value> ConvertIE2IERTPass::allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
+                                                             mlir::TypeConverter& typeConverter,
+                                                             mlir::ValueRange origResults) {
     return to_small_vector(origResults | transformed([&](mlir::Value origVal) -> mlir::Value {
                                auto origType = origVal.getType();
                                auto memRefType = typeConverter.convertType(origType);
@@ -96,7 +96,7 @@ SmallVector<mlir::Value> BufferizeIEPass::allocateResults(mlir::Location loc, ml
 // ConstantRewrite
 //
 
-class BufferizeIEPass::ConstantRewrite final : public mlir::OpConversionPattern<IE::ConstantOp> {
+class ConvertIE2IERTPass::ConstantRewrite final : public mlir::OpConversionPattern<IE::ConstantOp> {
 public:
     ConstantRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::OpConversionPattern<IE::ConstantOp>(typeConverter, ctx, specificBenefit), _log(log) {
@@ -110,8 +110,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult BufferizeIEPass::ConstantRewrite::matchAndRewrite(IE::ConstantOp origOp, ArrayRef<mlir::Value>,
-                                                                      mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertIE2IERTPass::ConstantRewrite::matchAndRewrite(
+        IE::ConstantOp origOp, ArrayRef<mlir::Value>, mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found Constant Operation '{0}'", origOp->getLoc());
 
     auto* typeConverter = getTypeConverter();
@@ -129,7 +129,7 @@ mlir::LogicalResult BufferizeIEPass::ConstantRewrite::matchAndRewrite(IE::Consta
 // LayerRewrite
 //
 
-class BufferizeIEPass::LayerRewrite final : public mlir::ConversionPattern {
+class ConvertIE2IERTPass::LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, Logger log)
             : mlir::ConversionPattern(genericBenefit, typeConverter, mlir::Pattern::MatchAnyOpTypeTag{}), _log(log) {
@@ -143,9 +143,9 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operation* origOp,
-                                                                   ArrayRef<mlir::Value> newOperands,
-                                                                   mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertIE2IERTPass::LayerRewrite::matchAndRewrite(mlir::Operation* origOp,
+                                                                      ArrayRef<mlir::Value> newOperands,
+                                                                      mlir::ConversionPatternRewriter& rewriter) const {
     auto layerOp = mlir::dyn_cast<LayerInterface>(origOp);
     if (layerOp == nullptr) {
         return mlir::failure();
@@ -183,7 +183,7 @@ mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operati
 // passBody
 //
 
-void BufferizeIEPass::passBody() {
+void ConvertIE2IERTPass::passBody() {
     auto& ctx = getContext();
 
     mlir::BufferizeTypeConverter typeConverter;
@@ -208,9 +208,9 @@ void BufferizeIEPass::passBody() {
 }  // namespace
 
 //
-// createBufferizeIEPass
+// createConvertIE2IERTPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::createBufferizeIEPass(Logger log) {
-    return std::make_unique<BufferizeIEPass>(log);
+std::unique_ptr<mlir::Pass> vpux::createConvertIE2IERTPass(Logger log) {
+    return std::make_unique<ConvertIE2IERTPass>(log);
 }

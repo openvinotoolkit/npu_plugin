@@ -36,9 +36,9 @@ namespace vpux {
 // Passes
 //
 
+std::unique_ptr<mlir::Pass> createConvertIE2IERTPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertIE2QuantPass(Logger log = Logger::global());
 
-std::unique_ptr<mlir::Pass> createBufferizeIEPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createLowerIE2IERTPass(Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createConvertIERT2VPUIPPass(Logger log = Logger::global());

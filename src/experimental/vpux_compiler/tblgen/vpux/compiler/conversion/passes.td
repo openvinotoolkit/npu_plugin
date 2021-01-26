@@ -34,10 +34,10 @@ def ConvertIE2Quant : FunctionPass<"convert-IE-to-quant"> {
 }
 
 //
-// BufferizeIE
+// ConvertIE2IERT
 //
 
-def BufferizeIE : FunctionPass<"bufferize-IE"> {
+def ConvertIE2IERT : FunctionPass<"convert-IE-to-IERT"> {
     let summary = "Bufferize the IE dialect into the IERT dialect on Function level";
 
     let description = [{
@@ -45,7 +45,7 @@ def BufferizeIE : FunctionPass<"bufferize-IE"> {
         Only functions inner regions are affected, not signatures.
     }];
 
-    let constructor = "vpux::createBufferizeIEPass()";
+    let constructor = "vpux::createConvertIE2IERTPass()";
 
     let dependentDialects = [
         "vpux::IERT::IERTDialect",
