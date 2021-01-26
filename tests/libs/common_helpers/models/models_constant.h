@@ -30,7 +30,7 @@ const ModelDesc squeezenet1_1 = {
         227};
 
 const ModelDesc googlenet_v1 = {
-        "/KMB_models/INT8/public/googlenet-v1/googlenet_v1_tf_dense_int8_IRv10",
+        "/KMB_models/INT8/public/googlenet-v1/googlenet_v1_tf_dense_int8_IRv10_fp16_to_int8",
         224,
         224
 };
