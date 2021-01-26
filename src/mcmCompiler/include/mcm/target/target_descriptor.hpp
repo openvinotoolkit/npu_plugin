@@ -38,7 +38,8 @@ namespace mv
 
     struct CodecDescriptor
     {
-        virtual ~CodecDescriptor() = 0;
+        CodecDescriptor() {}
+        virtual ~CodecDescriptor() {}
     };
 
     struct HdeDescriptor : public CodecDescriptor
