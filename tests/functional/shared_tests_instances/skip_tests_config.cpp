@@ -28,5 +28,9 @@ std::vector<std::string> disabledTestPatterns() {
 
         // [Track number: S#43484]
         ".*KmbMaxMinLayerTest.*",
+
+        // [Track number: s#47412]
+        ".*IEClassGetConfigTest_ThrowUnsupported\\.GetConfigThrow.*",
+
     };
 }
