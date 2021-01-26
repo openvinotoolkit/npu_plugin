@@ -57,17 +57,20 @@ static uint32_t calculateRequiredSize(uint32_t blobSize, uint32_t pageSize) {
     return requiredSize;
 }
 
+VPUSMMAllocator::VPUSMMAllocator(const int deviceId): _deviceId(deviceId) {
+}
+
 void* VPUSMMAllocator::allocate(size_t requestedSize) {
     const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
 #if defined(__arm__) || defined(__aarch64__)
-    int fileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT);
+    int fileDesc = vpurm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT, _deviceId);
     if (fileDesc < 0) {
-        throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_alloc_dmabuf failed");
+        throw std::runtime_error("VPUSMMAllocator::allocate: vpurm_alloc_dmabuf failed");
     }
 
-    unsigned long physAddr = vpusmm_import_dmabuf(fileDesc, VPU_DEFAULT);
+    unsigned long physAddr = vpurm_import_dmabuf(fileDesc, VPU_DEFAULT, _deviceId);
     if (physAddr == 0) {
-        throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_import_dmabuf failed");
+        throw std::runtime_error("VPUSMMAllocator::allocate: vpurm_import_dmabuf failed");
     }
 
     void* virtAddr = mmap(0, requiredBlobSize, PROT_READ | PROT_WRITE, MAP_SHARED, fileDesc, 0);
@@ -111,9 +114,9 @@ int VPUSMMAllocator::getFileDescByVirtAddr(void* virtAddr) {
 int VPUSMMAllocator::allocateDMA(size_t requestedSize) {
 #if defined(__arm__) || defined(__aarch64__)
     const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
-    int fileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT);
+    int fileDesc = vpurm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT, _deviceId);
     if (fileDesc < 0) {
-        throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_alloc_dmabuf failed");
+        throw std::runtime_error("VPUSMMAllocator::allocate: vpurm_alloc_dmabuf failed");
     }
     std::tuple<int, void*, size_t> memChunk(fileDesc, nullptr, requiredBlobSize);
     _memChunks.push_back(memChunk);
@@ -134,9 +137,9 @@ void* VPUSMMAllocator::importDMA(const int& fileDesc) {
     if (memChunksIter == _memChunks.end()) {
         throw std::runtime_error("VPUSMMAllocator::importDMA: failed to find descriptor");
     }
-    unsigned long physAddr = vpusmm_import_dmabuf(fileDesc, VPU_DEFAULT);
+    unsigned long physAddr = vpurm_import_dmabuf(fileDesc, VPU_DEFAULT, _deviceId);
     if (physAddr == 0) {
-        throw std::runtime_error("VPUSMMAllocator::importDMA: vpusmm_import_dmabuf failed");
+        throw std::runtime_error("VPUSMMAllocator::importDMA: vpurm_import_dmabuf failed");
     }
     const auto& requiredBlobSize = std::get<2>(*memChunksIter);
     void* virtAddr = mmap(0, requiredBlobSize, PROT_READ | PROT_WRITE, MAP_SHARED, fileDesc, 0);
@@ -161,7 +164,7 @@ bool VPUSMMAllocator::free(void* handle) {
         void* virtAddr = std::get<1>(chunk);
         if (handle == virtAddr) {
             size_t allocatedSize = std::get<2>(chunk);
-            vpusmm_unimport_dmabuf(fileDesc);
+            vpurm_unimport_dmabuf(fileDesc, _deviceId);
             if (virtAddr != nullptr) {
                 munmap(virtAddr, allocatedSize);
             }
@@ -185,7 +188,7 @@ VPUSMMAllocator::~VPUSMMAllocator() {
         int fileDesc = std::get<0>(chunk);
         void* virtAddr = std::get<1>(chunk);
         size_t allocatedSize = std::get<2>(chunk);
-        vpusmm_unimport_dmabuf(fileDesc);
+        vpurm_unimport_dmabuf(fileDesc, _deviceId);
         if (virtAddr != nullptr) {
             munmap(virtAddr, allocatedSize);
         }

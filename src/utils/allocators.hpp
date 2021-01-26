@@ -34,7 +34,7 @@ public:
 
 class VPUSMMAllocator : public VPUAllocator {
 public:
-    VPUSMMAllocator(){};
+    VPUSMMAllocator(const int deviceId = 0);
     virtual ~VPUSMMAllocator();
     void* allocate(size_t requestedSize) override;
     void* getAllocatedChunkByIndex(size_t chunkIndex) override;
@@ -47,6 +47,7 @@ public:
 private:
     std::vector<std::tuple<int, void*, size_t>> _memChunks;
     static uint32_t _pageSize;
+    int _deviceId;
 };
 
 class NativeAllocator : public VPUAllocator {
