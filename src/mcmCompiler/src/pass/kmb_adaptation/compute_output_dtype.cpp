@@ -132,8 +132,8 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
             double outputMin = (minIn * outWeightsMin) + outBiasesMin;
             double outputMax = (maxIn * outWeightsMax) + outBiasesMax;
 
-            calcZeroPointAndScalePerTensor(outputMax, outputMin,
-                outScale[0], outZp[0], mv::getDType(mv::Precision::U8));
+            calcZeroPointAndScalePerTensor(outputMax, outputMin, 256, mv::getDType(mv::Precision::U8),
+                outScale[0], outZp[0]);
 
             mv::QuantizationParams newOutputQuantization = {outZp,outScale,{outputMin},{outputMax}};
             output->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
@@ -217,8 +217,8 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
             outputMin = *std::min_element(outMin.begin(), outMin.end());
             outputMax = *std::max_element(outMax.begin(), outMax.end());
 
-            calcZeroPointAndScalePerTensor(outputMax, outputMin,
-                outScale[0], outZp[0], mv::getDType(mv::Precision::U8));
+            calcZeroPointAndScalePerTensor(outputMax, outputMin, 256, mv::getDType(mv::Precision::U8),
+                outScale[0], outZp[0]);
 
             mv::QuantizationParams newOutputQuantization = {outZp,outScale,{outputMin},{outputMax}};
             output->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
