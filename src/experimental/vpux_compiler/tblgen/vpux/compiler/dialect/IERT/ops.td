@@ -21,6 +21,7 @@ include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
 include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 
+include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 
@@ -586,6 +587,44 @@ def IERT_FakeQuantizeOp :
 }
 
 //
+// QuantizeOp
+//
+
+def IERT_QuantizeOp :
+        IERT_LayerOp<
+            "Quantize",
+            [
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time Quantize layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[quant_QuantizedType]>:$output
+    );
+}
+
+//
+// DequantizeOp
+//
+
+def IERT_DequantizeOp :
+        IERT_LayerOp<
+            "Dequantize",
+            [
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time Dequantize layer";
+
+    let arguments = (ins
+        MemRefOf<[quant_QuantizedType]>:$input,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
 // PReluOp
 //
 
@@ -594,7 +633,7 @@ def IERT_PReluOp :
             "PRelu",
             [
                 SameOperandsElementType,
-		DeclareOpInterfaceMethods<PReluLayerInterface>,
+                    DeclareOpInterfaceMethods<PReluLayerInterface>,
                 DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
@@ -616,9 +655,9 @@ def IERT_LeakyReluOp :
             "LeakyRelu",
             [
                 SingleInputAndResultLayer,
-		SameOperandsElementType,
-		SameOperandsShape,
-		DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
+                SameOperandsElementType,
+                SameOperandsShape,
+                DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
                 DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {

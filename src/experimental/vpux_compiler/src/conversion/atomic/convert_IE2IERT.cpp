@@ -46,6 +46,7 @@ public:
 
 public:
     class ConstantRewrite;
+    class QuantRewrite;
     class LayerRewrite;
 
 public:
@@ -126,6 +127,65 @@ mlir::LogicalResult ConvertIE2IERTPass::ConstantRewrite::matchAndRewrite(
 }
 
 //
+// QuantRewrite
+//
+
+class ConvertIE2IERTPass::QuantRewrite final : public mlir::ConversionPattern {
+public:
+    QuantRewrite(mlir::TypeConverter& typeConverter, Logger log)
+            : mlir::ConversionPattern(specificBenefit, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertIE2IERTPass::QuantRewrite::matchAndRewrite(mlir::Operation* origOp,
+                                                                      ArrayRef<mlir::Value> newOperands,
+                                                                      mlir::ConversionPatternRewriter& rewriter) const {
+    if (origOp->getDialect()->getTypeID() != mlir::TypeID::get<mlir::quant::QuantizationDialect>()) {
+        return mlir::failure();
+    }
+
+    _log.trace("Found Quant Operation '{0}'", origOp->getLoc());
+
+    if (origOp->getNumOperands() != 1 || origOp->getNumResults() != 1) {
+        _log.trace("Unsupported number of inputs/outputs");
+        return mlir::failure();
+    }
+
+    if (!mlir::isa<mlir::quant::QuantizeCastOp, mlir::quant::DequantizeCastOp>(origOp)) {
+        _log.trace("Unsupported Operation type '{0}'", origOp->getName());
+        return mlir::failure();
+    }
+
+    VPUX_THROW_UNLESS(newOperands.size() == 1, "Got wrong newOperands size : '{0}'", newOperands.size());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    _log.trace("Add Alloc Operations for results");
+    const auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, {origOp->getOpResult(0)});
+
+    _log.trace("Create IERT analogue");
+    llvm::TypeSwitch<mlir::Operation*, void>(origOp)
+            .Case<mlir::quant::QuantizeCastOp>([&](mlir::quant::QuantizeCastOp origOp) {
+                rewriter.create<IERT::QuantizeOp>(origOp.getLoc(), newOperands[0], allocatedBufs[0]);
+            })
+            .Case<mlir::quant::DequantizeCastOp>([&](mlir::quant::DequantizeCastOp origOp) {
+                rewriter.create<IERT::DequantizeOp>(origOp.getLoc(), newOperands[0], allocatedBufs[0]);
+            });
+
+    rewriter.replaceOp(origOp, allocatedBufs);
+
+    return mlir::success();
+}
+
+//
 // LayerRewrite
 //
 
@@ -191,12 +251,14 @@ void ConvertIE2IERTPass::passBody() {
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<IERT::IERTDialect>();
     target.addIllegalDialect<IE::IEDialect>();
+    target.addIllegalDialect<mlir::quant::QuantizationDialect>();
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp, IE::EndOp>();
     target.addLegalOp<mlir::AllocOp>();
     mlir::populateBufferizeMaterializationLegality(target);
 
     mlir::OwningRewritePatternList patterns;
     patterns.insert<ConstantRewrite>(typeConverter, &ctx, _log.nest());
+    patterns.insert<QuantRewrite>(typeConverter, _log.nest());
     patterns.insert<LayerRewrite>(typeConverter, _log.nest());
 
     auto func = getFunction();
