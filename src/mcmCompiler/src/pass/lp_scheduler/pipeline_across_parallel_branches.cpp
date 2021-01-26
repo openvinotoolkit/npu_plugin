@@ -8,7 +8,7 @@
 #include "lp_scheduler/lp_scheduler_pass.hpp"
 #include "pass/lp_scheduler/control_edge_generator.hpp"
 #include "scheduler/feasible_scheduler.hpp"
-
+#include "include/mcm/utils/helpers.hpp"
 
 static void PipeLineAcrossParallelBranches(const mv::pass::PassEntry&,
     mv::ComputationModel&, mv::TargetDescriptor& , mv::Element&, mv::Element&);
@@ -185,9 +185,10 @@ void PipeLineAcrossParallelBranches(const mv::pass::PassEntry& ,
     //input_dag.enable_cmx_concat_transforms(om, upper_bound);
     input_dag.reset(om);
   }
-  FILE *fptr = NULL;
+
+  std::unique_ptr<FILE, mv::utils::RaiiWrapper<FILE, mv::utils::releaseFile>> fptr(nullptr);
   if (mv::isDebugFilesEnabled()) {
-    fptr = fopen("./pipe_line_across_parallel_branches_report.txt", "w");
+    fptr.reset(fopen("./pipe_line_across_parallel_branches_report.txt", "w"));
     if (!fptr) {
       throw mv::RuntimeError("PipeLineAcrossParallelBranches",
             "Unable to open file");
@@ -275,18 +276,18 @@ void PipeLineAcrossParallelBranches(const mv::pass::PassEntry& ,
 
 
     {
-      if (fptr) {
-        fprintf(fptr, "op=%s type=%s time=%lu ", (sched_op->getName()).c_str(),
+      if (fptr.get()) {
+        fprintf(fptr.get(), "op=%s type=%s time=%lu ", (sched_op->getName()).c_str(),
             scheduled_op_info.op_type_name(), curr_time);
         if (scheduled_op_info.has_active_resource()) {
           size_t rbegin = scheduled_op_info.begin_resource();
           size_t rend = scheduled_op_info.end_resource();
-          fprintf(fptr, " resource=[%lu,%lu] size=%lu", rbegin, rend,
+          fprintf(fptr.get(), " resource=[%lu,%lu] size=%lu", rbegin, rend,
                 (rend-rbegin)+1UL);
         } else {
-          fprintf(fptr, " resource=<none> ");
+          fprintf(fptr.get(), " resource=<none> ");
         }
-        fprintf(fptr, " free_space=%lu\n", free_space);
+        fprintf(fptr.get(), " free_space=%lu\n", free_space);
       }
     }
 
@@ -422,15 +423,11 @@ void PipeLineAcrossParallelBranches(const mv::pass::PassEntry& ,
       // Add pseudo edges //
       for (operation_t read : reads) {
         if (fptr) {
-          fprintf(fptr, "[AddPseudoDepenency(%s,%s)\n",
+          fprintf(fptr.get(), "[AddPseudoDepenency(%s,%s)\n",
               src_dpu_op->getName().c_str(), read->getName().c_str());
         }
         local_pass_util::add_pseudo_edge_dpu_read(om, src_dpu_op ,read);
       }
     }
-  }
-
-  if (fptr) {
-    fclose(fptr);
   }
 }

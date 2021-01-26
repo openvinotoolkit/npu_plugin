@@ -145,6 +145,9 @@ AllocationInfo::AllocationInfo(const IE::Blob::CPtr& blob, const IE::ColorFormat
     // Exception for ROI blob -> we need use size from original blob, to avoid blobDesc recreation problem
     if (isRemoteBlob(blob)) {
         const auto remoteBlob = std::dynamic_pointer_cast<const InferenceEngine::RemoteBlob>(blob);
+        if (remoteBlob == nullptr) {
+            THROW_IE_EXCEPTION << "Can't create AllocationInfo object. Failed cast given blob to RemoteBlob!";
+        }
         auto parsedBlobParamsPtr = std::make_shared<vpux::ParsedRemoteBlobParams>();
         parsedBlobParamsPtr->update(remoteBlob->getParams());
         const auto originalTensor = parsedBlobParamsPtr->getOriginalTensorDesc();
