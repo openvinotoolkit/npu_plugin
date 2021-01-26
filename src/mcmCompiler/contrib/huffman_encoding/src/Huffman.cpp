@@ -20,6 +20,7 @@
 #include "Huffman.hpp"
 #include "logging.hpp"
 
+#include "include/mcm/utils/helpers.hpp"
 
 using namespace std;
 
@@ -1168,8 +1169,8 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
                                      huffmanOutputDataRouting_t outputDataRouting
                                      )
 {
-    FILE            *fin;
-    FILE            *fout;
+    std::unique_ptr<FILE, mv::utils::RaiiWrapper<FILE, mv::utils::releaseFile>> fin;
+    std::unique_ptr<FILE, mv::utils::RaiiWrapper<FILE, mv::utils::releaseFile>> fout;
     BitData          encodedValues;
     vector<uint8_t>  outputDataVector;
     uint32_t         outputDataLength;
@@ -1183,9 +1184,9 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
 
     if ( inputDataRouting == READ_FROM_FILE )
     {
-        fin = fopen(srcFile.c_str(), "rb");
+        fin.reset(fopen(srcFile.c_str(), "rb"));
         
-        if (!fin) {
+        if (!fin.get()) {
             throw Exception(
                 PrintToString(
                     "Could not open file %s", srcFile.c_str()));
@@ -1193,7 +1194,6 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
     }
     else
     {
-        fin = NULL;
         assert (inputDataBuffer != NULL);
         assert (inputBufferLength>0);
     }
@@ -1201,17 +1201,13 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
     
     if ( outputDataRouting == WRITE_TO_FILE )
     {
-        fout = fopen(dstFile.c_str(), "wb");
+        fout.reset(fopen(dstFile.c_str(), "wb"));
         
-        if (!fout) {
+        if (!fout.get()) {
             throw Exception(
                 PrintToString(
                     "Could not open file %s", dstFile.c_str()));
         }
-    }
-    else
-    {
-        fout             = NULL;
     }
 
     outputDataLength = 0;
@@ -1220,7 +1216,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
     
     uint_least32_t bytes_read = 0;
     
-    while ( ( ( inputDataRouting == READ_FROM_FILE )   && ( !feof(fin) ) ) ||
+    while ( ( ( inputDataRouting == READ_FROM_FILE )   && ( !feof(fin.get()) ) ) ||
             ( ( inputDataRouting == READ_FROM_BUFFER ) && ( bytes_read < inputBufferLength ) ) )
     {
         uint_least32_t start_word = bytes_read/32;
@@ -1237,7 +1233,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         // read the first byte to determine the decompression mode
         if ( inputDataRouting == READ_FROM_FILE )
         {
-            bytes_read += fread(&d_read, 1, 1, fin);
+            bytes_read += fread(&d_read, 1, 1, fin.get());
         }
         else
         {
@@ -1260,7 +1256,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             localDataSize = (d_read >> 2) & 0x3F;
             if ( inputDataRouting == READ_FROM_FILE )
             {
-                bytes_read += fread(&d_read, 1, 1, fin);
+                bytes_read += fread(&d_read, 1, 1, fin.get());
             }
             else
             {
@@ -1274,7 +1270,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             for(int j = 0; j < localDataSize + 1; j++) {
                 if ( inputDataRouting == READ_FROM_FILE )
                 {
-                    bytes_read += fread(&by_data, 1, 1, fin);
+                    bytes_read += fread(&by_data, 1, 1, fin.get());
                 }
                 else
                 {
@@ -1283,7 +1279,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
                 Log(5, "readEncodedData: Byte %0d: %02x", j, by_data);
                 if ( outputDataRouting == WRITE_TO_FILE )
                 {
-                    fwrite(&by_data, 1, 1, fout);
+                    fwrite(&by_data, 1, 1, fout.get());
                 }
                 else
                 {
@@ -1292,11 +1288,11 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             }
             // Can only have one block per DMA word. Data will be padded to 256 bits otherwise
             while ( bytes_read/32 == start_word &&
-                    ( ( ( inputDataRouting == READ_FROM_FILE )   && ( !feof(fin) ) ) ||
+                    ( ( ( inputDataRouting == READ_FROM_FILE )   && ( !feof(fin.get()) ) ) ||
                       ( ( inputDataRouting == READ_FROM_BUFFER ) && ( bytes_read <= inputBufferLength ) ) ) ) {
                 if ( inputDataRouting == READ_FROM_FILE )
                 {
-                    bytes_read += fread(&d_read, 1, 1, fin);
+                    bytes_read += fread(&d_read, 1, 1, fin.get());
                 }
                 else
                 {
@@ -1325,7 +1321,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             localDataSize = (d_read >> 2) & 0x3F;
             if ( inputDataRouting == READ_FROM_FILE )
             {
-                bytes_read += fread(&d_read, 1, 1, fin);
+                bytes_read += fread(&d_read, 1, 1, fin.get());
             }
             else
             {
@@ -1338,7 +1334,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             symbol = (d_read >> 6) & 0x03;
             if ( inputDataRouting == READ_FROM_FILE )
             {
-                bytes_read += fread(&d_read, 1, 1, fin);
+                bytes_read += fread(&d_read, 1, 1, fin.get());
             }
             else
             {
@@ -1351,7 +1347,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             
             if ( outputDataRouting == WRITE_TO_FILE )
             {
-                fwrite(bytes.data(), bytes.size(), 1, fout);
+                fwrite(bytes.data(), bytes.size(), 1, fout.get());
             }
             else
             {
@@ -1362,11 +1358,11 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             {
                 // Can only have one block per DMA word. Data will be padded to 256 bits otherwise
                 while ( ( bytes_read/32 == start_word ) &&
-                        ( ( ( inputDataRouting == READ_FROM_FILE )   && ( !feof(fin) ) ) ||
+                        ( ( ( inputDataRouting == READ_FROM_FILE )   && ( !feof(fin.get()) ) ) ||
                           ( ( inputDataRouting == READ_FROM_BUFFER ) && ( bytes_read <= inputBufferLength ) ) ) ) {
                     if ( inputDataRouting == READ_FROM_FILE )
                     {
-                        bytes_read += fread(&d_read, 1, 1, fin);
+                        bytes_read += fread(&d_read, 1, 1, fin.get());
                     }
                     else
                     {
@@ -1399,7 +1395,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         localDataSize = (d_read >> 2) & 0x3F;
         if ( inputDataRouting == READ_FROM_FILE )
         {
-            bytes_read += fread(&d_read, 1, 1, fin);
+            bytes_read += fread(&d_read, 1, 1, fin.get());
         }
         else
         {
@@ -1426,7 +1422,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             leaf |= (d_read >> 6) & 0x03;
             if ( inputDataRouting == READ_FROM_FILE )
             {
-                bytes_read += fread(&d_read, 1, 1, fin);
+                bytes_read += fread(&d_read, 1, 1, fin.get());
             }
             else
             {
@@ -1443,7 +1439,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             symbol |= (d_read >> 6) & 0x03;
             if ( inputDataRouting == READ_FROM_FILE )
             {
-                bytes_read += fread(&d_read, 1, 1, fin);
+                bytes_read += fread(&d_read, 1, 1, fin.get());
             }
             else
             {
@@ -1469,7 +1465,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
                     offset = 0;
                     if ( inputDataRouting == READ_FROM_FILE )
                     {
-                        bytes_read += fread(&d_read, 1, 1, fin);
+                        bytes_read += fread(&d_read, 1, 1, fin.get());
                     }
                     else
                     {
@@ -1490,7 +1486,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         // Read one extra byte to clear padding to 16 bits
         if ( inputDataRouting == READ_FROM_FILE )
         {
-            bytes_read += fread(&d_read, 1, 1, fin);
+            bytes_read += fread(&d_read, 1, 1, fin.get());
         }
         else
         {
@@ -1517,7 +1513,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             
             if ( inputDataRouting == READ_FROM_FILE )
             {
-                assert(bytes_read += fread(encodedValues.bits.data(), 1, bufferSizeB, fin) == bufferSizeB);
+                assert(bytes_read += fread(encodedValues.bits.data(), 1, bufferSizeB, fin.get()) == bufferSizeB);
             }
             else
             {
@@ -1571,7 +1567,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         }
         if ( outputDataRouting == WRITE_TO_FILE )
         {
-            fwrite(bytes.data(), bytes.size(), 1, fout);
+            fwrite(bytes.data(), bytes.size(), 1, fout.get());
         }
         else
         {
@@ -1580,11 +1576,11 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
 
         // Can only have one block per DMA word. Data will be padded to 256 bits otherwise
         while (bytes_read/32 == start_word &&
-                    ( ( ( inputDataRouting == READ_FROM_FILE )   && ( !feof(fin) ) ) ||
+                    ( ( ( inputDataRouting == READ_FROM_FILE )   && ( !feof(fin.get()) ) ) ||
                       ( ( inputDataRouting == READ_FROM_BUFFER ) && ( bytes_read <= inputBufferLength ) ) ) ) {
             if ( inputDataRouting == READ_FROM_FILE )
             {
-                bytes_read += fread(&d_read, 1, 1, fin);
+                bytes_read += fread(&d_read, 1, 1, fin.get());
             }
             else
             {
@@ -1613,7 +1609,6 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
     else
     {
         outputDataLength = 0;
-        fclose(fout);
     }
 
     return outputDataLength;
