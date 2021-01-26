@@ -88,7 +88,7 @@ std::istringstream ExecutableNetworkFactory::getGraphBlob(const std::string& mod
             return std::istringstream(cachedModel.graphBlob);
         }
     } catch (...) {
-        std::cout << "[ExecutableNetworkFactory] Cached model not found." << std::endl;
+        std::cout << "[ExecutableNetworkFactory] Cached model was not found." << std::endl;
     }
 
     // Try to search graph blob on filesystem

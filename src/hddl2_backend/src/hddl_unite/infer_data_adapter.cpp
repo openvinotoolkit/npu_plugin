@@ -154,6 +154,13 @@ void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob
     if (!_inferDataPtr->getInputBlob(inputName)->updateBlob(updatedHDDLUniteBlobDesc)) {
         THROW_IE_EXCEPTION << "InferDataAdapter: Error updating Unite Blob";
     }
+    // Strides alignment is supported only for PP case
+    // Hantro video-codec needs by it (only for KMB EVM B0)
+    const size_t strideAlignment = 256;
+    if (!(updatedHDDLUniteBlobDesc.m_widthStride % strideAlignment) &&
+        (updatedHDDLUniteBlobDesc.m_resWidth % strideAlignment) && !_needUnitePreProcessing) {
+        THROW_IE_EXCEPTION << "InferDataAdapter: strides alignment is supported only for preprocessing.";
+    }
 }
 
 std::string InferDataAdapter::getOutputData(const std::string& outputName) {

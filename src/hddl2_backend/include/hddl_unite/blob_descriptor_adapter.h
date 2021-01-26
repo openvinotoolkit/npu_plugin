@@ -131,6 +131,8 @@ private:
     SourceInfo _sourceInfo;
     NNInputInfo _nnInputInfo;
     HddlUnite::Inference::BlobDesc _hddlUniteBlobDesc;
+    InferenceEngine::TensorDesc _yPlaneTensorDesc;
+    bool _isNV12Blob = false;
 
 private:
     /** Fill SourceInfo stuct with all frame related information **/

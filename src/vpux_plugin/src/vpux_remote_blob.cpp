@@ -88,14 +88,14 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
     if (tensorDesc.getDims().size() != 4) {
         THROW_IE_EXCEPTION << "Unsupported layout for VPUXRemoteBlob";
     }
-    const auto origBlobTensorDesc = origBlob.getOriginalTensorDesc();
-    const auto orig_W = origBlobTensorDesc.getDims()[3];
-    const auto orig_H = origBlobTensorDesc.getDims()[2];
+
+    const auto orig_W = _originalTensorDesc.getDims()[3];
+    const auto orig_H = _originalTensorDesc.getDims()[2];
     auto newROI = makeROIOverROI(_parsedParams.getROIPtr(), regionOfInterest, orig_W, orig_H);
     // With ROI param full tensor desc also should be stored to be able to get full frame information
-    IE::ParamMap updatedROIPtrParam = {{IE::KMB_PARAM_KEY(ROI_PTR), newROI},
-                                       {IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC),
-                                        std::make_shared<IE::TensorDesc>(origBlob.getOriginalTensorDesc())}};
+    IE::ParamMap updatedROIPtrParam = {
+            {IE::KMB_PARAM_KEY(ROI_PTR), newROI},
+            {IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC), std::make_shared<IE::TensorDesc>(_originalTensorDesc)}};
     _parsedParams.update(updatedROIPtrParam);
 
     // TODO Remove this cast

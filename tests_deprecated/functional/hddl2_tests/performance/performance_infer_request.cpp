@@ -111,7 +111,7 @@ TEST_F(HDDL2_InferRequest_PerformanceTests, DifferentROISize_NotAffectPerformanc
     // Specify input
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
 
-    IE::TensorDesc inputTensor = IE::TensorDesc(IE::Precision::U8, {1, 3, inputWidth, inputHeight}, IE::Layout::NCHW);
+    IE::TensorDesc inputTensor = IE::TensorDesc(IE::Precision::U8, {1, 3, inputHeight, inputWidth}, IE::Layout::NCHW);
     IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputTensor, blobParamMap);
 
     // Preprocessing
@@ -126,7 +126,7 @@ TEST_F(HDDL2_InferRequest_PerformanceTests, DifferentROISize_NotAffectPerformanc
     IE::ROI secondROI{0, 2, 2, 211, 211};
     IE::Blob::Ptr secondROIBlob = remoteBlobPtr->createROI(secondROI);
 
-    const size_t BLOBS_COUNT = 500;
+    const size_t BLOBS_COUNT = 1000;
     std::cout << "[TEST] Single ROI" << std::endl;
     // Measure time of setting single ROI blob multiple times
     auto start_time = std::chrono::steady_clock::now();
@@ -153,7 +153,8 @@ TEST_F(HDDL2_InferRequest_PerformanceTests, DifferentROISize_NotAffectPerformanc
     std::cout << "[TIME] Set two ROI in circle time: " << setTwoROIInCircleTime.count() << std::endl;
 
     const auto difference = abs(setTwoROIInCircleTime.count() - setSingleROITime.count());
-    const auto epsilon = std::max(setSingleROITime.count(), setTwoROIInCircleTime.count()) * 0.05;
-    
+    const double maxDeviation = 0.06;
+    const auto epsilon = std::max(setSingleROITime.count(), setTwoROIInCircleTime.count()) * maxDeviation;
+
     EXPECT_LE(difference, epsilon);
 }
