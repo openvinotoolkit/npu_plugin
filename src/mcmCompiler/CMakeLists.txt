@@ -143,6 +143,7 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/utils/custom_math.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/custom_strings.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/compression/hde.cpp"
+    "${PROJECT_SOURCE_DIR}/src/utils/helpers.cpp"
 
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
