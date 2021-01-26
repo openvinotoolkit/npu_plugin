@@ -67,19 +67,29 @@ TEST(SubSpacesTests, IncrementLine) {
     MemShape coord = {0, 0, 0};
 
     subspace::incrementLine(coord, dims, MemDim(1));
-    EXPECT_EQ(coord[MemDim(0)], 0);
-    EXPECT_EQ(coord[MemDim(1)], 1);
+    EXPECT_EQ(coord[MemDim(0)], 1);
+    EXPECT_EQ(coord[MemDim(1)], 0);
     EXPECT_EQ(coord[MemDim(2)], 0);
+
+    subspace::incrementLine(coord, dims, MemDim(1));
+    EXPECT_EQ(coord[MemDim(0)], 0);
+    EXPECT_EQ(coord[MemDim(1)], 0);
+    EXPECT_EQ(coord[MemDim(2)], 1);
 }
 
 TEST(SubSpacesTests, IncrementPlane) {
     const MemShape dims = {2, 4, 8};
     MemShape coord = {0, 0, 0};
 
-    subspace::incrementPlane(coord, dims, MemDim(1), MemDim(2));
+    subspace::incrementPlane(coord, dims, MemDim(0), MemDim(2));
     EXPECT_EQ(coord[MemDim(0)], 0);
     EXPECT_EQ(coord[MemDim(1)], 1);
-    EXPECT_EQ(coord[MemDim(2)], 1);
+    EXPECT_EQ(coord[MemDim(2)], 0);
+
+    subspace::incrementPlane(coord, dims, MemDim(0), MemDim(2));
+    EXPECT_EQ(coord[MemDim(0)], 0);
+    EXPECT_EQ(coord[MemDim(1)], 2);
+    EXPECT_EQ(coord[MemDim(2)], 0);
 }
 
 TEST(SubSpacesTests, GetTotalLines) {
@@ -108,7 +118,7 @@ TEST(SubSpacesTests, GetSizes) {
 
 TEST(SubSpacesTests, ArrayElementExclude) {
     MemShape dims = {2, 4, 8};
-    subspace::arrayElementExclude(dims, MemDim(1));
+    dims = subspace::arrayElementExclude(dims, MemDim(1));
     ASSERT_EQ(dims.size(), 2);
     EXPECT_EQ(dims[MemDim(0)], 2);
     EXPECT_EQ(dims[MemDim(1)], 8);
@@ -116,7 +126,7 @@ TEST(SubSpacesTests, ArrayElementExclude) {
 
 TEST(SubSpacesTests, ArrayElementInclude) {
     MemShape dims = {2, 8};
-    subspace::arrayElementInclude(dims, MemDim(1), int64_t(4));
+    dims = subspace::arrayElementInclude(dims, MemDim(1), int64_t(4));
     ASSERT_EQ(dims.size(), 3);
     EXPECT_EQ(dims[MemDim(0)], 2);
     EXPECT_EQ(dims[MemDim(1)], 4);
