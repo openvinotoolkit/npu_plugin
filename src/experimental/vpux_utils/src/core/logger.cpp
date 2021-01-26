@@ -16,7 +16,10 @@
 
 #include "vpux/utils/core/logger.hpp"
 
+#include "vpux/utils/core/optional.hpp"
+
 #include <llvm/Support/Debug.h>
+#include <llvm/Support/Regex.h>
 
 #include <cstdio>
 
@@ -75,6 +78,24 @@ Logger vpux::Logger::nest(StringLiteral name, size_t inc) const {
 }
 
 bool vpux::Logger::isActive(LogLevel msgLevel) const {
+#ifdef VPUX_DEVELOPER_BUILD
+    static const auto logFilter = []() -> llvm::Regex {
+        if (const auto env = std::getenv("IE_VPUX_COMPILER_LOG_FILTER")) {
+            const StringRef filter(env);
+
+            if (!filter.empty()) {
+                return llvm::Regex(filter, llvm::Regex::IgnoreCase);
+            }
+        }
+
+        return {};
+    }();
+
+    if (logFilter.isValid() && logFilter.match(_name)) {
+        return true;
+    }
+#endif
+
 #ifdef NDEBUG
     return static_cast<int32_t>(msgLevel) <= static_cast<int32_t>(_logLevel);
 #else
