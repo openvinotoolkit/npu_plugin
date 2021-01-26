@@ -22,6 +22,10 @@ using namespace vpux;
 // get<scalar>Type
 //
 
+mlir::IntegerType vpux::getInt4Type(mlir::MLIRContext* ctx) {
+    return mlir::IntegerType::get(ctx, 4);
+}
+
 mlir::IntegerType vpux::getInt8Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 8);
 }
@@ -38,6 +42,10 @@ mlir::IntegerType vpux::getInt64Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 64);
 }
 
+mlir::IntegerType vpux::getSInt4Type(mlir::MLIRContext* ctx) {
+    return mlir::IntegerType::get(ctx, 4, mlir::IntegerType::Signed);
+}
+
 mlir::IntegerType vpux::getSInt8Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Signed);
 }
@@ -52,6 +60,10 @@ mlir::IntegerType vpux::getSInt32Type(mlir::MLIRContext* ctx) {
 
 mlir::IntegerType vpux::getSInt64Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 64, mlir::IntegerType::Signed);
+}
+
+mlir::IntegerType vpux::getUInt4Type(mlir::MLIRContext* ctx) {
+    return mlir::IntegerType::get(ctx, 4, mlir::IntegerType::Unsigned);
 }
 
 mlir::IntegerType vpux::getUInt8Type(mlir::MLIRContext* ctx) {

@@ -19,6 +19,8 @@
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 
+#include <mlir/Dialect/Quant/QuantTypes.h>
+
 using namespace vpux;
 
 namespace {
@@ -77,6 +79,14 @@ T vpux::convertData(const char* data, mlir::Type baseType) {
     } else if (baseType.isBF16()) {
         const auto& temp = *reinterpret_cast<const bfloat16*>(data);
         return CvtHelper<T>::cvt(static_cast<float>(temp));
+    } else if (const auto qType = baseType.dyn_cast<mlir::quant::QuantizedType>()) {
+        if (qType.getStorageType().isSignedInteger(8)) {
+            return CvtHelper<T>::cvt(*reinterpret_cast<const int8_t*>(data));
+        } else if (qType.getStorageType().isInteger(8)) {
+            return CvtHelper<T>::cvt(*reinterpret_cast<const uint8_t*>(data));
+        } else {
+            VPUX_THROW("Unsupported quantized storage type '{0}'", qType.getStorageType());
+        }
     } else {
         VPUX_THROW("Unsupported element type '{0}'", baseType);
     }
