@@ -32,5 +32,7 @@ std::vector<std::string> disabledTestPatterns() {
         // [Track number: s#47412]
         ".*IEClassGetConfigTest_ThrowUnsupported\\.GetConfigThrow.*",
 
+        // [Track number: S#46761]
+        ".*smoke_QuantGroupConv2D.*",
     };
 }

@@ -19,26 +19,26 @@ namespace mv
     int64_t calculateZeroPoint(
         float low,
         float high,
-        DType dtype,
-        int levels = 256);
-    double calculateScales(
+        int levels,
+        DType dtype);
+    double calculateScale(
         float low,
         float high,
-        int levels = 256);
+        int levels);
     void calcZeroPointAndScalePerTensor(
         double floatMax,
         double floatMin,
-        double& quantScale,
-        int64_t& quantZp,
+        int levels,
         DType dtype,
-        int64_t levels = 256);
+        double& quantScale,
+        int64_t& quantZp);
     void calcZeroPointAndScalePerChannel(
         std::vector<double> &floatMax,
         std::vector<double> &floatMin,
-        std::vector<double> &quantScale,
-        std::vector<int64_t> &quantZp,
+        int levels,
         DType dtype,
-        int64_t levels = 256);
+        std::vector<double> &quantScale,
+        std::vector<int64_t> &quantZp);
     void updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor);
     void updateInfMinMaxPerChannel(mv::Data::TensorIterator tensor);
 
