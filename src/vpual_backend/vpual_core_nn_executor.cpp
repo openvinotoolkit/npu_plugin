@@ -72,6 +72,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
           [](NnCorePlg* nnCorePlgPtr) {
               if (nnCorePlgPtr != nullptr) {
                   nnCorePlgPtr->Delete();
+                  delete nnCorePlgPtr;
               }
           }),
       _pipe(new Pipeline(MAX_PLUGS_PER_PIPE, deviceId),
@@ -80,6 +81,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
                   pipePtr->Stop();
                   pipePtr->Wait();
                   pipePtr->Delete();
+                  delete pipePtr;
               }
           }),
       _mutex(new Semaphore()),
