@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;

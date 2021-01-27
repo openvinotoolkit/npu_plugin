@@ -818,14 +818,10 @@ TEST_P(SmokeNetworkTestWithSpecificLayout, openpose_pose_cf) {
 }
 INSTANTIATE_TEST_CASE_P(precommit, SmokeNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
-// Disabled due to unstable CPU results
-// [Track number: S#40572]
 TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
-    const std::string input_name = "input";
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "CPU ref generate different results time to time");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013_ww22.xml")
-            .setUserInputPrecision(input_name, Precision::U8),
+            .setUserInputPrecision("input", Precision::U8),
         TestImageDesc("62x62/face62.bmp", ImageFormat::RGB),
         0.1f);
 }

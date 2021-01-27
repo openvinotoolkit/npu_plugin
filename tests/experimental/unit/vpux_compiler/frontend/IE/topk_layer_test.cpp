@@ -65,8 +65,8 @@ const std::vector<ngraph::element::Type> inputDataType{
 const std::vector<ngraph::Shape> dataShape{{6, 12, 10, 24}};
 
 const std::vector<ngraph::element::Type> indexElementType{
-        ngraph::element::u8, ngraph::element::u16, ngraph::element::u32, ngraph::element::u64,
-        ngraph::element::i8, ngraph::element::i16, ngraph::element::i32, ngraph::element::i64,
+        ngraph::element::i32,
+        ngraph::element::i64,
 };
 
 const std::vector<int64_t> kConstant{{1, 2, 3}};

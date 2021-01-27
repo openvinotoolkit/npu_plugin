@@ -49,9 +49,13 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
         return errorAt(op, "Unsupported quantized storage type '{0}'", qType.getStorageType());
     }
 
-    if (qType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
+    if (const auto perAxis = qType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        if (perAxis.getQuantizedDimension() != 1) {
+            return errorAt(op, "Only per-channel quantization is suppoted");
+        }
+
         // TODO: support per-channel zero point
-        const auto zeroPoints = qType.cast<mlir::quant::UniformQuantizedPerAxisType>().getZeroPoints();
+        const auto zeroPoints = perAxis.getZeroPoints();
         if (zeroPoints.empty()) {
             return errorAt(op, "Missing zero points");
         }

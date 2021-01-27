@@ -104,9 +104,16 @@ MemShape getSizes(MemShapeRef subspaceDims);
 /// \param [in] elPos - coordinate of element to be excluded
 ///
 template <typename D, typename T, template <class> class Tag>
-void arrayElementExclude(details::DimValues<D, T, Tag>& arr, D elPos) {
+auto arrayElementExclude(details::DimValuesRef<D, T, Tag> arr, D elPos) {
     VPUX_THROW_UNLESS(checked_cast<size_t>(elPos.ind()) < arr.size(), "'{0}' index is out of '{1}' range", elPos, arr);
-    arr.erase(arr.begin() + elPos.ind());
+
+    auto out = arr.toValues();
+    out.erase(out.begin() + elPos.ind());
+    return out;
+}
+template <typename D, typename T, template <class> class Tag>
+auto arrayElementExclude(const details::DimValues<D, T, Tag>& arr, D elPos) {
+    return arrayElementExclude(details::DimValuesRef<D, T, Tag>(arr), elPos);
 }
 
 ///
@@ -115,10 +122,17 @@ void arrayElementExclude(details::DimValues<D, T, Tag>& arr, D elPos) {
 /// \param [in] elPos - coordinate of element to be included
 /// \param [in] value - element value to be included
 ///
-template <typename D, typename T, template <class> class Tag>
-void arrayElementInclude(details::DimValues<D, T, Tag>& arr, D elPos, const T& value) {
-    VPUX_THROW_UNLESS(checked_cast<size_t>(elPos.ind()) < arr.size(), "'{0}' index is out of '{1}' range", elPos, arr);
-    arr.insert(arr.begin() + elPos.ind(), value);
+template <typename D, typename T, template <class> class Tag, typename V>
+auto arrayElementInclude(details::DimValuesRef<D, T, Tag> arr, D elPos, V&& value) {
+    VPUX_THROW_UNLESS(checked_cast<size_t>(elPos.ind()) <= arr.size(), "'{0}' index is out of '{1}' range", elPos, arr);
+
+    auto out = arr.toValues();
+    out.insert(out.begin() + elPos.ind(), std::forward<V>(value));
+    return out;
+}
+template <typename D, typename T, template <class> class Tag, typename V>
+auto arrayElementInclude(const details::DimValues<D, T, Tag>& arr, D elPos, V&& value) {
+    return arrayElementInclude(details::DimValuesRef<D, T, Tag>(arr), elPos, std::forward<V>(value));
 }
 
 }  // namespace subspace

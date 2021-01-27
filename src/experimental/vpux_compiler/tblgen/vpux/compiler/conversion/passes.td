@@ -20,24 +20,10 @@
 include "mlir/Pass/PassBase.td"
 
 //
-// ConvertIE2Quant
+// ConvertIE2IERT
 //
 
-def ConvertIE2Quant : FunctionPass<"convert-IE-to-quant"> {
-    let summary = "Converts IE FakeQuantize operations to analogues from quant Dialect";
-
-    let constructor = "vpux::createConvertIE2QuantPass()";
-
-    let dependentDialects = [
-        "mlir::quant::QuantizationDialect"
-    ];
-}
-
-//
-// BufferizeIE
-//
-
-def BufferizeIE : FunctionPass<"bufferize-IE"> {
+def ConvertIE2IERT : FunctionPass<"convert-IE-to-IERT"> {
     let summary = "Bufferize the IE dialect into the IERT dialect on Function level";
 
     let description = [{
@@ -45,7 +31,7 @@ def BufferizeIE : FunctionPass<"bufferize-IE"> {
         Only functions inner regions are affected, not signatures.
     }];
 
-    let constructor = "vpux::createBufferizeIEPass()";
+    let constructor = "vpux::createConvertIE2IERTPass()";
 
     let dependentDialects = [
         "vpux::IERT::IERTDialect",

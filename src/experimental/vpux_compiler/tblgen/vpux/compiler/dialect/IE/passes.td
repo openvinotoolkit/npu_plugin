@@ -103,4 +103,79 @@ def UseUserPrecision : Pass<"use-user-precision", "mlir::ModuleOp"> {
     let constructor = "vpux::IE::createUseUserPrecisionPass()";
 }
 
+//
+// SplitFakeQuant
+//
+
+def SplitFakeQuant : FunctionPass<"split-fake-quant"> {
+    let summary = "Splits IE FakeQuantize operations to `quant.qcast -> quant.dcast` pair";
+
+    let constructor = "vpux::IE::createSplitFakeQuantPass()";
+
+    let dependentDialects = [
+        "mlir::quant::QuantizationDialect"
+    ];
+}
+
+//
+// QuantizeConst
+//
+
+def QuantizeConst : FunctionPass<"quantize-const"> {
+    let summary = "Performs constant folding for `Constant -> quant.qcast` case";
+
+    let constructor = "vpux::IE::createQuantizeConstPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// DequantizeConst
+//
+
+def DequantizeConst : FunctionPass<"dequantize-const"> {
+    let summary = "Performs constant folding for `Constant -> quant.dcast` case";
+
+    let constructor = "vpux::IE::createDequantizeConstPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// MergeFakeQuant
+//
+
+def MergeFakeQuant : FunctionPass<"merge-fake-quant"> {
+    let summary = "Merge pair `quant.qcast -> quant.dcast` into single IE.FakeQuantize";
+
+    let constructor = "vpux::IE::createMergeFakeQuantPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// LowPrecision
+//
+
+def LowPrecision : FunctionPass<"low-precision"> {
+    let summary = "Low precision transformations";
+
+    let description = [{
+        This "pipeline" pass includes all transformations to support low precisions.
+    }];
+
+    let constructor = "vpux::IE::createLowPrecisionPass()";
+
+    let dependentDialects = [
+        "mlir::quant::QuantizationDialect",
+        "vpux::IE::IEDialect"
+    ];
+}
+
 #endif

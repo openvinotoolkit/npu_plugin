@@ -81,16 +81,35 @@ void vpux::subspace::incrementNCoord(MemShape& subspaceCoord, MemShapeRef dims, 
 }
 
 void vpux::subspace::incrementLine(MemShape& lineCoord, MemShapeRef dims, MemDim axis) {
-    if (lineCoord[axis] < dims[axis] - 1) {
-        ++lineCoord[axis];
-    } else {
-        lineCoord[axis] = 0;
+    for (auto& p : lineCoord | indexed) {
+        const auto d = MemDim(p.index());
+        auto& coord = p.value();
+
+        if (d != axis) {
+            if (coord < dims[d] - 1) {
+                ++coord;
+                break;
+            }
+
+            coord = 0;
+        }
     }
 }
 
 void vpux::subspace::incrementPlane(MemShape& planeCoord, MemShapeRef dims, MemDim axis0, MemDim axis1) {
-    incrementLine(planeCoord, dims, axis0);
-    incrementLine(planeCoord, dims, axis1);
+    for (auto& p : planeCoord | indexed) {
+        const auto d = MemDim(p.index());
+        auto& coord = p.value();
+
+        if (d != axis0 && d != axis1) {
+            if (coord < dims[d] - 1) {
+                ++coord;
+                break;
+            }
+
+            coord = 0;
+        }
+    }
 }
 
 int64_t vpux::subspace::getTotalLines(MemShapeRef dims, MemDim axis) {

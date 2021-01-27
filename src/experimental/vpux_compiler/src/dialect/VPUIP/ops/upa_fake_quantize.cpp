@@ -32,7 +32,40 @@
 
 using namespace vpux;
 
+namespace {
+
+bool checkFakeQuantizeParamsShape(ShapeRef shape, int64_t numChannels) {
+    if (shape.empty()) {
+        return true;
+    }
+
+    if (shape.size() == 1) {
+        if (shape[Dim(0)] != 1 && shape[Dim(0)] != numChannels) {
+            return false;
+        }
+
+        return true;
+    }
+
+    if (shape.size() != 4) {
+        return false;
+    }
+
+    if (shape[Dim(0)] != 1 || shape[Dim(2)] != 1 || shape[Dim(3)] != 1) {
+        return false;
+    }
+    if (shape[Dim(1)] != 1 && shape[Dim(1)] != numChannels) {
+        return false;
+    }
+
+    return true;
+}
+
+}  // namespace
+
 mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
+    static const auto C = Dim(1);
+
     const auto inShape = getShape(op.input());
     const auto inOrder = DimsOrder::fromValue(op.input());
 
@@ -52,6 +85,26 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
 
     if (Byte(md0 * md1 * FP16_SIZE) >= Byte(SHAVE_LIB_DATA_SIZE / 2)) {
         return errorAt(op, "Memory buffers doesn't fit to inner CMX buffer");
+    }
+
+    const auto numChannels = inShape[C];
+
+    const auto inLowShape = getShape(op.input_low().getType());
+    const auto inHighShape = getShape(op.input_high().getType());
+    const auto outLowShape = getShape(op.output_low().getType());
+    const auto outHighShape = getShape(op.output_high().getType());
+
+    if (!checkFakeQuantizeParamsShape(inLowShape, numChannels)) {
+        return errorAt(op, "input_low shape is not per-tensor/per-channel : '{0}'", inLowShape);
+    }
+    if (!checkFakeQuantizeParamsShape(inHighShape, numChannels)) {
+        return errorAt(op, "input_high shape is not per-tensor/per-channel : '{0}'", inHighShape);
+    }
+    if (!checkFakeQuantizeParamsShape(outLowShape, numChannels)) {
+        return errorAt(op, "output_low shape is not per-tensor/per-channel : '{0}'", outLowShape);
+    }
+    if (!checkFakeQuantizeParamsShape(outHighShape, numChannels)) {
+        return errorAt(op, "output_high shape is not per-tensor/per-channel : '{0}'", outHighShape);
     }
 
     return mlir::success();

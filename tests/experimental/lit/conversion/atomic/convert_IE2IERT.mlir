@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --bufferize-IE %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --convert-IE-to-IERT %s | FileCheck %s
 
 //
 // The 'bufferize-IE' pass:

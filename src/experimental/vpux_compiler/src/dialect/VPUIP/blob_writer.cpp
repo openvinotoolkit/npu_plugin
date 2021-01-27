@@ -285,10 +285,6 @@ MVCNN::DType vpux::VPUIP::BlobWriter::createDType(mlir::Type type) {
         return MVCNN::DType_I16;
     } else if (type.isSignedInteger(CHAR_BIT * sizeof(int8_t))) {
         return MVCNN::DType_I8;
-    } else if (type.isSignedInteger(4)) {
-        return MVCNN::DType_I4;
-    } else if (type.isSignedInteger(2)) {
-        return MVCNN::DType_I2;
     } else if (type.isInteger(CHAR_BIT * sizeof(uint64_t))) {
         return MVCNN::DType_U64;
     } else if (type.isInteger(CHAR_BIT * sizeof(uint32_t))) {
@@ -297,6 +293,10 @@ MVCNN::DType vpux::VPUIP::BlobWriter::createDType(mlir::Type type) {
         return MVCNN::DType_U16;
     } else if (type.isInteger(CHAR_BIT * sizeof(uint8_t))) {
         return MVCNN::DType_U8;
+    } else if (type.isInteger(4)) {
+        return MVCNN::DType_I4;
+    } else if (type.isInteger(2)) {
+        return MVCNN::DType_I2;
     } else if (type.isInteger(1)) {
         return MVCNN::DType_BIN;
     } else if (type.isa<mlir::quant::QuantizedType>()) {

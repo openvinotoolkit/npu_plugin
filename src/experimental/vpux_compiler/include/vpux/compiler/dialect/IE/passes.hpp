@@ -16,9 +16,12 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/IE/ops.hpp"
+
 #include "vpux/utils/core/logger.hpp"
 
 #include <mlir/Dialect/Linalg/IR/LinalgOps.h>
+#include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
 
@@ -37,6 +40,12 @@ std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Lo
 std::unique_ptr<mlir::Pass> createAdjustForVPUPass(Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createUseUserPrecisionPass(Logger log = Logger::global());
+
+std::unique_ptr<mlir::Pass> createSplitFakeQuantPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createQuantizeConstPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createLowPrecisionPass(Logger log = Logger::global());
 
 //
 // Generated

@@ -14,29 +14,24 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/dialect/IE/passes.hpp"
 
-#include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
-
-#include <mlir/Dialect/StandardOps/Transforms/Passes.h>
 #include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/Passes.h>
 
 using namespace vpux;
 
 namespace {
 
 //
-// LowerIE2IERTPass
+// LowPrecisionPass
 //
 
-class LowerIE2IERTPass final : public LowerIE2IERTBase<LowerIE2IERTPass> {
+class LowPrecisionPass final : public IE::LowPrecisionBase<LowPrecisionPass> {
 public:
-    explicit LowerIE2IERTPass(Logger log);
+    explicit LowPrecisionPass(Logger log);
 
 public:
-    void runOnOperation() final;
+    void runOnFunction() final;
 
 private:
     void passBody();
@@ -46,20 +41,21 @@ private:
     mlir::OpPassManager _pm;
 };
 
-LowerIE2IERTPass::LowerIE2IERTPass(Logger log)
-        : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
+LowPrecisionPass::LowPrecisionPass(Logger log)
+        : _log(log), _pm(mlir::FuncOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _log.setName(Base::getArgumentName());
 
-    _pm.addPass(createConvertIE2IERTPass(_log.nest()));
-    _pm.addPass(mlir::createFuncBufferizePass());
-    _pm.addPass(mlir::createBufferResultsToOutParamsPass());
-    _pm.addPass(mlir::createFinalizingBufferizePass());
-    _pm.addPass(mlir::createBufferDeallocationPass());
-    _pm.addPass(mlir::createCopyRemovalPass());
+    _pm.addPass(IE::createSplitFakeQuantPass(_log.nest()));
+    _pm.addPass(IE::createQuantizeConstPass(_log.nest()));
+    // TODO: insert advanced LPT pipeline here
+    _pm.addPass(IE::createDequantizeConstPass(_log.nest()));
+    _pm.addPass(IE::createMergeFakeQuantPass(_log.nest()));
 }
 
-void LowerIE2IERTPass::runOnOperation() {
+void LowPrecisionPass::runOnFunction() {
     try {
+        _log.trace("Run on Function '@{0}'", getFunction().sym_name());
+
         passBody();
     } catch (const std::exception& e) {
         errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
@@ -71,9 +67,9 @@ void LowerIE2IERTPass::runOnOperation() {
 // passBody
 //
 
-void LowerIE2IERTPass::passBody() {
-    auto module = getOperation();
-    if (mlir::failed(runPipeline(_pm, module))) {
+void LowPrecisionPass::passBody() {
+    auto func = getFunction();
+    if (mlir::failed(runPipeline(_pm, func))) {
         signalPassFailure();
     }
 }
@@ -81,9 +77,9 @@ void LowerIE2IERTPass::passBody() {
 }  // namespace
 
 //
-// createLowerIE2IERTPass
+// createLowPrecisionPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::createLowerIE2IERTPass(Logger log) {
-    return std::make_unique<LowerIE2IERTPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createLowPrecisionPass(Logger log) {
+    return std::make_unique<LowPrecisionPass>(log);
 }

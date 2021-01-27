@@ -289,4 +289,25 @@ def RewriteLeakyRelu :
             (createLeakyReluUPAOp $input, $output, $negative_slope)
         >;
 
+//
+// IERT.Quantize/Dequantize -> VPUIP.QuantCastUPA
+//
+
+def createQuantCastUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::QuantCastUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteQuantize :
+        Pat<
+            (IERT_QuantizeOp $input, $output),
+            (createQuantCastUPAOp $input, $output)
+        >;
+
+def RewriteDequantize :
+        Pat<
+            (IERT_DequantizeOp $input, $output),
+            (createQuantCastUPAOp $input, $output)
+        >;
+
 #endif
