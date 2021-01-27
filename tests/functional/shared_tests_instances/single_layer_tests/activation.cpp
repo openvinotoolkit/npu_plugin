@@ -15,6 +15,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypes {
     ngraph::helpers::Relu,
     ngraph::helpers::Sigmoid,
     ngraph::helpers::HSwish,
+//  ngraph::helpers::Swish, // S#46239: incorrect rank for `beta` tensor for Swish test
     ngraph::helpers::Tanh,
     ngraph::helpers::SoftPlus,
     ngraph::helpers::Elu
@@ -82,6 +83,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Elu,      {{1.0f}}},
     {Clamp,    {{-1.0f, 1.0f}}},
     {HSwish,   {{1.0f}}},
+//  {Swish,    {{1.0f}}}, // S#46239: incorrect rank for `beta` tensor for Swish test
     {PReLu,    {{0.01f}}},
     {LeakyRelu,{{0.01f}}},
     {SoftPlus, {{1.0f}}},
