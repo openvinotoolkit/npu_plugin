@@ -40,8 +40,7 @@ KMB_KPI_MODELS = [
 
     {'marks': pytest.mark.xfail, 'path': 'vd-kmb-models-kpi-ww50.tar.bz2/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml'},
     {'path': 'vd-kmb-models-kpi-ww50.tar.bz2/ssd512/caffe/FP16-INT8/ssd512.xml'},
-    {'marks': pytest.mark.xfail,
-     'path': 'vd-kmb-models-kpi-ww50.tar.bz2/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml'},
+    {'path': 'vd-kmb-models-kpi-ww50.tar.bz2/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml'},
     {'path': 'vd-kmb-models-kpi-ww50.tar.bz2/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml'},
     {'path': 'vd-kmb-models-kpi-ww50.tar.bz2/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml'},
     {'path': 'vd-kmb-models-kpi-ww50.tar.bz2/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml'},
