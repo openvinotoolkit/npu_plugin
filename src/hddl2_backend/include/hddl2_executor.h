@@ -15,6 +15,9 @@
 //
 
 #pragma once
+
+// System
+#include <mutex>
 // Plugin
 #include "vpux.hpp"
 #include "vpux_config.hpp"
