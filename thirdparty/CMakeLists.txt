@@ -76,6 +76,7 @@ if(AARCH64)
 
     add_subdirectory(gapi_sipp/sipp)
     add_subdirectory(gapi_sipp/m2i)
+    add_subdirectory(gapi_sipp/vpu)
 
     if(ENABLE_TESTS)
         add_subdirectory(tests/integration)

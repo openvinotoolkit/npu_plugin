@@ -1011,6 +1011,15 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP16) {
         0.3f);
 }
 
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP32) {
+    runTest(
+            TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
+                    .setUserInputPrecision("input", Precision::FP32),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+            1,
+            0.3f);
+}
+
 // Compilation time is about 18 minutes
 TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
     runTest(
@@ -1127,4 +1136,15 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
                                    {"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "NO"}}),
             TestImageDesc("227x227/watch.bmp", ImageFormat::RGB),
             1, 0.5f);
+}
+
+TEST_F(KmbClassifyNetworkTest, shufflenet_v2_x1_0_pytorch) {
+    runTest(
+            TestNetworkDesc("KMB_models/FP16-INT8/public/shufflenet-v2-x1_0-pytorch/shufflenet-v2-x1_0-pytorch.xml")
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NCHW)
+                .setUserOutputPrecision("output", Precision::FP32)
+                .setUserOutputLayout("output", Layout::NC),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
+            3, 0.5f);
 }

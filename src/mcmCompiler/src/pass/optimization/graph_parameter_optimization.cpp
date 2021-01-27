@@ -110,6 +110,7 @@ namespace mv
                 DeConvSubConvSOKHeight,
                 SpiltOverHForLayer79InACLNet,
                 SpiltOverHForLayer97and113ModelE,
+                SpiltOverHForFaceDetectionRetail0004,
                 SplitOverHOverlappedWronglyComputed,
                 SoftwareDeconvolutionSet,
                 UpaHKSwitch
@@ -1128,6 +1129,15 @@ namespace mv
                     op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
                     op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
                     return FailCause::SpiltOverHForLayer79InACLNet;
+
+                // This is intended to be a temporary workaround for FaceDetectionRetail, layer fire6/suqeeze1x1/WithoutBiases, which does work with SOH
+                // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 128 &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 38 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 38 &&
+                    op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 24 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 38 &&
+                    op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 38 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 1 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 1)
+                    return FailCause::SpiltOverHForFaceDetectionRetail0004;
 
                 //NOTE: we need a ticket for that failure, blob looks fine for streaming overH = 12 which means every stream assigned with 2 lines
                 //last one with 1, and the last one seems not to function correctly
