@@ -391,6 +391,41 @@ private:
 };
 
 //
+// TestBinFileDesc
+//
+
+class TestBinFileDesc final {
+public:
+    TestBinFileDesc(const char* fileName, std::vector<size_t> shape, Precision precision) : _fileName(fileName), _shape(std::move(shape)), _precision(precision) {}
+    TestBinFileDesc(std::string fileName, std::vector<size_t> shape, Precision precision) : _fileName(std::move(fileName)), _shape(std::move(shape)), _precision(precision) {}
+
+    const std::string& fileName() const {
+        return _fileName;
+    }
+
+    const std::vector<size_t>& getShape() const {
+        return _shape;
+    }
+
+    Precision getPrecision() const {
+        return _precision;
+    }
+
+    size_t getSize() const {
+        size_t totalSize = _precision.size();
+        for (auto dim : _shape)
+            totalSize *= dim;
+
+        return totalSize;
+    }
+
+private:
+    std::string _fileName;
+    std::vector<size_t> _shape; // shape {N, C, H, W}
+    Precision _precision;
+};
+
+//
 // KmbNetworkTestBase
 //
 
@@ -407,10 +442,15 @@ protected:
     static std::string getTestModelsPath();
 
     static Blob::Ptr loadImage(const TestImageDesc& image, size_t channels, size_t height, size_t width);
+    static Blob::Ptr loadBinFile(const TestBinFileDesc& binFile, size_t channels, size_t height, size_t width);
 
     void registerSingleImage (const TestImageDesc& image,
                               const std::string& inputName,
                               const TensorDesc inputDesc);
+
+    void registerSingleBinFile (const TestBinFileDesc& file,
+                                  const std::string& inputName,
+                                  const TensorDesc inputDesc);
 
     CNNNetwork readNetwork(
             const TestNetworkDesc& netDesc,
@@ -447,8 +487,18 @@ public:
             const TestImageDesc& image,
             const size_t topK, const float probTolerance);
 
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestBinFileDesc& file,
+            const size_t topK, const float probTolerance);
+
 protected:
     static std::vector<std::pair<int, float>> parseOutput(const Blob::Ptr& blob);
+
+private:
+    void checkCallbackHelper(const BlobMap& actualBlobs,
+                             const BlobMap& refBlobs,
+                             const size_t topK, const float probTolerance);
 };
 
 //
