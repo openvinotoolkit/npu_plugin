@@ -1084,8 +1084,14 @@ TEST_F(KmbVasFDStage1Test, DISABLED_precommit_vasfd_stage1) {
     0.35f, 0.1f, 0.3f, layerNames, anchorSizes, windowScales, windowLengths);
 }
 
-
+// MemoryAllocator:ProgrammableOutput - ArgumentError:
+// ImplicitOutput_2_conversion:0::Order NCHW - Does not match the order NHWC of
+// the tensor ImplicitOutput_2 already allocated in the given buffer
+// [Track number: D#47570]
 TEST_F(KmbVasFDStage2Test, precommit_vasfd_stage2) {
+#ifdef _WIN32
+    SKIP() << "Order NCHW - Does not match the order NHWC of the tensor";
+#endif
     const std::string inputName = "data";
     const KmbVasFDStage2Test::Candidate candidate = {118.36408299, 50.26568365, 158.98897427, 125.54895544};
     runTest(
