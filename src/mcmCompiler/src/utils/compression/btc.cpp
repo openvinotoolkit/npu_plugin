@@ -143,6 +143,39 @@ std::pair<std::vector<int64_t>, uint32_t> BTC::compress(std::vector<int64_t>& da
     }
 }
 
+std::vector<uint8_t> BTC::compress(std::vector<uint8_t>& uncompressedData)
+{
+    if(uncompressedData.empty()) {
+        throw mv::ArgumentError("btc", "compress", "0", "Empty data vector");
+    }
+
+    BitCompactor::btcmpctr_compress_wrap_args_t btcArgs;
+
+    btcArgs.bypass_en      = codec_->mBitCompactorConfig->bypass_en;
+    btcArgs.dual_encode_en = codec_->mBitCompactorConfig->dual_encode_en;
+    btcArgs.proc_bin_en    = codec_->mBitCompactorConfig->proc_bin_en;
+    btcArgs.proc_btmap_en  = codec_->mBitCompactorConfig->proc_btmap_en;
+    btcArgs.align          = codec_->mBitCompactorConfig->align;
+    btcArgs.verbosity      = codec_->mBitCompactorConfig->verbosity;
+    btcArgs.SblkSize       = codec_->mBitCompactorConfig->blockSize;
+    btcArgs.LblkSize       = codec_->mBitCompactorConfig->superBlockSize;
+    btcArgs.mixedBlkSize   = codec_->mBitCompactorConfig->mixedBlkSize;
+    btcArgs.minFixedBitLn  = codec_->mBitCompactorConfig->minFixedBitLn;
+
+    uint32_t uncompressedDataSize = uncompressedData.size();
+
+    auto compressedBufferSizeBound = codec_->btcmpctr_cmprs_bound(uncompressedDataSize);
+
+    std::vector<uint8_t> compressedDataBuffer (compressedBufferSizeBound, 0);
+    uint32_t compressedSize = codec_->CompressArray(&uncompressedData[0], uncompressedDataSize, &compressedDataBuffer[0], compressedBufferSizeBound, &btcArgs);
+    std::vector<uint8_t>::iterator endDataIterator = compressedDataBuffer.begin() + compressedSize;
+    compressedDataBuffer.erase(endDataIterator,compressedDataBuffer.end());
+
+    return compressedDataBuffer;
+
+}
+
+
 std::vector<uint8_t> BTC::decompress(std::vector<uint8_t>& compressedData)
 {
     BitCompactor::btcmpctr_compress_wrap_args_t btcArgs;

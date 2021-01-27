@@ -39,6 +39,8 @@ class BTC : public Compressor
 
         std::pair<std::vector<int64_t>, uint32_t> compress(std::vector<int64_t>& data, mv::Tensor& t);
         std::pair<std::vector<int64_t>, uint32_t> compress(std::vector<int64_t>& data, mv::Data::TensorIterator& t);
+
+        std::vector<uint8_t> compress(std::vector<uint8_t>& uncompressedData);
         std::vector<uint8_t> decompress(std::vector<uint8_t>& compressedData);
 
     private:
