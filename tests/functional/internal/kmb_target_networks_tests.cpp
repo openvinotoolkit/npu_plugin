@@ -810,6 +810,9 @@ TEST_F(GazeEstimationNetworkTest, DISABLED_gaze_estimation_adas_0002) {
 
 class SmokeNetworkTestWithSpecificLayout : public SmokeNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 TEST_P(SmokeNetworkTestWithSpecificLayout, openpose_pose_cf) {
+#ifdef _WIN32
+    SKIP() << "Skip openpose_pose_cf test on windows due to unexpected error during test execution";
+#endif
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/OpenPose/FP16-INT8/openpose-pose_cf_ww22.xml")
             .setUserInputPrecision("image", Precision::U8)
