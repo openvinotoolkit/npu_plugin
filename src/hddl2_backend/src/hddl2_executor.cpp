@@ -19,6 +19,7 @@
 #include <ie_compound_blob.h>
 #include <ie_memcpy.h>
 
+#include <hddl2_backend.h>
 #include <blob_factory.hpp>
 #include <ie_preprocess.hpp>
 #include <ie_remote_context.hpp>
@@ -119,6 +120,10 @@ HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription
                                                   const HddlUnite::WorkloadContext::Ptr& workloadContext) {
     auto logger = std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput());
     vpux::HDDL2::HDDL2Executor::Ptr executor = nullptr;
+
+    if (!vpux::HDDL2::HDDL2Backend::isServiceAvailable()) {
+        return executor;
+    }
 
     try {
         executor = std::make_shared<vpux::HDDL2::HDDL2Executor>(networkDesc, config, allocator, workloadContext);
