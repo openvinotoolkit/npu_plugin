@@ -462,8 +462,8 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 workloadConfigs_[opStr] = newConfig;
             }
         }
-        if ((jsonDescriptor["target"].get<std::string>() == "ma2490" && jsonDescriptor["resources"]["huffman_decode_engine"].valueType() != json::JSONType::Array)
-            || (jsonDescriptor["target"].get<std::string>() == "ma3720" && jsonDescriptor["resources"]["bitcompactor"].valueType() != json::JSONType::Array))
+        if (jsonDescriptor["resources"]["huffman_decode_engine"].valueType() == json::JSONType::Array
+            && jsonDescriptor["resources"]["bitcompactor"].valueType() == json::JSONType::Array)
         {
             reset();
             return false;
