@@ -166,6 +166,7 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             {
                 auto sinkOperators = findSinkLayers(dm, opIt->getOutputTensor(0));
                 if (sinkOperators[0]->getOpType() == "Align" || sinkOperators[0]->getOpType() == "Crop"
+                        || sinkOperators[0]->getOpType() == "ImplicitConcat"
                         || sinkOperators[0]->getOpType() == "Slice")
                 {
                     subTensorsGen(model, {opIt->getOutputTensor(0)},numClusters, pass);
