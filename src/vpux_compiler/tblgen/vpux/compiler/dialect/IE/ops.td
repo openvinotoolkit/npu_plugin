@@ -806,12 +806,15 @@ def IE_SqueezeOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[AnyInteger]>:$axes
+        AnyRankedTensor:$axes
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
 }
 
 //
@@ -877,12 +880,15 @@ def IE_UnsqueezeOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[AnyInteger]>:$axes
+        AnyRankedTensor:$axes
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
 }
 
 //
@@ -1416,7 +1422,7 @@ def IE_LeakyReluOp :
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
-        
+
         F32Attr:$negative_slope
     );
 

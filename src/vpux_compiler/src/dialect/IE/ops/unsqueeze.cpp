@@ -19,9 +19,16 @@
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
+#include <mlir/IR/PatternMatch.h>
+
 #include <numeric>
 
 using namespace vpux;
+
+//
+// inferReturnTypeComponents
+//
 
 mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
@@ -33,8 +40,8 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inDataType = unsqueeze.input().getType().cast<mlir::ShapedType>();
-    const auto inDataShape = inDataType.getShape();
+    const auto inType = unsqueeze.input().getType().cast<mlir::ShapedType>();
+    const auto inShape = inType.getShape();
 
     auto axesConst = unsqueeze.axes().getDefiningOp<ConstantInterface>();
     if (axesConst == nullptr) {
@@ -43,19 +50,141 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
 
     auto axes = to_small_vector(axesConst.getContent().getValues<int64_t>());
     std::sort(axes.begin(), axes.end());
-
-    SmallVector<int64_t> outShapeVec(inDataShape.begin(), inDataShape.end());
-    const auto outRank = static_cast<int64_t>(outShapeVec.size() + axes.size());
-
-    if (axes.back() >= outRank) {
-        return errorAt(loc, "Axis '{0}' is out of input shape range", axes.back());
+    for (auto& axis : axes) {
+        if (axis < 0) {
+            axis = axis + checked_cast<int64_t>(inShape.size() + axes.size());
+        }
     }
 
-    for (auto a : axes) {
-        outShapeVec.insert(outShapeVec.begin() + a, 1);
+    SmallVector<int64_t> outShape(inShape.size() + axes.size());
+
+    size_t inInd = 0;
+    size_t axesInd = 0;
+    for (auto outInd : irange(outShape.size())) {
+        if (axesInd < axes.size()) {
+            const auto nextAxisInd = checked_cast<size_t>(axes[axesInd]);
+
+            if (nextAxisInd < outInd) {
+                return errorAt(loc, "Axis '{0}' was occured twice", nextAxisInd);
+            }
+
+            if (nextAxisInd == outInd) {
+                outShape[outInd] = 1;
+                ++axesInd;
+                continue;
+            }
+        }
+
+        if (inInd < inShape.size()) {
+            outShape[outInd] = inShape[inInd];
+            ++inInd;
+            continue;
+        }
+    }
+    if (inInd != inShape.size() || axesInd != axes.size()) {
+        return errorAt(loc, "Inconsistent parameters");
     }
 
-    inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), inDataType.getElementType());
+    inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType());
+    return mlir::success();
+}
+
+//
+// UseExpansionReshape
+//
+
+namespace {
+
+class UseExpansionReshape final : public mlir::OpRewritePattern<IE::UnsqueezeOp> {
+public:
+    using mlir::OpRewritePattern<IE::UnsqueezeOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::UnsqueezeOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult UseExpansionReshape::matchAndRewrite(IE::UnsqueezeOp origOp,
+                                                         mlir::PatternRewriter& rewriter) const {
+    auto axesConst = origOp.axes().getDefiningOp<ConstantInterface>();
+    if (axesConst == nullptr) {
+        return mlir::failure();
+    }
+
+    const auto inType = origOp.input().getType().cast<mlir::ShapedType>();
+    const auto inShape = inType.getShape();
+
+    auto axes = to_small_vector(axesConst.getContent().getValues<int64_t>());
+    std::sort(axes.begin(), axes.end());
+    for (auto& axis : axes) {
+        if (axis < 0) {
+            axis = axis + checked_cast<int64_t>(inShape.size() + axes.size());
+        }
+    }
+
+    //
+    // Use expansion linalg.tensor_reshape:
+    //
+    //   input tensor: (i, j)
+    //   output tensor: (1, i, 1, j, 1)
+    //
+    // Reassotion maps (output to input):
+    //   (d0, d1, d2, d3, d4) -> (d0, d1)      : shape[d0] = 1, shape[d1] = i
+    //   (d0, d1, d2, d3, d4) -> (d2, d3, d4)  : shape[d2] = 1, shape[d3] = j, shape[d4] = 1
+    //
+
+    SmallVector<mlir::linalg::ReassociationIndices> indices(inShape.size());
+
+    size_t inInd = 0;
+    size_t axesInd = 0;
+    for (auto outInd : irange(inShape.size() + axes.size())) {
+        if (axesInd < axes.size()) {
+            const auto nextAxisInd = checked_cast<size_t>(axes[axesInd]);
+
+            if (nextAxisInd == outInd) {
+                indices[inInd].push_back(outInd);
+                ++axesInd;
+                continue;
+            }
+        }
+
+        indices[inInd].push_back(outInd);
+
+        if (inInd + 1 < inShape.size()) {
+            ++inInd;
+        }
+    }
+
+    rewriter.replaceOpWithNewOp<mlir::linalg::TensorReshapeOp>(origOp, origOp.getType(), origOp.input(),
+                                                               makeArrayRef(indices));
 
     return mlir::success();
+}
+
+}  // namespace
+
+//
+// getCanonicalizationPatterns
+//
+
+void vpux::IE::UnsqueezeOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
+                                                        mlir::MLIRContext* ctx) {
+    patterns.insert<UseExpansionReshape>(ctx);
+}
+
+//
+// fold
+//
+
+mlir::OpFoldResult vpux::IE::UnsqueezeOp::fold(ArrayRef<mlir::Attribute> operands) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    VPUX_THROW_UNLESS(!operands.empty(), "Wrong number of operands : {0}", operands.size());
+
+    if (const auto attr = operands[0].dyn_cast_or_null<ConstContentAttr>()) {
+        return attr;
+    }
+
+    return nullptr;
 }
