@@ -14,6 +14,8 @@
 // stated in the License.
 //
 
+#include "ie_utils.hpp"
+
 #include <inference_engine.hpp>
 #include <blob_factory.hpp>
 #include <caseless.hpp>
@@ -50,6 +52,8 @@ DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
 DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification' mode");
+
+DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
 
 DEFINE_string(log_level, "", "IE logger level (optional)");
 
@@ -97,6 +101,8 @@ void parseCommandLine(int argc, char* argv[]) {
         if (strEq(FLAGS_mode, "classification")) {
             std::cout << "    Top K:            " << FLAGS_top_k << std::endl;
             std::cout << "    Tolerance:        " << FLAGS_prob_tolerance << std::endl;
+        } else if (strEq(FLAGS_mode, "raw")) {
+            std::cout << "    Tolerance:        " << FLAGS_raw_tolerance << std::endl;
         }
     }
     std::cout << "    Log level:        " << FLAGS_log_level << std::endl;
@@ -233,7 +239,7 @@ void cvToIe(const cv::Mat& cvImg, const ie::Blob::Ptr& ieBlob) {
         in.convertTo(in, CV_32F);
     }
 
-    const auto pictureArea = in.size().area();
+    const auto pictureArea = static_cast<size_t>(in.size().area());
 
     if (W * H > pictureArea) {
         cv::resize(in, in, cv::Size(W, H), 0.0, 0.0, cv::INTER_AREA);
@@ -375,7 +381,7 @@ ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs) {
 }
 
 //
-// Main
+// Classification mode
 //
 
 std::vector<std::pair<int, float>> parseClassification(const ie::Blob::Ptr& blob) {
@@ -450,6 +456,83 @@ bool testClassification(const ie::BlobMap& outputs, const ie::BlobMap& refOutput
 
     return true;
 }
+
+//
+// RAW mode
+//
+
+bool compareBlobs(
+        const ie::Blob::Ptr& actualOutput,
+        const ie::Blob::Ptr& refOutput) {
+    const auto& actualDesc = actualOutput->getTensorDesc();
+    const auto& refDesc = refOutput->getTensorDesc();
+
+    if (actualDesc.getDims() != refDesc.getDims()) {
+        std::cout << "Actual and reference blobs has different shape" << std::endl;
+        return false;
+    }
+
+    const auto actualFP32 = toFP32(toDefLayout(actualOutput));
+    const auto refFP32 = toFP32(toDefLayout(refOutput));
+
+    const auto actualMem = actualFP32->cbuffer();
+    const auto refMem = refFP32->cbuffer();
+
+    const auto actualPtr = actualMem.as<const float*>();
+    const auto refPtr = refMem.as<const float*>();
+
+    const auto totalCount = refOutput->size();
+    const auto printCount = std::min<size_t>(totalCount, 10);
+
+    for (size_t i = 0; i < totalCount; ++i) {
+        const auto refVal = refPtr[i];
+        const auto actualVal = actualPtr[i];
+
+        const auto absDiff = std::fabs(refVal - actualVal);
+
+        if (i < printCount) {
+            std::cout << "        " << i << " :"
+                      << " ref : " << std::setw(10) << refVal
+                      << " actual : " << std::setw(10) << actualVal
+                      << " absdiff : " << std::setw(10) << absDiff
+                      << std::endl;
+        }
+
+        if (absDiff > FLAGS_raw_tolerance) {
+            std::cout
+                    << "Absolute difference between actual value " << actualVal
+                    << " and reference value " << refVal
+                    << " at index " << i
+                    << " larger then tolerance" << std::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool testRAW(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs) {
+    if (outputs.size() != refOutputs.size()) {
+        std::cout << "Actual and reference has different number of output blobs" << std::endl;
+        return false;
+    }
+
+    for (const auto& actualBlob : outputs) {
+        auto ref_it = refOutputs.find(actualBlob.first);
+        IE_ASSERT(ref_it != refOutputs.end());
+
+        std::cout << "Compare " << actualBlob.first << " with reference" << std::endl;
+        if (!compareBlobs(actualBlob.second, ref_it->second)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+//
+// main
+//
 
 int main(int argc, char* argv[]) {
     try {
@@ -550,6 +633,13 @@ int main(int argc, char* argv[]) {
 
             if (strEq(FLAGS_mode, "classification")) {
                 if (testClassification(outputs, refOutputs)) {
+                    std::cout << "PASSED" << std::endl;
+                } else {
+                    std::cout << "FAILED" << std::endl;
+                    return EXIT_FAILURE;
+                }
+            } else if (strEq(FLAGS_mode, "raw")) {
+                if (testRAW(outputs, refOutputs)) {
                     std::cout << "PASSED" << std::endl;
                 } else {
                     std::cout << "FAILED" << std::endl;
