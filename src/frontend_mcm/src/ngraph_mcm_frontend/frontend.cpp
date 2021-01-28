@@ -220,6 +220,9 @@ std::vector<char> compileNGraph(
         NodeOutputToMcmMap mcmOutputsMap;
 
         ngraph::pass::Manager passManager;
+        if (config.scaleShiftFusing()) {
+            passManager.register_pass<FuseScaleShift>();
+        }
         passManager.register_pass<ngraph::pass::ConvertPriorBox>(); // strict requirement: ConvertPriorBox should be first
 
         // TODO: Add passes for rewriting parts of graph
@@ -239,9 +242,6 @@ std::vector<char> compileNGraph(
 
         passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
         passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
-        if (config.scaleShiftFusing()) {
-	        passManager.register_pass<FuseScaleShift>();
-	    }
         passManager.register_pass<FuseScaleAfterClamp>();
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();

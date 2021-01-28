@@ -21,58 +21,69 @@
 #include <ngraph/op/constant.hpp>
 
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
-
+#include <ngraph/op/convolution.hpp>
 #include <ngraph/op/fake_quantize.hpp>
-#include <legacy/ngraph_ops/scaleshift.hpp>
-#include <legacy/ngraph_ops/power.hpp>
 #include <vector>
 #include <memory>
-#include <limits>
-#include <ngraph_ops/convolution_ie.hpp>
+#include <ngraph/ops.hpp>
 
 bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
-    const auto convolution_node = std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node);
-    if (convolution_node == nullptr)
+    auto convolution_add_node = std::dynamic_pointer_cast<ngraph::op::v1::Add>(node);
+    if (convolution_add_node == nullptr)
         return false;
+
+    std::shared_ptr<ngraph::Node> convolution_node = std::dynamic_pointer_cast<ngraph::op::v1::Convolution>(convolution_add_node->input_value(0).get_node_shared_ptr());
+    if (convolution_node == nullptr) {
+        convolution_node = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(convolution_add_node->input_value(0).get_node_shared_ptr());
+        if (convolution_node == nullptr)
+            return false;
+    }
 
     const auto input_fq_node = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(convolution_node->input_value(0).get_node_shared_ptr());
     if (input_fq_node == nullptr)
         return false;
 
-
-    const auto scaleshift_node = input_fq_node->input_value(0).get_node_shared_ptr();
-    if (!scaleshift_node)
-        return false;
-
-    std::vector<double> scaleshift_scale_data;
     std::vector<double> scaleshift_bias_data;
+    std::vector<double> scaleshift_scale_data;
 
-    // in case Multiply + Add was converted to ScaleShift node
-    if (scaleshift_node->get_type_info() == ngraph::op::ScaleShiftIE::type_info) {
-        const auto scaleshift_scales = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_node->input_value(1).get_node_shared_ptr());
-        const auto scaleshift_shifts = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_node->input_value(2).get_node_shared_ptr());
-        if (!scaleshift_scales || !scaleshift_shifts)
-            return false;
-
-        scaleshift_scale_data = scaleshift_scales->cast_vector<double>();
-        scaleshift_bias_data = scaleshift_shifts->cast_vector<double>();
-    }
-    else if (scaleshift_node->get_type_info() == ngraph::op::PowerIE::type_info) {
-        // in some cases Multiply + Add layers might be converted in PowerIE node in graph
-        auto power_node = std::dynamic_pointer_cast<ngraph::op::PowerIE>(scaleshift_node);
-        // if we find PowerIE with power = 1, use it as if it was scale shift node
-        if (!power_node || power_node->power != 1)
-            return false;
-
-        auto input_dims = power_node->get_input_shape(0);
-
-        if (input_dims.size() < 2)
-            return false;
-        scaleshift_scale_data.assign(input_dims[1], power_node->scale);
-        scaleshift_bias_data.assign(input_dims[1], power_node->shift);
-    }
-    else
+    const auto scaleshift_bias_node = std::dynamic_pointer_cast<ngraph::op::v1::Add>(input_fq_node->input_value(0).get_node_shared_ptr());
+    if (scaleshift_bias_node == nullptr)
         return false;
+
+    auto scaleshift_shifts = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_bias_node->input_value(1).get_node_shared_ptr());
+    if (!scaleshift_shifts) {
+        scaleshift_shifts = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_bias_node->input_value(0).get_node_shared_ptr());
+        if (!scaleshift_shifts)
+            return false;
+    }
+    scaleshift_bias_data = scaleshift_shifts->cast_vector<double>();
+
+    int scaleshift_bias_to_scale_node_id = 0;
+    auto scaleshift_scale_node = std::dynamic_pointer_cast<ngraph::op::v1::Multiply>(scaleshift_bias_node->input_value(0).get_node_shared_ptr());
+    auto scaleshift_parameter_node = std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(scaleshift_bias_node->input_value(0).get_node_shared_ptr());
+    if (!scaleshift_scale_node && !scaleshift_parameter_node) {
+        scaleshift_bias_to_scale_node_id = 1;
+        scaleshift_scale_node = std::dynamic_pointer_cast<ngraph::op::v1::Multiply>(scaleshift_bias_node->input_value(1).get_node_shared_ptr());
+        scaleshift_parameter_node = std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(scaleshift_bias_node->input_value(1).get_node_shared_ptr());
+        if (!scaleshift_scale_node && !scaleshift_parameter_node)
+            return false;
+    }
+
+    int scaleshift_scale_to_input_node_id = 0;
+    std::shared_ptr<ngraph::op::Constant> scaleshift_scales = nullptr;
+    if (scaleshift_scale_node != nullptr) {
+        scaleshift_scales = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_scale_node->input_value(1).get_node_shared_ptr());
+        if (!scaleshift_scales) {
+            scaleshift_scale_to_input_node_id = 1;
+            scaleshift_scales = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_scale_node->input_value(0).get_node_shared_ptr());
+            if (!scaleshift_scales)
+                return false;
+        }
+        scaleshift_scale_data = scaleshift_scales->cast_vector<double>();
+    }
+    else {
+        scaleshift_scale_data.push_back(1.0);
+    }
 
     auto input_fq_node1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(input_fq_node->input_value(1).get_node_shared_ptr());
     auto input_fq_node2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(input_fq_node->input_value(2).get_node_shared_ptr());
@@ -80,18 +91,26 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
     auto input_fq_node4 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(input_fq_node->input_value(4).get_node_shared_ptr());
     if (input_fq_node1 == nullptr || input_fq_node2 == nullptr || input_fq_node3 == nullptr || input_fq_node4 == nullptr)
         return false;
-    auto input_fq_data1 = input_fq_node1->cast_vector<double>();
-    auto input_fq_data2 = input_fq_node2->cast_vector<double>();
-    auto input_fq_data3 = input_fq_node3->cast_vector<double>();
-    auto input_fq_data4 = input_fq_node4->cast_vector<double>();
 
-    const auto weights_fq_node = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(convolution_node->input_value(1).get_node_shared_ptr());
-    if (weights_fq_node == nullptr)
-        return false;
+    auto weights_fq_node = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(convolution_node->input_value(1).get_node_shared_ptr());
+    if (weights_fq_node == nullptr) {
+        const auto convolution_weights_reshape_node = std::dynamic_pointer_cast<ngraph::op::v1::Reshape>(convolution_node->input_value(1).get_node_shared_ptr());
+        if (convolution_weights_reshape_node == nullptr)
+            return false;
+        weights_fq_node = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(convolution_weights_reshape_node->input_value(0).get_node_shared_ptr());
+        if (weights_fq_node == nullptr)
+            return false;
+    }
 
-    const auto convolution_weights_node = std::dynamic_pointer_cast<ngraph::op::Constant>(weights_fq_node->input_value(0).get_node_shared_ptr());
-    if (convolution_weights_node == nullptr)
-        return false;
+    auto convolution_weights_node = std::dynamic_pointer_cast<ngraph::op::Constant>(weights_fq_node->input_value(0).get_node_shared_ptr());
+    if (convolution_weights_node == nullptr) {
+        const auto convolution_weights_convert_node = std::dynamic_pointer_cast<ngraph::op::Convert>(weights_fq_node->input_value(0).get_node_shared_ptr());
+        if (convolution_weights_convert_node == nullptr)
+            return false;
+        convolution_weights_node = std::dynamic_pointer_cast<ngraph::op::Constant>(convolution_weights_convert_node->input_value(0).get_node_shared_ptr());
+        if (convolution_weights_node == nullptr)
+            return false;
+    }
 
     auto weights_fq_node1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_fq_node->input_value(1).get_node_shared_ptr());
     auto weights_fq_node2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_fq_node->input_value(2).get_node_shared_ptr());
@@ -104,40 +123,12 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
     auto weights_fq_data3 = weights_fq_node3->cast_vector<double>();
     auto weights_fq_data4 = weights_fq_node4->cast_vector<double>();
 
-    auto convolution_biases_node = std::dynamic_pointer_cast<ngraph::op::Constant>(convolution_node->input_value(2).get_node_shared_ptr());
+    auto convolution_biases_node = std::dynamic_pointer_cast<ngraph::op::Constant>(convolution_add_node->input_value(1).get_node_shared_ptr());
     if (convolution_biases_node == nullptr)
         return false;
 
     int input_fq_levels = input_fq_node->get_levels();
     int weights_fq_levels = weights_fq_node->get_levels();
-
-    double input_min = 0;
-    double input_max = 0;
-    for (size_t ic = 0; ic < scaleshift_scale_data.size(); ++ic) {
-        auto min_value = 0 * scaleshift_scale_data[ic] + scaleshift_bias_data[ic];
-        auto max_value = 255 * scaleshift_scale_data[ic] + scaleshift_bias_data[ic];
-
-        if (input_max < min_value) input_max = min_value;
-        if (input_min > min_value) input_min = min_value;
-        if (input_max < max_value) input_max = max_value;
-        if (input_min > max_value) input_min = max_value;
-    }
-
-    for (size_t ic = 0; ic < input_fq_data1.size(); ++ic) {
-        input_fq_data1[ic] = input_min;
-        input_fq_data2[ic] = input_max;
-        input_fq_data3[ic] = input_min;
-        input_fq_data4[ic] = input_max;
-    }
-
-    ngraph::replace_node(input_fq_node1,
-                         std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f64, ngraph::Shape({input_fq_data1.size()}), input_fq_data1.data()));
-    ngraph::replace_node(input_fq_node2,
-                         std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f64, ngraph::Shape({input_fq_data2.size()}), input_fq_data2.data()));
-    ngraph::replace_node(input_fq_node3,
-                         std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f64, ngraph::Shape({input_fq_data3.size()}), input_fq_data3.data()));
-    ngraph::replace_node(input_fq_node4,
-                         std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f64, ngraph::Shape({input_fq_data4.size()}), input_fq_data4.data()));
 
     auto dims = convolution_weights_node->get_output_shape(0);
     if (dims.size() != 4)
@@ -150,6 +141,46 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
     const size_t HW = H * W;
     const size_t IHW = IC * HW;
 
+    if (scaleshift_scale_data.size() != IC) {
+        if (scaleshift_scale_data.size() == 1) {
+            scaleshift_scale_data.assign(IC, scaleshift_scale_data[0]);
+        }
+        else {
+            return false;
+        }
+    }
+
+    if (scaleshift_bias_data.size() != IC) {
+        if (scaleshift_bias_data.size() == 1) {
+            scaleshift_bias_data.assign(IC, scaleshift_bias_data[0]);
+        }
+        else {
+            return false;
+        }
+    }
+
+    double input_min = 0;
+    double input_max = 0;
+    for (size_t ic = 0; ic < IC; ++ic) {
+        auto min_value = 0 * scaleshift_scale_data[ic] + scaleshift_bias_data[ic];
+        auto max_value = 255 * scaleshift_scale_data[ic] + scaleshift_bias_data[ic];
+
+        if (input_max < min_value) input_max = min_value;
+        if (input_min > min_value) input_min = min_value;
+        if (input_max < max_value) input_max = max_value;
+        if (input_min > max_value) input_min = max_value;
+    }
+
+    int inputZP = calculateZeroPoint(input_min, input_max, 256, ngraph::element::u8);
+    double inputScale = calculateScale(input_min, input_max, 256);
+    input_min = (0 - inputZP) * inputScale;
+    input_max = (255 - inputZP) * inputScale;
+
+    replace_node_if_changed(input_fq_node1, ngraph::element::f32, 0, "_fused");
+    replace_node_if_changed(input_fq_node2, ngraph::element::f32, input_fq_levels-1, "_fused");
+    replace_node_if_changed(input_fq_node3, ngraph::element::f32, input_min, "_fused");
+    replace_node_if_changed(input_fq_node4, ngraph::element::f32, input_max, "_fused");
+
     double input_fq_min = input_min;
     double input_fq_max = input_max;
     double input_fq_scale = ((input_fq_max - input_fq_min) / (input_fq_levels - 1.0));
@@ -158,10 +189,10 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
 
     auto convolution_biases_data = (convolution_biases_node)->cast_vector<double>();
     auto convolution_weights_data = (convolution_weights_node)->cast_vector<double>();
-    std::vector<double> new_weights_fq_ilo(OC);
-    std::vector<double> new_weights_fq_ihi(OC);
-    std::vector<double> new_weights_fq_olo(OC);
-    std::vector<double> new_weights_fq_ohi(OC);
+    std::vector<float> new_weights_fq_ilo(OC);
+    std::vector<float> new_weights_fq_ihi(OC);
+    std::vector<float> new_weights_fq_olo(OC);
+    std::vector<float> new_weights_fq_ohi(OC);
     double sumOfZeroPoints = 0;
 
     for (size_t oc = 0; oc < OC; ++oc) {
@@ -209,38 +240,35 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
 
         ol = std::min(ol, zpl);
         oh = std::max(oh, zph);
-        new_weights_fq_ilo[oc] = ol;
-        new_weights_fq_ihi[oc] = oh;
+        double scale = calculateScale(ol, oh, weights_fq_levels);
+        new_weights_fq_ilo[oc] = 0;
+        new_weights_fq_ihi[oc] = weights_fq_levels - 1.0;
         new_weights_fq_olo[oc] = ol;
         new_weights_fq_ohi[oc] = oh;
+
+        for (size_t ic = 0; ic < IC; ++ic) {
+            for (size_t h = 0; h < H; ++h) {
+                for (size_t w = 0; w < W; ++w) {
+                    const size_t idx = oc * IHW + ic * HW + h * W + w;
+                    double q_weight = std::round((convolution_weights_data[idx] - ol) / scale);;
+                    convolution_weights_data[idx] = clamp(q_weight, 0, weights_fq_levels - 1);
+                }
+            }
+        }
     }
 
-    auto new_convolution_biases_node = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f64, convolution_biases_node->get_shape(), convolution_biases_data.data());
-    ngraph::replace_node(convolution_biases_node, new_convolution_biases_node);
+    replace_node_if_changed(convolution_biases_node, convolution_biases_data, "");
+    replace_node_if_changed(convolution_weights_node, convolution_weights_data, "");
 
-    auto new_convolution_weights_node_f64 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f64, convolution_weights_node->get_shape(), convolution_weights_data.data());
-    if (convolution_weights_node->get_element_type() == ngraph::element::f16) {
-        auto new_convolution_weights_node_f16 = std::make_shared<ngraph::op::v0::Constant>(convolution_weights_node->get_element_type(), convolution_weights_node->get_shape(), new_convolution_weights_node_f64->cast_vector<ngraph::float16>().data());
-        ngraph::replace_node(convolution_weights_node, new_convolution_weights_node_f16);
-    }
-    if (convolution_weights_node->get_element_type() == ngraph::element::f32) {
-        auto new_convolution_weights_node_f32 = std::make_shared<ngraph::op::v0::Constant>(convolution_weights_node->get_element_type(), convolution_weights_node->get_shape(), new_convolution_weights_node_f64->cast_vector<float>().data());
-        ngraph::replace_node(convolution_weights_node, new_convolution_weights_node_f32);
-    }
-    if (convolution_weights_node->get_element_type() == ngraph::element::f64)
-        ngraph::replace_node(convolution_weights_node, new_convolution_weights_node_f64);
+    replace_node_if_changed(weights_fq_node1, ngraph::element::f32, new_weights_fq_ilo, "");
+    replace_node_if_changed(weights_fq_node2, ngraph::element::f32, new_weights_fq_ihi, "");
+    replace_node_if_changed(weights_fq_node3, ngraph::element::f32, new_weights_fq_olo, "");
+    replace_node_if_changed(weights_fq_node4, ngraph::element::f32, new_weights_fq_ohi, "");
 
-    ngraph::replace_node(weights_fq_node1,
-                         std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f64, ngraph::Shape({new_weights_fq_ilo.size(),1,1,1}), new_weights_fq_ilo.data()));
-    ngraph::replace_node(weights_fq_node2,
-                         std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f64, ngraph::Shape({new_weights_fq_ihi.size(),1,1,1}), new_weights_fq_ihi.data()));
-    ngraph::replace_node(weights_fq_node3,
-                         std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f64, ngraph::Shape({new_weights_fq_olo.size(),1,1,1}), new_weights_fq_olo.data()));
-    ngraph::replace_node(weights_fq_node4,
-                         std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f64, ngraph::Shape({new_weights_fq_ohi.size(),1,1,1}), new_weights_fq_ohi.data()));
-
-    bool success = replace_output_update_name(scaleshift_node->output(0), scaleshift_node->input_value(0));
-    IE_ASSERT(success == true);
+    bool success1 = replace_output_update_name(scaleshift_bias_node->output(0), scaleshift_bias_node->input_value(scaleshift_bias_to_scale_node_id));
+    bool success2 = scaleshift_scale_node == nullptr ||
+                    replace_output_update_name(scaleshift_scale_node->output(0), scaleshift_scale_node->input_value(scaleshift_scale_to_input_node_id));
+    IE_ASSERT(success1 == true && success2 == true);
 
     return true;
 }
