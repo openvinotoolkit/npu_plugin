@@ -756,7 +756,7 @@ namespace mv
 
                 // Size of weights, actual sparsity of tensor determine speedup
                 auto weightsSize = realTensorSize(op.getInputTensor(1), {1,1,1,1}, false);
-                auto zeroPoints = op.getInputTensor(1)->getNumZeroPoints();
+                auto zeroPoints = op.getInputTensor(1)->getZeroValuesCount();
                 double actualSparsity = (double) zeroPoints/ (double)weightsSize;
 
                 auto sparsityOverhead = op.getInputTensor(0)->isFloatingPointType() ?
