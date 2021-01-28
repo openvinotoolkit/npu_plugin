@@ -583,7 +583,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     if(inp->getShape()[mv::IO_HEIGHT_DIMENSION] != out->getShape()[mv::IO_HEIGHT_DIMENSION])
                     {
                         if (inp->getOrder() == mv::Order("NHWC"))
-                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_CHANNEL_DIMENSION];
+                            left_index = lhs_padding.at(axis) * inp->getShape()[2] * inp->getShape()[3];
                         else if (inp->getOrder() == mv::Order("NCHW"))
                             left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION];
                         axisConcat = "H";
