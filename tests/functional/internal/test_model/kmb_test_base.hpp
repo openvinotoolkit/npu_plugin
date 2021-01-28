@@ -721,3 +721,13 @@ public:
 private:
     std::default_random_engine rd;
 };
+
+//ModelA/ModelE
+
+class ModelAdk : public KmbNetworkTestBase {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            const float threshold);
+};
