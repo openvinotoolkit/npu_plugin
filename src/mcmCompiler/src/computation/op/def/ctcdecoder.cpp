@@ -42,12 +42,7 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& /*args*/, std::vector<Tensor>& outputs)
         {
-            assert(inputs.size() > 0);
-
-            mv::Shape input0Shape = inputs[0]->getShape();
-
-            mv::Shape outputShape = {1, 1, input0Shape[mv::IO_CHANNEL_DIMENSION], 1};
-            outputs.emplace_back(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder());
+            outputs.emplace_back(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder());
         };
 
     }

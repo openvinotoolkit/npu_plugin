@@ -74,7 +74,7 @@ void mv::calcZeroPointAndScalePerTensor(
     quantZp = calculateZeroPoint(floatMin, floatMax, levels, dtype);
 }
 
-void mv::calcZeroPointAndScalePerChannel(
+void calcZeroPointsAndScalesPerChannel(
     std::vector<double> &floatMax,
     std::vector<double> &floatMin,
     int levels,
