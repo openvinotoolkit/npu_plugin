@@ -486,6 +486,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 }
 
                 auto inputSlots = opIterator->inputSlots();
+                auto axisToConcat = opIterator->get<std::string>("axis");
 
                 std::vector<unsigned> running_concat_offset_LHS;
                 std::vector<unsigned> running_concat_offset_RHS;
@@ -495,8 +496,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 unsigned int axis = 0;
                 if (opType != "ImplicitJoin")
                 {
-                    axis = mv::Shape::getAxis(opIterator->get<std::string>("axis"));
-
+                    axis = mv::Shape::getAxis(axisToConcat);
                     for(unsigned i = 0; i < inputSlots; i++)
                     {
                         running_concat_offset_LHS.push_back(prev_offset + offset);
@@ -508,8 +508,6 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 }
                 else
                 {
-
-                    auto axisToConcat = opIterator->get<std::string>("axis");
                     size_t axis_shape=0;
                     for (size_t i = 0; i < axisToConcat.size(); i++)
                         axis_shape += outputTensor->getShape()[mv::Shape::getAxis(axisToConcat.substr(i,1))];
@@ -568,44 +566,16 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 //                    //This index is exactly expressed through the lhs_padding.at(axis) and belongs to every inputbuffer.
                     auto inp = dm.getTensor(inputBuffer->getData()->getName());
                     auto out = dm.getTensor(outputBuffer->getData()->getName());
-                    std::size_t left_index = 0;
-                    std::string axisConcat = "C";
-                    //NOTE: CONCAT OVER C
-                    if(inp->getShape()[mv::IO_CHANNEL_DIMENSION] != out->getShape()[mv::IO_CHANNEL_DIMENSION])
-                    {
-                        if (inp->getOrder() == mv::Order("NCHW"))
-                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_HEIGHT_DIMENSION];
-                        else if (inp->getOrder() == mv::Order("NHWC"))
-                            left_index = lhs_padding.at(axis);
-                        axisConcat = "C";
-                    }
-                    //NOTE: CONCAT OVER H
-                    if(inp->getShape()[mv::IO_HEIGHT_DIMENSION] != out->getShape()[mv::IO_HEIGHT_DIMENSION])
-                    {
-                        if (inp->getOrder() == mv::Order("NHWC"))
-                            left_index = lhs_padding.at(axis) * inp->getShape()[2] * inp->getShape()[3];
-                        else if (inp->getOrder() == mv::Order("NCHW"))
-                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION];
-                        axisConcat = "H";
-                    }
-                    //NOTE: CONCAT OVER W
-                    if(inp->getShape()[mv::IO_WIDTH_DIMENSION] != out->getShape()[mv::IO_WIDTH_DIMENSION])
-                    {
-                        if (inp->getOrder() == mv::Order("NHWC"))
-                            left_index = lhs_padding.at(axis) *  inp->getShape()[mv::IO_CHANNEL_DIMENSION];
-                        else if (inp->getOrder() == mv::Order("NCHW"))
-                            left_index = lhs_padding.at(axis);
-                        axisConcat = "W";
-                    }
-                    //NOTE: CONCAT OVER N, same calculation for both z and c major because N is biggest for both
-                    if(inp->getShape()[mv::IO_BATCH_DIMENSION] != out->getShape()[mv::IO_BATCH_DIMENSION])
-                    {
-                        left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_CHANNEL_DIMENSION] 
-                                                            * inp->getShape()[mv::IO_HEIGHT_DIMENSION] * inp->getShape()[mv::IO_WIDTH_DIMENSION];
-                        axisConcat = "N";
-                    }
-                    inp->set<std::size_t>("leftIndex", left_index);
-                    out->set<std::string>("concatAxis", axisConcat);
+                    std::size_t dimension_padding = 1;
+                    std::string inpOrder = inp->getOrder().toString();
+                    mv::Shape inpShape = inp->getShape();
+
+                    // multiply by all lower significance dimensions
+                    for (auto shapeIndex = inpOrder.find(axisToConcat) + 1 ; shapeIndex < 4 ; shapeIndex++)
+                        dimension_padding = dimension_padding * inpShape[shapeIndex];
+
+                    inp->set<std::size_t>("leftIndex", lhs_padding.at(axis) * dimension_padding);
+                    out->set<std::string>("concatAxis", axisToConcat);
                 }
             }
             else if(opType == "ImplicitUnion" || opType == "ImplicitInputSlice")
