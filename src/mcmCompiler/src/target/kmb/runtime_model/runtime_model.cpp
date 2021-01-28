@@ -2720,6 +2720,32 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPermuteTask(ComputationModel& c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPermuteNDTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PermuteNDParams;
+    auto softLayerParamsValue = new MVCNN::PermuteNDParamsT();
+
+    auto perm_order = opIt->get<std::vector<int64_t>>("perm_order");
+    for (const auto& dim : perm_order) {
+        softLayerParamsValue->permute_nd_order.push_back(dim);
+    }
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADetectionOutputTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
 
@@ -3439,6 +3465,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPANormalizeTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Permute")
         toReturn[0]->task.value = buildUPAPermuteTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "PermuteND")
+        toReturn[0]->task.value = buildUPAPermuteNDTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Eltwise")
         toReturn[0]->task.value = buildUPAEltwiseFP16Task(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Interp")
