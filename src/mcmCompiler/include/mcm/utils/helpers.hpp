@@ -1,3 +1,6 @@
+#ifndef MV_HELPERS_HPP_
+#define MV_HELPERS_HPP_
+
 #include <fstream>
 
 namespace mv {
@@ -16,3 +19,5 @@ void releaseFile(FILE* ptr);
 
 }  // namespace utils
 }  // namespace mv
+
+#endif  // MV_HELPERS_HPP_
