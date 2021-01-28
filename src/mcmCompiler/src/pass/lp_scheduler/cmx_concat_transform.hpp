@@ -8,7 +8,7 @@
 #include "include/mcm/computation/model/iterator/tensor.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-
+#include "include/mcm/utils/helpers.hpp"
 
 namespace mv {
 namespace scheduler {
@@ -582,7 +582,7 @@ class CMX_Concatenation {
             typename SubGraphContainer::value_type>::value,
               "Invalid container for concat subgraphs");
 
-      FILE *fptr = fopen("cmx_concat_report.txt", "w");
+      std::unique_ptr<FILE, mv::utils::RaiiWrapper<FILE, mv::utils::releaseFile>> fptr(fopen("cmx_concat_report.txt", "w"));
 
       locate_concat_subgraphs(std::back_inserter(concat_subgraphs));
       //NOTE: Pseudo edges will be added in the representative tasks with lower depth
@@ -658,36 +658,33 @@ class CMX_Concatenation {
           }
         }
 
-        if (fptr) {
-          fprintf(fptr, "=====================================\n");
-          fprintf(fptr, "concat = %s transformed_to_cmx = %s rep=%s \n",
+        if (fptr.get()) {
+          fprintf(fptr.get(), "=====================================\n");
+          fprintf(fptr.get(), "concat = %s transformed_to_cmx = %s rep=%s \n",
               subgraph.concat_root_->getName().c_str(),
               can_transform ? "YES" : "NO",
               subgraph.representative_dpu_->getName().c_str());
-          fprintf(fptr, "READS:\n");
+          fprintf(fptr.get(), "READS:\n");
           for (auto ditr = subgraph.dpu_in_.begin();
                 ditr != subgraph.dpu_in_.end(); ++ditr) {
             std::list<operation_t> read_list;
             get_weight_read_inputs(*ditr, std::back_inserter(read_list));
             size_t total_read_size = 0UL;
-            fprintf(fptr, "dpu_name=%s\n", (*ditr)->getName().c_str());
+            fprintf(fptr.get(), "dpu_name=%s\n", (*ditr)->getName().c_str());
             for (auto ritr = read_list.begin(); ritr != read_list.end();
                   ++ritr) {
               size_t rsize = (const_cast<mv::Op *>(*ritr))->
                   getOutputTensor(0UL)->getClusterSize();
-              fprintf(fptr, "r=%s size=%lu : ",
+              fprintf(fptr.get(), "r=%s size=%lu : ",
                     (*ritr)->getName().c_str(), rsize);
               total_read_size += rsize;
             }
-            fprintf(fptr, "total_read_size=%lu\n\n", total_read_size);
+            fprintf(fptr.get(), "total_read_size=%lu\n\n", total_read_size);
           }
-          fprintf(fptr, "=====================================\n");
+          fprintf(fptr.get(), "=====================================\n");
         }
       }
 
-      if (fptr) {
-        fclose(fptr);
-      }
       validate_dpu_ins_level(concat_subgraphs, cmx_size);
 
     }
