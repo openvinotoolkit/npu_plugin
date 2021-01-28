@@ -561,6 +561,7 @@ def VPUIP_ReLUUPAOp :
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
+                VPUIP_Legacy4D,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -609,6 +610,7 @@ def VPUIP_SigmoidUPAOp :
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
+                VPUIP_Legacy4D,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -657,6 +659,7 @@ def VPUIP_HSwishUPAOp :
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
+                VPUIP_Legacy4D,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -705,6 +708,7 @@ def VPUIP_ClampUPAOp :
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
+                VPUIP_Legacy4D,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ClampLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
@@ -760,6 +764,7 @@ def VPUIP_EluUPAOp :
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
+                VPUIP_Legacy4D,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<EluLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
@@ -814,6 +819,7 @@ def VPUIP_TanhUPAOp :
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
+                VPUIP_Legacy4D,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -862,6 +868,7 @@ def VPUIP_FakeQuantizeUPAOp :
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
+                VPUIP_Legacy4D,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -920,6 +927,7 @@ def VPUIP_QuantCastUPAOp :
                 SingleInputAndResultLayer,
                 VPUIP_SameShape,
                 VPUIP_SameDimsOrder,
+                VPUIP_Legacy4D,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -963,7 +971,7 @@ def VPUIP_PReluUPAOp :
             "PReluUPA",
             [
                 DeclareOpInterfaceMethods<LayerInterface>,
-		DeclareOpInterfaceMethods<PReluLayerInterface>,
+                DeclareOpInterfaceMethods<PReluLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
         > {
@@ -1008,7 +1016,7 @@ def VPUIP_LeakyReluUPAOp :
             "LeakyReluUPA",
             [
                 SingleInputAndResultLayer,
-		DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]

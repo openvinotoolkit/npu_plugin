@@ -4,7 +4,6 @@
 // The 'adjust-for-vpu' pass calls:
 //
 //   * `convert-precision-to-fp16`
-//   * `convert-shape-to-4d`
 //
 
 // CHECK-LABEL: @Test
@@ -21,15 +20,15 @@ IE.CNNNetwork
         IE.DataInfo "prob" : memref<1x1000xf32>
     }
 
-// CHECK: func @main(%arg0: tensor<1x1x1x1000xf16>) -> tensor<1x1x1x1000xf16>
+// CHECK: func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16>
 func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
     %prob = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf32> -> tensor<1x1000xf32>
     // CHECK:       %[[OUT:.*]] = IE.SoftMax(%arg0)
-    // CHECK-SAME:      {axisInd = 3 : i32}
-    // CHECK-SAME:      tensor<1x1x1x1000xf16> -> tensor<1x1x1x1000xf16>
+    // CHECK-SAME:      {axisInd = 1 : i32}
+    // CHECK-SAME:      tensor<1x1000xf16> -> tensor<1x1000xf16>
 
     return %prob : tensor<1x1000xf32>
-    // CHECK: return %[[OUT]] : tensor<1x1x1x1000xf16>
+    // CHECK: return %[[OUT]] : tensor<1x1000xf16>
 }
 
 }
