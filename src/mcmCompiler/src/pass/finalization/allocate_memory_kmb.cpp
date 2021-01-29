@@ -419,6 +419,14 @@ static std::map<std::string,std::string> location2Allocator =
         { "BLOB", "GraphFile"}
 };
 
+static std::map<char, size_t> dimension2Index =
+{
+        { 'W', mv::IO_WIDTH_DIMENSION},
+        { 'H', mv::IO_HEIGHT_DIMENSION },
+        { 'C', mv::IO_CHANNEL_DIMENSION},
+        { 'N', mv::IO_BATCH_DIMENSION}
+};
+
 bool propagateToSlaves(mv::OpModel& om, mv::Data::TensorIterator input_tensor)
 {
     // Implicit Source Ops have no effect, iterate back to Concrete Source Op
@@ -569,10 +577,11 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     std::size_t dimension_padding = 1;
                     std::string inpOrder = inp->getOrder().toString();
                     mv::Shape inpShape = inp->getShape();
+                    std::string later_dimensions = inpOrder.substr(inpOrder.find(axisToConcat) + 1);
 
                     // multiply by all lower significance dimensions
-                    for (auto shapeIndex = inpOrder.find(axisToConcat) + 1 ; shapeIndex < 4 ; shapeIndex++)
-                        dimension_padding = dimension_padding * inpShape[shapeIndex];
+                    for (auto later_dimension : later_dimensions)
+                        dimension_padding = dimension_padding * inpShape[dimension2Index.at(later_dimension)];
 
                     inp->set<std::size_t>("leftIndex", lhs_padding.at(axis) * dimension_padding);
                     out->set<std::string>("concatAxis", axisToConcat);
