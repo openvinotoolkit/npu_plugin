@@ -60,6 +60,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <transformations/serialize.hpp>
 
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     const std::string& tensorName,
@@ -224,6 +225,16 @@ std::vector<char> compileNGraph(
         if (config.scaleShiftFusing()) {
             passManager.register_pass<FuseScaleShift>();
         }
+
+        if (!config.serializeCNNBeforeCompileFile().empty()) {
+            std::string origFileName = config.serializeCNNBeforeCompileFile();
+            auto baseFileName = (origFileName.substr(origFileName.length() - 4, 4) == ".xml")
+                                ? origFileName.substr(0, origFileName.length() - 4)
+                                : origFileName;
+
+            passManager.register_pass<ngraph::pass::Serialize>(baseFileName + ".xml", baseFileName + ".bin");
+        }
+
         passManager.register_pass<ngraph::pass::ConvertPriorBox>(); // strict requirement: ConvertPriorBox should be first
 
         // TODO: Add passes for rewriting parts of graph
