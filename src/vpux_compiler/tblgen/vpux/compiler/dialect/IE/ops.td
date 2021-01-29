@@ -782,7 +782,7 @@ def IE_ReshapeOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[AnyInteger]>:$shape,
+        RankedTensorOf<[AnyInteger]>:$shape,
 
         UnitAttr:$special_zero
     );
@@ -791,6 +791,7 @@ def IE_ReshapeOp :
         AnyRankedTensor:$output
     );
 
+    let hasCanonicalizer = 1;
     let hasFolder = 1;
 }
 
