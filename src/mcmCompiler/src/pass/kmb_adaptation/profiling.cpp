@@ -24,7 +24,7 @@ namespace mv
 }
 
 void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Control::StageIterator stageIt, const mv::pass::PassEntry& pass,
-                                            mv::ComputationModel& model);
+                                  mv::ComputationModel& model);
 void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, const mv::Element& passDesc, const std::vector<mv::Barrier>& barriers);
 
 
@@ -32,15 +32,12 @@ void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, const mv::E
    and calculate timings between current task value and parent one
    here we recursively going thought all parent branches and looks for the task with the closest layerNumber to the current one */ 
 static mv::Control::OpListIterator findParentDPUorUPATask(mv::Control::OpListIterator opIterator, mv::ControlModel& cm) {
+    auto ret = cm.opEnd();
+    unsigned retLayerNumber = 0;
     for (auto parentOp = opIterator.leftmostParent(); parentOp != cm.opEnd(); ++parentOp) {
         if ((parentOp->getOpType() == "DPUTask") || (parentOp->getOpType() == "UPATask")) {
             return parentOp;
         }
-    }
-
-    auto ret = cm.opEnd();
-    unsigned retLayerNumber = 0;
-    for (auto parentOp = opIterator.leftmostParent(); parentOp != cm.opEnd(); ++parentOp) {
         auto op = findParentDPUorUPATask(parentOp, cm);
         if (op == cm.opEnd()) continue; 
         auto opParentLayerNumber = op->get<unsigned>("layerNumber");
@@ -86,6 +83,8 @@ void AddDMAtoBarrier(mv::Control::OpListIterator barrierOp, std::string dmaName,
     cm.defineFlow(barrierDataOp, profilingDmaOp);
 }
 
+/* The expectation is to have after each DPU/UPA task barrier with oply one producer(corresponding task) 
+ * this function find this barrier */
 static mv::Control::OpListIterator FindSuitableBarrier(mv::Control::OpListIterator opIt, mv::ControlModel &cm, const mv::pass::PassEntry& pass)
 {
     int minProducersCount = std::numeric_limits<int>::max();
