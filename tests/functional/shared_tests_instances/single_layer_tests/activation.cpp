@@ -15,7 +15,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypes {
     ngraph::helpers::Relu,
     ngraph::helpers::Sigmoid,
     ngraph::helpers::HSwish,
-//  ngraph::helpers::Swish, // S#46239: incorrect rank for `beta` tensor for Swish test
+//  ngraph::helpers::Swish, // S#47800: fails with segmentation fault
     ngraph::helpers::Tanh,
     ngraph::helpers::SoftPlus,
     ngraph::helpers::Elu
@@ -83,9 +83,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Elu,      {{1.0f}}},
     {Clamp,    {{-1.0f, 1.0f}}},
     {HSwish,   {{1.0f}}},
-//  {Swish,    {{1.0f}}}, // S#46239: incorrect rank for `beta` tensor for Swish test
-    {PReLu,    {{0.01f}}},
-    {LeakyRelu,{{0.01f}}},
+//  {Swish,    {{1.0f}}}, // S#47800: fails with segmentation fault
     {SoftPlus, {{1.0f}}},
 #if 0 // Unsupported layers
     {Exp,      {{1.0f}}},
@@ -95,7 +93,17 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 #endif
 };
 
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
+    {PReLu,    {{0.01f}}},
+    {LeakyRelu,{{0.01f}}},
+};
+
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
+    {{1, 50, 1, 1}, {{}}},
+    {{1, 128, 1, 1}, {{}}},
+};
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
     {{1, 50, 1, 1}, {{1}, {50}}},
     {{1, 128, 1, 1}, {{1}, {128}}},
 };
@@ -110,6 +118,18 @@ const auto basicCases = ::testing::Combine(
     ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
+const auto basicPReluCases = ::testing::Combine(
+    ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)),
+    ::testing::ValuesIn(netPrecisions),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Test, KmbActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Test_PRelu, KmbActivationLayerTest, basicPReluCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace
