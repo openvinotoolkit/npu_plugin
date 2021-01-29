@@ -1023,6 +1023,15 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP32) {
             0.3f);
 }
 
+TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
+    runTest(
+    TestNetworkDesc("KMB_models/FP16-INT8/public/aclnet-des-53-vpu/aclnet-des-53-vpu.xml")
+        .setUserInputPrecision("input", Precision::FP16),
+    TestBinFileDesc("vpu/audio_16k/airplane_3_17-FP16.bin", {1, 1, 1, 16000}, Precision::FP16),
+        1,
+        0.3f);
+}
+
 // Compilation time is about 18 minutes
 TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
     runTest(
