@@ -527,6 +527,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                     hdeDef->blockSize = blockSize;
                     hdeDef->maxNumberEncodedSymbols = maxNumberEncodedSymbols;
                     hdeDef->bypassMode = bypassMode;
+                    hdeDef->codecName = mv::CodecType::HDE;
 
                     codecDef_ = hdeDef;
                 }
@@ -582,6 +583,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                     btcDef->bufferAlignment = bufferAlignment;
                     btcDef->bitmapPreprocEnable = bitmapPreprocEnable;
                     btcDef->bypassMode = bypassMode;
+                    btcDef->codecName = mv::CodecType::BTC;
 
                     codecDef_ = btcDef;
 
@@ -662,6 +664,11 @@ mv::Target mv::TargetDescriptor::getTarget() const
 mv::DType mv::TargetDescriptor::getDType() const
 {
     return globalDType_;
+}
+
+mv::CodecType mv::TargetDescriptor::getCodecName() const
+{
+    return codecDef_->codecName;
 }
 
 const std::map<std::string, mv::TargetDescriptor::MemoryDescriptor>& mv::TargetDescriptor::memoryDefs() const

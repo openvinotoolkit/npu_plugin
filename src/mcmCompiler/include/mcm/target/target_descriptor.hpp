@@ -29,6 +29,13 @@ namespace mv
         Unknown
     };
 
+    enum class CodecType
+    {
+        HDE,
+        BTC,
+        Unknown
+    };
+
     struct WorkloadConfig
     {
         std::vector<std::size_t> validZTiles;
@@ -38,6 +45,8 @@ namespace mv
 
     struct CodecDescriptor
     {
+        CodecType codecName;
+
         CodecDescriptor() {}
         virtual ~CodecDescriptor() {}
     };
@@ -117,6 +126,7 @@ namespace mv
 
         Target getTarget() const;
         DType getDType() const;
+        CodecType getCodecName() const;
 
         mv::Element getSerialDefinition(std::string op_name, std::string platform_name) const;
         const GeneralTargetConfigs& generalTargetConfigs() const;

@@ -143,13 +143,13 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
 
 mv::RuntimeModel::RuntimeModel(const mv::TargetDescriptor& td)
 {
-    if (td.getTarget() == mv::Target::ma2490)
+    if (td.getCodecName() == mv::CodecType::HDE)
     {
         auto hdeDef = std::dynamic_pointer_cast<mv::HdeDescriptor>(td.codecDef());
         auto hde = new Hde(hdeDef->bitPerSymbol, hdeDef->maxNumberEncodedSymbols, 0, hdeDef->blockSize, false, hdeDef->bypassMode);
         codec_.reset(hde);
     }
-    else if (td.getTarget() == mv::Target::ma3720)
+    else if (td.getCodecName() == mv::CodecType::BTC)
     {
         auto btcDef = std::dynamic_pointer_cast<mv::BTCDescriptor>(td.codecDef());
         auto btc = new BTC(btcDef->bufferAlignment, btcDef->bitmapPreprocEnable, false, btcDef->bypassMode, 0);
