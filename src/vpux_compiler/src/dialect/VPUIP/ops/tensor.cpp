@@ -37,13 +37,19 @@ void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::Opera
     );
 }
 
+void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type memory,
+                                         VPUIP::MemoryLocation locale, uint32_t localeIndex, uint64_t dataIndex) {
+    build(builder, state, memory, locale, getInt32Attr(builder.getContext(), localeIndex), dataIndex,
+          nullptr,  // sparsityIndex
+          nullptr,  // storageElementIndex
+          nullptr,  // storageElementSize
+          nullptr,  // leadingOffset
+          nullptr   // trailingOffset
+    );
+}
+
 mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
     const auto locale = op.locale();
-
-    if (locale == MemoryLocation::ProgrammableInput || locale == MemoryLocation::ProgrammableOutput ||
-        locale == MemoryLocation::GraphFile) {
-        return errorAt(op, "MemoryLocation '{0}' can't be used for temporary tensor", locale);
-    }
 
     // TODO: check localeIndex
 

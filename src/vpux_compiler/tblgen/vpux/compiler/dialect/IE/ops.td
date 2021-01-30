@@ -91,7 +91,10 @@ def IE_CNNNetworkOp :
     );
 
     let extraClassDeclaration = [{
+        size_t getNetInputsCount();
         vpux::SmallVector<vpux::IE::DataInfoOp, 1> getInputsInfo();
+
+        size_t getNetOutputsCount();
         vpux::SmallVector<vpux::IE::DataInfoOp, 1> getOutputsInfo();
 
         static void getFromModule(

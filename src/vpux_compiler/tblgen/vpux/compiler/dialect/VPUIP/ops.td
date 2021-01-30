@@ -116,6 +116,9 @@ def VPUIP_DeclareTensorOp :
     let builders = [
         OpBuilderDAG<
             (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint64_t":$dataIndex)
+        >,
+        OpBuilderDAG<
+            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint32_t":$localeIndex, "uint64_t":$dataIndex)
         >
     ];
 
@@ -124,7 +127,7 @@ def VPUIP_DeclareTensorOp :
     }];
 
     let assemblyFormat = [{
-        $locale (`[` $localeIndex^ `]`)? `<` $dataIndex `>` attr-dict `->` type(results)
+        $locale (` ` `[` $localeIndex^ `]`)? `<` $dataIndex `>` attr-dict `->` type(results)
     }];
 }
 
@@ -975,7 +978,7 @@ def VPUIP_PReluUPAOp :
             "PReluUPA",
             [
                 DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<PReluLayerInterface>,
+		DeclareOpInterfaceMethods<PReluLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
         > {
@@ -1020,7 +1023,7 @@ def VPUIP_LeakyReluUPAOp :
             "LeakyReluUPA",
             [
                 SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>,
+		DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
