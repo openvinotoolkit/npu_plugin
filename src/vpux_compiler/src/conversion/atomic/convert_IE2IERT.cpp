@@ -47,11 +47,14 @@ public:
 public:
     class ConstantRewrite;
     class QuantRewrite;
+    class LinalgReshapeRewrite;
+    class GenericReshapeRewrite;
     class LayerRewrite;
 
 public:
     static const mlir::PatternBenefit genericBenefit;
-    static const mlir::PatternBenefit specificBenefit;
+    static const mlir::PatternBenefit specificBenefitLow;
+    static const mlir::PatternBenefit specificBenefitHigh;
 
 public:
     static SmallVector<mlir::Value> allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
@@ -65,7 +68,8 @@ private:
 };
 
 const mlir::PatternBenefit ConvertIE2IERTPass::genericBenefit(1);
-const mlir::PatternBenefit ConvertIE2IERTPass::specificBenefit(2);
+const mlir::PatternBenefit ConvertIE2IERTPass::specificBenefitLow(2);
+const mlir::PatternBenefit ConvertIE2IERTPass::specificBenefitHigh(3);
 
 void ConvertIE2IERTPass::runOnFunction() {
     try {
@@ -100,7 +104,7 @@ SmallVector<mlir::Value> ConvertIE2IERTPass::allocateResults(mlir::Location loc,
 class ConvertIE2IERTPass::ConstantRewrite final : public mlir::OpConversionPattern<IE::ConstantOp> {
 public:
     ConstantRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<IE::ConstantOp>(typeConverter, ctx, specificBenefit), _log(log) {
+            : mlir::OpConversionPattern<IE::ConstantOp>(typeConverter, ctx, specificBenefitHigh), _log(log) {
     }
 
 public:
@@ -133,7 +137,7 @@ mlir::LogicalResult ConvertIE2IERTPass::ConstantRewrite::matchAndRewrite(
 class ConvertIE2IERTPass::QuantRewrite final : public mlir::ConversionPattern {
 public:
     QuantRewrite(mlir::TypeConverter& typeConverter, Logger log)
-            : mlir::ConversionPattern(specificBenefit, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
+            : mlir::ConversionPattern(specificBenefitHigh, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
     }
 
 public:
@@ -181,6 +185,90 @@ mlir::LogicalResult ConvertIE2IERTPass::QuantRewrite::matchAndRewrite(mlir::Oper
             });
 
     rewriter.replaceOp(origOp, allocatedBufs);
+
+    return mlir::success();
+}
+
+//
+// LinalgReshapeRewrite
+//
+
+class ConvertIE2IERTPass::LinalgReshapeRewrite final : public mlir::OpConversionPattern<mlir::linalg::TensorReshapeOp> {
+public:
+    LinalgReshapeRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<mlir::linalg::TensorReshapeOp>(typeConverter, ctx, specificBenefitHigh),
+              _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(mlir::linalg::TensorReshapeOp origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertIE2IERTPass::LinalgReshapeRewrite::matchAndRewrite(
+        mlir::linalg::TensorReshapeOp origOp, ArrayRef<mlir::Value> newOperands,
+        mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found TensorReshape Operation '{0}'", origOp->getLoc());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    VPUX_THROW_UNLESS(newOperands.size() == 1, "Got wrong newOperands size : '{0}'", newOperands.size());
+
+    const auto newType = typeConverter->convertType(origOp.getType());
+
+    rewriter.replaceOpWithNewOp<mlir::linalg::ReshapeOp>(origOp, newType, newOperands[0], origOp.reassociation());
+
+    return mlir::success();
+}
+
+//
+// ReshapeRewrite
+//
+
+class ConvertIE2IERTPass::GenericReshapeRewrite final : public mlir::ConversionPattern {
+public:
+    GenericReshapeRewrite(mlir::TypeConverter& typeConverter, Logger log)
+            : mlir::ConversionPattern(specificBenefitLow, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertIE2IERTPass::GenericReshapeRewrite::matchAndRewrite(
+        mlir::Operation* origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
+    if (!mlir::isa<mlir::ViewLikeOpInterface>(origOp)) {
+        return mlir::failure();
+    }
+    if (origOp->getNumResults() != 1) {
+        return mlir::failure();
+    }
+
+    _log.trace("Found ViewLike Operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+
+    const auto outType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
+
+    if (!outType.hasStaticShape()) {
+        _log.nest().trace("Dynamic shapes are not supported yet");
+        return mlir::failure();
+    }
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    const auto newOutType = typeConverter->convertType(outType);
+
+    VPUX_THROW_UNLESS(!newOperands.empty(), "Got wrong newOperands size : '{0}'", newOperands.size());
+
+    rewriter.replaceOpWithNewOp<IERT::GenericReshapeOp>(origOp, newOutType, newOperands[0]);
 
     return mlir::success();
 }
@@ -252,13 +340,17 @@ void ConvertIE2IERTPass::passBody() {
     target.addLegalDialect<IERT::IERTDialect>();
     target.addIllegalDialect<IE::IEDialect>();
     target.addIllegalDialect<mlir::quant::QuantizationDialect>();
+    target.addIllegalOp<mlir::linalg::TensorReshapeOp>();
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp, IE::EndOp>();
     target.addLegalOp<mlir::AllocOp>();
+    target.addLegalOp<mlir::linalg::ReshapeOp>();
     mlir::populateBufferizeMaterializationLegality(target);
 
     mlir::OwningRewritePatternList patterns;
     patterns.insert<ConstantRewrite>(typeConverter, &ctx, _log.nest());
     patterns.insert<QuantRewrite>(typeConverter, _log.nest());
+    patterns.insert<LinalgReshapeRewrite>(typeConverter, &ctx, _log.nest());
+    patterns.insert<GenericReshapeRewrite>(typeConverter, _log.nest());
     patterns.insert<LayerRewrite>(typeConverter, _log.nest());
 
     auto func = getFunction();

@@ -188,3 +188,11 @@ mlir::OpFoldResult vpux::IE::UnsqueezeOp::fold(ArrayRef<mlir::Attribute> operand
 
     return nullptr;
 }
+
+//
+// ViewLikeInterface
+//
+
+mlir::Value vpux::IE::UnsqueezeOp::getViewSource() {
+    return input();
+}

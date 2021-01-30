@@ -31,6 +31,7 @@
 #include <mlir/Interfaces/CastInterfaces.h>
 #include <mlir/Interfaces/InferTypeOpInterface.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
+#include <mlir/Interfaces/ViewLikeInterface.h>
 
 //
 // Generated

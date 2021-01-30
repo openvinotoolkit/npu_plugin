@@ -24,6 +24,7 @@ include "vpux/compiler/dialect/IE/attributes.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 
 //
@@ -776,7 +777,10 @@ def IE_EluOp :
 
 def IE_ReshapeOp :
         IE_LayerOp<
-            "Reshape"
+            "Reshape",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Reshape layer";
 
@@ -801,7 +805,10 @@ def IE_ReshapeOp :
 
 def IE_SqueezeOp :
         IE_LayerOp<
-            "Squeeze"
+            "Squeeze",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Squeeze layer";
 
@@ -874,7 +881,10 @@ def IE_LRNOp :
 
 def IE_UnsqueezeOp :
         IE_LayerOp<
-            "Unsqueeze"
+            "Unsqueeze",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+            ]
         > {
 
     let summary = "InferenceEngine Unsqueeze layer";

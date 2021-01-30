@@ -378,3 +378,11 @@ mlir::OpFoldResult vpux::IE::ReshapeOp::fold(ArrayRef<mlir::Attribute> operands)
 
     return nullptr;
 }
+
+//
+// ViewLikeInterface
+//
+
+mlir::Value vpux::IE::ReshapeOp::getViewSource() {
+    return input();
+}

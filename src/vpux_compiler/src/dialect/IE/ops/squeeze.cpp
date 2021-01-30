@@ -215,3 +215,11 @@ mlir::OpFoldResult vpux::IE::SqueezeOp::fold(ArrayRef<mlir::Attribute> operands)
 
     return nullptr;
 }
+
+//
+// ViewLikeInterface
+//
+
+mlir::Value vpux::IE::SqueezeOp::getViewSource() {
+    return input();
+}
