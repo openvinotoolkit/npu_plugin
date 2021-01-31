@@ -222,8 +222,7 @@ private:
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGetBlobReturns) {
     auto inputName = _inputs.begin()->first.c_str();
 
-    ie::Blob::Ptr input;
-    _inferRequest->GetBlob(inputName, input);
+    ie::Blob::Ptr input = _inferRequest->GetBlob(inputName);
     ie::BlobMap inputs = {{inputName, input}};
     EXPECT_CALL(*_executor, push(inputs)).Times(1);
 
@@ -271,8 +270,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetNV12Blob) {
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 
-    ie::Blob::Ptr input;
-    _inferRequest->GetBlob(inputName, input);
+    ie::Blob::Ptr input = _inferRequest->GetBlob(inputName);
     ASSERT_EQ(nv12Input->buffer().as<void*>(), input->buffer().as<void*>());
 }
 
@@ -287,8 +285,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetVPUBlob) {
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 
-    ie::Blob::Ptr input;
-    _inferRequest->GetBlob(inputName, input);
+    ie::Blob::Ptr input = _inferRequest->GetBlob(inputName);
 
     ASSERT_EQ(vpuInput->buffer().as<void*>(), input->buffer().as<void*>());
 }
@@ -308,8 +305,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, DISABLED_CanGetTheSameBlobAfterSetLarge
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 
-    ie::Blob::Ptr input;
-    _inferRequest->GetBlob(inputName, input);
+    ie::Blob::Ptr input = _inferRequest->GetBlob(inputName);
 
     ASSERT_EQ(vpuInput->buffer().as<void*>(), input->buffer().as<void*>());
 }
@@ -325,8 +321,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobMa
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 
-    ie::Blob::Ptr input;
-    _inferRequest->GetBlob(inputName, input);
+    ie::Blob::Ptr input = _inferRequest->GetBlob(inputName);
 
     ASSERT_EQ(inputToSet->buffer().as<void*>(), input->buffer().as<void*>());
 }
@@ -346,8 +341,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, DISABLED_CanGetTheSameBlobAfterSetOrdin
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 
-    ie::Blob::Ptr input;
-    _inferRequest->GetBlob(inputName, input);
+    ie::Blob::Ptr input = _inferRequest->GetBlob(inputName);
 
     ASSERT_EQ(inputToSet->buffer().as<void*>(), input->buffer().as<void*>());
 }
