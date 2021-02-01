@@ -120,3 +120,44 @@ TEST_F(KmbClassifyNetworkTest, experimental_network_0000) {
         "vpu/emotions-recognition-retail-0003.png",
         2, 0.1f);
 }
+
+TEST_F(ModelAdk, precommit_ModelA) {
+    runTest(
+            TestNetworkDesc("ADK3/ModelA_INT8/ModelA_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("output", Precision::FP16),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+            0.0025f);
+}
+
+TEST_F(ModelAdk, ModelE) {
+    runTest(
+            TestNetworkDesc("ADK3/ModelE_INT8/ModelE_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("PostProcess/stage0/x1/Sigmoid", Precision::FP32)
+                    .setUserOutputPrecision("PostProcess/stage0/x4/Sigmoid", Precision::FP32)
+                    .setUserOutputPrecision("PostProcess/stage1/x1/Sigmoid", Precision::FP32)
+                    .setUserOutputPrecision("PostProcess/stage1/x4/Sigmoid", Precision::FP32),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+            0.0025f);
+}
+
+// [Track number: S#47419]
+TEST_F(SmokeNetworkTest, DISABLED_DeBlur) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    runTest(
+            TestNetworkDesc("ADK3/DeBlur_INT8/DeBlur_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("output", Precision::FP16));
+}
+
+// [Track number: S#47647]
+TEST_F(SmokeNetworkTest, DISABLED_SuperResolution_ADK3) {
+    runTest(
+            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("output", Precision::FP16));
+}
