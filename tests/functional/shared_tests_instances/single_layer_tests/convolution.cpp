@@ -13,13 +13,59 @@ namespace LayerTestsDefinitions {
 
 class KmbConvolutionLayerTest: public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
-            // Disabled for now due to hw incompatible dtype combination
-            // U8 input and FP16 weights
-            // Future PR will provide a mitigation and renable this test case
-            // Issue to track: CVS-39964
-            throw LayerTestsUtils::KmbSkipTestException("HW incompatible dtype combination with MCM compiler");
-        }
+        if (envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER)
+            return;
+
+        convSpecificParams convParams;
+        InferenceEngine::Precision netPrecision;
+        InferenceEngine::Precision inPrc, outPrc;
+        InferenceEngine::Layout inLayout, outLayout;
+        InferenceEngine::SizeVector inputShapes;
+        std::string targetDevice;
+        std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) =
+                GetParam();
+        ngraph::op::PadType padType;
+        InferenceEngine::SizeVector kernel, stride, dilation;
+        std::vector<ptrdiff_t> padBegin, padEnd;
+        size_t convOutChannels;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+
+        if (dilation.size() == 2 && dilation[0] != dilation[1])
+            throw LayerTestsUtils::KmbSkipTestException("MCM supports only symmetric dilations");
+
+        // Disabled for now due to hw incompatible dtype combination
+        // U8 input and FP16 weights
+        // Future PR will provide a mitigation and renable this test case
+        // Issue to track: CVS-39964
+    }
+
+    void SkipBeforeInfer() override {
+        if (envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER)
+            return;
+
+        convSpecificParams convParams;
+        InferenceEngine::Precision netPrecision;
+        InferenceEngine::Precision inPrc, outPrc;
+        InferenceEngine::Layout inLayout, outLayout;
+        InferenceEngine::SizeVector inputShapes;
+        std::string targetDevice;
+        std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) =
+                GetParam();
+        ngraph::op::PadType padType;
+        InferenceEngine::SizeVector kernel, stride, dilation;
+        std::vector<ptrdiff_t> padBegin, padEnd;
+        size_t convOutChannels;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+
+        if (stride.size() == 2 && stride[0] != stride[1])
+            throw LayerTestsUtils::KmbSkipTestException("Infers hang with non-symmetric strides");
+    }
+
+    void SkipBeforeValidate() override {
+        if (envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER)
+            return;
+
+        throw LayerTestsUtils::KmbSkipTestException("Comparisons fail");
     }
 };
 
@@ -34,7 +80,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP16
+    InferenceEngine::Precision::FP16, InferenceEngine::Precision::U8
 };
 
 const InferenceEngine::Precision inPrc = InferenceEngine::Precision::UNSPECIFIED;
