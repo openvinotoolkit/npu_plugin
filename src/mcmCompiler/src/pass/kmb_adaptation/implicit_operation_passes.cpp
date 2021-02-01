@@ -251,7 +251,12 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     }
 
                     if (compensatorOutput->hasAttr("quantParams"))
-                        compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(), inQuantParams.getMult());
+                    {
+                        if (inQuantParams.hasAttr("shift") && inQuantParams.hasAttr("mult"))
+                        {
+                            compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(), inQuantParams.getMult());
+                        }
+                    }
 
                     compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
                     auto sinkIdx = sourceFlow->get<std::size_t>("sinkInput");
@@ -317,7 +322,12 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                                                         0);
 
                 if (compensatorOutput->hasAttr("quantParams"))
-                    compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(outQuantParams.getShift(), outQuantParams.getMult());
+                {
+                    if (outQuantParams.hasAttr("shift") && outQuantParams.hasAttr("mult"))
+                    {
+                        compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(outQuantParams.getShift(), outQuantParams.getMult());
+                    }
+                }
 
                 // For a slice with "force_slice_in_DDR" attribute DMA is injected just to have the tensor go through DDR and then back to CMX.
                 // In such case "broadcast" attribute should be set in the DMA input tensor in case it was in input to slice operation to have
