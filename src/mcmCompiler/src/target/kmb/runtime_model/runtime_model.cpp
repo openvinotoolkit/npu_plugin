@@ -490,19 +490,46 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
 
         auto quantZero = quantizationParams.getZeroPoint();
-        toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+        if (quantZero.size() > 0)
+        {
+            toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+        }
+        else
+        {
+            Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "no zeropoints are specifed");
+        }
 
         std::vector<unsigned> quantMult = {};
         if (quantizationParams.hasAttr("mult"))
+        {
             quantMult = quantizationParams.getMult();
-        quantMult = reduceQuantVector_(quantMult);
-        toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+        
+            if (quantMult.size() > 0)
+            {
+                quantMult = reduceQuantVector_(quantMult);
+                toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+            }
+            else
+            {
+                Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "no mults are specified");
+            }
+        }
 
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
+        {
             quantShift = quantizationParams.getShift();
-        quantShift = reduceQuantVector_(quantShift);
-        toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+        
+            if (quantShift.size() > 0)
+            {
+                quantShift = reduceQuantVector_(quantShift);
+                toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+            }
+            else
+            {
+                Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "no shifts are specified");
+            }
+        }
         toBuild->quant_post_shift_right = quantizationParams.getPostShift();
     }
 

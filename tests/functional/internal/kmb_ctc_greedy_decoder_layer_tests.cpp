@@ -44,8 +44,8 @@ TEST_P(KmbCTCDecoderLayerTests, DISABLED_accuracy) {
     const auto layout = p.layout();
 
     const auto userInDesc = TensorDesc(Precision::U8, dims, layout);
-    const auto seqIndDesc = TensorDesc(Precision::FP16, {1, 1, dims[2], dims[1]}, Layout::NHWC);
-    const auto userOutDesc = TensorDesc(Precision::FP32, {1, 1, 1, dims[1]}, layout);
+    const auto seqIndDesc = TensorDesc(Precision::FP16, {dims[1], 1}, Layout::HW);
+    const auto userOutDesc = TensorDesc(Precision::FP32, {1, dims[1], 1, 1}, Layout::NCHW);
 
     const auto tolerance = 1e-3f;
 
@@ -78,8 +78,8 @@ TEST_P(KmbCTCDecoderLayerTests, DISABLED_accuracy) {
 
 const std::vector<CTCDecoderTestParams> ctcParams = {
     CTCDecoderTestParams()
-            .dims({1, 88, 1, 71})
-            .layout(Layout::NCHW)
+            .dims({88, 1, 71})
+            .layout(Layout::CHW)
 };
 
 const std::vector<UseCustomLayers> CustomLayersParams = {
