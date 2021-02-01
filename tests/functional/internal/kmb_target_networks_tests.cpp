@@ -999,7 +999,7 @@ TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
             .setUserInputPrecision("input", Precision::U8),
         TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
         0.3f,
-        0.1f, 0.3f);
+        0.1f, 0.35f);
 }
 
 // [Track number: D#45024]
