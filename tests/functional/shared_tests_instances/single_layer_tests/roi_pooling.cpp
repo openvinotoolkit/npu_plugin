@@ -14,6 +14,9 @@ namespace LayerTestsDefinitions {
         void Infer() override {
             ROIPoolingLayerTest::Infer();
         }
+        void GenerateInputs() override {
+            KmbLayerTestsCommon::GenerateInputs();
+        }
         void SkipBeforeLoad() override {
             if (envConfig.IE_KMB_TESTS_RUN_INFER) {
                 // [Track number: S#44493]
