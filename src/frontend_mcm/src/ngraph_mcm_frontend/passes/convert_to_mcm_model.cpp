@@ -87,6 +87,7 @@
 #include <ngraph/op/hswish.hpp>
 #include <ngraph/op/softplus.hpp>
 #include <ngraph/op/pad.hpp>
+#include <ngraph/op/mish.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -572,6 +573,16 @@ void convert(std::shared_ptr<ngraph::op::v4::SoftPlus> softplus, mv::OpModel& mc
     IE_ASSERT(1u == mcmInputs.size());
     const auto mcmOpOutput = mcmModel.softPlus(softplus->get_friendly_name(), mcmInputs.at(0));
     registerOutputs(softplus, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v4::Mish> mish, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(mish, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto& opName = mish->get_friendly_name();
+    const auto& opInput = mcmInputs.at(0);
+    const auto mcmOpOutput = mcmModel.mish(opName, opInput);
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(mish, {mcmOpOutput}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<McmEltwise> eltwise, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -1725,6 +1736,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::StridedSlice),
     MAP_ENTRY(ngraph::op::v4::HSwish),
     MAP_ENTRY(ngraph::op::SwishIE),
+    MAP_ENTRY(ngraph::op::v4::Mish),
     MAP_ENTRY(ngraph::op::TileIE),
     MAP_ENTRY(ngraph::op::v1::VariadicSplit),
     MAP_ENTRY(ngraph::op::CTCGreedyDecoder),
