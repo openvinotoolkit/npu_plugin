@@ -9,6 +9,9 @@
 namespace LayerTestsDefinitions {
 
 class KmbDetectionOutputLayerTest: public DetectionOutputLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void GenerateInputs() override {
+        KmbLayerTestsCommon::GenerateInputs();
+    }
     void Infer() override {
         DetectionOutputLayerTest::Infer();
     }
