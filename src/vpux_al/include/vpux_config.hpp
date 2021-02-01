@@ -80,7 +80,7 @@ protected:
     // Public options
     bool _performanceCounting = false;
     std::string _deviceId = "VPU-0";
-    int _throughputStreams = 2;
+    int _throughputStreams = 4;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
 
     // Private options
