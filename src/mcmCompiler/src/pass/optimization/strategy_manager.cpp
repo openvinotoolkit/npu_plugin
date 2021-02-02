@@ -366,30 +366,67 @@ std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(Criti
     return locationStrategyList;
 }
 
-std::vector<mv::Element> StrategyManager::convertSparsityStrategyToElement(CriticalPathNodes &strategiesToConvert){
+std::vector<mv::Element> StrategyManager::convertSparsityStrategyToElement(CriticalPathNodes &strategiesToConvert, std::shared_ptr<mv::Element> compDesc){
     log(Logger::MessageType::Debug, "GraphOptimizer: Converting Sparsity Strategies to Element");
 
-    mv::Element copyLElement("");
     std::vector<mv::Element> sparsityStrategyList;
 
-    for(auto elem: strategiesToConvert)
+    if(!compDesc->hasAttr("sparsity_strategy"))
+    { 
+        mv::Element copyLElement("");
+
+        for(auto elem: strategiesToConvert)
+        {
+            auto& strategy = *elem;
+            auto inputActivationSparsity = strategy["inputSparsity"].get<bool>();
+            auto outputActivationSparsity = strategy["outputSparsity"].get<bool>();
+            auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
+            auto opName   = strategy["name"].get<string>();
+
+            auto op = model_.getOp(opName);
+
+            copyLElement.set("inputActivationSparsity",inputActivationSparsity);
+            copyLElement.set("outputActivationSparsity",outputActivationSparsity);
+            copyLElement.set("weightsSparsity",weightsSparsity);
+            copyLElement.set("name_filter", opName);
+
+            sparsityStrategyList.push_back(copyLElement);
+        }
+
+        return sparsityStrategyList;
+    }
+
+    sparsityStrategyList = compDesc->get<std::vector<mv::Element>>("sparsity_strategy");
+    //determine if node already has streaming strategy from JSON text, do not override text specification
+    std::unordered_set<std::string> hasSpec;
+    for (const auto& s : sparsityStrategyList)
+    {
+        if( (s.hasAttr("inputActivationSparsity")) ||
+            (s.hasAttr("outputActivationSparsity")) ||
+            (s.hasAttr("weightsSparsity")) )
+                hasSpec.emplace(s.get<std::string>("name_filter"));
+    }
+
+    //cast sparsity strategy into Element
+    mv::Element copyElement("");
+
+    for (const auto& elem : strategiesToConvert)
     {
         auto& strategy = *elem;
         auto inputActivationSparsity = strategy["inputSparsity"].get<bool>();
         auto outputActivationSparsity = strategy["outputSparsity"].get<bool>();
         auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
         auto opName   = strategy["name"].get<string>();
+        if ( hasSpec.find(opName) == hasSpec.cend())
+        {
+            copyElement.set("inputActivationSparsity",inputActivationSparsity);
+            copyElement.set("outputActivationSparsity",outputActivationSparsity);
+            copyElement.set("weightsSparsity",weightsSparsity);
+            copyElement.set("name_filter", opName);
 
-        auto op = model_.getOp(opName);
-
-        copyLElement.set("inputActivationSparsity",inputActivationSparsity);
-        copyLElement.set("outputActivationSparsity",outputActivationSparsity);
-        copyLElement.set("weightsSparsity",weightsSparsity);
-        copyLElement.set("name_filter", opName);
-
-        sparsityStrategyList.push_back(copyLElement);
+            sparsityStrategyList.push_back(copyElement);
+        }
     }
-
     return sparsityStrategyList;
 }
 
@@ -478,7 +515,7 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
     std::vector<mv::Element> streamingStrategyElements = convertStreamingStrategyToElement(criticalPathNodes, globalParams);
     std::vector<mv::Element> multiClusterStrategyElements = convertClusteringStrategyToElement(criticalPathNodes, globalParams);
     std::vector<mv::Element> locationStrategyElements = convertLocationStrategyToElement(criticalPathNodes);
-    std::vector<mv::Element> sparsityStrategyElements = convertSparsityStrategyToElement(criticalPathNodes);
+    std::vector<mv::Element> sparsityStrategyElements = convertSparsityStrategyToElement(criticalPathNodes, globalParams);
     std::vector<mv::Element> pipeliningStrategyElements = convertPipeliningStrategyToElement(criticalPathNodes);
 
     if (enableSaveStrategyToDescriptor)
