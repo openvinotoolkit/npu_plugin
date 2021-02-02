@@ -380,7 +380,18 @@ bool mv::BaseOpModel::getImplicitPath(
         std::back_inserter(path), implicit_op_selector_t());
 }
 
+bool mv::BaseOpModel::getPath(Data::OpListIterator u, Data::OpListIterator v,
+             std::vector<Data::OpListIterator>& path) {
+    typedef mv::Path_Splitter<mv::BaseOpModel, mv::OpModel_Path_Update_Traits>
+        path_splitter_t;
+    typedef typename path_splitter_t::traits::all_op_selector_t all_op_selector_t;
 
+    path_splitter_t path_splitter(*this);
+
+    path.clear();
+    return path_splitter.find_internal_nodes_on_path_between(u, v,
+          std::back_inserter(path), all_op_selector_t());
+}
 
 template<typename OpSubsetIterator, typename NodeSelector>
 bool mv::BaseOpModel::pathSplit(mv::Data::OpListIterator u,
