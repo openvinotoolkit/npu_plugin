@@ -31,4 +31,5 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     IE::inference_engine_plugin_api
     opencv_core opencv_imgproc opencv_imgcodecs
     gflags
+    kmb_utils
 )
