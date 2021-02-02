@@ -906,6 +906,12 @@ class Operation_Dag {
             // newly discovered node //
             bfs_list.push_back(child_op);
           }
+
+          if (child_op->getName() ==
+              "mobilenet_v1/MobilenetV1/Conv2d_1_depthwise/BiasAdd/Add") {
+            printf("contribution [%s] = %lu\n", curr_op->getName().c_str(),
+                curr_op_utility);
+          }
           itr->second += curr_op_utility;
         }
 
@@ -1378,6 +1384,8 @@ class Operation_Dag {
 
       // add pseudo edges //
       add_pseudo_edges_from_model(model);
+      printf("[Updating resource utility for memory context]\n");
+      update_resource_utility_with_attribute_all_ops("memory_context_utility");
     }
 
   public:
@@ -1533,6 +1541,21 @@ class Operation_Dag {
       for (mv::Data::FlowListIterator eitr=dm.flowBegin(); eitr!=dm.flowEnd();
             ++eitr) {
         if (eitr->hasAttr("pseudo_data_flow")) {
+          edges_to_drop.push_back(eitr);
+        }
+      }
+
+      for (mv::Data::FlowListIterator eitr : edges_to_drop) {
+        om.undefineFlow(eitr);
+      }
+    }
+    
+    void drop_all_resource_control_edges(mv::OpModel& om) {
+      mv::DataModel dm(om);
+      std::list<mv::Data::FlowListIterator> edges_to_drop;
+      for (mv::Data::FlowListIterator eitr=dm.flowBegin(); eitr!=dm.flowEnd();
+            ++eitr) {
+        if (eitr->hasAttr("resource_control_flow")) {
           edges_to_drop.push_back(eitr);
         }
       }

@@ -196,6 +196,13 @@
             "DMAOrdering",
             "BuildGraphFileKmb",
             {
+                "name": "GenerateDot",
+                "output": "output_new/dots/before_serialization_control.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
             }

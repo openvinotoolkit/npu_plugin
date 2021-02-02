@@ -48,6 +48,7 @@
               "select_stages" : 2
             },
             "PipeLineAcrossParallelBranches",
+            "MemContextForHugeActivations",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,

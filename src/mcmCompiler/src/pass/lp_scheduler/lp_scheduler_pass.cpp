@@ -107,7 +107,6 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     return;
   }
 
-
   mv::OpModel cm(model);
   dag_t input_dag;
   auto params = model.getGlobalConfigParams();
@@ -154,6 +153,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         std::back_inserter(exceeding_ops));
 
     for (auto itr=exceeding_ops.begin(); itr!=exceeding_ops.end(); ++itr) {
+      printf("[Exceeding Op: %s demand=%lu\n", (itr->first)->getName().c_str(),
+          itr->second);
       pass.log(mv::Logger::MessageType::Info,
           " Exceeding Op: " + (itr->first)->getName() +
           " with resources:# " + (std::to_string(itr->second)));
@@ -225,6 +226,40 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       cm.removeOp(oitr);
     }
   }
+  
+  {
+    // derive addresses for memory context ops //
+    std::unordered_map<std::string, size_t> memory_context_rep;
+    for (scheduled_op_t& sop : scheduled_ops) {
+      mv::Data::OpListIterator sop_itr = cm.getOp((sop.op_)->getName());
+      if (sop_itr->hasAttr("memory_context_rep") &&
+          (sop_itr->get<std::string>("memory_context_rep")
+            == sop_itr->getName()) ){
+          memory_context_rep[(sop.op_)->getName()] = sop.cmx_address_start_;
+      }
+    }
+    // now add this address //
+    for (scheduled_op_t& sop : scheduled_ops) {
+      mv::Data::OpListIterator sop_itr = cm.getOp((sop.op_)->getName());
+      if (sop_itr->hasAttr("memory_context_rep")){
+        std::string rep_name = sop_itr->get<std::string>("memory_context_rep");
+        size_t base_address = memory_context_rep[rep_name];
+        size_t offset = sop_itr->get<size_t>("memory_context_offset");
+        size_t actual_size =
+            sop_itr->get<size_t>("actual_size_inside_memory_context");
+        if (actual_size) {
+          sop.cmx_address_start_ = base_address + offset;
+          sop.cmx_address_end_ = (sop.cmx_address_start_ + actual_size)-1UL;
+        }
+      }
+    }
+  }
+
+
+  
+
+
+
 
   // drop all pseudo edges from input_dag and model //
   {
@@ -448,5 +483,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       }
     }
     fclose(fptr);
+  }
+
+  {
+    mv::OpModel omodel(model);
+    input_dag.drop_all_resource_control_edges(omodel);
   }
 }

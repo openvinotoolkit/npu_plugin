@@ -73,8 +73,11 @@ namespace mv
     };
 
     inline bool isDebugFilesEnabled() {
+      return true;
+      /*
         const auto level = Logger::getVerboseLevel();
         return (VerboseLevel::Error != level && VerboseLevel::Silent != level);
+        */
     }
 }
 
