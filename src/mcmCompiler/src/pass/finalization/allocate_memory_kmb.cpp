@@ -419,6 +419,9 @@ static std::map<std::string,std::string> location2Allocator =
         { "BLOB", "GraphFile"}
 };
 
+// NOTE: Case of ImplicitConcat to ImplicitConcat with only Implicit Ops in between, which
+// do not have an effect on tensor location needed in order for correct tensor allocation
+// and prevention of tensors being overwritten
 bool propagateToSlaves(mv::OpModel& om, mv::Data::TensorIterator input_tensor)
 {
     // Implicit Source Ops have no effect, iterate back to Concrete Source Op
