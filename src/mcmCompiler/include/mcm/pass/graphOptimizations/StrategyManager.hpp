@@ -185,7 +185,7 @@ public:
     std::vector<mv::Element> convertStreamingStrategyToElement(CriticalPathNodes& strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
     std::vector<mv::Element> convertClusteringStrategyToElement(CriticalPathNodes& strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
     std::vector<mv::Element> convertLocationStrategyToElement(CriticalPathNodes& strategiesToConvert);
-    std::vector<mv::Element> convertSparsityStrategyToElement(CriticalPathNodes& strategiesToConvert);
+    std::vector<mv::Element> convertSparsityStrategyToElement(CriticalPathNodes& strategiesToConvert,std::shared_ptr<mv::Element> compDesc);
     std::vector<mv::Element> convertPipeliningStrategyToElement(CriticalPathNodes &strategiesToConvert);
     void saveStrategyToJsonFile(std::vector<mv::Element> &stategiesToSave,std::string jsonOutputFileName);
     void saveStrategyToCompilationDescriptor(vector<mv::Element> &stategiesToSave, std::shared_ptr<mv::Element> compDesc);

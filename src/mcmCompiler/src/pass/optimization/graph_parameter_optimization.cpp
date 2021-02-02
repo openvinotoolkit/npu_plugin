@@ -753,44 +753,28 @@ namespace mv
 
             bool decideWeightsSparsity(mv::Op op)
             {
-                //These values come from empircal data using three layer tests, in a matrix of size vs. sparsity
-                //For performance, implemented as piece-wise if/else rather than polynomial
-                double CMX_THRESHOLD_LOW = .05;
-                double CMX_THRESHOLD_HIGH = .5;
-                double ZEROPOINT_THRESHOLD_LOW = .3;
-                double ZEROPOINT_THRESHOLD_HIGH = .2;
-
                 // Only Z-major convolutions support weights sparsity, this is codified in the compilation descriptors
                 if( !createStrategyFromBool(op,"weightsSparsity") )
                     return false;
 
                 // If CM convolutions are enabled, don't sparsify these
-                if(enableChannelMajorConv && op.getOpType() == "Conv" &&
-                   op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
+                if(enableChannelMajorConv && op.supportsCMConv())
                     return false;
 
-                //Size of weights, actual sparsity of tensor determine speedup
+                // Size of weights, actual sparsity of tensor determine speedup
                 auto weightsSize = realTensorSize(op.getInputTensor(1), {1,1,1,1}, false);
-
-                //If weights are less than 5% of CMX, sparsity benefit does not outweigh overhead
-                //no matter how sparse the weights are
-                if(weightsSize < (clusterMemory * CMX_THRESHOLD_LOW))
-                    return false;
-
-                auto zeroPoints = op.getInputTensor(1)->getNumZeroPoints();
+                auto zeroPoints = op.getInputTensor(1)->getZeroValuesCount();
                 double actualSparsity = (double) zeroPoints/ (double)weightsSize;
 
-                //Weights between 5% and 50% of CMX, enable sparsity at threshold 30% sparse weights
-                if(weightsSize < (clusterMemory * CMX_THRESHOLD_HIGH) &&
-                    actualSparsity < ZEROPOINT_THRESHOLD_LOW)
-                    return false;
+                auto sparsityOverhead = op.getInputTensor(0)->isFloatingPointType() ?
+                    0.0625 : 0.125;
 
-                //Weights larger than 50% of CMX, enable sparsity at threshold 20% sparse weights
-                if(weightsSize >= (clusterMemory * CMX_THRESHOLD_HIGH) &&
-                    actualSparsity < ZEROPOINT_THRESHOLD_HIGH)
-                    return false;
+                // Enable weights sparsity if actual sparsity level observed in the tensor
+                // is high enough to warrant the overhead of enabling sparsity
+                if(std::isgreaterequal(actualSparsity, sparsityOverhead))
+                    return true;
 
-                return true;
+                return false;
             }
 
             bool opInCMX(mv::Op& op, StrategySet& strategy)
