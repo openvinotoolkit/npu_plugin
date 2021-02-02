@@ -810,6 +810,9 @@ TEST_F(GazeEstimationNetworkTest, DISABLED_gaze_estimation_adas_0002) {
 
 class SmokeNetworkTestWithSpecificLayout : public SmokeNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 TEST_P(SmokeNetworkTestWithSpecificLayout, openpose_pose_cf) {
+#ifdef _WIN32
+    SKIP() << "Skip openpose_pose_cf test on windows due to unexpected error during test execution";
+#endif
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/OpenPose/FP16-INT8/openpose-pose_cf_ww22.xml")
             .setUserInputPrecision("image", Precision::U8)
@@ -1005,9 +1008,18 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP16) {
 
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP32) {
     runTest(
-	TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
-	    .setUserInputPrecision("input", Precision::FP32),
-	TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+            TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
+                    .setUserInputPrecision("input", Precision::FP32),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+            1,
+            0.3f);
+}
+
+TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
+    runTest(
+    TestNetworkDesc("KMB_models/FP16-INT8/public/aclnet-des-53-vpu/aclnet-des-53-vpu.xml")
+        .setUserInputPrecision("input", Precision::FP16),
+    TestBinFileDesc("vpu/audio_16k/airplane_3_17-FP16.bin", {1, 1, 1, 16000}, Precision::FP16),
         1,
         0.3f);
 }
@@ -1023,7 +1035,7 @@ TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
 }
 
 // [Track number: D#45024]
-TEST_F(SmokeNetworkTest, text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
+TEST_F(SmokeNetworkTest, precommit_text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
 #ifdef _WIN32
     SKIP() << "SEH exception";
 #endif
@@ -1042,6 +1054,18 @@ TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
             TestNetworkDesc("KMB_models/INT8/public/text-detection-0003/tf/FP16-INT8/text-detection-0003-ww48.xml")
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserOutputPrecision("output", Precision::FP32));
+}
+
+// Prevent DDR2DDR DMA Test
+TEST_F(SmokeNetworkTest, yolo_v4_subgraph_ddr_output_test) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/yolo_v4_subgraph/FP16-INT8/yolo_v4_subgraph.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP16));
 }
 
 
@@ -1064,8 +1088,14 @@ TEST_F(KmbVasFDStage1Test, DISABLED_precommit_vasfd_stage1) {
     0.35f, 0.1f, 0.3f, layerNames, anchorSizes, windowScales, windowLengths);
 }
 
-
+// MemoryAllocator:ProgrammableOutput - ArgumentError:
+// ImplicitOutput_2_conversion:0::Order NCHW - Does not match the order NHWC of
+// the tensor ImplicitOutput_2 already allocated in the given buffer
+// [Track number: D#47570]
 TEST_F(KmbVasFDStage2Test, precommit_vasfd_stage2) {
+#ifdef _WIN32
+    SKIP() << "Order NCHW - Does not match the order NHWC of the tensor";
+#endif
     const std::string inputName = "data";
     const KmbVasFDStage2Test::Candidate candidate = {118.36408299, 50.26568365, 158.98897427, 125.54895544};
     runTest(
@@ -1086,13 +1116,14 @@ TEST_F(KmbVasFRTest, precommit_vasfr_feature) {
 }
 
 // MTL target compilation test
+// [Track number: C#46795]
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8_MTL) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong detection results");//At the moment no EVM is setup so cannot run
+    SKIP() << "LpScheduler - RuntimeError: Precondition violation";
     runTest(
                     TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserInputPrecision("input", Precision::U8)
-                    .setUserOutputPrecision("output", Precision::U8) //currently FP16 is not supported by runtime
+                    .setUserOutputPrecision("output", Precision::U8)  // currently FP16 is not supported by runtime
                     .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_mtl-sc"},
                                        {"VPU_COMPILER_TARGET_DESCRIPTOR", "release_mtl"},
                                        {"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "NO"}}),
@@ -1128,3 +1159,13 @@ TEST_F(KmbClassifyNetworkTest, shufflenet_v2_x1_0_pytorch) {
             3, 0.5f);
 }
 
+// [Track number: D#45024]
+TEST_F(SmokeNetworkTest, text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/text-detection-0004/tf/FP16-INT8/text-detection-0004-ww48.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32));
+}

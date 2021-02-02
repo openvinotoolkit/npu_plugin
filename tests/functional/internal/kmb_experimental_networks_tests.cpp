@@ -120,3 +120,102 @@ TEST_F(KmbClassifyNetworkTest, experimental_network_0000) {
         "vpu/emotions-recognition-retail-0003.png",
         2, 0.1f);
 }
+TEST_F(KmbClassifyNetworkTest, efficient_b0_cars) {
+    runTest(
+            TestNetworkDesc("efficientnet-b0-stanford-cars/caffe2/FP16-INT8/efficientnet-b0-stanford-cars.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32)
+                    .enableLPTRefMode(),
+            TestImageDesc("vpu/efficient/car_1.jpg", ImageFormat::RGB),
+            1, 0.15f);
+}
+
+TEST_F(KmbClassifyNetworkTest, precommit_efficient_b0_dogs) {
+    runTest(
+            TestNetworkDesc("efficientnet-b0-stanford-dogs/caffe2/FP16-INT8/efficientnet-b0-stanford-dogs.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32)
+                    .enableLPTRefMode(),
+            TestImageDesc("vpu/efficient/dog_1.jpg", ImageFormat::RGB),
+            1, 0.15f);
+}
+
+TEST_F(KmbClassifyNetworkTest, efficient_b0_aircrafts) {
+    runTest(
+            TestNetworkDesc("efficientnet-b0-aircrafts/caffe2/FP16-INT8/efficientnet-b0-aircrafts.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32)
+                    .enableLPTRefMode(),
+            TestImageDesc("vpu/efficient/aircraft_1.jpg", ImageFormat::RGB),
+            1, 0.15f);
+}
+
+TEST_F(KmbClassifyNetworkTest, mobilenet_v3_cars) {
+    runTest(
+            TestNetworkDesc("mobilenet-v3-small-stanford-cars/caffe2/FP16-INT8/mobilenet-v3-small-stanford-cars.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32),
+            TestImageDesc("vpu/efficient/car_1.jpg", ImageFormat::RGB),
+            1, 0.15f);
+}
+
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v3_dogs) {
+    runTest(
+            TestNetworkDesc("mobilenet-v3-small-stanford-dogs/caffe2/FP16-INT8/mobilenet-v3-small-stanford-dogs.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32),
+            TestImageDesc("vpu/efficient/dog_1.jpg", ImageFormat::RGB),
+            1, 0.15f);
+}
+
+TEST_F(KmbClassifyNetworkTest, mobilenet_v3_aircrafts) {
+    runTest(
+            TestNetworkDesc("mobilenet-v3-small-aircrafts/caffe2/FP16-INT8/mobilenet-v3-small-aircrafts.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32),
+            TestImageDesc("vpu/efficient/aircraft_1.jpg", ImageFormat::RGB),
+            1, 0.17f);
+}
+
+
+
+TEST_F(ModelAdk, precommit_ModelA) {
+    runTest(
+            TestNetworkDesc("ADK3/ModelA_INT8/ModelA_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("output", Precision::FP16),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+            0.0025f);
+}
+
+TEST_F(ModelAdk, ModelE) {
+    runTest(
+            TestNetworkDesc("ADK3/ModelE_INT8/ModelE_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("PostProcess/stage0/x1/Sigmoid", Precision::FP32)
+                    .setUserOutputPrecision("PostProcess/stage0/x4/Sigmoid", Precision::FP32)
+                    .setUserOutputPrecision("PostProcess/stage1/x1/Sigmoid", Precision::FP32)
+                    .setUserOutputPrecision("PostProcess/stage1/x4/Sigmoid", Precision::FP32),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+            0.0025f);
+}
+
+// [Track number: S#47419]
+TEST_F(SmokeNetworkTest, DISABLED_DeBlur) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    runTest(
+            TestNetworkDesc("ADK3/DeBlur_INT8/DeBlur_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("output", Precision::FP16));
+}
+
+// [Track number: S#47647]
+TEST_F(SmokeNetworkTest, DISABLED_SuperResolution_ADK3) {
+    runTest(
+            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("output", Precision::FP16));
+}

@@ -26,9 +26,10 @@
 #include "comparators.h"
 #include "file_reader.h"
 #include "ie_utils.hpp"
-#include "models/precompiled_resnet.h"
 #include <helper_calc_cpu_ref.h>
 #include <tests_common.hpp>
+#include "executable_network_factory.h"
+#include "models/models_constant.h"
 
 namespace IE = InferenceEngine;
 
@@ -36,12 +37,8 @@ class AsyncInferRequest_Tests : public CoreAPI_Tests {
 public:
     const int REQUEST_LIMIT = 10;
     const int MAX_WAIT = 60000;
-
-    std::string modelPath;
-
-    const size_t inputWidth = 224;
-    const size_t inputHeight = 224;
     const size_t numberOfTopClassesToCompare = 3;
+    const Models::ModelDesc modelToUse = Models::googlenet_v1;
 
 protected:
     void SetUp() override;
@@ -53,9 +50,8 @@ protected:
 };
 
 void AsyncInferRequest_Tests::SetUp() {
-    std::string graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
-    modelPath = PrecompiledResNet_Helper::resnet50.modelPath;
-    executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.ImportNetwork(graphPath, pluginName));
+
+    executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ExecutableNetworkFactory::createExecutableNetwork(modelToUse.pathToModel));
 }
 
 std::vector<IE::InferRequest> AsyncInferRequest_Tests::createRequests(const int& numberOfRequests) {
@@ -179,7 +175,7 @@ TEST_F(AsyncInferRequest_Tests, precommit_correctResultSameInput) {
 
     // --- Reference Blob
     IE::Blob::Ptr inputBlob = requests.at(0).GetBlob(inputBlobName);
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputBlob);
 
     // --- Compare output with reference
     auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
@@ -208,7 +204,7 @@ protected:
 
 void AsyncInferRequest_DifferentInput::SetUp() {
     AsyncInferRequest_Tests::SetUp();
-    inputNV12Path = TestDataHelpers::get_data_path() + "/" + std::to_string(inputWidth) + "x" + std::to_string(inputHeight) + "/cat3.yuv";
+    inputNV12Path = TestDataHelpers::get_data_path() + "/" + std::to_string(modelToUse.width) + "x" + std::to_string(modelToUse.height) + "/cat3.yuv";
     std::vector<Reference> availableReferences;
 
     availableReferences.emplace_back(Reference(false));
@@ -238,7 +234,7 @@ TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPrepr
             // TODO Fix to follow same approach as hello nv12 classification sample
             // ----- Load NV12 input
             IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(
-                inputNV12Path, inputWidth, inputHeight);
+                inputNV12Path, modelToUse.width, modelToUse.height);
 
             // Preprocessing
             IE::PreProcessInfo preprocInfo = requests.at(i).GetPreProcess(inputBlobName);
@@ -248,14 +244,14 @@ TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPrepr
             requests.at(i).SetBlob(inputBlobName, nv12InputBlob, preprocInfo);
 
             if (refNV12Blob == nullptr) {
-                refNV12Blob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, nv12InputBlob, &preprocInfo);
+                refNV12Blob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, &preprocInfo);
             }
         } else {
             auto inputBlob = loadCatImage();
             ASSERT_NO_THROW(requests.at(i).SetBlob(inputBlobName, inputBlob));
 
             if (refRgbBlob == nullptr) {
-                refRgbBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
+                refRgbBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputBlob);
             }
         }
     }

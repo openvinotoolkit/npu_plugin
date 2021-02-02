@@ -86,6 +86,8 @@
 #include <ngraph/op/minimum.hpp>
 #include <ngraph/op/hswish.hpp>
 #include <ngraph/op/softplus.hpp>
+#include <ngraph/op/pad.hpp>
+#include <ngraph/op/mish.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -104,6 +106,7 @@
 #include <legacy/ngraph_ops/proposal_ie.hpp>
 #include <legacy/ngraph_ops/tile_ie.hpp>
 #include <legacy/ngraph_ops/swish_ie.hpp>
+#include <legacy/ngraph_ops/pad_ie.hpp>
 
 #include <ngraph/variant.hpp>
 
@@ -556,6 +559,16 @@ void convert(std::shared_ptr<ngraph::op::v4::SoftPlus> softplus, mv::OpModel& mc
     IE_ASSERT(1u == mcmInputs.size());
     const auto mcmOpOutput = mcmModel.softPlus(softplus->get_friendly_name(), mcmInputs.at(0));
     registerOutputs(softplus, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v4::Mish> mish, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(mish, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto& opName = mish->get_friendly_name();
+    const auto& opInput = mcmInputs.at(0);
+    const auto mcmOpOutput = mcmModel.mish(opName, opInput);
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(mish, {mcmOpOutput}, mcmOutputsMap);
 }
 
 // TODO: Replace SwishIE with v4::Swish -- to process
@@ -1552,6 +1565,106 @@ void convert(std::shared_ptr<ngraph::op::CTCGreedyDecoder> CTCGreedyDecoder, mv:
     registerOutputs(CTCGreedyDecoder, {mcmCTCGreedyDecoder}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v1::Pad> pad, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(pad, mcmOutputsMap);
+    IE_ASSERT(1 == mcmInputs.size());
+
+    const auto mcmData = mcmInputs.at(0);
+    const auto &opName = pad->get_friendly_name();
+
+    const auto padsBegin = pad->get_pads_begin();
+    const auto padsEnd = pad->get_pads_end();
+    const auto mode = pad->get_pad_mode();
+    std::string padMode;
+
+    switch (mode) {
+        case ngraph::op::PadMode::CONSTANT:
+            padMode = "constant";
+            break;
+        case ngraph::op::PadMode::EDGE:
+            padMode = "edge";
+            break;
+        case ngraph::op::PadMode::REFLECT:
+            padMode = "reflect";
+            break;
+        case ngraph::op::PadMode::SYMMETRIC:
+            padMode = "symmetric";
+            break;
+        default:
+            THROW_IE_EXCEPTION << "Invalid border mode " << mode << " in layer ";
+    }
+
+    const auto padValue = 0.0; //pad->get_pad_value(); //in pad_ie.hpp
+
+    uint16_t pad0_begin = static_cast<uint16_t>(padsBegin.at(0));
+    uint16_t pad1_begin = static_cast<uint16_t>(padsBegin.at(1));
+    uint16_t pad2_begin = static_cast<uint16_t>(padsBegin.at(2));
+    uint16_t pad3_begin = static_cast<uint16_t>(padsBegin.at(3));
+
+    uint16_t pad0_end = static_cast<uint16_t>(padsEnd.at(0));
+    uint16_t pad1_end = static_cast<uint16_t>(padsEnd.at(1));
+    uint16_t pad2_end = static_cast<uint16_t>(padsEnd.at(2));
+    uint16_t pad3_end = static_cast<uint16_t>(padsEnd.at(3));
+
+    const auto mcmPadOutput = mcmModel.pad(opName, mcmData,
+                                           {pad0_begin, pad1_begin, pad2_begin, pad3_begin},
+                                           {pad0_end, pad1_end, pad2_end, pad3_end},
+                                           padMode, padValue);
+
+    mcmPadOutput->setQuantParams(initialQuantParams());
+    registerOutputs(pad, {mcmPadOutput}, mcmOutputsMap);
+
+}
+
+void convert(std::shared_ptr<ngraph::op::PadIE> pad, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(pad, mcmOutputsMap);
+    IE_ASSERT(1 == mcmInputs.size());
+
+    const auto mcmData = mcmInputs.at(0);
+    const auto &opName = pad->get_friendly_name();
+
+    const auto padsBegin = pad->get_pads_begin();
+    const auto padsEnd = pad->get_pads_end();
+    const auto mode = pad->get_pad_mode();
+    std::string padMode;
+
+    switch (mode) {
+        case ngraph::op::PadMode::CONSTANT:
+            padMode = "constant";
+            break;
+        case ngraph::op::PadMode::EDGE:
+            padMode = "edge";
+            break;
+        case ngraph::op::PadMode::REFLECT:
+            padMode = "reflect";
+            break;
+        case ngraph::op::PadMode::SYMMETRIC:
+            padMode = "symmetric";
+            break;
+        default:
+            THROW_IE_EXCEPTION << "Invalid border mode " << mode << " in layer ";
+    }
+
+    const auto padValue = pad->get_pad_value();
+
+    uint16_t pad0_begin = static_cast<uint16_t>(padsBegin.at(0));
+    uint16_t pad1_begin = static_cast<uint16_t>(padsBegin.at(1));
+    uint16_t pad2_begin = static_cast<uint16_t>(padsBegin.at(2));
+    uint16_t pad3_begin = static_cast<uint16_t>(padsBegin.at(3));
+
+    uint16_t pad0_end = static_cast<uint16_t>(padsEnd.at(0));
+    uint16_t pad1_end = static_cast<uint16_t>(padsEnd.at(1));
+    uint16_t pad2_end = static_cast<uint16_t>(padsEnd.at(2));
+    uint16_t pad3_end = static_cast<uint16_t>(padsEnd.at(3));
+
+    const auto mcmPadOutput = mcmModel.pad(opName, mcmData,
+                                           {pad0_begin, pad1_begin, pad2_begin, pad3_begin},
+                                           {pad0_end, pad1_end, pad2_end, pad3_end},
+                                           padMode, padValue);
+
+    mcmPadOutput->setQuantParams(initialQuantParams());
+    registerOutputs(pad, {mcmPadOutput}, mcmOutputsMap);
+}
 
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
@@ -1638,10 +1751,13 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::StridedSlice),
     MAP_ENTRY(ngraph::op::v4::HSwish),
     MAP_ENTRY(ngraph::op::SwishIE),
+    MAP_ENTRY(ngraph::op::v4::Mish),
     MAP_ENTRY(ngraph::op::TileIE),
     MAP_ENTRY(ngraph::op::v1::VariadicSplit),
+    MAP_ENTRY(ngraph::op::CTCGreedyDecoder),
     MAP_ENTRY(ngraph::op::v4::SoftPlus),
-    MAP_ENTRY(ngraph::op::CTCGreedyDecoder)
+    MAP_ENTRY(ngraph::op::v1::Pad),
+    MAP_ENTRY(ngraph::op::PadIE)
 };
 
 #undef MAP_ENTRY

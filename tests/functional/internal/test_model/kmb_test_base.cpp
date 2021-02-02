@@ -824,7 +824,11 @@ ExecutableNetwork KmbNetworkTestBase::getExecNetwork(
 
 BlobMap KmbNetworkTestBase::calcRefOutput(
             const TestNetworkDesc& netDesc,
-            const BlobMap& inputs){
+            const BlobMap& inputs,
+            const bool& enableLPTRef){
+    if (enableLPTRef) {
+        core->SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(YES)}}, "CPU");
+    }
     const auto refNet = readNetwork(netDesc, false);
     auto refExeNet = core->LoadNetwork(refNet, REF_DEVICE_NAME);
 
@@ -913,8 +917,7 @@ void KmbNetworkTestBase::runTest(
 
     if (RUN_REF_CODE) {
         std::cout << "=== CALC REFERENCE WITH " << REF_DEVICE_NAME << std::endl;
-
-        refOutputBlobs = calcRefOutput(netDesc, inputs);
+        refOutputBlobs = calcRefOutput(netDesc, inputs, netDesc.isLPTRefModeEnabled());
 
         if (EXPORT_BLOBS) {
             std::cout << "    === EXPORT REFERENCE" << std::endl;
@@ -1882,4 +1885,52 @@ void KmbVasFRTest::runTest(
     };
 
     KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
+
+void ModelAdk::runTest(
+        const TestNetworkDesc& netDesc,
+        const TestImageDesc& image,
+        const float threshold) {
+    const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap& inputDescs) {
+        (void)inputDescs;
+        ASSERT_EQ(actualBlobs.size(), refBlobs.size());
+
+        for (const auto& actualBlob : actualBlobs) {
+            auto ref_it = refBlobs.find(actualBlob.first);
+            ASSERT_TRUE(ref_it != refBlobs.end());
+            std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
+            auto actualOutput = actualBlob.second;
+            auto refOutput = ref_it->second;
+            const auto& refDesc = refOutput->getTensorDesc();
+            const auto& actualDesc = actualOutput->getTensorDesc();
+
+            ASSERT_EQ(refDesc.getDims(), actualDesc.getDims());
+
+            const auto refFP32 = toFP32(toDefLayout(refOutput));
+            const auto actualFP32 = toFP32(toDefLayout(actualOutput));
+            auto refMem = refFP32->cbuffer();
+            auto actualMem = actualFP32->cbuffer();
+
+            const auto refPtr = refMem.as<const float*>();
+            const auto actualPtr = actualMem.as<const float*>();
+            float max_diff = 0.0;
+            for (size_t i = 0; i < refOutput->size(); i++) {
+                auto diff = std::abs(refPtr[i] - actualPtr[i]) / refOutput->size();
+                if (diff > max_diff) {
+                    max_diff = diff;
+                }
+            }
+            std::cout << "=== Max diff = " << max_diff << std::endl;
+            EXPECT_LE(max_diff, threshold);
+        }
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
 }

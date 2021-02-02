@@ -38,6 +38,7 @@
 #include "vpual_config.hpp"
 #include "vpual_core_nn_watchdog.hpp"
 #include "vpusmm_allocator.hpp"
+#include "Semaphore.h"
 
 namespace ie = InferenceEngine;
 
@@ -64,6 +65,8 @@ public:
         const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
         const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
         const std::shared_ptr<Pipeline>& other_pipe,
+        const std::shared_ptr<WatchDog>& watchDog,
+        const std::shared_ptr<Semaphore>& other_mutex,
         const VpualConfig& config);
 #endif
 
@@ -85,12 +88,13 @@ private:
     vpu::Logger::Ptr _logger;
 
 #if defined(__arm__) || defined(__aarch64__)
-    std::unique_ptr<WatchDog> _wd;
+    std::shared_ptr<WatchDog> _wd;
     std::shared_ptr<NnXlinkPlg> _nnXlinkPlg = nullptr;
     std::shared_ptr<NnCorePlg> _nnCorePlg = nullptr;
     // pipeline has to be deleted before NNCore plug-in
     // otherwise it leads to 'Bus error'
     std::shared_ptr<Pipeline> _pipe = nullptr;
+    std::shared_ptr<Semaphore> _mutex = nullptr;
     std::unique_ptr<void, std::function<void(void*)>> blob_file = nullptr;
     std::unique_ptr<BlobHandle_t> _blobHandle = nullptr;
 

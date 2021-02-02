@@ -620,6 +620,24 @@ mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector
     return norm;
 }
 
+mv::Data::TensorIterator convertPadToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                             const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool /*software*/,
+                                             const mv::QuantizationParams& quantParams,
+                                             const mv::DType& outputTensorType,
+                                             const mv::Order& outputTensorOrder)
+{
+    auto pads_begin = attrs.at("pads_begin").get<std::array<unsigned short, 4>>();
+    auto pads_end = attrs.at("pads_end").get<std::array<unsigned short, 4>>();
+    auto pad_mode = attrs.at("pad_mode").get<std::string>();
+    auto pad_value = attrs.at("pad_value").get<double>();
+
+    auto pad = om.uPATaskPad(name, inputs, pads_begin, pads_end, pad_mode, pad_value);
+    pad->setDType(outputTensorType);
+    pad->setQuantParams(quantParams);
+    pad->setOrder(outputTensorOrder);
+    return pad;
+}
+
 mv::Data::TensorIterator convertCustomOclToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool /*software*/,
                                     const mv::QuantizationParams& quantParams,
@@ -816,6 +834,20 @@ mv::Data::TensorIterator convertEluToUPATask(mv::OpModel& om, const std::vector<
     return elu;
 }
 
+mv::Data::TensorIterator convertMishToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                               const std::map<std::string, mv::Attribute>& attrs,
+                                               const std::string& name, bool /*software*/,
+                                                const mv::QuantizationParams& quantParams,
+                                                const mv::DType& outputTensorType,
+                                                const mv::Order& outputTensorOrder)
+{
+    auto mish = om.uPATaskMish(name, inputs);
+    mish->setDType(outputTensorType);
+    mish->setQuantParams(quantParams);
+    mish->setOrder(outputTensorOrder);
+    return mish;
+}
+
 mv::Data::TensorIterator convertConversionToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                                 const std::map<std::string, mv::Attribute>& attrs,
                                                 const std::string& name, bool /*software*/,
@@ -879,7 +911,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
                                                        "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu",
-                                                       "PermuteND"};
+                                                       "PermuteND", "Mish", "Pad"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -921,11 +953,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Gather", convertGatherToUPATask},
     {"HSwish", convertHSwishToUPATask},
     {"Swish", convertSwishToUPATask},
+    {"Mish", convertMishToUPATask},
     {"Conversion", convertConversionToUPATask},
     {"Relu", convertReluToUPATask},
     {"Tanh", convertTanhToUPATask},
     {"SoftPlus", convertSoftPlusToUPATask},
-    {"Elu", convertEluToUPATask}
+    {"Elu", convertEluToUPATask},
+    {"Pad", convertPadToUPATask},
     };
 
     // Layer types that given current compiler state, it's
