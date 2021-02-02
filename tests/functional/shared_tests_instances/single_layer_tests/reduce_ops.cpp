@@ -12,11 +12,6 @@
 namespace LayerTestsDefinitions {
 
     class KmbReduceOpsLayerTest : public ReduceOpsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-        void SkipBeforeLoad() override {
-            if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-                throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
-            }
-        }
         void SkipBeforeValidate() override {
             throw LayerTestsUtils::KmbSkipTestException("comparison fails");
         }
