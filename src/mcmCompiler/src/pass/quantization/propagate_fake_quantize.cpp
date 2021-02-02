@@ -98,6 +98,7 @@ static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::Compu
     // Vector of FakeQuantize operations for input node
     std::vector<mv::Data::OpListIterator> inputFqOps;
     std::vector<bool> fqExistStatusVec;
+    bool inputIsU8 = true;
 
     for (size_t i = 0; i < networkInputs.size(); i++)
     {
@@ -108,8 +109,13 @@ static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::Compu
         if (inputDtype != mv::DType("Float16") && inputDtype != mv::DType("Float32"))
             continue;
 
+        inputIsU8 = false;
         getFakeQuantizeRecursiveDown(networkInputs[i], inputFqOps, fqExistStatusVec, om);
     }
+
+    // If all the input is U8 no need for any transition
+    if (inputIsU8)
+        return;
 
     // Check if all FP inputs have FQ before reaching DPU task
     for (auto fqExistStatus : fqExistStatusVec)
@@ -190,14 +196,17 @@ static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::Compu
     // a starting point for data type update
     std::vector<mv::Data::OpListIterator> conversionOps;
 
-    // Insert Conversion from FP to U8 node after each FQ with 256 levels
+    // Insert Conversion from FP to U8 node before each FQ with 256 levels
     for (auto& inputFqOp : inputFqOps)
     {
         std::vector<mv::Data::OpListIterator> opsToLink;
         std::vector<std::size_t> inputSlots;
         std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
 
-        auto sourceFlowStart = inputFqOp.leftmostOutput();
+        // Input to FQ will become new input for Conversion layer
+        auto inputTensor = inputFqOp->getInputTensor(0);
+
+        auto sourceFlowStart = om.getSourceOp(inputTensor).leftmostOutput();
 
         for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
         {
@@ -206,21 +215,24 @@ static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::Compu
             flowsToRemove.push_back(sinkFlow);
         }
 
-        auto outputTensor = inputFqOp->getOutputTensor(0);
-
-        // Create a conversion layer: FQ->Conversion
-        auto conversionOutput = om.conversion(om.getSourceOp(inputFqOp->getInputTensor(0))->getName() + "_convert_to_U8", inputFqOp->getOutputTensor(0), mv::DType("UInt8"));
-        conversionOutput->setQuantParams(outputTensor->getQuantParams());
+        // Create a conversion layer (SomeOp->Conversion->FQ) and update
+        // tensors quant params so that later passes will correctly propagate quant settings
+        // and proper Scale and ZeroPoint will be set for Conversion UPA task
+        mv::QuantizationParams conversionInputQuantParams = extractQuantParamsI(inputFqOp, 1);
+        mv::QuantizationParams conversionOutputQuantParams = extractQuantParamsO(inputFqOp, 1);
+        auto conversionOutput = om.conversion(om.getSourceOp(inputTensor)->getName() + "_convert_to_U8", inputTensor, mv::DType("UInt8"));
+        conversionOutput->setQuantParams(conversionOutputQuantParams);
+        inputTensor->setQuantParams(conversionInputQuantParams);
 
         conversionOps.push_back(om.getSourceOp(conversionOutput));
 
-        // Remove previous flows: FQ->SomeOps
+        // Remove previous flows: SomeOps->FQ
         for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
         {
             om.undefineFlow(flowsToRemove[flowIdx]);
         }
 
-        // Define new flows: Conversion->SomeOps
+        // Define new flows: Conversion->FQ
         for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
             opsToLink[op]->setInputTensor(conversionOutput, inputSlots[op], false);
@@ -233,7 +245,6 @@ static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::Compu
     {
         updateChildrenPrecisionRecursiveDown(conversionOp, om, mv::DType("UInt8"));
     }
-
 }
 
 static double inf = std::numeric_limits<double>::infinity();
@@ -385,6 +396,16 @@ void propagateParameters(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             auto parent = om.getSourceOp(op->getInputTensor(0));
             if (parent->getOpType() == "Input" && op->getOpType() == "Scale")
                 continue;
+
+            if (parent->getOpType() == "Input" && op->getOpType() == "Conversion")
+            {
+                // If there is Input->Conversion sequence check if this Conversion was not inserted
+                // by mcmCompiler for DType conversion. In such case this Covnersion layer would have
+                // quant params already configured
+                quant_params = op->getOutputTensor()[0]->getQuantParams();
+                if (!quant_params.isEmpty() && !quant_params.isInitial())
+                    continue;
+            }
 
             quant_params = getParentQuantParams(om, op);
             setQuantizationParams(op, quant_params);
