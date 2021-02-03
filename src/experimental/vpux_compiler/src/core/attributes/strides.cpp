@@ -63,13 +63,10 @@ Byte vpux::getTypeTotalSize(mlir::MemRefType type) {
     }
 
     const auto dimsOrder = DimsOrder::fromType(type);
-    VPUX_THROW_UNLESS(dimsOrder.hasValue(), "Only strided/simple MemRef Types are supported");
-
     const auto shape = getShape(type);
     const auto strides = getStrides(type);
-
-    const auto memShape = dimsOrder->toMemoryOrder(shape);
-    const auto memStrides = dimsOrder->toMemoryOrder(strides);
+    const auto memShape = dimsOrder.toMemoryOrder(shape);
+    const auto memStrides = dimsOrder.toMemoryOrder(strides);
 
     VPUX_THROW_UNLESS(memShape.size() == memStrides.size(), "Size and strides mismatch : {0} vs {1}", memShape,
                       memStrides);
@@ -82,24 +79,24 @@ Byte vpux::getTypeTotalSize(mlir::MemRefType type) {
 //
 
 Strides vpux::getStrides(mlir::MemRefType type) {
-    const Bit elemSize = getElemTypeSize(type);
+    const auto elemSize = getElemTypeSize(type);
+    const auto maps = type.getAffineMaps();
 
-    if (const auto dimsOrder = DimsOrder::fromType(type)) {
+    if (maps.empty() || (maps.size() == 1 && maps.front().isPermutation())) {
+        const auto dimsOrder = DimsOrder::fromType(type);
         const auto shape = getShape(type);
-        const auto memShape = dimsOrder->toMemoryOrder(shape);
-
-        const auto reqs = StrideReqs::simple();
-        const auto memStrides = reqs.calcStrides(elemSize, memShape);
-
-        return dimsOrder->toLogicalOrder(memStrides);
+        const auto memShape = dimsOrder.toMemoryOrder(shape);
+        const auto memStrides = StrideReqs::simple().calcStrides(elemSize, memShape);
+        return dimsOrder.toLogicalOrder(memStrides);
     }
 
     SmallVector<int64_t> elemStrides;
     int64_t offset = 0;
     VPUX_THROW_UNLESS(mlir::succeeded(mlir::getStridesAndOffset(type, elemStrides, offset)),
-                      "Only strided/simple MemRef Types are supported");
-    VPUX_THROW_UNLESS(!elemStrides.empty(), "Only strided/simple MemRef Types are supported");
-    VPUX_THROW_UNLESS(offset == 0, "Only strided/simple MemRef Types are supported");
+                      "Only strided/simple MemRef Types are supported, got '{0}'", type);
+    VPUX_THROW_UNLESS(elemStrides.size() == checked_cast<size_t>(type.getRank()),
+                      "Only strided/simple MemRef Types are supported, got '{0}'", type);
+    VPUX_THROW_UNLESS(offset == 0, "Only strided/simple MemRef Types are supported, got '{0}'", type);
 
     Strides strides(elemStrides.size());
 
@@ -111,7 +108,7 @@ Strides vpux::getStrides(mlir::MemRefType type) {
 }
 
 Strides vpux::getStrides(mlir::Value val) {
-    auto type = val.getType().dyn_cast_or_null<mlir::MemRefType>();
+    const auto type = val.getType().dyn_cast_or_null<mlir::MemRefType>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non MemRefType '{1}'", val, val.getType());
     return getStrides(type);
 }

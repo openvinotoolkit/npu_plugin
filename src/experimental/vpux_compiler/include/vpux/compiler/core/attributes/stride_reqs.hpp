@@ -29,6 +29,8 @@
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <mlir/IR/BuiltinTypes.h>
+
 #include <cassert>
 
 namespace vpux {
@@ -158,6 +160,8 @@ public:
     MemStrides calcStrides(Bit elemSize, MemShapeRef memShape) const;
 
 public:
+    bool checkStrides(mlir::MemRefType type) const;
+    bool checkStrides(mlir::Value val) const;
     bool checkStrides(MemStridesRef memStrides, Bit elemSize, MemShapeRef memShape) const;
 
 public:
@@ -258,6 +262,8 @@ public:
     MemStrides calcStrides(Bit elemSize, MemShapeRef memShape) const;
 
 public:
+    bool checkStrides(mlir::MemRefType type) const;
+    bool checkStrides(mlir::Value val) const;
     bool checkStrides(MemStridesRef memStrides, Bit elemSize, MemShapeRef memShape) const;
 
 public:
