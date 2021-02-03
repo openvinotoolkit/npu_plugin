@@ -108,7 +108,7 @@ Data deserializeTensor(const MVCNN::TensorReference* tensor,
 
     DimsOrder dimsOrder;
     auto order = tensor->order();
-    if (order) {
+    if (order != 0 || dataDims.empty()) {
         dimsOrder = DimsOrder::fromCode(order);
     } else {
         // if `order` filed doesn't present in blob let's try to guess layout by strides using
@@ -122,7 +122,7 @@ Data deserializeTensor(const MVCNN::TensorReference* tensor,
     VPUX_THROW_UNLESS(dimsOrder.numDims() == dims->size(), "DimsOrder {0} doesn't match to dims {1}", dimsOrder,
                       dataDims);
 
-    const auto dataLayout = dimsOrder.toIE();
+    const auto dataLayout = dimsOrder.numDims() <= 5 ? dimsOrder.toIE() : InferenceEngine::Layout::ANY;
     const auto dataPrecision = extractPrecisionFromDType(tensor->data_dtype());
 
     TensorDesc dataDesc(dataPrecision, dataDims, dataLayout);

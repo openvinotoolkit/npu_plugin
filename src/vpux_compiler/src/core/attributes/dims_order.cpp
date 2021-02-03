@@ -50,8 +50,6 @@ const DimsOrder::StorageType INDEX_MASK = 0xF;
 }  // namespace
 
 void vpux::DimsOrder::validateCode(StorageType code) {
-    VPUX_THROW_UNLESS(code != 0, "DimsOrder code can't be 0");
-
     std::array<bool, MAX_NUM_DIMS> dimUsed;
     dimUsed.fill(false);
 
