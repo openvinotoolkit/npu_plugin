@@ -3350,17 +3350,26 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationMo
     softLayerParamsValue->scale = 1;
     softLayerParamsValue->bias  = 0;
 
-    if (input->getDType() == mv::DType("UInt8") &&
-       (output->getDType() == mv::DType("Float16") || output->getDType() == mv::DType("Float32")))
+    if (opIt->hasAttr("scale") && opIt->hasAttr("bias"))
     {
-        softLayerParamsValue->scale = input->getQuantParams().getScale()[0];
-        softLayerParamsValue->bias  = -input->getQuantParams().getZeroPoint()[0] / input->getQuantParams().getScale()[0];
+        // Use preconfigured scale and bias if such exists
+        softLayerParamsValue->scale = opIt->get<double>("scale");
+        softLayerParamsValue->bias = opIt->get<int64_t>("bias");
     }
-    else if ((input->getDType() == mv::DType("Float16") || input->getDType() == mv::DType("Float32")) &&
-              output->getDType() == mv::DType("UInt8"))
+    else
     {
-        softLayerParamsValue->scale = 1.0 / input->getQuantParams().getScale()[0];
-        softLayerParamsValue->bias  = input->getQuantParams().getZeroPoint()[0];
+        if (input->getDType() == mv::DType("UInt8") &&
+        (output->getDType() == mv::DType("Float16") || output->getDType() == mv::DType("Float32")))
+        {
+            softLayerParamsValue->scale = input->getQuantParams().getScale()[0];
+            softLayerParamsValue->bias  = -input->getQuantParams().getZeroPoint()[0] / input->getQuantParams().getScale()[0];
+        }
+        else if ((input->getDType() == mv::DType("Float16") || input->getDType() == mv::DType("Float32")) &&
+                output->getDType() == mv::DType("UInt8"))
+        {
+            softLayerParamsValue->scale = 1.0 / input->getQuantParams().getScale()[0];
+            softLayerParamsValue->bias  = input->getQuantParams().getZeroPoint()[0];
+        }
     }
 
     // TODO: set DetectionOutput-specific attributes when necessary

@@ -54,7 +54,7 @@ static void updateChildrenPrecisionRecursiveDown(mv::Data::OpListIterator explor
 
 // This recursive function will search down for FakeQuantize operations. It will stop until either FQ is encountered
 // or if it got to output or DPU task
-static void getFakeQuantizeRecursiveDown(mv::Data::OpListIterator exploreOp, std::vector<mv::Data::OpListIterator>& fqOps, std::vector<bool>& fqExistStatus, mv::OpModel& om)
+static void getFakeQuantizeRecursiveDown(mv::Data::OpListIterator exploreOp, std::vector<mv::Data::OpListIterator>& fqOps, std::vector<mv::Data::OpListIterator>& notQuantizedDpuTasks, mv::OpModel& om)
 {
     for(auto nextOp = exploreOp.leftmostChild(); nextOp != om.opEnd(); ++nextOp)
     {
@@ -62,18 +62,16 @@ static void getFakeQuantizeRecursiveDown(mv::Data::OpListIterator exploreOp, std
         if (opType == "FakeQuantize")
         {
             fqOps.push_back(nextOp);
-            fqExistStatus.push_back(true);
         }
-        else if (nextOp->isHardwarizable())
+        else if (opType == "Output")
         {
-            // If we got to DPU task here than it means function didn't encounter FQ node
-            // when traversing from input
-            fqExistStatus.push_back(false);
-
+            continue;
         }
-        else if(opType != "Output")
+        else
         {
-            getFakeQuantizeRecursiveDown(nextOp, fqOps, fqExistStatus, om);
+            if (nextOp->isHardwarizable())
+                notQuantizedDpuTasks.push_back(nextOp);
+            getFakeQuantizeRecursiveDown(nextOp, fqOps, notQuantizedDpuTasks, om);
         }
     }
 }
@@ -82,7 +80,7 @@ static void getFakeQuantizeRecursiveDown(mv::Data::OpListIterator exploreOp, std
 // computation in a lower precision then input precision.
 // Currently it is limited in making decision if with FP32/16 input precision computation can be done
 // in U8 - this will happen if FQ levels match U8 precision
-static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&)
+static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& /* compilationDescriptor*/, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS);
 
@@ -97,7 +95,7 @@ static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::Compu
     auto networkInputs = om.getNetworkInputs();
     // Vector of FakeQuantize operations for input node
     std::vector<mv::Data::OpListIterator> inputFqOps;
-    std::vector<bool> fqExistStatusVec;
+    std::vector<mv::Data::OpListIterator> notQuantizedDpuTasks;
     bool inputIsU8 = true;
 
     for (size_t i = 0; i < networkInputs.size(); i++)
@@ -110,21 +108,12 @@ static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::Compu
             continue;
 
         inputIsU8 = false;
-        getFakeQuantizeRecursiveDown(networkInputs[i], inputFqOps, fqExistStatusVec, om);
+        getFakeQuantizeRecursiveDown(networkInputs[i], inputFqOps, notQuantizedDpuTasks, om);
     }
 
     // If all the input is U8 no need for any transition
     if (inputIsU8)
         return;
-
-    // Check if all FP inputs have FQ before reaching DPU task
-    for (auto fqExistStatus : fqExistStatusVec)
-    {
-        if (!fqExistStatus)
-        {
-            return;
-        }
-    }
 
     // Check if all input paths have FQ with 256 levels that allow to change precision to U8
     unsigned fqLevels;
@@ -140,13 +129,18 @@ static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::Compu
         }
     }
 
-    // Check if DPU tasks weight inputs have FQ operations which allow
-    // for U8 compute precision
+    // Check if DPU tasks that will operate on U8 have weight inputs with FQ operation for U8 precision
     auto ops = om.getOps();
     for(auto& opIt : ops)
     {
         if (!opIt->hasWeights())
             continue;
+
+        // Check if an op has already been identified as a not quantized dpu task
+        if (std::find(notQuantizedDpuTasks.begin(), notQuantizedDpuTasks.end(), opIt) != notQuantizedDpuTasks.end())
+        {
+            continue;
+        }
 
         auto weightTensor = opIt->getInputTensor(1);
         if (weightTensor->getDType() == mv::DType("UInt8"))
@@ -224,7 +218,11 @@ static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::Compu
         conversionOutput->setQuantParams(conversionOutputQuantParams);
         inputTensor->setQuantParams(conversionInputQuantParams);
 
-        conversionOps.push_back(om.getSourceOp(conversionOutput));
+        auto conversionOp = om.getSourceOp(conversionOutput);
+        conversionOp->set("scale", 1.0 / conversionInputQuantParams.getScale()[0]);
+        conversionOp->set("bias", conversionInputQuantParams.getZeroPoint()[0]);
+
+        conversionOps.push_back(conversionOp);
 
         // Remove previous flows: SomeOps->FQ
         for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
@@ -397,7 +395,7 @@ void propagateParameters(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             if (parent->getOpType() == "Input" && op->getOpType() == "Scale")
                 continue;
 
-            if (parent->getOpType() == "Input" && op->getOpType() == "Conversion")
+            if (op->getOpType() == "Conversion")
             {
                 // If there is Input->Conversion sequence check if this Conversion was not inserted
                 // by mcmCompiler for DType conversion. In such case this Covnersion layer would have
