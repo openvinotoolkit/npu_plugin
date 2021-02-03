@@ -281,19 +281,6 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
        THROW_IE_EXCEPTION << "Output shape size is not supported: " << result->get_shape().size();
     }
 
-    // MCM compiler compiles wrong blob when concat layer is the last layer in the network,
-    // e.g. person_attributes_recognition_crossroad_0238 person_attributes_recognition_crossroad_0234
-    // TODO: remove this workaround when this case will be handled on mcm compiler side
-    const auto concat = std::dynamic_pointer_cast<ngraph::op::Concat>(result->input_value(0).get_node_shared_ptr());
-    if (nullptr != concat) {
-        const auto mcmConcat = mcmModel.maxPool(concat->get_friendly_name() + "_maxpool", mcmInputs.at(0),
-            {1, 1}, {1, 1}, {0, 0, 0, 0}, true);
-        mcmConcat->setQuantParams(initialQuantParams());
-        mcmModel.output("", mcmConcat, outputType);
-        return;
-    }
-    // end of workaround
-
     // MCM Compiler requirements
     mcmModel.output("", mcmInputs.at(0), outputType);
 }
