@@ -30,6 +30,7 @@
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/SymbolTable.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
+#include <mlir/Interfaces/ViewLikeInterface.h>
 
 //
 // Generated
@@ -49,6 +50,7 @@ namespace vpux {
 namespace IERT {
 
 mlir::LogicalResult verifyOp(RunTimeResourcesOp op);
+mlir::LogicalResult verifyOp(GenericReshapeOp op);
 
 }  // namespace IERT
 }  // namespace vpux

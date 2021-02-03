@@ -24,7 +24,7 @@ include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Interfaces/ViewLikeInterface.td"
 
 //
 // Base classes
@@ -846,6 +846,36 @@ def IERT_MaximumOp :
         MemRefOf<[F16, F32]>:$input2,
         MemRefOf<[F16, F32]>:$output
     );
+}
+
+//
+// GenericReshape
+//
+
+def IERT_GenericReshapeOp :
+        IERT_Op<
+            "GenericReshape",
+            [
+                NoSideEffect,
+                SameOperandsAndResultElementType,
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time generic Reshape layer";
+
+    let arguments = (ins
+        AnyStridedMemRef:$input
+    );
+
+    let results = (outs
+        AnyStridedMemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::IERT::verifyOp(*this);
+    }];
+
+    let hasFolder = 1;
 }
 
 #endif
