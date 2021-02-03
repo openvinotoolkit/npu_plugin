@@ -1085,6 +1085,9 @@ class Dynamic_Spill_Node_Inserter {
 
       compute_spill_subtrees(sbegin, send);
 
+      mv::OpModel om(model_);
+      std::cout << "Before updade" << std::endl;
+
       // now for each subtree structure update the model //
       for (typename spilled_op_map_t::iterator itr = spilled_op_map_.begin();
             itr != spilled_op_map_.end(); ++itr) {
@@ -1097,6 +1100,20 @@ class Dynamic_Spill_Node_Inserter {
           create_spill_subtree_structure_in_model(spilled_op, itr->second);
         }
       }
+      for (auto itr = redundant_spill_map_.begin(); itr != redundant_spill_map_.end(); ++itr) {
+        std::cout << itr->second << std::endl;
+        // spilled_op_map_.erase(itr->first);
+        om.removeOp(om.getOp(itr->second));
+      }
+
+      std::cout << "After updade" << std::endl;
+
+      for (auto sitr=sbegin; sitr!= send; ++sitr) {
+        scheduled_op_t &sop = *sitr;
+        // std::cout << sop.op_->getName() << std::endl;
+      }
+
+      std::cout << "END updade" << std::endl;
     }
 
     void remove_redundant_ops_from_op_model()
@@ -1124,6 +1141,8 @@ class Dynamic_Spill_Node_Inserter {
           scheduled_op_t>::value, "Invalid ScheduledOpIterator");
 
       spilled_op_schedule_t spilled_op_schedule;
+
+      std::cout << "before" << std::endl;
 
       for (schedule_iterator_t sitr=sbegin; sitr!= send; ++sitr) {
         scheduled_op_t &sop = *sitr;
@@ -1191,6 +1210,8 @@ class Dynamic_Spill_Node_Inserter {
 
         sop.op_type_ = op_type_e::ORIGINAL_OP;
       }
+
+      std::cout << "end update_scheduled_ops_with_new_read_write_ops" << std::endl;
 
     } // update_scheduled_ops_with_new_read_write_ops //
 
