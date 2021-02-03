@@ -44,11 +44,25 @@
               "name" : "LocateInplaceEltwiseOps"
             },
             {
-              "name" : "ChainPipeliningTransform",
-              "select_stages" : 2
+                "name": "GenerateDot",
+                "output": "output_new/dots/input_op_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                 "name" : "ChainPipeliningTransform",
+                 "select_stages" : 2
             },
             "PipeLineAcrossParallelBranches",
-            "MemContextForHugeActivations",
+            {
+              "name" : "MemContextForHugeActivations",
+              "enable_pass" : true,
+              "peak_threshold_percent" : 49,
+              "valley_threshold_percent" : 25,
+              "enable_cmx_concat" : true,
+              "enable_inplace_eltwise" : false 
+            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
