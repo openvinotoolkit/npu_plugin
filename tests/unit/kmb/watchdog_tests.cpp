@@ -100,7 +100,7 @@ TEST_F(WatchDogTests, skip_spawning_thread_if_no_interval) {
     wd1.Pause();
 }
 
-TEST_F(WatchDogTests, can_stop_thread_faster_than_10_ms) {
+TEST_F(WatchDogTests, can_stop_thread_faster_than_30_ms) {
     for (size_t i = 0; i != 1000; i++) {
         std::shared_ptr<vpux::WatchDog> wd1 = std::make_shared<vpux::WatchDog>(1000, test_logger, mock_callback);
 
@@ -114,7 +114,7 @@ TEST_F(WatchDogTests, can_stop_thread_faster_than_10_ms) {
         wd1.reset();
         auto destructionTime = duration_cast<milliseconds>(steady_clock::now() - destructionStart).count();
 
-        ASSERT_LE(destructionTime, 10);
+        ASSERT_LE(destructionTime, 30);
     }
 }
 
@@ -123,13 +123,13 @@ TEST_F(WatchDogTests, can_not_stop_thread_fast_enough_without_cv_notify) {
     for (size_t i = 0; i != 100; i++) {
         std::shared_ptr<WatchDogSlowDestruct> wd1 = std::make_shared<WatchDogSlowDestruct>(1000, test_logger, mock_callback);
         // wait until cv entered into wait phase
-        std::this_thread::sleep_for(milliseconds(10));
+        std::this_thread::sleep_for(milliseconds(30));
         auto destructionStart = steady_clock::now();
         wd1.reset();
         destructionTime = duration_cast<milliseconds>(steady_clock::now() - destructionStart);
-        if (destructionTime.count() > 10) { break;}
+        if (destructionTime.count() > 30) { break;}
     }
-    ASSERT_GE(destructionTime.count(), 10);
+    ASSERT_GE(destructionTime.count(), 30);
 }
 
 TEST_F(WatchDogTests, can_watch_for_multiple_infer_reqs_independently) {
