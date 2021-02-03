@@ -286,8 +286,12 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         scheduled_ops.begin(), scheduled_ops.end(),
         std::back_inserter(dynamic_spill_control_edges));
 
+    std::cout << "1" << std::endl;
+
     dynamic_spill.generate_control_edges_for_spilled_cmx_concat_ops(
         std::back_inserter(dynamic_spill_control_edges));
+
+    std::cout << "2" << std::endl;
 
     { // Erase any redundant spilled writes //
       scheduled_op_list_iterator_t sched_itr=scheduled_ops.begin(),
@@ -304,6 +308,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       dynamic_spill.print_redundant_spilled_ops(fptr);
     }
 
+    std::cout << "3" << std::endl;
+
     // update the input_dag with updated opModel
     mv::OpModel updated_om(model);
     if (apply_cmx_concat_transforms) {
@@ -317,12 +323,15 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       input_dag.reset(updated_om);
     }
 
+    std::cout << "4" << std::endl;
+
     // updated schedule //
     if (fptr) {
       fprintf(fptr, "\n\n\n======================\n");
     }
     for (auto sitr=scheduled_ops.begin(); sitr!=scheduled_ops.end(); ++sitr) {
       const scheduled_op_t& scheduled_op = *sitr;
+      std::cout << scheduled_op.op_->getName() << std::endl;
       assert( scheduled_op.is_original_op() );
       if (fptr) {
         fprintf(fptr, "[updated] op = %-20s  type = %-15s  time = %zu ",
@@ -339,10 +348,13 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       }
 
       cmx_address_alloc(scheduled_op);
+      std::cout << "finished" << std::endl;
     }
     has_any_dynamic_spill_ops = false;
 
   }
+
+  std::cout << "5" << std::endl;
 
   ///////////////////// REPACKING //////////////////////////////////////////////
   //TODO(vamsikku): get rid of repacking.
@@ -366,7 +378,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   }
   //////////////////////////////////////////////////////////////////////////////
 
-
+  std::cout << "6" << std::endl;
 
   ///////////////Save Schedule for DDR Address Generation///////////////////////
   if (passDesc.hasAttr("ddr_address_generation") &&
@@ -383,6 +395,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     global_params->set<std::string>(writer_t::ddr_address_attribute(),
           schedule_state.str());
   }
+
+  std::cout << "7" << std::endl;
 
   ////////////////////// Control Edge Generation ///////////////////////////////
   mv::ControlModel cmodel(model);
