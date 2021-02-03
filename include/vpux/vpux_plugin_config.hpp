@@ -85,7 +85,7 @@ DECLARE_VPUX_CONFIG_VALUE(MA3720);
 
 /**
  * @brief [Only for VPUX Plugin]
- * Type: integer, default is 1.
+ * Type: integer, default is 4.
  */
 DECLARE_VPUX_CONFIG_KEY(THROUGHPUT_STREAMS);
 

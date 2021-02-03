@@ -121,20 +121,43 @@ TEST_F(KmbClassifyNetworkTest, experimental_network_0000) {
         2, 0.1f);
 }
 
-TEST_F(AgeGenderNetworkTest, age_gender_recognition_retail_0013_FP16) {
+TEST_F(ModelAdk, precommit_ModelA) {
     runTest(
-        TestNetworkDesc("KMB_models/FP16/age-gender-recognition-retail-0013/caffe/age-gender-recognition-retail-0013.xml"),
-        "62x62/face62.bmp",
-        0.002f);
+            TestNetworkDesc("ADK3/ModelA_INT8/ModelA_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("output", Precision::FP16),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+            0.0025f);
 }
 
-TEST_F(AgeGenderNetworkTest, age_gender_recognition_retail_0013_FP16_INT8) {
-    if (!USE_EXPERIMENTAL_COMPILER) {
-        SKIP_ON("VPUX", "Compilation failure with types mismatch");
-    }
-
+TEST_F(ModelAdk, ModelE) {
     runTest(
-        TestNetworkDesc("KMB_models/FP16-INT8/private/age-gender-recognition-retail-0013/caffe/age-gender-recognition-retail-0013.xml"),
-        "62x62/face62.bmp",
-        0.02f);
+            TestNetworkDesc("ADK3/ModelE_INT8/ModelE_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("PostProcess/stage0/x1/Sigmoid", Precision::FP32)
+                    .setUserOutputPrecision("PostProcess/stage0/x4/Sigmoid", Precision::FP32)
+                    .setUserOutputPrecision("PostProcess/stage1/x1/Sigmoid", Precision::FP32)
+                    .setUserOutputPrecision("PostProcess/stage1/x4/Sigmoid", Precision::FP32),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+            0.0025f);
+}
+
+// [Track number: S#47419]
+TEST_F(SmokeNetworkTest, DISABLED_DeBlur) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    runTest(
+            TestNetworkDesc("ADK3/DeBlur_INT8/DeBlur_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("output", Precision::FP16));
+}
+
+// [Track number: S#47647]
+TEST_F(SmokeNetworkTest, DISABLED_SuperResolution_ADK3) {
+    runTest(
+            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserOutputPrecision("output", Precision::FP16));
 }

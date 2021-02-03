@@ -983,11 +983,40 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_small) {
 	0.3f);
 }
 
-TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128) {
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_U8) {
     runTest(
 	TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
 	    .setUserInputPrecision("input", Precision::U8),
 	TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+        1,
+        0.3f);
+}
+
+// This test checks correctness of handling FP16 input in case of quantized model
+// for which inner network precision will be U8
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP16) {
+    runTest(
+	TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
+	    .setUserInputPrecision("input", Precision::FP16),
+	TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+        1,
+        0.3f);
+}
+
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP32) {
+    runTest(
+	TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
+	    .setUserInputPrecision("input", Precision::FP32),
+	TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+        1,
+        0.3f);
+}
+
+TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
+    runTest(
+    TestNetworkDesc("KMB_models/FP16-INT8/public/aclnet-des-53-vpu/aclnet-des-53-vpu.xml")
+        .setUserInputPrecision("input", Precision::FP16),
+    TestBinFileDesc("vpu/audio_16k/airplane_3_17-FP16.bin", {1, 1, 1, 16000}, Precision::FP16),
         1,
         0.3f);
 }
@@ -999,7 +1028,7 @@ TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
             .setUserInputPrecision("input", Precision::U8),
         TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
         0.3f,
-        0.1f, 0.3f);
+        0.1f, 0.35f);
 }
 
 // [Track number: D#45024]

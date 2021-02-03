@@ -14,6 +14,8 @@
 // stated in the License.
 //
 
+#include "ie_utils.hpp"
+
 #include <inference_engine.hpp>
 #include <blob_factory.hpp>
 #include <caseless.hpp>
@@ -50,6 +52,8 @@ DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
 DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification' mode");
+
+DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
 
 DEFINE_string(log_level, "", "IE logger level (optional)");
 
@@ -97,6 +101,8 @@ void parseCommandLine(int argc, char* argv[]) {
         if (strEq(FLAGS_mode, "classification")) {
             std::cout << "    Top K:            " << FLAGS_top_k << std::endl;
             std::cout << "    Tolerance:        " << FLAGS_prob_tolerance << std::endl;
+        } else if (strEq(FLAGS_mode, "raw")) {
+            std::cout << "    Tolerance:        " << FLAGS_raw_tolerance << std::endl;
         }
     }
     std::cout << "    Log level:        " << FLAGS_log_level << std::endl;
@@ -120,7 +126,7 @@ bool isImage(const ie::TensorDesc& desc) {
     return false;
 }
 
-std::vector<cv::Mat> ieToCv(const ie::Blob::Ptr& blob, size_t batchInd = 0, size_t depthInd = 0) {
+std::vector<cv::Mat> ieToCv(const ie::MemoryBlob::Ptr& blob, size_t batchInd = 0, size_t depthInd = 0) {
     IE_ASSERT(blob != nullptr);
 
     const auto& tensDesc = blob->getTensorDesc();
@@ -159,7 +165,8 @@ std::vector<cv::Mat> ieToCv(const ie::Blob::Ptr& blob, size_t batchInd = 0, size
         IE_ASSERT(batchInd < N);
         IE_ASSERT(C == 3 || C == 4);
 
-        const auto blobPtr = blob->buffer().as<uint8_t *>();
+        const auto blobMem = blob->wmap();
+        const auto blobPtr = blobMem.as<uint8_t *>();
 
         out.resize(C);
         for (size_t c = 0; c < C; ++c) {
@@ -181,7 +188,8 @@ std::vector<cv::Mat> ieToCv(const ie::Blob::Ptr& blob, size_t batchInd = 0, size
         IE_ASSERT(depthInd < D);
         IE_ASSERT(C == 3 || C == 4);
 
-        const auto blobPtr = blob->buffer().as<uint8_t *>();
+        const auto blobMem = blob->wmap();
+        const auto blobPtr = blobMem.as<uint8_t *>();
 
         out.resize(C);
         for (size_t c = 0; c < C; ++c) {
@@ -192,7 +200,7 @@ std::vector<cv::Mat> ieToCv(const ie::Blob::Ptr& blob, size_t batchInd = 0, size
     return out;
 }
 
-void cvToIe(const cv::Mat& cvImg, const ie::Blob::Ptr& ieBlob) {
+void cvToIe(const cv::Mat& cvImg, const ie::MemoryBlob::Ptr& ieBlob) {
     const auto& tensDesc = ieBlob->getTensorDesc();
     const auto& precision = tensDesc.getPrecision();
     const auto layout = tensDesc.getLayout();
@@ -233,7 +241,7 @@ void cvToIe(const cv::Mat& cvImg, const ie::Blob::Ptr& ieBlob) {
         in.convertTo(in, CV_32F);
     }
 
-    const auto pictureArea = in.size().area();
+    const auto pictureArea = static_cast<size_t>(in.size().area());
 
     if (W * H > pictureArea) {
         cv::resize(in, in, cv::Size(W, H), 0.0, 0.0, cv::INTER_AREA);
@@ -242,7 +250,10 @@ void cvToIe(const cv::Mat& cvImg, const ie::Blob::Ptr& ieBlob) {
     }
 
     if (layout == ie::Layout::NHWC) {
-        cv::Mat out(H, W, cvType, ieBlob->buffer().as<uint8_t *>());
+        const auto blobMem = ieBlob->wmap();
+        const auto blobPtr = blobMem.as<uint8_t *>();
+
+        cv::Mat out(H, W, cvType, blobPtr);
 
         if (precision != ie::Precision::FP16) {
             in.copyTo(out);
@@ -253,7 +264,7 @@ void cvToIe(const cv::Mat& cvImg, const ie::Blob::Ptr& ieBlob) {
         }
 
         for (size_t n = 1; n < N; ++n) {
-            cv::Mat batch(H, W, cvType, ieBlob->buffer().as<uint8_t *>() + out.size().area() * out.elemSize());
+            cv::Mat batch(H, W, cvType, blobPtr + out.size().area() * out.elemSize());
             out.copyTo(batch);
         }
     } else if (layout == ie::Layout::NCHW) {
@@ -300,13 +311,13 @@ std::string cleanName(std::string name) {
     return name;
 }
 
-ie::Blob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& filePath) {
+ie::MemoryBlob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& filePath) {
     IE_ASSERT(isImage(desc)) << "Only image inputs are supported";
 
     const auto frame = cv::imread(filePath, cv::IMREAD_COLOR);
     IE_ASSERT(!frame.empty()) << "Failed to open input image file " << filePath;
 
-    const auto blob = make_blob_with_precision(desc);
+    const auto blob = ie::as<ie::MemoryBlob>(make_blob_with_precision(desc));
     blob->allocate();
 
     cvToIe(frame, blob);
@@ -314,23 +325,27 @@ ie::Blob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& filePath)
     return blob;
 }
 
-ie::Blob::Ptr loadBlob(const ie::TensorDesc& desc, const std::string& filePath) {
-    const auto blob = make_blob_with_precision(desc);
+ie::MemoryBlob::Ptr loadBlob(const ie::TensorDesc& desc, const std::string& filePath) {
+    const auto blob = ie::as<ie::MemoryBlob>(make_blob_with_precision(desc));
     blob->allocate();
 
     std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
     IE_ASSERT(file.is_open()) << "Can't open file " << filePath << " for read";
 
-    file.read(blob->buffer().as<char*>(), static_cast<std::streamsize>(blob->byteSize()));
+    const auto blobMem = blob->wmap();
+    const auto blobPtr = blobMem.as<char*>();
+    file.read(blobPtr, static_cast<std::streamsize>(blob->byteSize()));
 
     return blob;
 }
 
-void dumpBlob(const ie::Blob::Ptr& blob, const std::string& filePath) {
+void dumpBlob(const ie::MemoryBlob::Ptr& blob, const std::string& filePath) {
     std::ofstream file(filePath, std::ios_base::out | std::ios_base::binary);
     IE_ASSERT(file.is_open()) << "Can't open file " << filePath << " for write";
 
-    file.write(blob->cbuffer().as<const char*>(), static_cast<std::streamsize>(blob->byteSize()));
+    const auto blobMem = blob->rmap();
+    const auto blobPtr = blobMem.as<const char*>();
+    file.write(blobPtr, static_cast<std::streamsize>(blob->byteSize()));
 }
 
 //
@@ -375,15 +390,16 @@ ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs) {
 }
 
 //
-// Main
+// Classification mode
 //
 
-std::vector<std::pair<int, float>> parseClassification(const ie::Blob::Ptr& blob) {
+std::vector<std::pair<int, float>> parseClassification(const ie::MemoryBlob::Ptr& blob) {
     IE_ASSERT(blob->getTensorDesc().getPrecision() == ie::Precision::FP32);
 
     std::vector<std::pair<int, float>> res(blob->size());
 
-    const auto blobPtr = blob->cbuffer().as<const float*>();
+    const auto blobMem = blob->rmap();
+    const auto blobPtr = blobMem.as<const float*>();
     IE_ASSERT(blobPtr != nullptr);
 
     for (size_t i = 0; i < blob->size(); ++i) {
@@ -407,8 +423,8 @@ bool testClassification(const ie::BlobMap& outputs, const ie::BlobMap& refOutput
     IE_ASSERT(outBlob->getTensorDesc() == refOutBlob->getTensorDesc());
     IE_ASSERT(refOutBlob->getTensorDesc().getPrecision() == ie::Precision::FP32);
 
-    auto probs = parseClassification(outBlob);
-    auto refProbs = parseClassification(refOutBlob);
+    auto probs = parseClassification(ie::as<ie::MemoryBlob>(outBlob));
+    auto refProbs = parseClassification(ie::as<ie::MemoryBlob>(refOutBlob));
 
     IE_ASSERT(probs.size() >= FLAGS_top_k);
     probs.resize(FLAGS_top_k);
@@ -450,6 +466,83 @@ bool testClassification(const ie::BlobMap& outputs, const ie::BlobMap& refOutput
 
     return true;
 }
+
+//
+// RAW mode
+//
+
+bool compareBlobs(
+        const ie::MemoryBlob::Ptr& actualOutput,
+        const ie::MemoryBlob::Ptr& refOutput) {
+    const auto& actualDesc = actualOutput->getTensorDesc();
+    const auto& refDesc = refOutput->getTensorDesc();
+
+    if (actualDesc.getDims() != refDesc.getDims()) {
+        std::cout << "Actual and reference blobs has different shape" << std::endl;
+        return false;
+    }
+
+    const auto actualFP32 = ie::as<ie::MemoryBlob>(toFP32(toDefLayout(actualOutput)));
+    const auto refFP32 = ie::as<ie::MemoryBlob>(toFP32(toDefLayout(refOutput)));
+
+    const auto actualMem = actualFP32->rmap();
+    const auto refMem = refFP32->rmap();
+
+    const auto actualPtr = actualMem.as<const float*>();
+    const auto refPtr = refMem.as<const float*>();
+
+    const auto totalCount = refOutput->size();
+    const auto printCount = std::min<size_t>(totalCount, 10);
+
+    for (size_t i = 0; i < totalCount; ++i) {
+        const auto refVal = refPtr[i];
+        const auto actualVal = actualPtr[i];
+
+        const auto absDiff = std::fabs(refVal - actualVal);
+
+        if (i < printCount) {
+            std::cout << "        " << i << " :"
+                      << " ref : " << std::setw(10) << refVal
+                      << " actual : " << std::setw(10) << actualVal
+                      << " absdiff : " << std::setw(10) << absDiff
+                      << std::endl;
+        }
+
+        if (absDiff > FLAGS_raw_tolerance) {
+            std::cout
+                    << "Absolute difference between actual value " << actualVal
+                    << " and reference value " << refVal
+                    << " at index " << i
+                    << " larger then tolerance" << std::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool testRAW(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs) {
+    if (outputs.size() != refOutputs.size()) {
+        std::cout << "Actual and reference has different number of output blobs" << std::endl;
+        return false;
+    }
+
+    for (const auto& actualBlob : outputs) {
+        auto ref_it = refOutputs.find(actualBlob.first);
+        IE_ASSERT(ref_it != refOutputs.end());
+
+        std::cout << "Compare " << actualBlob.first << " with reference" << std::endl;
+        if (!compareBlobs(ie::as<ie::MemoryBlob>(actualBlob.second), ie::as<ie::MemoryBlob>(ref_it->second))) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+//
+// main
+//
 
 int main(int argc, char* argv[]) {
     try {
@@ -543,13 +636,20 @@ int main(int argc, char* argv[]) {
                 const auto blobFileName = ostr.str();
 
                 std::cout << "Dump device output #" << outputInd << " to " << blobFileName << std::endl;
-                dumpBlob(p.second, blobFileName);
+                dumpBlob(ie::as<ie::MemoryBlob>(p.second), blobFileName);
 
                 ++outputInd;
             }
 
             if (strEq(FLAGS_mode, "classification")) {
                 if (testClassification(outputs, refOutputs)) {
+                    std::cout << "PASSED" << std::endl;
+                } else {
+                    std::cout << "FAILED" << std::endl;
+                    return EXIT_FAILURE;
+                }
+            } else if (strEq(FLAGS_mode, "raw")) {
+                if (testRAW(outputs, refOutputs)) {
                     std::cout << "PASSED" << std::endl;
                 } else {
                     std::cout << "FAILED" << std::endl;
@@ -567,7 +667,7 @@ int main(int argc, char* argv[]) {
                 const auto blobFileName = ostr.str();
 
                 std::cout << "Dump reference output #" << outputInd << " to " << blobFileName << std::endl;
-                dumpBlob(p.second, blobFileName);
+                dumpBlob(ie::as<ie::MemoryBlob>(p.second), blobFileName);
 
                 ++outputInd;
             }

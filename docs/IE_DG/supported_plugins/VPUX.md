@@ -27,7 +27,7 @@ The VPUX plugin accepts the following options:
 | `PERF_COUNT` | `YES`/`NO` | `NO` | Enable or disable performance counter |
 | `DEVICE_ID`    | `VPU-0`/ `VPU-1`/ `VPU-2`/ `VPU-3` | `VPU-0` | `VPU-0` | Device identifier |
 | `VPUX_PLATFORM`    | `MA2490`/ `MA2490_B0`/ `MA3100`/ `MA3720` | `MA2490` | Device platform |
-| `VPUX_THROUGHPUT_STREAMS`    | positive integer | 1 | Set the number of threads to use for model execution |
+| `VPUX_THROUGHPUT_STREAMS`    | positive integer | 4 | Set the number of threads to use for model execution |
 | `KMB_THROUGHPUT_STREAMS`    | positive integer | 1 | **[Deprecated]** Set the number of threads to use for model execution |
 | `VPU_COMPILER_LOG_LEVEL`    | `LOG_LEVEL_NONE`/ `LOG_LEVEL_ERROR`/ `LOG_LEVEL_WARNING`/ `LOG_LEVEL_INFO`/ `LOG_LEVEL_TRACE` | `LOG_LEVEL_INFO` | Set log level for mcmCompiler |
 | `VPU_COMPILER_CUSTOM_LAYERS` | std::string | empty | Path to custom layer binding xml file. Custom layer has higher priority over native implementation |

@@ -159,4 +159,12 @@ def VPUIP_SameDimsOrder : NativeOpTrait<"SameDimsOrder"> {
     let cppNamespace = "vpux::VPUIP";
 }
 
+//
+// Legacy4D
+//
+
+def VPUIP_Legacy4D : NativeOpTrait<"Legacy4D"> {
+    let cppNamespace = "vpux::VPUIP";
+}
+
 #endif
