@@ -43,10 +43,6 @@
             {
               "name" : "LocateInplaceEltwiseOps"
             },
-            {
-              "name" : "ChainPipeliningTransform",
-              "select_stages" : 2
-            },
             "PipeLineAcrossParallelBranches",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
