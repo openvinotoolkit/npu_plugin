@@ -419,6 +419,23 @@ static std::map<std::string,std::string> location2Allocator =
         { "BLOB", "GraphFile"}
 };
 
+// NOTE: Case of ImplicitConcat to ImplicitConcat with only Implicit Ops in between, which
+// do not have an effect on tensor location needed in order for correct tensor allocation
+// and prevention of tensors being overwritten
+bool propagateToSlaves(mv::OpModel& om, mv::Data::TensorIterator input_tensor)
+{
+    // Implicit Source Ops have no effect, iterate back to Concrete Source Op
+    auto source_op = om.getSourceOp(input_tensor);
+    auto source_optype = source_op->getOpType();
+    auto propagate_to_slaves = true;
+    if (source_optype == "Concat" || source_optype == "ImplicitConcat")
+        propagate_to_slaves = false;
+    else if (source_op->isImplicit())
+        for (auto source_input_tensor : source_op->getInputTensor())
+            propagate_to_slaves = propagate_to_slaves && propagateToSlaves(om, source_input_tensor);
+    return propagate_to_slaves;
+}
+
 void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                             mv::ComputationModel& model,
                                             mv::TargetDescriptor&,
@@ -542,9 +559,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     lhs_padding.at(axis) = lhs;
                     rhs_padding.at(axis) = rhs;
 
-                    auto source_optype = om.getSourceOp(inputTensor)->getOpType();
-
-                    auto propagate_to_slaves = (!(source_optype == "Concat" || source_optype == "ImplicitConcat"));
+                    auto propagate_to_slaves = propagateToSlaves(om, inputTensor);
 
                     auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
                                                     inputBuffer, outputBuffer,
