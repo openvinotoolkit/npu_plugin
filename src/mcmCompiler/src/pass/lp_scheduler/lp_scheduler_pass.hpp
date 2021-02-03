@@ -1085,8 +1085,6 @@ class Dynamic_Spill_Node_Inserter {
 
       compute_spill_subtrees(sbegin, send);
 
-      mv::OpModel om(model_);
-
       // now for each subtree structure update the model //
       for (typename spilled_op_map_t::iterator itr = spilled_op_map_.begin();
             itr != spilled_op_map_.end(); ++itr) {
