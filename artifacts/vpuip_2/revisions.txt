@@ -1,2 +1,2 @@
-tag:ci_tag_gold2_vpu_release_21ww03.4.1
-commit:71f67c21ff5323419f842fc45059e9ac386eec9d
+tag:vpu_nightly_20210131
+commit:0b695b56cdfa993c0c5ff2a39af904130def7c66
