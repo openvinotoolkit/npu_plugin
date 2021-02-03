@@ -21,6 +21,7 @@ include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
 include "vpux/compiler/dialect/IERT/ops_interfaces.td"
+include "vpux/compiler/dialect/IE/attributes.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -876,6 +877,34 @@ def IERT_GenericReshapeOp :
     }];
 
     let hasFolder = 1;
+}
+
+//
+// DetectionOutputOp
+//
+
+def IERT_DetectionOutputOp :
+        IERT_LayerOp<
+            "DetectionOutput",
+            [
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<DetectionOutputLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time DetectionOutput layer";
+
+    let arguments = (ins
+        MemRefOf<[AnyFloat]>:$in_box_logits,
+        MemRefOf<[AnyFloat]>:$in_class_preds,
+        MemRefOf<[AnyFloat]>:$in_proposals,
+        Optional<MemRefOf<[AnyFloat]>>:$in_additional_preds,
+        Optional<MemRefOf<[AnyFloat]>>:$in_additional_proposals,
+
+        MemRefOf<[AnyFloat]>:$output,
+
+        IE_DetectionOutputAttrs:$attr
+    );
 }
 
 //

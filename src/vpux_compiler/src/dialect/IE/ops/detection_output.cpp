@@ -30,20 +30,22 @@ mlir::LogicalResult vpux::IE::DetectionOutputOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto boxLogitsType = detectionOutput.box_logits().getType().cast<mlir::ShapedType>();
+    const auto boxLogitsType = detectionOutput.in_box_logits().getType().cast<mlir::ShapedType>();
 
-    const auto num_images = boxLogitsType.getShape()[0];
+    auto origN{0}, origC{1};
+    const auto num_images = boxLogitsType.getShape()[origN];
     const auto num_loc_classes =
             detectionOutput.attr().share_location().getValue() ? 1 : detectionOutput.attr().num_classes().getInt();
 
     if (num_loc_classes <= 0) {
         return errorAt(loc, "Number of classes should be a natural number");
     }
-    if (boxLogitsType.getShape()[1] % (num_loc_classes * 4) != 0) {
+
+    if (boxLogitsType.getShape()[origC] % (num_loc_classes * 4) != 0) {
         return errorAt(loc, "C dimension should be divisible by num_loc_classes * 4");
     }
 
-    const auto num_prior_boxes = boxLogitsType.getShape()[1] / (num_loc_classes * 4);
+    const auto num_prior_boxes = boxLogitsType.getShape()[origC] / (num_loc_classes * 4);
     const auto keep_top_k = detectionOutput.attr().keep_top_k()[0].cast<mlir::IntegerAttr>().getInt();
     const auto top_k = detectionOutput.attr().top_k().getInt();
     const auto num_classes = detectionOutput.attr().num_classes().getInt();

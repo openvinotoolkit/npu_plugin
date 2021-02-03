@@ -554,4 +554,34 @@ def GRNLayerInterface : OpInterface<"GRNLayerInterface"> {
     ];
 }
 
+//
+// DetectionOutputLayerInterface
+//
+
+def DetectionOutputLayerInterface : OpInterface<"DetectionOutputLayerInterface"> {
+    let description = "Interface for DetectionOutput Layer";
+
+    let cppNamespace = "vpux";
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            vpux::SmallVector<mlir::Value> inputs {$_op.in_box_logits(), $_op.in_class_preds(), $_op.in_proposals()};
+
+            if ($_op.in_additional_preds() != nullptr) {
+                inputs.push_back($_op.in_additional_preds());
+            }
+
+            if ($_op.in_additional_proposals() != nullptr) {
+                inputs.push_back($_op.in_additional_proposals());
+            }
+
+            return inputs;
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
+}
+
 #endif
