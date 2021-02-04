@@ -23,7 +23,8 @@ mv::StreamingPerformance::StreamingPerformance(mv::ComputationModel& model, mv::
 
 mv::StreamingPerformance::~StreamingPerformance()
 {
-    fclose(fptr_);
+    if (mv::isDebugFilesEnabled())
+        fclose(fptr_);
 }
 
 void mv::StreamingPerformance::increaseStreamingOverKforPerformance()
