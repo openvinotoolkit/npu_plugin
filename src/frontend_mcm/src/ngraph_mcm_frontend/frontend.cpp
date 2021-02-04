@@ -36,6 +36,8 @@
 #include "ngraph_mcm_frontend/passes/insert_maxpool.hpp"
 #include "ngraph_mcm_frontend/passes/replace_shuffle.hpp"
 #include "ngraph_mcm_frontend/passes/handle_3d_transpose.hpp"
+#include <ngraph_mcm_frontend/passes/propagate_fq.hpp>
+#include <ngraph_mcm_frontend/passes/align_scales.hpp>
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -226,6 +228,16 @@ std::vector<char> compileNGraph(
             passManager.register_pass<FuseScaleShift>();
         }
 
+        // TODO: Add passes for rewriting parts of graph
+        auto anchor = passManager.register_pass<ngraph::pass::GraphRewrite>();
+        anchor->add_matcher<ngraph::pass::CollapseConcats0238>();
+        anchor->set_name("ngraph::pass::mcmAdaptation");
+
+        passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
+        passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
+        passManager.register_pass<PropagateFQ>();
+        passManager.register_pass<AlignScales>();
+
         if (!config.serializeCNNBeforeCompileFile().empty()) {
             std::string origFileName = config.serializeCNNBeforeCompileFile();
             auto baseFileName = (origFileName.substr(origFileName.length() - 4, 4) == ".xml")
@@ -237,11 +249,6 @@ std::vector<char> compileNGraph(
 
         passManager.register_pass<ngraph::pass::ConvertPriorBox>(); // strict requirement: ConvertPriorBox should be first
 
-        // TODO: Add passes for rewriting parts of graph
-        auto anchor = passManager.register_pass<ngraph::pass::GraphRewrite>();
-        anchor->add_matcher<ngraph::pass::CollapseConcats0238>();
-        anchor->set_name("ngraph::pass::mcmAdaptation");
-
         passManager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         passManager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         passManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -252,15 +259,11 @@ std::vector<char> compileNGraph(
         // TBD Should be ngraph::pass too in order to be applied in between other passes.
         const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
 
-        passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
-        passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
         passManager.register_pass<FuseScaleAfterClamp>();
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
         passManager.register_pass<ReplaceScaleShiftWithMcmScale>();
         passManager.register_pass<ReplaceAddWithMcmEltwise>();
-        passManager.register_pass<AlignEltwiseScales>();
-        passManager.register_pass<AlignConcatScales>();
         passManager.register_pass<ngraph::pass::ConstantFolding>();
         passManager.register_pass<BroadcastEltwiseInputs>();
         passManager.register_pass<MergeTopKConvert>();
