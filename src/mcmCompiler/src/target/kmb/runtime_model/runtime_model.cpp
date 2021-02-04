@@ -1131,6 +1131,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
     // DMA re-ordering has been disabled, reverting to original schedule
+
     auto sortedOps = controlModel.schedulingSort();
     int initialId = 0;
     uint8_t port = 0;
