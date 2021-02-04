@@ -41,11 +41,15 @@ public:
 
 mlir::LogicalResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const {
     if (const auto affineMapAttr = attr.dyn_cast<mlir::AffineMapAttr>()) {
-        if (const auto dimsOrder = DimsOrder::fromAffineMap(affineMapAttr.getValue())) {
-            if (const auto name = dimsOrder->getCanonicalName()) {
+        try {
+            const auto dimsOrder = DimsOrder::fromAffineMap(affineMapAttr.getValue());
+
+            if (const auto name = dimsOrder.getCanonicalName()) {
                 os << name.getValue();
                 return mlir::success();
             }
+        } catch (...) {
+            return mlir::failure();
         }
     }
 

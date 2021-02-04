@@ -103,12 +103,14 @@ public:
     // Convert from packed format to array of dimensions from major to minor.
     DimArr toPermutation() const;
 
+    bool isIdentity() const;
+
 public:
-    static Optional<DimsOrder> fromAffineMap(mlir::AffineMap map);
+    static DimsOrder fromAffineMap(mlir::AffineMap map);
     mlir::AffineMap toAffineMap(mlir::MLIRContext* ctx) const;
 
-    static Optional<DimsOrder> fromType(mlir::MemRefType type);
-    static Optional<DimsOrder> fromValue(mlir::Value val);
+    static DimsOrder fromType(mlir::MemRefType type);
+    static DimsOrder fromValue(mlir::Value val);
 
 public:
     static DimsOrder fromIE(InferenceEngine::Layout layout);

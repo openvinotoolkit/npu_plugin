@@ -134,7 +134,6 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     const auto serializedDims = createDims(type);
     const auto serializedStrides = createStrides(type);
     const auto dimsOrder = DimsOrder::fromType(type);
-    VPUX_THROW_UNLESS(dimsOrder.hasValue(), "Can't get DimsOrder from MemRef Type '{0}'", type);
 
     const auto serializedDataReference =
             createIndirectDataReference(dataIndex, sparsityIndex, storageElementIndex, storageElementSize);
@@ -177,7 +176,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     builder.add_quant_zero(quantZero);
     builder.add_quant_mult(quantMult);
     builder.add_quant_shift(quantShift);
-    builder.add_order(dimsOrder->code());
+    builder.add_order(dimsOrder.code());
     if (leadingOffset.hasValue()) {
         builder.add_leading_offset(leadingOffset.getValue());
     }

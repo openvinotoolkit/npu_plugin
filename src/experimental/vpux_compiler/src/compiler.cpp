@@ -204,7 +204,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
         cnnNet.getOutputsInfo().at(p.first)->setLayout(p.second->getLayout());
     }
 
-    const bool sharedConstants = !irPrintingFilter.hasValue();
+    const bool sharedConstants = crashReproducerFile.empty() && !irPrintingFilter.hasValue();
     auto module = IE::importNetwork(&ctx, cnnNet, sharedConstants, log.nest());
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module.get())), "Compilation failed");

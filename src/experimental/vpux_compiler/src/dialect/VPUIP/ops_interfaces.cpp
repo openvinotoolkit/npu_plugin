@@ -63,17 +63,10 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
             return errorAt(op, "Can't operate with '{0}' PhysicalMemory", mem.getValue());
         }
 
-        const auto shape = getShape(val);
-        const auto order = DimsOrder::fromValue(val);
-        const auto elemSize = getElemTypeSize(type);
-        const auto strides = getStrides(val);
-        const auto memShape = order->toMemoryOrder(shape);
-        const auto memStrides = order->toMemoryOrder(strides);
-
         const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(0)));
 
-        if (!strideReqs.checkStrides(memStrides, elemSize, memShape)) {
-            return errorAt(op, "Memory strides '{0}' do not match requirements '{1}'", memStrides, strideReqs);
+        if (!strideReqs.checkStrides(val)) {
+            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", val, strideReqs);
         }
     }
 
@@ -256,16 +249,12 @@ mlir::LogicalResult vpux::VPUIP::verifyLegacy4D(mlir::Operation* op) {
             return errorAt(op, "Got unsupported shape '{0}', only 3D/4D are supported", shape);
         }
 
-        if (!order.hasValue()) {
-            return errorAt(op, "Can't extract DimsOrder from Type '{0}'", val.getType());
-        }
-
         if (shape.size() == 3) {
-            if (order.getValue() != DimsOrder::CHW && order.getValue() != DimsOrder::HWC) {
+            if (order != DimsOrder::CHW && order != DimsOrder::HWC) {
                 return errorAt(op, "Got unsupported input DimsOrder '{0}', only CHW and HWC are supported", order);
             }
         } else if (shape.size() == 4) {
-            if (order.getValue() != DimsOrder::NCHW && order.getValue() != DimsOrder::NHWC) {
+            if (order != DimsOrder::NCHW && order != DimsOrder::NHWC) {
                 return errorAt(op, "Got unsupported input DimsOrder '{0}', only NCHW and NHWC are supported", order);
             }
 
