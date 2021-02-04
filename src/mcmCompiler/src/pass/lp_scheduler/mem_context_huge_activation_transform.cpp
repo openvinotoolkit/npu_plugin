@@ -363,7 +363,7 @@ void MemContextForHugeActivations(const mv::pass::PassEntry&,
       passDesc.hasAttr("enable_pass") && passDesc.get<bool>("enable_pass");
   if (!enabled) { return; }
 
-  size_t cmx_upper_bound = model.getGlobalConfigParam("cmx").get<int>();
+  size_t cmx_upper_bound = model.getGlobalConfigParam("totalCmx").get<unsigned>();
   double peak_percent = 0.5;
   double valley_percent = 0.25;
   size_t max_context_chain_size = 3UL;
