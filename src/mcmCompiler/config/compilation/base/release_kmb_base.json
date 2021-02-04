@@ -188,6 +188,11 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            {
+                "name" : "AssignIntermediateOutputNodes",
+                "tensors" : ["conv#7", "group0/block0/conv1/Relu#184", "MobilenetV2/Conv/Relu6#171concat_"],
+                "_comment" : "Runtime will dump these intermediate tensors to disk for debug"
+            },
             "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",
