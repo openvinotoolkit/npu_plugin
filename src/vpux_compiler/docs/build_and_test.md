@@ -1,7 +1,15 @@
 # Build and Test Instructions
 
 The **VPUX NN Compiler** is a part of **kmb-plugin** repository and is built as a part of common build.
-It can be enabled in plugin via `IE_VPUX_USE_EXPERIMENTAL_COMPILER=1` environment variable.
+
+It can be enabled in plugin via `VPUX_CONFIG_KEY(COMPILER_TYPE)` configuration option:
+
+```C++
+core.LoadNetwork(cnnNet, {{VPUX_CONFIG_KEY(COMPILER_TYPE), VPUX_CONFIG_VALUE(MLIR)}});
+```
+
+If the project is built in developer build mode, the **VPUX NN Compiler** can also be enabled
+via `IE_VPUX_COMPILER_TYPE=MLIR` environment variable.
 
 ## Unit Tests
 
@@ -12,8 +20,9 @@ The **VPUX NN Compiler** uses two kind of unit tests:
 
 ### GoogleTest based Unit Tests
 
-The *GoogleTest* based unit tests for the **VPUX NN Compiler** are available in `vpuxUnitTestsExperimental` application.
+The *GoogleTest* based unit tests for the **VPUX NN Compiler** are available in `vpuxUnitTests` application.
 It can be used as plain *GoogleTest* based application (including all command line options) without any specific environment setup.
+To run only the tests related to **VPUX NN Compiler** use the following filter: `--gtest_filter=*MLIR*`.
 
 ### LLVM LIT based Unit Tests
 
@@ -41,4 +50,4 @@ to copy the updated test sources into OpenVINO binary directory.
 ## Functional tests
 
 Existing functional tests for KMB plugin (`kmbFuncTests`) can be used with the **VPUX NN Compiler**.
-The `IE_VPUX_USE_EXPERIMENTAL_COMPILER=1` environment variable must be set prior to their execution for both x86 side and ARM side.
+The supported test cases can be run with the following filter: `--gtest_filter=*MLIR*`.
