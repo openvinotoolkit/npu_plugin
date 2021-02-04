@@ -186,6 +186,7 @@ namespace mv
         Data::TensorIterator tensorBegin() const;
         Data::TensorIterator tensorEnd() const;
         Data::TensorIterator getTensor(const std::string& name);
+        Data::TensorIterator findTensor(const std::string& name);
 
         bool checkOp(const std::string& name);
         Data::OpListIterator getOp(const std::string& name);
