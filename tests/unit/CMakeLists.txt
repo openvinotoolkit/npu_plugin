@@ -41,6 +41,8 @@ addIeTargetTest(
         ${VPUX_PLUGIN_STATIC_TARGET}
         kmb_utils
         vpux_al
+        vpux_utils
+        vpux_compiler_static
         frontend_mcm_static
         vpual_backend_static
     LINK_LIBRARIES_WHOLE_ARCHIVE
@@ -52,5 +54,7 @@ addIeTargetTest(
     LABELS
         VPUX
 )
+
+set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tests")
 
 enable_warnings_as_errors(${TARGET_NAME})

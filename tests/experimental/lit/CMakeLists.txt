@@ -17,11 +17,11 @@
 add_custom_target(copy_vpuip_schema_tests ALL
     COMMAND
         ${CMAKE_COMMAND} -E remove_directory
-            "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/schema"
+            "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/schema"
     COMMAND
         ${CMAKE_COMMAND} -E copy_directory
             "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/graphFile-schema/src/schema"
-            "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/schema"
+            "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/schema"
     COMMENT "[LIT] Copy VPUIP schema files for tests"
 )
 set_target_properties(copy_vpuip_schema_tests PROPERTIES FOLDER "tests")

@@ -16,5 +16,4 @@
 
 vpux_setup_lit_tool(flatc)
 
-add_subdirectory(unit)
 add_subdirectory(lit)
