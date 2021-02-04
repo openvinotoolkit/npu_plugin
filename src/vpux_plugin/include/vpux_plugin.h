@@ -76,7 +76,6 @@ private:
     VPUXConfig _parsedConfig;
     VPUXBackends::CPtr _backends;
     Metrics _metrics;
-    Compiler::Ptr _compiler;
 };
 
 }  // namespace vpux

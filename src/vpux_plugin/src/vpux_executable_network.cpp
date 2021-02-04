@@ -73,7 +73,7 @@ ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr
         : _config(config),
           _logger(std::make_shared<vpu::Logger>("ExecutableNetwork", config.logLevel(), vpu::consoleOutput())),
           _device(device),
-          _compiler(Compiler::create(CompilerType::MCMCompiler)),
+          _compiler(Compiler::create(config)),
           _supportedMetrics({METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)}) {
 }
 

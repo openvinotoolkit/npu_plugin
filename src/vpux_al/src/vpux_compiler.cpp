@@ -55,18 +55,12 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& 
     return parse(blob, config, graphName);
 }
 
-vpux::Compiler::Ptr vpux::Compiler::create(vpux::CompilerType t) {
-    if (const auto env = std::getenv("IE_VPUX_USE_EXPERIMENTAL_COMPILER")) {
-        if (std::stoi(env) != 0) {
-            t = vpux::CompilerType::VPUXCompiler;
-        }
-    }
-
-    switch (t) {
-    case vpux::CompilerType::MCMCompiler: {
+vpux::Compiler::Ptr vpux::Compiler::create(const VPUXConfig& config) {
+    switch (config.compilerType()) {
+    case InferenceEngine::VPUXConfigParams::CompilerType::MCM: {
         return std::make_shared<Compiler>(getLibFilePath("frontend_mcm"));
     }
-    case vpux::CompilerType::VPUXCompiler: {
+    case InferenceEngine::VPUXConfigParams::CompilerType::MLIR: {
         return std::make_shared<Compiler>(getLibFilePath("vpux_compiler"));
     }
     default:

@@ -33,7 +33,7 @@ protected:
 
 //------------------------------------------------------------------------------
 inline NetworkDescription_Helper::NetworkDescription_Helper() {
-    auto compiler = Compiler::create(CompilerType::MCMCompiler);
+    auto compiler = Compiler::create();
     _networkDescPtr = compiler->parse(_modelToImport);
 }
 }  // namespace vpux

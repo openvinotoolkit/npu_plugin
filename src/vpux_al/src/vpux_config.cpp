@@ -21,13 +21,12 @@
 #include <vpux/vpux_plugin_config.hpp>
 #include <vpux_config.hpp>
 
-#include "vpux_private_config.hpp"
-
 namespace IE = InferenceEngine;
 
 vpux::VPUXConfig::VPUXConfig() {
     _compileOptions = merge(vpux::VPUXConfigBase::getCompileOptions(), {
                                                                                VPUX_CONFIG_KEY(PLATFORM),
+                                                                               VPUX_CONFIG_KEY(COMPILER_TYPE),
                                                                        });
     _runTimeOptions = merge(vpux::VPUXConfigBase::getRunTimeOptions(), {
                                                                                CONFIG_KEY(PERF_COUNT),
@@ -57,6 +56,19 @@ void vpux::VPUXConfig::parseFrom(const vpux::VPUXConfig& other) {
 }
 
 void vpux::VPUXConfig::parseEnvironment() {
+#ifdef VPUX_DEVELOPER_BUILD
+    if (const auto env = std::getenv("IE_VPUX_COMPILER_TYPE")) {
+        if (std::strcmp(env, VPUX_CONFIG_VALUE(MCM)) == 0) {
+            _compilerType = IE::VPUXConfigParams::CompilerType::MCM;
+        } else if (std::strcmp(env, VPUX_CONFIG_VALUE(MLIR)) == 0) {
+            _compilerType = IE::VPUXConfigParams::CompilerType::MLIR;
+        } else {
+            THROW_IE_EXCEPTION << "Invalid value "
+                               << "\"" << env << "\""
+                               << " for key IE_VPUX_COMPILER_TYPE environment variable";
+        }
+    }
+#endif
 }
 
 void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
@@ -100,6 +112,10 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_numberOfPPPipes, config, VPUX_CONFIG_KEY(PREPROCESSING_PIPES), parseInt);
     setOption(_executorStreams, config, VPUX_CONFIG_KEY(EXECUTOR_STREAMS), parseInt);
     setOption(_executorStreams, config, VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS), parseInt);
+    static const std::unordered_map<std::string, IE::VPUXConfigParams::CompilerType> vpuxCompilerType = {
+            {VPUX_CONFIG_VALUE(MCM), IE::VPUXConfigParams::CompilerType::MCM},
+            {VPUX_CONFIG_VALUE(MLIR), IE::VPUXConfigParams::CompilerType::MLIR}};
+    setOption(_compilerType, vpuxCompilerType, config, VPUX_CONFIG_KEY(COMPILER_TYPE));
 
     parseEnvironment();
 }
