@@ -126,6 +126,62 @@ public:
 
     // FIXME: temporary exposed to allow executor to use vpux::Allocator
     virtual unsigned long getPhysicalAddress(void* handle) noexcept = 0;
+
+protected:
+    /**
+     * @brief Disables the ability of deleting the object without release.
+     */
+    ~Allocator() override = default;
+};
+
+//------------------------------------------------------------------------------
+class AllocatorWrapper : public Allocator {
+private:
+    // AllocatorWrapper has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
+    // an instance of Allocator
+    std::shared_ptr<Allocator> _actual;
+    InferenceEngine::details::SharedObjectLoader::Ptr _plg;
+
+public:
+    AllocatorWrapper(const std::shared_ptr<Allocator> actual, InferenceEngine::details::SharedObjectLoader::Ptr plg)
+            : _actual(actual), _plg(plg) {
+    }
+
+    virtual void* lock(void* handle, InferenceEngine::LockOp op = InferenceEngine::LOCK_FOR_WRITE) noexcept override {
+        return _actual->lock(handle, op);
+    }
+    virtual void unlock(void* handle) noexcept override {
+        return _actual->unlock(handle);
+    }
+    virtual void* alloc(size_t size) noexcept override {
+        return _actual->alloc(size);
+    }
+    virtual bool free(void* handle) noexcept override {
+        return _actual->free(handle);
+    }
+
+    virtual void Release() noexcept override {
+        _actual->Release();
+    }
+
+    virtual void* wrapRemoteMemory(const InferenceEngine::ParamMap& paramMap) noexcept override {
+        return _actual->wrapRemoteMemory(paramMap);
+    }
+    virtual void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size,
+                                         void* memHandle) noexcept override {
+        return _actual->wrapRemoteMemoryHandle(remoteMemoryFd, size, memHandle);
+    }
+    virtual void* wrapRemoteMemoryOffset(const int& remoteMemoryFd, const size_t size,
+                                         const size_t& memOffset) noexcept override {
+        return _actual->wrapRemoteMemoryOffset(remoteMemoryFd, size, memOffset);
+    }
+    virtual unsigned long getPhysicalAddress(void* handle) noexcept override {
+        return _actual->getPhysicalAddress(handle);
+    }
+
+    virtual ~AllocatorWrapper() override {
+        _actual = nullptr;
+    };
 };
 
 //------------------------------------------------------------------------------
@@ -158,20 +214,23 @@ private:
     // an instance of IDevice
     std::shared_ptr<IDevice> _actual = nullptr;
     InferenceEngine::details::SharedObjectLoader::Ptr _plg = nullptr;
+    std::shared_ptr<AllocatorWrapper> _allocatorWrapper = nullptr;
 
 public:
     using Ptr = std::shared_ptr<Device>;
     using CPtr = std::shared_ptr<const Device>;
 
     Device(const std::shared_ptr<IDevice> device, InferenceEngine::details::SharedObjectLoader::Ptr plg)
-            : _actual(device), _plg(plg) {
+            : _actual(device),
+              _plg(plg),
+              _allocatorWrapper(std::make_shared<AllocatorWrapper>(_actual->getAllocator(), _plg)) {
     }
 
     std::shared_ptr<Allocator> getAllocator() const {
-        return _actual->getAllocator();
+        return _allocatorWrapper;
     }
     std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) {
-        return _actual->getAllocator(paramMap);
+        return std::make_shared<AllocatorWrapper>(_actual->getAllocator(paramMap), _plg);
     }
 
     virtual std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
