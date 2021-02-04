@@ -54,7 +54,7 @@ add_library(VpualDispatcher SHARED IMPORTED)
 
 set_target_properties(VpualDispatcher PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/Dispatcher"
-  INTERFACE_LINK_LIBRARIES "XLink;vpumgr"
+  INTERFACE_LINK_LIBRARIES "XLink;vpumgr;safestring_shared"
 )
 
 # Create imported target RemoteFlic
