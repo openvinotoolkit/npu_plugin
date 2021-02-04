@@ -60,6 +60,8 @@
               "enable_pass" : true,
               "peak_threshold_percent" : 49,
               "valley_threshold_percent" : 25,
+              "max_context_chain_size" : 3,
+              "_comment" : "Please make sure setting of cmx_concat inplace match with Scheduler pass",
               "enable_cmx_concat" : true,
               "enable_inplace_eltwise" : false 
             },

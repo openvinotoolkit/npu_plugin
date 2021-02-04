@@ -907,11 +907,6 @@ class Operation_Dag {
             bfs_list.push_back(child_op);
           }
 
-          if (child_op->getName() ==
-              "mobilenet_v1/MobilenetV1/Conv2d_1_depthwise/BiasAdd/Add") {
-            printf("contribution [%s] = %lu\n", curr_op->getName().c_str(),
-                curr_op_utility);
-          }
           itr->second += curr_op_utility;
         }
 
