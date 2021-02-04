@@ -33,4 +33,5 @@ if(ENABLE_ZEROAPI_BACKEND)
 endif()
 add_subdirectory(vpux_plugin)
 
-add_subdirectory(experimental)
+add_subdirectory(vpux_utils)
+add_subdirectory(vpux_compiler)

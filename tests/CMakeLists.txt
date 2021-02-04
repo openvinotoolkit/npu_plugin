@@ -10,4 +10,5 @@ if(ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)
 endif()
 
-add_subdirectory(experimental)
+vpux_setup_lit_tool(flatc)
+add_subdirectory(lit)
