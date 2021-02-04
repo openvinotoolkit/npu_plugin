@@ -127,6 +127,10 @@ public:
     // FIXME: temporary exposed to allow executor to use vpux::Allocator
     virtual unsigned long getPhysicalAddress(void* handle) noexcept = 0;
 
+    virtual void Release() noexcept override {
+        delete this;
+    }
+
 protected:
     /**
      * @brief Disables the ability of deleting the object without release.
@@ -161,7 +165,7 @@ public:
     }
 
     virtual void Release() noexcept override {
-        _actual->Release();
+        delete this;
     }
 
     virtual void* wrapRemoteMemory(const InferenceEngine::ParamMap& paramMap) noexcept override {
@@ -179,6 +183,7 @@ public:
         return _actual->getPhysicalAddress(handle);
     }
 
+protected:
     virtual ~AllocatorWrapper() override {
         _actual = nullptr;
     };
@@ -223,14 +228,16 @@ public:
     Device(const std::shared_ptr<IDevice> device, InferenceEngine::details::SharedObjectLoader::Ptr plg)
             : _actual(device),
               _plg(plg),
-              _allocatorWrapper(std::make_shared<AllocatorWrapper>(_actual->getAllocator(), _plg)) {
+              _allocatorWrapper(InferenceEngine::details::shared_from_irelease(
+                      new AllocatorWrapper(_actual->getAllocator(), _plg))) {
     }
 
     std::shared_ptr<Allocator> getAllocator() const {
         return _allocatorWrapper;
     }
     std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) {
-        return std::make_shared<AllocatorWrapper>(_actual->getAllocator(paramMap), _plg);
+        return InferenceEngine::details::shared_from_irelease(
+                new AllocatorWrapper(_actual->getAllocator(paramMap), _plg));
     }
 
     virtual std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,

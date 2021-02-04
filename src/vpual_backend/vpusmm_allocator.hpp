@@ -29,6 +29,7 @@ class VpusmmAllocator : public Allocator {
 public:
     using Ptr = std::shared_ptr<VpusmmAllocator>;
     VpusmmAllocator(const int deviceId);
+    VpusmmAllocator(const VpusmmAllocator&) = delete;
     void* lock(void* handle, InferenceEngine::LockOp) noexcept override;
 
     void unlock(void* handle) noexcept override;
@@ -37,13 +38,13 @@ public:
 
     virtual bool free(void* handle) noexcept override;
 
-    void Release() noexcept override {}
+    virtual void Release() noexcept override {
+        delete this;
+    }
 
     unsigned long getPhysicalAddress(void* handle) noexcept override;
 
     virtual bool isValidPtr(void* ptr) noexcept;
-
-    virtual ~VpusmmAllocator();
 
     void* wrapRemoteMemory(const InferenceEngine::ParamMap& map) noexcept override;
     // TODO Deprecated, remove when will be possible
@@ -51,7 +52,11 @@ public:
         const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept override;
     void* wrapRemoteMemoryOffset(
         const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, const KmbOffsetParam& memOffset) noexcept override;
-
+protected:
+    /**
+     * @brief Disables the ability of deleting the object without release.
+     */
+    virtual ~VpusmmAllocator();
 protected:
     std::mutex wrapMemoryMutex;
 

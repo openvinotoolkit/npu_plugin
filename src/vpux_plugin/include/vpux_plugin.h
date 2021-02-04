@@ -33,6 +33,7 @@ namespace vpux {
 class Engine : public InferenceEngine::InferencePluginInternal {
 public:
     Engine();
+    virtual ~Engine() = default;
 
     ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network,
                                                       const std::map<std::string, std::string>& config) override;
