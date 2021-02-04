@@ -369,6 +369,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   //////////////////////////////////////////////////////////////////////////////
 
 
+
   ///////////////Save Schedule for DDR Address Generation///////////////////////
   if (passDesc.hasAttr("ddr_address_generation") &&
         passDesc.get<bool>("ddr_address_generation")) {
