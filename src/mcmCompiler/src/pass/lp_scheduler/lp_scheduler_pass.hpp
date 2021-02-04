@@ -941,6 +941,7 @@ class Dynamic_Spill_Node_Inserter {
         const_operation_iterator_t;
     typedef std::list<operation_t> op_list_t;
     typedef typename op_list_t::iterator op_list_iterator_t;
+    typedef typename dag_t::operation_hash_t operation_hash_t;
 
     struct implicit_sub_structure_t {
       implicit_sub_structure_t(operation_t head=NULL, operation_t tail=NULL)
@@ -1060,13 +1061,6 @@ class Dynamic_Spill_Node_Inserter {
       spilled_read_subtrees_t read_subtrees_;
       std::unordered_set<operation_t> children_;
     }; // struct spilled_subtree_t //
-
-    struct operation_hash_t {
-      size_t operator()(const operation_t& op) const {
-        return name_hash_(op->getName());
-      }
-      std::hash<std::string> name_hash_;
-    }; // struct operation_hash_t //
 
     typedef std::unordered_map<operation_t, spilled_subtree_t, operation_hash_t> spilled_op_map_t;
     typedef typename spilled_op_map_t::const_iterator
@@ -1191,6 +1185,7 @@ class Dynamic_Spill_Node_Inserter {
 
         sop.op_type_ = op_type_e::ORIGINAL_OP;
       }
+
     } // update_scheduled_ops_with_new_read_write_ops //
 
     void print() const {
@@ -1988,7 +1983,6 @@ class Dynamic_Spill_Node_Inserter {
         assert(redundant_spill_map_.find(spilled_op) ==
               redundant_spill_map_.end());
         redundant_spill_map_[spilled_op] = spilled_op->getName();
-        // om.removeOp(spilled_op_itr);
         spill_read_tensor_itr->set<bool>("allocateSparsityMap", true); // If the original DMA Op is considered redundant and removed
       }                                                                // then we want the 'new' spilled DMA to allocate the sparsity map
     }
