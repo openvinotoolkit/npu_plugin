@@ -4,6 +4,7 @@
 
 #include "subgraph_tests/quantized_group_convolution.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "vpux_private_config.hpp"
 
 #include <vector>
 
@@ -13,7 +14,7 @@ namespace SubgraphTestsDefinitions {
 
 class KmbQuantGroupConvLayerTest: public QuantGroupConvLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+        if (isCompilerMCM()) {
             if (envConfig.IE_KMB_TESTS_RUN_INFER) {
                 throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
             }
@@ -22,6 +23,11 @@ class KmbQuantGroupConvLayerTest: public QuantGroupConvLayerTest, virtual public
 };
 
 TEST_P(KmbQuantGroupConvLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_F(KmbQuantGroupConvLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
     Run();
 }
 

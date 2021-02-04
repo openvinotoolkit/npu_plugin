@@ -181,14 +181,6 @@ const bool KmbTestBase::PRINT_PERF_COUNTERS = []() -> bool {
     return false;
 }();
 
-const bool KmbTestBase::USE_EXPERIMENTAL_COMPILER = []() -> bool {
-    if (const auto var = std::getenv("IE_VPUX_USE_EXPERIMENTAL_COMPILER")) {
-        return strToBool("IE_VPUX_USE_EXPERIMENTAL_COMPILER", var);
-    }
-
-    return false;
-}();
-
 void KmbTestBase::SetUp() {
     ASSERT_NO_FATAL_FAILURE(CommonTestUtils::TestsCommon::SetUp());
 

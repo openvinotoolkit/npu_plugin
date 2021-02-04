@@ -10,7 +10,8 @@
 
 namespace {
 
-class KmbQuantizedConvSubGraphTest : public LayerTestsUtils::KmbLayerTestsCommon {
+class KmbQuantizedConvSubGraphTest : public LayerTestsUtils::KmbLayerTestsCommon,
+                                     public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
     void SetUp() override {
         const InferenceEngine::SizeVector inputShape {1, 3, 62, 62};
         const InferenceEngine::SizeVector weightsShape {48, 3, 3, 3};
@@ -56,19 +57,18 @@ class KmbQuantizedConvSubGraphTest : public LayerTestsUtils::KmbLayerTestsCommon
         };
         function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedConv");
 
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice;
+        targetDevice = GetParam();
         threshold = 0.1f;
-    }
-
-    void SkipBeforeLoad() override {
-        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
-            throw LayerTestsUtils::KmbSkipTestException("The test is for experimental compiler only");
-        }
     }
 };
 
-TEST_F(KmbQuantizedConvSubGraphTest, CompareWithRefs) {
+TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
     Run();
 }
+
+INSTANTIATE_TEST_CASE_P(smoke, KmbQuantizedConvSubGraphTest,
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+);
 
 }

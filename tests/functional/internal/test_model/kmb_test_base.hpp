@@ -186,7 +186,6 @@ public:
     static const bool EXPORT_BLOBS;
     static const std::string LOG_LEVEL;
     static const bool PRINT_PERF_COUNTERS;
-    static const bool USE_EXPERIMENTAL_COMPILER;
 
 public:
     void registerBlobGenerator(

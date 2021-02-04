@@ -40,6 +40,10 @@ protected:
     virtual void SkipBeforeImport() {}
     virtual void SkipBeforeInfer() {}
     virtual void SkipBeforeValidate() {}
+
+    void useCompilerMLIR();
+    bool isCompilerMCM() const;
+    bool isCompilerMLIR() const;
 };
 
 class KmbSkipTestException: public std::runtime_error {

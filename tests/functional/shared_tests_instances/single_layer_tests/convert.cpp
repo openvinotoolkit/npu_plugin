@@ -22,7 +22,7 @@ class KmbConvertLayerTest: public ConvertLayerTest, virtual public LayerTestsUti
     }
 
     void SkipBeforeLoad() override {
-        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+        if (isCompilerMCM()) {
             // Tests fail with one of two common errors:
             // 1. C++ exception with description "Unsupported operation: Convert_7756 with name Convert_7843 with
             // type Convert with C++ type N6ngraph2op2v07ConvertE
@@ -48,6 +48,11 @@ class KmbConvertLayerTest: public ConvertLayerTest, virtual public LayerTestsUti
 };
 
 TEST_P(KmbConvertLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(KmbConvertLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
     Run();
 }
 
