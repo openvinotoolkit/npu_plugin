@@ -7,6 +7,7 @@ SPDX-License-Identifier: MIT
 #define _VPUMGR_H_
 #include <stddef.h>
 #include <stdint.h>
+#include <linux/types.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,6 +39,53 @@ enum VPUAccessType {
 	VPU_WRITE = 0x02,
 	VPU_RW    = 0x03,	//VPU_READ | VPU_WRITE
 	VPU_WR    = 0x03,	//VPU_READ | VPU_WRITE
+};
+
+#define NUM_OF_PLANE  3
+
+struct _VIV_VIDMEM_METADATA {
+	__u32 magic;                // __FOURCC('v', 'i', 'v', 'm')
+	__u32 dmabuf_size;          // DMABUF buffer size in byte (Maximum 4GB)
+	__u32 time_stamp;           // time stamp for the DMABUF buffer
+	__u32 image_format;         // viv image format, e.g. IMAGE_NV12 or IMAGE_P010
+	__u32 compressed;           // if DMABUF buffer is compressed by DEC400
+								// 1 = compressed, 0 = not compressed
+	struct {
+		__u32 offset;            // plane buffer address offset from DMABUF address
+		__u32 stride;            // pitch in byte
+		__u32 width;             // width in pixels
+		__u32 height;            // height in pixels
+		__u32 tile_format;       // uncompressed tile format
+		__u32 compress_format;   // tile mode for DEC400
+		__u32 ts_offset;         // tile status buffer offset within this plane buffer
+		__s32 ts_fd;             // fd of separate tile status buffer of the plane buffer
+		__s32 ts_fd2;            // valid fd of the ts buffer in consumer side
+		__s32 ts_vaddr;          // the vpu virtual address for this ts data buffer
+		__u32 fc_enabled;        // gpu fastclear enabled for the plane buffer
+		__u32 fc_value_lower;    // gpu fastclear color value (lower 32 bits)
+								 // for the plane buffer
+		__u32 fc_value_upper;    // gpu fastclear color value (upper 32 bits)
+								 // for the plane buffer
+	} plane[NUM_OF_PLANE];
+};
+
+struct _VPU_IP_METADATA {
+	__u32 compression;        // __FOURCC('n', 'o', 'n', 'e'): no compression
+	                             // __FOURCC('d', 'e', 'c', '4'): DEC400 compression
+	__u32 dmabuf_size;        // DMABUF buffer size in bytes (maximum 4 GB)
+	__u32 image_format;       // viv image format, e.g. IMAGE_NV12 or IMAGE_P010
+	__u32 timestamp;          // time stamp for the DMABUF buffer
+	__u32 stride;             // pitch in bytes
+	__u32 width;              // width in pixels
+	__u32 height;             // height in pixels
+	__u32 offset[NUM_OF_PLANE];          // plane buffer address offset from main buffer address
+	__s32 ts_fd[NUM_OF_PLANE];           // tile status buffer fd for planes 1,2,3,
+	                             // the plugin shall do import and
+	                             // call vpusmm to convert fd to vptr.
+	__u32 ts_offset[NUM_OF_PLANE];       // tile status buffer offset from
+	                             // ts_fd start address for planes 1,2,3.
+	__u32 tile_format[NUM_OF_PLANE];     // uncompressed tile format for planes 1,2,3
+	__u32 compress_format[NUM_OF_PLANE]; // DEC400 tile mode for planes 1,2,3
 };
 
 /** allocate a VPU-shared buffer object for multi slice
@@ -94,6 +142,16 @@ void vpurm_unimport_dmabuf(int dmabuf_fd, int slice_idx);
 */
 unsigned long vpurm_ptr_to_vpu(void * ptr, int slice_idx);
 
+/**  get VPU accessible address from any valid virtual address
+* @param dmabuf_fd [IN] : the DMABuf fd representing a pixel buffer which contain DEC400 meta data
+*						in its priv field.
+* @param slice_index [IN]: index of slice, starting from 0. It indicates DEC400 meta data will be gotten
+*						from which VPU slice.
+* @param struct __VPU_IP_METADATA *meta_info[out]: get the meta data content from this structure pointer.
+* @return Return 0 to indicate Success, -1 to indicate Failure.
+*/
+
+int vpurm_fetch_meta_from_fd(int dmabuf_fd, int slice_idx, struct _VPU_IP_METADATA *meta_info);
 /*
  * following APIs are to be compatible with old VPUSMM API, works on slice 0 only
  */
@@ -117,7 +175,6 @@ int vpurm_vpu_wait(int slice_idx, int submit_id, void * out, int * p_out_len, un
 
 int vpurm_open_vpu(int slice_idx);
 void vpurm_close_vpu(int slice_idx);
-
 
 #ifdef __cplusplus
 }
