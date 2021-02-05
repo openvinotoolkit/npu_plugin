@@ -63,28 +63,10 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
             return errorAt(op, "Can't operate with '{0}' PhysicalMemory", mem.getValue());
         }
 
-        const auto shape = getShape(val);
-        if (shape.size() != 4) {
-            return errorAt(op, "Got unsupported shape '{0}', only 4D is supported", shape);
-        }
-
-        const auto order = DimsOrder::fromValue(val);
-        if (!order.hasValue()) {
-            return errorAt(op, "Type '{0}' has unknown DimsOrder", type);
-        }
-        if (order.getValue() != DimsOrder::NCHW && order.getValue() != DimsOrder::NHWC) {
-            return errorAt(op, "Got unsupported input DimsOrder '{0}', only NCHW and NHWC are supported", order);
-        }
-
-        const auto elemSize = getElemTypeSize(type);
-        const auto strides = getStrides(val);
-        const auto memShape = order->toMemoryOrder(shape);
-        const auto memStrides = order->toMemoryOrder(strides);
-
         const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(0)));
 
-        if (!strideReqs.checkStrides(memStrides, elemSize, memShape)) {
-            return errorAt(op, "Memory strides '{0}' do not match requirements '{1}'", memStrides, strideReqs);
+        if (!strideReqs.checkStrides(val)) {
+            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", val, strideReqs);
         }
     }
 
@@ -238,6 +220,47 @@ mlir::LogicalResult vpux::VPUIP::verifySameDimsOrder(mlir::Operation* op) {
 
         if (order != mainOrder) {
             return errorAt(op, "Operation's input/output layout mismatch");
+        }
+    }
+
+    return mlir::success();
+}
+
+//
+// Legacy4D
+//
+
+mlir::LogicalResult vpux::VPUIP::verifyLegacy4D(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameDimsOrder");
+
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    if (layer == nullptr) {
+        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+    }
+
+    auto inputs = layer.getInputs();
+    auto outputs = layer.getOutputs();
+
+    for (const auto& val : concat<mlir::Value>(inputs, outputs)) {
+        const auto shape = getShape(val);
+        const auto order = DimsOrder::fromValue(val);
+
+        if (shape.size() != 3 && shape.size() != 4) {
+            return errorAt(op, "Got unsupported shape '{0}', only 3D/4D are supported", shape);
+        }
+
+        if (shape.size() == 3) {
+            if (order != DimsOrder::CHW && order != DimsOrder::HWC) {
+                return errorAt(op, "Got unsupported input DimsOrder '{0}', only CHW and HWC are supported", order);
+            }
+        } else if (shape.size() == 4) {
+            if (order != DimsOrder::NCHW && order != DimsOrder::NHWC) {
+                return errorAt(op, "Got unsupported input DimsOrder '{0}', only NCHW and NHWC are supported", order);
+            }
+
+            if (shape.front() != 1) {
+                return errorAt(op, "Batch size != 1 is not supported");
+            }
         }
     }
 

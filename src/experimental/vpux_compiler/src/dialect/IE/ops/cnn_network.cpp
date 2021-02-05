@@ -209,13 +209,9 @@ mlir::LogicalResult vpux::IE::verifyOp(DataInfoOp op) {
                        precision);
     }
 
-    if (!DimsOrder::fromType(userType).hasValue()) {
-        return errorAt(op, "User type '{0}' has unsupported layout", userType);
-    }
-
     return mlir::success();
 }
 
 DimsOrder vpux::IE::DataInfoOp::getDimsOrder() {
-    return DimsOrder::fromType(userType().cast<mlir::MemRefType>()).getValue();
+    return DimsOrder::fromType(userType().cast<mlir::MemRefType>());
 }

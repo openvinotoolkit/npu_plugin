@@ -277,20 +277,22 @@ void InferRequest::GetResult() {
     _logger->debug("InferRequest::GetResult finished");
 }
 
-void InferRequest::GetPerformanceCounts(std::map<std::string, IE::InferenceEngineProfileInfo>& perfMap) const {
+std::map<std::string, IE::InferenceEngineProfileInfo> InferRequest::GetPerformanceCounts() const {
     if (_config.performanceCounting()) {
-        perfMap = _executorPtr->getLayerStatistics();
+        return _executorPtr->getLayerStatistics();
+    } else {
+        return {};
     }
 }
 
-void InferRequest::SetBlob(const char* name, const IE::Blob::Ptr& data) {
+void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
     if (!data->is<VPUXRemoteBlob>()) {
         IE::InferRequestInternal::SetBlob(name, data);
         return;
     }
 
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "SetBlob");
-    if (name == nullptr) {
+    if (name.empty()) {
         THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
     }
     if (!data)

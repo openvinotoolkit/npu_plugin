@@ -68,15 +68,11 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
 
     const auto inShape = getShape(op.input());
     const auto inOrder = DimsOrder::fromValue(op.input());
-
-    const Byte elemSize = getElemTypeSize(op.input().getType().cast<mlir::MemRefType>());
     const auto inStrides = getStrides(op.input());
-
-    const auto memShape = inOrder->toMemoryOrder(inShape);
-    const auto memStrides = inOrder->toMemoryOrder(inStrides);
+    const auto memShape = inOrder.toMemoryOrder(inShape);
 
     const auto strideReqs = StrideReqs::compact(inShape.size());
-    if (!strideReqs.checkStrides(memStrides, elemSize, memShape)) {
+    if (!strideReqs.checkStrides(op.input())) {
         return errorAt(op, "Only compact strides are supported");
     }
 

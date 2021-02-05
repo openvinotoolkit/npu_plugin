@@ -47,7 +47,6 @@ AdjustForVPUPass::AdjustForVPUPass(Logger log)
         : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
     _log.setName(Base::getArgumentName());
 
-    _pm.addPass(IE::createConvertShapeTo4DPass(_log.nest()));
     _pm.addPass(IE::createConvertPrecisionToFP16Pass(_log.nest()));
     _pm.addPass(IE::createConvertPaddingsToFloorModePass(_log.nest()));
 }

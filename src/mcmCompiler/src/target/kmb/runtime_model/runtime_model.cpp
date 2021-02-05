@@ -1130,16 +1130,9 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     toBuild[1] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
     toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
-    // Get DPU or UPA task in order of the scheduling number assigned by the scheduler
-    auto sortedOps = controlModel.schedulingSortDPUorUPA();
+    // DMA re-ordering has been disabled, reverting to original schedule
 
-    // As there is only one DMA controller in KMB we need to be careful not
-    // to sealize DMAs in the incorrect order
-    // THe (DMA-level, DPU-schedule-number) attribute is used to sort them
-    auto sortedDMAOps = controlModel.schedulingSortDMA();
-
-    sortedOps.insert(sortedOps.end(), sortedDMAOps.begin(), sortedDMAOps.end());
-
+    auto sortedOps = controlModel.schedulingSort();
     int initialId = 0;
     uint8_t port = 0;
 
@@ -3375,6 +3368,14 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationMo
     softLayerParamsValue->scale = 1;
     softLayerParamsValue->bias  = 0;
 
+    if (opIt->hasAttr("scale") && opIt->hasAttr("bias"))
+    {
+        // Use preconfigured scale and bias if such exists
+        softLayerParamsValue->scale = opIt->get<double>("scale");
+        softLayerParamsValue->bias = opIt->get<int64_t>("bias");
+    }
+    else
+    {
     if (input->getDType() == mv::DType("UInt8") &&
        (output->getDType() == mv::DType("Float16") || output->getDType() == mv::DType("Float32")))
     {
@@ -3386,6 +3387,7 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationMo
     {
         softLayerParamsValue->scale = 1.0 / input->getQuantParams().getScale()[0];
         softLayerParamsValue->bias  = input->getQuantParams().getZeroPoint()[0];
+        }
     }
 
     // TODO: set DetectionOutput-specific attributes when necessary

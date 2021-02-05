@@ -188,7 +188,6 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
-            "DMAOrdering",
             "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",

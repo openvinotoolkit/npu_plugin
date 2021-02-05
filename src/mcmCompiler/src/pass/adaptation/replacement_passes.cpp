@@ -31,6 +31,7 @@ void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::Computat
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::ComputationModel& model);
+void resampleAsDepthDeConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void markCMCompatibleConvsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -97,6 +98,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     reorgYoloAsConvConcatFcn(pass, model);
     insertPermuteBeforeDetFcn(pass, model);
     replacePermuteAsReshape(pass, model);
+    resampleAsDepthDeConvFcn(pass, model);
 }
 
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
@@ -2284,4 +2286,67 @@ void replaceBigInputChannels(const mv::pass::PassEntry& pass, mv::ComputationMod
 
     }
 
+}
+
+void resampleAsDepthDeConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto resampleOps = om.getOps("Resample");
+    bool flag= true;
+    for (auto& opIt : resampleOps)
+    {
+        if(om.getSourceOp(opIt->getInputTensor(0))->getOpType() == "Input" || om.getSourceOp(opIt->getInputTensor(0))->getOpType() == "ImplicitInput")
+            continue;
+
+        auto inputShape = opIt->getInputTensor(0)->getShape();
+        auto outputShape = opIt->getOutputTensor(0)->getShape();
+        auto outQuantParams  = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+
+        auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+
+        auto sourceTensor = parentOpIt->getOutputTensor(0);
+        auto inQuantParams = sourceTensor->get<mv::QuantizationParams>("quantParams");
+
+        float scaleW = outputShape[mv::IO_WIDTH_DIMENSION] / inputShape[mv::IO_WIDTH_DIMENSION];
+        float scaleH = outputShape[mv::IO_HEIGHT_DIMENSION] / inputShape[mv::IO_HEIGHT_DIMENSION];
+
+        auto attrs = opIt->getAttrs();
+
+        auto interpolation = attrs.at("interpolation").get<std::string>();
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
+        if(interpolation == "NEAREST" && scaleW == static_cast<int>(scaleW) && scaleH == static_cast<int>(scaleH))
+        {
+            unsigned short scaleH_= static_cast<unsigned short>(scaleH), scaleW_ = static_cast<unsigned short>(scaleW);
+            mv::Data::TensorIterator weights;
+            std::vector<int64_t> zp = { 0 };
+            std::vector<double> min = { 1 };
+            std::vector<double> max = { 1 };
+            std::vector<double> scale = { 1 };
+            mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+            int64_t weightsValue = 1;
+            std::vector<int64_t> weightsData(scaleH_* scaleW_* sourceTensor->getShape()[mv::IO_CHANNEL_DIMENSION], weightsValue);
+            weights = om.constantInt("", weightsData,
+                                     {scaleH_, scaleW_, sourceTensor->getShape()[mv::IO_CHANNEL_DIMENSION], 1},
+                                     mv::DType("UInt8"),
+                                     mv::Order(mv::Order::getRowMajorID(4)));
+            weights->setQuantParams(weightsQuantParams);
+            auto depthwiseDeconv = om.deconv(opIt->getName() + "_DepthwiseDeconv", sourceTensor, weights, {scaleH_,scaleW_}, {0, 0, 0, 0}, 1, outputShape[mv::IO_CHANNEL_DIMENSION], true);
+            depthwiseDeconv->setQuantParams({outQuantParams.getZeroPoint(),outQuantParams.getScale(),{},{}});
+            depthwiseDeconv->setDType(mv::DType("UInt8"));
+
+            auto depthwiseDeconvOp = om.getSourceOp(depthwiseDeconv);
+            auto weightsOp = om.getSourceOp(weights);
+            depthwiseDeconvOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+            depthwiseDeconvOp->set<bool>("is_transInterp", true);
+            weightsOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+            linkNewOperationsReplacement(parentOpIt, depthwiseDeconv, om, opIt);
+            depthwiseDeconv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        }
+    }
 }

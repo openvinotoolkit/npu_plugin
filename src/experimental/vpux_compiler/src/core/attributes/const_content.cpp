@@ -133,9 +133,7 @@ void vpux::ConstContentAttr::convertTo(mlir::ShapedType actualType, MutableArray
 
     Optional<DimsOrder> actualDimsOrder;
     if (const auto memref = actualType.dyn_cast<mlir::MemRefType>()) {
-        const auto res = DimsOrder::fromType(memref);
-        VPUX_THROW_UNLESS(res.hasValue(), "Can't get DimsOrder from Type '{0}'", memref);
-        actualDimsOrder = res;
+        actualDimsOrder = DimsOrder::fromType(memref);
     }
 
     if (actualElemType.isUnsignedInteger(8)) {

@@ -1008,11 +1008,11 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP16) {
 
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP32) {
     runTest(
-            TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
-                    .setUserInputPrecision("input", Precision::FP32),
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
-            1,
-            0.3f);
+	TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
+	    .setUserInputPrecision("input", Precision::FP32),
+	TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+        1,
+        0.3f);
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
@@ -1123,7 +1123,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_fp16
                     TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserInputPrecision("input", Precision::U8)
-                    .setUserOutputPrecision("output", Precision::U8)  // currently FP16 is not supported by runtime
+                    .setUserOutputPrecision("output", Precision::U8) //currently FP16 is not supported by runtime
                     .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_mtl-sc"},
                                        {"VPU_COMPILER_TARGET_DESCRIPTOR", "release_mtl"},
                                        {"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "NO"}}),
@@ -1157,6 +1157,15 @@ TEST_F(KmbClassifyNetworkTest, shufflenet_v2_x1_0_pytorch) {
                 .setUserOutputLayout("output", Layout::NC),
             TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
             3, 0.5f);
+}
+
+TEST_F(KmbDetectionNetworkTest, peleenet) {
+    runTest(
+            TestNetworkDesc("KMB_models/FP16-INT8/public/peleenet/peleenet.xml")
+                .setUserInputPrecision("input", Precision::U8),
+            TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
+            0.3f,
+            0.1f, 0.3f);
 }
 
 // [Track number: D#45024]

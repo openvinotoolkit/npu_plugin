@@ -13,8 +13,15 @@ namespace LayerTestsDefinitions {
 
 class KmbConvolutionLayerTest: public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER)
+        if (envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+            const auto netPrc = std::get<1>(GetParam());
+
+            if (netPrc == InferenceEngine::Precision::U8) {
+                throw LayerTestsUtils::KmbSkipTestException("U8 network precision is not supported");
+            }
+
             return;
+        }
 
         convSpecificParams convParams;
         InferenceEngine::Precision netPrecision;

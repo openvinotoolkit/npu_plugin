@@ -145,6 +145,14 @@ MemStrides vpux::StrideReqs::calcStrides(Bit elemSize, MemShapeRef memShape) con
     return StrideReqsRef(*this).calcStrides(elemSize, memShape);
 }
 
+bool vpux::StrideReqs::checkStrides(mlir::MemRefType type) const {
+    return StrideReqsRef(*this).checkStrides(type);
+}
+
+bool vpux::StrideReqs::checkStrides(mlir::Value val) const {
+    return StrideReqsRef(*this).checkStrides(val);
+}
+
 bool vpux::StrideReqs::checkStrides(MemStridesRef memStrides, Bit elemSize, MemShapeRef memShape) const {
     return StrideReqsRef(*this).checkStrides(memStrides, elemSize, memShape);
 }
@@ -223,6 +231,22 @@ MemStrides vpux::StrideReqsRef::calcStrides(Bit elemSize, MemShapeRef memShape) 
     MemStrides memStrides;
     calcStrides(memStrides, elemSize, memShape);
     return memStrides;
+}
+
+bool vpux::StrideReqsRef::checkStrides(mlir::MemRefType type) const {
+    const auto elemSize = getElemTypeSize(type);
+    const auto shape = getShape(type);
+    const auto strides = getStrides(type);
+    const auto order = DimsOrder::fromType(type);
+    const auto memShape = order.toMemoryOrder(shape);
+    const auto memStrides = order.toMemoryOrder(strides);
+    return checkStrides(memStrides, elemSize, memShape);
+}
+
+bool vpux::StrideReqsRef::checkStrides(mlir::Value val) const {
+    const auto type = val.getType().dyn_cast_or_null<mlir::MemRefType>();
+    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non MemRefType '{1}'", val, val.getType());
+    return checkStrides(type);
 }
 
 bool vpux::StrideReqsRef::checkStrides(MemStridesRef memStrides, Bit elemSize, MemShapeRef memShape) const {
