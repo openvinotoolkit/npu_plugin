@@ -3330,9 +3330,12 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPASwishTask(mv::ComputationModel &
     auto output = opIt->getOutputTensor(0);
     auto toBuild = new MVCNN::UPALayerTaskT();
 
-    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+    auto* postOpsParamsValue = new MVCNN::SwishParamsT();
+    postOpsParamsValue->beta = opIt->get<double>("beta");
+
+    auto* softLayerParamsValue = new MVCNN::PostOpsParamsT();
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_SwishParams;
-    softLayerParamsValue->nested_params.AsSwishParams()->beta = opIt->get<double>("beta");
+    softLayerParamsValue->nested_params.value = postOpsParamsValue;
 
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
     toBuild->softLayerParams.value = softLayerParamsValue;

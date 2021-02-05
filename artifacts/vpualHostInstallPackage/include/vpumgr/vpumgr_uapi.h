@@ -17,7 +17,8 @@
 #define VPUMGR_IOCTL_DMABUF_PTR2VPU	_IOWR(VPUMGR_MAGIC, 5, __u64)
 #define VPUMGR_IOCTL_VCM_SUBMIT		_IOWR(VPUMGR_MAGIC, 6, struct vpumgr_vcm_submit)
 #define VPUMGR_IOCTL_VCM_WAIT		_IOWR(VPUMGR_MAGIC, 7, struct vpumgr_vcm_wait)
-#define VPUMGR_IOCTL_END		_IO(VPUMGR_MAGIC, 8)
+#define VPUMGR_IOCTL_FETCH_META	_IOWR(VPUMGR_MAGIC, 8, struct vpumgr_args_fetch_meta)
+#define VPUMGR_IOCTL_END		_IO(VPUMGR_MAGIC, 9)
 
 struct vpumgr_args_alloc {
 	__s32 fd;           /* out: DMABuf fd */
@@ -38,6 +39,13 @@ struct vpumgr_args_import {
 	__s32 vpu_access;   /*  in: how vpu is going to access the buffer */
 	__u64 vpu_addr;	    /* out: vpu dma address of the DMABuf */
 	__u64 size;         /* out: the size of the DMABuf */
+};
+
+/*args to be exchanged between the client and driver for vpurm_fetch_meta_from_fd */
+struct vpumgr_args_fetch_meta {
+	__s32 fd;           /*  in: input DMABuf fd */
+	__u64 size;         /*  in: the size of struct _VIV_VIDMEM_METADATA */
+	void *meta_buffer; /*out: buffer pointer to get VSI Meta Data */
 };
 
 /* Command code reserved for kernel mode driver,
