@@ -27,25 +27,23 @@ public:
 };
 
 void KmbConfigTest::runTest(
-        const ConfigMap& compileConfig,
-        const ConfigMap& inferConfig) {
-    if (RUN_COMPILER) {
-        TestNetwork testNet;
-        testNet
-            .setUserInput("input", Precision::FP16, Layout::NCHW)
-            .addNetInput("input", {1, 3, 512, 512}, Precision::FP32)
-            .addLayer<SoftmaxLayerDef>("softmax", 1)
-                .input("input")
-                .build()
-            .addNetOutput(PortInfo("softmax"))
-            .setUserOutput(PortInfo("softmax"), Precision::FP16, Layout::NCHW)
-            .finalize();
+    const ConfigMap& compileConfig,
+    const ConfigMap& inferConfig) {
+    TestNetwork testNet;
+    testNet
+        .setUserInput("input", Precision::FP16, Layout::NCHW)
+        .addNetInput("input", {1, 3, 512, 512}, Precision::FP32)
+        .addLayer<SoftmaxLayerDef>("softmax", 1)
+            .input("input")
+            .build()
+        .addNetOutput(PortInfo("softmax"))
+        .setUserOutput(PortInfo("softmax"), Precision::FP16, Layout::NCHW)
+        .finalize();
 
-        testNet.setCompileConfig(compileConfig);
-        CNNNetwork cnnNet = testNet.getCNNNetwork();
-        ExecutableNetwork exeNet = core->LoadNetwork(cnnNet, DEVICE_NAME, compileConfig);
-        KmbTestBase::exportNetwork(exeNet);
-    }
+    testNet.setCompileConfig(compileConfig);
+    CNNNetwork cnnNet = testNet.getCNNNetwork();
+    ExecutableNetwork exeNet = core->LoadNetwork(cnnNet, DEVICE_NAME, compileConfig);
+    KmbTestBase::exportNetwork(exeNet);
 
     if (RUN_INFER) {
         ExecutableNetwork importedNet = KmbTestBase::importNetwork(inferConfig);
@@ -92,10 +90,12 @@ static const std::vector<ConfigMap> baseInferConfigs = {
     { {"VPUX_CSRAM_SIZE", "0"} },
     { {"VPUX_CSRAM_SIZE", "2097152"} },
     { {"VPUX_EXECUTOR_STREAMS", "1"} },
+    #if defined(__arm) || defined(__aarch64__)
     { {"VPUX_VPUAL_USE_CORE_NN", "YES"} },
     { {"VPUX_VPUAL_USE_CORE_NN", "NO"} },
     { {"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "YES"} },
     { {"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "NO"} },
+    #endif
     { {"VPUX_PLATFORM", "AUTO"} },
     { {"VPUX_PLATFORM", "MA2490"} },
 };
@@ -120,8 +120,10 @@ static const std::vector<ConfigMap> preProcParamConfigs = {
 
 static const std::vector<ConfigMap> inferShavesConfigs = {
     { },
+    #if defined(__arm) || defined(__aarch64__)
     { {"VPUX_VPUAL_INFERENCE_SHAVES", "2"} },
     { {"VPUX_VPUAL_INFERENCE_SHAVES", "4"} },
+    #endif
 };
 
 static const auto allBaseConfigurations = ::testing::Combine(
