@@ -1323,7 +1323,7 @@ class Dynamic_Spill_Node_Inserter {
           // write it back to DDR .
           if (itr != spilled_op_map_.end()) { continue; }
 
-          spilled_op_map_[op] = spilled_subtree_t(op);
+          spilled_op_map_.insert(std::make_pair(op, spilled_subtree_t(op)));
         }
 
       } //foreach scheduled op //
