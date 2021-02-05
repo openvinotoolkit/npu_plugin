@@ -3778,14 +3778,14 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
                 toSort.push_back(&(*sparsityMapIterator));
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
-                    for(std::size_t i = 0; i < numClusters; ++i)
+                    for(size_t i = 0; i < numClusters; ++i)
                         toSort.push_back(&(tIt->getSubTensor(i)));
                 }
                 else
                     toSort.push_back(&(*tIt));
             }
             else if(tIt->isAllocatedPerCluster())
-                for(std::size_t i = 0; i < numClusters; ++i)
+                for(size_t i = 0; i < numClusters; ++i)
                     toSort.push_back(&(tIt->getSubTensor(i)));
             else
                 toSort.push_back(&(*tIt));
@@ -3815,12 +3815,12 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
                         toSort.push_back(&(*sparsityMapIterator));
                         if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                         {
-                            for(std::size_t i = 0; i < numClusters; ++i)
+                            for(size_t i = 0; i < numClusters; ++i)
                                 csramCacheable.insert(&(tIt->getSubTensor(i)));
                         }
                     }
                     else if(tIt->isAllocatedPerCluster())
-                        for(std::size_t i = 0; i < numClusters; ++i)
+                        for(size_t i = 0; i < numClusters; ++i)
                             csramCacheable.insert(&(tIt->getSubTensor(i)));
                 }
             }
