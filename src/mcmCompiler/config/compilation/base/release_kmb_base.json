@@ -194,8 +194,20 @@
             "RemoveRedundantUpdateBarriers",
             "SplitBarrier",
             {
+<<<<<<< HEAD
                 "name" : "AssignPhysicalBarrier",
                 "real_physical_barriers": 32
+=======
+                "name": "GenerateDot",
+                "output": "output/dots/op_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/op_model.dot"
+>>>>>>> Changed functionality to use ops as inputs, not tensors
             },
             "BuildGraphFileKmb",
             {
