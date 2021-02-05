@@ -78,6 +78,28 @@ const std::unordered_map<std::string, MVCNN::DPULayerType> mv::RuntimeModel::dpu
     {"ChannelMajorConvolution",MVCNN::DPULayerType::DPULayerType_CMCONV}
 };
 
+const std::map<std::string, int> interpModeMap = {
+    {"nearest",      0},
+    {"linear",       1},
+    {"linear_onnx",  3},
+};
+
+const std::map<std::string, int> nearestModeMap = {
+    {"round_prefer_floor", 0},
+    {"round_prefer_ceil",  1},
+    {"floor",              2},
+    {"ceil",               3},
+    {"simple",             4},
+};
+
+const std::map<std::string, int> coordTransformModeMap = {
+    {"half_pixel",           0},
+    {"pytorch_half_pixel",   1},
+    {"asymmetric",           2},
+    {"tf_half_pixel_for_nn", 3},
+    {"align_corners",        4},
+};
+
 const std::unordered_map<mv::PPELayerTypeEnum, MVCNN::PPELayerType, mv::EnumClassHash> mv::RuntimeModel::ppeLayerTypeMapping_ =
 {
    {PPELayerType_STORE, MVCNN::PPELayerType::PPELayerType_STORE},
@@ -2554,6 +2576,35 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpTask(ComputationModel& cm
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpolateTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_InterpolateParams;
+    auto softLayerParamsValue = new MVCNN::InterpolateParamsT();
+
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+
+    std::string mode = opIt->get<std::string>("mode");
+    std::string coord = opIt->get<std::string>("coordinate_transformation_mode");
+    std::string near = opIt->get<std::string>("nearest_mode");
+
+    // Fill in required params
+    softLayerParamsValue->antialias = opIt->get<bool>("antialias");
+    softLayerParamsValue->interpolationMode = interpModeMap.find(mode)->second;
+    softLayerParamsValue->coordTransformMode = coordTransformModeMap.find(coord)->second;
+    softLayerParamsValue->nearestMode = nearestModeMap.find(near)->second;
+    softLayerParamsValue->align_corners = softLayerParamsValue->coordTransformMode == coordTransformModeMap.find("align_corners")->second;
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPANormTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
 
@@ -3376,17 +3427,17 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationMo
     }
     else
     {
-    if (input->getDType() == mv::DType("UInt8") &&
-       (output->getDType() == mv::DType("Float16") || output->getDType() == mv::DType("Float32")))
-    {
-        softLayerParamsValue->scale = input->getQuantParams().getScale()[0];
-        softLayerParamsValue->bias  = -input->getQuantParams().getZeroPoint()[0] / input->getQuantParams().getScale()[0];
-    }
-    else if ((input->getDType() == mv::DType("Float16") || input->getDType() == mv::DType("Float32")) &&
-              output->getDType() == mv::DType("UInt8"))
-    {
-        softLayerParamsValue->scale = 1.0 / input->getQuantParams().getScale()[0];
-        softLayerParamsValue->bias  = input->getQuantParams().getZeroPoint()[0];
+        if (input->getDType() == mv::DType("UInt8") &&
+        (output->getDType() == mv::DType("Float16") || output->getDType() == mv::DType("Float32")))
+        {
+            softLayerParamsValue->scale = input->getQuantParams().getScale()[0];
+            softLayerParamsValue->bias  = -input->getQuantParams().getZeroPoint()[0] / input->getQuantParams().getScale()[0];
+        }
+        else if ((input->getDType() == mv::DType("Float16") || input->getDType() == mv::DType("Float32")) &&
+                output->getDType() == mv::DType("UInt8"))
+        {
+            softLayerParamsValue->scale = 1.0 / input->getQuantParams().getScale()[0];
+            softLayerParamsValue->bias  = input->getQuantParams().getZeroPoint()[0];
         }
     }
 
@@ -3619,6 +3670,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPASoftPlusTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Pad")
         toReturn[0]->task.value = buildUPAPadTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Interpolate")
+        toReturn[0]->task.value = buildUPAInterpolateTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 

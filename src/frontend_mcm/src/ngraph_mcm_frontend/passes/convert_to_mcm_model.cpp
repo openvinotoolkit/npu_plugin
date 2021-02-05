@@ -27,6 +27,8 @@
 #include "ngraph_mcm_frontend/ops/mcm_fc.hpp"
 
 #include "ngraph/op/add.hpp"
+#include "ngraph/op/interpolate.hpp"
+
 #include "ngraph/op/max_pool.hpp"
 #include "ngraph/op/relu.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -1126,6 +1128,7 @@ const static std::map<std::string, std::string> interpolationMap = {
         {"nearest", "NEAREST"},
         {"cubic", "BICUBIC"},
         {"linear", "BILINEAR"},
+        {"linear_onnx", "LINEAR_ONNX"},
 };
 
 void convert(std::shared_ptr<ngraph::op::ResampleV2> resample, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -1163,6 +1166,50 @@ void convert(std::shared_ptr<ngraph::op::Interp> interp, mv::OpModel& mcmModel, 
     auto mcmInterpOutput = mcmModel.interp(opName, mcmData, factor, pad_begin, pad_end, height, width, align_corners);
     mcmInterpOutput->setQuantParams(initialQuantParams());
     registerOutputs(interp, {mcmInterpOutput}, mcmOutputsMap);
+}
+
+const static std::map<ngraph::op::v4::Interpolate::InterpolateMode, std::string> interpolateMode = {
+        {ngraph::op::v4::Interpolate::InterpolateMode::nearest,     "nearest"},
+        {ngraph::op::v4::Interpolate::InterpolateMode::cubic,       "cubic"},
+        {ngraph::op::v4::Interpolate::InterpolateMode::linear,      "linear"},
+        {ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx, "linear_onnx"},
+};
+
+const static std::map<ngraph::op::v4::Interpolate::CoordinateTransformMode, std::string> coordMode = {
+        {ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,           "half_pixel"},
+        {ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel,   "pytorch_half_pixel"},
+        {ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,           "asymmetric"},
+        {ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn, "tf_half_pixel_for_nn"},
+        {ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,        "align_corners"},
+};
+
+const static std::map<ngraph::op::v4::Interpolate::NearestMode, std::string> nearestMode = {
+        {ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor, "round_prefer_floor"},
+        {ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil,  "round_prefer_ceil"},
+        {ngraph::op::v4::Interpolate::NearestMode::floor,              "floor"},
+        {ngraph::op::v4::Interpolate::NearestMode::ceil,               "ceil"},
+        {ngraph::op::v4::Interpolate::NearestMode::simple,             "simple"},
+};
+
+void convert(std::shared_ptr<ngraph::op::v4::Interpolate> interpolate, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(interpolate, mcmOutputsMap);
+    for (size_t i = 1; i < mcmInputs.size(); i++) {
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
+    }
+    const auto mcmData = mcmInputs.at(0);
+    const auto& opName = interpolate->get_friendly_name();
+    const auto antialias = false;
+    const auto& interpolateAttrs = interpolate->get_attrs();
+    const std::string mode  = interpolateMode.find(interpolateAttrs.mode)->second;
+    const std::string coord = coordMode.find(interpolateAttrs.coordinate_transformation_mode)->second;
+    const std::string near  = nearestMode.find(interpolateAttrs.nearest_mode)->second;
+    const auto align_corners = (coord == "align_corners");
+
+    mv::Shape output_shape = getWHCN(interpolate->get_output_shape(0));
+    auto mcmInterpolateOutput = mcmModel.interpolate(opName, mcmData, output_shape, mode, near, coord, align_corners, antialias);
+    mcmInterpolateOutput->setQuantParams(initialQuantParams());
+
+    registerOutputs(interpolate, {mcmInterpolateOutput}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<ngraph::op::DeconvolutionIE> deconvIE, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -1744,7 +1791,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::CTCGreedyDecoder),
     MAP_ENTRY(ngraph::op::v4::SoftPlus),
     MAP_ENTRY(ngraph::op::v1::Pad),
-    MAP_ENTRY(ngraph::op::PadIE)
+    MAP_ENTRY(ngraph::op::PadIE),
+    MAP_ENTRY(ngraph::op::v4::Interpolate)
 };
 
 #undef MAP_ENTRY

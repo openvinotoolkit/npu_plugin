@@ -344,6 +344,28 @@ mv::Data::TensorIterator convertResampleToUPATask(mv::OpModel& om, const std::ve
     return resample;
 }
 
+mv::Data::TensorIterator convertInterpolateToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool /*software*/,
+                                    const mv::QuantizationParams& quantParams,
+                                    const mv::DType& outputTensorType,
+                                    const mv::Order& outputTensorOrder)
+{
+    auto interpolation = attrs.at("mode").get<std::string>();
+    auto coord_transform_mode = attrs.at("coordinate_transformation_mode").get<std::string>();
+    auto nearest_mode = attrs.at("nearest_mode").get<std::string>();
+    auto antialias = attrs.at("antialias").get<bool>();
+    auto align_corners = attrs.at("coordinate_transformation_mode").get<std::string>() == "align_corners";
+    auto output_shape = attrs.at("output_shape").get<mv::Shape>();
+
+    auto interpolate = om.uPATaskInterpolate(name, inputs, output_shape, interpolation, nearest_mode, coord_transform_mode, align_corners, antialias);
+
+    interpolate->setDType(outputTensorType);
+    interpolate->setQuantParams(quantParams);
+    interpolate->setOrder(outputTensorOrder);
+
+    return interpolate;
+}
+
 mv::Data::TensorIterator convertReshapeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool /*software*/,
                                     const mv::QuantizationParams& quantParams,
@@ -911,7 +933,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
                                                        "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu",
-                                                       "PermuteND", "Mish", "Pad"};
+                                                       "PermuteND", "Mish", "Pad", "Interpolate"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -958,8 +980,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Relu", convertReluToUPATask},
     {"Tanh", convertTanhToUPATask},
     {"SoftPlus", convertSoftPlusToUPATask},
-    {"Elu", convertEluToUPATask},
-    {"Pad", convertPadToUPATask},
+    {"Elu", convertEluToUPATask}
     };
 
     // Layer types that given current compiler state, it's

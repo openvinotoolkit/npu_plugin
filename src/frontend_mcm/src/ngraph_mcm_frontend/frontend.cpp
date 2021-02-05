@@ -46,6 +46,8 @@
 #include <ngraph/pass/visualize_tree.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
+#include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -272,6 +274,7 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ReplaceShuffle>();
         passManager.register_pass<Handle3DTranspose>();
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config);
+        passManager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
         const auto start = std::chrono::high_resolution_clock::now();
 
