@@ -1186,3 +1186,4 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/softplus.cpp"
 #include    "src/computation/op/def/pad.cpp"
 #include    "src/computation/op/def/mish.cpp"
+#include    "src/computation/op/def/interpolate.cpp"

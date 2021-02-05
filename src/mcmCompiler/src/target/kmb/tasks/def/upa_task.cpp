@@ -44,7 +44,7 @@ namespace mv
                            "RegionYolo", "ReorgYolo", "Normalize", "Permute", "Eltwise", "Interp",
                            "DetectionOutput", "Priorbox", "Argmax", "TopK", "Norm", "Resample", "FakeQuantize",
                            "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder", "RefConv",
-                           "Gather", "HSwish",  "Swish", "Mish", "Conversion", "Relu", "SoftPlus", "Pad"})
+                           "Gather", "HSwish",  "Swish", "Mish", "Conversion", "Relu", "SoftPlus", "Pad", "Interpolate"})
         .setExtraInputs(true);
     }
 
