@@ -77,6 +77,7 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
             "[KMB] OpenCL compiler")
 
         find_program(VPU_CLC_MA2X9X_COMMAND clc)
+
         unset(IE_PATH_TO_DEPS)
     endif()
 endif()
@@ -262,7 +263,8 @@ if(ENABLE_HDDL2)
             RESOLVE_DEPENDENCY(PCIE_DRIVERS
                     ARCHIVE_LIN "hddl2/kmb-pcie-drivers_${PCIE_DRIVERS_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"
                     ENVIRONMENT "PCIE_DRIVERS"
-                    TARGET_PATH "${TEMP}/pcie_drivers")
+                    TARGET_PATH "${TEMP}/pcie_drivers"
+                    SHA256 ${PCIE_DRIVERS_KMB_ARCHIVE_HASH})
         endif()
 
         reset_deps_cache(HDDL_UNITE)
@@ -277,7 +279,7 @@ if(ENABLE_HDDL2)
                     ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_VPUX_4_ARCHIVE_VERSION}${ARCH_FORMAT}"
                     ENVIRONMENT "HDDL_UNITE_VPUX_4"
                     TARGET_PATH "${TEMP}/vpux_4/hddl_unite"
-		    SHA256 ${HDDLUNITE_VPUX_4_ARCHIVE_HASH})
+                    SHA256 ${HDDLUNITE_VPUX_4_ARCHIVE_HASH})
         endif()
 
         unset(IE_PATH_TO_DEPS)
