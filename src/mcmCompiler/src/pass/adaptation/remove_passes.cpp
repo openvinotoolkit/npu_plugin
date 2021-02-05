@@ -54,7 +54,7 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
         }
     }
 
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(rem_types);
+    std::map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(rem_types);
     for (auto type = rem_types.begin(); type != rem_types.end(); type++)
     {
         auto remFunctor = (remTaskMap.at(*type));

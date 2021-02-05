@@ -1354,7 +1354,7 @@ bool replaceLargeGlobalPooling(const mv::pass::PassEntry& pass, mv::ComputationM
 
     mv::OpModel om(model);
     std::vector<std::string> opList = {"AveragePool", "MaxPool"};
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
+    std::map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
     bool isReplaced = false;
 
     for (const auto &opType : opList) {
@@ -1395,7 +1395,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     mv::OpModel om(model);
     mv::DataModel dm(model);
     std::vector<std::string> opList = {"AveragePool", "MaxPool"};
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
+    std::map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
     std::vector <mv::Data::OpListIterator> ops;
     ops.reserve(operations["AveragePool"].size() + operations["MaxPool"].size() );
     ops.insert(ops.end(), operations["AveragePool"].begin(), operations["AveragePool"].end());
@@ -1908,7 +1908,7 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
     mv::OpModel om(model);
     mv::DataModel dm(model);
     std::vector<std::string> opList = {"AveragePool", "MaxPool", "DepthwiseConv"};
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
+    std::map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
     std::vector <mv::Data::OpListIterator> ops;
     ops.reserve(operations["AveragePool"].size() + operations["MaxPool"].size() + operations["DepthwiseConv"].size() );
     ops.insert(ops.end(), operations["AveragePool"].begin(), operations["AveragePool"].end());

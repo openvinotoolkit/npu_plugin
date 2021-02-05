@@ -53,7 +53,7 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
         provideAccuracyinPPEs(model);
         std::vector<std::string> fuse_types = {"Sigmoid", "Tanh", "Relu", "Minimum", "Maximum"};
-        std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
+        std::map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
 
         //NOTE: Iterate the fuse_types vector for correct order reason according to map
         for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
@@ -66,7 +66,7 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     else
     {
         std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Tanh", "Relu", "LeakyRelu", "Minimum", "Maximum"};
-        std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
+        std::map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
 
         //NOTE: Iterate the fuse_types vector for correct order reason according to map
         for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)

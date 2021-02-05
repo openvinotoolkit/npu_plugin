@@ -419,6 +419,15 @@ mv::Data::OpListIterator mv::ComputationModel::getOp(const std::string& name)
     return it->second;
 }
 
+static bool compareOpListIteratorOpId(mv::Data::OpListIterator op0, mv::Data::OpListIterator op1) 
+{
+    if (op0->hasAttr("opId") && op1->hasAttr("opId") && 
+       op0->get<unsigned>("opId") != op1->get<unsigned>("opId"))
+        return op0->get<unsigned>("opId") < op1->get<unsigned>("opId");
+    else
+        return op0->getName().compare(op1->getName()) < 0;
+}
+
 // NOTE: Complexity is linear in the number of operations in the graph. Can we do better without an additional
 // data strucuture?
 std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps(const std::string &opType)
@@ -427,6 +436,7 @@ std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps(const std::st
     for(auto opPairIt = ops_->begin(); opPairIt != ops_->end(); ++opPairIt)
         if(opPairIt->second->getOpType() == opType)
             toReturn.push_back(opPairIt->second);
+    std::sort(toReturn.begin(), toReturn.end(), compareOpListIteratorOpId);
     return toReturn;
 }
 
@@ -435,12 +445,13 @@ std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps() {
     for (auto& opIt : *ops_) {
         toReturn.push_back(opIt.second);
     }
+    std::sort(toReturn.begin(), toReturn.end(), compareOpListIteratorOpId);
     return toReturn;
 }
 
-std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> mv::ComputationModel::getOpsOfTypes(const std::vector<std::string> &opTypes)
+std::map<std::string, std::vector<mv::Data::OpListIterator>> mv::ComputationModel::getOpsOfTypes(const std::vector<std::string> &opTypes)
 {
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> toReturn;
+    std::map<std::string, std::vector<mv::Data::OpListIterator>> toReturn;
     for (auto type = opTypes.begin(); type != opTypes.end(); type++)
         for(auto opPairIt = ops_->begin(); opPairIt != ops_->end(); ++opPairIt)
             if (opPairIt->second->getOpType() == *type)
