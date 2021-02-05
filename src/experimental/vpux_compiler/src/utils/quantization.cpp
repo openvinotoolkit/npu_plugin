@@ -31,6 +31,9 @@ using namespace vpux;
 //
 
 std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax) {
+    VPUX_THROW_UNLESS(qMax > qMin, "Wrong quantized storage values range ['{0}', '{1}']", qMin, qMax);
+    VPUX_THROW_UNLESS(rMax > rMin, "Wrong real values range ['{0}', '{1}']", rMin, rMax);
+
     //
     // Determine the scale.
     //
@@ -38,6 +41,9 @@ std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qM
     const double qMinFP = static_cast<double>(qMin);
     const double qMaxFP = static_cast<double>(qMax);
     const double scale = (rMax - rMin) / (qMaxFP - qMinFP);
+
+    VPUX_THROW_UNLESS(std::fabs(scale) > std::numeric_limits<double>::epsilon(),
+                      "Quantization scale is too small : '{0}'", scale);
 
     //
     // Zero point computation.
@@ -124,7 +130,7 @@ mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, Co
         break;
 
     default:
-        errorAt(loc, "Got unsupported levels '{1}' \n", levels);
+        errorAt(loc, "Got unsupported levels '{0}'", levels);
         return nullptr;
     }
 
@@ -146,7 +152,7 @@ mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, Co
         const auto highShape = highConst.getActualType().getShape();
 
         if (lowShape != highShape) {
-            errorAt(loc, "Low values shape '{0}' doesn't match with high values shape '{1}' \n", lowShape, highShape);
+            errorAt(loc, "Low values shape '{0}' doesn't match with high values shape '{1}'", lowShape, highShape);
             return nullptr;
         }
 
@@ -157,14 +163,14 @@ mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, Co
             }
 
             if (axisInd.hasValue()) {
-                errorAt(loc, "Can't get axis index from shape '{0}' \n", lowShape);
+                errorAt(loc, "Can't get axis index from shape '{0}'", lowShape);
                 return nullptr;
             }
 
             axisInd = checked_cast<int32_t>(i);
         }
         if (!axisInd.hasValue()) {
-            errorAt(loc, "Can't get axis index from shape '{0}' \n", lowShape);
+            errorAt(loc, "Can't get axis index from shape '{0}'", lowShape);
             return nullptr;
         }
 
