@@ -42,8 +42,8 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
     mv::OpModel om(model);
 
     std::vector<std::string> intermediateNodes;
-    if (passDesc.hasAttr("tensors"))
-        intermediateNodes = passDesc.get<std::vector<std::string>>("tensors");
+    if (passDesc.hasAttr("op_names"))
+        intermediateNodes = passDesc.get<std::vector<std::string>>("op_names");
     else
         return; // exit pass
 
@@ -53,13 +53,14 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
     for (std::string node : intermediateNodes)
     {
         // find exact tensor
-        mv::Data::TensorIterator tensor = om.findTensor(node);
+        mv::Data::TensorIterator tensor = om.findTensor(node + ":0");
         if (tensor == om.tensorEnd()) 
         {
-            pass.log(mv::Logger::MessageType::Warning, "Tensor name not found! Please check name in Compilation Descriptor (are you missing ':0' at end?)");
+            pass.log(mv::Logger::MessageType::Warning, "Op name '" + node + "' not found! Op not processed for output");
             continue;
         }
         // assign an output operation to it
+        std::cout << "Processing " << node << " as additional output" << std::endl;
         mv::Data::TensorIterator intermediateOutput = om.output(tensor->getName() + "_output", tensor, tensor->get<mv::DType>("dType"), true);
         mv::Data::OpListIterator outputOp = om.getNetworkOutput(om.getNumNetworkOutputs() - 1);
         newOutputs.push_back(std::make_pair(tensor, outputOp));

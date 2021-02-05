@@ -144,6 +144,11 @@
                 }
             },
             "StoreGraphOptimizerDecisions",
+            {
+                "name" : "AssignIntermediateOutputNodes",
+                "op_names" : ["conv1_1", "143", "355"],
+                "_comment" : "Sets these Ops as additional outputs for debug. Ops not found are ignored."
+            },
             "ComputeSparsitySolution",
             "StreamingOperations",
             "StreamBinaryDataWeights",
@@ -189,9 +194,15 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             {
-                "name" : "AssignIntermediateOutputNodes",
-                "tensors" : ["conv#7", "group0/block0/conv1/Relu#184", "MobilenetV2/Conv/Relu6#171concat_"],
-                "_comment" : "Runtime will dump these intermediate tensors to disk for debug"
+                "name": "GenerateDot",
+                "output": "output/dots/op_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/op_model.dot"
             },
             "BuildGraphFileKmb",
             {
