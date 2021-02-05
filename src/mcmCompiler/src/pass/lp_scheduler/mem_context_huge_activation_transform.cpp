@@ -293,14 +293,8 @@ class Find_Mem_Contextable_Sequence {
         {
           prev_dpu = (prev_itr->second).front();
           curr_dpu = (curr_itr->second).front();
-          bool connected = false;
-          mv::Data::OpListIterator prev_op_itr = model_.getOp(prev_dpu->getName());
-          for (auto child_itr = prev_op_itr.leftmostChild();
-              child_itr != model_.opEnd(); ++child_itr) {
-            if (child_itr->getOpType() != "DPUTask") { continue; }
-            connected = (curr_dpu->getName() == child_itr->getName());
-            break;
-          }
+          operation_t only_child_dpu = get_the_only_child_dpu(prev_dpu);
+          bool connected = only_child_dpu && (only_child_dpu == curr_dpu);
 
           if (!connected) {
             subgraph.clear();
@@ -324,6 +318,20 @@ class Find_Mem_Contextable_Sequence {
       }
 
       return subgraph;
+    }
+
+    // If there are multiple DPU children this will return NULL //
+    operation_t get_the_only_child_dpu(operation_t dpu_op) const {
+      mv::Data::OpListIterator op_itr = model_.getOp(dpu_op->getName());
+      operation_t only_child_dpu = NULL;
+      for (auto child_itr = op_itr.leftmostChild(); child_itr != model_.opEnd();
+            ++child_itr) {
+        if (child_itr->getOpType() == "DPUTask") {
+          if (only_child_dpu) { only_child_dpu = NULL; break;}
+          else { only_child_dpu = &(*child_itr); }
+        }
+      }
+      return only_child_dpu;
     }
 
    
