@@ -24,7 +24,9 @@
 //
 // ResNet50 FP16 IRv10
 //
+// [Track number: S#48139]
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
+    SKIP_INFER_BYPASS_ON("VPUX", "bad results");
     runTest(
         TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
             .setUserInputLayout("input", Layout::NHWC)
@@ -34,7 +36,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
         3, 0.05);
 }
 
+// [Track number: S#48139]
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10_u8_input) {
+    SKIP_INFER_BYPASS_ON("VPUX", "bad results");
     runTest(
             TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
                     .setUserInputLayout("input", Layout::NHWC)
@@ -45,7 +49,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10_u8_i
             3, 0.05);
 }
 
+// [Track number: S#48139]
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_dense_IRv10_fp16) {
+    SKIP_INFER_BYPASS_ON("VPUX", "bad results");
     runTest(
             TestNetworkDesc("KMB_models/FP16/MobileNet_v2_pytorch/mobilenet-v2_pytorch_dense_fp16_ww34.xml")
                     .setUserInputPrecision("input", Precision::FP16)
@@ -208,7 +214,9 @@ const static std::vector<InferenceEngine::Layout> outputLayout = {
 class KmbYoloV3NetworkTestWithSpecificLayout : public KmbYoloV3NetworkTest,
     public testing::WithParamInterface<std::tuple<InferenceEngine::Layout, InferenceEngine::Layout>> {};
 
+// [Track number: S#48139]
 TEST_P(KmbYoloV3NetworkTestWithSpecificLayout, INT8_Dense_TF_YoloV3) {
+    SKIP_INFER_BYPASS_ON("VPUX", "exception - load graph to device");
     std::vector<float> anchors = {10.0, 13.0, 16.0, 30.0, 33.0, 23.0, 30.0, 61.0, 62.0,
                         45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
     runTest(
@@ -1005,7 +1013,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_U8) {
 
 // This test checks correctness of handling FP16 input in case of quantized model
 // for which inner network precision will be U8
+// [Track number: S#48139]
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP16) {
+    SKIP_INFER_BYPASS_ON("VPUX", "bad results");
     runTest(
 	TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
 	    .setUserInputPrecision("input", Precision::FP16),
@@ -1014,7 +1024,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP16) {
         0.3f);
 }
 
+// [Track number: S#48139]
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP32) {
+    SKIP_INFER_BYPASS_ON("VPUX", "bad results");
     runTest(
             TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
                     .setUserInputPrecision("input", Precision::FP32),
@@ -1023,7 +1035,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP32) {
             0.3f);
 }
 
+// [Track number: S#48139]
 TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
+    SKIP_INFER_BYPASS_ON("VPUX", "exception - load graph to device");
     runTest(
     TestNetworkDesc("KMB_models/FP16-INT8/public/aclnet-des-53-vpu/aclnet-des-53-vpu.xml")
         .setUserInputPrecision("input", Precision::FP16),

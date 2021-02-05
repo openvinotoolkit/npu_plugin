@@ -101,6 +101,16 @@ const bool KmbTestBase::RUN_REF_CODE = []() -> bool {
 #endif
 }();
 
+const bool KmbTestBase::IS_BYPASS = []() -> bool {
+#ifdef __aarch64__
+    return false;
+#else
+    InferenceEngine::Core core;
+    const auto deviceList = core.GetAvailableDevices();
+    return !(std::find(deviceList.cbegin(), deviceList.cend(), "VPUX") == deviceList.cend());
+#endif
+}();
+
 const bool KmbTestBase::RUN_INFER = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
         return strToBool("IE_KMB_TESTS_RUN_INFER", var);
@@ -113,7 +123,7 @@ const bool KmbTestBase::RUN_INFER = []() -> bool {
 #ifdef __aarch64__
     return true;
 #else
-    return false;
+    return IS_BYPASS;
 #endif
 }();
 
@@ -190,6 +200,7 @@ void KmbTestBase::SetUp() {
     rd.seed();
 
     core = PluginCache::get().ie();
+
     if (!LOG_LEVEL.empty()) {
         core->SetConfig({{CONFIG_KEY(LOG_LEVEL), LOG_LEVEL}}, DEVICE_NAME);
     }
@@ -222,7 +233,7 @@ void KmbTestBase::SetUp() {
 }
 
 void KmbTestBase::TearDown() {
-    if (RUN_INFER) {
+    if (RUN_INFER && !IS_BYPASS) {
         core.reset();
         // FIXME: reset cache every time to destroy VpualDispatcherResource
         // this workaround is required to free VPU device properly
@@ -586,7 +597,9 @@ void KmbLayerTestBase::runTest(
 
     const auto refOutputs = getRefOutputs(testNet, inputs);
 
-    if (RUN_INFER) {
+    // TODO: layer inference for by-pass mode
+    // [Track number: S#48139]
+    if (RUN_INFER && !IS_BYPASS) {
         std::cout << "=== INFER" << std::endl;
 
         const auto actualOutputs = runInfer(exeNet, inputs, true);
@@ -960,6 +973,10 @@ void KmbNetworkTestBase::runTest(
     }
 
     if (RUN_INFER) {
+        if (skipInfer) {
+            std::cout << skipMessage << std::endl;
+            return;
+            }
         std::cout << "=== INFER" << std::endl;
 
         const auto actualOutputs = runInfer(exeNet, inputs, true);
