@@ -154,7 +154,7 @@ class Find_Mem_Contextable_Sequence {
       if (enable_cmx_concat_in_dag_) {
         input_dag.enable_cmx_concat_transforms(cm);
       } else {
-        input_dag.reset(cm);
+        // input_dag.reset(cm);
       }
 
       if (enable_inplace_eltwise_in_dag_) {
