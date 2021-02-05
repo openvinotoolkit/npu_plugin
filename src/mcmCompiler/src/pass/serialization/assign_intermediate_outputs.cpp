@@ -60,8 +60,8 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
             continue;
         }
         // assign an output operation to it
-        std::cout << "Processing " << node << " as additional output" << std::endl;
-        mv::Data::TensorIterator intermediateOutput = om.output(tensor->getName() + "_output", tensor, tensor->get<mv::DType>("dType"), true);
+        std::cout << "Additional outputs: " << node << std::endl;
+        mv::Data::TensorIterator intermediateOutput = om.output(tensor->getName() + "_", tensor, tensor->get<mv::DType>("dType"), true);
         mv::Data::OpListIterator outputOp = om.getNetworkOutput(om.getNumNetworkOutputs() - 1);
         newOutputs.push_back(std::make_pair(tensor, outputOp));
     }
@@ -78,7 +78,7 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
         mv::Data::OpListIterator newOutputOp = newOutputIt->second;
         
         // create implicit output
-        mv::Data::TensorIterator implicitOutput = om.implicitOutput("intermediate_out", intermediateTensor);
+        mv::Data::TensorIterator implicitOutput = om.implicitOutput(newOutputOp->getName() + "output", intermediateTensor);
         implicitOutput->set<uint8_t>("outputIndex", numOutputIndex);
         implicitOutput->set<mv::DType>("precision", intermediateTensor->get<mv::DType>("dType"));
         om.getSourceOp(implicitOutput)->set<uint8_t>("outputIndex", numOutputIndex);
@@ -102,7 +102,7 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
     {
         mv::Data::OpListIterator outputUnion = outputUnions[0];
         size_t countInputs = outputUnion->getInputTensor().size();
-        // add the new impclitOutput nodes as inputTensors to union and define flow
+        // add the new implicitOutput nodes as inputTensors to union and define flow
         for (auto tensorIt = newImplicitOutputTensors.begin(); tensorIt != newImplicitOutputTensors.end(); ++tensorIt)
         {
             outputUnion->addInputTensor(*tensorIt);
@@ -116,12 +116,14 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
         mv::Data::TensorIterator inputTensor = networkOutput->getInputTensor(0);
         mv::Data::TensorIterator implicitOutput = om.implicitOutput("final_output", inputTensor);
         
+        //transfer attributes
         implicitOutput->set<uint8_t>("outputIndex", 0);
         // implicitOutput->set<std::set<std::string>>("allocators", {"ProgrammableOutput", } );
         implicitOutput->set<mv::DType>("precision", inputTensor->get<mv::DType>("dType"));
         om.getSourceOp(implicitOutput)->set<uint8_t>("outputIndex", 0);
         om.getSourceOp(implicitOutput)->set<std::string>("networkOutputName", inputTensor->getName());
         om.getSourceOp(implicitOutput)->set<mv::DType>("precision", inputTensor->get<mv::DType>("dType"));
+        om.getSourceOp(implicitOutput)->set<unsigned>("opId", networkOutput->get<unsigned>("opId"));
 
         newImplicitOutputTensors.insert(newImplicitOutputTensors.begin(), implicitOutput);
 
@@ -133,8 +135,8 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
         om.undefineFlow(inputFlow);
         om.removeOp(networkOutput);
         
-        // create ImplicitUnion and connect to a newly created output node
+        // create ImplicitUnion and connect all new implicit output nodes
         mv::Data::TensorIterator outputUnion = om.implicitUnion("impl_union", newImplicitOutputTensors);
-        auto output = om.output("out_union", outputUnion, mv::DType("Default"), false);
+        auto output = om.output("output_union", outputUnion, mv::DType("Default"), false);
     }
 }
