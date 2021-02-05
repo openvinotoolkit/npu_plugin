@@ -394,7 +394,7 @@ void MemContextForHugeActivations(const mv::pass::PassEntry&,
     enable_cmx_concat_in_dag = passDesc.get<bool>("enable_cmx_concat");
   }
   if (passDesc.hasAttr("enable_inplace_eltwise")) {
-    enable_cmx_concat_in_dag = passDesc.get<bool>("enable_inplace_eltwise");
+    enable_inplace_eltwise_in_dag=passDesc.get<bool>("enable_inplace_eltwise");
   }
 
 
