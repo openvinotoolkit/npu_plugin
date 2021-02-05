@@ -23,6 +23,15 @@ namespace mv
     }
 }
 
+bool haveMatchingDimensions(mv::Data::OpListIterator op1, mv::Data::OpListIterator op2)
+{
+    bool matching_width_dimension = 
+        (op1->getInputTensor(0UL)->getShape()[mv::IO_WIDTH_DIMENSION] == op2->getInputTensor(0UL)->getShape()[mv::IO_WIDTH_DIMENSION]);
+    bool matching_height_dimension = 
+        (op1->getInputTensor(0UL)->getShape()[mv::IO_HEIGHT_DIMENSION] == op2->getInputTensor(0UL)->getShape()[mv::IO_HEIGHT_DIMENSION]);
+    return matching_width_dimension && matching_height_dimension;
+}
+
 void locateConcatPairs(mv::ComputationModel& model, std::vector<pairs> &acceptableFusedConcats)
 {
     mv::OpModel om(model);
@@ -98,7 +107,7 @@ void populateTheSlotKeeper(mv::ComputationModel& model, std::map <std::string, s
     for (std::size_t idx = 0; idx < concatChild->getInputTensor().size(); idx++)
     {
         auto previousOp = om.getSourceOp(concatChild->getInputTensor()[idx]);
-        if (previousOp->getOpType() == "ImplicitConcat") //NOTE: belongs To first, normally!!
+        if (previousOp->getOpType() == "ImplicitConcat" && haveMatchingDimensions(concatChild, previousOp)) //NOTE: belongs To first, normally!!
         {
             foundConcat = true;
             slotKeeper.erase(concatChild->getInputTensor()[idx]->getName());
