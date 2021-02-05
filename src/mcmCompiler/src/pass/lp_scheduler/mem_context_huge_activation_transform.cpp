@@ -150,16 +150,7 @@ class Find_Mem_Contextable_Sequence {
       dag_t input_dag;
 
       mv::OpModel &cm = model_;
-
-      if (enable_cmx_concat_in_dag_) {
-        input_dag.enable_cmx_concat_transforms(cm);
-      } else {
-        input_dag.reset(cm);
-      }
-
-      if (enable_inplace_eltwise_in_dag_) {
-        input_dag.enable_eltwise_transforms(cm);
-      }
+      input_dag.reset(cm);
 
       std::list< std::pair<operation_t, size_t > > exceeding_ops;
       input_dag.find_all_ops_exceeding_resource_threshold(upper_bound_,
@@ -389,12 +380,6 @@ void MemContextForHugeActivations(const mv::pass::PassEntry&,
   if (passDesc.hasAttr("valley_threshold_percent")) {
     valley_percent =
       double(passDesc.get<int>("valley_threshold_percent"))/double(100.0);
-  }
-  if (passDesc.hasAttr("enable_cmx_concat")) {
-    enable_cmx_concat_in_dag = passDesc.get<bool>("enable_cmx_concat");
-  }
-  if (passDesc.hasAttr("enable_inplace_eltwise")) {
-    enable_inplace_eltwise_in_dag=passDesc.get<bool>("enable_inplace_eltwise");
   }
 
 
