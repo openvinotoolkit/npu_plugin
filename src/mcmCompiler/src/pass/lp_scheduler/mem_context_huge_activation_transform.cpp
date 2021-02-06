@@ -396,7 +396,6 @@ void MemContextForHugeActivations(const mv::pass::PassEntry&,
   size_t valley_size =
       size_t( std::ceil(valley_percent*double(cmx_upper_bound)) );
 
-  printf("[peak=%lu valley=%lu]\n", peak_size, valley_size);
   Find_Mem_Contextable_Sequence ctx_finder(omodel, peak_size, valley_size,
         cmx_upper_bound, enable_cmx_concat_in_dag,
         enable_inplace_eltwise_in_dag);
@@ -428,8 +427,5 @@ void MemContextForHugeActivations(const mv::pass::PassEntry&,
               "Unable to restore precondition validity");
       }
     }
-    printf("[MemCtxTransform]: "
-          "successfully applied to the following subgraph\n");
-    peak_valley_subgraph.dump();
   }
 }

@@ -153,8 +153,6 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         std::back_inserter(exceeding_ops));
 
     for (auto itr=exceeding_ops.begin(); itr!=exceeding_ops.end(); ++itr) {
-      printf("[Exceeding Op: %s demand=%lu\n", (itr->first)->getName().c_str(),
-          itr->second);
       pass.log(mv::Logger::MessageType::Info,
           " Exceeding Op: " + (itr->first)->getName() +
           " with resources:# " + (std::to_string(itr->second)));

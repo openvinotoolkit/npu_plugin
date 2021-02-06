@@ -44,13 +44,6 @@
               "name" : "LocateInplaceEltwiseOps"
             },
             {
-                "name": "GenerateDot",
-                "output": "output_new/dots/input_op_model.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
-            {
                  "name" : "ChainPipeliningTransform",
                  "select_stages" : 2
             },

@@ -1379,7 +1379,6 @@ class Operation_Dag {
 
       // add pseudo edges //
       add_pseudo_edges_from_model(model);
-      printf("[Updating resource utility for memory context]\n");
       update_resource_utility_with_attribute_all_ops("memory_context_utility");
     }
 
