@@ -119,10 +119,10 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
         //transfer attributes
         implicitOutput->set<uint8_t>("outputIndex", 0);
         // implicitOutput->set<std::set<std::string>>("allocators", {"ProgrammableOutput", } );
-        implicitOutput->set<mv::DType>("precision", inputTensor->get<mv::DType>("dType"));
+        implicitOutput->set<mv::DType>("precision", networkOutput->get<mv::DType>("precision"));
         om.getSourceOp(implicitOutput)->set<uint8_t>("outputIndex", 0);
         om.getSourceOp(implicitOutput)->set<std::string>("networkOutputName", inputTensor->getName());
-        om.getSourceOp(implicitOutput)->set<mv::DType>("precision", inputTensor->get<mv::DType>("dType"));
+        om.getSourceOp(implicitOutput)->set<mv::DType>("precision", networkOutput->get<mv::DType>("precision"));
         om.getSourceOp(implicitOutput)->set<unsigned>("opId", networkOutput->get<unsigned>("opId"));
 
         newImplicitOutputTensors.insert(newImplicitOutputTensors.begin(), implicitOutput);
