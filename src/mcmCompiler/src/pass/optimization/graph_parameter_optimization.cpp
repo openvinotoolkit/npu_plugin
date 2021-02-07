@@ -357,7 +357,7 @@ namespace mv
                                     //    std::cout << "Name: " + op.getName() << " ID " << s["id"].toString()<< std::endl;
                                     //    std::cout << "Input Sparsity: " + inputSparsity.toString() << std::endl;
                                     //    std::cout << "Output Sparsity: " + outputSparsity.toString() << std::endl;
-                                    //    std::cout << "Weights Sparsity: " + weightsSparsity << std::endl;
+                                    //    std::cout << "Weights Sparsity: " + weightsSparsity.toString() << std::endl;
                                     //    std::cout << "Spilling: " + spilling.toString() << std::endl;
                                     //    std::cout << "MCStrategy: " + clustering.toString() << std::endl;
                                     //    std::cout << "Streaming(W,H,C,K,N): " + streamShape.toString() << std::endl<<std::endl;
@@ -543,7 +543,7 @@ namespace mv
 
                 if( globalEnablePipelining &&
                     createStrategyFromBool(op, "pipelining") && //Only find extra K streams if pipelining enabled
-                    (clustering.get<std::string>() == "SplitOverK" || clustering.get<std::string>() == "Clustering"))
+                    (clustering.get<std::string>() == "SplitOverK"))
                 {
                     auto pipelinedMinSplitsToFit = getMinStreamOverK(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true);
                     if(pipelinedMinSplitsToFit != 0)
@@ -552,7 +552,12 @@ namespace mv
                             splits.push_back(pipelinedMinSplitsToFit);
                         auto nextKStream = getNextStreamOverK(op, clustering, pipelinedMinSplitsToFit, spilling);
                         if(nextKStream > 0)
+                        {
                             splits.push_back(nextKStream);
+                            auto thirdKStream = getNextStreamOverK(op, clustering, nextKStream, spilling);
+                            if(thirdKStream > 0)
+                                splits.push_back(thirdKStream);
+                        }
                     }
                 }
 
@@ -576,13 +581,13 @@ namespace mv
                     auto memFitCheck = memorySize(op,totalClusters,enableChannelMajorConv, clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,{1,1,1,split,streams["B"]},fSparsity, spilling);
                     if( pipelined && //pipelining weights requires 2 weights streams to fit
                         (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + 2*std::get<2>(memFitCheck) < clusterMemory) &&
-                        validateKStream(op, clustering, split, spilling) )
+                        validateKStream(op, clustering, split, spilling, totalClusters) )
                     {
                         return split;
                     }
                     else if(!pipelined &&
                             (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
-                            validateKStream(op, clustering, split, spilling) )
+                            validateKStream(op, clustering, split, spilling, totalClusters) )
                     {
                         return split;
                     }
@@ -605,35 +610,11 @@ namespace mv
                     //TODO can we steal some logic from nested streaming to jump to the next "best" K
                     // would be useful for when many streams over K are needed just to fit and we
                     // run into +1 doesn't result in a differing number of channels in final task...
-                    if(validateKStream(op, clustering, split, spilling))
+                    if(validateKStream(op, clustering, split, spilling, totalClusters))
                         return split;
                 }
 
                 return 0;
-            }
-
-            bool validateKStream(mv::Op& op, mv::Attribute clustering, size_t split, bool spilling)
-            {
-                if( op.getOpType() == "Conv" &&
-                    clustering.get<std::string>() == "SplitOverK")
-                {
-                    auto weightsShape = op.getInputTensor(1)->getShape();
-                    auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
-                    if((numOutChannels/split * totalClusters) < 16)
-                        return false;
-                }
-                if(!spilling)
-                {
-                    auto outputShape = op.getOutputTensor(0)->getShape();
-                    size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
-                    //ok it fits, now make sure that if we are !spilling that there's no crop
-                    size_t outputChannelSlice = ceil((double)outputChannelSize/(double)split);
-                    size_t lastSlice = outputChannelSize - outputChannelSlice*(split - 1);
-                    if (!(outputChannelSlice%16 == 0 && lastSlice%16 == 0)) //would need crop
-                        return false;
-                }
-
-                return true;
             }
 
             // Note: Find suitable stream over C values
@@ -845,33 +826,41 @@ namespace mv
                 bool isStreaming = ((streamShape["W"] * streamShape["H"] * streamShape["C"]
                                                             * streamShape["K"] * streamShape["B"]) > 1) ? true : false;
 
-                // NOTE: This is a temporary workaround till we are able to identify the chains before graph
-                // optimizer and control the cmx percentage that we want the weigths to receive described in
-                // https://jira.devtools.intel.com/browse/CVS-43222
+                // These rules are necessary for Yolo v2 performance
                 {
                     if (op.getOpType() == "Conv")
                     {
-                        if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,512,1}) &&
+                        if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,512,1}) && 
+                            op.getInputTensor()[0]->getDType() == mv::DType("UInt8") &&
                             op.getInputTensor()[1]->getShape() == mv::Shape({3,3,512,1024}) &&
-                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
+                            op.getInputTensor()[1]->getDType() == mv::DType("UInt8") && 
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}) &&
+                            op.getOutputTensor()[0]->getDType() == mv::DType("UInt8"))
                         {
                             if(globalEnablePipelining && streamShape["K"] != 8)
+                                return FailCause::cmxConcatDecision;
+                        }
+
+                         //conv 9,11,13
+                        if (op.getInputTensor()[0]->getShape() == mv::Shape({26,26,256,1}) &&
+                            op.getInputTensor()[0]->getDType() == mv::DType("UInt8") &&
+                            op.getInputTensor()[1]->getShape() == mv::Shape({3,3,256,512}) &&
+                            op.getInputTensor()[1]->getDType() == mv::DType("UInt8") &&
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({26,26,512,1}) &&
+                            op.getOutputTensor()[0]->getDType() == mv::DType("UInt8"))
+                        {
+                            if(globalEnablePipelining && streamShape["K"] != 4)
                                 return FailCause::cmxConcatDecision;
                         }
 
                         if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}) &&
+                            op.getInputTensor()[0]->getDType() == mv::DType("UInt8") &&
                             op.getInputTensor()[1]->getShape() == mv::Shape({3,3,1024,1024}) &&
-                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
+                            op.getInputTensor()[1]->getDType() == mv::DType("UInt8") &&
+                            op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}) &&
+                            op.getOutputTensor()[0]->getDType() == mv::DType("UInt8"))
                         {
                             if(globalEnablePipelining && streamShape["K"] != 8)
-                                return FailCause::cmxConcatDecision;
-                        }
-
-                        if (op.getInputTensor()[0]->getShape() == mv::Shape({1,1,2048,1}) &&
-                            op.getInputTensor()[1]->getShape() == mv::Shape({1,1,2048,1000}) &&
-                            op.getOutputTensor()[0]->getShape() == mv::Shape({1,1,1000,1}))
-                        {
-                            if(globalEnablePipelining && streamShape["K"] != 4 && streamShape["K"] != 2)
                                 return FailCause::cmxConcatDecision;
                         }
                     }
@@ -1077,6 +1066,9 @@ namespace mv
                     (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
 
+                if (clustering == "SplitOverH" && op.getOpType() == "MaxPool" &&
+                    (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
+                    return FailCause::SpiltOverHWithStreamOverK;
                 //NOTE: This is not a HACK!!! if an operation is assigned with streamOverH + SplitOverH
                 //and we concatenate on cmx the data are going to have a strange format...so nothing can be done later, so spill...
                 /*For example, let's think a convolution with splitOverH and streams = 2, the tensor will be splitted to
@@ -1370,7 +1362,14 @@ namespace mv
                     return INF;
 
                 //Note: Synchronize across parallel branches so we can keep track of eltwise parent activation in ddr or cmx
-                if(childOpType == "Eltwise" && (child["eltwiseParentSpilling"].get<bool>() != parentSpilling))
+                if(childOpType == "Eltwise" && ((child["eltwiseParentSpilling"].get<bool>() != parentSpilling)))
+                    return INF;
+                
+                //Note: Retinaface-mobilenetv2 accuracy issue, no issue found in blob
+                if(childOpType == "Eltwise" && childClustering == "HKSwitch" && parentOpType == "Conv" && 
+                    childOp.getInputTensor(0UL)->getShape() == mv::Shape({80,80,64,1}) &&
+                    parentOp.getInputTensor(0UL)->getShape() == mv::Shape({80,80,48,1}) &&
+                    parentOp.getInputTensor(1UL)->getShape() == mv::Shape({1,1,48,64}))
                     return INF;
 
                 if(violatesClusteringStrategyRules(parentOp, childOp, parent, child))
@@ -1506,12 +1505,25 @@ namespace mv
                 auto pFullDma = dmaTime(parentOp, parent);
                 auto cFullDma = dmaTime(childOp, child, parentSpilling);
 
+                auto pOutDma = averageOutputDmaTime(parentOp, parent);
+                auto pStreams = parentStreamShape["H"] * parentStreamShape["K"];
+                auto pLastComp = pFullComp / pStreams;
+
                 //Note: these are cost per stream, used when pipelining or prefetching
                 auto cInDma = averageInputDmaTime(childOp, child, parentSpilling);
                 auto cWeightDma = averageWeightsDmaTime(childOp, child);
                 auto cOutDma = averageOutputDmaTime(childOp, child);
 
                 double sparsityCost = 0;
+
+                // For performance in YoloV2 and other networks with large input which don't allow SOH to stay in CMX
+                // at the start of the network, here we preference being clustering or SOK rather than SOH.
+                // This will allow us to use the AddActivationStreaming pass to speed up these layers.
+                // Needed because SOH can only stream over K, and that pass only speeds up streaming over H...
+                if (parentOpType == "Input" && isChildChanMajor && willAlwaysSpill(childOp) &&
+                    !(childClustering == "Clustering" || childClustering == "SplitOverK")) {
+                    cFullDma = cFullDma * 10;
+                }
 
                 // Case in which child input sparsity will be provided by compiler
                 // Compiler provided sparsity is a dummy sparsity (all 1's sparse map)
@@ -1551,44 +1563,57 @@ namespace mv
                 auto pipelineable = isPipeliningPossible(childOp, child, parent["spilling"].get<bool>());
                 auto prefetchable = isPrefetchPossible(parentOp, childOp, parent, child);
 
+                auto kStreams = childStreamShape["K"];
+
+                auto compPerStream = ((double) cFullComp / kStreams);
+                auto prefetch = std::min(pLastComp, cWeightDma);
+                auto pipeline = std::max((cWeightDma+cOutDma), compPerStream);
+
+                auto prepipe_cost = (cWeightDma - prefetch) + (kStreams-1)*pipeline + cOutDma;
+                //Pipeline means overlap K stream compute with weights read for next K stream, assume input in CMX
+                auto pipe_cost = cWeightDma + (kStreams-1)*pipeline + cOutDma;
+                //Prefetch means bring in one weights slice while still computing the parent, assume input in CMX
+                auto pre_cost = cWeightDma - prefetch + (kStreams-1)*cWeightDma + cFullComp + (kStreams * cOutDma);
+                auto base_cost = cFullDma + cFullComp;
+
+                double cost = base_cost;
+
+                // std::cout << "Strategy for " << parent["id"].toString() << " --> " << child["id"].toString() << std::endl <<
+                //     "    " << prepipe_cost << " : " << pipe_cost << " : " << pre_cost << " : " << base_cost << std::endl;
+
                 if(pipelineable && prefetchable)
                 {
-                    //TODO for now, we only pipeline over K. reenable over H!
-                    auto streams = childStreamShape["K"];
-
-                    auto cStreamComp = ((double) cFullComp / streams);
-                    // In this case the pipeline overlap does not include read of first weights, because that
-                    // is overlapped with the prefetch
-                    auto pipelineOverlap =  ( (streams - 1) * std::max(cStreamComp, cWeightDma)) + cStreamComp;
-                    auto prefetchOverlap = std::max(pFullComp, cWeightDma);
-
-                    return pFullDma + prefetchOverlap + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + heuristics;
+                    cost = prepipe_cost;
+                    // std::cout << "    chose prepipe: " << prepipe_cost << std::endl;
                 }
                 else if(pipelineable)
                 {
-                    //TODO for now, we only pipeline over K. reenable over H!
-                    auto streams = childStreamShape["K"];
-
-                    // In pipelining, we can overlap the compute and dma (except the first dma and the last compute)
-                    auto cStreamComp = ((double) cFullComp / streams);
-                    auto pipelineOverlap = cWeightDma + ( (streams - 1) * std::max(cStreamComp, cWeightDma)) + cStreamComp;
-                    return pFullDma + pFullComp + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + heuristics;
+                    cost = pipe_cost;
+                    // std::cout << "    chose pipe: " << pipe_cost << std::endl;
                 }
                 else if(prefetchable)
                 {
-                    auto streams = childStreamShape["K"];// we only prefetch weights
-
-                    // If we can prefetch, overlap first stream over child weights with parent compute
-                    // To be prefetchable, parent doesn't spill so pOutDma=0, cInDma=0, cWeightDma > 0
-                    auto prefetchOverlap = std::max(pFullComp, cWeightDma);
-                    auto remainderChildDma = ((streams - 1) * cWeightDma) + (streams*(cInDma + cOutDma));
-                    return pFullDma + prefetchOverlap + remainderChildDma + cFullComp  + heuristics;
+                    cost = pre_cost;
+                    // std::cout << "    chose pre: " << pre_cost << std::endl;
                 }
                 else
                 {
-                    //Fully serialized dma and compute between and internally in this layer
-                    return pFullDma + pFullComp + cFullDma + cFullComp + heuristics;
+                    // std::cout << "    chose base: " << base_cost << std::endl;
                 }
+
+                // Note: for performance, here we ensure if that MC strategies are preferenced in order
+                // SOH, HKSwitch, SOK, Clustering. Required in order to remove parent cost from calculation.
+                if(parentClustering == "SplitOverH" && !parentSpilling)
+                        cost = cost * 0.95;
+                if((childClustering == "SplitOverH" || childClustering == "HKSwitch") && !childSpilling) 
+                     cost = cost * 0.95;   
+                if(parentClustering == "Clustering" || childClustering == "Clustering")
+                    cost = cost * 1.1;
+
+                cost = cost + heuristics;
+                // std::cout << " returning cost " << cost << std::endl;
+
+                return cost;
         }
 
             bool violatesClusteringStrategyRules(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
