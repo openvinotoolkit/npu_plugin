@@ -941,7 +941,6 @@ class Dynamic_Spill_Node_Inserter {
         const_operation_iterator_t;
     typedef std::list<operation_t> op_list_t;
     typedef typename op_list_t::iterator op_list_iterator_t;
-    typedef typename dag_t::operation_hash_t operation_hash_t;
 
     struct implicit_sub_structure_t {
       implicit_sub_structure_t(operation_t head=NULL, operation_t tail=NULL)
@@ -1062,10 +1061,16 @@ class Dynamic_Spill_Node_Inserter {
       std::unordered_set<operation_t> children_;
     }; // struct spilled_subtree_t //
 
-    typedef std::unordered_map<operation_t, spilled_subtree_t, operation_hash_t> spilled_op_map_t;
+    struct operation_compare_t {
+      bool operator()(const operation_t& op0, const operation_t& op1) const {
+          return op0->getName().compare(op1->getName()) < 0;
+      }
+    };
+
+    typedef std::map<operation_t, spilled_subtree_t, operation_compare_t> spilled_op_map_t;
     typedef typename spilled_op_map_t::const_iterator
         spilled_op_map_const_iterator_t;
-    typedef std::unordered_map<operation_t, std::string, operation_hash_t> redundant_spill_map_t;
+    typedef std::map<operation_t, std::string, operation_compare_t> redundant_spill_map_t;
     ////////////////////////////////////////////////////////////////////////////
 
     Dynamic_Spill_Node_Inserter(
@@ -1527,7 +1532,7 @@ class Dynamic_Spill_Node_Inserter {
       return atleast_one_subtree_refined;
     }
 
-    typedef std::unordered_map<operation_t, size_t, operation_hash_t> input_tensor_index_map_t;
+    typedef std::map<operation_t, size_t, operation_compare_t> input_tensor_index_map_t;
     typedef typename spilled_read_subtrees_t::iterator
         spilled_read_subtree_iterator_t;
 
@@ -1817,7 +1822,7 @@ class Dynamic_Spill_Node_Inserter {
       //////////////////////////////////////////////////////////////////////////
       // STEP-2: for all the outgoing ops connected to this op determine the
       // input tensor indexes
-      std::unordered_map<operation_t, size_t, operation_hash_t> input_tensor_index_map;
+      std::map<operation_t, size_t, operation_compare_t> input_tensor_index_map;
       {
         mv::Data::OpListIterator spilled_op_itr =
           om.getOp(spilled_op->getName());
@@ -1886,7 +1891,7 @@ class Dynamic_Spill_Node_Inserter {
       //
       // TODO(vamsikku): this is a common operations between forest and subtree
       // code it should be a function on its own.
-      std::unordered_map<operation_t, size_t, operation_hash_t> input_tensor_index_map;
+      std::map<operation_t, size_t, operation_compare_t> input_tensor_index_map;
       {
         mv::Data::OpListIterator spilled_op_itr =
           om.getOp(spilled_op->getName());
