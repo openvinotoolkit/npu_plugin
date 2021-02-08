@@ -1180,3 +1180,12 @@ TEST_F(KmbClassifyNetworkTest, shufflenet_v2_x1_0_pytorch) {
             TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
             3, 0.5f);
 }
+
+TEST_F(KmbDetectionNetworkTest, peleenet) {
+    runTest(
+            TestNetworkDesc("KMB_models/FP16-INT8/public/peleenet/peleenet.xml")
+                .setUserInputPrecision("input", Precision::U8),
+            TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
+            0.3f,
+            0.1f, 0.3f);
+}
