@@ -593,6 +593,7 @@ mv::Data::TensorIterator convertPermuteNDToUPATask(mv::OpModel& om, const std::v
     auto upaPermute = om.uPATaskPermuteND(name, inputs, order);
     upaPermute->setDType(outputTensorType);
     upaPermute->setQuantParams(quantParams);
+    upaPermute->setOrder(outputTensorOrder);
     auto upaPermuteOp = om.getSourceOp(upaPermute);
 
     upaPermuteOp->set<std::vector<int64_t>>("perm_order", order);
@@ -980,7 +981,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Relu", convertReluToUPATask},
     {"Tanh", convertTanhToUPATask},
     {"SoftPlus", convertSoftPlusToUPATask},
-    {"Elu", convertEluToUPATask}
+    {"Pad", convertPadToUPATask},
+    {"Elu", convertEluToUPATask},
+    {"Interpolate", convertInterpolateToUPATask}
     };
 
     // Layer types that given current compiler state, it's

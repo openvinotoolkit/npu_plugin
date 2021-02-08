@@ -262,7 +262,6 @@ std::vector<char> compileNGraph(
         const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
 
         passManager.register_pass<FuseScaleAfterClamp>();
-        passManager.register_pass<FuseScaleAfterClamp>();
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
         passManager.register_pass<ReplaceScaleShiftWithMcmScale>();
