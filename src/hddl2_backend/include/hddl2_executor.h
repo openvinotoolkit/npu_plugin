@@ -17,6 +17,7 @@
 #pragma once
 
 // System
+#include <atomic>
 #include <mutex>
 // Plugin
 #include "vpux.hpp"
@@ -75,6 +76,12 @@ private:
     // TODO [Track number: S#37397] [Workaround] Avoid allocation inferData each time. If size of inputs is changed,
     // need  to recreating (not implemented yet)
     std::once_flag _onceFlagInferData;
+
+    std::mutex _uniteGraphMapMutex;
+    const size_t _baseExecutorId;
+
+    static std::atomic<size_t> _executorIdCounter;
+    static std::map<size_t, std::weak_ptr<vpu::HDDL2Plugin::HddlUniteGraph>> _uniteGraphMap;
 };
 }  // namespace HDDL2
 }  // namespace vpux

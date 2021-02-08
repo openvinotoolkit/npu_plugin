@@ -3390,6 +3390,24 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPASwishTask(mv::ComputationModel &
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAMishTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_MishParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -3511,6 +3529,58 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPASoftPlusTask(mv::ComputationMode
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAPadTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(IO_TENSOR_INPUT);
+    auto output = opIt->getOutputTensor(IO_TENSOR_OUTPUT);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PadParams;
+    auto softLayerParamsValue = new MVCNN::PadParamsT();
+
+    // paddings
+
+    const auto pads_begin = opIt->get<std::array<unsigned short, 4>>("pads_begin");
+    const auto pads_end   = opIt->get<std::array<unsigned short, 4>>("pads_end");
+
+    // Convert vectors to uint32_t
+    auto pads_begin_uint = std::vector<unsigned int>();
+    auto pads_end_uint   = std::vector<unsigned int>();
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        pads_begin_uint.push_back(static_cast<unsigned int>(pads_begin.at(i)));
+        pads_end_uint.push_back(static_cast<unsigned int>(pads_end.at(i)));
+    }
+
+    softLayerParamsValue->pads_begin = std::vector<unsigned int>(pads_begin_uint.begin(), pads_begin_uint.end());
+    softLayerParamsValue->pads_end   = std::vector<unsigned int>(pads_end_uint.begin(), pads_end_uint.end());
+
+   //pad_mode
+    auto pad_mode = opIt->get<std::string>("pad_mode");
+    if (pad_mode.compare(std::string("constant")) == 0) {
+        softLayerParamsValue->pad_mode = MVCNN::PadMode_Constant;
+    } else if (pad_mode.compare(std::string("edge")) == 0) {
+        softLayerParamsValue->pad_mode = MVCNN::PadMode_Edge;
+    } else if (pad_mode.compare(std::string("reflect")) == 0) {
+        softLayerParamsValue->pad_mode = MVCNN::PadMode_Reflect;
+    } else if (pad_mode.compare(std::string("symmetric")) == 0) {
+        softLayerParamsValue->pad_mode = MVCNN::PadMode_Symmetric;
+    } else {
+        delete toBuild;
+        delete softLayerParamsValue;
+        throw ArgumentError("buildUPAPadTask", "file:content", "invalid", "Invalid pad_mode for Pad");
+    }
+
+    //padValue
+    softLayerParamsValue->padValue = static_cast<float>(opIt->get<double>("pad_value"));
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -3584,6 +3654,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAHSwishTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Swish")
         toReturn[0]->task.value = buildUPASwishTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Mish")
+        toReturn[0]->task.value = buildUPAMishTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Conversion")
         toReturn[0]->task.value = buildUPAConversionTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Relu")
@@ -3596,6 +3668,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPATanhTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "SoftPlus")
         toReturn[0]->task.value = buildUPASoftPlusTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Pad")
+        toReturn[0]->task.value = buildUPAPadTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Interpolate")
         toReturn[0]->task.value = buildUPAInterpolateTask(cm, compilationDescriptor, opIt);
 

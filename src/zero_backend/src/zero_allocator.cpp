@@ -25,11 +25,7 @@ using namespace vpux;
  * @return Handle to the allocated resource
  */
 void* ZeroAllocator::alloc(size_t size) noexcept {
-    void* mem = nullptr;
-    ze_host_mem_alloc_desc_t desc = {ZE_HOST_MEM_ALLOC_DESC_VERSION_CURRENT, ZE_HOST_MEM_ALLOC_FLAG_DEFAULT};
-    if (ZE_RESULT_SUCCESS != zeDriverAllocHostMem(driver_handle, &desc, size, alignment, &mem)) {
-        return nullptr;
-    }
+    void* mem = new char[size];
     our_pointers.insert(mem);
     return mem;
 }
@@ -42,9 +38,7 @@ void* ZeroAllocator::alloc(size_t size) noexcept {
 bool ZeroAllocator::free(void* handle) noexcept {
     if (handle) {
         our_pointers.erase(handle);
-        if (ZE_RESULT_SUCCESS != zeDriverFreeMem(driver_handle, handle)) {
-            return false;
-        }
+        delete [] handle;
     }
     return true;
 }

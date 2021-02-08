@@ -20,10 +20,8 @@
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 
 #include <memory>
-#include <ngraph/op/fake_quantize.hpp>
-#include <ngraph/op/constant.hpp>
+#include <ngraph/ops.hpp>
 #include <ngraph/type/element_type.hpp>
-#include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
 
 #include <legacy/ngraph_ops/eltwise.hpp>
@@ -72,7 +70,7 @@ bool inputsHasSameScales(
 }
 
 void setFakeQuantizeScales(
-        std::shared_ptr<ngraph::op::v0::FakeQuantize> fq,
+        const std::shared_ptr<ngraph::op::v0::FakeQuantize>& fq,
         const size_t& maxLevels,
         const std::vector<double>& maxRange) {
     auto inputLow = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq->input_value(1).get_node_shared_ptr());
@@ -83,10 +81,10 @@ void setFakeQuantizeScales(
     auto inputHighValues = inputHigh->cast_vector<double>();
     auto outputLowValues = outputLow->cast_vector<double>();
     auto outputHighValues = outputHigh->cast_vector<double>();
-    std::vector<double> scaledInputLowValues(inputLowValues.size());
-    std::vector<double> scaledInputHighValues(inputHighValues.size());
-    std::vector<double> scaledOutputLowValues(outputLowValues.size());
-    std::vector<double> scaledOutputHighValues(outputHighValues.size());
+    std::vector<float> scaledInputLowValues(inputLowValues.size());
+    std::vector<float> scaledInputHighValues(inputHighValues.size());
+    std::vector<float> scaledOutputLowValues(outputLowValues.size());
+    std::vector<float> scaledOutputHighValues(outputHighValues.size());
 
     for (size_t i = 0; i < inputLowValues.size(); i++) {
         double range = inputHighValues[i] - inputLowValues[i];
@@ -103,19 +101,19 @@ void setFakeQuantizeScales(
     }
 
     auto newInputLow = std::make_shared<ngraph::op::v0::Constant>(
-        ngraph::element::f64,
+        ngraph::element::f32,
         inputLow->get_output_partial_shape(0).to_shape(),
         scaledInputLowValues.data());
     auto newInputHigh = std::make_shared<ngraph::op::v0::Constant>(
-        ngraph::element::f64,
+        ngraph::element::f32,
         inputHigh->get_output_partial_shape(0).to_shape(),
         scaledInputHighValues.data());
     auto newOutputLow = std::make_shared<ngraph::op::v0::Constant>(
-        ngraph::element::f64,
+        ngraph::element::f32,
         outputLow->get_output_partial_shape(0).to_shape(),
         scaledOutputLowValues.data());
     auto newOutputHigh = std::make_shared<ngraph::op::v0::Constant>(
-        ngraph::element::f64,
+        ngraph::element::f32,
         outputHigh->get_output_partial_shape(0).to_shape(),
         scaledOutputHighValues.data());
 
@@ -134,8 +132,13 @@ void setFakeQuantizeScales(
 
 bool AlignEltwiseScales::run_on_node(std::shared_ptr<ngraph::Node> node)
 {
-    if ((std::dynamic_pointer_cast<McmEltwise>(node))
-        || std::dynamic_pointer_cast<ngraph::op::Eltwise>(node) ) {
+    if (std::dynamic_pointer_cast<McmEltwise>(node) ||
+        std::dynamic_pointer_cast<ngraph::op::v1::Add>(node) ||
+        std::dynamic_pointer_cast<ngraph::op::Eltwise>(node)) {
+        if (std::dynamic_pointer_cast<ngraph::op::Eltwise>(node)->eltwise_type == ELTWISE_TYPE::Prod) {
+            return false;
+        }
+
         auto inputs = getInputsFQ(node);
 
         size_t maxValues = 1;

@@ -19,6 +19,7 @@
 #include <ie_utils.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <blob_factory.hpp>
+#include "models/model_loader.h"
 
 namespace {
 IE::BlobMap CalcCpuReferenceCommon(IE::CNNNetwork& network, const IE::Blob::Ptr& input_blob,
@@ -72,12 +73,13 @@ IE::BlobMap CalcCpuReferenceCommon(IE::CNNNetwork& network, const IE::Blob::Ptr&
 }
 }
 
-IE::Blob::Ptr ReferenceHelper::CalcCpuReferenceSingleOutput(const std::string &model_path, const IE::Blob::Ptr& input_blob,
+IE::Blob::Ptr ReferenceHelper::CalcCpuReferenceSingleOutput(const std::string & modelPath, const IE::Blob::Ptr& inputBlob,
     const IE::PreProcessInfo* preproc_info) {
     std::cout << "Calculating reference on CPU (single output)..." << std::endl;
 
     IE::Core ie;
-    auto network = ie.ReadNetwork(model_path);
+    const std::string modelFullPath = ModelLoader_Helper::getTestModelsPath() + modelPath + ".xml";
+    auto network = ie.ReadNetwork(modelFullPath);
 
     IE::OutputsDataMap outputs_info = network.getOutputsInfo();
     const size_t NUM_OUTPUTS = 1;
@@ -85,7 +87,7 @@ IE::Blob::Ptr ReferenceHelper::CalcCpuReferenceSingleOutput(const std::string &m
         THROW_IE_EXCEPTION << "Number of outputs isn't equal to 1";
     }
 
-    return CalcCpuReferenceCommon(network, input_blob, preproc_info).begin()->second;
+    return CalcCpuReferenceCommon(network, inputBlob, preproc_info).begin()->second;
 }
 
 IE::BlobMap ReferenceHelper::CalcCpuReferenceMultipleOutput(const std::string& model_path, const IE::Blob::Ptr& input_blob,

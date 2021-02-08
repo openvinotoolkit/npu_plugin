@@ -103,8 +103,7 @@ TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
     ASSERT_EQ(resultMessage, message);
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CanSetAndGetRemoteContextUsingId) {
+TEST_F(HDDL2_HddlUnite_Tests, CanSetAndGetRemoteContextUsingId) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     WorkloadID workloadId = workloadContext->getWorkloadContextID();
 
@@ -121,14 +120,12 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CanSetAndGetRemoteContextUsingId) {
     HddlUnite::unregisterWorkloadContext(workloadId);
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_QueryIncorrectWorkloadIdReturnNull) {
+TEST_F(HDDL2_HddlUnite_Tests, QueryIncorrectWorkloadIdReturnNull) {
     auto workload_context = HddlUnite::queryWorkloadContext(INT32_MAX);
     ASSERT_EQ(workload_context, nullptr);
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CanCreateTwoDifferentContextOneAfterAnother) {
+TEST_F(HDDL2_HddlUnite_Tests, CanCreateTwoDifferentContextOneAfterAnother) {
     // Destory default remote context from SetUp
     workloadContextHelper.destroyHddlUniteContext(workloadContextHelper.getWorkloadId());
 
@@ -387,9 +384,8 @@ TEST_F(HddlUnite_BlobDescr, DISABLED_CanInferOnDefaultLocalBlobs) {
 //------------------------------------------------------------------------------
 using HddlUnite_Stress = HDDL2_HddlUnite_Tests;
 // Stress tests should belong to another test executor
-// [Track number: S#28523]
-TEST_F(HddlUnite_Stress, DISABLED_MultipleAllocations) {
-    const size_t amountOfAllocations = 100;
+TEST_F(HddlUnite_Stress, MultipleAllocations) {
+    const size_t amountOfAllocations = 20;
 
     HddlUnite::Inference::Graph::Ptr graphPtr = nullptr;
     const std::string graphName = PrecompiledResNet_Helper::resnet50.graphName;

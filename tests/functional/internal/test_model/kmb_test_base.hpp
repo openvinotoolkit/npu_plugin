@@ -240,6 +240,8 @@ protected:
     std::string dumpBaseName;
     std::unordered_map<std::string, Blob::Ptr> blobs;
     std::unordered_map<std::string, std::pair<TensorDesc, BlobGenerator>> blobGenerators;
+    bool enable_CPU_lpt = false;
+
 };
 
 //
@@ -306,6 +308,11 @@ public:
         return *this;
     }
 
+    TestNetworkDesc& enableLPTRefMode() {
+        _useLPTRefMode = true;
+        return *this;
+    }
+
     const std::string& irFileName() const {
         return _irFileName;
     }
@@ -333,6 +340,10 @@ public:
         return _forceCompilation;
     }
 
+    bool isLPTRefModeEnabled() const {
+        return _useLPTRefMode;
+    }
+
     TestNetworkDesc& enableForcedCompilation() {
         _forceCompilation = true;
         return *this;
@@ -355,6 +366,7 @@ private:
     std::map<std::string, std::string> _compileConfig;
     bool _forceCompilation = false;
     const bool _isExperimental = false;
+    bool _useLPTRefMode = false;
 };
 
 //
@@ -450,7 +462,8 @@ protected:
 
     BlobMap calcRefOutput(
             const TestNetworkDesc& netDesc,
-            const BlobMap& inputs);
+            const BlobMap& inputs,
+            const bool& enableLPTRef = false);
 
     void runTest(
             const TestNetworkDesc& netDesc,

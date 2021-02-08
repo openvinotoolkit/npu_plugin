@@ -114,6 +114,9 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
     return inputForInference;
 }
 //------------------------------------------------------------------------------
+std::atomic<size_t> HDDL2Executor::_executorIdCounter{0};
+std::map<size_t, std::weak_ptr<vpu::HDDL2Plugin::HddlUniteGraph>> HDDL2Executor::_uniteGraphMap;
+
 HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
                                                   const VPUXConfig& config,
                                                   const std::shared_ptr<vpux::Allocator>& allocator,
@@ -146,9 +149,9 @@ HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, cons
         : _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())),
           _network(network),
           _allocatorPtr(allocator),
-          _workloadContext(workloadContext) {
+          _workloadContext(workloadContext),
+          _baseExecutorId(_executorIdCounter++) {
     _config.parseFrom(config);
-    loadGraphToDevice();
     _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext,
                                                                          _config.graphColorFormat());
 }
@@ -159,7 +162,8 @@ HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
           _network(ex._network),
           _uniteGraphPtr(ex._uniteGraphPtr),
           _allocatorPtr(ex._allocatorPtr),
-          _workloadContext(ex._workloadContext) {
+          _workloadContext(ex._workloadContext),
+          _baseExecutorId(ex._baseExecutorId) {
     _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext,
                                                                          _config.graphColorFormat());
 }
@@ -177,6 +181,20 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
     // TODO [Design flaw] InferData need to know if preprocessing required on creation [Track number: S#31308]
     bool needUnitePreProcessing = false;
     IE::BlobMap updatedInputs;
+
+    try {
+        loadGraphToDevice();
+    } catch (const IE::details::InferenceEngineException& exception) {
+        if (exception.hasStatus() && exception.getStatus() == IE::StatusCode::NETWORK_NOT_LOADED) {
+            _logger->error(FAILED_LOAD_NETWORK.c_str());
+        } else {
+            _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
+        }
+        THROW_IE_EXCEPTION << "Couldn't load the graph into the device.";
+    } catch (const std::exception& exception) {
+        _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
+        THROW_IE_EXCEPTION << "Couldn't load the graph into the device.";
+    }
 
     const auto& networkInputs = _network->getInputsInfo();
     const auto& deviceInputs = _network->getDeviceInputsInfo();
@@ -336,12 +354,27 @@ void HDDL2Executor::loadGraphToDevice() {
     const auto csram_size = _config.CSRAMSize();
     hddlUniteConfig.insert(std::make_pair("CSRAM_SIZE", std::to_string(csram_size)));
 
-    if (_workloadContext == nullptr) {
-        _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _config.deviceId(),
-                                                                            hddlUniteConfig, _config.logLevel());
-    } else {
-        _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _workloadContext, hddlUniteConfig,
-                                                                            _config.logLevel());
+    // Graph hasn't been initialized yet
+    if (_uniteGraphPtr == nullptr) {
+        std::lock_guard<std::mutex> lock(_uniteGraphMapMutex);
+        const auto findUniteGraph = _uniteGraphMap.find(_baseExecutorId);
+        // No graph in the map - need to load it to the device and add to the map
+        if (findUniteGraph == _uniteGraphMap.end()) {
+            if (_workloadContext == nullptr) {
+                _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
+                        _network, _config.deviceId(), hddlUniteConfig, _config.logLevel());
+            } else {
+                _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
+                        _network, _workloadContext, hddlUniteConfig, _config.logLevel());
+            }
+            _uniteGraphMap[_baseExecutorId] = _uniteGraphPtr;
+        } else {
+            // Graph was found - use it
+            _uniteGraphPtr = findUniteGraph->second.lock();
+            if (_uniteGraphPtr == nullptr) {
+                THROW_IE_EXCEPTION << "HddlUnite graph was found but deleted.";
+            }
+        }
     }
 }
 

@@ -32,7 +32,7 @@
 
 namespace {
 
-bool needsConcatScaleAlignment(std::shared_ptr<ngraph::Node> node) {
+bool needsConcatScaleAlignment(const std::shared_ptr<ngraph::Node>& node) {
     auto input_values = node->input_values();
     for ( auto&& iv : input_values ) {
         if (dynamic_cast<ngraph::op::v0::PriorBox*>(iv.get_node()) || dynamic_cast<ngraph::op::PriorBoxIE*>(iv.get_node()))
@@ -77,7 +77,7 @@ bool inputsHasSameScalesAndZeroPoints(const std::vector<std::shared_ptr<ngraph::
 }
 
 void setFakeQuantizeParams(
-        std::shared_ptr<ngraph::op::v0::FakeQuantize> fq,
+        const std::shared_ptr<ngraph::op::v0::FakeQuantize>& fq,
         const size_t& maxLevels,
         const double& minVal,
         const double& maxVal) {
@@ -86,26 +86,26 @@ void setFakeQuantizeParams(
     auto outputLow = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq->input_value(3).get_node_shared_ptr());
     auto outputHigh = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq->input_value(4).get_node_shared_ptr());
 
-    std::vector<double> scaledInputLowValues(ngraph::shape_size(inputLow->get_output_shape(0)), minVal);
-    std::vector<double> scaledInputHighValues(ngraph::shape_size(inputHigh->get_output_shape(0)), maxVal);
-    std::vector<double> scaledOutputLowValues(ngraph::shape_size(outputLow->get_output_shape(0)), minVal);
-    std::vector<double> scaledOutputHighValues(ngraph::shape_size(outputHigh->get_output_shape(0)), maxVal);
+    std::vector<float> scaledInputLowValues(ngraph::shape_size(inputLow->get_output_shape(0)), minVal);
+    std::vector<float> scaledInputHighValues(ngraph::shape_size(inputHigh->get_output_shape(0)), maxVal);
+    std::vector<float> scaledOutputLowValues(ngraph::shape_size(outputLow->get_output_shape(0)), minVal);
+    std::vector<float> scaledOutputHighValues(ngraph::shape_size(outputHigh->get_output_shape(0)), maxVal);
 
     auto newInputLow = std::make_shared<ngraph::op::v0::Constant>(
-        ngraph::element::f64,
-        ngraph::Shape({scaledInputLowValues.size()}),
+        ngraph::element::f32,
+        inputLow->get_output_partial_shape(0).to_shape(),
         scaledInputLowValues.data());
     auto newInputHigh = std::make_shared<ngraph::op::v0::Constant>(
-        ngraph::element::f64,
-        ngraph::Shape({scaledInputHighValues.size()}),
+        ngraph::element::f32,
+        inputHigh->get_output_partial_shape(0).to_shape(),
         scaledInputHighValues.data());
     auto newOutputLow = std::make_shared<ngraph::op::v0::Constant>(
-        ngraph::element::f64,
-        ngraph::Shape({scaledOutputLowValues.size()}),
+        ngraph::element::f32,
+        outputLow->get_output_partial_shape(0).to_shape(),
         scaledOutputLowValues.data());
     auto newOutputHigh = std::make_shared<ngraph::op::v0::Constant>(
-        ngraph::element::f64,
-        ngraph::Shape({scaledOutputHighValues.size()}),
+        ngraph::element::f32,
+        outputHigh->get_output_partial_shape(0).to_shape(),
         scaledOutputHighValues.data());
 
     newInputLow->set_friendly_name(inputLow->get_friendly_name() + "_aligned");
@@ -123,7 +123,7 @@ void setFakeQuantizeParams(
 
 bool AlignConcatScales::run_on_node(std::shared_ptr<ngraph::Node> node)
 {
-    if (const auto concat = std::dynamic_pointer_cast<ngraph::op::v0::Concat>(node)) {
+    if (std::dynamic_pointer_cast<ngraph::op::v0::Concat>(node) != nullptr) {
         if (!needsConcatScaleAlignment(node)) {
             return false;
         }

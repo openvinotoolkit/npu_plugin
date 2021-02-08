@@ -77,6 +77,7 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
             "[KMB] OpenCL compiler")
 
         find_program(VPU_CLC_MA2X9X_COMMAND clc)
+
         unset(IE_PATH_TO_DEPS)
     endif()
 endif()
@@ -234,14 +235,16 @@ add_kmb_compile_custom_cpp_kernels()
 
 if(ENABLE_HDDL2)
     if(UNIX)
-        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww46)
-        set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww44)
-        set(HDDLUNITE_KMB_ARCHIVE_HASH "0fe920ffdd845aa434c04cf2cfb670ef76dbe69e8cf50675e9703c5b5c7a8f17")
-        set(HDDLUNITE_VPUX_4_ARCHIVE_HASH "cebc6864a6d20c435d379f6757e9ffea38eea17073bb5363db85a098b476a84d")
+        set(PCIE_DRIVERS_KMB_ARCHIVE_VERSION RELEASE_ww04_2021)
+        set(PCIE_DRIVERS_KMB_ARCHIVE_HASH "56d553d0cdf559ead8a92966c6f010543c0817f5bdacc61e30c5911c11e73b24")
+        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww04_2021)
+        set(HDDLUNITE_KMB_ARCHIVE_HASH "aaf42397eb4ef26015fe6b1a498eb0be5160c8ce4f3d9125b81d3c201dc25133")
+        set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww51)
+        set(HDDLUNITE_VPUX_4_ARCHIVE_HASH "28d47e59d767ee2c0804b63c1c5d4ac37aa2e1238fe6fb49aca24ad777dfa524")
         set(ARCH_FORMAT ".tgz")
     else()
-        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww44_Windows)
-        set(HDDLUNITE_KMB_ARCHIVE_HASH "f1da749d21b6c9190443a3dc681e65397cd1270f44003140dfb8d1350b7ef1e0")
+        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww51_Windows)
+        set(HDDLUNITE_KMB_ARCHIVE_HASH "7db757bdb0ec297af307cf15711ecc260e914ba50878fda7f677d2822bb43798")
         set(ARCH_FORMAT ".zip")
     endif()
 
@@ -254,6 +257,16 @@ if(ENABLE_HDDL2)
     endif()
 
     if(DEFINED IE_PATH_TO_DEPS)
+        reset_deps_cache(PCIE_DRIVERS)
+
+        if(UNIX)
+            RESOLVE_DEPENDENCY(PCIE_DRIVERS
+                    ARCHIVE_LIN "hddl2/kmb-pcie-drivers_${PCIE_DRIVERS_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"
+                    ENVIRONMENT "PCIE_DRIVERS"
+                    TARGET_PATH "${TEMP}/pcie_drivers"
+                    SHA256 ${PCIE_DRIVERS_KMB_ARCHIVE_HASH})
+        endif()
+
         reset_deps_cache(HDDL_UNITE)
 
         RESOLVE_DEPENDENCY(HDDL_UNITE
@@ -266,7 +279,7 @@ if(ENABLE_HDDL2)
                     ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_VPUX_4_ARCHIVE_VERSION}${ARCH_FORMAT}"
                     ENVIRONMENT "HDDL_UNITE_VPUX_4"
                     TARGET_PATH "${TEMP}/vpux_4/hddl_unite"
-		    SHA256 ${HDDLUNITE_VPUX_4_ARCHIVE_HASH})
+                    SHA256 ${HDDLUNITE_VPUX_4_ARCHIVE_HASH})
         endif()
 
         unset(IE_PATH_TO_DEPS)

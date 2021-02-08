@@ -31,7 +31,8 @@ enum class ProfileType {
 
 enum class Components: uint32_t {
     ProfilerTest = 0,
-    VPUAL
+    VPUAL,
+    NN_PERFORMANCE
 };
 
 enum class ProfileLevel: int {
@@ -46,6 +47,14 @@ enum class ProfileLevel: int {
 enum class ProfilingEvent{
     BUFFER_0_FULL = 0,
     BUFFER_1_FULL
+};
+
+/**
+ * System clock type.
+ */
+enum class ClockType {
+    REALTIME,
+    MONOTONIC_RAW
 };
 
 typedef void (*profilingEventCallback_t)(
@@ -143,6 +152,15 @@ class TraceProfiling : private VpualStub {
      * @param level     - Profiling level.
      */
     uint16_t get_profiler_xlink_channel_id(void);
+
+    /**
+     * Sync system time with VPU.
+     *
+     * @param type - System clock with which to sync.
+     *
+     * @return [int]
+     */
+    int syncSystemTime(ClockType type);
 
     /**
      * StatisticsMonitor API

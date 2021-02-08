@@ -7,6 +7,7 @@
 
 #include <ie_blob.h>
 #include <ie_compound_blob.h>
+#include <ie_remote_context.hpp>
 
 #include <memory>
 #include <opencv2/gapi.hpp>
@@ -18,6 +19,8 @@
 #include "debug.h"
 #include "kmb_preproc_gapi_kernels.hpp"
 #include "kmb_preproc_gapi_kernels_sipp.hpp"
+#include "vpux/kmb_params.hpp"
+#include "vpux_params_private_options.h"
 
 // clang-format off
 namespace InferenceEngine {
@@ -168,10 +171,54 @@ inline int get_cv_depth(const TensorDesc &ie_desc) {
     }
 }
 
+static void checkBlobIsValid(const InferenceEngine::Blob::CPtr& blob) {
+    if (blob == nullptr) {
+        THROW_IE_EXCEPTION << "Blob is null";
+    }
+    if (blob->size() == 0) {
+        THROW_IE_EXCEPTION << "Blob is empty";
+    }
+}
+
 cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
+    namespace IE = InferenceEngine;
+    cv::gapi::own::Size sz;
+
+    // SIPP needs the maximum possible image size it will work on at the pipeline creation stage
+    // to allocate buffers on VPU.
+    // Check if the input blob is Remote and has original tensor desc in its parameters,
+    // take original tensor dims in this case.
+    // Go the old way (computing dims from strides) otherwise
+    if (blob->is<IE::RemoteBlob>()) {
+        const auto r_blob = std::dynamic_pointer_cast<const IE::RemoteBlob>(blob);
+        checkBlobIsValid(r_blob);
+        const auto& params = r_blob->getParams();
+        const auto& orig_tensor_desc = params.find(IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC));
+        if (orig_tensor_desc != params.end()) {
+            std::shared_ptr<IE::TensorDesc> r_desc;
+            try {
+                r_desc = orig_tensor_desc->second.as<std::shared_ptr<IE::TensorDesc>>();
+            } catch (...) {
+                THROW_IE_EXCEPTION << "Original tensor desc have incorrect type information";
+            }
+            const auto& r_dims = r_desc.get()->getDims();
+            if (r_desc.get()->getLayout() == Layout::NHWC) {
+                int w = r_dims[3];
+                int h = r_dims[2];
+                sz = {w, h};
+            } else if (r_desc.get()->getLayout() == Layout::NCHW) { // FIXME: need to verify
+                int w = r_dims[3];
+                int h = r_dims[2];
+                sz = {w, h};
+            } else {
+                THROW_IE_EXCEPTION << "Unsupported layout";
+            }
+            return sz;
+        }
+    }
+
     const auto desc = blob->getTensorDesc();
     auto strides = desc.getBlockingDesc().getStrides();
-    cv::gapi::own::Size sz;
 
     if (desc.getLayout() == Layout::NHWC) {
         int w = strides[1] / strides[2];
@@ -184,7 +231,6 @@ cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
     } else {
         THROW_IE_EXCEPTION << "Unsupported layout";
     }
-
     return sz;
 }
 
@@ -888,11 +934,13 @@ void PrivSHAVE_only_M2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
 
 PreprocEngine::PreprocEngine(unsigned int shaveFirst, unsigned int shaveLast,
                              unsigned int lpi, Path ppPath) {
-    IE_ASSERT(ppPath == Path::SIPP || ppPath == Path::M2I);
+    IE_ASSERT(ppPath == Path::SIPP || ppPath == Path::M2I || ppPath == Path::SHAVE_ONLY_M2I);
     if (ppPath == Path::SIPP) {
         _priv.reset(new PrivSIPP(shaveFirst, shaveLast, lpi));
     } else if (ppPath == Path::M2I) {
         _priv.reset(new PrivM2I());
+    } else if (ppPath == Path::SHAVE_ONLY_M2I) {
+        _priv.reset(new PrivSHAVE_only_M2I());
     } else {
         THROW_IE_EXCEPTION << "Error: unsupported preprocessing path with code "
                            << std::to_string(static_cast<int>(ppPath));

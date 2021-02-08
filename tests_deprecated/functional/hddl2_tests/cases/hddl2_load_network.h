@@ -16,27 +16,31 @@
 
 #pragma once
 
-#include <models/model_squeezenet_v1_1.h>
 #include "core_api.h"
 #include "gtest/gtest.h"
+#include "models/models_constant.h"
+#include "executable_network_factory.h"
 
 class LoadNetwork_Tests : public CoreAPI_Tests {
 public:
     LoadNetwork_Tests();
-    ModelSqueezenetV1_1_Helper modelHelper;
+    const Models::ModelDesc modelToUse = Models::squeezenet1_1;
 };
 
 inline LoadNetwork_Tests::LoadNetwork_Tests() {
-    network = modelHelper.getNetwork();
+    network = ExecutableNetworkFactory::createCNNNetwork(modelToUse.pathToModel);
 }
 
 //------------------------------------------------------------------------------
 class ExecutableNetwork_Tests : public LoadNetwork_Tests {
 public:
     void SetUp() override;
-
-protected:
-    static InferenceEngine::ExecutableNetwork::Ptr _cacheExecNetwork;
 };
+
+inline void ExecutableNetwork_Tests::SetUp() {
+    executableNetworkPtr = std::make_shared<InferenceEngine::ExecutableNetwork>(
+            ExecutableNetworkFactory::createExecutableNetwork(modelToUse.pathToModel));
+}
+
 
 
