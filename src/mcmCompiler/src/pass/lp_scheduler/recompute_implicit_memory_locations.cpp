@@ -63,7 +63,7 @@ class Attrs {
     void dump(std::string const& file_name) const {
       FILE *fptr = fopen(file_name.c_str(), "w");
       if(fptr == nullptr) {
-        throw mv::RuntimeError("RecomputeImplicitOpMemoryLocations",
+        throw mv::RuntimeError("RecomputeImplicitOpAttr",
           "Can't open file " + file_name);
       }
 
@@ -127,7 +127,7 @@ class Attrs {
       operation_non_const_t op = const_cast<operation_non_const_t>(op_in);
       if (!op->outputSlots()) { return T(); }
       mv::Data::TensorIterator tensor_itr = op->getOutputTensor(0UL);
-      return tensor_itr->get<T>(attr_name_);
+      return get_attr_of_real_op(tensor_itr);
     }
 
     T get_attr(operation_t op) const {
@@ -149,6 +149,7 @@ class Attrs {
     virtual std::string attr_val_to_string(T const&) const = 0;
     virtual bool is_required_op_type(operation_t const&) const = 0;
     virtual void propagate_attr_to_child(operation_t, T const&) = 0;
+    virtual T get_attr_of_real_op(mv::Data::TensorIterator const &) const = 0;
 }; // class Attrs<T> //
 
 class Mem_Loc_Attr final: public Attrs<mem_location_t> {
@@ -177,9 +178,15 @@ class Mem_Loc_Attr final: public Attrs<mem_location_t> {
       return op->isImplicit();
     }
 
+    virtual mem_location_t get_attr_of_real_op(mv::Data::TensorIterator const &tensor_itr) const override {
+      return tensor_itr->get<mem_location_t>(attr_name_);
+    }
+
 }; // class Mem_Loc_Attr //
 
 class Addr_Attr final: public Attrs<std::size_t> {
+  typedef std::map<std::string, std::function<void(table_t&, operation_t, std::size_t const)>> func_map_t;
+
   public:
     Addr_Attr(mv::OpModel& om, op_list_t& zero_in_degree, degree_map_t in_degree_map) :
       Attrs<std::size_t>("address", om, zero_in_degree, in_degree_map) {}
@@ -187,42 +194,114 @@ class Addr_Attr final: public Attrs<std::size_t> {
   private:
     void propagate_attr_to_child(operation_t child_op, std::size_t const& parent_addr) override {
       // if already has an entry (for implicit ops with multiple inputs, ex. Concat)
-      // make sure the address of the child is the lowest one 
-      auto aitr = attr_table_.find(child_op);
-      if (aitr == attr_table_.end()) {
-        aitr = attr_table_.insert(
-            std::make_pair(child_op, parent_addr)).first;
-      } else if (aitr->second > parent_addr) {
-        aitr->second = parent_addr;
-      }
+      // make sure the address of the child is the lowest one
+
+      auto propagate_parent_address = [] (table_t& attr_table, operation_t child, std::size_t const parent_address) {
+        auto aitr = attr_table.find(child);
+        if (aitr == attr_table.end()) {
+          aitr = attr_table.insert(
+              std::make_pair(child, parent_address)).first;
+        } else {
+          throw mv::RuntimeError("RecomputeImplicitOpAttr", "Implicit op " + child->getName() +
+                " has more than one input");
+        }
+      };
+
+      auto propagate_concat_address = [] (table_t& attr_table, operation_t child, std::size_t const parent_address) {
+        auto aitr = attr_table.find(child);
+        if (aitr == attr_table.end()) {
+          aitr = attr_table.insert(
+              std::make_pair(child, parent_address)).first;
+        } else if (aitr->second > parent_address) {
+          aitr->second = parent_address;
+        }
+      };
+
+      auto propagate_slice_address = [] (table_t& attr_table, operation_t child, std::size_t const parent_address) {
+        operation_non_const_t op = const_cast<operation_non_const_t>(child);
+        auto const& start = child->get<mv::Shape>("begin");
+        auto const& in_tensor = op->getInputTensor(0);
+        auto const& in_shape = in_tensor->getShape();
+        auto const indices = in_tensor->getOrder().getContiguityVector();
+
+        std::size_t multiplier = in_tensor->getDType().getSizeInBytes();
+        std::size_t offset = start[indices[0]] * multiplier;
+        for (std::size_t idx = 1; idx < in_shape.ndims(); ++idx) {
+          multiplier *= in_shape[indices[idx - 1]];
+          offset += start[indices[idx]] * multiplier;
+        }
+
+        auto aitr = attr_table.find(child);
+        if (aitr == attr_table.end()) {
+          aitr = attr_table.insert(
+              std::make_pair(child, parent_address + offset)).first;
+        } else {
+          throw mv::RuntimeError("RecomputeImplicitAttr", "Implicit op " + child->getName() +
+                " has more than one input");
+        }
+      };
+
+      func_map_t propagate_addr = {
+        {"Align", propagate_parent_address},
+        {"Copy", propagate_parent_address},
+        {"Crop", propagate_parent_address},
+        {"ImplicitConcat", propagate_concat_address},
+        {"ImplicitPermute", propagate_parent_address},
+        {"ImplicitReshape", propagate_parent_address},
+        {"Slice", propagate_slice_address}
+      };
+
+      propagate_addr.at(child_op->getOpType())(attr_table_, child_op, parent_addr);
+
     }
 
     std::string attr_val_to_string(std::size_t const& val) const override {
       return std::to_string(val);
     }
 
+    // TODO: Add addres computation for the other implicit ops (ImplicitOutput,
+    // ImplicitUnion, ImplicitInput, ImplicitInputSlice, ImplicitJoin)
     virtual bool is_required_op_type(operation_t const& op) const override {
-      return op->getOpType() == "Align";
+      const std::vector<std::string> reqOps = { 
+        "Align", "Copy", "Crop", "ImplicitConcat",
+        "ImplicitPermute", "ImplicitReshape", "Slice" };
+      return std::find(reqOps.begin(), reqOps.end(), op->getOpType()) != reqOps.end();
     }
 
     virtual void set_attr(mv::Data::TensorIterator tensor_itr, std::size_t const& val) const override {
       tensor_itr->setAddress(val);
     };
+
+    virtual std::size_t get_attr_of_real_op(mv::Data::TensorIterator const &tensor_itr) const override {
+      if (tensor_itr->hasAttr(attr_name_)) {
+        return tensor_itr->get<std::size_t>(attr_name_);
+      }
+
+      mv::DataModel dm(omodel_);
+      auto tensorAllocators = tensor_itr->get<std::set<std::string>>("allocators");
+      if (tensorAllocators.empty())
+          throw mv::ArgumentError("buildTensorReferenceT", "",  "Tensor Allocators empty", "");
+
+      auto tensorAllocator = dm.getAllocator(*tensorAllocators.begin());
+      mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, tensor_itr); // 0 is the only stage for now, but this will probably change in the future
+      auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+      return (*masterBuffer)->getOffset();
+    }
 }; // class Addr_Attr //
 
-static void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
+static void RecomputeImplicitOpAttr(const mv::pass::PassEntry&,
     mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv {
 namespace pass {
 
-MV_REGISTER_PASS(RecomputeImplicitOpMemoryLocations)
-  .setFunc(RecomputeImplicitOpMemoryLocations);
+MV_REGISTER_PASS(RecomputeImplicitOpAttr)
+  .setFunc(RecomputeImplicitOpAttr);
 
 } // namespace pass //
 } // namespace mv//
 
-void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
+void RecomputeImplicitOpAttr(const mv::pass::PassEntry&,
     mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc,
       mv::Element&) {
   mv::OpModel om(model);
@@ -231,17 +310,27 @@ void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
 
   compute_ops_in_degree(om, zero_in_degree_nodes, initial_in_degree_map);
 
-  Mem_Loc_Attr memLocationAttribute(om, zero_in_degree_nodes, initial_in_degree_map);
-  memLocationAttribute.recompute();
-  memLocationAttribute.set_recomputed_attr();
+  auto const attr = passDesc.get<std::string>("attribute");
 
-  Addr_Attr addressAttribute(om, zero_in_degree_nodes, initial_in_degree_map);
-  addressAttribute.recompute();
-  addressAttribute.set_recomputed_attr();
+  if (attr == "Location") {
+    Mem_Loc_Attr memLocationAttribute(om, zero_in_degree_nodes, initial_in_degree_map);
+    memLocationAttribute.recompute();
+    memLocationAttribute.set_recomputed_attr();
 
-  if (passDesc.hasAttr("output_dir")) {
-    std::string output_dir = passDesc.get<std::string>("output_dir");
-    memLocationAttribute.dump(output_dir + "/recompute_mem_loc.txt");
-    addressAttribute.dump(output_dir + "/recompute_address.txt");
+    if (passDesc.hasAttr("output_dir")) {
+      std::string output_dir = passDesc.get<std::string>("output_dir");
+      memLocationAttribute.dump(output_dir + "/recompute_mem_loc.txt");
+    }
+  }
+
+  if (attr == "address") {
+    Addr_Attr addressAttribute(om, zero_in_degree_nodes, initial_in_degree_map);
+    addressAttribute.recompute();
+    addressAttribute.set_recomputed_attr();
+
+    if (passDesc.hasAttr("output_dir")) {
+      std::string output_dir = passDesc.get<std::string>("output_dir");
+      addressAttribute.dump(output_dir + "/recompute_address.txt");
+    }
   }
 }
