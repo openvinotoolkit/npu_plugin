@@ -839,14 +839,10 @@ shared_ptr<vector<StrategyManager::SubGraph>> StrategyManager::extractSubgraphs(
 //             TODO:: implement special case handling. If we cannot group children until they become exclusive, then need
 //                    start removing edges until they do
 
-            // Note: Temporarily disable complex graph handling when the leaky relu workaround is enabled
-            auto globalParams = model_.getGlobalConfigParams();
-            bool PPEAccuracy = globalParams->hasAttr("PPEAccuracy") ? globalParams->get<bool>("PPEAccuracy") : false;
-            if(!PPEAccuracy){
-                std::vector<mv::Data::OpListIterator> nonExclusiveNodes = getNonExclusiveNodes(travelingNode, lcsa);
-                if(!nonExclusiveNodes.empty()){
-                    handleNonExclusiveSubgraphs(nonExclusiveNodes, lcsa);
-                }
+
+            std::vector<mv::Data::OpListIterator> nonExclusiveNodes = getNonExclusiveNodes(travelingNode, lcsa);
+            if(!nonExclusiveNodes.empty()){
+                handleNonExclusiveSubgraphs(nonExclusiveNodes, lcsa);
             }
         
             for(auto child = travelingNode.leftmostChild(); child != model_.opEnd(); ++child)
