@@ -442,9 +442,8 @@ std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps(const std::st
 
 std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps() {
     std::vector<mv::Data::OpListIterator> toReturn;
-    for (auto& opIt : *ops_) {
+    for (auto& opIt : *ops_)
         toReturn.push_back(opIt.second);
-    }
     std::sort(toReturn.begin(), toReturn.end(), compareOpListIteratorOpId);
     return toReturn;
 }
@@ -453,9 +452,7 @@ std::map<std::string, std::vector<mv::Data::OpListIterator>> mv::ComputationMode
 {
     std::map<std::string, std::vector<mv::Data::OpListIterator>> toReturn;
     for (auto type = opTypes.begin(); type != opTypes.end(); type++)
-        for(auto opPairIt = ops_->begin(); opPairIt != ops_->end(); ++opPairIt)
-            if (opPairIt->second->getOpType() == *type)
-                toReturn[*type].push_back(opPairIt->second);
+        toReturn[*type] = getOps(*type); // improve complexity by sorting ops_
     return toReturn;
 }
 
