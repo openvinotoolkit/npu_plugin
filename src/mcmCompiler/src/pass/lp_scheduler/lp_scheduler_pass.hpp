@@ -1780,7 +1780,8 @@ class Dynamic_Spill_Node_Inserter {
       typename dag_t::cmx_concat_subgraph_t const *concat_subgraph = NULL;
       if ( (concat_subgraph =
               input_dag_.does_this_dpu_have_cmx_concat_subgraph(spilled_op)) ) {
-        spilled_op = const_cast<mv::Op *>(concat_subgraph->concat_root_);
+        spilled_op_in = concat_subgraph->concat_root_;
+        spilled_op = const_cast<mv::Op *>(spilled_op_in);
       }
 
       //STEP-0: refine read subtrees before introducing the spill structure.
