@@ -3728,14 +3728,14 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
                 toSort.push_back(&(*sparsityMapIterator));
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
-                    for(std::size_t i = 0; i < numClusters; ++i)
+                    for(size_t i = 0; i < numClusters; ++i)
                         toSort.push_back(&(tIt->getSubTensor(i)));
                 }
                 else
                     toSort.push_back(&(*tIt));
             }
             else if(tIt->isAllocatedPerCluster())
-                for(std::size_t i = 0; i < numClusters; ++i)
+                for(size_t i = 0; i < numClusters; ++i)
                     toSort.push_back(&(tIt->getSubTensor(i)));
             else
                 toSort.push_back(&(*tIt));
@@ -3756,9 +3756,22 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
                 direction != mv::DmaDirectionEnum::DDR2UPACMX   &&
                 direction != mv::DmaDirectionEnum::UPACMX2DDR)
             {
-                for (auto& tensor : opIterator->getInputTensor())
+                for (auto& tIt : opIterator->getInputTensor())
                 {
-                    csramCacheable.insert(&*tensor);
+                    csramCacheable.insert(&*tIt);
+                    if(tIt->isSparse())
+                    {
+                        auto sparsityMapIterator = dm.getTensor(tIt->getSparsityMap()->getName());
+                        toSort.push_back(&(*sparsityMapIterator));
+                        if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                        {
+                            for(size_t i = 0; i < numClusters; ++i)
+                                csramCacheable.insert(&(tIt->getSubTensor(i)));
+                        }
+                    }
+                    else if(tIt->isAllocatedPerCluster())
+                        for(size_t i = 0; i < numClusters; ++i)
+                            csramCacheable.insert(&(tIt->getSubTensor(i)));
                 }
             }
         }
