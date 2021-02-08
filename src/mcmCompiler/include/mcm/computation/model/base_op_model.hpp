@@ -72,6 +72,7 @@ namespace mv
         std::vector<Data::OpListIterator> topologicalSort();
         std::vector<Data::OpListIterator> lexTopologicalSort();
         bool pathExists(Data::OpListIterator source, Data::OpListIterator target);
+        bool edgeExists(Data::OpListIterator source, Data::OpListIterator target);
         bool pathSplit(Data::OpListIterator u, Data::OpListIterator v);
 
         template<typename OpSubsetIterator>
@@ -168,6 +169,7 @@ namespace mv
        const std::string& outputScope, const std::string& outputFile,
        const std::string& contentLevel="full", bool htmlLike=true, bool verbose=false, bool reduced=false,
        const std::string& startingOpName="nodeA", const std::string& finishingOpName="nodeB");
+    void convertDotFromModel(const std::string& outputFile);
 
 }
 

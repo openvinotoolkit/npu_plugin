@@ -884,7 +884,8 @@ const std::vector<int64_t> mv::Tensor::getDataPacked()
     return orderedDataPacked;
 }
 
-int mv::Tensor::getNumZeroPoints()
+// Note: returns the number of ZeroPoints in a quantized tensor
+int mv::Tensor::getZeroValuesCount()
 {
     int numZeroPoints = 0;
 

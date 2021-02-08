@@ -6,6 +6,9 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/computation/model/iterator/tensor.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+
 
 namespace mv {
 namespace scheduler {
@@ -67,7 +70,7 @@ class CMX_Concatenation {
         : dpu_in_(), dpu_out_(), reads_(), writes_(),
           concat_root_(operation_t(NULL)),
           representative_dpu_(operation_t(NULL)),
-          representative_dpu_depth_() {}
+          representative_dpu_depth_(){}
 
       bool is_valid() const {
         return !( (concat_root_ == operation_t(NULL)) || dpu_in_.empty() ||
@@ -395,9 +398,9 @@ class CMX_Concatenation {
         throw RuntimeError("LpScheduler", "Currently pseudoEdge with source/sink implicit is not supported.");
     }
 
-    template<typename ControlEdgeOutput>
+    template <typename ControlEdgeOutput>
     void transform_concat_subgraph_depth(const concat_subgraph_t& subgraph,
-        ControlEdgeOutput , std::unordered_map<operation_t, size_t> ) {
+        ControlEdgeOutput& output) {
       operation_t dpu_rep = subgraph.representative_dpu_;
       //NOTE: In the vector we keep the level of every source of the pseudo edge, cause the biggest + 1
       // will become the new representative dpu
@@ -420,14 +423,11 @@ class CMX_Concatenation {
 
           if (!omodel_.pathExists(appr_opIt, sink))
           {
-            auto src_tensor_itr = appr_opIt->getOutputTensor()[0];
             assertForInvalidPseudoEdge(appr_opIt, sink);
             auto itr = dpu_depth_map_.find(opIt);
             size_t dpu_depth = itr->second;
             depth_keeper.push_back(dpu_depth);
-            mv::Data::FlowListIterator flow_itr =
-              omodel_.defineFlow(src_tensor_itr, sink , 0UL);
-            flow_itr->set<bool>("pseudo_data_flow", true);
+            output.push_back(control_edge_t(appr_opIt, sink));
           }
 
         }
@@ -518,6 +518,61 @@ class CMX_Concatenation {
       }
     }
 
+    bool check_if_cycle_came_up_due_to_cmx_concat(OpModel& omodel)
+    {
+      return (!omodel.isDag());
+    }
+
+    void remove_virtual_cmx_resource_flows(OpModel& omodel)
+    {
+      mv::DataModel dm(omodel);
+      std::vector<mv::Data::FlowListIterator> edges_to_drop;
+      for (mv::Data::FlowListIterator eitr=dm.flowBegin(); eitr!=dm.flowEnd();
+            ++eitr) {
+        if (eitr->hasAttr("temporary_cmx_concat_resource_flow") &&
+           eitr->get<bool>("temporary_cmx_concat_resource_flow")) {
+          edges_to_drop.push_back(eitr);
+        }
+      }
+      untransform_and_invalidate_flows(edges_to_drop);
+      return;
+    }
+
+    void untransform_and_invalidate_flows(std::vector<mv::Data::FlowListIterator> &flowsToRemove)
+    {
+      for (auto eitr=flowsToRemove.begin(); eitr!=flowsToRemove.end();++eitr)
+        omodel_.undefineFlow(*eitr);
+
+      return;
+    }
+
+    void invalidate_attributes(concat_subgraph_t& subgraph) {
+      //NOTE: Remove the attributes
+      auto rep_dpu = subgraph.representative_dpu_;
+      auto rep_it = omodel_.getOp(rep_dpu->getName());
+      if (rep_it->hasAttr("cmx_concatable") && rep_it->hasAttr("cmx_concat_writer"))
+      {
+        rep_it->erase("cmx_concatable");
+        rep_it->erase("cmx_concat_writer");
+      }
+      for (operation_t dpu : subgraph.dpu_in_)
+      {
+        auto dpu_in = omodel_.getOp(dpu->getName());
+        if (dpu_in->getName() != rep_it->getName())
+        {
+          if (dpu_in->hasAttr("cmx_concatable") && dpu_in->hasAttr("cmx_concat_writer"))
+          {
+            dpu_in->erase("cmx_concatable");
+            dpu_in->erase("cmx_concat_writer");
+          }
+        }
+      }
+      for (auto ditr=subgraph.dpu_out_.begin(); ditr!=subgraph.dpu_out_.end();++ditr)
+        resource_increase_delta_.erase(*ditr);
+
+      return;
+    }
+
     template<typename ControlEdgeOutput, typename SubGraphContainer>
     void transform_op_model(ControlEdgeOutput output,
           SubGraphContainer& concat_subgraphs) {
@@ -538,12 +593,69 @@ class CMX_Concatenation {
         bool can_transform =
             is_cmx_concateable_in_current_opmodel(subgraph);
         if (can_transform) {
-          transform_and_get_control_edges(subgraph, output);
+          std::vector<control_edge_t> local_resource_control_edges, local_depth_pseudo_edges = {};
+          std::vector<mv::Data::FlowListIterator> local_resource_control_flows, local_depth_pseudo_flows = {};
+          //NOTE-1: collect the resource control edges and the depth pseudo edges for the subgraph
+          transform_and_get_control_edges(subgraph, local_resource_control_edges);
           if (does_rep_dpu_has_lower_depth_than_others(subgraph)) {
-            transform_concat_subgraph_depth(subgraph, output, temporary_dpu_depth_map);
+            transform_concat_subgraph_depth(subgraph, local_depth_pseudo_edges);
+          }
+
+          //NOTE-2: add temporarily these edges in the graph to detect the cycle
+          for (control_edge_t edge : local_resource_control_edges)
+          {
+            mv::Data::FlowListIterator flow_itr =
+              omodel_.defineFlow(edge.source_itr_->getOutputTensor()[0], edge.sink_itr_, edge.sink_itr_->getInputTensor().size());
+            local_resource_control_flows.push_back(flow_itr);
+            flow_itr->set<bool>("temporary_cmx_concat_resource_flow", true);
+          }
+
+          for (control_edge_t edge : local_depth_pseudo_edges)
+          {
+            if (!omodel_.edgeExists(edge.source_itr_, edge.sink_itr_))
+            {
+              mv::Data::FlowListIterator flow_itr =
+                omodel_.defineFlow(edge.source_itr_->getOutputTensor()[0], edge.sink_itr_, edge.sink_itr_->getInputTensor().size());
+              local_depth_pseudo_flows.push_back(flow_itr);
+              flow_itr->set<bool>("pseudo_data_flow", true);
+            }
+          }
+
+          //NOTE-3: in case of a cycle, invalidate and un-transform back to ddr subgraph
+          if (check_if_cycle_came_up_due_to_cmx_concat(omodel_))
+          {
+            can_transform = false;
+            untransform_and_invalidate_flows(local_depth_pseudo_flows);
+            untransform_and_invalidate_flows(local_resource_control_flows);
+            invalidate_attributes(subgraph);
+            if (check_if_cycle_came_up_due_to_cmx_concat(omodel_))
+              throw RuntimeError("LpScheduler", "Not a dag despite the un-transforming, cycle around " + omodel_.cycleResponsible()->getName());
+          }
+          else
+          {
+            //NOTE-3.1: If there is no cycle drop the flows in order to transform the subgraph
+            untransform_and_invalidate_flows(local_depth_pseudo_flows);
+            untransform_and_invalidate_flows(local_resource_control_flows);
+            local_depth_pseudo_flows = {};
+            transform(subgraph);
+
+            //NOTE-3.2: bring back the data depth flows
+            for (control_edge_t edge : local_depth_pseudo_edges)
+            {
+              if (!omodel_.edgeExists(edge.source_itr_, edge.sink_itr_))
+              {
+                mv::Data::FlowListIterator flow_itr =
+                  omodel_.defineFlow(edge.source_itr_->getOutputTensor()[0], edge.sink_itr_, edge.sink_itr_->getInputTensor().size());
+                local_depth_pseudo_flows.push_back(flow_itr);
+                flow_itr->set<bool>("pseudo_data_flow", true);
+              }
+            }
+
+            // NOTE-3.3: send resource control edges to scheduler
+            for (control_edge_t edge : local_resource_control_edges)
+              output = edge;
           }
         }
-
 
         if (fptr) {
           fprintf(fptr, "=====================================\n");
@@ -630,6 +742,32 @@ class CMX_Concatenation {
       return false;
     }
 
+    bool is_this_a_complex_cyclic_subgraph(
+      const concat_subgraph_t& subgraph) const
+    {
+      bool possible_cycle = false;
+      //NOTE: if your representative task is in lower level and you have a path between the rep DPU
+      // and the other dpu_ins then you will generate a cycle, with the pseudo edge that is added later
+      if (does_rep_dpu_has_lower_depth_than_others(subgraph))
+      {
+        for (auto dpu : subgraph.dpu_in_) {
+          auto dpu_in = &(*dpu);
+          auto dpu_rep = &(*subgraph.representative_dpu_);
+          if (dpu_in->getName() != dpu_rep->getName())
+          {
+            auto opIn = omodel_.getOp(dpu_in->getName());
+            auto opRep = omodel_.getOp(dpu_rep->getName());
+            if (omodel_.pathExists(opRep, opIn))
+            {
+              possible_cycle = true;
+              break;
+            }
+          }
+        }
+      }
+      return possible_cycle;
+    }
+
     bool is_this_an_unsupported_concat(const concat_subgraph_t& subgraph) const
     {
       //NOTE: using variables so we can print the reason, in case of concats fail to cmx transfrom
@@ -639,12 +777,14 @@ class CMX_Concatenation {
       bool does_this_concat_childs_service_compiler_provided_sparsityC =
         does_this_concat_childs_service_compiler_provided_sparsity(subgraph);
       bool does_this_concat_subgraph_create_cyclic_dag = concat_subgraph_leads_cycle(subgraph);
+      bool is_this_a_complex_cyclic_subgraphC = is_this_a_complex_cyclic_subgraph(subgraph);
 
       return has_no_cmx_concat_flagC ||
         does_this_concat_have_any_cropsC ||
         is_this_a_complex_concatC ||
         does_this_concat_childs_service_compiler_provided_sparsityC ||
-        does_this_concat_subgraph_create_cyclic_dag;
+        does_this_concat_subgraph_create_cyclic_dag ||
+        is_this_a_complex_cyclic_subgraphC;
     }
 
     bool does_this_concat_have_any_parents_or_children_of_this_op_type(
@@ -903,14 +1043,14 @@ class CMX_Concatenation {
 
     //Control edges will be sent to output iterator and the resource shuffling
     //will be done adding an attribute "cmx_concateable: resource_size"
-    template<typename ControlEdgeOutputIterator>
+    template <typename ControlEdgeOutput>
     size_t transform_and_get_control_edges(concat_subgraph_t& subgraph,
-        ControlEdgeOutputIterator output) {
+        ControlEdgeOutput& output) {
       // TYPE1: dpu_rep -> dpu_non_rep
       // TYPE2: dpu_rep->d , d \in dpu_out
 
       mv::OpModel &om = omodel_;
-      transform(subgraph);
+
       operation_t dpu_rep = subgraph.representative_dpu_;
       auto dpu_rep_itr = om.getOp(dpu_rep->getName());
       size_t total_control_edges = 0UL;
@@ -923,7 +1063,7 @@ class CMX_Concatenation {
         if (*ditr == dpu_rep) { continue; }
 
         auto dpu_itr = om.getOp((*ditr)->getName());
-        output = control_edge_t(dpu_rep_itr, dpu_itr);
+        output.push_back(control_edge_t(dpu_rep_itr, dpu_itr));
         ++total_control_edges;
 
         dpu_itr->set<size_t>(cmx_concat_attribute(), 0UL);
@@ -933,7 +1073,7 @@ class CMX_Concatenation {
       for (auto ditr=subgraph.dpu_out_.begin(); ditr!=subgraph.dpu_out_.end();
           ++ditr) {
         auto dpu_itr = om.getOp((*ditr)->getName());
-        output = control_edge_t(dpu_rep_itr, dpu_itr);
+        output.push_back(control_edge_t(dpu_rep_itr, dpu_itr));
 
         // update the resource increase delta of dpu_itr //
         operation_t dout_op = *ditr;

@@ -164,7 +164,7 @@ namespace mv
 
         std::vector<DataElement> getData();
         const std::vector<int64_t> getDataPacked();
-        int getNumZeroPoints();
+        int getZeroValuesCount();
         const std::vector<int64_t> &getKernelDataOffsets();
 
         std::vector<double> getDoubleData();

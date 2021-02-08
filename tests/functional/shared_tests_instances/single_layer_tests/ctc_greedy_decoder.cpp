@@ -52,7 +52,7 @@ const auto params = testing::Combine(
 
 // TODO: [Track number: C#40001]
 INSTANTIATE_TEST_CASE_P(
-    CTCGreedyDecoder,
+    DISABLED_CTCGreedyDecoder,
     KmbCTCGreedyDecoderLayerTest,
     params,
     CTCGreedyDecoderLayerTest::getTestCaseName

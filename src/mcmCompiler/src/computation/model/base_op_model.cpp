@@ -1,6 +1,7 @@
 #include "include/mcm/computation/model/base_op_model.hpp"
 #include "include/mcm/algorithms/lexicographical_topsort.hpp"
 #include "include/mcm/algorithms/path_exists.hpp"
+#include "include/mcm/algorithms/edge_exists.hpp"
 #include "include/mcm/algorithms/path_splitter.hpp"
 #include "include/mcm/algorithms/topological_sort.hpp"
 
@@ -18,7 +19,7 @@ std::vector<T1>
     read(const std::string& filepath, std::size_t num = std::numeric_limits<size_t>::max())
 {
     std::ifstream fileStream(filepath, std::ifstream::binary);
-    if (!fileStream) 
+    if (!fileStream)
         throw mv::RuntimeError("TemplateExample", "Weights file: \"" + filepath + "\" not found");
     std::vector<T1> data;
     T2 aux;
@@ -103,7 +104,7 @@ std::string mv::BaseOpModel::varName(std::string name)
     return name;
 }
 
-void mv::BaseOpModel::initRecordingFile(const std::string& outFileName, bool recordWeightsAsText) 
+void mv::BaseOpModel::initRecordingFile(const std::string& outFileName, bool recordWeightsAsText)
 {
     // log(Logger::MessageType::Debug, "Initializing RecordedModel...");
     delete codeOut_;
@@ -120,7 +121,7 @@ void mv::BaseOpModel::initRecordingFile(const std::string& outFileName, bool rec
     dataOut_->open(dataFileName, std::ios_base::out | std::ios_base::trunc);
     assert(dataOut_->is_open());
     auto outStart = OUT_START_TEMPL;
-    
+
     if (recordWeightsAsText) // remove the text weights file include if not required
         setTemplParam(outStart, "@DATA_FILE_NAME@", dataFileName);
     else
@@ -350,6 +351,11 @@ bool mv::BaseOpModel::pathExists(Data::OpListIterator source, Data::OpListIterat
     return mv::pathExists(dataGraph_, source, target);
 }
 
+bool mv::BaseOpModel::edgeExists(Data::OpListIterator source, Data::OpListIterator target)
+{
+    return mv::edgeExists(dataGraph_, source, target);
+}
+
 bool mv::BaseOpModel::pathSplit(Data::OpListIterator u, Data::OpListIterator v) {
   typedef mv::Path_Splitter<mv::BaseOpModel, mv::OpModel_Path_Update_Traits>
       path_splitter_t;
@@ -364,7 +370,7 @@ bool mv::BaseOpModel::getImplicitPath(
       std::list<Data::OpListIterator>& path) {
   typedef mv::Path_Splitter<mv::BaseOpModel, mv::OpModel_Path_Update_Traits>
       path_splitter_t;
-  typedef typename path_splitter_t::traits::implicit_op_selector_t 
+  typedef typename path_splitter_t::traits::implicit_op_selector_t
     implicit_op_selector_t;
 
   path_splitter_t path_splitter(*this);
@@ -426,7 +432,7 @@ bool mv::BaseOpModel::pathSplitImplicit(mv::Data::OpListIterator u,
       OpSubsetIterator vbegin, OpSubsetIterator vend) {
   typedef mv::Path_Splitter<mv::BaseOpModel, mv::OpModel_Path_Update_Traits>
       path_splitter_t;
-  typedef typename path_splitter_t::traits::implicit_op_selector_t 
+  typedef typename path_splitter_t::traits::implicit_op_selector_t
     implicit_op_selector_t;
 
   return pathSplit(u, vbegin, vend, implicit_op_selector_t());
