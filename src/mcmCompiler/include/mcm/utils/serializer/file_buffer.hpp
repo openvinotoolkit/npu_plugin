@@ -24,6 +24,7 @@ class WBuffer
 
     public:
         WBuffer();
+        ~WBuffer();
         std::size_t getBitPointer();
         uint64_t getFileSize();
 

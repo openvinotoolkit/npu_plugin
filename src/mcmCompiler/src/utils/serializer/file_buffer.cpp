@@ -14,6 +14,13 @@ namespace mv
         {
         }
 
+        WBuffer::~WBuffer()
+        {
+            if(outputFile.is_open()) {
+                outputFile.close();
+            }
+        }
+
         std::size_t WBuffer::getBitPointer()
         {
             return this->bitPointer;

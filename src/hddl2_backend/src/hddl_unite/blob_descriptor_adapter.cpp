@@ -142,6 +142,20 @@ AllocationInfo::AllocationInfo(const IE::Blob::CPtr& blob, const IE::ColorFormat
           isNeedAllocation(!isRemoteBlob(blob)),
           isCompound(false),
           nnInputColorFormat(graphColorFormat) {
+    // Exception for ROI blob -> we need use size from original blob, to avoid blobDesc recreation problem
+    if (isRemoteBlob(blob)) {
+        const auto remoteBlob = std::dynamic_pointer_cast<const InferenceEngine::RemoteBlob>(blob);
+        if (remoteBlob == nullptr) {
+            THROW_IE_EXCEPTION << "Can't create AllocationInfo object. Failed cast given blob to RemoteBlob!";
+        }
+        auto parsedBlobParamsPtr = std::make_shared<vpux::ParsedRemoteBlobParams>();
+        parsedBlobParamsPtr->update(remoteBlob->getParams());
+        const auto originalTensor = parsedBlobParamsPtr->getOriginalTensorDesc();
+        if (originalTensor != nullptr) {
+            const auto originalBlobSize = getSizeFromTensor(*originalTensor);
+            dataSize = originalBlobSize;
+        }
+    }
 }
 
 bool AllocationInfo::operator==(const AllocationInfo& rhs) const {
@@ -207,6 +221,7 @@ const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::updateUniteBlobDesc
     validateAllocatorInfoFields(_allocationInfo);
     checkBlobCompatibility(blobPtr, _blobType);
     isBlobDescSuitableForBlob(blobPtr);  // This step might be excess, but to be sure
+    _isNV12Blob = false;
 
     auto parsedBlobParamsPtr = std::make_shared<vpux::ParsedRemoteBlobParams>();
     if (blobPtr->is<IE::RemoteBlob>()) {
@@ -265,7 +280,17 @@ void BlobDescriptorAdapter::createRepackedNV12Blob(const IE::Blob::CPtr& blobPtr
     checkBlobIsValid(yPlane);
     checkBlobIsValid(uvPlane);
 
-    const size_t repackedBlobSize = yPlane->size() + uvPlane->size();
+    _isNV12Blob = true;
+    _yPlaneTensorDesc = yPlane->getTensorDesc();
+
+    const auto yStrides = yPlane->getTensorDesc().getBlockingDesc().getStrides();
+    const auto uvStrides = uvPlane->getTensorDesc().getBlockingDesc().getStrides();
+    if (yStrides.empty() || uvStrides.empty()) {
+        THROW_IE_EXCEPTION << "Strides information is not provided.";
+    }
+    const size_t ySize = yStrides[0];
+    const size_t uvSize = uvStrides[0];
+    const size_t repackedBlobSize = ySize + uvSize;
     IE::TensorDesc repackedTensor = IE::TensorDesc(IE::Precision::U8, {1, repackedBlobSize}, IE::Layout::NC);
 
     IE::Blob::Ptr repackedBlob = IE::make_shared_blob<uint8_t>(repackedTensor);
@@ -299,8 +324,8 @@ void BlobDescriptorAdapter::createRepackedNV12Blob(const IE::Blob::CPtr& blobPtr
         if (repackedBlobMemory == nullptr)
             THROW_IE_EXCEPTION << "Failed to allocate memory for blob";
 
-        ie_memcpy(repackedBlobMemory, yPlane->size(), yPlaneMemory, yPlane->size());
-        ie_memcpy(repackedBlobMemory + yPlane->size(), uvPlane->size(), uvPlaneMemory, uvPlane->size());
+        ie_memcpy(repackedBlobMemory, ySize, yPlaneMemory, ySize);
+        ie_memcpy(repackedBlobMemory + ySize, uvSize, uvPlaneMemory, uvSize);
     }
     _repackedBlob = repackedBlob;
 }
@@ -314,7 +339,8 @@ void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr
     }
 
     // NN input dims
-    IE::SizeVector dims = blobPtr->getTensorDesc().getDims();
+    const auto tensorDesc = blobPtr->getTensorDesc();
+    auto dims = tensorDesc.getDims();
 
     // If it's NV12 data, we should use preprocessing input dims
     if (isBlobContainsNV12Data(blobPtr, blobParams)) {
@@ -327,16 +353,25 @@ void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr
     }
 
     if (dims.size() != 4) {
-        THROW_IE_EXCEPTION << "BlobDescriptorAdapter: Format with dims != 4 not supported";
+        THROW_IE_EXCEPTION << "BlobDescriptorAdapter: Formats with dims != 4 are not supported.";
     }
 
     // Dims stored in NCHW format
     const int H_index = 2;
     const int W_index = 3;
 
+    const auto blockingDesc = _isNV12Blob ? _yPlaneTensorDesc.getBlockingDesc() : tensorDesc.getBlockingDesc();
+    const auto strides = blockingDesc.getStrides();
+    if (strides.empty()) {
+        THROW_IE_EXCEPTION << "Strides information is not provided.";
+    }
+
+    // Define strides and dimensions. Only NCHW/NHWC orders/layouts are supported. NV12 always has NHWC order
+    const bool isNCHW = _isNV12Blob ? false : (tensorDesc.getLayout() == InferenceEngine::Layout::NCHW);
+    _sourceInfo.widthStride = strides[isNCHW ? 2 : 1];
+    _sourceInfo.planeStride = strides[isNCHW ? 1 : 0];
+    _sourceInfo.resWidth = dims[W_index];
     _sourceInfo.resHeight = dims[H_index];
-    _sourceInfo.resWidth = _sourceInfo.widthStride = dims[W_index];
-    _sourceInfo.planeStride = _sourceInfo.widthStride * _sourceInfo.resHeight;
 }
 
 void BlobDescriptorAdapter::getRect(const InferenceEngine::Blob::CPtr& blobPtr,
@@ -350,6 +385,12 @@ void BlobDescriptorAdapter::getRect(const InferenceEngine::Blob::CPtr& blobPtr,
                                                  static_cast<int32_t>(roiPtr->sizeY)};
             _sourceInfo.roiRectangles.push_back(roi0);
         }
+    } else {
+        // Set default ROI
+        HddlUnite::Inference::Rectangle defaultROI{static_cast<int32_t>(0), static_cast<int32_t>(0),
+                                                   static_cast<int32_t>(_sourceInfo.resWidth),
+                                                   static_cast<int32_t>(_sourceInfo.resHeight)};
+        _sourceInfo.roiRectangles.push_back(defaultROI);
     }
 }
 

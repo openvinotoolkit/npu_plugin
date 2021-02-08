@@ -56,19 +56,13 @@ void HDDL2_Remote_Blob_Tests::TearDown() {
 }
 
 //------------------------------------------------------------------------------
-// Test shows error for memory allocation:
-// [ RUN      ] HDDL2_Remote_Blob_Tests.CanCreateRemoteBlobUsingContext
-// ERROR[RemoteMemoryObject.cpp:300] Error: allocate remote memory failed: statusCode(-4)[0m
-// ERROR[RemoteMemory.cpp:144] Error: invalid remote memory object[0m
-// [Track number: S#42491]
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanCreateRemoteBlobUsingContext) {
+TEST_F(HDDL2_Remote_Blob_Tests, CanCreateRemoteBlobUsingContext) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     ASSERT_NO_THROW(remoteContextPtr->CreateBlob(tensorDesc, blobParams));
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_RemoteBlobFromRemoteMem_WillNotDestroyRemoteMemory_OnDestruction) {
+TEST_F(HDDL2_Remote_Blob_Tests, RemoteBlobFromRemoteMem_WillNotDestroyRemoteMemory_OnDestruction) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     const std::string memoryData = "Hello there!\n";
@@ -79,13 +73,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_RemoteBlobFromRemoteMem_WillNotDestroyR
     ASSERT_TRUE(remoteMemoryHelper.isRemoteTheSame(memoryData));
 }
 
-// Test fails with segmentation fault
-// [ RUN      ] HDDL2_Remote_Blob_Tests.CanGetParams
-// ERROR[RemoteMemoryObject.cpp:300] Error: allocate remote memory failed: statusCode(-4)[0m
-// ERROR[RemoteMemory.cpp:144] Error: invalid remote memory object[0m
-// Segmentation fault (core dumped)
-// [Track number: S#42493]
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanGetParams) {
+TEST_F(HDDL2_Remote_Blob_Tests, CanGetParams) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
@@ -116,9 +104,8 @@ TEST_F(HDDL2_Remote_Blob_Tests, CanGetTensorDesc) {
     ASSERT_EQ(resultTensorDesc, tensorDesc);
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanChangeRemoteMemory) {
-    const std::string memoryData = "Hello from HDDL2 Plugin!\n";
+TEST_F(HDDL2_Remote_Blob_Tests, CanChangeRemoteMemory) {
+    const std::string memoryData = "Hello from VPUX Plugin!\n";
 
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
@@ -132,9 +119,8 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanChangeRemoteMemory) {
     ASSERT_TRUE(remoteMemoryHelper.isRemoteTheSame(memoryData));
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_NonLockedMemoryObject_CanNotChangeRemoteMemory) {
-    const std::string memoryData = "Hello from HDDL2 Plugin!\n";
+TEST_F(HDDL2_Remote_Blob_Tests, NonLockedMemoryObject_CanNotChangeRemoteMemory) {
+    const std::string memoryData = "Hello from VPUX Plugin!\n";
 
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
@@ -147,9 +133,8 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_NonLockedMemoryObject_CanNotChangeRemot
     ASSERT_FALSE(remoteMemoryHelper.isRemoteTheSame(memoryData));
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_MemoryLockedNotInLocalScope_CanNotChangeRemoteMemory) {
-    const std::string memoryData = "Hello from HDDL2 Plugin!\n";
+TEST_F(HDDL2_Remote_Blob_Tests, MemoryLockedNotInLocalScope_CanNotChangeRemoteMemory) {
+    const std::string memoryData = "Hello from VPUX Plugin!\n";
 
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);

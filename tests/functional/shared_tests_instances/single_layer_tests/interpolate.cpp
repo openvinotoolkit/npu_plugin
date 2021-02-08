@@ -35,43 +35,52 @@ const std::vector<std::vector<size_t>> targetShapes = {
     {1, 1, 40, 40},
 };
 
-const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
-    ngraph::op::v4::Interpolate::InterpolateMode::linear,
-    ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
-    ngraph::op::v4::Interpolate::InterpolateMode::cubic,
+const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
+        ngraph::op::v4::Interpolate::InterpolateMode::linear,
+        ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
 };
 
-const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {
-    ngraph::op::v4::Interpolate::InterpolateMode::nearest,
+const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {
+        ngraph::op::v4::Interpolate::InterpolateMode::nearest,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
-    ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn,
-    ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel,
-    ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
-    ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
-    ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,
+const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModesNearest = {
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
-    ngraph::op::v4::Interpolate::ShapeCalcMode::sizes,
-    ngraph::op::v4::Interpolate::ShapeCalcMode::scales,
+const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModesNearest2x = {
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn,
+};
+
+const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModesNearestMore = {
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
+};
+
+const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModesWithoutNearest = {
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
-    ngraph::op::v4::Interpolate::NearestMode::simple,
-    ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
-    ngraph::op::v4::Interpolate::NearestMode::floor,
-    ngraph::op::v4::Interpolate::NearestMode::ceil,
-    ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil,
+        ngraph::op::v4::Interpolate::NearestMode::simple,
+        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
+        ngraph::op::v4::Interpolate::NearestMode::floor,
+        ngraph::op::v4::Interpolate::NearestMode::ceil,
+        ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestMode = {
-    ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
+        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
+};
+
+const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestModeMore = {
+        ngraph::op::v4::Interpolate::NearestMode::floor,
 };
 
 const std::vector<std::vector<size_t>> pads = {
-    {0, 0, 1, 1},
+    // {0, 0, 1, 1},
     {0, 0, 0, 0},
 };
 
@@ -93,62 +102,57 @@ const std::vector<std::vector<float>> defaultScales = {
     {1.33333f, 1.33333f}
 };
 
-const auto interpolateCasesWithoutNearest = ::testing::Combine(
-    ::testing::ValuesIn(modesWithoutNearest),
-    ::testing::ValuesIn(shapeCalculationMode),
-    ::testing::ValuesIn(coordinateTransformModes),
-    ::testing::ValuesIn(defaultNearestMode),
-    ::testing::ValuesIn(antialias),
-    ::testing::ValuesIn(pads),
-    ::testing::ValuesIn(pads),
-    ::testing::ValuesIn(cubeCoefs),
-    ::testing::ValuesIn(defaultAxes),
-    ::testing::ValuesIn(defaultScales));
+const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
+        ngraph::op::v4::Interpolate::ShapeCalcMode::sizes,
+        // ngraph::op::v4::Interpolate::ShapeCalcMode::scales,
+};
 
-const auto interpolateCases = ::testing::Combine(
-    ::testing::ValuesIn(nearestMode),
-    ::testing::ValuesIn(shapeCalculationMode),
-    ::testing::ValuesIn(coordinateTransformModes),
-    ::testing::ValuesIn(nearestModes),
-    ::testing::ValuesIn(antialias),
-    ::testing::ValuesIn(pads),
-    ::testing::ValuesIn(pads),
-    ::testing::ValuesIn(cubeCoefs),
-    ::testing::ValuesIn(defaultAxes),
-    ::testing::ValuesIn(defaultScales));
+const auto interpolateCasesNearestMode = ::testing::Combine(
+        ::testing::ValuesIn(nearestMode),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModesNearest),
+        ::testing::ValuesIn(defaultNearestMode),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
 
-// Tests are disabled due to error:
-// C++ exception with description "Cannot convert layer "Interpolate_xxxxx" due to unsupported layer type "Interpolate"
-// kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:138
-// openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
-// [Track number: S#39978]
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Interpolate_Basic, KmbInterpolateLayerTest, ::testing::Combine(
-    interpolateCasesWithoutNearest,
-    ::testing::ValuesIn(netPrecisions),
-    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    ::testing::Values(InferenceEngine::Layout::ANY),
-    ::testing::Values(InferenceEngine::Layout::ANY),
-    ::testing::ValuesIn(inShapes),
-    ::testing::ValuesIn(targetShapes),
-    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbInterpolateLayerTest::getTestCaseName);
+const auto interpolateCasesWithoutNearestMode = ::testing::Combine(
+        ::testing::ValuesIn(modesWithoutNearest),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModesWithoutNearest),
+        ::testing::ValuesIn(defaultNearestMode),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
 
-// Tests are disabled due to error:
-// C++ exception with description "Cannot convert layer "Interpolate_xxxxx" due to unsupported layer type "Interpolate"
-// kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:138
-// openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
-// [Track number: S#39978]
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Interpolate_Nearest, KmbInterpolateLayerTest, ::testing::Combine(
-    interpolateCases,
-    ::testing::ValuesIn(netPrecisions),
-    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    ::testing::Values(InferenceEngine::Layout::ANY),
-    ::testing::Values(InferenceEngine::Layout::ANY),
-    ::testing::ValuesIn(inShapes),
-    ::testing::ValuesIn(targetShapes),
-    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbInterpolateLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode, KmbInterpolateLayerTest, ::testing::Combine(
+        interpolateCasesNearestMode,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapes),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                            KmbInterpolateLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest, KmbInterpolateLayerTest, ::testing::Combine(
+        interpolateCasesWithoutNearestMode,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapes),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                            KmbInterpolateLayerTest::getTestCaseName);
 
 } // namespace

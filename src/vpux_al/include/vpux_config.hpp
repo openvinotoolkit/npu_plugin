@@ -80,7 +80,7 @@ protected:
     // Public options
     bool _performanceCounting = false;
     std::string _deviceId = "VPU-0";
-    int _throughputStreams = 4;
+    int _throughputStreams = 2;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
 
     // Private options
@@ -95,8 +95,8 @@ protected:
     int _SIPPLpi = 8;
     int _numberOfPPPipes = 1;
     int _executorStreams = 1;
-    // backend pull timeout - turned off by default
-    uint32_t _inferenceTimeoutMs = 0;
+    // backend pull timeout - 5 seconds by default
+    uint32_t _inferenceTimeoutMs = 5 * 1000;
 
 private:
     void parseEnvironment();

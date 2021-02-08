@@ -184,7 +184,9 @@ if(ENABLE_HDDL2)
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${HDDL_UNITE}/bin/"
                 "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}"
-            COMMENT "[HDDL Unite] Copy libraries")
+            COMMENT "[HDDL Unite] Copy libraries"
+        )
+        add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend hddl_unite_copy)
     else()
         add_custom_target(hddl_unite_copy ALL
             COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -201,7 +203,17 @@ if(ENABLE_HDDL2)
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${HDDL_UNITE_VPUX_4}/thirdparty/XLink/lib/"
                 "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux_4/"
-            COMMENT "[HDDL Unite] Copy libraries")
+            COMMENT "[HDDL Unite] Copy libraries"
+        )
+
+        add_custom_target(pcie_drivers_copy ALL
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/pcie_drivers"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${PCIE_DRIVERS}/"
+                "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/pcie_drivers/"
+            COMMENT "[PCIe drivers] Copy driver packages"
+        )
+        add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend hddl_unite_copy pcie_drivers_copy)
     endif()
-    add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend hddl_unite_copy)
 endif()

@@ -230,6 +230,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
           [](NnCorePlg* nnCorePlgPtr) {
               if (nnCorePlgPtr != nullptr) {
                   nnCorePlgPtr->Delete();
+                  delete nnCorePlgPtr;
               }
           }),
       _pipe(new Pipeline(MAX_PLUGS_PER_PIPE, deviceId),
@@ -238,8 +239,10 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
                   pipePtr->Stop();
                   pipePtr->Wait();
                   pipePtr->Delete();
+                  delete pipePtr;
               }
           }),
+      _mutex(new Semaphore()),
       blob_file(nullptr,
           [this](void* blobFilePtr) {
               if (_allocator != nullptr) {
@@ -293,6 +296,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
     const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
     const std::shared_ptr<Pipeline>& other_pipe,
+    const std::shared_ptr<WatchDog>& wd,
+    const std::shared_ptr<Semaphore>& other_mutex,
     const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
@@ -302,6 +307,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
       _nnXlinkPlg(other_nnXlinkPlg),
       _nnCorePlg(other_nnCorePlg),
       _pipe(other_pipe),
+      _mutex(other_mutex),
       blob_file(nullptr,
           [this](void* blobFilePtr) {
               if (_allocator != nullptr) {
@@ -330,6 +336,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     _pipePrint = PipePrintHandler::get();
 #endif
 
+    if(_config.executorStreams() > 1)
+        _mutex->count_one();
     std::size_t inputsTotalSize = 0;
     for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
         const auto& tensorDesc = in.second->getTensorDesc();
@@ -356,7 +364,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
         _outputPhysAddrs.push_back(outPhysAddr);
         outputOffset += descOut.totalSize;
     }
-    initWatchDog();
+    _wd = wd;
 }
 #endif
 
@@ -733,6 +741,8 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
         request.outputTensors.push_back(inferOutput);
     }
 
+    if(_config.executorStreams() > 1)
+        _mutex->wait();
     auto status = _nnXlinkPlg->RequestInference(request);
     if (MVNCI_SUCCESS != status) {
         _logger->error("push: RequestInference failed");
@@ -791,9 +801,11 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "pull");
     _logger->info("pull started");
     NnExecResponseMsg response;
-    _wd->Start();
+    _wd->Start(this);
     auto status = _nnXlinkPlg->WaitForResponse(response);
-    _wd->Pause();
+    if(_config.executorStreams() > 1)
+        _mutex->notify();
+    _wd->Pause(this);
     if (X_LINK_SUCCESS != status) {
         _logger->error("pull: WaitForResponse failed");
         THROW_IE_EXCEPTION << "VpualCoreNNExecutor::pull: WaitForResponse failed" << status;
@@ -878,7 +890,7 @@ InferenceEngine::Parameter VpualCoreNNExecutor::getParameter(const std::string&)
 
 Executor::Ptr VpualCoreNNExecutor::clone() const {
 #if defined(__arm__) || defined(__aarch64__)
-    return std::make_shared<VpualCoreNNExecutor>(_networkDescription, _allocator, _nnXlinkPlg, _nnCorePlg, _pipe, _config);
+    return std::make_shared<VpualCoreNNExecutor>(_networkDescription, _allocator, _nnXlinkPlg, _nnCorePlg, _pipe, _wd, _mutex, _config);
 #else
     THROW_IE_EXCEPTION << "VpualCoreNNExecutor::clone not implemented for x86_64";
 #endif

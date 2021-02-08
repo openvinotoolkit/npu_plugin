@@ -344,6 +344,28 @@ mv::Data::TensorIterator convertResampleToUPATask(mv::OpModel& om, const std::ve
     return resample;
 }
 
+mv::Data::TensorIterator convertInterpolateToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool /*software*/,
+                                    const mv::QuantizationParams& quantParams,
+                                    const mv::DType& outputTensorType,
+                                    const mv::Order& outputTensorOrder)
+{
+    auto interpolation = attrs.at("mode").get<std::string>();
+    auto coord_transform_mode = attrs.at("coordinate_transformation_mode").get<std::string>();
+    auto nearest_mode = attrs.at("nearest_mode").get<std::string>();
+    auto antialias = attrs.at("antialias").get<bool>();
+    auto align_corners = attrs.at("coordinate_transformation_mode").get<std::string>() == "align_corners";
+    auto output_shape = attrs.at("output_shape").get<mv::Shape>();
+
+    auto interpolate = om.uPATaskInterpolate(name, inputs, output_shape, interpolation, nearest_mode, coord_transform_mode, align_corners, antialias);
+
+    interpolate->setDType(outputTensorType);
+    interpolate->setQuantParams(quantParams);
+    interpolate->setOrder(outputTensorOrder);
+
+    return interpolate;
+}
+
 mv::Data::TensorIterator convertReshapeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool /*software*/,
                                     const mv::QuantizationParams& quantParams,
@@ -571,6 +593,7 @@ mv::Data::TensorIterator convertPermuteNDToUPATask(mv::OpModel& om, const std::v
     auto upaPermute = om.uPATaskPermuteND(name, inputs, order);
     upaPermute->setDType(outputTensorType);
     upaPermute->setQuantParams(quantParams);
+    upaPermute->setOrder(outputTensorOrder);
     auto upaPermuteOp = om.getSourceOp(upaPermute);
 
     upaPermuteOp->set<std::vector<int64_t>>("perm_order", order);
@@ -618,6 +641,24 @@ mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector
     norm->setQuantParams(quantParams);
     norm->setOrder(outputTensorOrder);
     return norm;
+}
+
+mv::Data::TensorIterator convertPadToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                             const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool /*software*/,
+                                             const mv::QuantizationParams& quantParams,
+                                             const mv::DType& outputTensorType,
+                                             const mv::Order& outputTensorOrder)
+{
+    auto pads_begin = attrs.at("pads_begin").get<std::array<unsigned short, 4>>();
+    auto pads_end = attrs.at("pads_end").get<std::array<unsigned short, 4>>();
+    auto pad_mode = attrs.at("pad_mode").get<std::string>();
+    auto pad_value = attrs.at("pad_value").get<double>();
+
+    auto pad = om.uPATaskPad(name, inputs, pads_begin, pads_end, pad_mode, pad_value);
+    pad->setDType(outputTensorType);
+    pad->setQuantParams(quantParams);
+    pad->setOrder(outputTensorOrder);
+    return pad;
 }
 
 mv::Data::TensorIterator convertCustomOclToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
@@ -816,6 +857,20 @@ mv::Data::TensorIterator convertEluToUPATask(mv::OpModel& om, const std::vector<
     return elu;
 }
 
+mv::Data::TensorIterator convertMishToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                               const std::map<std::string, mv::Attribute>& attrs,
+                                               const std::string& name, bool /*software*/,
+                                                const mv::QuantizationParams& quantParams,
+                                                const mv::DType& outputTensorType,
+                                                const mv::Order& outputTensorOrder)
+{
+    auto mish = om.uPATaskMish(name, inputs);
+    mish->setDType(outputTensorType);
+    mish->setQuantParams(quantParams);
+    mish->setOrder(outputTensorOrder);
+    return mish;
+}
+
 mv::Data::TensorIterator convertConversionToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                                 const std::map<std::string, mv::Attribute>& attrs,
                                                 const std::string& name, bool /*software*/,
@@ -879,7 +934,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
                                                        "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu",
-                                                       "PermuteND"};
+                                                       "PermuteND", "Mish", "Pad", "Interpolate"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -921,11 +976,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Gather", convertGatherToUPATask},
     {"HSwish", convertHSwishToUPATask},
     {"Swish", convertSwishToUPATask},
+    {"Mish", convertMishToUPATask},
     {"Conversion", convertConversionToUPATask},
     {"Relu", convertReluToUPATask},
     {"Tanh", convertTanhToUPATask},
     {"SoftPlus", convertSoftPlusToUPATask},
-    {"Elu", convertEluToUPATask}
+    {"Pad", convertPadToUPATask},
+    {"Elu", convertEluToUPATask},
+    {"Interpolate", convertInterpolateToUPATask}
     };
 
     // Layer types that given current compiler state, it's
