@@ -785,11 +785,10 @@ void StrategyManager::handleNonExclusiveSubgraphs(std::vector<mv::Data::OpListIt
     // cout << endl;
     for(auto node : nonExclusiveNodes){
         // Remove all but one input edge and mark source of that edge as clustering required
-        auto input = node.leftmostParent();
-        ++input;
         std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
         std::vector<mv::Data::OpListIterator> opsToLink;
-        for(; input != model_.opEnd(); ++input ){
+        int inputs_found = 0;
+        for(auto input = node.leftmostParent(); input != model_.opEnd(); ++input ){
             auto inputType = input->getOpType();
             if ((inputType == "Constant") ||
             (inputType == "ConstantInt") ||
@@ -797,11 +796,22 @@ void StrategyManager::handleNonExclusiveSubgraphs(std::vector<mv::Data::OpListIt
             (inputType == "WeightsTable") ||
             (inputType == "SparsityMap"))
                 continue;
+            inputs_found++;
+            if(inputs_found <= 1) continue;
+
             input->set<bool>("forceClustering", true);
             opsToLink.push_back(input);
             // Find the edge between input and node
             // cout << "   Removing edge: " << input->getName() << " --> " << node->getName() << endl;
-            flowsToRemove.push_back(input.leftmostOutput());
+            for(auto flow = input.leftmostOutput(); flow != model_.flowEnd(); ++flow)
+            {
+                auto sink = flow.sink();
+                if(sink == node)
+                {
+                    flowsToRemove.push_back(flow);
+                    break;
+                }
+            }
         }
         for(auto flow : flowsToRemove){
             auto sink = flow.sink();
@@ -866,14 +876,10 @@ shared_ptr<vector<StrategyManager::SubGraph>> StrategyManager::extractSubgraphs(
 //             TODO:: implement special case handling. If we cannot group children until they become exclusive, then need
 //                    start removing edges until they do
 
-            // Note: Temporarily disable complex graph handling when the leaky relu workaround is enabled
-            auto globalParams = model_.getGlobalConfigParams();
-            bool PPEAccuracy = globalParams->hasAttr("PPEAccuracy") ? globalParams->get<bool>("PPEAccuracy") : false;
-            if(!PPEAccuracy){
-                std::vector<mv::Data::OpListIterator> nonExclusiveNodes = getNonExclusiveNodes(travelingNode, lcsa);
-                if(!nonExclusiveNodes.empty()){
-                    handleNonExclusiveSubgraphs(nonExclusiveNodes, lcsa);
-                }
+
+            std::vector<mv::Data::OpListIterator> nonExclusiveNodes = getNonExclusiveNodes(travelingNode, lcsa);
+            if(!nonExclusiveNodes.empty()){
+                handleNonExclusiveSubgraphs(nonExclusiveNodes, lcsa);
             }
         
             for(auto child = travelingNode.leftmostChild(); child != model_.opEnd(); ++child)

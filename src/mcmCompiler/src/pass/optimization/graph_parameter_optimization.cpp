@@ -186,7 +186,7 @@ namespace mv
 
                 std::vector<Attribute> clusteringStrategyPool;
 
-                if(totalClusters == 1 || op.hasAttr("forceClustering"))
+                if(totalClusters == 1)
                     clusteringStrategyPool.push_back(std::string("Clustering"));
                 else if (totalClusters > 1)
                     clusteringStrategyPool = createStrategyPoolFromStrategySet(op,"clusteringStrategies");
@@ -398,9 +398,17 @@ namespace mv
                 {
                     auto inputCmxMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, false, false);
                     if(inputCmxMinSplitsToFit > 1 && inputCmxMinSplitsToFit != minSplitsToFit)
-                        return {inputCmxMinSplitsToFit, minSplitsToFit, 1};
+                    {
+                        if(minSplitsToFit > 1)
+                            return {inputCmxMinSplitsToFit, minSplitsToFit, 1};
+                        else
+                            return {inputCmxMinSplitsToFit, 1};
+                    }
                 }
 
+                if(minSplitsToFit == 1)
+                    return {1};
+                
                 return {minSplitsToFit, 1};
             }
 
@@ -1307,6 +1315,24 @@ namespace mv
                 return executableInHW;
             }
 
+            // SM marks some nodes as forcedClustering, indicating that they may not
+            // be checked against every real flow in the model. Need to ensure these are
+            // compatible with any potential strategy that could be paired with them
+            bool checkValidForForcedCompatiblity(Op& op,StrategySet& strategy)
+            {
+                //Not forced to take any particular strategies
+                if(!(op.hasAttr("forceClustering") && op.get<bool>("forceClustering")))
+                    return true;
+
+                // In future, will add additional constraints re: activation sparsity here
+                // But for now, we can always create compiler gen sparsity if needed by an op
+                auto clusteringStrategy = strategy["clustering"].get<std::string>();
+                if(clusteringStrategy == "Clustering" || clusteringStrategy == "SplitOverK")
+                    return true;
+
+                return false;
+            }
+
 
             double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
             {
@@ -1322,6 +1348,9 @@ namespace mv
                 auto parentOutputSparsity = parent["outputSparsity"].get<bool>();
                 auto childInputSparsity = child["inputSparsity"].get<bool>();
 
+                if( !checkValidForForcedCompatiblity(parentOp, parent) ||
+                    !checkValidForForcedCompatiblity(childOp, child))
+                        return INF;
 
                 //TODO re-enable runtime sparsity in this case, see spatial_split_streaming L143 for issue
                 //Dummy slice prevents runtime sparsity from being activated in sparsity pass
