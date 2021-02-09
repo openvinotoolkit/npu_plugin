@@ -286,6 +286,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         scheduled_ops.begin(), scheduled_ops.end(),
         std::back_inserter(dynamic_spill_control_edges));
 
+    dynamic_spill.remove_redundant_ops_from_op_model();
+
     dynamic_spill.generate_control_edges_for_spilled_cmx_concat_ops(
         std::back_inserter(dynamic_spill_control_edges));
 

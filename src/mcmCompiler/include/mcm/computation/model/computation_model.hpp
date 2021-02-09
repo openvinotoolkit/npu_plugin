@@ -116,9 +116,9 @@ namespace mv
         - Iterator of set is invalidated only on deletion of pointed element (on the other hand, vector's iterator is invalidated on the resize of the vector)
             - ModelLinearIterators are wrapping containers iterators
         */
-        std::shared_ptr<std::unordered_map<std::string, Data::OpListIterator>> ops_;
-        std::shared_ptr<std::unordered_map<std::string, Data::FlowListIterator>> dataFlows_;
-        std::shared_ptr<std::unordered_map<std::string, Control::FlowListIterator>> controlFlows_;
+        std::shared_ptr<std::map<std::string, Data::OpListIterator>> ops_;
+        std::shared_ptr<std::map<std::string, Data::FlowListIterator>> dataFlows_;
+        std::shared_ptr<std::map<std::string, Control::FlowListIterator>> controlFlows_;
         std::shared_ptr<std::map<std::string, std::shared_ptr<Tensor>>> tensors_;
         std::shared_ptr<std::map<std::string, std::shared_ptr<Group>>> groups_;
         std::shared_ptr<std::map<std::size_t, std::shared_ptr<Stage>>> stages_;
@@ -191,7 +191,7 @@ namespace mv
         Data::OpListIterator getOp(const std::string& name);
         std::vector<Data::OpListIterator> getOps(const std::string& opType);
         std::vector<mv::Data::OpListIterator> getOps();
-        std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> getOpsOfTypes(const std::vector<std::string> &opTypes);
+        std::map<std::string, std::vector<mv::Data::OpListIterator>> getOpsOfTypes(const std::vector<std::string> &opTypes);
         Data::FlowListIterator getDataFlow(const std::string& name);
         Control::FlowListIterator getControlFlow(const std::string& name);
 

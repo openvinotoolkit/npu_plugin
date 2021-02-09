@@ -778,7 +778,7 @@ class Operation_Dag {
       size_t operator()(const scheduled_op_t& o) const {
         return hash_(o.op_);
       }
-      std::hash<operation_t> hash_;
+      static std::hash<operation_t> hash_;
     }; // struct scheduled_op_hash_t //
     typedef repackable_op_selector_t data_op_selector_t;
     typedef size_t schedule_time_t;

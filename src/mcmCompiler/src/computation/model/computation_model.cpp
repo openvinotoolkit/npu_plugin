@@ -134,9 +134,9 @@ binary_(std::make_shared<mv::RuntimeBinary>()),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
 globalConfigParams_(std::make_shared<mv::Element>("GlobalConfigParams")),
-ops_(std::make_shared<std::unordered_map<std::string, Data::OpListIterator>>()),
-dataFlows_(std::make_shared<std::unordered_map<std::string, Data::FlowListIterator>>()),
-controlFlows_(std::make_shared<std::unordered_map<std::string, Control::FlowListIterator>>()),
+ops_(std::make_shared<std::map<std::string, Data::OpListIterator>>()),
+dataFlows_(std::make_shared<std::map<std::string, Data::FlowListIterator>>()),
+controlFlows_(std::make_shared<std::map<std::string, Control::FlowListIterator>>()),
 tensors_(std::make_shared<std::map<std::string, std::shared_ptr<Tensor>>>()),
 groups_(std::make_shared<std::map<std::string, std::shared_ptr<Group>>>()),
 stages_(std::make_shared<std::map<std::size_t, std::shared_ptr<Stage>>>()),
@@ -419,6 +419,15 @@ mv::Data::OpListIterator mv::ComputationModel::getOp(const std::string& name)
     return it->second;
 }
 
+static bool compareOpListIteratorOpId(mv::Data::OpListIterator op0, mv::Data::OpListIterator op1) 
+{
+    if (op0->hasAttr("opId") && op1->hasAttr("opId") && 
+       op0->get<unsigned>("opId") != op1->get<unsigned>("opId"))
+        return op0->get<unsigned>("opId") < op1->get<unsigned>("opId");
+    else
+        return op0->getName().compare(op1->getName()) < 0;
+}
+
 // NOTE: Complexity is linear in the number of operations in the graph. Can we do better without an additional
 // data strucuture?
 std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps(const std::string &opType)
@@ -427,24 +436,23 @@ std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps(const std::st
     for(auto opPairIt = ops_->begin(); opPairIt != ops_->end(); ++opPairIt)
         if(opPairIt->second->getOpType() == opType)
             toReturn.push_back(opPairIt->second);
+    std::sort(toReturn.begin(), toReturn.end(), compareOpListIteratorOpId);
     return toReturn;
 }
 
 std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps() {
     std::vector<mv::Data::OpListIterator> toReturn;
-    for (auto& opIt : *ops_) {
+    for (auto& opIt : *ops_)
         toReturn.push_back(opIt.second);
-    }
+    std::sort(toReturn.begin(), toReturn.end(), compareOpListIteratorOpId);
     return toReturn;
 }
 
-std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> mv::ComputationModel::getOpsOfTypes(const std::vector<std::string> &opTypes)
+std::map<std::string, std::vector<mv::Data::OpListIterator>> mv::ComputationModel::getOpsOfTypes(const std::vector<std::string> &opTypes)
 {
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> toReturn;
+    std::map<std::string, std::vector<mv::Data::OpListIterator>> toReturn;
     for (auto type = opTypes.begin(); type != opTypes.end(); type++)
-        for(auto opPairIt = ops_->begin(); opPairIt != ops_->end(); ++opPairIt)
-            if (opPairIt->second->getOpType() == *type)
-                toReturn[*type].push_back(opPairIt->second);
+        toReturn[*type] = getOps(*type); // improve complexity by sorting ops_
     return toReturn;
 }
 
