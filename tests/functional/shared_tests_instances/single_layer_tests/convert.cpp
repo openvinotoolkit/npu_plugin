@@ -51,7 +51,7 @@ TEST_P(KmbConvertLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbConvertLayerTest, CompareWithRefs_MLIR) {
+TEST_P(KmbConvertLayerTest, DISABLED_CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
