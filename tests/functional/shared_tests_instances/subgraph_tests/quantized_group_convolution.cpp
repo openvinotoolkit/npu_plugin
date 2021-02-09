@@ -14,10 +14,9 @@ namespace SubgraphTestsDefinitions {
 
 class KmbQuantGroupConvLayerTest: public QuantGroupConvLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
+        // [Track number: S#46761]
         if (isCompilerMCM()) {
-            if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-                throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
-            }
+            throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
         }
     }
 };
@@ -26,7 +25,7 @@ TEST_P(KmbQuantGroupConvLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_F(KmbQuantGroupConvLayerTest, CompareWithRefs_MLIR) {
+TEST_P(KmbQuantGroupConvLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
