@@ -57,8 +57,8 @@ static VPUXConfig mergePluginAndNetworkConfigs(
 Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)), _metrics(_backends) {
     _pluginName = DEVICE_NAME;  // "VPUX"
     // TODO Different backends can require different compilers in future
-    _compiler = Compiler::create(CompilerType::MCMCompiler);
-    _parsedConfig.expandSupportedCompileOptions(_compiler->getSupportedOptions());
+    const auto compiler = Compiler::create(_parsedConfig);
+    _parsedConfig.expandSupportedCompileOptions(compiler->getSupportedOptions());
     _parsedConfig.expandSupportedRunTimeOptions(_backends == nullptr ? std::unordered_set<std::string>() : _backends->getSupportedOptions());
 }
 

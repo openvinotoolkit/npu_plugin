@@ -13,7 +13,7 @@ namespace LayerTestsDefinitions {
 
 class KmbConvolutionLayerTest: public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+        if (isCompilerMLIR()) {
             const auto netPrc = std::get<1>(GetParam());
 
             if (netPrc == InferenceEngine::Precision::U8) {
@@ -47,7 +47,7 @@ class KmbConvolutionLayerTest: public ConvolutionLayerTest, virtual public Layer
     }
 
     void SkipBeforeInfer() override {
-        if (envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER)
+        if (isCompilerMLIR())
             return;
 
         convSpecificParams convParams;
@@ -69,7 +69,7 @@ class KmbConvolutionLayerTest: public ConvolutionLayerTest, virtual public Layer
     }
 
     void SkipBeforeValidate() override {
-        if (envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER)
+        if (isCompilerMLIR())
             return;
 
         throw LayerTestsUtils::KmbSkipTestException("Comparisons fail");
@@ -77,6 +77,11 @@ class KmbConvolutionLayerTest: public ConvolutionLayerTest, virtual public Layer
 };
 
 TEST_P(KmbConvolutionLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
     Run();
 }
 

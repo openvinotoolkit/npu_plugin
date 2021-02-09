@@ -11,7 +11,7 @@ namespace LayerTestsDefinitions {
 
 class KmbFakeQuantizeLayerTest : public FakeQuantizeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+        if (isCompilerMCM()) {
             // [Track number: S#42747]
             throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
         }
@@ -19,6 +19,11 @@ class KmbFakeQuantizeLayerTest : public FakeQuantizeLayerTest, virtual public La
 };
 
 TEST_P(KmbFakeQuantizeLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(KmbFakeQuantizeLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
     Run();
 }
 

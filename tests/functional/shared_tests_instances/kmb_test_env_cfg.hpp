@@ -31,8 +31,6 @@ public:
 
     bool IE_KMB_TESTS_RAW_EXPORT = false;
     bool IE_KMB_TESTS_LONG_FILE_NAME = false;
-
-    bool IE_VPUX_USE_EXPERIMENTAL_COMPILER = false;
 public:
     explicit KmbTestEnvConfig();
 };

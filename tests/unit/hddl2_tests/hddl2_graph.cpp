@@ -36,7 +36,7 @@ public:
 };
 
 void Graph_Common_UnitTests::SetUp() {
-    auto compiler = vpux::Compiler::create(vpux::CompilerType::MCMCompiler);
+    auto compiler = vpux::Compiler::create();
     if (GetParam() == fromImportedGraph) {
         const std::string modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
         ASSERT_NO_THROW(networkPtr = compiler->parse(modelToImport));

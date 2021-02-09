@@ -11,7 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::set<ngraph::helpers::ActivationTypes> supportedTypes {
+std::set<ngraph::helpers::ActivationTypes> supportedTypesMCM {
     ngraph::helpers::Relu,
     ngraph::helpers::Sigmoid,
     ngraph::helpers::HSwish,
@@ -21,7 +21,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypes {
     ngraph::helpers::Elu
 };
 
-std::set<ngraph::helpers::ActivationTypes> supportedTypesByExperimentalCompiler {
+std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Relu,
     ngraph::helpers::Sigmoid,
     ngraph::helpers::Clamp,
@@ -41,14 +41,12 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
 
         const auto activationType = activationParam.first;
 
-        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
-            if (supportedTypes.find(activationType) ==
-                supportedTypes.end()) {
+        if (isCompilerMCM()) {
+            if (supportedTypesMCM.find(activationType) == supportedTypesMCM.end()) {
                 throw LayerTestsUtils::KmbSkipTestException("Unsupported activation types in MCM compiler");
             }
         } else {
-            if (supportedTypesByExperimentalCompiler.find(activationType) ==
-                supportedTypesByExperimentalCompiler.end()) {
+            if (supportedTypesMLIR.find(activationType) == supportedTypesMLIR.end()) {
                 throw LayerTestsUtils::KmbSkipTestException("Experimental compiler doesn't supports activation type " +
                                                             LayerTestsDefinitions::activationNames[activationType] +
                                                             " yet");
@@ -58,6 +56,11 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
 };
 
 TEST_P(KmbActivationLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
     Run();
 }
 

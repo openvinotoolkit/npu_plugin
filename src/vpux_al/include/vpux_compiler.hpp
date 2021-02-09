@@ -115,17 +115,13 @@ public:
     virtual ~ICompiler() = default;
 };
 
-enum class CompilerType { MCMCompiler, VPUXCompiler };
-
 //////////////////////////////////////////Compiler ////////////////////////////////////////////////
 class Compiler final {
 public:
     using Ptr = std::shared_ptr<Compiler>;
     using CPtr = std::shared_ptr<const Compiler>;
 
-    // TODO: In future it can be replaced from CompilerType to the path to the compiler lib
-    // to avoid adding new CompilerType with new compiler
-    static Ptr create(CompilerType t);
+    static Ptr create(const VPUXConfig& config = {});
 
     Compiler(std::string libpath): _actual(std::move(libpath)){};
 
