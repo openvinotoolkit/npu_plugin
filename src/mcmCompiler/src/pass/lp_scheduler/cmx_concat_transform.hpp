@@ -8,7 +8,7 @@
 #include "include/mcm/computation/model/iterator/tensor.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-
+#include "include/mcm/utils/helpers.hpp"
 
 namespace mv {
 namespace scheduler {
@@ -70,7 +70,7 @@ class CMX_Concatenation {
         : dpu_in_(), dpu_out_(), reads_(), writes_(),
           concat_root_(operation_t(NULL)),
           representative_dpu_(operation_t(NULL)),
-          representative_dpu_depth_(){}
+          representative_dpu_depth_() {}
 
       bool is_valid() const {
         return !( (concat_root_ == operation_t(NULL)) || dpu_in_.empty() ||
@@ -398,7 +398,7 @@ class CMX_Concatenation {
         throw RuntimeError("LpScheduler", "Currently pseudoEdge with source/sink implicit is not supported.");
     }
 
-    template <typename ControlEdgeOutput>
+    template<typename ControlEdgeOutput>
     void transform_concat_subgraph_depth(const concat_subgraph_t& subgraph,
         ControlEdgeOutput& output) {
       operation_t dpu_rep = subgraph.representative_dpu_;
@@ -581,7 +581,7 @@ class CMX_Concatenation {
             typename SubGraphContainer::value_type>::value,
               "Invalid container for concat subgraphs");
 
-      FILE *fptr = fopen("cmx_concat_report.txt", "w");
+      std::unique_ptr<FILE, mv::utils::RaiiWrapper<FILE, mv::utils::releaseFile>> fptr(fopen("cmx_concat_report.txt", "w"));
 
       locate_concat_subgraphs(std::back_inserter(concat_subgraphs));
       //NOTE: Pseudo edges will be added in the representative tasks with lower depth
@@ -608,18 +608,8 @@ class CMX_Concatenation {
               omodel_.defineFlow(edge.source_itr_->getOutputTensor()[0], edge.sink_itr_, edge.sink_itr_->getInputTensor().size());
             local_resource_control_flows.push_back(flow_itr);
             flow_itr->set<bool>("temporary_cmx_concat_resource_flow", true);
-          }
+        }
 
-          for (control_edge_t edge : local_depth_pseudo_edges)
-          {
-            if (!omodel_.edgeExists(edge.source_itr_, edge.sink_itr_))
-            {
-              mv::Data::FlowListIterator flow_itr =
-                omodel_.defineFlow(edge.source_itr_->getOutputTensor()[0], edge.sink_itr_, edge.sink_itr_->getInputTensor().size());
-              local_depth_pseudo_flows.push_back(flow_itr);
-              flow_itr->set<bool>("pseudo_data_flow", true);
-            }
-          }
 
           //NOTE-3: in case of a cycle, invalidate and un-transform back to ddr subgraph
           if (check_if_cycle_came_up_due_to_cmx_concat(omodel_))
@@ -657,36 +647,33 @@ class CMX_Concatenation {
           }
         }
 
-        if (fptr) {
-          fprintf(fptr, "=====================================\n");
-          fprintf(fptr, "concat = %s transformed_to_cmx = %s rep=%s \n",
+        if (fptr.get()) {
+          fprintf(fptr.get(), "=====================================\n");
+          fprintf(fptr.get(), "concat = %s transformed_to_cmx = %s rep=%s \n",
               subgraph.concat_root_->getName().c_str(),
               can_transform ? "YES" : "NO",
               subgraph.representative_dpu_->getName().c_str());
-          fprintf(fptr, "READS:\n");
+          fprintf(fptr.get(), "READS:\n");
           for (auto ditr = subgraph.dpu_in_.begin();
                 ditr != subgraph.dpu_in_.end(); ++ditr) {
             std::list<operation_t> read_list;
             get_weight_read_inputs(*ditr, std::back_inserter(read_list));
             size_t total_read_size = 0UL;
-            fprintf(fptr, "dpu_name=%s\n", (*ditr)->getName().c_str());
+            fprintf(fptr.get(), "dpu_name=%s\n", (*ditr)->getName().c_str());
             for (auto ritr = read_list.begin(); ritr != read_list.end();
                   ++ritr) {
               size_t rsize = (const_cast<mv::Op *>(*ritr))->
                   getOutputTensor(0UL)->getClusterSize();
-              fprintf(fptr, "r=%s size=%lu : ",
+              fprintf(fptr.get(), "r=%s size=%lu : ",
                     (*ritr)->getName().c_str(), rsize);
               total_read_size += rsize;
             }
-            fprintf(fptr, "total_read_size=%lu\n\n", total_read_size);
+            fprintf(fptr.get(), "total_read_size=%lu\n\n", total_read_size);
           }
-          fprintf(fptr, "=====================================\n");
+          fprintf(fptr.get(), "=====================================\n");
         }
       }
 
-      if (fptr) {
-        fclose(fptr);
-      }
       validate_dpu_ins_level(concat_subgraphs);
     }
 
