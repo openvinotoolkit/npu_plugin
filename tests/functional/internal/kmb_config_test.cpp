@@ -120,6 +120,8 @@ static const std::vector<ConfigMap> preProcParamConfigs = {
 
 static const std::vector<ConfigMap> inferShavesConfigs = {
     { },
+    { {"VPUX_INFERENCE_SHAVES", "2"} },
+    { {"VPUX_INFERENCE_SHAVES", "4"} },
     #if defined(__arm) || defined(__aarch64__)
     { {"VPUX_VPUAL_INFERENCE_SHAVES", "2"} },
     { {"VPUX_VPUAL_INFERENCE_SHAVES", "4"} },

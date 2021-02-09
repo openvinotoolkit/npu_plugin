@@ -346,10 +346,6 @@ InferenceEngine::Parameter HDDL2Executor::getParameter(const std::string& paramN
 }
 
 void HDDL2Executor::loadGraphToDevice() {
-    std::unordered_map<std::string, std::string> hddlUniteConfig = {};
-    const auto csram_size = _config.CSRAMSize();
-    hddlUniteConfig.insert(std::make_pair("CSRAM_SIZE", std::to_string(csram_size)));
-
     // Graph hasn't been initialized yet
     if (_uniteGraphPtr == nullptr) {
         std::lock_guard<std::mutex> lock(_uniteGraphMapMutex);
@@ -357,11 +353,11 @@ void HDDL2Executor::loadGraphToDevice() {
         // No graph in the map - need to load it to the device and add to the map
         if (findUniteGraph == _uniteGraphMap.end()) {
             if (_workloadContext == nullptr) {
-                _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
-                        _network, _config.deviceId(), hddlUniteConfig, _config.logLevel());
+                _uniteGraphPtr =
+                        std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _config.deviceId(), _config);
             } else {
-                _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
-                        _network, _workloadContext, hddlUniteConfig, _config.logLevel());
+                _uniteGraphPtr =
+                        std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _workloadContext, _config);
             }
             _uniteGraphMap[_baseExecutorId] = _uniteGraphPtr;
         } else {
