@@ -274,6 +274,7 @@ VpusmmAllocator::~VpusmmAllocator() {
         }
     }
 }
+
 void* VpusmmAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& map) noexcept {
     std::lock_guard<std::mutex> lock(wrapMemoryMutex);
     VPUSMMAllocatorParams params(map);

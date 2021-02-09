@@ -28,7 +28,7 @@ namespace vpux {
 VpualDevice::VpualDevice(const std::string& name,
     const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform): _name(name), _platform(platform) {
     const auto id = utils::extractIdFromDeviceName(name);
-    _allocator = std::make_shared<VpusmmAllocator>(id);
+    _allocator = InferenceEngine::details::shared_from_irelease(new VpusmmAllocator(id));
 }
 
 std::shared_ptr<Executor> VpualDevice::createExecutor(
