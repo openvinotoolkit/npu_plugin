@@ -34,6 +34,7 @@ vpux::VPUXConfig::VPUXConfig() {
                                                                                CONFIG_KEY(DEVICE_ID),
                                                                                VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
                                                                                KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+                                                                               VPUX_CONFIG_KEY(INFERENCE_SHAVES),
                                                                                VPUX_CONFIG_KEY(PLATFORM),
                                                                                VPUX_CONFIG_KEY(GRAPH_COLOR_FORMAT),
                                                                                VPUX_CONFIG_KEY(CSRAM_SIZE),
@@ -68,6 +69,10 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_deviceId, config, CONFIG_KEY(DEVICE_ID));
     setOption(_throughputStreams, config, VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
     setOption(_throughputStreams, config, KMB_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
+    setOption(_numberOfNnCoreShaves, config, VPUX_CONFIG_KEY(INFERENCE_SHAVES), parseInt);
+    IE_ASSERT(0 <= _numberOfNnCoreShaves && _numberOfNnCoreShaves <= 16)
+            << "VPUXConfig::parse attempt to set invalid number of shaves for NnCore: '" << _numberOfNnCoreShaves
+            << "', valid numbers are from 0 to 16";
     static const std::unordered_map<std::string, IE::VPUXConfigParams::VPUXPlatform> vpuxPlatform = {
             {VPUX_CONFIG_VALUE(AUTO), IE::VPUXConfigParams::VPUXPlatform::AUTO},
             {VPUX_CONFIG_VALUE(MA2490), IE::VPUXConfigParams::VPUXPlatform::MA2490},
