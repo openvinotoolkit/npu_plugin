@@ -43,9 +43,16 @@ static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& device
     return std::make_shared<HddlUnite::Device>(*deviceIt);
 }
 
+static const std::unordered_map<std::string, std::string> getUniteConfigByPluginConfig(const vpux::VPUXConfig& config) {
+    std::unordered_map<std::string, std::string> hddlUniteConfig = {};
+    const auto csram_size = config.CSRAMSize();
+    hddlUniteConfig.insert(std::make_pair("CSRAM_SIZE", std::to_string(csram_size)));
+    return hddlUniteConfig;
+}
+
 HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID,
-                               const std::unordered_map<std::string, std::string>& config, const LogLevel logLevel)
-        : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
+                               const vpux::VPUXConfig& config)
+        : _logger(std::make_shared<Logger>("Graph", config.logLevel(), consoleOutput())) {
     if (!network) {
         throw std::invalid_argument("Network pointer is null!");
     }
@@ -66,10 +73,11 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, co
 
     // TODO we need to get number of NN shaves and threads via config, not as parameters
     // [Track number: S#39350]
-    const int nnThreadNum = 1;
-    const int nnShaveNum = 4;
+    const auto nnThreadNum = config.throughputStreams();
+    const auto nnShaveNum = config.numberOfNnCoreShaves();
+    const auto& hddlUniteConfig = getUniteConfigByPluginConfig(config);
     statusCode = HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(),
-                                                 devices_to_use, nnThreadNum, nnShaveNum, config);
+                                                 devices_to_use, nnThreadNum, nnShaveNum, hddlUniteConfig);
 
     // FIXME This error handling part should be refactored according to new api
     if (statusCode == HddlStatusCode::HDDL_CONNECT_ERROR) {
@@ -84,9 +92,8 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, co
 }
 
 HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
-                               const HddlUnite::WorkloadContext::Ptr& workloadContext,
-                               const std::unordered_map<std::string, std::string>& config, const LogLevel logLevel)
-        : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
+                               const HddlUnite::WorkloadContext::Ptr& workloadContext, const vpux::VPUXConfig& config)
+        : _logger(std::make_shared<Logger>("Graph", config.logLevel(), consoleOutput())) {
     HddlStatusCode statusCode;
     if (workloadContext == nullptr) {
         THROW_IE_EXCEPTION << "Workload context is null";
@@ -97,10 +104,11 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
 
     // TODO we need to get number of NN shaves and threads via config, not as parameters
     // [Track number: S#39350]
-    const int nnThreadNum = 1;
-    const int nnShaveNum = 4;
+    const auto nnThreadNum = config.throughputStreams();
+    const auto nnShaveNum = config.numberOfNnCoreShaves();
+    const auto& hddlUniteConfig = getUniteConfigByPluginConfig(config);
     statusCode = HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(),
-                                                 {*workloadContext}, nnThreadNum, nnShaveNum, config);
+                                                 {*workloadContext}, nnThreadNum, nnShaveNum, hddlUniteConfig);
 
     if (statusCode != HddlStatusCode::HDDL_OK) {
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;

@@ -16,6 +16,7 @@
                 "MemoryHack": false,
                 "cmx": 1843200,
                 "enable_channel_major_conv": false,
+                "enableStaticBarriers": true,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,

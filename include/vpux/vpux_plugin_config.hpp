@@ -50,7 +50,6 @@
 #define DECLARE_KMB_CONFIG_KEY(name) DECLARE_CONFIG_KEY(KMB_##name)
 #define DECLARE_KMB_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(KMB_##name)
 
-
 namespace InferenceEngine {
 namespace VPUXConfigParams {
 
@@ -85,16 +84,23 @@ DECLARE_VPUX_CONFIG_VALUE(MA3720);
 
 /**
  * @brief [Only for VPUX Plugin]
- * Type: integer, default is 4.
+ * Type: integer, default is 2.
  */
 DECLARE_VPUX_CONFIG_KEY(THROUGHPUT_STREAMS);
 
 /**
  * @deprecated Use VPUX_THROUGHPUT_STREAMS instead
  * @brief [Only for VPUX Plugin]
- * Type: integer, default is 1.
+ * Type: integer, default is 2.
  */
 DECLARE_KMB_CONFIG_KEY(THROUGHPUT_STREAMS);
+
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: integer, default is 0. SetNumUpaShaves is not called in that case.
+ * Number of shaves to be used by NNCore plug-in during inference
+ */
+DECLARE_VPUX_CONFIG_KEY(INFERENCE_SHAVES);
 
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine
