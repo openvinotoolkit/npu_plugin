@@ -27,28 +27,28 @@ function(vpux_setup_lit_tool)
             COMMAND
                 ${CMAKE_COMMAND} -E copy
                     "$<TARGET_FILE:${tool}>"
-                    "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/"
+                    "$<TARGET_FILE_DIR:vpuxUnitTests>/"
         )
     endforeach()
 
     add_custom_target(copy_lit_tool ALL
         COMMAND
             ${CMAKE_COMMAND} -E remove_directory
-                "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/lit-tool"
+                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/lit-tool"
         COMMAND
             ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/lit-tool"
+                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/lit-tool"
         COMMAND
             ${CMAKE_COMMAND} -E copy_directory
                 "${LLVM_SOURCE_DIR}/utils/lit/lit"
-                "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/lit-tool/lit"
+                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/lit-tool/lit"
         COMMAND
             ${CMAKE_COMMAND} -E copy
                 "${LLVM_SOURCE_DIR}/utils/lit/LICENSE.TXT"
                 "${LLVM_SOURCE_DIR}/utils/lit/lit.py"
                 "${LLVM_SOURCE_DIR}/utils/lit/README.txt"
                 "${LLVM_SOURCE_DIR}/utils/lit/setup.py"
-                "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/lit-tool/"
+                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/lit-tool/"
         ${extra_tools_copy_cmd}
         DEPENDS ${extra_tools}
         COMMENT "[LIT] Copy LIT tool"
@@ -110,22 +110,22 @@ config.substitutions.append(('%${var}%', config.${var}))
             COMMAND
                 ${CMAKE_COMMAND} -E copy
                     "${LIT_ROOT}/${file}"
-                    "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/${TEST_NAME}/${file}"
+                    "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/${TEST_NAME}/${file}"
         )
     endforeach()
 
     add_custom_target(copy_${TEST_NAME}_tests ALL
         COMMAND
             ${CMAKE_COMMAND} -E remove_directory
-                "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/${TEST_NAME}"
+                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/${TEST_NAME}"
         COMMAND
             ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/${TEST_NAME}"
+                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/${TEST_NAME}"
         COMMAND
             ${CMAKE_COMMAND} -E copy
                 "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/cmake/lit.cfg.py"
                 "${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py"
-                "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/${TEST_NAME}/"
+                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/${TEST_NAME}/"
         ${tests_copy_cmd}
         SOURCES ${SOURCES}
         COMMENT "[LIT] Copy ${TEST_NAME} LIT tests"
@@ -139,9 +139,9 @@ config.substitutions.append(('%${var}%', config.${var}))
             add_test(NAME LIT-${TEST_NAME}
                 COMMAND
                     ${Python3_EXECUTABLE}
-                    "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/lit-tool/lit.py"
+                    "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/lit-tool/lit.py"
                     -v
-                    "$<TARGET_FILE_DIR:vpuxUnitTestsExperimental>/lit-tests/${TEST_NAME}"
+                    "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/${TEST_NAME}"
             )
             set_tests_properties(LIT-${TEST_NAME} PROPERTIES
                 LABELS "VPUX;LIT"

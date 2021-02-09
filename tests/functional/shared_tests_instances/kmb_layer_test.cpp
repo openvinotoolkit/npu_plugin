@@ -4,6 +4,7 @@
 
 #include "kmb_layer_test.hpp"
 #include "kmb_test_report.hpp"
+#include "vpux_private_config.hpp"
 
 #include <ie_utils.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
@@ -211,6 +212,30 @@ void KmbLayerTestsCommon::Run() {
         report.skipped(testInfo);
         SKIP() << "Skipping the test due to: " << e.what();
     }
+}
+
+void KmbLayerTestsCommon::useCompilerMLIR() {
+    configuration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+}
+
+bool KmbLayerTestsCommon::isCompilerMCM() const {
+    const auto it = configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE));
+    if (it == configuration.end()) {
+        // Default value for COMPILER_TYPE is MCM
+        return true;
+    }
+
+    return it->second == VPUX_CONFIG_VALUE(MCM);
+}
+
+bool KmbLayerTestsCommon::isCompilerMLIR() const {
+    const auto it = configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE));
+    if (it == configuration.end()) {
+        // Default value for COMPILER_TYPE is MCM
+        return false;
+    }
+
+    return it->second == VPUX_CONFIG_VALUE(MLIR);
 }
 
 }  // namespace LayerTestsUtils

@@ -46,6 +46,7 @@ ie::details::CaselessEq<std::string> strEq;
 DEFINE_string(network, "", "Network file (either XML or pre-compiled blob)");
 DEFINE_string(input, "", "Input file(s)");
 DEFINE_string(device, "", "Device to use");
+DEFINE_string(config, "", "Path to the configuration file (optional)");
 
 DEFINE_bool(run_test, false, "Run the test (compare current results with previously dumped)");
 DEFINE_string(mode, "", "Comparison mode to use");
@@ -95,6 +96,7 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Network file:     " << FLAGS_network << std::endl;
     std::cout << "    Input file(s):    " << FLAGS_input << std::endl;
     std::cout << "    Device:           " << FLAGS_device << std::endl;
+    std::cout << "    Config file:      " << FLAGS_config << std::endl;
     std::cout << "    Run test:         " << FLAGS_run_test << std::endl;
     if (FLAGS_run_test) {
         std::cout << "    Mode:             " << FLAGS_mode << std::endl;
@@ -361,6 +363,20 @@ void setupInferenceEngine() {
 
     if (FLAGS_device == "CPU") {
         ieCore.SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, FLAGS_device);
+    }
+
+    if (!FLAGS_config.empty()) {
+        std::ifstream file(FLAGS_config);
+        IE_ASSERT(file.is_open()) << "Can't open file " << FLAGS_config << " for read";
+
+        std::string key, value;
+        while (file >> key >> value) {
+            if (key.empty() || key[0] == '#') {
+                continue;
+            }
+
+            ieCore.SetConfig({{key, value}}, FLAGS_device);
+        }
     }
 }
 

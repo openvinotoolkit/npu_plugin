@@ -13,7 +13,7 @@ namespace LayerTestsDefinitions {
 
 class KmbPoolingLayerTest: public PoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+        if (isCompilerMCM()) {
             if (envConfig.IE_KMB_TESTS_RUN_INFER) {
                 throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
             }
@@ -33,6 +33,11 @@ class KmbPoolingLayerTest: public PoolingLayerTest, virtual public LayerTestsUti
 };
 
 TEST_P(KmbPoolingLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
     Run();
 }
 

@@ -19,6 +19,7 @@
 #include <vpux/vpux_plugin_config.hpp>
 
 #include "vpux_config_base.hpp"
+#include "vpux_private_config.hpp"
 
 namespace vpux {
 
@@ -71,6 +72,9 @@ public:
     uint32_t inferenceTimeoutMs() const noexcept {
         return _inferenceTimeoutMs;
     }
+    InferenceEngine::VPUXConfigParams::CompilerType compilerType() const noexcept {
+        return _compilerType;
+    }
 
     void parseFrom(const VPUXConfig& other);
 
@@ -97,6 +101,8 @@ protected:
     int _executorStreams = 1;
     // backend pull timeout - 5 seconds by default
     uint32_t _inferenceTimeoutMs = 5 * 1000;
+    InferenceEngine::VPUXConfigParams::CompilerType _compilerType =
+            InferenceEngine::VPUXConfigParams::CompilerType::MCM;
 
 private:
     void parseEnvironment();

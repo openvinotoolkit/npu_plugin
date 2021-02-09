@@ -25,7 +25,7 @@ class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUti
                  std::ignore,
                  std::ignore) = GetParam();
 
-        if (!envConfig.IE_VPUX_USE_EXPERIMENTAL_COMPILER) {
+        if (isCompilerMCM()) {
             // [Track number: S#44702]
             if (inPrecision == InferenceEngine::Precision::FP32 || outPrecision == InferenceEngine::Precision::FP32) {
                 throw LayerTestsUtils::KmbSkipTestException("SoftMax with FP32 input/output hangs on graph loading");
@@ -56,6 +56,11 @@ class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUti
 };
 
 TEST_P(KmbSoftMaxLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(KmbSoftMaxLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
     Run();
 }
 
