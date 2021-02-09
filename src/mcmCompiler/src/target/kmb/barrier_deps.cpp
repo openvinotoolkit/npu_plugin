@@ -30,6 +30,28 @@ void mv::BarrierDependencies::addWaitBarrier(int barrierId)
     waitBarriers_.push_back(barrierId);
 }
 
+void mv::BarrierDependencies::removeWaitBarrier(int barrierId)
+{
+  for(auto iter= waitBarriers_.begin(); iter!= waitBarriers_.end();){
+    if(*iter == barrierId){
+      iter = waitBarriers_.erase(iter);
+    }else{
+      iter++;
+    }
+  }
+}
+
+void mv::BarrierDependencies::removeUpdateBarrier(int barrierId)
+{
+  for(auto iter= updateBarriers_.begin(); iter!= updateBarriers_.end();){
+    if(*iter == barrierId){
+      iter = updateBarriers_.erase(iter);
+    }else{
+      iter++;
+    }
+  }
+}
+
 const std::vector<unsigned>& mv::BarrierDependencies::getWait()
 {
     return waitBarriers_;

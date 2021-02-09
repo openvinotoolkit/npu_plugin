@@ -78,6 +78,7 @@ PRETTY_PARAM(UseCustomLayers, KernelType);
 #ifdef RUN_SKIPPED_TESTS
 #   define SKIP_INFER_ON(...)
 #   define SKIP_ON(...)
+#   define SKIP_INFER_BYPASS_ON(...)
 #else
 
 #   define SKIP_ON1(_device0_, _reason_)                                        \
@@ -128,12 +129,41 @@ PRETTY_PARAM(UseCustomLayers, KernelType);
                 SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
             }                                                                           \
         } while (false)
+
+#   define SKIP_INFER_BYPASS_ON1(_device0_, _reason_)                                                   \
+        do {                                                                                            \
+            std::set<std::string> devices({_device0_});                                                 \
+            if (KmbTestBase::RUN_INFER && KmbTestBase::IS_BYPASS && devices.count(DEVICE_NAME) != 0) {  \
+                skipInfer = true;                                                                       \
+                skipMessage = "Skip infer for by-pass on " + DEVICE_NAME + " due to " + _reason_;       \
+            }                                                                                           \
+        } while (false)
+
+#   define SKIP_INFER_BYPASS_ON2(_device0_, _device1_, _reason_)                                        \
+        do {                                                                                            \
+            std::set<std::string> devices({_device0_, _device1_});                                      \
+            if (KmbTestBase::RUN_INFER && KmbTestBase::IS_BYPASS && devices.count(DEVICE_NAME) != 0) {  \
+                skipInfer = true;                                                                       \
+                skipMessage = "Skip infer for by-pass on " + DEVICE_NAME + " due to " + _reason_;       \
+            }                                                                                           \
+        } while (false)
+
+#   define SKIP_INFER_BYPASS_ON3(_device0_, _device1_, _device2_, _reason_)                             \
+        do {                                                                                            \
+            std::set<std::string> devices({_device0_, _device1_, _device2_});                           \
+            if (KmbTestBase::RUN_INFER && KmbTestBase::IS_BYPASS && devices.count(DEVICE_NAME) != 0) {  \
+                skipInfer = true;                                                                       \
+                skipMessage = "Skip infer for by-pass on " + DEVICE_NAME + " due to " + _reason_;       \
+            }                                                                                           \
+        } while (false)
+
 #endif
 
 #define GET_MACRO(_1,_2,_3, _4, NAME,...) NAME
 #ifndef RUN_SKIPPED_TESTS
 #define SKIP_INFER_ON(...) GET_MACRO(__VA_ARGS__, SKIP_INFER_ON3, SKIP_INFER_ON2, SKIP_INFER_ON1)(__VA_ARGS__)
 #define SKIP_ON(...) GET_MACRO(__VA_ARGS__, SKIP_ON3, SKIP_ON2, SKIP_ON1)(__VA_ARGS__)
+#define SKIP_INFER_BYPASS_ON(...) GET_MACRO(__VA_ARGS__, SKIP_INFER_BYPASS_ON3, SKIP_INFER_BYPASS_ON2, SKIP_INFER_BYPASS_ON1)(__VA_ARGS__)
 #endif
 
 //
@@ -179,6 +209,7 @@ public:
     static const bool RUN_COMPILER;
     static const bool RUN_REF_CODE;
     static const bool RUN_INFER;
+    static const bool IS_BYPASS;
     static const std::string DUMP_PATH;
     static const bool EXPORT_NETWORK;
     static const bool RAW_EXPORT;
@@ -240,6 +271,8 @@ protected:
     std::unordered_map<std::string, Blob::Ptr> blobs;
     std::unordered_map<std::string, std::pair<TensorDesc, BlobGenerator>> blobGenerators;
     bool enable_CPU_lpt = false;
+    bool skipInfer = false;
+    std::string skipMessage;
 
 };
 
