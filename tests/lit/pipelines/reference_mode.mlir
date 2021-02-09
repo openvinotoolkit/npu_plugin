@@ -89,7 +89,7 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
 
     return %0, %1 : tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>
 
-    // CHECK:       %[[VAL_3:.*]] = VPUIP.DeclareConstantTensorOp
+    // CHECK:       %[[VAL_3:.*]] = VPUIP.DeclareConstantTensor
     // CHECK-SAME:      memref<1x2x2x2xf16>
 
     // CHECK:       VPUIP.SoftMaxUPA
@@ -146,7 +146,7 @@ func @main() -> tensor<1x2x4x2xf16> {
 
     return %prob : tensor<1x2x4x2xf16>
 
-    // CHECK:       %[[CST:.*]] = VPUIP.DeclareConstantTensorOp
+    // CHECK:       %[[CST:.*]] = VPUIP.DeclareConstantTensor
     // CHECK-SAME:      memref<1x2x4x2xf16>
 
     // CHECK:       VPUIP.NNDMA

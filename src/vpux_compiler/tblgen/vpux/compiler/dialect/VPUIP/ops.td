@@ -133,7 +133,7 @@ def VPUIP_DeclareTensorOp :
 
 def VPUIP_DeclareConstantTensorOp :
         VPUIP_Op<
-            "DeclareConstantTensorOp",
+            "DeclareConstantTensor",
             [
                 ConstantLike,
                 NoSideEffect,
@@ -163,7 +163,7 @@ def VPUIP_DeclareConstantTensorOp :
 
     let assemblyFormat = [{
         attr-dict
-        ($csramCacheable^)? type($output) `=` $value
+        type($output) `=` $value
     }];
 }
 
@@ -992,7 +992,7 @@ def VPUIP_PReluUPAOp :
     let builders = [
         OpBuilderDAG<
             (ins
-                "mlir::Value":$input, "mlir::Value":$negative_slope, 
+                "mlir::Value":$input, "mlir::Value":$negative_slope,
                 "mlir::Value":$output
             )
         >
