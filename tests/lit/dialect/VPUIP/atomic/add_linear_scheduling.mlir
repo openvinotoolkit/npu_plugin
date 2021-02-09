@@ -4,8 +4,8 @@
 module @linear_dma_graph {
 
 VPUIP.Graph
-    // CHECK: options : DynamicBarriers
-    options : NONE
+    // CHECK: options : "NONE"
+    options : "NONE"
     version : {
         majorV = 3 : i32,
         minorV = 11 : i32,
@@ -25,20 +25,20 @@ IE.CNNNetwork
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
     VPUIP.UPADMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>)
-    // CHECK:       %[[B0:.*]] = VPUIP.ConfigureBarrier
+    // CHECK:       %[[B0:.*]] = VPUIP.ConfigureBarrier <0>
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      updates(%[[B0]] : !VPUIP.Barrier)
 
     %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1x1x1000xf16>
     VPUIP.UPADMA inputs(%0 : memref<1x1x1x1000xf16>) outputs(%1 : memref<1x1x1x1000xf16>)
-    // CHECK:       %[[B1:.*]] = VPUIP.ConfigureBarrier
+    // CHECK:       %[[B1:.*]] = VPUIP.ConfigureBarrier <1>
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B0]] : !VPUIP.Barrier)
     // CHECK-SAME:      updates(%[[B1]] : !VPUIP.Barrier)
 
     %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
     VPUIP.UPADMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%2 : memref<1x1x1x1000xf16>)
-    // CHECK:       %[[B2:.*]] = VPUIP.ConfigureBarrier
+    // CHECK:       %[[B2:.*]] = VPUIP.ConfigureBarrier <0>
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B1]] : !VPUIP.Barrier)
     // CHECK-SAME:      updates(%[[B2]] : !VPUIP.Barrier)
@@ -58,8 +58,8 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
 module @linear_upa_graph {
 
 VPUIP.Graph
-    // CHECK: options : DynamicBarriers
-    options : NONE
+    // CHECK: options : "NONE"
+    options : "NONE"
     version : {
         majorV = 3 : i32,
         minorV = 11 : i32,

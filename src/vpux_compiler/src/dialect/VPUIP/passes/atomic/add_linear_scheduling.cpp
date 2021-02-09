@@ -74,10 +74,10 @@ void AddLinearSchedulingPass::passBody() {
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    auto graphOp = VPUIP::GraphOp::getFromModule(module);
-
     _log.trace("Try to find trailing UPA Tasks");
     collectTrailingUPATasks(netFunc);
+
+    uint32_t barrierID = 0;
 
     const auto callback = [&](mlir::Operation* op) {
         auto innerLog = _log.nest();
@@ -112,17 +112,14 @@ void AddLinearSchedulingPass::passBody() {
             OpBuilderLogger builderLog(_log.nest());
             mlir::OpBuilder builder(op, &builderLog);
 
-            auto newBarrierOp = builder.create<VPUIP::ConfigureBarrierOp>(op->getLoc());
+            auto newBarrierOp = builder.create<VPUIP::ConfigureBarrierOp>(op->getLoc(), barrierID);
             curTask.updateBarriersMutable().append(mlir::ValueRange{newBarrierOp.barrier()});
+
+            barrierID = (barrierID + 1) % 2;
         }
     };
 
     netFunc.walk(callback);
-
-    _log.trace("Update VPUIP.Graph Operation 'options' attribute");
-    auto options = graphOp.options();
-    options = options | VPUIP::ExecutionFlag::DynamicBarriers;
-    graphOp.optionsAttr(VPUIP::ExecutionFlagAttr::get(module.getContext(), options));
 }
 
 //

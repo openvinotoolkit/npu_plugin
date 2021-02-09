@@ -96,12 +96,8 @@ public:
     BinaryData createBinaryData(ConstContentAttr content, mlir::MemRefType actualType, bool csram_cacheable = false);
 
 public:
-    Barrier createBarrier(mlir::Value val);
-    Barrier getBarrier(mlir::Value val) const;
-
-    auto getAllBarriers() const {
-        return _barriers | map_values;
-    }
+    Barrier createBarrier(mlir::Value val, uint32_t physicalID = 0);
+    uint32_t getBarrierVirtualID(mlir::Value val) const;
 
 public:
     static MVCNN::DType createDType(mlir::Type type);
@@ -147,7 +143,7 @@ public:
 private:
     using TaskMap = std::unordered_map<mlir::Operation*, Task>;
     using TensorReferenceMap = mlir::DenseMap<mlir::Value, TensorReference>;
-    using BarrierMap = mlir::DenseMap<mlir::Value, Barrier>;
+    using BarrierMap = mlir::DenseMap<mlir::Value, uint32_t>;
 
 private:
     Logger _log;
