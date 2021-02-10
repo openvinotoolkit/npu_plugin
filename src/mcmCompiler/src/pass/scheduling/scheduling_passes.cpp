@@ -448,9 +448,9 @@ void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel&
     mv::OpModel om(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
-    std::string indexAssignment = globalConfigParams->get<std::string>("barrier_index_assignment");
+    bool isStatic = globalConfigParams->get<bool>("enableStaticBarriers");
 
-    if (indexAssignment == "Dynamic")
+    if (!isStatic)
     {
         auto sortedOps = cm.schedulingSort();
 

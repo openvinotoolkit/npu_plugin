@@ -264,6 +264,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/scheduling/layout_dma.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_kmb.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/serialization/physical_barrier_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_json.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/global_params_reset.cpp"
 
@@ -272,6 +273,7 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_update_barriers.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/split_barrier_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/op_model_cutter.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/barrier_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/force_spill_activation.cpp"

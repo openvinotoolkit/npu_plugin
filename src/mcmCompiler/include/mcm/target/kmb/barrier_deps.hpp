@@ -21,6 +21,8 @@ namespace mv
         bool hasWaitBarriers() const { return !(waitBarriers_.empty()); }
         void addUpdateBarrier(int barrierId);
         void addWaitBarrier(int barrierId);
+        void removeWaitBarrier(int barrierId);
+        void removeUpdateBarrier(int barrierId);
 
         void clear() { waitBarriers_.clear(); updateBarriers_.clear(); }
         void clearUpdateBarriers(void) { updateBarriers_.clear(); }

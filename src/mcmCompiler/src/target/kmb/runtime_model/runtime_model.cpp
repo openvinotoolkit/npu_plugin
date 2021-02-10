@@ -941,9 +941,8 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     };
 
     toBuild->options = std::vector<MVCNN::ExecutionFlag>();
-    //toBuild->options.push_back(MVCNN::ExecutionFlag_Compiled_For_VPU3);
-    if(globalConfigurationParameters->get<std::string>("barrier_index_assignment") == "Dynamic")
-        toBuild->options.push_back(MVCNN::ExecutionFlag_DynamicBarriers);
+    if(!(globalConfigurationParameters->get<bool>("enableStaticBarriers")))
+      toBuild->options.push_back(MVCNN::ExecutionFlag_DynamicBarriers);
 
     toBuild->layer_count = originalHeader->layer_count;
     toBuild->task_count = taskCount(om);
@@ -3705,8 +3704,10 @@ std::unique_ptr<MVCNN::BarrierReferenceT> mv::RuntimeModel::buildBarrierReferenc
     std::unique_ptr<MVCNN::BarrierReferenceT> toBuild = std::unique_ptr<MVCNN::BarrierReferenceT>(new MVCNN::BarrierReferenceT());
     if (dep.hasWaitBarriers()) {
       toBuild->wait_barriers = dep.getWait();
+      toBuild->virtual_wait_barriers = dep.getWait();
     }
     toBuild->update_barriers = dep.getUpdate();
+    toBuild->virtual_update_barriers = dep.getUpdate();
     return toBuild;
 }
 
@@ -3842,11 +3843,20 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
 std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::ComputationModel& model, mv::Element& , mv::Control::OpListIterator opIt)
 {
     mv::ControlModel cm(model);
-
+    auto globalParams = model.getGlobalConfigParams();
+    bool isStatic= false;
+    if (globalParams->hasAttr("enableStaticBarriers"))
+    {
+      isStatic= globalParams->get<bool>("enableStaticBarriers");
+    }
     std::unique_ptr<MVCNN::BarrierT> toBuild = std::unique_ptr<MVCNN::BarrierT>(new MVCNN::BarrierT());
     auto barrier = opIt->get<mv::Barrier>("Barrier");
 
-    toBuild->barrier_id = barrier.getIndex();
+    if (isStatic){
+      toBuild->barrier_id = barrier.getRealBarrierIndex();
+    }else{
+      toBuild->barrier_id = barrier.getIndex();
+    }
     toBuild->consumer_count = 0;
     toBuild->producer_count = 0;
 
@@ -3976,7 +3986,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
     // Barrier Table must be build only on dynamic scheduling
-    if(globalConfigurationParameters->get<std::string>("barrier_index_assignment") == "Dynamic")
+    if(!(globalConfigurationParameters->get<bool>("enableStaticBarriers")))
         graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 }
 

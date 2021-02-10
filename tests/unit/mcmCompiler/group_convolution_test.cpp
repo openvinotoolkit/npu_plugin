@@ -14,10 +14,6 @@
 // stated in the License.
 //
 
-// TODO: Temporarly skip this test for Ubuntu20 with gcc9 due to internal
-// GCC compiler error (LTO) happening on CI infrastructure
-#if __GNUC__ != 9
-
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
@@ -183,5 +179,3 @@ TEST (mcmCompiler, group_convolution_quant_param_test)
         }
     }
 }
-
-#endif // __GNUC__

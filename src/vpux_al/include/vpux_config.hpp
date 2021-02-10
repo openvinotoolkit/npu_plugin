@@ -37,6 +37,9 @@ public:
     int throughputStreams() const {
         return _throughputStreams;
     }
+    int numberOfNnCoreShaves() const {
+        return _numberOfNnCoreShaves;
+    }
     InferenceEngine::VPUXConfigParams::VPUXPlatform platform() const {
         return _platform;
     }
@@ -85,6 +88,7 @@ protected:
     bool _performanceCounting = false;
     std::string _deviceId = "VPU-0";
     int _throughputStreams = 2;
+    int _numberOfNnCoreShaves = 0;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
 
     // Private options

@@ -192,6 +192,11 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "SplitBarrier",
+            {
+                "name" : "AssignPhysicalBarrier",
+                "real_physical_barriers": 32
+            },
             "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",

@@ -80,7 +80,7 @@ TEST_P(KmbConvolutionLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR) {
+TEST_P(KmbConvolutionLayerTest, DISABLED_CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
