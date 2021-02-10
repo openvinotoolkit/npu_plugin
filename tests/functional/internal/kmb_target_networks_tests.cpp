@@ -1082,6 +1082,15 @@ TEST_F(SmokeNetworkTest, yolo_v4_subgraph_ddr_output_test) {
                     .setUserOutputPrecision("output", Precision::FP16));
 }
 
+TEST_F(SmokeNetworkTest, yolo_v4_tf_full) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/yolo_v4/yolo_v4_tf.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP32));
+}
 
 // Regression on compilation due to latest rebase
 TEST_F(KmbVasFDStage1Test, DISABLED_precommit_vasfd_stage1) {
