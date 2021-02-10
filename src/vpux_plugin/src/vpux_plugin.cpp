@@ -24,7 +24,6 @@
 
 #include <details/ie_irelease.hpp>
 #include <fstream>
-#include <generic_ie.hpp>
 #include <ie_icore.hpp>
 #include <ie_itt.hpp>
 #include <ie_metric_helpers.hpp>
