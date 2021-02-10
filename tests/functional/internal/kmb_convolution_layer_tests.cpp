@@ -76,10 +76,7 @@ public:
     }
 };
 
-// C++ exception with description "Tensor:conv:bias:0 - ArgumentError: attribute identifer splitStrategy - Undefined identifier"
-// [Track number: S#39518]
 TEST_P(KmbConvolutionLayerTests, FP16) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "ArgumentError exception");
     const auto& p = GetParam();
     const auto& convParams = std::get<1>(p);
     const auto withBiases = std::get<2>(p);
@@ -108,11 +105,7 @@ TEST_P(KmbConvolutionLayerTests, FP16) {
     runTest(netBuidler, tolerance, CompareMethod::Absolute);
 }
 
-// [Track number: S#26002]
-// C++ exception with description "Tensor:conv:bias:0 - ArgumentError: attribute identifer splitStrategy - Undefined identifier"
-// [Track number: S#39518]
 TEST_P(KmbConvolutionLayerTests, FQ) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "ArgumentError exception");
     const auto& p = GetParam();
     const auto& convParams = std::get<1>(p);
     const auto withBiases = std::get<2>(p);
