@@ -226,10 +226,11 @@ public:
     using CPtr = std::shared_ptr<const Device>;
 
     Device(const std::shared_ptr<IDevice> device, InferenceEngine::details::SharedObjectLoader::Ptr plg)
-            : _actual(device),
-              _plg(plg),
-              _allocatorWrapper(InferenceEngine::details::shared_from_irelease(
-                      new AllocatorWrapper(_actual->getAllocator(), _plg))) {
+            : _actual(device), _plg(plg) {
+        if (_actual->getAllocator()) {
+            _allocatorWrapper =
+                    InferenceEngine::details::shared_from_irelease(new AllocatorWrapper(_actual->getAllocator(), _plg));
+        }
     }
 
     std::shared_ptr<Allocator> getAllocator() const {
