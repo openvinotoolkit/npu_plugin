@@ -234,7 +234,7 @@ class Operation_Dag {
       size_t operator()(const operation_t& op) const {
         return name_hash_(op->getName());
       }
-      std::hash<std::string> name_hash_;
+      static std::hash<std::string> name_hash_;
     }; // struct operation_hash_t //
 
     struct repackable_op_selector_t {

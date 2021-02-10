@@ -941,6 +941,7 @@ class Dynamic_Spill_Node_Inserter {
         const_operation_iterator_t;
     typedef std::list<operation_t> op_list_t;
     typedef typename op_list_t::iterator op_list_iterator_t;
+    typedef typename dag_t::operation_hash_t operation_hash_t;
 
     struct implicit_sub_structure_t {
       implicit_sub_structure_t(operation_t head=NULL, operation_t tail=NULL)
@@ -1061,10 +1062,10 @@ class Dynamic_Spill_Node_Inserter {
       std::unordered_set<operation_t> children_;
     }; // struct spilled_subtree_t //
 
-    typedef std::unordered_map<operation_t, spilled_subtree_t> spilled_op_map_t;
+    typedef std::unordered_map<operation_t, spilled_subtree_t, operation_hash_t> spilled_op_map_t;
     typedef typename spilled_op_map_t::const_iterator
         spilled_op_map_const_iterator_t;
-    typedef std::unordered_map<operation_t, std::string> redundant_spill_map_t;
+    typedef std::unordered_map<operation_t, std::string, operation_hash_t> redundant_spill_map_t;
     ////////////////////////////////////////////////////////////////////////////
 
     Dynamic_Spill_Node_Inserter(
@@ -1089,6 +1090,13 @@ class Dynamic_Spill_Node_Inserter {
           // this is for compute ops //
           create_spill_subtree_structure_in_model(spilled_op, itr->second);
         }
+      }
+    }
+
+    void remove_redundant_ops_from_op_model() {
+      mv::OpModel om(model_);
+      for (auto itr = redundant_spill_map_.begin(); itr != redundant_spill_map_.end(); ++itr) {
+        om.removeOp(om.getOp(itr->second));
       }
     }
 
@@ -1518,7 +1526,7 @@ class Dynamic_Spill_Node_Inserter {
       return atleast_one_subtree_refined;
     }
 
-    typedef std::unordered_map<operation_t, size_t> input_tensor_index_map_t;
+    typedef std::unordered_map<operation_t, size_t, operation_hash_t> input_tensor_index_map_t;
     typedef typename spilled_read_subtrees_t::iterator
         spilled_read_subtree_iterator_t;
 
@@ -1649,7 +1657,7 @@ class Dynamic_Spill_Node_Inserter {
 
 
       //STEP-3//
-      size_t head_sink_input = input_tensor_index_map[head];
+      size_t head_sink_input = input_tensor_index_map.find(head)->second;
       mv::Data::OpListIterator head_itr = om.getOp(head->getName());
       head_itr->setInputTensor(spill_write_tensor_itr, head_sink_input, false);
       om.defineFlow(spill_write_tensor_itr, head_itr, head_sink_input);
@@ -1681,7 +1689,7 @@ class Dynamic_Spill_Node_Inserter {
         }
 
 
-        size_t idx = input_tensor_index_map[child_op];
+        size_t idx = input_tensor_index_map.find(child_op)->second;
 
         // define flow //
         mv::Data::OpListIterator child_op_itr = om.getOp(child_op->getName());
@@ -1766,7 +1774,8 @@ class Dynamic_Spill_Node_Inserter {
       typename dag_t::cmx_concat_subgraph_t const *concat_subgraph = NULL;
       if ( (concat_subgraph =
               input_dag_.does_this_dpu_have_cmx_concat_subgraph(spilled_op)) ) {
-        spilled_op = const_cast<mv::Op *>(concat_subgraph->concat_root_);
+        spilled_op_in = concat_subgraph->concat_root_;
+        spilled_op = const_cast<mv::Op *>(spilled_op_in);
       }
 
       //STEP-0: refine read subtrees before introducing the spill structure.
@@ -1808,7 +1817,7 @@ class Dynamic_Spill_Node_Inserter {
       //////////////////////////////////////////////////////////////////////////
       // STEP-2: for all the outgoing ops connected to this op determine the
       // input tensor indexes
-      std::unordered_map<operation_t, size_t> input_tensor_index_map;
+      std::unordered_map<operation_t, size_t, operation_hash_t> input_tensor_index_map;
       {
         mv::Data::OpListIterator spilled_op_itr =
           om.getOp(spilled_op->getName());
@@ -1877,7 +1886,7 @@ class Dynamic_Spill_Node_Inserter {
       //
       // TODO(vamsikku): this is a common operations between forest and subtree
       // code it should be a function on its own.
-      std::unordered_map<operation_t, size_t> input_tensor_index_map;
+      std::unordered_map<operation_t, size_t, operation_hash_t> input_tensor_index_map;
       {
         mv::Data::OpListIterator spilled_op_itr =
           om.getOp(spilled_op->getName());
@@ -1975,7 +1984,6 @@ class Dynamic_Spill_Node_Inserter {
               redundant_spill_map_.end());
         redundant_spill_map_.insert(
             std::make_pair(spilled_op, spilled_op->getName()));
-        om.removeOp(spilled_op_itr);
         spill_read_tensor_itr->set<bool>("allocateSparsityMap", true); // If the original DMA Op is considered redundant and removed
       }                                                                // then we want the 'new' spilled DMA to allocate the sparsity map
     }
