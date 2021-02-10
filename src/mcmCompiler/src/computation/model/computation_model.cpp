@@ -424,27 +424,25 @@ mv::Data::OpListIterator mv::ComputationModel::getOp(const std::string& name)
 std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps(const std::string &opType)
 {
     std::vector<mv::Data::OpListIterator> toReturn;
-    for(auto opPairIt = ops_->begin(); opPairIt != ops_->end(); ++opPairIt)
-        if(opPairIt->second->getOpType() == opType)
-            toReturn.push_back(opPairIt->second);
+    for (auto opIt = dataGraph_.node_begin(); opIt != dataGraph_.node_end(); ++opIt)
+        if((*opIt).getOpType() == opType) 
+            toReturn.push_back(getOp((*opIt).getName()));
     return toReturn;
 }
 
 std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps() {
     std::vector<mv::Data::OpListIterator> toReturn;
-    for (auto& opIt : *ops_) {
-        toReturn.push_back(opIt.second);
-    }
+    for (auto opIt = dataGraph_.node_begin(); opIt != dataGraph_.node_end(); ++opIt)
+        toReturn.push_back(getOp((*opIt).getName()));
     return toReturn;
 }
 
 std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> mv::ComputationModel::getOpsOfTypes(const std::vector<std::string> &opTypes)
 {
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> toReturn;
-    for (auto type = opTypes.begin(); type != opTypes.end(); type++)
-        for(auto opPairIt = ops_->begin(); opPairIt != ops_->end(); ++opPairIt)
-            if (opPairIt->second->getOpType() == *type)
-                toReturn[*type].push_back(opPairIt->second);
+    for (auto opIt = dataGraph_.node_begin(); opIt != dataGraph_.node_end(); ++opIt)
+        if(std::find(opTypes.begin(), opTypes.end(), (*opIt).getOpType()) != opTypes.end())
+            toReturn[(*opIt).getOpType()].push_back(getOp((*opIt).getName()));
     return toReturn;
 }
 
