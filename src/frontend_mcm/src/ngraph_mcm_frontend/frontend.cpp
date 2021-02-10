@@ -56,8 +56,6 @@
 
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
 
-#include <generic_ie.hpp>
-
 #include <ngraph/op/hswish.hpp>
 
 #include <include/mcm/compiler/compilation_unit.hpp>

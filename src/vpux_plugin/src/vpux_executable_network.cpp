@@ -19,7 +19,6 @@
 // IE
 #include <legacy/net_pass.h>
 
-#include <generic_ie.hpp>
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
