@@ -22,12 +22,13 @@ public:
 };
 
 void KmbProfilingTest::runTest() {
+    SKIP_ON("KMB", "HDDL2", "Not supported");
     const SizeVector inDims = {1, 3, 64, 64};
     const TensorDesc userInDesc = TensorDesc(Precision::U8, inDims, Layout::NHWC);
     const TensorDesc userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);
     ConvolutionParams convParams = ConvolutionParams().outChannels(16).kernel(3).strides(2).pad(0).dilation(1);
-    const Precision netPresicion = Precision::FP16;
-    const std::map<std::string, std::string> netConfig = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}, {"VPU_COMPILER_REFERENCE_MODE", CONFIG_VALUE(YES)}};
+    const Precision netPresicion = Precision::U8;
+    const std::map<std::string, std::string> netConfig = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
 
     registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {
         return makeSingleValueBlob(desc, 1.0f);

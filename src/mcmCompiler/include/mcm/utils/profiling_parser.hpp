@@ -22,7 +22,7 @@ namespace mv
         } prof_total_info_t;
 
         void getProfilingInfo(const void* data, const void* output, std::vector<prof_info_t>& profInfo,
-                        prof_total_info_t* prof_total_info);
+                      prof_total_info_t* prof_total_info = nullptr);
     }
 }
 

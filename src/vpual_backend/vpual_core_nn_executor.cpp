@@ -891,13 +891,13 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
     auto deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
     auto profilingOutputBlob = deviceOutputs.find("profilingOutput");
     if (profilingOutputBlob == deviceOutputs.end()) {
-        std::cout << "No profiling output" << std::endl;
+        _logger->warning("No profiling output. Blob was compiled without profiling enabled or do not contain profiling info.");
         return perfCounts;
     }
     const auto& profilingOutput = ie::as<ie::MemoryBlob>(profilingOutputBlob->second)->rmap().as<const void*>();
 
     std::vector<mv::utils::prof_info_t> deviceProfiling;
-    mv::utils::getProfilingInfo(blob, profilingOutput, deviceProfiling, nullptr);
+    mv::utils::getProfilingInfo(blob, profilingOutput, deviceProfiling);
 
     int execution_index = 0;
     ie::InferenceEngineProfileInfo info;
