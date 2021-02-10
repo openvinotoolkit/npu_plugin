@@ -59,7 +59,7 @@ TEST_P(KmbSoftMaxLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbSoftMaxLayerTest, DISABLED_CompareWithRefs_MLIR) {
+TEST_P(KmbSoftMaxLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }

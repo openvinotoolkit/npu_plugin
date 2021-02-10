@@ -22,7 +22,7 @@ TEST_P(KmbFakeQuantizeLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbFakeQuantizeLayerTest, DISABLED_CompareWithRefs_MLIR) {
+TEST_P(KmbFakeQuantizeLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }

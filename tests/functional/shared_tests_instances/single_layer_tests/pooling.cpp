@@ -36,7 +36,7 @@ TEST_P(KmbPoolingLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbPoolingLayerTest, DISABLED_CompareWithRefs_MLIR) {
+TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
