@@ -176,9 +176,16 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                         int64_t real_bias_fp16;
                         std::vector<double> weightsScale = opIt->getInputTensor(1)->get<mv::QuantizationParams>("quantParams").getScale();
                         weightsScale = extendToK(outputShape[mv::IO_CHANNEL_DIMENSION], weightsScale, bias->getName());
+                        // hack
+                        std::vector<double> outputScale = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
+                        outputScale = extendToK(outputShape[mv::IO_CHANNEL_DIMENSION], outputScale, opIt->getOutputTensor(0)->getName());
+
                         for (size_t k = 0; k < outputShape[mv::IO_CHANNEL_DIMENSION]; k++)
                         {
                             biasOldScale = weightsScale[k] * inputScale[0];
+                            if(opIt->hasAttr("biasOverflow") && opIt->get<bool>("biasOverflow")) {
+                                biasOldScale *= outputScale[k];
+                            }
                             real_bias = ((int64_t) bias->at(k)) * biasOldScale;
                             real_bias_fp16 = mv::fp32_to_fp16(real_bias);
                             biasData.push_back(real_bias_fp16);

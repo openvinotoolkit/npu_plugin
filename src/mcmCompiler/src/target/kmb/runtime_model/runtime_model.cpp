@@ -511,10 +511,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
 
+        // acording to the runtime code, Zero point only uses first value of array.
+        // mult and shift are only used for eltwise output, not for other outputs.
+        // https://github.com/movidius/vpuip_2/blob/develop/system/nn/nce_lib/src/2490/ppe_task.cpp
         auto quantZero = quantizationParams.getZeroPoint();
         if (quantZero.size() > 0)
         {
-            toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+            toBuild->quant_zero = std::vector<unsigned char>(1, quantZero[0]);
         }
         else
         {
@@ -525,11 +528,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         if (quantizationParams.hasAttr("mult"))
         {
             quantMult = quantizationParams.getMult();
-        
+
             if (quantMult.size() > 0)
             {
                 quantMult = reduceQuantVector_(quantMult);
-                toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+                toBuild->quant_mult = std::vector<unsigned short int>(1, quantMult[0]);
             }
             else
             {
@@ -541,11 +544,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         if (quantizationParams.hasAttr("shift"))
         {
             quantShift = quantizationParams.getShift();
-        
+
             if (quantShift.size() > 0)
             {
                 quantShift = reduceQuantVector_(quantShift);
-                toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+                toBuild->quant_shift = std::vector<unsigned char>(1, quantShift[0]);
             }
             else
             {
@@ -828,22 +831,24 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
 
+        // acording to the runtime code, Zero point only uses first value of array.
+        // mult and shift are only used for eltwise output, not for other outputs.
+        // https://github.com/movidius/vpuip_2/blob/develop/system/nn/nce_lib/src/2490/ppe_task.cpp
         auto quantZero = quantizationParams.getZeroPoint();
-        toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+        toBuild->quant_zero = std::vector<unsigned char>(1, quantZero[0]);
 
         std::vector<unsigned> quantMult = {};
         if (quantizationParams.hasAttr("mult"))
             quantMult = quantizationParams.getMult();
         quantMult = reduceQuantVector_(quantMult);
-        toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+        toBuild->quant_mult = std::vector<unsigned short int>(1, quantMult[0]);
 
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
-        toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+        toBuild->quant_shift = std::vector<unsigned char>(1, quantShift[0]);
         toBuild->quant_post_shift_right = quantizationParams.getPostShift();
-
     }
 
     return toBuild;
@@ -991,7 +996,7 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
         if (processorEntry->item != MVCNN::PhysicalProcessor_NULL)
             toBuild->processor_allocation.push_back(std::move(processorEntry));
      }
-  
+
      if(globalConfigurationParams->hasAttr("Number_of_DPUs")){
         std::unique_ptr<MVCNN::ProcessorMappingT> NNDPUProcessor =
             std::unique_ptr<MVCNN::ProcessorMappingT>(new MVCNN::ProcessorMappingT());
@@ -1307,7 +1312,7 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
             totalSize = src->getSubTensor(i).get<int>("CompressedSize");
         else
             totalSize *= src->getDType().getSizeInBits() / 8;
-        
+
         if (totalSize == 0)
             return false;
 
@@ -4045,7 +4050,7 @@ mv::Order mv::RuntimeModel::stridesToOrder(std::vector<float> strides, std::vect
     std::vector<std::size_t> contVector;
     std::map<float, unsigned> indices;
 
-    // Hardcoded for 3d tensors 
+    // Hardcoded for 3d tensors
     // TODO update when 3d RT ops enabled
     auto current_idx = 0;
     for (unsigned i = 0; i < 4; ++i)

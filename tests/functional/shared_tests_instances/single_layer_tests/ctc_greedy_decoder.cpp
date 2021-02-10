@@ -12,8 +12,25 @@
 namespace LayerTestsDefinitions {
 
 class KmbCTCGreedyDecoderLayerTest: public CTCGreedyDecoderLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeImport() override {
-        throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+    void SkipBeforeLoad() override {
+        InferenceEngine::SizeVector inShape;
+        std::tie(std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, inShape, std::ignore, std::ignore) = GetParam();
+
+        // TODO: [Track number: C#40001]
+        if (inShape.at(1) != 1) {
+            throw LayerTestsUtils::KmbSkipTestException("Assertion `inDims != outDims`");
+        }
+    }
+
+    void SkipBeforeValidate() override {
+        InferenceEngine::SizeVector inShape;
+        bool mergeRepeated = false;
+        std::tie(std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, inShape, mergeRepeated, std::ignore) = GetParam();
+
+        // TODO: [Track number: C#40001]
+        if (inShape.at(0) == 88 && !mergeRepeated) {
+            throw LayerTestsUtils::KmbSkipTestException("comparison fails");
+        }
     }
 };
 
@@ -27,6 +44,7 @@ using namespace ngraph::helpers;
 using namespace LayerTestsDefinitions;
 
 namespace {
+
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
 };
@@ -50,9 +68,8 @@ const auto params = testing::Combine(
     testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
-// TODO: [Track number: C#40001]
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_CTCGreedyDecoder,
+    CTCGreedyDecoder,
     KmbCTCGreedyDecoderLayerTest,
     params,
     CTCGreedyDecoderLayerTest::getTestCaseName

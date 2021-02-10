@@ -197,7 +197,30 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             {
                 if(!tensor->isPopulated())
                 {
-                    unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
+                    // special handling for tensor 1x1, in fact switch to Clustering
+                    // TODO: support tensors less than 1x4
+                    auto tensorShape = tensor->getShape();
+                    auto W = tensorShape[mv::IO_WIDTH_DIMENSION];
+                    auto H = tensorShape[mv::IO_HEIGHT_DIMENSION];
+                    auto Z = tensorShape[mv::IO_CHANNEL_DIMENSION];
+                    if (W == 1 && H == 1) {
+                        for (unsigned i = 0; i < nWorkloads; i++)
+                        {
+                            mv::Workload subTensor;
+                            subTensor.MaxX = W;
+                            subTensor.MinX = 0;
+                            subTensor.MaxZ = Z;
+                            subTensor.MinZ = 0;
+                            subTensor.MaxY = H;
+                            subTensor.MinY = 0;
+                            subTensors.push_back(subTensor);
+                        }
+                        tensor->shareAcrossClusters(subTensors, nWorkloads);
+                        continue;
+                    }
+                    else {
+                        unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
+                    }
                 }
                 else
                     populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);

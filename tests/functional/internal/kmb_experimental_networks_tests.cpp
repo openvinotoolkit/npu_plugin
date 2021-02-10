@@ -120,8 +120,7 @@ TEST_F(KmbClassifyNetworkTest, experimental_network_0000) {
         "vpu/emotions-recognition-retail-0003.png",
         2, 0.1f);
 }
-
-TEST_F(KmbClassifyNetworkTest, DISABLED_efficient_b0_cars) {
+TEST_F(KmbClassifyNetworkTest, efficient_b0_cars) {
     runTest(
             TestNetworkDesc("efficientnet-b0-stanford-cars/caffe2/FP16-INT8/efficientnet-b0-stanford-cars.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -131,7 +130,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_efficient_b0_cars) {
             1, 0.15f);
 }
 
-TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_efficient_b0_dogs) {
+TEST_F(KmbClassifyNetworkTest, precommit_efficient_b0_dogs) {
     runTest(
             TestNetworkDesc("efficientnet-b0-stanford-dogs/caffe2/FP16-INT8/efficientnet-b0-stanford-dogs.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -141,7 +140,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_efficient_b0_dogs) {
             1, 0.15f);
 }
 
-TEST_F(KmbClassifyNetworkTest, DISABLED_efficient_b0_aircrafts) {
+TEST_F(KmbClassifyNetworkTest, efficient_b0_aircrafts) {
     runTest(
             TestNetworkDesc("efficientnet-b0-aircrafts/caffe2/FP16-INT8/efficientnet-b0-aircrafts.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -151,7 +150,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_efficient_b0_aircrafts) {
             1, 0.15f);
 }
 
-TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_cars) {
+TEST_F(KmbClassifyNetworkTest, mobilenet_v3_cars) {
     runTest(
             TestNetworkDesc("mobilenet-v3-small-stanford-cars/caffe2/FP16-INT8/mobilenet-v3-small-stanford-cars.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -160,7 +159,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_cars) {
             1, 0.15f);
 }
 
-TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_mobilenet_v3_dogs) {
+TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v3_dogs) {
     runTest(
             TestNetworkDesc("mobilenet-v3-small-stanford-dogs/caffe2/FP16-INT8/mobilenet-v3-small-stanford-dogs.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -169,7 +168,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_mobilenet_v3_dogs) {
             1, 0.15f);
 }
 
-TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_aircrafts) {
+TEST_F(KmbClassifyNetworkTest, mobilenet_v3_aircrafts) {
     runTest(
             TestNetworkDesc("mobilenet-v3-small-aircrafts/caffe2/FP16-INT8/mobilenet-v3-small-aircrafts.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
