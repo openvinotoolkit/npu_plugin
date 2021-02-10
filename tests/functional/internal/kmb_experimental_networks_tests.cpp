@@ -202,14 +202,14 @@ TEST_F(ModelAdk, ModelE) {
 }
 
 // [Track number: S#47419]
-TEST_F(SmokeNetworkTest, DISABLED_DeBlur) {
+TEST_F(SmokeNetworkTest, DeBlur_ADK) {
 #ifdef _WIN32
     SKIP() << "SEH exception";
 #endif
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
-            TestNetworkDesc("ADK3/DeBlur_INT8/DeBlur_INT8.xml", EXPERIMENTAL)
-                    .setUserInputPrecision("input", Precision::FP16)
+            TestNetworkDesc("ADK3/DeBlur_INT8/DeBlur_deepImageDeblur.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::U8)
                     .setUserOutputPrecision("output", Precision::FP16));
 }
 
