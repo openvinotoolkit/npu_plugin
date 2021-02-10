@@ -45,7 +45,7 @@ void VideoWorkloadDevice_UnitTests::SetUp() {
 
 //------------------------------------------------------------------------------
 /** video workload allocator only suitable for memory wrapping. For other case it useless */
-TEST_F(VideoWorkloadDevice_UnitTests, constructor_EmptyAllocatoParams) {
+TEST_F(VideoWorkloadDevice_UnitTests, constructor_EmptyAllocatorParams) {
     SKIP_IF_NO_DEVICE();
 
     IE::ParamMap emptyParamMap = {{}};
