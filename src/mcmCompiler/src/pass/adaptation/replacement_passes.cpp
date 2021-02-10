@@ -1490,6 +1490,11 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
         newKernel[largeDim] = factors.first;//first was the large dimension
         newKernel_1[largeDim] = factors.second;
+
+        std::array<unsigned short, 4> origPadding = opIt->get<std::array<unsigned short, 4>>("padding");
+        std::array<unsigned short, 2> origStrides = opIt->get<std::array<unsigned short, 2>>("stride");
+        std::array<unsigned short, 4> inputPadding = {0, 0, 0, 0};
+
         if (asymmetricCase)
         {
             if (asymmetricBothKernelsLarge)
@@ -1546,13 +1551,22 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                                          firstRescale, newKernel, padding, producers_quantized.first);
         else if (opIt->getOpType()== "MaxPool")
         {
+            std::array<unsigned short, 2> strides = newKernel;
+            inputPadding = padding;
+
+            if (origStrides[mv::STRIDE_WIDTH] != kSize[mv::KERNEL_WIDTH] ||
+                origStrides[mv::STRIDE_HEIGHT] != kSize[mv::KERNEL_HEIGHT]) {
+                inputPadding = origPadding;
+                strides = origStrides;
+            }
+
             auto dType = opIt->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
             auto quantParams = opIt->getOutputTensor(0)->getQuantParams();
             op0 = om.maxPool(opIt->getName() + "_MaxPool0",
                              sourceTensor,
                              newKernel,
-                             newKernel,
-                             padding,
+                             strides,
+                             inputPadding,
                              true); //exclude pad
             op0->setDType(dType);
             op0->setQuantParams(quantParams);
@@ -1601,12 +1615,24 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                                          name + "_DepthwiseConv1", secondRescale, newKernel_1, {0,0,0,0}, producers_quantized.second);
         else if (input_op0->getOpType() == "MaxPool")
         {
+            std::array<unsigned short, 2> strides = newKernel_1;
+
+            if (origStrides[mv::STRIDE_WIDTH] != kSize[mv::KERNEL_WIDTH] ||
+                origStrides[mv::STRIDE_HEIGHT] != kSize[mv::KERNEL_HEIGHT]) {
+                // in this case stride shall be taken into account and pyramid cascading does not work
+                // use expression orig_kernel = sum (k1, k2, ..., ki)
+                newKernel_1[mv::KERNEL_WIDTH]  = kSize[mv::KERNEL_WIDTH]  - newKernel[mv::KERNEL_WIDTH] + 1;
+                newKernel_1[mv::KERNEL_HEIGHT] = kSize[mv::KERNEL_HEIGHT] - newKernel[mv::KERNEL_HEIGHT] + 1;
+                strides = origStrides;
+                padding = {0,0,0,0};
+            }
+
             auto dType = input_op0->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
             auto quantParams = op0->getQuantParams();
             op1 = om.maxPool(op0->getName() + "_MaxPool1",
                              op0,
                              newKernel_1,
-                             newKernel_1,
+                             strides,
                              padding,
                              true); //exclude pad
             op1->setDType(dType);
