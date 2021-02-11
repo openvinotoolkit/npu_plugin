@@ -47,8 +47,15 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
     else
         return; // exit pass
 
+    // output ops are retained in DDR till end of network, so limit amount of DDR used
+    int32_t ddrUsed = 0;
+    int32_t ddrMax = 2097152; // 2mb
+    if (passDesc.hasAttr("max_ddr_use"))
+        ddrMax = passDesc.get<int32_t>("max_ddr_use");
+
     // add new output nodes
     int numOutputIndex = om.getNumNetworkOutputs();
+    int outputIndex = numOutputIndex;
     std::vector<std::pair<mv::Data::TensorIterator, mv::Data::OpListIterator>> newOutputs;
     for (std::string node : intermediateNodes)
     {
@@ -59,8 +66,13 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
             pass.log(mv::Logger::MessageType::Warning, "Op name '" + node + "' not found! Op not processed for output");
             continue;
         }
+        // limit amount of DDR used to ddrMax var
+        size_t tensorSize = tensor->getShape().totalSize() * tensor->getDType().getSizeInBytes();
+        ddrUsed += tensorSize;
+        if (ddrUsed > ddrMax) break;
+
         // assign an output operation to it
-        std::cout << "Additional outputs: " << node << std::endl;
+        std::cout << "output[" << outputIndex++ << "]: "<< node << std::endl;
         mv::Data::TensorIterator intermediateOutput = om.output(tensor->getName() + "_", tensor, tensor->get<mv::DType>("dType"), true);
         mv::Data::OpListIterator outputOp = om.getNetworkOutput(om.getNumNetworkOutputs() - 1);
         newOutputs.push_back(std::make_pair(tensor, outputOp));
