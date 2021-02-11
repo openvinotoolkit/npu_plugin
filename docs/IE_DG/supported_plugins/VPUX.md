@@ -30,6 +30,7 @@ The VPUX plugin accepts the following options:
 | `VPUX_THROUGHPUT_STREAMS`    | positive integer | 2 | Set the number of threads to use for model execution |
 | `KMB_THROUGHPUT_STREAMS`    | positive integer | 2 | **[Deprecated]** Set the number of threads to use for model execution |
 | `VPUX_INFERENCE_SHAVES`    | positive integer | 0 | Set the number of shaves to be used by NNCore plug-in during inference. 0 - use default value |
+| `CSRAM_SIZE`  | integer | -1 | Set the size of CSRAM in bytes |
 | `VPU_COMPILER_LOG_LEVEL`    | `LOG_LEVEL_NONE`/ `LOG_LEVEL_ERROR`/ `LOG_LEVEL_WARNING`/ `LOG_LEVEL_INFO`/ `LOG_LEVEL_TRACE` | `LOG_LEVEL_INFO` | Set log level for mcmCompiler |
 | `VPU_COMPILER_CUSTOM_LAYERS` | std::string | empty | Path to custom layer binding xml file. Custom layer has higher priority over native implementation |
 | `VPU_COMPILER_COMPILATION_DESCRIPTOR_PATH`    | string | 'mcm_config/compilation' | Path to folder with compilation config files |

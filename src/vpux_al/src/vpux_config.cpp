@@ -88,6 +88,11 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
             {VPUX_CONFIG_VALUE(RGB), IE::ColorFormat::RGB}};
     setOption(_graphColorFormat, colorFormat, config, VPUX_CONFIG_KEY(GRAPH_COLOR_FORMAT));
     setOption(_csramSize, config, VPUX_CONFIG_KEY(CSRAM_SIZE), parseInt);
+    // Set maximum possible CSRAM size to 1 Gb
+    const decltype(_csramSize) MAX_CSRAM_SIZE = 1024 * 1024 * 1024;
+    IE_ASSERT(_csramSize >= -1 && _csramSize <= MAX_CSRAM_SIZE)
+            << "VPUXConfig::parse attempt to set invalid CSRAM size in bytes: '" << _csramSize
+            << "', valid values are -1, 0 and up to 1 Gb";
     setOption(_useM2I, switches, config, VPUX_CONFIG_KEY(USE_M2I));
     setOption(_useM2I, switches, config, VPU_KMB_CONFIG_KEY(USE_M2I));
     setOption(_useSHAVE_only_M2I, switches, config, VPUX_CONFIG_KEY(USE_SHAVE_ONLY_M2I));

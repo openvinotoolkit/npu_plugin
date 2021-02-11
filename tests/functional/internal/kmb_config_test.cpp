@@ -87,6 +87,7 @@ static const std::vector<ConfigMap> baseInferConfigs = {
     { {"DEVICE_ID", "VPU-0"} },
     { {"VPUX_THROUGHPUT_STREAMS", "1" } },
     { {"VPUX_THROUGHPUT_STREAMS", "2"} },
+    { {"VPUX_CSRAM_SIZE", "-1"} },
     { {"VPUX_CSRAM_SIZE", "0"} },
     { {"VPUX_CSRAM_SIZE", "2097152"} },
     { {"VPUX_EXECUTOR_STREAMS", "1"} },

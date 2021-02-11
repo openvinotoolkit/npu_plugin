@@ -346,6 +346,13 @@ InferenceEngine::Parameter HDDL2Executor::getParameter(const std::string& paramN
 }
 
 void HDDL2Executor::loadGraphToDevice() {
+    std::unordered_map<std::string, std::string> hddlUniteConfig = {};
+    const auto csramSize = _config.CSRAMSize();
+    // HddlUnite requires CSRAM size in Kb
+    const decltype(csramSize) toKilobytes = 1024;
+    const auto csramSizeUnite = (csramSize >= 0) ? csramSize / toKilobytes : csramSize;
+    hddlUniteConfig.insert(std::make_pair("CSRAM_SIZE", std::to_string(csramSizeUnite)));
+
     // Graph hasn't been initialized yet
     if (_uniteGraphPtr == nullptr) {
         std::lock_guard<std::mutex> lock(_uniteGraphMapMutex);

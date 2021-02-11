@@ -23,10 +23,10 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
     {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(MA2490)}},
+    {{VPUX_CONFIG_KEY(CSRAM_SIZE), "2097152"}},
 
     // Private options
     {{"VPUX_GRAPH_COLOR_FORMAT", "RGB"}},
-    {{"VPUX_CSRAM_SIZE", "2097152"}},
     {{"VPUX_USE_M2I", CONFIG_VALUE(YES)}},
     {{"VPU_KMB_USE_M2I", CONFIG_VALUE(NO)}},
     {{"VPUX_USE_SIPP", CONFIG_VALUE(YES)}},
@@ -49,10 +49,10 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
     {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
     {{VPUX_CONFIG_KEY(PLATFORM), "SOME_PLATFORM"}},
+    {{VPUX_CONFIG_KEY(CSRAM_SIZE), "-3"}},
 
     // Private options
     {{"VPUX_GRAPH_COLOR_FORMAT", "NV12"}},
-    {{"VPUX_CSRAM_SIZE", "ABC-1"}},
     {{"VPUX_USE_M2I", "YEP"}},
     {{"VPU_KMB_USE_M2I", "NOP"}},
     {{"VPUX_USE_SIPP", "NOP"}},
