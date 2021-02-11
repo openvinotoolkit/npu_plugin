@@ -301,7 +301,7 @@ set(syscalls
 
 add_subdirectory(meta)
 add_subdirectory(tools)
-add_subdirectory(contrib/mcm-emulator)
+#add_subdirectory(contrib/mcm-emulator)
 
 if(TARGET mcm_emulator)
     set(EMULATOR mcm_emulator)
