@@ -10,6 +10,3 @@
 [submodule "thirdparty/llvm-project"]
 	path = thirdparty/llvm-project
 	url = ../llvm-project.git
-[submodule "mcm-emulator"]
-	path = src/mcmCompiler/contrib/mcm-emulator
-	url = ../../kmb-emulator/mcm-emulator.git
