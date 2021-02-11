@@ -29,4 +29,4 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     opencv_core opencv_imgproc opencv_imgcodecs
     gflags
     kmb_utils
-)
+    IE::ie_samples_utils)
