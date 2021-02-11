@@ -65,7 +65,9 @@ public:
      * @brief Releases current allocated object and all related resources.
      * Once this method is called, the pointer to this interface is no longer valid
      */
-    void Release() noexcept override {}
+    void Release() noexcept override {
+        delete this;
+    }
 
     // TODO: need update methods to remove Kmb from parameters
     void* wrapRemoteMemoryHandle(const int&, const size_t, void*) noexcept override { return 0; }
@@ -74,11 +76,17 @@ public:
     // FIXME: temporary exposed to allow executor to use vpux::Allocator
     unsigned long getPhysicalAddress(void* handle) noexcept override { return 0; }
 
+    static bool isZeroPtr(const void*);
+	
+protected:
     ZeroAllocator(const ZeroAllocator&) = default;
     ZeroAllocator& operator=(const ZeroAllocator&) = default;
-    ~ZeroAllocator() = default;
 
-    static bool isZeroPtr(const void*);
+    /**
+     * @brief Disables the ability of deleting the object without release.
+     */
+    ~ZeroAllocator() override = default;
+
 };
 
 }  // namespace vpux
