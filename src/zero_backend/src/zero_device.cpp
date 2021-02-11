@@ -22,7 +22,7 @@
 using namespace vpux;
 
 std::shared_ptr<Allocator> ZeroDevice::getAllocator() const {
-    std::shared_ptr<Allocator> result = std::make_shared<ZeroAllocator>(_driver_handle);
+    std::shared_ptr<Allocator> result = InferenceEngine::details::shared_from_irelease(new ZeroAllocator(_driver_handle));
     return result;
 }
 
