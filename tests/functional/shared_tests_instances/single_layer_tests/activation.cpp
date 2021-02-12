@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-
+namespace {
 std::set<ngraph::helpers::ActivationTypes> supportedTypesMCM {
     ngraph::helpers::Relu,
     ngraph::helpers::Sigmoid,
@@ -31,6 +31,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::PReLu,
     ngraph::helpers::LeakyRelu
 };
+} // namespace
 
 class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {

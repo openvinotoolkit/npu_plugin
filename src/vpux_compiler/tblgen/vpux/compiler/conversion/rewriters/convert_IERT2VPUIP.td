@@ -310,4 +310,66 @@ def RewriteDequantize :
             (createQuantCastUPAOp $input, $output)
         >;
 
+//
+// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max]Pool -> VPUIP.EltwiseUPA
+//
+
+class createEltwiseUPAOp<string method> :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::EltwiseUPAOp>(
+                $_loc, $0, $1, $2,
+                vpux::VPUIP::EltwiseLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::EltwiseLayerType::}] # method # [{
+                ))
+        }]>;
+
+def RewriteAdd :
+        Pat<
+            (IERT_AddOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"ADD"> $input1, $input2, $output)
+        >;
+
+def RewriteMultiply :
+        Pat<
+            (IERT_MultiplyOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"MULTIPLY"> $input1, $input2, $output)
+        >;
+
+def RewriteDivide :
+        Pat<
+            (IERT_DivideOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"DIVIDE"> $input1, $input2, $output)
+        >;
+
+def RewriteSquaredDiff :
+        Pat<
+            (IERT_SquaredDiffOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"SQUARED_DIFF"> $input1, $input2, $output)
+        >;
+
+def RewritePower :
+        Pat<
+            (IERT_PowerOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"POWER"> $input1, $input2, $output)
+        >;
+
+def RewriteFloorMod :
+        Pat<
+            (IERT_FloorModOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"FLOOR_MOD"> $input1, $input2, $output)
+        >;
+
+def RewriteMinimum :
+        Pat<
+            (IERT_MinimumOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"MIN"> $input1, $input2, $output)
+        >;
+
+def RewriteMaximum :
+        Pat<
+            (IERT_MaximumOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"MAX"> $input1, $input2, $output)
+        >;
+
 #endif

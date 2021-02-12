@@ -445,12 +445,32 @@ def LeakyReluLayerInterface : OpInterface<"LeakyReluLayerInterface"> {
         InterfaceMethod<
             "Get the source Value for the Operation",
             "float", "getNegativeSlope", (ins),
-	    [{}],
+            [{}],
             [{
                 return $_op.negative_slope().convertToFloat();
             }]
         >,
     ];
+}
+
+//
+// EltwiseLayerInterface
+//
+
+def EltwiseLayerInterface : OpInterface<"EltwiseLayerInterface"> {
+    let description = "Interface for ltwise Layer";
+
+    let cppNamespace = "vpux";
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {$_op.input1(), $_op.input2()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
 }
 
 #endif

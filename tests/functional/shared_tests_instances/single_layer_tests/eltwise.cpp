@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,43 @@
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
+namespace {
+std::set<ngraph::helpers::EltwiseTypes> supportedTypesMCM {
+    ngraph::helpers::EltwiseTypes::ADD,
+    ngraph::helpers::EltwiseTypes::MULTIPLY
+};
+
+std::set<ngraph::helpers::EltwiseTypes> supportedTypesMLIR {
+    ngraph::helpers::EltwiseTypes::ADD,
+    ngraph::helpers::EltwiseTypes::MULTIPLY,
+    ngraph::helpers::EltwiseTypes::DIVIDE,
+    ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+    ngraph::helpers::EltwiseTypes::POWER,
+    ngraph::helpers::EltwiseTypes::FLOOR_MOD
+};
+} // namespace
 
 class KmbEltwiseLayerTest: public EltwiseLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-            throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+        ngraph::helpers::EltwiseTypes eltwiseOp;
+        std::tie(std::ignore,
+                 eltwiseOp, std::ignore, std::ignore, std::ignore,
+                 std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) = GetParam();
+
+        if (isCompilerMCM()) {
+            if (supportedTypesMCM.find(eltwiseOp) ==
+                supportedTypesMCM.end()) {
+                throw LayerTestsUtils::KmbSkipTestException("Unsupported eltwise type in MCM compiler");
+            }
+
+            if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+                throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+            }
+        } else {
+            if (supportedTypesMLIR.find(eltwiseOp) ==
+                supportedTypesMLIR.end()) {
+                throw LayerTestsUtils::KmbSkipTestException("Experimental compiler doesn't supports this eltwise operation yet");
+            }
         }
     }
 };
@@ -20,6 +52,12 @@ class KmbEltwiseLayerTest: public EltwiseLayerTest, virtual public LayerTestsUti
 TEST_P(KmbEltwiseLayerTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(KmbEltwiseLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -55,9 +93,12 @@ std::vector<CommonTestUtils::OpType> opTypes = {
 };
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
+    ngraph::helpers::EltwiseTypes::ADD,
     ngraph::helpers::EltwiseTypes::MULTIPLY,
-    ngraph::helpers::EltwiseTypes::SUBTRACT,
-    ngraph::helpers::EltwiseTypes::ADD
+    ngraph::helpers::EltwiseTypes::DIVIDE,
+    ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+    ngraph::helpers::EltwiseTypes::POWER,
+    ngraph::helpers::EltwiseTypes::FLOOR_MOD
 };
 
 std::map<std::string, std::string> additional_config = {};

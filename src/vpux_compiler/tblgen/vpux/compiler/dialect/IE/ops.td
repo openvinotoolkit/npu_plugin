@@ -344,7 +344,9 @@ def IE_PowerOp :
         IE_LayerOp<
             "Power",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
             ]
         > {
     let summary = "InferenceEngine Power layer";
@@ -369,10 +371,93 @@ def IE_AddOp :
         IE_LayerOp<
             "Add",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
             ]
         > {
     let summary = "InferenceEngine Add layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// DivideOp
+//
+
+def IE_DivideOp :
+        IE_LayerOp<
+            "Divide",
+            [
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine Divide layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// SquaredDiffOp
+//
+
+def IE_SquaredDifferenceOp :
+        IE_LayerOp<
+            "SquaredDiff",
+            [
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine SquaredDiff layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// FloorModOp
+//
+
+def IE_FloorModOp :
+        IE_LayerOp<
+            "FloorMod",
+            [
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine FloorMod layer";
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input1,
@@ -394,7 +479,9 @@ def IE_MultiplyOp :
         IE_LayerOp<
             "Multiply",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
             ]
         > {
     let summary = "InferenceEngine Multiply layer";
@@ -804,7 +891,12 @@ def IE_UnsqueezeOp :
 
 def IE_MinimumOp :
         IE_LayerOp<
-            "Minimum"
+            "Minimum",
+            [
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
         > {
     let summary = "InferenceEngine Minimum layer";
 
@@ -826,7 +918,12 @@ def IE_MinimumOp :
 
 def IE_MaximumOp :
         IE_LayerOp<
-            "Maximum"
+            "Maximum",
+            [
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
         > {
     let summary = "InferenceEngine Maximum layer";
 
@@ -893,7 +990,7 @@ def IE_MatMulOp:
                 ResultsAreFloatLike
             ]
         > {
-    let summary = "InferenceEngine Power layer";
+    let summary = "InferenceEngine MatMul layer";
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input1,

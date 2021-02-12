@@ -184,4 +184,26 @@ def VPUIP_PoolLayerType :
     let cppNamespace = "vpux::VPUIP";
 }
 
+//
+// EltwiseLayerType
+//
+
+def VPUIP_EltwiseLayerType :
+        StrEnumAttr<
+            "EltwiseLayerType",
+            "Type of Eltwise layer",
+            [
+                StrEnumAttrCase<"ADD">,
+                StrEnumAttrCase<"MULTIPLY">,
+                StrEnumAttrCase<"DIVIDE">,
+                StrEnumAttrCase<"SQUARED_DIFF">,
+                StrEnumAttrCase<"POWER">,
+                StrEnumAttrCase<"FLOOR_MOD">,
+                StrEnumAttrCase<"MIN">,
+                StrEnumAttrCase<"MAX">,
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+}
+
 #endif
