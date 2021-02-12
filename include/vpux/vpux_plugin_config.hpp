@@ -102,5 +102,13 @@ DECLARE_KMB_CONFIG_KEY(THROUGHPUT_STREAMS);
  */
 DECLARE_VPUX_CONFIG_KEY(INFERENCE_SHAVES);
 
+/**
+ * Type: Arbitrary string. Default is "-1".
+ * This option allows to specify CSRAM size in bytes
+ * When the size is -1, low-level SW is responsible for determining the required amount of CSRAM
+ * When the size is 0, CSRAM isn't used
+ */
+DECLARE_VPUX_CONFIG_KEY(CSRAM_SIZE);
+
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

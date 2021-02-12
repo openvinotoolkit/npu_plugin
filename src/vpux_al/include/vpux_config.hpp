@@ -48,7 +48,7 @@ public:
     InferenceEngine::ColorFormat graphColorFormat() const {
         return _graphColorFormat;
     }
-    uint64_t CSRAMSize() const {
+    int32_t CSRAMSize() const {
         return _csramSize;
     }
     bool useM2I() const {
@@ -90,10 +90,10 @@ protected:
     int _throughputStreams = 2;
     int _numberOfNnCoreShaves = 0;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
+    int32_t _csramSize = -1;
 
     // Private options
     InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;
-    uint64_t _csramSize = 0;
     // FIXME: Likely has to be true by default as well.
     // NB.: Currently applies to the detection use-case only
     bool _useM2I = false;
