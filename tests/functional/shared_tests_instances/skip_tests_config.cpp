@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,9 +25,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // [Track number: S#42749]
         ".*KmbSqueezeUnsqueezeLayerTest\\.BasicTest.*",
-
-        // [Track number: S#43484]
-        ".*KmbMaxMinLayerTest.*",
 
         // [Track number: s#47412]
         ".*IEClassGetConfigTest_ThrowUnsupported\\.GetConfigThrow.*",

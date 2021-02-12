@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@ namespace LayerTestsDefinitions {
 
 class KmbMaxMinLayerTest: public MaxMinLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-            throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+        if (isCompilerMCM()) {
+            throw LayerTestsUtils::KmbSkipTestException("Unsupported operation in MCM compiler [Track number: S#43484]");
         }
     }
 };
@@ -22,6 +22,12 @@ class KmbMaxMinLayerTest: public MaxMinLayerTest, virtual public LayerTestsUtils
 TEST_P(KmbMaxMinLayerTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(KmbMaxMinLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;

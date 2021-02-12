@@ -18,6 +18,7 @@
 #define VPUX_COMPILER_DIALECT_IERT_OPS
 
 include "vpux/compiler/core/ops_interfaces.td"
+include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
 include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 
@@ -633,7 +634,7 @@ def IERT_PReluOp :
             "PRelu",
             [
                 SameOperandsElementType,
-                    DeclareOpInterfaceMethods<PReluLayerInterface>,
+                DeclareOpInterfaceMethods<PReluLayerInterface>,
                 DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
@@ -641,7 +642,7 @@ def IERT_PReluOp :
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
-	MemRefOf<[F16, F32]>:$negative_slope,
+        MemRefOf<[F16, F32]>:$negative_slope,
         MemRefOf<[F16, F32]>:$output
     );
 }
@@ -668,6 +669,182 @@ def IERT_LeakyReluOp :
         MemRefOf<[F16, F32]>:$output,
 
         F32Attr:$negative_slope
+    );
+}
+
+//
+// AddOp
+//
+
+def IERT_AddOp :
+        IERT_LayerOp<
+            "Add",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Add layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
+// MultiplyOp
+//
+
+def IERT_MultiplyOp :
+        IERT_LayerOp<
+            "Multiply",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Multiply layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
+// DivideOp
+//
+
+def IERT_DivideOp :
+        IERT_LayerOp<
+            "Divide",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Divide layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
+// SquaredDiffOp
+//
+
+def IERT_SquaredDiffOp :
+        IERT_LayerOp<
+            "SquaredDiff",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time SquaredDiff layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
+// PowerOp
+//
+
+def IERT_PowerOp :
+        IERT_LayerOp<
+            "Power",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Power layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
+// FloorModOp
+//
+
+def IERT_FloorModOp :
+        IERT_LayerOp<
+            "FloorMod",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time FloorMod layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
+// MinimumOp
+//
+
+def IERT_MinimumOp :
+        IERT_LayerOp<
+            "Minimum",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Minimum layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
+//
+// MaximumOp
+//
+
+def IERT_MaximumOp :
+        IERT_LayerOp<
+            "Maximum",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Maximum layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output
     );
 }
 
