@@ -210,7 +210,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 dpuTask->get<bool>("activationSparsityCompilerSolving"))
             {
                 std::vector<mv::Data::TensorIterator> activationTensors;
-                if (dpuTask->get<std::string>("taskOp") == "Conv")
+                if (dpuTask->get<std::string>("taskOp") == "Conv" || taskOp == "HwConvert")
                 {
                     activationTensors.push_back(dpuTask->getInputTensor(0));
                 }

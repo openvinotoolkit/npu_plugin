@@ -55,7 +55,7 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-    auto opsMap = om.getOpsOfTypes({"Conv", "Eltwise"});
+    auto opsMap = om.getOpsOfTypes({"Conv", "Eltwise", "HwConvert"});
 
     if (model.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")) {
         // Trim out channel major convolutions
@@ -104,7 +104,12 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
     }
 
     // Decide wheter eltwise sparsity is runtime or compiler solved
-    for (auto eltwiseOp : opsMap["Eltwise"])
+    // Include also HwConvert ops as those are Eltwise underneath
+    auto eltwiseOps = opsMap["Eltwise"];
+    auto hwConvertOps = opsMap["HwConvert"];
+    eltwiseOps.insert(eltwiseOps.end(), hwConvertOps.begin(), hwConvertOps.end());
+
+    for (auto& eltwiseOp : eltwiseOps)
     {
         auto parentOutputSparsity = true;
         for(auto parentOp = eltwiseOp.leftmostParent();

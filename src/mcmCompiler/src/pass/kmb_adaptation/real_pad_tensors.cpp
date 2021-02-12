@@ -64,7 +64,7 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
     if(opType == "Conv")
         sink->set<bool>("alignment", true);
 
-    if (opType == "Eltwise" ||
+    if (opType == "Eltwise" || opType == "HwConvert" ||
         opType == "DepthwiseConv" || opType == "MaxPool")
     {
         auto inputTensor = flow->getTensor();
@@ -355,7 +355,7 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
         auto opIt = *vecIt;
         auto taskOp = opIt->get<std::string>("taskOp");
         if(taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "MaxPool" ||
-            taskOp == "Eltwise" ||
+            taskOp == "Eltwise" || taskOp == "HwConvert" ||
             (taskOp == "ChannelMajorConvolution" && td.getTarget() == mv::Target::ma3720)) //channel major as zmajor in MTL
         {
             auto numInputs = 1;

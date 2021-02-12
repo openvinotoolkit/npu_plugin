@@ -350,7 +350,7 @@ bool mv::Op::isUPA() const
 bool mv::Op::isSparsityConsumer() const
 {
     bool isSparseConsumerOp = false;
-    const std::vector<std::string> sparseConsumers = {"Conv", "Eltwise"};
+    const std::vector<std::string> sparseConsumers = {"Conv", "Eltwise", "HwConvert"};
 
     auto opType = getOpType();
     if (std::count(sparseConsumers.cbegin(), sparseConsumers.cend(), opType))
@@ -378,7 +378,7 @@ bool mv::Op::isHardwarizable() const
 {
     bool isHardwarizableOp = false;
     std::vector<std::string> hardwarizableTypes =
-        {"Conv", "Eltwise", "DepthwiseConv", "MaxPool"};
+        {"Conv", "Eltwise", "DepthwiseConv", "MaxPool", "HwConvert"};
 
     auto opType = getOpType();
     if (std::count(hardwarizableTypes.cbegin(), hardwarizableTypes.cend(), opType))

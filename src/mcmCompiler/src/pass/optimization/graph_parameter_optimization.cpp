@@ -1268,7 +1268,7 @@ namespace mv
                 std::array<unsigned short, 4> kernel = {1,1,1,1};//for non conv IN OUT CHANNEL dims = 1
                 if (op.hasAttr("kSize"))
                 {
-                    if (op.getOpType() == "MaxPool" || op.getOpType() == "Eltwise")
+                    if (op.getOpType() == "MaxPool" || op.getOpType() == "Eltwise" || op.getOpType() == "HwConvert")
                     {
                         kernel[mv::KERNEL_WIDTH] = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_WIDTH];
                         kernel[mv::KERNEL_HEIGHT] = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
@@ -2006,7 +2006,7 @@ namespace mv
 
                 size_t baseKernelCost;
 
-                if ((opType == "Eltwise" && !(software)) || (opType == "Concat"))
+                if ((opType == "Eltwise" && !(software)) || (opType == "Concat") || (opType == "HwConvert"))
                 {
                     baseKernelCost = 1;
                 }

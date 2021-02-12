@@ -80,6 +80,15 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY(KmbOptLayerInitEltwise)
     .registerSet("weightsSparsity").insert(false)
     .registerSet("pipelining").insert(false);
 
+MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY(KmbOptLayerInitHwConvert)
+    .enter("HwConvert")
+    .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH"})
+    .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","HKSwitch"})
+    .registerSet("inputActivationSparsity").insert(true)
+    .registerSet("outputActivationSparsity").insert(true)
+    .registerSet("weightsSparsity").insert(false)
+    .registerSet("pipelining").insert(false);
+
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY(KmbOptLayerInitConcat)
     .enter("Concat")
     .registerSet("streamingStrategies").insert(vector<string>(0))

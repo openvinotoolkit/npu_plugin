@@ -185,7 +185,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
             if((inputDType != outputDType) && outputDType != mv::DType("Int32") &&
                 opIt->isHardwarizable() &&
-                opIt->get<std::string>("taskOp") != "Eltwise" &&
+                taskOp != "Eltwise" && taskOp != "HwConvert" &&
                 (target == mv::Target::ma2490 || target == mv::Target::ma3100)) //TBH is based on KMB-B0
                 mixedPrecisionA0B0WorkAround = true;
 
@@ -346,8 +346,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                 }
                             }
                         }
-                        /*Eltwise ops are performed by the PPE, which does not support Z-Tiling*/
-                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Eltwise"
+                        /*Eltwise ops (includine HwConvert) are performed by the PPE, which does not support Z-Tiling*/
+                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Eltwise" && opIt->get<std::string>("taskOp") != "HwConvert"
                             && !depthWiseSOHA0Workaround)
                         {
                             /*Create workload instance*/

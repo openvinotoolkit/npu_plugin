@@ -110,6 +110,33 @@ mv::Data::TensorIterator convertEltwiseToTask(mv::OpModel& om, const std::vector
     return eltwiseTask;
 }
 
+mv::Data::TensorIterator convertHwConvertToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software,
+                                const mv::QuantizationParams& quantParams,
+                                const mv::DType& outputTensorType,
+                                const mv::Order& outputTensorOrder)
+{
+    const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
+    const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
+
+    auto dpuHwConvert = om.dPUTaskHwConvert(mv::createDPUTaskName(name), inputs, attrs.at("dType").get<mv::DType>());
+    dpuHwConvert->setDType(outputTensorType);
+    dpuHwConvert->setQuantParams(quantParams);
+    dpuHwConvert->setOrder(outputTensorOrder);
+    auto dpuHwConvertOp = om.getSourceOp(dpuHwConvert);
+    dpuHwConvertOp->set<std::array<unsigned short, 2>>("kSize", FAKE_KERNEL);
+    dpuHwConvertOp->set<std::array<unsigned short, 2>>("stride", FAKE_STRIDE);
+    dpuHwConvertOp->set<bool>("hasWeights", false);
+
+    std::vector<std::string> postOps;
+    if(attrs.find("postOpTypes") != attrs.end())
+        postOps = attrs.at("postOpTypes").get<std::vector<std::string>>();
+    postOps.push_back("And"); // HwConvert by runtime_model will be converted to Eltwise And operation
+    dpuHwConvertOp->set<std::vector<std::string>>("postOpTypes", postOps);
+
+    return dpuHwConvert;
+}
+
 mv::Data::TensorIterator convertLReluToUPATask(mv::OpModel& om,
                                                const std::vector<mv::Data::TensorIterator>& inputs,
                                                const std::map<std::string, mv::Attribute>& attrs,
@@ -1210,7 +1237,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     mv::ControlModel cm(model);
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     //Note: Eltwise might be UPA might be DPU task...
-    std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise", "LeakyRelu"};
+    std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise", "HwConvert", "LeakyRelu"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
@@ -1231,6 +1258,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     {"DepthwiseConv", convertDepthwiseConvolutionToDPUTask},
     {"MaxPool", convertMaxPoolToDPUTask},
     {"Eltwise", convertEltwiseToTask},
+    {"HwConvert", convertHwConvertToDPUTask},
     {"LeakyRelu", convertLReluToUPATask},
     {"Identity", convertIdentityToUPATask},
     {"Softmax", convertSoftmaxToUPATask},

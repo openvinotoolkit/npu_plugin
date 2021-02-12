@@ -132,7 +132,7 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& m
     }
     };
 
-    std::vector<std::string> fusableBaseOpTypes = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise"};
+    std::vector<std::string> fusableBaseOpTypes = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise", "HwConvert"};
     auto fusableBaseOps = model.getOpsOfTypes(fusableBaseOpTypes);
 
     for (auto opType : fusableBaseOpTypes)

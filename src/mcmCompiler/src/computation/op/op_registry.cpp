@@ -1145,6 +1145,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/elu.cpp"
 #include    "src/computation/op/def/flatten.cpp"
 #include    "src/computation/op/def/fully_connected.cpp"
+#include    "src/computation/op/def/hw_convert.cpp"
 #include    "src/computation/op/def/identity.cpp"
 #include    "src/computation/op/def/input.cpp"
 #include    "src/computation/op/def/leaky_relu.cpp"

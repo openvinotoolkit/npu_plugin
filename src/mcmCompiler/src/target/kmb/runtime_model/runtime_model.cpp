@@ -76,6 +76,7 @@ const std::unordered_map<std::string, MVCNN::DPULayerType> mv::RuntimeModel::dpu
     {"AveragePool",MVCNN::DPULayerType::DPULayerType_AVEPOOL},
     {"FullyConnected",MVCNN::DPULayerType::DPULayerType_FCL},
     {"Eltwise",MVCNN::DPULayerType::DPULayerType_ELTWISE},
+    {"HwConvert",MVCNN::DPULayerType::DPULayerType_ELTWISE},
     {"Identity",MVCNN::DPULayerType::DPULayerType_IDENTITY},
     {"ChannelMajorConvolution",MVCNN::DPULayerType::DPULayerType_CMCONV}
 };
@@ -1886,6 +1887,30 @@ void mv::RuntimeModel::adaptFakeSparsityIndex(
                         ->getSubTensor(clusterId)
                         .getAddress();
             }
+        },
+        {
+            "HwConvert",
+            [seTensorIdx, smTensorIdx, clusterId](
+                    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv1,
+                    Control::OpListIterator opIt1) {
+                inv1->input_data->data->storage_element_index =
+                    opIt1->getInputTensor(seTensorIdx[0])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+                inv1->weights_data->data->storage_element_index =
+                    opIt1->getInputTensor(seTensorIdx[0])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+
+                inv1->input_data->data->sparsity_index =
+                    opIt1->getInputTensor(smTensorIdx[0])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+                inv1->weights_data->data->sparsity_index =
+                    opIt1->getInputTensor(smTensorIdx[0])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+            }
         }
     };
 
@@ -1941,6 +1966,25 @@ void mv::RuntimeModel::adaptFakeSparsityIndex(
                     opIt1->getInputTensor(smTensorIdx[1])
                         ->getAddress();
 
+            }
+        },
+        {
+            "HwConvert",
+            [seTensorIdx, smTensorIdx](std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv1,
+                     Control::OpListIterator opIt1) {
+                inv1->input_data->data->storage_element_index =
+                    opIt1->getInputTensor(seTensorIdx[0])
+                        ->getAddress();
+                inv1->weights_data->data->storage_element_index =
+                    opIt1->getInputTensor(seTensorIdx[0])
+                        ->getAddress();
+
+                inv1->input_data->data->sparsity_index =
+                    opIt1->getInputTensor(smTensorIdx[0])
+                        ->getAddress();
+                inv1->weights_data->data->sparsity_index =
+                    opIt1->getInputTensor(smTensorIdx[0])
+                        ->getAddress();
             }
         }
     };
@@ -2028,7 +2072,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 {
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
 
-    toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
+    auto taskOp = opIt->get<std::string>("taskOp");
+    toBuild->dpu_task_type = convertTaskOp(taskOp);
 
     if(opIt->hasAttr("PPETask"))
         toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt);
@@ -2096,7 +2141,11 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         case MVCNN::DPULayerType_FCL:
         case MVCNN::DPULayerType_ELTWISE:
             //std::unique_ptr<TensorReferenceT> parent_weights_tensor;
-            toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1));
+            if (taskOp == "HwConvert")
+                // HwConvert underneath is Eltwise with weight_data = input_data
+                toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
+            else
+                toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1));
             break;
         default:
             break;
@@ -2136,8 +2185,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 {
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
 
-
-    toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
+    auto taskOp = opIt->get<std::string>("taskOp");
+    toBuild->dpu_task_type = convertTaskOp(taskOp);
 
     if(opIt->hasAttr("PPETask"))
         toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt);
@@ -2278,7 +2327,11 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         case MVCNN::DPULayerType_CMCONV:
         case MVCNN::DPULayerType_FCL:
         case MVCNN::DPULayerType_ELTWISE:
-            toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1), clusterId);
+            if (taskOp == "HwConvert")
+                // HwConvert underneath is Eltwise with weight_data = input_data
+                toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
+            else
+                toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1), clusterId);
             break;
         default:
             break;
@@ -2360,7 +2413,8 @@ std::array<unsigned short, 4> mv::RuntimeModel::getNewPadding(std::array<unsigne
 
 void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId, const std::string strategy)
 {
-    if (opIt->get<std::string>("taskOp") == "Eltwise")
+    auto taskOp = opIt->get<std::string>("taskOp");
+    if (taskOp == "Eltwise" || taskOp == "HwConvert")
     {
         workload.padLeft = 0;
         workload.padTop = 0;
@@ -2512,7 +2566,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             if (opIt->get<std::string>("taskOp") != "MaxPool")
                 toBuild->invariant->weights_data->locale_index = locale_index;
 
-            if (opIt->get<std::string>("taskOp") != "Eltwise")
+            if (opIt->get<std::string>("taskOp") != "Eltwise" && opIt->get<std::string>("taskOp") != "HwConvert")
                 toBuild->invariant->weights_table->locale_index = locale_index;
 
             if(opIt->hasAttr("fakeSparsity"))

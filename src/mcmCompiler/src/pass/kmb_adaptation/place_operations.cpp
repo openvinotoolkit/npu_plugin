@@ -6,7 +6,7 @@
 #include <numeric>
 #include <cmath>
 
-void placeEltwiseDequantize(mv::OpModel & om, mv::Data::OpListIterator task);
+void placeHwDequantize(mv::OpModel & om, mv::Data::OpListIterator task);
 static void placementOfOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void placeNeutralMaxPoolBefore(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::Element &);
 
@@ -112,7 +112,7 @@ std::vector<mv::Data::OpListIterator> findNonImplicitConsumerOps(mv::DataModel& 
     return consumerOps;
 }
 
-void placeInputEltwiseDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpListIterator& opIt)
+void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpListIterator& opIt)
 {
     auto allConsumersNeedFloat = [&dm](const mv::Data::TensorIterator& tensor) {
         const auto consumerOps = findNonImplicitConsumerOps(dm, tensor);
@@ -141,24 +141,17 @@ void placeInputEltwiseDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::O
             ++inputFlow;
         }
 
-        const auto quantParams = inputTensor->getQuantParams();
-        auto neutralCopy = om.copy(opIt->getName() + "_Neutral_" + std::to_string(i), inputTensor);
-        neutralCopy->setQuantParams(quantParams);
-        auto neutralCopyOp = om.getSourceOp(neutralCopy);
-        neutralCopyOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+        auto quantParams = inputTensor->getQuantParams();
 
-        const std::vector<mv::Data::TensorIterator> andInputs = {inputTensor, neutralCopy};
-        auto dequantize = om.eltwise(opIt->getName() + "_AND_Conversion_" + std::to_string(i), andInputs, "And");
-        dequantize->setDType(mv::DType("Float16"));
-        dequantize->setQuantParams(mv::QuantizationParams::initial());
+        auto placeHwConvert = om.hwConvert(opIt->getName() + "_dequantize" + std::to_string(i), inputTensor, mv::DType("Float16"));
 
-        auto dequantizeOp = om.getSourceOp(dequantize);
-        dequantizeOp->set<bool>("mixedToFloat", true);
-        dequantizeOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+        auto placeHwConvertOp = om.getSourceOp(placeHwConvert);
+        placeHwConvertOp->set<bool>("mixedToFloat", true);
+        placeHwConvertOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 
         om.undefineFlow(inputFlow);
-        opIt->setInputTensor(dequantize, i, false);
-        om.defineFlow(dequantize, opIt, i);
+        opIt->setInputTensor(placeHwConvert, i, false);
+        om.defineFlow(placeHwConvert, opIt, i);
     }
 }
 
@@ -222,7 +215,7 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
             if (opIt->getInputTensor(0)->getDType() == mv::DType("BFloat16") || opIt->getOutputTensor(0)->getDType() == mv::DType("BFloat16"))
                 targetDType = mv::DType("BFloat16");
 
-            placeInputEltwiseDequantize(om, dm, opIt);
+            placeInputHwDequantize(om, dm, opIt);
             placeOutputQuantize(om, dm, opIt);
 
             opIt->set<bool>("floatPrecision", true);

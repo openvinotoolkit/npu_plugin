@@ -41,7 +41,7 @@ namespace mv
         .setOutputDef(op_dpu::outputDefFcn)
         .setTypeTrait({"executable"})
         .setVariableInputNum(true)
-        .setBaseOperation({"Conv", "MaxPool", "DepthwiseConv", "Eltwise"})
+        .setBaseOperation({"Conv", "MaxPool", "DepthwiseConv", "Eltwise", "HwConvert"})
         .setExtraInputs(true);
     }
 
