@@ -13,6 +13,10 @@
 #include <ios>
 #include <string>
 #include <map>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <libssh/sftp.h>
 
 /**
  * Required environmental variables
@@ -45,6 +49,261 @@ const std::string FILE_CPU_INPUT_NHWC_BGR   = "input_cpu_nhwc_bgr.bin";
 const std::string FILE_BLOB_NAME        = "mcm.blob";
 const std::string TEST_RUNTIME          = "application/demo/InferenceManagerDemo";
 
+std::string getEnvVarDefault(const std::string& varName, const std::string& defaultValue)
+{
+    const char* value = getenv(varName.c_str());
+    return value ? value : defaultValue;
+}
+
+void free_channel(ssh_channel channel) {
+    ssh_channel_send_eof(channel);
+    ssh_channel_close(channel);
+    ssh_channel_free(channel);
+}
+
+void free_session(ssh_session session) {
+    ssh_disconnect(session);
+    ssh_free(session);
+}
+
+void error(ssh_session session) {
+    fprintf(stderr, "Error: %s\n", ssh_get_error(session));
+    free_session(session);
+    exit(-1);
+}
+
+int scp_receive(ssh_session session, ssh_scp scp, std::string outputFile)
+{
+  int rc;
+  int size, mode;
+  char *filename, *buffer;
+
+  rc = ssh_scp_pull_request(scp);
+  if (rc != SSH_SCP_REQUEST_NEWFILE)
+  {
+    fprintf(stderr, "Error receiving information about file: %s\n",
+            ssh_get_error(session));
+    return SSH_ERROR;
+  }
+
+  size = ssh_scp_request_get_size(scp);
+  filename = strdup(ssh_scp_request_get_filename(scp));
+  mode = ssh_scp_request_get_permissions(scp);
+  printf("Receiving file %s, size %d, permisssions 0%o\n",
+          filename, size, mode);
+  free(filename);
+
+  buffer = (char*)malloc(size);
+  if (buffer == NULL)
+  {
+    fprintf(stderr, "Memory allocation error\n");
+    return SSH_ERROR;
+  }
+
+  ssh_scp_accept_request(scp);
+  int r = 0;
+  while (r < size) {
+      int st = ssh_scp_read(scp, buffer + r, size - r);
+      r += st;
+  }
+  if (rc == SSH_ERROR)
+  {
+    fprintf(stderr, "Error receiving file data: %s\n",
+            ssh_get_error(session));
+    free(buffer);
+    return rc;
+  }
+
+  int filedesc = open(outputFile.c_str(), O_WRONLY | O_CREAT, 0666);
+
+  if (filedesc < 0) {
+    return -1;
+  }
+
+  write(filedesc, buffer, size);
+  free(buffer);
+
+  close(filedesc);
+
+  rc = ssh_scp_pull_request(scp);
+  if (rc != SSH_SCP_REQUEST_EOF)
+  {
+    fprintf(stderr, "Unexpected request: %s\n",
+            ssh_get_error(session));
+    return SSH_ERROR;
+  }
+
+  return SSH_OK;
+}
+
+int doInferenceWithSimpleNNOnly()
+{
+    // Create SSH session
+        ssh_session session;
+        ssh_channel channel;
+        int rc, port = 22;
+        char buffer[1024];
+        unsigned int nbytes;
+        int verbosity = SSH_LOG_PROTOCOL;
+
+        printf("Session...\n");
+        session = ssh_new();
+        if (session == NULL)
+            exit(-1);
+
+        ssh_options_set(session, SSH_OPTIONS_HOST, FLAGS_k.c_str());
+        // ssh_options_set(session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
+        ssh_options_set(session, SSH_OPTIONS_PORT, &port);
+        ssh_options_set(session, SSH_OPTIONS_USER, "root");
+
+        printf("Connecting...\n");
+        rc = ssh_connect(session);
+        if (rc != SSH_OK)
+            error(session);
+
+        printf("Password Autentication...\n");
+        rc = ssh_userauth_password(session, NULL, "root");
+        if (rc != SSH_AUTH_SUCCESS)
+            error(session);
+
+        printf("Channel...\n");
+        channel = ssh_channel_new(session);
+        if (channel == NULL)
+            exit(-1);
+
+        printf("Opening...\n");
+        rc = ssh_channel_open_session(channel);
+        if (rc != SSH_OK)
+            error(session);
+
+        // SFTP input-0.bin and test.blob to th EVM
+        sftp_session sftp0;
+        sftp_session sftp1;
+
+        // Open two SFTP sessions
+        sftp0 = sftp_new(session);
+        sftp1 = sftp_new(session);
+
+        if (sftp0 == NULL) {
+            fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(session));
+            return SSH_ERROR;
+        }
+        // Initialize the SFTP session
+        rc = sftp_init(sftp0);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "Error initializing SFTP session: %s.\n", sftp_get_error(sftp0));
+            sftp_free(sftp0);
+            return rc;
+        }
+
+        if (sftp1 == NULL) {
+            fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(session));
+            return SSH_ERROR;
+        }
+        // Initialize the SFTP session
+        rc = sftp_init(sftp1);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "Error initializing SFTP session: %s.\n", sftp_get_error(sftp1));
+            sftp_free(sftp1);
+            return rc;
+        }
+
+        // Open the test.blob file on the remote side
+        sftp_file file0;
+        sftp_file file1;
+
+        file0 = sftp_open(sftp0, "/opt/test.blob", O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+        if (file0 == NULL) {
+            fprintf(stderr, "Can't open test.blob for writing: %s\n", ssh_get_error(session));
+            return SSH_ERROR;
+        }
+
+        file1 = sftp_open(sftp1, "/opt/input-0.bin", O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+        if (file1 == NULL) {
+            fprintf(stderr, "Can't open input-0.bin for writing: %s\n", ssh_get_error(session));
+            return SSH_ERROR;
+        }
+
+        std::string testRuntime = getEnvVarDefault("TEST_RUNTIME", TEST_RUNTIME);
+        std::string blobDest = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/test.blob");
+        std::ifstream fin0(blobDest, std::ios::binary);
+
+        while (fin0) {
+            constexpr size_t max_xfer_buf_size = 260000;
+            char buffer[max_xfer_buf_size];
+            fin0.read(buffer, sizeof(buffer));
+            if (fin0.gcount() > 0) {
+                ssize_t nwritten = sftp_write(file0, buffer, fin0.gcount());
+                if (nwritten != fin0.gcount()) {
+                    fprintf(stderr, "Can't write data to file: %s\n", ssh_get_error(session));
+                    sftp_close(file0);
+                    return 1;
+                }
+            }
+        }
+        sftp_close(file0);
+
+        std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/input-0.bin");
+        std::ifstream fin1(inputDest, std::ios::binary);
+
+        while (fin1) {
+            constexpr size_t max_xfer_buf_size = 260000;
+            char buffer[max_xfer_buf_size];
+            fin1.read(buffer, sizeof(buffer));
+            if (fin1.gcount() > 0) {
+                ssize_t nwritten = sftp_write(file1, buffer, fin1.gcount());
+                if (nwritten != fin1.gcount()) {
+                    fprintf(stderr, "Can't write data to file: %s\n", ssh_get_error(session));
+                    sftp_close(file1);
+                    return 1;
+                }
+            }
+        }
+        sftp_close(file1);
+
+        // Do inference!
+        printf("Executing remote command...\n");
+        rc = ssh_channel_request_exec(
+                channel,
+                "new_SimpleNN /opt/test.blob /opt/input-0.bin /opt/output-0.bin /opt/expected_result_sim.dat 0");
+        if (rc != SSH_OK)
+            error(session);
+
+        printf("Received:\n");
+        nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+        while (nbytes > 0) {
+            fwrite(buffer, 1, nbytes, stdout);
+            nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+        }
+
+        // Scp output-0.bin
+        // Start
+        ssh_scp scp;
+        scp = ssh_scp_new(session, SSH_SCP_READ, "/opt/output-0.bin");
+
+        if (scp == NULL) {
+            fprintf(stderr, "Error allocating scp session: %s\n", ssh_get_error(session));
+            return SSH_ERROR;
+        }
+        rc = ssh_scp_init(scp);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "Error initializing scp session: %s\n", ssh_get_error(session));
+            ssh_scp_free(scp);
+            return rc;
+        }
+
+        std::string outputFile = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/output-0.bin");
+        auto ret = scp_receive(session, scp, outputFile);
+        if (ret)
+            std::cout << "error reading output-0.bin" << std::endl;
+
+        ssh_scp_close(scp);
+        ssh_scp_free(scp);
+        return SSH_OK;
+
+        free_channel(channel);
+        free_session(session);
+}
 
 std::string getExtension(std::string& path)
 {
@@ -68,7 +327,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
       OPENVINO_BIN_FOLDER = "/bin/intel64/Debug/";
     }
 
-    if (FLAGS_mode == "validate")
+    else if (FLAGS_mode == "validate")
     {
         if (FLAGS_b.empty())
             throw std::logic_error("Parameter -b must be set in validation mode");
@@ -77,7 +336,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
         if (FLAGS_a.empty())
             throw std::logic_error("Parameter -a must be set in validation mode");
     }
-    else    //normal operation
+    else if (FLAGS_mode != "SimpleNNInferenceOnly")//normal operation
     {
         if (FLAGS_m.empty())
             throw std::logic_error("Parameter -m <path to model> is not set");
@@ -89,12 +348,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
     }
 
     return true;
-}
-
-std::string getEnvVarDefault(const std::string& varName, const std::string& defaultValue)
-{
-    const char* value = getenv(varName.c_str());
-    return value ? value : defaultValue;
 }
 
 std::string getFilename(std::string& path)
@@ -476,11 +729,10 @@ bool copyFile(std::string src, std::string dest)
     return true;
 }
 
-int runKmbInference(std::string evmIP, std::string blobPath)
-{
+int runKmbInference(std::string evmIP, std::string blobPath) {
     // Clean old results
     std::string testRuntime = getEnvVarDefault("TEST_RUNTIME", TEST_RUNTIME);
-    
+
     std::cout << "Deleting old kmb results files... " << std::endl;
     std::string outputFile = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/output-0.bin");
     remove(outputFile.c_str());
@@ -488,18 +740,18 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     // copy the required files to InferenceManagerDemo folder
     std::string inputCPU = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/input-0.bin");
-    
+
     // hardcoded for AclNet.
-    if (FLAGS_m.find("aclnet") != std::string::npos)
-    {   // ACLnet needs to be validated with: airplane_3_17-FP32.bin (for CPU) and airplane_3_17-FP32-FQU8.bin (for VPU)
-        //https://github.com/movidius/migNetworkZoo/tree/master/internal/test_support
+    if (FLAGS_m.find("aclnet") != std::string::npos) {  // ACLnet needs to be validated with: airplane_3_17-FP32.bin
+                                                        // (for CPU) and airplane_3_17-FP32-FQU8.bin (for VPU)
+        // https://github.com/movidius/migNetworkZoo/tree/master/internal/test_support
         inputCPU = FLAGS_i.replace(FLAGS_i.find(".bin"), 4, "-FQU8.bin");
         if (!checkFilesExist({inputCPU}))
             return FAIL_GENERAL;
     }
 
     // switch to fp16 input bin if fp16 network
-    if ((!FLAGS_ip.empty()) && (FLAGS_ip == "FP16")){
+    if ((!FLAGS_ip.empty()) && (FLAGS_ip == "FP16")) {
         std::cout << "FP16 mode: using image " << FILE_CPU_INPUT_FP16 << std::endl;
         inputCPU = std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + FILE_CPU_INPUT_FP16;
     }
@@ -510,53 +762,214 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     if (!copyFile(blobPath, blobDest))
         return FAIL_GENERAL;
 
-    // read movisim port, runtime config and runtime options from env var if exist
-    std::string movisimPort = getEnvVarDefault("MOVISIM_PORT", "30001");
-    std::string runtimeConfig = getEnvVarDefault("RUNTIME_CONFIG", ".config");
-    std::string runtimeOptions = getEnvVarDefault("RUNTIME_OPTIONS", "");
+    if ((!FLAGS_app.empty()) && (FLAGS_app == "SIMPLENN")) {
+        // Create SSH session
+        ssh_session session;
+        ssh_channel channel;
+        int rc, port = 22;
+        char buffer[1024];
+        unsigned int nbytes;
+        int verbosity = SSH_LOG_PROTOCOL;
 
-    // check the size of the blob file
-    std::ifstream blobfile(blobPath, std::ios::in);
-    blobfile.seekg(0, std::ios::end);
-    long int blobfile_size = blobfile.tellg();
-    std::cout << std::string("blobfile_size=") << blobfile_size << std::endl;
-    long int blobfile_size_mb = blobfile_size / 1048576L;
-    std::cout << std::string("blobfile_size_mb=") << blobfile_size_mb << std::endl;
+        printf("Session...\n");
+        session = ssh_new();
+        if (session == NULL)
+            exit(-1);
 
-    // add to runtimeOptions
-    long int buffer_max_size=blobfile_size_mb + 1;
-    std::string cleanMake = "";
-    long int MAX_BLOB_SIZE = std::atoi(getEnvVarDefault("BLOBSIZE_FORCE_REBUILD", "80").c_str());
-    if(blobfile_size_mb >= MAX_BLOB_SIZE)
-    {
-        cleanMake = " clean ";
-        runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=") + std::to_string(buffer_max_size);
-        //TODO: Deprecated config key to remove after fully transitionning to
-        // runtime versions >= NN_Runtime_v2.46.0
-        runtimeOptions += std::string(" CONFIG_NN_ALIGN_WEIGHT_BUFFERS=n");
-        runtimeOptions += std::string(" CONFIG_NN_WEIGHT_BUFFER_ALIGNMENT=1");
-    }
-    else
-    {   // default buffer size to 100mb
-        runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=100");
-    }
+        ssh_options_set(session, SSH_OPTIONS_HOST, FLAGS_k.c_str());
+        // ssh_options_set(session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
+        ssh_options_set(session, SSH_OPTIONS_PORT, &port);
+        ssh_options_set(session, SSH_OPTIONS_USER, "root");
 
-    // execute the blob
-    std::cout << std::endl << std::string("====== Execute blob ======") << std::endl;
-    std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/" + testRuntime + " && " +
-        "make " + cleanMake + "run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
-    std::cout << commandline << std::endl;
-    int returnVal = std::system(commandline.c_str());
-    if (returnVal != 0)
+        printf("Connecting...\n");
+        rc = ssh_connect(session);
+        if (rc != SSH_OK)
+            error(session);
+
+        printf("Password Autentication...\n");
+        rc = ssh_userauth_password(session, NULL, "root");
+        if (rc != SSH_AUTH_SUCCESS)
+            error(session);
+
+        printf("Channel...\n");
+        channel = ssh_channel_new(session);
+        if (channel == NULL)
+            exit(-1);
+
+        printf("Opening...\n");
+        rc = ssh_channel_open_session(channel);
+        if (rc != SSH_OK)
+            error(session);
+
+        // SFTP input-0.bin and test.blob to th EVM
+        sftp_session sftp0;
+        sftp_session sftp1;
+
+        // Open two SFTP sessions
+        sftp0 = sftp_new(session);
+        sftp1 = sftp_new(session);
+
+        if (sftp0 == NULL) {
+            fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(session));
+            return SSH_ERROR;
+        }
+        // Initialize the SFTP session
+        rc = sftp_init(sftp0);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "Error initializing SFTP session: %s.\n", sftp_get_error(sftp0));
+            sftp_free(sftp0);
+            return rc;
+        }
+
+        if (sftp1 == NULL) {
+            fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(session));
+            return SSH_ERROR;
+        }
+        // Initialize the SFTP session
+        rc = sftp_init(sftp1);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "Error initializing SFTP session: %s.\n", sftp_get_error(sftp1));
+            sftp_free(sftp1);
+            return rc;
+        }
+
+        // Open the test.blob file on the remote side
+        sftp_file file0;
+        sftp_file file1;
+
+        file0 = sftp_open(sftp0, "/opt/test.blob", O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+        if (file0 == NULL) {
+            fprintf(stderr, "Can't open test.blob for writing: %s\n", ssh_get_error(session));
+            return SSH_ERROR;
+        }
+
+        file1 = sftp_open(sftp1, "/opt/input-0.bin", O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+        if (file1 == NULL) {
+            fprintf(stderr, "Can't open input-0.bin for writing: %s\n", ssh_get_error(session));
+            return SSH_ERROR;
+        }
+        std::ifstream fin0(blobDest, std::ios::binary);
+
+        while (fin0) {
+            constexpr size_t max_xfer_buf_size = 260000;
+            char buffer[max_xfer_buf_size];
+            fin0.read(buffer, sizeof(buffer));
+            if (fin0.gcount() > 0) {
+                ssize_t nwritten = sftp_write(file0, buffer, fin0.gcount());
+                if (nwritten != fin0.gcount()) {
+                    fprintf(stderr, "Can't write data to file: %s\n", ssh_get_error(session));
+                    sftp_close(file0);
+                    return 1;
+                }
+            }
+        }
+        sftp_close(file0);
+
+        std::ifstream fin1(inputDest, std::ios::binary);
+
+        while (fin1) {
+            constexpr size_t max_xfer_buf_size = 260000;
+            char buffer[max_xfer_buf_size];
+            fin1.read(buffer, sizeof(buffer));
+            if (fin1.gcount() > 0) {
+                ssize_t nwritten = sftp_write(file1, buffer, fin1.gcount());
+                if (nwritten != fin1.gcount()) {
+                    fprintf(stderr, "Can't write data to file: %s\n", ssh_get_error(session));
+                    sftp_close(file1);
+                    return 1;
+                }
+            }
+        }
+        sftp_close(file1);
+
+        // Do inference!
+        printf("Executing remote command...\n");
+        rc = ssh_channel_request_exec(
+                channel,
+                "new_SimpleNN /opt/test.blob /opt/input-0.bin /opt/output-0.bin /opt/expected_result_sim.dat 0");
+        if (rc != SSH_OK)
+            error(session);
+
+        printf("Received:\n");
+        nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+        while (nbytes > 0) {
+            fwrite(buffer, 1, nbytes, stdout);
+            nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+        }
+
+        // Scp output-0.bin
+        // Start
+        ssh_scp scp;
+        scp = ssh_scp_new(session, SSH_SCP_READ, "/opt/output-0.bin");
+
+        if (scp == NULL) {
+            fprintf(stderr, "Error allocating scp session: %s\n", ssh_get_error(session));
+            return SSH_ERROR;
+        }
+        rc = ssh_scp_init(scp);
+        if (rc != SSH_OK) {
+            fprintf(stderr, "Error initializing scp session: %s\n", ssh_get_error(session));
+            ssh_scp_free(scp);
+            return rc;
+        }
+
+        auto ret = scp_receive(session, scp, outputFile);
+        if (ret)
+            std::cout << "error reading output-0.bin" << std::endl;
+
+        ssh_scp_close(scp);
+        ssh_scp_free(scp);
+        return SSH_OK;
+
+        free_channel(channel);
+        free_session(session);
+    } else  // IMD
     {
-        std::cout << std::endl << "Error occurred executing blob on runtime!" << std::endl;
-        return FAIL_ERROR;
-    }
-    std::cout << std::string("INFERENCE_PERFORMANCE_CHECK='") << getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") << std::string("'") << std::endl;
-    if(getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") != std::string("true"))
-    {
-        if (!checkFilesExist({outputFile}))
-            return FAIL_RUNTIME;
+        // read movisim port, runtime config and runtime options from env var if exist
+        std::string movisimPort = getEnvVarDefault("MOVISIM_PORT", "30001");
+        std::string runtimeConfig = getEnvVarDefault("RUNTIME_CONFIG", ".config");
+        std::string runtimeOptions = getEnvVarDefault("RUNTIME_OPTIONS", "");
+
+        // check the size of the blob file
+        std::ifstream blobfile(blobPath, std::ios::in);
+        blobfile.seekg(0, std::ios::end);
+        long int blobfile_size = blobfile.tellg();
+        std::cout << std::string("blobfile_size=") << blobfile_size << std::endl;
+        long int blobfile_size_mb = blobfile_size / 1048576L;
+        std::cout << std::string("blobfile_size_mb=") << blobfile_size_mb << std::endl;
+
+        // add to runtimeOptions
+        long int buffer_max_size = blobfile_size_mb + 1;
+        std::string cleanMake = "";
+        long int MAX_BLOB_SIZE = std::atoi(getEnvVarDefault("BLOBSIZE_FORCE_REBUILD", "80").c_str());
+        if (blobfile_size_mb >= MAX_BLOB_SIZE) {
+            cleanMake = " clean ";
+            runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=") + std::to_string(buffer_max_size);
+            // TODO: Deprecated config key to remove after fully transitionning to
+            // runtime versions >= NN_Runtime_v2.46.0
+            runtimeOptions += std::string(" CONFIG_NN_ALIGN_WEIGHT_BUFFERS=n");
+            runtimeOptions += std::string(" CONFIG_NN_WEIGHT_BUFFER_ALIGNMENT=1");
+        } else {  // default buffer size to 100mb
+            runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=100");
+        }
+
+        // execute the blob
+        std::cout << std::endl << std::string("====== Execute blob ======") << std::endl;
+        std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/" + testRuntime + " && " +
+                                  "make " + cleanMake + "run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP +
+                                  " srvPort=" + movisimPort + " " + runtimeOptions;
+        std::cout << commandline << std::endl;
+        int returnVal = std::system(commandline.c_str());
+        if (returnVal != 0) {
+            std::cout << std::endl << "Error occurred executing blob on runtime!" << std::endl;
+            return FAIL_ERROR;
+        }
+        std::cout << std::string("INFERENCE_PERFORMANCE_CHECK='") << getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "")
+                  << std::string("'") << std::endl;
+        if (getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") != std::string("true")) {
+            if (!checkFilesExist({outputFile}))
+                return FAIL_RUNTIME;
+        }
     }
 
     return RESULT_SUCCESS;
@@ -995,6 +1408,12 @@ int main(int argc, char *argv[])
     std::vector<std::string> actualResults;
     std::vector<std::string> actualResultsProcessed;
     std::vector<std::string> expectedPaths;
+
+    if (FLAGS_mode == "SimpleNNInferenceOnly")
+    {
+        doInferenceWithSimpleNNOnly();
+        return(0);
+    }
 
     if (FLAGS_mode == "validate")
     {

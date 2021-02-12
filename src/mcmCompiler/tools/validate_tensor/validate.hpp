@@ -40,7 +40,7 @@ static const char image_message[] = "Optional. Path to input image. If not suppl
 static const char evm_message[] = "Required. IP address of EVM board to run inference on";
 
 /// @brief message for setting quantize or not
-static const char mode_message[] = "Optional. Runs all, but can just run validation if set to validate";
+static const char mode_message[] = "Optional. Runs all, but can just run validation if set to validate or SimpleNN Inference only";
 
 /// @brief message for color order
 static const char rgb_message[] = "Optional. Use input image in RGB format. Default is BGR.";
@@ -53,6 +53,9 @@ static const char layout_message[] = "Optional. NHWC or NCHW (default) ";
 
 /// @brief message for debug
 static const char debug_message[] = "Optional. Build in debug mode ";
+
+// @brief message for app
+static const char app_message[] = "Use SimpleNN (defualt is IMD) ";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -93,6 +96,10 @@ DEFINE_string(mode, "all", mode_message);
 /// @brief Define parameter for color <br>
 /// It is an optional parameter
 DEFINE_bool(r, false, rgb_message);
+
+/// @brief Define runtime app to use for inference
+/// It is an optional parameter
+DEFINE_string(app, "", app_message);
 
 /// @brief Define input precision <br>
 /// It is an optional parameter
