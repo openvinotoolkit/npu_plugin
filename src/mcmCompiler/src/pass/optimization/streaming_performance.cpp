@@ -380,8 +380,11 @@ void mv::StreamingPerformance::evaluateGraphOptimizerAssignedKStreamingStrategie
     bool graphOptimizerTensorLocationSpilling;
 
     // create header for network analysis report file
-    //createHeaderforNetworkAnalysisFile(fptr);
-
+    if (mv::isDebugFilesEnabled()) {
+        fprintf(fptr_,  "%s :  %s :  %s :  %s :  %s :  %s :  %s :  %s :  %s : %s :  %s :  %s", "chainId", "OpName", "Default kStreaming", "Default Hstreaming", "MultiCluster", "TotalSize(Inc WT)", "OutputChannels", "WeightsPerCluster(Inc WT)", "MinWeightsPerClusterInChain", "optimalNumberOfKStreams","maxNumberKStreams", "NewKStreams");
+        fprintf(fptr_, "\n");
+    }
+    
     for (subgraph_t chain_subgraph : chainSubgraphs_) {
         for (auto& op : chain_subgraph.dpu_chain_) {
             mv::Data::OpListIterator opIt = omodel_.getOp(op->getName());
@@ -451,7 +454,6 @@ void mv::StreamingPerformance::evaluateGraphOptimizerAssignedKStreamingStrategie
                                              minWeightsPerClusterPerChain_[chainID], optimalNumberOfKStreams,
                                              maxpossibleStreams, optimalNumberOfKStreams);
                         }
-
                         opIt->set<unsigned>("optimalNumberOfKStreams", optimalNumberOfKStreams);
 
                     }
@@ -459,7 +461,7 @@ void mv::StreamingPerformance::evaluateGraphOptimizerAssignedKStreamingStrategie
                     else if (optimalNumberOfKStreams > maxpossibleStreams) {
                         if (minWeightsPerClusterPerChain_[chainID] < minWeightsPerClusterPerChainConstant_)
                             minWeightsPerClusterPerChain_[chainID] = minWeightsPerClusterPerChainConstant_;
-
+                        
                         if (mv::isDebugFilesEnabled()) {
                             writeStatsToFile(chainID, (opIt->getName()).c_str(),
                                              graphOptimizerStreamingStrategy[3].get<int>("K"),
