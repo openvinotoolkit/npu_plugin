@@ -27,6 +27,8 @@ private:
     const bool enableChannelMajorConv_;
     const size_t nClusters_;
     FILE* fptr_ = nullptr;
+    // This constant was derived from empirical testing and maybe 
+    // subject to change if the memory allocation in the scheduler changes
     const size_t minWeightsPerClusterPerChainConstant_ = 66560;  
     const std::map<std::string, size_t> minOutputChannels_ = {
             {"SplitOverK", 64}, {"Clustering", 16}, {"SplitOverH", 16}, {"HKSwitch", 16}};
