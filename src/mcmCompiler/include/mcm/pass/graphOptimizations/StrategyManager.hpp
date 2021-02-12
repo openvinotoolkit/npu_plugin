@@ -22,7 +22,7 @@ private:
     using StrategySet       = unordered_map<string,Attribute>;
     using OptimizationGraph = graph<StrategySet&,MetaEdge>;
     using CriticalPathNodes = vector<OptimizationGraph::node_list_iterator>;
-    
+
     static std::atomic<int> unique_ctr;
 
     double cost_;
