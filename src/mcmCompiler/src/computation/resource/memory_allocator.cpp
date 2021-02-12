@@ -735,7 +735,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getBuffer(std::size_t s
         ++bufIt;
 
     if (bufIt == entries_[stageIdx].end())
-        throw LogicError(*this, "Cound not find buffer for " + tensor->getName());
+        throw LogicError(*this, "Cannot find buffer for " + tensor->getName());
 
     return bufIt;
 

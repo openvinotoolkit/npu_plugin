@@ -36,8 +36,8 @@ int main(int argc, char** argv)
     output_file.read((char*)output_bin.data(), output_stat.st_size);
     output_file.close();
 
-    std::vector<mv::utils::prof_info_t> deviceProfiling;
-    mv::utils::prof_total_info_t prof_total_info;
+    std::vector<mv::utils::ProfInfo> deviceProfiling;
+    mv::utils::ProfTotalInfo prof_total_info;
     mv::utils::getProfilingInfo(blob_bin.data(), output_bin.data(), deviceProfiling, &prof_total_info);
 
     for (auto& task : deviceProfiling ) {

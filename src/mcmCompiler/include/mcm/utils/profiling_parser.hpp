@@ -8,21 +8,23 @@ namespace mv
 {
     namespace utils
     {
-        typedef struct {
+        struct ProfInfo
+        {
             std::string name;
             uint32_t time;
             std::string layer_type;
             std::string exec_type;
             uint16_t start_layer_id;
             uint16_t end_layer_id;
-        } prof_info_t;
+        };
 
-        typedef struct {
+        struct ProfTotalInfo
+        {
             uint64_t time;
-        } prof_total_info_t;
+        };
 
-        void getProfilingInfo(const void* data, const void* output, std::vector<prof_info_t>& profInfo,
-                      prof_total_info_t* prof_total_info = nullptr);
+        void getProfilingInfo(const void* data, const void* output, std::vector<ProfInfo>& profInfo,
+                      ProfTotalInfo* prof_total_info = nullptr);
     }
 }
 

@@ -909,7 +909,7 @@ int postProcessActualResults(std::vector<std::string>& actualResults, std::strin
     return RESULT_SUCCESS;
 }
 
-static void getProfilingData(std::string data_path)
+static void getProfilingData(const std::string &data_path)
 {
     std::cout << "Profiling Output" << std::endl;
     std::string commandline = std::string("cd ") + std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + " && " 

@@ -65,7 +65,7 @@ void KmbProfilingTest::runTest() {
         std::map<std::string, InferenceEngineProfileInfo> perfMap = inferRequest.GetPerformanceCounts();
         ASSERT_NE(perfMap.size(), 0);
 
-#if 0
+    /* This is the example of extracting per layer info (reference for the future tests expansion)
         std::vector<std::pair<std::string, InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
         std::sort(perfVec.begin(), perfVec.end(),
         [=](const std::pair<std::string, InferenceEngineProfileInfo>& pair1,
@@ -78,7 +78,7 @@ void KmbProfilingTest::runTest() {
             InferenceEngineProfileInfo info = it.second;
             std::cout << layerName << " : " << info.realTime_uSec << std::endl;
         }
-#endif
+    */
     }
 }
 

@@ -132,7 +132,7 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
 
-    /* Check if profiling DMAs should be added */ 
+    // Check if profiling DMAs should be added // 
     bool enable_profiling = false;
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     if (globalParams->hasAttr("PerformanceCounting") && globalParams->get<bool>("PerformanceCounting"))
@@ -140,20 +140,20 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     if (passDesc.hasAttr("force_profiling") && passDesc.get<bool>("force_profiling"))
         enable_profiling = true;
 
-    /* Check if the profiling data should be gathered to CMX */
+    // Check if the profiling data should be gathered to CMX //
     bool enable_cmx = false;
     if (passDesc.hasAttr("enable_cmx") && passDesc.get<bool>("enable_cmx"))
         enable_cmx = true;
 
     if (!enable_profiling) return;
 
-    /* Specify here the Free Running counter address */
+    // Specify here the Free Running counter address //
     auto profilingTensor = om.constantInt("profilingInput", {HW_TIMER_ABSOLUTE_ADDR}, {1,1,1,1}, mv::DType("Int32"), mv::Order("NCHW"));
-    /* Mandatory fields */
+    // Mandatory fields //
     std::set<std::string> toSet;
     profilingTensor->set<std::set<std::string>>("flows", toSet);
     profilingTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
-    /* Get last_graphFileIndex to be able properly allocate address constant */
+    // Get last_graphFileIndex to be able properly allocate address constant //
     auto graphFileIndex = dm.getGlobalConfigParams()->get<int>("last_graphFileIndex");
     profilingTensor->set<unsigned>("graphFileIndex", graphFileIndex);
     graphFileIndex++;
@@ -176,11 +176,11 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             mv::lp_scheduler::Control_Model_Barrier_Scheduler::renumberBarrierTasks(om);
             barrierOp = opIt.leftmostChild();
             
-            /* Add new barrier dependency */
+            // Add new barrier dependency //
             auto& barrierRef = opIt->get<mv::BarrierDependencies>("BarrierDeps");
             barrierRef.addUpdateBarrier(barrierOp->get<mv::Barrier>("Barrier").getIndex());
 
-            /* Remove trailing tag as we will add barrier dependency */
+            // Remove trailing tag as we will add barrier dependency //
             if (opIt->hasAttr("trailing")) 
                 opIt->set<bool>("trailing", false);
             lastTask = true;
@@ -194,7 +194,7 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             
             auto parentDPU = findParentDPUorUPATask(opIt, cm);
             if (parentDPU == cm.opEnd()) {
-                /* Add DMA to the first parent barrier */
+                // Add DMA to the first parent barrier //
                 for(auto parentOp = opIt.leftmostParent(); parentOp != cm.opEnd(); ++parentOp) {
                     if (parentOp->getOpType() == "BarrierTask") {
                         AddDMAtoBarrier(parentOp, dmaName+"_PROFBEGIN", 1, 0, 0, opId, model, profilingTensor, profilingDmas);
@@ -269,32 +269,20 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     for (auto OpIt : postProcessingOps)
         resolveImplicitOperationsOp(OpIt, pass, model);
 
-    /* Output memory should be allocated manually and after resolving of impisit operations */
+    // Output memory should be allocated manually and after resolving of impisit operations //
     auto newTensor = ProfilingCopyOp->getInputTensor(0);
     dm.allocateTensor("ProgrammableOutput", stageIt, newTensor);
 
     for (auto OpIt : postProcessingOps)
         allocateImplicitOperationsOp(OpIt, stageIt, pass, model);
 
-    /* Add Fill mandatory attibutes for CMX2DDR DMA */
+    // Add Fill mandatory attibutes for CMX2DDR DMA //
     auto copyDMA = ProfilingCopyOp.leftmostParent();
     if (copyDMA->getOpType() == "DMATask") {
         auto lastDMA = om.getSourceOp(profilingDmas.back());
         FillDMAAttributes(copyDMA, 0, lastDMA->get<unsigned>("layerNumber")+1, lastDMA->get<unsigned>("schedulingNumber")+1);
     }
-    
-#if 0
-    /* Add barier before copyDMA */
-    std::vector<mv::Barrier> barriers;
-    std::set<std::string> producers, consumers;
-    producers.insert(om.getSourceOp(profilingDmas.back())->getName());
-    consumers.insert(copyDMA->getName());
-    mv::Barrier new_barrier(producers, consumers);
-    barriers.push_back(new_barrier);
-    insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
-    mv::lp_scheduler::Control_Model_Barrier_Scheduler::renumberBarrierTasks(om);
-#endif
 
-    /* Debug info */
+    // Debug info //
     pass.log(mv::Logger::MessageType::Info,  "Total Profiling output size: " + std::to_string(ProfilingConcat->size()));
 }

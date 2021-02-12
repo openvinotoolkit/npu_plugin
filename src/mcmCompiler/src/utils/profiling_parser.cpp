@@ -12,8 +12,8 @@ typedef struct {
     std::string hw_type;
 } execution_info_t;
 
-void mv::utils::getProfilingInfo(const void* data, const void* output, std::vector<prof_info_t>& profInfo,
-                      prof_total_info_t* prof_total_info) {
+void mv::utils::getProfilingInfo(const void* data, const void* output, std::vector<ProfInfo>& profInfo,
+                      ProfTotalInfo* prof_total_info) {
     if ((nullptr == data) || (nullptr == output)) {
         throw mv::ArgumentError("profiling", "profiling", "0", "Empty input data");
     }
@@ -24,7 +24,7 @@ void mv::utils::getProfilingInfo(const void* data, const void* output, std::vect
     MVCNN::GraphFileT graphFile;
     graphFilePtr->UnPackTo(&graphFile);
 
-    /* Finding of DMA task list */
+    // Finding of DMA task list //
     std::vector<std::unique_ptr<MVCNN::TaskT>>* dma_taskList = nullptr;
     std::vector<std::unique_ptr<MVCNN::TaskT>>* dpu_upa_taskList = nullptr;
     for (auto& task_list_item : graphFile.task_lists) {
@@ -79,9 +79,9 @@ void mv::utils::getProfilingInfo(const void* data, const void* output, std::vect
                 auto taskName = task->name;
                 taskName = taskName.substr(0, task->name.find("_PROF"));
                 lastTime = output_bin[currentPos];
-                prof_info_t profInfoItem;
+                ProfInfo profInfoItem;
                 profInfoItem.name = taskName;
-                /*Convert to us (FRC is 500MHz) */
+                // Convert to us (FRC is 500MHz) //
                 profInfoItem.time = diff / 500;
                 profInfoItem.start_layer_id = layerNumbers[lastDMAid];
                 profInfoItem.end_layer_id = layerNumber;

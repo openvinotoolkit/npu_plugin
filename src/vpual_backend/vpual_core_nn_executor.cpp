@@ -896,7 +896,7 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
     }
     const auto& profilingOutput = ie::as<ie::MemoryBlob>(profilingOutputBlob->second)->rmap().as<const void*>();
 
-    std::vector<mv::utils::prof_info_t> deviceProfiling;
+    std::vector<mv::utils::ProfInfo> deviceProfiling;
     mv::utils::getProfilingInfo(blob, profilingOutput, deviceProfiling);
 
     int execution_index = 0;
@@ -905,8 +905,10 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
         info.status = ie::InferenceEngineProfileInfo::EXECUTED;
         info.cpu_uSec = info.realTime_uSec = profilingEntry.time;
         info.execution_index = execution_index++;
-        strncpy(info.layer_type, profilingEntry.layer_type.c_str(), sizeof(info.layer_type)-1);
-        strncpy(info.exec_type, profilingEntry.exec_type.c_str(), sizeof(info.exec_type)-1);
+        size_t typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
+        profilingEntry.layer_type.copy(info.layer_type, typeLen, 0);
+        typeLen = sizeof(info.exec_type) / sizeof(info.exec_type[0]);
+        profilingEntry.exec_type.copy(info.exec_type, typeLen, 0);
         perfCounts[profilingEntry.name] = info;
     }
 

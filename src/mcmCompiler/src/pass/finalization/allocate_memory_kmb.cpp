@@ -373,7 +373,7 @@ void allocateCMXTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
         */
         else
         {
-            for (unsigned x = 0; x < opIterator->inputSlots(); x++)
+            for (std::size_t x = 0; x < opIterator->inputSlots(); x++)
             {
 
                 auto inTensor = opIterator->getInputTensor(x);
@@ -387,7 +387,7 @@ void allocateCMXTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
                        allocateUnpopulatedTensor(pass,dm,stageIt,inTensor);
                 }
             }
-            for (unsigned x = 0; x < opIterator->outputSlots(); ++x)
+            for (std::size_t x = 0; x < opIterator->outputSlots(); ++x)
             {
 
                 auto outTensor = opIterator->getOutputTensor(x);
@@ -502,7 +502,7 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
                 for (size_t i = 0; i < axisToConcat.size(); i++)
                     axis_shape += outputTensor->getShape()[mv::Shape::getAxis(axisToConcat.substr(i,1))];
 
-                for(unsigned i = 0; i < inputSlots; i++)
+                for(std::size_t i = 0; i < inputSlots; i++)
                 {
                     running_concat_offset_LHS.push_back(0);
                     offset = 0;
@@ -514,7 +514,7 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
             }
 
 
-            for(unsigned i = 0; i != inputSlots; i++)
+            for(std::size_t i = 0; i != inputSlots; i++)
             {
                 auto inputTensor = opIterator->getInputTensor(i);
                 auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
@@ -671,7 +671,7 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
             std::vector<std::size_t> lhs_padding(ndims);
             std::vector<std::size_t> rhs_padding(ndims);
 
-            for(unsigned i = 0; i < ndims; i++)
+            for(std::size_t i = 0; i < ndims; i++)
             {
                 lhs_padding[i] = begin[i];
                 rhs_padding[i] = inputShape[i] - (begin[i] + size[i]);
@@ -724,7 +724,7 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
                 mv::Shape begin = {0,0,0,0};
                 mv::Shape size = inputTensor->getShape();;
                 mv::Shape outputShape = outputTensor->getShape();
-                for(unsigned i = 0; i < ndims; i++)
+                for(std::size_t i = 0; i < ndims; i++)
                 {
                     lhs_padding[i] = begin[i];
                     rhs_padding[i] = outputShape[i] - (begin[i] + size[i]);

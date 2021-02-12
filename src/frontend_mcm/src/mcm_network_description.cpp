@@ -146,9 +146,9 @@ vpux::DataMap MCMNetworkDescription::matchElementsByLexicographicalOrder(const v
 
     std::size_t curMatchPos = 0;
     for (const auto& data : actualDeviceData) {
-        std::string name = "";
+        std::string name;
         if (names.size() > curMatchPos)
-            name = names.at(curMatchPos);
+            name = names[curMatchPos];
         else {
             name = data.first;
             _logger->info("Additional output: %s\n", name);

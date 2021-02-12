@@ -86,12 +86,9 @@ void barrierSchedulerPass(const mv::pass::PassEntry&,
     exit(1);
   }
   
-  /* In case of Profiling disable the barriers optimizations */
-  bool PerformanceCounting = false;
+  // In case of Profiling disable the barriers optimizations //
   std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
-  if (globalParams->hasAttr("PerformanceCounting") && globalParams->get<bool>("PerformanceCounting"))
-    PerformanceCounting = true;
-  if (!PerformanceCounting) {
+  if (!(globalParams->hasAttr("PerformanceCounting") && globalParams->get("PerformanceCounting"))) {
     for (auto &attr : barrier_remove)
     {
       if (model.hasGlobalConfigParam(attr.first))

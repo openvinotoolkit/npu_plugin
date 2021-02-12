@@ -370,7 +370,7 @@ void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::
                 ctr++;
             }
         }
-        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size() ; flowIdx++)
+        for (std::size_t flowIdx = 0; flowIdx < flowsToRemove.size() ; flowIdx++)
         {
             pass.log(mv::Logger::MessageType::Debug,"Setting # " + compensationOutputs[flowIdx]->getName() +
                                                     " # as input at slotIdx: " + std::to_string(sinkIndexes[flowIdx]));
@@ -460,11 +460,11 @@ void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::
 
             outputTensor->set<mv::Tensor::MemoryLocation>("Location", inputLocation);
 
-            for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+            for (std::size_t flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
             {
                 om.undefineFlow(flowsToRemove[flowIdx]);
             }
-            for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+            for(std::size_t op = 0 ; op < opsToLink.size(); ++op)
             {
                 pass.log(mv::Logger::MessageType::Debug," Setting # " + compensatorOutput->getName() +
                                                             "# as input to: # " + opsToLink[op]->getName() +
