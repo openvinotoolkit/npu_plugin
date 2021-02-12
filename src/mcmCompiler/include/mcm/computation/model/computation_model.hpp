@@ -116,7 +116,13 @@ namespace mv
         - Iterator of set is invalidated only on deletion of pointed element (on the other hand, vector's iterator is invalidated on the resize of the vector)
             - ModelLinearIterators are wrapping containers iterators
         */
-        std::shared_ptr<std::unordered_map<std::string, Data::OpListIterator>> ops_;
+        struct ops_map_hash {
+            size_t operator()(const std::string& name) const {
+                return name_hash_(name);
+            }
+            std::hash<std::string> name_hash_;
+        };
+        std::shared_ptr<std::unordered_map<std::string, Data::OpListIterator, ops_map_hash>> ops_;
         std::shared_ptr<std::unordered_map<std::string, Data::FlowListIterator>> dataFlows_;
         std::shared_ptr<std::unordered_map<std::string, Control::FlowListIterator>> controlFlows_;
         std::shared_ptr<std::map<std::string, std::shared_ptr<Tensor>>> tensors_;
