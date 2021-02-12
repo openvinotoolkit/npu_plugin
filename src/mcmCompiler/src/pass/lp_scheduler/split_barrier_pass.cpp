@@ -98,7 +98,6 @@ static void SplitBarrierFcn(
       if((delta + gamma) == 0)
       {
           throw std::runtime_error("Barrier has no consumers");
-          return;
       }
 
       if ((DMA_ENGINES > 1 || beta > 0) &&
@@ -106,7 +105,7 @@ static void SplitBarrierFcn(
       {
           // create new barriers
           char barrier_name[64UL];
-          sprintf(barrier_name, "new_Barrier_%zu", barrier_task_id);
+          sprintf(barrier_name, "new_Barrier_%d", barrier_task_id);
 
           std::set<std::string> empty_set;
           struct mv::Barrier new_barrier(empty_set, empty_set);
@@ -128,7 +127,7 @@ static void SplitBarrierFcn(
       {
         // create new barriers
           char barrier_name[64UL];
-          sprintf(barrier_name, "new_Barrier_%zu", barrier_task_id);
+          sprintf(barrier_name, "new_Barrier_%d", barrier_task_id);
 
           std::set<std::string> empty_set;
           struct mv::Barrier new_barrier(empty_set, empty_set);
