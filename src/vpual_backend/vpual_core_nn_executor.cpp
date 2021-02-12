@@ -526,26 +526,26 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
         targetPlatform = configPlatform;
     }
 
-    const uint32_t csramUserSize = _config.CSRAMSize();
+    const auto csramUserSize = _config.CSRAMSize();
     const bool platformHasCSRAM = std::any_of(platformsWithCSRAM.begin(), platformsWithCSRAM.end(),
         [targetPlatform](const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform) -> bool {
             return targetPlatform == platform;
         }
     );
     uint32_t preFetchSize = 0;
-    if (csramUserSize != 0) {
+    if (csramUserSize > 0) {
         if (platformHasCSRAM) {
             // if user set the size manually, use that amount
-            preFetchSize = csramUserSize;
+            preFetchSize = static_cast<uint32_t>(csramUserSize);
         } else {
             _logger->warning("VPUX_CSRAM_SIZE is not equal to zero, but the platform cannot allocate CSRAM");
         }
-    } else {
+    } else if (csramUserSize < 0) {
         // otherwise, get the size from NN Core plug-in
         preFetchSize = _nnCorePlg->GetPrefetchBufferSize();
     }
 
-    if (platformHasCSRAM) {
+    if (platformHasCSRAM && preFetchSize) {
         _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, preFetchSize, _csramAllocator, _logger));
     }
 

@@ -34,14 +34,6 @@ DECLARE_VPUX_CONFIG_VALUE(RGB);
 
 /**
  * @brief [Only for VPUX Plugin]
- * Type: Arbitrary string. Default is "0".
- * This option allows to specify CSRAM size.
- * When the size is 0, GetPrefetchBufferSize is called to determine the required amount of CSRAM.
- */
-DECLARE_VPUX_CONFIG_KEY(CSRAM_SIZE);
-
-/**
- * @brief [Only for VPUX Plugin]
  * Type: integer, default is 4.
  * Number of shaves to be used by SIPP during preprocessing
  */

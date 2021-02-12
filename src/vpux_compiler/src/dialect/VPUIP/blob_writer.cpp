@@ -50,19 +50,17 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
     }
 
     const auto waitBarriers = createVector(task.waitBarriers() | transformed([this](mlir::Value val) {
-                                               const auto* barrier =
-                                                       flatbuffers::GetTemporaryPointer(_impl, getBarrier(val));
-                                               return checked_cast<uint32_t>(barrier->barrier_id());
+                                               return getBarrierVirtualID(val);
                                            }));
     const auto updateBarriers = createVector(task.updateBarriers() | transformed([this](mlir::Value val) {
-                                                 const auto* barrier =
-                                                         flatbuffers::GetTemporaryPointer(_impl, getBarrier(val));
-                                                 return checked_cast<uint32_t>(barrier->barrier_id());
+                                                 return getBarrierVirtualID(val);
                                              }));
 
     MVCNN::BarrierReferenceBuilder barriersBuilder(_impl);
     barriersBuilder.add_wait_barriers(waitBarriers);
+    barriersBuilder.add_virtual_wait_barriers(waitBarriers);
     barriersBuilder.add_update_barriers(updateBarriers);
+    barriersBuilder.add_virtual_update_barriers(updateBarriers);
     const auto barriers = barriersBuilder.Finish();
 
     const auto specifics = task.serialize(*this);
@@ -214,10 +212,8 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::getTensor(mlir::Valu
     return it->second;
 }
 
-VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value val) {
+VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value val, uint32_t physicalID) {
     VPUX_THROW_UNLESS(_barriers.count(val) == 0, "Value {0} was already serialized", val);
-
-    const auto curID = _barriers.size();
 
     size_t numConsumers = 0;
     size_t numProducers = 0;
@@ -251,17 +247,17 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
     }
 
     MVCNN::BarrierBuilder builder(_impl);
-    builder.add_barrier_id(checked_cast<int16_t>(curID));
+    builder.add_barrier_id(checked_cast<int16_t>(physicalID));
     builder.add_consumer_count(checked_cast<int16_t>(numConsumers));
     builder.add_producer_count(checked_cast<int16_t>(numProducers));
     const auto off = builder.Finish();
 
-    _barriers.insert({val, off});
+    _barriers.insert({val, checked_cast<uint32_t>(_barriers.size())});
 
     return off;
 }
 
-VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::getBarrier(mlir::Value val) const {
+uint32_t vpux::VPUIP::BlobWriter::getBarrierVirtualID(mlir::Value val) const {
     const auto it = _barriers.find(val);
     VPUX_THROW_UNLESS(it != _barriers.end(), "Value {0} wasn't serialized yet", val);
     return it->second;

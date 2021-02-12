@@ -168,17 +168,17 @@ def VPUIP_DeclareConstantTensorOp :
 }
 
 //
-// DeclareBarrierOp
+// DeclareVirtualBarrierOp
 //
 
-def VPUIP_DeclareBarrierOp :
+def VPUIP_DeclareVirtualBarrierOp :
         VPUIP_Op<
-            "DeclareBarrier",
+            "DeclareVirtualBarrier",
             [
                 NoSideEffect
             ]
         > {
-    let summary = "VPUIP Barrier value static declaration";
+    let summary = "VPUIP virtual Barrier declaration";
 
     let results = (outs
         VPUIP_Barrier:$barrier
@@ -204,6 +204,8 @@ def VPUIP_ConfigureBarrierOp :
     let summary = "A task to configure the setup for a barrier";
 
     let arguments = (ins
+        I32Attr:$id,
+
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers
     );
@@ -213,7 +215,7 @@ def VPUIP_ConfigureBarrierOp :
     );
 
     let builders = [
-        OpBuilderDAG<(ins)>
+        OpBuilderDAG<(ins "uint32_t":$id)>
     ];
 
     let extraClassDeclaration = [{
@@ -224,6 +226,7 @@ def VPUIP_ConfigureBarrierOp :
 
     let assemblyFormat = [{
         attr-dict
+        ` ` `<` $id `>`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)

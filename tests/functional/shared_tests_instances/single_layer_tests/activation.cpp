@@ -59,7 +59,7 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbActivationLayerTest, DISABLED_CompareWithRefs_MLIR) {
+TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }

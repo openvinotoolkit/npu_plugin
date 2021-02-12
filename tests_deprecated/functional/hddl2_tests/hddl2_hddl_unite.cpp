@@ -25,10 +25,19 @@
 #include "hddl2_helpers/helper_hddl_unite_graph.h"
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_workload_context.h"
-#include "models/precompiled_resnet.h"
+#include "executable_network_factory.h"
+#include "models/models_constant.h"
 
 using namespace HddlUnite;
 namespace IE = InferenceEngine;
+
+const std::string DUMP_PATH = []() -> std::string {
+  if (const auto var = std::getenv("IE_KMB_TESTS_DUMP_PATH")) {
+      return var;
+  }
+
+  return "/tmp/";
+}();
 
 //------------------------------------------------------------------------------
 class HDDL2_HddlUnite_Tests : public ::testing::Test {
@@ -385,12 +394,21 @@ TEST_F(HddlUnite_BlobDescr, DISABLED_CanInferOnDefaultLocalBlobs) {
 using HddlUnite_Stress = HDDL2_HddlUnite_Tests;
 // Stress tests should belong to another test executor
 TEST_F(HddlUnite_Stress, MultipleAllocations) {
-    const size_t amountOfAllocations = 20;
+    const size_t amountOfAllocations = 100;
+    const Models::ModelDesc modelToUse = Models::squeezenet1_1;
+    IE::ExecutableNetwork executableNetwork =
+            ExecutableNetworkFactory::createExecutableNetwork(modelToUse.pathToModel);
+
+    auto blobContentStream = ExecutableNetworkFactory::getGraphBlob(modelToUse.pathToModel);
+    const std::string graphName = "alloc_check";
+    const std::string graphExt = ".blob";
+    const std::string graphPath = DUMP_PATH + graphName + graphExt;
+
+    std::ofstream blobFile(graphPath, std::ios::binary);
+    blobFile << blobContentStream.rdbuf();
+    blobFile.close();
 
     HddlUnite::Inference::Graph::Ptr graphPtr = nullptr;
-    const std::string graphName = PrecompiledResNet_Helper::resnet50.graphName;
-    const std::string graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
-
     for (size_t i = 0; i < amountOfAllocations; ++i) {
         ASSERT_EQ(HddlUnite::Inference::loadGraph(graphPtr, graphName, graphPath), HDDL_OK);
         EXPECT_EQ(HddlUnite::Inference::unloadGraph(graphPtr), HDDL_OK);

@@ -62,7 +62,7 @@ class KmbQuantizedConvSubGraphTest : public LayerTestsUtils::KmbLayerTestsCommon
     }
 };
 
-TEST_P(KmbQuantizedConvSubGraphTest, DISABLED_CompareWithRefs_MLIR) {
+TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
