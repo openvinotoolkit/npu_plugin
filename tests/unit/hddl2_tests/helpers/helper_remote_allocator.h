@@ -44,7 +44,7 @@ public:
 };
 
 inline Allocator_Helper::Allocator_Helper(WorkloadContextPtr& workloadContextPtr) {
-    allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr);
+    allocatorPtr = InferenceEngine::details::shared_from_irelease(new HDDL2RemoteAllocator(workloadContextPtr));
 }
 
 //------------------------------------------------------------------------------
