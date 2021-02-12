@@ -231,7 +231,8 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
     using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
     TaskListMap tasksMap;
 
-    std::vector<BlobWriter::BinaryData> binaryData;
+    SmallVector<BlobWriter::BinaryData> binaryData;
+    SmallVector<BlobWriter::Barrier> virtBarriers;
 
     size_t tempTensorInd = 0;
     size_t constantTensorInd = 0;
@@ -264,8 +265,9 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
                                 MemoryLocation::GraphFile, checked_cast<uint32_t>(constantTensorInd), 0);
 
             ++constantTensorInd;
-        } else if (auto barrierOp = mlir::dyn_cast<DeclareBarrierOp>(op)) {
-            writer.createBarrier(barrierOp.barrier());
+        } else if (auto barrierOp = mlir::dyn_cast<DeclareVirtualBarrierOp>(op)) {
+            const auto virtBarrier = writer.createBarrier(barrierOp.barrier());
+            virtBarriers.push_back(virtBarrier);
         } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == netFunc.getOperation()) {
             // do nothing
         } else {
@@ -288,9 +290,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
     }
 
     const auto serializedTaskLists = writer.createVector(taskLists);
-
-    const auto barrierTable = writer.createVector(writer.getAllBarriers());
-
+    const auto barrierTable = writer.createVector(virtBarriers);
     const auto serializedBinaryData = writer.createVector(binaryData);
 
     MVCNN::GraphFileBuilder graphBuilder(writer);

@@ -29,7 +29,7 @@ IERT.RunTimeResources
     }
 
 VPUIP.Graph
-    options : "DynamicBarriers"
+    options : "NONE"
     version : {
         majorV = 3 : i32,
         minorV = 11 : i32,
@@ -48,7 +48,7 @@ IE.CNNNetwork
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
-    %1 = VPUIP.ConfigureBarrier -> !VPUIP.Barrier
+    %1 = VPUIP.ConfigureBarrier <0> -> !VPUIP.Barrier
     VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) updates(%1 : !VPUIP.Barrier)
     VPUIP.UPADMA inputs(%0 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%1 : !VPUIP.Barrier)
     return
@@ -109,7 +109,6 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
 // CHECK:   task_count: 3,
 
 // CHECK:   options: [
-// CHECK:     "DynamicBarriers"
 // CHECK:   ],
 
 // CHECK:   in_tensor_desc: [
@@ -151,10 +150,3 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
 // CHECK:       data_dtype: "FP32"
 // CHECK:     }
 // CHECK:   ]
-
-// CHECK:   barrier_table: [
-// CHECK:     {
-// CHECK:       consumer_count: 1,
-// CHECK:       producer_count: 1
-// CHECK:     }
-// CHECK:   ],

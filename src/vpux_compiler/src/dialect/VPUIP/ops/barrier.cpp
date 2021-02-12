@@ -21,10 +21,10 @@
 using namespace vpux;
 
 //
-// DeclareBarrierOp
+// DeclareVirtualBarrierOp
 //
 
-void vpux::VPUIP::DeclareBarrierOp::build(mlir::OpBuilder& builder, mlir::OperationState& state) {
+void vpux::VPUIP::DeclareVirtualBarrierOp::build(mlir::OpBuilder& builder, mlir::OperationState& state) {
     build(builder, state, vpux::VPUIP::BarrierType::get(builder.getContext()));
 }
 
@@ -32,12 +32,13 @@ void vpux::VPUIP::DeclareBarrierOp::build(mlir::OpBuilder& builder, mlir::Operat
 // ConfigureBarrierOp
 //
 
-void vpux::VPUIP::ConfigureBarrierOp::build(mlir::OpBuilder& builder, mlir::OperationState& state) {
-    build(builder, state, vpux::VPUIP::BarrierType::get(builder.getContext()), mlir::ValueRange{}, mlir::ValueRange{});
+void vpux::VPUIP::ConfigureBarrierOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, uint32_t id) {
+    build(builder, state, vpux::VPUIP::BarrierType::get(builder.getContext()), id, mlir::ValueRange{},
+          mlir::ValueRange{});
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConfigureBarrierOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto barrier = writer.createBarrier(this->barrier());
+    const auto barrier = writer.createBarrier(this->barrier(), this->id());
 
     MVCNN::BarrierConfigurationTaskBuilder subBuilder(writer);
     subBuilder.add_target(barrier);

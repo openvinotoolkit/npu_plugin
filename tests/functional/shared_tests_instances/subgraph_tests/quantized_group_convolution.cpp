@@ -25,7 +25,7 @@ TEST_P(KmbQuantGroupConvLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbQuantGroupConvLayerTest, DISABLED_CompareWithRefs_MLIR) {
+TEST_P(KmbQuantGroupConvLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
