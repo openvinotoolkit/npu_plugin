@@ -35,12 +35,15 @@ void mv::StreamingPerformance::increaseStreamingOverKforPerformance()
     minWeightsPerClusterPerChain_ = calculateMininumWeightsSizePerClusterPerChain();
     // Step 3: Calculate more optimal streaming over K strategies
     if (!minWeightsPerClusterPerChain_.empty()) {
+
         evaluateGraphOptimizerAssignedKStreamingStrategies();
 
         // Step4: Assign the new strategies
         assignNewSrategies();
 
-        mv::saveNewStreamingStrategiesToJson(newStrategies_);                               
+        if (mv::isDebugFilesEnabled()) 
+            if(mv::saveNewStreamingStrategiesToJson(newStrategies_))
+                throw mv::RuntimeError("StreamingPerformance", "Cannot open file for writing");                   
     }
 
 }
