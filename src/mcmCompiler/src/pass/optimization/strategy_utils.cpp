@@ -356,12 +356,12 @@ std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int t
     return std::tuple<std::size_t,std::size_t,std::size_t>(inputSize, outputSize,weightSize);
 }
 
-void mv::saveNewStreamingStrategiesToJson(const mv::Attribute& streamingStrategyElements) {
+int mv::saveNewStreamingStrategiesToJson(const mv::Attribute& streamingStrategyElements) {
     std::ofstream jsonOutputFile;
     std::string jsonOutFileName = std::string("./output/") + "Streaming_activations_and_weights_performance_strategies" + ".json";
     jsonOutputFile.open(jsonOutFileName, std::ios::out);
-    // if (!(jsonOutputFile.is_open()))
-    //     pass.log(mv::Logger::MessageType::Debug, std::string(passName) + " could not open output file " + jsonOutFileName);
+    if (!(jsonOutputFile.is_open()))
+        return -1;
 
     auto currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::string timeStamp(ctime(&currentTime));
@@ -373,6 +373,7 @@ void mv::saveNewStreamingStrategiesToJson(const mv::Attribute& streamingStrategy
   
     jsonOutputFile << jsonSStrategy.stringifyPretty() << "," << std::endl;
     jsonOutputFile.close();
+    return 0;
 }
 
 bool mv::validateKStream(mv::Op& op, mv::Attribute clustering, size_t split, bool spilling, size_t nClusters) {
