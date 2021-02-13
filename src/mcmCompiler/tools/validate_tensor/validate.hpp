@@ -40,6 +40,9 @@ static const char image_message[] = "Optional. Path to input image. If not suppl
 static const char evm_message[] = "Required. IP address of EVM board to run inference on";
 
 /// @brief message for setting quantize or not
+static const char password_message[] = "Required. Password of the NUC connected to the EVM board";
+
+/// @brief message for setting quantize or not
 static const char mode_message[] = "Optional. Runs all, but can just run validation if set to validate or SimpleNN Inference only";
 
 /// @brief message for color order
@@ -90,6 +93,10 @@ DEFINE_string(i, "", image_message);
 /// It is a required parameter
 DEFINE_string(k, "", evm_message);
 
+/// @brief Define parameter for nuc password that is connected to evm <br>
+/// It is a required parameter if using SimpleNN
+DEFINE_string(p, "", password_message);
+
 /// It is a required parameter
 DEFINE_string(mode, "all", mode_message);
 
@@ -123,6 +130,7 @@ static void showUsage() {
     std::cout << "    -h                  " << help_message << std::endl;
     std::cout << "    -m <path>           " << model_message << std::endl;
     std::cout << "    -k <ip address>     " << evm_message << std::endl;
+    std::cout << "    -p <NUC connected to EVM password>     " << password_message << std::endl;
     std::cout << "    -i <path>           " << image_message << std::endl;
     std::cout << "    -t <float>          " << tolerence_message << std::endl;
     std::cout << "    -d                  " << debug_message << std::endl;

@@ -172,7 +172,8 @@ int doInferenceWithSimpleNNOnly()
             exit(-1);
 
         printf("Opening...\n");
-        rc = ssh_channel_open_session(channel);
+        //rc = ssh_channel_open_session(channel);
+        rc = ssh_channel_open_forward(channel,"192.168.1.1",22,"localhost", 5555);
         if (rc != SSH_OK)
             error(session);
 
@@ -336,6 +337,18 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
         if (FLAGS_a.empty())
             throw std::logic_error("Parameter -a must be set in validation mode");
     }
+    else if ((!FLAGS_app.empty()) && (FLAGS_app == "SIMPLENN")) 
+    {
+        if (FLAGS_m.empty())
+            throw std::logic_error("Parameter -m <path to model> is not set");
+        if (FLAGS_k.empty())
+            throw std::logic_error("Parameter -k <evm ip address> is not set");
+        if (FLAGS_p.empty())
+            throw std::logic_error("Parameter -p <NUC password> is not set");
+        if (! FLAGS_il.empty() )
+            if (FLAGS_il != "NHWC" && FLAGS_il != "NCHW")
+                throw std::logic_error("Parameter -il only supports NHWC or NCHW");
+    }
     else if (FLAGS_mode != "SimpleNNInferenceOnly")//normal operation
     {
         if (FLAGS_m.empty())
@@ -346,7 +359,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
             if (FLAGS_il != "NHWC" && FLAGS_il != "NCHW")
                 throw std::logic_error("Parameter -il only supports NHWC or NCHW");
     }
-
     return true;
 }
 
@@ -777,9 +789,9 @@ int runKmbInference(std::string evmIP, std::string blobPath) {
             exit(-1);
 
         ssh_options_set(session, SSH_OPTIONS_HOST, FLAGS_k.c_str());
-        // ssh_options_set(session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
+        ssh_options_set(session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
         ssh_options_set(session, SSH_OPTIONS_PORT, &port);
-        ssh_options_set(session, SSH_OPTIONS_USER, "root");
+        ssh_options_set(session, SSH_OPTIONS_USER, "labuser");
 
         printf("Connecting...\n");
         rc = ssh_connect(session);
@@ -787,7 +799,7 @@ int runKmbInference(std::string evmIP, std::string blobPath) {
             error(session);
 
         printf("Password Autentication...\n");
-        rc = ssh_userauth_password(session, NULL, "root");
+        rc = ssh_userauth_password(session, "labuser", "kmb_po_2019@irl");
         if (rc != SSH_AUTH_SUCCESS)
             error(session);
 
@@ -796,18 +808,25 @@ int runKmbInference(std::string evmIP, std::string blobPath) {
         if (channel == NULL)
             exit(-1);
 
-        printf("Opening...\n");
-        rc = ssh_channel_open_session(channel);
+        printf("Port forwarding to Host B...\n");
+        //rc = ssh_channel_open_session(channel);
+        rc = ssh_channel_open_forward(channel,"root@192.168.1.1",22,"localhost", 5555);
+        std::cout << "rc is " << rc << std::endl;
         if (rc != SSH_OK)
+        {
             error(session);
+            exit(1);
+        }
 
+        printf("Port forwarding done...\n");
         // SFTP input-0.bin and test.blob to th EVM
         sftp_session sftp0;
-        sftp_session sftp1;
+        //sftp_session sftp1;
 
         // Open two SFTP sessions
+        printf("Opening sftp session...\n");
         sftp0 = sftp_new(session);
-        sftp1 = sftp_new(session);
+        //sftp1 = sftp_new(session);
 
         if (sftp0 == NULL) {
             fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(session));
@@ -820,36 +839,38 @@ int runKmbInference(std::string evmIP, std::string blobPath) {
             sftp_free(sftp0);
             return rc;
         }
+        printf("SFTP session opened...\n");
 
-        if (sftp1 == NULL) {
-            fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(session));
-            return SSH_ERROR;
-        }
-        // Initialize the SFTP session
-        rc = sftp_init(sftp1);
-        if (rc != SSH_OK) {
-            fprintf(stderr, "Error initializing SFTP session: %s.\n", sftp_get_error(sftp1));
-            sftp_free(sftp1);
-            return rc;
-        }
+        // if (sftp1 == NULL) {
+        //     fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(session));
+        //     return SSH_ERROR;
+        // }
+        // // Initialize the SFTP session
+        // rc = sftp_init(sftp1);
+        // if (rc != SSH_OK) {
+        //     fprintf(stderr, "Error initializing SFTP session: %s.\n", sftp_get_error(sftp1));
+        //     sftp_free(sftp1);
+        //     return rc;
+        // }
 
         // Open the test.blob file on the remote side
         sftp_file file0;
-        sftp_file file1;
-
-        file0 = sftp_open(sftp0, "/opt/test.blob", O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+        //sftp_file file1;
+        printf("Openign file on Host B...\n");
+        file0 = sftp_open(sftp0, "/home/root/test.blob", O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
         if (file0 == NULL) {
             fprintf(stderr, "Can't open test.blob for writing: %s\n", ssh_get_error(session));
             return SSH_ERROR;
+            exit(1);
         }
 
-        file1 = sftp_open(sftp1, "/opt/input-0.bin", O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
-        if (file1 == NULL) {
-            fprintf(stderr, "Can't open input-0.bin for writing: %s\n", ssh_get_error(session));
-            return SSH_ERROR;
-        }
+        // file1 = sftp_open(sftp1, "/home/root/input-0.bin", O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+        // if (file1 == NULL) {
+        //     fprintf(stderr, "Can't open input-0.bin for writing: %s\n", ssh_get_error(session));
+        //     return SSH_ERROR;
+        // }
         std::ifstream fin0(blobDest, std::ios::binary);
-
+        printf("file Openinn done...\n");
         while (fin0) {
             constexpr size_t max_xfer_buf_size = 260000;
             char buffer[max_xfer_buf_size];
@@ -865,28 +886,28 @@ int runKmbInference(std::string evmIP, std::string blobPath) {
         }
         sftp_close(file0);
 
-        std::ifstream fin1(inputDest, std::ios::binary);
+        // std::ifstream fin1(inputDest, std::ios::binary);
 
-        while (fin1) {
-            constexpr size_t max_xfer_buf_size = 260000;
-            char buffer[max_xfer_buf_size];
-            fin1.read(buffer, sizeof(buffer));
-            if (fin1.gcount() > 0) {
-                ssize_t nwritten = sftp_write(file1, buffer, fin1.gcount());
-                if (nwritten != fin1.gcount()) {
-                    fprintf(stderr, "Can't write data to file: %s\n", ssh_get_error(session));
-                    sftp_close(file1);
-                    return 1;
-                }
-            }
-        }
-        sftp_close(file1);
+        // while (fin1) {
+        //     constexpr size_t max_xfer_buf_size = 260000;
+        //     char buffer[max_xfer_buf_size];
+        //     fin1.read(buffer, sizeof(buffer));
+        //     if (fin1.gcount() > 0) {
+        //         ssize_t nwritten = sftp_write(file1, buffer, fin1.gcount());
+        //         if (nwritten != fin1.gcount()) {
+        //             fprintf(stderr, "Can't write data to file: %s\n", ssh_get_error(session));
+        //             sftp_close(file1);
+        //             return 1;
+        //         }
+        //     }
+        // }
+        // sftp_close(file1);
 
         // Do inference!
         printf("Executing remote command...\n");
         rc = ssh_channel_request_exec(
                 channel,
-                "new_SimpleNN /opt/test.blob /opt/input-0.bin /opt/output-0.bin /opt/expected_result_sim.dat 0");
+                "new_SimpleNN /home/root/test.blob /home/root/input-0.bin /home/root/output-0.bin /home/root/expected_result_sim.dat 0");
         if (rc != SSH_OK)
             error(session);
 
@@ -900,7 +921,7 @@ int runKmbInference(std::string evmIP, std::string blobPath) {
         // Scp output-0.bin
         // Start
         ssh_scp scp;
-        scp = ssh_scp_new(session, SSH_SCP_READ, "/opt/output-0.bin");
+        scp = ssh_scp_new(session, SSH_SCP_READ, "/home/root/output-0.bin");
 
         if (scp == NULL) {
             fprintf(stderr, "Error allocating scp session: %s\n", ssh_get_error(session));
@@ -1378,6 +1399,7 @@ bool checkInference(std::string actualResults, std::string expectedResults, std:
     return pass;
 }
 
+
 int main(int argc, char *argv[])
 {
     if(std::getenv("OPENVINO_HOME") == NULL)
@@ -1502,3 +1524,75 @@ int main(int argc, char *argv[])
     if(testPass) return RESULT_SUCCESS;
     else return FAIL_VALIDATION;
 }
+
+// #include <libssh/sftp.h>
+// int main(int argc, char* argv[]) {
+
+//     // Create SSH session
+//     ssh_session session;
+//     ssh_channel channel;
+//     int rc, port = 22;
+//     char buffer[1024];
+//     unsigned int nbytes;
+//     int verbosity = SSH_LOG_PROTOCOL;
+
+//     printf("Session...\n");
+//     session = ssh_new();
+//     if (session == NULL)
+//         exit(-1);
+
+//     ssh_options_set(session, SSH_OPTIONS_HOST, "hostA_IP.com");
+//     ssh_options_set(session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
+//     ssh_options_set(session, SSH_OPTIONS_PORT, &port);
+//     ssh_options_set(session, SSH_OPTIONS_USER, "user");
+
+//     printf("Connecting...\n");
+//     rc = ssh_connect(session);
+//     if (rc != SSH_OK)
+//         error(session);
+
+//     printf("Password Autentication...\n");
+//     rc = ssh_userauth_password(session, "user", "userpassword");
+//     if (rc != SSH_AUTH_SUCCESS)
+//         error(session);
+
+//     printf("Channel...\n");
+//     channel = ssh_channel_new(session);
+//     if (channel == NULL)
+//         exit(-1);
+
+//     printf("Port forwarding to Host B...\n");
+//     rc = ssh_channel_open_forward(channel, "root@hostB_IP.com", 22, "localhost", 5555);
+//     if (rc != SSH_OK) {
+//         error(session);
+//         exit(1);
+//     }
+//     printf("Port forwarding done...\n");
+
+//     // Open SFTP session
+//     sftp_session sftp0;
+//     printf("Opening sftp session...\n");
+//     sftp0 = sftp_new(session);
+
+//     if (sftp0 == NULL) {
+//         fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(session));
+//         return SSH_ERROR;
+//     }
+//     // Initialize the SFTP session
+//     rc = sftp_init(sftp0);
+//     if (rc != SSH_OK) {
+//         fprintf(stderr, "Error initializing SFTP session: %s.\n", sftp_get_error(sftp0));
+//         sftp_free(sftp0);
+//         return rc;
+//     }
+//     printf("SFTP session opened...\n");
+
+//     sftp_file file0;
+//     printf("Openign file on Host B...\n");
+//     file0 = sftp_open(sftp0, "/home/root/test.blob", O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+//     if (file0 == NULL) {
+//         fprintf(stderr, "Can't open test.blob for writing: %s\n", ssh_get_error(session));
+//         return SSH_ERROR;
+//         exit(1);
+//     }
+// }
