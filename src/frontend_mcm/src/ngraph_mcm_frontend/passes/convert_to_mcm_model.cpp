@@ -90,6 +90,7 @@
 #include <ngraph/op/softplus.hpp>
 #include <ngraph/op/pad.hpp>
 #include <ngraph/op/mish.hpp>
+#include <ngraph/op/floor.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -572,6 +573,16 @@ void convert(std::shared_ptr<ngraph::op::v4::Mish> mish, mv::OpModel& mcmModel, 
     const auto mcmOpOutput = mcmModel.mish(opName, opInput);
     mcmOpOutput->setQuantParams(initialQuantParams());
     registerOutputs(mish, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::Floor> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto& opName = op->get_friendly_name();
+    const auto& opInput = mcmInputs.at(0);
+    const auto mcmOpOutput = mcmModel.floor(opName, opInput);
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
 }
 
 // TODO: Replace SwishIE with v4::Swish -- to process
@@ -1800,6 +1811,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v4::HSwish),
     MAP_ENTRY(ngraph::op::SwishIE),
     MAP_ENTRY(ngraph::op::v4::Mish),
+    MAP_ENTRY(ngraph::op::v0::Floor),
     MAP_ENTRY(ngraph::op::TileIE),
     MAP_ENTRY(ngraph::op::v1::VariadicSplit),
     MAP_ENTRY(ngraph::op::CTCGreedyDecoder),
