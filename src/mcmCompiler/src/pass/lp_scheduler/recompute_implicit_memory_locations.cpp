@@ -217,30 +217,6 @@ class Addr_Attr final: public Attrs<std::size_t> {
         }
       };
 
-      auto propagate_slice_address = [] (table_t& attr_table, operation_t child, std::size_t const parent_address) {
-        operation_non_const_t op = const_cast<operation_non_const_t>(child);
-        auto const& start = child->get<mv::Shape>("begin");
-        auto const& in_tensor = op->getInputTensor(0);
-        auto const& in_shape = in_tensor->getShape();
-        auto const indices = in_tensor->getOrder().getContiguityVector();
-
-        std::size_t multiplier = in_tensor->getDType().getSizeInBytes();
-        std::size_t offset = start[indices[0]] * multiplier;
-        for (std::size_t idx = 1; idx < in_shape.ndims(); ++idx) {
-          multiplier *= in_shape[indices[idx - 1]];
-          offset += start[indices[idx]] * multiplier;
-        }
-
-        auto aitr = attr_table.find(child);
-        if (aitr == attr_table.end()) {
-          aitr = attr_table.insert(
-              std::make_pair(child, parent_address + offset)).first;
-        } else {
-          throw mv::RuntimeError("RecomputeImplicitAttr", "Implicit op " + child->getName() +
-                " has more than one input");
-        }
-      };
-
       func_map_t propagate_addr = {
         {"Align", propagate_parent_address},
         {"Copy", propagate_parent_address},
@@ -248,7 +224,7 @@ class Addr_Attr final: public Attrs<std::size_t> {
         {"ImplicitConcat", propagate_concat_address},
         {"ImplicitPermute", propagate_parent_address},
         {"ImplicitReshape", propagate_parent_address},
-        {"Slice", propagate_slice_address}
+        {"Slice", propagate_parent_address}
       };
 
       propagate_addr.at(child_op->getOpType())(attr_table_, child_op, parent_addr);
@@ -278,14 +254,14 @@ class Addr_Attr final: public Attrs<std::size_t> {
       }
 
       mv::DataModel dm(omodel_);
-      auto tensorAllocators = tensor_itr->get<std::set<std::string>>("allocators");
-      if (tensorAllocators.empty())
-          throw mv::ArgumentError("buildTensorReferenceT", "",  "Tensor Allocators empty", "");
+      auto tensor_allocators = tensor_itr->get<std::set<std::string>>("allocators");
+      if (tensor_allocators.empty())
+          throw mv::ArgumentError("RecomputeImplicitAttr", "",  "Tensor Allocators empty", "");
 
-      auto tensorAllocator = dm.getAllocator(*tensorAllocators.begin());
-      mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, tensor_itr); // 0 is the only stage for now, but this will probably change in the future
-      auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-      return (*masterBuffer)->getOffset();
+      auto t_allocator = dm.getAllocator(*tensor_allocators.begin());
+      mv::Data::BufferIterator tensor_buff_itr = t_allocator.getBuffer(0, tensor_itr); // 0 is the only stage for now, but this will probably change in the future
+      auto master_buffer = t_allocator.getTopMasterBuffer(tensor_buff_itr);
+      return (*master_buffer)->getOffset();
     }
 }; // class Addr_Attr //
 
@@ -318,7 +294,7 @@ void RecomputeImplicitOpAttr(const mv::pass::PassEntry&,
     memLocationAttribute.set_recomputed_attr();
 
     if (passDesc.hasAttr("output_dir")) {
-      std::string output_dir = passDesc.get<std::string>("output_dir");
+      std::string const output_dir = passDesc.get<std::string>("output_dir");
       memLocationAttribute.dump(output_dir + "/recompute_mem_loc.txt");
     }
   }
@@ -329,7 +305,7 @@ void RecomputeImplicitOpAttr(const mv::pass::PassEntry&,
     addressAttribute.set_recomputed_attr();
 
     if (passDesc.hasAttr("output_dir")) {
-      std::string output_dir = passDesc.get<std::string>("output_dir");
+      std::string const output_dir = passDesc.get<std::string>("output_dir");
       addressAttribute.dump(output_dir + "/recompute_address.txt");
     }
   }
