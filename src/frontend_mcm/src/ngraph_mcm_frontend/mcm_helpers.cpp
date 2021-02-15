@@ -75,13 +75,14 @@ mv::DType cvtElemTypeToMCM(const ngraph::element::Type& elemType) {
     std::ostringstream mcmTypeName;
 
     if (elemType.is_real()) {
+        if (elemType == ngraph::element::bf16)
+            mcmTypeName << "B";
         mcmTypeName << "Float";
     } else if (elemType.is_signed()) {
         mcmTypeName << "Int";
     } else {
         mcmTypeName << "UInt";
     }
-
     mcmTypeName << elemType.bitwidth();
 
     return mv::DType(mcmTypeName.str());

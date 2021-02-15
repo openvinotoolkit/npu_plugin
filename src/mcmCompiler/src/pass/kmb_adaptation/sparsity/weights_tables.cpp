@@ -208,9 +208,11 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
         populatePointerMultiCluster(weightsTableData, dpuTaskOp, increments, offset, 1, model, activationWindow);
     }
 }
+#include "mcm/utils/custom_math.hpp"
 
 
-void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
+void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model,
+        mv::TargetDescriptor&)
 {
     mv::DataModel dm(model);
     mv::QuantizationParams quantParams = {{},{},{},{}};
@@ -254,26 +256,43 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
         biasData = bias->getData(); //Bias has the type Int32 in both cases above
     }
 
-    unsigned round_mode = 1;
-    std::vector<int32_t> round32(outputChannels, round_mode);
-    std::vector<int32_t> reluMultData(outputChannels, 0);
-    if (hasPPETask)
-    {
-        auto ppeFF = dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction();
-        auto& ppeLayers = ppeFF.getLayers();
-        auto isLRelu = std::find(ppeLayers.begin(), ppeLayers.end(), mv::PPELayerTypeEnum::PPELayerType_LPRELU) != ppeLayers.end();
-        if (isLRelu)
-            std::fill(reluMultData.begin(), reluMultData.end(), dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult());
-    }
+    bool floatScaleTable = false;
+    if (dpuTaskOp->hasAttr("floatScale"))
+        floatScaleTable = true;
 
-    for (size_t i = 0; i < weightsTableData->size(); i+=WT_ELEMENTS_PER_CHANNEL)
+    if (floatScaleTable)
     {
-        weightsTableData->at(i+2) = static_cast<int64_t>((mScaled[i/WT_ELEMENTS_PER_CHANNEL] << 16) | (round32[i/WT_ELEMENTS_PER_CHANNEL] << 14) | (mShift[i/WT_ELEMENTS_PER_CHANNEL]) << 8) | reluMultData[i/WT_ELEMENTS_PER_CHANNEL];
-        if (hasBias)
-            weightsTableData->at(i+3) = biasData[i/WT_ELEMENTS_PER_CHANNEL];
+        auto mScale = dpuTaskOp->get<std::vector<float>>("floatScale");
+        for (size_t i = 0; i < weightsTableData->size(); i+=WT_ELEMENTS_PER_CHANNEL)
+        {
+            weightsTableData->at(i+2) = static_cast<int64_t>(mv::float_as_int(mScale[i/WT_ELEMENTS_PER_CHANNEL]));
+            if (hasBias)
+                weightsTableData->at(i+3) = static_cast<int64_t>(mv::float_as_int(biasData[i/WT_ELEMENTS_PER_CHANNEL]));
+        }
+    }
+    else
+    {
+        unsigned round_mode = 1;
+        std::vector<int32_t> round32(outputChannels, round_mode);
+        std::vector<int32_t> reluMultData(outputChannels, 0);
+        if (hasPPETask)
+        {
+            auto ppeFF = dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction();
+            auto& ppeLayers = ppeFF.getLayers();
+            auto isLRelu = std::find(ppeLayers.begin(), ppeLayers.end(), mv::PPELayerTypeEnum::PPELayerType_LPRELU) != ppeLayers.end();
+            if (isLRelu)
+                std::fill(reluMultData.begin(), reluMultData.end(), dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult());
+        }
+
+        for (size_t i = 0; i < weightsTableData->size(); i+=WT_ELEMENTS_PER_CHANNEL)
+        {
+            weightsTableData->at(i+2) = static_cast<int64_t>((mScaled[i/WT_ELEMENTS_PER_CHANNEL] << 16) | (round32[i/WT_ELEMENTS_PER_CHANNEL] << 14) | (mShift[i/WT_ELEMENTS_PER_CHANNEL]) << 8) | reluMultData[i/WT_ELEMENTS_PER_CHANNEL];
+            if (hasBias)
+                weightsTableData->at(i+3) = biasData[i/WT_ELEMENTS_PER_CHANNEL];
+        }
     }
 }
-static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -288,7 +307,7 @@ static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv
                taskOp == "DepthwiseConv")
             {
                 auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
-                populateWeightsTablesActivationAndBias(weightsTable, dpuTaskOp, model);
+                populateWeightsTablesActivationAndBias(weightsTable, dpuTaskOp, model, td);
             }
         }
     }

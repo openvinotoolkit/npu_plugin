@@ -208,10 +208,25 @@ unsigned mv::Tensor::subToInd_(const Shape& s, const std::vector<std::size_t>& s
 void mv::Tensor::populate(const std::vector<double>& data)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
-    if (!isDoubleType())
+    if (!isDoubleType() && getDType() != mv::DType("Float16") && getDType() != mv::DType("BFloat16"))
         throw ArgumentError(*this, "data vector", "type double", "Unable to populate, data type is not double"
             "DType of tensor is " + getDType().toString() + " but populating with double data");
 
+    if(getDType() == mv::DType("Float16") || getDType() == mv::DType("BFloat16"))
+    {
+        bool fp16DType = getDType() == mv::DType("Float16");
+        //todo convert data to int
+        std::vector<int64_t> intData(data.size());
+        for(std::size_t i = 0; i < data.size(); i++)
+        {
+            if (fp16DType)
+                intData[i] = mv::fp32_to_fp16(data[i]);
+            else
+                intData[i] = mv::fp32_to_bf16(data[i]);
+
+        }
+        return populate(intData);
+    }
     if (data.size() != shape_.totalSize())
         throw ArgumentError(*this, "data vector", std::to_string(data.size()), "Unable to populate, data vector size"
             "does not match total size the tensor (" + std::to_string(shape_.totalSize()) + ")");

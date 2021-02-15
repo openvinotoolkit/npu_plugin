@@ -173,7 +173,7 @@ void registerOutputs(std::shared_ptr<ngraph::Node> node, const std::vector<mv::D
 }
 
 bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
-    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32};
+    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::BF16, ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32};
     return supportedInPrecisions.find(inputPrecision) != supportedInPrecisions.end();
 }
 
@@ -184,7 +184,7 @@ bool isInputLayoutSupported(const ie::Layout& inputLayout) {
 }
 
 bool isOutputPrecisionSupported(const ie::Precision& outputPrecision) {
-    std::set<ie::Precision> supportedOutPrecisions = {ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32, ie::Precision::I32};
+    std::set<ie::Precision> supportedOutPrecisions = {ie::Precision::BF16, ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32, ie::Precision::I32};
     return supportedOutPrecisions.find(outputPrecision) != supportedOutPrecisions.end();
 }
 
@@ -278,6 +278,9 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
     case ie::Precision::I32:
         outputType = mv::DType("Int32");
         break;
+    case ie::Precision::BF16:
+        outputType = mv::DType("BFloat16");
+        break;
     default:
         THROW_IE_EXCEPTION << "Data type handling is not implemented" << outputPrecision.name();
     }
@@ -326,8 +329,19 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
 
     mv::Data::TensorIterator mcmOutput;
     if (constant->get_element_type().is_real()) {
-        mvDType = mv::DType("Float32");
-        mcmOutput = mcmModel.constant(opName, constant->cast_vector<double>(), mvShape, mvDType, mvOrder);
+
+        if (mvDType.isDoubleType() || mvDType == mv::DType("Float16"))
+        {
+            //legacy
+            mvDType = mv::DType("Float32");
+            mcmOutput = mcmModel.constant(opName, constant->cast_vector<double>(), mvShape, mvDType, mvOrder);
+        }
+        else
+        {
+            //BF16
+            mcmOutput = mcmModel.constant(opName, constant->cast_vector<double>(), mvShape, mvDType, mvOrder);
+        }
+
     } else {
         mcmOutput = mcmModel.constantInt(opName, constant->cast_vector<int64_t>(), mvShape, mvDType, mvOrder);
     }

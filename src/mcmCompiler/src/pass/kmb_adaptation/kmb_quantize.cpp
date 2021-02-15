@@ -200,9 +200,11 @@ void addSliceQuantizationLayer(mv::OpModel & om, std::vector<mv::Data::OpListIte
     }
 }
 
-static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    if (td.getTarget() == mv::Target::ma3720)
+        return; //for now anything is allowed
 
     mv::OpModel om(model);
     mv::DataModel dm(model);

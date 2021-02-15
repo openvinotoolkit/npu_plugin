@@ -16,7 +16,7 @@ namespace mv
     unsigned next_greater_power_of_2(unsigned number);
     std::vector<std::size_t> tileSpatialOutputSize(std::size_t outputSize , std::size_t numberOfSplits);
     uint16_t getWindowSize(uint16_t kx, uint16_t sx, mv::DType dataType);
-
+    uint32_t float_as_int(float f);
 
     // FP16 Conversion
     union bit_field32
@@ -53,7 +53,9 @@ namespace mv
     static int const minD = minC - subC - 1;
 
     uint16_t fp32_to_fp16(float value);
+    uint16_t fp32_to_bf16(float value);
     uint16_t fp32_to_fp16(double value);
+    uint16_t fp32_to_bf16(double value);
     float fp16_to_fp32(uint16_t value);
 
     // This is a helper function to get part of vector from equally divided slices
