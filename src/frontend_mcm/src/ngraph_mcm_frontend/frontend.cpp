@@ -52,7 +52,6 @@
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
-#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
@@ -227,9 +226,6 @@ std::vector<char> compileNGraph(
 
         ngraph::pass::Manager passManager;
         passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
-        passManager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
-        passManager.register_pass<ngraph::pass::ConstantFolding>();
-
         if (config.scaleShiftFusing()) {
             passManager.register_pass<FuseScaleShift>();
         }
