@@ -18,7 +18,8 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMCM {
 //  ngraph::helpers::Swish, // S#47800: fails with segmentation fault
     ngraph::helpers::Tanh,
     ngraph::helpers::SoftPlus,
-    ngraph::helpers::Elu
+    ngraph::helpers::Elu,
+    ngraph::helpers::Floor
 };
 
 std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
@@ -90,6 +91,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 //  {Swish,    {{1.0f}}}, // S#47800: fails with segmentation fault
     {SoftPlus, {{1.0f}}},
     {Mish,     {{1.0f}}},
+    {Floor,    {{1.0f}}},
 #if 0 // Unsupported layers
     {Exp,      {{1.0f}}},
     {Log,      {{1.0f}}},
