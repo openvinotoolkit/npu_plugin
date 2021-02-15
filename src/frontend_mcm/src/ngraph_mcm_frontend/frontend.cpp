@@ -142,7 +142,7 @@ std::vector<char> compileNGraph(
         log->debug("Configure MCM Compiler");
         VPU_LOGGER_SECTION(log);
 
-        bool layoutNCHW = false;
+        bool layoutNCHW = true;
         for (const auto& netInput : inputsInfo) {
             if (netInput.second->getLayout() != InferenceEngine::Layout::NCHW) {
                 layoutNCHW = false;
