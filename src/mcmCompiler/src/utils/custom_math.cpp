@@ -53,6 +53,16 @@ uint16_t mv::fp32_to_fp16(float value)
         return v.ui | sign;
 }
 
+uint16_t mv::fp32_to_bf16(float value)
+{
+    return (*reinterpret_cast<unsigned int *>(&value))>>16;
+}
+
+uint16_t mv::fp32_to_bf16(double value)
+{
+    return fp32_to_bf16(static_cast<float>(value));
+}
+
 uint16_t mv::fp32_to_fp16(double value)
 {
     return fp32_to_fp16(static_cast<float>(value));
@@ -74,6 +84,13 @@ float mv::fp16_to_fp32(uint16_t value){
     v.si ^= (s.si ^ v.si) & mask;
     v.si |= sign;
     return v.fp;
+}
+
+uint32_t mv::float_as_int(float f)
+{
+    bit_field32 v;
+    v.fp = f;
+    return v.ui;
 }
 
 std::vector<std::size_t> mv::tileSpatialOutputSize(std::size_t outputSize , std::size_t numberOfSplits)

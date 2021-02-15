@@ -920,7 +920,7 @@ mv::Data::TensorIterator convertSoftPlusToUPATask(mv::OpModel& om, const std::ve
     return softplus;
 }
 
-void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -1035,7 +1035,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 if ((newTensorOp->hasAttr("mixedToFloat") && newTensorOp->get<bool>("mixedToFloat")) ||
                         newTensorOp->hasAttr("floatPrecision"))
                     newTensor->setDType(mv::DType("Float16"));
-                else
+                else if (td.getTarget() != mv::Target::ma3720) //MTL don't force U8 for DPUTask output
                     newTensor->setDType(mv::DType("UInt8"));
                 if (hasLeadingOffset)
                     newTensor->set<uint64_t>("leadingOffset", leadingOffset);

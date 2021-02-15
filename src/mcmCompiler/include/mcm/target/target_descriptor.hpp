@@ -45,6 +45,11 @@ namespace mv
         bool bypassMode;
     };
 
+    struct GeneralTargetConfigs
+    {
+        bool floatScaleTable;
+    };
+
     typedef std::vector<std::pair<std::string, std::string>> DataTypeSet;
 
     struct DataTypeSupport
@@ -79,6 +84,7 @@ namespace mv
         std::map<std::string, std::size_t> processorDefs_;
         std::map<std::string, WorkloadConfig> workloadConfigs_;
         std::vector<DataTypeSupport> dtypeSupport_;
+        GeneralTargetConfigs generalConfigs_;
 
     public:
 
@@ -97,7 +103,7 @@ namespace mv
         DType getDType() const;
 
         mv::Element getSerialDefinition(std::string op_name, std::string platform_name) const;
-
+        const GeneralTargetConfigs& generalTargetConfigs() const;
         const std::map<std::string, MemoryDescriptor>& memoryDefs() const;
         const std::map<std::string, NceDescriptor>& nceDefs() const;
         const std::map<std::string, std::size_t>& processorDefs() const;

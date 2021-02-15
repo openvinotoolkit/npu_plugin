@@ -317,7 +317,7 @@ void updatePWLQuantParams(mv::Data::OpListIterator& op,
     op->get<mv::QuantizationParams>("pwlQuantParams").quantize(reQuantShift, reQuantMult);
 }
 
-void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -346,6 +346,13 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
         {
             auto output = opIt->getOutputTensor(0);
             auto input = opIt->getInputTensor(0);
+            bool floatScaleTable = false;
+
+            if(td.generalTargetConfigs().floatScaleTable)
+            {
+                auto inputDType = opIt->getInputTensor(0)->getDType();
+                floatScaleTable = inputDType == mv::DType("Float16") || inputDType == mv::DType("BFloat16");
+            }
             auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
             outputChannels = mv::round_up(outputChannels, 16);
 
@@ -454,6 +461,8 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
 
                 // m / S3
                 std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
+                if (floatScaleTable)
+                    opIt->set<std::vector<float>>("floatScale", m);
 
                 if (outputOfAccWithBias)
                 {

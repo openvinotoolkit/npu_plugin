@@ -91,6 +91,7 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float8.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float16.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bfloat16.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float32.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float64.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/int2.cpp"

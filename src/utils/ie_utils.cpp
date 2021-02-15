@@ -385,7 +385,7 @@ ie::Blob::Ptr toDefPrecision(const ie::Blob::Ptr& in) {
 
     const auto inPrec = in->getTensorDesc().getPrecision();
 
-    if (inPrec == ie::Precision::U8 || inPrec == ie::Precision::FP16) {
+    if (inPrec == ie::Precision::U8 || inPrec == ie::Precision::FP16 || inPrec == ie::Precision::BF16) {
         return toPrecision(in, ie::Precision::FP32);
     } else {
         return in;

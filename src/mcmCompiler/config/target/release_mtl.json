@@ -1,7 +1,9 @@
 {
-
     "target": "ma3720",
-
+    "general":
+    {
+        "floatScaleTable" : true
+    },
     "dtype":
     {
         "global": "Float16",

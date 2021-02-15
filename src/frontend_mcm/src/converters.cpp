@@ -33,6 +33,7 @@ static const std::map<InferenceEngine::Layout, std::vector<float>> orderMapping 
 static const std::map<InferenceEngine::Precision, MVCNN::DType> dataTypeMapping = {
         {InferenceEngine::Precision::FP32, MVCNN::DType::DType_FP32},
         {InferenceEngine::Precision::FP16, MVCNN::DType::DType_FP16},
+        {InferenceEngine::Precision::BF16, MVCNN::DType::DType_BFP16},
         {InferenceEngine::Precision::U64, MVCNN::DType::DType_U64},
         {InferenceEngine::Precision::U16, MVCNN::DType::DType_U16},
         {InferenceEngine::Precision::U8, MVCNN::DType::DType_U8},
@@ -99,6 +100,9 @@ mv::DType precisionToDType(const InferenceEngine::Precision& InferenceEnginePrec
         break;
     case InferenceEngine::Precision::FP16:
         mvType = mv::DType("Float16");
+        break;
+    case InferenceEngine::Precision::BF16:
+        mvType = mv::DType("BFloat16");
         break;
     case InferenceEngine::Precision::FP32:
         mvType = mv::DType("Float32");

@@ -37,7 +37,8 @@ mv::Target mv::TargetDescriptor::toTarget(const std::string& str)
 mv::TargetDescriptor::TargetDescriptor(const std::string& filePath) :
 target_(Target::Unknown),
 globalDType_("Float16"),
-hdeDef_({0,0,0,0,false})
+hdeDef_({0,0,0,0,false}),
+generalConfigs_({false})
 {
 
     if (!filePath.empty())
@@ -56,6 +57,7 @@ void mv::TargetDescriptor::reset()
     dtypeSupport_.clear();
     processorDefs_.clear();
     workloadConfigs_.clear();
+    generalConfigs_.floatScaleTable = false;
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
@@ -97,6 +99,30 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
     {
         reset();
         return false;
+    }
+
+    if (jsonDescriptor.hasKey("general"))
+    {
+        if (jsonDescriptor["general"].valueType() != json::JSONType::Object)
+        {
+            reset();
+            return false;
+        }
+        else
+        {
+            if (jsonDescriptor["general"].hasKey("floatScaleTable"))
+            {
+                if (jsonDescriptor["general"]["floatScaleTable"].valueType() != json::JSONType::Bool)
+                {
+                    reset();
+                    return false;
+                }
+                else
+                {
+                    generalConfigs_.floatScaleTable = jsonDescriptor["general"]["floatScaleTable"].get<bool>();
+                }
+            }
+        }
     }
 
     if (jsonDescriptor["dtype"].valueType() != json::JSONType::Object)
@@ -584,4 +610,9 @@ const std::map<std::string, mv::WorkloadConfig>& mv::TargetDescriptor::getWorklo
 std::string mv::TargetDescriptor::getLogID() const
 {
     return "TargetDescriptor";
+}
+
+const mv::GeneralTargetConfigs& mv::TargetDescriptor::generalTargetConfigs() const
+{
+    return generalConfigs_;
 }
