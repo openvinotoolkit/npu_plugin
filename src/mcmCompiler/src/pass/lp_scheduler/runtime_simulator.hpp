@@ -49,7 +49,7 @@ class Runtime_Barrier_Simulation_Assigner{
 
     Runtime_Barrier_Simulation_Assigner(const dag_t& input,
         size_t barrier_bound, mv::OpModel& om)
-      : input_ptr_(&input), level_sets_(), in_degree_map_(),
+      : scheduleID(0), input_ptr_(&input), level_sets_(), in_degree_map_(),
         real_barrier_list_(), barrier_bound_(barrier_bound),
         active_barrier_table_(), om_(&om) {}
 
