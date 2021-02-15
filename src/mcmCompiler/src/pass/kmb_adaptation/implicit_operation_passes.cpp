@@ -9,7 +9,6 @@ static void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Co
 //NOTE: this function was mostly a hack, but in general the idea is correct, any implicit operation between
 //ddr and output should not be translated with a dma but the output buffer should contain the ddr one
 //static void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-
 namespace mv
 {
     namespace pass
@@ -116,6 +115,96 @@ void propagateImplicitOpsFromOutput(mv::Op& op, mv::OpModel& om)
     }
 }
 
+void resolveImplicitConcats(mv::OpModel& om)
+{
+    auto concatOps = om.getOps("ImplicitConcat");
+
+    std::function<bool(mv::Data::OpListIterator, mv::Data::OpListIterator,
+                       std::vector<mv::Data::OpListIterator>&)> checkPath = [&](mv::Data::OpListIterator operation1,
+            mv::Data::OpListIterator operation2,
+            std::vector<mv::Data::OpListIterator>& operations) {
+        return om.pathExists(operation1, operation2) && om.getPath(operation1, operation2, operations);
+    };
+
+    for (auto& concat : concatOps) {
+
+        mv::Data::TensorIterator outputTensor = concat->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+        mv::Tensor::MemoryLocation outLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+
+        if (outLocation != mv::Tensor::MemoryLocation::DDR)
+            continue;
+
+        // just to speed up checking assume that if we find at least one unsuitable concat
+        // stop iterating
+        bool found = false;
+
+        std::vector<mv::Data::FlowSiblingIterator> concats;
+        concats.reserve(concat.childrenSize());
+
+        for (mv::Data::FlowSiblingIterator flow = concat.leftmostOutput(); flow != om.flowEnd(); ++flow) {
+            mv::Data::OpListIterator nextOp = flow.sink();
+
+            if (nextOp->getOpType() != "ImplicitConcat"
+                    || flow->getTensor()->get<mv::Tensor::MemoryLocation>("Location") != outLocation)
+                continue;
+
+            // check that one concat follows the other
+            if (!found) {
+
+                if (concats.empty()) {
+                    concats.push_back(flow);
+                    continue;
+                }
+
+                // find the path between two concats
+                std::vector<mv::Data::OpListIterator> operations;
+
+                // because of uncertainty of operations' order check both options.
+                if (!checkPath(concats.front().sink(), nextOp, operations) &&
+                        !checkPath(nextOp, concats.front().sink(), operations))
+                    break;
+
+                // also check that there is any DPU task on the path between concats
+                found = !operations.empty()
+                    && std::find_if(operations.begin(), operations.end(),
+                                                           [&](mv::Data::OpListIterator& operation) {
+                    return operation->isHardwarizable();
+                }) != operations.end();
+
+                if (!found)
+                    break;
+            }
+
+            concats.push_back(flow);
+        }
+
+        if (!found || concats.size() < 2)
+            continue;
+
+        for(auto& operation: concats) {
+
+            mv::Data::OpListIterator concatOp = operation.sink();
+            size_t sinkInput = operation->get<std::size_t>("sinkInput");
+
+            auto dma = mv::insertDMAReplacementRemoveFlows(om, concat, concatOp->getInputTensor(sinkInput),
+                                                              mv::DmaDirectionEnum::DDR2NNCMX, 0,
+            {operation},
+            {sinkInput}, {concatOp},
+                concat->getName() + "To" + concatOp->getName());
+            dma->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
+
+            mv::Data::OpListIterator firstDma = om.getSourceOp(dma);
+
+            auto dma2 = mv::insertDMAReplacementRemoveFlows(om, firstDma, firstDma->getOutputTensor(mv::IO_TENSOR_OUTPUT),
+                                                mv::DmaDirectionEnum::NNCMX2DDR, 0,
+            {firstDma.leftmostOutput()},
+            {sinkInput}, {concatOp},
+                firstDma->getName() + "To" + concatOp->getName());
+            dma2->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+        }
+    }
+}
+
 void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -191,6 +280,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 //                if (inputLocation != outputLocation &&
 //                        !(inputLocation == mv::Tensor::MemoryLocation::DDR &&
 //                          outputLocation == mv::Tensor::MemoryLocation::OUTPUT))
+
                 if (inputLocation != outputLocation)
                 {
                     //TODO:: QUant params inherited for concat
@@ -431,6 +521,9 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
             }
         }
     }
+
+    // Resolve the situation when the concat writes to more than one concat in DDR
+    resolveImplicitConcats(om);
 }
 
 //void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)

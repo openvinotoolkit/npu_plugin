@@ -93,6 +93,9 @@ namespace mv
         // u and v in the op model //
         bool getImplicitPath(Data::OpListIterator u, Data::OpListIterator v,
             std::list<Data::OpListIterator>& path);
+
+        bool getPath(Data::OpListIterator u, Data::OpListIterator v,
+            std::vector<Data::OpListIterator>& path);
     private:
 
         template<typename OpSubsetIterator>
