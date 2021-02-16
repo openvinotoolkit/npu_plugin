@@ -112,7 +112,7 @@ bool HDDL2Backend::isServiceRunning() {
     return HddlUnite::isServiceRunning();
 }
 
-HddlUnite::clientLogLevel convertIELogLevelToUnite(vpu::LogLevel ieLogLevel) {
+HddlUnite::clientLogLevel convertIELogLevelToUnite(const vpu::LogLevel ieLogLevel) {
     switch (ieLogLevel) {
     case vpu::LogLevel::None:
         return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;

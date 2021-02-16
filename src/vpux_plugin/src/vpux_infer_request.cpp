@@ -113,7 +113,7 @@ PreprocMap InferRequest::preparePreProcessing(
         const IE::InputsDataMap& networkInputs,
         const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData) {
     PreprocMap preProcMap;
-    for (auto& input : networkInputs) {
+    for (const auto& input : networkInputs) {
         const std::string inputName = input.second->name();
         const auto& preProcDataIt = preProcData.find(inputName);
         if (preProcDataIt != preProcData.end()) {
