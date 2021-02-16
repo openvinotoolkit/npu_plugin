@@ -28,6 +28,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMCM {
     ngraph::helpers::Log,
     ngraph::helpers::Ceiling,
     ngraph::helpers::Exp,
+    ngraph::helpers::PReLu,
 };
 
 std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
