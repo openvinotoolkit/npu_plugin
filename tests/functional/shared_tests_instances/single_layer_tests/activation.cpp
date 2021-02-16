@@ -19,7 +19,8 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMCM {
     ngraph::helpers::Tanh,
     ngraph::helpers::SoftPlus,
     ngraph::helpers::Elu,
-    ngraph::helpers::Floor
+    ngraph::helpers::Floor,
+    ngraph::helpers::Erf
 };
 
 std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
@@ -92,6 +93,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {SoftPlus, {{1.0f}}},
     {Mish,     {{1.0f}}},
     {Floor,    {{1.0f}}},
+    {Erf,      {{1.0f}}},
 #if 0 // Unsupported layers
     {Exp,      {{1.0f}}},
     {Log,      {{1.0f}}},
