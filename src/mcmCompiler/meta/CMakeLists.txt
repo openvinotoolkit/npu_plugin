@@ -24,7 +24,7 @@ target_include_directories(mcmCompilerCompAPIGenApp
         "${META_DIR_PATH}"
         "${META_DIR_PATH}/include"
         "${PROJECT_SOURCE_DIR}/include/huffman_encoding"
-        "${PROJECT_SOURCE_DIR}/include/bitcompactor"
+        "${PROJECT_SOURCE_DIR}/contrib/bitcompactor/include"
 )
 
 target_link_libraries(mcmCompilerCompAPIGenApp
