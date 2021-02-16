@@ -299,9 +299,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         }
         sched_itr = sched_itr_next;
       }
-    }
-    if (fptr) {
-      dynamic_spill.print_redundant_spilled_ops(fptr);
+      if (fptr) {
+        dynamic_spill.print_redundant_spilled_ops(fptr);
+      }
+      dynamic_spill.remove_redundant_ops_from_op_model();
     }
 
     // update the input_dag with updated opModel
