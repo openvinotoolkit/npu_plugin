@@ -48,6 +48,7 @@ public:
 public:
     class ConstantRewrite;
     class FakeQuantizeRewrite;
+    class ViewLikeRewrite;
 
 private:
     void passBody();
@@ -120,7 +121,7 @@ mlir::LogicalResult ConvertIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(
     auto outHighConst = origOp.output_high().getDefiningOp<ConstantInterface>();
 
     if (inLowConst == nullptr || inHighConst == nullptr || outLowConst == nullptr || outHighConst == nullptr) {
-        _log.trace("[{0}] Got non constant parameters \n", origOp->getLoc());
+        _log.trace("Got non constant parameters");
         return mlir::failure();
     }
 
@@ -132,26 +133,125 @@ mlir::LogicalResult ConvertIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(
 }
 
 //
+// ReshapeRewrite
+//
+
+class ConvertIERT2VPUIPPass::ViewLikeRewrite final : public mlir::RewritePattern {
+public:
+    ViewLikeRewrite(IE::CNNNetworkOp netInfo, mlir::FuncOp netFunc, Logger log)
+            : mlir::RewritePattern(1, MatchAnyOpTypeTag{}), _netInfo(netInfo), _netFunc(netFunc), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    mutable IE::CNNNetworkOp _netInfo;
+    mutable mlir::FuncOp _netFunc;
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::Operation* origOp,
+                                                                            mlir::PatternRewriter& rewriter) const {
+    auto view = mlir::cast<mlir::ViewLikeOpInterface>(origOp);
+    if (view == nullptr) {
+        return mlir::failure();
+    }
+    if (origOp->getNumResults() != 1) {
+        return mlir::failure();
+    }
+
+    _log.trace("Found Reshape Operation '{0}'", origOp->getLoc());
+
+    if (origOp->getParentOfType<mlir::FuncOp>() != _netFunc) {
+        _log.nest().trace("It doesn't belong to network entry point Function");
+        return mlir::failure();
+    }
+
+    const auto origInput = view.getViewSource();
+    const auto outType = origOp->getResult(0).getType();
+
+    VPUIP::MemoryLocation location = VPUIP::MemoryLocation::VPU_DDR_Heap;
+    Optional<uint32_t> locationIndex;
+    uint64_t baseOffset = 0;
+
+    if (auto allocOp = origInput.getDefiningOp<IERT::StaticAllocOp>()) {
+        _log.nest().trace("It aliases internal buffer produced by '{0}' StaticAlloc", allocOp.getLoc());
+
+        // TODO: generalize location type
+        location = VPUIP::MemoryLocation::VPU_DDR_Heap;
+        baseOffset = allocOp.offset();
+    } else if (auto blockArg = origInput.dyn_cast<mlir::BlockArgument>()) {
+        _log.nest().trace("It aliases internal Function argument");
+
+        if (blockArg.getOwner()->getParentOp() != _netFunc) {
+            _log.nest(2).trace("The Block doesn't belong to network entry point Function");
+            return mlir::failure();
+        }
+
+        const auto argInd = checked_cast<size_t>(blockArg.getArgNumber());
+        const auto numNetInputs = _netInfo.getNetInputsCount();
+        const auto numNetOutputs = _netInfo.getNetOutputsCount();
+
+        if (argInd < numNetInputs) {
+            _log.nest(2).trace("It aliases network input");
+
+            location = VPUIP::MemoryLocation::ProgrammableInput;
+            locationIndex = checked_cast<uint32_t>(argInd);
+        } else if (argInd < numNetInputs + numNetOutputs) {
+            _log.nest(2).trace("It aliases network output");
+
+            location = VPUIP::MemoryLocation::ProgrammableOutput;
+            locationIndex = checked_cast<uint32_t>(argInd - numNetInputs);
+        } else {
+            _log.nest(2).trace("Wrong block argument index '{0}'", argInd);
+            return mlir::failure();
+        }
+    } else {
+        _log.nest().trace("Unknown source owner");
+        return mlir::failure();
+    }
+
+    if (locationIndex.hasValue()) {
+        rewriter.replaceOpWithNewOp<VPUIP::DeclareTensorOp>(origOp, outType, location, locationIndex.getValue(),
+                                                            baseOffset);
+    } else {
+        rewriter.replaceOpWithNewOp<VPUIP::DeclareTensorOp>(origOp, outType, location, baseOffset);
+    }
+
+    return mlir::success();
+}
+
+//
 // passBody
 //
 
 void ConvertIERT2VPUIPPass::passBody() {
     auto& ctx = getContext();
+    auto func = getFunction();
+
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+    VPUX_THROW_UNLESS(module != nullptr, "Can't get module from Function '{0}'", func.getLoc());
+
+    IE::CNNNetworkOp netInfo;
+    mlir::FuncOp netFunc;
+    IE::CNNNetworkOp::getFromModule(module, netInfo, netFunc);
 
     mlir::ConversionTarget target(ctx);
+    target.addIllegalDialect<IE::IEDialect>();
+    target.addIllegalDialect<IERT::IERTDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp, IE::EndOp>();
     target.addLegalOp<IERT::RunTimeResourcesOp, IERT::MemoryResourceOp, IERT::ExecutorResourceOp>();
-    target.addLegalOp<mlir::AllocOp, mlir::DeallocOp>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
 
     mlir::OwningRewritePatternList patterns;
     patterns.insert<ConstantRewrite>(&ctx, _log.nest());
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log.nest());
+    patterns.insert<ViewLikeRewrite>(netInfo, netFunc, _log.nest());
     populateWithGenerated(&ctx, patterns);
 
-    auto func = getFunction();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

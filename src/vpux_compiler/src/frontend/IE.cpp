@@ -1119,7 +1119,11 @@ IE::DetectionOutputAttr NGraphImporter::importDetectionOutputAttrs(const ngraph:
             decreaseLabel_idAttr, normalizedAttr, inputHeightAttr, inputWidthAttr, objectnessScoreAttr, _ctx);
 }
 
-mlir::AffineMap importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout) {
+mlir::AffineMap importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout, size_t numDims) {
+    if (numDims > 5) {
+        return {};
+    }
+
     switch (layout) {
     case InferenceEngine::Layout::ANY:
     case InferenceEngine::Layout::SCALAR:
@@ -1172,7 +1176,7 @@ mlir::MemRefType importBuffer(mlir::MLIRContext* ctx, const InferenceEngine::Ten
     const auto precision = importPrecision(ctx, desc.getPrecision());
 
     SmallVector<mlir::AffineMap> affineMaps;
-    if (auto layout = importLayout(ctx, desc.getLayout())) {
+    if (auto layout = importLayout(ctx, desc.getLayout(), desc.getDims().size())) {
         affineMaps.push_back(layout);
     }
 

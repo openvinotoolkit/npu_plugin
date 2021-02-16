@@ -209,8 +209,9 @@ public:
 }  // namespace details
 
 template <class T, typename = require_t<std::is_integral<T>>>
-auto irange(T startIndex, T size) {
-    return details::IntegerValuesRange<T>(llvm::None, startIndex, size);
+auto irange(T startIndex, T endIndex) {
+    assert(endIndex >= startIndex);
+    return details::IntegerValuesRange<T>(llvm::None, startIndex, endIndex - startIndex);
 }
 
 template <class T, typename = require_t<std::is_integral<T>>>

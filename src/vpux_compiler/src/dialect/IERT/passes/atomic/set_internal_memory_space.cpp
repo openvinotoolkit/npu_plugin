@@ -16,6 +16,8 @@
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
+#include <mlir/Analysis/BufferAliasAnalysis.h>
+
 using namespace vpux;
 
 namespace {
@@ -65,20 +67,27 @@ void SetInternalMemorySpacePass::runOnFunction() {
 //
 
 void SetInternalMemorySpacePass::passBody() {
-    const auto callback = [this](mlir::AllocOp allocOp) {
+    auto& aliasAnalysis = getAnalysis<mlir::BufferAliasAnalysis>();
+
+    const auto callback = [&](mlir::AllocOp allocOp) {
         _log.trace("Got Alloc Operation '{0}'", allocOp->getLoc());
 
-        const auto origType = allocOp.memref().getType().dyn_cast<mlir::MemRefType>();
-        VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}' for Alloc operation",
-                          allocOp.memref().getType());
+        const auto aliases = aliasAnalysis.resolve(allocOp.memref());
 
-        const auto newType = mlir::MemRefType::get(origType.getShape(), origType.getElementType(),
-                                                   origType.getAffineMaps(), _memSpace);
-        allocOp.memref().setType(newType);
+        for (auto var : aliases) {
+            _log.nest().trace("Process alias buffer '{0}'", var);
+
+            const auto origType = var.getType().dyn_cast<mlir::MemRefType>();
+            VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}'", var.getType());
+
+            const auto newType = mlir::MemRefType::get(origType.getShape(), origType.getElementType(),
+                                                       origType.getAffineMaps(), _memSpace);
+
+            var.setType(newType);
+        }
     };
 
-    auto func = getFunction();
-    func.walk(callback);
+    getFunction().walk(callback);
 }
 
 }  // namespace

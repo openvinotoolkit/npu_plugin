@@ -80,8 +80,7 @@ TEST(MLIR_DimsOrderTest, ValidateCodeTest) {
     std::for_each(orders.begin(), orders.end(), [](const DimsOrder& order) {
         EXPECT_NO_THROW(DimsOrder::validateCode(order.code()));
     });
-    // check dimsOrder 0x0
-    EXPECT_ANY_THROW(DimsOrder::validateCode(0x0));
+
     // check double usage dimension
     EXPECT_ANY_THROW(DimsOrder::validateCode(0x11));
     // check negative code

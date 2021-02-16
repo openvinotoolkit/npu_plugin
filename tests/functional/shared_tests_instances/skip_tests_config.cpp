@@ -23,9 +23,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*BehaviorTestInput.*",
         ".*BehaviorTestOutput.*",
 
-        // [Track number: S#42749]
-        ".*KmbSqueezeUnsqueezeLayerTest\\.BasicTest.*",
-
         // [Track number: s#47412]
         ".*IEClassGetConfigTest_ThrowUnsupported\\.GetConfigThrow.*",
     };

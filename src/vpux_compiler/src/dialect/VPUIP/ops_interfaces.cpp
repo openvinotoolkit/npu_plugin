@@ -55,6 +55,10 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
         auto type = val.getType().cast<mlir::MemRefType>();
         auto mem = getPhysicalMemory(type);
 
+        if (type.getRank() == 0) {
+            return errorAt(op, "SCALARS are not supported");
+        }
+
         if (mlir::failed(mem)) {
             return errorAt(op, "Unsupported memory space '{0}'", type.getMemorySpace());
         }

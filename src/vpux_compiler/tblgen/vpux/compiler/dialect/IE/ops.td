@@ -24,6 +24,7 @@ include "vpux/compiler/dialect/IE/attributes.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 
 //
@@ -90,7 +91,10 @@ def IE_CNNNetworkOp :
     );
 
     let extraClassDeclaration = [{
+        size_t getNetInputsCount();
         vpux::SmallVector<vpux::IE::DataInfoOp, 1> getInputsInfo();
+
+        size_t getNetOutputsCount();
         vpux::SmallVector<vpux::IE::DataInfoOp, 1> getOutputsInfo();
 
         static void getFromModule(
@@ -776,13 +780,16 @@ def IE_EluOp :
 
 def IE_ReshapeOp :
         IE_LayerOp<
-            "Reshape"
+            "Reshape",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Reshape layer";
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[AnyInteger]>:$shape,
+        RankedTensorOf<[AnyInteger]>:$shape,
 
         UnitAttr:$special_zero
     );
@@ -791,6 +798,7 @@ def IE_ReshapeOp :
         AnyRankedTensor:$output
     );
 
+    let hasCanonicalizer = 1;
     let hasFolder = 1;
 }
 
@@ -800,18 +808,24 @@ def IE_ReshapeOp :
 
 def IE_SqueezeOp :
         IE_LayerOp<
-            "Squeeze"
+            "Squeeze",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Squeeze layer";
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[AnyInteger]>:$axes
+        AnyRankedTensor:$axes
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
 }
 
 //
@@ -870,19 +884,25 @@ def IE_LRNOp :
 
 def IE_UnsqueezeOp :
         IE_LayerOp<
-            "Unsqueeze"
+            "Unsqueeze",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+            ]
         > {
 
     let summary = "InferenceEngine Unsqueeze layer";
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        1DTensorOf<[AnyInteger]>:$axes
+        AnyRankedTensor:$axes
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
 }
 
 //
@@ -1416,7 +1436,7 @@ def IE_LeakyReluOp :
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
-        
+
         F32Attr:$negative_slope
     );
 

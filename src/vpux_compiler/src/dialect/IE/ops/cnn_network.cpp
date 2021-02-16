@@ -170,8 +170,18 @@ mlir::LogicalResult vpux::IE::verifyOp(CNNNetworkOp op) {
     return mlir::success();
 }
 
+size_t vpux::IE::CNNNetworkOp::getNetInputsCount() {
+    // -1 to exclude Block Terminator
+    return inputsInfo().front().getOperations().size() - 1;
+}
+
 SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getInputsInfo() {
     return to_vector<1>(inputsInfo().getOps<IE::DataInfoOp>());
+}
+
+size_t vpux::IE::CNNNetworkOp::getNetOutputsCount() {
+    // -1 to exclude Block Terminator
+    return outputsInfo().front().getOperations().size() - 1;
 }
 
 SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getOutputsInfo() {

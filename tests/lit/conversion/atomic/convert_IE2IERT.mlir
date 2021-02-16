@@ -4,59 +4,44 @@
 // The 'bufferize-IE' pass:
 //
 //   * Updates only Function inner regions.
-//   * Doesn't touch `IE.CNNNetwork` Operation.
 //   * Doesn't change Function signatures.
-//   * Doesn't update `std.constant` Operations.
 //   * Replaces only Layer Operations.
+//   * Replaces `linalg.tesor_reshape` with `linalg.reshape`.
 //
 
-// CHECK-LABEL: @SingleLayer
-module @SingleLayer {
-
-IE.CNNNetwork
-    entryPoint : @main
-    inputsInfo : {
-        IE.DataInfo "data" : memref<1x1000xf32>
-    }
-    outputsInfo : {
-        IE.DataInfo "prob" : memref<1x1000xf32>
-    }
-
-// CHECK: func @main([[ARG0:%arg[0-9]*]]: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
-func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
+func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %prob = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %prob : tensor<1x1000xf16>
 
-    // CHECK: [[VAR0:%[0-9]*]] = tensor_to_memref [[ARG0]] : memref<1x1000xf16>
-    // CHECK: [[VAR1:%[0-9]*]] = alloc() : memref<1x1000xf16>
+    // CHECK: [[VAR0:%.*]] = tensor_to_memref %arg0 : memref<1x1000xf16>
+    // CHECK: [[VAR1:%.*]] = alloc() : memref<1x1000xf16>
     // CHECK: IERT.SoftMax([[VAR0]], [[VAR1]]) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16>
-    // CHECK: [[VAR2:%[0-9]*]] = tensor_load [[VAR1]] : memref<1x1000xf16>
+    // CHECK: [[VAR2:%.*]] = tensor_load [[VAR1]] : memref<1x1000xf16>
     // CHECK: return [[VAR2]] : tensor<1x1000xf16>
-}
-
 }
 
 // -----
 
-// CHECK-LABEL: @ConstantLayer
-module @ConstantLayer {
-
-IE.CNNNetwork
-    entryPoint : @main
-    inputsInfo : {
-    }
-    outputsInfo : {
-        IE.DataInfo "output" : memref<1x2x2x2xf32>
-    }
-
-// CHECK: func @main() -> tensor<1x2x2x2xf16> {
-func @main() -> tensor<1x2x2x2xf16> {
+func @ConstantLayer() -> tensor<1x2x2x2xf16> {
     %0 = IE.Constant tensor<1x2x2x2xf16> = dense<1.0> : tensor<1x2x2x2xf32>
     return %0 : tensor<1x2x2x2xf16>
 
-    // CHECK: [[VAR0:%[0-9]*]] = IERT.Constant memref<1x2x2x2xf16> = dense<1.000000e+00> : tensor<1x2x2x2xf32>
-    // CHECK: [[VAR1:%[0-9]*]] = tensor_load [[VAR0]]
+    // CHECK: [[VAR0:%.*]] = IERT.Constant memref<1x2x2x2xf16> = dense<1.000000e+00> : tensor<1x2x2x2xf32>
+    // CHECK: [[VAR1:%.*]] = tensor_load [[VAR0]]
     // CHECK: return [[VAR1]] : tensor<1x2x2x2xf16>
 }
 
+// -----
+
+#map0 = affine_map<(d0, d1, d2, d3) -> (d0)>
+#map1 = affine_map<(d0, d1, d2, d3) -> (d1, d2, d3)>
+
+func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
+    %0 = linalg.tensor_reshape %arg0 [#map0, #map1] : tensor<1x512x1x1xf32> into tensor<1x512xf32>
+    return %0 : tensor<1x512xf32>
+
+    // CHECK: [[VAR0:%.*]] = tensor_to_memref %arg0 : memref<1x512x1x1xf32>
+    // CHECK: [[VAR1:%.*]] = linalg.reshape [[VAR0]] [#map0, #map1] : memref<1x512x1x1xf32> into memref<1x512xf32>
+    // CHECK: [[VAR2:%.*]] = tensor_load [[VAR1]]
+    // CHECK: return [[VAR2]] : tensor<1x512xf32>
 }

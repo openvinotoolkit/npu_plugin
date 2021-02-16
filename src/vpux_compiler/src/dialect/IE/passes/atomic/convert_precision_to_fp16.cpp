@@ -140,11 +140,12 @@ void ConvertPrecisionToFP16Pass::passBody() {
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
-    target.addLegalOp<IE::ConvertOp>();
+    target.addDynamicallyLegalOp<mlir::linalg::TensorReshapeOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
+    target.addLegalOp<IE::ConvertOp>();
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
-        return typeConverter.isSignatureLegal(funcOp.getType()) && typeConverter.isLegal(&funcOp.getBody());
+        return typeConverter.isSignatureLegal(funcOp.getType());
     });
 
     mlir::OwningRewritePatternList patterns;
