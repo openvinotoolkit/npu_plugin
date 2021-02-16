@@ -1110,4 +1110,50 @@ def VPUIP_EltwiseUPAOp :
     }];
 }
 
+//
+// SwishUPAOp
+//
+
+def VPUIP_SwishUPAOp :
+        VPUIP_TaskOp<
+            "SwishUPA",
+            [
+                SingleInputAndResultLayer,
+		DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "Swish UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        F32Attr:$beta_value,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$output,
+                "mlir::FloatAttr":$beta_value
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
 #endif

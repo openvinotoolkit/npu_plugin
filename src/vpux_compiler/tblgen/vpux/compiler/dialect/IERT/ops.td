@@ -878,4 +878,28 @@ def IERT_GenericReshapeOp :
     let hasFolder = 1;
 }
 
+//
+// SwishOp
+//
+
+def IERT_SwishOp :
+        IERT_LayerOp<
+            "Swish",
+            [
+                SameOperandsElementType,
+		DeclareOpInterfaceMethods<SwishLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Swish layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        Optional<MemRefOf<[F16, F32]>>:$beta,
+        MemRefOf<[F16, F32]>:$output,
+
+	OptionalAttr<F32Attr>:$beta_value
+    );
+}
+
 #endif

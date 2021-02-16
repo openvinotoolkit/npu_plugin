@@ -372,4 +372,25 @@ def RewriteMaximum :
             (createEltwiseUPAOp<"MAX"> $input1, $input2, $output)
         >;
 
+//
+// IERT.Swish -> VPUIP.SwishUPA
+//
+
+def createSwishUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SwishUPAOp>(
+                $_loc, $0, $1, $2)
+        }]>;
+
+def HasBeta : Constraint<CPred<"$0 != nullptr && $1.empty()">>;
+
+def RewriteSwish :
+        Pat<
+            (IERT_SwishOp $input, $beta, $output, $beta_value),
+            (createSwishUPAOp $input, $output, $beta_value),
+            [
+                (HasBeta $beta_value, $beta)
+            ]
+        >;
+
 #endif

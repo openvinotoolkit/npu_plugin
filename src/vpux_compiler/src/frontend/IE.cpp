@@ -123,6 +123,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset2::ROIPooling>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::StridedSlice>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::PRelu>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::Swish>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -220,6 +221,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
             MAP_ENTRY(ngraph::opset2::ROIPooling),
             MAP_ENTRY(ngraph::opset1::StridedSlice),
             MAP_ENTRY(ngraph::opset1::PRelu),
+            MAP_ENTRY(ngraph::opset4::Swish),
     };
 
 #undef MAP_ENTRY
@@ -907,6 +909,15 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::PReluOp>(createLocation(origNode), inputs[0], inputs[1]);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::Swish>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Swish node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::SwishOp>(createLocation(origNode), inputs[0], inputs[1], nullptr);
     addOutputs(origNode, op);
 }
 
