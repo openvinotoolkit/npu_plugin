@@ -26,7 +26,14 @@ namespace mv
 
     namespace pass
     {
-
+        /* example from squeezenet network:
+        {
+            "name" : "AssignIntermediateOutputNodes",
+            "op_names" : ["fire2/expand1x1_1", "fire2/expand3x3_1", "pool3"],
+            "max_ddr_use" : 2097152,
+            "_comment" : "Runtime will dump these intermediate ops to disk for debug. Specify max size of DDR to consume, eg 2mb"
+        },
+        */
         MV_REGISTER_PASS(AssignIntermediateOutputNodes)
         .setFunc(assignIntermediateOutputsFcn)
         .setDescription(
@@ -49,7 +56,7 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
     // output ops are retained in DDR till end of network, so limit amount of DDR used
     int32_t ddrUsed = 0;
-    int32_t ddrMax = 2097152; // 2mb
+    int32_t ddrMax = 2097152; // default 2mb
     if (passDesc.hasAttr("max_ddr_use"))
         ddrMax = passDesc.get<int32_t>("max_ddr_use");
 
@@ -66,6 +73,19 @@ void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::Computati
             pass.log(mv::Logger::MessageType::Warning, "Op name '" + node + "' not found! Op not processed for output");
             continue;
         }
+        // Unsupported ops: concat, eltwise(add)
+        if ((om.getSourceOp(tensor)->getOpType() == "Concat") ||
+            (om.getSourceOp(tensor)->getOpType() == "Eltwise") ) {
+            std::cout << "\"Concat\" op currently not supported: " << node << std::endl;
+            continue;
+        }
+        // Unsupported ops: ops feeding a concat
+        auto nextOp = om.getSourceOp(tensor).leftmostChild();
+        if (nextOp->getOpType() == "Concat") {
+            std::cout << "Ops feeding a \"Concat\" currently not supported: " << node << std::endl;
+            continue;
+        }
+        
         // limit amount of DDR used to ddrMax var
         size_t tensorSize = tensor->getShape().totalSize() * tensor->getDType().getSizeInBytes();
         ddrUsed += tensorSize;
