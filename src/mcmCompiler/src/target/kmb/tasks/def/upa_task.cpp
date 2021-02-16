@@ -45,7 +45,7 @@ namespace mv
                            "DetectionOutput", "Priorbox", "Argmax", "TopK", "Norm", "Resample", "FakeQuantize",
                            "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder", "RefConv",
                            "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu", "PermuteND",
-                           "Pad", "Mish", "Floor", "Interpolate"})
+                           "Pad", "Mish", "Floor", "Erf", "Interpolate"})
 
         .setExtraInputs(true);
     }

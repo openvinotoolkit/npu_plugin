@@ -887,6 +887,22 @@ mv::Data::TensorIterator convertFloorToUPATask(mv::OpModel& om,
     return op;
 }
 
+mv::Data::TensorIterator convertErfToUPATask(mv::OpModel& om,
+                                             const std::vector<mv::Data::TensorIterator>& inputs,
+                                             const std::map<std::string, mv::Attribute>& /*attrs*/,
+                                             const std::string& name,
+                                             bool /*software*/,
+                                             const mv::QuantizationParams& quantParams,
+                                             const mv::DType& outputTensorType,
+                                             const mv::Order& outputTensorOrder)
+{
+    auto op = om.uPATaskErf(name, inputs);
+    op->setDType(outputTensorType);
+    op->setQuantParams(quantParams);
+    op->setOrder(outputTensorOrder);
+    return op;
+}
+
 mv::Data::TensorIterator convertConversionToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                                 const std::map<std::string, mv::Attribute>& attrs,
                                                 const std::string& name, bool /*software*/,
@@ -950,7 +966,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
                                                        "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu",
-                                                       "PermuteND", "Mish", "Floor", "Pad", "Interpolate"};
+                                                       "PermuteND", "Mish", "Floor", "Erf", "Pad", "Interpolate"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -994,6 +1010,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Swish", convertSwishToUPATask},
     {"Mish", convertMishToUPATask},
     {"Floor", convertFloorToUPATask},
+    {"Erf", convertErfToUPATask},
     {"Conversion", convertConversionToUPATask},
     {"Relu", convertReluToUPATask},
     {"Tanh", convertTanhToUPATask},
