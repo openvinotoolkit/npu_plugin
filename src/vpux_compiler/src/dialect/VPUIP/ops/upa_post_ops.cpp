@@ -214,3 +214,25 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LeakyReluUPAOp::serialize(VPUIP::Bl
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
+
+//
+// Swish
+//
+
+void vpux::VPUIP::SwishUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                    mlir::Value output, mlir::FloatAttr beta) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, beta, nullptr, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SwishUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto beta = beta_valueAttr().getValueAsDouble();
+
+    const auto swish = MVCNN::CreateSwishParams(writer, checked_cast<float>(beta));
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_SwishParams);
+    builder.add_nested_params(swish.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}

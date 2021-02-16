@@ -1445,4 +1445,32 @@ def IE_LeakyReluOp :
     );
 }
 
+//
+// SwishOp
+//
+
+def IE_SwishOp :
+        IE_LayerOp<
+            "Swish",
+	    [
+                DeclareOpInterfaceMethods<SwishLayerInterface>,
+		DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine Swish layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        Optional<RankedTensorOf<[F16, F32]>>:$beta,
+
+	OptionalAttr<F32Attr>:$beta_value
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
+
 #endif

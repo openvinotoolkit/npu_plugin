@@ -473,4 +473,29 @@ def EltwiseLayerInterface : OpInterface<"EltwiseLayerInterface"> {
     }];
 }
 
+//
+// SwishLayerInterface
+//
+
+def SwishLayerInterface : OpInterface<"SwishLayerInterface"> {
+    let description = "Interface for Swish Layer";
+
+    let cppNamespace = "vpux";
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            if ($_op.beta() != nullptr) {
+                return {$_op.input(), $_op.beta()};
+            }
+            else {
+                return {$_op.input()};
+            }
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
+}
+
 #endif
