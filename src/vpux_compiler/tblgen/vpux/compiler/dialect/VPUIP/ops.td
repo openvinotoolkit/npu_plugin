@@ -1119,7 +1119,7 @@ def VPUIP_SwishUPAOp :
             "SwishUPA",
             [
                 SingleInputAndResultLayer,
-		DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
         > {
@@ -1150,6 +1150,53 @@ def VPUIP_SwishUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
+// ScaleShiftUPAOp
+//
+
+def VPUIP_ScaleShiftUPAOp :
+        VPUIP_TaskOp<
+            "ScaleShiftUPA",
+            [
+                VPUIP_SameElementType,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<ScaleShiftLayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "ScaleShift UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$weights,
+        F16MemRef:$biases,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$weights,
+                "mlir::Value":$biases,"mlir::Value":$output
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $weights `:` type($weights)  `,` $biases `:` type($biases)`)`
         `outputs` `(` $output `:` type($output) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?

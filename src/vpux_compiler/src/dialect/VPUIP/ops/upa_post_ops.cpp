@@ -236,3 +236,23 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SwishUPAOp::serialize(VPUIP::BlobWr
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
+
+//
+// ScaleShift
+//
+
+void vpux::VPUIP::ScaleShiftUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                         mlir::Value weights, mlir::Value biases, mlir::Value output) {
+    build(builder, state, input, weights, biases, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ScaleShiftUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto scaleShift = MVCNN::CreateScaleShiftParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_ScaleShiftParams);
+    builder.add_nested_params(scaleShift.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
