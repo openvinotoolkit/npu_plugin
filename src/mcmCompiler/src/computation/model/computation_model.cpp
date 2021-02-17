@@ -400,6 +400,11 @@ mv::Data::TensorIterator mv::ComputationModel::getTensor(const std::string& name
 
 }
 
+mv::Data::TensorIterator mv::ComputationModel::findTensor(const std::string& name)
+{
+    return tensors_->find(name);
+}
+
 bool mv::ComputationModel::checkOp(const std::string& name)
 {
     auto it = ops_->find(name);
