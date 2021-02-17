@@ -393,4 +393,20 @@ def RewriteSwish :
             ]
         >;
 
+//
+// IERT.ScaleShift -> VPUIP.ScaleShiftUPA
+//
+
+def createScaleShiftUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ScaleShiftUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteScaleShift :
+        Pat<
+            (IERT_ScaleShiftOp $input, $weights, $biases, $output),
+            (createScaleShiftUPAOp $input, $weights, $biases, $output)
+        >;
+
 #endif

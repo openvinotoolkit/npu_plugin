@@ -498,4 +498,24 @@ def SwishLayerInterface : OpInterface<"SwishLayerInterface"> {
     }];
 }
 
+//
+// ScaleShiftLayerInterface
+//
+
+def ScaleShiftLayerInterface : OpInterface<"ScaleShiftLayerInterface"> {
+    let description = "Interface for ScaleShift Layer";
+
+    let cppNamespace = "vpux";
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {$_op.input(), $_op.weights(), $_op.biases()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
+}
+
 #endif

@@ -375,6 +375,7 @@ def IE_AddOp :
         IE_LayerOp<
             "Add",
             [
+                Commutative,
                 ResultsAreFloatLike,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<EltwiseLayerInterface>
@@ -392,6 +393,8 @@ def IE_AddOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
+
+    let hasFolder = 1;
 }
 
 //
@@ -483,6 +486,7 @@ def IE_MultiplyOp :
         IE_LayerOp<
             "Multiply",
             [
+                Commutative,
                 ResultsAreFloatLike,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<EltwiseLayerInterface>
@@ -500,6 +504,9 @@ def IE_MultiplyOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
 }
 
 //
@@ -1452,9 +1459,9 @@ def IE_LeakyReluOp :
 def IE_SwishOp :
         IE_LayerOp<
             "Swish",
-	    [
+            [
                 DeclareOpInterfaceMethods<SwishLayerInterface>,
-		DeclareOpInterfaceMethods<LayerInterface>
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine Swish layer";
@@ -1463,7 +1470,7 @@ def IE_SwishOp :
         RankedTensorOf<[F16, F32]>:$input,
         Optional<RankedTensorOf<[F16, F32]>>:$beta,
 
-	OptionalAttr<F32Attr>:$beta_value
+        OptionalAttr<F32Attr>:$beta_value
     );
 
     let results = (outs
@@ -1471,6 +1478,32 @@ def IE_SwishOp :
     );
 
     let hasCanonicalizer = 1;
+}
+
+
+//
+// ScaleShiftOp
+//
+
+def IE_ScaleShiftOp :
+        IE_LayerOp<
+            "ScaleShift",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<ScaleShiftLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine ScaleShift layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$weights,
+        RankedTensorOf<[F16, F32]>:$biases
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
 }
 
 #endif

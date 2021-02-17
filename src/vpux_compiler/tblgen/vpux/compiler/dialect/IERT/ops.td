@@ -887,7 +887,7 @@ def IERT_SwishOp :
             "Swish",
             [
                 SameOperandsElementType,
-		DeclareOpInterfaceMethods<SwishLayerInterface>,
+                DeclareOpInterfaceMethods<SwishLayerInterface>,
                 DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
@@ -898,7 +898,30 @@ def IERT_SwishOp :
         Optional<MemRefOf<[F16, F32]>>:$beta,
         MemRefOf<[F16, F32]>:$output,
 
-	OptionalAttr<F32Attr>:$beta_value
+        OptionalAttr<F32Attr>:$beta_value
+    );
+}
+
+//
+// ScaleShiftOp
+//
+
+def IERT_ScaleShiftOp :
+        IERT_LayerOp<
+            "ScaleShift",
+            [
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<ScaleShiftLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time ScaleShift layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$weights,
+        MemRefOf<[F16, F32]>:$biases,
+        MemRefOf<[F16, F32]>:$output
     );
 }
 
