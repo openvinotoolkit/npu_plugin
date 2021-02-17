@@ -57,6 +57,7 @@ DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification' 
 DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
 
 DEFINE_string(log_level, "", "IE logger level (optional)");
+DEFINE_string(color_format, "BGR", "Color format for input: RGB or BGR");
 
 std::vector<std::string> inputFiles;
 
@@ -95,6 +96,7 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "Parameters:" << std::endl;
     std::cout << "    Network file:     " << FLAGS_network << std::endl;
     std::cout << "    Input file(s):    " << FLAGS_input << std::endl;
+    std::cout << "    Color format:     " << FLAGS_color_format << std::endl;
     std::cout << "    Device:           " << FLAGS_device << std::endl;
     std::cout << "    Config file:      " << FLAGS_config << std::endl;
     std::cout << "    Run test:         " << FLAGS_run_test << std::endl;
@@ -202,7 +204,7 @@ std::vector<cv::Mat> ieToCv(const ie::MemoryBlob::Ptr& blob, size_t batchInd = 0
     return out;
 }
 
-void cvToIe(const cv::Mat& cvImg, const ie::MemoryBlob::Ptr& ieBlob) {
+void cvToIe(const cv::Mat& cvImg, const ie::MemoryBlob::Ptr& ieBlob, const std::string& colorFormat) {
     const auto& tensDesc = ieBlob->getTensorDesc();
     const auto& precision = tensDesc.getPrecision();
     const auto layout = tensDesc.getLayout();
@@ -234,10 +236,19 @@ void cvToIe(const cv::Mat& cvImg, const ie::MemoryBlob::Ptr& ieBlob) {
     cv::Mat in;
 
     if (C == 3) {
-        in = cvImg;
+        if (colorFormat == "RGB") {
+            cv::cvtColor(cvImg, in, cv::COLOR_BGR2RGB);
+        } else {
+            in = cvImg;
+        }
     } else {
-        cv::cvtColor(cvImg, in, cv::COLOR_BGR2BGRA);
+        if (colorFormat == "RGB") {
+            cv::cvtColor(cvImg, in, cv::COLOR_BGR2RGBA);
+        } else {
+            cv::cvtColor(cvImg, in, cv::COLOR_BGR2BGRA);
+        }
     }
+
 
     if (precision != ie::Precision::U8) {
         in.convertTo(in, CV_32F);
@@ -313,7 +324,7 @@ std::string cleanName(std::string name) {
     return name;
 }
 
-ie::MemoryBlob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& filePath) {
+ie::MemoryBlob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& filePath, const std::string& colorFormat) {
     IE_ASSERT(isImage(desc)) << "Only image inputs are supported";
 
     const auto frame = cv::imread(filePath, cv::IMREAD_COLOR);
@@ -322,7 +333,7 @@ ie::MemoryBlob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& fil
     const auto blob = ie::as<ie::MemoryBlob>(make_blob_with_precision(desc));
     blob->allocate();
 
-    cvToIe(frame, blob);
+    cvToIe(frame, blob, colorFormat);
 
     return blob;
 }
@@ -614,7 +625,7 @@ int main(int argc, char* argv[]) {
         size_t inputInd = 0;
         for (const auto& p : inputsInfo) {
             std::cout << "Load input #" << inputInd << " from " << inputFiles[inputInd] << std::endl;
-            const auto blob = loadInput(p.second->getTensorDesc(), inputFiles[inputInd]);
+            const auto blob = loadInput(p.second->getTensorDesc(), inputFiles[inputInd], FLAGS_color_format);
             inputs.emplace(p.first, blob);
 
             std::ostringstream ostr;
