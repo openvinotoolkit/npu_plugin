@@ -119,7 +119,14 @@ namespace mv
         */
         struct ops_map_hash {
             size_t operator()(const std::string& name) const {
-                return mv::utils::constatnt_string_hash(name);
+                return constatnt_string_hash(name);
+            }
+            static size_t constatnt_string_hash(const std::string str) {
+                int str_len = str.length();
+                unsigned int hash = str_len;
+                for (int i = 0; i < str_len; i++)
+                    hash = hash * 101 + str[i];
+                return hash;
             }
         };
         std::shared_ptr<std::unordered_map<std::string, Data::OpListIterator, ops_map_hash>> ops_;
