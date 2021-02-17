@@ -33,25 +33,31 @@ class SSHConnection(object):
         self.evm.connect('192.168.1.1', username='root',
                          password='', sock=vmchannel, allow_agent=False,look_for_keys=False)
 
-    def executeRemoteInference(self):
+    def executeRemoteInference(self, remote_path, local_path):
         
-        stdin, stdout, stderr = self.evm.exec_command('new_SimpleNN /opt/test.blob /opt/input-0.bin /opt/output.dat /opt/expected_result_sim.dat 0')
+        stdin, stdout, stderr = self.evm.exec_command('new_SimpleNN ' + remote_path+'/test.blob ' + remote_path+'/input-0.bin ' + remote_path+'/output.dat ' + remote_path+'/expected.dat ' + '0')
         lines = stdout.readlines()
         for line in lines:
             print(line)
-
-    def get(self, remote_path, local_path=None):
+            if(line == 'Applying Softmax to results to create probability distribution...\n'):
+                print('INFERENCE SUCCESS! The output is located at: ' + local_path )
+         
+    def get(self, remote_path, local_path):
         self.sftp.get(remote_path, local_path)
 
-    def put(self, local_path, remote_path=None):
-        #start_time = time.time()
+    def put(self, local_path, remote_path, remote_file):
         self.sftp = self.evm.open_sftp()
-        self.sftp.put(local_path, remote_path)
-        #print("Loading File %s Took %d seconds " % (remote_path, time.time() - start_time))
+        try:
+            self.sftp.chdir(remote_path)  # Test if remote_path exists
+        except IOError:
+            self.sftp.mkdir(remote_path)  # Create remote_path
+        self.sftp.put(local_path, remote_file)
+        
 
 def main():
     start_time = time.time()
     parser = argparse.ArgumentParser(description='Runs an inference using SimpleNN on a remote EVM.')
+    parser.add_argument('--user', type=str, required=True, help='Your name so that a folder can be created on the EVM for your blobs/inputs')
     parser.add_argument('--evmIP', type=str, required=True, help='EVM IP address')
     parser.add_argument('--evmUserName', type=str, required=True, help='EVM login username')
     parser.add_argument('--evmPassword', type=str, required=True, help='EVM login password')
@@ -64,15 +70,16 @@ def main():
     ssh = SSHConnection(args.evmIP, args.evmUserName, args.evmPassword)
     ssh.createSSHClient()
 
+    remote_path = '/home/root/'+args.user+'testFolder'
     #SFTP input-0.bin and test.blob to EVM
-    ssh.put(args.blob, '/opt/test.blob')
-    ssh.put(args.input, '/opt/input-0.bin')
+    ssh.put(args.blob, remote_path,remote_path+'/test.blob')
+    ssh.put(args.input, remote_path,remote_path+'/input-0.bin')
 
     #Do Inference with SimpleNN
-    ssh.executeRemoteInference()
+    ssh.executeRemoteInference(remote_path, args.output)
 
     #SCP output from inference back to host
-    ssh.get('/opt/output.dat', args.output)
+    ssh.get(remote_path+'/output.dat', args.output)
     print("Total inference Took %d seconds " % (time.time() - start_time))
    
 if __name__ == "__main__":
