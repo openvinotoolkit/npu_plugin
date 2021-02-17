@@ -984,7 +984,7 @@ void KmbNetworkTestBase::runTest(
         std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
         checkLayouts(actualOutputs,    netDesc.outputLayouts());
         checkPrecisions(actualOutputs, netDesc.outputPrecisions());
-		checkCallback(actualOutputs, refOutputBlobs, inputsInfo);
+        checkCallback(actualOutputs, refOutputBlobs, inputsInfo);
     }
 }
 
