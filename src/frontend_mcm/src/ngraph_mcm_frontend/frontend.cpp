@@ -177,6 +177,10 @@ std::vector<char> compileNGraph(
             mcmCompDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
         }
 
+        if (config.performanceCounting()) {
+            mcmCompDesc.setPassArg("GlobalConfigParams", "PerformanceCounting", true);
+        }
+
         std::function<void(MVCNN::GraphFileT&)> metaInfoSerializer =
             [&inputsInfo, &outputsInfo, &netName](MVCNN::GraphFileT& graphFileInstance) {
             if (graphFileInstance.header == nullptr) {

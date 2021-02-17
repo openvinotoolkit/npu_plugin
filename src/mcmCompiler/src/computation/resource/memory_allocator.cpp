@@ -733,6 +733,10 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getBuffer(std::size_t s
     auto bufIt = entries_[stageIdx].begin();
     while (bufIt != entries_[stageIdx].end() && (*bufIt)->getData() != tensor)
         ++bufIt;
+
+    if (bufIt == entries_[stageIdx].end())
+        throw LogicError(*this, "Cannot find buffer for " + tensor->getName());
+
     return bufIt;
 
 }

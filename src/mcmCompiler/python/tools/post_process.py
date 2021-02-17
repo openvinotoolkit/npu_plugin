@@ -48,6 +48,10 @@ def main():
             datatype = np.float16
         elif args.dtype == "FP32":
             datatype = np.float
+        elif args.dtype == "I32":
+            datatype = np.int32
+        elif args.dtype == "U32":
+            datatype = np.uint32
         else:
             datatype = np.uint8
 

@@ -86,12 +86,16 @@ void barrierSchedulerPass(const mv::pass::PassEntry&,
     exit(1);
   }
   
-  for (auto &attr : barrier_remove)
-  {
-    if (model.hasGlobalConfigParam(attr.first))
-      attr.second = (size_t) model.getGlobalConfigParam(attr.first).get<bool>();
-    else if (passDesc.hasAttr(attr.first))
-      attr.second = (size_t) passDesc.get<bool>(attr.first);
+  // In case of Profiling disable the barriers optimizations //
+  std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+  if (!(globalParams->hasAttr("PerformanceCounting") && globalParams->get("PerformanceCounting"))) {
+    for (auto &attr : barrier_remove)
+    {
+      if (model.hasGlobalConfigParam(attr.first))
+        attr.second = (size_t) model.getGlobalConfigParam(attr.first).get<bool>();
+      else if (passDesc.hasAttr(attr.first))
+        attr.second = (size_t) passDesc.get<bool>(attr.first);
+    }
   }
 
   mv::ControlModel cm(model);

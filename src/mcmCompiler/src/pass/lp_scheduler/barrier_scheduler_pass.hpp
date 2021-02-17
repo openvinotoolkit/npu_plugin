@@ -449,6 +449,18 @@ class Control_Model_Barrier_Scheduler {
       recomputeProducerConsumerCounts();
     }
 
+    static void renumberBarrierTasks(mv::OpModel& om) {
+      size_t bid = 0UL;
+      for (op_iterator_t oitr=omtraits::begin_operations(om);
+            oitr!=omtraits::end_operations(om); ++oitr) {
+        if ( !(oitr->getOpType() == "BarrierTask") )  { continue; }
+        mv::Barrier &barrier = oitr->get<mv::Barrier>("Barrier");
+
+        barrier.setID(bid);
+        barrier.setIndex(bid++);
+      }
+    }
+
   private:
     
     template<typename T>
@@ -683,18 +695,6 @@ class Control_Model_Barrier_Scheduler {
         }
       }
       return removed_count;
-    }
-
-    void renumberBarrierTasks(mv::OpModel& om) {
-      size_t bid = 0UL;
-      for (op_iterator_t oitr=omtraits::begin_operations(om);
-            oitr!=omtraits::end_operations(om); ++oitr) {
-        if ( !(oitr->getOpType() == "BarrierTask") )  { continue; }
-        mv::Barrier &barrier = oitr->get<mv::Barrier>("Barrier");
-
-        barrier.setID(bid);
-        barrier.setIndex(bid++);
-      }
     }
 
     void clearProducerConsumerReferences() {

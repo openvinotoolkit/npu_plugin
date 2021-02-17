@@ -144,6 +144,7 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
                 tIt->set<unsigned>("graphFileIndex", i++);
         }
     }
+    dm.getGlobalConfigParams()->set<int>("last_graphFileIndex", i);
 }
 
 // NOTE: This pass name is misleading. As a matter of fact, it allocates both populated and unpopulated tensors.
@@ -372,7 +373,7 @@ void allocateCMXTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
         */
         else
         {
-            for (unsigned x = 0; x < opIterator->inputSlots(); x++)
+            for (std::size_t x = 0; x < opIterator->inputSlots(); x++)
             {
 
                 auto inTensor = opIterator->getInputTensor(x);
@@ -386,7 +387,7 @@ void allocateCMXTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
                        allocateUnpopulatedTensor(pass,dm,stageIt,inTensor);
                 }
             }
-            for (unsigned x = 0; x < opIterator->outputSlots(); ++x)
+            for (std::size_t x = 0; x < opIterator->outputSlots(); ++x)
             {
 
                 auto outTensor = opIterator->getOutputTensor(x);
@@ -436,6 +437,358 @@ bool propagateToSlaves(mv::OpModel& om, mv::Data::TensorIterator input_tensor)
     return propagate_to_slaves;
 }
 
+void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Control::StageIterator stageIt, const mv::pass::PassEntry& pass,
+                                            mv::ComputationModel& model)
+{
+    mv::DataModel dm(model);
+    mv::OpModel om(model);
+
+    std::string opType = opIterator->getOpType();
+    auto implicitFlow = opIterator->get<mv::ImplicitFlow>("ImplicitFlow");
+    if ( implicitFlow.isImplicit() )
+    {
+
+        //TODO:: this every stage should declare in an abstract way the compositional logic
+        //  so this phase can use it in an abstract manner... Currently will check manually
+        //  for Concat and Slice because of happy days........
+        //  basically need to get from tha leyer attributes some shcema of how and what coordinates to
+        //  put buffer into eg  axis: 'W" ->[0-10][10-20][30-40] etc,....
+
+        if(opType == "Concat" || opType == "ImplicitConcat"  || opType == "ImplicitJoin")
+        //this means that the Input tensors should be in the Output Tensor
+        {
+            auto outputTensor = opIterator->getOutputTensor(0);
+            auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+
+            mv::Data::BufferIterator outputBuffer;
+
+            if( !outputTensor->hasAttr("allocators"))
+            {
+                pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
+                        " Has no allocator. Will attempt to allocate based on logical location");
+                outputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,outputTensor);
+            }
+            else
+            {
+                outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],stageIt,outputTensor);
+            }
+
+            auto inputSlots = opIterator->inputSlots();
+
+            std::vector<unsigned> running_concat_offset_LHS;
+            std::vector<unsigned> running_concat_offset_RHS;
+
+            auto prev_offset = 0;
+            auto offset = 0;
+            unsigned int axis = 0;
+            if (opType != "ImplicitJoin")
+            {
+                axis = mv::Shape::getAxis(opIterator->get<std::string>("axis"));
+
+                for(unsigned i = 0; i < inputSlots; i++)
+                {
+                    running_concat_offset_LHS.push_back(prev_offset + offset);
+                    prev_offset = prev_offset + offset;
+                    // Calculate for next tensor
+                    offset = opIterator->getInputTensor(i)->getShape()[axis];
+                    running_concat_offset_RHS.push_back(outputTensor->getShape()[axis] - prev_offset - offset);
+                }
+            }
+            else
+            {
+
+                auto axisToConcat = opIterator->get<std::string>("axis");
+                size_t axis_shape=0;
+                for (size_t i = 0; i < axisToConcat.size(); i++)
+                    axis_shape += outputTensor->getShape()[mv::Shape::getAxis(axisToConcat.substr(i,1))];
+
+                for(std::size_t i = 0; i < inputSlots; i++)
+                {
+                    running_concat_offset_LHS.push_back(0);
+                    offset = 0;
+                    for (size_t j = 0; j < axisToConcat.size(); j++)
+                        offset += opIterator->getInputTensor(i)->getShape()[mv::Shape::getAxis(axisToConcat.substr(j,1))];
+
+                    running_concat_offset_RHS.push_back(axis_shape  - offset);
+                }
+            }
+
+
+            for(std::size_t i = 0; i != inputSlots; i++)
+            {
+                auto inputTensor = opIterator->getInputTensor(i);
+                auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
+                mv::Data::BufferIterator inputBuffer;
+
+                // If already allocated from a previous pass, deallocate.
+                // Note: This is probably not a good long term solution as we may have
+                // requirements from two different connections, this approach only resolves one.
+                // Probably restrictions on a tensor should be attributes of that tensor.
+                if (!inputTensor->hasAttr("allocators"))
+                {    inputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,inputTensor);
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
+                            " Has no allocator. Will attempt to allocate based on logical location");
+                }
+                else
+                {
+                    inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],stageIt,inputTensor);
+                }
+
+                std::vector<std::size_t> lhs_padding(inputTensor->getShape().ndims());
+                std::vector<std::size_t> rhs_padding(inputTensor->getShape().ndims());
+
+                // This code assumes all tensors are of equal size. TODO: Assertions
+                auto lhs = running_concat_offset_LHS[i];
+                auto rhs = running_concat_offset_RHS[i];
+
+                lhs_padding.at(axis) = lhs;
+                rhs_padding.at(axis) = rhs;
+
+                auto propagate_to_slaves = propagateToSlaves(om, inputTensor);
+
+                auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
+                                                inputBuffer, outputBuffer,
+                                                lhs_padding, rhs_padding, propagate_to_slaves);
+//                    //NOTE: all the addresses between the relationships of input/output buffers are RELATIVE, e.g
+//                    //think of a 3 level concat after concat with the master buffer of having size of 10
+//                    //let's suppose that on index 5 we have a second concat and inside this concat there is one more
+//                    //with index 3. The final relative index of the inputBuffer to the masterBuffer is 8=5+3
+//                    //This index is exactly expressed through the lhs_padding.at(axis) and belongs to every inputbuffer.
+                auto inp = dm.getTensor(inputBuffer->getData()->getName());
+                auto out = dm.getTensor(outputBuffer->getData()->getName());
+                std::size_t left_index = 0;
+                std::string axisConcat = "C";
+                //NOTE: CONCAT OVER C
+                if(inp->getShape()[mv::IO_CHANNEL_DIMENSION] != out->getShape()[mv::IO_CHANNEL_DIMENSION])
+                {
+                    if (inp->getOrder() == mv::Order("NCHW"))
+                        left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_HEIGHT_DIMENSION];
+                    else if (inp->getOrder() == mv::Order("NHWC"))
+                        left_index = lhs_padding.at(axis);
+                    axisConcat = "C";
+                }
+                //NOTE: CONCAT OVER H
+                if(inp->getShape()[mv::IO_HEIGHT_DIMENSION] != out->getShape()[mv::IO_HEIGHT_DIMENSION])
+                {
+                    if (inp->getOrder() == mv::Order("NHWC"))
+                        left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_CHANNEL_DIMENSION];
+                    else if (inp->getOrder() == mv::Order("NCHW"))
+                        left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION];
+                    axisConcat = "H";
+                }
+                //NOTE: CONCAT OVER W
+                if(inp->getShape()[mv::IO_WIDTH_DIMENSION] != out->getShape()[mv::IO_WIDTH_DIMENSION])
+                {
+                    if (inp->getOrder() == mv::Order("NHWC"))
+                        left_index = lhs_padding.at(axis) *  inp->getShape()[mv::IO_CHANNEL_DIMENSION];
+                    else if (inp->getOrder() == mv::Order("NCHW"))
+                        left_index = lhs_padding.at(axis);
+                    axisConcat = "W";
+                }
+                //NOTE: CONCAT OVER N, same calculation for both z and c major because N is biggest for both
+                if(inp->getShape()[mv::IO_BATCH_DIMENSION] != out->getShape()[mv::IO_BATCH_DIMENSION])
+                {
+                    left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_CHANNEL_DIMENSION] 
+                                                        * inp->getShape()[mv::IO_HEIGHT_DIMENSION] * inp->getShape()[mv::IO_WIDTH_DIMENSION];
+                    axisConcat = "N";
+                }
+                inp->set<std::size_t>("leftIndex", left_index);
+                out->set<std::string>("concatAxis", axisConcat);
+            }
+        }
+        else if(opType == "ImplicitUnion" || opType == "ImplicitInputSlice")
+        {
+            //In implicit union case, we dont really have 1 master buffer, we are just using it
+            // to have one output for the whole network, so each input to this op will still have
+            // it's own buffer. We create the buffers but do NOT move them like in the other case
+            // no slave/master case.
+            auto outputTensor = opIterator->getOutputTensor(0);
+            auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+
+            mv::Data::BufferIterator outputBuffer;
+
+            if( !outputTensor->hasAttr("allocators"))
+            {
+                pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                        " Has no allocator. Will attempt to allocate based on logical location");
+                outputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,outputTensor);
+            }
+            else
+            {
+                outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],stageIt,outputTensor);
+            }
+
+
+        }
+        else if (opType == "Slice" || opType == "Crop")
+        {
+            auto outputTensor = opIterator->getOutputTensor(0);
+            auto inputTensor = opIterator->getInputTensor(0);
+            auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+
+            mv::Data::BufferIterator inputBuffer;
+            mv::Data::BufferIterator outputBuffer;
+
+            if (!inputTensor->hasAttr("allocators"))
+            {
+                inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
+                pass.log(mv::Logger::MessageType::Debug, "Tensor " + inputTensor->getName() + ""
+                        " Has no allocator. Will attempt to allocate based on logical location");
+            }
+            else
+            {
+                inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],stageIt,inputTensor);
+            }
+
+            if(!outputTensor->hasAttr("allocators"))
+            {
+                pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
+                        " Has no allocator. Will attempt to allocate based on logical location");
+                outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
+            }
+            else
+            {
+                outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],
+                                            stageIt,outputTensor);
+            }
+
+            auto ndims = inputTensor->getShape().ndims();
+            auto inputShape = inputTensor->getShape();
+            mv::Shape begin;
+            mv::Shape size;
+            if (opType == "Slice")
+            {
+                begin = opIterator->get<mv::Shape>("begin");
+                size = opIterator->get<mv::Shape>("size");
+            }
+            else
+            {
+                begin = {0,0,0,0};
+                size = outputTensor->getShape();
+            }
+
+            std::vector<std::size_t> lhs_padding(ndims);
+            std::vector<std::size_t> rhs_padding(ndims);
+
+            for(std::size_t i = 0; i < ndims; i++)
+            {
+                lhs_padding[i] = begin[i];
+                rhs_padding[i] = inputShape[i] - (begin[i] + size[i]);
+            }
+
+            auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
+                                            outputBuffer, inputBuffer,
+                                            lhs_padding, rhs_padding);
+        }
+        else if (opType == "Copy" || opType == "Align" || opType == "ImplicitOutput" || opType == "ImplicitInput")
+        {
+            auto outputTensor = opIterator->getOutputTensor(0);
+            auto inputTensor = opIterator->getInputTensor(0);
+            auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+            mv::Data::BufferIterator inputBuffer;
+            mv::Data::BufferIterator outputBuffer;
+
+            if (!inputTensor->hasAttr("allocators"))
+            {
+                inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
+                pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
+                        " Has no allocator. Will attempt to allocate based on logical location");
+            }
+            else
+            {
+                inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],
+                                            stageIt, inputTensor);
+            }
+
+            if( !outputTensor->hasAttr("allocators"))
+            {
+                pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
+                        " Has no allocator. Will attempt to allocate based on logical location");
+                outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
+            }
+            else
+            {
+                outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],
+                                            stageIt, outputTensor);
+            }
+
+            if (opType == "Align")
+            {
+                auto ndims = inputTensor->getShape().ndims();
+
+                std::vector<std::size_t> lhs_padding(ndims);
+                std::vector<std::size_t> rhs_padding(ndims);
+
+                mv::Shape begin = {0,0,0,0};
+                mv::Shape size = inputTensor->getShape();;
+                mv::Shape outputShape = outputTensor->getShape();
+                for(std::size_t i = 0; i < ndims; i++)
+                {
+                    lhs_padding[i] = begin[i];
+                    rhs_padding[i] = outputShape[i] - (begin[i] + size[i]);
+                }
+                auto newBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
+                                                inputBuffer, outputBuffer,
+                                                lhs_padding, rhs_padding);
+            }
+            else
+            {
+                auto newBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
+                                                inputBuffer, outputBuffer,
+                                                {0,0,0,0}, {0,0,0,0});
+            }
+
+        }
+        else if((opType == "ImplicitReshape") || (opType == "ImplicitPermute"))
+        {
+            auto outputTensor = opIterator->getOutputTensor(0);
+            auto inputTensor = opIterator->getInputTensor(0);
+            auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+            mv::Data::BufferIterator inputBuffer;
+            mv::Data::BufferIterator outputBuffer;
+
+            if (!inputTensor->hasAttr("allocators"))
+            {
+                inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
+                pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
+                        " Has no allocator. Will attempt to allocate based on logical location");
+            }
+            else
+            {
+                inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],
+                                            stageIt, inputTensor);
+            }
+
+            if( !outputTensor->hasAttr("allocators"))
+            {
+                pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
+                        " Has no allocator. Will attempt to allocate based on logical location");
+                outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
+            }
+            else
+            {
+                outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],
+                                            stageIt, outputTensor);
+            }
+
+            auto newBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
+                                            inputBuffer, outputBuffer,
+                                            {0,0,0,0}, {0,0,0,0});
+
+        }
+        else
+        {
+            auto outputTensor = opIterator->getOutputTensor(0);
+            pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
+                        " has implicit flow but was not assigned an allocator.");
+        }
+        
+    }
+}
+
 void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                             mv::ComputationModel& model,
                                             mv::TargetDescriptor&,
@@ -447,361 +800,17 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
     pass.log(mv::Logger::MessageType::Debug, "Allocating implicit tensors");
 
     mv::ControlModel cm(model);
-    mv::DataModel dm(model);
-    mv::OpModel om(dm);
+    mv::OpModel om(model);
+
     auto stageIt = cm.getStage(0);
 
     auto sortedOps = om.topologicalSort();
 
     for (auto opIterator: sortedOps)
     {
-
         if(!opIterator->hasAttr("ImplicitFlow"))
             continue;
-        std::string opType = opIterator->getOpType();
-        auto implicitFlow = opIterator->get<mv::ImplicitFlow>("ImplicitFlow");
-        if ( implicitFlow.isImplicit() )
-        {
-
-            //TODO:: this every stage should declare in an abstract way the compositional logic
-            //  so this phase can use it in an abstract manner... Currently will check manually
-            //  for Concat and Slice because of happy days........
-            //  basically need to get from tha leyer attributes some shcema of how and what coordinates to
-            //  put buffer into eg  axis: 'W" ->[0-10][10-20][30-40] etc,....
-
-            if(opType == "Concat" || opType == "ImplicitConcat"  || opType == "ImplicitJoin")
-            //this means that the Input tensors should be in the Output Tensor
-            {
-                auto outputTensor = opIterator->getOutputTensor(0);
-                auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
-
-                mv::Data::BufferIterator outputBuffer;
-
-                if( !outputTensor->hasAttr("allocators"))
-                {
-                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
-                            " Has no allocator. Will attempt to allocate based on logical location");
-                    outputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,outputTensor);
-                }
-                else
-                {
-                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],stageIt,outputTensor);
-                }
-
-                auto inputSlots = opIterator->inputSlots();
-
-                std::vector<unsigned> running_concat_offset_LHS;
-                std::vector<unsigned> running_concat_offset_RHS;
-
-                auto prev_offset = 0;
-                auto offset = 0;
-                unsigned int axis = 0;
-                if (opType != "ImplicitJoin")
-                {
-                    axis = mv::Shape::getAxis(opIterator->get<std::string>("axis"));
-
-                    for(unsigned i = 0; i < inputSlots; i++)
-                    {
-                        running_concat_offset_LHS.push_back(prev_offset + offset);
-                        prev_offset = prev_offset + offset;
-                        // Calculate for next tensor
-                        offset = opIterator->getInputTensor(i)->getShape()[axis];
-                        running_concat_offset_RHS.push_back(outputTensor->getShape()[axis] - prev_offset - offset);
-                    }
-                }
-                else
-                {
-
-                    auto axisToConcat = opIterator->get<std::string>("axis");
-                    size_t axis_shape=0;
-                    for (size_t i = 0; i < axisToConcat.size(); i++)
-                        axis_shape += outputTensor->getShape()[mv::Shape::getAxis(axisToConcat.substr(i,1))];
-
-                    for(unsigned i = 0; i < inputSlots; i++)
-                    {
-                        running_concat_offset_LHS.push_back(0);
-                        offset = 0;
-                        for (size_t j = 0; j < axisToConcat.size(); j++)
-                            offset += opIterator->getInputTensor(i)->getShape()[mv::Shape::getAxis(axisToConcat.substr(j,1))];
-
-                        running_concat_offset_RHS.push_back(axis_shape  - offset);
-                    }
-                }
-
-
-                for(unsigned i = 0; i != inputSlots; i++)
-                {
-                    auto inputTensor = opIterator->getInputTensor(i);
-                    auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
-                    mv::Data::BufferIterator inputBuffer;
-
-                    // If already allocated from a previous pass, deallocate.
-                    // Note: This is probably not a good long term solution as we may have
-                    // requirements from two different connections, this approach only resolves one.
-                    // Probably restrictions on a tensor should be attributes of that tensor.
-                    if (!inputTensor->hasAttr("allocators"))
-                    {    inputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,inputTensor);
-                        pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
-                                " Has no allocator. Will attempt to allocate based on logical location");
-                    }
-                    else
-                    {
-                        inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],stageIt,inputTensor);
-                    }
-
-                    std::vector<std::size_t> lhs_padding(inputTensor->getShape().ndims());
-                    std::vector<std::size_t> rhs_padding(inputTensor->getShape().ndims());
-
-                    // This code assumes all tensors are of equal size. TODO: Assertions
-                    auto lhs = running_concat_offset_LHS[i];
-                    auto rhs = running_concat_offset_RHS[i];
-
-                    lhs_padding.at(axis) = lhs;
-                    rhs_padding.at(axis) = rhs;
-
-                    auto propagate_to_slaves = propagateToSlaves(om, inputTensor);
-
-                    auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
-                                                    inputBuffer, outputBuffer,
-                                                    lhs_padding, rhs_padding, propagate_to_slaves);
-//                    //NOTE: all the addresses between the relationships of input/output buffers are RELATIVE, e.g
-//                    //think of a 3 level concat after concat with the master buffer of having size of 10
-//                    //let's suppose that on index 5 we have a second concat and inside this concat there is one more
-//                    //with index 3. The final relative index of the inputBuffer to the masterBuffer is 8=5+3
-//                    //This index is exactly expressed through the lhs_padding.at(axis) and belongs to every inputbuffer.
-                    auto inp = dm.getTensor(inputBuffer->getData()->getName());
-                    auto out = dm.getTensor(outputBuffer->getData()->getName());
-                    std::size_t left_index = 0;
-                    std::string axisConcat = "C";
-                    //NOTE: CONCAT OVER C
-                    if(inp->getShape()[mv::IO_CHANNEL_DIMENSION] != out->getShape()[mv::IO_CHANNEL_DIMENSION])
-                    {
-                        if (inp->getOrder() == mv::Order("NCHW"))
-                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_HEIGHT_DIMENSION];
-                        else if (inp->getOrder() == mv::Order("NHWC"))
-                            left_index = lhs_padding.at(axis);
-                        axisConcat = "C";
-                    }
-                    //NOTE: CONCAT OVER H
-                    if(inp->getShape()[mv::IO_HEIGHT_DIMENSION] != out->getShape()[mv::IO_HEIGHT_DIMENSION])
-                    {
-                        if (inp->getOrder() == mv::Order("NHWC"))
-                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_CHANNEL_DIMENSION];
-                        else if (inp->getOrder() == mv::Order("NCHW"))
-                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION];
-                        axisConcat = "H";
-                    }
-                    //NOTE: CONCAT OVER W
-                    if(inp->getShape()[mv::IO_WIDTH_DIMENSION] != out->getShape()[mv::IO_WIDTH_DIMENSION])
-                    {
-                        if (inp->getOrder() == mv::Order("NHWC"))
-                            left_index = lhs_padding.at(axis) *  inp->getShape()[mv::IO_CHANNEL_DIMENSION];
-                        else if (inp->getOrder() == mv::Order("NCHW"))
-                            left_index = lhs_padding.at(axis);
-                        axisConcat = "W";
-                    }
-                    //NOTE: CONCAT OVER N, same calculation for both z and c major because N is biggest for both
-                    if(inp->getShape()[mv::IO_BATCH_DIMENSION] != out->getShape()[mv::IO_BATCH_DIMENSION])
-                    {
-                        left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_CHANNEL_DIMENSION] 
-                                                            * inp->getShape()[mv::IO_HEIGHT_DIMENSION] * inp->getShape()[mv::IO_WIDTH_DIMENSION];
-                        axisConcat = "N";
-                    }
-                    inp->set<std::size_t>("leftIndex", left_index);
-                    out->set<std::string>("concatAxis", axisConcat);
-                }
-            }
-            else if(opType == "ImplicitUnion" || opType == "ImplicitInputSlice")
-            {
-                //In implicit union case, we dont really have 1 master buffer, we are just using it
-                // to have one output for the whole network, so each input to this op will still have
-                // it's own buffer. We create the buffers but do NOT move them like in the other case
-                // no slave/master case.
-                auto outputTensor = opIterator->getOutputTensor(0);
-                auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
-
-                mv::Data::BufferIterator outputBuffer;
-
-                if( !outputTensor->hasAttr("allocators"))
-                {
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
-                            " Has no allocator. Will attempt to allocate based on logical location");
-                    outputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,outputTensor);
-                }
-                else
-                {
-                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],stageIt,outputTensor);
-                }
-
-
-            }
-            else if (opType == "Slice" || opType == "Crop")
-            {
-                auto outputTensor = opIterator->getOutputTensor(0);
-                auto inputTensor = opIterator->getInputTensor(0);
-                auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
-                auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
-
-                mv::Data::BufferIterator inputBuffer;
-                mv::Data::BufferIterator outputBuffer;
-
-                if (!inputTensor->hasAttr("allocators"))
-                {
-                    inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
-                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + inputTensor->getName() + ""
-                            " Has no allocator. Will attempt to allocate based on logical location");
-                }
-                else
-                {
-                    inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],stageIt,inputTensor);
-                }
-
-                if(!outputTensor->hasAttr("allocators"))
-                {
-                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
-                            " Has no allocator. Will attempt to allocate based on logical location");
-                    outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
-                }
-                else
-                {
-                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],
-                                                stageIt,outputTensor);
-                }
-
-                auto ndims = inputTensor->getShape().ndims();
-                auto inputShape = inputTensor->getShape();
-                mv::Shape begin;
-                mv::Shape size;
-                if (opType == "Slice")
-                {
-                    begin = opIterator->get<mv::Shape>("begin");
-                    size = opIterator->get<mv::Shape>("size");
-                }
-                else
-                {
-                    begin = {0,0,0,0};
-                    size = outputTensor->getShape();
-                }
-
-                std::vector<std::size_t> lhs_padding(ndims);
-                std::vector<std::size_t> rhs_padding(ndims);
-
-                for(unsigned i = 0; i < ndims; i++)
-                {
-                    lhs_padding[i] = begin[i];
-                    rhs_padding[i] = inputShape[i] - (begin[i] + size[i]);
-                }
-
-                auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
-                                                outputBuffer, inputBuffer,
-                                                lhs_padding, rhs_padding);
-            }
-            else if (opType == "Copy" || opType == "Align" || opType == "ImplicitOutput" || opType == "ImplicitInput")
-            {
-                auto outputTensor = opIterator->getOutputTensor(0);
-                auto inputTensor = opIterator->getInputTensor(0);
-                auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
-                auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
-                mv::Data::BufferIterator inputBuffer;
-                mv::Data::BufferIterator outputBuffer;
-
-                if (!inputTensor->hasAttr("allocators"))
-                {
-                    inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
-                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
-                            " Has no allocator. Will attempt to allocate based on logical location");
-                }
-                else
-                {
-                    inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],
-                                                stageIt, inputTensor);
-                }
-
-                if( !outputTensor->hasAttr("allocators"))
-                {
-                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
-                            " Has no allocator. Will attempt to allocate based on logical location");
-                    outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
-                }
-                else
-                {
-                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],
-                                                stageIt, outputTensor);
-                }
-
-                if (opType == "Align")
-                {
-                    auto ndims = inputTensor->getShape().ndims();
-
-                    std::vector<std::size_t> lhs_padding(ndims);
-                    std::vector<std::size_t> rhs_padding(ndims);
-
-                    mv::Shape begin = {0,0,0,0};
-                    mv::Shape size = inputTensor->getShape();;
-                    mv::Shape outputShape = outputTensor->getShape();
-                    for(unsigned i = 0; i < ndims; i++)
-                    {
-                        lhs_padding[i] = begin[i];
-                        rhs_padding[i] = outputShape[i] - (begin[i] + size[i]);
-                    }
-                    auto newBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
-                                                    inputBuffer, outputBuffer,
-                                                    lhs_padding, rhs_padding);
-                }
-                else
-                {
-                    auto newBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
-                                                    inputBuffer, outputBuffer,
-                                                    {0,0,0,0}, {0,0,0,0});
-                }
-
-            }
-            else if((opType == "ImplicitReshape") || (opType == "ImplicitPermute"))
-            {
-                auto outputTensor = opIterator->getOutputTensor(0);
-                auto inputTensor = opIterator->getInputTensor(0);
-                auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
-                auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
-                mv::Data::BufferIterator inputBuffer;
-                mv::Data::BufferIterator outputBuffer;
-
-                if (!inputTensor->hasAttr("allocators"))
-                {
-                    inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
-                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
-                            " Has no allocator. Will attempt to allocate based on logical location");
-                }
-                else
-                {
-                    inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],
-                                                stageIt, inputTensor);
-                }
-
-                if( !outputTensor->hasAttr("allocators"))
-                {
-                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
-                            " Has no allocator. Will attempt to allocate based on logical location");
-                    outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
-                }
-                else
-                {
-                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],
-                                                stageIt, outputTensor);
-                }
-
-                auto newBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
-                                                inputBuffer, outputBuffer,
-                                                {0,0,0,0}, {0,0,0,0});
-
-            }
-            else
-            {
-                auto outputTensor = opIterator->getOutputTensor(0);
-                pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
-                            " has implicit flow but was not assigned an allocator.");
-            }
-            
-        }
+        allocateImplicitOperationsOp(opIterator, stageIt, pass, model);
     }
 }
 
