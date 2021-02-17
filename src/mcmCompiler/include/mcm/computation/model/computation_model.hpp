@@ -21,6 +21,7 @@
 #include "include/mcm/target/kmb/ppe_layer_type.hpp"
 #include "include/mcm/target/kmb/barrier_definition.hpp"
 #include "include/mcm/target/kmb/barrier_deps.hpp"
+#include "include/mcm/utils/helpers.hpp"
 
 
 namespace mv
@@ -118,9 +119,8 @@ namespace mv
         */
         struct ops_map_hash {
             size_t operator()(const std::string& name) const {
-                return name_hash_(name);
+                return mv::utils::constatnt_string_hash(name);
             }
-            std::hash<std::string> name_hash_;
         };
         std::shared_ptr<std::unordered_map<std::string, Data::OpListIterator, ops_map_hash>> ops_;
         std::shared_ptr<std::unordered_map<std::string, Data::FlowListIterator>> dataFlows_;
