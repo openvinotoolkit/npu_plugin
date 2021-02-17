@@ -28,11 +28,9 @@
 #endif
 
 #include <flatbuffers/flatbuffers.h>
-#include <legacy/net_pass.h>
 #include <schema/graphfile/graphfile_generated.h>
 
 #include <include/mcm/compiler/compilation_unit.hpp>
-#include <legacy/ie_util_internal.hpp>
 
 #include "converters.hpp"
 #include "ie_memcpy.h"

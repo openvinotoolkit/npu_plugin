@@ -1,4 +1,4 @@
-// Copyright 2020 Intel Corporation.
+// Copyright 2020-2021 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -30,7 +30,6 @@
 #include <cpp_interfaces/exception2status.hpp>
 #include <description_buffer.hpp>
 #include <details/ie_exception.hpp>
-#include <legacy/graph_tools.hpp>
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_compound_blob.h>
@@ -41,9 +40,7 @@
 #include <ie_layouts.h>
 #include <ie_parallel.hpp>
 #include <ie_precision.hpp>
-#include <legacy/ie_util_internal.hpp>
 #include <ie_utils.hpp>
-#include <legacy/net_pass.h>
 #include <openvino/itt.hpp>
 #include <parse_layers_helpers.hpp>
 #include <precision_utils.h>

@@ -18,8 +18,8 @@
 
 #include <cmath>
 
+#include "details/ie_exception.hpp"
 #include "ie_parallel.hpp"
-#include "legacy/ie_layers.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
