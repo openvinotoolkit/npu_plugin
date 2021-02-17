@@ -44,10 +44,17 @@
               "name" : "LocateInplaceEltwiseOps"
             },
             {
-              "name" : "ChainPipeliningTransform",
-              "select_stages" : 2
+                 "name" : "ChainPipeliningTransform",
+                 "select_stages" : 2
             },
             "PipeLineAcrossParallelBranches",
+            {
+              "name" : "MemContextForHugeActivations",
+              "enable_pass" : true,
+              "peak_threshold_percent" : 49,
+              "valley_threshold_percent" : 25,
+              "max_context_chain_size" : 3
+            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,

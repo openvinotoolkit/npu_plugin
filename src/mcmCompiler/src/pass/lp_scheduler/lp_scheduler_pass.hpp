@@ -680,7 +680,8 @@ class Control_Edge_Set {
       for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
           itr!=dag.end_nodes(); ++itr) {
         operation_t op = *itr;
-        if (!dag.resource_utility(op)) { continue; }
+        if (!dag.resource_utility(op) &&
+            !(op->hasAttr("memory_context_utility")) ) { continue; }
 
         // add control edges from inputs to this compute op //
         for (typename dag_t::const_operation_iterator_t
