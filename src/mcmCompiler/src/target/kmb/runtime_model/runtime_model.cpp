@@ -2141,8 +2141,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         case MVCNN::DPULayerType_FCL:
         case MVCNN::DPULayerType_ELTWISE:
             //std::unique_ptr<TensorReferenceT> parent_weights_tensor;
-            if (taskOp == "HwConvert")
-                // HwConvert underneath is Eltwise with weight_data = input_data
+            if (opIt->isEltwiseSingleInputTypeOp())
+                // Single input Eltwise ops are Eltwise with weight_data = input_data
                 toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
             else
                 toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1));
@@ -2327,8 +2327,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         case MVCNN::DPULayerType_CMCONV:
         case MVCNN::DPULayerType_FCL:
         case MVCNN::DPULayerType_ELTWISE:
-            if (taskOp == "HwConvert")
-                // HwConvert underneath is Eltwise with weight_data = input_data
+            if (opIt->isEltwiseSingleInputTypeOp())
+                // Single input Eltwise ops are Eltwise with weight_data = input_data
                 toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
             else
                 toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1), clusterId);
@@ -2413,8 +2413,7 @@ std::array<unsigned short, 4> mv::RuntimeModel::getNewPadding(std::array<unsigne
 
 void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId, const std::string strategy)
 {
-    auto taskOp = opIt->get<std::string>("taskOp");
-    if (taskOp == "Eltwise" || taskOp == "HwConvert")
+    if (opIt->isEltwiseTypeOp())
     {
         workload.padLeft = 0;
         workload.padTop = 0;
@@ -2566,7 +2565,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             if (opIt->get<std::string>("taskOp") != "MaxPool")
                 toBuild->invariant->weights_data->locale_index = locale_index;
 
-            if (opIt->get<std::string>("taskOp") != "Eltwise" && opIt->get<std::string>("taskOp") != "HwConvert")
+            if (!opIt->isEltwiseTypeOp())
                 toBuild->invariant->weights_table->locale_index = locale_index;
 
             if(opIt->hasAttr("fakeSparsity"))

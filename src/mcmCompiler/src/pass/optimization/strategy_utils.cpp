@@ -123,8 +123,7 @@ std::size_t mv::activationTensorSize(mv::Op& op, const mv::Data::TensorIterator 
         streamedChannels = mv::round_up(streamedChannels, 16);
     }
 
-    if((opType == "Conv" || opType == "DepthwiseConv" || opType == "MaxPool" || opType == "HwConvert" ||
-        opType == "Eltwise") && (!isCMConv || !isInput)) //for DPU tasks we align both input (except CM) and output tensors channels
+    if(op.isHardwarizable() && (!isCMConv || !isInput)) //for DPU tasks we align both input (except CM) and output tensors channels
     {
         streamedChannels = mv::round_up(streamedChannels, 16);
     }
@@ -249,7 +248,7 @@ std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int t
             temporaryStreamConfig = {1,1,1,1,1};
         inputSize += activationTensorSize(op, op.getInputTensor(1),clustering,temporaryStreamConfig, isCMConv, totalClusters, true, streamedShape);
     }
-    else if(opType == "HwConvert")
+    else if(op.isEltwiseSingleInputTypeOp())
     {
         weightTableSize = 0;
         weightSize = 0;

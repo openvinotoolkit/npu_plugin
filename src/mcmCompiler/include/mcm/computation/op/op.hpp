@@ -55,6 +55,8 @@ namespace mv
         bool isSparsityConsumer() const;
         bool isHardwarizable() const;
         bool isHwFusable() const;
+        bool isEltwiseTypeOp() const;
+        bool isEltwiseSingleInputTypeOp() const;
         bool hasWeights() const;
         bool hasPWLActivation() const;
         bool hasFloatPrecision() const;

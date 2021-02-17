@@ -1277,7 +1277,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
         std::string opType = opIt->getOpType();
 
         //For now do streaming pass only for the DPU layers
-        if ((opType != "Conv") && (opType != "DepthwiseConv") && (opType != "MaxPool") && (opType != "Eltwise") && (opType != "HwConvert"))
+        if ((opType != "Conv") && (opType != "DepthwiseConv") && (opType != "MaxPool") && !opIt->isEltwiseTypeOp())
             continue;
 
         std::size_t alignment = 1;

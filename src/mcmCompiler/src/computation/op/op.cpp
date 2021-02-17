@@ -413,6 +413,42 @@ bool mv::Op::isHwFusable() const
     return isFusableOp;
 }
 
+bool mv::Op::isEltwiseTypeOp() const
+{
+    bool isEltwiseTypeOpFlag = false;
+    std::vector<std::string> eltwiseOpTypes =
+        {"Eltwise", "HwConvert"};
+    if (std::count(eltwiseOpTypes.cbegin(), eltwiseOpTypes.cend(),
+        getOpType()))
+    {
+        isEltwiseTypeOpFlag = true;
+    }
+    else if (getOpType() == "DPUTask" && std::count(eltwiseOpTypes.cbegin(),
+        eltwiseOpTypes.cend(), get<std::string>("taskOp")))
+    {
+        isEltwiseTypeOpFlag = true;
+    }
+    return isEltwiseTypeOpFlag;
+}
+
+bool mv::Op::isEltwiseSingleInputTypeOp() const
+{
+    bool isEltwiseSingleInputTypeOpFlag = false;
+    std::vector<std::string> eltwiseSingleInputOpTypes =
+        {"HwConvert"};
+    if (std::count(eltwiseSingleInputOpTypes.cbegin(), eltwiseSingleInputOpTypes.cend(),
+        getOpType()))
+    {
+        isEltwiseSingleInputTypeOpFlag = true;
+    }
+    else if (getOpType() == "DPUTask" && std::count(eltwiseSingleInputOpTypes.cbegin(),
+        eltwiseSingleInputOpTypes.cend(), get<std::string>("taskOp")))
+    {
+        isEltwiseSingleInputTypeOpFlag = true;
+    }
+    return isEltwiseSingleInputTypeOpFlag;
+}
+
 bool mv::Op::hasWeights() const
 {
     bool hasWeights = false;
