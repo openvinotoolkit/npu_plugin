@@ -906,9 +906,11 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
         info.cpu_uSec = info.realTime_uSec = profilingEntry.time;
         info.execution_index = execution_index++;
         size_t typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
-        profilingEntry.layer_type.copy(info.layer_type, typeLen, 0);
+        std::size_t length = profilingEntry.layer_type.copy(info.layer_type, typeLen, 0);
+        info.layer_type[length]='\0';
         typeLen = sizeof(info.exec_type) / sizeof(info.exec_type[0]);
-        profilingEntry.exec_type.copy(info.exec_type, typeLen, 0);
+        length = profilingEntry.exec_type.copy(info.exec_type, typeLen, 0);
+        info.exec_type[length]='\0';
         perfCounts[profilingEntry.name] = info;
     }
 
