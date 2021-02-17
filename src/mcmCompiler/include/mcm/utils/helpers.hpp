@@ -17,9 +17,6 @@ struct RaiiWrapper {
 
 void releaseFile(FILE* ptr);
 
-inline size_t unaligned_load(const char* p);
-size_t constatnt_string_hash(const std::string str);
-
 }  // namespace utils
 }  // namespace mv
 
