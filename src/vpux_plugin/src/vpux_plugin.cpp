@@ -15,20 +15,17 @@
 //
 
 // System include
+#include <fstream>
 #include <map>
 #include <memory>
 #include <string>
 
 // Inference Engine include
-#include <legacy/graph_transformer.h>
-
+#include <ie_ngraph_utils.hpp>
 #include <details/ie_irelease.hpp>
-#include <fstream>
 #include <ie_icore.hpp>
 #include <ie_itt.hpp>
 #include <ie_metric_helpers.hpp>
-#include <legacy/cnn_network_impl.hpp>
-#include <legacy/ie_util_internal.hpp>
 
 // Plugin include
 #include "file_reader.h"
@@ -67,15 +64,7 @@ Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)), _met
 IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
     const IE::CNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& networkConfig) {
     OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "LoadExeNetwork");
-    IE::CNNNetwork clonedNetwork = cloneNetwork(network);
-
-    auto implNetwork = std::dynamic_pointer_cast<IE::details::CNNNetworkImpl>(
-        static_cast<IE::ICNNNetwork::Ptr>(clonedNetwork));
-    if (implNetwork) {
-        // valid for CNNNetworkImpl only, while there's no API in CNNNetwork to change network
-        IE::ConstTransformer transformator(implNetwork.get());
-        transformator.fullTrim();
-    }
+    IE::CNNNetwork clonedNetwork = IE::details::cloneNetwork(network);
 
     return std::make_shared<ExecutableNetwork>(clonedNetwork, device, networkConfig);
 }

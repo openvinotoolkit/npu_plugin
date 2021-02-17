@@ -16,8 +16,6 @@
 
 // System
 #include <fstream>
-// IE
-#include <legacy/net_pass.h>
 
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
