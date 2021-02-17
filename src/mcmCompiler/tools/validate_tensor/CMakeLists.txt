@@ -8,5 +8,5 @@ add_executable(validate
     "validate.cpp"
 )
 
-target_link_libraries(validate gflags mcmCompiler -lssh)
+target_link_libraries(validate gflags mcmCompiler)
 add_dependencies(validate mcmCompiler)
