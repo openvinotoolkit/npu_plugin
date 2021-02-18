@@ -925,4 +925,28 @@ def IERT_ScaleShiftOp :
     );
 }
 
+//
+// GRNOp
+//
+
+def IERT_GRNOp :
+        IERT_LayerOp<
+            "GRN",
+            [
+                SingleInputAndResultLayer,
+                SameOperandsElementType,
+                DeclareOpInterfaceMethods<GRNLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time GRN layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        F32Attr:$bias
+    );
+}
+
 #endif

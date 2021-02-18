@@ -518,4 +518,40 @@ def ScaleShiftLayerInterface : OpInterface<"ScaleShiftLayerInterface"> {
     }];
 }
 
+//
+// GRNLayerInterface
+//
+
+def GRNLayerInterface : OpInterface<"GRNLayerInterface"> {
+    let description = "Interface for GRN Layer";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "mlir::Value", "input", (ins),
+            [{
+                return $_op.input();
+            }]
+        >,
+        InterfaceMethod<
+            "Get destination Value for the Operation",
+            "mlir::Value", "output", (ins),
+            [{
+                return $_op.output();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get the bias added to the variance",
+            "float", "getBias", (ins),
+            [{}],
+            [{
+                return $_op.bias().convertToFloat();
+            }]
+        >,
+    ];
+}
+
 #endif
