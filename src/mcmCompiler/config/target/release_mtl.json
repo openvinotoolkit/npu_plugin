@@ -52,7 +52,7 @@
                     },
                     {
                         "tensor": "weights",
-                        "dtype": "Float16"
+                        "dtype": "Int8"
                     }
                 ]
             },

@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <map>
+#include <numeric>
 #include "include/mcm/tensor/dtype/dtype.hpp"
 
 mv::DType mv::getDType(mv::Precision p) {
@@ -74,6 +75,31 @@ void mv::calcZeroPointAndScalePerTensor(
     quantZp = calculateZeroPoint(floatMin, floatMax, levels, dtype);
 }
 
+void mv::calcZeroPointPerChannel(
+    std::vector<double> &floatMax,
+    std::vector<double> &floatMin,
+    int levels,
+    mv::DType dtype,
+    std::vector<int64_t> &quantZp)
+{
+    std::transform(floatMax.cbegin(), floatMax.cend(),
+        floatMin.cbegin(), quantZp.begin(),
+        [dtype, levels](const double &max, const double &min)
+        {return mv::calculateZeroPoint(min, max, levels, dtype);});
+}
+
+void mv::calcScalePerChannel(
+    std::vector<double> &floatMax,
+    std::vector<double> &floatMin,
+    int levels,
+    std::vector<double> &quantScale)
+{
+    std::transform(floatMax.cbegin(), floatMax.cend(),
+        floatMin.cbegin(), quantScale.begin(),
+        [levels](const double &max,const double &min)
+        {return mv::calculateScale(min, max, levels);});
+}
+
 void mv::calcZeroPointAndScalePerChannel(
     std::vector<double> &floatMax,
     std::vector<double> &floatMin,
@@ -82,15 +108,59 @@ void mv::calcZeroPointAndScalePerChannel(
     std::vector<double> &quantScale,
     std::vector<int64_t> &quantZp)
 {
-    std::transform(floatMax.cbegin(), floatMax.cend(),
-        floatMin.cbegin(), quantScale.begin(),
-        [levels](const double &max,const double &min)
-        {return mv::calculateScale(min, max, levels);});
+    calcScalePerChannel(floatMax, floatMin, levels, quantScale);
+    calcZeroPointPerChannel(floatMax, floatMin, levels, dtype, quantZp);
+}
 
-    std::transform(floatMax.cbegin(), floatMax.cend(),
-        floatMin.cbegin(), quantZp.begin(),
-        [dtype, levels](const double &max, const double &min)
-        {return mv::calculateZeroPoint(min, max, levels, dtype);});
+void mv::weightsZeroPointsAlignment(
+    std::vector<double>& floatMax,
+    std::vector<double>& floatMin,
+    int levels,
+    std::vector<int64_t>& quantZp)
+{
+    int zp_aligned=std::round(std::accumulate(quantZp.cbegin(),quantZp.cend(),0)/quantZp.size());
+
+    std::vector<double> new_minRange(floatMin.size());
+    
+    std::transform(floatMin.cbegin(),floatMin.cend(),
+        floatMax.cbegin(), new_minRange.begin(),
+        [=](const double min ,const double max)
+        {
+            double minRange_new=(zp_aligned*max) / (zp_aligned-(levels-1.0));
+            return static_cast<double>(std::min(min,minRange_new));
+        });
+
+    std::vector<double> new_maxRange(floatMax.size());
+
+    std::transform(floatMax.cbegin(),floatMax.cend(),
+        floatMin.cbegin(), new_maxRange.begin(),
+        [=](const double max , const double min)
+        {
+            double maxRange_new=(min-(min*(levels-1.0)))/(zp_aligned);
+            return static_cast<double>(std::max(max,maxRange_new));
+        });
+
+    std::fill(quantZp.begin(),quantZp.end(),zp_aligned);
+
+    floatMin=std::move(new_minRange);
+    floatMax=std::move(new_maxRange);
+}
+
+void mv::calcAlignedZeroPointAndScalePerChannel(
+    std::vector<double> &floatMax,
+    std::vector<double> &floatMin,
+    int levels,
+    mv::DType dtype,
+    std::vector<double> &quantScale,
+    std::vector<int64_t> &quantZp)
+{
+    calcZeroPointPerChannel(floatMax, floatMin, levels, dtype, quantZp);
+    if (std::adjacent_find(quantZp.cbegin(), quantZp.cend(),
+        [](const int64_t left, const int64_t right) {
+            return left != right;
+        }) != quantZp.cend())
+        weightsZeroPointsAlignment(floatMax, floatMin, levels, quantZp);
+    calcScalePerChannel(floatMax, floatMin, levels, quantScale);
 }
 
 void mv::updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor)

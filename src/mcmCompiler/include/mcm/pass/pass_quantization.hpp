@@ -32,7 +32,30 @@ namespace mv
         DType dtype,
         double& quantScale,
         int64_t& quantZp);
+    void calcZeroPointPerChannel(
+        std::vector<double> &floatMax,
+        std::vector<double> &floatMin,
+        int levels,
+        DType dtype,
+        std::vector<int64_t> &quantZp);
+    void calcScalePerChannel(
+        std::vector<double> &floatMax,
+        std::vector<double> &floatMin,
+        int levels,
+        std::vector<double> &quantScale);
     void calcZeroPointAndScalePerChannel(
+        std::vector<double> &floatMax,
+        std::vector<double> &floatMin,
+        int levels,
+        DType dtype,
+        std::vector<double> &quantScale,
+        std::vector<int64_t> &quantZp);
+    void weightsZeroPointsAlignment(
+        std::vector<double>& floatMax,
+        std::vector<double>& floatMin,
+        int levels,
+        std::vector<int64_t>& quantZp);
+    void calcAlignedZeroPointAndScalePerChannel(
         std::vector<double> &floatMax,
         std::vector<double> &floatMin,
         int levels,

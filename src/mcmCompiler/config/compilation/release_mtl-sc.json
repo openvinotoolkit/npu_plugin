@@ -252,19 +252,21 @@
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
+            "ImplicitOutputDTypeUpdate",
+            "KMBQuantizeConversion",
+            "ConfigureOutputPrecision",
+            "EnsureDTypeCompatibility",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateInstructionListTables",
-            "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
+            "StrategyLayersToTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
-            "ImplicitOutputDTypeUpdate",
-            "KMBQuantizeConversion",
-            "ConfigureOutputPrecision"
+            "FuseConcats"
         ]
     },
   "dma": {
