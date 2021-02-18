@@ -13,6 +13,7 @@ addIeTargetTest(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_al/include"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/tests/functional/shared_tests_instances"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/tests/functional/behavior"
         "${CMAKE_CURRENT_SOURCE_DIR}/internal"
     DEPENDENCIES
         VPUXPlugin
