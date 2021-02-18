@@ -159,19 +159,24 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             tensors.push_back(dm.getTensor(tensorName));
         subTensorsGen(model, tensors, numClusters, pass);
         subTensorsGen(model, specialTensors, numClusters, pass, 1);
-        for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+
+        auto srcImplicitChainTypes = std::vector<std::string>({"Concat", "Crop", "ImplicitConcat", "Slice"});
+        auto destImplicitChainTypes = std::vector<std::string>({"Align", "Crop", "ImplicitConcat", "Slice"});
+        auto srcImplitcitOpsTypes = om.getOpsOfTypes(srcImplicitChainTypes);
+        for(auto srcImplicitOpsList : srcImplitcitOpsTypes)
         {
-            if (opIt->getOpType() == "Crop" || opIt->getOpType() == "Concat" ||
-                    opIt->getOpType() == "ImplicitConcat" || opIt->getOpType() == "Slice")
+            for(auto srcImplicitOp : srcImplicitOpsList.second)
             {
-                auto sinkOperators = findSinkLayers(dm, opIt->getOutputTensor(0));
-                if (sinkOperators[0]->getOpType() == "Align" || sinkOperators[0]->getOpType() == "Crop"
-                        || sinkOperators[0]->getOpType() == "ImplicitConcat"
-                        || sinkOperators[0]->getOpType() == "Slice")
-                {
-                    subTensorsGen(model, {opIt->getOutputTensor(0)},numClusters, pass);
-                }
+                auto sinkOperators = findSinkLayers(dm, srcImplicitOp->getOutputTensor(0));
+                if (std::find(destImplicitChainTypes.cbegin(), destImplicitChainTypes.cend(),
+                    sinkOperators[0]->getOpType()) != destImplicitChainTypes.cend())
+                    subTensorsGen(model, {srcImplicitOp->getOutputTensor(0)},numClusters, pass);
             }
+        }
+        // Find a better way to handle subtensors generation trough implicit operations
+        for (auto cropOp : om.getOps("Crop")){
+            if (om.getSourceOp(cropOp->getInputTensor(0))->getOpType() == "DPUTask")
+                    subTensorsGen(model, {cropOp->getOutputTensor(0)},numClusters, pass);
         }
     }
     return;

@@ -756,15 +756,10 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
         if (parentOpIt->getOpType() == "Conv")
             continue;
 
-        auto finalDType = weightsTensor->getDType();
-        if (sourceTensor->getDType() == mv::DType("UInt8")) {
-            finalDType = sourceTensor->getDType();
-        }
-
         auto weights = om.constantDataElement(opIt->getName() + "_weights",
                                               weightsTensor->getData(),
                                               {FULLY_CONNECTED_KERNEL, FULLY_CONNECTED_KERNEL, inputShape[mv::IO_CHANNEL_DIMENSION], 1},
-                                              finalDType,
+                                              opIt->getInputTensor(1)->getDType(),
                                               mv::Order::getZMajorID(4));
         weights->setQuantParams(weightsTensorQuantizationParams);
 
@@ -2089,7 +2084,7 @@ void detectEltWiseUpaInputs(const mv::pass::PassEntry& /*pass*/, mv::Computation
 // a generic solution due to limitations around kernel size and stride.
 // Note: should be run after "fullyConnectedAsConv2D" to capture the
 // FC layers with big input channels also
-void replaceBigInputChannels(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void replaceBigInputChannels(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -2111,7 +2106,7 @@ void replaceBigInputChannels(const mv::pass::PassEntry& pass, mv::ComputationMod
         // Step 1
         // Slice Conv input and weights and create partial sums
         std::vector<mv::Data::TensorIterator> adjustedConvs;
-        for (auto splitIdx = 0; splitIdx < numSplits; splitIdx ++) {
+        for (size_t splitIdx = 0; splitIdx < numSplits; splitIdx ++) {
 
             auto inputDisplacement = std::pair<mv::Shape, mv::Shape>(
                 {

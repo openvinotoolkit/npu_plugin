@@ -68,10 +68,15 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
                 auto quantize = om.uPATaskQuantize("Quantize" + task->getName() + std::to_string(id), {tensor});
                 quantize->setDType(dtypeNeededInInput);
                 quantize->setQuantParams(tensorQuantParams);
+
+                auto quantOp = om.getSourceOp(quantize);
+                auto sourceOp = om.getSourceOp(tensor);
+
                 if (tensor->hasAttr("splitStrategy"))
                     quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
-                auto quantizeOp = om.getSourceOp(quantize);
-                quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
+                else if (sourceOp->hasAttr("splitStrategy"))
+                    quantOp->set<std::string>("splitStrategy", sourceOp->get<std::string>("splitStrategy"));
+                quantOp->set<unsigned>("opId", task->get<unsigned>("opId"));
 
                 if (alignCase)
                 {
@@ -173,10 +178,16 @@ void addSliceQuantizationLayer(mv::OpModel & om, std::vector<mv::Data::OpListIte
                     quantize = om.uPATaskQuantize("Quantize" + slice->getName() + std::to_string(id), {tensor});
                     quantize->setDType(outputDType);
                     quantize->setQuantParams(quantParams);
+
+                    auto quantOp = om.getSourceOp(quantize);
+                    auto sourceOp = om.getSourceOp(tensor);
+
                     if (tensor->hasAttr("splitStrategy"))
                         quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
-                    auto quantizeOp = om.getSourceOp(quantize);
-                    quantizeOp->set<unsigned>("opId", slice->get<unsigned>("opId"));
+                    else if (sourceOp->hasAttr("splitStrategy"))
+                        quantOp->set<std::string>("splitStrategy", sourceOp->get<std::string>("splitStrategy"));
+
+                    quantOp->set<unsigned>("opId", slice->get<unsigned>("opId"));
                 }
                 auto backup = inputFlow;
                 auto slot = backup->get<size_t>("sinkInput");
@@ -349,17 +360,25 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
         if (outputOp->outputSlots() > 0)
             outputOp->getOutputTensor(0)->setDType(targetPrecision);
 
+        auto quantOp = om.getSourceOp(tensor);
+        auto sourceOp = om.getSourceOp(inputTensor);
+
         if (inputTensor->hasAttr("splitStrategy"))
             tensor->set<std::string>("splitStrategy", inputTensor->get<std::string>("splitStrategy"));
+        else if (sourceOp->hasAttr("splitStrategy"))
+            quantOp->set<std::string>("splitStrategy", sourceOp->get<std::string>("splitStrategy"));
+
         tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
         inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
-        while (om.getSourceOp(inputTensor)->isImplicit())
+        // Propagate location upwards
+        while (sourceOp->isImplicit() && sourceOp->inputSlots())
         {
-            inputTensor = om.getSourceOp(inputTensor)->getInputTensor(0);
+            inputTensor = sourceOp->getInputTensor(0);
             inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+            sourceOp = om.getSourceOp(inputTensor);
         }
 
-        om.getSourceOp(tensor)->set<unsigned>("opId", outputOp->get<unsigned>("opId") - 1);
+        quantOp->set<unsigned>("opId", outputOp->get<unsigned>("opId") - 1);
         om.undefineFlow(outputOp.leftmostInput());
         outputOp->setInputTensor(tensor, 0, false);
         om.defineFlow(tensor, outputOp, 0);

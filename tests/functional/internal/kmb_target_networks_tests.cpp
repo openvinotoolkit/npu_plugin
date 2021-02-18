@@ -811,11 +811,7 @@ TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
 }
 
 // TODO Create ticket
-// Disabled for now due to hw incompatible dtype combination
-// U8 input and FP16 weights
-// Future PR will provide a mitigation and renable this test case
-// Issue to track: CVS-39964
-TEST_F(HeadPoseEstimationNetworkTest, DISABLED_head_pose_estimation_adas_0001) {
+TEST_F(HeadPoseEstimationNetworkTest, head_pose_estimation_adas_0001) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/head_pose_estimation_adas_0001/head-pose-estimation-adas-0001.xml")
@@ -879,10 +875,8 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_efficientnet_b0) {
 // C++ exception with description "Cannot convert layer "MobilenetV3/Conv/hard_swish/mul_1"
 // due to unsupported layer type "HSwish"
 // [Track number: D#3775]
-// Disabled for now due to hw incompatible dtype combination
-// U8 input and FP16 weights
-// Future PR will provide a mitigation and renable this test case
-// Issue to track: CVS-39964
+// Ngraph pass to align concat scales is under development
+// Once that is merged, re enable this networks compilation
 TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_small) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     runTest(
