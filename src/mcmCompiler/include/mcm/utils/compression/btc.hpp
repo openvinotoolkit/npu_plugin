@@ -1,5 +1,4 @@
-#ifndef BTC_HPP
-#define BTC_HPP
+#pragma once
 
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
@@ -48,4 +47,3 @@ class BTC : public Compressor
         void updateConfig(uint32_t align, uint32_t bitmapPreprocEnable, bool pStatsOnly, bool bypassMode, uint32_t verbosity);
 };
 }
-#endif //BTC_HPP
