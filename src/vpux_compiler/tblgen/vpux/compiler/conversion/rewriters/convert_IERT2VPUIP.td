@@ -371,6 +371,21 @@ def RewriteMaximum :
             (IERT_MaximumOp $input1, $input2, $output),
             (createEltwiseUPAOp<"MAX"> $input1, $input2, $output)
         >;
+//
+// IERT.GRN -> VPUIP.GRNUPA
+//
+
+def createGRNUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::GRNUPAOp>(
+                $_loc, $0, $1, $2)
+        }]>;
+
+def RewriteGRN :
+        Pat<
+            (IERT_GRNOp $input, $output, $bias),
+            (createGRNUPAOp $input, $output, $bias)
+        >;
 
 //
 // IERT.Swish -> VPUIP.SwishUPA

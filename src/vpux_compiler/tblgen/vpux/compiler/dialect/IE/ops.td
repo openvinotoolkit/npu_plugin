@@ -1506,4 +1506,31 @@ def IE_ScaleShiftOp :
     );
 }
 
+//
+// GRNOp
+//
+
+def IE_GRNOp :
+        IE_LayerOp<
+            "GRN",
+            [
+                SingleInputAndResultLayer,
+                SameOperandsAndResultType,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<GRNLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine GRN layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        F32Attr:$bias
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
 #endif
