@@ -356,10 +356,10 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
         returnedParams->get<bool>("PredictionOfQuantizationOutput")) {
         updateOutputQuantParams(pass, model);
     } else {
-        for (auto& p : om.getOpsOfTypes({"Conv", "DepthwiseConv", "MaxPool", "Eltwise"})) {
-            for (auto& op : p.second) {
-                const auto& opType = p.first;
-
+        std::vector<std::string> opTypes = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise"};
+        std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfTypes = om.getOpsOfTypes(opTypes);
+        for (auto& opType : opTypes) {
+            for (auto& op : operationsOfTypes[opType]) {
                 // TODO: Can we encapsulate isEmpty() inside isNeutral()?
                 bool inputQuantized = true;
                 for (size_t i = 0; i < (opType == "Eltwise" ? 2 : 1); ++i) {
