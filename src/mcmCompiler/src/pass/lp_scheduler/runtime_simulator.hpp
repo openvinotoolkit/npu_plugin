@@ -77,7 +77,7 @@ class Runtime_Barrier_Simulation_Assigner{
       std::vector<operation_t> bVector(barrier_list.begin(), barrier_list.end());
       std::vector<operation_t> bNewVector(bVector.size());
       int count = barrier_list.size();
-      for(int i = 0; i < barrier_list.size(); i++)
+      for(std::size_t i = 0; i < barrier_list.size(); i++)
       {
           operation_t bop = bVector[i];
           op_iterator_t oitr = om_->getOp(bop->getName());
@@ -106,12 +106,12 @@ class Runtime_Barrier_Simulation_Assigner{
                       "sortedOps number: " + std::to_string(sortedOps.size()));
       mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeSimulator",
                       "sortedDMAOps number: " + std::to_string(sortedDMAOps.size()));
-      for(int i = 0; i < sortedDMAOps.size(); i++)
+      for(std::size_t i = 0; i < sortedDMAOps.size(); i++)
       {
         mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeSimulator",
                           "sortedDMAOps: " + sortedDMAOps[i]->getName());
       }
-      for(int i = 0; i < sortedOps.size(); i++)
+      for(std::size_t i = 0; i < sortedOps.size(); i++)
       {
         mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeSimulator",
                           "sortedOps: " + sortedOps[i]->getName());
@@ -120,9 +120,9 @@ class Runtime_Barrier_Simulation_Assigner{
       std::vector<operation_t> dmaVector(data_list.begin(), data_list.end());
       std::vector<operation_t> dmaNewVector(dmaVector.size());
       count = 0;
-      for(int j = 0; j < sortedDMAOps.size(); j++)
+      for(std::size_t j = 0; j < sortedDMAOps.size(); j++)
       {
-        for(int i = 0; i < dmaVector.size(); i++)
+        for(std::size_t i = 0; i < dmaVector.size(); i++)
         {
             operation_t bop = dmaVector[i];
             if(bop->getName() == sortedDMAOps[j]->getName())
@@ -136,9 +136,9 @@ class Runtime_Barrier_Simulation_Assigner{
       std::vector<operation_t> computeVector(compute_list.begin(), compute_list.end());
       std::vector<operation_t> computeNewVector;
       std::vector<operation_t> upaNewVector;
-      for(int j = 0; j < sortedOps.size(); j++)
+      for(std::size_t j = 0; j < sortedOps.size(); j++)
       {
-        for(int i = 0; i < computeVector.size(); i++)
+        for(std::size_t i = 0; i < computeVector.size(); i++)
         {
             operation_t bop = computeVector[i];
             if(bop->getName() == sortedOps[j]->getName())
@@ -219,11 +219,11 @@ class Runtime_Barrier_Simulation_Assigner{
   private:
     const dag_t * const input_ptr_;
     level_sets_t level_sets_;
-    active_barrier_table_t active_barrier_table_;
-    std::list<size_t> real_barrier_list_;
     in_degree_map_t in_degree_map_;
     out_degree_map_t out_degree_map_;
+    std::list<size_t> real_barrier_list_;
     size_t barrier_bound_;
+    active_barrier_table_t active_barrier_table_;
     mv::OpModel * om_;
 
     bool fill_barrier_tasks(op_list_t& barrier_task_list ) {
