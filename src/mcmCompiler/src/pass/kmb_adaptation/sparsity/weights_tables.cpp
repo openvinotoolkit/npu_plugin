@@ -452,8 +452,8 @@ void populateActivationStorageElementMap(
                 size_t clIdx){
                 auto in0 = clSolver(op1, 0, clIdx);
                 auto in1 = clSolver(op1, 1, clIdx);
-                auto in0_addr = in0->hasAttr("address") ? in0->getAddress() : in0->get<std::size_t>("sliceAddress");
-                auto in1_addr = in1->hasAttr("address") ? in1->getAddress() : in1->get<std::size_t>("sliceAddress");
+                auto in0_addr = in0->hasAttr("sliceAddress") ? in0->get<std::size_t>("sliceAddress") : in0->getAddress();
+                auto in1_addr = in1->hasAttr("sliceAddress") ? in1->get<std::size_t>("sliceAddress") : in1->getAddress();
                 auto base_addr =std::min(
                     in0_addr,
                     in1_addr);
