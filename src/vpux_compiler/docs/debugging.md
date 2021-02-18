@@ -11,7 +11,7 @@ These two tools can be used to call specific parts of the compiler (frontend, ba
 It allows to:
 
 * Convert InferenceEngine XML IR to MLIR (`vpux-translate --import-IE <path to xml> -o <MLIR file name>`).
-* Convert MLIR in **VPUIP Dialect** (`vpux-translate --exoirt-VPUIP <path to MLIR file> -o <graph blob file name>`).
+* Convert MLIR in **VPUIP Dialect** (`vpux-translate --export-VPUIP <path to MLIR file> -o <graph blob file name>`).
 
 `vpux-opt` is a CMD wrapper for compiler passes.
 It allows to run single pass or a sequence of passes on MLIR file.
