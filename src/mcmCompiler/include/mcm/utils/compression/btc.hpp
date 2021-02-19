@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/compression/compressor.hpp"
-#include "contrib/bitcompactor/include/bitCompactor.h"
+#include "../../thirdparty/bitcompactor/include/bitCompactor.h"
 
 
 namespace mv
