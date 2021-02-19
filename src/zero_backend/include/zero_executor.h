@@ -228,6 +228,7 @@ private:
 
     uint32_t _push_count;
     uint32_t _pull_count;
+    uint32_t _perf_count;
 
     NetworkDescription::CPtr _networkDesc;
 

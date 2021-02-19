@@ -22,6 +22,8 @@
 
 #include <blob_factory.hpp>
 
+#include "mcm/utils/profiling_parser.hpp"
+
 #include <functional>
 #include <iostream>
 #include <sstream>
@@ -112,7 +114,7 @@ bool twoApiLayoutCouplingCheck(const ze_graph_argument_layout_t zeroL, const ::I
     using namespace ::InferenceEngine;
     if (ZE_GRAPH_ARGUMENT_LAYOUT_ANY == zeroL && ANY == ieL) return true;
     if (ZE_GRAPH_ARGUMENT_LAYOUT_NCHW == zeroL && NCHW == ieL) return true;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_NHWC == zeroL && NHWC == ieL) return true;
+    if (ZE_GRAPH_ARGUMENT_LAYOUT_NHWC == zeroL && (NHWC == ieL || NC == ieL || C == ieL)) return true;
     if (ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW == zeroL && NCDHW == ieL) return true;
     if (ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC == zeroL && NDHWC == ieL) return true;
     if (ZE_GRAPH_ARGUMENT_LAYOUT_OIHW == zeroL && OIHW == ieL) return true;
@@ -141,6 +143,27 @@ auto mapArguments(Map& zero, const std::string& key) -> typename Map::mapped_typ
             return p.second;
         }
     }
+
+    THROW_IE_EXCEPTION << "mapArguments: fail to map";
+}
+
+template <typename Map>
+auto mapArguments(Map& zero, const std::string& key, std::size_t pos) -> typename Map::mapped_type& {
+    for (auto& p : zero) {
+        if (std::string::npos != p.first.find(key)) {
+            return p.second;
+        }
+    }
+
+    std::size_t zero_pos = 0;
+    for (auto& p : zero) {
+        if ((p.first == "profilingOutput")
+            || (zero_pos == pos)) {
+            return p.second;
+        }
+        zero_pos++;
+    }
+
     THROW_IE_EXCEPTION << "mapArguments: fail to map";
 }
 }  // namespace
@@ -340,6 +363,7 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
           _graph(driver_handle, device_handle, context, networkDescription, graph_ddi_table_ext, fence_ddi_table_ext),
           _push_count(0),
           _pull_count(0),
+          _perf_count(0),
           _networkDesc(networkDescription),
           _command_queue{{{device_handle, context},
                           {device_handle, context},
@@ -460,18 +484,20 @@ void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
     _fence[stage::READBACK].hostSynchronize(iteration + 1);
 
     // Copy the outputs from set up zeDriverAllocHostMem to the host
+    std::size_t out_id = 0;
     for (auto& inferOutput : outputs) {
         const auto& name = inferOutput.first;
         InferenceEngine::Blob::Ptr& output = inferOutput.second;
 
-        auto& desc = mapArguments(_graph._outputs_desc_map, name);
+        auto& desc = mapArguments(_graph._outputs_desc_map, name, out_id);
         if (!twoApiLayoutCouplingCheck(desc.info.layout, output->getTensorDesc().getLayout()))
             THROW_IE_EXCEPTION << "Layouts is different for pull blobs";
         if (output->byteSize() != getSizeIOBytes(desc.info))
             THROW_IE_EXCEPTION << "Sizes are different for pull blobs";
 
-        auto& hostMem = mapArguments(_pipeline[depth]->_outputs_host_mem_map, name);
+        auto& hostMem = mapArguments(_pipeline[depth]->_outputs_host_mem_map, name, out_id);
         hostMem.copyTo(output);
+        out_id++;
     }
 
     _logger->info("ZeroExecutor::pull finished");
@@ -481,8 +507,37 @@ InferenceEngine::Parameter ZeroExecutor::getParameter(const std::string&) const 
 void ZeroExecutor::setup(const InferenceEngine::ParamMap&) { THROW_IE_EXCEPTION << "Not implemented"; }
 bool ZeroExecutor::isPreProcessingSupported(const PreprocMap& preProcMap) const { return false; }
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ZeroExecutor::getLayerStatistics() {
-    THROW_IE_EXCEPTION << "Not implemented";
-    return std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>();
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfCounts;
+
+    const auto depth = _perf_count++ % _pipeline_depth;
+
+    const auto blob = _graph._mem.data();
+    auto profilingOutputBlob = _pipeline[depth]->_outputs_host_mem_map.find("profilingOutput");
+    if (profilingOutputBlob == _pipeline[depth]->_outputs_host_mem_map.end()) {
+        _logger->warning(
+                "No profiling output. Blob was compiled without profiling enabled or do not contain profiling info.");
+        return perfCounts;
+    }
+
+    std::vector<mv::utils::ProfInfo> deviceProfiling;
+    mv::utils::getProfilingInfo(blob, profilingOutputBlob->second.data(), deviceProfiling);
+
+    int execution_index = 0;
+    InferenceEngine::InferenceEngineProfileInfo info;
+    for (const auto& profilingEntry : deviceProfiling) {
+        info.status = InferenceEngine::InferenceEngineProfileInfo::EXECUTED;
+        info.cpu_uSec = info.realTime_uSec = profilingEntry.time;
+        info.execution_index = execution_index++;
+        size_t typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
+        std::size_t length = profilingEntry.layer_type.copy(info.layer_type, typeLen, 0);
+        info.layer_type[length] = '\0';
+        typeLen = sizeof(info.exec_type) / sizeof(info.exec_type[0]);
+        length = profilingEntry.exec_type.copy(info.exec_type, typeLen, 0);
+        info.exec_type[length] = '\0';
+        perfCounts[profilingEntry.name] = info;
+    }
+
+    return perfCounts;
 }
 void ZeroExecutor::push(const InferenceEngine::BlobMap& /*inputs*/, const vpux::PreprocMap& /*preProcMap*/) {
     THROW_IE_EXCEPTION << "Not implemented";
