@@ -118,53 +118,28 @@ auto mapArguments(Map& zero, const std::string& key) -> typename Map::mapped_typ
 }
 }  // namespace
 
-void ZeroExecutor::hostMem::init(const ze_driver_handle_t h) {
-    if (drh) THROW_IE_EXCEPTION << "hostMem::init double init!";
-    if (!h) THROW_IE_EXCEPTION << "hostMem::init arg == 0!";
-    drh = h;
+ZeroExecutor::hostMem::hostMem(const ze_driver_handle_t drh_, const size_t sz_)
+    : _drh(drh_),
+      _sz(sz_) {
+    ze_host_mem_alloc_desc_t desc = { ZE_HOST_MEM_ALLOC_DESC_VERSION_CURRENT, ZE_HOST_MEM_ALLOC_FLAG_DEFAULT };
+    throwOnFail("zeDriverAllocHostMem", zeDriverAllocHostMem(_drh, &desc, _sz, _alignment, &_data));
 }
-void ZeroExecutor::hostMem::resize(const size_t size) {
-    if (!drh) THROW_IE_EXCEPTION << "hostMem::resize not init!";
-    if (!size) THROW_IE_EXCEPTION << "hostMem::resize size is 0";
-    if (size != sz) {
-        free();
-        ze_host_mem_alloc_desc_t desc = {ZE_HOST_MEM_ALLOC_DESC_VERSION_CURRENT, ZE_HOST_MEM_ALLOC_FLAG_DEFAULT};
-        throwOnFail("zeDriverAllocHostMem", zeDriverAllocHostMem(drh, &desc, size, alignment, &mem));
-        sz = size;
-    }
-}
-void ZeroExecutor::hostMem::free() {
-    if (mem) {
-        throwOnFail("zeDriverFreeMem hostMem", zeDriverFreeMem(drh, mem));
-        mem = nullptr;
-        sz = 0;
+ZeroExecutor::hostMem::~hostMem() {
+    if (_data) {
+        throwOnFail("zeDriverFreeMem hostMem", zeDriverFreeMem(_drh, _data));
     }
 }
 
-void ZeroExecutor::deviceMem::init(const ze_driver_handle_t drh_, const ze_device_handle_t deh_) {
-    if (drh) THROW_IE_EXCEPTION << "deviceMem::init double init!";
-    if (!drh_) THROW_IE_EXCEPTION << "deviceMem::init drh_ == 0!";
-    if (!deh_) THROW_IE_EXCEPTION << "deviceMem::init deh_ == 0!";
-    drh = drh_;
-    deh = deh_;
+ZeroExecutor::deviceMem::deviceMem(const ze_driver_handle_t drh_, const ze_device_handle_t deh_, const size_t sz_)
+    : _drh(drh_),
+      _sz(sz_) {
+    ze_device_mem_alloc_desc_t desc = {
+        ZE_DEVICE_MEM_ALLOC_DESC_VERSION_CURRENT, ZE_DEVICE_MEM_ALLOC_FLAG_DEFAULT, 0 };
+    throwOnFail("zeDriverAllocDeviceMem", zeDriverAllocDeviceMem(_drh, &desc, _sz, _alignment, deh_, &_data));
 }
-void ZeroExecutor::deviceMem::resize(const size_t size) {
-    if (!drh) THROW_IE_EXCEPTION << "deviceMem::resize not init!";
-    if (!deh) THROW_IE_EXCEPTION << "deviceMem::resize not init!";
-    if (!size) THROW_IE_EXCEPTION << "deviceMem::resize size is 0";
-    if (size != sz) {
-        free();
-        ze_device_mem_alloc_desc_t desc = {
-            ZE_DEVICE_MEM_ALLOC_DESC_VERSION_CURRENT, ZE_DEVICE_MEM_ALLOC_FLAG_DEFAULT, 0};
-        sz = size;
-        throwOnFail("zeDriverAllocDeviceMem", zeDriverAllocDeviceMem(drh, &desc, size, alignment, deh, &mem));
-    }
-}
-void ZeroExecutor::deviceMem::free() {
-    if (mem) {
-        throwOnFail("zeDriverFreeMem deviceMem", zeDriverFreeMem(drh, mem));
-        mem = nullptr;
-        sz = 0;
+ZeroExecutor::deviceMem::~deviceMem() {
+    if (_data) {
+        throwOnFail("zeDriverFreeMem deviceMem", zeDriverFreeMem(_drh, _data));
     }
 }
 
@@ -220,7 +195,7 @@ ZeroExecutor::commandQueue::~commandQueue() {
 }
 
 ZeroExecutor::graph::graph(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_, const std::vector<char>& data_)
-    : _mem(drh_),
+    : _mem(drh_, data_.size()),
       _command_queue(deh_),
       _command_list(deh_),
       _fence(_command_queue) {
@@ -231,7 +206,6 @@ ZeroExecutor::graph::graph(const ze_driver_handle_t& drh_, const ze_device_handl
     throwOnFail("zeGraphCreate", zeGraphCreate(deh_, &desc, &_handle));
 
     throwOnFail("zeGraphGetProperties", zeGraphGetProperties(_handle, &_props));
-
     for (uint32_t index = 0; index < _props.numGraphArgs; ++index)
     {
         ze_graph_argument_properties_t arg;
@@ -267,33 +241,34 @@ ZeroExecutor::pipeline::pipeline(const ze_driver_handle_t& drh_, const ze_device
       _available(true) {
     for (const auto& desc : graph_._inputs_desc_map) {
         auto size = getSizeIOBytes(desc.second.info);
-        _inputs_mem_map.emplace(desc.first,
-            std::make_pair(hostMem(drh_, size), deviceMem(drh_, deh_, size)));
+        _inputs_host_mem_map.try_emplace(desc.first, drh_, size);
+        _inputs_device_mem_map.try_emplace(desc.first, drh_, deh_, size);
 
-        auto& mem = mapArguments(_inputs_mem_map, desc.first);
-
-        graph_.setArgumentValue(desc.second.idx, mem.second.data());
-
+        auto& hostMem = mapArguments(_inputs_host_mem_map, desc.first);
+        auto& deviceMem = mapArguments(_inputs_device_mem_map, desc.first);
         _command_list[stage::UPLOAD].appendMemoryCopy(
-            mem.first.data(), mem.second.data(), size);
+            deviceMem.data(), hostMem.data(), size);
+
+        graph_.setArgumentValue(desc.second.idx, deviceMem.data());
     }
+    _command_list[stage::UPLOAD].close();
 
     for (const auto& desc : graph_._outputs_desc_map) {
         auto size = getSizeIOBytes(desc.second.info);
-        _outputs_mem_map.emplace(desc.first,
-            std::make_pair(hostMem(drh_, size), deviceMem(drh_, deh_, size)));
+        _outputs_host_mem_map.try_emplace(desc.first, drh_, size);
+        _outputs_device_mem_map.try_emplace(desc.first, drh_, deh_, size);
 
-        auto& mem = mapArguments(_outputs_mem_map, desc.first);
-
-        graph_.setArgumentValue(desc.second.idx, mem.second.data());
-
+        auto& hostMem = mapArguments(_outputs_host_mem_map, desc.first);
+        auto& deviceMem = mapArguments(_outputs_device_mem_map, desc.first);
         _command_list[stage::READBACK].appendMemoryCopy(
-            mem.second.data(), mem.first.data(), size);
+            hostMem.data(), deviceMem.data(), size);
+
+        graph_.setArgumentValue(desc.second.idx, deviceMem.data());
     }
 
     _command_list[stage::EXECUTE].appendGraphExecute(graph_._handle);
 
-    for (auto& commandList : _command_list) {
+    for (auto& commandList: _command_list) {
         commandList.close();
     }
 }
@@ -341,7 +316,7 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
             THROW_IE_EXCEPTION << "Layouts is different for push blobs";
         if (input->byteSize() != getSizeIOBytes(desc.info)) THROW_IE_EXCEPTION << "Sizes are different for push blobs";
 
-        auto& hostMem = mapArguments(_pipeline[depth]->_inputs_mem_map, name).first;
+        auto& hostMem = mapArguments(_pipeline[depth]->_inputs_host_mem_map, name);
         hostMem.copyFrom(input);
     }
 
@@ -388,7 +363,7 @@ void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
         if (output->byteSize() != getSizeIOBytes(desc.info))
             THROW_IE_EXCEPTION << "Sizes are different for pull blobs";
 
-        auto& hostMem = mapArguments(_pipeline[depth]->_outputs_mem_map, name).first;
+        auto& hostMem = mapArguments(_pipeline[depth]->_outputs_host_mem_map, name);
         hostMem.copyTo(output);
     }
 
