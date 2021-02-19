@@ -154,7 +154,7 @@ void HeteroPluginTest::runTest(const TestNetworkDesc& netDesc, const Device& fir
     SKIP() << "Has to be compiled and run without network export/import";
 #endif
 
-    if (!RUN_COMPILER) {
+    if (!RUN_INFER) {
         SKIP() << "Will be compiled and run at RUN_INFER stage";
     }
 
