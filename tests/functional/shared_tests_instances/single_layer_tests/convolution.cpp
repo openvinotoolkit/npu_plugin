@@ -92,7 +92,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP16, InferenceEngine::Precision::U8
+    InferenceEngine::Precision::FP16
 };
 
 const InferenceEngine::Precision inPrc = InferenceEngine::Precision::UNSPECIFIED;
