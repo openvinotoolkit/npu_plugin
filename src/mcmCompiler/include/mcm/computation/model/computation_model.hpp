@@ -122,10 +122,12 @@ namespace mv
                 return constatnt_string_hash(name);
             }
             static size_t constatnt_string_hash(const std::string str) {
-                int str_len = str.length();
-                unsigned int hash = str_len;
-                for (int i = 0; i < str_len; i++)
-                    hash = hash * 101 + str[i];
+                const char* ptr = str.c_str();
+                unsigned int hash = str.length();
+                while (ptr) {
+                    hash = hash * 101 + *ptr;
+                    ++ptr;
+                }
                 return hash;
             }
         };
