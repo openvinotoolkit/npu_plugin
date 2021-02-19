@@ -54,89 +54,65 @@ private:
 
     struct hostMem {
         hostMem() = default;
-        explicit hostMem(const ze_driver_handle_t h): drh(h) {}
-        hostMem(const ze_driver_handle_t h, const size_t sz): drh(h) { resize(sz); }
+        hostMem(const ze_driver_handle_t drh_, const size_t sz_);
         hostMem(const hostMem&) = delete;
         hostMem& operator=(const hostMem&) = delete;
-        hostMem(hostMem&& other): sz(other.sz), mem(other.mem), drh(other.drh) {
-            other.sz = 0;
-            other.mem = nullptr;
-        }
         hostMem& operator=(hostMem&&) = delete;
 
-        void init(const ze_driver_handle_t h);
-        void resize(const size_t);
-        void* data() { return mem; }
-        const void* data() const { return mem; }
-        size_t size() const { return sz; }
+        const void* data() const { return _data; }
+        void* data() { return _data; }
+        size_t size() const { return _sz; }
         template <typename T>
         void copyFrom(const std::vector<T>& vec) {
             const auto inSz = vec.size() * sizeof(T);
-            resize(inSz);
-            if (0 != ie_memcpy(mem, sz, vec.data(), inSz))
+            if (inSz != _sz)
+                THROW_IE_EXCEPTION << "hostMem::copyFrom sizes mismatch";
+            if (0 != ie_memcpy(_data, _sz, vec.data(), inSz))
                 THROW_IE_EXCEPTION << "hostMem::copyFrom::ie_memcpy return != 0";
         }
         void copyFrom(const InferenceEngine::Blob::Ptr& blob) {
             const InferenceEngine::MemoryBlob::CPtr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
             if (!mblob) THROW_IE_EXCEPTION << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
-
-            resize(mblob->byteSize());
-            if (0 != ie_memcpy(mem, sz, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
+            if (mblob->byteSize() != _sz)
+                THROW_IE_EXCEPTION << "hostMem::copyFrom sizes mismatch";
+            if (0 != ie_memcpy(_data, _sz, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
                 THROW_IE_EXCEPTION << "hostMem::copyFrom::ie_memcpy* return != 0";
         }
         void copyTo(InferenceEngine::Blob::Ptr& blob) const {
             InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!mblob) THROW_IE_EXCEPTION << "deviceMem::copyTo failing of casting blob to MemoryBlob";
+            if (!mblob) THROW_IE_EXCEPTION << "hostMem::copyTo failing of casting blob to MemoryBlob";
 
-            if (mblob->byteSize() != sz) THROW_IE_EXCEPTION << "deviceMem::copyTo sizes mismatch";
-            if (0 != ie_memcpy(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), mem, sz))
+            if (mblob->byteSize() != _sz) THROW_IE_EXCEPTION << "hostMem::copyTo sizes mismatch";
+            if (0 != ie_memcpy(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), _data, _sz))
                 THROW_IE_EXCEPTION << "hostMem::copyTo::ie_memcpy return != 0";
         }
-        void free();
-        ~hostMem() {
-            try {
-                free();
-            } catch (...) {
-                std::cerr << "Error in dtor: zeGraphDestroy failed at hostMem" << std::endl;
-            }
-        }
+        ~hostMem();
 
     private:
-        size_t sz = 0;
-        void* mem = nullptr;
-        ze_driver_handle_t drh = nullptr;
-
-        const static size_t alignment = 4096;
+        size_t _sz = 0;
+        void* _data = nullptr;
+        const ze_driver_handle_t _drh = nullptr;
+        const static size_t _alignment = 4096;
     };
 
     struct deviceMem {
         deviceMem() = default;
-        deviceMem(const ze_driver_handle_t drh_, const ze_device_handle_t deh_): drh(drh_), deh(deh_) {}
-        deviceMem(const ze_driver_handle_t drh_, const ze_device_handle_t deh_, const size_t sz)
-            : drh(drh_), deh(deh_) { resize(sz); }
+        deviceMem(const ze_driver_handle_t drh_, const ze_device_handle_t deh_, const size_t sz);
         deviceMem(const deviceMem&) = delete;
         deviceMem& operator=(const deviceMem&) = delete;
-        deviceMem(deviceMem&& other): sz(other.sz), mem(other.mem), drh(other.drh), deh(other.deh) {
-            other.sz = 0;
-            other.mem = nullptr;
-        }
         deviceMem& operator=(deviceMem&&) = delete;
 
-        void init(const ze_driver_handle_t drh_, const ze_device_handle_t deh_);
-        void resize(const size_t);
-        void* data() { return mem; }
-        const void* data() const { return mem; }
-        size_t size() const { return sz; }
-        void free();
-        ~deviceMem() { free(); }
+        const void* data() const { return _data; }
+        void* data() { return _data; }
+        size_t size() const { return _sz; }
+        ~deviceMem();
 
     private:
-        size_t sz = 0;
-        void* mem = nullptr;
-        ze_driver_handle_t drh = nullptr;
-        ze_device_handle_t deh = nullptr;
+        size_t _sz = 0;
+        void* _data = nullptr;
+        const ze_driver_handle_t _drh = nullptr;
 
-        const static size_t alignment = 4096;
+        const static size_t _alignment = 4096;
     };
 
     struct commandList {
@@ -176,8 +152,7 @@ private:
         ze_command_queue_handle_t _handle = nullptr;
     };
 
-    struct argumentDescriptor
-    {
+    struct argumentDescriptor {
         ze_graph_argument_properties_t info;
         uint32_t idx;
     };
@@ -215,8 +190,11 @@ private:
         pipeline(const pipeline&) = delete;
         pipeline& operator=(const pipeline&) = delete;
         ~pipeline();
-        std::map<std::string, std::pair<hostMem, deviceMem>> _inputs_mem_map;
-        std::map<std::string, std::pair<hostMem, deviceMem>> _outputs_mem_map;
+
+        std::map<std::string, hostMem> _inputs_host_mem_map;
+        std::map<std::string, deviceMem> _inputs_device_mem_map;
+        std::map<std::string, hostMem> _outputs_host_mem_map;
+        std::map<std::string, deviceMem> _outputs_device_mem_map;
         std::array<commandList, stage::COUNT> _command_list;
         std::array<fence, stage::COUNT> _fence;
         bool _available;
