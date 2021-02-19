@@ -497,6 +497,7 @@ std::ostream& operator << (std::ostream& os, InferenceEngine::KmbPreproc::Path p
     switch (path) {
     case Path::SIPP: os << "SIPP"; return os;
     case Path::M2I : os << "M2I" ; return os;
+    case Path::SHAVE_ONLY_M2I : os << "SHAVE_ONLY_M2I"; return os;
     default: IE_ASSERT(false);
     }
 }
@@ -617,6 +618,22 @@ INSTANTIATE_TEST_CASE_P(DISABLED_PreprocM2I, KmbPreprocEngineTest,
                                        AllocTestParams{BlobAPI::Remote, 1, false},
                                        AllocTestParams{BlobAPI::Remote, 256, false},
                                        // Should throw an exception since M2I doesn't support
+                                       // different step values for Y and UV
+                                       AllocTestParams{BlobAPI::Remote, 1920, true})));
+
+// FIXME: doesn't converge with opencv, need to figure out tolerance
+INSTANTIATE_TEST_CASE_P(DISABLED_PreprocSHAVEOnlyM2I, KmbPreprocEngineTest,
+                        Combine(Values(std::make_pair(cv::Size(1920, 1080), cv::Size(416, 416))),
+                                Values(InferenceEngine::ColorFormat::BGR),
+                                Values(InferenceEngine::KmbPreproc::Path::SHAVE_ONLY_M2I),
+                                Values(AllocTestParams{BlobAPI::Default, 1, false},
+                                       AllocTestParams{BlobAPI::Default, 256, false},
+                                       // Should throw an exception since SHAVE_ONLY_M2I doesn't support
+                                       // different step values for Y and UV
+                                       AllocTestParams{BlobAPI::Default, 1920, true},
+                                       AllocTestParams{BlobAPI::Remote, 1, false},
+                                       AllocTestParams{BlobAPI::Remote, 256, false},
+                                       // Should throw an exception since SHAVE_ONLY_M2I doesn't support
                                        // different step values for Y and UV
                                        AllocTestParams{BlobAPI::Remote, 1920, true})));
 
@@ -784,4 +801,12 @@ INSTANTIATE_TEST_CASE_P(DISABLED_PreprocM2I, KmbPreprocPoolTest,
                                 Values(InferenceEngine::ColorFormat::BGR),
                                 Values(InferenceEngine::KmbPreproc::Path::M2I)));
 
+INSTANTIATE_TEST_CASE_P(DISABLED_PreprocShaveOnlyM2I, KmbPreprocPoolTest,
+                        Combine(Values(std::make_tuple(cv::Size(1920, 1080),
+                                                       cv::Size(416, 416),
+                                                       cv::Size(224, 224))),
+                                Values(InferenceEngine::Layout::NCHW,
+                                       InferenceEngine::Layout::NHWC),
+                                Values(InferenceEngine::ColorFormat::BGR),
+                                Values(InferenceEngine::KmbPreproc::Path::SHAVE_ONLY_M2I)));
 // clang-format on

@@ -109,8 +109,9 @@ static const std::vector<ConfigMap> colorFormatConfigs = {
 
 static const std::vector<ConfigMap> preProcConfigs = {
     { },
-    { {"VPUX_USE_M2I", "YES"}, {"VPUX_USE_SIPP", "NO"} },
-    { {"VPUX_USE_M2I", "NO"}, {"VPUX_USE_SIPP", "YES"} },
+    { {"VPUX_USE_M2I", "YES"}, {"VPUX_USE_SIPP", "NO"}, {"VPUX_USE_SHAVE_ONLY_M2I", "NO"} },
+    { {"VPUX_USE_M2I", "NO"}, {"VPUX_USE_SIPP", "YES"}, {"VPUX_USE_SHAVE_ONLY_M2I", "NO"} },
+    { {"VPUX_USE_M2I", "NO"}, {"VPUX_USE_SIPP", "NO"}, {"VPUX_USE_SHAVE_ONLY_M2I", "YES"} },
 };
 
 static const std::vector<ConfigMap> preProcParamConfigs = {

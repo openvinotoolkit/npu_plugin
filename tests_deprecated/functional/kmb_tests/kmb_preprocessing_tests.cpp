@@ -840,7 +840,8 @@ INSTANTIATE_TEST_CASE_P(precommit_preprocessing_lpi, VpuPreprocessingConfigAndIn
 
 // [Track number: H#18013271822]
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_precommit, VpuPreprocessingConfigAndInferTests, Combine(Values("VPUX_USE_M2I"), Values("YES", "NO")));
+    DISABLED_precommit, VpuPreprocessingConfigAndInferTests,
+    Combine(Values("VPUX_USE_M2I", "VPUX_USE_SHAVE_ONLY_M2I"), Values("YES", "NO")));
 
 INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingConfigTests,
     Values(std::make_tuple("VPUX_PREPROCESSING_SHAVES", "8", true),
@@ -848,6 +849,7 @@ INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingConfigTests,
         std::make_tuple("VPUX_PREPROCESSING_LPI", "16", true),
         std::make_tuple("VPUX_PREPROCESSING_LPI", "3", false),
         std::make_tuple("VPUX_PREPROCESSING_LPI", "seventeen", false),
-        std::make_tuple("VPUX_USE_M2I", "YES", true), std::make_tuple("VPUX_USE_M2I", "USE", false)));
+        std::make_tuple("VPUX_USE_M2I", "YES", true), std::make_tuple("VPUX_USE_M2I", "USE", false),
+        std::make_tuple("VPUX_USE_SHAVE_ONLY_M2I", "YES", true), std::make_tuple("VPUX_USE_SHAVE_ONLY_M2I", "USE", false)));
 
 #endif
