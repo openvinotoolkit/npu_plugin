@@ -311,6 +311,22 @@ def RewriteDequantize :
         >;
 
 //
+// IERT.PerAxisTile -> VPUIP.PerAxisTileUPA
+//
+
+def createPerAxisTileUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PerAxisTileUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteTile :
+        Pat<
+            (IERT_PerAxisTileOp $input, $output, $axis, $tiles),
+            (createPerAxisTileUPAOp $input, $output, $axis, $tiles)
+        >;
+
+//
 // IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max]Pool -> VPUIP.EltwiseUPA
 //
 

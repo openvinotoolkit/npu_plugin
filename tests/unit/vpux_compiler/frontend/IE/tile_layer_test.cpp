@@ -25,18 +25,21 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 
-TEST(MLIR_IE_FrontEndTest, TileLayer) {
+typedef std::tuple<ngraph::Shape, std::vector<int64_t>> TileTestParamsSet;
+
+class MLIR_IE_FrontEndTest_Tile : public testing::TestWithParam<TileTestParamsSet> {};
+
+TEST_P(MLIR_IE_FrontEndTest_Tile, TileLayer) {
+    ngraph::Shape dataShape;
+    std::vector<int64_t> repeatsVector;
+
+    std::tie(dataShape, repeatsVector) = this->GetParam();
+
     std::shared_ptr<ngraph::Function> f;
     {
-        auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
-        std::vector<int64_t> repeatsVector{
-                2,
-                3,
-                4,
-                5,
-        };
-        auto repeats =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{4}, repeatsVector);
+        auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, dataShape);
+        auto repeats = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
+                                                                  ngraph::Shape{repeatsVector.size()}, repeatsVector);
         auto tile = std::make_shared<ngraph::opset1::Tile>(param1, repeats);
         tile->set_friendly_name("Tile");
         auto result = std::make_shared<ngraph::op::Result>(tile);
@@ -53,3 +56,9 @@ TEST(MLIR_IE_FrontEndTest, TileLayer) {
 
     EXPECT_NO_THROW(vpux::IE::importNetwork(&ctx, nGraphImpl, true));
 }
+
+const std::vector<ngraph::Shape> dataShape{{6, 12, 10, 24}, {12, 10, 24}, {10, 24}, {24}};
+const std::vector<std::vector<int64_t>> repeatsVectors{{2, 3, 4, 5}, {2, 3, 4}, {2, 3}, {2}};
+
+const auto tileParams = ::testing::Combine(::testing::ValuesIn(dataShape), ::testing::ValuesIn(repeatsVectors));
+INSTANTIATE_TEST_CASE_P(MLIR_IE_FrontEndTest_Tile_TestCase, MLIR_IE_FrontEndTest_Tile, tileParams);

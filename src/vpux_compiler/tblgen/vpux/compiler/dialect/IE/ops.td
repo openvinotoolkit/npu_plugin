@@ -279,20 +279,61 @@ def IE_SoftMaxOp :
 
 def IE_TileOp :
         IE_LayerOp<
-            "Tile"
+            "Tile",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
         > {
     let summary = "InferenceEngine Tile layer";
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        AnyRankedTensor:$repeats
+        RankedTensorOf<[SI64]>:$repeats
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let extraClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {input(), repeats()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {output()};
+        }
+    }];
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
+}
+
+//
+// PerAxisTileOp
+//
+
+def IE_PerAxisTileOp :
+        IE_LayerOp<
+            "PerAxisTile",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>,
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine per axis Tile layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        I32Attr:$axis,
+        I32Attr:$tiles
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
 }
-
 //
 // ReLUOp
 //
