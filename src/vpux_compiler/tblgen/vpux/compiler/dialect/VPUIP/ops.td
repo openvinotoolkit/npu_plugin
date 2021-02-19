@@ -1250,4 +1250,51 @@ def VPUIP_ScaleShiftUPAOp :
     }];
 }
 
+//
+// PerAxisTileUPAOp
+//
+
+def VPUIP_PerAxisTileUPAOp :
+        VPUIP_TaskOp<
+            "PerAxisTileUPA",
+            [
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "Tile for per axis case UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        I32Attr:$axis,
+        I32Attr:$tiles,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$output,
+                "mlir::IntegerAttr":$axis, "mlir::IntegerAttr":$tiles
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
 #endif

@@ -949,4 +949,54 @@ def IERT_GRNOp :
     );
 }
 
+//
+// TileOp
+//
+
+def IERT_TileOp :
+        IERT_LayerOp<
+            "Tile"
+        > {
+    let summary = "InferenceEngine run-time Tile layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[SI64]>:$repeats,
+
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let extraClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {input(), repeats()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {output()};
+        }
+    }];
+}
+
+//
+// PerAxisTileOp
+//
+
+def IERT_PerAxisTileOp :
+        IERT_LayerOp<
+            "PerAxisTile",
+            [
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time per axis Tile layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32Attr:$axis,
+        I32Attr:$tiles
+    );
+}
+
 #endif

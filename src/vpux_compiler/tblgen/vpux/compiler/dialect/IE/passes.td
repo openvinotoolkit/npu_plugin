@@ -70,6 +70,20 @@ def ConvertPaddingsToFloorMode : FunctionPass<"convert-paddings-to-floor-mode"> 
 }
 
 //
+// ConvertTile2PerAxisTile
+//
+
+def ConvertTile2PerAxisTile : FunctionPass<"convert-tile-to-per-axis-tiles"> {
+    let summary = "Convert tile op by multiple axes to multiple PerAxisTile ops";
+
+    let description = [{
+        This "atomic" pass replaces all Tile op with PerAxisTile ops.
+    }];
+
+    let constructor = "vpux::IE::createConvertTile2PerAxisTilePass()";
+}
+
+//
 // AdjustForVPU
 //
 

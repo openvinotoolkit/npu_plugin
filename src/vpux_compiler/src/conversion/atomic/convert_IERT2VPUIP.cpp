@@ -49,6 +49,7 @@ public:
     class ConstantRewrite;
     class FakeQuantizeRewrite;
     class ViewLikeRewrite;
+    class CheckUnsupportedTile;
 
 private:
     void passBody();
@@ -223,6 +224,30 @@ mlir::LogicalResult ConvertIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir
 }
 
 //
+// CheckUnsupportedTile
+//
+
+class ConvertIERT2VPUIPPass::CheckUnsupportedTile final : public mlir::OpRewritePattern<IERT::TileOp> {
+public:
+    CheckUnsupportedTile(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::TileOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::TileOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertIERT2VPUIPPass::CheckUnsupportedTile::matchAndRewrite(IERT::TileOp origOp,
+                                                                                 mlir::PatternRewriter&) const {
+    _log.trace("Found TileOp Operation '{0}'", origOp->getLoc());
+    errorAt(origOp, "Tile operation desn't introduced in VPUIP dialect. All TileOp's should be replaced with "
+                    "PerAxisTileOp. Please, make shure that `convert-tile-to-per-axis-tiles` is enabled");
+    return mlir::failure();
+}
+
+//
 // passBody
 //
 
@@ -249,6 +274,7 @@ void ConvertIERT2VPUIPPass::passBody() {
     mlir::OwningRewritePatternList patterns;
     patterns.insert<ConstantRewrite>(&ctx, _log.nest());
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log.nest());
+    patterns.insert<CheckUnsupportedTile>(&ctx, _log.nest());
     patterns.insert<ViewLikeRewrite>(netInfo, netFunc, _log.nest());
     populateWithGenerated(&ctx, patterns);
 
