@@ -10,6 +10,6 @@
 [submodule "thirdparty/llvm-project"]
 	path = thirdparty/llvm-project
 	url = ../llvm-project.git
-[submodule "src/mcmCompiler/contrib/bitcompactor"]
+[submodule "thirdparty/bitcompactor"]
 	path = thirdparty/bitcompactor
-	url = https://gitlab-icv.inn.intel.com/movidius/btc_models
+	url = ../../movidius/btc_models.git
