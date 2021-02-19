@@ -19,6 +19,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMCM {
     ngraph::helpers::Tanh,
     ngraph::helpers::SoftPlus,
     ngraph::helpers::Elu,
+    ngraph::helpers::Mish,
     ngraph::helpers::Floor,
     ngraph::helpers::Erf
 };
