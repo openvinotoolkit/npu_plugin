@@ -563,8 +563,8 @@ For any questions regarding this component please refer to [G-API-VPU project] m
 
 [OpenVINO Project]: https://github.com/openvinotoolkit/openvino
 [KMB Plugin Project]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin
-[OpenVINO Linux Setup Script]: https://github.com/openvinotoolkit/openvino/blob/master/install_dependencies.sh
-[OpenVINO Build Instructions]: https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md
+[OpenVINO Linux Setup Script]: https://raw.githubusercontent.com/openvinotoolkit/openvino/master/install_build_dependencies.sh
+[OpenVINO Build Instructions]: https://github.com/openvinotoolkit/openvino/wiki/BuildingCode
 [VPU Wiki Accuracy Checker]: https://wiki.ith.intel.com/display/VPUWIKI/Set+up+and+Run+Accuracy+checker+on+ARM
 [ukuu kernel manager]: https://github.com/teejee2008/ukuu
 [VPU Wiki Board Configure KMB]: https://wiki.ith.intel.com/pages/viewpage.action?pageId=1503496133#HowtosetupPCIeforHDDLUnite-Configureboard
