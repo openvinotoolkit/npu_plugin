@@ -50,6 +50,7 @@ public:
     class LinalgReshapeRewrite;
     class GenericReshapeRewrite;
     class LayerRewrite;
+    class DetectionOutputRewrite;
 
 public:
     static const mlir::PatternBenefit genericBenefit;
@@ -328,6 +329,60 @@ mlir::LogicalResult ConvertIE2IERTPass::LayerRewrite::matchAndRewrite(mlir::Oper
 }
 
 //
+// DetectionOutputRewrite
+//
+
+class ConvertIE2IERTPass::DetectionOutputRewrite final : public mlir::ConversionPattern {
+public:
+    DetectionOutputRewrite(mlir::TypeConverter& typeConverter, Logger log)
+            : mlir::ConversionPattern(genericBenefit, typeConverter, mlir::Pattern::MatchAnyOpTypeTag{}), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertIE2IERTPass::DetectionOutputRewrite::matchAndRewrite(
+        mlir::Operation* origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
+    auto layerOp = mlir::dyn_cast<IE::DetectionOutputOp>(origOp);
+    if (layerOp == nullptr) {
+        return mlir::failure();
+    }
+
+    _log.trace("Found Layer Operation '{0}'", origOp->getLoc());
+
+    auto origInputs = layerOp.getInputs();
+    auto origOutputs = layerOp.getOutputs();
+    VPUX_THROW_UNLESS(newOperands.size() == origInputs.size(), "Got wrong newOperands size : '{0}', expected '{1}'",
+                      newOperands.size(), origInputs.size());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    _log.trace("Add Alloc Operations for results");
+    auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOutputs);
+
+    mlir::Value inAdditionalPreds = nullptr;
+    mlir::Value inAdditionalProposals = nullptr;
+    if (newOperands.size() == 5) {
+        inAdditionalPreds = newOperands[3];
+        inAdditionalProposals = newOperands[4];
+    }
+
+    _log.trace("Create an IERT analog of the IE::DetectionOutput");
+    rewriter.create<IERT::DetectionOutputOp>(origOp->getLoc(), newOperands[0], newOperands[1], newOperands[2],
+                                             inAdditionalPreds, inAdditionalProposals, allocatedBufs[0],
+                                             layerOp.attr());
+
+    rewriter.replaceOp(origOp, allocatedBufs);
+    return mlir::success();
+}
+
+//
 // passBody
 //
 
@@ -347,6 +402,7 @@ void ConvertIE2IERTPass::passBody() {
     mlir::populateBufferizeMaterializationLegality(target);
 
     mlir::OwningRewritePatternList patterns;
+    patterns.insert<DetectionOutputRewrite>(typeConverter, _log.nest());
     patterns.insert<ConstantRewrite>(typeConverter, &ctx, _log.nest());
     patterns.insert<QuantRewrite>(typeConverter, _log.nest());
     patterns.insert<LinalgReshapeRewrite>(typeConverter, &ctx, _log.nest());

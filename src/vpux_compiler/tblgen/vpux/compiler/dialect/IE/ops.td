@@ -1294,17 +1294,19 @@ def IE_DetectionOutputOp :
         IE_LayerOp<
             "DetectionOutput",
             [
-                AttrSizedOperandSegments
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<DetectionOutputLayerInterface>
             ]
         > {
     let summary = "InferenceEngine DetectionOutput layer";
 
     let arguments = (ins
-        2DTensorOf<[AnyFloat]>:$box_logits,
-        2DTensorOf<[AnyFloat]>:$class_preds,
-        3DTensorOf<[AnyFloat]>:$proposals,
-        Optional<2DTensorOf<[AnyFloat]>>:$additional_preds,
-        Optional<2DTensorOf<[AnyFloat]>>:$additional_poposals,
+        2DTensorOf<[AnyFloat]>:$in_box_logits,
+        2DTensorOf<[AnyFloat]>:$in_class_preds,
+        3DTensorOf<[AnyFloat]>:$in_proposals,
+        Optional<2DTensorOf<[AnyFloat]>>:$in_additional_preds,
+        Optional<2DTensorOf<[AnyFloat]>>:$in_additional_proposals,
 
         IE_DetectionOutputAttrs:$attr
     );

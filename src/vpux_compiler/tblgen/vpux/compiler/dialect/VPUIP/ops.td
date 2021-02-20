@@ -1111,6 +1111,59 @@ def VPUIP_EltwiseUPAOp :
 }
 
 //
+// DetectionOutput
+//
+
+def VPUIP_DetectionOutputUPAOp :
+        VPUIP_TaskOp<
+            "DetectionOutputUPA",
+            [
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<DetectionOutputLayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "DetectionOutput UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$in_box_logits,
+        F16MemRef:$in_class_preds,
+        F16MemRef:$in_proposals,
+        Optional<F16MemRef>:$in_additional_preds,
+        Optional<F16MemRef>:$in_additional_proposals,
+
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        IE_DetectionOutputAttrs:$attr,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilderDAG<
+            (ins
+                "mlir::Value":$in_box_logits, "mlir::Value":$in_class_preds,"mlir::Value":$in_proposals,
+                "mlir::Value":$in_additional_preds, "mlir::Value":$in_additional_proposals,
+                "mlir::Value":$output, "vpux::IE::DetectionOutputAttr":$attr
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $in_box_logits `:` type($in_box_logits) `,` $in_class_preds `:` type($in_class_preds) `,` $in_proposals `:` type($in_proposals) (`,` $in_additional_preds^ `:` type($in_additional_preds))? (`,` $in_additional_proposals^ `:` type($in_additional_proposals))? `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
 // SwishUPAOp
 //
 

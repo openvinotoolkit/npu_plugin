@@ -421,7 +421,25 @@ def RewriteSwish :
             (createSwishUPAOp $input, $output, $beta_value),
             [
                 (HasBeta $beta_value, $beta)
-            ]
+            ]>;
+
+//
+// IERT.DetectionOutput -> VPUIP.DetectionOutputUPA
+//
+
+def createDetectionOutputUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::DetectionOutputUPAOp>(
+                $_loc, $0, $1, $2,
+                $3.size() == 1 ? $3[0] : nullptr,
+                $4.size() == 1 ? $4[0] : nullptr,
+                $5, $6)
+        }]>;
+
+def RewriteDetectionOutput :
+        Pat<
+            (IERT_DetectionOutputOp $in_box_logits, $in_class_preds, $in_proposals, $in_additional_preds, $in_additional_proposals, $output, $attr),
+            (createDetectionOutputUPAOp $in_box_logits, $in_class_preds, $in_proposals, $in_additional_preds, $in_additional_proposals, $output, $attr)
         >;
 
 //
