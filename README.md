@@ -561,6 +561,31 @@ For any questions regarding this component please refer to [G-API-VPU project] m
 * Garnov, Ruslan <Ruslan.Garnov@intel.com>
 * Matveev, Dmitry <dmitry.matveev@intel.com>
 
+## Debugging
+
+### Getting output from runtime
+
+The following environment variables should be set:
+
+* The `TOOLS_DIR` environment variable to the Movidius Tools directory.
+* The `VPUIP_HOME` environment variable to the [VPUIP_2 Project] cloned directory
+
+1. Build firmware via `make_std_fw_image.py` with options: 
+    * CONFIG_USE_COMPONENT_PIPEPRINT='y'
+    * CONFIG_USE_SHAVE_PIPEPRINT='y'
+2. `rsync -avz $VPUIP_HOME/application/vpuFirmware/vpu_b0.bin root@$KMB_BOARD_HOST:/lib/firmware/vpu_custom.bin`
+3. Start server
+    ```bash
+    cd $TOOLS_DIR/linux64/bin
+    ./moviDebugServer --arm-reset=none
+    ```
+4. Start Movidius debug tool 
+    ```bash
+    cd $VPUIP_HOME/application/vpuFirmware/FW_bootLoader
+    make debugi
+    ```
+5. Run the app on the device, the logs will be displayed via moviDebug2
+
 [OpenVINO Project]: https://github.com/openvinotoolkit/openvino
 [KMB Plugin Project]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin
 [OpenVINO Linux Setup Script]: https://raw.githubusercontent.com/openvinotoolkit/openvino/master/install_build_dependencies.sh
