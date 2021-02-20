@@ -10,3 +10,6 @@
 [submodule "thirdparty/llvm-project"]
 	path = thirdparty/llvm-project
 	url = ../llvm-project.git
+[submodule "thirdparty/bitcompactor"]
+	path = thirdparty/bitcompactor
+	url = ../../movidius/btc_models.git

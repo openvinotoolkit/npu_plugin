@@ -146,11 +146,14 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/utils/compression/hde.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/helpers.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/profiling_parser.cpp"
+    "${PROJECT_SOURCE_DIR}/src/utils/compression/btc.cpp"
 
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/logging.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/ms_vasprintf.cpp"
+
+    "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/src/bitCompactor.cpp"
 )
 
 set(model
@@ -354,6 +357,7 @@ target_include_directories(mcmCompiler
         "${PROJECT_SOURCE_DIR}/src"
         "${PROJECT_SOURCE_DIR}/src/pass"
         "${PROJECT_SOURCE_DIR}/include/huffman_encoding"
+        "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/include/"
 )
 
 target_link_libraries(mcmCompiler
