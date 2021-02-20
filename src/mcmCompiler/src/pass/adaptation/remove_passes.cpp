@@ -42,9 +42,6 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
 
     std::vector<std::string> rem_types = {"Identity", "Dropout", "Interp", "Reshape", "Permute", "Slice"};
 
-    // Used for HETERO plugin issues with VPUX plugin
-    // VPUX network with a SW layer at the end behaves and infers better
-    // Add ngraph::Transpose layer with {0, 1, 2, 3} at the splitting point
     auto globalParams = model.getGlobalConfigParams();
     if (globalParams->hasAttr("RemovePermuteNoOp") && !globalParams->get<bool>("RemovePermuteNoOp"))
     {
