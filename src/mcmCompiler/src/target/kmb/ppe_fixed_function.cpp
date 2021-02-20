@@ -1,7 +1,7 @@
 #include "include/mcm/target/kmb/ppe_fixed_function.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 
-mv::PPEFixedFunction::PPEFixedFunction(int8_t lRelumult, uint8_t lRelushift, int low_clamp, int high_clamp)
+mv::PPEFixedFunction::PPEFixedFunction(int32_t lRelumult, uint8_t lRelushift, int low_clamp, int high_clamp)
     : lowClamp_(low_clamp),
       highClamp_(high_clamp),
       reluMult_(lRelumult),
@@ -26,7 +26,7 @@ int mv::PPEFixedFunction::getHighClamp() const
     return highClamp_;
 }
 
-int8_t mv::PPEFixedFunction::getLReluMult() const
+int32_t mv::PPEFixedFunction::getLReluMult() const
 {
     return reluMult_;
 }
@@ -51,7 +51,7 @@ void mv::PPEFixedFunction::setHighClamp(int highClamp)
     highClamp_ = highClamp;
 }
 
-void mv::PPEFixedFunction::setLReluMult(int8_t lRelumult)
+void mv::PPEFixedFunction::setLReluMult(int32_t lRelumult)
 {
     reluMult_ = lRelumult;
 }

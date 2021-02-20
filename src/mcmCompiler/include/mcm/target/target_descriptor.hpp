@@ -48,6 +48,8 @@ namespace mv
     struct GeneralTargetConfigs
     {
         bool floatScaleTable;
+        bool allowMultipleInputScales;
+        size_t leakyAccuracyBits;
     };
 
     typedef std::vector<std::pair<std::string, std::string>> DataTypeSet;

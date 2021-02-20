@@ -15,7 +15,7 @@
                 "DDRScratch": 31457280,
                 "cmx": 1843200,
                 "enable_channel_major_conv": false,
-                "enableStaticBarriers": true,
+                "enableStaticBarriers": false,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
@@ -23,7 +23,7 @@
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "ScaleFuseInput": false,
-                "PWLUsage": true,
+                "PWLUsage": false,
                 "ReferenceMode": false,
                 "split_strategy" :
                 [

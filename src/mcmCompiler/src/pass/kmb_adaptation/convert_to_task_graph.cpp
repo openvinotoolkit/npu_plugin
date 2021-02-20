@@ -21,7 +21,8 @@ static void convert_chw_to_index(std::string order, std::vector<unsigned>& permu
 static void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_xyz, std::vector<unsigned>& permute_order);
 #endif
 
-void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0);
+//KMB default: HW PRELU MULT is I8, so 7 precision bits are available
+void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0, unsigned bits = 7);
 int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex);
 int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex);
 
@@ -41,7 +42,7 @@ namespace mv
     }
 }
 
-void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -50,7 +51,7 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
     auto returnedParams = model.getGlobalConfigParams();
     if (returnedParams->hasAttr("LeakyReluHack"))
         leakyReluHack = returnedParams->get<double>("LeakyReluHack");
-
+    unsigned bits = td.generalTargetConfigs().leakyAccuracyBits;
     auto dpuTasks = om.getOps("DPUTask");
     for(auto& dpuTask : dpuTasks)
     {
@@ -61,7 +62,7 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         if(dpuTask->hasAttr("postOpTypes"))
             postOps = dpuTask->get<std::vector<std::string>>("postOpTypes");
 
-        addPpeTask(dpuTask, postOps, leakyAlpha, leakyReluHack);
+        addPpeTask(dpuTask, postOps, leakyAlpha, leakyReluHack, bits);
     }
 }
 
@@ -1150,7 +1151,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     }
 }
 
-void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha, double leakyReluHack)
+void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha, double leakyReluHack, unsigned bits)
 {
     auto ppeFixedFunction = mv::PPEFixedFunction();
     bool flexarbINT8 = false;
@@ -1163,12 +1164,10 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
     if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "LeakyRelu") != ppeTaskTypes.end())
     {
         // NOTE: What are the default values here
-        int8_t ppeMult=1;
+        int32_t ppeMult=1;
         uint8_t ppeShift=0;
         if (leakyAlpha != 0)
         {
-            // HW PRELU MULT is I8, so 7 precision bits are available
-            unsigned bits = 7;
             int exponent;
             double mantissa;
 

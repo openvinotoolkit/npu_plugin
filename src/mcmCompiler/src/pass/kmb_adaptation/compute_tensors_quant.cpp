@@ -324,10 +324,12 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    auto dpuTasks = om.getOps("DPUTask");
-
-    for(auto& opIt : dpuTasks)
+    auto operations = om.topologicalSort();
+    for(auto op = operations.begin(); op != operations.end(); ++op)
     {
+        auto opIt = *op;
+        if(opIt->getOpType() != "DPUTask")
+            continue;
         std::string taskOp = opIt->get<std::string>("taskOp");
 
         bool isEltwise = taskOp == "Eltwise";
@@ -439,21 +441,69 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                 {
                     auto input2 = opIt->getInputTensor(1);
                     auto& input2Quantization = input2->get<mv::QuantizationParams>("quantParams");
-                    auto input1Scale = inputQuantization.getScale();
-                    auto input2Scale = input2Quantization.getScale();
-
-                    auto size = input1Scale.size();
-                    std::vector <double> scaleDifference(size), absRelativeErrorScale(size), relativeErrorScale(size);
-                    std::transform(input1Scale.begin(), input1Scale.end(), input2Scale.begin(), scaleDifference.begin(), std::minus<double>());
-
-                    double (*fabs)(double) = &std::abs;
-                    std::transform(scaleDifference.begin(), scaleDifference.end(), input1Scale.begin(), relativeErrorScale.begin(), std::divides<double>());
-                    std::transform(relativeErrorScale.begin(),relativeErrorScale.end(), absRelativeErrorScale.begin(), fabs);
-                    for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
+                    auto input1Scale = extendToK(outputChannels, inputQuantization.getScale(), input->getName());
+                    auto input2Scale = extendToK(outputChannels, input2Quantization.getScale(), input2->getName());
+                    std::vector<unsigned> shift(outputChannels, 0);
+                    std::vector<unsigned> mult(outputChannels, 0);
+                    if (std::fabs(input1Scale[0] - input2Scale[0]) > std::numeric_limits<double>::epsilon())
                     {
-                        if (*it > 0.01)
-                            throw mv::RuntimeError(om, opIt->getName() + ": The relative difference in the input scales is > 1%. This is not supported for Eltwise operation."
-                                                + std::to_string(input1Scale[0]) + " " + std::to_string(input2Scale[0]));
+                        if (td.generalTargetConfigs().allowMultipleInputScales)
+                        {
+                            //one of the scales will be 1 after adjustment
+                            std::vector<unsigned> scale1Shift(outputChannels, 14);
+                            std::vector<unsigned> scale1Mult(outputChannels, 16384);
+
+                            //Scaling is per-tensor (not per channel) => all values are the same
+                            if (input1Scale[0] >= input2Scale[0])
+                            {
+                                    std::vector <float> scale2Adjusted(outputChannels);
+
+                                    std::transform(input2Scale.begin(), input2Scale.end(), input1Scale.begin(), scale2Adjusted.begin(), std::divides<double>());
+                                    computeQuantMultShift(scale2Adjusted, shift, mult);
+                                    input2->set<std::vector<unsigned>>("preAdjustedShift", input2Quantization.getShift());
+                                    input2->set<std::vector<unsigned>>("preAdjustedMult", input2Quantization.getMult());
+                                    input2Quantization.quantize(shift, mult);
+
+                                    input->set<std::vector<unsigned>>("preAdjustedShift", inputQuantization.getShift());
+                                    input->set<std::vector<unsigned>>("preAdjustedMult", inputQuantization.getMult());
+                                    inputQuantization.quantize(scale1Shift, scale1Mult);
+                                    //m = S2 Already done above
+                            }
+                            else
+                            {
+                                    std::vector <float> scale1Adjusted(outputChannels);
+                                    std::transform(input1Scale.begin(), input1Scale.end(), input2Scale.begin(), scale1Adjusted.begin(), std::divides<double>());
+                                    computeQuantMultShift(scale1Adjusted, shift, mult);
+                                    //save old values for weightsTable calculations
+                                    input->set<std::vector<unsigned>>("preAdjustedShift", inputQuantization.getShift());
+                                    input->set<std::vector<unsigned>>("preAdjustedMult", inputQuantization.getMult());
+                                    inputQuantization.quantize(shift, mult);
+
+                                    input2->set<std::vector<unsigned>>("preAdjustedShift", input2Quantization.getShift());
+                                    input2->set<std::vector<unsigned>>("preAdjustedMult", input2Quantization.getMult());
+                                    input2Quantization.quantize(scale1Shift, scale1Mult);
+                                    auto scaleExtended = extendToK(outputChannels, input2Scale, input2->getName());
+                                    std::vector<float> scaleFloat(scaleExtended.begin(), scaleExtended.end());
+                                    m = scaleFloat;
+                            }
+
+                        }
+                        else
+                        {
+                            auto size = input1Scale.size();
+                            std::vector <double> scaleDifference(size), absRelativeErrorScale(size), relativeErrorScale(size);
+                            std::transform(input1Scale.begin(), input1Scale.end(), input2Scale.begin(), scaleDifference.begin(), std::minus<double>());
+
+                            double (*fabs)(double) = &std::fabs;
+                            std::transform(scaleDifference.begin(), scaleDifference.end(), input1Scale.begin(), relativeErrorScale.begin(), std::divides<double>());
+                            std::transform(relativeErrorScale.begin(),relativeErrorScale.end(), absRelativeErrorScale.begin(), fabs);
+                            for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
+                            {
+                                if (*it > 0.01)
+                                    throw mv::RuntimeError(om, opIt->getName() + ": The relative difference in the input scales is > 1%. This is not supported for Eltwise operation."
+                                                    + std::to_string(input1Scale[0]) + " " + std::to_string(input2Scale[0]));
+                            }
+                        }
                     }
                 }
 

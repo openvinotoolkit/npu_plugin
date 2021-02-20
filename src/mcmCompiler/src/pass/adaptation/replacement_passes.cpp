@@ -385,10 +385,13 @@ void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::Co
 
 //NOTE: This pass will handle cases that we have Convs -> Eltwise for testing ResNet first of all....
 //General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
-void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
+    if (td.generalTargetConfigs().allowMultipleInputScales) {
+        return;
+    }
     mv::OpModel om(model);
 
     auto eltWiseOps = om.getOps("Eltwise");

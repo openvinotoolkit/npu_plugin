@@ -38,16 +38,21 @@ namespace mv
 
         static std::string toString(const Attribute& a)
         {
+            std::string output = "(" + std::to_string(a.get<std::vector<unsigned>>().size()) + ")";
+            return output;
+        }
+
+        static std::string toLongString(const Attribute& a)
+        {
             std::string output = "{";
             auto vec = a.get<std::vector<unsigned>>();
             if (vec.size() > 0)
             {
                 for (std::size_t i = 0; i < vec.size() - 1; ++i)
                     output += std::to_string(vec[i]) + ", ";
-                output += std::to_string(*vec.rbegin());
+                output += std::to_string(vec.back());
             }
-            output += "}";
-            return output;
+            return output + "}";
         }
 
         static std::vector<uint8_t> toBinary(const Attribute& a)
@@ -78,7 +83,9 @@ namespace mv
             .setToJSONFunc(attr_std_vector_unsigned::toJSON)
             .setFromJSONFunc(attr_std_vector_unsigned::fromJSON)
             .setToStringFunc(attr_std_vector_unsigned::toString)
-            .setToBinaryFunc(attr_std_vector_unsigned::toBinary);
+            .setToLongStringFunc(attr_std_vector_unsigned::toLongString)
+            .setToBinaryFunc(attr_std_vector_unsigned::toBinary)
+            .setTypeTrait("large");
 
     }
 }

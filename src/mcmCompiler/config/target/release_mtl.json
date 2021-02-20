@@ -2,7 +2,9 @@
     "target": "ma3720",
     "general":
     {
-        "floatScaleTable" : true
+        "floatScaleTable" : true,
+        "allowMultipleInputScales": true,
+        "leakyAccuracyBits": 31
     },
     "dtype":
     {

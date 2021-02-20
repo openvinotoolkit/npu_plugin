@@ -1,7 +1,10 @@
 {
 
     "target": "ma2490",
-
+    "general":
+    {
+        "leakyAccuracyBits": 7
+    },
     "dtype":
     {
         "global": "Float16",

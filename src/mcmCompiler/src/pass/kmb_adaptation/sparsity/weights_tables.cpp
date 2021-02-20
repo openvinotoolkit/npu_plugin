@@ -212,7 +212,7 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
 
 
 void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model,
-        mv::TargetDescriptor&)
+        mv::TargetDescriptor& td)
 {
     mv::DataModel dm(model);
     mv::QuantizationParams quantParams = {{},{},{},{}};
@@ -236,6 +236,11 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
         {
             auto mult = quantParams.getMult();
             auto shift = quantParams.getShift();
+            if (output->hasAttr("preAdjustedShift") && output->hasAttr("preAdjustedMult"))
+            {
+                shift = output->get<std::vector<unsigned>>("preAdjustedShift");
+                mult = output->get<std::vector<unsigned>>("preAdjustedMult");
+            }
             std::transform(mScaled.begin(), mScaled.end(), mult.begin(), mScaled.begin(), std::plus<int32_t>());
             std::transform(mShift.begin(), mShift.end(), shift.begin(), mShift.begin(), std::plus<int32_t>());
             for (size_t idx = outputChannels; idx < paddedOutputChannels; idx++)
@@ -275,7 +280,7 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
         unsigned round_mode = 1;
         std::vector<int32_t> round32(outputChannels, round_mode);
         std::vector<int32_t> reluMultData(outputChannels, 0);
-        if (hasPPETask)
+        if (hasPPETask && td.getTarget() != mv::Target::ma3720)
         {
             auto ppeFF = dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction();
             auto& ppeLayers = ppeFF.getLayers();
