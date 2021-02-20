@@ -38,7 +38,7 @@ mv::TargetDescriptor::TargetDescriptor(const std::string& filePath) :
 target_(Target::Unknown),
 globalDType_("Float16"),
 hdeDef_({0,0,0,0,false}),
-generalConfigs_({false})
+generalConfigs_({false, false, 7})//KMB default: HW PRELU MULT is I8, so 7 precision bits are available
 {
 
     if (!filePath.empty())
@@ -58,6 +58,8 @@ void mv::TargetDescriptor::reset()
     processorDefs_.clear();
     workloadConfigs_.clear();
     generalConfigs_.floatScaleTable = false;
+    generalConfigs_.allowMultipleInputScales = false;
+    generalConfigs_.leakyAccuracyBits = 7;
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
@@ -120,6 +122,30 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 else
                 {
                     generalConfigs_.floatScaleTable = jsonDescriptor["general"]["floatScaleTable"].get<bool>();
+                }
+            }
+            if (jsonDescriptor["general"].hasKey("allowMultipleInputScales"))
+            {
+                if (jsonDescriptor["general"]["allowMultipleInputScales"].valueType() != json::JSONType::Bool)
+                {
+                    reset();
+                    return false;
+                }
+                else
+                {
+                    generalConfigs_.allowMultipleInputScales = jsonDescriptor["general"]["allowMultipleInputScales"].get<bool>();
+                }
+            }
+            if (jsonDescriptor["general"].hasKey("leakyAccuracyBits"))
+            {
+                if (jsonDescriptor["general"]["leakyAccuracyBits"].valueType() != json::JSONType::NumberInteger)
+                {
+                    reset();
+                    return false;
+                }
+                else
+                {
+                    generalConfigs_.leakyAccuracyBits = jsonDescriptor["general"]["leakyAccuracyBits"].get<long long>();
                 }
             }
         }

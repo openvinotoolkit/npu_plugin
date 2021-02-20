@@ -13,20 +13,20 @@ namespace mv
         private:
             int lowClamp_;
             int highClamp_;
-            int8_t reluMult_;
+            int32_t reluMult_;
             uint8_t reluShift_;
             std::vector<PPELayerType> layers_;
         public:
-            PPEFixedFunction(int8_t lRelumult = 1, uint8_t lRelushift = 0, int lowClamp = INT_MIN, int highClamp = INT_MAX);
+            PPEFixedFunction(int32_t lRelumult = 1, uint8_t lRelushift = 0, int lowClamp = INT_MIN, int highClamp = INT_MAX);
 
             int getLowClamp() const;
             int getHighClamp() const ;
-            int8_t getLReluMult() const ;
+            int32_t getLReluMult() const ;
             uint8_t getLReluShift() const ;
 
             void setLowClamp(int lowClamp);
             void setHighClamp(int highClamp);
-            void setLReluMult(int8_t lRelumult);
+            void setLReluMult(int32_t lRelumult);
             void setLReluShift(uint8_t lRelushift);
 
             const std::vector<mv::PPELayerType>& getLayers() const;

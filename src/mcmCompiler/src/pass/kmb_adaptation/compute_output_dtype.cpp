@@ -310,7 +310,7 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
 
 // Pass logic:
 // Runtime will handle the input, we uniform all the rest to UInt8
-void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
 
@@ -320,9 +320,13 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
 
     auto kernelOp = om.opBegin();
     auto inputType = kernelOp->getOutputTensor(0)->getDType();
-    if(inputType == mv::DType("Int8"))
-        throw std::runtime_error("Compiler doesn't support I8 inputs for the moment, please rescale your data to U8");
-
+    auto target = td.getTarget();
+    if (inputType == mv::DType("Int8") && target != mv::Target::ma3720) {
+       throw std::runtime_error(td.toString(target) + " Compiler doesn't support I8 inputs for the moment, please rescale your data to U8");
+    }
+    if (inputType == mv::DType("Int8") && target == mv::Target::ma3720) {
+        return; //Int8 supported by ma3720 - no need to convert
+    }
     for (; kernelOp != om.opEnd(); ++kernelOp)
     {
         if(kernelOp.outputsSize() > 0)

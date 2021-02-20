@@ -1,7 +1,10 @@
 {
 
     "target": "ma3100",
-
+    "general":
+    {
+        "leakyAccuracyBits": 7
+    },
     "dtype":
     {
         "global": "Float16",
