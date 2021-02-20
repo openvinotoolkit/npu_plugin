@@ -20,7 +20,45 @@
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <mlir/IR/PatternMatch.h>
+
 using namespace vpux;
+
+namespace {
+
+//
+// ConvertAddToScale
+//
+
+class ConvertAddToScale final : public mlir::OpRewritePattern<IE::AddOp> {
+public:
+    using mlir::OpRewritePattern<IE::AddOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::AddOp biasOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertAddToScale::matchAndRewrite(IE::AddOp biasOp, mlir::PatternRewriter& rewriter) const {
+    static const auto N = Dim(0);
+    static const auto H = Dim(2);
+    static const auto W = Dim(3);
+
+    auto mulOutShape = getShape(biasOp.output());
+    auto biasesShape = getShape(biasOp.input2());
+
+    if (mulOutShape.size() != 4 || biasesShape.size() != 4) {
+        return mlir::failure();
+    }
+    if (biasesShape[N] != 1 || biasesShape[H] != 1 || biasesShape[W] != 1) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(biasOp, biasOp.getType(), biasOp.input1(), nullptr, biasOp.input2());
+
+    return mlir::success();
+}
+
+}  // namespace
 
 mlir::LogicalResult vpux::IE::AddOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
@@ -42,6 +80,11 @@ mlir::LogicalResult vpux::IE::AddOp::inferReturnTypeComponents(
     }
 
     return outShapeRes;
+}
+
+void vpux::IE::AddOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
+                                                  mlir::MLIRContext* context) {
+    patterns.insert<ConvertAddToScale>(context);
 }
 
 mlir::OpFoldResult vpux::IE::AddOp::fold(ArrayRef<mlir::Attribute> operands) {

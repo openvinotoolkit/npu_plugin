@@ -47,6 +47,10 @@ class KmbEltwiseLayerTest: public EltwiseLayerTest, virtual public LayerTestsUti
             }
         }
     }
+
+    void SetUp() override {
+        EltwiseLayerTest::SetUp();
+    }
 };
 
 TEST_P(KmbEltwiseLayerTest, CompareWithRefs) {
@@ -138,6 +142,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_CompareWithRefs, KmbEltwiseLayerTest, mul
 std::vector<std::vector<std::vector<size_t>>> inShapes_pass_mcm = {
     {{1, 1, 1, 3}},
     {{1, 4, 4, 1}},
+    {{1, 4, 1, 1}},
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes_pass_mcm = {
@@ -146,6 +151,7 @@ std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes_pass_mcm = {
 
 std::vector<CommonTestUtils::OpType> opTypes_pass_mcm = {
     CommonTestUtils::OpType::SCALAR,
+    CommonTestUtils::OpType::VECTOR,
 };
 
 const auto multiply_params_pass_mcm = ::testing::Combine(

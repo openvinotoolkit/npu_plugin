@@ -37,25 +37,26 @@ using namespace vpux;
 
 namespace {
 
-class FuseConvAndBias final : public mlir::OpRewritePattern<IE::AddOp> {
+class FuseConvAndBias final : public mlir::OpRewritePattern<IE::ScaleShiftOp> {
 public:
-    using mlir::OpRewritePattern<IE::AddOp>::OpRewritePattern;
+    using mlir::OpRewritePattern<IE::ScaleShiftOp>::OpRewritePattern;
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::AddOp biasOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::ScaleShiftOp biasOp, mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::AddOp biasOp, mlir::PatternRewriter& rewriter) const {
-    static const auto N = Dim(0);
+mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, mlir::PatternRewriter& rewriter) const {
     static const auto C = Dim(1);
-    static const auto H = Dim(2);
-    static const auto W = Dim(3);
 
-    if (!biasOp.input1().hasOneUse()) {
+    if (!biasOp.input().hasOneUse()) {
         return mlir::failure();
     }
 
-    auto convOp = mlir::dyn_cast_or_null<ConvolutionLayerInterface>(biasOp.input1().getDefiningOp());
+    if (biasOp.weights()) {
+        return mlir::failure();
+    }
+
+    auto convOp = mlir::dyn_cast_or_null<ConvolutionLayerInterface>(biasOp.input().getDefiningOp());
     if (convOp == nullptr) {
         return mlir::failure();
     }
@@ -65,12 +66,9 @@ mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::AddOp biasOp, mlir::Pat
     }
 
     auto convOutShape = getShape(convOp.output());
-    auto biasShape = getShape(biasOp.input2());
+    auto biasShape = getShape(biasOp.biases());
 
-    if (convOutShape.size() != 4 || biasShape.size() != 4) {
-        return mlir::failure();
-    }
-    if (biasShape[N] != 1 || biasShape[H] != 1 || biasShape[W] != 1) {
+    if (convOutShape.size() != 4) {
         return mlir::failure();
     }
     if (biasShape[C] != convOutShape[C]) {
@@ -78,7 +76,7 @@ mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::AddOp biasOp, mlir::Pat
     }
 
     auto* newConv = rewriter.clone(*convOp);
-    newConv->insertOperands(newConv->getNumOperands(), biasOp.input2());
+    newConv->insertOperands(newConv->getNumOperands(), biasOp.biases());
 
     rewriter.replaceOp(biasOp, newConv->getOpResults());
 

@@ -978,7 +978,7 @@ def VPUIP_PReluUPAOp :
             "PReluUPA",
             [
                 DeclareOpInterfaceMethods<LayerInterface>,
-		DeclareOpInterfaceMethods<PReluLayerInterface>,
+                DeclareOpInterfaceMethods<PReluLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
         > {
@@ -1023,7 +1023,7 @@ def VPUIP_LeakyReluUPAOp :
             "LeakyReluUPA",
             [
                 SingleInputAndResultLayer,
-		DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
             ]
@@ -1265,6 +1265,7 @@ def VPUIP_ScaleShiftUPAOp :
             "ScaleShiftUPA",
             [
                 VPUIP_SameElementType,
+                AttrSizedOperandSegments,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ScaleShiftLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
@@ -1274,8 +1275,8 @@ def VPUIP_ScaleShiftUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$weights,
-        F16MemRef:$biases,
+        Optional<F16MemRef>:$weights,
+        Optional<F16MemRef>:$biases,
         F16MemRef:$output,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
@@ -1296,10 +1297,14 @@ def VPUIP_ScaleShiftUPAOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input `:` type($input) `,` $weights `:` type($weights)  `,` $biases `:` type($biases)`)`
+        `inputs` `(` $input `:` type($input) (`,` $weights^ `:` type($weights))? (`,` $biases^ `:` type($biases))? `)`
         `outputs` `(` $output `:` type($output) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
     }];
 }
 

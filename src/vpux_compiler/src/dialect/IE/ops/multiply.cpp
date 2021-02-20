@@ -23,50 +23,37 @@
 
 using namespace vpux;
 
-//
-// FuseMulAndAdd
-//
-
 namespace {
 
-class FuseMulAndAdd final : public mlir::OpRewritePattern<IE::AddOp> {
+//
+// ConvertMultiplyToScale
+//
+
+class ConvertMultiplyToScale final : public mlir::OpRewritePattern<IE::MultiplyOp> {
 public:
-    using mlir::OpRewritePattern<IE::AddOp>::OpRewritePattern;
+    using mlir::OpRewritePattern<IE::MultiplyOp>::OpRewritePattern;
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::AddOp biasOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::MultiplyOp mulOp, mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult FuseMulAndAdd::matchAndRewrite(IE::AddOp biasOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertMultiplyToScale::matchAndRewrite(IE::MultiplyOp mulOp,
+                                                            mlir::PatternRewriter& rewriter) const {
     static const auto N = Dim(0);
-    static const auto C = Dim(1);
     static const auto H = Dim(2);
     static const auto W = Dim(3);
 
-    auto mulOp = mlir::dyn_cast_or_null<IE::MultiplyOp>(biasOp.input1().getDefiningOp());
-    if (mulOp == nullptr) {
-        return mlir::failure();
-    }
-
     auto mulOutShape = getShape(mulOp.output());
     auto weightsShape = getShape(mulOp.input2());
-    auto biasShape = getShape(biasOp.input2());
 
-    if (mulOutShape.size() != 4 || biasShape.size() != 4 || weightsShape.size() != 4) {
-        return mlir::failure();
-    }
-    if (biasShape[N] != 1 || biasShape[H] != 1 || biasShape[W] != 1) {
+    if (mulOutShape.size() != 4 || weightsShape.size() != 4) {
         return mlir::failure();
     }
     if (weightsShape[N] != 1 || weightsShape[H] != 1 || weightsShape[W] != 1) {
         return mlir::failure();
     }
-    if (biasShape[C] != weightsShape[C]) {
-        return mlir::failure();
-    }
 
-    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(biasOp, biasOp.getType(), mulOp.input1(), mulOp.input2(),
-                                                  biasOp.input2());
+    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(mulOp, mulOp.getType(), mulOp.input1(), mulOp.input2(), nullptr);
 
     return mlir::success();
 }
@@ -98,7 +85,7 @@ mlir::LogicalResult vpux::IE::MultiplyOp::inferReturnTypeComponents(
 
 void vpux::IE::MultiplyOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
                                                        mlir::MLIRContext* context) {
-    patterns.insert<FuseMulAndAdd>(context);
+    patterns.insert<ConvertMultiplyToScale>(context);
 }
 
 mlir::OpFoldResult vpux::IE::MultiplyOp::fold(ArrayRef<mlir::Attribute> operands) {

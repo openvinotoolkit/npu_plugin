@@ -51,6 +51,7 @@ public:
     class GenericReshapeRewrite;
     class LayerRewrite;
     class DetectionOutputRewrite;
+    class ScaleShiftRewrite;
 
 public:
     static const mlir::PatternBenefit genericBenefit;
@@ -383,6 +384,64 @@ mlir::LogicalResult ConvertIE2IERTPass::DetectionOutputRewrite::matchAndRewrite(
 }
 
 //
+// ScaleShiftRewrite
+//
+
+class ConvertIE2IERTPass::ScaleShiftRewrite final : public mlir::ConversionPattern {
+public:
+    ScaleShiftRewrite(mlir::TypeConverter& typeConverter, Logger log)
+            : mlir::ConversionPattern(genericBenefit, typeConverter, mlir::Pattern::MatchAnyOpTypeTag{}), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertIE2IERTPass::ScaleShiftRewrite::matchAndRewrite(
+        mlir::Operation* origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
+    auto layerOp = mlir::dyn_cast<IE::ScaleShiftOp>(origOp);
+    if (layerOp == nullptr) {
+        return mlir::failure();
+    }
+
+    _log.trace("Found Layer Operation '{0}'", origOp->getLoc());
+
+    auto origInputs = layerOp.getInputs();
+    auto origOutputs = layerOp.getOutputs();
+    VPUX_THROW_UNLESS(newOperands.size() == origInputs.size(), "Got wrong newOperands size : '{0}', expected '{1}'",
+                      newOperands.size(), origInputs.size());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    _log.trace("Add Alloc Operations for results");
+    auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOutputs);
+
+    mlir::Value newWeights = nullptr;
+    mlir::Value newBiases = nullptr;
+    if (layerOp.weights() != nullptr && layerOp.biases() != nullptr) {
+        newWeights = newOperands[1];
+        newBiases = newOperands[2];
+    } else if (layerOp.weights() != nullptr) {
+        newWeights = newOperands[1];
+    } else if (layerOp.biases() != nullptr) {
+        newBiases = newOperands[1];
+    } else {
+        VPUX_THROW("ScaleShift must have weights or biases");
+    }
+
+    _log.trace("Create an IERT analog of the IE::ScaleShift");
+    rewriter.create<IERT::ScaleShiftOp>(origOp->getLoc(), newOperands[0], newWeights, newBiases, allocatedBufs[0]);
+
+    rewriter.replaceOp(origOp, allocatedBufs);
+    return mlir::success();
+}
+
+//
 // passBody
 //
 
@@ -403,6 +462,7 @@ void ConvertIE2IERTPass::passBody() {
 
     mlir::OwningRewritePatternList patterns;
     patterns.insert<DetectionOutputRewrite>(typeConverter, _log.nest());
+    patterns.insert<ScaleShiftRewrite>(typeConverter, _log.nest());
     patterns.insert<ConstantRewrite>(typeConverter, &ctx, _log.nest());
     patterns.insert<QuantRewrite>(typeConverter, _log.nest());
     patterns.insert<LinalgReshapeRewrite>(typeConverter, &ctx, _log.nest());
