@@ -228,7 +228,6 @@ add_dependencies(${OBJ_TARGET_NAME}
 )
 
 ie_faster_build(${OBJ_TARGET_NAME}
-    UNITY
     PCH PUBLIC "src/precomp.hpp"
 )
 
