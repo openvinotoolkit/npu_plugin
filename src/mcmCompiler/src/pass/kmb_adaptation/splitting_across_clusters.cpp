@@ -124,11 +124,10 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         //Also need to generate subtensors for output tensor of input operation
         //  Note: Input can't provide output activation sparsity, so sparse subtensors
         // shouldn't be needed
-        auto inputOpsMap = om.getOpsOfTypes({"Input", "ImplicitInput"});
-        for (auto inputOps : inputOpsMap)
-        {
-            for (auto op: inputOps.second)
-            {
+        std::vector<std::string> inputOpTypes = {"Input", "ImplicitInput"};
+        std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfInputType = om.getOpsOfTypes(inputOpTypes);
+        for (auto& opType : inputOpTypes) {
+            for (auto& op : operationsOfInputType[opType]) {
                 for (auto tensor : op->getOutputTensor()) {
                     if((tensor->get<std::string>("splitStrategy") == "SplitOverH") ||
                         (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
@@ -140,11 +139,10 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         //Also need to generate subtensors for input tensor of output operation
         //  Note: Output can't take input activation sparsity, so sparse subtensors
         // shouldn't be needed
-        auto outputOpsMap = om.getOpsOfTypes({"Output", "ImplicitOutput"});
-        for (auto outputOps : outputOpsMap)
-        {
-            for (auto op: outputOps.second)
-            {
+        std::vector<std::string> outputOpTypes = {"Output", "ImplicitOutput"};
+        std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfOutputType = om.getOpsOfTypes(inputOpTypes);
+        for (auto& opType : outputOpTypes) {
+            for (auto& op : operationsOfOutputType[opType]) {
                 for (auto tensor : op->getInputTensor()) {
                     if((tensor->get<std::string>("splitStrategy") == "SplitOverH") ||
                         (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))

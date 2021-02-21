@@ -21,6 +21,7 @@
 #include "include/mcm/target/kmb/ppe_layer_type.hpp"
 #include "include/mcm/target/kmb/barrier_definition.hpp"
 #include "include/mcm/target/kmb/barrier_deps.hpp"
+#include "include/mcm/utils/helpers.hpp"
 
 
 namespace mv
@@ -116,7 +117,21 @@ namespace mv
         - Iterator of set is invalidated only on deletion of pointed element (on the other hand, vector's iterator is invalidated on the resize of the vector)
             - ModelLinearIterators are wrapping containers iterators
         */
-        std::shared_ptr<std::unordered_map<std::string, Data::OpListIterator>> ops_;
+        struct ops_map_hash {
+            size_t operator()(const std::string& name) const {
+                return constatnt_string_hash(name);
+            }
+            static size_t constatnt_string_hash(const std::string str) {
+                const char* ptr = str.c_str();
+                unsigned int hash = str.length();
+                while (ptr) {
+                    hash = hash * 101 + *ptr;
+                    ++ptr;
+                }
+                return hash;
+            }
+        };
+        std::shared_ptr<std::unordered_map<std::string, Data::OpListIterator, ops_map_hash>> ops_;
         std::shared_ptr<std::unordered_map<std::string, Data::FlowListIterator>> dataFlows_;
         std::shared_ptr<std::unordered_map<std::string, Control::FlowListIterator>> controlFlows_;
         std::shared_ptr<std::map<std::string, std::shared_ptr<Tensor>>> tensors_;
