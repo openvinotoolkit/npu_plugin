@@ -23,7 +23,6 @@ add_library(${TARGET_NAME} STATIC ${SOURCES})
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "src")
 
 ie_faster_build(${TARGET_NAME}
-    UNITY
     PCH PUBLIC "src/precomp.hpp"
 )
 
