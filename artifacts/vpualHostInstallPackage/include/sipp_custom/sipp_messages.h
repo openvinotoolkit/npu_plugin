@@ -89,7 +89,12 @@ public:
     void setFilterId(uint32_t id) { filterID = id;}
 
     int getFilter() const {return filter;}
-    uint32_t getSize() const {return outputWidth * outputHeight * numPlanes * bpp;}
+    uint32_t getSize() const { 
+        uint32_t size; 
+        size = outputWidth * outputHeight * numPlanes * bpp; 
+        if(outputWidth != 0 && outputHeight != 0 && numPlanes != 0 && bpp != 0 && size/outputWidth != (outputHeight * numPlanes * bpp)) throw std::overflow_error("Maximum size value exceeded");
+        return size;
+    }
     void *getPipeline() const { return pipeline;}
 };
 
