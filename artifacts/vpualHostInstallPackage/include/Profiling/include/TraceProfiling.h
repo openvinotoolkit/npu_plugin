@@ -104,7 +104,7 @@ class TraceProfiling : private VpualStub {
     bool sm_enabled;
 
   public:
-    TraceProfiling(uint32_t device_id) : VpualStub("TraceProfiling", device_id), sm_enabled(false) {};
+    TraceProfiling(uint32_t device_id=0) : VpualStub("TraceProfiling", device_id), sm_enabled(false) {};
 
     void Create(uint32_t pBaseAddr0, uint32_t size, uint32_t pBaseAddr1, uint32_t size1, uint8_t *vAddr0, uint8_t *vAddr1, uint32_t alignment = 64);
     void Delete();
@@ -229,7 +229,5 @@ class TraceProfiling : private VpualStub {
      */
     int save_profiler_data_to_file(unsigned char* address, uint32_t size);
 };
-
-extern TraceProfiling TProfile;
 
 #endif /* __TRACE_PROFILING__ */

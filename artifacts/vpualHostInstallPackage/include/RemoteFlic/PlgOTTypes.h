@@ -115,7 +115,55 @@ typedef enum {
     /**
      *  This is the status to indicate that allocating memory for DDR heap from memory manager failed.
      */
-    OT_CREATE_MMGR_ALLOC_SVU_DDR_HEAP_ERROR             = 15
+    OT_CREATE_MMGR_ALLOC_SVU_DDR_HEAP_ERROR             = 15,
+    /**
+     *  This is the status to indicate that converting windows addresses to physical addresses failed.
+     */
+    OT_CREATE_SVU_SOLVE_SHV_REL_ADDR_ERROR              = 16,
+    /**
+     *  This is the status to indicate that retrieving entry point address from entry point name failed.
+     */
+    OT_EXECUTE_SVU_GET_ENTRY_ADDR_ERROR                 = 17,
+    /**
+     *  This is the status to indicate that retrieving configured shave window address failed.
+     */
+    OT_EXECUTE_SVU_GET_SHV_WINDOW_ERROR                 = 18,
+    /**
+     *  This is the status to indicate that "svuStartShaveCC" returned an error.
+     */
+    OT_EXECUTE_SVU_START_SHV_ERROR                      = 19,
+    /**
+     *  This is the status to indicate that "svuWaitShave" returned an error.
+     */
+    OT_EXECUTE_SVU_WAIT_SHV_ERROR                       = 20,
+    /**
+     *  This is the status to indicate that "svuCloseShave" returned an error.
+     */
+    OT_RELEASE_SVU_CLOSE_SHV_ERROR                      = 21,
+    /**
+     *  This is the status to indicate that "svuDeInit" returned an error.
+     */
+    OT_RELEASE_SVU_DEINIT_ERROR                         = 22,
+    /**
+     *  This is the status to indicate that releasing text buffer in DDR from memory manager failed.
+     */
+    OT_RELEASE_MMGR_FREE_TEXT_BUF_ERROR                 = 23,
+    /**
+     *  This is the status to indicate that releasing data buffer in CMX slice from memory manager failed.
+     */
+    OT_RELEASE_MMGR_FREE_DATA_BUF_ERROR                 = 24,
+    /**
+     *  This is the status to indicate that releasing memory for DDR heap from memory manager failed.
+     */
+    OT_RELEASE_MMGR_FREE_DDR_HEAP_ERROR                 = 25,
+    /**
+     *  This is the status to indicate that "ResMgrRelease" returned an error.
+     */
+    OT_RELEASE_DRV_RESMGR_RELEASE_ERROR                 = 26,
+    /**
+     *  This is the status to indicate that "svuUninstantiateShvApp" returned an error.
+     */
+    OT_RELEASE_SVU_UNINST_SHV_APP_ERROR                 = 27
 } ot_status_code;
 
 /**
