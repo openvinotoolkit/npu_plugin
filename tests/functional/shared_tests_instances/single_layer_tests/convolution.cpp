@@ -137,6 +137,15 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid, KmbConvolutionLayerTes
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     ConvolutionLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_PaddingConcat, KmbConvolutionLayerTest,
+    ::testing::Combine(conv2DParams_ExplicitPadding,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(inPrc), ::testing::Values(outPrc),
+        ::testing::Values(InferenceEngine::Layout::NCHW), ::testing::Values(InferenceEngine::Layout::NHWC),
+        ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+    ConvolutionLayerTest::getTestCaseName);
+
 /* ============= 3D Convolution ============= */
 
 const std::vector<InferenceEngine::SizeVector> kernels3d = {{3, 3, 3}};
