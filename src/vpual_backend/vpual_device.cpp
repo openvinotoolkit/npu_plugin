@@ -18,7 +18,6 @@
 
 #include <memory>
 
-#include "ie_utils.hpp"
 #include "vpual_core_nn_executor.hpp"
 #include "vpual_flic_nn_executor.hpp"
 #include "vpusmm_allocator.hpp"
