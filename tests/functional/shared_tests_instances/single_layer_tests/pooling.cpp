@@ -37,7 +37,7 @@ TEST_P(KmbPoolingLayerTest, CompareWithRefs) {
 }
 
 // [Track number: S#49089]
-TEST_P(KmbPoolingLayerTest, DISABLE_CompareWithRefs_MLIR) {
+TEST_P(KmbPoolingLayerTest, DISABLED_CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
