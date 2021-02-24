@@ -128,7 +128,8 @@ std::vector<char> compileNGraph(
         const std::string& netName,
         const ie::InputsDataMap& inputsInfo,
         const ie::OutputsDataMap& outputsInfo,
-        const vpu::MCMConfig& config) {
+        const vpu::MCMConfig& config,
+        std::string & errMsg) {
     const auto log = std::make_shared<vpu::Logger>("KMB nGraph Parser", config.logLevel(), vpu::consoleOutput());
 
     log->info("Parse nGraph %v", netName);
@@ -315,13 +316,16 @@ std::vector<char> compileNGraph(
             log->info("Compiler processing time: %v ms", compile_time.count());
         } catch (std::string& str) {
             log->error("MCM Compiler error: %v", str);
-            throw std::logic_error(str);
+            errMsg = str;
+            return {};
         } catch (std::exception& ex) {
             log->error("MCM Compiler exception: %v", ex.what());
-            throw;
+            errMsg = ex.what();
+            return {};
         } catch (...) {
             log->error("MCM Compiler general exception");
-            throw;
+            errMsg = "MCM Compiler general exception";
+            return {};
         }
     }
 
@@ -330,12 +334,17 @@ std::vector<char> compileNGraph(
     //
 
     const auto memBlob = mcmCompiler.getBlob();
-    IE_ASSERT(memBlob != nullptr);
+    if(memBlob == nullptr) {
+        errMsg = "mcmCompiler.getBlob() == nullptr";
+        return {};
+    }
+
     std::vector<char> blob;
     std::copy(memBlob->begin(), memBlob->end(), std::back_inserter(blob));
 
     if (blob.empty()) {
-        THROW_IE_EXCEPTION << "Blob created by mcmCompiler is empty!";
+        errMsg = "MCM Compiler general exception";
+        return {};
     }
 
     return blob;
