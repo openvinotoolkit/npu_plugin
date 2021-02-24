@@ -34,7 +34,15 @@ std::ostream& operator<<(std::ostream& os, const AsyncTestParams &p) {
 
 class VpuxAsyncTests: public KmbTestBase, public testing::WithParamInterface<AsyncTestParams> {};
 
-TEST_P(VpuxAsyncTests, regression) {
+TEST_P(VpuxAsyncTests, regression_ADK) {
+    // for KMB/TBH standalone (VPUAL backend): there is a data race, the test sporadicaly fails: S#49626
+    // TODO: it makes sense to introduce a separate macro to such SKIP
+    #if defined(__arm__) || defined(__aarch64__)
+    SKIP() << "Skip the test due to a data race on the current configuration";
+    #endif
+    // for HDDL by-pass (HDDL2 backend):  there is a data race, the test sporadicaly fails: S#49627
+    SKIP_INFER_BYPASS_ON("VPUX", "data race");
+
     const auto &p = GetParam();
     const std::size_t nireq = p.nireq();
     const std::size_t niter = p.niter();
@@ -125,8 +133,4 @@ const std::vector<AsyncTestParams> asyncParams = {
         AsyncTestParams().nireq(8).niter(100),
 };
 
-// there are multiple issue with enabling this test
-// for dKMB: blobs compiled on windows return incorrect results: S#49404
-// for KMB/TBH standalone (VPUAL backend): there is a data race, the test sporadicaly fails: S#49626
-// for HDDL by-pass (HDDL2 backend):  there is a data race, the test sporadicaly fails: S#49627
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit, VpuxAsyncTests, testing::ValuesIn(asyncParams));
+INSTANTIATE_TEST_CASE_P(precommit, VpuxAsyncTests, testing::ValuesIn(asyncParams));
