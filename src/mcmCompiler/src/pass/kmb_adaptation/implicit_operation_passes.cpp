@@ -115,6 +115,20 @@ void propagateImplicitOpsFromOutput(mv::Op& op, mv::OpModel& om)
     }
 }
 
+void controlPaddingConcatFlows(mv::OpModel& om)
+{
+    auto paddingOps = om.getOps("PaddingConcat");
+    for (auto& concat : paddingOps)
+    {
+        // add a pseudo edge since padding concat input 1 is the master buffer
+        auto padding_input = concat->getInputTensor(1UL);
+        auto next_op = concat.leftmostChild();
+        next_op->addInputTensor(padding_input);
+        auto pseudo_flow = om.defineFlow(padding_input, next_op, concat->getInputTensor().size());
+        pseudo_flow->set<bool>("pseudo_data_flow", true);
+    }
+}
+
 void resolveImplicitConcats(mv::OpModel& om)
 {
     auto concatOps = om.getOps("ImplicitConcat");
@@ -217,7 +231,7 @@ void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::
         opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
     if (opType == "Slice" || opType == "Crop" || opType == "ImplicitInputSlice" || opType == "ImplicitInput")
         opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));
-    if (opType == "Copy" || opType == "Align")
+    if (opType == "Copy" || opType == "Align" || opType == "PaddingConcat")
         opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
 
     if (!opIt->hasAttr("ImplicitFlow"))
@@ -530,6 +544,8 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
     // Resolve the situation when the concat writes to more than one concat in DDR
     resolveImplicitConcats(om);
+    // Resolve implicit PaddingConcat flow to be scheduled with the next op
+    controlPaddingConcatFlows(om);
 }
 
 //void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
