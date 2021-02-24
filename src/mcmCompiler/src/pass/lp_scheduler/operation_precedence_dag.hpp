@@ -329,7 +329,7 @@ class Operation_Dag {
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitJoin"} ),
+          "ImplicitInputSlice", "ImplicitJoin", "PaddingConcat"} ),
       cmx_concat_subgraphs_(), eltwise_rep_map_(), pseudo_edge_set_() {
         init_from_model(model);
     }
@@ -342,7 +342,7 @@ class Operation_Dag {
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitJoin"} ),
+          "ImplicitInputSlice", "ImplicitJoin", "PaddingConcat"} ),
         cmx_concat_subgraphs_(), eltwise_rep_map_(), pseudo_edge_set_() { }
 
     void reset(model_t& model) { init_from_model(model); }

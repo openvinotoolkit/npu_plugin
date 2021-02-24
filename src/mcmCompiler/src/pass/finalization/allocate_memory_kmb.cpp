@@ -596,6 +596,49 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
                 out->set<std::string>("concatAxis", axisConcat);
             }
         }
+        else if(opType == "PaddingConcat")
+        {
+            auto paddingTensor = opIterator->getInputTensor(1UL);
+            auto outputTensor = opIterator->getOutputTensor(0);
+            
+            auto paddingDMA = om.getSourceOp(paddingTensor);
+            // flag used for eviction priority
+            paddingDMA->set<bool>("multiple_weight_out_degree", true);
+            // flag used for serialization - schedulingNumber
+            paddingDMA->set<bool>("PaddingDMA", true);
+
+            mv::Data::BufferIterator outputBuffer;
+            auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+            if( !outputTensor->hasAttr("allocators"))
+            {
+                pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
+                        " Has no allocator. Will attempt to allocate based on logical location");
+                outputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,outputTensor);
+            }
+            else
+            {
+                outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],stageIt,outputTensor);
+            }
+
+            mv::Data::BufferIterator inputBuffer;
+            auto inputLocation = paddingTensor->get<mv::Tensor::MemoryLocation>("Location");
+            if (!paddingTensor->hasAttr("allocators"))
+            {    
+                inputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,paddingTensor);
+                pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
+                        " Has no allocator. Will attempt to allocate based on logical location");
+            }
+            else
+            {
+                inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],stageIt,paddingTensor);
+            }
+
+            // Since resources are allocated only for output tensors, the Padding Concat output tensor buffer is
+            // moved to the output buffer of the Padding DMA (which has resources assigned)
+            auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
+                                                outputBuffer, inputBuffer,
+                                                {0,0,0,0}, {0,0,0,0}, true);
+        }
         else if(opType == "ImplicitUnion" || opType == "ImplicitInputSlice")
         {
             //In implicit union case, we dont really have 1 master buffer, we are just using it
