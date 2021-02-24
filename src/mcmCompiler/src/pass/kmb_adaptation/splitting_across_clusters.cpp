@@ -96,6 +96,14 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
                 tensorNames.insert(outputTensorName);
             }
         }
+        auto paddingConcats = om.getOps("PaddingConcat");
+        for(auto layer : paddingConcats)
+        {
+            auto outputTensorName = layer->getOutputTensor(0UL)->getName();
+            tensorNames.insert(outputTensorName);
+            auto constInputTensorName = layer->getInputTensor(1UL)->getName();
+            tensorNames.insert(constInputTensorName);
+        }
         auto dpuTasks = om.getOps("DPUTask");
         for(auto layer : dpuTasks)
         {
@@ -160,8 +168,8 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         subTensorsGen(model, tensors, numClusters, pass);
         subTensorsGen(model, specialTensors, numClusters, pass, 1);
 
-        auto srcImplicitChainTypes = std::vector<std::string>({"Concat", "Crop", "ImplicitConcat", "Slice"});
-        auto destImplicitChainTypes = std::vector<std::string>({"Align", "Crop", "ImplicitConcat", "Slice"});
+        auto srcImplicitChainTypes = std::vector<std::string>({"Concat", "Crop", "ImplicitConcat", "PaddingConcat", "Slice"});
+        auto destImplicitChainTypes = std::vector<std::string>({"Align", "Crop", "ImplicitConcat", "PaddingConcat", "Slice"});
         auto srcImplitcitOpsTypes = om.getOpsOfTypes(srcImplicitChainTypes);
         for(auto srcImplicitOpsList : srcImplitcitOpsTypes)
         {
@@ -267,7 +275,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             }
             else if (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
             {
-                if(!tensor->isPopulated())
+                if(!tensor->isPopulated() || tensor->hasAttr("paddingConcatAlignment"))
                 {
                     unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
                     std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
@@ -285,6 +293,10 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     std::vector<mv::Tiling> childtiles;
                     std::vector<size_t> heightSizes;
                     std::string axis = "H";
+
+                    // if sink is PaddingConcat (implicit) get the next sink
+                    if (sinkOperators[0]->getOpType() == "PaddingConcat")
+                        sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0UL));
                     if (sinkOperators[0]->getOpType() == "DPUTask")
                     {
                         mv::Tiling masterTile(axis, int(subTensors.size()));
@@ -302,10 +314,11 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     }
                 }
                 else
-                {
                     populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-                }
-                tensor->splitAcrossClusters(subTensors, true, false);
+                if(tensor->hasAttr("paddingConcatAlignment"))
+                    tensor->splitPopulatedActivationAcrossClusters(subTensors, true, false);
+                else
+                    tensor->splitAcrossClusters(subTensors, true, false);
             }
             else if (tensor->get<std::string>("splitStrategy") == "SplitOverK")
             {
