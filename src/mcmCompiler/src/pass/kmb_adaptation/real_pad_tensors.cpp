@@ -250,16 +250,19 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
 
     auto inputTensor = opIt->getInputTensor(0);
     auto parentOpIt = om.getSourceOp(inputTensor);
+    // padding with PaddingConcat if padding right padding[1] != 0 
+    auto special_padding_case = opIt->hasAttr("padding") && opIt->get<std::array<unsigned short, 4>>("padding")[1] != 0;
 
-    if (parentOpIt->getOpType() != "Align" && inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] % tensorWidthMultiple != 0)
+    if ((parentOpIt->getOpType() != "Align" || parentOpIt->getOpType() != "PaddingConcat") 
+        && inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] % tensorWidthMultiple != 0)
     {
-
         inputTensor->set<bool>("alignWidth", true);
         opIt->set<bool>("alignWidth", true);
 
         std::vector<mv::Data::OpListIterator> opsToLink;
         std::vector<std::size_t> inputSlots;
         std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+        mv::Data::TensorIterator alignToLink;
 
         auto sourceFlowStart = parentOpIt.leftmostOutput();
 
@@ -270,38 +273,77 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
             flowsToRemove.push_back(sinkFlow);
         }
 
-        auto alignOpName = inputTensor->getName() + "_align";
         auto quantParams = inputTensor->getQuantParams();
-
-        auto alignedTensor = om.align(alignOpName,
-                                inputTensor,
-                                mv::IO_WIDTH_DIMENSION,
-                                tensorWidthMultiple);
-        alignedTensor->setQuantParams(quantParams);
-        // This will work because of the implicit flows compensatory DMA passes
-        //auto outputTensorMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto outputTensorMemoryLocation = mv::Tensor::MemoryLocation::NNCMX;
-        alignedTensor->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
 
-
-        alignedTensor->set<bool>("alignWidth", true);
-
-        auto alignOp = om.getOp(alignOpName);
-
-        alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
-
-        if (opIt->hasAttr("padding"))
+        if (!special_padding_case)
         {
-            alignOp->set<std::array<unsigned short, 4>>("padding", opIt->get<std::array<unsigned short, 4>>("padding"));
+            auto alignOpName = inputTensor->getName() + "_align";
+
+            auto alignedTensor = om.align(alignOpName,
+                                    inputTensor,
+                                    mv::IO_WIDTH_DIMENSION,
+                                    tensorWidthMultiple);
+            alignedTensor->setQuantParams(quantParams);
+            // This will work because of the implicit flows compensatory DMA passes
+            //auto outputTensorMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            alignedTensor->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
+
+
+            alignedTensor->set<bool>("alignWidth", true);
+
+            auto alignOp = om.getOp(alignOpName);
+            alignToLink = alignedTensor;
+
+            alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
+
+            if (opIt->hasAttr("padding"))
+            {
+                alignOp->set<std::array<unsigned short, 4>>("padding", opIt->get<std::array<unsigned short, 4>>("padding"));
+            }
+            if (parentOpIt->hasAttr("splitStrategy"))
+            {
+                alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+            }
+
+            if (inputTensor->hasAttr("splitStrategy"))
+            {
+                alignOp->getOutputTensor()[0]->set<std::string>("splitStrategy", inputTensor->get<std::string>("splitStrategy"));
+            }
         }
-        if (parentOpIt->hasAttr("splitStrategy"))
+        else
         {
-            alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
-        }
+            auto input_width = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION];
+            auto width_aligned = input_width + tensorWidthMultiple - input_width % tensorWidthMultiple;
+            auto pad_shape = mv::Shape({width_aligned, inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION],
+                inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], inputTensor->getShape()[mv::IO_BATCH_DIMENSION]});
+            std::vector<int64_t> pad_align((size_t)pad_shape.totalSize(), inputTensor->getQuantParams().getZeroPoint()[0]);
 
-        if (inputTensor->hasAttr("splitStrategy"))
-        {
-            alignOp->getOutputTensor()[0]->set<std::string>("splitStrategy", inputTensor->get<std::string>("splitStrategy"));
+            auto const_name = parentOpIt->getName() + "_padding_const";
+            auto concat_name = parentOpIt->getName() + "_padding_concat";
+
+            auto const_align = om.constantInt(const_name, pad_align, pad_shape, inputTensor->getDType(), inputTensor->getOrder());
+            auto concat_align = om.paddingConcat(concat_name, {inputTensor, const_align});
+
+            const_align->setQuantParams(quantParams);
+            const_align->set<bool>("paddingConcatAlignment", true);
+            concat_align->setQuantParams(quantParams);
+            concat_align->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
+
+            auto concat_align_op = om.getOp(const_name);
+            auto const_align_op = om.getOp(concat_name);
+            alignToLink = concat_align;
+
+            concat_align_op->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
+            const_align_op->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
+
+            if (parentOpIt->hasAttr("splitStrategy"))
+            {
+                concat_align_op->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+                const_align_op->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+                const_align_op->getOutputTensor()[0]->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+                concat_align_op->getOutputTensor()[0]->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+            }
         }
 
         for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
@@ -311,9 +353,9 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
 
         for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
-            opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
+            opsToLink[op]->setInputTensor(alignToLink, inputSlots[op], false);
             opsToLink[op]->set<bool>("alignWidth", true);
-            om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
+            om.defineFlow(alignToLink, opsToLink[op], inputSlots[op]);
         }
     }
 }

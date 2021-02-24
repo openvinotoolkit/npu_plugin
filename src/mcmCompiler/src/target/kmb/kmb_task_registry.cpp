@@ -17,3 +17,4 @@
 #include    "src/target/kmb/tasks/def/implicit_union.cpp"
 #include    "src/target/kmb/tasks/def/implicit_input_slice.cpp"
 #include    "src/target/kmb/tasks/def/pseudo_op.cpp"
+#include    "src/target/kmb/tasks/def/padding_concat.cpp"

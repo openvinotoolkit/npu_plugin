@@ -329,7 +329,7 @@ class Operation_Dag {
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitJoin"} ),
+          "ImplicitInputSlice", "ImplicitJoin", "PaddingConcat"} ),
       cmx_concat_subgraphs_(), eltwise_rep_map_(), pseudo_edge_set_() {
         init_from_model(model);
     }
@@ -342,7 +342,7 @@ class Operation_Dag {
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitJoin"} ),
+          "ImplicitInputSlice", "ImplicitJoin", "PaddingConcat"} ),
         cmx_concat_subgraphs_(), eltwise_rep_map_(), pseudo_edge_set_() { }
 
     void reset(model_t& model) { init_from_model(model); }
@@ -1152,7 +1152,7 @@ class Operation_Dag {
       op_itr_t cop_itr = this_mtraits::begin_child_operations(pop_itr);
 
 
-      return (cop_itr->getOpType() == "Align");
+      return (cop_itr->getOpType() == "Align" || cop_itr->getOpType() == "PaddingConcat");
     }
 
     // Precondition: is_aligned_dma_op() //
@@ -1172,7 +1172,7 @@ class Operation_Dag {
           mv::ControlModel&) const {
       const std::string& op_type = op->getOpType();
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement") ||
-        (op_type == "ImplicitConcat") ||
+        (op_type == "ImplicitConcat") || (op_type == "PaddingConcat") ||
         (implicit_op_types_.find(op_type) != implicit_op_types_.end());
     }
 
