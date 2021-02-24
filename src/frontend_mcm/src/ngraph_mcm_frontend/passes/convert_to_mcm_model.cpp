@@ -16,7 +16,6 @@
 
 // clang-format off
 
-#include "ie_macro.hpp"
 #include "debug.h"
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_model.hpp"
 #include "ngraph_mcm_frontend/mcm_attrs.hpp"

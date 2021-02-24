@@ -6,7 +6,6 @@
 #include "kmb_test_report.hpp"
 #include "vpux_private_config.hpp"
 
-#include <ie_utils.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 

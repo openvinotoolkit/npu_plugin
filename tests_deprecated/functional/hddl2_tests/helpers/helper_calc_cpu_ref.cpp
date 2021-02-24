@@ -16,7 +16,6 @@
 
 #include "helper_calc_cpu_ref.h"
 
-#include <ie_utils.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <blob_factory.hpp>
 #include "models/model_loader.h"

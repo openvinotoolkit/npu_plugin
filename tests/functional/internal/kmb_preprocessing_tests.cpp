@@ -28,7 +28,6 @@
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
-#include <ie_utils.hpp>
 #include <vpux/vpux_plugin_config.hpp>
 #include <test_model/kmb_test_base.hpp>
 
