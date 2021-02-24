@@ -250,7 +250,11 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
 
     auto inputTensor = opIt->getInputTensor(0);
     auto parentOpIt = om.getSourceOp(inputTensor);
-    // padding with PaddingConcat if padding right padding[1] != 0 
+    // NOTE: padding with PaddingConcat if padding right padding[1] != 0 
+    // Align op extends the tensor width dimenstion and the buffer size, but does NOT "flush" the data from that address
+    // with padding right the padded line will have random data creating sporadic different results. Resolved by PaddingConcat
+    // scheduling a DMA with zero points to the aligned buffer before the input DMA. This could've been done simply with just an
+    // extra DMA scheduled before input but PaddingConcat produces a cleaner model.
     auto special_padding_case = opIt->hasAttr("padding") && opIt->get<std::array<unsigned short, 4>>("padding")[1] != 0;
 
     if ((parentOpIt->getOpType() != "Align" || parentOpIt->getOpType() != "PaddingConcat") 
