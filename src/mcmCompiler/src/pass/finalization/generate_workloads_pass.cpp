@@ -169,13 +169,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 else
                     dpuModes = configs["General"].dpuModes;
             }
-            /*Depthwise cov SOH A0 workaround*/
-            if(((taskOp == "DepthwiseConv") ||
-                    (taskOp == "MaxPool")) &&
-                    ((opIt->get<std::string>("splitStrategy") == "SplitOverH") || (opIt->get<std::string>("splitStrategy") == "HKSwitch")) &&
-                    (target == mv::Target::ma2490 && referenceDevice == "A0")) {
-                depthWiseSOHA0Workaround = true;
-                opIt->set<std::string>("Depthwise_SOH_A0_bug", "True");
+            /*Depthwise cov SOH A0 workaround*/ if(((taskOp == "DepthwiseConv") || 
+            (taskOp == "MaxPool")) && ((opIt->get<std::string>("splitStrategy") == "SplitOverH") || (opIt->get<std::string>("splitStrategy") == "HKSwitch")) && 
+            (target == mv::Target::ma2490 && referenceDevice == "A0") && 
+            (opIt->hasAttr("padding") && opIt->get<std::array<unsigned short, 4>>("padding")[0] & 1)) 
+            { 
+                depthWiseSOHA0Workaround = true; 
+                opIt->set<std::string>("Depthwise_SOH_A0_bug", "True"); 
             }
 
             // Mixed precision A0/B0 workaround
