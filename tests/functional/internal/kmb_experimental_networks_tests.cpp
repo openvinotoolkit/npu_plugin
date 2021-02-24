@@ -224,12 +224,7 @@ TEST_F(SmokeNetworkTest, DISABLED_SuperResolution_ADK3) {
                     .setUserOutputPrecision("output", Precision::FP16));
 }
 
-// 10Gb Memory allocation failed
-// [Track number: S#42880]
 TEST_F(UnetNetworkTest, UnetCamvidAva0001_ADK3) {
-#ifdef _WIN32
-    SKIP() << "SEH exception";
-#endif
     runTest(
             TestNetworkDesc("ADK3/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet-camvid-onnx-0001.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
