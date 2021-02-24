@@ -918,6 +918,16 @@ TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
         0.1f, 0.35f);
 }
 
+// [Track number: S#49417]
+TEST_F(KmbSSDNetworkTest, channel_major_align_with_padding_right) {
+    runTest(
+        TestNetworkDesc("KMB_models/FP16-INT8/public/ssd_mobilenet_v2_coco_subgraph/channel_major_align_with_padding_right.xml")
+            .setUserInputPrecision("input", Precision::U8),
+        TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
+        0.0f,
+        0.0f, 0.0f);
+}
+
 // [Track number: D#45024]
 TEST_F(SmokeNetworkTest, precommit_text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
 #ifdef _WIN32
