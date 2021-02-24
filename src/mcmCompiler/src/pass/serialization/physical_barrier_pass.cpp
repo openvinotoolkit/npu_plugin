@@ -15,7 +15,7 @@ namespace mv
     }
 }
 
-static void AssignPhysicalBarrierFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td,
+static void AssignPhysicalBarrierFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& /*td*/,
     mv::Element& passDesc, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

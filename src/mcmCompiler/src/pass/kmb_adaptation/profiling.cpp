@@ -77,7 +77,7 @@ void PushBackSchedulingNumbers(mv::ControlModel cm, unsigned schedulingNumber)
     }
 }
 
-void AddDMAtoBarrier(mv::Control::OpListIterator barrierOp, std::string dmaName, unsigned layerNumber, unsigned schedulingNumber, unsigned parentDMA, unsigned opId, mv::ComputationModel& model, mv::Data::TensorIterator &profilingTensor, std::vector<mv::Data::TensorIterator> &profilingDmas)
+void AddDMAtoBarrier(mv::Control::OpListIterator barrierOp, std::string dmaName, unsigned layerNumber, unsigned parentDMA, unsigned opId, mv::ComputationModel& model, mv::Data::TensorIterator &profilingTensor, std::vector<mv::Data::TensorIterator> &profilingDmas)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -85,6 +85,13 @@ void AddDMAtoBarrier(mv::Control::OpListIterator barrierOp, std::string dmaName,
     auto& barrier = barrierOp->get<mv::Barrier>("Barrier");
     auto barrierName = barrierOp->getName();
 
+    /* Find Op with the smallest sheduling number after Barrier */
+    auto schedulingNumber = std::numeric_limits<unsigned>::max();
+    for(auto childOp = barrierOp.leftmostChild(); childOp != cm.opEnd(); ++childOp) {
+        auto opSchedulingNumber = childOp->get<unsigned>("schedulingNumber");
+        if (opSchedulingNumber < schedulingNumber)
+          schedulingNumber = opSchedulingNumber;
+    }
     PushBackSchedulingNumbers(cm, schedulingNumber);
 
     auto profilingDma = om.dMATask(dmaName+"_"+to_string(parentDMA)+"_"+to_string(layerNumber), profilingTensor, mv::DmaDirectionEnum::HW2DDR, 0);
@@ -197,7 +204,7 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                 // Add DMA to the first parent barrier //
                 for(auto parentOp = opIt.leftmostParent(); parentOp != cm.opEnd(); ++parentOp) {
                     if (parentOp->getOpType() == "BarrierTask") {
-                        AddDMAtoBarrier(parentOp, dmaName+"_PROFBEGIN", 1, 0, 0, opId, model, profilingTensor, profilingDmas);
+                        AddDMAtoBarrier(parentOp, dmaName+"_PROFBEGIN", 1, 0, opId, model, profilingTensor, profilingDmas);
                         TaskDMAMap[parentOp->getName()] = profilingDmas.size()-1;
                         break;
                     }
@@ -214,7 +221,7 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
             layerNumber++;
             dmaName += (!lastTask) ? "_PROFMIDDLE" : "_PROFEND";
-            AddDMAtoBarrier(barrierOp, dmaName, layerNumber, opIt->get<unsigned>("schedulingNumber")+1, parentDMA, opId, model, profilingTensor, profilingDmas);
+            AddDMAtoBarrier(barrierOp, dmaName, layerNumber, parentDMA, opId, model, profilingTensor, profilingDmas);
             TaskDMAMap[opIt->getName()] = profilingDmas.size()-1;
         }
     }
