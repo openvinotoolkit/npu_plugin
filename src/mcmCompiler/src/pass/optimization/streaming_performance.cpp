@@ -1,14 +1,13 @@
 #include "include/mcm/pass/graphOptimizations/streaming_performace.hpp"
 
-mv::StreamingPerformance::StreamingPerformance(mv::ComputationModel& model, mv::OpModel& omodel)
-        : model_(model),
-          omodel_(omodel),
+mv::StreamingPerformance::StreamingPerformance(mv::OpModel& omodel)
+        : omodel_(omodel),
           pipelineChains_(omodel_),
-          nClusters_(model.getGlobalConfigParams()->get<int>("Number_of_Clusters")),
-          enableChannelMajorConv_(model.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")) {
+          nClusters_(omodel.getGlobalConfigParams()->get<int>("Number_of_Clusters")),
+          enableChannelMajorConv_(omodel.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")) {
     
 
-    globalParams_ = model.getGlobalConfigParams();
+    globalParams_ = omodel.getGlobalConfigParams();
     streamingStrategyList_ = globalParams_->get<std::vector<mv::Element>>("streaming_strategy");
     multiClusterStrategyList_ = globalParams_->get<std::vector<mv::Element>>("split_strategy");
     tensorMemoryLocation_ = globalParams_->get<std::vector<mv::Element>>("tensor_placement_override");
@@ -60,9 +59,11 @@ size_t mv::StreamingPerformance::calculateperClusterWeightsSize(mv::Op& op, cons
     size_t weightSize = 0;
     size_t weightTableSize = 0;
     std::string opType = op.getOpType();
+    std::string taskOp;
+    if(op.hasAttr("taskOp"))
+        taskOp = op.get<std::string>("taskOp");
     bool isCMConv = false;
     auto clusterStrategy = clustering.get<std::string>();
-
     if (enableChannelMajorConv_ && op.supportsCMConv())
         isCMConv = true;
     auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
@@ -75,9 +76,9 @@ size_t mv::StreamingPerformance::calculateperClusterWeightsSize(mv::Op& op, cons
         alignedSplittedChannels = mv::round_up(alignedSplittedChannels / nClusters_, 16);
     }
 
-    if (opType == "Conv" || opType == "DepthwiseConv") {
+    if (opType == "Conv" || opType == "DepthwiseConv" || taskOp == "Conv" || taskOp == "DepthwiseConv") {
         weightTableSize = 16 * alignedSplittedChannels;
-        if (opType == "Conv") {
+        if (opType == "Conv" || taskOp == "Conv") {
             weightSize += alignedWeightsSize(op.getInputTensor(1), {1, 1, 1, streamConfig["K"], 1}, clusterStrategy,
                                              nClusters_);
 
@@ -87,10 +88,10 @@ size_t mv::StreamingPerformance::calculateperClusterWeightsSize(mv::Op& op, cons
                 weightSize = div(weightSize, nClusters_);
         }
 
-    } else if (opType == "MaxPool") {
+    } else if (opType == "MaxPool" || taskOp == "MaxPool") {
         weightTableSize = 16 * alignedSplittedChannels;
         weightSize = 0;
-    } else if (opType == "Eltwise" && !software) {
+    } else if ((opType == "Eltwise" || taskOp == "Eltwise") && !software) {
         weightTableSize = 0;
         weightSize = 0;
     }
@@ -299,7 +300,7 @@ void mv::StreamingPerformance::assignNewSrategies() {
     }
 
     // Step5: Save the new strategies
-    std::shared_ptr<mv::Element> globalParams = model_.getGlobalConfigParams();
+    std::shared_ptr<mv::Element> globalParams = omodel_.getGlobalConfigParams();
     globalParams->set("streaming_strategy", newStrategies_);
 }
 

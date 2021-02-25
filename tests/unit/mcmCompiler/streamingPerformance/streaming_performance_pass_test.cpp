@@ -97,7 +97,7 @@ static void build_Function_1(mv::OpModel& model)
 // This unit test is a system test. It tests that the StreamingPerformance pass increases the number of K streams
 // for layer higher_features/conv2 to the maximum number of k streams that is possible for the layer.
 // This is necessary to maximise performance for this network.
-TEST(streamingPerformance, system_test_yoloV2) {
+TEST(mcmCompiler, streaming_performance_system_test_yoloV2) {
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
     build_Function_0(om);
@@ -125,8 +125,7 @@ TEST(streamingPerformance, system_test_yoloV2) {
     }
 }
 
-// This unit test tests that the per cluster weight size of a streamed operation is calculated accurately
-TEST(streamingPerformance, perClusterWeightsSize) {
+TEST(mcmCompiler, streaming_performance_per_cluster_weights_size) {
 
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
