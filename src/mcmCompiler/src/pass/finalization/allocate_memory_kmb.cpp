@@ -631,7 +631,7 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
                 inputTensor = opIterator->getInputTensor(1);
                 auto paddingDMA = om.getSourceOp(inputTensor);
                 // flag used for eviction priority
-                paddingDMA->set<bool>("multiple_weight_out_degree", true);
+                paddingDMA->set<bool>("cmx_concatable", true);
                 // flag used for serialization - schedulingNumber
                 paddingDMA->set<bool>("PaddingDMA", true);
             }
