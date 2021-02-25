@@ -165,30 +165,16 @@ void cvtBlobPrecision_<float, ie::ie_fp16>(const ie::Blob::Ptr& in, const ie::Bl
 
 }  // namespace
 
-ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precision,
-                          const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
-    IE_ASSERT(in != nullptr);
-
-    const auto& inDesc = in->getTensorDesc();
-
-    if (inDesc.getPrecision() == precision) {
+ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, ie::Blob::Ptr& out) {
+    IE_ASSERT(in != nullptr && out != nullptr);
+    if (in->getTensorDesc().getPrecision() == out->getTensorDesc().getPrecision()) {
         return in;
     }
-
-    const auto outDesc = ie::TensorDesc(precision, inDesc.getDims(), inDesc.getLayout());
-    InferenceEngine::Blob::Ptr out;
-    if (alloc != nullptr) {
-        out = make_blob_with_precision(outDesc, alloc);
-    } else {
-        out = make_blob_with_precision(outDesc);
-    }
-    out->allocate();
+    const auto& inPrecision = in->getTensorDesc().getPrecision();
+    const auto& outPrecision = out->getTensorDesc().getPrecision();
 
     IE_ASSERT(in->getTensorDesc().getDims() == out->getTensorDesc().getDims());
     IE_ASSERT(in->getTensorDesc().getLayout() == out->getTensorDesc().getLayout());
-
-    const auto& inPrecision = in->getTensorDesc().getPrecision();
-    const auto& outPrecision = out->getTensorDesc().getPrecision();
 
     switch (inPrecision) {
     case ie::Precision::FP32: {
@@ -241,7 +227,7 @@ ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precisio
             break;
         }
         case ie::Precision::U8: {
-            cvtBlobPrecision_<float, uint8_t>(toPrecision(in, ie::Precision::FP32), out);
+            cvtBlobPrecision_<ie::ie_fp16, uint8_t>(in, out);
             break;
         }
         case ie::Precision::I8: {
@@ -376,8 +362,29 @@ ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precisio
     default:
         THROW_IE_EXCEPTION << "Unsupported combination of precisions " << inPrecision << " -> " << outPrecision;
     }
-
     return out;
+}
+
+ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precision,
+                          const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
+    IE_ASSERT(in != nullptr);
+
+    const auto& inDesc = in->getTensorDesc();
+
+    if (inDesc.getPrecision() == precision) {
+        return in;
+    }
+
+    const auto outDesc = ie::TensorDesc(precision, inDesc.getDims(), inDesc.getLayout());
+    InferenceEngine::Blob::Ptr out;
+    if (alloc != nullptr) {
+        out = make_blob_with_precision(outDesc, alloc);
+    } else {
+        out = make_blob_with_precision(outDesc);
+    }
+    out->allocate();
+
+    return toPrecision(in, out);
 }
 
 ie::Blob::Ptr toDefPrecision(const ie::Blob::Ptr& in) {
