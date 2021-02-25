@@ -234,7 +234,6 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/splitting_across_clusters.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_graph_optimizer_decisions.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/activation_streaming_performance.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_sparsity_solution.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_workload_strategy.cpp"

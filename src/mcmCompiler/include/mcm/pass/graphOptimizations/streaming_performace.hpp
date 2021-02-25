@@ -5,9 +5,10 @@
 namespace mv {
 class StreamingPerformance {
 public:
-    StreamingPerformance(mv::OpModel& omodel);
+    StreamingPerformance(mv::OpModel& omodel, const int maxHStreams);
     ~StreamingPerformance();
     void increaseStreamingOverKforPerformance();
+    void increaseStreamingOverHforPerformance(const mv::pass::PassEntry& pass);
 
     size_t calculateperClusterWeightsSize(mv::Op& op, const mv::Attribute& clustering, const bool weightsSparsity,
                                           const mv::Shape& streamConfig);
@@ -28,6 +29,9 @@ private:
     std::vector<mv::Element> newStrategies_;
     const bool enableChannelMajorConv_;
     const size_t nClusters_;
+    const int clusterMemory_;
+    const int totalDpus_;
+    const int maxHStreams_;
     FILE* fptr_ = nullptr;
     // This constant was derived from empirical testing and maybe 
     // subject to change if the memory allocation in the scheduler changes
@@ -35,6 +39,8 @@ private:
     const std::map<std::string, size_t> minOutputChannels_ = {
             {"SplitOverK", 64}, {"Clustering", 16}, {"SplitOverH", 16}, {"HKSwitch", 16}};
 
+
+    /*K Streaming methods*/
     std::map<size_t, size_t> calculateMininumWeightsSizePerClusterPerChain();
     std::tuple<std::vector<mv::Element>, mv::Attribute, bool> getGraphOptimizerAssignedStategies(const std::string opName);
 
@@ -49,6 +55,16 @@ private:
                           const size_t weightsPerClusterPerOp, size_t minWeightsPerClusterPerChain,
                           const double optimalNumberOfKStreams,const double maxpossibleStreams,const double newKStreams);
 
+    /*H Streaming methods*/
+    bool requiresFakeActivationSparsity(mv::Data::OpListIterator opIt);
+    std::tuple<size_t, size_t, size_t> getMemorySize(mv::Data::OpListIterator opIt, const mv::Shape& streamConfig);
+    bool validateHStream(mv::Data::OpListIterator opIt, std::string clustering, std::size_t splits);
+    unsigned getMinStreamOverH(mv::Data::OpListIterator opIt);
+    unsigned findOptimalValidStream(mv::Data::OpListIterator opIt, size_t startStream);
+    bool isStreamOptimizable(mv::Data::OpListIterator opIt, std::vector<mv::Element> streaming_strategy);
+    std::size_t findOptimalStream(mv::Data::OpListIterator opIt, size_t originalHStream);
+
+    /*Saving strategies*/
     void evaluateGraphOptimizerAssignedKStreamingStrategies();
     void assignNewSrategies();
 };

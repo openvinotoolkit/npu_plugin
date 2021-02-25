@@ -1,12 +1,14 @@
 #include "include/mcm/pass/graphOptimizations/streaming_performace.hpp"
 
-mv::StreamingPerformance::StreamingPerformance(mv::OpModel& omodel)
+mv::StreamingPerformance::StreamingPerformance(mv::OpModel& omodel, const int maxHStreams)
         : omodel_(omodel),
           pipelineChains_(omodel_),
           nClusters_(omodel.getGlobalConfigParams()->get<int>("Number_of_Clusters")),
-          enableChannelMajorConv_(omodel.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")) {
+          enableChannelMajorConv_(omodel.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")),
+          clusterMemory_(omodel.getGlobalConfigParams()->get<int>("cmx")),
+          totalDpus_(omodel.getGlobalConfigParams()->get<int>("Number_of_DPUs")),
+          maxHStreams_(maxHStreams) {
     
-
     globalParams_ = omodel.getGlobalConfigParams();
     streamingStrategyList_ = globalParams_->get<std::vector<mv::Element>>("streaming_strategy");
     multiClusterStrategyList_ = globalParams_->get<std::vector<mv::Element>>("split_strategy");
@@ -480,5 +482,362 @@ void mv::StreamingPerformance::evaluateGraphOptimizerAssignedKStreamingStrategie
             }
         }
         chainID++;
+    }
+}
+
+bool mv::StreamingPerformance::requiresFakeActivationSparsity(mv::Data::OpListIterator opIt)
+{
+    if(enableChannelMajorConv_ && opIt->supportsCMConv())
+        return true;
+    if(opIt->getOpType() == "MaxPool")
+        return true;
+    if(opIt->getOpType() == "DepthwiseConv")
+        return true;
+
+    return false;
+}
+
+std::tuple<size_t, size_t, size_t> mv::StreamingPerformance::getMemorySize(mv::Data::OpListIterator opIt, const mv::Shape& streamConfig)
+{
+    auto clustering = opIt->get<std::string>("splitStrategy");
+    auto inputSparse = opIt->get<bool>("inputActivationSparsity");
+    auto outputSparse = opIt->get<bool>("outputActivationSparsity");
+    auto weightsSparse = opIt->get<bool>("weightsSparsity");
+    auto fakeSparse = requiresFakeActivationSparsity(opIt);
+    bool spilling = opIt->get<bool>("goPredictsSpill");
+    auto prevOp = omodel_.getSourceOp(opIt->getInputTensor(0));
+    bool parentSpilling = prevOp->get<bool>("goPredictsSpill");
+
+    return mv::memorySize(*opIt, nClusters_, enableChannelMajorConv_, clustering, inputSparse, outputSparse, weightsSparse, streamConfig,
+                        fakeSparse, spilling, parentSpilling);
+}
+
+bool mv::StreamingPerformance::validateHStream(mv::Data::OpListIterator opIt, std::string clustering, std::size_t splits)
+{
+    if( opIt->getOpType() == "Conv" || opIt->getOpType() == "DepthwiseConv")
+    {
+        if(clustering == "SplitOverH")
+        {
+            auto weightsShape = opIt->getInputTensor(1)->getShape();
+            //Try to guess subtensor height, and avoid situations where kernel is bigger than last workload dimension
+            auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+            auto workloadHeight = ceil((double)outputHeight / (double)(nClusters_ * splits));
+            if(nClusters_ > 1) //last
+                workloadHeight = outputHeight - (workloadHeight * (nClusters_-1)); //get remaining height
+            if(workloadHeight < weightsShape[mv::KERNEL_HEIGHT])
+                return false;
+        }
+    }
+
+    //check that the inputSize will not be smaller than kernel size
+    if (opIt->getOpType() == "MaxPool" ||
+        opIt->getOpType() == "Conv" || opIt->getOpType() == "DepthwiseConv")
+    {
+        uint16_t kernelH;
+        std::array<unsigned short, 4> padding;
+
+        size_t originalH = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+        std::vector<std::size_t> newOutputSizes = mv::tileSpatialOutputSize(originalH, splits);
+
+        //Reject H streams were the last stream isn't equal or smaller than the rest
+        //Reject H streams were the last stream is 1, unless they are all 1
+        if(newOutputSizes.back() > newOutputSizes.front() ||
+            (newOutputSizes.back() == 1 && newOutputSizes.front() != 1)) 
+                return false;
+
+        unsigned short kernelStride;
+        if (opIt->hasAttr("stride"))
+            kernelStride = opIt->get<std::array<unsigned short, 2>>("stride")[1];
+        else
+            kernelStride = 1;//fake stride
+
+        if (opIt->hasAttr("padding"))
+            padding = opIt->get<std::array<unsigned short, 4>>("padding");
+        else
+            padding = {0, 0, 0, 0};
+
+        int padStart = 0;
+        int padEnd = padding[3];
+
+        if (opIt->hasAttr("kSize"))
+        {
+            auto kernelShape = opIt->get<std::array<unsigned short, 2>>("kSize");
+            kernelH = kernelShape[1];
+        }
+        else
+        {
+            auto weightsShape = opIt->getInputTensor(1)->getShape();
+            kernelH = weightsShape[mv::KERNEL_HEIGHT];
+        }
+        int inputSizeForLastSplit = ((newOutputSizes.back() -1) * kernelStride)  -padStart - padEnd + kernelH;
+        if ((inputSizeForLastSplit + padEnd) < kernelH)
+            return false;
+    }
+
+    return true;
+}
+
+// Gives the minimum number of streams over H to fit this layer, or if no number of streams enable streaming
+// (for example, weights don't fit) then return 0
+unsigned mv::StreamingPerformance::getMinStreamOverH(mv::Data::OpListIterator opIt)
+{
+    auto clusterStrategy = opIt->get<std::string>("splitStrategy");
+
+    size_t input, output, weights;
+    // in case initialization in memorySize fails
+    input = output = weights = 0;
+    std::tie(input, output, weights) = getMemorySize(opIt, {1,1,1,1,1});
+    auto activationsSize = input + output;
+    auto weightsSize = weights;
+    double availableMemory = (double) clusterMemory_ - (double) weightsSize;
+
+    if (availableMemory <= 0) // Weights don't fit, can't stream over H
+        return 0;
+
+    // Keep increasing H until we find one big enough to fit, or we run out of H dimension to stream
+    auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+
+    // Every output slice must have at least one line to compute
+    unsigned upperBoundH = outputHeight;
+    if(clusterStrategy == "SplitOverH")
+    {
+        upperBoundH = upperBoundH/nClusters_;
+    }
+
+    // Start searching for min stream at naive requirement for splits to fit, rather than 1
+    for(unsigned splits = ceil((double)activationsSize/availableMemory); splits <= upperBoundH; splits++)
+    {
+        auto memFitCheck = getMemorySize(opIt, {1,splits,1,1,1});
+
+        if((std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory_) &&
+                validateHStream(opIt, clusterStrategy, splits))
+        {
+            return splits;
+        }
+    }
+
+    return 0;
+}
+
+// Note: Validate a stream so that its largest slice fits in CMX and no workload issues
+unsigned mv::StreamingPerformance::findOptimalValidStream(mv::Data::OpListIterator opIt, size_t startStream)
+{
+    auto clusterStrategy = opIt->get<std::string>("splitStrategy");
+
+    for(unsigned splits = startStream; splits >= 1; splits--)
+    {
+        auto memFitCheck = getMemorySize(opIt,{1,splits,1,1,1});
+        if( (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory_) &&
+            validateHStream(opIt, clusterStrategy, splits))
+                return splits;
+    }
+
+    return 1;
+}
+
+bool mv::StreamingPerformance::isStreamOptimizable(mv::Data::OpListIterator opIt, std::vector<mv::Element> streaming_strategy)
+{
+    auto opType = opIt->getOpType();
+    if(!(opIt->hasTypeTrait("optimizable") && (opType == "Conv" || opType == "MaxPool" || opType == "DepthwiseConv")))
+        return false;
+
+    if (opIt->hasAttr("DilatedSubConv") && (opIt->get<bool>("DilatedSubConv")))
+        return false;
+
+    
+    auto prevOp = omodel_.getSourceOp(opIt->getInputTensor(0));
+    auto prevOpType = prevOp->getOpType();
+
+    // Note: If op is streaming, location is set to DDR even if it can fit. Use the GO decision, 
+    // as that will give indication if this will be CMX concatted later
+    bool spilling = opIt->get<bool>("goPredictsSpill");
+    bool parentSpilling = prevOp->get<bool>("goPredictsSpill");
+    
+    // Only consider ops that have input tensor in DDR
+    // In case of parallel branches, don't trust the GO prediction
+    if(!parentSpilling || (prevOpType == "Concat" || prevOpType == "Eltwise"))
+        return false;
+
+    auto clusteringStrategy = opIt->get<std::string>("splitStrategy");
+    // GO rules disallow SOH with H streaming for convs, accuracy issues
+    if(opType == "Conv" && clusteringStrategy == "SplitOverH")
+        return false;
+
+    bool isStreamingOtherDim = (streaming_strategy[3].get<int>("K") > 1 ||
+                                    streaming_strategy[2].get<int>("C") > 1 ||
+                                    streaming_strategy[4].get<int>("N") > 1 ) ? true : false;
+
+    // Note: conservative approach, only consider ops that were already streaming over H
+    // This preferences us to only dealing with big tensors - but could still see benefit
+    // with tensors that may fit in CMX but are bigger than "overhead size" dmas 
+    // (see magic number in K stream pass)
+    if(streaming_strategy[1].get<int>("H") == 1)
+        isStreamingOtherDim = true; 
+
+    // Note: Special handling here for performance on yolov2, 
+    // even if GO said to stream over K, we will still optimize over H if we can
+    // Update in GO to give clustering and H stream in this case makese this less relevant for perf
+    // but will leave here, as could still help a z-major compilation
+    bool firstOp = false;
+    if(prevOpType == "Input") firstOp = true;
+    if(firstOp && isStreamingOtherDim)
+    {
+        auto minSplits = getMinStreamOverH(opIt);
+        if(minSplits == 0) // stream over H alone won't fit
+            return false;
+
+        //See accuracy issues with clustering streamed over h and cmx concat?
+        if(!spilling)
+            return false;
+
+        // In this case, ignore other streams (they will be erased) and just stream over H
+        // (if other tests passed are passed of course)
+        isStreamingOtherDim = false;
+    }
+
+    if(isStreamingOtherDim)
+        return false;
+
+    // Note: for SOH to stream over H, must concat in DDR. 
+    // This is an un-solvable limitation of the data format, not a workaround.
+    if( clusteringStrategy == "SplitOverH" && spilling )
+    {
+        // If this guy is newly streamed over H and is SOH, make sure it doesn't cmx concat!
+        opIt->set<bool>("avoidCmxConcat", true);
+        return true;
+    }
+
+    // Note: clustering and SOK can stream over H without regard to tensor placement, 
+    if( clusteringStrategy == "SplitOverK" || clusteringStrategy == "Clustering")
+        return true;
+
+    return false;
+}
+
+//ASSUMPTION: the op must fit in cmx with just streaming over H (or no streaming at all)
+std::size_t mv::StreamingPerformance::findOptimalStream(mv::Data::OpListIterator opIt, size_t originalHStream)
+{
+    double dpuPerCluster = std::floor(totalDpus_/nClusters_);
+    auto clusteringStrategy = opIt->get<std::string>("splitStrategy");
+
+    // Step 1. Decide which tensor will be the benchmark for how many streams we should do
+    size_t input, output, weights;
+    input = output = weights = 0;
+    std::tie(input, output, weights) = getMemorySize(opIt, {1,1,1,1,1});
+
+    // Step 2. Calculate a possible number of streams using experimetnally found magic number
+    // Idea is, if possible, allow multiple slices to fit in CMX to maximize paths
+    // For example, for first layer of YoloV2, (input=416*416*3, output=416*416*32)
+    // The GO will choose to stream this over H, just enough to fit or H=7
+    //      (416*416*3) + (416*416*32) = 6056960 / 7 = 865280, which is less than CMX (weights are under 1kb)
+    // Experimentally, we found highest performance gain when we plan to fit input and output
+    // slice, the next input slice, and the full weights in around 60% of CMX. This gives
+    // the scheduler plenty of room, and creates small slices that better overlap with compute
+    //      ((416*416*3)*2 + (416*416*32)) / (917504-(weights) * 0.6) = ~12.01 -> 13
+    // Note that input and output in these equations are the full tensors because the 
+    // getMemorySize call above is invoked without any streams {1,1,1,1,1}
+    size_t magicStreams = std::ceil((2*input + output)/ ((clusterMemory_-weights)*0.6));
+    if(magicStreams < originalHStream)
+        magicStreams = originalHStream; //If GO gave carved it up into smaller pieces, must be for a reason
+    else if(magicStreams > originalHStream*3)
+        magicStreams = originalHStream*3; // Let's not get crazy with the H streams
+
+    // Can't exceed the max, which ensures at least one line of output for each stream to compute
+    size_t maxStreams = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+    if(clusteringStrategy == "SplitOverH") maxStreams = std::ceil((double)maxStreams/nClusters_);
+    maxStreams = std::ceil((double) maxStreams / dpuPerCluster);
+
+    size_t proposedStreams = std::min(magicStreams, maxStreams); //will be in range [originalHStream, maxStream]
+
+    // Step 3. Find valid stream starting from proposedStreams and decreasing towards originalHStreams
+    // Ensures lines are divided in such a way that it still fits in CMX, no workload issues etc
+    auto optStream = findOptimalValidStream(opIt, proposedStreams);
+
+    if(optStream < originalHStream)
+        return originalHStream; // Never return fewer streams than GO assigned
+    
+    return optStream;
+}
+
+void mv::StreamingPerformance::increaseStreamingOverHforPerformance(const mv::pass::PassEntry& pass)
+{
+
+    auto globalParams = omodel_.getGlobalConfigParams();
+    if (!globalParams->hasAttr("split_strategy"))
+    {
+         pass.log(mv::Logger::MessageType::Debug, "No custom splitting strategy provided, exiting..."); 
+        return;
+    }
+    if(!enableChannelMajorConv_) return;
+
+    auto streamingStrategies = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+    std::vector<mv::Element> newStreamingStrategies;
+
+    int streamCount=0;
+    for(auto streamingStrategy : streamingStrategies)
+    {
+        std::string nodeName = streamingStrategy.get<std::string>("name_filter");
+        // In case of manual strategy
+        if (!omodel_.checkOp(nodeName))
+            continue;
+
+        auto opIt = omodel_.getOp(nodeName);
+        bool updated = false;
+        auto streams = streamingStrategy.get<std::vector<mv::Element>>("splits");
+
+        // Step 0. Decide if we can insert activation streaming for this op
+        if(isStreamOptimizable(opIt, streams))
+        {
+            size_t originalHStream = streams[1].get<int>("H");
+            
+            // Step 1. Choose optimal stream over H number for this op
+            auto newHstream = findOptimalStream(opIt, originalHStream);
+
+            // Step 2. Create the new streaming strategy and add to vector
+            if(newHstream != originalHStream)
+            {
+                pass.log(mv::Logger::MessageType::Debug, "Op " + nodeName + " H stream strategy updated");
+                mv::Element element(""); 
+                element.set("name_filter",nodeName);
+
+                std::vector<mv::Element> copySplits(streams.size(),mv::Element(""));
+                copySplits[0].set<int>("W", 1);
+                copySplits[1].set<int>("H", newHstream);
+                copySplits[2].set<int>("C", 1);
+                copySplits[3].set<int>("K", 1);
+                copySplits[4].set<int>("N", 1);
+                element.set("splits",copySplits);
+
+                newStreamingStrategies.emplace_back(std::move(element));
+                updated = true;
+            }
+        }
+
+        //Step 3. Keep streaming stratgies that don't change too!
+        if(!updated)
+        {
+            newStreamingStrategies.emplace_back(std::move(streamingStrategy));
+        }
+
+        // check # streams added
+        auto strategySelected = newStreamingStrategies.back();
+        auto streamsSelected = strategySelected.get<std::vector<mv::Element>>("splits");
+        
+        // Streams are mostly 1's, so multiply total streams added
+        int streamsAdded =  streamsSelected[0].get<int>("W") * 
+                            streamsSelected[1].get<int>("H") * 
+                            streamsSelected[2].get<int>("C") *
+                            streamsSelected[3].get<int>("K") *
+                            streamsSelected[4].get<int>("N");
+        
+        streamCount += streamsAdded;
+    }
+
+    //Step 4. Save the streaming strategies into the compilation descriptor to be read by the streaming pass
+    // 1050 streams equals ~ 7000 tasks which causes the runtime load/parse time to increase to >10 seconds.
+    // vpuMgr currently times out all calls to the VPU that don't return in < 10secs
+    if (streamCount < maxHStreams_)
+    {
+        globalParams->set<std::vector<mv::Element>>("streaming_strategy", newStreamingStrategies);
     }
 }
