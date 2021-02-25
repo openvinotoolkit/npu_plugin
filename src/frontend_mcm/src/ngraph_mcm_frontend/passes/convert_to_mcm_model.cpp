@@ -133,7 +133,7 @@
 namespace {
 
 using Callback = void (*)(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-InferenceEngine::DataPtr, bool, bool, bool);
+InferenceEngine::DataPtr, bool, bool, bool, bool);
 using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
 std::vector<mv::Data::TensorIterator> getMcmInputs(std::shared_ptr<ngraph::Node> node, const NodeOutputToMcmMap& mcmOutputsMap) {
@@ -1786,7 +1786,7 @@ void convert(std::shared_ptr<ngraph::op::v0::MVN> MVN, mv::OpModel& mcmModel, No
 
 template <typename T>
 void convertDispatch(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-    InferenceEngine::DataPtr /*unused*/, bool /*unused*/, bool /*unused*/, bool /*unused*/) {
+    InferenceEngine::DataPtr /*unused*/, bool /*unused*/, bool /*unused*/, bool /*unused*/, bool /*unused*/) {
     convert(std::dynamic_pointer_cast<T>(node), mcmModel, mcmOutputsMap);
 }
 
@@ -1794,21 +1794,22 @@ void convertDispatch(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, 
 template<>
 void convertDispatch<ngraph::op::Parameter>(std::shared_ptr<ngraph::Node> node,
     mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr ieData, bool allowNCHWInput,
-    bool allowU8InputForFp16Models, bool allowConvertInputPrecisionToU8) {
+    bool allowU8InputForFp16Models, bool /*unused*/, bool allowConvertInputPrecisionToU8) {
     convert(std::dynamic_pointer_cast<ngraph::op::Parameter>(node), mcmModel, mcmOutputsMap, ieData, allowNCHWInput,
             allowU8InputForFp16Models, allowConvertInputPrecisionToU8);
 }
 
 template<>
 void convertDispatch<ngraph::op::Result>(std::shared_ptr<ngraph::Node> node,
-    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr ieData, bool /*unused*/, bool /*unused*/, bool /*unused*/) {
+    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr ieData,
+    bool /*unused*/, bool /*unused*/, bool /*unused*/, bool /*unused*/) {
     convert(std::dynamic_pointer_cast<ngraph::op::Result>(node), mcmModel, mcmOutputsMap, ieData);
 }
 
 template<>
 void convertDispatch<ngraph::op::Transpose>(std::shared_ptr<ngraph::Node> node,
     mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap, InferenceEngine::DataPtr /*unused*/, bool /*unused*/,
-    bool /*unused*/, bool allowPermuteND) {
+    bool /*unused*/, bool allowPermuteND, bool /*unused*/) {
     convert(std::dynamic_pointer_cast<ngraph::op::Transpose>(node), mcmModel, mcmOutputsMap, allowPermuteND);
 }
 

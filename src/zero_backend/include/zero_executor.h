@@ -67,7 +67,7 @@ private:
             const auto inSz = vec.size() * sizeof(T);
             if (inSz != _sz)
                 THROW_IE_EXCEPTION << "hostMem::copyFrom sizes mismatch";
-            if (0 != ie_memcpy(_data, _sz, vec.data(), inSz))
+            if (0 != memcpy_s(_data, _sz, vec.data(), inSz))
                 THROW_IE_EXCEPTION << "hostMem::copyFrom::ie_memcpy return != 0";
         }
         void copyFrom(const InferenceEngine::Blob::Ptr& blob) {
@@ -75,7 +75,7 @@ private:
             if (!mblob) THROW_IE_EXCEPTION << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
             if (mblob->byteSize() != _sz)
                 THROW_IE_EXCEPTION << "hostMem::copyFrom sizes mismatch";
-            if (0 != ie_memcpy(_data, _sz, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
+            if (0 != memcpy_s(_data, _sz, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
                 THROW_IE_EXCEPTION << "hostMem::copyFrom::ie_memcpy* return != 0";
         }
         void copyTo(InferenceEngine::Blob::Ptr& blob) const {
@@ -83,7 +83,7 @@ private:
             if (!mblob) THROW_IE_EXCEPTION << "hostMem::copyTo failing of casting blob to MemoryBlob";
 
             if (mblob->byteSize() != _sz) THROW_IE_EXCEPTION << "hostMem::copyTo sizes mismatch";
-            if (0 != ie_memcpy(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), _data, _sz))
+            if (0 != memcpy_s(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), _data, _sz))
                 THROW_IE_EXCEPTION << "hostMem::copyTo::ie_memcpy return != 0";
         }
         ~hostMem();
@@ -137,7 +137,9 @@ private:
         fence(const fence&) = delete;
         fence& operator=(const fence&) = delete;
         void reset();
-        void hostSynchronize();
+        void hostSynchronize(uint32_t fence_value_);
+        void deviceSynchronize(const commandQueue& queue_, uint32_t fence_value_);
+        void deviceSignal(uint32_t fence_value_);
         ~fence();
         ze_fence_handle_t _handle = nullptr;
     };
@@ -147,7 +149,7 @@ private:
         commandQueue(const ze_device_handle_t& deh_);
         commandQueue(const commandQueue&) = delete;
         commandQueue& operator=(const commandQueue&) = delete;
-        void executeCommandList(commandList& cl_, const fence& f_);
+        void executeCommandList(commandList& cl_);
         ~commandQueue();
         ze_command_queue_handle_t _handle = nullptr;
     };
@@ -161,9 +163,9 @@ private:
         graph() = default;
         graph(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_,
             const NetworkDescription::CPtr _networkDesc);
-        graph(const commandQueue&) = delete;
-        graph& operator=(const commandQueue&) = delete;
-        void init(const ze_device_handle_t& deh_);
+        graph(const graph&) = delete;
+        graph& operator=(const graph&) = delete;
+        void init();
         void setArgumentValue(uint32_t argi_, const void* argv_) const;
         ~graph();
         ze_graph_handle_t _handle = nullptr;
@@ -197,10 +199,6 @@ private:
         std::map<std::string, hostMem> _outputs_host_mem_map;
         std::map<std::string, deviceMem> _outputs_device_mem_map;
         std::array<commandList, stage::COUNT> _command_list;
-        std::array<fence, stage::COUNT> _fence;
-        bool _available;
-        mutable std::mutex _mutex;
-        mutable std::condition_variable _cond_var;
     };
 
     const VPUXConfig& _config;
@@ -217,6 +215,7 @@ private:
     NetworkDescription::CPtr _networkDesc;
 
     std::array<commandQueue, stage::COUNT> _command_queue;
+    std::array<fence, stage::COUNT> _fence;
 
     std::vector<std::unique_ptr<pipeline>> _pipeline;
     const uint32_t _pipeline_depth;
