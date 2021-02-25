@@ -264,7 +264,9 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             newTensor->setQuantParams(outputQuantParams);
             newTensor->setDType(outputTensor->getDType());
             newTensor->setOrder(mv::Order("NHWC"));
-
+            
+            om.getSourceOp(newTensor)->set<unsigned>("number_of_splits", number_of_splits);
+            om.getSourceOp(newTensor)->set<unsigned>("axisToSplit", axisToSplit);
             if (split != number_of_splits - 1)
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
 
@@ -293,6 +295,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                 op->get("padding"),
                                 op->get<unsigned>("dilationFactor"));
             newTensor->setQuantParams(outputQuantParams);
+            om.getSourceOp(newTensor)->set<unsigned>("number_of_splits", number_of_splits);
+            om.getSourceOp(newTensor)->set<unsigned>("axisToSplit", axisToSplit);
             if((op->hasAttr("asymmetricKernel")))
             {
                 om.getSourceOp(newTensor)->set<unsigned>("asymmetricKernel", op->get<unsigned>("asymmetricKernel"));

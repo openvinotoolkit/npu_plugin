@@ -17,7 +17,7 @@ MV_REGISTER_PASS(StreamingForPerformance).setFunc(streamingForPerformanceFnc).se
 void streamingForPerformanceFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&,
                                 mv::Element& passDesc, mv::Element&) {
     mv::OpModel om(model);
-    mv::StreamingPerformance streamingPerformance(model, om);
+    mv::StreamingPerformance streamingPerformance(om);
 
     streamingPerformance.increaseStreamingOverKforPerformance();
 }
