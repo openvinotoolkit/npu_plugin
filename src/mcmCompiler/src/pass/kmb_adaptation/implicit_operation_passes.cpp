@@ -123,8 +123,8 @@ void controlPaddingConcatFlows(mv::OpModel& om)
         // add a pseudo edge since padding concat input 1 is the master buffer
         auto padding_input = concat->getInputTensor(1UL);
         auto next_op = concat.leftmostChild();
-        next_op->addInputTensor(padding_input);
-        auto pseudo_flow = om.defineFlow(padding_input, next_op, concat->getInputTensor().size());
+        unsigned new_size = next_op->addInputTensor(padding_input);
+        auto pseudo_flow = om.defineFlow(padding_input, next_op, new_size - 1);
         pseudo_flow->set<bool>("pseudo_data_flow", true);
     }
 }
