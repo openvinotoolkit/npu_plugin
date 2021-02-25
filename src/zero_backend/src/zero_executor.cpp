@@ -23,6 +23,9 @@
 
 #include "zero_allocator.h"
 
+#include <ie_utils.hpp>
+#include <blob_factory.hpp>
+
 using namespace vpux;
 
 namespace {
@@ -50,6 +53,29 @@ size_t precisionToSize(const ze_graph_argument_precision_t val) {
         return 1;
     default:
         THROW_IE_EXCEPTION << "precisionToSize switch->default reached";
+    }
+}
+
+_ze_graph_argument_precision_t getZePrecision(InferenceEngine::Precision precision) {
+    switch (precision) {
+    case InferenceEngine::Precision::I8:
+        return ZE_GRAPH_ARGUMENT_PRECISION_INT8;
+    case InferenceEngine::Precision::U8:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UINT8;
+    case InferenceEngine::Precision::I16:
+        return ZE_GRAPH_ARGUMENT_PRECISION_INT16;
+    case InferenceEngine::Precision::U16:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UINT16;
+    case InferenceEngine::Precision::I32:
+        return ZE_GRAPH_ARGUMENT_PRECISION_INT32;
+    case InferenceEngine::Precision::FP16:
+        return ZE_GRAPH_ARGUMENT_PRECISION_FP16;
+    case InferenceEngine::Precision::FP32:
+        return ZE_GRAPH_ARGUMENT_PRECISION_FP32;
+    case InferenceEngine::Precision::BIN:
+        return ZE_GRAPH_ARGUMENT_PRECISION_BIN;
+    default:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN;
     }
 }
 
@@ -194,12 +220,13 @@ ZeroExecutor::commandQueue::~commandQueue() {
     throwOnFail("zeCommandQueueDestroy", zeCommandQueueDestroy(_handle));
 }
 
-ZeroExecutor::graph::graph(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_, const std::vector<char>& data_)
-    : _mem(drh_, data_.size()),
-      _command_queue(deh_),
-      _command_list(deh_),
-      _fence(_command_queue) {
-    _mem.copyFrom(data_);
+ZeroExecutor::graph::graph(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_,
+                           const NetworkDescription::CPtr _networkDesc)
+        : _mem(drh_, _networkDesc->getCompiledNetwork().size()), 
+          _command_queue(deh_),
+          _command_list(deh_),
+          _fence(_command_queue) {
+    _mem.copyFrom(_networkDesc->getCompiledNetwork());
 
     ze_graph_desc_t desc = { ZE_GRAPH_DESC_VERSION_CURRENT, ZE_GRAPH_FORMAT_NATIVE,
         _mem.size(), static_cast<uint8_t*>(_mem.data()) };
@@ -210,9 +237,14 @@ ZeroExecutor::graph::graph(const ze_driver_handle_t& drh_, const ze_device_handl
     {
         ze_graph_argument_properties_t arg;
         throwOnFail("zeGraphGetArgumentProperties", zeGraphGetArgumentProperties(_handle, index, &arg));
-
         if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type)
         {
+            auto deviceInputs = _networkDesc->getDeviceInputsInfo();
+
+            // [Track number: S#49808]
+            // hack for correct memory allocation on device
+            arg.precision = getZePrecision(deviceInputs.at(arg.name)->getPrecision());
+
             _inputs_desc_map.emplace(std::make_pair(std::string(arg.name), argumentDescriptor{ arg, index }));
         }
         else
@@ -282,9 +314,10 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
       _logger(std::make_shared<vpu::Logger>("ZeroExecutor", _config.logLevel(), vpu::consoleOutput())),
       _driver_handle(driver_handle),
       _device_handle(device_handle),
-      _graph(driver_handle, device_handle, networkDescription->getCompiledNetwork()),
+      _graph(driver_handle, device_handle, networkDescription),
       _push_count(0),
       _pull_count(0),
+      _networkDesc(networkDescription),
       _command_queue{ device_handle, device_handle, device_handle },
       _pipeline_depth(4) {
     for (uint32_t index = 0; index < _pipeline_depth; ++index) {
@@ -294,8 +327,25 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
     _graph.init(device_handle);
 }
 
+static void prepareInputForInference(
+        const InferenceEngine::Blob::Ptr& actualInput, const InferenceEngine::Precision& expectedPrecision, void* dest_data=nullptr) {
+    if (actualInput == nullptr) {
+        THROW_IE_EXCEPTION << "Actual input blob null pointer!";
+    }
+    if (actualInput->getTensorDesc().getPrecision() == expectedPrecision || dest_data == nullptr) {
+        return;
+    }
+
+    auto out_blob = make_blob_with_precision(
+            InferenceEngine::TensorDesc(expectedPrecision, actualInput->getTensorDesc().getDims(),
+                                        actualInput->getTensorDesc().getLayout()),
+            dest_data);
+    toPrecision(actualInput, out_blob);
+}
+
 void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
     _logger->info("ZeroExecutor::push started");
+    const auto& deviceInputs = _networkDesc->getDeviceInputsInfo();
 
     const auto depth = _push_count++ % _pipeline_depth;
 
@@ -314,10 +364,16 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
         auto& desc = mapArguments(_graph._inputs_desc_map, name);
         if (!twoApiLayoutCouplingCheck(desc.info.layout, input->getTensorDesc().getLayout()))
             THROW_IE_EXCEPTION << "Layouts is different for push blobs";
-        if (input->byteSize() != getSizeIOBytes(desc.info)) THROW_IE_EXCEPTION << "Sizes are different for push blobs";
-
+        if (input->byteSize() != getSizeIOBytes(desc.info)) {
+            _logger->info("Sizes are different for push blobs. Need precision convert");
+        }
+        
         auto& hostMem = mapArguments(_pipeline[depth]->_inputs_host_mem_map, name);
-        hostMem.copyFrom(input);
+        if (input->getTensorDesc().getPrecision() == deviceInputs.at(name)->getPrecision()) {
+            hostMem.copyFrom(input);
+        } else {
+            prepareInputForInference(input, deviceInputs.at(name)->getPrecision(), hostMem.data());
+        }
     }
 
     // Schedule the copy of inputs from zeDriverAllocHostMem to zeDriverAllocDeviceMem and wait

@@ -44,6 +44,7 @@ ie::Blob::Ptr makeScalarBlob(int64_t val, const ie::Precision& precision = ie::P
 
 ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precision,
                           const std::shared_ptr<InferenceEngine::IAllocator>& alloc = nullptr);
+ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, ie::Blob::Ptr& out);
 ie::Blob::Ptr toDefPrecision(const ie::Blob::Ptr& in);
 
 inline ie::Blob::Ptr toFP32(const ie::Blob::Ptr& in) {
