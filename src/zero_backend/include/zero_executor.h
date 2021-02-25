@@ -159,7 +159,8 @@ private:
 
     struct graph {
         graph() = default;
-        graph(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_, const std::vector<char>& data_) ;
+        graph(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_,
+            const NetworkDescription::CPtr _networkDesc);
         graph(const commandQueue&) = delete;
         graph& operator=(const commandQueue&) = delete;
         void init(const ze_device_handle_t& deh_);
@@ -213,6 +214,7 @@ private:
     uint32_t _push_count;
     uint32_t _pull_count;
 
+    NetworkDescription::CPtr _networkDesc;
 
     std::array<commandQueue, stage::COUNT> _command_queue;
 
