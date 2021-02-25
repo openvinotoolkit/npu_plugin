@@ -140,7 +140,7 @@ TEST(mcmCompiler, streaming_performance_per_cluster_weights_size) {
     unit.initialize();
     unit.run();
 
-    mv::StreamingPerformance streamingPerformance(om);
+    mv::StreamingPerformance streamingPerformance(om, 1000);
     std::shared_ptr<mv::Element> returnedParams = om.getGlobalConfigParams();
     auto streamingStrategyList = returnedParams->get<std::vector<mv::Element>>("streaming_strategy");
     auto multiClusterStrategyList = returnedParams->get<std::vector<mv::Element>>("split_strategy");
