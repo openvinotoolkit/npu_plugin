@@ -1,19 +1,21 @@
-#include "pass/lp_scheduler/pipeline_chains_transform.hpp"
+#include "src/pass/lp_scheduler/pipeline_chains_transform.hpp"
 #include "include/mcm/pass/graphOptimizations/strategy_utils.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
 namespace mv {
 class StreamingPerformance {
 public:
-    StreamingPerformance(mv::ComputationModel& model, mv::OpModel& omodel);
+    StreamingPerformance(mv::OpModel& omodel);
     ~StreamingPerformance();
     void increaseStreamingOverKforPerformance();
+
+    size_t calculateperClusterWeightsSize(mv::Op& op, const mv::Attribute& clustering, const bool weightsSparsity,
+                                          const mv::Shape& streamConfig);
 
 private:
     typedef mv::scheduler::Pipeline_Chains pipeline_chains_t;
     typedef typename pipeline_chains_t::chain_subgraph_t subgraph_t;
 
-    mv::ComputationModel& model_;
     mv::OpModel& omodel_;
     std::shared_ptr<mv::Element> globalParams_;
     mv::scheduler::Pipeline_Chains pipelineChains_;
@@ -34,10 +36,6 @@ private:
             {"SplitOverK", 64}, {"Clustering", 16}, {"SplitOverH", 16}, {"HKSwitch", 16}};
 
     std::map<size_t, size_t> calculateMininumWeightsSizePerClusterPerChain();
-
-    size_t calculateperClusterWeightsSize(mv::Op& op, const mv::Attribute& clustering, const bool weightsSparsity,
-                                          const mv::Shape& streamConfig);
-
     std::tuple<std::vector<mv::Element>, mv::Attribute, bool> getGraphOptimizerAssignedStategies(const std::string opName);
 
     std::pair<size_t, double> calculatefullWeightsSizeForOpandOptimalKStreaming(const std::string multiclusterStrategy,
