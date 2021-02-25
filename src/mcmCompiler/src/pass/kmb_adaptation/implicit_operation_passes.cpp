@@ -125,7 +125,7 @@ void controlPaddingConcatFlows(mv::OpModel& om)
         auto next_op = concat.leftmostChild();
         unsigned new_size = next_op->addInputTensor(padding_input);
         auto pseudo_flow = om.defineFlow(padding_input, next_op, new_size - 1);
-        pseudo_flow->set<bool>("pseudo_data_flow", true);
+        pseudo_flow->set<bool>("padding_data_flow", true);
     }
 }
 
