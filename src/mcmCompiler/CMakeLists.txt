@@ -145,11 +145,15 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/utils/custom_strings.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/compression/hde.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/helpers.cpp"
+    "${PROJECT_SOURCE_DIR}/src/utils/profiling_parser.cpp"
+    "${PROJECT_SOURCE_DIR}/src/utils/compression/btc.cpp"
 
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/logging.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/ms_vasprintf.cpp"
+
+    "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/src/bitCompactor.cpp"
 )
 
 set(model
@@ -226,6 +230,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/insert_barrier_tasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/dma_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/deallocation_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/profiling.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/splitting_across_clusters.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_graph_optimizer_decisions.cpp"
@@ -268,7 +273,6 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/physical_barrier_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_json.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/global_params_reset.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/serialization/assign_intermediate_outputs.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/validation/basic_checks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"
@@ -284,6 +288,8 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_dmas_from_concat.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/recompute_implicit_memory_locations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/pipeline_across_parallel_branches.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/mem_context_huge_activation_transform.cpp"
+
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
@@ -351,6 +357,7 @@ target_include_directories(mcmCompiler
         "${PROJECT_SOURCE_DIR}/src"
         "${PROJECT_SOURCE_DIR}/src/pass"
         "${PROJECT_SOURCE_DIR}/include/huffman_encoding"
+        "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/include/"
 )
 
 target_link_libraries(mcmCompiler

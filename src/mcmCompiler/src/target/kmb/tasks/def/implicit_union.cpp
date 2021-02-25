@@ -79,8 +79,7 @@ namespace mv
         .setOutputs({"output"})
         .setVariableInputNum(true)
         .setInputCheck(op_implicit_union::inputCheckFcn)
-        .setOutputDef(op_implicit_union::outputDefFcn)
-        .setExtraInputs(true);
+        .setOutputDef(op_implicit_union::outputDefFcn);
 
     }
 }
