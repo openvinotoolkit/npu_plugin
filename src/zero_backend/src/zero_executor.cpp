@@ -200,8 +200,14 @@ ZeroExecutor::fence::fence(const commandQueue& cq_) {
 void ZeroExecutor::fence::reset() {
     throwOnFail("zeFenceReset", zeFenceReset(_handle));
 }
-void ZeroExecutor::fence::hostSynchronize() {
-    throwOnFail("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, 0));
+void ZeroExecutor::fence::hostSynchronize(uint32_t fence_value_) {
+    throwOnFail("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, fence_value_));
+}
+void ZeroExecutor::fence::deviceSynchronize(const commandQueue& queue_, uint32_t fence_value_) {
+    throwOnFail("zeFenceDeviceSynchronize", zeFenceDeviceSynchronize(queue_._handle, _handle, fence_value_));
+}
+void ZeroExecutor::fence::deviceSignal(uint32_t fence_value_) {
+    throwOnFail("zeFenceDeviceSignal", zeFenceDeviceSignal(_handle, fence_value_));
 }
 ZeroExecutor::fence::~fence() {
     throwOnFail("zeFenceDestroy", zeFenceDestroy(_handle));
@@ -212,9 +218,9 @@ ZeroExecutor::commandQueue::commandQueue(const ze_device_handle_t& deh_) {
         ZE_COMMAND_QUEUE_MODE_DEFAULT, ZE_COMMAND_QUEUE_PRIORITY_NORMAL };
     throwOnFail("zeCommandQueueCreate", zeCommandQueueCreate(deh_, &desc, &_handle));
 }
-void ZeroExecutor::commandQueue::executeCommandList(commandList& cl_, const fence& f_) {
+void ZeroExecutor::commandQueue::executeCommandList(commandList& cl_) {
     throwOnFail("zeCommandQueueExecuteCommandLists",
-                zeCommandQueueExecuteCommandLists(_handle, 1, &cl_._handle, f_._handle));
+                zeCommandQueueExecuteCommandLists(_handle, 1, &cl_._handle, nullptr));
 }
 ZeroExecutor::commandQueue::~commandQueue() {
     throwOnFail("zeCommandQueueDestroy", zeCommandQueueDestroy(_handle));
@@ -256,8 +262,9 @@ ZeroExecutor::graph::graph(const ze_driver_handle_t& drh_, const ze_device_handl
     _command_list.appendGraphInitialize(_handle);
     _command_list.close();
 }
-void ZeroExecutor::graph::init(const ze_device_handle_t& deh_) {
-    _command_queue.executeCommandList(_command_list, _fence);
+void ZeroExecutor::graph::init() {
+    _command_queue.executeCommandList(_command_list);
+    _fence.deviceSignal(1);
 }
 void ZeroExecutor::graph::setArgumentValue(uint32_t argi_, const void* argv_) const {
     throwOnFail("zeGraphSetArgumentValue", zeGraphSetArgumentValue(_handle, argi_, argv_));
@@ -268,9 +275,7 @@ ZeroExecutor::graph::~graph() {
 
 ZeroExecutor::pipeline::pipeline(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_,
     const std::array<commandQueue, stage::COUNT>& cq_, const graph& graph_)
-    : _command_list{ deh_, deh_, deh_ },
-      _fence{ cq_[stage::UPLOAD], cq_[stage::EXECUTE], cq_[stage::READBACK] },
-      _available(true) {
+    : _command_list{ deh_, deh_, deh_ } {
     for (const auto& desc : graph_._inputs_desc_map) {
         auto size = getSizeIOBytes(desc.second.info);
         _inputs_host_mem_map.try_emplace(desc.first, drh_, size);
@@ -319,12 +324,13 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
       _pull_count(0),
       _networkDesc(networkDescription),
       _command_queue{ device_handle, device_handle, device_handle },
-      _pipeline_depth(4) {
+      _fence{ _command_queue[stage::UPLOAD], _command_queue[stage::EXECUTE], _command_queue[stage::READBACK] },
+      _pipeline_depth(8) {
     for (uint32_t index = 0; index < _pipeline_depth; ++index) {
         _pipeline.emplace_back(std::make_unique<pipeline>(driver_handle, device_handle, _command_queue, _graph));
     }
 
-    _graph.init(device_handle);
+    _graph.init();
 }
 
 static void prepareInputForInference(
@@ -347,14 +353,14 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
     _logger->info("ZeroExecutor::push started");
     const auto& deviceInputs = _networkDesc->getDeviceInputsInfo();
 
-    const auto depth = _push_count++ % _pipeline_depth;
+    const auto iteration = _push_count++;
+    const auto depth = iteration % _pipeline_depth;
 
-    // Wait for pipeline to be available
-    {
-        std::unique_lock<std::mutex> lock(_pipeline[depth]->_mutex);
-        _pipeline[depth]->_cond_var.wait(lock, [&] { return _pipeline[depth]->_available; });
+    // Wait for input copy to finish for iteration - _pipeline_depth from the host, before overwriting the
+    // hostMem buffer for the input
+    if (iteration >= _pipeline_depth) {
+        _fence[stage::UPLOAD].hostSynchronize(iteration - _pipeline_depth + 1);
     }
-    _pipeline[depth]->_available = false;
 
     // Copy the inputs from host to zeDriverAllocHostMem buffer set up for copy
     for (const auto& inferInput : inputs) {
@@ -376,20 +382,40 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
         }
     }
 
-    // Schedule the copy of inputs from zeDriverAllocHostMem to zeDriverAllocDeviceMem and wait
-    // on host for copy to be completed
-    _command_queue[stage::UPLOAD].executeCommandList(
-            _pipeline[depth]->_command_list[stage::UPLOAD], _pipeline[depth]->_fence[stage::UPLOAD]);
-    _pipeline[depth]->_fence[stage::UPLOAD].hostSynchronize();
-
-    // For the very first inference, wait for graph init to complete execution on device
-    if (_push_count == 1) {
-        _graph._fence.hostSynchronize();
+    // Wait for execute to finish for iteration - _pipeline_depth from the upload command queue on device,
+    // before overwriting the deviceMem buffer for input
+    if (iteration >= _pipeline_depth) {
+        _fence[stage::EXECUTE].deviceSynchronize(
+            _command_queue[stage::UPLOAD], iteration - _pipeline_depth + 1);
     }
 
+    // Schedule the copy of inputs from zeDriverAllocHostMem to zeDriverAllocDeviceMem
+    _command_queue[stage::UPLOAD].executeCommandList(_pipeline[depth]->_command_list[stage::UPLOAD]);
+
+    // Signal fence from device after input copy is executed from upload command queue on device
+    _fence[stage::UPLOAD].deviceSignal(iteration + 1);
+
+    // For the very first inference, wait for graph init to complete execution on the device
+    if (iteration == 0) {
+        _graph._fence.hostSynchronize(1);
+    }
+
+    // Wait for readback to finish for iteration - _pipeline_depth from the execute command queue on device,
+    // before executing the inference and potentially overwriting the deviceMem buffer for output
+    if (iteration >= _pipeline_depth) {
+        _fence[stage::READBACK].deviceSynchronize(
+            _command_queue[stage::EXECUTE], iteration - _pipeline_depth + 1);
+    }
+
+    // Wait for input copy to finish for iteration from the execute command queue on device,
+    // before executing the inference to make sure that input data is available
+    _fence[stage::UPLOAD].deviceSynchronize(_command_queue[stage::EXECUTE], iteration + 1);
+
     // Schedule the inference, wait for completion will be in matching pull
-    _command_queue[stage::EXECUTE].executeCommandList(
-        _pipeline[depth]->_command_list[stage::EXECUTE], _pipeline[depth]->_fence[stage::EXECUTE]);
+    _command_queue[stage::EXECUTE].executeCommandList(_pipeline[depth]->_command_list[stage::EXECUTE]);
+
+    // Signal fence from device after inference is executed from execute command queue on device
+    _fence[stage::EXECUTE].deviceSignal(iteration + 1);
 
     _logger->info("ZeroExecutor::push finished");
 }
@@ -397,16 +423,22 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
 void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
     _logger->info("ZeroExecutor::pull started");
 
-    const auto depth = _pull_count++ % _pipeline_depth;
+    const auto iteration = _pull_count++;
+    const auto depth = iteration % _pipeline_depth;
 
-    // Wait for the inference to complete execution on device
-    _pipeline[depth]->_fence[stage::EXECUTE].hostSynchronize();
+    // Wait for inference to finish for _pull_count from the readback command queue on device,
+    // to make sure that output data is available
+    _fence[stage::EXECUTE].deviceSynchronize(_command_queue[READBACK], iteration + 1);
 
-    // Schedule the copy of outputs from zeDriverAllocDeviceMem to zeDriverAllocHostMem and wait
-    // on host for copy to complete
-    _command_queue[stage::READBACK].executeCommandList(
-        _pipeline[depth]->_command_list[stage::READBACK], _pipeline[depth]->_fence[stage::READBACK]);
-    _pipeline[depth]->_fence[stage::READBACK].hostSynchronize();
+    // Schedule the copy of outputs from zeDriverAllocDeviceMem to zeDriverAllocHostMem
+    _command_queue[stage::READBACK].executeCommandList(_pipeline[depth]->_command_list[stage::READBACK]);
+
+    // Signal fence from device after output copy is completed from readback command queue on device
+    _fence[stage::READBACK].deviceSignal(iteration + 1);
+
+    // Wait for output copy to finish execution for _pull_count from the host, to make sure that data
+    // is available in the hostMem buffer of the output
+    _fence[stage::READBACK].hostSynchronize(iteration + 1);
 
     // Copy the outputs from set up zeDriverAllocHostMem to the host
     for (auto& inferOutput : outputs) {
@@ -421,18 +453,6 @@ void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
 
         auto& hostMem = mapArguments(_pipeline[depth]->_outputs_host_mem_map, name);
         hostMem.copyTo(output);
-    }
-
-    // Reset fences
-    for (auto& fence: _pipeline[depth]->_fence) {
-        fence.reset();
-    }
-
-    // Signal that pipeline is available
-    {
-        std::unique_lock<std::mutex> lock(_pipeline[depth]->_mutex);
-        _pipeline[depth]->_available = true;
-        _pipeline[depth]->_cond_var.notify_all();
     }
 
     _logger->info("ZeroExecutor::pull finished");

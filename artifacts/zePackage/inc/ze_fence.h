@@ -137,10 +137,11 @@ zeFenceHostSynchronize(
                                                     ///< if zero, then operates exactly like ::zeFenceQueryStatus;
                                                     ///< if UINT32_MAX, then function will not return until complete or device
                                                     ///< is lost.
+                                                    ///< Overloaded to specify fence value for host synchronization.
     );
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Queries a fence object's status.
+/// @brief Signal a fence value from the associated command queue.
 /// 
 /// @details
 ///     - The application may call this function from simultaneous threads.
@@ -148,8 +149,61 @@ zeFenceHostSynchronize(
 /// 
 /// @remarks
 ///   _Analogues_
-///     - **vkGetFenceStatus**
+///     - **vkWaitForFences**
 /// 
+/// @returns
+///     - ::ZE_RESULT_SUCCESS
+///     - ::ZE_RESULT_ERROR_UNINITIALIZED
+///     - ::ZE_RESULT_ERROR_DEVICE_LOST
+///     - ::ZE_RESULT_ERROR_INVALID_NULL_HANDLE
+///         + `nullptr == hFence`
+///     - ::ZE_RESULT_ERROR_INVALID_SYNCHRONIZATION_OBJECT
+///     - ::ZE_RESULT_NOT_READY
+///         + timeout expired
+__ze_api_export ze_result_t __zecall
+zeFenceDeviceSignal(
+    ze_fence_handle_t hFence,                        ///< [in] handle of the fence
+    uint32_t value                                   ///< [in] fence value to signal
+    );
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Wait for a fence value from input command queue.
+///
+/// @details
+///     - The application may call this function from simultaneous threads.
+///     - The implementation of this function should be lock-free.
+///
+/// @remarks
+///   _Analogues_
+///     - **vkWaitForFences**
+///
+/// @returns
+///     - ::ZE_RESULT_SUCCESS
+///     - ::ZE_RESULT_ERROR_UNINITIALIZED
+///     - ::ZE_RESULT_ERROR_DEVICE_LOST
+///     - ::ZE_RESULT_ERROR_INVALID_NULL_HANDLE
+///         + `nullptr == hFence`
+///     - ::ZE_RESULT_ERROR_INVALID_SYNCHRONIZATION_OBJECT
+///     - ::ZE_RESULT_NOT_READY
+///         + timeout expired
+__ze_api_export ze_result_t __zecall
+zeFenceDeviceSynchronize(
+    ze_command_queue_handle_t hCommandQueue,         ///< [in] handle of the command queue
+    ze_fence_handle_t hFence,                        ///< [in] handle of the fence
+    uint32_t value                                   ///< [in] fence value to wait on
+    );
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Queries a fence object's status.
+///
+/// @details
+///     - The application may call this function from simultaneous threads.
+///     - The implementation of this function should be lock-free.
+///
+/// @remarks
+///   _Analogues_
+///     - **vkGetFenceStatus**
+///
 /// @returns
 ///     - ::ZE_RESULT_SUCCESS
 ///     - ::ZE_RESULT_ERROR_UNINITIALIZED
