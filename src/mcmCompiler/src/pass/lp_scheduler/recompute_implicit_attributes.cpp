@@ -37,11 +37,11 @@ void compute_ops_in_degree(mv::OpModel &om, op_list_t& zero_in_degree_nodes, deg
 }
 
 template<typename T>
-class Attrs {
+class Attribute_Propagator {
   public:
     typedef std::unordered_map<operation_t, T> table_t;
     
-    Attrs(std::string name, mv::OpModel& om, op_list_t& zero_in_degree, degree_map_t in_degree_map) :
+    Attribute_Propagator(std::string name, mv::OpModel& om, op_list_t& zero_in_degree, degree_map_t in_degree_map) :
       attr_name_(name),
       omodel_(om),
       zero_in_degree_nodes_(zero_in_degree),
@@ -49,7 +49,7 @@ class Attrs {
       attr_table_.clear();
     }
 
-    virtual ~Attrs() {};
+    virtual ~Attribute_Propagator() {};
 
     void set_recomputed_attr() {
       for (const auto& itr : attr_table_) {
@@ -150,12 +150,12 @@ class Attrs {
     virtual bool is_required_op_type(operation_t const&) const = 0;
     virtual void propagate_attr_to_child(operation_t, T const&) = 0;
     virtual T get_attr_of_real_op(mv::Data::TensorIterator const &) const = 0;
-}; // class Attrs<T> //
+}; // class Attribute_Propagator<T> //
 
-class Mem_Loc_Attr final: public Attrs<mem_location_t> {
+class Mem_Loc_Attr final: public Attribute_Propagator<mem_location_t> {
   public:
     Mem_Loc_Attr(mv::OpModel& om, op_list_t& zero_in_degree, degree_map_t in_degree_map) :
-      Attrs<mem_location_t>("Location", om, zero_in_degree, in_degree_map) {}
+      Attribute_Propagator<mem_location_t>("Location", om, zero_in_degree, in_degree_map) {}
 
   private:
     void propagate_attr_to_child(operation_t child_op, mem_location_t const& parent_mem_loc) override {
@@ -184,17 +184,12 @@ class Mem_Loc_Attr final: public Attrs<mem_location_t> {
 
 }; // class Mem_Loc_Attr //
 
-class Addr_Attr final: public Attrs<std::size_t> {
+class Addr_Attr final: public Attribute_Propagator<std::size_t> {
   typedef std::map<std::string, std::function<void(table_t&, operation_t, std::size_t const)>> func_map_t;
 
   public:
     Addr_Attr(mv::OpModel& om, op_list_t& zero_in_degree, degree_map_t in_degree_map) :
-      Attrs<std::size_t>("address", om, zero_in_degree, in_degree_map) {}
-
-  private:
-    void propagate_attr_to_child(operation_t child_op, std::size_t const& parent_addr) override {
-      // if already has an entry (for implicit ops with multiple inputs, ex. Concat)
-      // make sure the address of the child is the lowest one
+      Attribute_Propagator<std::size_t>("address", om, zero_in_degree, in_degree_map) {
 
       auto propagate_parent_address = [] (table_t& attr_table, operation_t child, std::size_t const parent_address) {
         auto aitr = attr_table.find(child);
@@ -217,7 +212,7 @@ class Addr_Attr final: public Attrs<std::size_t> {
         }
       };
 
-      func_map_t propagate_addr = {
+      propagate_addr_ = func_map_t({
         {"Align", propagate_parent_address},
         {"Copy", propagate_parent_address},
         {"Crop", propagate_parent_address},
@@ -225,10 +220,12 @@ class Addr_Attr final: public Attrs<std::size_t> {
         {"ImplicitPermute", propagate_parent_address},
         {"ImplicitReshape", propagate_parent_address},
         {"Slice", propagate_parent_address}
-      };
+      });
+    }
 
-      propagate_addr.at(child_op->getOpType())(attr_table_, child_op, parent_addr);
-
+  private:
+    void propagate_attr_to_child(operation_t child_op, std::size_t const& parent_addr) override {
+      propagate_addr_.at(child_op->getOpType())(attr_table_, child_op, parent_addr);
     }
 
     std::string attr_val_to_string(std::size_t const& val) const override {
@@ -238,10 +235,7 @@ class Addr_Attr final: public Attrs<std::size_t> {
     // TODO: Add addres computation for the other implicit ops (ImplicitOutput,
     // ImplicitUnion, ImplicitInput, ImplicitInputSlice, ImplicitJoin)
     virtual bool is_required_op_type(operation_t const& op) const override {
-      const std::vector<std::string> reqOps = { 
-        "Align", "Copy", "Crop", "ImplicitConcat",
-        "ImplicitPermute", "ImplicitReshape", "Slice" };
-      return std::find(reqOps.begin(), reqOps.end(), op->getOpType()) != reqOps.end();
+      return propagate_addr_.find(op->getOpType()) != propagate_addr_.end();
     }
 
     virtual void set_attr(mv::Data::TensorIterator tensor_itr, std::size_t const& val) const override {
@@ -263,6 +257,8 @@ class Addr_Attr final: public Attrs<std::size_t> {
       auto master_buffer = t_allocator.getTopMasterBuffer(tensor_buff_itr);
       return (*master_buffer)->getOffset();
     }
+
+    func_map_t propagate_addr_;
 }; // class Addr_Attr //
 
 static void RecomputeImplicitOpAttr(const mv::pass::PassEntry&,
