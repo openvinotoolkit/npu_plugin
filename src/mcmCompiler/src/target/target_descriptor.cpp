@@ -471,7 +471,8 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
         else
         {
 
-            if (jsonDescriptor["target"].get<std::string>() == "ma2490")
+            if (jsonDescriptor["target"].get<std::string>() == "ma2490" ||
+                jsonDescriptor["target"].get<std::string>() == "ma3100")
             {
                 for (std::size_t i = 0; i < jsonDescriptor["resources"]["huffman_decode_engine"].size(); ++i)
                 {
