@@ -435,6 +435,7 @@ def IE_AddOp :
         RankedTensorOf<[F16, F32]>:$output
     );
 
+    let hasCanonicalizer = 1;
     let hasFolder = 1;
 }
 
@@ -1523,7 +1524,6 @@ def IE_SwishOp :
     let hasCanonicalizer = 1;
 }
 
-
 //
 // ScaleShiftOp
 //
@@ -1532,6 +1532,7 @@ def IE_ScaleShiftOp :
         IE_LayerOp<
             "ScaleShift",
             [
+                AttrSizedOperandSegments,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ScaleShiftLayerInterface>
             ]
@@ -1540,13 +1541,15 @@ def IE_ScaleShiftOp :
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
-        RankedTensorOf<[F16, F32]>:$weights,
-        RankedTensorOf<[F16, F32]>:$biases
+        Optional<RankedTensorOf<[F16, F32]>>:$weights,
+        Optional<RankedTensorOf<[F16, F32]>>:$biases
     );
 
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
+
+    let hasCanonicalizer = 1;
 }
 
 //

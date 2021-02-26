@@ -249,8 +249,19 @@ void vpux::VPUIP::ScaleShiftUPAOp::build(mlir::OpBuilder& builder, mlir::Operati
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ScaleShiftUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto scaleShift = MVCNN::CreateScaleShiftParams(writer);
 
+    MVCNN::PostOpsNestedParams opType{};
+    if (weights() != nullptr && biases() != nullptr) {
+        opType = MVCNN::PostOpsNestedParams_ScaleShiftParams;
+    } else if (weights() != nullptr) {
+        opType = MVCNN::PostOpsNestedParams_ScaleParams;
+    } else if (biases() != nullptr) {
+        opType = MVCNN::PostOpsNestedParams_BiasParams;
+    } else {
+        VPUX_THROW("ScaleShift must have weights or biases");
+    }
+
     MVCNN::PostOpsParamsBuilder builder(writer);
-    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_ScaleShiftParams);
+    builder.add_nested_params_type(opType);
     builder.add_nested_params(scaleShift.Union());
     const auto paramsOff = builder.Finish();
 

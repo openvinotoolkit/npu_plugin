@@ -509,7 +509,17 @@ def ScaleShiftLayerInterface : OpInterface<"ScaleShiftLayerInterface"> {
 
     let extraTraitClassDeclaration = [{
         vpux::SmallVector<mlir::Value> getInputs() {
-            return {$_op.input(), $_op.weights(), $_op.biases()};
+            vpux::SmallVector<mlir::Value> inputs {$_op.input()};
+
+            if ($_op.weights() != nullptr) {
+                inputs.push_back($_op.weights());
+            }
+
+            if ($_op.biases() != nullptr) {
+                inputs.push_back($_op.biases());
+            }
+
+            return inputs;
         }
 
         vpux::SmallVector<mlir::Value> getOutputs() {

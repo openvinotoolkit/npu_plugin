@@ -449,7 +449,10 @@ def RewriteDetectionOutput :
 def createScaleShiftUPAOp :
         NativeCodeCall<[{
             $_builder.create<vpux::VPUIP::ScaleShiftUPAOp>(
-                $_loc, $0, $1, $2, $3)
+                $_loc, $0,
+                $1.size() == 1 ? $1[0] : nullptr,
+                $2.size() == 1 ? $2[0] : nullptr,
+                $3)
         }]>;
 
 def RewriteScaleShift :

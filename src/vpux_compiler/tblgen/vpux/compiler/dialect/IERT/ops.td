@@ -939,6 +939,7 @@ def IERT_ScaleShiftOp :
         IERT_LayerOp<
             "ScaleShift",
             [
+                AttrSizedOperandSegments,
                 SameOperandsElementType,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ScaleShiftLayerInterface>
@@ -948,8 +949,8 @@ def IERT_ScaleShiftOp :
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$weights,
-        MemRefOf<[F16, F32]>:$biases,
+        Optional<MemRefOf<[F16, F32]>>:$weights,
+        Optional<MemRefOf<[F16, F32]>>:$biases,
         MemRefOf<[F16, F32]>:$output
     );
 }
