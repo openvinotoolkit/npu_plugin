@@ -219,15 +219,6 @@ void RecomputePaddingConcatMemoryLocationsFcn(const mv::pass::PassEntry&, mv::Co
     mv::OpModel om(model);
     for(auto padding_concat : om.getOps("PaddingConcat")) 
     {
-        if(padding_concat->getInputTensor(1UL)->hasAttr("address")) 
-        {
-            // padding tensor is the master buffer, set all PaddingCOncat tensor to the padding concat tensor address
-            // the padding DMA will occur first (setting the CMX to zero points), then the Input DMA and this
-            // buffer will be the input to the next op
-            int64_t concrete_address = padding_concat->getInputTensor(1UL)->get<std::size_t>("address");
-            padding_concat->getInputTensor(0UL)->setAddress(concrete_address);
-            padding_concat->getOutputTensor(0UL)->setAddress(concrete_address);
-        }
         // schedule the padding DMA before the input DMA
         auto inputDMA = om.getSourceOp(padding_concat->getInputTensor(0UL));
         auto paddingDMA = om.getSourceOp(padding_concat->getInputTensor(1UL));
