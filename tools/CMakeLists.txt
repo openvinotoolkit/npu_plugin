@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO: It is disabled for Windows due dependency on Boost.fs
-if(UNIX)
-    add_subdirectory(model-comparator)
-endif()
+add_subdirectory(model-comparator)
 
 add_subdirectory(test_classification)
 add_subdirectory(single-image-test)
