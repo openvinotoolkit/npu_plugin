@@ -23,8 +23,6 @@ void streamingForPerformanceFnc(const mv::pass::PassEntry& pass, mv::Computation
         maxHStreams = passDesc.get<int>("maxHStreams");
     mv::StreamingPerformance streamingPerformance(om, maxHStreams);
 
-    streamingPerformance.increaseStreamingOverKforPerformance();
-
     // Note: The idea of this pass is to increase streaming over the height dimension in specific cases
     // to increase performance. Specifically, we consider DPU tasks (convs, dw, maxpool) that have their
     // input tensor in DDR. Performance increase results because smaller DMA of input slices leads to
@@ -39,4 +37,5 @@ void streamingForPerformanceFnc(const mv::pass::PassEntry& pass, mv::Computation
     // that were already streaming over H, but this pass could be extended to consider non-streaming ops.
 
     streamingPerformance.increaseStreamingOverHforPerformance(pass);
+    streamingPerformance.increaseStreamingOverKforPerformance();
 }
