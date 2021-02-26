@@ -22,13 +22,15 @@
 
 #include <ngraph/function.hpp>
 
-#include <boost/filesystem.hpp>
-
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
 
 #include <gflags/gflags.h>
+
+#include <llvm/ADT/SmallString.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Path.h>
 
 #include <iostream>
 #include <iomanip>
@@ -37,7 +39,8 @@
 #include <string>
 #include <unordered_set>
 
-namespace fs = boost::filesystem;
+namespace fs = llvm::sys::fs;
+namespace path = llvm::sys::path;
 namespace ie = InferenceEngine;
 
 namespace {
@@ -151,15 +154,23 @@ void parseCommandLine(int argc, char* argv[]) {
 // Directories
 //
 
-fs::path inputBaseDir;
-fs::path inputSubNetworksDir;
-fs::path inputBlobsDir;
+using Path = llvm::SmallString<256>;
 
-fs::path outputBaseDir;
-fs::path outputSubNetworksDir;
-fs::path outputBlobsDir;
-fs::path outputReportDir;
-fs::path outputReportLayersDir;
+Path inputBaseDir;
+Path inputSubNetworksDir;
+Path inputBlobsDir;
+
+Path outputBaseDir;
+Path outputSubNetworksDir;
+Path outputBlobsDir;
+Path outputReportDir;
+Path outputReportLayersDir;
+
+std::string joinPath(llvm::StringRef a, llvm::StringRef b) {
+    Path result = a;
+    path::append(result, b);
+    return result.str().str();
+}
 
 void setupDirectories() {
     IE_ASSERT(!FLAGS_input_dir.empty());
@@ -167,10 +178,10 @@ void setupDirectories() {
     IE_ASSERT(fs::exists(inputBaseDir) && fs::is_directory(inputBaseDir));
 
     if (!FLAGS_run_compile) {
-        inputSubNetworksDir = inputBaseDir / "sub-networks";
+        inputSubNetworksDir = joinPath(inputBaseDir, "sub-networks");
     }
     if (!FLAGS_run_ref) {
-        inputBlobsDir = inputBaseDir / "blobs";
+        inputBlobsDir = joinPath(inputBaseDir, "blobs");
     }
 
     IE_ASSERT(!FLAGS_output_dir.empty());
@@ -178,20 +189,20 @@ void setupDirectories() {
     fs::create_directories(outputBaseDir);
 
     if (FLAGS_run_compile) {
-        outputSubNetworksDir = outputBaseDir / "sub-networks";
+        outputSubNetworksDir = joinPath(outputBaseDir, "sub-networks");
         fs::create_directories(outputSubNetworksDir);
     }
 
     if (FLAGS_run_ref && !FLAGS_run_infer) {
-        outputBlobsDir = outputBaseDir / "blobs";
+        outputBlobsDir = joinPath(outputBaseDir, "blobs");
         fs::create_directories(outputBlobsDir);
     }
 
     if (FLAGS_run_infer) {
-        outputReportDir = outputBaseDir / "report";
+        outputReportDir = joinPath(outputBaseDir, "report");
         fs::create_directories(outputReportDir);
 
-        outputReportLayersDir = outputReportDir / "layers";
+        outputReportLayersDir = joinPath(outputReportDir, "layers");
         fs::create_directories(outputReportLayersDir);
     }
 }
@@ -317,8 +328,8 @@ void dumpDiffMaps(const ie::Blob::Ptr& diffBlob, const std::string& baseName, st
         }
 
         const auto planeDiffFileName = baseName + "_" + std::to_string(planeInd) + ".bmp";
-        const auto planeDiffFilePath = outputReportLayersDir / planeDiffFileName;
-        cv::imwrite(planeDiffFilePath.string(), planeDiffImg);
+        const auto planeDiffFilePath = joinPath(outputReportLayersDir, planeDiffFileName);
+        cv::imwrite(planeDiffFilePath, planeDiffImg);
 
         const int htmlWidth = 640;
         const int htmlHeight = static_cast<int>(static_cast<double>(planeHeight) / planeWidth * htmlWidth);
@@ -746,19 +757,19 @@ ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs) {
 }
 
 void serializeNetwork(ie::CNNNetwork& net, const std::string& baseFileName) {
-    const auto xmlPath = outputSubNetworksDir / (baseFileName + ".xml");
-    const auto binPath = outputSubNetworksDir / (baseFileName + ".bin");
+    const auto xmlPath = joinPath(outputSubNetworksDir, (baseFileName + ".xml"));
+    const auto binPath = joinPath(outputSubNetworksDir, (baseFileName + ".bin"));
 
-    net.serialize(xmlPath.string(), binPath.string());
+    net.serialize(xmlPath, binPath);
 }
 
 void exportNetwork(ie::ExecutableNetwork& exeNet, const std::string& fileName) {
-    const auto filePath = outputSubNetworksDir / fileName;
+    const auto filePath = joinPath(outputSubNetworksDir, fileName);
 
     if (FLAGS_raw_export) {
-        exeNet.Export(filePath.string());
+        exeNet.Export(filePath);
     } else {
-        std::ofstream file(filePath.string(), std::ios_base::out | std::ios_base::binary);
+        std::ofstream file(filePath, std::ios_base::out | std::ios_base::binary);
         IE_ASSERT(file.is_open());
 
         exeNet.Export(file);
@@ -766,12 +777,12 @@ void exportNetwork(ie::ExecutableNetwork& exeNet, const std::string& fileName) {
 }
 
 ie::ExecutableNetwork importNetwork(const std::string& fileName) {
-    const auto filePath = inputSubNetworksDir / fileName;
+    const auto filePath = joinPath(inputSubNetworksDir, fileName);
 
     if (FLAGS_raw_export) {
-        return ieCore.ImportNetwork(filePath.string(), FLAGS_actual_device);
+        return ieCore.ImportNetwork(filePath, FLAGS_actual_device);
     } else {
-        std::ifstream file(filePath.string(), std::ios_base::in | std::ios_base::binary);
+        std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
         IE_ASSERT(file.is_open());
 
         return ieCore.ImportNetwork(file, FLAGS_actual_device);
@@ -779,21 +790,21 @@ ie::ExecutableNetwork importNetwork(const std::string& fileName) {
 }
 
 void dumpBlob(const ie::Blob::Ptr& blob, const std::string& fileName) {
-    const auto filePath = outputBlobsDir / fileName;
+    const auto filePath = joinPath(outputBlobsDir, fileName);
 
-    std::ofstream file(filePath.string(), std::ios_base::out | std::ios_base::binary);
+    std::ofstream file(filePath, std::ios_base::out | std::ios_base::binary);
     IE_ASSERT(file.is_open());
 
     file.write(blob->cbuffer().as<const char*>(), static_cast<std::streamsize>(blob->byteSize()));
 }
 
 ie::Blob::Ptr importBlob(const ie::TensorDesc& desc, const std::string& fileName) {
-    const auto filePath = inputBlobsDir / fileName;
+    const auto filePath = joinPath(inputBlobsDir, fileName);
 
     const auto blob = make_blob_with_precision(desc);
     blob->allocate();
 
-    std::ifstream file(filePath.string(), std::ios_base::in | std::ios_base::binary);
+    std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
     IE_ASSERT(file.is_open());
 
     file.read(blob->buffer().as<char*>(), static_cast<std::streamsize>(blob->byteSize()));
@@ -893,16 +904,16 @@ int main(int argc, char* argv[]) {
     const auto baseNetFileName = FLAGS_network_name + ".xml";
     const auto baseBinFileName = FLAGS_network_name + ".bin";
 
-    const auto baseNetFilePath = inputBaseDir / baseNetFileName;
-    const auto baseBinFilePath = inputBaseDir / baseBinFileName;
+    const auto baseNetFilePath = joinPath(inputBaseDir, baseNetFileName);
+    const auto baseBinFilePath = joinPath(inputBaseDir, baseBinFileName);
 
     if (outputBaseDir != inputBaseDir) {
-        fs::copy_file(baseNetFilePath, outputBaseDir / baseNetFileName, fs::copy_option::overwrite_if_exists);
-        fs::copy_file(baseBinFilePath, outputBaseDir / baseBinFileName, fs::copy_option::overwrite_if_exists);
+        fs::copy_file(baseNetFilePath, joinPath(outputBaseDir, baseNetFileName));
+        fs::copy_file(baseBinFilePath, joinPath(outputBaseDir, baseBinFileName));
     }
 
     std::cout << "Load base network " << baseNetFileName << std::endl;
-    auto baseNet = ieCore.ReadNetwork(baseNetFilePath.string());
+    auto baseNet = ieCore.ReadNetwork(baseNetFilePath);
     setInputOutputInfo(baseNet);
     std::cout << std::endl;
 
@@ -924,11 +935,11 @@ int main(int argc, char* argv[]) {
     }
 
     std::ofstream htmlNet;
-    fs::path htmlLayersBaseFilePath;
+    Path htmlLayersBaseFilePath;
 
     if (FLAGS_run_infer) {
-        const auto htmlNetFilePath = outputReportDir / (FLAGS_network_name + ".html");
-        htmlNet.open(htmlNetFilePath.string());
+        const auto htmlNetFilePath = joinPath(outputReportDir, (FLAGS_network_name + ".html"));
+        htmlNet.open(htmlNetFilePath);
         IE_ASSERT(htmlNet.is_open());
 
         htmlNet << "<html>" << std::endl;
@@ -1060,9 +1071,9 @@ int main(int argc, char* argv[]) {
                 const auto actualOutputs = runInfer(actualExeNet, inputs);
 
                 const auto htmlLayerFileName = layerBaseName + ".html";
-                const auto htmlLayerFilePath = outputReportLayersDir / htmlLayerFileName;
+                const auto htmlLayerFilePath = joinPath(outputReportLayersDir, htmlLayerFileName);
 
-                std::ofstream htmlLayer(htmlLayerFilePath.string());
+                std::ofstream htmlLayer(htmlLayerFilePath);
                 IE_ASSERT(htmlLayer.is_open());
 
                 htmlLayer << "<html>" << std::endl;

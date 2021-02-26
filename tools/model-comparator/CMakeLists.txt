@@ -14,11 +14,10 @@
 
 set(TARGET_NAME model-comparator)
 
-find_package(Boost QUIET COMPONENTS system filesystem)
 find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)
 find_package(gflags QUIET)
 
-if(NOT Boost_FOUND OR NOT OpenCV_FOUND OR NOT gflags_FOUND)
+if(NOT OpenCV_FOUND OR NOT gflags_FOUND)
     message(WARNING "${TARGET_NAME} tool is disabled due to missing dependencies")
     return()
 endif()
@@ -27,9 +26,8 @@ add_executable(${TARGET_NAME} main.cpp)
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     IE::inference_engine IE::ngraph
-    Boost::disable_autolinking Boost::filesystem
     opencv_core opencv_imgproc opencv_imgcodecs
     gflags
     IE::inference_engine_plugin_api
-    kmb_utils
+    vpux_utils
 )
