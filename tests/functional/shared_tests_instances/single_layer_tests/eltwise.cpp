@@ -13,7 +13,8 @@ std::set<ngraph::helpers::EltwiseTypes> supportedTypesMCM {
     ngraph::helpers::EltwiseTypes::ADD,
     ngraph::helpers::EltwiseTypes::MULTIPLY,
     ngraph::helpers::EltwiseTypes::SUBTRACT,
-    ngraph::helpers::EltwiseTypes::SQUARED_DIFF
+    ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+    ngraph::helpers::EltwiseTypes::POWER
 };
 
 std::set<ngraph::helpers::EltwiseTypes> supportedTypesMLIR {

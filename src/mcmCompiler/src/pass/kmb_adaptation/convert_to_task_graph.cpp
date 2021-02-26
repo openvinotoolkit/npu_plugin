@@ -850,6 +850,23 @@ mv::Data::TensorIterator convertSwishToUPATask(mv::OpModel& om, const std::vecto
     return swish;
 }
 
+mv::Data::TensorIterator convertPowerToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                               const std::map<std::string, mv::Attribute>& attrs,
+                                               const std::string& name, bool /*software*/,
+                                               const mv::QuantizationParams& quantParams,
+                                               const mv::DType& outputTensorType,
+                                               const mv::Order& outputTensorOrder)
+{
+    const auto power = attrs.at("power").get<double>();
+    const auto scale = attrs.at("scale").get<double>();
+    const auto shift = attrs.at("shift").get<double>();
+    auto op = om.uPATaskPower(name, inputs, power, scale, shift);
+    op->setDType(outputTensorType);
+    op->setOrder(outputTensorOrder);
+    op->setQuantParams(quantParams);
+    return op;
+}
+
 mv::Data::TensorIterator convertTanhToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                                 const std::map<std::string, mv::Attribute>& /*attrs*/,
                                                 const std::string& name, bool /*software*/,
@@ -1138,7 +1155,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
                                                        "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu",
                                                        "PermuteND", "Mish", "Floor", "Round", "Erf", "Gelu", "Pad", "Interpolate", "MVN", "Ceiling",
-                                                       "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu"};
+                                                       "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu", "Power"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -1200,6 +1217,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"SpaceToDepth", convertSpaceToDepthToUPATask},
     {"CTCGreedyDecoderSeqLen", convertCTCGreedyDecoderSeqLenToUPATask},
     {"Prelu", convertPreluToUPATask},
+    {"Power", convertPowerToUPATask}
     };
 
     // Layer types that given current compiler state, it's
