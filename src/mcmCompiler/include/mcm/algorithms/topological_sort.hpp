@@ -6,6 +6,7 @@
 #include <set>
 #include <vector>
 #include <algorithm>
+#include <stack>
 #include "include/mcm/compiler/compilation_profiler.hpp"
 #include "include/mcm/base/exception/runtime_error.hpp"
 
@@ -42,20 +43,43 @@ namespace mv
     std::vector<typename graph<T_node, T_edge>::node_list_iterator> topologicalSort(graph<T_node, T_edge>& g)
     {
         MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
-        std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
+        typedef typename graph<T_node, T_edge>::node_list_iterator iterator_t;
 
         if(!isDAG(g))
             throw RuntimeError("Algorithm", "Trying to execute topologicalSort on a graph that is not a DAG");
 
-        std::set<typename graph<T_node, T_edge>::node_list_iterator, OpItComparatorTemplate2<typename graph<T_node, T_edge>::node_list_iterator>> unmarkedNodes;
+        std::vector<iterator_t> toReturn;
+        std::stack<iterator_t> stk;
+        std::set<iterator_t, OpItComparatorTemplate2<iterator_t>> unvisitedNodes;
+        std::set<iterator_t, OpItComparatorTemplate2<iterator_t>> inResult;
         for(auto node = g.node_begin(); node != g.node_end(); ++node)
-            unmarkedNodes.insert(node);
+            unvisitedNodes.insert(node);
+        toReturn.reserve(unvisitedNodes.size());
 
-        while(!unmarkedNodes.empty())
-        {
-            auto toVisit = unmarkedNodes.begin();
-            visit(*toVisit, unmarkedNodes, toReturn, g);
+        while(!unvisitedNodes.empty()) {
+            stk.push(*unvisitedNodes.begin());
+
+            while(!stk.empty()) {
+                iterator_t v = stk.top();
+                unvisitedNodes.erase(v);
+                bool isFinish = true;
+                for(auto neighbour = v->leftmost_child(); neighbour != g.node_end(); ++neighbour) {
+                    if (unvisitedNodes.find(neighbour) != unvisitedNodes.end()) {
+                        stk.push(neighbour);
+                        isFinish = false;
+                    }
+                }
+                if(isFinish) {
+                    stk.pop();
+                    if (inResult.find(v) == inResult.end()) {
+                        inResult.insert(v);
+                        toReturn.push_back(v);
+                    }
+                }
+            }
         }
+        if(toReturn.size() != g.node_size())
+            throw RuntimeError("Algorithm", "topologicalSort not visited all nodes");
 
         std::reverse(toReturn.begin(), toReturn.end());
         return toReturn;
