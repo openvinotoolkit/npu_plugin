@@ -111,8 +111,8 @@ DimsOrder::StorageType vpux::DimsOrder::getCodeFromNumDims(size_t numDims) {
     StorageType code = 0;
 
     for (StorageType i = 0; i < numDims; ++i) {
-        const StorageType shift = DimsOrder::BITS_PER_DIM * i;
-        const StorageType dimDigit = numDims - i;
+        const StorageType shift = checked_cast<StorageType>(DimsOrder::BITS_PER_DIM * i);
+        const StorageType dimDigit = checked_cast<StorageType>(numDims - i);
 
         code |= (dimDigit << shift);
     }
@@ -152,10 +152,13 @@ DimsOrder::StorageType vpux::DimsOrder::getCodeFromPermutation(DimArrRef perm) {
     validatePermutation(perm);
 
     StorageType code = 0;
+
     for (const auto& p : perm | indexed) {
         const auto& d = p.value();
-        const auto dimDigit = static_cast<StorageType>(d.ind()) + 1;
-        const auto shift = static_cast<StorageType>(DimsOrder::BITS_PER_DIM * p.index());
+
+        const StorageType dimDigit = checked_cast<StorageType>(d.ind() + 1);
+        const StorageType shift = checked_cast<StorageType>(DimsOrder::BITS_PER_DIM * p.index());
+
         code |= (dimDigit << shift);
     }
 
