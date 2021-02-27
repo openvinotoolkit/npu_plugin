@@ -10,7 +10,6 @@ mv::StreamingPerformance::StreamingPerformance(mv::OpModel& omodel, const int ma
           maxHStreams_(maxHStreams) {
     
     globalParams_ = omodel.getGlobalConfigParams();
-    streamingStrategyList_ = globalParams_->get<std::vector<mv::Element>>("streaming_strategy");
     multiClusterStrategyList_ = globalParams_->get<std::vector<mv::Element>>("split_strategy");
     tensorMemoryLocation_ = globalParams_->get<std::vector<mv::Element>>("tensor_placement_override");
    
@@ -30,6 +29,7 @@ mv::StreamingPerformance::~StreamingPerformance()
 
 void mv::StreamingPerformance::increaseStreamingOverKforPerformance()
 {
+    streamingStrategyList_ = globalParams_->get<std::vector<mv::Element>>("streaming_strategy");
     // Step 1: Get the subgraph chains
     chainSubgraphs_ = pipelineChains_.get_chain_subgraphs(2UL);
     // Step 2: Get the minimum weights per cluster in a chain
@@ -761,18 +761,17 @@ std::size_t mv::StreamingPerformance::findOptimalStream(mv::Data::OpListIterator
 
 void mv::StreamingPerformance::increaseStreamingOverHforPerformance(const mv::pass::PassEntry& pass)
 {
+    std::vector<mv::Element> newStreamingStrategies;
 
-    auto globalParams = omodel_.getGlobalConfigParams();
-    if (!globalParams->hasAttr("split_strategy"))
+    if (!globalParams_->hasAttr("split_strategy"))
     {
          pass.log(mv::Logger::MessageType::Debug, "No custom splitting strategy provided, exiting..."); 
         return;
     }
     if(!enableChannelMajorConv_) return;
 
-    auto streamingStrategies = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
-    std::vector<mv::Element> newStreamingStrategies;
-
+    auto streamingStrategies = globalParams_->get<std::vector<mv::Element>>("streaming_strategy");
+    
     int streamCount=0;
     for(auto streamingStrategy : streamingStrategies)
     {
@@ -838,6 +837,6 @@ void mv::StreamingPerformance::increaseStreamingOverHforPerformance(const mv::pa
     // vpuMgr currently times out all calls to the VPU that don't return in < 10secs
     if (streamCount < maxHStreams_)
     {
-        globalParams->set<std::vector<mv::Element>>("streaming_strategy", newStreamingStrategies);
+        globalParams_->set<std::vector<mv::Element>>("streaming_strategy", newStreamingStrategies);
     }
 }
