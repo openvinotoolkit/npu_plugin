@@ -1088,9 +1088,6 @@ namespace mv
                     (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
 
-                if (clustering == "SplitOverH" && op.getOpType() == "MaxPool" &&
-                    (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
-                    return FailCause::SpiltOverHWithStreamOverK;
                 //NOTE: This is not a HACK!!! if an operation is assigned with streamOverH + SplitOverH
                 //and we concatenate on cmx the data are going to have a strange format...so nothing can be done later, so spill...
                 /*For example, let's think a convolution with splitOverH and streams = 2, the tensor will be splitted to
