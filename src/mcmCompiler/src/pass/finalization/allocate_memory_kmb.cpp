@@ -620,10 +620,21 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
 
 
         }
-        else if (opType == "Slice" || opType == "Crop")
+        else if (opType == "Slice" || opType == "Crop" || opType == "PaddingConcat")
         {
             auto outputTensor = opIterator->getOutputTensor(0);
             auto inputTensor = opIterator->getInputTensor(0);
+            if (opType == "PaddingConcat")
+            {
+                // Since resources are allocated only for output tensors, the Padding Concat output tensor buffer is
+                // moved to the output buffer of the Padding DMA (which has resources assigned)
+                inputTensor = opIterator->getInputTensor(1);
+                auto paddingDMA = om.getSourceOp(inputTensor);
+                // flag used for eviction priority
+                paddingDMA->set<bool>("cmx_concatable", true);
+                // flag used for serialization - schedulingNumber
+                paddingDMA->set<bool>("PaddingDMA", true);
+            }
             auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
             auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
 
