@@ -10,9 +10,7 @@ mv::StreamingPerformance::StreamingPerformance(mv::OpModel& omodel, const int ma
           maxHStreams_(maxHStreams) {
     
     globalParams_ = omodel.getGlobalConfigParams();
-    multiClusterStrategyList_ = globalParams_->get<std::vector<mv::Element>>("split_strategy");
-    tensorMemoryLocation_ = globalParams_->get<std::vector<mv::Element>>("tensor_placement_override");
-   
+      
     if (mv::isDebugFilesEnabled()) {
         fptr_ = fopen("./weight_streaming_network_analysis_report.txt", "w");
         if (nullptr == fptr_) {
@@ -30,6 +28,9 @@ mv::StreamingPerformance::~StreamingPerformance()
 void mv::StreamingPerformance::increaseStreamingOverKforPerformance()
 {
     streamingStrategyList_ = globalParams_->get<std::vector<mv::Element>>("streaming_strategy");
+    multiClusterStrategyList_ = globalParams_->get<std::vector<mv::Element>>("split_strategy");
+    tensorMemoryLocation_ = globalParams_->get<std::vector<mv::Element>>("tensor_placement_override");
+    
     // Step 1: Get the subgraph chains
     chainSubgraphs_ = pipelineChains_.get_chain_subgraphs(2UL);
     // Step 2: Get the minimum weights per cluster in a chain
