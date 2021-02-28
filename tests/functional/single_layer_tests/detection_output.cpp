@@ -414,11 +414,8 @@ private:
     std::vector<float> _genPrior;
 
 public:
-    void Infer() override {
+    void GenerateInputs() override {
         GenInput();
-
-        inferRequest = executableNetwork.CreateInferRequest();
-        inputs.clear();
 
         size_t it = 0;
         for (const auto &input : cnnNetwork.getInputsInfo()) {
@@ -434,9 +431,18 @@ public:
             } else {
                 std::copy_n(_genPrior.begin(), 2 * NUM_LOC, dst);
             }
-            inferRequest.SetBlob(info->name(), blob);
             inputs.push_back(blob);
             it++;
+        }
+    }
+
+    void Infer() override {
+        inferRequest = executableNetwork.CreateInferRequest();
+
+        size_t it = 0;
+        for (const auto &input : cnnNetwork.getInputsInfo()) {
+            const auto &info = input.second;
+            inferRequest.SetBlob(info->name(), inputs[it++]);
         }
 
         inferRequest.Infer();
