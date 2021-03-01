@@ -131,11 +131,11 @@ void controlPaddingConcatFlows(mv::OpModel& om)
         // buffer will be the input to the next op
         auto rep_op = om.getSourceOp(concat->getInputTensor(1UL));
         size_t size_per_cluster = rep_op->getOutputTensor(0UL)->getClusterSize();
-        // set padding DMA to be the context rep
+        // set padding DMA to be the context rep for input DMA
         om.getSourceOp(concat->getInputTensor(0UL))->set<std::string>("memory_context_rep", rep_op->getName());
         om.getSourceOp(concat->getInputTensor(0UL))->set<size_t>("memory_context_offset", 0UL);
         om.getSourceOp(concat->getInputTensor(0UL))->set<size_t>("actual_size_inside_memory_context", size_per_cluster);
-
+        // and also for the padding concat op
         om.getSourceOp(concat->getInputTensor(1UL))->set<std::string>("memory_context_rep", rep_op->getName());
         om.getSourceOp(concat->getInputTensor(1UL))->set<size_t>("memory_context_offset", 0UL);
         om.getSourceOp(concat->getInputTensor(1UL))->set<size_t>("actual_size_inside_memory_context", size_per_cluster);

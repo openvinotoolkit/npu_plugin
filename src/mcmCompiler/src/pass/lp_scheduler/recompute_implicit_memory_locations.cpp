@@ -179,7 +179,7 @@ class Recompute_Attrs {
 
 static void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
     mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void RecomputePaddingConcatMemoryLocationsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
+static void ReorderPaddingConcatDMAsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 
 namespace mv {
 namespace pass {
@@ -187,8 +187,8 @@ namespace pass {
 MV_REGISTER_PASS(RecomputeImplicitOpMemoryLocations)
   .setFunc(RecomputeImplicitOpMemoryLocations);
 
-MV_REGISTER_PASS(RecomputePaddingConcatMemoryLocations)
-  .setFunc(RecomputePaddingConcatMemoryLocationsFcn);
+MV_REGISTER_PASS(ReorderPaddingConcatDMAs)
+  .setFunc(ReorderPaddingConcatDMAsFcn);
 
 } // namespace pass //
 } // namespace mv//
@@ -214,7 +214,7 @@ void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
   }
 }
 
-void RecomputePaddingConcatMemoryLocationsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&) 
+void ReorderPaddingConcatDMAsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&) 
 {
     mv::OpModel om(model);
     for(auto padding_concat : om.getOps("PaddingConcat")) 
