@@ -2449,11 +2449,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASigmoidTask(ComputationModel& c
     auto input = opIt->getInputTensor(0);
     auto output = opIt->getOutputTensor(0);
     auto toBuild = new MVCNN::UPALayerTaskT();
-    //toBuild->maxShaves = ;
-    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_UnaryOpParams;
-    auto softLayerParamsValue = new MVCNN::UnaryOpParamsT();
-
-    softLayerParamsValue->nested_params.type = MVCNN::UnaryOpNestedParams_SigmoidParams;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_SigmoidParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
@@ -3582,11 +3580,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReluTask(ComputationModel& cm, 
     auto input = opIt->getInputTensor(0);
     auto output = opIt->getOutputTensor(0);
     auto toBuild = new MVCNN::UPALayerTaskT();
-    //toBuild->maxShaves = ;
-    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_UnaryOpParams;
-    auto softLayerParamsValue = new MVCNN::UnaryOpParamsT();
-
-    softLayerParamsValue->nested_params.type = MVCNN::UnaryOpNestedParams_ReluParams;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_ReluParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
