@@ -340,14 +340,17 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
 
             concat_align_op->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
             const_align_op->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
+            auto splitStrategy = "SplitOverHOverlapped";
 
-            if (parentOpIt->hasAttr("splitStrategy"))
-            {
-                concat_align_op->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
-                const_align_op->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
-                const_align_op->getOutputTensor()[0]->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
-                concat_align_op->getOutputTensor()[0]->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
-            }
+            parentOpIt->set<std::string>("splitStrategy", splitStrategy);
+            concat_align_op->set<std::string>("splitStrategy", splitStrategy);
+            const_align_op->set<std::string>("splitStrategy", splitStrategy);
+
+            concat_align_op->getOutputTensor()[0]->set<std::string>("splitStrategy", splitStrategy);
+            const_align_op->getOutputTensor()[0]->set<std::string>("splitStrategy", splitStrategy);
+            parentOpIt->getOutputTensor()[0]->set<std::string>("splitStrategy", splitStrategy);
+
+            opIt->set<std::string>("splitStrategy", "SplitOverH");
         }
 
         for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
