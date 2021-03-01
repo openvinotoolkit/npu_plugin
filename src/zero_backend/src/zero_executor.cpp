@@ -16,15 +16,16 @@
 
 #include "zero_executor.h"
 
+#include "zero_allocator.h"
+
+#include "vpux/utils/IE/blob.hpp"
+
+#include <blob_factory.hpp>
+
 #include <functional>
 #include <iostream>
 #include <sstream>
 #include <string>
-
-#include "zero_allocator.h"
-
-#include <ie_utils.hpp>
-#include <blob_factory.hpp>
 
 using namespace vpux;
 
@@ -228,7 +229,7 @@ ZeroExecutor::commandQueue::~commandQueue() {
 
 ZeroExecutor::graph::graph(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_,
                            const NetworkDescription::CPtr _networkDesc)
-        : _mem(drh_, _networkDesc->getCompiledNetwork().size()), 
+        : _mem(drh_, _networkDesc->getCompiledNetwork().size()),
           _command_queue(deh_),
           _command_list(deh_),
           _fence(_command_queue) {
@@ -342,11 +343,7 @@ static void prepareInputForInference(
         return;
     }
 
-    auto out_blob = make_blob_with_precision(
-            InferenceEngine::TensorDesc(expectedPrecision, actualInput->getTensorDesc().getDims(),
-                                        actualInput->getTensorDesc().getLayout()),
-            dest_data);
-    toPrecision(actualInput, out_blob);
+    vpux::toPrecision(InferenceEngine::as<InferenceEngine::MemoryBlob>(actualInput), expectedPrecision, nullptr, dest_data);
 }
 
 void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
@@ -373,7 +370,7 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
         if (input->byteSize() != getSizeIOBytes(desc.info)) {
             _logger->info("Sizes are different for push blobs. Need precision convert");
         }
-        
+
         auto& hostMem = mapArguments(_pipeline[depth]->_inputs_host_mem_map, name);
         if (input->getTensorDesc().getPrecision() == deviceInputs.at(name)->getPrecision()) {
             hostMem.copyFrom(input);

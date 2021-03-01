@@ -27,12 +27,13 @@
 #include <vpux/vpux_plugin_config.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu_layers_tests.hpp>
-#include <ie_utils.hpp>
 
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
 #include "tests_timeout.hpp"
 #include "yolo_helpers.hpp"
+
+#include "vpux/utils/IE/blob.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -123,8 +124,8 @@ public:
 };
 
 void printTopResults(const Blob::Ptr& referenceOutputBlob, const Blob::Ptr& outputBlob, const std::string& graphSuffix) {
-    Blob::Ptr refFP32 = toFP32(referenceOutputBlob);
-    Blob::Ptr outputFP32 = toFP32(outputBlob);
+    Blob::Ptr refFP32 = vpux::toFP32(as<MemoryBlob>(referenceOutputBlob));
+    Blob::Ptr outputFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob));
     if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
         const auto imgWidth = outputFP32->getTensorDesc().getDims()[3];
         const auto imgHeight = outputFP32->getTensorDesc().getDims()[2];
@@ -212,8 +213,8 @@ TEST_P(VpuInferWithPath, DISABLED_compareInferenceOutputWithReference) {
         std::string referenceOutputFilePath = ModelsPath() + outputSuffix;
         ASSERT_NO_THROW(
             referenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
-        Blob::Ptr refFP32 = toFP32(referenceOutputBlob);
-        Blob::Ptr outputFP32 = toFP32(outputBlob);
+        Blob::Ptr refFP32 = vpux::toFP32(as<MemoryBlob>(referenceOutputBlob));
+        Blob::Ptr outputFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob));
         if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
             Compare(refFP32, outputFP32, 0.0f);
         } else {
@@ -304,8 +305,8 @@ TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
 
             ASSERT_NO_THROW(referenceOutputBlob =
                                 vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
-            Blob::Ptr refFP32 = toFP32(referenceOutputBlob);
-            Blob::Ptr outputFP32 = toFP32(outputBlob);
+            Blob::Ptr refFP32 = vpux::toFP32(as<MemoryBlob>(referenceOutputBlob));
+            Blob::Ptr outputFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob));
             if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
                 Compare(refFP32, outputFP32, 0.0f);
             } else {
@@ -390,8 +391,8 @@ TEST_P(VpuInferWithPath, DISABLED_asyncInferCallback) {
             Blob::Ptr referenceOutputBlob;
             ASSERT_NO_THROW(referenceOutputBlob =
                                 vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
-            Blob::Ptr refFP32 = toFP32(referenceOutputBlob);
-            Blob::Ptr outputFP32 = toFP32(outputBlob);
+            Blob::Ptr refFP32 = vpux::toFP32(as<MemoryBlob>(referenceOutputBlob));
+            Blob::Ptr outputFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob));
             if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
                 Compare(refFP32, outputFP32, 0.0f);
             } else {
@@ -466,8 +467,8 @@ TEST_P(VpuInferWithPath, DISABLED_asyncInferCallbackRecursive) {
         ASSERT_NO_THROW(
             referenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
-        Blob::Ptr refFP32 = toFP32(referenceOutputBlob);
-        Blob::Ptr outputFP32 = toFP32(outputBlob);
+        Blob::Ptr refFP32 = vpux::toFP32(as<MemoryBlob>(referenceOutputBlob));
+        Blob::Ptr outputFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob));
         if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
             Compare(refFP32, outputFP32, 0.0f);
         } else {
@@ -534,17 +535,17 @@ TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
     ASSERT_EQ(outputBlob1->byteSize(), outputBlob2->byteSize());
 
     if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-        Blob::Ptr blobFP32 = toFP32(outputBlob2);
-        Blob::Ptr expectedBlobFP32 = toFP32(outputBlob1);
+        Blob::Ptr blobFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob2));
+        Blob::Ptr expectedBlobFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob1));
         printTopResults(expectedBlobFP32, blobFP32, graphSuffix);
 
-        blobFP32 = toFP32(outputBlob2);
-        expectedBlobFP32 = toFP32(fileOutputBlob);
+        blobFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob2));
+        expectedBlobFP32 = vpux::toFP32(as<MemoryBlob>(fileOutputBlob));
         printTopResults(expectedBlobFP32, blobFP32, graphSuffix);
     } else {
-        Blob::Ptr outputBlob2FP32 = toFP32(outputBlob2);
-        ASSERT_NO_THROW(compareTopClasses(outputBlob2FP32, toFP32(outputBlob1), NUMBER_OF_TOP_CLASSES));
-        ASSERT_NO_THROW(compareTopClasses(outputBlob2FP32, toFP32(fileOutputBlob), NUMBER_OF_TOP_CLASSES));
+        Blob::Ptr outputBlob2FP32 = vpux::toFP32(as<MemoryBlob>(outputBlob2));
+        ASSERT_NO_THROW(compareTopClasses(outputBlob2FP32, vpux::toFP32(as<MemoryBlob>(outputBlob1)), NUMBER_OF_TOP_CLASSES));
+        ASSERT_NO_THROW(compareTopClasses(outputBlob2FP32, vpux::toFP32(as<MemoryBlob>(fileOutputBlob)), NUMBER_OF_TOP_CLASSES));
     }
 }
 
@@ -604,7 +605,10 @@ TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == Precision::FP16 ||
                 outputBlob->getTensorDesc().getPrecision() == Precision::FP32);
-    ASSERT_NO_THROW(compareTopClasses(toFP32(outputBlob), toFP32(refBlob), NUMBER_OF_TOP_CLASSES));
+    ASSERT_NO_THROW(compareTopClasses(
+                        vpux::toFP32(as<MemoryBlob>(outputBlob)),
+                        vpux::toFP32(as<MemoryBlob>(refBlob)),
+                        NUMBER_OF_TOP_CLASSES));
 }
 
 INSTANTIATE_TEST_CASE_P(precommit, VpuInferWithPath, ::testing::ValuesIn(pathToPreCompiledGraph));

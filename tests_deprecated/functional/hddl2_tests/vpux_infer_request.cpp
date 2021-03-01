@@ -28,8 +28,9 @@
 #include "comparators.h"
 #include "hddl2_load_network.h"
 #include "ie_metric_helpers.hpp"
-#include "ie_utils.hpp"
 #include "tests_common.hpp"
+
+#include "vpux/utils/IE/blob.hpp"
 
 namespace IE = InferenceEngine;
 
@@ -327,7 +328,10 @@ TEST_F(InferenceWithCheckLayout, precommit_CheckInputsLayoutAfterTwoInferences) 
     const auto secondOutputBlob = vpu::copyBlob(inferRequest.GetBlob(outputBlobName));
 
     ASSERT_NO_THROW(
-        Comparators::compareTopClasses(toFP32(firstOutputBlob), toFP32(secondOutputBlob), numberOfTopClassesToCompare));
+        Comparators::compareTopClasses(
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(firstOutputBlob)),
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(secondOutputBlob)),
+                    numberOfTopClassesToCompare));
 }
 
 //------------------------------------------------------------------------------
@@ -414,15 +418,20 @@ TEST_P(InferenceCheckPortsNetwork, DISABLED_common) {
     IE::Blob::Ptr outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refInputBlob = toLayout(inputBlob, inputLayout);
+    IE::Blob::Ptr refInputBlob = vpux::toLayout(IE::as<IE::MemoryBlob>(inputBlob), inputLayout);
     IE::Blob::Ptr refOutputBlob;
     ASSERT_NO_THROW(refOutputBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, refInputBlob));
     if (orderedClasses) {
         ASSERT_NO_THROW(
-            Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refOutputBlob), numberOfTopClassesToCompare));
+            Comparators::compareTopClasses(
+                        vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                        vpux::toFP32(IE::as<IE::MemoryBlob>(refOutputBlob)),
+                        numberOfTopClassesToCompare));
     } else {
         ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
-            toFP32(outputBlob), toFP32(refOutputBlob), numberOfTopClassesToCompare));
+                            vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                            vpux::toFP32(IE::as<IE::MemoryBlob>(refOutputBlob)),
+                            numberOfTopClassesToCompare));
     }
 }
 

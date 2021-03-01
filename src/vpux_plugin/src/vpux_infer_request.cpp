@@ -29,6 +29,8 @@
 #include "ie_utils.hpp"
 #include "vpux_infer_request.h"
 #include "vpux_remote_blob.h"
+
+#include "vpux/utils/IE/blob.hpp"
 // TODO KMB-standalone preprocessing details should be not exposed to plugin [Track number: S#43193]
 // Low-level
 #ifdef __aarch64__
@@ -263,7 +265,7 @@ void InferRequest::InferAsync() {
         _executorPtr->push(_inputs);
     }
     if (std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH") != nullptr) {
-        utils::dumpBlobs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"), "input", _logger);
+        dumpBlobs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"), "input");
     }
 }
 
@@ -272,7 +274,7 @@ void InferRequest::GetResult() {
     _executorPtr->pull(_outputs);
     const char* dumpOutputPathEnv = std::getenv("IE_VPU_KMB_DUMP_OUTPUT_PATH");
     if (dumpOutputPathEnv != nullptr) {
-        utils::dumpBlobs(_outputs, dumpOutputPathEnv, "output", _logger);
+        dumpBlobs(_outputs, dumpOutputPathEnv, "output");
     }
     _logger->debug("InferRequest::GetResult finished");
 }

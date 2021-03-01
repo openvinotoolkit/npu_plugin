@@ -21,9 +21,10 @@
 #include <blob_factory.hpp>
 #include <vpu_layers_tests.hpp>
 #include <ie_compound_blob.h>
-#include <ie_utils.hpp>
 
 #include "vpux/kmb_params.hpp"
+
+#include "vpux/utils/IE/blob.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -99,7 +100,10 @@ TEST_F(vpuLayersTests, DISABLED_remoteCtx) {
 
     // --- Compare with expected output
     constexpr size_t numberOfTopClassesToCompare = 3;
-    ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(Comparators::compareTopClasses(
+                        vpux::toFP32(as<MemoryBlob>(outputBlob)),
+                        vpux::toFP32(as<MemoryBlob>(outputRefBlob)),
+                        numberOfTopClassesToCompare));
 }
 
 TEST_F(vpuLayersTests, DISABLED_remoteCtxNV12) {
@@ -168,7 +172,10 @@ TEST_F(vpuLayersTests, DISABLED_remoteCtxNV12) {
 
     // --- Compare with expected output
     constexpr size_t numberOfTopClassesToCompare = 3;
-    ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(Comparators::compareTopClasses(
+                        vpux::toFP32(as<MemoryBlob>(outputBlob)),
+                        vpux::toFP32(as<MemoryBlob>(outputRefBlob)),
+                        numberOfTopClassesToCompare));
 }
 
 struct rectangle {
@@ -293,7 +300,10 @@ TEST_P(VpuRemoteCtxTests, DISABLED_remoteCtxNV12WithROI) {
 
     // --- Compare with expected output
     constexpr size_t numberOfTopClassesToCompare = 3;
-    ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(Comparators::compareTopClasses(
+                        vpux::toFP32(as<MemoryBlob>(outputBlob)),
+                        vpux::toFP32(as<MemoryBlob>(outputRefBlob)),
+                        numberOfTopClassesToCompare));
 }
 
 INSTANTIATE_TEST_CASE_P(RemoteCtxWithROI, VpuRemoteCtxTests, ::testing::ValuesIn({true, false}));
@@ -352,6 +362,9 @@ TEST_F(vpuLayersTests, DISABLED_keyDeviceId) {
     const auto outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc());
 
     constexpr size_t numberOfTopClassesToCompare = 3;
-    ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(Comparators::compareTopClasses(
+                        vpux::toFP32(as<MemoryBlob>(outputBlob)),
+                        vpux::toFP32(as<MemoryBlob>(outputRefBlob)),
+                        numberOfTopClassesToCompare));
 }
 #endif

@@ -28,12 +28,12 @@ TestNetwork KmbNetworkNameTest::buildPowerLayer(const std::string& netName) {
     const Layout layout = Layout::NCHW;
     const auto userInDesc = TensorDesc(precision, dims, layout);
     registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {
-        return makeSingleValueBlob(desc, 1.0f);
+        return vpux::makeSplatBlob(desc, 1.0f);
     });
 
     const auto powerTensorDesc = TensorDesc(Precision::FP32, {1, 1, 1, 1}, Layout::NCHW);
     registerBlobGenerator("scale", powerTensorDesc, [&](const TensorDesc& desc) {
-        return makeSingleValueBlob(desc, 1.0f);
+        return vpux::makeSplatBlob(desc, 1.0f);
     });
 
     TestNetwork testNet;

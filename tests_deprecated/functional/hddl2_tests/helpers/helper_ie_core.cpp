@@ -3,8 +3,10 @@
 #include <format_reader_ptr.h>
 
 #include <blob_factory.hpp>
-#include <ie_utils.hpp>
 #include <tests_common.hpp>
+
+#include "vpux/utils/IE/blob.hpp"
+
 namespace IE = InferenceEngine;
 
 IE_Core_Helper::IE_Core_Helper()
@@ -57,7 +59,7 @@ IE_Core_Helper::loadImage(const std::string &imageName, const size_t width, cons
     }
 
     const auto targetPrecision = IE::Precision::U8;
-    blob = toPrecision(toLayout(blob, targetImageLayout), targetPrecision);
+    blob = vpux::toPrecision(vpux::toLayout(IE::as<IE::MemoryBlob>(blob), targetImageLayout), targetPrecision);
     return blob;
 }
 

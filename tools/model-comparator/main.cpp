@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include <ie_utils.hpp>
+#include "vpux/utils/IE/blob.hpp"
 
 #include <inference_engine.hpp>
 #include <blob_factory.hpp>
@@ -38,6 +38,7 @@
 #include <unordered_set>
 
 namespace fs = boost::filesystem;
+namespace ie = InferenceEngine;
 
 namespace {
 
@@ -1077,8 +1078,14 @@ int main(int argc, char* argv[]) {
                 IE_ASSERT(refOutputs.size() == 1);
                 IE_ASSERT(actualOutputs.size() == 1);
 
-                const auto refOutput = toDefLayout(toPrecision(refOutputs.begin()->second, ie::Precision::FP32));
-                const auto actualOutput = toDefLayout(toPrecision(actualOutputs.begin()->second, ie::Precision::FP32));
+                const auto refOutput =
+                        vpux::toDefLayout(
+                            vpux::toPrecision(
+                                ie::as<ie::MemoryBlob>(refOutputs.begin()->second), ie::Precision::FP32));
+                const auto actualOutput =
+                        vpux::toDefLayout(
+                            vpux::toPrecision(
+                                ie::as<ie::MemoryBlob>(actualOutputs.begin()->second), ie::Precision::FP32));
 
                 LayerStats stats;
                 ie::Blob::Ptr diffBlob;

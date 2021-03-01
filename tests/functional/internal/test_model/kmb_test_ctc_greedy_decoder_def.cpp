@@ -20,7 +20,7 @@
 
 namespace {
 
-void refCTCGreedyDecoderFromVPU(const Blob::Ptr& src, const Blob::Ptr& seqInd, Blob::Ptr& dst) {
+void refCTCGreedyDecoderFromVPU(const Blob::Ptr& src, const Blob::Ptr& seqInd, const Blob::Ptr& dst) {
     IE_ASSERT(src != nullptr);
     IE_ASSERT(seqInd != nullptr);
     IE_ASSERT(dst != nullptr);
@@ -76,7 +76,7 @@ BlobVector refCTCGreedyDecoder(const TestNetwork::NodePtr& layer, const BlobVect
 
     const auto input0 = inputs.at(0);
     const auto input1 = inputs.at(1);
-    auto output = makeSingleValueBlob(input0->getTensorDesc(), 0.0f);
+    auto output = vpux::makeSplatBlob(input0->getTensorDesc(), 0.0f);
 
     refCTCGreedyDecoderFromVPU(input0, input1, output);
 

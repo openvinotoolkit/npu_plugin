@@ -69,13 +69,13 @@ TEST_P(KmbScaleShiftLayerTests, DISABLED_SimpleScaleShift) {
     registerBlobGenerator(
             "scales", TensorDesc(netPresicion, {1, p._inDims.at(1), 1, 1}, Layout::NCHW),
             [&](const TensorDesc& desc) {
-                return makeSingleValueBlob(desc, inputScale);
+                return vpux::makeSplatBlob(desc, inputScale);
             }
     );
     registerBlobGenerator(
             "shift", TensorDesc(netPresicion, {1, p._inDims.at(1), 1, 1}, Layout::NCHW),
             [&](const TensorDesc& desc) {
-                return makeSingleValueBlob(desc, inputShift);
+                return vpux::makeSplatBlob(desc, inputShift);
             }
     );
 

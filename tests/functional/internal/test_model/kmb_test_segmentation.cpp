@@ -101,7 +101,7 @@ void KmbSegmentationNetworkTest::runTest(
         // FIXME VPU compiler overrides any output precision to FP32 when asked
         // CPU doesn't override I32 output precision during compilation
 
-        std::vector<long> vpuOut = fp32toNearestLong(toFP32(actualBlob));
+        std::vector<long> vpuOut = fp32toNearestLong(vpux::toFP32(as<MemoryBlob>(actualBlob)));
         std::vector<long> cpuOut = int32toLong(refBlob);
         ASSERT_EQ(vpuOut.size(), cpuOut.size())
             << "vpuOut.size: " << vpuOut.size() << " "
@@ -124,7 +124,7 @@ void KmbSegmentationNetworkTest::runTest(
             const auto blob = loadImage(image, desc.getDims()[1], desc.getDims()[2], desc.getDims()[3]);
             IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
 
-            return toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());
+            return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
           });
     };
 
@@ -182,7 +182,7 @@ void UnetNetworkTest::runTest(
       const auto& actualBlob = actualBlobs.begin()->second;
       const auto& refBlob    = refBlobs.begin()->second;
 
-      std::vector<long> vpuOut = perPixelLabel(toFP32(actualBlob));
+      std::vector<long> vpuOut = perPixelLabel(vpux::toFP32(as<MemoryBlob>(actualBlob)));
       std::vector<long> cpuOut = perPixelLabel(refBlob);
 
       ASSERT_EQ(vpuOut.size(), cpuOut.size())

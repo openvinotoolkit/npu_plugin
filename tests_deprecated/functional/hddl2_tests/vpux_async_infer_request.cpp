@@ -25,11 +25,12 @@
 #include "cases/core_api.h"
 #include "comparators.h"
 #include "file_reader.h"
-#include "ie_utils.hpp"
 #include <helper_calc_cpu_ref.h>
 #include <tests_common.hpp>
 #include "executable_network_factory.h"
 #include "models/models_constant.h"
+
+#include "vpux/utils/IE/blob.hpp"
 
 namespace IE = InferenceEngine;
 
@@ -182,7 +183,10 @@ TEST_F(AsyncInferRequest_Tests, precommit_correctResultSameInput) {
     for (auto currentRequest : requests) {
         IE::Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = currentRequest.GetBlob(outputBlobName));
-        ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+        ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
+                            vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                            vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                            numberOfTopClassesToCompare));
     }
 }
 
@@ -289,6 +293,9 @@ TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPrepr
     for (int i = 0; i < REQUEST_LIMIT; ++i) {
         refBlob = references.at(i).isNV12 ? refNV12Blob : refRgbBlob;
         ASSERT_NO_THROW(outputBlob = requests.at(i).GetBlob(outputBlobName));
-        ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+        ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
+                            vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                            vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                            numberOfTopClassesToCompare));
     }
 }

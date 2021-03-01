@@ -29,9 +29,10 @@
 #include <condition_variable>
 #include <mutex>
 #include <regression_tests.hpp>
-#include <ie_utils.hpp>
 #include <vpux/vpux_plugin_config.hpp>
 #include <vpu_layers_tests.hpp>
+
+#include "vpux/utils/IE/blob.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -250,7 +251,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_preprocResizeAndCSC) {
 
     std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin";
     for (auto& item : outputInfo) {
-        Blob::Ptr outputBlob = toFP32(inferRequest.GetBlob(item.first.c_str()));
+        Blob::Ptr outputBlob = vpux::toFP32(as<MemoryBlob>(inferRequest.GetBlob(item.first.c_str())));
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
@@ -306,7 +307,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadPreprocResizeAndCSC) {
 
     std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin";
     for (auto& item : outputInfo) {
-        Blob::Ptr outputBlob = toFP32(inferRequest.GetBlob(item.first.c_str()));
+        Blob::Ptr outputBlob = vpux::toFP32(as<MemoryBlob>(inferRequest.GetBlob(item.first.c_str())));
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
@@ -376,7 +377,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
 
     std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin";
     for (auto& item : outputInfo) {
-        Blob::Ptr outputBlob = toFP32(inferRequest.GetBlob(item.first.c_str()));
+        Blob::Ptr outputBlob = vpux::toFP32(as<MemoryBlob>(inferRequest.GetBlob(item.first.c_str())));
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
@@ -384,10 +385,10 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
         ASSERT_NO_THROW(
             fileContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
-        Blob::Ptr referenceOutputBlob = toFP32(fileContentBlob);
+        Blob::Ptr referenceOutputBlob = vpux::toFP32(as<MemoryBlob>(fileContentBlob));
 
         const size_t NUMBER_OF_CLASSES = 5;
-        ASSERT_NO_THROW(compareTopClasses(toFP32(outputBlob), referenceOutputBlob, NUMBER_OF_CLASSES));
+        ASSERT_NO_THROW(compareTopClasses(vpux::toFP32(as<MemoryBlob>(outputBlob)), referenceOutputBlob, NUMBER_OF_CLASSES));
     }
 }
 class VpuPreprocessingWithTwoNetworksTests :
@@ -518,7 +519,7 @@ TEST_F(vpuLayersTests, DISABLED_allocateNV12WithNative) {
     ASSERT_NO_THROW(outputInfo = network1.GetOutputsInfo());
     std::string firstOutputName = outputInfo.begin()->first;
 
-    Blob::Ptr outputBlob = toFP32(network1InferReqPtr->GetBlob(firstOutputName));
+    Blob::Ptr outputBlob = vpux::toFP32(as<MemoryBlob>(network1InferReqPtr->GetBlob(firstOutputName)));
 
     TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
@@ -557,7 +558,7 @@ TEST_F(vpuLayersTests, DISABLED_allocateNV12TwoImages) {
     ASSERT_NO_THROW(outputInfo = network1.GetOutputsInfo());
     std::string firstOutputName = outputInfo.begin()->first;
 
-    Blob::Ptr catOutputBlob = toFP32(commonInferReqPtr->GetBlob(firstOutputName));
+    Blob::Ptr catOutputBlob = vpux::toFP32(as<MemoryBlob>(commonInferReqPtr->GetBlob(firstOutputName)));
 
     TensorDesc outputBlobTensorDesc = catOutputBlob->getTensorDesc();
 
@@ -566,10 +567,10 @@ TEST_F(vpuLayersTests, DISABLED_allocateNV12TwoImages) {
     ASSERT_NO_THROW(
         catOutputContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, outputBlobTensorDesc));
 
-    Blob::Ptr catReferenceOutputBlob = toFP32(catOutputContentBlob);
+    Blob::Ptr catReferenceOutputBlob = vpux::toFP32(as<MemoryBlob>(catOutputContentBlob));
 
     const size_t NUMBER_OF_CLASSES = 1;
-    ASSERT_NO_THROW(compareTopClasses(toFP32(catOutputBlob), catReferenceOutputBlob, NUMBER_OF_CLASSES));
+    ASSERT_NO_THROW(compareTopClasses(vpux::toFP32(as<MemoryBlob>(catOutputBlob)), catReferenceOutputBlob, NUMBER_OF_CLASSES));
 
     // set another image to already allocated chunk
     std::string inputDogPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input-dog-1080x1080-nv12.bin";
@@ -578,7 +579,7 @@ TEST_F(vpuLayersTests, DISABLED_allocateNV12TwoImages) {
 
     ASSERT_NO_THROW(commonInferReqPtr->Infer());
 
-    Blob::Ptr dogOutputBlob = toFP32(commonInferReqPtr->GetBlob(firstOutputName));
+    Blob::Ptr dogOutputBlob = vpux::toFP32(as<MemoryBlob>(commonInferReqPtr->GetBlob(firstOutputName)));
 
     std::string dogOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
     Blob::Ptr dogReferenceOutputBlob;
@@ -613,7 +614,7 @@ TEST_F(vpuLayersTests, DISABLED_allocateNV12TwoImagesGetBlob) {
     ASSERT_NO_THROW(outputInfo = network1.GetOutputsInfo());
     std::string firstOutputName = outputInfo.begin()->first;
 
-    Blob::Ptr catOutputBlob = toFP32(commonInferReqPtr->GetBlob(firstOutputName));
+    Blob::Ptr catOutputBlob = vpux::toFP32(as<MemoryBlob>(commonInferReqPtr->GetBlob(firstOutputName)));
 
     TensorDesc outputBlobTensorDesc = catOutputBlob->getTensorDesc();
 
@@ -644,7 +645,7 @@ TEST_F(vpuLayersTests, DISABLED_allocateNV12TwoImagesGetBlob) {
 
     ASSERT_NO_THROW(commonInferReqPtr->Infer());
 
-    Blob::Ptr dogOutputBlob = toFP32(commonInferReqPtr->GetBlob(firstOutputName));
+    Blob::Ptr dogOutputBlob = vpux::toFP32(as<MemoryBlob>(commonInferReqPtr->GetBlob(firstOutputName)));
 
     std::string dogOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
     Blob::Ptr dogReferenceOutputBlob;

@@ -72,7 +72,7 @@ std::ostream& operator<<(std::ostream& os, const GatherTestParams& p) {
     return os;
 }
 
-ie::Blob::Ptr makeBlobFromData(const TensorDesc& desc, std::vector<size_t> data) {
+Blob::Ptr makeBlobFromData(const TensorDesc& desc, std::vector<size_t> data) {
     size_t blobElements = 1;
     std::for_each(desc.getDims().begin(), desc.getDims().end(), [&blobElements](size_t element) {
         blobElements *= element;
@@ -120,7 +120,7 @@ TEST_P(internal_KmbGatherLayerTests, EqualWithCPU) {
     registerBlobGenerator(
         "axis", userAxisDesc,
         [&](const TensorDesc& desc) {
-            return makeSingleValueBlob(desc, float(p._axis));
+            return vpux::makeSplatBlob(desc, float(p._axis));
         }
     );
 

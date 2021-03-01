@@ -195,7 +195,7 @@ TestNetwork& TestNetwork::addConst(const std::string& name, Blob::Ptr blob) {
     IE_ASSERT(_func == nullptr);
     IE_ASSERT(blob != nullptr);
 
-    blob = toDefLayout(blob);
+    blob = vpux::toDefLayout(as<MemoryBlob>(blob));
 
     const auto type = precisionToType(blob->getTensorDesc().getPrecision());
     const auto shape = ngraph::Shape(blob->getTensorDesc().getDims());
@@ -205,7 +205,7 @@ TestNetwork& TestNetwork::addConst(const std::string& name, Blob::Ptr blob) {
         IE_ASSERT(layer != nullptr);
         IE_ASSERT(inputs.empty());
 
-        return {toDefPrecision(blob)};
+        return {vpux::toDefPrecision(as<MemoryBlob>(blob))};
     };
 
     return addLayer(name, node, refFunc);
@@ -278,7 +278,7 @@ BlobMap TestNetwork::calcRef(const BlobMap& inputs) const {
 
             auto callNode = std::make_shared<CallNode>();
             callNode->op = op;
-            callNode->outputs.push_back(toDefLayout(toDefPrecision(input)));
+            callNode->outputs.push_back(vpux::toDefLayout(vpux::toDefPrecision(as<MemoryBlob>(input))));
 
             callsMap.insert({op, callNode});
             callsQueue.push(callNode);

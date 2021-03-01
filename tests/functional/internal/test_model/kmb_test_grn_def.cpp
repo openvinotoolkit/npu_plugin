@@ -21,12 +21,12 @@
 
 namespace {
 
-void refGRNFromVPU(const Blob::Ptr& src, Blob::Ptr& dst, float bias) {
+void refGRNFromVPU(const Blob::Ptr src, Blob::Ptr dst, float bias) {
     IE_ASSERT(src != nullptr);
     IE_ASSERT(dst != nullptr);
 
-    const auto srcHWC = toLayout(src, Layout::NHWC);
-    auto dstHWC = toLayout(dst, Layout::NHWC);
+    const auto srcHWC = vpux::toLayout(as<MemoryBlob>(src), Layout::NHWC);
+    auto dstHWC = vpux::toLayout(as<MemoryBlob>(dst), Layout::NHWC);
 
     const auto srcData = srcHWC->buffer().as<const float*>();
     const auto dstData = dstHWC->buffer().as<float*>();
@@ -67,7 +67,7 @@ BlobVector refGRN(const TestNetwork::NodePtr& layer, const BlobVector& inputs, c
     const auto bias = grnLayer->get_bias();
 
     const auto input = inputs.at(0);
-    auto output = makeSingleValueBlob(input->getTensorDesc(), 0.0f);
+    auto output = vpux::makeSplatBlob(input->getTensorDesc(), 0.0f);
 
     refGRNFromVPU(input, output, bias);
 

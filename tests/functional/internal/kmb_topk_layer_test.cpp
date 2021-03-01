@@ -67,7 +67,7 @@ TEST_P(KmbTopKLayerTests, Top_EqualWithCPU) {
 
     auto scalarKTensorDesc = TensorDesc(Precision::I64, {}, Layout::SCALAR);
     registerBlobGenerator("scalarK", scalarKTensorDesc, [&](const TensorDesc& desc) {
-        return makeSingleValueBlob(desc, int64_t{1});
+        return vpux::makeSplatBlob(desc, 1);
     });
 
     const auto netBuidler = [&](TestNetwork& testNet) {
