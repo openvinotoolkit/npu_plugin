@@ -24,7 +24,6 @@
 #include <ie_ngraph_utils.hpp>
 #include <details/ie_irelease.hpp>
 #include <ie_icore.hpp>
-#include <ie_itt.hpp>
 #include <ie_metric_helpers.hpp>
 
 // Plugin include
@@ -35,6 +34,7 @@
 #include "vpux_plugin.h"
 #include "vpux_remote_context.h"
 
+#include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
 
 namespace vpux {
@@ -64,7 +64,7 @@ Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)), _met
 //------------------------------------------------------------------------------
 IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
     const IE::CNNNetwork& network, std::shared_ptr<Device>& device, const VPUXConfig& networkConfig) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "LoadExeNetwork");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "LoadExeNetwork");
     IE::CNNNetwork clonedNetwork = IE::details::cloneNetwork(network);
 
     return std::make_shared<ExecutableNetwork>(clonedNetwork, device, networkConfig);
@@ -95,7 +95,7 @@ IE::ExecutableNetwork Engine::ImportNetwork(
 
 IE::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "ImportNetwork");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     // TODO This backend instance should be replaced with VPUX after backend refactoring
     auto device = _backends->getDevice(networkConfig.deviceId());
@@ -105,7 +105,7 @@ IE::ExecutableNetwork Engine::ImportNetworkImpl(
 
 IE::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const IE::RemoteContext::Ptr& context, const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "ImportNetwork");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(context);
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);

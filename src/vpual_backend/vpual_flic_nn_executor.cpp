@@ -17,6 +17,7 @@
 #include "vpual_flic_nn_executor.hpp"
 
 #include "vpux/utils/IE/blob.hpp"
+#include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
 
 #include <ie_common.h>
@@ -24,7 +25,6 @@
 #include <algorithm>
 #include <blob_factory.hpp>
 #include <dims_parser.hpp>
-#include <ie_itt.hpp>
 #include <map>
 #include <utility>
 #include <vector>
@@ -86,7 +86,7 @@ VpualFlicNNExecutor::~VpualFlicNNExecutor() { deallocateGraph(); }
 
 void VpualFlicNNExecutor::initVpualObjects(const uint32_t deviceId) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "initVpualObjects");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "initVpualObjects");
     if (!RgnAlloc) {
         RgnAlloc = std::make_shared<RgnAllocator>(deviceId);
     }
@@ -180,7 +180,7 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
 
 void VpualFlicNNExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "allocateGraph");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "allocateGraph");
     static int graphId_main = 1;
     int nThreads = _config.throughputStreams();
     int nShaves = 16;
@@ -425,7 +425,7 @@ static bool needRepackForNHWC(const ie::TensorDesc& actualDesc) {
 
 ie::Blob::Ptr VpualFlicNNExecutor::prepareInputForInference(
     const ie::Blob::Ptr& actualInput, const ie::TensorDesc& deviceDesc) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "prepareInputForInference");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "prepareInputForInference");
 
     // HACK: to overcome inability python API to pass a blob of NHWC layout
     if (_config.repackInputLayout()) {
@@ -463,7 +463,7 @@ ie::Blob::Ptr VpualFlicNNExecutor::prepareInputForInference(
 }
 void VpualFlicNNExecutor::push(const ie::BlobMap& inputs) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "push");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "push");
     _logger->info("VpualFlicNNExecutor::push started");
 
     ie::BlobMap updatedInputs;
@@ -534,7 +534,7 @@ uint32_t VpualFlicNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inp
 
 void VpualFlicNNExecutor::pull(ie::BlobMap& outputs) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "pull");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "pull");
     _logger->info("VpualFlicNNExecutor::pull started");
     uint32_t idPhysAddr = 0;
     uint32_t idLength = 0;
@@ -631,7 +631,7 @@ InferenceEngine::Parameter VpualFlicNNExecutor::getParameter(const std::string&)
 
 void VpualFlicNNExecutor::deallocateGraph() {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "deallocateGraph");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "deallocateGraph");
     if (pipe) {
         pipe->Stop();
         pipe->Delete();
