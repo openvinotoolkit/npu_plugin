@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2020-2021 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -91,6 +91,7 @@
 #include <ngraph/op/pad.hpp>
 #include <ngraph/op/mish.hpp>
 #include <ngraph/op/floor.hpp>
+#include <ngraph/op/round.hpp>
 #include <ngraph/op/erf.hpp>
 
 #include <ngraph/op/prior_box.hpp>
@@ -582,6 +583,30 @@ void convert(std::shared_ptr<ngraph::op::v0::Floor> op, mv::OpModel& mcmModel, N
     const auto& opName = op->get_friendly_name();
     const auto& opInput = mcmInputs.at(0);
     const auto mcmOpOutput = mcmModel.floor(opName, opInput);
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v5::Round> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const static std::map<ngraph::op::v5::Round::RoundMode, std::string> roundMode = {
+            {ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN,        "half_to_even"},
+            {ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO, "half_away_from_zero"}
+    };
+
+    const auto round_mode = op->get_mode();
+    const auto roundModeIter = roundMode.find(round_mode);
+    if (roundModeIter == roundMode.end()) {
+        THROW_IE_EXCEPTION << "Convertor for operation " << op->get_friendly_name()
+                           << " failed due to unsupported mode " << static_cast<int>(round_mode);
+
+    }
+    const auto& mode = roundModeIter->second;
+
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto& opName = op->get_friendly_name();
+    const auto& opInput = mcmInputs.at(0);
+    const auto mcmOpOutput = mcmModel.round(opName, opInput, mode);
     mcmOpOutput->setQuantParams(initialQuantParams());
     registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
 }
@@ -1823,6 +1848,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::SwishIE),
     MAP_ENTRY(ngraph::op::v4::Mish),
     MAP_ENTRY(ngraph::op::v0::Floor),
+    MAP_ENTRY(ngraph::op::v5::Round),
     MAP_ENTRY(ngraph::op::v0::Erf),
     MAP_ENTRY(ngraph::op::TileIE),
     MAP_ENTRY(ngraph::op::v1::VariadicSplit),
