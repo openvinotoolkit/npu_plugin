@@ -13,7 +13,7 @@ const size_t FULLY_CONNECTED_KERNEL = 1;
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, const mv::TargetDescriptor& td);
 void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -77,7 +77,7 @@ namespace mv
 }
 
 void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
-                       mv::TargetDescriptor&, mv::Element&, mv::Element&)
+                       mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     fullyConnectedAsConv2DFcn(pass, model);
     replaceStridedSliceWithStridedConvConcat(pass, model);
@@ -91,7 +91,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     topKAsArgMaxFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     interpAsDepthConvFcn(pass, model);
-    averageAsDepthWiseFcn(pass, model);
+    averageAsDepthWiseFcn(pass, model, td);
     scaleAsDepthwiseFcn(pass, model);
     flattenAsReshapeFcn(pass, model);
     replaceConcatOfPopulatedTensorsFcn(pass, model);
@@ -792,7 +792,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
     }
 }
 
-void averageAsDepthWiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
+void averageAsDepthWiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, const mv::TargetDescriptor& td)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -845,12 +845,16 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
         else
         {
             std::vector<int64_t> weightsData(total_shape, 1ll);
+            mv::DType dtype = mv::DType("UInt8");
+            if (td.getTarget() != mv::Target::ma2490 && td.getTarget() != mv::Target::ma3100)
+                dtype = sourceTensor->getDType();
+
             // If the input model is quantized, then the replacement pass needs to create
             // quantization params for the weights parameter of the depthwise convolution.
             weights = om.constantInt("",
                                      weightsData,
                                      {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                     mv::DType("UInt8"),
+                                     mv::DType(dtype),
                                      mv::Order(mv::Order::getColMajorID(4)));
             weights->setQuantParams(weightsQuantParams);
         }
