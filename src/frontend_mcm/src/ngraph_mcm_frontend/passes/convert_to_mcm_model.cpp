@@ -91,6 +91,7 @@
 #include <ngraph/op/mish.hpp>
 #include <ngraph/op/floor.hpp>
 #include <ngraph/op/round.hpp>
+#include <ngraph/op/ceiling.hpp>
 #include <ngraph/op/erf.hpp>
 
 #include <ngraph/op/prior_box.hpp>
@@ -616,6 +617,16 @@ void convert(std::shared_ptr<ngraph::op::v5::Round> op, mv::OpModel& mcmModel, N
     const auto& opName = op->get_friendly_name();
     const auto& opInput = mcmInputs.at(0);
     const auto mcmOpOutput = mcmModel.round(opName, opInput, mode);
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::Ceiling> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto& opName = op->get_friendly_name();
+    const auto& opInput = mcmInputs.at(0);
+    const auto mcmOpOutput = mcmModel.ceiling(opName, opInput);
     mcmOpOutput->setQuantParams(initialQuantParams());
     registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
 }
@@ -1877,7 +1888,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::Pad),
     MAP_ENTRY(ngraph::op::PadIE),
     MAP_ENTRY(ngraph::op::v4::Interpolate),
-    MAP_ENTRY(ngraph::op::v0::MVN)
+    MAP_ENTRY(ngraph::op::v0::MVN),
+    MAP_ENTRY(ngraph::op::v0::Ceiling),
 };
 
 #undef MAP_ENTRY
