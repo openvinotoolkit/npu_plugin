@@ -1579,4 +1579,28 @@ def IE_GRNOp :
     );
 }
 
+//
+// NegativeOp
+//
+
+def IE_NegativeOp :
+        IE_LayerOp<
+            "Negative",
+            [
+                SameOperandsAndResultType,
+                SingleInputAndResultLayer,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine Negative layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
 #endif

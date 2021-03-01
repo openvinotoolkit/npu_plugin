@@ -1029,4 +1029,24 @@ def IERT_PerAxisTileOp :
     );
 }
 
+//
+// NegativeOp
+//
+
+def IERT_NegativeOp :
+        IERT_LayerOp<
+            "Negative",
+            [
+                SameOperandsElementType,
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time Negative layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
 #endif

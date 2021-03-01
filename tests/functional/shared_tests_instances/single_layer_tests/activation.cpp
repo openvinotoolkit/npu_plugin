@@ -33,7 +33,8 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Tanh,
     ngraph::helpers::PReLu,
     ngraph::helpers::LeakyRelu,
-    ngraph::helpers::Swish
+    ngraph::helpers::Swish,
+    ngraph::helpers::Negative
 };
 } // namespace
 
@@ -96,6 +97,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Floor,    {{1.0f}}},
     {Erf,      {{1.0f}}},
     {Swish,    {{1.0f}}},
+    {Negative, {{1.0f}}},
 #if 0 // Unsupported layers
     {Exp,      {{1.0f}}},
     {Log,      {{1.0f}}},
