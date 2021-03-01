@@ -196,7 +196,7 @@
     },
     "serialize": {
         "Singular": [
-            "RecomputePaddingConcatMemoryLocations",
+            "ReorderPaddingConcatDMAs",
             "RemoveRedundantUpdateBarriers",
             "SplitBarrier",
             {

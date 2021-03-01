@@ -411,7 +411,6 @@
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_PreprocessForPWL")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_ReAllocateImplicitOperationsKmb")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_RecomputeImplicitOpMemoryLocations")
-#pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_RecomputePaddingConcatMemoryLocations")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_RecomputeTensorMultiClusterAttributesCauseOfSpilling")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_RemoveBiasTensors")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_RemoveCropAlignInCMX")
