@@ -17,6 +17,7 @@
 #include "vpual_flic_nn_executor.hpp"
 
 #include "vpux/utils/IE/blob.hpp"
+#include "vpux/utils/core/helper_macros.hpp"
 
 #include <ie_common.h>
 
@@ -24,7 +25,6 @@
 #include <blob_factory.hpp>
 #include <dims_parser.hpp>
 #include <ie_itt.hpp>
-#include <ie_macro.hpp>
 #include <map>
 #include <utility>
 #include <vector>
@@ -78,7 +78,7 @@ VpualFlicNNExecutor::VpualFlicNNExecutor(const vpux::NetworkDescription::Ptr& ne
     initVpualObjects(deviceId);
     allocateGraph(_networkDescription->getCompiledNetwork());
 #else
-    UNUSED(deviceId);
+    VPUX_UNUSED(deviceId);
 #endif
 }
 
@@ -128,7 +128,7 @@ void VpualFlicNNExecutor::initVpualObjects(const uint32_t deviceId) {
         _inferenceId.reset(reinterpret_cast<uint32_t*>(_allocator->alloc(sizeof(uint32_t))));
     }
 #else
-    UNUSED(deviceId);
+    VPUX_UNUSED(deviceId);
 #endif
 }
 
@@ -356,7 +356,7 @@ void VpualFlicNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     pipe->Start();
     _logger->info("Started FLIC pipeline...");
 #else
-    UNUSED(graphFileContent);
+    VPUX_UNUSED(graphFileContent);
 #endif
 }
 
@@ -487,7 +487,7 @@ void VpualFlicNNExecutor::push(const ie::BlobMap& inputs) {
     plgInferenceInput_->PushInferenceID(_allocator->getPhysicalAddress(_inferenceId.get()), sizeof(uint32_t));
     _logger->info("VpualFlicNNExecutor::push finished");
 #else
-    UNUSED(inputs);
+    VPUX_UNUSED(inputs);
 #endif
 }
 
@@ -560,7 +560,7 @@ void VpualFlicNNExecutor::pull(ie::BlobMap& outputs) {
     repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
     _logger->info("VpualFlicNNExecutor::pull finished");
 #else
-    UNUSED(outputs);
+    VPUX_UNUSED(outputs);
 #endif
 }
 

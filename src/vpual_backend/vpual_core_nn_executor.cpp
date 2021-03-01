@@ -17,6 +17,7 @@
 #include "vpual_core_nn_executor.hpp"
 
 #include "vpux/utils/IE/blob.hpp"
+#include "vpux/utils/core/helper_macros.hpp"
 
 #include <ie_common.h>
 
@@ -24,7 +25,6 @@
 #include <blob_factory.hpp>
 #include <dims_parser.hpp>
 #include <ie_itt.hpp>
-#include <ie_macro.hpp>
 #include <ie_utils.hpp>
 #include <map>
 #include <utility>
@@ -290,7 +290,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     allocateGraph(_networkDescription->getCompiledNetwork());
     initWatchDog();
 #else
-    UNUSED(deviceId);
+    VPUX_UNUSED(deviceId);
 #endif
 }
 
@@ -601,7 +601,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
 
     _logger->info("Started FLIC pipeline...");
 #else
-    UNUSED(graphFileContent);
+    VPUX_UNUSED(graphFileContent);
 #endif
 }
 
@@ -755,7 +755,7 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 
     _logger->info("::push finished");
 #else
-    UNUSED(inputs);
+    VPUX_UNUSED(inputs);
 #endif
 }
 
@@ -823,7 +823,7 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
     _logger->info("pull finished");
 #else
-    UNUSED(outputs);
+    VPUX_UNUSED(outputs);
 #endif
 }
 
@@ -903,7 +903,7 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
 
     int execution_index = 0;
     ie::InferenceEngineProfileInfo info;
-    for (const auto& profilingEntry : deviceProfiling) {    
+    for (const auto& profilingEntry : deviceProfiling) {
         info.status = ie::InferenceEngineProfileInfo::EXECUTED;
         info.cpu_uSec = info.realTime_uSec = profilingEntry.time;
         info.execution_index = execution_index++;

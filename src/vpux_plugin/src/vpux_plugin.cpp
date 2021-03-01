@@ -29,12 +29,13 @@
 
 // Plugin include
 #include "file_reader.h"
-#include "ie_macro.hpp"
 #include "vpux.hpp"
 #include "vpux_executable_network.h"
 #include "vpux_metrics.h"
 #include "vpux_plugin.h"
 #include "vpux_remote_context.h"
+
+#include "vpux/utils/core/helper_macros.hpp"
 
 namespace vpux {
 namespace IE = InferenceEngine;
@@ -122,8 +123,8 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
 
 IE::QueryNetworkResult Engine::QueryNetwork(
     const IE::CNNNetwork& network, const std::map<std::string, std::string>& config) const {
-    UNUSED(network);
-    UNUSED(config);
+    VPUX_UNUSED(network);
+    VPUX_UNUSED(config);
     THROW_IE_EXCEPTION << IE::NOT_IMPLEMENTED;
     return {};
 }
