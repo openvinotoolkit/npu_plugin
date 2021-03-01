@@ -215,7 +215,10 @@ void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
 }
 
 void ReorderPaddingConcatDMAsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&) 
+{
     mv::OpModel om(model);
+    for(auto padding_concat : om.getOps("PaddingConcat"))
+    {
         auto inputDMA = om.getSourceOp(padding_concat->getInputTensor(0UL));
         auto paddingDMA = om.getSourceOp(padding_concat->getInputTensor(1UL));
         if (inputDMA->hasAttr("schedulingNumber") && paddingDMA->hasAttr("schedulingNumber"))
