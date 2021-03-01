@@ -16,6 +16,7 @@
 
 #include "vpual_core_nn_executor.hpp"
 
+#include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/IE/blob.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
 
@@ -24,7 +25,6 @@
 #include <algorithm>
 #include <blob_factory.hpp>
 #include <dims_parser.hpp>
-#include <ie_itt.hpp>
 #include <ie_utils.hpp>
 #include <map>
 #include <utility>
@@ -457,7 +457,7 @@ const static vpu::EnumSet<InferenceEngine::VPUXConfigParams::VPUXPlatform> platf
 
 void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "allocateGraph");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "allocateGraph");
     static int graphId_main = 1;
     int nThreads = _config.throughputStreams();
 
@@ -669,7 +669,7 @@ static bool needRepackForNHWC(const ie::TensorDesc& actualDesc) {
 
 ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
     const ie::Blob::Ptr& actualInput, const ie::TensorDesc& deviceDesc) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "prepareInputForInference");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "prepareInputForInference");
 
     ie::Blob::Ptr inputForInference = actualInput;
     const auto& actualDesc = actualInput->getTensorDesc();
@@ -715,7 +715,7 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
 }
 void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "push");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "push");
     _logger->info("::push started");
 
     ie::BlobMap updatedInputs;
@@ -802,7 +802,7 @@ uint32_t VpualCoreNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inp
 
 void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "pull");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "pull");
     _logger->info("pull started");
     NnExecResponseMsg response;
     _wd->Start(this);

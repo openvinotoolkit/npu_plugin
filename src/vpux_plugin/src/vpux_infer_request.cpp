@@ -14,23 +14,21 @@
 // stated in the License.
 //
 
-// System
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-// IE
+
 #include <ie_blob.h>
 #include <ie_layouts.h>
-// Plugin
-#include <dumper.hpp>
 
-#include "ie_itt.hpp"
 #include "ie_utils.hpp"
 #include "vpux_infer_request.h"
 #include "vpux_remote_blob.h"
 
 #include "vpux/utils/IE/blob.hpp"
+#include "vpux/utils/IE/itt.hpp"
+
 // TODO KMB-standalone preprocessing details should be not exposed to plugin [Track number: S#43193]
 // Low-level
 #ifdef __aarch64__
@@ -147,7 +145,7 @@ void InferRequest::moveBlobForPreprocessingToInputs(
 // TODO [Track number: S#43193]
 #ifdef __aarch64__
 void InferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "execPreprocessing");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "execPreprocessing");
     if ((_config.useSIPP() || _config.useM2I() || _config.useSHAVE_only_M2I()) &&
         IE::KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecKmbDataPreprocessing(inputs, _networkInputs, _config.graphColorFormat(),
@@ -165,7 +163,7 @@ void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMa
                                                          InferenceEngine::ColorFormat out_format,
                                                          unsigned int numShaves, unsigned int lpi,
                                                          unsigned int numPipes) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "relocationAndExecKmbDataPreprocessing");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "relocationAndExecKmbDataPreprocessing");
     std::map<std::string, IE::PreProcessDataPtr> preprocDataRealloc;
     for (const auto& input : inputs) {
         const std::string& inputName = input.first;
@@ -231,7 +229,7 @@ void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
                                             InferenceEngine::InputsDataMap& networkInputs,
                                             InferenceEngine::ColorFormat out_format, unsigned int numShaves,
                                             unsigned int lpi, unsigned int numPipes) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "execKmbDataPreprocessing");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "execKmbDataPreprocessing");
     IE_ASSERT(_config.useSIPP() || _config.useM2I() || _config.useSHAVE_only_M2I());
     IE::KmbPreproc::Path ppPath;
     if (_config.useM2I()) {
@@ -248,7 +246,7 @@ void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
 
 void InferRequest::InferAsync() {
     // TODO [Track number: S#36866]
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "InferAsync");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "InferAsync");
 
     const auto preProcMap = preparePreProcessing(_networkInputs, _preProcData);
     if (_executorPtr->isPreProcessingSupported(preProcMap)) {
@@ -270,7 +268,7 @@ void InferRequest::InferAsync() {
 }
 
 void InferRequest::GetResult() {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "GetResult");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "GetResult");
     _executorPtr->pull(_outputs);
     const char* dumpOutputPathEnv = std::getenv("IE_VPU_KMB_DUMP_OUTPUT_PATH");
     if (dumpOutputPathEnv != nullptr) {
@@ -293,7 +291,7 @@ void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
         return;
     }
 
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "SetBlob");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "SetBlob");
     if (name.empty()) {
         THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
     }
