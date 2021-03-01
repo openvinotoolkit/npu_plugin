@@ -179,12 +179,16 @@ class Recompute_Attrs {
 
 static void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
     mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void ReorderPaddingConcatDMAsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 
 namespace mv {
 namespace pass {
 
 MV_REGISTER_PASS(RecomputeImplicitOpMemoryLocations)
   .setFunc(RecomputeImplicitOpMemoryLocations);
+
+MV_REGISTER_PASS(ReorderPaddingConcatDMAs)
+  .setFunc(ReorderPaddingConcatDMAsFcn);
 
 } // namespace pass //
 } // namespace mv//
@@ -208,4 +212,23 @@ void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
     memLocationAttribute.dump(fptr);
     fclose(fptr);
   }
+}
+
+void ReorderPaddingConcatDMAsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&) 
+{
+    mv::OpModel om(model);
+    for(auto padding_concat : om.getOps("PaddingConcat"))
+    {
+        auto inputDMA = om.getSourceOp(padding_concat->getInputTensor(0UL));
+        auto paddingDMA = om.getSourceOp(padding_concat->getInputTensor(1UL));
+        if (inputDMA->hasAttr("schedulingNumber") && paddingDMA->hasAttr("schedulingNumber"))
+        {
+          auto input_scheduling_number = inputDMA->get<unsigned>("schedulingNumber");
+          if (input_scheduling_number < paddingDMA->get<unsigned>("schedulingNumber"))
+          {
+            inputDMA->set<unsigned>("schedulingNumber",  paddingDMA->get<unsigned>("schedulingNumber"));
+            paddingDMA->set<unsigned>("schedulingNumber", input_scheduling_number);
+          }
+        }
+    }
 }
