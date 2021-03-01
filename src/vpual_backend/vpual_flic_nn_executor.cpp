@@ -435,7 +435,7 @@ ie::Blob::Ptr VpualFlicNNExecutor::prepareInputForInference(
     }
 
     ie::Blob::Ptr inputForInference;
-    if (!utils::isBlobAllocatedByAllocator(actualInput, _allocator)) {
+    if (!isBlobAllocatedByAllocator(actualInput, _allocator)) {
         _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
         inputForInference = reallocateBlob(ie::as<ie::MemoryBlob>(actualInput), _allocator);
     } else {
