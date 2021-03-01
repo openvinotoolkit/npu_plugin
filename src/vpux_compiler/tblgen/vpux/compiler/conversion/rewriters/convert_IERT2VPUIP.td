@@ -461,4 +461,20 @@ def RewriteScaleShift :
             (createScaleShiftUPAOp $input, $weights, $biases, $output)
         >;
 
+//
+// IERT.Negative -> VPUIP.NegativeUPA
+//
+
+def createNegativeUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::NegativeUPAOp>(
+                $_loc, $0, $1)
+        }]>;
+
+def RewriteNegative :
+        Pat<
+            (IERT_NegativeOp $input, $output),
+            (createNegativeUPAOp $input, $output)
+        >;
+
 #endif

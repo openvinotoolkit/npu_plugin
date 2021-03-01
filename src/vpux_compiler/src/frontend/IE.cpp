@@ -125,6 +125,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::PRelu>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::Swish>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::GRN>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Negative>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -224,6 +225,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
             MAP_ENTRY(ngraph::opset1::PRelu),
             MAP_ENTRY(ngraph::opset4::Swish),
             MAP_ENTRY(ngraph::opset1::GRN),
+            MAP_ENTRY(ngraph::opset1::Negative),
     };
 
 #undef MAP_ENTRY
@@ -931,6 +933,15 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto biasAttr = getFP32Attr(_ctx, checked_cast<float>(origNode->get_bias()));
 
     auto op = builder.create<IE::GRNOp>(createLocation(origNode), inputs[0], biasAttr);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Negative>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Negative node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::NegativeOp>(createLocation(origNode), inputs[0]);
     addOutputs(origNode, op);
 }
 
