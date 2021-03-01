@@ -51,19 +51,19 @@ TEST_P(KmbFullyConnectedLayerTests, FakeQuantize_FC) {
     registerBlobGenerator(
         "input", userInDesc,
         [&](const TensorDesc& desc) {
-            return makeSingleValueBlob(desc, 1.0f);
+            return vpux::makeSplatBlob(desc, 1.0f);
         }
     );
     registerBlobGenerator(
         "weights", getFCWeightsDesc(p._fcParams, p._inDims.at(1), netPresicion),
         [&](const TensorDesc& desc) {
-            return makeSingleValueBlob(desc, 1.0f);
+            return vpux::makeSplatBlob(desc, 1.0f);
         }
     );
     registerBlobGenerator(
         "biases", getFCBiasesDesc(p._fcParams, netPresicion),
         [&](const TensorDesc& desc) {
-            return makeSingleValueBlob(desc, 1.0f);
+            return vpux::makeSplatBlob(desc, 1.0f);
         }
     );
 

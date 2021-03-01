@@ -71,7 +71,7 @@ public:
     TestNetwork& addConst(const std::string& name, const std::shared_ptr<ngraph::op::Constant>& node);
     TestNetwork& addConst(const std::string& name, Blob::Ptr blob);
     TestNetwork& addConst(const std::string& name, float val) {
-        return addConst(name, makeScalarBlob(val));
+        return addConst(name, vpux::makeScalarBlob(val));
     }
 
     TestNetwork& addLayer(const std::string& name, const NodePtr& node, const RefFunc& refFunc);

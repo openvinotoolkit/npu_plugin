@@ -16,6 +16,8 @@
 
 #include "hddl2_executor.h"
 
+#include "vpux/utils/IE/blob.hpp"
+
 #include <ie_compound_blob.h>
 #include <ie_memcpy.h>
 
@@ -23,7 +25,6 @@
 #include <blob_factory.hpp>
 #include <ie_preprocess.hpp>
 #include <ie_remote_context.hpp>
-#include <ie_utils.hpp>
 
 #include "hddl2_exceptions.h"
 #include "hddl_unite/hddl2_unite_graph.h"
@@ -104,10 +105,10 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
             IE_ASSERT(memBlobActualInput != nullptr);
             std::memcpy(memBlobTmp->wmap().as<uint8_t*>(), memBlobActualInput->rmap().as<uint8_t*>(),
                         actualInput->byteSize());
-            inputForInference = toLayout(tmpBlobPtr, expectedLayout);
+            inputForInference = toLayout(memBlobTmp, expectedLayout);
         } else {
             // 4D to 4D input conversion
-            inputForInference = toLayout(actualInput, expectedLayout);
+            inputForInference = toLayout(IE::as<IE::MemoryBlob>(actualInput), expectedLayout);
         }
     }
 
@@ -296,16 +297,16 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
         IE::Blob::Ptr deviceOutputBlob = make_blob_with_precision(deviceTensorDesc);
         deviceOutputBlob->allocate();
         copyDataToBlob(deviceOutputBlob, outputUniteData.data(), outputUniteData.size());
-        outputBlobPtr = toPrecision(deviceOutputBlob, blobOutputPrecision);
+        outputBlobPtr = toPrecision(IE::as<IE::MemoryBlob>(deviceOutputBlob), blobOutputPrecision);
 
         if (deviceTensorDesc.getDims().size() == outputBlobTensorDesc.getDims().size()) {
-            outputBlobPtr = toLayout(outputBlobPtr, outputBlobTensorDesc.getLayout());
+            outputBlobPtr = toLayout(IE::as<IE::MemoryBlob>(outputBlobPtr), outputBlobTensorDesc.getLayout());
         } else {
             // FIXME If device and output layout dims are different, we do plain copy (see below)
             // Will be different behavior with channel minor and channel major layouts
             if (deviceTensorDesc.getLayout() == IE::Layout::NHWC &&
                 outputBlobTensorDesc.getLayout() == IE::Layout::CHW) {
-                outputBlobPtr = toLayout(outputBlobPtr, IE::Layout::NCHW);
+                outputBlobPtr = toLayout(IE::as<IE::MemoryBlob>(outputBlobPtr), IE::Layout::NCHW);
             }
         }
 

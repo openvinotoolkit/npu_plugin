@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "ie_utils.hpp"
+#include "vpux/utils/IE/blob.hpp"
 #include "yolo_helpers.hpp"
 
 #include <inference_engine.hpp>
@@ -642,8 +642,8 @@ bool compareBlobs(
         return false;
     }
 
-    const auto actualFP32 = ie::as<ie::MemoryBlob>(toFP32(toDefLayout(actualOutput)));
-    const auto refFP32 = ie::as<ie::MemoryBlob>(toFP32(toDefLayout(refOutput)));
+    const auto actualFP32 = vpux::toFP32(vpux::toDefLayout(actualOutput));
+    const auto refFP32 = vpux::toFP32(vpux::toDefLayout(refOutput));
 
     const auto actualMem = actualFP32->rmap();
     const auto refMem = refFP32->rmap();

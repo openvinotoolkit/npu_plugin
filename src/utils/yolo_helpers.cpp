@@ -16,9 +16,9 @@
 
 #include "yolo_helpers.hpp"
 
-#include <cmath>
+#include "vpux/utils/IE/blob.hpp"
 
-#include "ie_utils.hpp"
+#include <cmath>
 
 namespace ie = InferenceEngine;
 
@@ -382,7 +382,7 @@ std::vector<utils::BoundingBox> utils::parseYoloV3Output(const ie::BlobMap& blob
     std::vector<std::vector<float>> results;
     std::vector<std::vector<size_t>> blobWH;
     for (auto blob : blobs) {
-        auto blobFP32 = toFP32(blob.second);
+        auto blobFP32 = vpux::toFP32(ie::as<ie::MemoryBlob>(blob.second));
         auto ptr = blobFP32->cbuffer().as<float*>();
         IE_ASSERT(ptr != nullptr);
 

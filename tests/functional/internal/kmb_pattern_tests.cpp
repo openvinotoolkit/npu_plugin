@@ -57,7 +57,7 @@ TEST_P(KmbPatternTests, BatchNotEqualToOneInTheMiddle) {
 
     const auto netPresicion = Precision::FP32;
 
-    const auto input_desc  = TensorDesc(p.prec_, p.in_dims_, TensorDesc::getLayoutByDims(p.in_dims_));  
+    const auto input_desc  = TensorDesc(p.prec_, p.in_dims_, TensorDesc::getLayoutByDims(p.in_dims_));
     const auto output_desc = TensorDesc(p.prec_, p.shape1_,  TensorDesc::getLayoutByDims(p.shape1_));
     const auto shape_desc0 = TensorDesc(Precision::I64,  {p.shape0_.size()},  Layout::C);
     const auto shape_desc1 = TensorDesc(Precision::I64,  {p.shape1_.size()},  Layout::C);
@@ -67,7 +67,7 @@ TEST_P(KmbPatternTests, BatchNotEqualToOneInTheMiddle) {
     registerBlobGenerator(
         "input", input_desc,
         [&](const TensorDesc& desc) {
-            return makeSingleValueBlob(desc, 1.0f);
+            return vpux::makeSplatBlob(desc, 1.0f);
         }
     );
 
@@ -97,11 +97,11 @@ TEST_P(KmbPatternTests, BatchNotEqualToOneInTheMiddle) {
             .addNetInput("input", input_desc.getDims(), netPresicion)
             .addConst("shape0", getBlobByName("shape0"))
             .addConst("shape1", getBlobByName("shape1"))
-            .addLayer<ReshapeLayerDef>("reshape0") 
+            .addLayer<ReshapeLayerDef>("reshape0")
                 .input("input")
                 .shape("shape0")
                 .build()
-            .addLayer<ReshapeLayerDef>("reshape1") 
+            .addLayer<ReshapeLayerDef>("reshape1")
                 .input("reshape0")
                 .shape("shape1")
                 .build()
@@ -110,7 +110,7 @@ TEST_P(KmbPatternTests, BatchNotEqualToOneInTheMiddle) {
             .finalize();
     };
 
-    runTest(netBuidler, tolerance, CompareMethod::Absolute); 
+    runTest(netBuidler, tolerance, CompareMethod::Absolute);
 }
 
 const std::vector<BatchNotEqualOneParams> params = {

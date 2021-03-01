@@ -62,7 +62,7 @@ TEST_P(KmbPowerTwoOutputsTest, powerWithSigmoid) {
     registerBlobGenerator(
             "scale", powerTensorDesc,
             [&](const TensorDesc& desc) {
-                return makeSingleValueBlob(desc, 1.f);
+                return vpux::makeSplatBlob(desc, 1.f);
             }
     );
 
@@ -110,14 +110,14 @@ TEST_P(KmbPowerTwoOutputsTest, twoPowerWithSigmoid) {
     registerBlobGenerator(
             "scale", powerTensorDesc,
             [&](const TensorDesc& desc) {
-                return makeSingleValueBlob(desc, 1.f);
+                return vpux::makeSplatBlob(desc, 1.f);
             }
     );
 
     registerBlobGenerator(
             "scale1", powerTensorDesc,
             [&](const TensorDesc& desc) {
-                return makeSingleValueBlob(desc, 1.f);
+                return vpux::makeSplatBlob(desc, 1.f);
             }
     );
 

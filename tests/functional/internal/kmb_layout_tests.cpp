@@ -112,7 +112,7 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
     registerBlobGenerator(
             "scale", powerTensorDesc,
             [&](const TensorDesc& desc) {
-                return makeSingleValueBlob(desc, 1.f);
+                return vpux::makeSplatBlob(desc, 1.f);
             }
     );
 

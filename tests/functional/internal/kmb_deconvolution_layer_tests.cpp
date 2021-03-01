@@ -48,7 +48,7 @@ TEST_P(KmbDeconvLayerTests, DepthWiseFP16) {
     const auto netPresicion = Precision::FP32;
 
     // TODO change input to FP16 when supported
-    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);  
+    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
     const auto userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);
 
     const auto tolerance = 1e+3f;
@@ -56,14 +56,14 @@ TEST_P(KmbDeconvLayerTests, DepthWiseFP16) {
     registerBlobGenerator(
         "input", userInDesc,
         [&](const TensorDesc& desc) {
-            return makeSingleValueBlob(desc, 1.0f);
+            return vpux::makeSplatBlob(desc, 1.0f);
         }
     );
 
     registerBlobGenerator(
         "weights", getDeconvDwWeightsDesc(p._deconvParams, netPresicion),
         [&](const TensorDesc& desc) {
-            return makeSingleValueBlob(desc, 1.0f);
+            return vpux::makeSplatBlob(desc, 1.0f);
         }
     );
 
@@ -80,8 +80,8 @@ TEST_P(KmbDeconvLayerTests, DepthWiseFP16) {
             .finalize();
     };
 
-    
-    runTest(netBuidler, tolerance, CompareMethod::Absolute); 
+
+    runTest(netBuidler, tolerance, CompareMethod::Absolute);
 }
 
 const std::vector<DeconvTestParams> deconvParams {

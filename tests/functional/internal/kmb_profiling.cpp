@@ -31,10 +31,10 @@ void KmbProfilingTest::runTest() {
     const std::map<std::string, std::string> netConfig = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
 
     registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {
-        return makeSingleValueBlob(desc, 1.0f);
+        return vpux::makeSplatBlob(desc, 1.0f);
     });
 
-    if (RUN_COMPILER) 
+    if (RUN_COMPILER)
     {
         TestNetwork testNet;
         testNet
@@ -50,12 +50,12 @@ void KmbProfilingTest::runTest() {
             .finalize();
 
             CNNNetwork cnnNet = testNet.getCNNNetwork();
-            
+
         ExecutableNetwork exeNet = core->LoadNetwork(cnnNet, DEVICE_NAME, netConfig);
         KmbTestBase::exportNetwork(exeNet);
     }
 
-    if (RUN_INFER) 
+    if (RUN_INFER)
     {
         ExecutableNetwork exeNet = KmbTestBase::importNetwork(netConfig);
         auto inferRequest = exeNet.CreateInferRequest();
@@ -72,7 +72,7 @@ void KmbProfilingTest::runTest() {
             const std::pair<std::string, InferenceEngineProfileInfo>& pair2) -> bool {
             return pair1.second.execution_index < pair2.second.execution_index;
         });
-        
+
         for (auto& it : perfVec) {
             std::string layerName = it.first;
             InferenceEngineProfileInfo info = it.second;

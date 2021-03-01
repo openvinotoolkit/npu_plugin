@@ -308,8 +308,8 @@ void KmbTestBase::compareOutputs(
 
     ASSERT_EQ(refDesc.getDims(), actualDesc.getDims());
 
-    const auto refFP32 = toFP32(toDefLayout(refOutput));
-    const auto actualFP32 = toFP32(toDefLayout(actualOutput));
+    const auto refFP32 = vpux::toFP32(vpux::toDefLayout(as<MemoryBlob>(refOutput)));
+    const auto actualFP32 = vpux::toFP32(vpux::toDefLayout(as<MemoryBlob>(actualOutput)));
 
     {
         auto refMem = refFP32->cbuffer();
@@ -844,7 +844,7 @@ BlobMap KmbNetworkTestBase::calcRefOutput(
         const auto& refInputName = refInfo.first;
         const auto& refInputInfo = refInfo.second;
         const auto& inputBlob = inputs.at(refInputName);
-        const auto refInputBlob = toLayout(toPrecision(inputBlob, refInputInfo->getTensorDesc().getPrecision()),
+        const auto refInputBlob = vpux::toLayout(vpux::toPrecision(as<MemoryBlob>(inputBlob), refInputInfo->getTensorDesc().getPrecision()),
                                                                   refInputInfo->getTensorDesc().getLayout());
         refInputs.emplace(refInputName, refInputBlob);
     }
@@ -913,7 +913,7 @@ void KmbNetworkTestBase::runTest(
         const auto& inputName = inputInfo.first;
         // HACK: to overcome IE bug with incorrect TensorDesc::setLayout
         const auto& desc = inputInfo.second->getTensorDesc();
-        const auto& inputBlob = toPrecision(toLayout(getBlobByName(inputName),
+        const auto& inputBlob = vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(getBlobByName(inputName)),
                                                      desc.getLayout()), desc.getPrecision());
         inputs.emplace(inputName, inputBlob);
     }
@@ -927,7 +927,7 @@ void KmbNetworkTestBase::runTest(
         if (EXPORT_BLOBS) {
             std::cout << "    === EXPORT REFERENCE" << std::endl;
             for (const auto& refOutput : refOutputBlobs) {
-                dumpBlob(refOutput.first, toDefLayout(toDefPrecision(refOutput.second)));
+                dumpBlob(refOutput.first, vpux::toDefLayout(vpux::toDefPrecision(as<MemoryBlob>(refOutput.second))));
             }
         }
     } else if (RUN_INFER) {
@@ -967,7 +967,7 @@ void KmbNetworkTestBase::registerSingleImage(const TestImageDesc& image, const s
           const auto blob = loadImage(image, desc.getDims()[1], desc.getDims()[2], desc.getDims()[3]);
           IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
 
-          return toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());
+          return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
         });
 };
 
@@ -979,7 +979,7 @@ void KmbNetworkTestBase::registerSingleBinFile(const TestBinFileDesc& file, cons
           const auto blob = loadBinFile(file, desc.getDims()[1], desc.getDims()[2], desc.getDims()[3]);
           IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
 
-          return toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());
+          return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
         });
 };
 
@@ -996,8 +996,8 @@ void KmbClassifyNetworkTest::checkCallbackHelper(const BlobMap& actualBlobs,
 
     ASSERT_EQ(refBlob->getTensorDesc().getDims(), actualBlob->getTensorDesc().getDims());
 
-    auto actualOutput = parseOutput(toFP32(actualBlob));
-    auto refOutput    = parseOutput(toFP32(refBlob));
+    auto actualOutput = parseOutput(vpux::toFP32(as<MemoryBlob>(actualBlob)));
+    auto refOutput    = parseOutput(vpux::toFP32(as<MemoryBlob>(refBlob)));
 
     ASSERT_GE(actualOutput.size(), topK);
     actualOutput.resize(topK);
@@ -1112,8 +1112,8 @@ void KmbDetectionNetworkTest::runTest(
         const auto imgWidth = inputDesc.getDims().at(3);
         const auto imgHeight = inputDesc.getDims().at(2);
 
-        auto actualOutput = parseOutput(toFP32(actualBlob), imgWidth, imgHeight, confThresh);
-        auto refOutput = parseOutput(toFP32(refBlob), imgWidth, imgHeight, confThresh);
+        auto actualOutput = parseOutput(vpux::toFP32(as<MemoryBlob>(actualBlob)), imgWidth, imgHeight, confThresh);
+        auto refOutput = parseOutput(vpux::toFP32(as<MemoryBlob>(refBlob)), imgWidth, imgHeight, confThresh);
 
         checkBBoxOutputs(actualOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
     };
@@ -1270,8 +1270,8 @@ void KmbYoloV2NetworkTest::runTest(
         const auto imgWidth = inputDesc.getDims().at(3);
         const auto imgHeight = inputDesc.getDims().at(2);
 
-        auto actualOutput = utils::parseYoloOutput(toFP32(actualBlob), imgWidth, imgHeight, confThresh, isTiny);
-        auto refOutput = utils::parseYoloOutput(toFP32(refBlob), imgWidth, imgHeight, confThresh, isTiny);
+        auto actualOutput = utils::parseYoloOutput(vpux::toFP32(as<MemoryBlob>(actualBlob)), imgWidth, imgHeight, confThresh, isTiny);
+        auto refOutput = utils::parseYoloOutput(vpux::toFP32(as<MemoryBlob>(refBlob)), imgWidth, imgHeight, confThresh, isTiny);
 
         checkBBoxOutputs(actualOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
     };
@@ -1303,8 +1303,8 @@ void KmbSSDNetworkTest::runTest(const TestNetworkDesc &netDesc, const TestImageD
         const auto imgWidth = inputDesc.getDims().at(3);
         const auto imgHeight = inputDesc.getDims().at(2);
 
-        auto actualOutput = utils::parseSSDOutput(toFP32(actualBlob), imgWidth, imgHeight, confThresh);
-        auto refOutput = utils::parseSSDOutput(toFP32(refBlob), imgWidth, imgHeight, confThresh);
+        auto actualOutput = utils::parseSSDOutput(vpux::toFP32(as<MemoryBlob>(actualBlob)), imgWidth, imgHeight, confThresh);
+        auto refOutput = utils::parseSSDOutput(vpux::toFP32(as<MemoryBlob>(refBlob)), imgWidth, imgHeight, confThresh);
 
         checkBBoxOutputs(actualOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
     };
@@ -1372,8 +1372,8 @@ void GazeEstimationNetworkTest::runTest(const TestNetworkDesc& netDesc,
         auto actualBlob = actualBlobs.begin()->second;
         auto refBlob    = refBlobs.begin()->second;
 
-        auto actualOutput = toFP32(actualBlob);
-        auto refOutput = toFP32(refBlob);
+        auto actualOutput = vpux::toFP32(as<MemoryBlob>(actualBlob));
+        auto refOutput = vpux::toFP32(as<MemoryBlob>(refBlob));
 
         IE_ASSERT(actualOutput->size() == refOutput->size());
 
@@ -1397,7 +1397,6 @@ void GazeEstimationNetworkTest::runTest(const TestNetworkDesc& netDesc,
           registerBlobGenerator(head_pos_input_name,
               angleTensorDesc,
               [&head_pos](const TensorDesc& desc) {
-
                 auto blob = make_blob_with_precision(TensorDesc(Precision::FP32,
                                                                         desc.getDims(),
                                                                         desc.getLayout()));
@@ -1407,7 +1406,7 @@ void GazeEstimationNetworkTest::runTest(const TestNetworkDesc& netDesc,
 
                 IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
 
-                return toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());
+                return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
               });
     };
 
@@ -1471,16 +1470,16 @@ void VehicleAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
         ASSERT_EQ(actualBlobs.size(), refBlobs.size());
         // FIXME 'color' and 'type' names might be specific to vehicle_attributes_recognition_barrier_0042
         // find a way to make it more generic when necessary
-        auto actualColours = parseOutput(toFP32(actualBlobs.find("color")->second));
-        auto actualTypes = parseOutput(toFP32(actualBlobs.find("type")->second));
+        auto actualColours = parseOutput(vpux::toFP32(as<MemoryBlob>(actualBlobs.find("color")->second)));
+        auto actualTypes = parseOutput(vpux::toFP32(as<MemoryBlob>(actualBlobs.find("type")->second)));
         auto topColourIdx = actualColours.at(0).first;
         auto topTypeIdx = actualTypes.at(0).first;
         auto topColourName = COLOURS.at(topColourIdx);
         auto topTypeName = VEHICLES.at(topTypeIdx);
         std::cout << "Actual output: " << topColourName << " " << topTypeName << std::endl;
 
-        auto refColours = parseOutput(toFP32(refBlobs.find("color")->second));
-        auto refTypes = parseOutput(toFP32(refBlobs.find("type")->second));
+        auto refColours = parseOutput(vpux::toFP32(as<MemoryBlob>(refBlobs.find("color")->second)));
+        auto refTypes = parseOutput(vpux::toFP32(as<MemoryBlob>(refBlobs.find("type")->second)));
         auto refColourIdx = refColours.at(0).first;
         auto refTypeIdx = refTypes.at(0).first;
         auto refColourName = COLOURS.at(refColourIdx);
@@ -1628,8 +1627,8 @@ void PersonAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc, const Tes
 
         ASSERT_EQ(refBlob->getTensorDesc().getDims(), actualBlob->getTensorDesc().getDims());
 
-        auto actualOutput = parseOutput(toFP32(actualBlob));
-        auto refOutput = parseOutput(toFP32(refBlob));
+        auto actualOutput = parseOutput(vpux::toFP32(as<MemoryBlob>(actualBlob)));
+        auto refOutput = parseOutput(vpux::toFP32(as<MemoryBlob>(refBlob)));
 
         std::cout << "actual person attributes: \n" << actualOutput << std::endl;
         std::cout << "ref    person attributes: \n" << refOutput << std::endl;
@@ -1704,12 +1703,12 @@ void KmbVasFDStage1Test::runTest(
             auto refRegBlob  = refBlobs.at(regName);
 
             auto actualOutput = parseOutput(
-                toFP32(toLayout(actProbBlob, InferenceEngine::NCHW)),
-                toFP32(toLayout(actRegBlob, InferenceEngine::NCHW)),
+                vpux::toFP32(vpux::toLayout(as<MemoryBlob>(actProbBlob), InferenceEngine::NCHW)),
+                vpux::toFP32(vpux::toLayout(as<MemoryBlob>(actRegBlob), InferenceEngine::NCHW)),
                 anchorSize, winScale, winLength, scoreThresh);
             auto refOutput = parseOutput(
-                toFP32(toLayout(refProbBlob, InferenceEngine::NCHW)),
-                toFP32(toLayout(refRegBlob, InferenceEngine::NCHW)),
+                vpux::toFP32(vpux::toLayout(as<MemoryBlob>(refProbBlob), InferenceEngine::NCHW)),
+                vpux::toFP32(vpux::toLayout(as<MemoryBlob>(refRegBlob), InferenceEngine::NCHW)),
                 anchorSize, winScale, winLength, scoreThresh);
 
             checkBBoxOutputs(actualOutput, refOutput, 1, 1, boxTolerance, probTolerance);
@@ -1806,9 +1805,9 @@ void KmbVasFDStage2Test::runTest(
         std::vector<utils::BoundingBox> bboxesRef;
 
         bboxesActual.push_back(parseOutput(
-            toFP32(actProbBlob), toFP32(actRegBlob), candidate, threshold));
+            vpux::toFP32(as<MemoryBlob>(actProbBlob)), vpux::toFP32(as<MemoryBlob>(actRegBlob)), candidate, threshold));
         bboxesRef.push_back(parseOutput(
-            toFP32(refProbBlob), toFP32(refRegBlob), candidate, threshold));
+            vpux::toFP32(as<MemoryBlob>(refProbBlob)), vpux::toFP32(as<MemoryBlob>(refRegBlob)), candidate, threshold));
 
         checkBBoxOutputs(bboxesActual, bboxesRef, 1, 1, boxTolerance, probTolerance);
     };
@@ -1863,8 +1862,8 @@ void KmbVasFRTest::runTest(
 
         const float GRN_BIAS = 0.000001;
 
-        auto actualOutput = toFP32(actualBlobs.begin()->second);
-        auto refOutput    = toFP32(refBlobs.begin()->second);
+        auto actualOutput = vpux::toFP32(as<MemoryBlob>(actualBlobs.begin()->second));
+        auto refOutput    = vpux::toFP32(as<MemoryBlob>(refBlobs.begin()->second));
 
         IE_ASSERT(actualOutput->size() == refOutput->size());
 
@@ -1922,8 +1921,8 @@ void ModelAdk::runTest(
 
             ASSERT_EQ(refDesc.getDims(), actualDesc.getDims());
 
-            const auto refFP32 = toFP32(toDefLayout(refOutput));
-            const auto actualFP32 = toFP32(toDefLayout(actualOutput));
+            const auto refFP32 = vpux::toFP32(vpux::toDefLayout(as<MemoryBlob>(refOutput)));
+            const auto actualFP32 = vpux::toFP32(vpux::toDefLayout(as<MemoryBlob>(actualOutput)));
             auto refMem = refFP32->cbuffer();
             auto actualMem = actualFP32->cbuffer();
 

@@ -26,13 +26,14 @@
 #include "file_reader.h"
 #include "gtest/gtest.h"
 #include "ie_blob.h"
-#include "ie_utils.hpp"
 #include "models/models_constant.h"
 #include "tests_common.hpp"
 
 #include <opencv_wraper.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/core.hpp>
+
+#include "vpux/utils/IE/blob.hpp"
 
 namespace IE = InferenceEngine;
 
@@ -74,7 +75,10 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInference) {
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(
-        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+        Comparators::compareTopClassesUnordered(
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                    numberOfTopClassesToCompare));
 }
 
 /** @brief Validate repacking from NCHW to NHWC */
@@ -109,7 +113,10 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInferenceNCHWInput) {
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(
-        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+        Comparators::compareTopClassesUnordered(
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                    numberOfTopClassesToCompare));
 }
 
 // Case: Image with 256B alignment - not supported w/o preprocessing
@@ -206,7 +213,10 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference) {
     IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, &preprocInfo);
 
     ASSERT_NO_THROW(
-        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+        Comparators::compareTopClassesUnordered(
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                    numberOfTopClassesToCompare));
 }
 
 TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference_RGBToBGR) {
@@ -247,7 +257,10 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference_RGBToBGR) {
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(
-        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+        Comparators::compareTopClassesUnordered(
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                    numberOfTopClassesToCompare));
 }
 
 // Case: Image with 256B alignment
@@ -293,7 +306,7 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_ImageWithStrides) {
     IE::SizeVector uvPlaneDims {1, uvPlanes, imageHeight / 2, (imageWidth + paddingWidth) / 2};
     IE::TensorDesc uvPlaneTensorDesc(IE::Precision::U8, uvPlaneDims, IE::Layout::NHWC);
     const int64_t grayConst = 0x80;
-    IE::Blob::Ptr uvPlaneInputBlob = makeSingleValueBlob(uvPlaneTensorDesc, grayConst);
+    IE::Blob::Ptr uvPlaneInputBlob = vpux::makeSplatBlob(uvPlaneTensorDesc, grayConst);
 
     // ---- Create NV12 blob with ROI for strides processing
     IE::ROI yPlaneRoi {0, 0, 0, imageWidth, imageHeight};
@@ -330,7 +343,10 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_ImageWithStrides) {
     // --- Compare with reference
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(
-            Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+            Comparators::compareTopClassesUnordered(
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                    numberOfTopClassesToCompare));
 }
 
 //------------------------------------------------------------------------------
@@ -361,7 +377,10 @@ TEST_F(ImageWorkload_SpecificCases, precommit_WithoutPreprocessingAndPreprocessi
     IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputBlob);
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(
-        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+        Comparators::compareTopClassesUnordered(
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                    numberOfTopClassesToCompare));
 
 
     // ---- With preprocessing - set blob
@@ -376,7 +395,10 @@ TEST_F(ImageWorkload_SpecificCases, precommit_WithoutPreprocessingAndPreprocessi
     outputBlob = inferRequest.GetBlob(outputBlobName);
     refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, &preprocInfo);
     ASSERT_NO_THROW(
-        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));;
+        Comparators::compareTopClassesUnordered(
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                    numberOfTopClassesToCompare));;
 }
 
 /** @brief Execute inference without preprocessing and after that with preprocessing  */
@@ -400,7 +422,10 @@ TEST_F(ImageWorkload_SpecificCases, precommit_PreprocessingAndWithoutPreprocessi
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
     auto refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, &preprocInfo);
     ASSERT_NO_THROW(
-        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));;
+        Comparators::compareTopClassesUnordered(
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                    numberOfTopClassesToCompare));;
 
     // ---- Without preprocessing - set blob
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
@@ -414,5 +439,8 @@ TEST_F(ImageWorkload_SpecificCases, precommit_PreprocessingAndWithoutPreprocessi
     refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputBlob);
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(
-        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+        Comparators::compareTopClassesUnordered(
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                    numberOfTopClassesToCompare));
 }

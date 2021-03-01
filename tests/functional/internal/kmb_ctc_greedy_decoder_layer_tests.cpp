@@ -56,7 +56,7 @@ TEST_P(KmbCTCDecoderLayerTests, DISABLED_accuracy) {
     });
 
     registerBlobGenerator("input1", seqIndDesc, [&](const TensorDesc& desc) {
-        return makeSingleValueBlob(desc, 1.0f);
+        return vpux::makeSplatBlob(desc, 1.0f);
     });
 
     const auto netBuilder = [&](TestNetwork& testNet) {
