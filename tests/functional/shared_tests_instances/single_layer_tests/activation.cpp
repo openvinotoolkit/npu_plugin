@@ -21,6 +21,8 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMCM {
     ngraph::helpers::Elu,
     ngraph::helpers::Mish,
     ngraph::helpers::Floor,
+    ngraph::helpers::RoundHalfToEven,
+    ngraph::helpers::RoundHalfAwayFromZero,
     ngraph::helpers::Erf
 };
 
@@ -98,6 +100,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Erf,      {{1.0f}}},
     {Swish,    {{1.0f}}},
     {Negative, {{1.0f}}},
+    {RoundHalfToEven,       {}},
+    {RoundHalfAwayFromZero, {}},
 #if 0 // Unsupported layers
     {Exp,      {{1.0f}}},
     {Log,      {{1.0f}}},
