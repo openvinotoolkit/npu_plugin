@@ -186,7 +186,7 @@ TEST_F(ModelAdk, precommit_ModelA_ADK3) {
                     .setUserInputPrecision("input", Precision::FP16)
                     .setUserOutputPrecision("output", Precision::FP16),
             TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
-            0.0025f);
+            0.0035f);
 }
 
 TEST_F(ModelAdk, ModelE_ADK3) {
