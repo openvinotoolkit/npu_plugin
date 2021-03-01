@@ -25,7 +25,6 @@
 #include <algorithm>
 #include <blob_factory.hpp>
 #include <dims_parser.hpp>
-#include <ie_utils.hpp>
 #include <map>
 #include <utility>
 #include <vector>
@@ -689,7 +688,7 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
                 inputForInference, ie::Layout::NCHW, ie::Layout::NHWC, _allocator);
     }
 
-    if (!utils::isBlobAllocatedByAllocator(inputForInference, _allocator)) {
+    if (!isBlobAllocatedByAllocator(inputForInference, _allocator)) {
         _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
         auto inputForInferenceReAlloc = reallocateBlob(ie::as<ie::MemoryBlob>(inputForInference), _allocator);
         inputForInference = inputForInferenceReAlloc;

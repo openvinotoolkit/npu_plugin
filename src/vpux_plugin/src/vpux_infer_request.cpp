@@ -22,7 +22,6 @@
 #include <ie_blob.h>
 #include <ie_layouts.h>
 
-#include "ie_utils.hpp"
 #include "vpux_infer_request.h"
 #include "vpux_remote_blob.h"
 
@@ -75,7 +74,7 @@ InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::Out
           _config(config),
           _logger(std::make_shared<vpu::Logger>("InferRequest", config.logLevel(), vpu::consoleOutput())),
           _allocator(allocator),
-          _deviceId(utils::extractIdFromDeviceName(config.deviceId())),
+          _deviceId(extractIdFromDeviceName(config.deviceId())),
           _netUniqueId(netName),
           _preprocBuffer(nullptr, [this](uint8_t* buffer) {
               _allocator->free(buffer);
@@ -181,8 +180,8 @@ void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMa
 
             IE::Blob::Ptr kmbYBlob = origYBlob;
             IE::Blob::Ptr kmbUVBlob = origUVBlob;
-            if (!utils::isBlobAllocatedByAllocator(origYBlob, _allocator) ||
-                !utils::isBlobAllocatedByAllocator(origUVBlob, _allocator)) {
+            if (!isBlobAllocatedByAllocator(origYBlob, _allocator) ||
+                !isBlobAllocatedByAllocator(origUVBlob, _allocator)) {
                 _logger->warning("NV12 Blob located in memory not managed by plugin. Need to re-allocate the blob.");
                 _preprocBuffer.reset(
                         reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
@@ -199,7 +198,7 @@ void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMa
                 InferenceEngine::TensorDesc croppedYTensorDesc = {origYBlob->getTensorDesc().getPrecision(),
                                                                   origYBlob->getTensorDesc().getDims(),
                                                                   origYBlob->getTensorDesc().getLayout()};
-                kmbYBlob = ie::make_shared_blob<uint8_t>(croppedYTensorDesc, _preprocBuffer.get());
+                kmbYBlob = InferenceEngine::make_shared_blob<uint8_t>(croppedYTensorDesc, _preprocBuffer.get());
 
                 auto memoryBlobUV = IE::as<IE::MemoryBlob>(origUVBlob);
                 IE_ASSERT(memoryBlobUV != nullptr);
@@ -210,8 +209,8 @@ void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMa
                 InferenceEngine::TensorDesc croppedUVTensorDesc = {origUVBlob->getTensorDesc().getPrecision(),
                                                                    origUVBlob->getTensorDesc().getDims(),
                                                                    origUVBlob->getTensorDesc().getLayout()};
-                kmbUVBlob = ie::make_shared_blob<uint8_t>(croppedUVTensorDesc,
-                                                          _preprocBuffer.get() + origYBlob->byteSize());
+                kmbUVBlob = InferenceEngine::make_shared_blob<uint8_t>(croppedUVTensorDesc,
+                                                                       _preprocBuffer.get() + origYBlob->byteSize());
             }
 
             InferenceEngine::Blob::Ptr nv12Blob =
