@@ -2243,6 +2243,14 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
         workload.padRight = 0;
         workload.padBottom = 0;
     }
+    else if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
+    {
+        auto padding = getPadding(opIt, clusterId);
+        workload.padLeft = padding[0];
+        workload.padTop = padding[2];
+        workload.padRight = padding[1];
+        workload.padBottom = padding[3];
+    }
     else
     {
         auto padding = getPadding(opIt, clusterId);

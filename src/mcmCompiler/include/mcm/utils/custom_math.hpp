@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include <cassert>
+#include <random>
 #include "include/mcm/tensor/dtype/dtype.hpp"
 
 
@@ -66,6 +67,7 @@ namespace mv
         assert(partIndex < totalNumberOfParts);
         return T(vec.cbegin() + partIndex * vec.size()/totalNumberOfParts, vec.cbegin() + (partIndex + 1) * vec.size()/totalNumberOfParts);
     }
+    std::vector<double> normalGenerator(double mean, double stdDev, std::size_t size);
 }
 
 #endif
