@@ -15,6 +15,7 @@
 //
 
 #include "ie_utils.hpp"
+#include "yolo_helpers.hpp"
 
 #include <inference_engine.hpp>
 #include <blob_factory.hpp>
@@ -52,9 +53,11 @@ DEFINE_bool(run_test, false, "Run the test (compare current results with previou
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
-DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification' mode");
+DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification/ssd_detection' mode");
 
 DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
+DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
+DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
 
 DEFINE_string(log_level, "", "IE logger level (optional)");
 DEFINE_string(color_format, "BGR", "Color format for input: RGB or BGR");
@@ -417,6 +420,136 @@ ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs) {
 }
 
 //
+// SSD_Detection mode
+//
+
+static std::vector<utils::BoundingBox> SSDBoxExtractor(float threshold, std::vector<float>& net_out, size_t imgWidth,
+                                                       size_t imgHeight) {
+    std::vector<utils::BoundingBox> boxes_result;
+
+    if (net_out.empty()) {
+        return boxes_result;
+    }
+    size_t oneDetectionSize = 7;
+
+    IE_ASSERT(net_out.size() % oneDetectionSize == 0);
+
+    for (size_t i = 0; i < net_out.size() / oneDetectionSize; ++i) {
+        if (net_out[i * oneDetectionSize + 2] > threshold) {
+            boxes_result.emplace_back(net_out[i * oneDetectionSize + 1], net_out[i * oneDetectionSize + 3] * imgWidth,
+                                      net_out[i * oneDetectionSize + 4] * imgHeight,
+                                      net_out[i * oneDetectionSize + 5] * imgWidth,
+                                      net_out[i * oneDetectionSize + 6] * imgHeight, net_out[i * oneDetectionSize + 2]);
+        }
+    }
+
+    return boxes_result;
+}
+
+bool checkBBoxOutputs(std::vector<utils::BoundingBox> &actualOutput,
+                                               std::vector<utils::BoundingBox> &refOutput,
+                                               const size_t imgWidth,
+                                               const size_t imgHeight,
+                                               const float boxTolerance,
+                                               const float probTolerance) {
+    std::cout << "Ref Top:" << std::endl;
+    for (size_t i = 0; i < refOutput.size(); ++i) {
+        const auto& bb = refOutput[i];
+        std::cout << i << " : " << bb.idx
+                  << " : [("
+                  << bb.left << " " << bb.top << "), ("
+                  << bb.right << " " << bb.bottom
+                  << ")] : "
+                  << bb.prob * 100 << "%"
+                  << std::endl;
+    }
+
+    std::cout << "Actual top:" << std::endl;
+    for (size_t i = 0; i < actualOutput.size(); ++i) {
+        const auto& bb = actualOutput[i];
+        std::cout << i << " : " << bb.idx
+                  << " : [("
+                  << bb.left << " " << bb.top << "), ("
+                  << bb.right << " " << bb.bottom
+                  << ")] : "
+                  << bb.prob * 100 << "%" << std::endl;
+    }
+
+    for (const auto& refBB : refOutput) {
+        bool found = false;
+
+        float maxBoxError = 0.0f;
+        float maxProbError = 0.0f;
+
+        for (const auto& actualBB : actualOutput) {
+            if (actualBB.idx != refBB.idx) {
+                continue;
+            }
+
+            const utils::Box actualBox {
+                    actualBB.left / imgWidth,
+                    actualBB.top / imgHeight,
+                    (actualBB.right - actualBB.left) / imgWidth,
+                    (actualBB.bottom - actualBB.top) / imgHeight
+            };
+            const utils::Box refBox {
+                    refBB.left / imgWidth,
+                    refBB.top / imgHeight,
+                    (refBB.right - refBB.left) / imgWidth,
+                    (refBB.bottom - refBB.top) / imgHeight
+            };
+
+            const auto boxIntersection = boxIntersectionOverUnion(actualBox, refBox);
+            const auto boxError = 1.0f - boxIntersection;
+            maxBoxError = std::max(maxBoxError, boxError);
+
+            const auto probError = std::fabs(actualBB.prob - refBB.prob);
+            maxProbError = std::max(maxProbError, probError);
+
+            if (boxError > boxTolerance) {
+                continue;
+            }
+
+            if (probError > probTolerance) {
+                continue;
+            }
+
+            found = true;
+            break;
+        }
+        if (!found) {
+            std::cout << "maxBoxError=" << maxBoxError << " " << "maxProbError=" << maxProbError << std::endl;
+            return false;
+        }
+    }
+    return true;
+}
+
+bool testSSDDetection(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs, const ie::ConstInputsDataMap& inputsDesc) {
+    IE_ASSERT(outputs.size() == 1 && refOutputs.size() == 1);
+    const auto& outBlob = outputs.begin()->second;
+    const auto& refOutBlob = refOutputs.begin()->second;
+    IE_ASSERT(refOutBlob->getTensorDesc().getPrecision() == ie::Precision::FP32);
+    IE_ASSERT(outBlob->getTensorDesc().getPrecision() == ie::Precision::FP32);
+
+    const auto& inputDesc = inputsDesc.begin()->second->getTensorDesc();
+
+    const auto imgWidth = inputDesc.getDims().at(3);
+    const auto imgHeight = inputDesc.getDims().at(2);
+
+    auto confThresh = FLAGS_confidence_threshold;
+    auto probTolerance = FLAGS_prob_tolerance;
+    auto boxTolerance = FLAGS_box_tolerance;
+
+    auto actualOutput = utils::parseSSDOutput(ie::as<ie::MemoryBlob>(outBlob), imgWidth, imgHeight, confThresh);
+    auto refOutput = utils::parseSSDOutput(ie::as<ie::MemoryBlob>(refOutBlob), imgWidth, imgHeight, confThresh);
+
+    auto result = checkBBoxOutputs(actualOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
+
+    return result;
+}
+
+//
 // Classification mode
 //
 
@@ -677,6 +810,13 @@ int main(int argc, char* argv[]) {
                 }
             } else if (strEq(FLAGS_mode, "raw")) {
                 if (testRAW(outputs, refOutputs)) {
+                    std::cout << "PASSED" << std::endl;
+                } else {
+                    std::cout << "FAILED" << std::endl;
+                    return EXIT_FAILURE;
+                }
+            } else if (strEq(FLAGS_mode, "ssd")) {
+                if (testSSDDetection(outputs, refOutputs, inputsInfo)) {
                     std::cout << "PASSED" << std::endl;
                 } else {
                     std::cout << "FAILED" << std::endl;

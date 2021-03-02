@@ -387,35 +387,6 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             1.f, 0.3f);
 }
 
-// Sporadic accuracy fail
-// [Track number: S#41921]
-TEST_F(KmbSSDNetworkTest, DISABLED_precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_dense_int8_IRv10_from_fp32.xml")
-                    .setUserInputPrecision("input", Precision::U8),
-            TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
-            0.3f,
-            0.1f, 0.3f);
-}
-
-// C++ exception with description "Only single input is supported currently
-// kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:785
-// [Track number: D#2723]
-// Convertor for operation McmFC_7719 failed due to runtime error
-// Op:McmFC_7719 - OpError: Invalid input data (0) - Inconsistent total size of input tensor (input 0) 204800
-// and 1st dimension of weights tensor (input 1) 2048
-// [Track number: D#40919]
-TEST_F(KmbDetectionNetworkTest, DISABLED_precommit_faster_rcnn_resnet101_coco_tf_dense_int8_IRv10_from_fp32) {
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/public/faster_rcnn_resnet101_coco/faster_rcnn_resnet101_coco_tf_dense_int8_IRv10_from_fp32.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("1024x600/frankfurt_001016.jpg", ImageFormat::RGB),
-            0.3f,
-            0.1f, 0.3f);
-}
-
 TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v4_tf_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/googlenet-v4/googlenet_v4_tf_dense_int8_IRv10_from_fp32.xml")
@@ -424,15 +395,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v4_tf_dense_int8_IRv10_from_f
                     .setUserOutputPrecision("output", Precision::FP32),
             TestImageDesc("300x300/dog.bmp", ImageFormat::RGB),
             1, 0.06f);
-}
-
-TEST_F(KmbSSDNetworkTest, precommit_ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_from_fp32) {
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/public/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_from_fp32.xml")
-                    .setUserInputPrecision("input", Precision::U8),
-            TestImageDesc("300x300/dog.bmp", ImageFormat::RGB),
-            0.3f,
-            0.1f, 0.3f);
 }
 
 // Interrupted by signal 6: SIGABRT
@@ -449,20 +411,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_facenet_20180408_102900_tf_dense_int8_I
                     .setUserOutputPrecision("output", Precision::FP32),
             TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
             1, 0.05f);
-}
-
-// [Track number: D#3675]
-// ngraph and legacy parsers:
-// Op:bottleneck4_2/dim_inc/bn/variance/Fused_Add_ - ArgumentError: attribute identifer splitStrategy - Undefined identifier
-TEST_F(KmbDetectionNetworkTest, DISABLED_precommit_person_vehicle_bike_detection_crossroad_0078_caffe_dense_int8_IRv10_from_fp32) {
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/icv/person-vehicle-bike-detection-crossroad-0078/person_vehicle_bike_detection_crossroad_0078_caffe_dense_int8_IRv10_from_fp32.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("1024x1024/frankfurt_001016.png", ImageFormat::RGB),
-            0.3f,
-            0.1f, 0.3f);
 }
 
 TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32) {
@@ -753,16 +701,6 @@ TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
         0.1f);
 }
 
-// [Track number: D#3604]
-TEST_F(KmbSSDNetworkTest, ssdlite_mobilenet_v2) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/ssdlite_mobilenet_v2/ssdlite_mobilenet_v2.xml")
-            .setUserInputPrecision("image_tensor", Precision::U8),
-        TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
-        0.3f,
-        0.1f, 0.3f);
-}
-
 TEST_F(VehicleAttrRecNetworkTest, vehicle_attributes_recognition_barrier_0042) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/"
@@ -906,16 +844,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
     TestBinFileDesc("vpu/audio_16k/airplane_3_17-FP16.bin", {1, 1, 1, 16000}, Precision::FP16),
         1,
         0.3f);
-}
-
-// Compilation time is about 18 minutes
-TEST_F(KmbSSDNetworkTest, ssd_mobilenet_v2_coco) {
-    runTest(
-        TestNetworkDesc("KMB_models/FP16-INT8/public/ssd_mobilenet_v2_coco/ssd_mobilenet_v2_coco.xml")
-            .setUserInputPrecision("input", Precision::U8),
-        TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
-        0.3f,
-        0.1f, 0.35f);
 }
 
 // [Track number: D#45024]
