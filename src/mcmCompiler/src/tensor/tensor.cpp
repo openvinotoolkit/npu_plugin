@@ -225,7 +225,7 @@ void mv::Tensor::populate(const std::vector<double>& data)
                 intData[i] = mv::fp32_to_bf16(data[i]);
 
         }
-        return populate(intData);
+        populate(intData);
     }
     if (data.size() != shape_.totalSize())
         throw ArgumentError(*this, "data vector", std::to_string(data.size()), "Unable to populate, data vector size"
