@@ -1104,7 +1104,7 @@ std::vector<uint64_t> packToInt64(const std::vector<T>& origData, mv::DType dtyp
                 // are negative, the sign extension gets copied over the more significant parts. As a result,
                 // when the next element gets packed it wil have its bits flipped due to XOR.
                 // That's why the mask is needed.
-                const long unsigned int mask = (static_cast<long unsigned int>(1) << origDataSize) - 1;
+                const uint64_t mask = (1ULL << origDataSize) - 1;
                 toReturn[i] ^= (origData[i*nElementToPack + j] & mask) << (j * origDataSize);
             }
 
