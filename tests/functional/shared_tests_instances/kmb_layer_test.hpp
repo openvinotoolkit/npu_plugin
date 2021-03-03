@@ -32,8 +32,6 @@ protected:
     void ImportReference(std::vector<std::vector<std::uint8_t>>& refs);
     void ExportReference(const std::vector<std::vector<std::uint8_t>>& refs);
 
-    virtual void GenerateInputs();
-    void Infer() override;
     void Validate() override;
 
     virtual void SkipBeforeLoad() {}

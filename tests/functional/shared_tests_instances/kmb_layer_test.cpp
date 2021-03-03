@@ -17,7 +17,6 @@
 
 namespace LayerTestsUtils {
 
-// might need to use CommonTestUtils::DEVICE_CPU for ref calc
 const TargetDevice testPlatformTargetDevice("VPUX");
 
 const KmbTestEnvConfig KmbLayerTestsCommon::envConfig;
@@ -104,32 +103,6 @@ void KmbLayerTestsCommon::ImportReference(std::vector<std::vector<std::uint8_t>>
         kmbTestTool.importBlob(referenceBlob,
             filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
-}
-
-void KmbLayerTestsCommon::GenerateInputs() {
-    for (const auto &input : executableNetwork.GetInputsInfo()) {
-        const auto &info = input.second;
-        auto blob = GenerateInput(*info);
-        inputs.push_back(blob);
-    }
-}
-
-void KmbLayerTestsCommon::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-
-    int i = 0;
-    for (const auto &input : executableNetwork.GetInputsInfo()) {
-        const auto &info = input.second;
-        auto blob = inputs[i++];
-        inferRequest.SetBlob(info->name(), blob);
-    }
-
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-        auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-        inferRequest.SetBatch(batchSize);
-    }
-    inferRequest.Infer();
 }
 
 void KmbLayerTestsCommon::Validate() {
