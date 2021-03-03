@@ -1,0 +1,39 @@
+{
+    "config": {
+        "Singular": [
+            {
+                "name" : "GlobalConfigParams",
+                "recorded_model": false,
+                "recordWeightsAsText": false,
+                "referenceDevice": "A0",
+                "systemClockMhz" : 500,
+                "memoryBandwidth" : 16,
+                "Number_of_DPUs" : 5,
+                "Number_of_Clusters" : 1,
+                "WorkloadCost": 300,
+                "DDRScratch": 31457280,
+                "cmx": 917504,
+                "enable_channel_major_conv": true,
+                "HuffmanCompression": false,
+                "DPUTasksinFloat": false,
+                "RemovePermuteNoOp": true,
+                "PredictionOfQuantizationOutput": false,
+                "FloatOutput": true,
+                "Int32Output": false,
+                "PPEAccuracy": false,
+                "ScaleFuseInput": false,
+                "PWLUsage": true,
+                "ReferenceMode": false,
+                "enableStreaming": true,
+                "enablePipelining": true,
+                "enablePrefetching": true,
+                "enableWeightsSparsity": true,
+                "enableStaticBarriers": true,
+                "real_physical_barriers": 8,
+                "barrier_bound": 4
+            }
+        ]
+    },
+
+    "@MERGE@": "@FILE@/base/release_kmb_base_A0.json"
+}
