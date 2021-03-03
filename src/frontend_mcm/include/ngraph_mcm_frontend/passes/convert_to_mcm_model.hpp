@@ -37,13 +37,15 @@ public:
     ConvertToMcmModel(mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
                       const InferenceEngine::InputsDataMap& networkInputs,
                       const InferenceEngine::OutputsDataMap& networkOutputs,
-                      const std::map<std::string, std::string>& ioMap, const vpu::MCMConfig& config)
+                      const std::map<std::string, std::string>& ioMap, const vpu::MCMConfig& config,
+                      bool* needConvertInputPrecision)
             : _mcmModel(mcmModel),
               _mcmOutputsMap(mcmOutputsMap),
               _networkInputs(networkInputs),
               _networkOutputs(networkOutputs),
               _ioMap(ioMap),
-              _config(config) {
+              _config(config),
+              _needConvertInputPrecision(needConvertInputPrecision) {
     }
 
     bool run_on_function(std::shared_ptr<ngraph::Function> func) override;
@@ -59,4 +61,5 @@ private:
     InferenceEngine::OutputsDataMap _networkOutputs;
     std::map<std::string, std::string> _ioMap;
     vpu::MCMConfig _config;
+    bool* _needConvertInputPrecision;
 };
