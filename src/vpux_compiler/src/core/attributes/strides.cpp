@@ -79,14 +79,11 @@ Byte vpux::getTypeTotalSize(mlir::MemRefType type) {
 //
 
 Strides vpux::getStrides(mlir::MemRefType type) {
-    const auto elemSize = getElemTypeSize(type);
     const auto maps = type.getAffineMaps();
 
     if (maps.empty() || (maps.size() == 1 && maps.front().isPermutation())) {
         const auto dimsOrder = DimsOrder::fromType(type);
-        const auto shape = getShape(type);
-        const auto memShape = dimsOrder.toMemoryOrder(shape);
-        const auto memStrides = StrideReqs::simple().calcStrides(elemSize, memShape);
+        const auto memStrides = StrideReqs::simple().calcStrides(type);
         return dimsOrder.toLogicalOrder(memStrides);
     }
 
@@ -98,6 +95,7 @@ Strides vpux::getStrides(mlir::MemRefType type) {
                       "Only strided/simple MemRef Types are supported, got '{0}'", type);
     VPUX_THROW_UNLESS(offset == 0, "Only strided/simple MemRef Types are supported, got '{0}'", type);
 
+    const auto elemSize = getElemTypeSize(type);
     Strides strides(elemStrides.size());
 
     for (auto i : irange(strides.size())) {

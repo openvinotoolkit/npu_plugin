@@ -158,6 +158,7 @@ public:
     void calcStrides(MemStrides& memStrides, Bit elemSize, MemShapeRef memShape) const;
 
     MemStrides calcStrides(Bit elemSize, MemShapeRef memShape) const;
+    MemStrides calcStrides(mlir::ShapedType memShape) const;
 
 public:
     bool checkStrides(mlir::MemRefType type) const;
@@ -260,6 +261,7 @@ public:
     void calcStrides(MemStrides& memStrides, Bit elemSize, MemShapeRef memShape) const;
 
     MemStrides calcStrides(Bit elemSize, MemShapeRef memShape) const;
+    MemStrides calcStrides(mlir::ShapedType memShape) const;
 
 public:
     bool checkStrides(mlir::MemRefType type) const;

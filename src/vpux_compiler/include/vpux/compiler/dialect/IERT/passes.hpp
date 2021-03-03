@@ -34,8 +34,8 @@ namespace IERT {
 // Passes
 //
 
+std::unique_ptr<mlir::Pass> createAddLayoutsAndStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(mlir::Attribute memSpace, Logger log = Logger::global());
-
 std::unique_ptr<mlir::Pass> createStaticAllocationPass(mlir::Attribute memSpace, Logger log = Logger::global());
 
 //
