@@ -38,6 +38,7 @@
 #include "ngraph_mcm_frontend/passes/handle_3d_transpose.hpp"
 #include <ngraph_mcm_frontend/passes/propagate_fq.hpp>
 #include <ngraph_mcm_frontend/passes/align_scales.hpp>
+#include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -133,6 +134,8 @@ std::vector<char> compileNGraph(
     const auto log = std::make_shared<vpu::Logger>("KMB nGraph Parser", config.logLevel(), vpu::consoleOutput());
 
     log->info("Parse nGraph %v", netName);
+
+    bool needConvertInputPrecision = false;
 
     //
     // Configure MCM Compiler
@@ -281,7 +284,8 @@ std::vector<char> compileNGraph(
         passManager.register_pass<InsertMaxPool>();
         passManager.register_pass<ReplaceShuffle>();
         passManager.register_pass<Handle3DTranspose>();
-        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config);
+        passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
+        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config, &needConvertInputPrecision);
         passManager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
         const auto start = std::chrono::high_resolution_clock::now();

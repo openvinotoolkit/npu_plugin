@@ -113,10 +113,6 @@ public:
         return _allowU8InputForFp16Models;
     }
 
-    bool allowConvertInputPrecisionToU8() const {
-        return _allowConvertInputPrecisionToU8;
-    }
-
     bool scaleShiftFusing() const {
         return _scaleShiftFusing;
     }
@@ -166,8 +162,6 @@ private:
     bool _allowNCHWLayoutForMcmModelInput = false;
 
     bool _allowU8InputForFp16Models = false;
-
-    bool _allowConvertInputPrecisionToU8 = true;
 
     bool _scaleShiftFusing = true;
 
