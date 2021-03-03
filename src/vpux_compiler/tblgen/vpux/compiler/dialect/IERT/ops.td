@@ -1049,4 +1049,27 @@ def IERT_NegativeOp :
     );
 }
 
+//
+// FullyConnected
+//
+
+def IERT_FullyConnectedOp:
+        IERT_LayerOp<
+            "FullyConnected",
+            [
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<FullyConnectedLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time FullyConnected layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$weights,
+        Optional<MemRefOf<[F16, F32]>>:$bias,
+        MemRefOf<[F16, F32]>:$output
+    );
+}
+
 #endif

@@ -594,4 +594,29 @@ def DetectionOutputLayerInterface : OpInterface<"DetectionOutputLayerInterface">
     }];
 }
 
+//
+// FullyConnectedLayerInterface
+//
+
+def FullyConnectedLayerInterface : OpInterface<"FullyConnectedLayerInterface"> {
+    let description = "Interface for FullyConnected Layer";
+
+    let cppNamespace = "vpux";
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            if ($_op.bias() != nullptr) {
+                return {$_op.input(), $_op.weights(), $_op.bias()};
+            }
+            else {
+                return {$_op.input(), $_op.weights()};
+            }
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
+}
+
 #endif

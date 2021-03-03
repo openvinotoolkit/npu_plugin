@@ -49,6 +49,8 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include <mlir/IR/PatternMatch.h>
+
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::MatMulOp::inferReturnTypeComponents(
@@ -119,4 +121,48 @@ mlir::LogicalResult vpux::IE::MatMulOp::inferReturnTypeComponents(
 
     inferredReturnShapes.emplace_back(outShape, inType1.getElementType());
     return mlir::success();
+}
+
+//
+// UseFullyConnected
+//
+
+namespace {
+
+class UseFullyConnected final : public mlir::OpRewritePattern<IE::MatMulOp> {
+public:
+    using mlir::OpRewritePattern<IE::MatMulOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult UseFullyConnected::matchAndRewrite(IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const {
+    auto inShape = getShape(matmulOp.input1());
+    auto weightsShape = getShape(matmulOp.input2());
+
+    auto transIn = matmulOp.transpose_a();
+    auto transWeights = matmulOp.transpose_b();
+
+    static const auto IC = Dim(1);
+
+    if (inShape.size() != 2 || weightsShape.size() != 2) {
+        return mlir::failure();
+    }
+
+    if (transIn || (!transWeights) || inShape[IC] != weightsShape[IC]) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::FullyConnectedOp>(matmulOp, matmulOp.getType(), matmulOp.input1(),
+                                                      matmulOp.input2(), nullptr);
+
+    return mlir::success();
+}
+
+}  // namespace
+
+void vpux::IE::MatMulOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
+                                                     mlir::MLIRContext* context) {
+    patterns.insert<UseFullyConnected>(context);
 }

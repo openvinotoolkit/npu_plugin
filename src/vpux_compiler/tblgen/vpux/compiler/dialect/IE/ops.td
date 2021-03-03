@@ -1072,6 +1072,8 @@ def IE_MatMulOp:
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
+
+    let hasCanonicalizer = 1;
 }
 
 //
@@ -1601,6 +1603,34 @@ def IE_NegativeOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
+}
+
+//
+// FullyConnected
+//
+
+def IE_FullyConnectedOp:
+        IE_LayerOp<
+            "FullyConnected",
+            [
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<FullyConnectedLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine FullyConnected layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$weights,
+        Optional<RankedTensorOf<[F16, F32]>>:$bias
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let hasCanonicalizer = 1;
 }
 
 #endif
