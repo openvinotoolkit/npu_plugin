@@ -596,7 +596,8 @@ class CMX_Concatenation {
           std::vector<control_edge_t> local_resource_control_edges, local_depth_pseudo_edges = {};
           std::vector<mv::Data::FlowListIterator> local_resource_control_flows, local_depth_pseudo_flows = {};
           //NOTE-1: collect the resource control edges and the depth pseudo edges for the subgraph
-          transform_and_get_control_edges(subgraph, local_resource_control_edges);
+          transform_and_get_control_edges(subgraph,
+              std::back_inserter(local_resource_control_edges));
           if (does_rep_dpu_has_lower_depth_than_others(subgraph)) {
             transform_concat_subgraph_depth(subgraph, local_depth_pseudo_edges);
           }
@@ -1030,9 +1031,9 @@ class CMX_Concatenation {
 
     //Control edges will be sent to output iterator and the resource shuffling
     //will be done adding an attribute "cmx_concateable: resource_size"
-    template <typename ControlEdgeOutput>
+    template <typename OutputIterator>
     size_t transform_and_get_control_edges(concat_subgraph_t& subgraph,
-        ControlEdgeOutput& output) {
+        OutputIterator output) {
       // TYPE1: dpu_rep -> dpu_non_rep
       // TYPE2: dpu_rep->d , d \in dpu_out
 
@@ -1050,7 +1051,7 @@ class CMX_Concatenation {
         if (*ditr == dpu_rep) { continue; }
 
         auto dpu_itr = om.getOp((*ditr)->getName());
-        output.push_back(control_edge_t(dpu_rep_itr, dpu_itr));
+        *output = control_edge_t(dpu_rep_itr, dpu_itr);
         ++total_control_edges;
 
         dpu_itr->set<size_t>(cmx_concat_attribute(), 0UL);
@@ -1060,7 +1061,7 @@ class CMX_Concatenation {
       for (auto ditr=subgraph.dpu_out_.begin(); ditr!=subgraph.dpu_out_.end();
           ++ditr) {
         auto dpu_itr = om.getOp((*ditr)->getName());
-        output.push_back(control_edge_t(dpu_rep_itr, dpu_itr));
+        *output = control_edge_t(dpu_rep_itr, dpu_itr);
 
         // update the resource increase delta of dpu_itr //
         operation_t dout_op = *ditr;

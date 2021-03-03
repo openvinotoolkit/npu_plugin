@@ -333,7 +333,7 @@ class Operation_Dag {
         const operation_t& op) { return g.begin_in(op); }
 
     static bool is_pseudo_input_edge(const dag_t& , const operation_t& ,
-        const operation_t& sink) { return false; }
+        const operation_t& ) { return false; }
 
     static bool is_inplace_op(const dag_t& dag, const operation_t& op) {
       return dag.is_inplace_op(op);

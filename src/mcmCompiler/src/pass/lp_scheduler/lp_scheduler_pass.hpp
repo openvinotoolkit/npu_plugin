@@ -18,8 +18,8 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/iterator/tensor.hpp"
 #include "include/mcm/logger/logger.hpp"
-#include "lp_scheduler/control_edge_generator.hpp"
-#include "lp_scheduler/operation_precedence_dag.hpp"
+#include "pass/lp_scheduler/control_edge_generator.hpp"
+#include "pass/lp_scheduler/operation_precedence_dag.hpp"
 #include "scheduler/dag_address_generator.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
 
