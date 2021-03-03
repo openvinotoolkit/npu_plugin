@@ -1966,13 +1966,12 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
     const auto allowNCHWInput = _config.allowNCHWLayoutForMcmModelInput();
     const auto allowU8InputForFp16Models = _config.allowU8InputForFp16Models();
     const auto allowPermuteND = _config.allowPermuteND();
-    const auto allowConvertInputPrecisionToU8 = _config.allowConvertInputPrecisionToU8();
     for (const auto& inputInfo : _networkInputs) {
         bool isFound = false;
         for (const auto& op : func->get_parameters()) {
             if (op->get_friendly_name() == _ioMap.at(inputInfo.first)) {
                 ConvertNode(op, _mcmModel, _mcmOutputsMap, inputInfo.second->getInputData(), allowNCHWInput,
-                            allowU8InputForFp16Models, allowPermuteND, allowConvertInputPrecisionToU8);
+                            allowU8InputForFp16Models, allowPermuteND, *_needConvertInputPrecision);
                 isFound = true;
             }
         }
