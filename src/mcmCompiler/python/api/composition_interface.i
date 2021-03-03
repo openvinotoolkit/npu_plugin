@@ -232,15 +232,15 @@ import_array();
         return temp;
     }
 
-    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
+    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const std::string& type, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
         /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
-        auto temp = o.constant( name, data, shape, mv::DType("Float64"), order);
+        auto temp = o.constant( name, data, shape, mv::DType(type), order);
         temp->set<mv::QuantizationParams>("quantParams", quantParams);
         return temp;
     }
 
-    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<int64_t> &data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
-        auto temp = o.constantInt(name, data, shape, mv::DType("UInt8"), order);
+    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<int64_t>& data, const std::string& type, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
+        auto temp = o.constantInt(name, data, shape, mv::DType(type), order);
         temp->set<mv::QuantizationParams>("quantParams", quantParams);
         return temp;
     }
@@ -257,6 +257,12 @@ import_array();
         auto temp = o.input(name, shape, mv::DType("UInt8"), order, networkInput);
         temp->set<mv::QuantizationParams>("quantParams", quantParams);
         return temp;
+    }
+    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, const std::string& type, const mv::Order& order, const mv::QuantizationParams &quantParams, bool networkInput, const std::string& name){
+        /// Add an Input Layer to the OpModel and return the relevant iterator
+          auto temp = o.input(name,shape, mv::DType(type), order, networkInput);
+          temp->set<mv::QuantizationParams>("quantParams", quantParams);
+          return temp;
     }
 
     mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input,  const std::string& name){
@@ -370,6 +376,7 @@ import_array();
         /// Add a Convolutional Layer to the OpModel and return the relevant iterator
         auto temp = o.conv(name,input, filters, {strideX, strideY}, {padXl, padXr, padYu, padYd}, dilationFactor, group);
         temp->set<mv::QuantizationParams>("quantParams", quantParams);
+        temp->setDType(mv::DType(type));
         return temp;
     }
 
@@ -438,6 +445,18 @@ import_array();
         temp->set<mv::QuantizationParams>("quantParams", quantParams);
         return temp;
     }
+    mv::Data::TensorIterator interp(mv::CompositionalModel& o, mv::Data::TensorIterator input, const double& factor, const unsigned& pad_beg, const unsigned& pad_end, const unsigned& height, const unsigned& width, const bool& align_corners, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+
+        auto temp = o.interp(name, input, factor, pad_beg, pad_end, height, align_corners);
+        temp->set<mv::QuantizationParams>("quantParams", quantParams);
+        return temp;
+    }
+
+    mv::Data::TensorIterator resample(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& interpolation, const bool& antialias, const mv::Shape& output_shape, const std::string& type, const mv::QuantizationParams &quantParams,  const std::string& name){
+        auto temp = o.resample(name, input, interpolation, antialias, output_shape);
+        temp->set<mv::QuantizationParams>("quantParams", quantParams);
+        return temp;
+    }
 
     bool isValid(mv::CompositionalModel& o){
         return o.isValid();
@@ -496,13 +515,15 @@ std::vector<int64_t> * getData(int64_t * d, std::size_t len);
 
 mv::QuantizationParams * getQuantParams(const std::vector<int64_t> &zero_data, const std::vector<double>& scale_data, const std::vector<double>& min,  const std::vector<double>& max);
 mv::Order * getOrder(const std::string& framework_layout);
+
 mv::DType * getDtypeFP16();
 //Keep the order of the Wrapper
 mv::Data::TensorIterator identity(mv::CompositionalModel&  o,mv::Data::TensorIterator input0, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
-mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<int64_t>& data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams  &quantParams, const std::string &name);
-mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape, const mv::Order& order,  const mv::QuantizationParams  &quantParams,  const std::string &name);
+mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<int64_t>& data, const std::string& type, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams  &quantParams, const std::string &name);
+mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const std::string& type, const mv::Shape &shape, const mv::Order& order,  const mv::QuantizationParams  &quantParams,  const std::string &name);
 mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const mv::Order& order, const mv::QuantizationParams &quantParams, bool networkInput, const std::string& name);
 mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type, const mv::Order& order, const mv::QuantizationParams &quantParams, bool networkInput, const std::string& name);
+mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, const std::string& type, const mv::Order& order, const mv::QuantizationParams &quantParams, bool networkInput, const std::string& name);
 mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input,  const std::string& name);
 mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
     short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
@@ -538,6 +559,10 @@ mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIte
 mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
 mv::Data::TensorIterator reorgYolo(mv::CompositionalModel& o,mv::Data::TensorIterator input, const unsigned& stride, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
 mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope);
+
+
+mv::Data::TensorIterator interp(mv::CompositionalModel& o, mv::Data::TensorIterator input, const double& factor, const unsigned& pad_beg, const unsigned& pad_end, const unsigned& height, const unsigned& width, const bool& align_corners, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator resample(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& interpolation, const bool& antialias, const mv::Shape& output_shape, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
 bool isValid(mv::CompositionalModel& o);
 /** Sets Verbose Logging Level. Values are silent, error, warning, info, debug*/
 void setLogLevel(const std::string& logLevel);
