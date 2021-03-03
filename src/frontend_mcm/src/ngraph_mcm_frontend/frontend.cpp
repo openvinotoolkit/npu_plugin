@@ -203,6 +203,24 @@ std::vector<char> compileNGraph(
         };
         mcmCompDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
 
+        if (config.numberOfClusters() > 0) {
+            const int clusterCount = config.numberOfClusters();
+            // number of DPU and barriers per cluster was deduced empirically
+            // other values lead either to exceptions in mcmCompiler
+            // or to hang-ups during inference
+            constexpr int DPU_PER_CLUSTER = 5;
+            const int dpuCount = clusterCount * DPU_PER_CLUSTER;
+            constexpr int BARRIERS_PER_CLUSTER = 8;
+            const int barrierCount = clusterCount * BARRIERS_PER_CLUSTER;
+            constexpr int BARRIER_BOUNDS_PER_CLUSTER = 4;
+            const int boundCount = clusterCount * BARRIER_BOUNDS_PER_CLUSTER;
+
+            mcmCompDesc.setPassArg("GlobalConfigParams", "Number_of_DPUs", dpuCount);
+            mcmCompDesc.setPassArg("GlobalConfigParams", "Number_of_Clusters", clusterCount);
+            mcmCompDesc.setPassArg("GlobalConfigParams", "real_physical_barriers", barrierCount);
+            mcmCompDesc.setPassArg("GlobalConfigParams", "barrier_bound", boundCount);
+        }
+
         if (!config.mcmCompilationPassBanList().empty()) {
             std::stringstream banList{config.mcmCompilationPassBanList()};
             std::string groupPassPair;

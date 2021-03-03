@@ -125,6 +125,10 @@ public:
         return _allowPermuteND;
     }
 
+    int numberOfClusters() const {
+        return _numberOfClusters;
+    }
+
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
@@ -168,6 +172,8 @@ private:
     bool _removePermuteNoOp = true;
 
     bool _allowPermuteND = false;
+
+    int _numberOfClusters = 0;
 };
 
 }  //  namespace vpu
