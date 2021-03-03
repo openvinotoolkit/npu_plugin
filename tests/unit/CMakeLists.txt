@@ -24,6 +24,9 @@ else()
     set(EXCLUDED_HDDL2_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hddl2_tests")
 endif()
 
+set(MCM_SCHEDULER_INCLUDES_DIR
+    "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/src/")
+
 addIeTargetTest(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -31,6 +34,7 @@ addIeTargetTest(
     INCLUDES
         ${HDDL2_INCLUDES}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
+        ${MCM_SCHEDULER_INCLUDES_DIR}
     LINK_LIBRARIES
         ${HDDL2_LIBS}
         IE::commonTestUtils
