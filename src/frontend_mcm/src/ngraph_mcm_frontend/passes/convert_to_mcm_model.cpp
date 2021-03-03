@@ -101,6 +101,7 @@
 #include <ngraph/op/split.hpp>
 #include <ngraph/op/variadic_split.hpp>
 #include <ngraph/op/strided_slice.hpp>
+#include <ngraph/op/mvn.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
@@ -226,7 +227,8 @@ void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel
     }
 
     const auto mvOrder = [&] {
-        if (inputLayout == InferenceEngine::Layout::NCHW && allowNCHWInput) {
+        if ((inputLayout == InferenceEngine::Layout::NCHW || inputLayout == InferenceEngine::Layout::CHW)
+            && allowNCHWInput) {
             return layoutToOrder(InferenceEngine::Layout::NCHW);
         }
         return layoutToOrder(InferenceEngine::Layout::NHWC);
@@ -1761,6 +1763,17 @@ void convert(std::shared_ptr<ngraph::op::PadIE> pad, mv::OpModel& mcmModel, Node
     registerOutputs(pad, {mcmPadOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::MVN> MVN, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(MVN, mcmOutputsMap);
+    IE_ASSERT(1 == mcmInputs.size());
+    const auto mcmData = mcmInputs.at(0);
+    const auto& opName = MVN->get_friendly_name();
+
+    auto mcmMVN = mcmModel.mVN(opName, mcmData, MVN->get_across_channels(), MVN->get_normalize_variance(), MVN->get_eps());
+
+    registerOutputs(MVN, {mcmMVN}, mcmOutputsMap);
+}
+
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
 template <typename T>
@@ -1856,7 +1869,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v4::SoftPlus),
     MAP_ENTRY(ngraph::op::v1::Pad),
     MAP_ENTRY(ngraph::op::PadIE),
-    MAP_ENTRY(ngraph::op::v4::Interpolate)
+    MAP_ENTRY(ngraph::op::v4::Interpolate),
+    MAP_ENTRY(ngraph::op::v0::MVN)
 };
 
 #undef MAP_ENTRY
