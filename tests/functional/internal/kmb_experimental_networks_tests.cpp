@@ -180,10 +180,10 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v3_aircrafts) {
 
 
 
-TEST_F(ModelAdk, precommit_ModelA_ADK3) {
+TEST_P(ModelAdk, precommit_ModelA_ADK3) {
     runTest(
             TestNetworkDesc("ADK3/ModelA_INT8/ModelA_INT8.xml", EXPERIMENTAL)
-                    .setUserInputPrecision("input", Precision::FP16)
+                    .setUserInputPrecision("input", GetParam())
                     .setUserOutputPrecision("output", Precision::FP16),
             TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
             0.0035f);
@@ -215,6 +215,13 @@ TEST_F(ModelAdk, DeBlur_ADK3) {
             TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
             0.0025f);
 }
+
+const static std::vector<InferenceEngine::Precision> inputPrecision = {
+                InferenceEngine::Precision::U8,
+                InferenceEngine::Precision::FP16,
+                InferenceEngine::Precision::FP32};
+
+INSTANTIATE_TEST_CASE_P(PrecisionCase, ModelAdk, ::testing::ValuesIn(inputPrecision));
 
 // [Track number: S#47647]
 TEST_F(SmokeNetworkTest, DISABLED_SuperResolution_ADK3) {

@@ -23,6 +23,9 @@
 
 #include "zero_allocator.h"
 
+#include <ie_utils.hpp>
+#include <blob_factory.hpp>
+
 using namespace vpux;
 
 namespace {
@@ -50,6 +53,29 @@ size_t precisionToSize(const ze_graph_argument_precision_t val) {
         return 1;
     default:
         THROW_IE_EXCEPTION << "precisionToSize switch->default reached";
+    }
+}
+
+_ze_graph_argument_precision_t getZePrecision(InferenceEngine::Precision precision) {
+    switch (precision) {
+    case InferenceEngine::Precision::I8:
+        return ZE_GRAPH_ARGUMENT_PRECISION_INT8;
+    case InferenceEngine::Precision::U8:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UINT8;
+    case InferenceEngine::Precision::I16:
+        return ZE_GRAPH_ARGUMENT_PRECISION_INT16;
+    case InferenceEngine::Precision::U16:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UINT16;
+    case InferenceEngine::Precision::I32:
+        return ZE_GRAPH_ARGUMENT_PRECISION_INT32;
+    case InferenceEngine::Precision::FP16:
+        return ZE_GRAPH_ARGUMENT_PRECISION_FP16;
+    case InferenceEngine::Precision::FP32:
+        return ZE_GRAPH_ARGUMENT_PRECISION_FP32;
+    case InferenceEngine::Precision::BIN:
+        return ZE_GRAPH_ARGUMENT_PRECISION_BIN;
+    default:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN;
     }
 }
 
@@ -118,53 +144,28 @@ auto mapArguments(Map& zero, const std::string& key) -> typename Map::mapped_typ
 }
 }  // namespace
 
-void ZeroExecutor::hostMem::init(const ze_driver_handle_t h) {
-    if (drh) THROW_IE_EXCEPTION << "hostMem::init double init!";
-    if (!h) THROW_IE_EXCEPTION << "hostMem::init arg == 0!";
-    drh = h;
+ZeroExecutor::hostMem::hostMem(const ze_driver_handle_t drh_, const size_t sz_)
+    : _drh(drh_),
+      _sz(sz_) {
+    ze_host_mem_alloc_desc_t desc = { ZE_HOST_MEM_ALLOC_DESC_VERSION_CURRENT, ZE_HOST_MEM_ALLOC_FLAG_DEFAULT };
+    throwOnFail("zeDriverAllocHostMem", zeDriverAllocHostMem(_drh, &desc, _sz, _alignment, &_data));
 }
-void ZeroExecutor::hostMem::resize(const size_t size) {
-    if (!drh) THROW_IE_EXCEPTION << "hostMem::resize not init!";
-    if (!size) THROW_IE_EXCEPTION << "hostMem::resize size is 0";
-    if (size != sz) {
-        free();
-        ze_host_mem_alloc_desc_t desc = {ZE_HOST_MEM_ALLOC_DESC_VERSION_CURRENT, ZE_HOST_MEM_ALLOC_FLAG_DEFAULT};
-        throwOnFail("zeDriverAllocHostMem", zeDriverAllocHostMem(drh, &desc, size, alignment, &mem));
-        sz = size;
-    }
-}
-void ZeroExecutor::hostMem::free() {
-    if (mem) {
-        throwOnFail("zeDriverFreeMem hostMem", zeDriverFreeMem(drh, mem));
-        mem = nullptr;
-        sz = 0;
+ZeroExecutor::hostMem::~hostMem() {
+    if (_data) {
+        throwOnFail("zeDriverFreeMem hostMem", zeDriverFreeMem(_drh, _data));
     }
 }
 
-void ZeroExecutor::deviceMem::init(const ze_driver_handle_t drh_, const ze_device_handle_t deh_) {
-    if (drh) THROW_IE_EXCEPTION << "deviceMem::init double init!";
-    if (!drh_) THROW_IE_EXCEPTION << "deviceMem::init drh_ == 0!";
-    if (!deh_) THROW_IE_EXCEPTION << "deviceMem::init deh_ == 0!";
-    drh = drh_;
-    deh = deh_;
+ZeroExecutor::deviceMem::deviceMem(const ze_driver_handle_t drh_, const ze_device_handle_t deh_, const size_t sz_)
+    : _drh(drh_),
+      _sz(sz_) {
+    ze_device_mem_alloc_desc_t desc = {
+        ZE_DEVICE_MEM_ALLOC_DESC_VERSION_CURRENT, ZE_DEVICE_MEM_ALLOC_FLAG_DEFAULT, 0 };
+    throwOnFail("zeDriverAllocDeviceMem", zeDriverAllocDeviceMem(_drh, &desc, _sz, _alignment, deh_, &_data));
 }
-void ZeroExecutor::deviceMem::resize(const size_t size) {
-    if (!drh) THROW_IE_EXCEPTION << "deviceMem::resize not init!";
-    if (!deh) THROW_IE_EXCEPTION << "deviceMem::resize not init!";
-    if (!size) THROW_IE_EXCEPTION << "deviceMem::resize size is 0";
-    if (size != sz) {
-        free();
-        ze_device_mem_alloc_desc_t desc = {
-            ZE_DEVICE_MEM_ALLOC_DESC_VERSION_CURRENT, ZE_DEVICE_MEM_ALLOC_FLAG_DEFAULT, 0};
-        sz = size;
-        throwOnFail("zeDriverAllocDeviceMem", zeDriverAllocDeviceMem(drh, &desc, size, alignment, deh, &mem));
-    }
-}
-void ZeroExecutor::deviceMem::free() {
-    if (mem) {
-        throwOnFail("zeDriverFreeMem deviceMem", zeDriverFreeMem(drh, mem));
-        mem = nullptr;
-        sz = 0;
+ZeroExecutor::deviceMem::~deviceMem() {
+    if (_data) {
+        throwOnFail("zeDriverFreeMem deviceMem", zeDriverFreeMem(_drh, _data));
     }
 }
 
@@ -199,8 +200,14 @@ ZeroExecutor::fence::fence(const commandQueue& cq_) {
 void ZeroExecutor::fence::reset() {
     throwOnFail("zeFenceReset", zeFenceReset(_handle));
 }
-void ZeroExecutor::fence::hostSynchronize() {
-    throwOnFail("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, 0));
+void ZeroExecutor::fence::hostSynchronize(uint32_t fence_value_) {
+    throwOnFail("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, fence_value_));
+}
+void ZeroExecutor::fence::deviceSynchronize(const commandQueue& queue_, uint32_t fence_value_) {
+    throwOnFail("zeFenceDeviceSynchronize", zeFenceDeviceSynchronize(queue_._handle, _handle, fence_value_));
+}
+void ZeroExecutor::fence::deviceSignal(uint32_t fence_value_) {
+    throwOnFail("zeFenceDeviceSignal", zeFenceDeviceSignal(_handle, fence_value_));
 }
 ZeroExecutor::fence::~fence() {
     throwOnFail("zeFenceDestroy", zeFenceDestroy(_handle));
@@ -211,34 +218,39 @@ ZeroExecutor::commandQueue::commandQueue(const ze_device_handle_t& deh_) {
         ZE_COMMAND_QUEUE_MODE_DEFAULT, ZE_COMMAND_QUEUE_PRIORITY_NORMAL };
     throwOnFail("zeCommandQueueCreate", zeCommandQueueCreate(deh_, &desc, &_handle));
 }
-void ZeroExecutor::commandQueue::executeCommandList(commandList& cl_, const fence& f_) {
+void ZeroExecutor::commandQueue::executeCommandList(commandList& cl_) {
     throwOnFail("zeCommandQueueExecuteCommandLists",
-                zeCommandQueueExecuteCommandLists(_handle, 1, &cl_._handle, f_._handle));
+                zeCommandQueueExecuteCommandLists(_handle, 1, &cl_._handle, nullptr));
 }
 ZeroExecutor::commandQueue::~commandQueue() {
     throwOnFail("zeCommandQueueDestroy", zeCommandQueueDestroy(_handle));
 }
 
-ZeroExecutor::graph::graph(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_, const std::vector<char>& data_)
-    : _mem(drh_),
-      _command_queue(deh_),
-      _command_list(deh_),
-      _fence(_command_queue) {
-    _mem.copyFrom(data_);
+ZeroExecutor::graph::graph(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_,
+                           const NetworkDescription::CPtr _networkDesc)
+        : _mem(drh_, _networkDesc->getCompiledNetwork().size()), 
+          _command_queue(deh_),
+          _command_list(deh_),
+          _fence(_command_queue) {
+    _mem.copyFrom(_networkDesc->getCompiledNetwork());
 
     ze_graph_desc_t desc = { ZE_GRAPH_DESC_VERSION_CURRENT, ZE_GRAPH_FORMAT_NATIVE,
         _mem.size(), static_cast<uint8_t*>(_mem.data()) };
     throwOnFail("zeGraphCreate", zeGraphCreate(deh_, &desc, &_handle));
 
     throwOnFail("zeGraphGetProperties", zeGraphGetProperties(_handle, &_props));
-
     for (uint32_t index = 0; index < _props.numGraphArgs; ++index)
     {
         ze_graph_argument_properties_t arg;
         throwOnFail("zeGraphGetArgumentProperties", zeGraphGetArgumentProperties(_handle, index, &arg));
-
         if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type)
         {
+            auto deviceInputs = _networkDesc->getDeviceInputsInfo();
+
+            // [Track number: S#49808]
+            // hack for correct memory allocation on device
+            arg.precision = getZePrecision(deviceInputs.at(arg.name)->getPrecision());
+
             _inputs_desc_map.emplace(std::make_pair(std::string(arg.name), argumentDescriptor{ arg, index }));
         }
         else
@@ -250,8 +262,9 @@ ZeroExecutor::graph::graph(const ze_driver_handle_t& drh_, const ze_device_handl
     _command_list.appendGraphInitialize(_handle);
     _command_list.close();
 }
-void ZeroExecutor::graph::init(const ze_device_handle_t& deh_) {
-    _command_queue.executeCommandList(_command_list, _fence);
+void ZeroExecutor::graph::init() {
+    _command_queue.executeCommandList(_command_list);
+    _fence.deviceSignal(1);
 }
 void ZeroExecutor::graph::setArgumentValue(uint32_t argi_, const void* argv_) const {
     throwOnFail("zeGraphSetArgumentValue", zeGraphSetArgumentValue(_handle, argi_, argv_));
@@ -262,38 +275,37 @@ ZeroExecutor::graph::~graph() {
 
 ZeroExecutor::pipeline::pipeline(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_,
     const std::array<commandQueue, stage::COUNT>& cq_, const graph& graph_)
-    : _command_list{ deh_, deh_, deh_ },
-      _fence{ cq_[stage::UPLOAD], cq_[stage::EXECUTE], cq_[stage::READBACK] },
-      _available(true) {
+    : _command_list{ deh_, deh_, deh_ } {
     for (const auto& desc : graph_._inputs_desc_map) {
         auto size = getSizeIOBytes(desc.second.info);
-        _inputs_mem_map.emplace(desc.first,
-            std::make_pair(hostMem(drh_, size), deviceMem(drh_, deh_, size)));
+        _inputs_host_mem_map.try_emplace(desc.first, drh_, size);
+        _inputs_device_mem_map.try_emplace(desc.first, drh_, deh_, size);
 
-        auto& mem = mapArguments(_inputs_mem_map, desc.first);
-
-        graph_.setArgumentValue(desc.second.idx, mem.second.data());
-
+        auto& hostMem = mapArguments(_inputs_host_mem_map, desc.first);
+        auto& deviceMem = mapArguments(_inputs_device_mem_map, desc.first);
         _command_list[stage::UPLOAD].appendMemoryCopy(
-            mem.first.data(), mem.second.data(), size);
+            deviceMem.data(), hostMem.data(), size);
+
+        graph_.setArgumentValue(desc.second.idx, deviceMem.data());
     }
+    _command_list[stage::UPLOAD].close();
 
     for (const auto& desc : graph_._outputs_desc_map) {
         auto size = getSizeIOBytes(desc.second.info);
-        _outputs_mem_map.emplace(desc.first,
-            std::make_pair(hostMem(drh_, size), deviceMem(drh_, deh_, size)));
+        _outputs_host_mem_map.try_emplace(desc.first, drh_, size);
+        _outputs_device_mem_map.try_emplace(desc.first, drh_, deh_, size);
 
-        auto& mem = mapArguments(_outputs_mem_map, desc.first);
-
-        graph_.setArgumentValue(desc.second.idx, mem.second.data());
-
+        auto& hostMem = mapArguments(_outputs_host_mem_map, desc.first);
+        auto& deviceMem = mapArguments(_outputs_device_mem_map, desc.first);
         _command_list[stage::READBACK].appendMemoryCopy(
-            mem.second.data(), mem.first.data(), size);
+            hostMem.data(), deviceMem.data(), size);
+
+        graph_.setArgumentValue(desc.second.idx, deviceMem.data());
     }
 
     _command_list[stage::EXECUTE].appendGraphExecute(graph_._handle);
 
-    for (auto& commandList : _command_list) {
+    for (auto& commandList: _command_list) {
         commandList.close();
     }
 }
@@ -307,29 +319,48 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
       _logger(std::make_shared<vpu::Logger>("ZeroExecutor", _config.logLevel(), vpu::consoleOutput())),
       _driver_handle(driver_handle),
       _device_handle(device_handle),
-      _graph(driver_handle, device_handle, networkDescription->getCompiledNetwork()),
+      _graph(driver_handle, device_handle, networkDescription),
       _push_count(0),
       _pull_count(0),
+      _networkDesc(networkDescription),
       _command_queue{ device_handle, device_handle, device_handle },
-      _pipeline_depth(4) {
+      _fence{ _command_queue[stage::UPLOAD], _command_queue[stage::EXECUTE], _command_queue[stage::READBACK] },
+      _pipeline_depth(8) {
     for (uint32_t index = 0; index < _pipeline_depth; ++index) {
         _pipeline.emplace_back(std::make_unique<pipeline>(driver_handle, device_handle, _command_queue, _graph));
     }
 
-    _graph.init(device_handle);
+    _graph.init();
+}
+
+static void prepareInputForInference(
+        const InferenceEngine::Blob::Ptr& actualInput, const InferenceEngine::Precision& expectedPrecision, void* dest_data=nullptr) {
+    if (actualInput == nullptr) {
+        THROW_IE_EXCEPTION << "Actual input blob null pointer!";
+    }
+    if (actualInput->getTensorDesc().getPrecision() == expectedPrecision || dest_data == nullptr) {
+        return;
+    }
+
+    auto out_blob = make_blob_with_precision(
+            InferenceEngine::TensorDesc(expectedPrecision, actualInput->getTensorDesc().getDims(),
+                                        actualInput->getTensorDesc().getLayout()),
+            dest_data);
+    toPrecision(actualInput, out_blob);
 }
 
 void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
     _logger->info("ZeroExecutor::push started");
+    const auto& deviceInputs = _networkDesc->getDeviceInputsInfo();
 
-    const auto depth = _push_count++ % _pipeline_depth;
+    const auto iteration = _push_count++;
+    const auto depth = iteration % _pipeline_depth;
 
-    // Wait for pipeline to be available
-    {
-        std::unique_lock<std::mutex> lock(_pipeline[depth]->_mutex);
-        _pipeline[depth]->_cond_var.wait(lock, [&] { return _pipeline[depth]->_available; });
+    // Wait for input copy to finish for iteration - _pipeline_depth from the host, before overwriting the
+    // hostMem buffer for the input
+    if (iteration >= _pipeline_depth) {
+        _fence[stage::UPLOAD].hostSynchronize(iteration - _pipeline_depth + 1);
     }
-    _pipeline[depth]->_available = false;
 
     // Copy the inputs from host to zeDriverAllocHostMem buffer set up for copy
     for (const auto& inferInput : inputs) {
@@ -339,26 +370,52 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
         auto& desc = mapArguments(_graph._inputs_desc_map, name);
         if (!twoApiLayoutCouplingCheck(desc.info.layout, input->getTensorDesc().getLayout()))
             THROW_IE_EXCEPTION << "Layouts is different for push blobs";
-        if (input->byteSize() != getSizeIOBytes(desc.info)) THROW_IE_EXCEPTION << "Sizes are different for push blobs";
-
-        auto& hostMem = mapArguments(_pipeline[depth]->_inputs_mem_map, name).first;
-        hostMem.copyFrom(input);
+        if (input->byteSize() != getSizeIOBytes(desc.info)) {
+            _logger->info("Sizes are different for push blobs. Need precision convert");
+        }
+        
+        auto& hostMem = mapArguments(_pipeline[depth]->_inputs_host_mem_map, name);
+        if (input->getTensorDesc().getPrecision() == deviceInputs.at(name)->getPrecision()) {
+            hostMem.copyFrom(input);
+        } else {
+            prepareInputForInference(input, deviceInputs.at(name)->getPrecision(), hostMem.data());
+        }
     }
 
-    // Schedule the copy of inputs from zeDriverAllocHostMem to zeDriverAllocDeviceMem and wait
-    // on host for copy to be completed
-    _command_queue[stage::UPLOAD].executeCommandList(
-            _pipeline[depth]->_command_list[stage::UPLOAD], _pipeline[depth]->_fence[stage::UPLOAD]);
-    _pipeline[depth]->_fence[stage::UPLOAD].hostSynchronize();
-
-    // For the very first inference, wait for graph init to complete execution on device
-    if (_push_count == 1) {
-        _graph._fence.hostSynchronize();
+    // Wait for execute to finish for iteration - _pipeline_depth from the upload command queue on device,
+    // before overwriting the deviceMem buffer for input
+    if (iteration >= _pipeline_depth) {
+        _fence[stage::EXECUTE].deviceSynchronize(
+            _command_queue[stage::UPLOAD], iteration - _pipeline_depth + 1);
     }
+
+    // Schedule the copy of inputs from zeDriverAllocHostMem to zeDriverAllocDeviceMem
+    _command_queue[stage::UPLOAD].executeCommandList(_pipeline[depth]->_command_list[stage::UPLOAD]);
+
+    // Signal fence from device after input copy is executed from upload command queue on device
+    _fence[stage::UPLOAD].deviceSignal(iteration + 1);
+
+    // For the very first inference, wait for graph init to complete execution on the device
+    if (iteration == 0) {
+        _graph._fence.hostSynchronize(1);
+    }
+
+    // Wait for readback to finish for iteration - _pipeline_depth from the execute command queue on device,
+    // before executing the inference and potentially overwriting the deviceMem buffer for output
+    if (iteration >= _pipeline_depth) {
+        _fence[stage::READBACK].deviceSynchronize(
+            _command_queue[stage::EXECUTE], iteration - _pipeline_depth + 1);
+    }
+
+    // Wait for input copy to finish for iteration from the execute command queue on device,
+    // before executing the inference to make sure that input data is available
+    _fence[stage::UPLOAD].deviceSynchronize(_command_queue[stage::EXECUTE], iteration + 1);
 
     // Schedule the inference, wait for completion will be in matching pull
-    _command_queue[stage::EXECUTE].executeCommandList(
-        _pipeline[depth]->_command_list[stage::EXECUTE], _pipeline[depth]->_fence[stage::EXECUTE]);
+    _command_queue[stage::EXECUTE].executeCommandList(_pipeline[depth]->_command_list[stage::EXECUTE]);
+
+    // Signal fence from device after inference is executed from execute command queue on device
+    _fence[stage::EXECUTE].deviceSignal(iteration + 1);
 
     _logger->info("ZeroExecutor::push finished");
 }
@@ -366,16 +423,22 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
 void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
     _logger->info("ZeroExecutor::pull started");
 
-    const auto depth = _pull_count++ % _pipeline_depth;
+    const auto iteration = _pull_count++;
+    const auto depth = iteration % _pipeline_depth;
 
-    // Wait for the inference to complete execution on device
-    _pipeline[depth]->_fence[stage::EXECUTE].hostSynchronize();
+    // Wait for inference to finish for _pull_count from the readback command queue on device,
+    // to make sure that output data is available
+    _fence[stage::EXECUTE].deviceSynchronize(_command_queue[READBACK], iteration + 1);
 
-    // Schedule the copy of outputs from zeDriverAllocDeviceMem to zeDriverAllocHostMem and wait
-    // on host for copy to complete
-    _command_queue[stage::READBACK].executeCommandList(
-        _pipeline[depth]->_command_list[stage::READBACK], _pipeline[depth]->_fence[stage::READBACK]);
-    _pipeline[depth]->_fence[stage::READBACK].hostSynchronize();
+    // Schedule the copy of outputs from zeDriverAllocDeviceMem to zeDriverAllocHostMem
+    _command_queue[stage::READBACK].executeCommandList(_pipeline[depth]->_command_list[stage::READBACK]);
+
+    // Signal fence from device after output copy is completed from readback command queue on device
+    _fence[stage::READBACK].deviceSignal(iteration + 1);
+
+    // Wait for output copy to finish execution for _pull_count from the host, to make sure that data
+    // is available in the hostMem buffer of the output
+    _fence[stage::READBACK].hostSynchronize(iteration + 1);
 
     // Copy the outputs from set up zeDriverAllocHostMem to the host
     for (auto& inferOutput : outputs) {
@@ -388,20 +451,8 @@ void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
         if (output->byteSize() != getSizeIOBytes(desc.info))
             THROW_IE_EXCEPTION << "Sizes are different for pull blobs";
 
-        auto& hostMem = mapArguments(_pipeline[depth]->_outputs_mem_map, name).first;
+        auto& hostMem = mapArguments(_pipeline[depth]->_outputs_host_mem_map, name);
         hostMem.copyTo(output);
-    }
-
-    // Reset fences
-    for (auto& fence: _pipeline[depth]->_fence) {
-        fence.reset();
-    }
-
-    // Signal that pipeline is available
-    {
-        std::unique_lock<std::mutex> lock(_pipeline[depth]->_mutex);
-        _pipeline[depth]->_available = true;
-        _pipeline[depth]->_cond_var.notify_all();
     }
 
     _logger->info("ZeroExecutor::pull finished");
