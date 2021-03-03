@@ -189,7 +189,6 @@ TEST_P(ModelAdk, precommit_ModelA_ADK3) {
             0.0035f);
 }
 
-
 TEST_F(ModelAdk, ModelE_ADK3) {
     runTest(
             TestNetworkDesc("ADK3/ModelE_INT8/ModelE_INT8.xml", EXPERIMENTAL)
