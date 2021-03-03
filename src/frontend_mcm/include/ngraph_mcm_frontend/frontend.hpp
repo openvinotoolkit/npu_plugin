@@ -41,6 +41,7 @@ std::vector<char> compileNGraph(
         const std::string& netName,
         const ie::InputsDataMap& inputsInfo,
         const ie::OutputsDataMap& outputsInfo,
-        const vpu::MCMConfig& config);
+        const vpu::MCMConfig& config,
+        std::string & errMsg);
 
 // clang-format on

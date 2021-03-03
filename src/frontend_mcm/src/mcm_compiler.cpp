@@ -27,7 +27,11 @@ std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(const std::share
     auto copy = _config;
     copy.parseFrom(config);
 
-    auto compiledNetwork = compileNGraph(func, netName, inputsInfo, outputsInfo, copy);
+    std::string errMsg;
+    auto compiledNetwork = compileNGraph(func, netName, inputsInfo, outputsInfo, copy, errMsg);
+    if (compiledNetwork.empty()) {
+        throw std::runtime_error(errMsg);
+    }
     return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, copy);
 }
 
