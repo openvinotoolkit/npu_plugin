@@ -61,28 +61,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_dense_IRv10_fp16) 
             3, 2.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet-50-pytorch-from-icv-bench-cache.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
-        1, 2.5f);
-}
-
 TEST_F(KmbClassifyNetworkTest, precommit_INT8_Dense_Caffe2_IRv10_ResNet_50_v1) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v1_caffe2_dense_int8_IRv10.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("224x224/watch.bmp", ImageFormat::BGR),
-        1, 2.5f);
-}
-
-TEST_F(KmbClassifyNetworkTest, precommit_INT8_Dense_Caffe2_IRv10_ResNet_50_v2) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/private/ResNet-50/resnet50_v2_caffe2_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
             .setUserOutputPrecision("output", Precision::FP32),
         TestImageDesc("224x224/watch.bmp", ImageFormat::BGR),
@@ -102,17 +83,6 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_MobileNet_V2) {
             .setUserOutputLayout("output", Layout::NHWC),
         TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
         2, 0.7f);
-}
-
-// CPU : Supported primitive descriptors list is empty for node: Add1_/Fused_Add_
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_MobileNet_V2) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet-v2-pytorch-from-icv-bench-cache.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
-        3, 2.15f);
 }
 
 //
@@ -314,27 +284,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_pytorch_dense_int8_IRv10_fp16_to_
 
 class KmbClassifyNetworkTestWithSpecificLayout : public KmbClassifyNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 
-TEST_P(KmbClassifyNetworkTestWithSpecificLayout, precommit_resnet_50_pytorch_dense_int8_IRv10_from_fp32) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", GetParam())
-            .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("224x224/husky.bmp", ImageFormat::RGB),
-        1, 0.7f);
-}
-
 INSTANTIATE_TEST_CASE_P(precommit, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
-
-TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
-        1, 7.0f);
-}
 
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32_no_align) {
     runTest(
@@ -646,26 +596,6 @@ TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) 
             0.6, 0.4, 0.4, false);
 }
 
-TEST_F(KmbClassifyNetworkTest, resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8) {
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
-            1, 2.f);
-}
-
-TEST_F(KmbClassifyNetworkTest, mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8) {
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
-            1, 2.62f);
-}
-
 TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_fp16_to_int8) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/googlenet-v1/googlenet_v1_tf_dense_int8_IRv10_fp16_to_int8.xml")
@@ -928,37 +858,6 @@ TEST_F(KmbDetectionNetworkTest, person_detection_retail_0013) {
         0.1f, 0.3f);
 }
 
-
-TEST_F(KmbClassifyNetworkTest, densenet_121_caffe_dense_int8_IRv10) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/densenet-121/caffe/densenet_121_caffe_dense_int8_IRv10-ww42.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("224x224/watch.bmp", ImageFormat::BGR),
-        1,
-        0.3f);
-}
-
-
-TEST_F(KmbClassifyNetworkTest, densenet_121_tf_dense_int8_IRv10) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/densenet-121/tf/densenet_121_tf_dense_int8_IRv10-ww42.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("224x224/watch.bmp", ImageFormat::BGR),
-        1,
-        0.3f);
-}
-
-TEST_F(KmbClassifyNetworkTest, densenet_169_caffe_dense_int8_IRv10) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/densenet-169/caffe/densenet_169_caffe_dense_int8_IRv10-ww42.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("224x224/rattlesnake.bmp", ImageFormat::BGR),
-        1,
-        0.3f);
-}
 // C++ exception with description "Cannot convert layer "efficientnet-b0/model/stem/swish_f32"
 // due to unsupported layer type "Swish"
 // [Track number: D#3769]
@@ -986,15 +885,6 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_small) {
 	TestImageDesc("224x224/husky.bmp", ImageFormat::BGR),
 	1,
 	0.3f);
-}
-
-TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_U8) {
-    runTest(
-	TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
-	    .setUserInputPrecision("input", Precision::U8),
-	TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
-        1,
-        0.3f);
 }
 
 // This test checks correctness of handling FP16 input in case of quantized model
