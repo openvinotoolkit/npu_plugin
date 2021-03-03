@@ -290,7 +290,10 @@ DimsOrder vpux::DimsOrder::fromType(mlir::MemRefType type) {
         return fromNumDims(type.getRank());
     }
 
-    VPUX_THROW_UNLESS(maps.size() == 1, "Can't get DimsOrder from Type '{0}'", type);
+    // type has default layout
+    if (maps.size() == 1 && !maps[0].isPermutation()) {
+        return fromNumDims(type.getRank());
+    }
 
     return fromAffineMap(maps[0]);
 }

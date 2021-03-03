@@ -20,6 +20,20 @@
 include "mlir/Pass/PassBase.td"
 
 //
+// AddLayoutsAndStrides
+//
+
+def AddLayoutsAndStrides : Pass<"add-layouts-and-strides", "mlir::ModuleOp"> {
+    let summary = "Add layouts and strides to memref";
+
+    let description = [{
+        This "atomic" adds default values for layouts and strides to the memref
+    }];
+
+    let constructor = "vpux::IERT::createAddLayoutsAndStridesPass()";
+}
+
+//
 // SetInternalMemorySpace
 //
 

@@ -145,6 +145,10 @@ MemStrides vpux::StrideReqs::calcStrides(Bit elemSize, MemShapeRef memShape) con
     return StrideReqsRef(*this).calcStrides(elemSize, memShape);
 }
 
+MemStrides vpux::StrideReqs::calcStrides(mlir::ShapedType type) const {
+    return StrideReqsRef(*this).calcStrides(type);
+}
+
 bool vpux::StrideReqs::checkStrides(mlir::MemRefType type) const {
     return StrideReqsRef(*this).checkStrides(type);
 }
@@ -231,6 +235,14 @@ MemStrides vpux::StrideReqsRef::calcStrides(Bit elemSize, MemShapeRef memShape) 
     MemStrides memStrides;
     calcStrides(memStrides, elemSize, memShape);
     return memStrides;
+}
+
+MemStrides vpux::StrideReqsRef::calcStrides(mlir::ShapedType type) const {
+    const auto elemSize = getElemTypeSize(type);
+    const auto dimsOrder = DimsOrder::fromNumDims(type.getRank());
+    const auto shape = getShape(type);
+    const auto memShape = dimsOrder.toMemoryOrder(shape);
+    return calcStrides(elemSize, memShape);
 }
 
 bool vpux::StrideReqsRef::checkStrides(mlir::MemRefType type) const {

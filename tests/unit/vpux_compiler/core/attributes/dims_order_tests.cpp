@@ -72,6 +72,20 @@ std::vector<std::pair<DimsOrder, StringRef>> getOrders2Name() {
             std::make_pair(vpux::DimsOrder::NDHWC, "NDHWC")};
 }
 
+using ShapeType = SmallVector<int64_t>;
+using StridesType = SmallVector<int64_t>;
+std::vector<std::tuple<DimsOrder, ShapeType, StridesType>> getFromType() {
+    return {
+// No affine maps
+        {DimsOrder::CHW, {1, 8, 4}, {}},
+// One affine map
+        {DimsOrder::CHW, {1, 8, 4}, {32, 4, 1}},
+        {DimsOrder::HWC, {1, 8, 4}, {}},
+// Two affine maps
+        {DimsOrder::HWC, {1, 8, 4}, {4, 1, 1}}
+    };
+}
+
 }  // namespace
 
 TEST(MLIR_DimsOrderTest, ValidateCodeTest) {
@@ -352,4 +366,31 @@ TEST(MLIR_DimsOrderTest, getCanonicalName) {
 
     const auto nonDefault = DimsOrder::fromNumDims(7).getCanonicalName();
     ASSERT_FALSE(nonDefault.hasValue());
+}
+
+
+TEST(MLIR_DimsOrderTest, fromTypeTest) {
+    const auto testData = getFromType();
+
+    for (const auto& testCase : testData) {
+        mlir::MLIRContext ctx;
+        DimsOrder expOrder;
+        SmallVector<int64_t> shape{};
+        SmallVector<int64_t> memStridesVec{};
+
+        std::tie(expOrder, shape, memStridesVec) = testCase;
+
+        SmallVector<mlir::AffineMap> maps;
+        if(!memStridesVec.empty()) {
+            const auto stridesMap = mlir::makeStridedLinearLayoutMap(makeArrayRef(memStridesVec), 0, &ctx);
+            maps = SmallVector<mlir::AffineMap>{expOrder.toAffineMap(&ctx), stridesMap};
+        } else {
+            maps = SmallVector<mlir::AffineMap>{expOrder.toAffineMap(&ctx)};
+        }
+
+        const auto memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), makeArrayRef(maps));
+        const auto actualOrder = DimsOrder::fromType(memRefType);
+
+        EXPECT_EQ(expOrder, actualOrder);
+    }
 }
