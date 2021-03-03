@@ -146,7 +146,8 @@ std::vector<char> compileNGraph(
 
         bool layoutNCHW = true;
         for (const auto& netInput : inputsInfo) {
-            if (netInput.second->getLayout() != InferenceEngine::Layout::NCHW) {
+            if (netInput.second->getLayout() != InferenceEngine::Layout::NCHW &&
+                netInput.second->getLayout() != InferenceEngine::Layout::CHW) {
                 layoutNCHW = false;
                 break;
             }

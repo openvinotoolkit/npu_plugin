@@ -3739,6 +3739,27 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAPadTask(mv::ComputationModel &cm
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAMVNTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_MVNParams;
+    auto softLayerParamsValue = new MVCNN::MVNParamsT();
+
+    softLayerParamsValue->across_channels = opIt->get<bool>("across_channels");
+    softLayerParamsValue->normalize_variance = opIt->get<bool>("normalize_variance");
+    softLayerParamsValue->eps = opIt->get<double>("eps");
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -3836,6 +3857,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAPadTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Interpolate")
         toReturn[0]->task.value = buildUPAInterpolateTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "MVN")
+        toReturn[0]->task.value = buildUPAMVNTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 

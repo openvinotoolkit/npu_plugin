@@ -32,11 +32,13 @@ static void refMVNFromVPU(const Blob::Ptr src, Blob::Ptr dst, int normalize_vari
     IE_ASSERT(srcData != nullptr);
     IE_ASSERT(dstData != nullptr);
 
-    const auto& dims = src->getTensorDesc().getDims();
-    IE_ASSERT(dims[0] == 1);
-    const int IC = dims[1];
-    const int IH = dims[2];
-    const int IW = dims[3];
+    const auto &dims = src->getTensorDesc().getDims();
+    const auto &size = dims.size();
+    IE_ASSERT(size == 3 || size == 4);
+    IE_ASSERT(size == 3 || dims[0] == 1);
+    const int IC = dims[dims.size() - 3];
+    const int IH = dims[dims.size() - 2];
+    const int IW = dims[dims.size() - 1];
 
     // Calculate mean value
     if (across_channels) {
