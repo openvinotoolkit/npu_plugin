@@ -15,6 +15,7 @@ addIeTargetTest(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/tests/functional/shared_tests_instances"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/tests/functional/behavior"
         "${CMAKE_CURRENT_SOURCE_DIR}/internal"
+        "${CMAKE_CURRENT_SOURCE_DIR}/shared_test_classes/include"
     DEPENDENCIES
         VPUXPlugin
     LINK_LIBRARIES
