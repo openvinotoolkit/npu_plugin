@@ -100,8 +100,11 @@ bool HDDL2Backend::isServiceAvailable(const vpu::Logger::Ptr& logger) {
     const std::string specifiedServicePath =
             std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
     const std::ifstream specifiedService(specifiedServicePath + std::string("/bin/hddl_scheduler_service"));
+    const std::ifstream specifiedCustomService(specifiedServicePath + std::string("/hddl_scheduler_service"));
 
-    const auto serviceAvailable = specifiedService.good() || defaultService.good() || isServiceRunning();
+    const auto serviceAvailable =
+            specifiedService.good() || specifiedCustomService.good() || defaultService.good() || isServiceRunning();
+
     if (logger) {
         serviceAvailable ? logger->debug(SERVICE_AVAILABLE.c_str()) : logger->debug(SERVICE_NOT_AVAILABLE.c_str());
     }

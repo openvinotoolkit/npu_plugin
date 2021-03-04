@@ -122,7 +122,7 @@ add_subdirectory(tools)
 # CPack
 #
 
-set(all_components ${VPUX_DEVICE_NAME} ${KMB_DEVICE_NAME})
+set(all_components ${VPUX_DEVICE_NAME} ${KMB_DEVICE_NAME} hddlunite)
 if(ENABLE_MCM_COMPILER_PACKAGE)
     list(APPEND all_components ${MCM_COMPILER_COMPONENT})
 endif()
