@@ -81,7 +81,7 @@ TEST (mcmCompiler, group_convolution_quant_param_test)
 {
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
-    std::string compDescPath = InferenceEngine::getIELibraryPath() + "/mcm_config/compilation/release_kmb_with_CM_Conv.json";
+    std::string compDescPath = InferenceEngine::getIELibraryPath() + "/mcm_config/compilation/release_kmb.json";
     std::string targetDescPath = InferenceEngine::getIELibraryPath() + "/mcm_config/target/release_kmb.json";
 
     std::size_t num_of_channels = 32;

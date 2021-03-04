@@ -147,25 +147,8 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         log->debug("Configure MCM Compiler");
         VPU_LOGGER_SECTION(log);
 
-        bool layoutNCHW = true;
-        for (const auto& netInput : inputsInfo) {
-            if (netInput.second->getLayout() != InferenceEngine::Layout::NCHW &&
-                netInput.second->getLayout() != InferenceEngine::Layout::CHW) {
-                layoutNCHW = false;
-                break;
-            }
-        }
-
-        std::string compDescName;
-        if (layoutNCHW) {
-            compDescName = "release_kmb_with_CM_Conv";
-        } else {
-            compDescName = "release_kmb";
-        }
-
-        if (!config.mcmCompilationDesciptor().empty()) {
-            compDescName = config.mcmCompilationDesciptor();
-        }
+        std::string compDescName = !config.mcmCompilationDesciptor().empty() ?
+                            config.mcmCompilationDesciptor() : "release_kmb";
 
         if (config.deviceId() == "EMULATOR") {
             compDescName = "emulator_kmb_SC-Prefetch1";
@@ -181,6 +164,13 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.mcmLogLevel()));
         mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.removePermuteNoOp());
+        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv",
+                                       std::find_if(inputsInfo.begin(), inputsInfo.end(),
+                                                        [](const std::pair<std::string, ie::InputInfo::Ptr>& input) {
+                    return input.second->getLayout() != InferenceEngine::Layout::NCHW &&
+                           input.second->getLayout() != InferenceEngine::Layout::CHW;
+                }) == inputsInfo.end());
+
 
         if (config.referenceMode()) {
             mcmCompDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
