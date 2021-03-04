@@ -1333,15 +1333,14 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         {
             totalSize = src->getSubTensor(i).dataPackedSize();
             totalSizeDst = src->getSubTensor(i).dataPackedSize();
+            if (totalSize == 0 && src->isAllocatedPerCluster())
+                return false;
         }
 
         if(src->getSubTensor(i).hasAttr("CompressedSize"))
             totalSize = src->getSubTensor(i).get<int>("CompressedSize");
         else
             totalSize *= src->getDType().getSizeInBits() / 8;
-
-        if (totalSize == 0)
-            return false;
 
         std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
         totalSizeDst *= src->getDType().getSizeInBits() / 8;
@@ -2395,9 +2394,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
 
             if (opIt->get<std::string>("taskOp") != "MaxPool")
                 toBuild->invariant->weights_data->locale_index = locale_index;
-            else if (opIt->get<std::string>("taskOp") == "MaxPool" ||
-                     opIt->get<std::string>("taskOp") == "ChannelMajorConvolution" ||
-                     opIt->get<std::string>("taskOp") == "DepthwiseConv")
+            if (opIt->get<std::string>("taskOp") != "Eltwise")
+                toBuild->invariant->weights_table->locale_index = locale_index;
+            if (opIt->get<std::string>("taskOp") == "MaxPool" ||
+                opIt->get<std::string>("taskOp") == "ChannelMajorConvolution" ||
+                opIt->get<std::string>("taskOp") == "DepthwiseConv")
                 toBuild->invariant->activation_window->locale_index = locale_index;
 
             auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
@@ -3914,10 +3915,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(Computat
     return vecToBuild;
 }
 
-unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt)
+unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt, bool trimEmptyTensors)
 {
     std::string taskType = opIt->getOpType();
-    unsigned toReturn = 0;
+    int64_t toReturn = 0;
     unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     if(taskType == "DPUTask")
@@ -3959,13 +3960,18 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             multiplicator = 3;
         }
 
+        // For sparse cases when the tensor is empty
+        // we are better off to schedule DMA's just for the
+        // sparse map and pointer table.
+        // Providing runtiem with a DMA of size 0 to schedule
+        // will end up halting the DMA HW.
+        size_t empty_tensors = 0;
         if(numClusters > 1)
         {
-            bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
+            bool sourceIsBroadCasted = inputTensor->isBroadcasted();
             //NOTE: When strategy is overwritten
             if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX)
             {
-               // inputTensor->setShape(outputTensor->getShape());
                 if (inputTensor->hasAttr("overwriteStrategy"))
                 {
                     if (inputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
@@ -3977,7 +3983,6 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             else if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2DDR)
             {
                 auto outputTensor = opIt->getOutputTensor(0);
-                // inputTensor->setShape(outputTensor->getShape());
                  if (outputTensor->hasAttr("overwriteStrategy"))
                  {
                      if (outputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
@@ -3991,26 +3996,42 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
                 toReturn = numClusters;
             else
                 toReturn = 1;
-            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering"))
+            if ((inputTensor->get<std::string>("splitStrategy") == "Clustering"))
                 toReturn = 1;
-        }
-        else
-            toReturn = 1;
 
-        toReturn *= multiplicator;
-
-        if (inputTensor->isPopulated() && inputTensor->isSparse())
-        {
-            if (numClusters < toReturn) {
-                for (unsigned i = 0; i < numClusters; ++i) {
-                    if (inputTensor->getSubTensor(i).dataPackedSize() == 0)
-                        toReturn--;
+            if (inputTensor->isPopulated() && inputTensor->isSparse() &&
+                inputTensor->isAllocatedPerCluster())
+            {
+                if (inputTensor->hasSubTensors()) {
+                    for (size_t i = 0; i < inputTensor->numSubTensors(); ++i)
+                        if (inputTensor->getSubTensor(i).dataPackedSize() == 0)
+                            empty_tensors++;
+                } else {
+                    if (inputTensor->dataPackedSize() == 0)
+                    {
+                        empty_tensors++;
+                    }
                 }
             }
         }
+        else
+        {
+            toReturn = 1;
+            if (inputTensor->isPopulated() && inputTensor->isSparse() &&
+                inputTensor->dataPackedSize() == 0)
+                empty_tensors++;
+        }
+
+        toReturn *= multiplicator;
+        if (trimEmptyTensors)
+            toReturn -= empty_tensors;
     }
     else if(taskType == "UPATask" || opIt->isImplicit())
         toReturn = 1;
+
+    if (toReturn < 0){
+        throw mv::ArgumentError(cm, "countProducerConsumerTasks", "0", "Sub zero barrier count");
+    }
 
     return toReturn;
 }
@@ -4036,11 +4057,11 @@ std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::Computation
     toBuild->producer_count = 0;
 
     for(auto producer = opIt.leftmostParent(); producer != cm.opEnd(); ++producer) {
-        toBuild->producer_count += countProducerConsumerTasks(model, producer);
+        toBuild->producer_count += countProducerConsumerTasks(model, producer, true);
     }
 
     for(auto consumer = opIt.leftmostChild(); consumer != cm.opEnd(); ++consumer) {
-        toBuild->consumer_count += countProducerConsumerTasks(model, consumer);
+        toBuild->consumer_count += countProducerConsumerTasks(model, consumer, true);
     }
     return toBuild;
 }
