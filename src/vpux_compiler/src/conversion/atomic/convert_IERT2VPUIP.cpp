@@ -64,7 +64,7 @@ void ConvertIERT2VPUIPPass::runOnFunction() {
 
         passBody();
     } catch (const std::exception& e) {
-        errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
+        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
@@ -242,8 +242,8 @@ private:
 mlir::LogicalResult ConvertIERT2VPUIPPass::CheckUnsupportedTile::matchAndRewrite(IERT::TileOp origOp,
                                                                                  mlir::PatternRewriter&) const {
     _log.trace("Found TileOp Operation '{0}'", origOp->getLoc());
-    errorAt(origOp, "Tile operation desn't introduced in VPUIP dialect. All TileOp's should be replaced with "
-                    "PerAxisTileOp. Please, make shure that `convert-tile-to-per-axis-tiles` is enabled");
+    (void)errorAt(origOp, "Tile operation desn't introduced in VPUIP dialect. All TileOp's should be replaced with "
+                          "PerAxisTileOp. Please, make shure that `convert-tile-to-per-axis-tiles` is enabled");
     return mlir::failure();
 }
 

@@ -67,7 +67,7 @@ void LowerIERT2VPUIPPass::runOnOperation() {
 
         passBody();
     } catch (const std::exception& e) {
-        errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
+        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
@@ -107,8 +107,8 @@ void LowerIERT2VPUIPPass::addGraphOp() {
     const auto version = VPUIP::VersionAttr::get(getInt32Attr(&ctx, 3),                         // majorV
                                                  getInt32Attr(&ctx, 11),                        // minorV
                                                  getInt32Attr(&ctx, 0),                         // patchV
-                                                 mlir::StringAttr::get("", &ctx),               // hash
-                                                 mlir::StringAttr::get("VPUX Compiler", &ctx),  // contextStr
+                                                 mlir::StringAttr::get(&ctx, ""),               // hash
+                                                 mlir::StringAttr::get(&ctx, "VPUX Compiler"),  // contextStr
                                                  &ctx);
 
     OpBuilderLogger builderLog(_log.nest());

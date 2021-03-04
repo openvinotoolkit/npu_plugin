@@ -55,7 +55,7 @@ void MergeFakeQuantPass::runOnFunction() {
 
         passBody();
     } catch (const std::exception& e) {
-        errorAt(getFunction(), "{0} Pass failed : {1}", getName(), e.what());
+        (void)errorAt(getFunction(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
