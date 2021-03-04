@@ -1,2 +1,2 @@
-tag:ci_tag_vpu_release_21ww08.3.1
-commit:84ff9ac2bbac18cc8eb32f7f9144bf2f32491bf4
+tag:ci_tag_dKMB_ADK3_vpu_release_21ww10.3.1
+commit:e4a39e0a476a4689c794d877d1de0f7a0a608093
