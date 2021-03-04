@@ -114,10 +114,10 @@ def VPUIP_DeclareTensorOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint64_t":$dataIndex)
         >,
-        OpBuilderDAG<
+        OpBuilder<
             (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint32_t":$localeIndex, "uint64_t":$dataIndex)
         >
     ];
@@ -156,7 +156,7 @@ def VPUIP_DeclareConstantTensorOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins "mlir::MemRefType":$type, "mlir::ElementsAttr":$value)
         >
     ];
@@ -189,7 +189,7 @@ def VPUIP_DeclareVirtualBarrierOp :
     );
 
     let builders = [
-        OpBuilderDAG<(ins)>
+        OpBuilder<(ins)>
     ];
 
     let assemblyFormat = [{
@@ -219,7 +219,7 @@ def VPUIP_ConfigureBarrierOp :
     );
 
     let builders = [
-        OpBuilderDAG<(ins "uint32_t":$id)>
+        OpBuilder<(ins "uint32_t":$id)>
     ];
 
     let extraClassDeclaration = [{
@@ -263,7 +263,7 @@ def VPUIP_UPADMAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins "mlir::Value":$src, "mlir::Value":$dst)
         >
     ];
@@ -312,7 +312,7 @@ def VPUIP_NNDMAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins "mlir::Value":$src, "mlir::Value":$dst)
         >
     ];
@@ -368,7 +368,7 @@ def VPUIP_ConvertUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$output)
         >
     ];
@@ -419,7 +419,7 @@ def VPUIP_SoftMaxUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "mlir::IntegerAttr":$axisInd
@@ -476,7 +476,7 @@ def VPUIP_PoolingUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "vpux::VPUIP::PoolLayerTypeAttr":$type,
@@ -537,7 +537,7 @@ def VPUIP_ConvolutionUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$filter, "mlir::Value":$bias, "mlir::Value":$output,
                 "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$dilations,
@@ -587,7 +587,7 @@ def VPUIP_ReLUUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$output)
         >
     ];
@@ -636,7 +636,7 @@ def VPUIP_SigmoidUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$output)
         >
     ];
@@ -685,7 +685,7 @@ def VPUIP_HSwishUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$output)
         >
     ];
@@ -738,7 +738,7 @@ def VPUIP_ClampUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "mlir::FloatAttr":$min, "mlir::FloatAttr":$max
@@ -793,7 +793,7 @@ def VPUIP_EluUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "mlir::FloatAttr":$x
@@ -845,7 +845,7 @@ def VPUIP_TanhUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$output)
         >
     ];
@@ -900,7 +900,7 @@ def VPUIP_FakeQuantizeUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "uint32_t":$levels,
@@ -953,7 +953,7 @@ def VPUIP_QuantCastUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<(ins "mlir::Value":$input, "mlir::Value":$output)>
+        OpBuilder<(ins "mlir::Value":$input, "mlir::Value":$output)>
     ];
 
     let verifier = [{
@@ -997,7 +997,7 @@ def VPUIP_PReluUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$negative_slope,
                 "mlir::Value":$output
@@ -1044,7 +1044,7 @@ def VPUIP_LeakyReluUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "mlir::FloatAttr":$negative_slope
@@ -1092,7 +1092,7 @@ def VPUIP_EltwiseUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input1, "mlir::Value":$input2,
                 "mlir::Value":$output,
@@ -1145,7 +1145,7 @@ def VPUIP_DetectionOutputUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$in_box_logits, "mlir::Value":$in_class_preds,"mlir::Value":$in_proposals,
                 "mlir::Value":$in_additional_preds, "mlir::Value":$in_additional_proposals,
@@ -1192,7 +1192,7 @@ def VPUIP_SwishUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "mlir::FloatAttr":$beta_value
@@ -1239,7 +1239,7 @@ def VPUIP_GRNUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "mlir::FloatAttr":$bias
@@ -1287,7 +1287,7 @@ def VPUIP_ScaleShiftUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$weights,
                 "mlir::Value":$biases,"mlir::Value":$output
@@ -1338,7 +1338,7 @@ def VPUIP_PerAxisTileUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "mlir::IntegerAttr":$axis, "mlir::IntegerAttr":$tiles
@@ -1382,7 +1382,7 @@ def VPUIP_NegativeUPAOp :
     );
 
     let builders = [
-        OpBuilderDAG<
+        OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$output)
         >
     ];

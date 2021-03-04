@@ -64,7 +64,7 @@ void ConvertPrecisionToFP16Pass::runOnOperation() {
     try {
         passBody();
     } catch (const std::exception& e) {
-        errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
+        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }
