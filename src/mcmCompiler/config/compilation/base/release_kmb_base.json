@@ -196,6 +196,7 @@
     },
     "serialize": {
         "Singular": [
+            "ReorderPaddingConcatDmas",
             "RemoveRedundantUpdateBarriers",
             "SplitBarrier",
             {
