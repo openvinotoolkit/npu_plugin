@@ -115,6 +115,33 @@ void propagateImplicitOpsFromOutput(mv::Op& op, mv::OpModel& om)
     }
 }
 
+void controlPaddingConcatFlows(mv::OpModel& om)
+{
+    auto paddingOps = om.getOps("PaddingConcat");
+    for (auto& concat : paddingOps)
+    {
+        // add a pseudo edge since padding concat input 1 is the master buffer
+        auto padding_input = concat->getInputTensor(1UL);
+        auto next_op = concat.leftmostChild();
+        unsigned new_size = next_op->addInputTensor(padding_input);
+        auto pseudo_flow = om.defineFlow(padding_input, next_op, new_size - 1);
+        pseudo_flow->set<bool>("padding_data_flow", true);
+        // padding tensor is the master buffer, set all PaddingCOncat tensor to the padding concat tensor address
+        // the padding DMA will occur first (setting the CMX to zero points), then the Input DMA and this
+        // buffer will be the input to the next op
+        auto rep_op = om.getSourceOp(concat->getInputTensor(1UL));
+        size_t size_per_cluster = rep_op->getOutputTensor(0UL)->getClusterSize();
+        // set padding DMA to be the context rep
+        om.getSourceOp(concat->getInputTensor(1UL))->set<std::string>("memory_context_rep", rep_op->getName());
+        om.getSourceOp(concat->getInputTensor(1UL))->set<size_t>("memory_context_offset", 0UL);
+        om.getSourceOp(concat->getInputTensor(1UL))->set<size_t>("actual_size_inside_memory_context", size_per_cluster);
+        // for the input DMA
+        om.getSourceOp(concat->getInputTensor(0UL))->set<std::string>("memory_context_rep", rep_op->getName());
+        om.getSourceOp(concat->getInputTensor(0UL))->set<size_t>("memory_context_offset", 0UL);
+        om.getSourceOp(concat->getInputTensor(0UL))->set<size_t>("actual_size_inside_memory_context", size_per_cluster); 
+    }
+}
+
 void resolveImplicitConcats(mv::OpModel& om)
 {
     auto concatOps = om.getOps("ImplicitConcat");
@@ -217,7 +244,7 @@ void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::
         opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
     if (opType == "Slice" || opType == "Crop" || opType == "ImplicitInputSlice" || opType == "ImplicitInput")
         opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));
-    if (opType == "Copy" || opType == "Align")
+    if (opType == "Copy" || opType == "Align" || opType == "PaddingConcat")
         opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
 
     if (!opIt->hasAttr("ImplicitFlow"))
@@ -530,6 +557,8 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
     // Resolve the situation when the concat writes to more than one concat in DDR
     resolveImplicitConcats(om);
+    // Resolve implicit PaddingConcat flow to be scheduled with the next op
+    controlPaddingConcatFlows(om);
 }
 
 //void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
