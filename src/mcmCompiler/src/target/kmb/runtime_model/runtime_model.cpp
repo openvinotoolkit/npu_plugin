@@ -147,12 +147,20 @@ mv::RuntimeModel::RuntimeModel(const mv::TargetDescriptor& td)
     {
         auto hdeDef = std::dynamic_pointer_cast<mv::HdeDescriptor>(td.codecDef());
         auto hde = new Hde(hdeDef->bitPerSymbol, hdeDef->maxNumberEncodedSymbols, 0, hdeDef->blockSize, false, hdeDef->bypassMode);
+
+        if (!hde)
+            throw std::runtime_error("Memory allocation for HDE codec failed.");
+
         codec_.reset(hde);
     }
     else if (td.getCodecName() == mv::CodecType::BTC)
     {
         auto btcDef = std::dynamic_pointer_cast<mv::BTCDescriptor>(td.codecDef());
         auto btc = new BTC(btcDef->bufferAlignment, btcDef->bitmapPreprocEnable, false, btcDef->bypassMode, 0);
+
+        if (!btc)
+            throw std::runtime_error("Memory allocation for BTC codec failed.");
+
         codec_.reset(btc);
     }
     else
