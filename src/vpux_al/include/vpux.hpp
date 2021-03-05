@@ -45,10 +45,6 @@ class Device;
 
 class IEngineBackend : public std::enable_shared_from_this<IEngineBackend> {
 public:
-    // TODO Remove this method and default implementation after merging all to one plugin.
-    /** @deprecated Will be replaced with methods bellow */
-    virtual const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const;
-
     /** @brief Get device, which can be used for inference. Backend responsible for selection. */
     virtual const std::shared_ptr<IDevice> getDevice() const;
     /** @brief Search for a specific device by name */
@@ -71,10 +67,6 @@ class EngineBackendConfigurator;
 class EngineBackend final {
 public:
     virtual ~EngineBackend() = default;
-    /** @deprecated Will be replaced with methods below */
-    const std::map<std::string, std::shared_ptr<Device>>& getDevices() const {
-        return _devices;
-    }
     virtual const std::shared_ptr<Device> getDevice() const;
     virtual const std::shared_ptr<Device> getDevice(const std::string& specificDeviceName) const;
     virtual const std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
@@ -93,8 +85,6 @@ private:
 
     using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
     IEngineBackendPtr _impl = {};
-    /** @deprecated Force storing will be removed after plugins merging */
-    const std::map<std::string, std::shared_ptr<Device>> _devices = {};
 
 private:
     EngineBackend(std::string pathToLib);

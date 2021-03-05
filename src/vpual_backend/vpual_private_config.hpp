@@ -36,21 +36,6 @@ namespace VPUXConfigParams {
 DECLARE_VPUX_VPUAL_CONFIG_KEY(REPACK_INPUT_LAYOUT);
 
 /**
- * @brief [Only for VPUAL Subplugin]
- * Type: "YES", "NO", default is "NO"
- * This option allows to use CoreNN plug-in for inference
- */
-DECLARE_VPUX_VPUAL_CONFIG_KEY(USE_CORE_NN);
-
-/**
- * @deprecated Use VPUX_VPUAL_USE_CORE_NN instead
- * @brief [Only for VPUAL Subplugin]
- * Type: "YES", "NO", default is "NO"
- * This option allows to use CoreNN plug-in for inference
- */
-DECLARE_VPU_KMB_CONFIG_KEY(USE_CORE_NN);
-
-/**
  * @deprecated Use VPUX_INFERENCE_SHAVES instead
  * @brief [Only for VPUAL Subplugin]
  * Type: integer, default is 0. SetNumUpaShaves is not called in that case.

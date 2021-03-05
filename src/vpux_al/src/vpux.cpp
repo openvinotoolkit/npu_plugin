@@ -50,23 +50,7 @@ bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
 enum class EngineBackendType : uint8_t { VPUAL = 1, HDDL2 = 2, ZeroApi = 3 };
 
 //------------------------------------------------------------------------------
-// TODO Deprecated
-const std::map<std::string, std::shared_ptr<Device>> EngineBackend::createDeviceMap() {
-    std::map<std::string, std::shared_ptr<Device>> devices;
-
-    if (_impl->getName() == "VPUAL" || _impl->getName() == "ZERO") {
-        const auto& concreteDevices = _impl->getDevices();
-        for (const auto& device : concreteDevices) {
-            devices.insert({device.first, std::make_shared<Device>(device.second, _impl)});
-        }
-
-        return devices;
-    }
-    return {};
-}
-
-// TODO _devices lists should not be forced initialized here
-EngineBackend::EngineBackend(std::string pathToLib): _impl(pathToLib), _devices(std::move(createDeviceMap())) {
+EngineBackend::EngineBackend(std::string pathToLib): _impl(pathToLib) {
 }
 
 inline const std::shared_ptr<Device> wrapDeviceWithImpl(
@@ -138,9 +122,6 @@ const std::shared_ptr<IDevice> IEngineBackend::getDevice(const InferenceEngine::
 }
 const std::vector<std::string> IEngineBackend::getDeviceNames() const {
     THROW_IE_EXCEPTION << "Get all device names not implemented";
-}
-const std::map<std::string, std::shared_ptr<IDevice>>& IEngineBackend::getDevices() const {
-    THROW_IE_EXCEPTION << "Not implemented";
 }
 
 std::unordered_set<std::string> IEngineBackend::getSupportedOptions() const {
