@@ -108,7 +108,7 @@ BlobVector refInterp(const TestNetwork::NodePtr& layer, const BlobVector& inputs
     IE_ASSERT(interpLayer != nullptr);
     auto align_corners = interpLayer->get_attrs().align_corners;
 
-    const auto input = toDefLayout(toFP32(inputs.at(0)));
+    const auto input = vpux::toDefLayout(vpux::toFP32(as<MemoryBlob>(inputs.at(0))));
     const auto& outDims = layer->output(0).get_shape();
     const auto outDesc = TensorDesc(Precision::FP32, outDims, TensorDesc::getLayoutByDims(outDims));
     const auto output = make_blob_with_precision(outDesc);
@@ -126,7 +126,7 @@ TestNetwork& InterpLayerDef::build() {
     attr.axes = {2,3};
     attr.mode.assign("linear");
     attr.align_corners = params._alignCorners;
-    attr.antialias = params._antialias; 
+    attr.antialias = params._antialias;
     attr.pads_begin.push_back(params._padBeg);
     attr.pads_end.push_back(params._padEnd);
 

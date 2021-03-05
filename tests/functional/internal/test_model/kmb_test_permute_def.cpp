@@ -68,7 +68,7 @@ BlobVector refPermute(const TestNetwork::NodePtr& layer, const BlobVector& input
     IE_ASSERT(layer != nullptr);
     IE_ASSERT(inputs.size() == 2);
 
-    const auto input = toDefLayout(toFP32(inputs.at(0)));
+    const auto input = vpux::toDefLayout(vpux::toFP32(as<MemoryBlob>(inputs.at(0))));
     const auto order_blob = inputs.at(1);
 
     IE_ASSERT(order_blob->getTensorDesc().getPrecision() == Precision::I64);

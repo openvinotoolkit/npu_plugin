@@ -45,7 +45,8 @@ link_system_libraries(${TARGET_NAME}
         ${VPUMGR_LIBRARY}
     PUBLIC
         IE::inference_engine_legacy
-        IE::vpu_common_lib)
+        IE::vpu_common_lib
+        vpux_utils)
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME}

@@ -16,6 +16,8 @@
 
 #include "vpusmm_allocator.hpp"
 
+#include "vpux/utils/core/helper_macros.hpp"
+
 #include <iostream>
 #include <memory>
 
@@ -26,8 +28,6 @@
 #include <unistd.h>
 #include <vpumgr.h>
 #endif
-
-#include "ie_macro.hpp"
 
 namespace vpux {
 
@@ -125,13 +125,13 @@ void* VpusmmAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
     return handle;
 }
 
-void VpusmmAllocator::unlock(void* handle) noexcept { UNUSED(handle); }  // cpplint mark this line as false positive
+void VpusmmAllocator::unlock(void* handle) noexcept { VPUX_UNUSED(handle); }  // cpplint mark this line as false positive
 
 unsigned long VpusmmAllocator::getPhysicalAddress(void* handle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     return vpurm_ptr_to_vpu(handle, _deviceId);
 #else
-    UNUSED(handle);
+    VPUX_UNUSED(handle);
     return 0;
 #endif
 }
@@ -140,7 +140,7 @@ bool VpusmmAllocator::isValidPtr(void* ptr) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     return ptr != nullptr && vpurm_ptr_to_vpu(ptr, _deviceId) != 0;
 #else
-    UNUSED(ptr);
+    VPUX_UNUSED(ptr);
     return false;
 #endif
 }
@@ -163,9 +163,9 @@ void* VpusmmAllocator::wrapRemoteMemoryHandle(
 
     return memHandle;
 #else
-    UNUSED(remoteMemoryFd);
-    UNUSED(size);
-    UNUSED(memHandle);
+    VPUX_UNUSED(remoteMemoryFd);
+    VPUX_UNUSED(size);
+    VPUX_UNUSED(memHandle);
     return nullptr;
 #endif
 }
@@ -194,9 +194,9 @@ void* VpusmmAllocator::wrapRemoteMemoryOffset(
 
     return virtAddr;
 #else
-    UNUSED(remoteMemoryFd);
-    UNUSED(size);
-    UNUSED(memOffset);
+    VPUX_UNUSED(remoteMemoryFd);
+    VPUX_UNUSED(size);
+    VPUX_UNUSED(memOffset);
     return nullptr;
 #endif
 }
@@ -223,7 +223,7 @@ void* VpusmmAllocator::alloc(size_t size) noexcept {
 
     return virtAddr;
 #else
-    UNUSED(size);
+    VPUX_UNUSED(size);
     return nullptr;
 #endif
 }
@@ -252,7 +252,7 @@ bool VpusmmAllocator::free(void* handle) noexcept {
 
     return true;
 #else
-    UNUSED(handle);
+    VPUX_UNUSED(handle);
     return false;
 #endif
 }

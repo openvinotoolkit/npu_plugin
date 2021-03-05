@@ -107,8 +107,8 @@ void HeteroPluginTest::checkFunction(const BlobMap& actualBlobs, const BlobMap& 
 
     ASSERT_EQ(refBlob->getTensorDesc().getDims(), actualBlob->getTensorDesc().getDims());
 
-    auto actualOutput = parseOutput(toFP32(actualBlob));
-    auto refOutput = parseOutput(toFP32(refBlob));
+    auto actualOutput = parseOutput(vpux::toFP32(as<MemoryBlob>(actualBlob)));
+    auto refOutput = parseOutput(vpux::toFP32(as<MemoryBlob>(refBlob)));
 
     ASSERT_GE(actualOutput.size(), topK);
     actualOutput.resize(topK);
@@ -173,7 +173,7 @@ void HeteroPluginTest::runTest(const TestNetworkDesc& netDesc, const Device& fir
         const auto& desc = inputs.begin()->second->getTensorDesc();
         const auto& dims = desc.getDims();
         const auto blob = loadImage(image, dims.at(1), dims.at(2), dims.at(3));
-        const auto inputBlob = toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());
+        const auto inputBlob = vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
         return BlobMap{{inputName, inputBlob}};
     }();
 

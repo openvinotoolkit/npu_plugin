@@ -20,10 +20,11 @@
 
 #include <allocators.hpp>
 #include <vpu/utils/io.hpp>
-#include <ie_utils.hpp>
 
 #include "models/model_pooling.h"
 #include "vpu_layers_tests.hpp"
+
+#include "vpux/utils/IE/blob.hpp"
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -175,7 +176,7 @@ Blob::Ptr KmbPrivateConfigTests::runInferWithConfig(const std::string& model_pat
     request.Infer();
 
     const auto outputName = network.GetOutputsInfo().begin()->second->getName();
-    Blob::Ptr outputBlob = toFP32(request.GetBlob(outputName));
+    Blob::Ptr outputBlob = vpux::toFP32(as<MemoryBlob>(request.GetBlob(outputName)));
 
     return outputBlob;
 }

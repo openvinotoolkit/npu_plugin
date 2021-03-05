@@ -14,21 +14,20 @@
 // stated in the License.
 //
 
-// System
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-// IE
+
 #include <ie_blob.h>
 #include <ie_layouts.h>
-// Plugin
-#include <dumper.hpp>
 
-#include "ie_itt.hpp"
-#include "ie_utils.hpp"
 #include "vpux_infer_request.h"
 #include "vpux_remote_blob.h"
+
+#include "vpux/utils/IE/blob.hpp"
+#include "vpux/utils/IE/itt.hpp"
+
 // TODO KMB-standalone preprocessing details should be not exposed to plugin [Track number: S#43193]
 // Low-level
 #ifdef __aarch64__
@@ -75,7 +74,7 @@ InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::Out
           _config(config),
           _logger(std::make_shared<vpu::Logger>("InferRequest", config.logLevel(), vpu::consoleOutput())),
           _allocator(allocator),
-          _deviceId(utils::extractIdFromDeviceName(config.deviceId())),
+          _deviceId(extractIdFromDeviceName(config.deviceId())),
           _netUniqueId(netName),
           _preprocBuffer(nullptr, [this](uint8_t* buffer) {
               _allocator->free(buffer);
@@ -145,7 +144,7 @@ void InferRequest::moveBlobForPreprocessingToInputs(
 // TODO [Track number: S#43193]
 #ifdef __aarch64__
 void InferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "execPreprocessing");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "execPreprocessing");
     if ((_config.useSIPP() || _config.useM2I() || _config.useSHAVE_only_M2I()) &&
         IE::KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecKmbDataPreprocessing(inputs, _networkInputs, _config.graphColorFormat(),
@@ -163,7 +162,7 @@ void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMa
                                                          InferenceEngine::ColorFormat out_format,
                                                          unsigned int numShaves, unsigned int lpi,
                                                          unsigned int numPipes) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "relocationAndExecKmbDataPreprocessing");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "relocationAndExecKmbDataPreprocessing");
     std::map<std::string, IE::PreProcessDataPtr> preprocDataRealloc;
     for (const auto& input : inputs) {
         const std::string& inputName = input.first;
@@ -181,8 +180,8 @@ void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMa
 
             IE::Blob::Ptr kmbYBlob = origYBlob;
             IE::Blob::Ptr kmbUVBlob = origUVBlob;
-            if (!utils::isBlobAllocatedByAllocator(origYBlob, _allocator) ||
-                !utils::isBlobAllocatedByAllocator(origUVBlob, _allocator)) {
+            if (!isBlobAllocatedByAllocator(origYBlob, _allocator) ||
+                !isBlobAllocatedByAllocator(origUVBlob, _allocator)) {
                 _logger->warning("NV12 Blob located in memory not managed by plugin. Need to re-allocate the blob.");
                 _preprocBuffer.reset(
                         reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
@@ -199,7 +198,7 @@ void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMa
                 InferenceEngine::TensorDesc croppedYTensorDesc = {origYBlob->getTensorDesc().getPrecision(),
                                                                   origYBlob->getTensorDesc().getDims(),
                                                                   origYBlob->getTensorDesc().getLayout()};
-                kmbYBlob = ie::make_shared_blob<uint8_t>(croppedYTensorDesc, _preprocBuffer.get());
+                kmbYBlob = InferenceEngine::make_shared_blob<uint8_t>(croppedYTensorDesc, _preprocBuffer.get());
 
                 auto memoryBlobUV = IE::as<IE::MemoryBlob>(origUVBlob);
                 IE_ASSERT(memoryBlobUV != nullptr);
@@ -210,8 +209,8 @@ void InferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMa
                 InferenceEngine::TensorDesc croppedUVTensorDesc = {origUVBlob->getTensorDesc().getPrecision(),
                                                                    origUVBlob->getTensorDesc().getDims(),
                                                                    origUVBlob->getTensorDesc().getLayout()};
-                kmbUVBlob = ie::make_shared_blob<uint8_t>(croppedUVTensorDesc,
-                                                          _preprocBuffer.get() + origYBlob->byteSize());
+                kmbUVBlob = InferenceEngine::make_shared_blob<uint8_t>(croppedUVTensorDesc,
+                                                                       _preprocBuffer.get() + origYBlob->byteSize());
             }
 
             InferenceEngine::Blob::Ptr nv12Blob =
@@ -229,7 +228,7 @@ void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
                                             InferenceEngine::InputsDataMap& networkInputs,
                                             InferenceEngine::ColorFormat out_format, unsigned int numShaves,
                                             unsigned int lpi, unsigned int numPipes) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "execKmbDataPreprocessing");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "execKmbDataPreprocessing");
     IE_ASSERT(_config.useSIPP() || _config.useM2I() || _config.useSHAVE_only_M2I());
     IE::KmbPreproc::Path ppPath;
     if (_config.useM2I()) {
@@ -246,7 +245,7 @@ void InferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
 
 void InferRequest::InferAsync() {
     // TODO [Track number: S#36866]
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "InferAsync");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "InferAsync");
 
     const auto preProcMap = preparePreProcessing(_networkInputs, _preProcData);
     if (_executorPtr->isPreProcessingSupported(preProcMap)) {
@@ -263,16 +262,16 @@ void InferRequest::InferAsync() {
         _executorPtr->push(_inputs);
     }
     if (std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH") != nullptr) {
-        utils::dumpBlobs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"), "input", _logger);
+        dumpBlobs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"), "input");
     }
 }
 
 void InferRequest::GetResult() {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "GetResult");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "GetResult");
     _executorPtr->pull(_outputs);
     const char* dumpOutputPathEnv = std::getenv("IE_VPU_KMB_DUMP_OUTPUT_PATH");
     if (dumpOutputPathEnv != nullptr) {
-        utils::dumpBlobs(_outputs, dumpOutputPathEnv, "output", _logger);
+        dumpBlobs(_outputs, dumpOutputPathEnv, "output");
     }
     _logger->debug("InferRequest::GetResult finished");
 }
@@ -291,7 +290,7 @@ void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
         return;
     }
 
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "SetBlob");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "SetBlob");
     if (name.empty()) {
         THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
     }

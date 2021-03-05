@@ -117,7 +117,7 @@ BlobVector refMVN(const TestNetwork::NodePtr& layer, const BlobVector& inputs, c
     const auto eps = mvnLayer->get_eps();
 
     auto input = inputs.at(0);
-    auto output = makeSingleValueBlob(input->getTensorDesc(), 0.0f);
+    auto output = vpux::makeSplatBlob(input->getTensorDesc(), 0.0f);
 
     refMVNFromVPU(input, output, normalize_variance, across_channels, eps);
 

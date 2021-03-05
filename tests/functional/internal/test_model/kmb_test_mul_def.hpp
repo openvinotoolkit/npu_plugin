@@ -44,7 +44,7 @@ struct MultiplyLayerDef final {
         return input1(input1LayerName);
     }
     MultiplyLayerDef& input1(float val, const Precision& precision, size_t numDims) {
-        const auto input1Blob = makeScalarBlob(val, precision, numDims);
+        const auto input1Blob = vpux::makeScalarBlob(val, precision, numDims);
         return input1(input1Blob);
     }
 
@@ -58,7 +58,7 @@ struct MultiplyLayerDef final {
         return input2(input2LayerName);
     }
     MultiplyLayerDef& input2(float val, const Precision& precision, size_t numDims) {
-        const auto input2Blob = makeScalarBlob(val, precision, numDims);
+        const auto input2Blob = vpux::makeScalarBlob(val, precision, numDims);
         return input2(input2Blob);
     }
 

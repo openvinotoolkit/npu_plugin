@@ -56,7 +56,7 @@ TEST_P(VpuxAsyncTests, regression_ADK) {
         registerBlobGenerator(
                 "scale", scaleDesc,
                 [&](const TensorDesc& desc) {
-                    return makeSingleValueBlob(desc, 1.f);
+                    return vpux::makeSplatBlob(desc, 1.f);
                 }
         );
 
@@ -92,7 +92,7 @@ TEST_P(VpuxAsyncTests, regression_ADK) {
             registerBlobGenerator(
                     std::string("input") + std::to_string(i), inputDesc,
                     [&](const TensorDesc& desc) {
-                        return makeSingleValueBlob(desc, 1.f + i);
+                        return vpux::makeSplatBlob(desc, 1.f + i);
                     }
             );
             inferRequests[i] = exeNet.CreateInferRequest();

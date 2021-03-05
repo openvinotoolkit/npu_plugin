@@ -25,6 +25,28 @@
 
 namespace vpux {
 
+// expected format VPU-#, where # is device id
+int extractIdFromDeviceName(const std::string& name) {
+    const size_t expectedSize = 5;
+    if (name.size() != expectedSize) {
+#ifdef __aarch64__
+        THROW_IE_EXCEPTION << "Unexpected device name: " << name;
+#else
+        return -1;
+#endif
+    }
+
+    return name.at(expectedSize - 1) - '0';
+}
+
+bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
+                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
+    const auto memoryBlob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+    IE_ASSERT(memoryBlob != nullptr);
+    auto lockedMemory = memoryBlob->rmap();
+    return allocator->lock(lockedMemory.as<void*>());
+}
+
 enum class EngineBackendType : uint8_t { VPUAL = 1, HDDL2 = 2, ZeroApi = 3 };
 
 //------------------------------------------------------------------------------
@@ -132,4 +154,5 @@ void* Allocator::wrapRemoteMemory(const InferenceEngine::ParamMap&) noexcept {
 std::shared_ptr<Allocator> IDevice::getAllocator(const InferenceEngine::ParamMap&) const {
     THROW_IE_EXCEPTION << "Not supported";
 }
+
 }  // namespace vpux

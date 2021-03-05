@@ -28,7 +28,7 @@ BlobVector refGather(const TestNetwork::NodePtr& layer, const BlobVector& inputs
     const auto gatherLayer = std::dynamic_pointer_cast<ngraph::op::v1::Gather>(layer);
     IE_ASSERT(gatherLayer != nullptr);
 
-    const auto params = toDefLayout(toFP32(inputs.at(0)));
+    const auto params = vpux::toDefLayout(vpux::toFP32(as<MemoryBlob>(inputs.at(0))));
     const auto indices = inputs.at(1);
 
     const auto& outDims = layer->output(0).get_shape();

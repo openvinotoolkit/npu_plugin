@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -18,16 +18,12 @@
 
 #include <openvino/itt.hpp>
 
-namespace vpu {
-
+namespace vpux {
 namespace itt {
-
 namespace domains {
 
-OV_ITT_DOMAIN(KmbPlugin);
+OV_ITT_DOMAIN(VPUXPlugin);
 
 }  // namespace domains
-
 }  // namespace itt
-
-}  // namespace vpu
+}  // namespace vpux

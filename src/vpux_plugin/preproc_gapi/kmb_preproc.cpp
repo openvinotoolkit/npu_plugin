@@ -4,11 +4,11 @@
 
 #include "kmb_preproc.hpp"
 
+#include "vpux/utils/core/helper_macros.hpp"
+
 #include <map>
 #include <memory>
 #include <string>
-
-#include "ie_macro.hpp"
 
 #if defined(__arm__) || defined(__aarch64__)
 #include "kmb_preproc_pool.hpp"
@@ -41,9 +41,9 @@ bool isApplicable(const InferenceEngine::BlobMap& inputs, const std::map<std::st
     }
     return true;
 #else
-    UNUSED(inputs);
-    UNUSED(preprocData);
-    UNUSED(networkInputs);
+    VPUX_UNUSED(inputs);
+    VPUX_UNUSED(preprocData);
+    VPUX_UNUSED(networkInputs);
     return false;
 #endif
 }
@@ -59,16 +59,16 @@ void execDataPreprocessing(InferenceEngine::BlobMap& inputs, std::map<std::strin
     preprocPool().execDataPreprocessing({inputs, preprocData, networkInputs, out_format}, numShaves, lpi, numPipes,
                                         ppPath, preprocPoolId, deviceId);
 #else
-    UNUSED(inputs);
-    UNUSED(preprocData);
-    UNUSED(networkInputs);
-    UNUSED(out_format);
-    UNUSED(numShaves);
-    UNUSED(lpi);
-    UNUSED(numPipes);
-    UNUSED(preprocPoolId);
-    UNUSED(deviceId);
-    UNUSED(ppPath);
+    VPUX_UNUSED(inputs);
+    VPUX_UNUSED(preprocData);
+    VPUX_UNUSED(networkInputs);
+    VPUX_UNUSED(out_format);
+    VPUX_UNUSED(numShaves);
+    VPUX_UNUSED(lpi);
+    VPUX_UNUSED(numPipes);
+    VPUX_UNUSED(preprocPoolId);
+    VPUX_UNUSED(deviceId);
+    VPUX_UNUSED(ppPath);
     THROW_IE_EXCEPTION << "VPUAL is disabled. Used only for arm";
 #endif
 }

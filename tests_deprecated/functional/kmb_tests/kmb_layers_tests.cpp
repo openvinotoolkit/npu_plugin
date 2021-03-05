@@ -16,15 +16,16 @@
 
 #include "kmb_layers_tests.hpp"
 
+#include "vpux/utils/core/helper_macros.hpp"
+
 #include <chrono>
 #include <iostream>
 #include <thread>
+
 #include <vpux/vpux_plugin_config.hpp>
 #include <vpux/vpux_compiler_config.hpp>
 
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ie_macro.hpp"
-
 
 using namespace InferenceEngine;
 
@@ -32,13 +33,13 @@ void kmbLayersTests_nightly::NetworkInit(const std::string& layer_type, std::map
     int weights_size, int biases_size, InferenceEngine::TBlob<uint8_t>::Ptr weights,
     InferenceEngine::Precision outputPrecision, InferenceEngine::Precision inputPrecision) {
 #if defined(__arm__) || defined(__aarch64__)
-    UNUSED(layer_type);
-    UNUSED(params);
-    UNUSED(weights_size);
-    UNUSED(biases_size);
-    UNUSED(weights);
-    UNUSED(outputPrecision);
-    UNUSED(inputPrecision);
+    VPUX_UNUSED(layer_type);
+    VPUX_UNUSED(params);
+    VPUX_UNUSED(weights_size);
+    VPUX_UNUSED(biases_size);
+    VPUX_UNUSED(weights);
+    VPUX_UNUSED(outputPrecision);
+    VPUX_UNUSED(inputPrecision);
     SKIP();
 #else
     ASSERT_NO_FATAL_FAILURE(
@@ -49,9 +50,9 @@ void kmbLayersTests_nightly::NetworkInit(const std::string& layer_type, std::map
 void kmbLayersTests_nightly::setup(const CNNNetwork& network, InferenceEngine::Precision outputPrecision,
     InferenceEngine::Precision inputPrecision, bool) {
 #if defined(__arm__) || defined(__aarch64__)
-    UNUSED(network);
-    UNUSED(outputPrecision);
-    UNUSED(inputPrecision);
+    VPUX_UNUSED(network);
+    VPUX_UNUSED(outputPrecision);
+    VPUX_UNUSED(inputPrecision);
     SKIP();
 #else
     _inputsInfo = network.getInputsInfo();

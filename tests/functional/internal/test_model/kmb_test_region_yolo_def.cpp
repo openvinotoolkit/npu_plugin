@@ -32,8 +32,8 @@ void computeRegionYolo(const Blob::Ptr& src, Blob::Ptr dst, int coords, int clas
     IE_ASSERT(src != nullptr);
     IE_ASSERT(dst != nullptr);
 
-    const auto srcHWC = toLayout(src, Layout::NHWC);
-    auto dstHWC = toLayout(dst, Layout::NHWC);
+    const auto srcHWC = vpux::toLayout(as<MemoryBlob>(src), Layout::NHWC);
+    auto dstHWC = vpux::toLayout(as<MemoryBlob>(dst), Layout::NHWC);
 
     const auto srcData = srcHWC->buffer().as<const float*>();
     const auto dstData = dstHWC->buffer().as<float*>();
@@ -101,7 +101,7 @@ BlobVector refRegionYolo(const TestNetwork::NodePtr& layer, const BlobVector& in
     const auto doSoftmax = RegionYoloLayer->get_do_softmax();
 
     const auto input = inputs.at(0);
-    auto output = makeSingleValueBlob(input->getTensorDesc(), 0.0f);
+    auto output = vpux::makeSplatBlob(input->getTensorDesc(), 0.0f);
 
     computeRegionYolo(input, output, coords, classes, regions, maskSize, doSoftmax);
 
