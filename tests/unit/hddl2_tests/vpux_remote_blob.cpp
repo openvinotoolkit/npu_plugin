@@ -62,7 +62,7 @@ void HDDL2_RemoteBlob_UnitTests::SetUp() {
         _remoteContextHelperPtr = std::make_shared<RemoteContext_Helper>();
         _remoteMemoryHelperPtr = std::make_shared<RemoteMemory_Helper>();
         auto workloadContextPtr = _remoteContextHelperPtr->getWorkloadContext();
-        allocator = InferenceEngine::details::shared_from_irelease(new vpu::HDDL2Plugin::HDDL2RemoteAllocator(workloadContextPtr));
+        allocator = std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteAllocator>(workloadContextPtr);
 
         tensorDesc = _tensorDescriptionHelper.tensorDesc;
         tensorSize = _tensorDescriptionHelper.tensorSize;
