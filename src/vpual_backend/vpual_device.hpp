@@ -27,7 +27,6 @@ namespace vpux {
 class VpualDevice final : public IDevice {
 public:
     VpualDevice(const std::string& name, const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform);
-    virtual ~VpualDevice() = default;
     std::shared_ptr<Allocator> getAllocator() const override;
     std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) const override;
 

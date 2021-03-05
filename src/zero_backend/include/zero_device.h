@@ -39,6 +39,5 @@ public:
 
     ZeroDevice& operator=(const ZeroDevice&) = default;
     ZeroDevice(const ZeroDevice&) = default;
-    ~ZeroDevice() = default;
 };
 }  // namespace vpux

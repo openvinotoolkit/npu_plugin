@@ -51,19 +51,19 @@ void RemoteAllocator_UnitTests::SetUp() {
 //------------------------------------------------------------------------------
 TEST_F(RemoteAllocator_UnitTests, constructor_CorrectContext_NoThrow) {
     SKIP_IF_NO_DEVICE();
-    ASSERT_NO_THROW(HDDL2RemoteAllocator::Ptr allocator = InferenceEngine::details::shared_from_irelease(new HDDL2RemoteAllocator(workloadContextPtr)));
+    ASSERT_NO_THROW(HDDL2RemoteAllocator::Ptr allocator = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr));
 }
 
 TEST_F(RemoteAllocator_UnitTests, constructor_NullContext_Throw) {
     SKIP_IF_NO_DEVICE();
-    ASSERT_ANY_THROW(HDDL2RemoteAllocator::Ptr allocator = InferenceEngine::details::shared_from_irelease(new HDDL2RemoteAllocator(nullptr)));
+    ASSERT_ANY_THROW(HDDL2RemoteAllocator::Ptr allocator = std::make_shared<HDDL2RemoteAllocator>(nullptr));
 }
 
 using RemoteAllocator_WrapMemory = RemoteAllocator_UnitTests;
 
 TEST_F(RemoteAllocator_WrapMemory, IncorrectRemoteMemType_ReturnNull) {
     SKIP_IF_NO_DEVICE();
-    auto allocatorPtr = InferenceEngine::details::shared_from_irelease(new vpu::HDDL2Plugin::HDDL2RemoteAllocator(workloadContextPtr));
+    auto allocatorPtr = std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteAllocator>(workloadContextPtr);
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), nullptr}};
     const auto memoryHandle = allocatorPtr->wrapRemoteMemory(paramMap);
     EXPECT_EQ(memoryHandle, nullptr);

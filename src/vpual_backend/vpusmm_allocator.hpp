@@ -38,10 +38,6 @@ public:
 
     virtual bool free(void* handle) noexcept override;
 
-    virtual void Release() noexcept override {
-        delete this;
-    }
-
     unsigned long getPhysicalAddress(void* handle) noexcept override;
 
     virtual bool isValidPtr(void* ptr) noexcept;
@@ -52,11 +48,8 @@ public:
         const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept override;
     void* wrapRemoteMemoryOffset(
         const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, const KmbOffsetParam& memOffset) noexcept override;
-protected:
-    /**
-     * @brief Disables the ability of deleting the object without release.
-     */
-    virtual ~VpusmmAllocator();
+    ~VpusmmAllocator();
+
 protected:
     std::mutex wrapMemoryMutex;
 

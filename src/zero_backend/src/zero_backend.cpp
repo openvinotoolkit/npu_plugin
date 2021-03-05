@@ -86,12 +86,7 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
         return {};
 }
 
-INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
-CreateVPUXEngineBackend(vpux::IEngineBackend*& backend, InferenceEngine::ResponseDesc* resp) noexcept {
-    try {
-        backend = new vpux::ZeroEngineBackend();
-        return InferenceEngine::StatusCode::OK;
-    } catch (std::exception& ex) {
-        return InferenceEngine::DescriptionBuffer(InferenceEngine::StatusCode::GENERAL_ERROR, resp) << ex.what();
-    }
+INFERENCE_PLUGIN_API(void)
+CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& backend) {
+    backend = std::make_shared<vpux::ZeroEngineBackend>();
 }
