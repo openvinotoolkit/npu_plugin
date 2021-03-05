@@ -226,6 +226,7 @@ void mv::Tensor::populate(const std::vector<double>& data)
 
         }
         populate(intData);
+        return;
     }
     if (data.size() != shape_.totalSize())
         throw ArgumentError(*this, "data vector", std::to_string(data.size()), "Unable to populate, data vector size"
