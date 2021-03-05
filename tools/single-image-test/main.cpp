@@ -53,7 +53,7 @@ DEFINE_bool(run_test, false, "Run the test (compare current results with previou
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
-DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification/ssd_detection' mode");
+DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification/ssd' mode");
 
 DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
@@ -61,8 +61,6 @@ DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
 
 DEFINE_string(log_level, "", "IE logger level (optional)");
 DEFINE_string(color_format, "BGR", "Color format for input: RGB or BGR");
-
-std::vector<std::string> inputFiles;
 
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
     std::vector<std::string> out;
@@ -114,8 +112,6 @@ void parseCommandLine(int argc, char* argv[]) {
     }
     std::cout << "    Log level:        " << FLAGS_log_level << std::endl;
     std::cout << std::endl;
-
-    inputFiles = splitStringList(FLAGS_input, ',');
 }
 
 //
@@ -708,6 +704,13 @@ int main(int argc, char* argv[]) {
     try {
         parseCommandLine(argc, argv);
 
+        std::vector<std::string> inputFilesPerCase;
+        std::vector<std::vector<std::string>> inputFilesForOneInfer;
+        inputFilesPerCase = splitStringList(FLAGS_input, ':');
+        for (const auto& images : inputFilesPerCase) {
+            inputFilesForOneInfer.push_back(splitStringList(images, ','));
+        }
+
         if (FLAGS_network.empty()) {
             std::cout << "Not enough parameters. Check help." << std::endl;
             return EXIT_FAILURE;
@@ -728,13 +731,6 @@ int main(int argc, char* argv[]) {
             exeNet = importNetwork(FLAGS_network);
         }
 
-        const auto inputsInfo = exeNet.GetInputsInfo();
-        const auto outputsInfo = exeNet.GetOutputsInfo();
-
-        IE_ASSERT(inputFiles.size() == inputsInfo.size())
-            << "Number of input files " << inputFiles.size()
-            << " doesn't match network configuration " << inputsInfo.size();
-
         std::string netFileName;
         {
             auto startPos = FLAGS_network.rfind('/');
@@ -754,92 +750,100 @@ int main(int argc, char* argv[]) {
             netFileName = cleanName(FLAGS_network.substr(startPos, endPos - startPos));
         }
 
-        ie::BlobMap inputs;
-        size_t inputInd = 0;
-        for (const auto& p : inputsInfo) {
-            std::cout << "Load input #" << inputInd << " from " << inputFiles[inputInd] << std::endl;
-            const auto blob = loadInput(p.second->getTensorDesc(), inputFiles[inputInd], FLAGS_color_format);
-            inputs.emplace(p.first, blob);
+        for (size_t numberOfTestCase = 0; numberOfTestCase < inputFilesPerCase.size(); ++numberOfTestCase) {
+            const auto inputsInfo = exeNet.GetInputsInfo();
+            const auto outputsInfo = exeNet.GetOutputsInfo();
+            std::vector<std::string> inputFiles = inputFilesForOneInfer[numberOfTestCase];
+            IE_ASSERT(inputFiles.size() == inputsInfo.size())
+                        << "Number of input files " << inputFiles.size()
+                        << " doesn't match network configuration " << inputsInfo.size();
 
-            std::ostringstream ostr;
-            ostr << netFileName << "_input_" << inputInd << ".blob";
-            const auto blobFileName = ostr.str();
+            ie::BlobMap inputs;
+            size_t inputInd = 0;
+            for (const auto &p : inputsInfo) {
+                std::cout << "Load input #" << inputInd << " from " << inputFiles[inputInd] << std::endl;
+                const auto blob = loadInput(p.second->getTensorDesc(), inputFiles[inputInd], FLAGS_color_format);
+                inputs.emplace(p.first, blob);
 
-            std::cout << "Dump input #" << inputInd << " to " << blobFileName << std::endl;
-            dumpBlob(blob, blobFileName);
-
-            ++inputInd;
-        }
-
-        std::cout << "Run inference on " << FLAGS_device << std::endl;
-        const auto outputs = runInfer(exeNet, inputs);
-
-        if (FLAGS_run_test) {
-            ie::BlobMap refOutputs;
-            size_t outputInd = 0;
-            for (const auto& p : outputsInfo) {
                 std::ostringstream ostr;
-                ostr << netFileName << "_ref_out_" << outputInd << ".blob";
+                ostr << netFileName << "_input_" << inputInd << "_case_" << numberOfTestCase << ".blob";
                 const auto blobFileName = ostr.str();
 
-                std::cout << "Load reference output #" << outputInd << " from " << blobFileName << std::endl;
-                const auto blob = loadBlob(p.second->getTensorDesc(), blobFileName);
-                refOutputs.emplace(p.first, blob);
+                std::cout << "Dump input #" << inputInd << "_case_" << numberOfTestCase << " to " << blobFileName << std::endl;
+                dumpBlob(blob, blobFileName);
 
-                ++outputInd;
+                ++inputInd;
             }
 
-            outputInd = 0;
-            for (const auto& p : outputs) {
-                std::ostringstream ostr;
-                ostr << netFileName << "_kmb_out_" << outputInd << ".blob";
-                const auto blobFileName = ostr.str();
+            std::cout << "Run inference on " << FLAGS_device << std::endl;
+            const auto outputs = runInfer(exeNet, inputs);
 
-                std::cout << "Dump device output #" << outputInd << " to " << blobFileName << std::endl;
-                dumpBlob(ie::as<ie::MemoryBlob>(p.second), blobFileName);
+            if (FLAGS_run_test) {
+                ie::BlobMap refOutputs;
+                size_t outputInd = 0;
+                for (const auto &p : outputsInfo) {
+                    std::ostringstream ostr;
+                    ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+                    const auto blobFileName = ostr.str();
 
-                ++outputInd;
-            }
+                    std::cout << "Load reference output #" << outputInd << " from " << blobFileName << std::endl;
+                    const auto blob = loadBlob(p.second->getTensorDesc(), blobFileName);
+                    refOutputs.emplace(p.first, blob);
 
-            if (strEq(FLAGS_mode, "classification")) {
-                if (testClassification(outputs, refOutputs)) {
-                    std::cout << "PASSED" << std::endl;
-                } else {
-                    std::cout << "FAILED" << std::endl;
-                    return EXIT_FAILURE;
+                    ++outputInd;
                 }
-            } else if (strEq(FLAGS_mode, "raw")) {
-                if (testRAW(outputs, refOutputs)) {
-                    std::cout << "PASSED" << std::endl;
-                } else {
-                    std::cout << "FAILED" << std::endl;
-                    return EXIT_FAILURE;
+
+                outputInd = 0;
+                for (const auto &p : outputs) {
+                    std::ostringstream ostr;
+                    ostr << netFileName << "_kmb_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+                    const auto blobFileName = ostr.str();
+
+                    std::cout << "Dump device output #" << outputInd << "_case_" << numberOfTestCase << " to " << blobFileName << std::endl;
+                    dumpBlob(ie::as<ie::MemoryBlob>(p.second), blobFileName);
+
+                    ++outputInd;
                 }
-            } else if (strEq(FLAGS_mode, "ssd")) {
-                if (testSSDDetection(outputs, refOutputs, inputsInfo)) {
-                    std::cout << "PASSED" << std::endl;
+
+                if (strEq(FLAGS_mode, "classification")) {
+                    if (testClassification(outputs, refOutputs)) {
+                        std::cout << "PASSED" << std::endl;
+                    } else {
+                        std::cout << "FAILED" << std::endl;
+                        return EXIT_FAILURE;
+                    }
+                } else if (strEq(FLAGS_mode, "raw")) {
+                    if (testRAW(outputs, refOutputs)) {
+                        std::cout << "PASSED" << std::endl;
+                    } else {
+                        std::cout << "FAILED" << std::endl;
+                        return EXIT_FAILURE;
+                    }
+                } else if (strEq(FLAGS_mode, "ssd")) {
+                    if (testSSDDetection(outputs, refOutputs, inputsInfo)) {
+                        std::cout << "PASSED" << std::endl;
+                    } else {
+                        std::cout << "FAILED" << std::endl;
+                        return EXIT_FAILURE;
+                    }
                 } else {
-                    std::cout << "FAILED" << std::endl;
+                    std::cout << "Unknown mode " << FLAGS_mode << std::endl;
                     return EXIT_FAILURE;
                 }
             } else {
-                std::cout << "Unknown mode " << FLAGS_mode << std::endl;
-                return EXIT_FAILURE;
-            }
-        } else {
-            size_t outputInd = 0;
-            for (const auto& p : outputs) {
-                std::ostringstream ostr;
-                ostr << netFileName << "_ref_out_" << outputInd << ".blob";
-                const auto blobFileName = ostr.str();
+                size_t outputInd = 0;
+                for (const auto &p : outputs) {
+                    std::ostringstream ostr;
+                    ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+                    const auto blobFileName = ostr.str();
 
-                std::cout << "Dump reference output #" << outputInd << " to " << blobFileName << std::endl;
-                dumpBlob(ie::as<ie::MemoryBlob>(p.second), blobFileName);
+                    std::cout << "Dump reference output #" << outputInd << " to " << blobFileName << std::endl;
+                    dumpBlob(ie::as<ie::MemoryBlob>(p.second), blobFileName);
 
-                ++outputInd;
+                    ++outputInd;
+                }
             }
         }
-
     } // try
     catch (const std::exception &ex) {
         std::cerr << "exception: " << ex.what() << std::endl;
