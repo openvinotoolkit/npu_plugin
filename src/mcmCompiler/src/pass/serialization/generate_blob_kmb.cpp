@@ -4,6 +4,7 @@
 #include <limits>
 
 static void buildGraphFileKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&);
+static void updatePhysicalIDinGraphFileFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&);
 static void generateBlobKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&);
 static void DMAOrderingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&);
 namespace mv
@@ -15,6 +16,13 @@ namespace mv
         .setDescription("Builds the graphfile according to the schema");
     }
 
+    namespace pass
+    {
+        MV_REGISTER_PASS(UpdatePhysicalIDinGraphFile)
+        .setFunc(updatePhysicalIDinGraphFileFcn)
+        .setDescription("Updates physical barrier id to task dependency in graphfile");
+    }
+    
     namespace pass
     {
         MV_REGISTER_PASS(GenerateBlobKmb)
@@ -35,6 +43,59 @@ void buildGraphFileKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel& mode
     MV_PROFILED_FUNCTION(MV_PROFILE_PHASE)
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(td);
     rm.buildGraphFile(model, td, passDesc);
+}
+
+void updatePhysicalIDinGraphFileFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&){
+    MV_PROFILED_FUNCTION(MV_PROFILE_PHASE)
+    bool isStatic= false;
+    auto globalParams = model.getGlobalConfigParams();
+    if (globalParams->hasAttr("enableStaticBarriers"))
+    {
+        isStatic= globalParams->get<bool>("enableStaticBarriers");
+    }
+    if (!isStatic){
+        return;
+    }
+    
+    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(td);
+    const MVCNN::GraphFileT& gf= rm.getGraphFile();
+    const auto& barrierTasks= gf.task_lists[2]->content;
+    std::unordered_map<unsigned , unsigned> virtual2real;
+    // construct mapping: {vid->pid}
+    for (unsigned vid=0; vid<barrierTasks.size(); vid++){
+        const MVCNN::ControllerTaskT* bt= static_cast<const MVCNN::ControllerTaskT*>(barrierTasks[vid]->task.value);
+        const MVCNN::BarrierConfigurationTaskT* bt2=
+                static_cast<const MVCNN::BarrierConfigurationTaskT*>(bt->task.value);
+        virtual2real.insert(std::make_pair(vid, bt2->target->barrier_id));
+    }
+    
+    auto& computeTasks= gf.task_lists[0]->content;
+    auto& dmaTasks= gf.task_lists[1]->content;
+    auto update_physical_id = [&virtual2real](vector<unique_ptr<MVCNN::TaskT>>& tasks){
+        for (auto& task : tasks){
+            auto& virtual_wait= task->associated_barriers->virtual_wait_barriers;
+            auto& virtual_update= task->associated_barriers->virtual_update_barriers;
+            vector<uint32_t> physical_wait, physical_update;
+            for (auto vid : virtual_wait){
+                auto itr= virtual2real.find(vid);
+                if (itr == virtual2real.end()){
+                   throw std::runtime_error("updatePhysicalIDinGraphFileFcn: Invalid wait virtual ID in task " + task->name); 
+                }
+                physical_wait.push_back(itr->second);
+            }
+            for (auto vid : virtual_update){
+                auto itr= virtual2real.find(vid);
+                if (itr == virtual2real.end()){
+                   throw std::runtime_error("updatePhysicalIDinGraphFileFcn: Invalid update virtual ID in task " + task->name); 
+                }
+                physical_update.push_back(itr->second);
+            }
+            task->associated_barriers->wait_barriers= physical_wait;
+            task->associated_barriers->update_barriers= physical_update;
+        }
+    };
+    update_physical_id(computeTasks);
+    update_physical_id(dmaTasks);
 }
 
 void generateBlobKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&)

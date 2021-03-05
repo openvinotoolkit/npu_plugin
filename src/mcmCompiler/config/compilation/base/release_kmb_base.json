@@ -6,6 +6,7 @@
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "verbose": "Error",
                 "barrier_index_assignment" : "Dynamic",
+                "enableStaticBarriers": true,
                 "default_tensor_placement" : "NNCMX"
             },
             "AssignInputNode",
@@ -200,6 +201,7 @@
                 "real_physical_barriers": 32
             },
             "BuildGraphFileKmb",
+            "UpdatePhysicalIDinGraphFile",
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

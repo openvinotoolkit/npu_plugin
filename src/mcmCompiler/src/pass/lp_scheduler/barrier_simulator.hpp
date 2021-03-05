@@ -98,7 +98,7 @@ class Runtime_Barrier_Simulation_Checker {
       return true;
     }
 
-  private:
+  protected:
 
     bool fill_barrier_tasks(op_list_t& barrier_task_list ) {
       active_barrier_table_iterator_t aitr;
@@ -117,7 +117,7 @@ class Runtime_Barrier_Simulation_Checker {
       return filled_atleast_once;
     }
 
-    bool is_task_ready(const operation_t& task) {
+    virtual bool is_task_ready(const operation_t& task) {
       const dag_t& dag = *input_ptr_;
       assert(!op_type_selector_t::is_barrier_op(dag, task));
 
@@ -149,7 +149,7 @@ class Runtime_Barrier_Simulation_Checker {
       return true;
     }
 
-    void process_task(const operation_t& task) {
+    virtual void process_task(const operation_t& task) {
       assert( is_task_ready(task) );
 
       const dag_t& dag = *input_ptr_;
@@ -236,7 +236,7 @@ class Runtime_Barrier_Simulation_Checker {
     }
 
     // acquires a real barrier for the input barrier task //
-    void acquire_real_barrier(operation_t btask) {
+    virtual void acquire_real_barrier(operation_t btask) {
       assert(!real_barrier_list_.empty());
       size_t real = real_barrier_list_.front();
       real_barrier_list_.pop_front();
@@ -332,6 +332,8 @@ class Runtime_Barrier_Simulation_Checker {
       }
     }
 
+  private:
+    
     void build_degree_table() {
       in_degree_map_.clear();
       out_degree_map_.clear();
@@ -372,7 +374,7 @@ class Runtime_Barrier_Simulation_Checker {
       }
     }
 
-
+  protected:
 
     const dag_t * const input_ptr_;
     level_sets_t level_sets_;
