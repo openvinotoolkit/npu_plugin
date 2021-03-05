@@ -70,7 +70,7 @@ std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qM
 mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, ConstantInterface highConst,
                                                   uint32_t levels, mlir::FloatType realType, mlir::Location loc) {
     if (lowConst == nullptr || highConst == nullptr) {
-        errorAt(loc, "Got non constant quantization parameters (low and high values)");
+        (void)errorAt(loc, "Got non constant quantization parameters (low and high values)");
         return nullptr;
     }
 
@@ -130,7 +130,7 @@ mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, Co
         break;
 
     default:
-        errorAt(loc, "Got unsupported levels '{0}'", levels);
+        (void)errorAt(loc, "Got unsupported levels '{0}'", levels);
         return nullptr;
     }
 
@@ -145,14 +145,15 @@ mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, Co
         int64_t zeroPoint = 0;
         std::tie(scale, zeroPoint) = calcScaleAndZeroPoint(qMin, qMax, low, high);
 
-        return mlir::quant::UniformQuantizedType::getChecked(isSigned ? mlir::quant::QuantizationFlags::Signed : 0,
-                                                             storageType, realType, scale, zeroPoint, qMin, qMax, loc);
+        return mlir::quant::UniformQuantizedType::getChecked(loc, isSigned ? mlir::quant::QuantizationFlags::Signed : 0,
+                                                             storageType, realType, scale, zeroPoint, qMin, qMax);
     } else {
         const auto lowShape = lowConst.getActualType().getShape();
         const auto highShape = highConst.getActualType().getShape();
 
         if (lowShape != highShape) {
-            errorAt(loc, "Low values shape '{0}' doesn't match with high values shape '{1}'", lowShape, highShape);
+            (void)errorAt(loc, "Low values shape '{0}' doesn't match with high values shape '{1}'", lowShape,
+                          highShape);
             return nullptr;
         }
 
@@ -163,14 +164,14 @@ mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, Co
             }
 
             if (axisInd.hasValue()) {
-                errorAt(loc, "Can't get axis index from shape '{0}'", lowShape);
+                (void)errorAt(loc, "Can't get axis index from shape '{0}'", lowShape);
                 return nullptr;
             }
 
             axisInd = checked_cast<int32_t>(i);
         }
         if (!axisInd.hasValue()) {
-            errorAt(loc, "Can't get axis index from shape '{0}'", lowShape);
+            (void)errorAt(loc, "Can't get axis index from shape '{0}'", lowShape);
             return nullptr;
         }
 
@@ -187,8 +188,8 @@ mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, Co
         });
 
         return mlir::quant::UniformQuantizedPerAxisType::getChecked(
-                isSigned ? mlir::quant::QuantizationFlags::Signed : 0, storageType, realType, scales, zeroPoints,
-                axisInd.getValue(), qMin, qMax, loc);
+                loc, isSigned ? mlir::quant::QuantizationFlags::Signed : 0, storageType, realType, scales, zeroPoints,
+                axisInd.getValue(), qMin, qMax);
     }
 }
 
@@ -258,7 +259,7 @@ int16_t vpux::quantize(float realVal, double scale, int64_t zeroPoint, int64_t q
 mlir::DenseElementsAttr vpux::quantize(ConstContentAttr input, mlir::ShapedType qType, mlir::Location loc) {
     const auto qElemType = qType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
     if (qElemType == nullptr) {
-        errorAt(loc, "Unsupported Quantized Type '{0}'", qType.getElementType());
+        (void)errorAt(loc, "Unsupported Quantized Type '{0}'", qType.getElementType());
         return nullptr;
     }
 
@@ -313,7 +314,7 @@ mlir::DenseElementsAttr vpux::quantize(ConstContentAttr input, mlir::ShapedType 
             qVals[fullInd1D] = quantize(realVals[fullInd1D], scales[innerInd], zeroPoints[innerInd], qMin, qMax);
         });
     } else {
-        errorAt(loc, "Unsupported Quantized Type '{0}'", qElemType);
+        (void)errorAt(loc, "Unsupported Quantized Type '{0}'", qElemType);
         return nullptr;
     }
 
@@ -331,7 +332,7 @@ float vpux::dequantize(int64_t qVal, double scale, int64_t zeroPoint) {
 mlir::DenseElementsAttr vpux::dequantize(ConstContentAttr input, mlir::ShapedType qType, mlir::Location loc) {
     const auto qElemType = qType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
     if (qElemType == nullptr) {
-        errorAt(loc, "Unsupported Quantized Type '{0}'", qType.getElementType());
+        (void)errorAt(loc, "Unsupported Quantized Type '{0}'", qType.getElementType());
         return nullptr;
     }
 
@@ -382,7 +383,7 @@ mlir::DenseElementsAttr vpux::dequantize(ConstContentAttr input, mlir::ShapedTyp
             realVals[fullInd1D] = dequantize(qVals[fullInd1D], scales[innerInd], zeroPoints[innerInd]);
         });
     } else {
-        errorAt(loc, "Unsupported Quantized Type '{0}'", qElemType);
+        (void)errorAt(loc, "Unsupported Quantized Type '{0}'", qElemType);
         return nullptr;
     }
 

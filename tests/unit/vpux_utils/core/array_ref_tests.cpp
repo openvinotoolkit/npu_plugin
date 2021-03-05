@@ -25,8 +25,8 @@
 
 using namespace vpux;
 
-template <class Range>
-void cmpArrayRefWithRange(const Range& range, ArrayRef<typename Range::value_type> arr) {
+template <class Range, typename T>
+void cmpArrayRefWithRange(const Range& range, ArrayRef<T> arr) {
     size_t ind = 0;
     for (const auto& v : range) {
         ASSERT_LT(ind, arr.size());
