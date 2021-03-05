@@ -75,10 +75,6 @@ public:
 };
 }  // namespace
 
-const std::map<std::string, std::shared_ptr<IDevice>>& ZeroEngineBackend::getDevices() const {
-    return ZeroDevicesSingleton::getInstanceDevices();
-}
-
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
     if (ZeroDevicesSingleton::getInstanceDevices().size())
         return ZeroDevicesSingleton::getInstanceDevices().begin()->second;

@@ -19,7 +19,6 @@
 #include <memory>
 
 #include "vpual_core_nn_executor.hpp"
-#include "vpual_flic_nn_executor.hpp"
 #include "vpusmm_allocator.hpp"
 
 namespace vpux {
@@ -36,16 +35,10 @@ std::shared_ptr<Executor> VpualDevice::createExecutor(
     if (vpusmmAllocator == nullptr) {
         THROW_IE_EXCEPTION << "Incompatible allocator passed into vpual_backend";
     }
-
     _config.parseFrom(config);
 
-    std::shared_ptr<Executor> executor = nullptr;
     const auto id = extractIdFromDeviceName(_name);
-    if (_config.useCoreNN()) {
-        executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _platform, _config);
-    } else {
-        executor = std::make_shared<VpualFlicNNExecutor>(networkDescription, vpusmmAllocator, id, _config);
-    }
+    const auto& executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _platform, _config);
 
     return executor;
 }
