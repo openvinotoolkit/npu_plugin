@@ -874,6 +874,16 @@ TEST_F(SmokeNetworkTest, yolo_v4_tf_full) {
                     .setUserOutputPrecision("output", Precision::FP32));
 }
 
+TEST_F(KmbClassifyNetworkTest, yolo_v4_tf_subgraph) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/yolo_v4/subgraph.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserOutputPrecision("output", Precision::FP16),
+            TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
+            1000,
+            0.3f);
+}
+
 // Regression on compilation due to latest rebase
 TEST_F(KmbVasFDStage1Test, DISABLED_precommit_vasfd_stage1) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");

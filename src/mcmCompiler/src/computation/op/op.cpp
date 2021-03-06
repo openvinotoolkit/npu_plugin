@@ -384,7 +384,7 @@ bool mv::Op::isHwFusable() const
 {
     bool isFusableOp = false;
     std::vector<std::string> hwFusableTypes =
-        {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Minimum", "Maximum"};
+        {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Minimum", "Maximum", "Mish"};
     if (std::count(hwFusableTypes.cbegin(), hwFusableTypes.cend(),
         getOpType()))
         isFusableOp = true;

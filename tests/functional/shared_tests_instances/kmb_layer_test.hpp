@@ -29,6 +29,7 @@ protected:
     void ExportNetwork();
     void ImportInput();
     void ExportInput();
+    void ExportOutput();
     void ImportReference(std::vector<std::vector<std::uint8_t>>& refs);
     void ExportReference(const std::vector<std::vector<std::uint8_t>>& refs);
 

@@ -213,8 +213,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
     {
         if (layer->getOpType() == "DPUTask")
         {
-            if (layer->hasAttr("firstConvWithLRelu")
-                              && layer->get<bool>("firstConvWithLRelu"))
+            if (layer->hasAttr("WithDPUPWL") && layer->get<bool>("WithDPUPWL"))
             {
                 auto index = layer->get<size_t>("instructionListTableIndex");
                 layer->getInputTensor()[index]->set<std::string>("splitStrategy", "Clustering");
