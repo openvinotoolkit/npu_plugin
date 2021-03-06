@@ -51,7 +51,6 @@ addIeTargetTest(
         vpual_backend_static
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
-
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\"

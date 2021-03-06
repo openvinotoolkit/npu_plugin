@@ -20,6 +20,7 @@
 
 #include <description_buffer.hpp>
 #include <mcm_config.hpp>
+#include <memory>
 #include <vpux_compiler.hpp>
 
 class MCMCompiler final : public vpux::ICompiler {
@@ -37,4 +38,6 @@ public:
 
 private:
     const vpu::MCMConfig _config = {};
+    const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
+            new vpu::Logger("MCMCompiler", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
 };

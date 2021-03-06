@@ -41,7 +41,10 @@ static const char plugin_message[] = "Optional. Enables messages from a plugin";
 static const char rgb_message[] = "Optional. Use input image in RGB format. Default is BGR.";
 
 /// @brief message for input precision
-static const char input_precision_message[] = "Optional. U8, FP32 or FP16 ";
+static const char input_precision_message[] = "Optional. u8, fp32 or fp16. Default u8. ";
+
+/// @brief message for input precision
+static const char output_precision_message[] = "Optional. u8, fp32 or fp16. Default fp16. ";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -77,7 +80,11 @@ DEFINE_bool(r, false, rgb_message);
 
 /// @brief Define input precision <br>
 /// It is an optional parameter
-DEFINE_string(ip, "", input_precision_message);
+DEFINE_string(ip, "u8", input_precision_message);
+
+/// @brief Define output precision <br>
+/// It is an optional parameter
+DEFINE_string(op, "fp32", output_precision_message);
 
 /**
 * @brief This function show a help message
@@ -96,5 +103,7 @@ static void showUsage() {
     std::cout << "    -d \"<device>\"           " << target_device_message << std::endl;
     std::cout << "    -nt \"<integer>\"         " << ntop_message << std::endl;
     std::cout << "    -p_msg                  " << plugin_message << std::endl;
+    std::cout << "    -ip_msg                  " << input_precision_message << std::endl;
+    std::cout << "    -op_msg                  " << output_precision_message << std::endl;
 }
 

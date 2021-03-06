@@ -63,6 +63,7 @@ protected:
 };
 
 class EngineBackendConfigurator;
+using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
 
 class EngineBackend final {
 public:
@@ -82,8 +83,6 @@ public:
 
 private:
     friend class EngineBackendConfigurator;
-
-    using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
     IEngineBackendPtr _impl = {};
 
 private:
@@ -188,9 +187,9 @@ private:
     // Device stores instances of classes inherited from IDevice. The instances come from _plg library.
     // Device has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
     // an instance of IDevice
-    std::shared_ptr<IDevice> _actual = nullptr;
-    InferenceEngine::details::SharedObjectLoader::Ptr _plg = nullptr;
-    std::shared_ptr<AllocatorWrapper> _allocatorWrapper = nullptr;
+    std::shared_ptr<IDevice> _actual;
+    IEngineBackendPtr _plg;
+    std::shared_ptr<AllocatorWrapper> _allocatorWrapper;
 
 public:
     using Ptr = std::shared_ptr<Device>;
@@ -223,7 +222,6 @@ public:
         _actual = nullptr;
     }
 };
-
 //------------------------------------------------------------------------------
 using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;
 class Executor {

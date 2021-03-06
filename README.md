@@ -49,7 +49,7 @@ How to prepare device for work (flash FIP/BKC)
 - [How to run tests on KMB board](guides/how-to-test.md)
 
 ### Bypass mode (HDDL2)
-Bypass related preparations 
+Bypass related preparations
 - [How to setup KMB bypass](guides/how-to-use-kmb-bypass.md)
 - [How to setup TBH bypass](guides/how-to-use-tbh-bypass.md)
 
