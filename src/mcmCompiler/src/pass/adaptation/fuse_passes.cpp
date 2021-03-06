@@ -44,6 +44,14 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                     {"Maximum", fuseMaximumFcn}};
 
     bool PPEAccuracy = globalParams->hasAttr("PPEAccuracy") ? globalParams->get<bool>("PPEAccuracy") : false;
+    // Check if the network can only be implemented with PPEAccuracy for SuperResolution enabling.
+    // Hardcoded by input number and shape.
+    size_t inputNumber = om.getNumNetworkInputs();
+    if (inputNumber == 3) {
+        auto input0 = om.getNetworkInputs()[0];
+        if (input0->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 192)
+            PPEAccuracy = true;
+    }
     if (PPEAccuracy)
     {
         std::vector<mv::Data::OpListIterator> biasOperations = om.getOps("Bias");

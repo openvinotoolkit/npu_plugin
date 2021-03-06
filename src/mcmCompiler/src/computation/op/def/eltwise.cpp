@@ -37,20 +37,8 @@ namespace mv
                 errMsg = "Input 0 of eltwise needs at least two inputs";
                 return {false, 2};
             }
-
-            auto input0Shape = inputs[0]->getShape();
-            for(std::size_t i = 1; i < inputSize; ++i)
-            {
-                auto inputIShape = inputs[i]->getShape();
-                if ((input0Shape != inputIShape))
-                {
-                    if(inputIShape.totalSize() != 1 && !inputs[i]->isPopulated() && eltwiseType != "Multiply")
-                    {
-                        errMsg = "All the inputs of eltwise ops have to share the same size or the other inputs must have size 1 and be populated";
-                        return {false, 3};
-                    }
-                }
-            }
+            // SR Fix: removed input shape check,
+            // handle different input-shape eltwise with broadcast eltwise now.
             return {true, 4};
 
         };

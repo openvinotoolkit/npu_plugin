@@ -227,6 +227,14 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
 
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     bool PPEAccuracy = globalParams->hasAttr("PPEAccuracy") ? globalParams->get<bool>("PPEAccuracy") : false;
+    // Check if the network can only be implemented with PPEAccuracy for SuperResolution enabling.
+    // Hardcoded by input number and shape.
+    size_t inputNumber = om.getNumNetworkInputs();
+    if (inputNumber == 3) {
+        auto input0 = om.getNetworkInputs()[0];
+        if (input0->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 192)
+            PPEAccuracy = true;
+    }
     if (!PPEAccuracy)
         return;
     auto leakyRelus = om.getOps("LeakyRelu");
@@ -239,27 +247,47 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
         auto leakyInputTensor = leakyReluOp->getInputTensor(0);
         auto leakyOutputTensor = leakyReluOp->getOutputTensor(0);
         auto leakyReluQuantParams = leakyOutputTensor->getQuantParams();
+
+        // Cannot fuse eltwise into the PPE LeakyReLU
+        bool isPPEAvailable = true;
+        if (parentOp->getOpType()=="Eltwise")
+            isPPEAvailable = false;
+        if (!isPPEAvailable) {
+            leakyRelu++;
+            continue;
+        }
+
         uint8_t branch = 0;
+        uint8_t branchConcat = 0;
         uint8_t branchEltwise = 0;
+        uint8_t branchDWConv = 0;
         std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, leakyOutputTensor);
         //NOTE: For now take into account that only the first sink
         //goes to concat but in general this needs to be searched
-        if (sinkOperators[0]->getOpType() == "Concat")
-        {
-            for (uint8_t inputId = 0; inputId < sinkOperators[0]->getInputTensor().size(); inputId++)
-            {
-                if (sinkOperators[0]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
-                    branch = inputId;
-            }
-        }
         for (std::size_t sinkOperatorsId = 0;sinkOperatorsId < sinkOperators.size(); sinkOperatorsId++)
         {
+            if (sinkOperators[sinkOperatorsId]->getOpType() == "Concat")
+            {
+                for (uint8_t inputId = 0; inputId < sinkOperators[0]->getInputTensor().size(); inputId++)
+                {
+                    if (sinkOperators[sinkOperatorsId]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
+                        branchConcat = inputId;
+                }
+            }
             if (sinkOperators[sinkOperatorsId]->getOpType() == "Eltwise")
             {
                 for (uint8_t inputId = 0; inputId < sinkOperators[sinkOperatorsId]->getInputTensor().size(); inputId++)
                 {
                     if (sinkOperators[sinkOperatorsId]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
                         branchEltwise = inputId;
+                }
+            }
+            if (sinkOperators[sinkOperatorsId]->getOpType() == "DepthwiseConv")
+            {
+                for (uint8_t inputId = 0; inputId < sinkOperators[sinkOperatorsId]->getInputTensor().size(); inputId++)
+                {
+                    if (sinkOperators[sinkOperatorsId]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
+                        branchDWConv = inputId;
                 }
             }
         }
@@ -292,6 +320,10 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
         {
             if (sinkOperators[numberOfSink]->getOpType() == "Eltwise")
                 branch = branchEltwise;
+            if (sinkOperators[numberOfSink]->getOpType() == "DepthwiseConv")
+                branch = branchDWConv;
+            if (sinkOperators[numberOfSink]->getOpType() == "Concat")
+                branch = branchConcat;
             sinkOperators[numberOfSink]->setInputTensor(add0->getOutputTensor(0), branch, false);
             om.defineFlow(add0->getOutputTensor(0), sinkOperators[numberOfSink], branch);
         }

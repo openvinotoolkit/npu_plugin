@@ -28,6 +28,7 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
+            "DeQuantizeU8ConstToFP16Const",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision",
             "FuseConcats",

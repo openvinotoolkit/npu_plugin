@@ -30,6 +30,7 @@
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "ImplicitOutputDTypeUpdate",
+            "DeQuantizeU8ConstToFP16Const",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision",
             "FuseConcats",

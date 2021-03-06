@@ -187,6 +187,10 @@ void LocateInplaceEltwiseOps(const mv::pass::PassEntry&,
     if (!(op_itr->hasAttr("taskOp") &&
             (op_itr->get<std::string>("taskOp") == "Eltwise"))) {continue;}
 
+    if ((op_itr->hasAttr("opType") &&
+            (op_itr->get<std::string>("opType")) == "UPATask"))
+        continue;
+
     ////////////////////////////////////////////////////////////////////////
     // TODO(vamsikku): currently we ignore eltwise's which generate sparse
     // if we were to overwrite input of we need to also carefully overwrite
