@@ -78,46 +78,25 @@ void preprocessForPWL(const mv::pass::PassEntry&, mv::ComputationModel& model, m
     mv::OpModel om(model);
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     bool PWLUsage = globalParams->hasAttr("PWLUsage") ? globalParams->get<bool>("PWLUsage") : false;
-    if (PWLUsage)
-    {
-        //NOTE: find the first convolution that has lrelu as postOp
-        bool foundFirstConv = false;
+
+    const std::vector<std::string> DPU_OPS = { "Conv", "FullyConnected", "DepthwiseConv", "Deconv", "MaxPool", };
+
+    if (PWLUsage) {
+        // NOTE: find convolutions that have lrelu / mish / etc as postOp
         auto sortedOps = om.topologicalSort();
-        mv::Data::OpListIterator firstConv;
-        for (auto opIterator: sortedOps)
-        {
-            if (opIterator->getOpType() == "Conv" && opIterator->hasAttr("postOpTypes"))
-            {
+
+        for (auto opIterator : sortedOps) {
+            if (std::find(DPU_OPS.begin(), DPU_OPS.end(), opIterator->getOpType()) != DPU_OPS.end() &&
+                opIterator->hasAttr("postOpTypes")) {
                 auto postOpTypes = opIterator->get<std::vector<std::string>>("postOpTypes");
-                if (std::find(postOpTypes.begin(), postOpTypes.end(), "LeakyRelu") != postOpTypes.end())
-                {
-                    foundFirstConv = true;
-                    firstConv = opIterator;
-                    break;
-                }
-            }
-        }
-        //NOTE: opIterator contains the first conv with lrelu if no conv with lrelu just go to next pass
-        if (foundFirstConv)
-        {
-            firstConv->set<bool>("firstConvWithLRelu", true);
-            auto convOps = om.getOps("Conv");
-            for (auto& convOp : convOps)
-            {
-                if (convOp->hasAttr("postOpTypes"))
-                {
-                    auto postOpTypes = convOp->get<std::vector<std::string>>("postOpTypes");
-                    auto itr = std::find(postOpTypes.begin(), postOpTypes.end(), "LeakyRelu");
-                    if (itr != postOpTypes.end())
-                    {
-                        std::replace(postOpTypes.begin(), postOpTypes.end(), std::string("LeakyRelu"), std::string("FLEXARB"));
-                        convOp->set<std::vector<std::string>>("postOpTypes", postOpTypes);
-                    }
+                auto dpuPostOp = std::find_if(postOpTypes.begin(), postOpTypes.end(), mv::ControlModel::isDpuPwl);
+                if (dpuPostOp != postOpTypes.end()) {
+                    opIterator->set<bool>("WithDPUPWL", true);
+                    opIterator->set<bool>("With" + *dpuPostOp, true);
                 }
             }
         }
     }
-    return;
 }
 
 void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -125,29 +104,56 @@ void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& mod
     mv::OpModel om(model);
     mv::DataModel dm(model);
     auto convOps = om.getOps("Conv");
-    std::pair<int, int> pwl_range = {-128, 127};
+    std::unordered_map<std::string, std::pair<int, int>> pwl_ranges = {
+        {"LeakyRelu", {-128, 127}},
+        {"Mish", {-128, 127}},
+    };
+
     for (auto conv:convOps)
     {
         if (conv->hasAttr("postOpTypes"))
         {
             auto postOpTypes = conv->get<std::vector<std::string>>("postOpTypes");
-            if (std::find(postOpTypes.begin(), postOpTypes.end(), "FLEXARB") != postOpTypes.end())
+            auto dpuPostOp = std::find_if(postOpTypes.begin(), postOpTypes.end(), mv::ControlModel::isDpuPwl);
+            if (dpuPostOp != postOpTypes.end())
             {
-                //NOTE: the idea is that the pwl needs constant quantized range (-128,128) in order
+                auto pwl_range = pwl_ranges[*dpuPostOp];
+
+                //NOTE: the idea is that the pwl needs constant quantized range (-4096, 4095) in order
                 // to be maximum accurate so we apply the formula below, the idea is that we keep
                 // same float range and zero point and we balance with changing scale, quantized range
                 auto outQuantParams = conv->getOutputTensor(0)->getQuantParams();
+                if (outQuantParams.getMin().empty()) {
+                    throw mv::ArgumentError(model,  "outQuantParams.getMin()",  "is empty", conv->getName());
+                }
+                if (outQuantParams.getMax().empty()) {
+                    throw mv::ArgumentError(model,  "outQuantParams.getMax()",  "is empty", conv->getName());
+                }
+
                 double fl_min = outQuantParams.getMin()[0];
-                double fl_min_before_lrelu = outQuantParams.getMin()[0]/conv->get<double>("leakyAlpha");
                 double fl_max = outQuantParams.getMax()[0];
-                int q_min = std::round(fl_min_before_lrelu/outQuantParams.getScale()[0] + outQuantParams.getZeroPoint()[0]);
-                int q_max = std::round(fl_max/outQuantParams.getScale()[0] + outQuantParams.getZeroPoint()[0]);
+                double scale = outQuantParams.getScale(0);
+                if (scale == 0.0) {
+                    throw mv::ArgumentError(model, "getScale(0)",  " == 0",  conv->getName());
+                }
+                int q_max = std::round(fl_max / outQuantParams.getScale(0) + outQuantParams.getZeroPoint(0));
 
                 double last_fl_max = fl_max;
                 double last_q_max = pwl_range.second;
                 //NOTE: zero point is added after lr so the formula should contain the subtraction
-                if(q_max - outQuantParams.getZeroPoint()[0] > pwl_range.second ||
-                    std::round(std::abs(q_min) * conv->get<double>("leakyAlpha")) - outQuantParams.getZeroPoint()[0] > std::abs(pwl_range.first))
+                bool leakyReluCase = false;
+                if(conv->hasAttr("leakyAlpha")) {
+                    double leakyAlpha = conv->get<double>("leakyAlpha");
+                    if (leakyAlpha == 0.0) {
+                        throw mv::AttributeError(model, "leakyAlpha==0");
+                    }
+                    double fl_min_before_lrelu = outQuantParams.getMin()[0] / leakyAlpha;
+                    int q_min = std::round(fl_min_before_lrelu/outQuantParams.getScale(0) + outQuantParams.getZeroPoint(0));
+                    const auto scaled_q_min = std::round(std::abs(q_min) * leakyAlpha);
+                    leakyReluCase = (scaled_q_min - outQuantParams.getZeroPoint(0)) > std::abs(pwl_range.first);
+                }
+
+                if(q_max - outQuantParams.getZeroPoint(0) > pwl_range.second || leakyReluCase)
                 {
                     // Note: for some reason the results without the absolute maximum are more accurate or
                     // at least closer to cpu
@@ -181,5 +187,4 @@ void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& mod
             }
         }
     }
-    return;
 }

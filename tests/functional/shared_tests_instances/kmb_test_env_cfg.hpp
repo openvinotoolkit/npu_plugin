@@ -25,6 +25,7 @@ public:
     bool IE_KMB_TESTS_RUN_IMPORT = false;
     bool IE_KMB_TESTS_RUN_INFER = IS_ON_ARM;
     bool IE_KMB_TESTS_EXPORT_INPUT = !IS_ON_ARM;
+    bool IE_KMB_TESTS_EXPORT_OUTPUT = false;
     bool IE_KMB_TESTS_EXPORT_REF = false;
     bool IE_KMB_TESTS_IMPORT_INPUT = false;
     bool IE_KMB_TESTS_IMPORT_REF = false;

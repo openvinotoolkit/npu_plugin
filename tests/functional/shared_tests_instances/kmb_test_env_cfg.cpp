@@ -59,6 +59,10 @@ KmbTestEnvConfig::KmbTestEnvConfig() {
         IE_KMB_TESTS_EXPORT_INPUT = strToBool("IE_KMB_TESTS_EXPORT_INPUT", var);
     }
 
+    if (auto var = std::getenv("IE_KMB_TESTS_EXPORT_OUTPUT")) {
+        IE_KMB_TESTS_EXPORT_OUTPUT = strToBool("IE_KMB_TESTS_EXPORT_OUTPUT", var);
+    }
+
     if (auto var = std::getenv("IE_KMB_TESTS_EXPORT_REF")) {
         IE_KMB_TESTS_EXPORT_REF = strToBool("IE_KMB_TESTS_EXPORT_REF", var);
     }
