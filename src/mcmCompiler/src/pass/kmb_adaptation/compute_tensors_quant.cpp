@@ -531,15 +531,22 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                 if (opIt->hasAttr("postOpTypes"))
                 {
                     signed postShift = 0;
-                    auto ppeFlexARBdIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
-                                            opIt->get<std::vector<std::string>>("postOpTypes").end(),
-                                            "FLEXARB");
-                    // TODO: post_shist of 4 is just the current computed value for the sole
+                    // TODO: post_shift of 4 is just the current computed value for the sole
                     // case of leaky relu done in PWL, need to provide a path from target descritptor
                     // to pass logic to parametrize each custom PWL table entries.
                     // We may just as well have two custom PWL tables during inference with diff params
-                    if (ppeFlexARBdIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
-                        postShift = 4;
+                    std::unordered_map<std::string, int> dpuPwlScale = {
+                        {"LeakyRelu", 4},
+                        {"Mish", 0},
+                    };
+                    //"FLEXARB"
+                    auto postOps = opIt->get<std::vector<std::string>>("postOpTypes");
+                    auto ppeIterator = std::find_if(postOps.begin(), postOps.end(), mv::ControlModel::isDpuPwl);
+
+                    if (ppeIterator != postOps.end()) {
+                        postShift = dpuPwlScale[*ppeIterator];
+                    }
+
                     mv::QuantizationParams postQuantization = {
                             {outputQuantization.getZeroPoint()},
                             {outputQuantization.getScale()},
@@ -551,10 +558,8 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                         };
                     output->set<mv::QuantizationParams>("quantParams", postQuantization);
                 }
-
             }
         }
-
     }
 }
 

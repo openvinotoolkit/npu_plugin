@@ -62,6 +62,7 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         if(dpuTask->hasAttr("postOpTypes"))
             postOps = dpuTask->get<std::vector<std::string>>("postOpTypes");
 
+        std::replace_if(postOps.begin(), postOps.end(), mv::ControlModel::isDpuPwl, "FLEXARB");
         addPpeTask(dpuTask, postOps, leakyAlpha, leakyReluHack, bits);
     }
 }
@@ -1301,12 +1302,18 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
             opIt->get<mv::QuantizationParams>("pwlQuantParams").getScale()[0])));
     if (flex)
     {
-        auto alpha = opIt->get<double>("leakyAlpha");
         mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         auto minimum = outputQuantParams.getMin()[0];
-        minimum /= alpha;
+        if (opIt->hasAttr("leakyAlpha")) {
+            auto alpha = opIt->get<double>("leakyAlpha");
+            minimum /= alpha;
+        }
         clamp = round(minimum/outputQuantParams.getScale()[0]);
         clamp = std::max(clamp, -128);
+
+        if(opIt->hasAttr("WithMish")) {
+            clamp = std::max(clamp, 0);
+        }
     }
 
     return clamp;

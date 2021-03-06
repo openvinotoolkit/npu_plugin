@@ -1735,8 +1735,7 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationMode
     if(ppeTask.hasAttr("scaleData"))
         toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, ppeTask.getScaleData());
     toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, ppeTask.getFixedFunction());
-    if (opIt->hasAttr("firstConvWithLRelu")
-                      && opIt->get<bool>("firstConvWithLRelu"))
+    if (opIt->hasAttr("WithDPUPWL") && opIt->get<bool>("WithDPUPWL"))
     {
         auto index = opIt->get<std::size_t>("instructionListTableIndex");
         toBuild->instruction_list_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor()[index]);

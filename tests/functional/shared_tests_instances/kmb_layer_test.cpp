@@ -54,6 +54,17 @@ void KmbLayerTestsCommon::ExportInput() {
     }
 }
 
+void KmbLayerTestsCommon::ExportOutput() {
+    int i = 0;
+    const auto & outputs = GetOutputs();
+    for (const auto &output : executableNetwork.GetOutputsInfo()) {
+        const auto &info = output.second;
+        const auto ext = vpu::formatString(".%v.%v", info->getName(), "out");
+        kmbTestTool.exportBlob(outputs[i++],
+            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+    }
+}
+
 void KmbLayerTestsCommon::ImportInput() {
     // infer request should be adapted afterwards
     int i = 0;
@@ -170,6 +181,10 @@ void KmbLayerTestsCommon::Run() {
         if (envConfig.IE_KMB_TESTS_EXPORT_REF) {
             std::cout << "KmbLayerTestsCommon::ExportReference()" << std::endl;
             ExportReference(CalculateRefs());
+        }
+        if (envConfig.IE_KMB_TESTS_EXPORT_OUTPUT) {
+            std::cout << "KmbLayerTestsCommon::ExportOutput()" << std::endl;
+            ExportOutput();
         }
         if (envConfig.IE_KMB_TESTS_RUN_INFER) {
             std::cout << "KmbLayerTestsCommon::Validate()" << std::endl;

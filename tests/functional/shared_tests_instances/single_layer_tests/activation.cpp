@@ -23,7 +23,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMCM {
     ngraph::helpers::Floor,
     ngraph::helpers::RoundHalfToEven,
     ngraph::helpers::RoundHalfAwayFromZero,
-    ngraph::helpers::Erf
+    ngraph::helpers::Erf,
 };
 
 std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {

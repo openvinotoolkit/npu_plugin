@@ -40,6 +40,7 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                     {"Tanh", fuseUsualPPEFcn},
                                     {"Relu", fuseUsualPPEFcn},
                                     {"LeakyRelu", fuseUsualPPEFcn},
+                                    {"Mish", fuseUsualPPEFcn},
                                     {"Minimum", fuseMinimumFcn},
                                     {"Maximum", fuseMaximumFcn}};
 
@@ -65,7 +66,7 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     }
     else
     {
-        std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Tanh", "Relu", "LeakyRelu", "Minimum", "Maximum"};
+        std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Tanh", "Relu", "LeakyRelu", "Mish", "Minimum", "Maximum"};
         std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
 
         //NOTE: Iterate the fuse_types vector for correct order reason according to map

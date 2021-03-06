@@ -317,6 +317,12 @@ bool mv::ControlModel::isDag()
     return mv::isDAG(controlGraph_);
 }
 
+bool mv::ControlModel::isDpuPwl(const std::string& opName)
+{
+    const std::vector<std::string> dpuPWLNames = { "LeakyRelu", "Mish", };
+    return std::find(dpuPWLNames.cbegin(), dpuPWLNames.cend(), opName) != dpuPWLNames.end();
+}
+
 mv::Control::OpListIterator mv::ControlModel::cycleResponsible()
 {
     return  mv::getNodeInCycle(controlGraph_).second;
