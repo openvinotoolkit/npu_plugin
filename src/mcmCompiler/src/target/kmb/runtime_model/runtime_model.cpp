@@ -2332,6 +2332,30 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPALeakyReluTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+
+    auto leakyReluParams = new MVCNN::LeakyReluParamsT();
+    auto alpha = opIt->get<double>("alpha");
+    leakyReluParams->negative_slope = alpha;
+
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_LeakyReluParams;
+    softLayerParamsValue->nested_params.value = leakyReluParams;
+     toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASigmoidTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -3543,6 +3567,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAPadTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Interpolate")
         toReturn[0]->task.value = buildUPAInterpolateTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "LeakyRelu")
+        toReturn[0]->task.value = buildUPALeakyReluTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 

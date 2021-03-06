@@ -3,16 +3,24 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "mcm/utils/custom_math.hpp"
 
 
 static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void configureOutputPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void deQuantizeU8ConstToFP16ConstFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
 
     namespace pass
     {
+
+        MV_REGISTER_PASS(DeQuantizeU8ConstToFP16Const)
+        .setFunc(deQuantizeU8ConstToFP16ConstFcn)
+        .setDescription(
+        "This pass de-quantize U8 ConstantInt ops to FP16 ConstantInt when the following op is UPATask."
+        );
 
         MV_REGISTER_PASS(KMBQuantizeConversion)
         .setFunc(kmbQuantizeConversionFcn)
@@ -200,6 +208,38 @@ void addSliceQuantizationLayer(mv::OpModel & om, std::vector<mv::Data::OpListIte
     }
 }
 
+void addMultiOutputQuantizationLayers(mv::OpModel & om) {
+    auto outputOps = om.getOps("ImplicitOutput");
+    if (outputOps.size() < 2)
+        return;
+    for (auto& outputOp : outputOps) {
+        auto parentOp = om.getSourceOp(outputOp->getInputTensor(0));
+        if (parentOp->getOutputTensor(0)->getDType() != mv::DType("Float16"))
+            return;
+        unsigned outputFlowSize = 0;
+        mv::Data::FlowListIterator flowToRemove(parentOp.leftmostOutput());
+        for(auto outputFlow = parentOp.leftmostOutput(); outputFlow != om.flowEnd(); ++outputFlow) {
+            if (outputFlow.sink()->getOpType() == "ImplicitOutput")
+                flowToRemove = outputFlow;
+            ++outputFlowSize;
+        }
+        if (outputFlowSize < 2)
+            continue;
+
+        auto quantize = om.uPATaskQuantize("Quantize" + parentOp->getName(), {parentOp->getOutputTensor(0)});
+        quantize->setDType(mv::DType("UInt8"));
+        quantize->setQuantParams({{128},{2.0 / 255.0},{-1.0},{1.0}});
+        auto quantizeOp = om.getSourceOp(quantize);
+        quantizeOp->set<unsigned>("opId", parentOp->get<unsigned>("opId"));
+
+        outputOp->setInputTensor(quantize, 0, false);
+        om.defineFlow(quantize, outputOp, 0);
+
+        om.undefineFlow(flowToRemove);
+    }
+}
+
+
 static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -263,6 +303,10 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
     auto U8 = mv::DType("UInt8");
     auto FP16 = mv::DType("Float16");
+
+    // handle the multi-output cases where some of the outputs feed into following operations.
+    // for SuperResolution enabling
+    addMultiOutputQuantizationLayers(om);
 
     addQuantizationLayers(om, upaTasks, FP16);
     addQuantizationLayers(om, dpuTasksFP16, FP16);
@@ -378,5 +422,32 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
         {
             processOutput(outputOp);
         }
+    }
+}
+
+
+// Replace ConstantInt ops of U8 dtype together with its following Quantize ops with new ConstantInt ops of FP16 dtype.
+// This is used to enable the topology in super-resolution,
+// where the ConstantInt is converted to FP16 by a Quantize and then feeds into a UPATask (e.g. eltwise_add)
+static void deQuantizeU8ConstToFP16ConstFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto u8ConstOps = om.getOps("ConstantInt");
+    for (auto& opIt : u8ConstOps){
+        if (opIt->outputSlots() != 1)
+            continue;
+        auto outputTensor = opIt->getOutputTensor(0);
+        auto nextOp = mv::findSinkLayers(dm, outputTensor)[0];
+        if ((outputTensor->getDType() != mv::DType("UInt8")) || (nextOp->getOpType() != "UPATask") || (!outputTensor->hasAttr("quantParams")))
+            continue;
+
+        auto dequantFP16Weights = dequantizeWeightsToFP16(outputTensor, nextOp, om);
+        nextOp->setInputTensor(dequantFP16Weights, 1, false);
+        om.defineFlow(dequantFP16Weights, nextOp, 1);
+        om.removeOp(opIt);
     }
 }
