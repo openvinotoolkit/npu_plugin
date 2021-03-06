@@ -13,15 +13,15 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
-
+#if 0
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <vpux_infer_request.h>
 #include <vpu/utils/perf_report.hpp>
+#include <vpual_config.hpp>
 #include <vpux.hpp>
 #include <vpux_private_config.hpp>
-#include <vpual_config.hpp>
 
 #include "creators/creator_blob.h"
 #include "creators/creator_blob_nv12.h"
@@ -65,6 +65,10 @@ class MockNetworkDescription : public vpux::INetworkDescription {
     const vpux::DataMap& getDeviceOutputsInfo() const override { return outputs; }
 
     const std::vector<char>& getCompiledNetwork() const override { return network; }
+
+    const void* getNetworkModel() const override { return network.data(); }
+
+    std::size_t getNetworkModelSize() const override { return network.size(); }
 
     const std::string& getName() const override { return name; }
 
@@ -424,3 +428,5 @@ TEST_F(kmbInferRequestSIPPPreprocessing, DISABLED_canDisableSIPP) {
 }
 
 #endif  //  __arm__
+
+#endif

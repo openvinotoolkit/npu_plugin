@@ -25,6 +25,8 @@
 #include <string>
 #include <vector>
 
+#include <include/mcm/compiler/compilation_unit.hpp>
+
 namespace ie = InferenceEngine;
 
 //
@@ -36,7 +38,7 @@ namespace ie = InferenceEngine;
 //   * NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES=1
 //
 
-std::vector<char> compileNGraph(
+std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         const std::shared_ptr<ngraph::Function>& func,
         const std::string& netName,
         const ie::InputsDataMap& inputsInfo,
@@ -44,4 +46,15 @@ std::vector<char> compileNGraph(
         const vpu::MCMConfig& config,
         std::string & errMsg);
 
+std::vector<char> serializeCompilationUnit(
+        const std::unique_ptr<mv::CompilationUnit>& compUnit,
+        std::string & errMsg);
+
+std::vector<char> compileNGraph(
+        const std::shared_ptr<ngraph::Function>& func,
+        const std::string& netName,
+        const ie::InputsDataMap& inputsInfo,
+        const ie::OutputsDataMap& outputsInfo,
+        const vpu::MCMConfig& config,
+        std::string & errMsg);
 // clang-format on

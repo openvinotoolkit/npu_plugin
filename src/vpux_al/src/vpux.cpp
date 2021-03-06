@@ -47,14 +47,14 @@ bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
     return allocator->lock(lockedMemory.as<void*>());
 }
 
-enum class EngineBackendType : uint8_t { VPUAL = 1, HDDL2 = 2, ZeroApi = 3 };
+enum class EngineBackendType : uint8_t { VPUAL = 1, HDDL2 = 2, ZeroApi = 3, Emulator = 4 };
 
 //------------------------------------------------------------------------------
 EngineBackend::EngineBackend(std::string pathToLib): _impl(pathToLib) {
 }
 
-inline const std::shared_ptr<Device> wrapDeviceWithImpl(
-        const std::shared_ptr<IDevice>& device, const InferenceEngine::details::SOPointer<IEngineBackend>& backendPtr) {
+inline const std::shared_ptr<Device> wrapDeviceWithImpl(const std::shared_ptr<IDevice>& device,
+                                                        const IEngineBackendPtr backendPtr) {
     if (device == nullptr) {
         return nullptr;
     }
@@ -79,11 +79,15 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
         logLevel = params.at(CONFIG_KEY(LOG_LEVEL));
     }
     vpu::Logger logger("EngineBackendConfigurator", logLevel, vpu::consoleOutput());
+
 #if defined(__arm__) || defined(__aarch64__)
-    const auto type = EngineBackendType::VPUAL;
+    const EngineBackendType type = EngineBackendType::VPUAL;
 #else
     const char* const env_p = std::getenv("IE_PLUGIN_USE_ZERO_BACKEND");
-    const auto type = (env_p && env_p[0] == '1') ? EngineBackendType::ZeroApi : EngineBackendType::HDDL2;
+    const EngineBackendType type =
+            params.at(CONFIG_KEY(DEVICE_ID)).as<std::string>() == "EMULATOR"
+                    ? EngineBackendType::Emulator
+                    : ((env_p && env_p[0] == '1') ? EngineBackendType::ZeroApi : EngineBackendType::HDDL2);
 #endif
 
     try {
@@ -96,6 +100,9 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
         }
         case EngineBackendType::ZeroApi: {
             return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("zero_backend")));
+        }
+        case EngineBackendType::Emulator: {
+            return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("emulator_backend")));
         }
         default:
             return std::shared_ptr<EngineBackend>(new EngineBackend());

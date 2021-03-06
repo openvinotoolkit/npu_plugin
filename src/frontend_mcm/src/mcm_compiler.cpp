@@ -14,6 +14,7 @@
 // stated in the License.
 //
 
+#include <emulator_network_description.hpp>
 #include <mcm_adapter.hpp>
 #include <mcm_compiler.hpp>
 #include <mcm_network_description.hpp>
@@ -26,13 +27,17 @@ std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(const std::share
                                                                 const vpux::VPUXConfig& config) {
     auto copy = _config;
     copy.parseFrom(config);
-
     std::string errMsg;
-    auto compiledNetwork = compileNGraph(func, netName, inputsInfo, outputsInfo, copy, errMsg);
-    if (compiledNetwork.empty()) {
+    std::unique_ptr<mv::CompilationUnit> compilationUnit =
+            compileNGraphIntoCompilationUnit(func, netName, inputsInfo, outputsInfo, copy, errMsg);
+    if (!compilationUnit)
         throw std::runtime_error(errMsg);
-    }
-    return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, copy);
+    if (config.deviceId() == "EMULATOR")
+        return std::make_shared<vpu::MCMAdapter::EmulatorNetworkDescription>(std::move(compilationUnit), copy, netName);
+    std::vector<char> compiledNetwork = serializeCompilationUnit(compilationUnit, errMsg);
+    if (compiledNetwork.empty())
+        throw std::runtime_error(errMsg);
+    return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(std::move(compiledNetwork), copy, netName);
 }
 
 std::shared_ptr<vpux::INetworkDescription> MCMCompiler::parse(const std::vector<char>& compiledNetwork,
