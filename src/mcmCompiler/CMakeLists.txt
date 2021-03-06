@@ -310,11 +310,12 @@ set(syscalls
 
 add_subdirectory(meta)
 add_subdirectory(tools)
-#add_subdirectory(contrib/mcm-emulator)
+add_subdirectory(contrib/mcm-emulator)
 
 if(TARGET mcm_emulator)
     set(EMULATOR mcm_emulator)
     set(TARGET_OBJECTS_EMULATOR $<TARGET_OBJECTS:mcm_emulator>)
+    add_dependencies(mcm_emulator mcmCompilerGenCompAPI)
 endif()
 
 set_source_files_properties(
@@ -342,9 +343,6 @@ if(MSVC)
 endif()
 
 add_dependencies(mcmCompiler mcmCompilerGenSchema mcmCompilerGenCompAPI)
-if(TARGET mcm_emulator)
-    add_dependencies(mcm_emulator mcmCompilerGenCompAPI)
-endif()
 
 target_include_directories(mcmCompiler
     PUBLIC
@@ -361,11 +359,7 @@ target_include_directories(mcmCompiler
         "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/include/"
 )
 
-target_link_libraries(mcmCompiler
-    PRIVATE
-        flatbuffers
-        ${EMULATOR}
-)
+target_link_libraries(mcmCompiler PUBLIC ${EMULATOR} PRIVATE flatbuffers)
 
 if(ENABLE_MCM_COMPILER_PYTHON)
     add_subdirectory(python/api)

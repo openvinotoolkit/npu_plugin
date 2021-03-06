@@ -103,6 +103,14 @@ const std::vector<char>& MCMNetworkDescription::getCompiledNetwork() const {
     return _compiledNetwork;
 }
 
+const void* MCMNetworkDescription::getNetworkModel() const {
+    return _compiledNetwork.data();
+}
+
+std::size_t MCMNetworkDescription::getNetworkModelSize() const {
+    return _compiledNetwork.size();
+}
+
 const std::string& MCMNetworkDescription::getName() const {
     return _name;
 }
