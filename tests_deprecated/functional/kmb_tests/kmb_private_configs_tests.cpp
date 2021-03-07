@@ -243,18 +243,7 @@ const std::vector<PrivateConfigTestParams> privateConfigParamsBrokenTests {
         .privateConfig({{"VPUX_VPUAL_REPACK_INPUT_LAYOUT", CONFIG_VALUE(YES)}})
         .inputWidth(228)
         .inputHeight(228)
-        .nClasses(5),
-    PrivateConfigTestParams()
-        .testDescription("USE_CORE_NN")
-        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob")
-        .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin")
-        .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
-        .preProc(true)
-        .checkSIPP(false)
-        .privateConfig({{"VPUX_VPUAL_USE_CORE_NN", CONFIG_VALUE(YES)}})
-        .inputWidth(228)
-        .inputHeight(228)
-        .nClasses(2)};
+        .nClasses(5)};
 
 INSTANTIATE_TEST_CASE_P(precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
 
