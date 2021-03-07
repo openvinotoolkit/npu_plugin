@@ -92,8 +92,6 @@ static const std::vector<ConfigMap> baseInferConfigs = {
     { {"VPUX_CSRAM_SIZE", "2097152"} },
     { {"VPUX_EXECUTOR_STREAMS", "1"} },
     #if defined(__arm) || defined(__aarch64__)
-    { {"VPUX_VPUAL_USE_CORE_NN", "YES"} },
-    { {"VPUX_VPUAL_USE_CORE_NN", "NO"} },
     { {"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "YES"} },
     { {"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "NO"} },
     #endif
