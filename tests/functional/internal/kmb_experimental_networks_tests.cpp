@@ -191,6 +191,9 @@ TEST_P(ModelAdk, precommit_ModelA_ADK3) {
 
 // [Track number: S#47647]
 TEST_F(KmbSuperResNetworkTest, precommit_SuperResolution_ADK3) {
+#if defined(_WIN32) || defined(_WIN64)
+    if (RUN_INFER) RUN_INFER = false;
+#endif
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     const std::string imgName  = "netInput";
     const std::string paramName1 = "t_param";
@@ -246,7 +249,12 @@ const static std::vector<InferenceEngine::Precision> inputPrecision = {
 
 INSTANTIATE_TEST_CASE_P(PrecisionCase, ModelAdk, ::testing::ValuesIn(inputPrecision));
 
+
+// [Track number: S#49842]
 TEST_F(UnetNetworkTest, UnetCamvidAva0001_ADK3) {
+#if defined(_WIN32) || defined(_WIN64)
+    if (RUN_INFER) RUN_INFER = false;
+#endif
     runTest(
             TestNetworkDesc("ADK3/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet-camvid-onnx-0001.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)

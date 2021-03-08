@@ -101,31 +101,6 @@ const bool KmbTestBase::RUN_REF_CODE = []() -> bool {
 #endif
 }();
 
-const bool KmbTestBase::IS_BYPASS = []() -> bool {
-#ifdef __aarch64__
-    return false;
-#else
-    InferenceEngine::Core core;
-    const auto deviceList = core.GetAvailableDevices();
-    return !(std::find(deviceList.cbegin(), deviceList.cend(), "VPUX") == deviceList.cend());
-#endif
-}();
-
-const bool KmbTestBase::RUN_INFER = []() -> bool {
-    if (const auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
-        return strToBool("IE_KMB_TESTS_RUN_INFER", var);
-    }
-
-    if (KmbTestBase::DEVICE_NAME == "CPU") {
-        return true;
-    }
-
-#ifdef __aarch64__
-    return true;
-#else
-    return IS_BYPASS;
-#endif
-}();
 
 const std::string KmbTestBase::DUMP_PATH = []() -> std::string {
     if (const auto var = std::getenv("IE_KMB_TESTS_DUMP_PATH")) {
@@ -200,6 +175,18 @@ void KmbTestBase::SetUp() {
     rd.seed();
 
     core = PluginCache::get().ie();
+    RUN_INFER = [this]() -> bool {
+        if (const auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
+            return strToBool("IE_KMB_TESTS_RUN_INFER", var);
+        }
+
+        const auto devices = core->GetAvailableDevices();
+        const auto isVPUXDeviceAvailable = std::find_if(devices.cbegin(), devices.cend(), [](const std::string& device) {
+                return device.find("VPUX") != std::string::npos;
+            }) != devices.cend();
+
+        return isVPUXDeviceAvailable;
+    }();
 
     if (!LOG_LEVEL.empty()) {
         core->SetConfig({{CONFIG_KEY(LOG_LEVEL), LOG_LEVEL}}, DEVICE_NAME);
@@ -233,13 +220,6 @@ void KmbTestBase::SetUp() {
 }
 
 void KmbTestBase::TearDown() {
-    if (RUN_INFER && !IS_BYPASS) {
-        core.reset();
-        // FIXME: reset cache every time to destroy VpualDispatcherResource
-        // this workaround is required to free VPU device properly
-        // Track number: H#18013110883
-        PluginCache::get().reset();
-    }
     ASSERT_NO_FATAL_FAILURE(TestsCommon::TearDown());
 }
 
@@ -599,7 +579,8 @@ void KmbLayerTestBase::runTest(
 
     // TODO: layer inference for by-pass mode
     // [Track number: S#48139]
-    if (RUN_INFER && !IS_BYPASS) {
+#ifdef __aarch64__
+    if (RUN_INFER) {
         std::cout << "=== INFER" << std::endl;
 
         const auto actualOutputs = runInfer(exeNet, inputs, true);
@@ -609,6 +590,7 @@ void KmbLayerTestBase::runTest(
         checkWithOutputsInfo(actualOutputs, testNet.getOutputsInfo());
         compareWithReference(actualOutputs, refOutputs, tolerance, method);
     }
+#endif
 }
 
 ExecutableNetwork KmbLayerTestBase::getExecNetwork(
@@ -976,7 +958,7 @@ void KmbNetworkTestBase::runTest(
         if (skipInfer) {
             std::cout << skipMessage << std::endl;
             return;
-            }
+        }
         std::cout << "=== INFER" << std::endl;
 
         const auto actualOutputs = runInfer(exeNet, inputs, true);

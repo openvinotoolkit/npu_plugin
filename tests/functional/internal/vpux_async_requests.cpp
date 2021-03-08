@@ -35,17 +35,15 @@ std::ostream& operator<<(std::ostream& os, const AsyncTestParams &p) {
 class VpuxAsyncTests: public KmbTestBase, public testing::WithParamInterface<AsyncTestParams> {};
 
 TEST_P(VpuxAsyncTests, regression_ADK) {
-    // for KMB/TBH standalone (VPUAL backend): there is a data race, the test sporadicaly fails: S#49626
-    // TODO: it makes sense to introduce a separate macro to such SKIP
-    #if defined(__arm__) || defined(__aarch64__)
-    SKIP() << "Skip the test due to a data race on the current configuration";
-    #endif
-    // for HDDL by-pass (HDDL2 backend):  there is a data race, the test sporadicaly fails: S#49627
-    SKIP_INFER_BYPASS_ON("VPUX", "data race");
-
     const auto &p = GetParam();
     const std::size_t nireq = p.nireq();
     const std::size_t niter = p.niter();
+
+    // for KMB/TBH standalone (VPUAL backend): there is a data race, the test sporadicaly fails: S#49626
+    // TODO: it makes sense to introduce a separate macro for such SKIP
+#ifdef __aarch64__
+    SKIP_INFER_ON("VPUX", "data race");
+#endif
 
     if (RUN_COMPILER) {
         const auto precision = Precision::U8;
@@ -60,8 +58,17 @@ TEST_P(VpuxAsyncTests, regression_ADK) {
                 }
         );
 
-        const auto netPrecision = Precision::FP32;
         const auto inputDesc = TensorDesc(precision, dims, layout);
+        for (std::size_t i = 0; i < nireq; i++) {
+            registerBlobGenerator(
+                    std::string("input") + std::to_string(i), inputDesc,
+                    [&](const TensorDesc& desc) {
+                        return makeSingleValueBlob(desc, 1.f + static_cast<float>(i));
+                    }
+            );
+        }
+
+        const auto netPrecision = Precision::FP32;
         TestNetwork testNet;
         testNet
             .setUserInput("input", inputDesc.getPrecision(), inputDesc.getLayout())
@@ -92,7 +99,7 @@ TEST_P(VpuxAsyncTests, regression_ADK) {
             registerBlobGenerator(
                     std::string("input") + std::to_string(i), inputDesc,
                     [&](const TensorDesc& desc) {
-                        return makeSingleValueBlob(desc, 1.f + i);
+                        return makeSingleValueBlob(desc, 1.f + static_cast<float>(i));
                     }
             );
             inferRequests[i] = exeNet.CreateInferRequest();
