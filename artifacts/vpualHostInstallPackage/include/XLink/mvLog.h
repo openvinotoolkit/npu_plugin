@@ -104,9 +104,10 @@ static unsigned int MVLOGLEVEL(default) = MVLOG_INFO;
 #ifdef __shave__
 __attribute__((section(".laststage")))
 #endif
-static int __attribute__ ((unused))
-logprintf(enum mvLog_t lvl, const char * func, const int line,
-                     const char * format, ...)
+static int __attribute__((unused))
+logprintf(enum mvLog_t lvl, const char * func __attribute__((unused)),
+          const int line __attribute__((unused)),
+          const char * format, ...)
 {
     if(lvl < MVLOGLEVEL(MVLOG_UNIT_NAME) &&
        lvl < MVLOGLEVEL(default))
