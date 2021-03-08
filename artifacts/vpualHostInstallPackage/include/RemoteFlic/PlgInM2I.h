@@ -39,7 +39,7 @@ class PlgInM2I : public PluginStub
     MSender<vpum2i::M2IObj> out;
 
     /** Constructor. */
-    PlgInM2I(uint32_t device_id = 0) : PluginStub("PlgInM2I", device_id), out{device_id}, channelID(XLINK_INVALID_CHANNEL_ID) {};
+    PlgInM2I(uint32_t device_id = 0) : PluginStub("PlgInM2I", device_id), channelID(XLINK_INVALID_CHANNEL_ID), out{device_id} {};
 
     /** Destructor. */
     ~PlgInM2I();

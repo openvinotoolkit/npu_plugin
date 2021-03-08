@@ -56,8 +56,8 @@ class PlgSipp : public PluginStub
     // TODO - review when custom filter is enabled.
     //void AddKernel(void *kernel, uint32_t size);
     void SetInitMask(uint32_t initMask);
-    void CreateBasicPipeline();
-    void CreatePipeline(uint32_t first_slice, uint32_t last_slice, uint8_t* pmBinImg);
+    int32_t CreateBasicPipeline();
+    int32_t CreatePipeline(uint32_t first_slice, uint32_t last_slice, uint8_t* pmBinImg);
     eSIPP_STATUS AddPipeResource(uint32_t sliceFirst, uint32_t numSlices, uint32_t shaveFirst, uint32_t numShaves, uint8_t* pmBinImg);
     SippFilter* CreateFilter(uint32_t flags, uint32_t outputWidth, uint32_t outHeight,
                              uint32_t numPlanes, uint32_t bpp, uint32_t paramSize, FnSvuRun funcSvuRun, const char* name,

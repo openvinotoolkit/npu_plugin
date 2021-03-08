@@ -535,8 +535,6 @@ typedef struct
 ConvSeparable3x3Param;
 
 /**
-
-/**
  * Parameter structure of the convSeparable3x3Fp16ToFp16 filter.
  *
  * Identifier: svuConvSeparable3x3Fp16ToFp16

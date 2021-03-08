@@ -1,2 +1,2 @@
-tag:vpu_nightly_20210227
-commit:9472e1212b4d461817101383eb7e256f6cc79258
+tag:ci_tag_vpu_release_21ww10.4.1
+commit:86c65089231ecd64f7a6c8edba5633cf743f4bd6

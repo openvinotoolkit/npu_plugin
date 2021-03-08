@@ -67,7 +67,7 @@ struct buffer_t {
     uint32_t size;
 };
 
-enum class sm_event {
+enum class sm_event : uint8_t {
     ALLOCATION,
     RELEASE
 };
@@ -80,7 +80,7 @@ struct statistics {
 };
 
 struct UtilisationStatistics {
-    statistics nn_dpu;
+    statistics nn_dpu_cluster;
     statistics upa_shave;
     statistics hw_filter;
     statistics cmx;
@@ -90,7 +90,7 @@ struct UtilisationStatistics {
  * Number of system resources.
  */
 struct SystemResources {
-    uint32_t num_dpu;
+    uint32_t num_dpu_cluster;
     uint32_t num_shave;
     uint32_t num_ff_accel;
 };
