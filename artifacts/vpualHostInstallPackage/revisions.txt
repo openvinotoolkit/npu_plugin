@@ -1,2 +1,1 @@
-tag:TBH-WY2021-WW07.3-TBH-nightly
-commit:da9ff4ebebddf12231f4d7e2982f5b691ddfe9b2
+tag:ci_tag_vpual_release_21ww10.4.1
