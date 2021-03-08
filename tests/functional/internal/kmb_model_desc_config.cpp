@@ -114,7 +114,8 @@ TEST_F(KmbModelDescTest, DISABLED_checkInferTimeWithAndWithoutConfig_ADK3) {
     std::cout << "With Model Description FPS: " << withModelDescFPS << std::endl;
 }
 
-TEST_F(KmbModelDescTest, checkInferTime_ADK3) {
+// [Track number: W#6518]
+TEST_F(KmbModelDescTest, DISABLED_checkInferTime_ADK3) {
     const std::string net_path = "ADK3/ModelE_INT8/ModelE_INT8.xml";
     constexpr bool EXPERIMENTAL = true;
 
