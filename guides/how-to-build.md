@@ -81,7 +81,8 @@ The X86_64 build is needed to get reference results for the tests.
     )
     ```
 
-2. Move to [KMB Plugin Project] base directory and build it with commands:
+2. **Open new console** in order to get clean environment and avoid side effects caused by running of previous commands for cross-compilation. 
+3. Go to [KMB Plugin Project] base directory and build it with commands:
 
     ```bash
     mkdir -p $KMB_PLUGIN_HOME/build-aarch64
