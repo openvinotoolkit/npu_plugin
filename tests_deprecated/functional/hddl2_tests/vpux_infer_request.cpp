@@ -137,6 +137,7 @@ TEST_F(InferRequest_GetBlob, InputRemoteBlobContainSameDataAsOnSet) {
     RemoteMemory_Helper remoteMemory;
     IE::TensorDesc inputTensorDesc = inputInfoPtr->getTensorDesc();
     auto remoMemory = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
+    remoteMemory.clearRemoteMemory();
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoMemory);
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContext->CreateBlob(inputInfoPtr->getTensorDesc(), blobParams);
     ASSERT_NE(nullptr, remoteBlobPtr);
@@ -153,8 +154,9 @@ TEST_F(InferRequest_GetBlob, InputRemoteBlobContainSameDataAsOnSet) {
     std::string resultData;
     {
         IE::Blob::Ptr inputBlob = inferRequest.GetBlob(inputName);
-        auto inputBlobData = inputBlob->buffer().as<char*>();
-        resultData = std::string(inputBlobData);
+        auto lockedMemory = inputBlob->cbuffer();
+        auto rBlobData = lockedMemory.as<char*>();
+        resultData = std::string(rBlobData);
     }
 
     ASSERT_EQ(inputData, resultData);
@@ -256,7 +258,7 @@ protected:
 };
 
 void InferenceWithPerfCount::SetUp() {
-    const Models::ModelDesc modelToUse = Models::squeezenet1_1;
+    const Models::ModelDesc modelToUse = Models::googlenet_v1;
     network = ExecutableNetworkFactory::createCNNNetwork(modelToUse.pathToModel);
     executableNetworkPtr = nullptr;
 }
