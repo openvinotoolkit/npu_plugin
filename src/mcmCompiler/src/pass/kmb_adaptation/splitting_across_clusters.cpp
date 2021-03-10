@@ -95,6 +95,11 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
                 auto outputTensorName = layer->getOutputTensor(0)->getName();
                 tensorNames.insert(outputTensorName);
             }
+            if(layer->hasAttr("paddingConcatAlignment"))
+            {
+                auto constInputTensorName = layer->getInputTensor(1UL)->getName();
+                tensorNames.insert(constInputTensorName);
+            }
         }
         auto dpuTasks = om.getOps("DPUTask");
         for(auto layer : dpuTasks)
@@ -267,7 +272,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             }
             else if (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
             {
-                if(!tensor->isPopulated())
+                if(!tensor->isPopulated() || tensor->hasAttr("paddingConcatAlignment"))
                 {
                     unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
                     std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
@@ -285,6 +290,10 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     std::vector<mv::Tiling> childtiles;
                     std::vector<size_t> heightSizes;
                     std::string axis = "H";
+
+                    // if sink is ImplicitConcat (implicit) get the next sink
+                    if (sinkOperators[0]->getOpType() == "ImplicitConcat")
+                        sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0UL));
                     if (sinkOperators[0]->getOpType() == "DPUTask")
                     {
                         mv::Tiling masterTile(axis, int(subTensors.size()));
@@ -302,10 +311,11 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     }
                 }
                 else
-                {
                     populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-                }
-                tensor->splitAcrossClusters(subTensors, true, false);
+                if(tensor->hasAttr("paddingConcatAlignment"))
+                    tensor->splitPopulatedActivationAcrossClusters(subTensors, true, false);
+                else
+                    tensor->splitAcrossClusters(subTensors, true, false);
             }
             else if (tensor->get<std::string>("splitStrategy") == "SplitOverK")
             {

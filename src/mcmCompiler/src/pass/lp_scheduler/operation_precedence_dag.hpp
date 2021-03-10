@@ -1530,7 +1530,7 @@ class Operation_Dag {
       std::list<mv::Data::FlowListIterator> edges_to_drop;
       for (mv::Data::FlowListIterator eitr=dm.flowBegin(); eitr!=dm.flowEnd();
             ++eitr) {
-        if (eitr->hasAttr("pseudo_data_flow")) {
+        if (eitr->hasAttr("pseudo_data_flow") || eitr->hasAttr("padding_data_flow")) {
           edges_to_drop.push_back(eitr);
         }
       }
