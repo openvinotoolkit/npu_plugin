@@ -351,7 +351,7 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
     }
 }
 
-void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     auto returnedParams = model.getGlobalConfigParams();
@@ -387,7 +387,8 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput")) {
                         if (op->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
                             op->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) {
-                            op->set<bool>("mixedToFloat", true);
+                            if (td.getTarget() != mv::Target::ma3720)
+                                op->set<bool>("mixedToFloat", true);
                             op->getOutputTensor()[0]->setDType(mv::DType("Float16"));
                         } else {
                             const auto& channelScale = op->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();

@@ -26,11 +26,12 @@ namespace IE = InferenceEngine;
 // TODO Config will be useless here, since only default values will be used
 VPUXBackends::VPUXBackends(const VPUXConfig& config)
         : _logger(std::make_shared<vpu::Logger>("VPUXBackends", config.logLevel(), vpu::consoleOutput())),
-          _backend(EngineBackendConfigurator::findBackend({{CONFIG_KEY(LOG_LEVEL), config.logLevel()}})) {
+          _backend(EngineBackendConfigurator::findBackend(
+                  {{CONFIG_KEY(LOG_LEVEL), config.logLevel()}, {CONFIG_KEY(DEVICE_ID), config.deviceId()}})) {
 }
 
 std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName) const {
-    _logger->debug("Searching for device to use started...");
+    _logger->debug("Searching for device %s to use started...", specificName);
     // TODO iterate over all available backends
     std::shared_ptr<Device> deviceToUse = nullptr;
     // TODO Ignore default VPU-0. Track #S-38444

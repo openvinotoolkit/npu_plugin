@@ -757,7 +757,7 @@ private:
 
 //ModelA/ModelE
 
-class ModelAdk : public KmbNetworkTestBase {
+class ModelAdk : public KmbNetworkTestBase, public testing::WithParamInterface<InferenceEngine::Precision> {
 public:
     void runTest(
             const TestNetworkDesc& netDesc,

@@ -75,7 +75,11 @@ static std::vector<size_t> composeDimsByLayout(const Layout& layout) {
     return resultDims;
 }
 
+// [Track number: D#49269]
 TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
+#ifdef _WIN32
+    SKIP() << "SEH exception";
+#endif
     const auto& p = GetParam();
     Precision in_precision = std::get<0>(p);
     Precision out_precision = std::get<1>(p);
@@ -108,7 +112,7 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
     registerBlobGenerator(
             "scale", powerTensorDesc,
             [&](const TensorDesc& desc) {
-                return makeSingleValueBlob(desc, 1.f);
+                return vpux::makeSplatBlob(desc, 1.f);
             }
     );
 

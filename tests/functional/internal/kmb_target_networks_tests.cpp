@@ -239,12 +239,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
 }
 
 
-// Compilation fails on windows
-// [Track number: D#44765]
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32) {
-#ifdef _WIN32
-    SKIP() << "LpScheduler - RuntimeError: input is not a DAG";
-#endif
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -682,9 +677,6 @@ TEST_F(GazeEstimationNetworkTest, DISABLED_gaze_estimation_adas_0002) {
 
 class SmokeNetworkTestWithSpecificLayout : public SmokeNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 TEST_P(SmokeNetworkTestWithSpecificLayout, openpose_pose_cf) {
-#ifdef _WIN32
-    SKIP() << "Skip openpose_pose_cf test on windows due to unexpected error during test execution";
-#endif
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/OpenPose/FP16-INT8/openpose-pose_cf_ww22.xml")
             .setUserInputPrecision("image", Precision::U8)
@@ -846,22 +838,14 @@ TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
         0.3f);
 }
 
-// [Track number: D#45024]
 TEST_F(SmokeNetworkTest, precommit_text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
-#ifdef _WIN32
-    SKIP() << "SEH exception";
-#endif
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/text-detection-0004/tf/FP16-INT8/text-detection-0004-ww48.xml")
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserOutputPrecision("output", Precision::FP32));
 }
 
-// [Track number: D#45024]
 TEST_F(SmokeNetworkTest, text_detection_0003_tf_dense_int8_IRv10_from_fp32) {
-#ifdef _WIN32
-    SKIP() << "SEH exception";
-#endif
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/text-detection-0003/tf/FP16-INT8/text-detection-0003-ww48.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -890,6 +874,16 @@ TEST_F(SmokeNetworkTest, yolo_v4_tf_full) {
                     .setUserOutputPrecision("output", Precision::FP32));
 }
 
+TEST_F(KmbClassifyNetworkTest, yolo_v4_tf_subgraph) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/yolo_v4/subgraph.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserOutputPrecision("output", Precision::FP16),
+            TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
+            1000,
+            0.3f);
+}
+
 // Regression on compilation due to latest rebase
 TEST_F(KmbVasFDStage1Test, DISABLED_precommit_vasfd_stage1) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
@@ -909,14 +903,7 @@ TEST_F(KmbVasFDStage1Test, DISABLED_precommit_vasfd_stage1) {
     0.35f, 0.1f, 0.3f, layerNames, anchorSizes, windowScales, windowLengths);
 }
 
-// MemoryAllocator:ProgrammableOutput - ArgumentError:
-// ImplicitOutput_2_conversion:0::Order NCHW - Does not match the order NHWC of
-// the tensor ImplicitOutput_2 already allocated in the given buffer
-// [Track number: D#47570]
 TEST_F(KmbVasFDStage2Test, precommit_vasfd_stage2) {
-#ifdef _WIN32
-    SKIP() << "Order NCHW - Does not match the order NHWC of the tensor";
-#endif
     const std::string inputName = "data";
     const KmbVasFDStage2Test::Candidate candidate = {118.36408299, 50.26568365, 158.98897427, 125.54895544};
     runTest(
@@ -989,11 +976,7 @@ TEST_F(KmbDetectionNetworkTest, peleenet) {
             0.1f, 0.3f);
 }
 
-// [Track number: D#45024]
 TEST_F(SmokeNetworkTest, text_detection_0004_tf_dense_int8_IRv10_from_fp32) {
-#ifdef _WIN32
-    SKIP() << "SEH exception";
-#endif
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/text-detection-0004/tf/FP16-INT8/text-detection-0004-ww48.xml")
                     .setUserInputPrecision("input", Precision::U8)

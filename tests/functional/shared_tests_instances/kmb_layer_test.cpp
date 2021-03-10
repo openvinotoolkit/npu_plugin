@@ -6,7 +6,6 @@
 #include "kmb_test_report.hpp"
 #include "vpux_private_config.hpp"
 
-#include <ie_utils.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 
@@ -51,6 +50,17 @@ void KmbLayerTestsCommon::ExportInput() {
         const auto &info = input.second;
         const auto ext = vpu::formatString(".%v.%v", info->name(), "in");
         kmbTestTool.exportBlob(inputs[i++],
+            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+    }
+}
+
+void KmbLayerTestsCommon::ExportOutput() {
+    int i = 0;
+    const auto & outputs = GetOutputs();
+    for (const auto &output : executableNetwork.GetOutputsInfo()) {
+        const auto &info = output.second;
+        const auto ext = vpu::formatString(".%v.%v", info->getName(), "out");
+        kmbTestTool.exportBlob(outputs[i++],
             filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
 }
@@ -171,6 +181,10 @@ void KmbLayerTestsCommon::Run() {
         if (envConfig.IE_KMB_TESTS_EXPORT_REF) {
             std::cout << "KmbLayerTestsCommon::ExportReference()" << std::endl;
             ExportReference(CalculateRefs());
+        }
+        if (envConfig.IE_KMB_TESTS_EXPORT_OUTPUT) {
+            std::cout << "KmbLayerTestsCommon::ExportOutput()" << std::endl;
+            ExportOutput();
         }
         if (envConfig.IE_KMB_TESTS_RUN_INFER) {
             std::cout << "KmbLayerTestsCommon::Validate()" << std::endl;

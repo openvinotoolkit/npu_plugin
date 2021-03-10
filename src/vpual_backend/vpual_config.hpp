@@ -30,14 +30,12 @@ public:
     VpualConfig();
 
     bool repackInputLayout() const { return _repackInputLayout; }
-    bool useCoreNN() const { return _useCoreNN; }
 
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:
     bool _repackInputLayout = false;
-    bool _useCoreNN = true;
 };
 
 }  // namespace vpux

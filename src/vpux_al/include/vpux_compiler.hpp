@@ -17,11 +17,13 @@
 #pragma once
 #include <details/ie_so_loader.h>
 
+#include <cstddef>
+#include <set>
+
 #include <details/ie_so_pointer.hpp>
 #include <ie_icnn_network.hpp>
 #include <ie_input_info.hpp>
 #include <ie_remote_context.hpp>
-#include <set>
 #include <vpux_config.hpp>
 
 namespace vpux {
@@ -38,7 +40,14 @@ public:
     virtual const DataMap& getOutputsInfo() const = 0;
     virtual const DataMap& getDeviceInputsInfo() const = 0;
     virtual const DataMap& getDeviceOutputsInfo() const = 0;
+    // TODO Remove interface returning std::vector<char>.
+    /**
+     * @deprecated Return type should follow the function below.
+     * The name itself can be reused once the old return type is dropped.
+     */
     virtual const std::vector<char>& getCompiledNetwork() const = 0;
+    virtual const void* getNetworkModel() const = 0;
+    virtual std::size_t getNetworkModelSize() const = 0;
     virtual ~INetworkDescription() = default;
     virtual void Release() noexcept override {
         delete this;
@@ -70,6 +79,12 @@ public:
     }
     const std::vector<char>& getCompiledNetwork() const {
         return _actual->getCompiledNetwork();
+    }
+    const void* getNetworkModel() const {
+        return _actual->getNetworkModel();
+    }
+    std::size_t getNetworkModelSize() const {
+        return _actual->getNetworkModelSize();
     }
 
     ~NetworkDescription() {

@@ -16,27 +16,12 @@
 
 #include <vpu/utils/ie_helpers.hpp>
 
+#include "kmb_mvn_test_params.hpp"
 #include "test_model/kmb_test_base.hpp"
 
-struct MVNTestParams final {
-    MVNParams params;
+class KmbMVNSoftlayerTests : public KmbLayerTestBase, public testing::WithParamInterface<MVNTestParams> {};
 
-    LAYER_PARAMETER(bool, across_channels);
-    LAYER_PARAMETER(bool, normalize_variance);
-    LAYER_PARAMETER(float, eps);
-    PARAMETER(SizeVector, dims);
-};
-
-std::ostream& operator<<(std::ostream& os, const MVNTestParams& p) {
-    vpu::formatPrint(
-        os, "dims: %l, across_channels: %l, normalize_variance: %l, eps: %l",
-        p.dims(), p.across_channels(), p.normalize_variance(), p.eps());
-    return os;
-}
-
-class KmbMVNLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<MVNTestParams> {};
-
-TEST_P(KmbMVNLayerTests, accuracy) {
+TEST_P(KmbMVNSoftlayerTests, accuracy) {
     const auto &p = GetParam();
 
     const auto& dims = p.dims();
@@ -60,7 +45,6 @@ TEST_P(KmbMVNLayerTests, accuracy) {
                 .build()
             .addNetOutput(PortInfo("mvn"))
             .setUserOutput(PortInfo("mvn"), userOutDesc.getPrecision(), userOutDesc.getLayout())
-            .useCustomLayers(KernelType::Ocl)
             .finalize();
     };
 
@@ -74,6 +58,4 @@ const std::vector<MVNTestParams> convertParams = {
             .across_channels(true)
 };
 
-#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
-INSTANTIATE_TEST_CASE_P(precommit, KmbMVNLayerTests, testing::ValuesIn(convertParams));
-#endif
+INSTANTIATE_TEST_CASE_P(precommit, KmbMVNSoftlayerTests, testing::ValuesIn(convertParams));

@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,18 +16,24 @@
 
 #pragma once
 
-#include <openvino/itt.hpp>
+#include <memory>
+#include <string>
+#include <vpux.hpp>
 
-namespace vpu {
+namespace vpux {
 
-namespace itt {
+class EmulatorDevice final : public IDevice {
+public:
+    EmulatorDevice();
+    std::shared_ptr<Executor> createExecutor(
+        const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;
 
-namespace domains {
+    virtual std::shared_ptr<Allocator> getAllocator() const {
+        return nullptr;
+    }
+    std::string getName() const override;
+private:
+    std::unique_ptr<vpu::Logger> _logger;
+};
 
-OV_ITT_DOMAIN(KmbPlugin);
-
-}  // namespace domains
-
-}  // namespace itt
-
-}  // namespace vpu
+}  // namespace vpux

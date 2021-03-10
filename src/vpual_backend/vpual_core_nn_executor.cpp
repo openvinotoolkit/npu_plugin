@@ -16,14 +16,15 @@
 
 #include "vpual_core_nn_executor.hpp"
 
+#include "vpux/utils/IE/itt.hpp"
+#include "vpux/utils/IE/blob.hpp"
+#include "vpux/utils/core/helper_macros.hpp"
+
 #include <ie_common.h>
 
 #include <algorithm>
 #include <blob_factory.hpp>
 #include <dims_parser.hpp>
-#include <ie_itt.hpp>
-#include <ie_macro.hpp>
-#include <ie_utils.hpp>
 #include <map>
 #include <utility>
 #include <vector>
@@ -277,18 +278,18 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     _pipePrint = PipePrintHandler::get();
 #endif
 
-    std::size_t inputsTotalSize = 0;
+    Byte inputsTotalSize(0);
     for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
         const auto& tensorDesc = in.second->getTensorDesc();
-        inputsTotalSize += utils::getByteSize(tensorDesc);
+        inputsTotalSize += getMemorySize(tensorDesc);
     }
-    _inputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(inputsTotalSize)));
+    _inputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(inputsTotalSize.count())));
     _logger->debug("Allocated buffer for input with the size: %d", inputsTotalSize);
 
     allocateGraph(_networkDescription->getCompiledNetwork());
     initWatchDog();
 #else
-    UNUSED(deviceId);
+    VPUX_UNUSED(deviceId);
 #endif
 }
 
@@ -340,12 +341,12 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
 
     if(_config.executorStreams() > 1)
         _mutex->count_one();
-    std::size_t inputsTotalSize = 0;
+    Byte inputsTotalSize(0);
     for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
         const auto& tensorDesc = in.second->getTensorDesc();
-        inputsTotalSize += utils::getByteSize(tensorDesc);
+        inputsTotalSize += getMemorySize(tensorDesc);
     }
-    _inputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(inputsTotalSize)));
+    _inputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(inputsTotalSize.count())));
     _logger->debug("Allocated buffer for input with the size: %d", inputsTotalSize);
 
     size_t outputsSize = _nnCorePlg->GetNumberOfOutputs();
@@ -455,7 +456,7 @@ const static vpu::EnumSet<InferenceEngine::VPUXConfigParams::VPUXPlatform> platf
 
 void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "allocateGraph");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "allocateGraph");
     static int graphId_main = 1;
     int nThreads = _config.throughputStreams();
 
@@ -599,7 +600,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
 
     _logger->info("Started FLIC pipeline...");
 #else
-    UNUSED(graphFileContent);
+    VPUX_UNUSED(graphFileContent);
 #endif
 }
 
@@ -667,7 +668,7 @@ static bool needRepackForNHWC(const ie::TensorDesc& actualDesc) {
 
 ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
     const ie::Blob::Ptr& actualInput, const ie::TensorDesc& deviceDesc) {
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "prepareInputForInference");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "prepareInputForInference");
 
     ie::Blob::Ptr inputForInference = actualInput;
     const auto& actualDesc = actualInput->getTensorDesc();
@@ -677,7 +678,7 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
         _logger->warning("Input blob is inconsistent with network input. "
                          "Need to do convert precision from %d to %d.",
                          actualInputPrecision, devicePrecision);
-        inputForInference = toPrecision(actualInput, devicePrecision, _allocator);
+        inputForInference = toPrecision(ie::as<ie::MemoryBlob>(actualInput), devicePrecision, _allocator);
     }
 
     // HACK: to overcome inability python API to pass a blob of NHWC layout
@@ -687,9 +688,9 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
                 inputForInference, ie::Layout::NCHW, ie::Layout::NHWC, _allocator);
     }
 
-    if (!utils::isBlobAllocatedByAllocator(inputForInference, _allocator)) {
+    if (!isBlobAllocatedByAllocator(inputForInference, _allocator)) {
         _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
-        auto inputForInferenceReAlloc = utils::reallocateBlob(inputForInference, _allocator);
+        auto inputForInferenceReAlloc = reallocateBlob(ie::as<ie::MemoryBlob>(inputForInference), _allocator);
         inputForInference = inputForInferenceReAlloc;
     }
 
@@ -713,7 +714,7 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
 }
 void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "push");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "push");
     _logger->info("::push started");
 
     ie::BlobMap updatedInputs;
@@ -753,7 +754,7 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 
     _logger->info("::push finished");
 #else
-    UNUSED(inputs);
+    VPUX_UNUSED(inputs);
 #endif
 }
 
@@ -800,7 +801,7 @@ uint32_t VpualCoreNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inp
 
 void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "pull");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "pull");
     _logger->info("pull started");
     NnExecResponseMsg response;
     _wd->Start(this);
@@ -821,18 +822,18 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
     _logger->info("pull finished");
 #else
-    UNUSED(outputs);
+    VPUX_UNUSED(outputs);
 #endif
 }
 
 ie::BlobMap VpualCoreNNExecutor::extractOutputsFromPhysAddr(uint32_t physAddr) {
     ie::BlobMap deviceOutputs;
-    std::size_t offset = physAddr - _allocator->getPhysicalAddress(_outputBuffer.get());
+    Byte offset(physAddr - _allocator->getPhysicalAddress(_outputBuffer.get()));
     for (auto&& out : _networkDescription->getDeviceOutputsInfo()) {
         auto desc = out.second->getTensorDesc();
-        auto blob = make_blob_with_precision(desc, _outputBuffer.get() + offset);
+        auto blob = make_blob_with_precision(desc, _outputBuffer.get() + offset.count());
         deviceOutputs.insert({out.first, blob});
-        offset += utils::getByteSize(desc);
+        offset += getMemorySize(desc);
     }
 
     return deviceOutputs;
@@ -855,7 +856,7 @@ void VpualCoreNNExecutor::repackDeviceOutputsToNetworkOutputs(
             _logger->warning("Output blob is inconsistent with network output. "
                              "Need to do convert precision from %d to %d.",
                 deviceDesc.getPrecision(), networkDesc.getPrecision());
-            deviceBlobWithNetworkPrecision = utils::convertPrecision(deviceBlob, networkDesc.getPrecision());
+            deviceBlobWithNetworkPrecision = toPrecision(ie::as<ie::MemoryBlob>(deviceBlob), networkDesc.getPrecision());
         } else {
             deviceBlobWithNetworkPrecision = deviceBlob;
         }
@@ -901,7 +902,7 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
 
     int execution_index = 0;
     ie::InferenceEngineProfileInfo info;
-    for (const auto& profilingEntry : deviceProfiling) {    
+    for (const auto& profilingEntry : deviceProfiling) {
         info.status = ie::InferenceEngineProfileInfo::EXECUTED;
         info.cpu_uSec = info.realTime_uSec = profilingEntry.time;
         info.execution_index = execution_index++;

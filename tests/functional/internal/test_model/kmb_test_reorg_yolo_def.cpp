@@ -23,7 +23,7 @@
 
 namespace {
 
-void refReorgYoloFromVPU(const Blob::Ptr& src, Blob::Ptr& dst, int stride) {
+void refReorgYoloFromVPU(const Blob::Ptr src, Blob::Ptr dst, int stride) {
     IE_ASSERT(src != nullptr);
     IE_ASSERT(dst != nullptr);
 
@@ -66,7 +66,7 @@ BlobVector refReorgYolo(const TestNetwork::NodePtr& layer, const BlobVector& inp
     const auto stride = reorgYoloLayer->get_strides()[0];  // ngraph returns Stride structure, we use only first value
 
     const auto input = inputs.at(0);
-    auto output = makeSingleValueBlob(input->getTensorDesc(), 0.0f);
+    auto output = vpux::makeSplatBlob(input->getTensorDesc(), 0.0f);
 
     refReorgYoloFromVPU(input, output, stride);
 

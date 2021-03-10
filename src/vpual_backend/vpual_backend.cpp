@@ -153,8 +153,6 @@ const std::map<std::string, std::shared_ptr<IDevice>> VpualEngineBackend::create
     return devices;
 }
 
-const std::map<std::string, std::shared_ptr<IDevice>>& VpualEngineBackend::getDevices() const { return _devices; }
-
 const std::shared_ptr<IDevice> VpualEngineBackend::getDevice() const {
     if (_devices.empty()) {
         THROW_IE_EXCEPTION << "There are no any devices!";
@@ -164,7 +162,7 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice() const {
 
 const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const std::string& deviceId) const {
     try {
-        return getDevices().at(deviceId);
+        return _devices.at(deviceId);
     } catch (...) {
         _logger->warning("Device %s not found", deviceId);
     }
@@ -179,7 +177,7 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const InferenceEngi
         THROW_IE_EXCEPTION << "Device ID is not provided!";
     }
     try {
-        return getDevices().at(deviceId);
+        return _devices.at(deviceId);
     } catch (...) {
         _logger->warning("Device %s not found", deviceId);
     }
@@ -188,8 +186,7 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const InferenceEngi
 
 const std::vector<std::string> VpualEngineBackend::getDeviceNames() const {
     std::vector<std::string> availableDevices;
-    const auto& devices = getDevices();
-    for (const auto& elem : devices) {
+    for (const auto& elem : _devices) {
         const auto& device = elem.second;
         availableDevices.emplace_back(device->getName());
     }

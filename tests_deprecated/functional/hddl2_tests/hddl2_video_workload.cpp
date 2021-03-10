@@ -31,13 +31,14 @@
 #include "gtest/gtest.h"
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_params.hpp"
-#include "ie_utils.hpp"
 #include "executable_network_factory.h"
 #include "models/models_constant.h"
 
 #include <opencv_wraper.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/core.hpp>
+
+#include "vpux/utils/IE/blob.hpp"
 
 namespace IE = InferenceEngine;
 
@@ -134,7 +135,9 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
 
     // --- Compare with expected output
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
-        toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+                        vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                        vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                        numberOfTopClassesToCompare));
 }
 
 TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrameROI_Unsupported) {
@@ -274,7 +277,9 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
     IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputNV12Blob, &preprocInfo);
 
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
-        toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+                        vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                        vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                        numberOfTopClassesToCompare));
 }
 
 TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
@@ -353,7 +358,9 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
     IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputNV12Blob, &preprocInfo);
 
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
-        toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+                        vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                        vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                        numberOfTopClassesToCompare));
 }
 
 // Case: remote frame with 256B alignment
@@ -410,7 +417,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameWithStrides) {
     IE::SizeVector uvPlaneDims {1, uvPlanes, inputHeight / 2, (inputWidth + paddingWidth) / 2};
     IE::TensorDesc uvPlaneTensorDesc(IE::Precision::U8, uvPlaneDims, IE::Layout::NHWC);
     const int64_t grayConst = 0x80;
-    IE::Blob::Ptr uvPlaneInputBlob = makeSingleValueBlob(uvPlaneTensorDesc, grayConst);
+    IE::Blob::Ptr uvPlaneInputBlob = vpux::makeSplatBlob(uvPlaneTensorDesc, grayConst);
 
     // ---- Create NV12 local blob with ROI for strides preprocessing on CPU as reference
     IE::ROI yPlaneRoi {0, 0, 0, inputWidth, inputHeight};
@@ -473,5 +480,8 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameWithStrides) {
     // --- Compare with reference
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(
-            Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+            Comparators::compareTopClassesUnordered(
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
+                    vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
+                    numberOfTopClassesToCompare));
 }

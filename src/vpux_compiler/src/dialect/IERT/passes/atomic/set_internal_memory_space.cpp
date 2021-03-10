@@ -52,12 +52,12 @@ void SetInternalMemorySpacePass::runOnFunction() {
 
         if (_memSpace == nullptr) {
             VPUX_THROW_UNLESS(!memSpaceName.getValue().empty(), "Missing memory space option");
-            _memSpace = mlir::StringAttr::get(memSpaceName.getValue(), &ctx);
+            _memSpace = mlir::StringAttr::get(&ctx, memSpaceName.getValue());
         }
 
         passBody();
     } catch (const std::exception& e) {
-        errorAt(getOperation(), "{0} failed : {1}", getName(), e.what());
+        (void)errorAt(getOperation(), "{0} failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }

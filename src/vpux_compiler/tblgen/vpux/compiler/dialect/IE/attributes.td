@@ -33,6 +33,7 @@ def IE_EpsMode :
             ]
         > {
     let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -49,6 +50,7 @@ def IE_TopKMode :
             ]
         > {
     let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -66,6 +68,7 @@ def IE_TopKSortType :
             ]
         > {
     let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -82,6 +85,7 @@ def IE_ROIPoolingMethod :
             ]
         > {
     let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -99,6 +103,7 @@ def IE_AutoBroadcastType :
             ]
         > {
     let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -115,6 +120,7 @@ def IE_RoundingType :
             ]
         > {
     let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -160,6 +166,7 @@ def IE_InterpolateMode :
             ]
         > {
     let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
 }
 
 def IE_InterpolateAttr :

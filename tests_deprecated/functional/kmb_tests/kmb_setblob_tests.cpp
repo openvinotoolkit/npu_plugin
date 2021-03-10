@@ -19,7 +19,8 @@
 #include <gtest/gtest.h>
 #include <file_reader.h>
 #include <regression_tests.hpp>
-#include <ie_utils.hpp>
+
+#include "vpux/utils/IE/blob.hpp"
 
 using namespace KmbRegressionTarget;
 
@@ -143,17 +144,17 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
     Blob::Ptr outputBlob2;
     ASSERT_NO_THROW(outputBlob2 = inferRequest2.GetBlob(output_name2));
     if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-        Blob::Ptr blobFP32 = toFP32(outputBlob2);
-        Blob::Ptr expectedBlobFP32 = toFP32(outputBlob1);
+        Blob::Ptr blobFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob2));
+        Blob::Ptr expectedBlobFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob1));
         Compare(blobFP32, expectedBlobFP32, 0.0f);
 
-        blobFP32 = toFP32(outputBlob2);
-        expectedBlobFP32 = toFP32(fileOutputBlob);
+        blobFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob2));
+        expectedBlobFP32 = vpux::toFP32(as<MemoryBlob>(fileOutputBlob));
         Compare(blobFP32, expectedBlobFP32, 0.0f);
     } else {
-        Blob::Ptr outputBlob2FP32 = toFP32(outputBlob2);
-        ASSERT_NO_THROW(compareTopClasses(outputBlob2FP32, toFP32(outputBlob1), NUMBER_OF_TOP_CLASSES));
-        ASSERT_NO_THROW(compareTopClasses(outputBlob2FP32, toFP32(fileOutputBlob), NUMBER_OF_TOP_CLASSES));
+        Blob::Ptr outputBlob2FP32 = vpux::toFP32(as<MemoryBlob>(outputBlob2));
+        ASSERT_NO_THROW(compareTopClasses(outputBlob2FP32, vpux::toFP32(as<MemoryBlob>(outputBlob1)), NUMBER_OF_TOP_CLASSES));
+        ASSERT_NO_THROW(compareTopClasses(outputBlob2FP32, vpux::toFP32(as<MemoryBlob>(fileOutputBlob)), NUMBER_OF_TOP_CLASSES));
     }
 }
 
@@ -278,8 +279,8 @@ TEST_F(vpuInferWithSetUp, DISABLED_copyCheckSetBlob) {
     Blob::Ptr outputBlob;
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(output_name));
 
-    Blob::Ptr blobFP32 = toFP32(outputBlob);
-    Blob::Ptr expectedBlobFP32 = toFP32(fileOutputBlob);
+    Blob::Ptr blobFP32 = vpux::toFP32(as<MemoryBlob>(outputBlob));
+    Blob::Ptr expectedBlobFP32 = vpux::toFP32(as<MemoryBlob>(fileOutputBlob));
     Compare(blobFP32, expectedBlobFP32, 0.0f);
 
     ASSERT_TRUE(out.str().find(strToCheck) == std::string::npos);

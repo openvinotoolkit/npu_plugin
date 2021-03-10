@@ -62,6 +62,7 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         if(dpuTask->hasAttr("postOpTypes"))
             postOps = dpuTask->get<std::vector<std::string>>("postOpTypes");
 
+        std::replace_if(postOps.begin(), postOps.end(), mv::ControlModel::isDpuPwl, "FLEXARB");
         addPpeTask(dpuTask, postOps, leakyAlpha, leakyReluHack, bits);
     }
 }
@@ -970,6 +971,24 @@ mv::Data::TensorIterator convertSoftPlusToUPATask(mv::OpModel& om, const std::ve
     return softplus;
 }
 
+mv::Data::TensorIterator convertMVNToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name,  bool /*software*/,
+                                                const mv::QuantizationParams& quantParams,
+                                                const mv::DType& outputTensorType,
+                                                const mv::Order& outputTensorOrder)
+{
+    auto across_channels = attrs.at("across_channels").get<bool>();
+    auto normalize_variance = attrs.at("normalize_variance").get<bool>();
+    auto eps = attrs.at("eps").get<double>();
+
+    auto mvn = om.uPATaskMVN(name, inputs, across_channels, normalize_variance, eps);
+    mvn->setDType(outputTensorType);
+    mvn->setQuantParams(quantParams);
+    mvn->setOrder(outputTensorOrder);
+    return mvn;
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
@@ -984,7 +1003,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
                                                        "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu",
-                                                       "PermuteND", "Mish", "Floor", "Round", "Erf", "Pad", "Interpolate"};
+                                                       "PermuteND", "Mish", "Floor", "Round", "Erf", "Pad", "Interpolate", "MVN"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -1036,7 +1055,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"SoftPlus", convertSoftPlusToUPATask},
     {"Pad", convertPadToUPATask},
     {"Elu", convertEluToUPATask},
-    {"Interpolate", convertInterpolateToUPATask}
+    {"Interpolate", convertInterpolateToUPATask},
+    {"MVN", convertMVNToUPATask}
     };
 
     // Layer types that given current compiler state, it's
@@ -1282,12 +1302,18 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
             opIt->get<mv::QuantizationParams>("pwlQuantParams").getScale()[0])));
     if (flex)
     {
-        auto alpha = opIt->get<double>("leakyAlpha");
         mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         auto minimum = outputQuantParams.getMin()[0];
-        minimum /= alpha;
+        if (opIt->hasAttr("leakyAlpha")) {
+            auto alpha = opIt->get<double>("leakyAlpha");
+            minimum /= alpha;
+        }
         clamp = round(minimum/outputQuantParams.getScale()[0]);
         clamp = std::max(clamp, -128);
+
+        if(opIt->hasAttr("WithMish")) {
+            clamp = std::max(clamp, 0);
+        }
     }
 
     return clamp;

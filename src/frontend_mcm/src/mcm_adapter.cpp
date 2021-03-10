@@ -20,7 +20,6 @@
 #include <sys/stat.h>
 
 #include <ie_icnn_network.hpp>
-#include <ie_itt.hpp>
 
 #if defined(_WIN32)
 #include <direct.h>

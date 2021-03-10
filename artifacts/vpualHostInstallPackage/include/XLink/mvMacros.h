@@ -43,7 +43,11 @@
 /// @param[in] a value to align to
 /// @returns the aligned value
 #ifndef ROUND_UP
-#define ROUND_UP(x, a)   ((__typeof__(x))((((uint32_t)(x) + a - 1) / a) * a))
+inline unsigned ROUND_UP_IMPL(unsigned x, unsigned a)
+{
+    return ((x + a - 1) / a) * a;
+}
+#define ROUND_UP(x, a) ROUND_UP_IMPL(unsigned(x), unsigned(a))
 #endif
 #define ROUND_DOWN(x, a) ((__typeof__(x))(((uint32_t)(x) / a + 0) * a))
 

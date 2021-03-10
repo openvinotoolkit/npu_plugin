@@ -339,7 +339,7 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
         {
             auto numInputs = 1;
             if (taskOp == "Eltwise")
-                numInputs = opIt->getInputTensor().size();
+                numInputs ++;
             for (auto i = 0; i < numInputs; i++)
             {
                 auto inputTensor = opIt->getInputTensor(i);
@@ -385,9 +385,8 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     if(parentOpIt->isImplicit() && parentMemoryLocation == mv::Tensor::MemoryLocation::DDR)
                         if (opIt->hasAttr("splitStrategy"))
                             alignOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
-                    else
-                        if (parentOpIt->hasAttr("splitStrategy"))
-                            alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+                        else if (parentOpIt->hasAttr("splitStrategy"))
+                                alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
 
                     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
                     {

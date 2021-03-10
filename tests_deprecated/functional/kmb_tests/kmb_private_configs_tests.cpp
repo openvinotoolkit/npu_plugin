@@ -20,10 +20,11 @@
 
 #include <allocators.hpp>
 #include <vpu/utils/io.hpp>
-#include <ie_utils.hpp>
 
 #include "models/model_pooling.h"
 #include "vpu_layers_tests.hpp"
+
+#include "vpux/utils/IE/blob.hpp"
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -175,7 +176,7 @@ Blob::Ptr KmbPrivateConfigTests::runInferWithConfig(const std::string& model_pat
     request.Infer();
 
     const auto outputName = network.GetOutputsInfo().begin()->second->getName();
-    Blob::Ptr outputBlob = toFP32(request.GetBlob(outputName));
+    Blob::Ptr outputBlob = vpux::toFP32(as<MemoryBlob>(request.GetBlob(outputName)));
 
     return outputBlob;
 }
@@ -242,18 +243,7 @@ const std::vector<PrivateConfigTestParams> privateConfigParamsBrokenTests {
         .privateConfig({{"VPUX_VPUAL_REPACK_INPUT_LAYOUT", CONFIG_VALUE(YES)}})
         .inputWidth(228)
         .inputHeight(228)
-        .nClasses(5),
-    PrivateConfigTestParams()
-        .testDescription("USE_CORE_NN")
-        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob")
-        .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin")
-        .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
-        .preProc(true)
-        .checkSIPP(false)
-        .privateConfig({{"VPUX_VPUAL_USE_CORE_NN", CONFIG_VALUE(YES)}})
-        .inputWidth(228)
-        .inputHeight(228)
-        .nClasses(2)};
+        .nClasses(5)};
 
 INSTANTIATE_TEST_CASE_P(precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
 

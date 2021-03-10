@@ -638,10 +638,10 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
 //Idea: We use the equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always satisfies the
 //leaky relu. After we generate the instruction list table and we save the values of the registers inside.
 //The map of the bits per instruction are described here: https://docs.google.com/spreadsheets/d/1RcD1FYGiKCTCRTDsU-J4r_FaQyAQbzMLyRu7WkeNoOY/edit#gid=0.
-void populateInstructionListMap(mv::Data::TensorIterator instructionListTable)
+void populateInstructionListMap(const std::string& pwlType, mv::Data::TensorIterator instructionListTable)
 {
     //NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
-    //27 of course will be aligned to 32 and will containt NOPS inside
+    //27 of course will be aligned to 32 and will contain NOPS inside
     auto instructionListShape = instructionListTable->getShape();
     std::vector<uint32_t> template_table(instructionListShape.totalSize(), 0);
 
@@ -653,9 +653,20 @@ void populateInstructionListMap(mv::Data::TensorIterator instructionListTable)
     std::size_t ADDR_OF_VALUE = 19;
     std::size_t MASK_FIRST2_BITS = 3;
     std::size_t first2_bits, last3_bits;
-    std::vector<int> range_vector = {-128, -109, -90, -72, -54, -36, -18, 0, 128};
-    std::vector<int> shift_vector = {1, -1, 0, 0, 0, -1, -1, -4};
-    std::vector<int> bias_vector = {-119, 44, -43, -31, -19, 18, 10, 0};
+    std::vector<int> range_vector;
+    std::vector<int> shift_vector;
+    std::vector<int> bias_vector;
+
+    if (pwlType == "LeakyRelu") {
+        range_vector = {-128, -109, -90, -72, -54, -36, -18, 0, 128};
+        shift_vector = {1, -1, 0, 0, 0, -1, -1, -4};
+        bias_vector = {-119, 44, -43, -31, -19, 18, 10, 0};
+    } else if (pwlType == "Mish") {
+        range_vector = {-128, -109, -90, -72, -54, -36, -18, 0, 128};
+        shift_vector = {-12, -12, -12, -12, -12, -12, -12, 0};
+        bias_vector = {1, 1, 1, 1, 1, 1, 1, 0};
+    }
+
     std::size_t k = 0;
     for (std::size_t j = 0; j < 32; j++)
     {
@@ -734,17 +745,24 @@ static void populateInstructionListTablesFcn(const mv::pass::PassEntry& , mv::Co
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
+    const std::string dpuPWLTag = "WithDPUPWL";
+
     for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
     {
         auto taskOp = dpuTaskOp->getOpType();
         if (taskOp == "DPUTask")
         {
-            if(dpuTaskOp->hasAttr("firstConvWithLRelu")
-                    && dpuTaskOp->get<bool>("firstConvWithLRelu"))
+            if (dpuTaskOp->hasAttr(dpuPWLTag) && dpuTaskOp->get<bool>(dpuPWLTag))
             {
                 auto instructionListTable
                         = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("instructionListTableIndex"));
-                populateInstructionListMap(instructionListTable);
+
+                auto attrs = dpuTaskOp->getAttrs({dpuPWLTag});
+                for (auto && attr : attrs) {
+                    if (attr.first.find("With") == 0) {
+                        populateInstructionListMap(attr.first.substr(4), instructionListTable);
+                    }
+                }
             }
         }
     }
@@ -799,12 +817,11 @@ static void generateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::Com
         if(dpuTaskOp->getOpType() == "DPUTask")
         {
             auto taskOpType = dpuTaskOp->get<std::string>("taskOp");
-            if((taskOpType == "Conv" || taskOpType == "ChannelMajorConvolution") && dpuTaskOp->hasAttr("postOpTypes") && dpuTaskOp->hasAttr("firstConvWithLRelu")
-                    && dpuTaskOp->get<bool>("firstConvWithLRelu"))
+            if (dpuTaskOp->hasAttr("postOpTypes") && dpuTaskOp->hasAttr("WithDPUPWL") && dpuTaskOp->get<bool>("WithDPUPWL"))
             {
-                auto ppeIterator = std::find(dpuTaskOp->get<std::vector<std::string>>("postOpTypes").begin(),
-                                             dpuTaskOp->get<std::vector<std::string>>("postOpTypes").end(),
-                                             "FLEXARB");
+                auto postOps = dpuTaskOp->get<std::vector<std::string>>("postOpTypes");
+                //"FLEXARB"
+                auto ppeIterator = std::find_if(postOps.begin(), postOps.end(), mv::ControlModel::isDpuPwl);
                 if ( ppeIterator != dpuTaskOp->get<std::vector<std::string>>("postOpTypes").end())
                 {
                     std::string opName = dpuTaskOp->getName();

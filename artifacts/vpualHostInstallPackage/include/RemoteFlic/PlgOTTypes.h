@@ -237,6 +237,12 @@ public:
     int32_t association_idx;
 };
 
+template<typename TrackingStatus>
+std::ostream& operator<<(typename std::enable_if<std::is_enum<TrackingStatus>::value, std::ostream>::type& stream, const TrackingStatus& e)
+{
+    return stream << static_cast<typename std::underlying_type<TrackingStatus>::type>(e);
+}
+
 typedef std::vector<Object> Objects;
 struct OutObjects {} ;
 #if 0

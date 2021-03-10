@@ -20,9 +20,10 @@
 // Subplugin
 #include "image_workload_device.h"
 
+namespace IE = InferenceEngine;
+
 namespace vpux {
 namespace HDDL2 {
-namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
 ImageWorkloadDevice::ImageWorkloadDevice(const std::string& name): _name(name) {

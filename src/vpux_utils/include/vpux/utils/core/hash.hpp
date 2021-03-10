@@ -65,6 +65,11 @@ struct hash<vpux::StringRef> final {
 };
 
 template <>
+struct hash<vpux::StringLiteral> final {
+    size_t operator()(vpux::StringLiteral str) const;
+};
+
+template <>
 struct hash<vpux::Mask> final {
     size_t operator()(vpux::Mask mask) const {
         return static_cast<size_t>(mask.code());

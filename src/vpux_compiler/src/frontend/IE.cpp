@@ -563,9 +563,9 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     auto op = builder.create<IE::PriorBoxOp>(
             createLocation(origNode), inputs[0], inputs[1], getFP32ArrayAttr(_ctx, attrs.min_size),
             getFP32ArrayAttr(_ctx, attrs.max_size), getFP32ArrayAttr(_ctx, attrs.aspect_ratio),
-            mlir::BoolAttr::get(attrs.flip, _ctx), mlir::BoolAttr::get(attrs.clip, _ctx), getFP32Attr(_ctx, attrs.step),
+            mlir::BoolAttr::get(_ctx, attrs.flip), mlir::BoolAttr::get(_ctx, attrs.clip), getFP32Attr(_ctx, attrs.step),
             getFP32Attr(_ctx, attrs.offset), getFP32ArrayAttr(_ctx, attrs.variance),
-            mlir::BoolAttr::get(attrs.scale_all_sizes, _ctx), getFP32ArrayAttr(_ctx, attrs.fixed_ratio),
+            mlir::BoolAttr::get(_ctx, attrs.scale_all_sizes), getFP32ArrayAttr(_ctx, attrs.fixed_ratio),
             getFP32ArrayAttr(_ctx, attrs.fixed_size), getFP32ArrayAttr(_ctx, attrs.density));
     addOutputs(origNode, op);
 }
@@ -580,7 +580,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
 
     auto op = builder.create<IE::PriorBoxClusteredOp>(
             createLocation(origNode), inputs[0], inputs[1], getFP32ArrayAttr(_ctx, attrs.widths),
-            getFP32ArrayAttr(_ctx, attrs.heights), mlir::BoolAttr::get(attrs.clip, _ctx),
+            getFP32ArrayAttr(_ctx, attrs.heights), mlir::BoolAttr::get(_ctx, attrs.clip),
             getFP32Attr(_ctx, attrs.step_widths), getFP32Attr(_ctx, attrs.step_heights),
             getFP32Attr(_ctx, attrs.offset), getFP32ArrayAttr(_ctx, attrs.variances));
     addOutputs(origNode, op);
@@ -792,7 +792,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     const auto outputSize = getInt32ArrayAttr(_ctx, origNode->get_output_size());
     const auto spatialScaleAttr = getFP32Attr(_ctx, origNode->get_spatial_scale());
-    const auto method = mlir::StringAttr::get(origNode->get_method(), _ctx).cast<IE::ROIPoolingMethodAttr>();
+    const auto method = mlir::StringAttr::get(_ctx, origNode->get_method()).cast<IE::ROIPoolingMethodAttr>();
 
     auto op = builder.create<IE::ROIPoolingOp>(createLocation(origNode), inputs[0], inputs[1], outputSize,
                                                spatialScaleAttr, method);
@@ -845,7 +845,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto coordAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(origNode->get_num_coords()));
     const auto classesAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(origNode->get_num_classes()));
     const auto regionsAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(origNode->get_num_regions()));
-    const auto doSoftmaxAttr = mlir::BoolAttr::get(origNode->get_do_softmax(), _ctx);
+    const auto doSoftmaxAttr = mlir::BoolAttr::get(_ctx, origNode->get_do_softmax());
     const auto maskAttr = getInt64ArrayAttr(_ctx, origNode->get_mask());
     const auto axisAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(origNode->get_axis()));
     const auto axisEndAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(origNode->get_end_axis()));
@@ -974,7 +974,7 @@ void NGraphImporter::addOutputs(const OrigNodePtr& node, mlir::Operation* op) {
 
 mlir::Location NGraphImporter::createLocation(const OrigNodePtr& node) {
     const auto nodeName = mlir::Identifier::get(node->get_friendly_name(), _ctx);
-    return mlir::NameLoc::get(nodeName, _ctx);
+    return mlir::NameLoc::get(nodeName);
 }
 
 //
@@ -1096,13 +1096,13 @@ IE::ProposalAttr NGraphImporter::importProposalAttrs(const ngraph::op::ProposalA
     const auto minSizeNAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(val.min_size));
     const auto ratioAttr = getFP32ArrayAttr(_ctx, val.ratio);
     const auto scaleAttr = getFP32ArrayAttr(_ctx, val.scale);
-    const auto clipBeforeNmsAttr = mlir::BoolAttr::get(val.clip_before_nms, _ctx);
-    const auto clipAfterNmsAttr = mlir::BoolAttr::get(val.clip_after_nms, _ctx);
-    const auto normalizeAttr = mlir::BoolAttr::get(val.normalize, _ctx);
+    const auto clipBeforeNmsAttr = mlir::BoolAttr::get(_ctx, val.clip_before_nms);
+    const auto clipAfterNmsAttr = mlir::BoolAttr::get(_ctx, val.clip_after_nms);
+    const auto normalizeAttr = mlir::BoolAttr::get(_ctx, val.normalize);
     const auto boxSizeScaleAttr = getFP32Attr(_ctx, checked_cast<float>(val.box_size_scale));
     const auto boxCoordinateScaleAttr = getFP32Attr(_ctx, checked_cast<float>(val.box_coordinate_scale));
-    const auto frameworkAttr = mlir::StringAttr::get(val.framework, _ctx);
-    const auto inferProbsAttr = mlir::BoolAttr::get(val.infer_probs, _ctx);
+    const auto frameworkAttr = mlir::StringAttr::get(_ctx, val.framework);
+    const auto inferProbsAttr = mlir::BoolAttr::get(_ctx, val.infer_probs);
 
     return IE::ProposalAttr::get(baseSizeAttr, preNmsTopNAttr, postNmsTopNAttr, nmsThreshNAttr, featStrideAttr,
                                  minSizeNAttr, ratioAttr, scaleAttr, clipBeforeNmsAttr, clipAfterNmsAttr, normalizeAttr,
@@ -1110,12 +1110,12 @@ IE::ProposalAttr NGraphImporter::importProposalAttrs(const ngraph::op::ProposalA
 }
 
 IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const ngraph::op::InterpolateAttrs& val) {
-    const auto modeAttr = mlir::StringAttr::get(val.mode, _ctx).dyn_cast<IE::InterpolateModeAttr>();
+    const auto modeAttr = mlir::StringAttr::get(_ctx, val.mode).dyn_cast<IE::InterpolateModeAttr>();
     VPUX_THROW_UNLESS(modeAttr != nullptr, "Unsupported interpolate mode '{0}'", val.mode);
 
     const auto axesAttr = getInt64ArrayAttr(_ctx, val.axes);
-    const auto alignCornersAttr = mlir::BoolAttr::get(val.align_corners, _ctx);
-    const auto antialiasAttr = mlir::BoolAttr::get(val.antialias, _ctx);
+    const auto alignCornersAttr = mlir::BoolAttr::get(_ctx, val.align_corners);
+    const auto antialiasAttr = mlir::BoolAttr::get(_ctx, val.antialias);
     const auto padsBeginAttr = getInt32ArrayAttr(_ctx, val.pads_begin);
     const auto padsEndAttr = getInt32ArrayAttr(_ctx, val.pads_end);
 
@@ -1128,20 +1128,20 @@ IE::DetectionOutputAttr NGraphImporter::importDetectionOutputAttrs(const ngraph:
     const auto backgroundLabelIdAttr = getInt32Attr(_ctx, val.background_label_id);
     const auto topKAttr = getInt32Attr(_ctx, val.top_k);
 
-    const auto varianceEncodedInTargetAttr = mlir::BoolAttr::get(val.variance_encoded_in_target, _ctx);
+    const auto varianceEncodedInTargetAttr = mlir::BoolAttr::get(_ctx, val.variance_encoded_in_target);
 
     const auto keepTopKAttr = getInt32ArrayAttr(_ctx, val.keep_top_k);
-    const auto codeTypeAttr = mlir::StringAttr::get(val.code_type, _ctx);
+    const auto codeTypeAttr = mlir::StringAttr::get(_ctx, val.code_type);
 
-    const auto shareLocationAttr = mlir::BoolAttr::get(val.share_location, _ctx);
+    const auto shareLocationAttr = mlir::BoolAttr::get(_ctx, val.share_location);
 
     const auto nmsThresholdAttr = getFP32Attr(_ctx, val.nms_threshold);
     const auto confidenceThresholdAttr = getFP32Attr(_ctx, val.confidence_threshold);
 
-    const auto clipAfterNmsAttr = mlir::BoolAttr::get(val.clip_after_nms, _ctx);
-    const auto clipBeforeNmsAttr = mlir::BoolAttr::get(val.clip_before_nms, _ctx);
-    const auto decreaseLabel_idAttr = mlir::BoolAttr::get(val.decrease_label_id, _ctx);
-    const auto normalizedAttr = mlir::BoolAttr::get(val.normalized, _ctx);
+    const auto clipAfterNmsAttr = mlir::BoolAttr::get(_ctx, val.clip_after_nms);
+    const auto clipBeforeNmsAttr = mlir::BoolAttr::get(_ctx, val.clip_before_nms);
+    const auto decreaseLabel_idAttr = mlir::BoolAttr::get(_ctx, val.decrease_label_id);
+    const auto normalizedAttr = mlir::BoolAttr::get(_ctx, val.normalized);
 
     const auto inputHeightAttr = getUInt32Attr(_ctx, checked_cast<uint32_t>(val.input_height));
     const auto inputWidthAttr = getUInt32Attr(_ctx, checked_cast<uint32_t>(val.input_width));
@@ -1268,7 +1268,7 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
     const auto inputsInfo = cnnNet.getInputsInfo();
     const auto outputsInfo = cnnNet.getOutputsInfo();
 
-    const auto mainFuncName = mlir::FlatSymbolRefAttr::get("main", ctx);
+    const auto mainFuncName = mlir::FlatSymbolRefAttr::get(ctx, "main");
 
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef(cnnNet.getName()));
 
@@ -1285,7 +1285,7 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
         const auto& userInput = inputsInfo.at(inputName);
         const auto& userDesc = userInput->getTensorDesc();
 
-        const auto nameAttr = mlir::StringAttr::get(inputName, ctx);
+        const auto nameAttr = mlir::StringAttr::get(ctx, inputName);
         const auto userTypeAttr = mlir::TypeAttr::get(importBuffer(ctx, userDesc));
 
         inputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
@@ -1297,7 +1297,7 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
         const auto& userOutput = outputsInfo.at(resultName);
         const auto& userDesc = userOutput->getTensorDesc();
 
-        const auto nameAttr = mlir::StringAttr::get(resultName, ctx);
+        const auto nameAttr = mlir::StringAttr::get(ctx, resultName);
         const auto userTypeAttr = mlir::TypeAttr::get(importBuffer(ctx, userDesc));
 
         outputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);

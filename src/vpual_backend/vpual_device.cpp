@@ -18,16 +18,14 @@
 
 #include <memory>
 
-#include "ie_utils.hpp"
 #include "vpual_core_nn_executor.hpp"
-#include "vpual_flic_nn_executor.hpp"
 #include "vpusmm_allocator.hpp"
 
 namespace vpux {
 
 VpualDevice::VpualDevice(const std::string& name,
     const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform): _name(name), _platform(platform) {
-    const auto id = utils::extractIdFromDeviceName(name);
+    const auto id = extractIdFromDeviceName(name);
     _allocator = InferenceEngine::details::shared_from_irelease(new VpusmmAllocator(id));
 }
 
@@ -37,16 +35,10 @@ std::shared_ptr<Executor> VpualDevice::createExecutor(
     if (vpusmmAllocator == nullptr) {
         THROW_IE_EXCEPTION << "Incompatible allocator passed into vpual_backend";
     }
-
     _config.parseFrom(config);
 
-    std::shared_ptr<Executor> executor = nullptr;
-    const auto id = utils::extractIdFromDeviceName(_name);
-    if (_config.useCoreNN()) {
-        executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _platform, _config);
-    } else {
-        executor = std::make_shared<VpualFlicNNExecutor>(networkDescription, vpusmmAllocator, id, _config);
-    }
+    const auto id = extractIdFromDeviceName(_name);
+    const auto& executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _platform, _config);
 
     return executor;
 }

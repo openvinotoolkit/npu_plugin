@@ -15,7 +15,7 @@
 #
 
 if(ENABLE_LTO)
-    ie_enable_lto()
+   ie_enable_lto()
 endif()
 
 set(TARGET_NAME "vpual_backend")

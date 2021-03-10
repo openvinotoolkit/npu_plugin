@@ -38,6 +38,7 @@
 #include "ngraph_mcm_frontend/passes/handle_3d_transpose.hpp"
 #include <ngraph_mcm_frontend/passes/propagate_fq.hpp>
 #include <ngraph_mcm_frontend/passes/align_scales.hpp>
+#include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -123,7 +124,7 @@ namespace {
     }
 }
 
-std::vector<char> compileNGraph(
+std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         const std::shared_ptr<ngraph::Function>& func,
         const std::string& netName,
         const ie::InputsDataMap& inputsInfo,
@@ -134,11 +135,13 @@ std::vector<char> compileNGraph(
 
     log->info("Parse nGraph %v", netName);
 
+    bool needConvertInputPrecision = false;
+
     //
     // Configure MCM Compiler
     //
 
-    mv::CompilationUnit mcmCompiler(netName);
+    auto mcmCompiler = std::unique_ptr<mv::CompilationUnit>(new mv::CompilationUnit(netName));
 
     {
         log->debug("Configure MCM Compiler");
@@ -146,7 +149,8 @@ std::vector<char> compileNGraph(
 
         bool layoutNCHW = true;
         for (const auto& netInput : inputsInfo) {
-            if (netInput.second->getLayout() != InferenceEngine::Layout::NCHW) {
+            if (netInput.second->getLayout() != InferenceEngine::Layout::NCHW &&
+                netInput.second->getLayout() != InferenceEngine::Layout::CHW) {
                 layoutNCHW = false;
                 break;
             }
@@ -163,13 +167,17 @@ std::vector<char> compileNGraph(
             compDescName = config.mcmCompilationDesciptor();
         }
 
+        if (config.deviceId() == "EMULATOR") {
+            compDescName = "emulator_kmb_SC-Prefetch1";
+        }
+
         const auto targetPath = ie::getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + config.mcmTargetDesciptor() + ".json";
         const auto compDescPath = ie::getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" + compDescName + ".json";
 
-        IE_ASSERT(mcmCompiler.loadTargetDescriptor(targetPath));
-        IE_ASSERT(mcmCompiler.loadCompilationDescriptor(compDescPath));
+        IE_ASSERT(mcmCompiler->loadTargetDescriptor(targetPath));
+        IE_ASSERT(mcmCompiler->loadCompilationDescriptor(compDescPath));
 
-        auto& mcmCompDesc = mcmCompiler.compilationDescriptor();
+        auto& mcmCompDesc = mcmCompiler->compilationDescriptor();
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.mcmLogLevel()));
         mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.removePermuteNoOp());
@@ -200,7 +208,27 @@ std::vector<char> compileNGraph(
 
             graphFileInstance.header->identifier = netName;
         };
-        mcmCompDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
+        if (config.deviceId() != "EMULATOR") {
+            mcmCompDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
+        }
+
+        if (config.numberOfClusters() > 0) {
+            const int clusterCount = config.numberOfClusters();
+            // number of DPU and barriers per cluster was deduced empirically
+            // other values lead either to exceptions in mcmCompiler
+            // or to hang-ups during inference
+            constexpr int DPU_PER_CLUSTER = 5;
+            const int dpuCount = clusterCount * DPU_PER_CLUSTER;
+            constexpr int BARRIERS_PER_CLUSTER = 8;
+            const int barrierCount = clusterCount * BARRIERS_PER_CLUSTER;
+            constexpr int BARRIER_BOUNDS_PER_CLUSTER = 4;
+            const int boundCount = clusterCount * BARRIER_BOUNDS_PER_CLUSTER;
+
+            mcmCompDesc.setPassArg("GlobalConfigParams", "Number_of_DPUs", dpuCount);
+            mcmCompDesc.setPassArg("GlobalConfigParams", "Number_of_Clusters", clusterCount);
+            mcmCompDesc.setPassArg("GlobalConfigParams", "real_physical_barriers", barrierCount);
+            mcmCompDesc.setPassArg("GlobalConfigParams", "barrier_bound", boundCount);
+        }
 
         if (!config.mcmCompilationPassBanList().empty()) {
             std::stringstream banList{config.mcmCompilationPassBanList()};
@@ -217,7 +245,7 @@ std::vector<char> compileNGraph(
             }
         }
 
-        IE_ASSERT(mcmCompiler.initialize());
+        IE_ASSERT(mcmCompiler->initialize());
     }
 
     //
@@ -227,7 +255,7 @@ std::vector<char> compileNGraph(
     {
         log->debug("Convert nGraph to MCM Model");
 
-        auto& mcmModel = mcmCompiler.model();
+        auto& mcmModel = mcmCompiler->model();
         NodeOutputToMcmMap mcmOutputsMap;
 
         ngraph::pass::Manager passManager;
@@ -281,7 +309,8 @@ std::vector<char> compileNGraph(
         passManager.register_pass<InsertMaxPool>();
         passManager.register_pass<ReplaceShuffle>();
         passManager.register_pass<Handle3DTranspose>();
-        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config);
+        passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
+        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config, &needConvertInputPrecision);
         passManager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
         const auto start = std::chrono::high_resolution_clock::now();
@@ -310,7 +339,7 @@ std::vector<char> compileNGraph(
         log->debug("Run MCM Compiler");
         try {
             const auto start = std::chrono::high_resolution_clock::now();
-            mcmCompiler.run();
+            mcmCompiler->run();
             const auto end = std::chrono::high_resolution_clock::now();
             const auto compile_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
             log->info("Compiler processing time: %v ms", compile_time.count());
@@ -329,25 +358,33 @@ std::vector<char> compileNGraph(
         }
     }
 
-    //
-    // Return compiled blob
-    //
+    return mcmCompiler;
+}
 
-    const auto memBlob = mcmCompiler.getBlob();
-    if(memBlob == nullptr) {
+std::vector<char> serializeCompilationUnit(
+    const std::unique_ptr<mv::CompilationUnit>& compUnit,
+    std::string & errMsg) {
+    const auto blob = compUnit->getBlob();
+    if (blob == nullptr) {
         errMsg = "mcmCompiler.getBlob() == nullptr";
         return {};
     }
-
-    std::vector<char> blob;
-    std::copy(memBlob->begin(), memBlob->end(), std::back_inserter(blob));
-
-    if (blob.empty()) {
+    if (blob->empty()) {
         errMsg = "MCM Compiler general exception";
         return {};
     }
-
-    return blob;
+    return *blob;
 }
 
+std::vector<char> compileNGraph(
+        const std::shared_ptr<ngraph::Function>& func,
+        const std::string& netName,
+        const ie::InputsDataMap& inputsInfo,
+        const ie::OutputsDataMap& outputsInfo,
+        const vpu::MCMConfig& config,
+        std::string & errMsg) {
+    const std::unique_ptr<mv::CompilationUnit> compilationUnit = compileNGraphIntoCompilationUnit(func, netName, inputsInfo, outputsInfo, config, errMsg);
+    if (!errMsg.empty()) return {};
+    return serializeCompilationUnit(compilationUnit, errMsg);
+}
 // clang-format on
