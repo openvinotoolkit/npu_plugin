@@ -24,7 +24,6 @@
 #include <blob_factory.hpp>
 #include "functional_test_utils/plugin_cache.hpp"
 #include <format_reader_ptr.h>
-#include <vpu/utils/error.hpp>
 #include <blob_factory.hpp>
 
 //

@@ -22,7 +22,6 @@
 #include <caseless.hpp>
 #include <cstring>
 #include <description_buffer.hpp>
-#include <vpu/utils/error.hpp>
 #include <vpu/utils/simple_math.hpp>
 
 namespace vpu {

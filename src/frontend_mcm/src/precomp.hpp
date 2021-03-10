@@ -17,13 +17,6 @@
 
 #include <schema/graphfile/graphfile_generated.h>
 
-#include <vpu/utils/error.hpp>
-#include <vpu/utils/extra.hpp>
-#include <vpu/utils/ie_helpers.hpp>
-#include <vpu/utils/logger.hpp>
-#include <vpu/utils/numeric.hpp>
-#include <vpu/utils/simple_math.hpp>
-
 #include <blob_factory.hpp>
 #include <blob_transform.hpp>
 #include <caseless.hpp>
