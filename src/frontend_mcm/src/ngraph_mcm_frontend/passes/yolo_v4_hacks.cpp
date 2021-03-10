@@ -56,12 +56,47 @@ static bool process_interp(const std::shared_ptr<ngraph::op::v0::Interpolate>& i
     return true;
 }
 
+static bool process_concat(const std::shared_ptr<ngraph::op::Concat>& concat) {
+    // if (concat->get_friendly_name() != "concatenate_8/concat") {
+    //     return false;
+    // }
+
+    const auto input_values = concat->input_values();
+    const auto strides = ngraph::Strides{1, 1};
+    const auto pads_begin = ngraph::Shape{0, 0};
+    const auto pads_end = ngraph::Shape{0, 0};
+    const auto kernel = ngraph::Shape{1, 1};
+    const auto rounding_mode = ngraph::op::RoundingType::FLOOR;
+    const auto auto_pad = ngraph::op::PadType::EXPLICIT;
+
+    std::vector<std::shared_ptr<ngraph::op::v1::MaxPool>> max_pools = {};
+    for (size_t i = 0; i < input_values.size(); i++) {
+        max_pools.push_back(std::make_shared<ngraph::op::v1::MaxPool>(input_values.at(i), strides, pads_begin, pads_end,
+                                                                      kernel, rounding_mode, auto_pad));
+    }
+
+    ngraph::OutputVector new_inputs = {};
+    for (size_t i = 0; i < input_values.size(); i++) {
+        new_inputs.push_back(max_pools.at(i)->output(0));
+    }
+
+    const auto new_concat = concat->clone_with_new_inputs(new_inputs);
+
+    ngraph::replace_node(concat, new_concat);
+    return true;
+}
+
 ngraph::pass::YoloV4Hacks::YoloV4Hacks() {
     ngraph::graph_rewrite_callback replace_cb = [](pattern::Matcher& m) {
         auto match_root = m.get_match_root();
         const auto interp = std::dynamic_pointer_cast<ngraph::op::v0::Interpolate>(match_root);
         if (interp) {
             return process_interp(interp);
+        }
+
+        const auto concat = std::dynamic_pointer_cast<ngraph::op::Concat>(match_root);
+        if (concat) {
+            return process_concat(concat);
         }
 
         return false;
