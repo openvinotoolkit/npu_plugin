@@ -39,6 +39,7 @@
 #include <ngraph_mcm_frontend/passes/propagate_fq.hpp>
 #include <ngraph_mcm_frontend/passes/align_scales.hpp>
 #include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
+#include <ngraph_mcm_frontend/passes/yolo_v4_hacks.hpp>
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -259,6 +260,7 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         NodeOutputToMcmMap mcmOutputsMap;
 
         ngraph::pass::Manager passManager;
+        passManager.register_pass<ngraph::pass::YoloV4Hacks>();
         passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
         passManager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
         passManager.register_pass<ngraph::pass::ConstantFolding>();
