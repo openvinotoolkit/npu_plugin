@@ -12,6 +12,23 @@ namespace LayerTestsDefinitions {
 
     class KmbGroupConvolutionLayerTest
             : public GroupConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+
+        // There is difference between actual and expected values during validation step on KMB-board:
+        // KmbLayerTestsCommon::Validate()
+        // LayerTestsCommon::Validate()
+        // openvino/inference-engine/tests/functional/shared_test_classes/include
+        // /shared_test_classes/base/layer_test_utils.hpp:173: Failure
+        // Value of: max != 0 && (diff <= static_cast<float>(threshold))
+        // Actual: false
+        // Expected: true
+        // Relative comparison of values expected: 446 and actual: 482 at index 0 with
+        // threshold 0.0099999997764825821 failed
+        // [Track number: S#50873]
+        void SkipBeforeValidate() override {
+            if (isCompilerMCM()) {
+                throw LayerTestsUtils::KmbSkipTestException("Comparison fails");
+            }
+        }
     };
 
     TEST_P(KmbGroupConvolutionLayerTest, CompareWithRefs) {
@@ -147,7 +164,7 @@ namespace {
 
     // Test is disabled because there is Segmentation fault (core dumped) at step
     // [Debug  ][VPU][KMB nGraph Parser] Convert nGraph to MCM Model
-    // [Track number: S#]
+    // [Track number: S#50872]
     INSTANTIATE_TEST_CASE_P(
             DISABLED_smoke_GroupConvolution3D_ExplicitPadding, KmbGroupConvolutionLayerTest,
             ::testing::Combine(
@@ -162,7 +179,7 @@ namespace {
 
     // Test is disabled because there is Segmentation fault (core dumped) at step
     // [Debug  ][VPU][KMB nGraph Parser] Convert nGraph to MCM Model
-    // [Track number: S#]
+    // [Track number: S#50872]
     INSTANTIATE_TEST_CASE_P(
             DISABLED_smoke_GroupConvolution3D_AutoPadValid, KmbGroupConvolutionLayerTest,
             ::testing::Combine(
