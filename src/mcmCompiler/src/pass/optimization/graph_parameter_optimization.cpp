@@ -111,7 +111,7 @@ namespace mv
                 SpiltOverHForLayer79InACLNet,
                 SpiltOverHForLayer97and113ModelE,
                 SpiltOverHForFaceDetectionRetail0004,
-                SplitOverHOverlappedWronglyComputed,
+                //SplitOverHOverlappedWronglyComputed,
                 SoftwareDeconvolutionSet,
                 UpaHKSwitch
             };
@@ -143,6 +143,8 @@ namespace mv
                 {FailCause::SpiltOverHForLayer79InACLNet, "SpiltOverHForLayer79InACLNet"},
                 {FailCause::SpiltOverHForLayer97and113ModelE, "SpiltOverHForLayer97and113ModelE"},
                 {FailCause::SoftwareDeconvolutionSet, "SoftwareDeconvolutionSet"},
+                {FailCause::SpiltOverHForFaceDetectionRetail0004, "SpiltOverHForFaceDetectionRetail0004"},
+                //{FailCause::SplitOverHOverlappedWronglyComputed, "SplitOverHOverlappedWronglyComputed"},
                 {FailCause::UpaHKSwitch, "UpaHKSwitch"}
             };
 
@@ -348,7 +350,7 @@ namespace mv
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = validateStrategy(op,s);
-                                    // std::cout << op.getName() << " : " << clustering.toString() << " : " << streamShape.toString() << " : S " << spilling.toString() << " : I " << inputSparsity.toString() << " : O " << outputSparsity.toString() << " = " << failure_causes[strategyCheck]<< std::endl;
+                                    //std::cout << op.getName() << " : " << clustering.toString() << " : " << streamShape.toString() << " : S " << spilling.toString() << " : I " << inputSparsity.toString() << " : O " << outputSparsity.toString() << " = " << failure_causes[strategyCheck]<< std::endl;
                                     if(strategyCheck != FailCause::Pass)
                                         continue;
 
@@ -1118,11 +1120,11 @@ namespace mv
                      }
                 }
            
-                //temporarily disable the SplitOverHOverlapped for custom network kernel size 7x7 subtensors not correct
-                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 &&
-                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72 &&
-                    op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 7 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 7)
-                    return FailCause::SplitOverHOverlappedWronglyComputed;
+                // //temporarily disable the SplitOverHOverlapped for custom network kernel size 7x7 subtensors not correct
+                // if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 &&
+                //     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72 &&
+                //     op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 7 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 7)
+                //     return FailCause::SplitOverHOverlappedWronglyComputed;
                 return FailCause::Pass; //good strategy
             }
 
