@@ -60,7 +60,7 @@ namespace {
     );
 
     // Test-case fails at stage "Run MCM Compiler" with error:
-    //kmbFuncTests: kmb-plugin/src/mcmCompiler/src/scheduler/feasible_scheduler.hpp:2198:
+    // vpuxFuncTests: kmb-plugin/src/mcmCompiler/src/scheduler/feasible_scheduler.hpp:2198:
     // void mv::lp_scheduler::Feasible_Memory_Schedule_Generator<T, SchedulerTraits, Allocator>::
     // unschedule_op(const mv::lp_scheduler::Feasible_Memory_Schedule_Generator<T, SchedulerTraits, Allocator>::
     // heap_element_t&) [with T = mv::scheduler::Operation_Dag<>; SchedulerTraits =
@@ -81,7 +81,7 @@ namespace {
                             KmbConvolutionBackpropDataLayerTest::getTestCaseName);
 
     // Test-case fails at stage "Run MCM Compiler" with error:
-    // kmbFuncTests: kmb-plugin/src/mcmCompiler/src/scheduler/feasible_scheduler.hpp:2198:
+    // vpuxFuncTests: kmb-plugin/src/mcmCompiler/src/scheduler/feasible_scheduler.hpp:2198:
     // void mv::lp_scheduler::Feasible_Memory_Schedule_Generator<T, SchedulerTraits, Allocator>::
     // unschedule_op(const mv::lp_scheduler::Feasible_Memory_Schedule_Generator<T, SchedulerTraits, Allocator>::
     // heap_element_t&) [with T = mv::scheduler::Operation_Dag<>; SchedulerTraits =
