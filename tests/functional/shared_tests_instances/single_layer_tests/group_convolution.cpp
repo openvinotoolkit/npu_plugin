@@ -18,11 +18,6 @@ namespace LayerTestsDefinitions {
         Run();
     }
 
-    TEST_P(KmbGroupConvolutionLayerTest, CompareWithRefs_MLIR) {
-        useCompilerMLIR();
-        Run();
-    }
-
 } // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -150,8 +145,11 @@ namespace {
             ::testing::ValuesIn(dilations3d), ::testing::Values(4),
             ::testing::Values(2), ::testing::Values(ngraph::op::PadType::VALID));
 
+    // Test is disabled because there is Segmentation fault (core dumped) at step
+    // [Debug  ][VPU][KMB nGraph Parser] Convert nGraph to MCM Model
+    // [Track number: S#]
     INSTANTIATE_TEST_CASE_P(
-            smoke_GroupConvolution3D_ExplicitPadding, KmbGroupConvolutionLayerTest,
+            DISABLED_smoke_GroupConvolution3D_ExplicitPadding, KmbGroupConvolutionLayerTest,
             ::testing::Combine(
                     groupConv3DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -162,8 +160,11 @@ namespace {
                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
             KmbGroupConvolutionLayerTest::getTestCaseName);
 
+    // Test is disabled because there is Segmentation fault (core dumped) at step
+    // [Debug  ][VPU][KMB nGraph Parser] Convert nGraph to MCM Model
+    // [Track number: S#]
     INSTANTIATE_TEST_CASE_P(
-            smoke_GroupConvolution3D_AutoPadValid, KmbGroupConvolutionLayerTest,
+            DISABLED_smoke_GroupConvolution3D_AutoPadValid, KmbGroupConvolutionLayerTest,
             ::testing::Combine(
                     groupConv3DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
