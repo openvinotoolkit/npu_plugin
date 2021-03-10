@@ -1,6 +1,24 @@
-#include <debug.h>
+//
+// Copyright Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
+//
 
 #include <custom_layer/custom_parser_ngraph.hpp>
+
+#include "vpux/utils/core/error.hpp"
+
+#include <debug.h>
 
 class paramVisitor : public ngraph::AttributeVisitor {
     std::map<std::string, std::string> layerParam;
@@ -186,14 +204,14 @@ std::vector<vpu::CustomLayer::Ptr> getSuitableCustomLayers(const std::vector<vpu
 
 vpu::CustomLayer::Ptr findMatchingCustomLayer(const std::vector<vpu::CustomLayer::Ptr>& customLayers,
                                               const std::vector<mv::Data::TensorIterator>& inputs) {
-    VPU_THROW_UNLESS(customLayers.size(), "Trying to use custom layer parser but custom layers were not found.");
+    VPUX_THROW_UNLESS(!customLayers.empty(), "Trying to use custom layer parser but custom layers were not found.");
 
     const auto findMismatchedClEdge = [&](const vpu::SmallVector<mv::Order>& cnnEdges,
                                           const std::map<int, InferenceEngine::Layout>& clEdges) {
         for (auto clEdge = begin(clEdges); clEdge != end(clEdges); ++clEdge) {
             int port = clEdge->first;
-            VPU_THROW_UNLESS(port < (int)cnnEdges.size(),
-                             "Can't bind custom layer edge with port '%s' to CNNNetwork layer", port);
+            VPUX_THROW_UNLESS(port < (int)cnnEdges.size(),
+                              "Can't bind custom layer edge with port '{0}' to CNNNetwork layer", port);
 
             const auto clFormat = clEdge->second;
             const auto cnnFormat = cnnEdges[port];
@@ -232,9 +250,9 @@ vpu::CustomLayer::Ptr findMatchingCustomLayer(const std::vector<vpu::CustomLayer
     const auto& mcmOrder = mcmInputs.at(port);
     const auto clOrder = layoutToOrder(mismatch->second);
 
-    VPU_THROW_FORMAT("Failed to bind '%l' custom layer. MCM compiler expected input with port '%l' to have '%l' "
-                     "layout, but custom layer has '%l' layout instead.",
-                     layerName, port, mcmOrder.toString(), clOrder.toString());
+    VPUX_THROW("Failed to bind '{0}' custom layer. MCM compiler expected input with port '{1}' to have '{2}' "
+               "layout, but custom layer has '{3}' layout instead.",
+               layerName, port, mcmOrder.toString(), clOrder.toString());
 
     return nullptr;
 }
@@ -263,17 +281,17 @@ std::vector<mv::TensorInfo> CustomLayerParserNGraph::resolveStageOutputs(const C
                                        mv::Order::getZMajorID(4));
         } else {
             const auto& desc = _outputDescs.at(output.portIndex);
-            VPU_THROW_UNLESS(desc.size() <= 4, "Custom layer does not support tensors greater 4D");
+            VPUX_THROW_UNLESS(desc.size() <= 4, "Custom layer does not support tensors greater 4D");
             auto shape = sizeVectorToShape(desc);
             // Propagate shape to 4D, adding 1's on major dimensions
             shape = mv::Shape::augment_major(shape, 4);
 
             const auto layerOutputs = customLayer.outputs();
             const auto outputLayoutIt = layerOutputs.find(output.portIndex);
-            VPU_THROW_UNLESS(outputLayoutIt != layerOutputs.end(),
-                             "Failed to parse custom layer '%s'. "
-                             "Couldn't find output tensor with port-index=%l ",
-                             customLayer.layerName(), output.portIndex);
+            VPUX_THROW_UNLESS(outputLayoutIt != layerOutputs.end(),
+                              "Failed to parse custom layer '{0}'. "
+                              "Couldn't find output tensor with port-index={1} ",
+                              customLayer.layerName(), output.portIndex);
 
             auto order = layoutToOrder(outputLayoutIt->second);
             // 4D tensor can be only in two layouts: NHWC (default) or NCHW.
@@ -310,21 +328,21 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const SmallVector<Custom
         switch (binding.type) {
         case CustomParamType::InputBuffer: {
             const auto bufferIt = _buffers.find(binding.portIndex);
-            VPU_THROW_UNLESS(bufferIt != _buffers.end(),
-                             "Unable to deduce parameter '%s' for '%s' layer. "
-                             "There is no output_buffer with port-index=%d defined.",
-                             binding.argName, _node->description(), binding.portIndex);
+            VPUX_THROW_UNLESS(bufferIt != _buffers.end(),
+                              "Unable to deduce parameter '{0}' for '{1}' layer. "
+                              "There is no output_buffer with port-index={2} defined.",
+                              binding.argName, _node->description(), binding.portIndex);
 
             stage.inputs.push_back(bufferIt->second);
             stage.arguments.push_back(stage.inputs.size() - 1);
             break;
         }
         case CustomParamType::OutputBuffer: {
-            VPU_THROW_UNLESS(_buffers.find(binding.portIndex) == _buffers.end(),
-                             "Unable to deduce parameter '%s' for '%s' layer. "
-                             "Can't add output_buffer with port-index=%d. "
-                             "Buffer with that index already exists.",
-                             binding.argName, _node->description(), binding.portIndex);
+            VPUX_THROW_UNLESS(_buffers.find(binding.portIndex) == _buffers.end(),
+                              "Unable to deduce parameter '{0}' for '{1}' layer. "
+                              "Can't add output_buffer with port-index={2}. "
+                              "Buffer with that index already exists.",
+                              binding.argName, _node->description(), binding.portIndex);
 
             const int bufferSize = parseBufferSize(binding);
             stage.outputs.emplace_back(true, bufferSize, binding.portIndex, binding.argName);
@@ -333,10 +351,10 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const SmallVector<Custom
         }
         case CustomParamType::Data:
         case CustomParamType::Input: {
-            VPU_THROW_UNLESS((uint32_t)binding.portIndex < _layerInputs.size(),
-                             "Unable to deduce parameter '%s' for '%s' layer. "
-                             "Can't find layer input with port-index=%d.",
-                             binding.argName, _node->description(), binding.portIndex);
+            VPUX_THROW_UNLESS((uint32_t)binding.portIndex < _layerInputs.size(),
+                              "Unable to deduce parameter '{0}' for '{1}' layer. "
+                              "Can't find layer input with port-index={2}.",
+                              binding.argName, _node->description(), binding.portIndex);
 
             stage.inputs.push_back(_layerInputs.at(binding.portIndex));
             stage.arguments.push_back(stage.inputs.size() - 1);
@@ -363,12 +381,11 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const SmallVector<Custom
                         return cnnParam->second;
                     }
 
-                    VPU_THROW_UNLESS(cnnParam->second.find(',') != std::string::npos,
-                                     "Error while parsing CNNetwork parameter '%s' for '%s' "
-                                     "layer: "
-                                     "port-index=%d is set, "
-                                     "but parameter is neither a tensor, nor an array type.",
-                                     cnnParam->first, _node->description(), binding.portIndex);
+                    VPUX_THROW_UNLESS(cnnParam->second.find(',') != std::string::npos,
+                                      "Error while parsing CNNetwork parameter '{0}' for '{1}' "
+                                      "layer: port-index={2} is set, "
+                                      "but parameter is neither a tensor, nor an array type.",
+                                      cnnParam->first, _node->description(), binding.portIndex);
 
                     std::string value;
                     std::stringstream parameterStream{cnnParam->second};
@@ -397,10 +414,10 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const SmallVector<Custom
                 }
                 // if not cnnLayer param, check if it is 'I.X' format param
             } else if (binding.irSource[1] == '.' && (binding.irSource[0] == 'I' || binding.irSource[0] == 'O')) {
-                VPU_THROW_UNLESS(binding.irSource.length() == 3,
-                                 "Unable to deduce parameter '%s' for '%s' layer."
-                                 "Wrong source format",
-                                 binding.argName, _node->description());
+                VPUX_THROW_UNLESS(binding.irSource.length() == 3,
+                                  "Unable to deduce parameter '{0}' for '{1}' layer."
+                                  "Wrong source format",
+                                  binding.argName, _node->description());
 
                 const auto origDims = [&] {
                     if (binding.irSource[0] == 'I') {
@@ -423,20 +440,18 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const SmallVector<Custom
                     }
                 }();
 
-                VPU_THROW_UNLESS(dimPosition != std::string::npos,
-                                 "Unable to deduce parameter '%s' for '%s' layer."
-                                 "Failed to parse source dimension from provided string "
-                                 "'%s'",
-                                 binding.argName, _node->description(), binding.irSource);
+                VPUX_THROW_UNLESS(dimPosition != std::string::npos,
+                                  "Unable to deduce parameter '{0}' for '{1}' layer."
+                                  "Failed to parse source dimension from provided string '{2}'",
+                                  binding.argName, _node->description(), binding.irSource);
 
                 auto dimValue = dims.at(dimPosition);
                 stage.arguments.push_back(static_cast<uint32_t>(dimValue));
             } else {
-                VPU_THROW_UNLESS(binding.portIndex < 0,
-                                 "Unable to deduce parameter '%s' for '%s' layer: "
-                                 "port-index=%d is set, "
-                                 "but parameter is neither a tensor, nor an array type.",
-                                 binding.argName, _node->description(), binding.portIndex);
+                VPUX_THROW_UNLESS(binding.portIndex < 0,
+                                  "Unable to deduce parameter '{0}' for '{1}' layer: "
+                                  "port-index={2} is set, but parameter is neither a tensor, nor an array type.",
+                                  binding.argName, _node->description(), binding.portIndex);
 
                 uint32_t number = 0;
                 if (binding.type == CustomParamType::Int) {
