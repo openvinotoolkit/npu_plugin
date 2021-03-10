@@ -15,7 +15,6 @@
 
 #pragma once
 
-#include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/logger.hpp>
 
 #include <ie_common.h>

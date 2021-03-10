@@ -16,7 +16,6 @@
 
 #include "kmb_test_grn_def.hpp"
 
-#include "vpu/utils/ie_helpers.hpp"
 #include <blob_transform.hpp>
 
 namespace {

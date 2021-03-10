@@ -134,13 +134,81 @@ MemoryBlob::Ptr vpux::makeScalarBlob(double val, const Precision& precision, siz
 }
 
 //
-// toPrecision
+// makeBlob
+//
+
+MemoryBlob::Ptr vpux::makeBlob(const TensorDesc& desc, const std::shared_ptr<IAllocator>& allocator, void* ptr) {
+    MemoryBlob::Ptr out;
+
+    if (ptr != nullptr && allocator == nullptr) {
+        out = as<MemoryBlob>(make_blob_with_precision(desc, ptr));
+    } else if (ptr == nullptr && allocator != nullptr) {
+        out = as<MemoryBlob>(make_blob_with_precision(desc, allocator));
+    } else if (ptr == nullptr && allocator == nullptr) {
+        out = as<MemoryBlob>(make_blob_with_precision(desc));
+    } else {
+        VPUX_THROW("Unsupported case (ptr != NULL && allocator != NULL)");
+    }
+    out->allocate();
+
+    return out;
+}
+
+//
+// copyBlob
+//
+
+namespace {
+
+bool isCompact(const MemoryBlob::Ptr& blob) {
+    const auto& desc = blob->getTensorDesc();
+    const auto compactBlkDesc = BlockingDesc(desc.getDims(), desc.getLayout());
+    return desc.getBlockingDesc() == compactBlkDesc;
+}
+
+}  // namespace
+
+void vpux::copyBlob(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
+    VPUX_THROW_UNLESS(in != nullptr && out != nullptr, "Got NULL pointer");
+    VPUX_THROW_UNLESS(in->getTensorDesc() == out->getTensorDesc(), "Mismatch in TensorDesc");
+    VPUX_THROW_UNLESS(isCompact(in) && isCompact(out), "Got non-compact blobs");
+
+    const auto inMem = in->rmap();
+    const auto outMem = out->wmap();
+
+    const auto inPtr = inMem.as<const uint8_t*>();
+    VPUX_THROW_UNLESS(inPtr != nullptr, "Blob was not allocated");
+
+    const auto outPtr = outMem.as<uint8_t*>();
+    VPUX_THROW_UNLESS(outPtr != nullptr, "Blob was not allocated");
+
+    std::copy_n(inPtr, in->byteSize(), outPtr);
+}
+
+MemoryBlob::Ptr vpux::copyBlob(const MemoryBlob::Ptr& in, const std::shared_ptr<IAllocator>& allocator) {
+    VPUX_THROW_UNLESS(in != nullptr && allocator != nullptr, "Got NULL pointer");
+    const auto out = as<MemoryBlob>(make_blob_with_precision(in->getTensorDesc(), allocator));
+    out->allocate();
+    copyBlob(in, out);
+    return out;
+}
+
+MemoryBlob::Ptr vpux::copyBlob(const MemoryBlob::Ptr& in, void* ptr) {
+    VPUX_THROW_UNLESS(in != nullptr && ptr != nullptr, "Got NULL pointer");
+    const auto out = as<MemoryBlob>(make_blob_with_precision(in->getTensorDesc(), ptr));
+    out->allocate();
+    copyBlob(in, out);
+    return out;
+}
+
+//
+// cvtBlobPrecision
 //
 
 namespace {
 
 template <typename InT, typename OutT>
-void cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
+void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
     const auto& inPresision = in->getTensorDesc().getPrecision();
     const auto& outPresision = out->getTensorDesc().getPrecision();
 
@@ -161,73 +229,54 @@ void cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
     });
 }
 
-template <Precision::ePrecision InP, Precision::ePrecision OutP>
-void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
-    using InT = typename PrecisionTrait<InP>::value_type;
-    using OutT = typename PrecisionTrait<OutP>::value_type;
-    cvtBlobPrecision<InT, OutT>(in, out);
-}
-
 }  // namespace
 
-MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& precision,
-                                  const std::shared_ptr<InferenceEngine::IAllocator>& allocator, void* ptr) {
-    VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
+void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
+    VPUX_THROW_UNLESS(in != nullptr && out != nullptr, "Got NULL pointer");
+    VPUX_THROW_UNLESS(isCompact(in) && isCompact(out), "Got non-compact blobs");
 
     const auto& inDesc = in->getTensorDesc();
+    const auto& outDesc = out->getTensorDesc();
+    VPUX_THROW_UNLESS(inDesc.getDims() == outDesc.getDims(), "Mismatch in Dims");
+    VPUX_THROW_UNLESS(inDesc.getLayout() == outDesc.getLayout(), "Mismatch in Layout");
 
-    if (inDesc.getPrecision() == precision) {
-        return in;
+    const auto& inPrecision = inDesc.getPrecision();
+    const auto& outPrecision = outDesc.getPrecision();
+
+    if (inPrecision == outPrecision) {
+        copyBlob(in, out);
+        return;
     }
 
-    const auto outDesc = TensorDesc(precision, inDesc.getDims(), inDesc.getLayout());
-
-    MemoryBlob::Ptr out;
-    if (ptr != nullptr && allocator == nullptr) {
-        out = as<MemoryBlob>(make_blob_with_precision(outDesc, ptr));
-    } else if (ptr == nullptr && allocator != nullptr) {
-        out = as<MemoryBlob>(make_blob_with_precision(outDesc, allocator));
-    } else if (ptr == nullptr && allocator == nullptr) {
-        out = as<MemoryBlob>(make_blob_with_precision(outDesc));
-    } else {
-        VPUX_THROW("Unsupported case (ptr != NULL && allocator != NULL)");
-    }
-    out->allocate();
-
-    const auto& inPrecision = in->getTensorDesc().getPrecision();
-    const auto& outPrecision = out->getTensorDesc().getPrecision();
-
-#define CASE(InP, OutP)                                             \
-    cvtBlobPrecisionImpl<Precision::InP, Precision::OutP>(in, out); \
+#define CASE(InT, OutT)                       \
+    cvtBlobPrecisionImpl<InT, OutT>(in, out); \
     break
 
     switch (inPrecision) {
     case Precision::FP64: {
         switch (outPrecision) {
         case Precision::FP32:
-            CASE(FP64, FP32);
+            CASE(double, float);
         case Precision::U64:
-            CASE(FP64, U64);
+            CASE(double, uint64_t);
         case Precision::I64:
-            CASE(FP64, I64);
+            CASE(double, int64_t);
         case Precision::U32:
-            CASE(FP64, U32);
+            CASE(double, uint32_t);
         case Precision::I32:
-            CASE(FP64, I32);
+            CASE(double, int32_t);
         case Precision::U16:
-            CASE(FP64, U16);
+            CASE(double, uint16_t);
         case Precision::I16:
-            CASE(FP64, I16);
+            CASE(double, int16_t);
         case Precision::U8:
-            CASE(FP64, U8);
+            CASE(double, uint8_t);
         case Precision::I8:
-            CASE(FP64, I8);
+            CASE(double, int8_t);
         case Precision::FP16:
-            cvtBlobPrecision<double, float16>(in, out);
-            break;
+            CASE(double, float16);
         case Precision::BF16:
-            cvtBlobPrecision<double, bfloat16>(in, out);
-            break;
+            CASE(double, bfloat16);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -236,29 +285,27 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     case Precision::FP32: {
         switch (outPrecision) {
         case Precision::FP64:
-            CASE(FP32, FP64);
+            CASE(float, double);
         case Precision::U64:
-            CASE(FP32, U64);
+            CASE(float, uint64_t);
         case Precision::I64:
-            CASE(FP32, I64);
+            CASE(float, int64_t);
         case Precision::U32:
-            CASE(FP32, U32);
+            CASE(float, uint32_t);
         case Precision::I32:
-            CASE(FP32, I32);
+            CASE(float, int32_t);
         case Precision::U16:
-            CASE(FP32, U16);
+            CASE(float, uint16_t);
         case Precision::I16:
-            CASE(FP32, I16);
+            CASE(float, int16_t);
         case Precision::U8:
-            CASE(FP32, U8);
+            CASE(float, uint8_t);
         case Precision::I8:
-            CASE(FP32, I8);
+            CASE(float, int8_t);
         case Precision::FP16:
-            cvtBlobPrecision<float, float16>(in, out);
-            break;
+            CASE(float, float16);
         case Precision::BF16:
-            cvtBlobPrecision<float, bfloat16>(in, out);
-            break;
+            CASE(float, bfloat16);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -267,38 +314,27 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     case Precision::FP16: {
         switch (outPrecision) {
         case Precision::FP64:
-            cvtBlobPrecision<float16, double>(in, out);
-            break;
+            CASE(float16, double);
         case Precision::FP32:
-            cvtBlobPrecision<float16, float>(in, out);
-            break;
+            CASE(float16, float);
         case Precision::BF16:
-            cvtBlobPrecision<float16, bfloat16>(in, out);
-            break;
+            CASE(float16, bfloat16);
         case Precision::U64:
-            cvtBlobPrecision<float16, uint64_t>(in, out);
-            break;
+            CASE(float16, uint64_t);
         case Precision::I64:
-            cvtBlobPrecision<float16, int64_t>(in, out);
-            break;
+            CASE(float16, int64_t);
         case Precision::U32:
-            cvtBlobPrecision<float16, uint32_t>(in, out);
-            break;
+            CASE(float16, uint32_t);
         case Precision::I32:
-            cvtBlobPrecision<float16, int32_t>(in, out);
-            break;
+            CASE(float16, int32_t);
         case Precision::U16:
-            cvtBlobPrecision<float16, uint16_t>(in, out);
-            break;
+            CASE(float16, uint16_t);
         case Precision::I16:
-            cvtBlobPrecision<float16, int16_t>(in, out);
-            break;
+            CASE(float16, int16_t);
         case Precision::U8:
-            cvtBlobPrecision<float16, uint8_t>(in, out);
-            break;
+            CASE(float16, uint8_t);
         case Precision::I8:
-            cvtBlobPrecision<float16, int8_t>(in, out);
-            break;
+            CASE(float16, int8_t);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -307,38 +343,27 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     case Precision::BF16: {
         switch (outPrecision) {
         case Precision::FP64:
-            cvtBlobPrecision<bfloat16, double>(in, out);
-            break;
+            CASE(bfloat16, double);
         case Precision::FP32:
-            cvtBlobPrecision<bfloat16, float>(in, out);
-            break;
+            CASE(bfloat16, float);
         case Precision::FP16:
-            cvtBlobPrecision<bfloat16, float16>(in, out);
-            break;
+            CASE(bfloat16, float16);
         case Precision::U64:
-            cvtBlobPrecision<bfloat16, uint64_t>(in, out);
-            break;
+            CASE(bfloat16, uint64_t);
         case Precision::I64:
-            cvtBlobPrecision<bfloat16, int64_t>(in, out);
-            break;
+            CASE(bfloat16, int64_t);
         case Precision::U32:
-            cvtBlobPrecision<bfloat16, uint32_t>(in, out);
-            break;
+            CASE(bfloat16, uint32_t);
         case Precision::I32:
-            cvtBlobPrecision<bfloat16, int32_t>(in, out);
-            break;
+            CASE(bfloat16, int32_t);
         case Precision::U16:
-            cvtBlobPrecision<bfloat16, uint16_t>(in, out);
-            break;
+            CASE(bfloat16, uint16_t);
         case Precision::I16:
-            cvtBlobPrecision<bfloat16, int16_t>(in, out);
-            break;
+            CASE(bfloat16, int16_t);
         case Precision::U8:
-            cvtBlobPrecision<bfloat16, uint8_t>(in, out);
-            break;
+            CASE(bfloat16, uint8_t);
         case Precision::I8:
-            cvtBlobPrecision<bfloat16, int8_t>(in, out);
-            break;
+            CASE(bfloat16, int8_t);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -347,29 +372,27 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     case Precision::U64: {
         switch (outPrecision) {
         case Precision::FP64:
-            CASE(U64, FP64);
+            CASE(uint64_t, double);
         case Precision::FP32:
-            CASE(U64, FP32);
+            CASE(uint64_t, float);
         case Precision::I64:
-            CASE(U64, I64);
+            CASE(uint64_t, int64_t);
         case Precision::U32:
-            CASE(U64, U32);
+            CASE(uint64_t, uint32_t);
         case Precision::I32:
-            CASE(U64, I32);
+            CASE(uint64_t, int32_t);
         case Precision::U16:
-            CASE(U64, U16);
+            CASE(uint64_t, uint16_t);
         case Precision::I16:
-            CASE(U64, I16);
+            CASE(uint64_t, int16_t);
         case Precision::U8:
-            CASE(U64, U8);
+            CASE(uint64_t, uint8_t);
         case Precision::I8:
-            CASE(U64, I8);
+            CASE(uint64_t, int8_t);
         case Precision::FP16:
-            cvtBlobPrecision<uint64_t, float16>(in, out);
-            break;
+            CASE(uint64_t, float16);
         case Precision::BF16:
-            cvtBlobPrecision<uint64_t, bfloat16>(in, out);
-            break;
+            CASE(uint64_t, bfloat16);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -378,29 +401,27 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     case Precision::I64: {
         switch (outPrecision) {
         case Precision::FP64:
-            CASE(I64, FP64);
+            CASE(int64_t, double);
         case Precision::FP32:
-            CASE(I64, FP32);
+            CASE(int64_t, float);
         case Precision::U64:
-            CASE(I64, U64);
+            CASE(int64_t, uint64_t);
         case Precision::U32:
-            CASE(I64, U32);
+            CASE(int64_t, uint32_t);
         case Precision::I32:
-            CASE(I64, I32);
+            CASE(int64_t, int32_t);
         case Precision::U16:
-            CASE(I64, U16);
+            CASE(int64_t, uint16_t);
         case Precision::I16:
-            CASE(I64, I16);
+            CASE(int64_t, int16_t);
         case Precision::U8:
-            CASE(I64, U8);
+            CASE(int64_t, uint8_t);
         case Precision::I8:
-            CASE(I64, I8);
+            CASE(int64_t, int8_t);
         case Precision::FP16:
-            cvtBlobPrecision<int64_t, float16>(in, out);
-            break;
+            CASE(int64_t, float16);
         case Precision::BF16:
-            cvtBlobPrecision<int64_t, bfloat16>(in, out);
-            break;
+            CASE(int64_t, bfloat16);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -409,29 +430,27 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     case Precision::U32: {
         switch (outPrecision) {
         case Precision::FP64:
-            CASE(U32, FP64);
+            CASE(uint32_t, double);
         case Precision::FP32:
-            CASE(U32, FP32);
+            CASE(uint32_t, float);
         case Precision::U64:
-            CASE(U32, U64);
+            CASE(uint32_t, uint64_t);
         case Precision::I64:
-            CASE(U32, I64);
+            CASE(uint32_t, int64_t);
         case Precision::I32:
-            CASE(U32, I32);
+            CASE(uint32_t, int32_t);
         case Precision::U16:
-            CASE(U32, U16);
+            CASE(uint32_t, uint16_t);
         case Precision::I16:
-            CASE(U32, I16);
+            CASE(uint32_t, int16_t);
         case Precision::U8:
-            CASE(U32, U8);
+            CASE(uint32_t, uint8_t);
         case Precision::I8:
-            CASE(U32, I8);
+            CASE(uint32_t, int8_t);
         case Precision::FP16:
-            cvtBlobPrecision<uint32_t, float16>(in, out);
-            break;
+            CASE(uint32_t, float16);
         case Precision::BF16:
-            cvtBlobPrecision<uint32_t, bfloat16>(in, out);
-            break;
+            CASE(uint32_t, bfloat16);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -440,29 +459,27 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     case Precision::I32: {
         switch (outPrecision) {
         case Precision::FP64:
-            CASE(I32, FP64);
+            CASE(int32_t, double);
         case Precision::FP32:
-            CASE(I32, FP32);
+            CASE(int32_t, float);
         case Precision::U64:
-            CASE(I32, U64);
+            CASE(int32_t, uint64_t);
         case Precision::I64:
-            CASE(I32, I64);
+            CASE(int32_t, int64_t);
         case Precision::U32:
-            CASE(I32, U32);
+            CASE(int32_t, uint32_t);
         case Precision::U16:
-            CASE(I32, U16);
+            CASE(int32_t, uint16_t);
         case Precision::I16:
-            CASE(I32, I16);
+            CASE(int32_t, int16_t);
         case Precision::U8:
-            CASE(I32, U8);
+            CASE(int32_t, uint8_t);
         case Precision::I8:
-            CASE(I32, I8);
+            CASE(int32_t, int8_t);
         case Precision::FP16:
-            cvtBlobPrecision<int32_t, float16>(in, out);
-            break;
+            CASE(int32_t, float16);
         case Precision::BF16:
-            cvtBlobPrecision<int32_t, bfloat16>(in, out);
-            break;
+            CASE(int32_t, bfloat16);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -471,29 +488,27 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     case Precision::U16: {
         switch (outPrecision) {
         case Precision::FP64:
-            CASE(U16, FP64);
+            CASE(uint16_t, double);
         case Precision::FP32:
-            CASE(U16, FP32);
+            CASE(uint16_t, float);
         case Precision::U64:
-            CASE(U16, U64);
+            CASE(uint16_t, uint64_t);
         case Precision::I64:
-            CASE(U16, I64);
+            CASE(uint16_t, int64_t);
         case Precision::U32:
-            CASE(U16, U32);
+            CASE(uint16_t, uint32_t);
         case Precision::I32:
-            CASE(U16, I32);
+            CASE(uint16_t, int32_t);
         case Precision::I16:
-            CASE(U16, I16);
+            CASE(uint16_t, int16_t);
         case Precision::U8:
-            CASE(U16, U8);
+            CASE(uint16_t, uint8_t);
         case Precision::I8:
-            CASE(U16, I8);
+            CASE(uint16_t, int8_t);
         case Precision::FP16:
-            cvtBlobPrecision<uint16_t, float16>(in, out);
-            break;
+            CASE(uint16_t, float16);
         case Precision::BF16:
-            cvtBlobPrecision<uint16_t, bfloat16>(in, out);
-            break;
+            CASE(uint16_t, bfloat16);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -502,29 +517,27 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     case Precision::I16: {
         switch (outPrecision) {
         case Precision::FP64:
-            CASE(I16, FP64);
+            CASE(int16_t, double);
         case Precision::FP32:
-            CASE(I16, FP32);
+            CASE(int16_t, float);
         case Precision::U64:
-            CASE(I16, U64);
+            CASE(int16_t, uint64_t);
         case Precision::I64:
-            CASE(I16, I64);
+            CASE(int16_t, int64_t);
         case Precision::U32:
-            CASE(I16, U32);
+            CASE(int16_t, uint32_t);
         case Precision::I32:
-            CASE(I16, I32);
+            CASE(int16_t, int32_t);
         case Precision::U16:
-            CASE(I16, U16);
+            CASE(int16_t, uint16_t);
         case Precision::U8:
-            CASE(I16, U8);
+            CASE(int16_t, uint8_t);
         case Precision::I8:
-            CASE(I16, I8);
+            CASE(int16_t, int8_t);
         case Precision::FP16:
-            cvtBlobPrecision<int16_t, float16>(in, out);
-            break;
+            CASE(int16_t, float16);
         case Precision::BF16:
-            cvtBlobPrecision<int16_t, bfloat16>(in, out);
-            break;
+            CASE(int16_t, bfloat16);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -533,29 +546,27 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     case Precision::U8: {
         switch (outPrecision) {
         case Precision::FP64:
-            CASE(U8, FP64);
+            CASE(uint8_t, double);
         case Precision::FP32:
-            CASE(U8, FP32);
+            CASE(uint8_t, float);
         case Precision::U64:
-            CASE(U8, U64);
+            CASE(uint8_t, uint64_t);
         case Precision::I64:
-            CASE(U8, I64);
+            CASE(uint8_t, int64_t);
         case Precision::U32:
-            CASE(U8, U32);
+            CASE(uint8_t, uint32_t);
         case Precision::I32:
-            CASE(U8, I32);
+            CASE(uint8_t, int32_t);
         case Precision::U16:
-            CASE(U8, U16);
+            CASE(uint8_t, uint16_t);
         case Precision::I16:
-            CASE(U8, I16);
+            CASE(uint8_t, int16_t);
         case Precision::I8:
-            CASE(U8, I8);
+            CASE(uint8_t, int8_t);
         case Precision::FP16:
-            cvtBlobPrecision<uint8_t, float16>(in, out);
-            break;
+            CASE(uint8_t, float16);
         case Precision::BF16:
-            cvtBlobPrecision<uint8_t, bfloat16>(in, out);
-            break;
+            CASE(uint8_t, bfloat16);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -564,29 +575,27 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     case Precision::I8: {
         switch (outPrecision) {
         case Precision::FP64:
-            CASE(I8, FP64);
+            CASE(int8_t, double);
         case Precision::FP32:
-            CASE(I8, FP32);
+            CASE(int8_t, float);
         case Precision::U64:
-            CASE(I8, U64);
+            CASE(int8_t, uint64_t);
         case Precision::I64:
-            CASE(I8, I64);
+            CASE(int8_t, int64_t);
         case Precision::U32:
-            CASE(I8, U32);
+            CASE(int8_t, uint32_t);
         case Precision::I32:
-            CASE(I8, I32);
+            CASE(int8_t, int32_t);
         case Precision::U16:
-            CASE(I8, U16);
+            CASE(int8_t, uint16_t);
         case Precision::I16:
-            CASE(I8, I16);
+            CASE(int8_t, int16_t);
         case Precision::U8:
-            CASE(I8, U8);
+            CASE(int8_t, uint8_t);
         case Precision::FP16:
-            cvtBlobPrecision<int8_t, float16>(in, out);
-            break;
+            CASE(int8_t, float16);
         case Precision::BF16:
-            cvtBlobPrecision<int8_t, bfloat16>(in, out);
-            break;
+            CASE(int8_t, bfloat16);
         default:
             VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
         }
@@ -597,12 +606,28 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     }
 
 #undef CASE
+}
+
+MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& precision,
+                                  const std::shared_ptr<IAllocator>& allocator, void* ptr) {
+    VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
+
+    const auto& inDesc = in->getTensorDesc();
+
+    if (inDesc.getPrecision() == precision && allocator == nullptr && ptr == nullptr) {
+        return in;
+    }
+
+    const auto outDesc = TensorDesc(precision, inDesc.getDims(), inDesc.getLayout());
+    const auto out = makeBlob(outDesc, allocator, ptr);
+
+    cvtBlobPrecision(in, out);
 
     return out;
 }
 
-MemoryBlob::Ptr vpux::toDefPrecision(const MemoryBlob::Ptr& in,
-                                     const std::shared_ptr<InferenceEngine::IAllocator>& allocator, void* ptr) {
+MemoryBlob::Ptr vpux::toDefPrecision(const MemoryBlob::Ptr& in, const std::shared_ptr<IAllocator>& allocator,
+                                     void* ptr) {
     VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
 
     const auto inPrec = in->getTensorDesc().getPrecision();
@@ -610,71 +635,60 @@ MemoryBlob::Ptr vpux::toDefPrecision(const MemoryBlob::Ptr& in,
     if (inPrec == Precision::U8 || inPrec == Precision::FP16) {
         return toPrecision(in, Precision::FP32, allocator, ptr);
     } else {
-        return in;
+        if (allocator == nullptr && ptr == nullptr) {
+            return in;
+        } else {
+            return allocator != nullptr ? copyBlob(in, allocator) : copyBlob(in, ptr);
+        }
     }
 }
 
 //
-// toLayout
+// cvtBlobLayout
 //
 
-MemoryBlob::Ptr vpux::toLayout(const MemoryBlob::Ptr& in, Layout layout,
-                               const std::shared_ptr<InferenceEngine::IAllocator>& allocator, void* ptr) {
+void vpux::cvtBlobLayout(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
+    VPUX_THROW_UNLESS(in != nullptr && out != nullptr, "Got NULL pointer");
+
+    const auto& inDesc = in->getTensorDesc();
+    const auto& outDesc = out->getTensorDesc();
+    VPUX_THROW_UNLESS(inDesc.getDims() == outDesc.getDims(), "Mismatch in Dims");
+    VPUX_THROW_UNLESS(inDesc.getPrecision() == outDesc.getPrecision(), "Mismatch in Precision");
+
+    const auto& inLayout = inDesc.getLayout();
+    const auto& outLayout = outDesc.getLayout();
+
+    if (inLayout == outLayout) {
+        copyBlob(in, out);
+        return;
+    }
+
+    blob_copy(in, out);
+}
+
+MemoryBlob::Ptr vpux::toLayout(const MemoryBlob::Ptr& in, Layout layout, const std::shared_ptr<IAllocator>& allocator,
+                               void* ptr) {
     VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
 
     const auto& inDesc = in->getTensorDesc();
 
-    if (inDesc.getLayout() == layout) {
+    if (inDesc.getLayout() == layout && allocator == nullptr && ptr == nullptr) {
         return in;
     }
 
     const auto outDesc = TensorDesc(inDesc.getPrecision(), inDesc.getDims(), layout);
+    const auto out = makeBlob(outDesc, allocator, ptr);
 
-    MemoryBlob::Ptr out;
-    if (ptr != nullptr && allocator == nullptr) {
-        out = as<MemoryBlob>(make_blob_with_precision(outDesc, ptr));
-    } else if (ptr == nullptr && allocator != nullptr) {
-        out = as<MemoryBlob>(make_blob_with_precision(outDesc, allocator));
-    } else if (ptr == nullptr && allocator == nullptr) {
-        out = as<MemoryBlob>(make_blob_with_precision(outDesc));
-    } else {
-        VPUX_THROW("Unsupported case (ptr != NULL && allocator != NULL)");
-    }
-    out->allocate();
-
-    blob_copy(in, out);
+    cvtBlobLayout(in, out);
 
     return out;
 }
 
-MemoryBlob::Ptr vpux::toDefLayout(const MemoryBlob::Ptr& in,
-                                  const std::shared_ptr<InferenceEngine::IAllocator>& allocator, void* ptr) {
+MemoryBlob::Ptr vpux::toDefLayout(const MemoryBlob::Ptr& in, const std::shared_ptr<IAllocator>& allocator, void* ptr) {
     VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
     const auto& inDesc = in->getTensorDesc();
     const auto defLayout = TensorDesc::getLayoutByDims(inDesc.getDims());
     return toLayout(in, defLayout, allocator, ptr);
-}
-
-//
-// reallocateBlob
-//
-
-MemoryBlob::Ptr vpux::reallocateBlob(const MemoryBlob::Ptr& in, const std::shared_ptr<IAllocator>& allocator) {
-    const auto out = as<MemoryBlob>(make_blob_with_precision(in->getTensorDesc(), allocator));
-    out->allocate();
-
-    const auto inMem = in->rmap();
-    const auto outMem = out->wmap();
-
-    const auto inPtr = inMem.as<const uint8_t*>();
-    VPUX_THROW_UNLESS(inPtr != nullptr, "Blob was not allocated");
-
-    const auto outPtr = outMem.as<uint8_t*>();
-    VPUX_THROW_UNLESS(outPtr != nullptr, "Blob was not allocated");
-
-    std::copy_n(inPtr, in->byteSize(), outPtr);
-
-    return out;
 }
 
 //

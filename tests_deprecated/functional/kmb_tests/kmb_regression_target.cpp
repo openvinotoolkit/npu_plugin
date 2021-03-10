@@ -25,7 +25,6 @@
 #include <mutex>
 #include <regression_tests.hpp>
 #include <vpux/vpux_plugin_config.hpp>
-#include <vpu/utils/ie_helpers.hpp>
 #include <vpu_layers_tests.hpp>
 
 #include "kmb_layers_tests.hpp"
@@ -514,7 +513,16 @@ TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
     Blob::Ptr blobFromFile;
     ASSERT_NO_THROW(
         blobFromFile = vpu::KmbPlugin::utils::fromBinaryFile(inputNameFilePath, inputBlob1->getTensorDesc()));
-    vpu::copyBlob(blobFromFile, inputBlob1);
+
+    {
+        const auto inMem = blobFromFile->cbuffer();
+        const auto outMem = inputBlob1->buffer();
+
+        const auto inPtr = inMem.as<const uint8_t*>();
+        const auto outPtr = outMem.as<uint8_t*>();
+
+        std::copy_n(inPtr, blobFromFile->byteSize(), outPtr);
+    }
 
     ASSERT_NO_THROW(inferRequest1.Infer());
     Blob::Ptr outputBlob1;
