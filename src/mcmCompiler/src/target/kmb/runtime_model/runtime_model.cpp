@@ -1703,7 +1703,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildHWDMATaskT(Com
     //tmp->port = port;
     toPush->task.value = tmp.release();
     toReturn.push_back(std::move(toPush));
-   
+
     return toReturn;
 }
 
@@ -4165,7 +4165,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
                     if(tIt->isSparse())
                     {
                         auto sparsityMapIterator = dm.getTensor(tIt->getSparsityMap()->getName());
-                        toSort.push_back(&(*sparsityMapIterator));
+                        csramCacheable.insert(&(*sparsityMapIterator));
                         if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                         {
                             for(size_t i = 0; i < numClusters; ++i)
