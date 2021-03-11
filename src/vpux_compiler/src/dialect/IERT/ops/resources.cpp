@@ -37,6 +37,26 @@ void vpux::IERT::RunTimeResourcesOp::build(mlir::OpBuilder& builder, ::mlir::Ope
     ensureTerminator(*state.addRegion(), builder, state.location);
 }
 
+static IERT::ExecutorResourceOp getAvailableExecutor(::mlir::Region& executor, const mlir::Attribute& kind) {
+    for (auto res : executor.getOps<IERT::ExecutorResourceOp>()) {
+        if (res.kindAttr() == kind) {
+            return res;
+        }
+    }
+
+    return nullptr;
+}
+
+static IERT::ExecutorResourceOp addAvailableExecutor(mlir::MLIRContext* ctx, mlir::Location loc, mlir::Region& executor,
+                                                     mlir::Attribute kind, uint32_t count) {
+    auto countAttr = getInt32Attr(ctx, count);
+
+    auto builder = mlir::OpBuilder::atBlockTerminator(&executor.front());
+    auto execResource = builder.create<IERT::ExecutorResourceOp>(loc, kind, countAttr);
+    vpux::IERT::ExecutorResourceOp::ensureTerminator(execResource.getRegion(), builder, loc);
+    return execResource;
+}
+
 mlir::LogicalResult vpux::IERT::verifyOp(IERT::RunTimeResourcesOp op) {
     for (auto& resOp : op.availableMemory().getOps()) {
         if (!mlir::isa<IERT::MemoryResourceOp>(&resOp) && !mlir::isa<IERT::EndOp>(&resOp)) {
@@ -138,21 +158,11 @@ IERT::ExecutorResourceOp vpux::IERT::RunTimeResourcesOp::addAvailableExecutor(ml
     for (auto res : availableExecutors().getOps<IERT::ExecutorResourceOp>()) {
         VPUX_THROW_UNLESS(kind != res.kindAttr(), "Available executor kind '{0}' was already added", kind);
     }
-
-    auto countAttr = getInt32Attr(getContext(), count);
-
-    auto builder = mlir::OpBuilder::atBlockTerminator(&availableExecutors().front());
-    return builder.create<IERT::ExecutorResourceOp>(getLoc(), kind, countAttr);
+    return ::addAvailableExecutor(getContext(), getLoc(), availableExecutors(), kind, count);
 }
 
 IERT::ExecutorResourceOp vpux::IERT::RunTimeResourcesOp::getAvailableExecutor(mlir::Attribute kind) {
-    for (auto res : availableExecutors().getOps<IERT::ExecutorResourceOp>()) {
-        if (res.kindAttr() == kind) {
-            return res;
-        }
-    }
-
-    return nullptr;
+    return ::getAvailableExecutor(availableExecutors(), kind);
 }
 
 IERT::ExecutorResourceOp vpux::IERT::RunTimeResourcesOp::setUsedExecutor(mlir::Attribute kind, uint32_t count) {
@@ -171,7 +181,9 @@ IERT::ExecutorResourceOp vpux::IERT::RunTimeResourcesOp::setUsedExecutor(mlir::A
     }
 
     auto builder = mlir::OpBuilder::atBlockTerminator(&usedExecutors().front());
-    return builder.create<IERT::ExecutorResourceOp>(getLoc(), kind, countAttr);
+    auto execResource = builder.create<IERT::ExecutorResourceOp>(getLoc(), kind, countAttr);
+    ensureTerminator(execResource.getRegion(), builder, getLoc());
+    return execResource;
 }
 
 IERT::ExecutorResourceOp vpux::IERT::RunTimeResourcesOp::getUsedExecutor(mlir::Attribute kind) {
@@ -182,4 +194,17 @@ IERT::ExecutorResourceOp vpux::IERT::RunTimeResourcesOp::getUsedExecutor(mlir::A
     }
 
     return nullptr;
+}
+
+IERT::ExecutorResourceOp vpux::IERT::ExecutorResourceOp::addAvailableExecutor(mlir::Attribute kind, uint32_t count) {
+    VPUX_THROW_UNLESS(count > 0, "Trying to set zero count of executor kind '{0}'", kind);
+
+    for (auto res : subExecutors().getOps<IERT::ExecutorResourceOp>()) {
+        VPUX_THROW_UNLESS(kind != res.kindAttr(), "Available executor kind '{0}' was already added", kind);
+    }
+    return ::addAvailableExecutor(getContext(), getLoc(), subExecutors(), kind, count);
+}
+
+IERT::ExecutorResourceOp vpux::IERT::ExecutorResourceOp::getAvailableExecutor(mlir::Attribute kind) {
+    return ::getAvailableExecutor(subExecutors(), kind);
 }
