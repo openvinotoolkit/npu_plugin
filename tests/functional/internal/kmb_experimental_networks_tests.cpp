@@ -189,6 +189,29 @@ TEST_P(ModelAdk, precommit_ModelA_ADK3) {
             0.0035f);
 }
 
+// [Track number: S#47647]
+TEST_F(KmbSuperResNetworkTest, precommit_SuperResolution_ADK3) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    const std::string imgName  = "netInput";
+    const std::string paramName1 = "t_param";
+    const std::string paramName2 = "t_param1";
+    runTest(
+            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8.xml", EXPERIMENTAL)
+                .setUserInputPrecision(imgName, Precision::U8)
+                .setUserInputLayout(imgName, Layout::NCHW)
+                .setUserInputPrecision(paramName1, Precision::U8)
+                .setUserInputLayout(paramName1, Layout::C)
+                .setUserInputPrecision(paramName2, Precision::U8)
+                .setUserInputLayout(paramName2, Layout::C)
+                .setUserOutputPrecision("scale1x", Precision::FP16)
+                .setUserOutputPrecision("scale2x", Precision::FP16)
+                .setUserOutputPrecision("scale4x", Precision::FP16),
+            imgName,
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
+            paramName1, {255},
+            paramName2, {255});
+}
+
 TEST_F(ModelAdk, ModelE_ADK3) {
     runTest(
             TestNetworkDesc("ADK3/ModelE_INT8/ModelE_INT8.xml", EXPERIMENTAL)
@@ -222,14 +245,6 @@ const static std::vector<InferenceEngine::Precision> inputPrecision = {
                 InferenceEngine::Precision::FP32};
 
 INSTANTIATE_TEST_CASE_P(PrecisionCase, ModelAdk, ::testing::ValuesIn(inputPrecision));
-
-// [Track number: S#47647]
-TEST_F(SmokeNetworkTest, DISABLED_SuperResolution_ADK3) {
-    runTest(
-            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8.xml", EXPERIMENTAL)
-                    .setUserInputPrecision("input", Precision::FP16)
-                    .setUserOutputPrecision("output", Precision::FP16));
-}
 
 TEST_F(UnetNetworkTest, UnetCamvidAva0001_ADK3) {
     runTest(

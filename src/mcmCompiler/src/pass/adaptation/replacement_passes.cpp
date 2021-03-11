@@ -12,8 +12,8 @@
 const size_t FULLY_CONNECTED_KERNEL = 1;
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, const mv::TargetDescriptor& td);
+static void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&);
 void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -36,6 +36,7 @@ static void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::Computat
 static void markCMCompatibleConvsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void replaceLargeGlobalPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -50,9 +51,9 @@ namespace mv
         );
 
         MV_REGISTER_PASS(EltwiseToSWEltwise)
-        .setFunc(handleEltWiseDifferentScales)
+        .setFunc(eltwiseToSWEltwiseFcn)
         .setDescription(
-            "Replaces Eltwise with SW Layer Eltwise in case scales of inputs are different"
+            "Replaces Eltwise with SW Layer Eltwise"
         );
 
         MV_REGISTER_PASS(MarkEltWiseUpaInputs)
@@ -99,6 +100,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     insertPermuteBeforeDetFcn(pass, model);
     replacePermuteAsReshape(pass, model);
     resampleAsDepthDeConvFcn(pass, model);
+    replaceBroadcastEltwiseMultWithConv(pass, model);
 }
 
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
@@ -241,7 +243,85 @@ void replacePermuteAsReshape(const mv::pass::PassEntry&, mv::ComputationModel& m
     }
 }
 
-void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
+// If Eltwise Multiply needs broadcast & has one populated input, convert Eltwise to a 1x1 Conv
+void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+
+    OpModel om(model);
+
+    auto eltwiseOps = om.getOps("Eltwise");
+
+    for (auto& opIt : eltwiseOps)
+    {
+        // Check for Eltwise Multiply
+        if (!(opIt->hasAttr("eltwiseType") && opIt->get<std::string>("eltwiseType") == "Multiply"))
+            continue;
+
+        auto inputs = opIt->getInputTensor();
+        auto input0 = opIt->getInputTensor(0);
+        auto input1 = opIt->getInputTensor(1);
+        auto input0_shape = mv::Shape::augment(input0->getShape(), 4);
+        auto input1_shape = mv::Shape::augment(input1->getShape(), 4);
+
+        // Check for different input shapes
+        // TODO: needs-broadcasting check
+        if (input0_shape == input1_shape)
+            continue;
+
+        // Check for one Populated input
+        std::vector<mv::Data::TensorIterator> populatedInputs = {};
+        const auto isPopulated = [](const mv::Data::TensorIterator& in) -> bool { return in->isPopulated(); };
+        std::copy_if(inputs.begin(), inputs.end(), std::back_inserter(populatedInputs), isPopulated);
+        if (populatedInputs.size() != 1)
+            continue;
+
+        // Replace Eltwise with Conv
+        auto populated_idx = input0->isPopulated() ? 0 : 1;
+        auto unpopulated_idx = populated_idx ? 0 : 1;
+        auto populated_input = opIt->getInputTensor(populated_idx);
+        auto unpopulated_input = opIt->getInputTensor(unpopulated_idx);
+        auto populated_shape = mv::Shape::augment(populated_input->getShape(), 4);
+        auto unpopulated_shape = mv::Shape::augment(unpopulated_input->getShape(), 4);
+
+        auto parentOpIt = om.getSourceOp(unpopulated_input);
+        auto outputMemoryLocation = unpopulated_input->get<mv::Tensor::MemoryLocation>("Location");
+
+        auto weightsData = populated_input->getData();
+        mv::QuantizationParams weights_quantParams = {{},{},{},{}};
+        mv::QuantizationParams output_quantParams = {{},{},{},{}};
+
+        if (populated_input->isQuantized())
+        {
+            weights_quantParams = populated_input->get<mv::QuantizationParams>("quantParams");
+            output_quantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        }
+        auto weights = om.constantDataElement(opIt->getName() + "_weights", weightsData,
+                                              {1, 1, unpopulated_shape[mv::IO_CHANNEL_DIMENSION], populated_shape[mv::IO_CHANNEL_DIMENSION]},
+                                              populated_input->getDType(), mv::Order::getZMajorID(4));
+        weights->setQuantParams(weights_quantParams);
+
+        auto conv2D = om.conv(opIt->getName() + "_2DConv", unpopulated_input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1);
+        conv2D->setQuantParams(output_quantParams);
+
+        auto convOp = om.getSourceOp(conv2D);
+        auto weightsOp = om.getSourceOp(weights);
+
+        if(opIt->hasAttr("opId"))
+        {
+            unsigned currentOpId = opIt->get<unsigned>("opId");
+            weightsOp->set<unsigned>("opId", currentOpId);
+            convOp->set<unsigned>("opId", currentOpId);
+        }
+
+        linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
+        conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
+}
+
+void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -383,9 +463,15 @@ void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::Co
     }
 }
 
-//NOTE: This pass will handle cases that we have Convs -> Eltwise for testing ResNet first of all....
-//General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
-void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
+//NOTE: Three kinds of Eltwise should be replaced with SWEltwise:
+// case 1 - Convs -> Eltwise for testing ResNet first of all....
+//          General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
+// case 2 - Eltwise with different input tensor shapes, assume broadcasting Eltwise.
+//          to handle the case in Super-Resolution model.
+// case 3 - If the output is to feed implicitOutput or Output,
+//          need to be replaced with SWEltwise to avoid being converted to DPUTask.
+//          alse for Super-Resolution model enabling.
+void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -404,6 +490,7 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationMod
         mv::QuantizationParams firstEltwiseInputTensorQuantizationParams = firstEltwiseInputTensor->getQuantParams();
         mv::QuantizationParams secondEltwiseInputTensorQuantizationParams = secondEltwiseInputTensor->getQuantParams();
 
+        // case 1
         auto scale1 = firstEltwiseInputTensorQuantizationParams.getScale();
         auto scale2 = secondEltwiseInputTensorQuantizationParams.getScale();
 
@@ -431,6 +518,33 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationMod
         {
             if (*it > 0.01)
                 opIt->set<bool>("softwareExecuted", true);
+        }
+
+        // case 2
+        auto inputs = opIt->getInputTensor();
+        auto input0Shape = inputs[0]->getShape();
+        auto inputSize = inputs.size();
+        for(std::size_t i = 1; i < inputSize; ++i)
+        {
+            auto inputIShape = inputs[i]->getShape();
+            if ((input0Shape != inputIShape))
+            {
+                if(inputIShape.totalSize() != 1 )
+                {
+                    inputs[i]->setOrder(inputs[0]->getOrder());
+                    opIt->set<bool>("softwareExecuted", true);
+                }
+            }
+        }
+
+        // case 3
+        for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
+            if (sinkFlow.sink()->getOpType() == "ImplicitOutput" || sinkFlow.sink()->getOpType() == "Output")
+            {
+                opIt->set<bool>("placeConversionToFloat", false);
+                opIt->set<bool>("softwareExecuted", true);
+            }
         }
     }
 }

@@ -32,7 +32,7 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
     auto sortedOps = om.topologicalSort();
     for(auto opIt : sortedOps)
     {
-        if (!opIt->isImplicit())
+        if (!opIt->isImplicit() || opIt->getOpType() == "ImplicitInput" || opIt->getOpType() == "ImplicitInputSlice")
             continue;
 
         if (opIt->getOpType() == "ImplicitConcat" || opIt->getOpType() == "Concat")
@@ -409,6 +409,10 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
                 }
             }
         }
+        else if (opType == "ImplicitInput")
+        {
+            auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
+        }
     }
 }
-
