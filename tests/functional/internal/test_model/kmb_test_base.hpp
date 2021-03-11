@@ -764,3 +764,16 @@ public:
             const TestImageDesc& image,
             const float threshold);
 };
+
+
+class KmbSuperResNetworkTest : public ModelAdk {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const std::string& imgName,
+            const TestImageDesc& image,
+            const std::string& paramName1,
+            const std::vector<unsigned>& paramValues1,
+            const std::string& paramName2,
+            const std::vector<unsigned>& paramValues2);
+};

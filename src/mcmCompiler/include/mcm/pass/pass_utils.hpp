@@ -37,6 +37,7 @@ namespace mv
     bool isVectorsEqual(const std::vector<double>& left, const std::vector<double>& right);
     bool isEqualScale(const mv::QuantizationParams& left, const mv::QuantizationParams& right);
     bool isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right);
+    bool checkPPEAccuracy(mv::ComputationModel& model);
 
 }
 

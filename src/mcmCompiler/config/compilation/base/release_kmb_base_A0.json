@@ -33,6 +33,7 @@
             "StrategyLayersToTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
+            "DeQuantizeU8ConstToFP16Const",
             "FuseConcats"
         ]
     },
