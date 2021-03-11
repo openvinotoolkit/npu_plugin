@@ -7,10 +7,10 @@
 #include "custom_layer/ShaveElfMetadataParser.hpp"
 
 #include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/helper_macros.hpp"
 
 #include <xml_parse_utils.h>
 #include <caseless.hpp>
-#include <vpu/utils/extra.hpp>
 
 namespace vpu {
 
@@ -19,7 +19,7 @@ struct Argument final {
     uint32_t typeSize;
 };
 
-VPU_PACKED(Elf32Shdr {
+VPUX_PACKED(Elf32Shdr {
     uint32_t shName;
     uint32_t pad0[3];
     uint32_t shOffset;
@@ -27,7 +27,7 @@ VPU_PACKED(Elf32Shdr {
     uint32_t pad1[4];
 };)
 
-VPU_PACKED(Elf32Ehdr {
+VPUX_PACKED(Elf32Ehdr {
     uint32_t pad0[7];
     uint32_t ePhoff;
     uint32_t eShoff;
