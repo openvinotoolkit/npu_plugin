@@ -72,8 +72,8 @@ public:
 
 namespace vpu {
 
-static SmallVector<int> calcSizesFromParams(const std::vector<size_t>& dims,
-                                            const SmallVector<std::string>& bufferSizeRules,
+static std::vector<int> calcSizesFromParams(const std::vector<size_t>& dims,
+                                            const std::vector<std::string>& bufferSizeRules,
                                             std::map<std::string, std::string> layerParams) {
     const auto B = std::to_string(dims[0]);
     const auto F = std::to_string(dims[1]);
@@ -94,7 +94,7 @@ static SmallVector<int> calcSizesFromParams(const std::vector<size_t>& dims,
         return expr.evaluate();
     };
 
-    auto parsedSizes = SmallVector<int>{};
+    auto parsedSizes = std::vector<int>{};
     parsedSizes.reserve(bufferSizeRules.size());
     std::transform(begin(bufferSizeRules), end(bufferSizeRules), std::back_inserter(parsedSizes), parseSizeRule);
 
@@ -105,9 +105,8 @@ class CustomKernelParserNGraph : public CustomKernelVisitor {
 public:
     CustomKernelParserNGraph(std::vector<uint32_t>& kernelParams,
                              const std::map<std::string, std::string>& cnnLayerParams,
-                             const SmallVector<ngraph::Shape>& inputDescs,
-                             const SmallVector<ngraph::Shape>& outputDescs,
-                             const vpu::SmallVector<uint32_t>& kernelArgs)
+                             const std::vector<ngraph::Shape>& inputDescs,
+                             const std::vector<ngraph::Shape>& outputDescs, const std::vector<uint32_t>& kernelArgs)
             : _kernelParams(kernelParams),
               _cnnLayerParams(cnnLayerParams),
               _inputDescs(inputDescs),
@@ -150,9 +149,9 @@ public:
 private:
     std::vector<uint32_t>& _kernelParams;
     const std::map<std::string, std::string>& _cnnLayerParams;
-    const SmallVector<ngraph::Shape>& _inputDescs;
-    const SmallVector<ngraph::Shape>& _outputDescs;
-    const vpu::SmallVector<uint32_t>& _kernelArgs;
+    const std::vector<ngraph::Shape>& _inputDescs;
+    const std::vector<ngraph::Shape>& _outputDescs;
+    const std::vector<uint32_t>& _kernelArgs;
 };
 
 CustomLayerParserNGraph::CustomLayerParserNGraph(std::shared_ptr<ngraph::Node>& node,
@@ -195,7 +194,7 @@ std::vector<vpu::CustomLayer::Ptr> getSuitableCustomLayers(const std::vector<vpu
         return true;
     };
 
-    auto suitableCustomLayers = vpu::SmallVector<vpu::CustomLayer::Ptr>{};
+    auto suitableCustomLayers = std::vector<vpu::CustomLayer::Ptr>{};
 
     std::copy_if(begin(customLayers), end(customLayers), back_inserter(suitableCustomLayers), isSuitableLayer);
 
@@ -206,7 +205,7 @@ vpu::CustomLayer::Ptr findMatchingCustomLayer(const std::vector<vpu::CustomLayer
                                               const std::vector<mv::Data::TensorIterator>& inputs) {
     VPUX_THROW_UNLESS(!customLayers.empty(), "Trying to use custom layer parser but custom layers were not found.");
 
-    const auto findMismatchedClEdge = [&](const vpu::SmallVector<mv::Order>& cnnEdges,
+    const auto findMismatchedClEdge = [&](const std::vector<mv::Order>& cnnEdges,
                                           const std::map<int, InferenceEngine::Layout>& clEdges) {
         for (auto clEdge = begin(clEdges); clEdge != end(clEdges); ++clEdge) {
             int port = clEdge->first;
@@ -223,7 +222,7 @@ vpu::CustomLayer::Ptr findMatchingCustomLayer(const std::vector<vpu::CustomLayer
     };
 
     const auto mcmInputs = [&] {
-        auto mcmInputs = vpu::SmallVector<mv::Order>{};
+        auto mcmInputs = std::vector<mv::Order>{};
         mcmInputs.reserve(inputs.size());
         for (const auto& input : inputs) {
             const auto layout = input->getOrder();
@@ -258,7 +257,7 @@ vpu::CustomLayer::Ptr findMatchingCustomLayer(const std::vector<vpu::CustomLayer
 }
 
 std::vector<uint8_t> CustomLayerParserNGraph::resolveKernelArguments(const CustomKernel& kernel,
-                                                                     const vpu::SmallVector<uint32_t>& kernelArgs) {
+                                                                     const std::vector<uint32_t>& kernelArgs) {
     auto kernelParams = std::vector<uint32_t>{};
 
     CustomKernelParserNGraph kernelParser{kernelParams, _layerParam, _inputDescs, _outputDescs, kernelArgs};
@@ -308,7 +307,7 @@ std::vector<mv::TensorInfo> CustomLayerParserNGraph::resolveStageOutputs(const C
     return kernelOutputs;
 }
 
-StageInfo CustomLayerParserNGraph::parseKernelArguments(const SmallVector<CustomKernel::BindingParameter>& bindings) {
+StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<CustomKernel::BindingParameter>& bindings) {
     const auto floatAsInt = [](const float f) {
         uint32_t i;
         memcpy(&i, &f, sizeof(i));

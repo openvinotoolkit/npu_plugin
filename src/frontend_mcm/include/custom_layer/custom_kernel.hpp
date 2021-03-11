@@ -8,7 +8,6 @@
 
 #include <pugixml.hpp>
 #include <vpu/utils/enums.hpp>
-#include <vpu/utils/small_vector.hpp>
 
 namespace vpu {
 
@@ -52,7 +51,7 @@ public:
 
 protected:
     std::vector<uint8_t> _kernelBinary;
-    SmallVector<BindingParameter> _kernelBindings;
+    std::vector<BindingParameter> _kernelBindings;
 
     CustomDimSource _wgDimSource = CustomDimSource::Input;
     int _wgDimIdx = -1;
@@ -64,7 +63,7 @@ public:
     const std::vector<uint8_t>& kernelBinary() const {
         return _kernelBinary;
     }
-    const SmallVector<BindingParameter>& bindings() const {
+    const std::vector<BindingParameter>& bindings() const {
         return _kernelBindings;
     }
 
@@ -86,10 +85,10 @@ public:
 
 protected:
     std::vector<uint8_t> loadKernelBinary(const pugi::xml_node& node, const std::string& configDir);
-    SmallVector<CustomKernel::BindingParameter> processParametersNode(const pugi::xml_node& node);
+    std::vector<CustomKernel::BindingParameter> processParametersNode(const pugi::xml_node& node);
     std::pair<CustomDimSource, int> parseDimSource(const std::string& dims);
     CustomDataFormat formatFromString(const std::string& str);
-    SmallVector<std::string> parseSizeRule(const std::string& size);
+    std::vector<std::string> parseSizeRule(const std::string& size);
 };
 
 class CustomKernelCpp final : public CustomKernel {
@@ -104,8 +103,8 @@ protected:
 
 class CustomKernelOcl final : public CustomKernel {
 private:
-    SmallVector<std::string> _globalGridSizeRules;
-    SmallVector<std::string> _localGridSizeRules;
+    std::vector<std::string> _globalGridSizeRules;
+    std::vector<std::string> _localGridSizeRules;
     int _kernelId = 0;
 
 public:
@@ -113,10 +112,10 @@ public:
 
     void accept(CustomKernelVisitor& validator) const override;
 
-    const SmallVector<std::string>& globalGridSizeRules() const {
+    const std::vector<std::string>& globalGridSizeRules() const {
         return _globalGridSizeRules;
     }
-    const SmallVector<std::string>& localGridSizeRules() const {
+    const std::vector<std::string>& localGridSizeRules() const {
         return _localGridSizeRules;
     }
     int kernelId() const {

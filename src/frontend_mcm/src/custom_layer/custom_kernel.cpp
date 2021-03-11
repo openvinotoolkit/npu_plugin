@@ -66,8 +66,8 @@ CustomDataFormat CustomKernel::formatFromString(const std::string& str) {
     THROW_IE_EXCEPTION << "Tensor node has an invalid format '" << str << "'";
 }
 
-SmallVector<std::string> CustomKernel::parseSizeRule(const std::string& size) {
-    auto result = SmallVector<std::string>();
+std::vector<std::string> CustomKernel::parseSizeRule(const std::string& size) {
+    auto result = std::vector<std::string>();
     result.reserve(std::count(begin(size), end(size), ',') + 1);
     std::stringstream sizeRules{size};
     std::string bufferSize;
@@ -79,10 +79,10 @@ SmallVector<std::string> CustomKernel::parseSizeRule(const std::string& size) {
     return result;
 }
 
-SmallVector<CustomKernel::BindingParameter> CustomKernel::processParametersNode(const pugi::xml_node& node) {
+std::vector<CustomKernel::BindingParameter> CustomKernel::processParametersNode(const pugi::xml_node& node) {
     const auto cmp = ie::details::CaselessEq<std::string>{};
     const auto parameters = node.child("Parameters");
-    auto bindings = SmallVector<BindingParameter>{};
+    auto bindings = std::vector<BindingParameter>{};
 
     for (auto tensor = parameters.child("Tensor"); !tensor.empty(); tensor = tensor.next_sibling("Tensor")) {
         BindingParameter kp;

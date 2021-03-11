@@ -74,13 +74,13 @@ static const Elf32Shdr* get_elf_section_with_name(const uint8_t* elf_data, const
     return nullptr;
 }
 
-SmallVector<Argument> deduceKernelArguments(const md_parser_t& parser, int kernelId) {
+std::vector<Argument> deduceKernelArguments(const md_parser_t& parser, int kernelId) {
     const auto kernelDesc = parser.get_kernel(kernelId);
     IE_ASSERT(kernelDesc != nullptr);
     // Number of elements we get from parser is always greater by one
     const auto argCount = kernelDesc->arg_count - 1;
 
-    auto arguments = SmallVector<Argument>{};
+    auto arguments = std::vector<Argument>{};
     arguments.reserve(argCount);
     for (size_t i = 0; i < argCount; i++) {
         const auto arg = parser.get_argument(kernelDesc, i);

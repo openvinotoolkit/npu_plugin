@@ -28,7 +28,7 @@ namespace vpu {
 
 namespace {
 
-void assertExactlyOneOccurrence(const pugi::xml_node& node, const SmallVector<std::string>& childs) {
+void assertExactlyOneOccurrence(const pugi::xml_node& node, const std::vector<std::string>& childs) {
     for (const auto& name : childs) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty(), "Required parameter %s is not found", name);
@@ -37,14 +37,14 @@ void assertExactlyOneOccurrence(const pugi::xml_node& node, const SmallVector<st
     }
 }
 
-void assertOneOrMoreOccurrence(const pugi::xml_node& node, const SmallVector<std::string>& childs) {
+void assertOneOrMoreOccurrence(const pugi::xml_node& node, const std::vector<std::string>& childs) {
     for (const auto& name : childs) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty(), "Required parameter %s is not found", name);
     }
 }
 
-void assertZeroOrOneOccurrence(const pugi::xml_node& node, const SmallVector<std::string>& childNames) {
+void assertZeroOrOneOccurrence(const pugi::xml_node& node, const std::vector<std::string>& childNames) {
     for (const auto& name : childNames) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty() || child.next_sibling(name.c_str()).empty(),
@@ -147,7 +147,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
 
     assertOneOrMoreOccurrence(customLayer, {"Kernel"});
     auto kernelNodes = [&] {
-        auto nodes = SmallVector<pugi::xml_node>{};
+        auto nodes = std::vector<pugi::xml_node>{};
         for (auto kernel = customLayer.child("Kernel"); !kernel.empty(); kernel = kernel.next_sibling("Kernel")) {
             assertExactlyOneOccurrence(kernel, {"Parameters", "WorkSizes"});
             assertOneOrMoreOccurrence(kernel, {"Source"});
@@ -220,7 +220,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
 
 bool CustomLayer::isLegalSizeRule(const std::string& rule, std::map<std::string, std::string> layerParams) {
     {
-        auto sizes = SmallVector<std::pair<std::string, std::string>>{
+        auto sizes = std::vector<std::pair<std::string, std::string>>{
                 {"b", "1"}, {"B", "1"}, {"f", "1"}, {"F", "1"}, {"y", "1"}, {"Y", "1"}, {"x", "1"}, {"X", "1"},
         };
 

@@ -18,7 +18,6 @@
 #include <vector>
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/logger.hpp>
-#include <vpu/utils/small_vector.hpp>
 
 namespace vpu {
 
