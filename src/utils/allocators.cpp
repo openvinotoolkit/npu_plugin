@@ -14,6 +14,10 @@
 // stated in the License.
 //
 
+#include "allocators.hpp"
+
+#include "vpux/utils/core/helper_macros.hpp"
+
 #ifdef __unix__
 #include <sys/mman.h>
 #include <unistd.h>
@@ -25,15 +29,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <algorithm>
-#include <stdexcept>
-
-#include "allocators.hpp"
-#include "ie_macro.hpp"
-
 #if defined(__arm__) || defined(__aarch64__)
 #include <vpumgr.h>
 #endif
+
+#include <algorithm>
+#include <stdexcept>
 
 namespace vpu {
 
@@ -82,8 +83,8 @@ void* VPUSMMAllocator::allocate(size_t requestedSize) {
 
     return virtAddr;
 #else
-    UNUSED(requestedSize);
-    UNUSED(requiredBlobSize);
+    VPUX_UNUSED(requestedSize);
+    VPUX_UNUSED(requiredBlobSize);
     return nullptr;
 #endif
 }
@@ -94,7 +95,7 @@ void* VPUSMMAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
     void* virtAddr = std::get<1>(chunk);
     return virtAddr;
 #else
-    UNUSED(chunkIndex);
+    VPUX_UNUSED(chunkIndex);
     return nullptr;
 #endif
 }
@@ -122,7 +123,7 @@ int VPUSMMAllocator::allocateDMA(size_t requestedSize) {
     _memChunks.push_back(memChunk);
     return fileDesc;
 #else
-    UNUSED(requestedSize);
+    VPUX_UNUSED(requestedSize);
     return -1;
 #endif
 }
@@ -150,7 +151,7 @@ void* VPUSMMAllocator::importDMA(const int& fileDesc) {
     chunkVirtAddr = virtAddr;
     return virtAddr;
 #else
-    UNUSED(fileDesc);
+    VPUX_UNUSED(fileDesc);
     return nullptr;
 #endif
 }
@@ -178,7 +179,7 @@ bool VPUSMMAllocator::free(void* handle) {
         _memChunks.erase(_memChunks.begin() + pos);
     }
 #endif
-    UNUSED(handle);
+    VPUX_UNUSED(handle);
     return isFound;
 }
 
@@ -203,7 +204,7 @@ void* NativeAllocator::allocate(size_t requestedSize) {
     _memChunks.push_back(allocatedChunk);
     return allocatedChunk;
 #else
-    UNUSED(requestedSize);
+    VPUX_UNUSED(requestedSize);
     return nullptr;
 #endif
 }
@@ -212,7 +213,7 @@ void* NativeAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
 #if defined(__arm__) || defined(__aarch64__)
     return _memChunks.at(chunkIndex);
 #else
-    UNUSED(chunkIndex);
+    VPUX_UNUSED(chunkIndex);
     return nullptr;
 #endif
 }

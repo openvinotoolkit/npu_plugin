@@ -21,7 +21,7 @@
 #endif
 
 #ifdef BLOB_SAVING_IMPLEMENTED
-// TODO Copy of kmb_tests_base, remove after moving to kmbFuncTests
+// TODO Copy of kmb_tests_base, remove after moving to vpuxFuncTests
 const std::string DUMP_PATH = []() -> std::string {
   if (const auto var = std::getenv("IE_KMB_TESTS_DUMP_PATH")) {
       return var;

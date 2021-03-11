@@ -38,6 +38,10 @@ public:
 
     const std::vector<char>& getCompiledNetwork() const override;
 
+    const void* getNetworkModel() const override;
+
+    std::size_t getNetworkModelSize() const override;
+
     const std::string& getName() const override;
 
 private:

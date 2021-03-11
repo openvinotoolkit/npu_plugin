@@ -147,12 +147,20 @@ mv::RuntimeModel::RuntimeModel(const mv::TargetDescriptor& td)
     {
         auto hdeDef = std::dynamic_pointer_cast<mv::HdeDescriptor>(td.codecDef());
         auto hde = new Hde(hdeDef->bitPerSymbol, hdeDef->maxNumberEncodedSymbols, 0, hdeDef->blockSize, false, hdeDef->bypassMode);
+
+        if (!hde)
+            throw std::runtime_error("Memory allocation for HDE codec failed.");
+
         codec_.reset(hde);
     }
     else if (td.getCodecName() == mv::CodecType::BTC)
     {
         auto btcDef = std::dynamic_pointer_cast<mv::BTCDescriptor>(td.codecDef());
         auto btc = new BTC(btcDef->bufferAlignment, btcDef->bitmapPreprocEnable, false, btcDef->bypassMode, 0);
+
+        if (!btc)
+            throw std::runtime_error("Memory allocation for BTC codec failed.");
+
         codec_.reset(btc);
     }
     else
@@ -1333,15 +1341,14 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         {
             totalSize = src->getSubTensor(i).dataPackedSize();
             totalSizeDst = src->getSubTensor(i).dataPackedSize();
+            if (totalSize == 0 && src->isAllocatedPerCluster())
+                return false;
         }
 
         if(src->getSubTensor(i).hasAttr("CompressedSize"))
             totalSize = src->getSubTensor(i).get<int>("CompressedSize");
         else
             totalSize *= src->getDType().getSizeInBits() / 8;
-
-        if (totalSize == 0)
-            return false;
 
         std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
         totalSizeDst *= src->getDType().getSizeInBits() / 8;
@@ -1736,8 +1743,7 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationMode
     if(ppeTask.hasAttr("scaleData"))
         toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, ppeTask.getScaleData());
     toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, ppeTask.getFixedFunction());
-    if (opIt->hasAttr("firstConvWithLRelu")
-                      && opIt->get<bool>("firstConvWithLRelu"))
+    if (opIt->hasAttr("WithDPUPWL") && opIt->get<bool>("WithDPUPWL"))
     {
         auto index = opIt->get<std::size_t>("instructionListTableIndex");
         toBuild->instruction_list_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor()[index]);
@@ -2395,9 +2401,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
 
             if (opIt->get<std::string>("taskOp") != "MaxPool")
                 toBuild->invariant->weights_data->locale_index = locale_index;
-            else if (opIt->get<std::string>("taskOp") == "MaxPool" ||
-                     opIt->get<std::string>("taskOp") == "ChannelMajorConvolution" ||
-                     opIt->get<std::string>("taskOp") == "DepthwiseConv")
+            if (opIt->get<std::string>("taskOp") != "Eltwise")
+                toBuild->invariant->weights_table->locale_index = locale_index;
+            if (opIt->get<std::string>("taskOp") == "MaxPool" ||
+                opIt->get<std::string>("taskOp") == "ChannelMajorConvolution" ||
+                opIt->get<std::string>("taskOp") == "DepthwiseConv")
                 toBuild->invariant->activation_window->locale_index = locale_index;
 
             auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
@@ -3739,6 +3747,27 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAPadTask(mv::ComputationModel &cm
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAMVNTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_MVNParams;
+    auto softLayerParamsValue = new MVCNN::MVNParamsT();
+
+    softLayerParamsValue->across_channels = opIt->get<bool>("across_channels");
+    softLayerParamsValue->normalize_variance = opIt->get<bool>("normalize_variance");
+    softLayerParamsValue->eps = opIt->get<double>("eps");
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -3836,6 +3865,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAPadTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Interpolate")
         toReturn[0]->task.value = buildUPAInterpolateTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "MVN")
+        toReturn[0]->task.value = buildUPAMVNTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 
@@ -3891,10 +3922,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(Computat
     return vecToBuild;
 }
 
-unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt)
+unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt, bool trimEmptyTensors)
 {
     std::string taskType = opIt->getOpType();
-    unsigned toReturn = 0;
+    int64_t toReturn = 0;
     unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     if(taskType == "DPUTask")
@@ -3936,13 +3967,18 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             multiplicator = 3;
         }
 
+        // For sparse cases when the tensor is empty
+        // we are better off to schedule DMA's just for the
+        // sparse map and pointer table.
+        // Providing runtiem with a DMA of size 0 to schedule
+        // will end up halting the DMA HW.
+        size_t empty_tensors = 0;
         if(numClusters > 1)
         {
-            bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
+            bool sourceIsBroadCasted = inputTensor->isBroadcasted();
             //NOTE: When strategy is overwritten
             if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX)
             {
-               // inputTensor->setShape(outputTensor->getShape());
                 if (inputTensor->hasAttr("overwriteStrategy"))
                 {
                     if (inputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
@@ -3954,7 +3990,6 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             else if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2DDR)
             {
                 auto outputTensor = opIt->getOutputTensor(0);
-                // inputTensor->setShape(outputTensor->getShape());
                  if (outputTensor->hasAttr("overwriteStrategy"))
                  {
                      if (outputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
@@ -3968,26 +4003,42 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
                 toReturn = numClusters;
             else
                 toReturn = 1;
-            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering"))
+            if ((inputTensor->get<std::string>("splitStrategy") == "Clustering"))
                 toReturn = 1;
-        }
-        else
-            toReturn = 1;
 
-        toReturn *= multiplicator;
-
-        if (inputTensor->isPopulated() && inputTensor->isSparse())
-        {
-            if (numClusters < toReturn) {
-                for (unsigned i = 0; i < numClusters; ++i) {
-                    if (inputTensor->getSubTensor(i).dataPackedSize() == 0)
-                        toReturn--;
+            if (inputTensor->isPopulated() && inputTensor->isSparse() &&
+                inputTensor->isAllocatedPerCluster())
+            {
+                if (inputTensor->hasSubTensors()) {
+                    for (size_t i = 0; i < inputTensor->numSubTensors(); ++i)
+                        if (inputTensor->getSubTensor(i).dataPackedSize() == 0)
+                            empty_tensors++;
+                } else {
+                    if (inputTensor->dataPackedSize() == 0)
+                    {
+                        empty_tensors++;
+                    }
                 }
             }
         }
+        else
+        {
+            toReturn = 1;
+            if (inputTensor->isPopulated() && inputTensor->isSparse() &&
+                inputTensor->dataPackedSize() == 0)
+                empty_tensors++;
+        }
+
+        toReturn *= multiplicator;
+        if (trimEmptyTensors)
+            toReturn -= empty_tensors;
     }
     else if(taskType == "UPATask" || opIt->isImplicit())
         toReturn = 1;
+
+    if (toReturn < 0){
+        throw mv::ArgumentError(cm, "countProducerConsumerTasks", "0", "Sub zero barrier count");
+    }
 
     return toReturn;
 }
@@ -4013,11 +4064,11 @@ std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::Computation
     toBuild->producer_count = 0;
 
     for(auto producer = opIt.leftmostParent(); producer != cm.opEnd(); ++producer) {
-        toBuild->producer_count += countProducerConsumerTasks(model, producer);
+        toBuild->producer_count += countProducerConsumerTasks(model, producer, true);
     }
 
     for(auto consumer = opIt.leftmostChild(); consumer != cm.opEnd(); ++consumer) {
-        toBuild->consumer_count += countProducerConsumerTasks(model, consumer);
+        toBuild->consumer_count += countProducerConsumerTasks(model, consumer, true);
     }
     return toBuild;
 }

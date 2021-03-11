@@ -70,7 +70,7 @@ enum ChannelStatus {
 };
 #endif
 enum XLinkError _xlink_open_channel(struct XLinkHandler *deviceHandler,
-		uint16_t chan, enum OperationMode opMode, uint32_t dataSize,
+		uint16_t chan, enum OperationMode opMode, uint32_t numChanBuffers,
 		uint32_t timeout);
 
 enum XLinkError _xlink_close_channel(struct XLinkHandler *deviceHandler,

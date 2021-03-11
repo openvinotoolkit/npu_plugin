@@ -93,7 +93,7 @@ def IERT_RunTimeResourcesOp :
 
     let skipDefaultBuilders = 1;
     let builders = [
-        OpBuilderDAG<(ins)>
+        OpBuilder<(ins)>
     ];
 
     let verifier = [{

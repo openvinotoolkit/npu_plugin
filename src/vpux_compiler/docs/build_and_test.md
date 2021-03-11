@@ -49,5 +49,5 @@ to copy the updated test sources into OpenVINO binary directory.
 
 ## Functional tests
 
-Existing functional tests for KMB plugin (`kmbFuncTests`) can be used with the **VPUX NN Compiler**.
+Existing functional tests for KMB plugin (`vpuxFuncTests`) can be used with the **VPUX NN Compiler**.
 The supported test cases can be run with the following filter: `--gtest_filter=*MLIR*`.

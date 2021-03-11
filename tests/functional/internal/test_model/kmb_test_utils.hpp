@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <ie_utils.hpp>
+#include "vpux/utils/IE/blob.hpp"
 
 #include <inference_engine.hpp>
 #include <vpu/utils/io.hpp>

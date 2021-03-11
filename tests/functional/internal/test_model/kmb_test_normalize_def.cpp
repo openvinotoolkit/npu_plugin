@@ -86,7 +86,7 @@ BlobVector refNorm(const TestNetwork::NodePtr& layer, const BlobVector& inputs, 
     const auto normLayer = std::dynamic_pointer_cast<ngraph::op::v0::NormalizeL2>(layer);
     IE_ASSERT(normLayer != nullptr);
 
-    const auto input = toDefLayout(toFP32(inputs.at(0)));
+    const auto input = vpux::toDefLayout(vpux::toFP32(as<MemoryBlob>(inputs.at(0))));
     const auto axes = inputs.at(1);
 
     const auto& outDims = layer->output(0).get_shape();

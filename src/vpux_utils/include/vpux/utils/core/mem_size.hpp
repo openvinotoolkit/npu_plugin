@@ -167,6 +167,19 @@ int64_t operator%(MemSize<TYPE> size1, MemSize<TYPE> size2) {
 }
 
 template <MemType TYPE>
+MemSize<TYPE>& operator+=(MemSize<TYPE>& size1, MemSize<TYPE> size2) {
+    return size1 = size1 + size2;
+}
+template <MemType TYPE>
+MemSize<TYPE>& operator-=(MemSize<TYPE>& size1, MemSize<TYPE> size2) {
+    return size1 = size1 - size2;
+}
+template <MemType TYPE>
+MemSize<TYPE>& operator%=(MemSize<TYPE>& size1, MemSize<TYPE> size2) {
+    return size1 = size1 % size2;
+}
+
+template <MemType TYPE>
 MemSize<TYPE> operator*(MemSize<TYPE> size, int64_t mult) {
     return MemSize<TYPE>(size.count() * mult);
 }
@@ -177,6 +190,15 @@ MemSize<TYPE> operator*(int64_t mult, MemSize<TYPE> size) {
 template <MemType TYPE>
 MemSize<TYPE> operator/(MemSize<TYPE> size, int64_t div) {
     return MemSize<TYPE>(size.count() / div);
+}
+
+template <MemType TYPE>
+MemSize<TYPE>& operator*=(MemSize<TYPE>& size, int64_t mult) {
+    return size = size * mult;
+}
+template <MemType TYPE>
+MemSize<TYPE>& operator/=(MemSize<TYPE>& size, int64_t div) {
+    return size = size / div;
 }
 
 template <MemType TYPE>

@@ -95,6 +95,7 @@ typedef enum _ze_device_type_t
 {
     ZE_DEVICE_TYPE_GPU = 1,                         ///< Graphics Processing Unit
     ZE_DEVICE_TYPE_FPGA,                            ///< Field Programmable Gate Array
+    ZE_DEVICE_TYPE_VPU,                             ///< Compute Only, Visual Processing Unit
 
 } ze_device_type_t;
 

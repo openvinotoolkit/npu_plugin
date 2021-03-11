@@ -9,6 +9,7 @@
 #include <map>
 #include <condition_variable>
 #include <mutex>
+#include <algorithm>
 
 #include <inference_engine.hpp>
 
@@ -43,6 +44,21 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 
     if (FLAGS_m.empty()) {
         throw std::logic_error("Parameter -m is not set");
+    }
+
+    std::vector<std::string> allowedPrecision = {"u8", "fp16", "fp32"};
+    if (!FLAGS_ip.empty()) {
+        // input precision is u8, fp16 or fp32 only
+        if (std::find(allowedPrecision.begin(), allowedPrecision.end(), FLAGS_ip ) == allowedPrecision.end() )
+            throw std::logic_error("Parameter -ip " + FLAGS_ip + " is not supported");
+        std::transform(FLAGS_ip.begin(),FLAGS_ip.end(),FLAGS_ip.begin(), ::toupper);
+    }
+
+    if (!FLAGS_op.empty()) {
+        // output precision is u8, fp16 or fp32 only
+        if (std::find(allowedPrecision.begin(), allowedPrecision.end(), FLAGS_op ) == allowedPrecision.end() )
+            throw std::logic_error("Parameter -op " + FLAGS_op + " is not supported");
+        std::transform(FLAGS_op.begin(),FLAGS_op.end(),FLAGS_op.begin(), ::toupper);
     }
 
     return true;
@@ -119,7 +135,6 @@ int main(int argc, char *argv[]) {
         // --------------------------- 3. Configure input & output ---------------------------------------------
 
         // --------------------------- Prepare input blobs -----------------------------------------------------
-        bool isKMB = !FLAGS_d.empty() && FLAGS_d.compare("KMB") == 0;
         slog::info << "Preparing input blobs" << slog::endl;
 
         /** Taking information about all topology inputs **/
@@ -128,14 +143,16 @@ int main(int argc, char *argv[]) {
 
         auto inputInfoItem = *inputInfo.begin();
 
-        /** Specifying the precision and layout of input data provided by the user.
-         * This should be called before load of the network to the device **/
+        // input precision 
         if (!FLAGS_ip.empty()) {
             if (FLAGS_ip == "FP16") inputInfoItem.second->setPrecision(Precision::FP16);
             else if (FLAGS_ip == "FP32") inputInfoItem.second->setPrecision(Precision::FP32);
             else inputInfoItem.second->setPrecision(Precision::U8);
         }
-        else inputInfoItem.second->setPrecision(Precision::U8);
+        else 
+            inputInfoItem.second->setPrecision(Precision::U8);
+
+        // input layout
         inputInfoItem.second->setLayout(Layout::NCHW);
 
         Precision inPrecision = inputInfoItem.second->getPrecision();
@@ -204,13 +221,18 @@ int main(int argc, char *argv[]) {
             }
             validImageNames.push_back(FLAGS_i);
         }
+        
+        // Output precision
         OutputsDataMap outputInfo(network.getOutputsInfo());
+        if (!FLAGS_op.empty()) {
+            Precision prc = Precision::U8;
+            if (FLAGS_op == "FP16") prc = Precision::FP16;
+            else if (FLAGS_op == "FP32") prc = Precision::FP32;
+            else prc = Precision::U8;
 
-
-        if (isKMB)
-        {
+            // possibly multiple outputs
             for (auto outputInfoIt=outputInfo.begin(); outputInfoIt!=outputInfo.end(); ++outputInfoIt){
-                outputInfoIt->second->setPrecision(Precision::FP16);
+                outputInfoIt->second->setPrecision(prc);
                 if (outputInfoIt->second->getDims().size() == 2) {
                     outputInfoIt->second->setLayout(InferenceEngine::Layout::NC);
                 } else {
@@ -352,7 +374,7 @@ int main(int argc, char *argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 7. Do inference ---------------------------------------------------------
-        size_t numIterations = 10;
+        size_t numIterations = 1;
         size_t curIteration = 0;
         std::condition_variable condVar;
 

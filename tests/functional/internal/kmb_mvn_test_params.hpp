@@ -1,5 +1,5 @@
 //
-// Copyright 2019-2020 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -14,18 +14,15 @@
 // stated in the License.
 //
 
-#pragma once
+#include "test_model/kmb_test_base.hpp"
 
-#include <ie_blob.h>
-#include <ie_common.h>
+struct MVNTestParams final {
+    MVNParams params;
 
-#include <vpu/utils/logger.hpp>
+    LAYER_PARAMETER(bool, across_channels);
+    LAYER_PARAMETER(bool, normalize_variance);
+    LAYER_PARAMETER(float, eps);
+    PARAMETER(SizeVector, dims);
+};
 
-namespace utils {
-
-void dumpBlobHelper(const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst,
-                    const vpu::Logger::Ptr& _logger, const std::string& blobType);
-void dumpBlobs(const InferenceEngine::BlobMap& blobMap, const std::string& dstPath, const std::string& blobType,
-               const vpu::Logger::Ptr& logger);
-
-}  // namespace utils
+std::ostream& operator<<(std::ostream& os, const MVNTestParams& p);

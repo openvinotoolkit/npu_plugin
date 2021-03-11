@@ -18,8 +18,6 @@
 
 #include "vpux_compiler.hpp"
 
-#include "vpux/utils/core/array_ref.hpp"
-
 namespace vpux {
 namespace VPUIP {
 
@@ -30,6 +28,14 @@ public:
 public:
     const std::vector<char>& getCompiledNetwork() const final {
         return _compiledNetwork;
+    }
+
+    const void* getNetworkModel() const final {
+        return _compiledNetwork.data();
+    }
+
+    std::size_t getNetworkModelSize() const final {
+        return _compiledNetwork.size();
     }
 
     const std::string& getName() const final {

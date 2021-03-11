@@ -38,6 +38,7 @@ def VPUIP_PhysicalProcessor :
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -54,6 +55,7 @@ def VPUIP_DMAEngine :
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -72,6 +74,7 @@ def VPUIP_PhysicalMemory :
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -126,6 +129,7 @@ def VPUIP_TaskType :
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -148,6 +152,7 @@ def VPUIP_MemoryLocation :
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -166,6 +171,7 @@ def VPUIP_ArchKind :
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -182,6 +188,7 @@ def VPUIP_PoolLayerType :
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
 }
 
 //
@@ -204,6 +211,7 @@ def VPUIP_EltwiseLayerType :
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
 }
 
 #endif

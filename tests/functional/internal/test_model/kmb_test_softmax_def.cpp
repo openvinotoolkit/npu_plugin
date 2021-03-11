@@ -29,7 +29,7 @@ BlobVector refSoftmax(const TestNetwork::NodePtr& layer, const BlobVector& input
     IE_ASSERT(softmaxLayer != nullptr);
 
     const auto input = inputs.at(0);
-    const auto output = makeSingleValueBlob(input->getTensorDesc(), 0.0f);
+    const auto output = vpux::makeSplatBlob(input->getTensorDesc(), 0.0f);
 
     const auto inputPtr = input->cbuffer().as<const float*>();
     auto outputPtr = output->buffer().as<float*>();

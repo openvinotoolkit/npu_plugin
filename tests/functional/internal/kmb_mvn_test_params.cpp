@@ -14,8 +14,11 @@
 // stated in the License.
 //
 
-#pragma once
+#include "kmb_mvn_test_params.hpp"
 
-#ifndef UNUSED
-#define UNUSED(var) (void)var
-#endif
+std::ostream& operator<<(std::ostream& os, const MVNTestParams& p) {
+    vpu::formatPrint(
+        os, "dims: %l, across_channels: %l, normalize_variance: %l, eps: %l",
+        p.dims(), p.across_channels(), p.normalize_variance(), p.eps());
+    return os;
+}

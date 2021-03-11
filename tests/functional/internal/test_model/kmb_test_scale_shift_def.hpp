@@ -46,7 +46,7 @@ struct ScaleShiftLayerDef final {
         return scale(scaleLayerName);
     }
     ScaleShiftLayerDef& scale(float val, const Precision& precision, size_t numDims) {
-        const auto scaleBlob = makeScalarBlob(val, precision, numDims);
+        const auto scaleBlob = vpux::makeScalarBlob(val, precision, numDims);
         return scale(scaleBlob);
     }
 
@@ -60,7 +60,7 @@ struct ScaleShiftLayerDef final {
         return shift(shiftLayerName);
     }
     ScaleShiftLayerDef& shift(float val, const Precision& precision, size_t numDims) {
-        const auto shiftBlob = makeScalarBlob(val, precision, numDims);
+        const auto shiftBlob = vpux::makeScalarBlob(val, precision, numDims);
         return shift(shiftBlob);
     }
 

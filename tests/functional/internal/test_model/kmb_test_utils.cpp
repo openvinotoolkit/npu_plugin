@@ -169,8 +169,8 @@ Blob::Ptr genBlobNormal(const TensorDesc& desc, std::default_random_engine& rd, 
 }
 
 void compareBlobs(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance, CompareMethod method) {
-    const auto actualFP32 = toFP32(toDefLayout(actual));
-    const auto expectedFP32 = toFP32(toDefLayout(expected));
+    const auto actualFP32 = vpux::toFP32(vpux::toDefLayout(as<MemoryBlob>(actual)));
+    const auto expectedFP32 = vpux::toFP32(vpux::toDefLayout(as<MemoryBlob>(expected)));
 
     auto actualMem = actualFP32->cbuffer();
     auto expectedMem = expectedFP32->cbuffer();

@@ -8,7 +8,6 @@
 
 #include <condition_variable>
 #include <ie_input_info.hpp>
-#include <ie_itt.hpp>
 #include <ie_preprocess_data.hpp>
 #include <map>
 #include <memory>

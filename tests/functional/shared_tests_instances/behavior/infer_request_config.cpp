@@ -36,8 +36,6 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {{"VPUX_PREPROCESSING_SHAVES", "4"}},
     {{"VPUX_PREPROCESSING_LPI", "8"}},
     {{"VPUX_VPUAL_REPACK_INPUT_LAYOUT", CONFIG_VALUE(YES)}},
-    {{"VPUX_VPUAL_USE_CORE_NN", CONFIG_VALUE(YES)}},
-    {{"VPU_KMB_USE_CORE_NN", CONFIG_VALUE(NO)}},
     {{"VPUX_EXECUTOR_STREAMS", "2"}},
     {{"VPU_KMB_EXECUTOR_STREAMS", "1"}}
 };
@@ -64,8 +62,6 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
     {{"VPUX_PREPROCESSING_SHAVES", "FOUR"}},
     {{"VPUX_PREPROCESSING_LPI", "EIGHT"}},
     {{"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "YEP"}},
-    {{"VPUX_VPUAL_USE_CORE_NN", "YEP"}},
-    {{"VPU_KMB_USE_CORE_NN", "NOP"}},
     {{"VPUX_EXECUTOR_STREAMS", "ONE"}},
     {{"VPU_KMB_EXECUTOR_STREAMS", "TWO"}}
 };

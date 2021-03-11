@@ -1191,3 +1191,4 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/round.cpp"
 #include    "src/computation/op/def/erf.cpp"
 #include    "src/computation/op/def/interpolate.cpp"
+#include    "src/computation/op/def/mvn.cpp"

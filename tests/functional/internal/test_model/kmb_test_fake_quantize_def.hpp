@@ -55,7 +55,7 @@ struct FakeQuantizeLayerDef final {
         return inputLow(inputLowLayerName);
     }
     FakeQuantizeLayerDef& inputLow(float val, const Precision& precision) {
-        const auto inputLowBlob = makeScalarBlob(val, precision);
+        const auto inputLowBlob = vpux::makeScalarBlob(val, precision);
         return inputLow(inputLowBlob);
     }
 
@@ -69,7 +69,7 @@ struct FakeQuantizeLayerDef final {
         return inputHigh(inputHighLayerName);
     }
     FakeQuantizeLayerDef& inputHigh(float val, const Precision& precision) {
-        const auto inputHighBlob = makeScalarBlob(val, precision);
+        const auto inputHighBlob = vpux::makeScalarBlob(val, precision);
         return inputHigh(inputHighBlob);
     }
 
@@ -83,7 +83,7 @@ struct FakeQuantizeLayerDef final {
         return outputLow(outputLowLayerName);
     }
     FakeQuantizeLayerDef& outputLow(float val, const Precision& precision) {
-        const auto outputLowBlob = makeScalarBlob(val, precision);
+        const auto outputLowBlob = vpux::makeScalarBlob(val, precision);
         return outputLow(outputLowBlob);
     }
 
@@ -97,7 +97,7 @@ struct FakeQuantizeLayerDef final {
         return outputHigh(outputHighLayerName);
     }
     FakeQuantizeLayerDef& outputHigh(float val, const Precision& precision) {
-        const auto outputHighBlob = makeScalarBlob(val, precision);
+        const auto outputHighBlob = vpux::makeScalarBlob(val, precision);
         return outputHigh(outputHighBlob);
     }
 
@@ -114,7 +114,7 @@ struct FakeQuantizeLayerDef final {
         return *this;
     }
     FakeQuantizeLayerDef& low(float val, const Precision& precision) {
-        const auto lowBlob = makeScalarBlob(val, precision);
+        const auto lowBlob = vpux::makeScalarBlob(val, precision);
         inputLow(lowBlob);
         outputLow(lowBlob);
         return *this;
@@ -133,7 +133,7 @@ struct FakeQuantizeLayerDef final {
         return *this;
     }
     FakeQuantizeLayerDef& high(float val, const Precision& precision) {
-        const auto highBlob = makeScalarBlob(val, precision);
+        const auto highBlob = vpux::makeScalarBlob(val, precision);
         inputHigh(highBlob);
         outputHigh(highBlob);
         return *this;

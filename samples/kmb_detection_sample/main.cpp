@@ -43,8 +43,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <ie_utils.hpp>
 #include <yolo_helpers.hpp>
+
+#include "vpux/utils/IE/blob.hpp"
 
 using namespace InferenceEngine;
 
@@ -356,7 +357,7 @@ int main(int argc, char *argv[]) {
         if (outputBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::U8) {
             regionYoloOutput = deQuantize(outputBlob, scale, zeroPoint);
         } else {
-            regionYoloOutput = toFP32(outputBlob);
+            regionYoloOutput = vpux::toFP32(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob));
         }
         slog::info << "De-quantization done" << slog::endl;
 

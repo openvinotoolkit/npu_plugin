@@ -9,7 +9,10 @@ endif()
 if(NOT ENABLE_TESTS)
     set(ENABLE_TESTS OFF)
 endif()
-ie_option(ENABLE_TESTS "Unit, behavior and functional tests" ${ENABLE_TESTS})
+ie_dependent_option(ENABLE_TESTS "Unit, behavior and functional tests" ${ENABLE_TESTS} "TRUE" OFF)
+if(ENABLE_TESTS)
+    add_definitions(-DENABLE_TESTS)
+endif()
 
 if(NOT ENABLE_LTO)
     set(ENABLE_LTO OFF)
@@ -56,6 +59,11 @@ ie_option(ENABLE_MCM_COMPILER_PACKAGE "Enable build of separate mcmCompiler pack
 ie_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend" ON "WIN32" OFF)
 
 ie_option(ENABLE_DEVELOPER_BUILD "Enable developer build with extra validation/logging functionality" OFF)
+
+if(NOT DEFINED MV_TOOLS_PATH AND DEFINED ENV{MV_TOOLS_DIR} AND DEFINED ENV{MV_TOOLS_VERSION})
+    set(MV_TOOLS_PATH $ENV{MV_TOOLS_DIR}/$ENV{MV_TOOLS_VERSION})
+endif()
+ie_dependent_option(ENABLE_EMULATOR "Enable emulator as a plugin backend" ON "ENABLE_TESTS;MV_TOOLS_PATH" OFF)
 
 function (print_enabled_kmb_features)
     message(STATUS "KMB Plugin enabled features: ")

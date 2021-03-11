@@ -51,6 +51,7 @@ const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
                                                            VPU_COMPILER_CONFIG_KEY(SCALESHIFT_FUSING),
                                                            VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP),
                                                            VPU_COMPILER_CONFIG_KEY(ALLOW_PERMUTE_ND),
+                                                           VPU_COMPILER_CONFIG_KEY(NUM_CLUSTER),
                                                    });
 
     return options;
@@ -102,4 +103,8 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
 
     setOption(_removePermuteNoOp, switches, config, VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP));
     setOption(_allowPermuteND, switches, config, VPU_COMPILER_CONFIG_KEY(ALLOW_PERMUTE_ND));
+    setOption(_numberOfClusters, config, VPU_COMPILER_CONFIG_KEY(NUM_CLUSTER), parseInt);
+    IE_ASSERT(0 <= _numberOfClusters && _numberOfClusters <= 4)
+            << "MCMConfig::parse attempt to set invalid number of clusters: '" << _numberOfClusters
+            << "', valid numbers are from 0 to 4";
 }

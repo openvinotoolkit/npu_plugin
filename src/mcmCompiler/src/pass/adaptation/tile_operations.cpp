@@ -40,6 +40,7 @@ void tileOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
     auto convOps = om.getOps("Conv");
 
     for (auto conv: convOps) {
+        if (conv->hasAttr("dilatedUsingWeights") && conv->get<bool>("dilatedUsingWeights")) continue;
 
         assert(conv->inputSlots() == 2);
 
@@ -157,7 +158,7 @@ void padInputTensor(mv::Data::OpListIterator& opIt, mv::OpModel& om)
         om.getSourceOp(concatW)->set<unsigned>("opId", opId);
         inputTensor = concatW;
     }
-    
+
     auto sourceFlow = opIt.leftmostInput();
     om.undefineFlow(sourceFlow);
     opIt->setInputTensor(inputTensor, mv::IO_TENSOR_INPUT, false);
