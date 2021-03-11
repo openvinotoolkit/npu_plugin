@@ -48,6 +48,7 @@ void HDDL2_Remote_Blob_Tests::SetUp() {
 
     remoteMemory =
         remoteMemoryHelper.allocateRemoteMemory(_remoteContextHelper.getWorkloadId(), memoryToAllocate);
+    remoteMemoryHelper.clearRemoteMemory();
 }
 
 void HDDL2_Remote_Blob_Tests::TearDown() {
@@ -66,6 +67,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, RemoteBlobFromRemoteMem_WillNotDestroyRemoteMemo
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     const std::string memoryData = "Hello there!\n";
+    remoteMemoryHelper.getRemoteMemory(memoryData.size());
     remoteMemoryHelper.setRemoteMemory(memoryData);
 
     { auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams); }
