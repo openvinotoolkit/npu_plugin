@@ -690,6 +690,30 @@ void populateInstructionListMap(const std::string& pwlType,
                 /// _bias_vector
                 {5, 1, -2, 0, 1, -2, 0, 0},
             }},
+            {189063, {
+                /// _range_vector
+                {-57, -47, -31, -22, -5, 0, 4, 23, 198},
+                /// _shift_vector
+                {4, 4, 3, 4, 1, 0, -1, -1},
+                /// _bias_vector
+                {4, 1, 0, -4, -1, 1, -2, 0},
+            }},
+            {307500, {
+                /// _range_vector
+                {-39, -28, -16, -3, 1, 4, 13, 215, 216},
+                /// _shift_vector
+                {3, 3, 3, 1, 0, -1, -1, -1},
+                /// _bias_vector
+                {5, 2, -2, 0, 1, -2, 0, 0},
+            }},
+            {254844, {
+                /// _range_vector
+                {-45, -35, -21, -11, -3, 1, 4, 17, 120},
+                /// _shift_vector
+                {3, 4, 3, 2, 1, 0, -1, -1},
+                /// _bias_vector
+                {6, 1, -1, -2, 0, 1, -2, 0},
+            }},
         };
         int32_t max_quant = std::round(outQuantParams.getMax().at(0) * 10000.f);
         if (MISH_PARAMS.count(max_quant) > 0) {
@@ -697,6 +721,8 @@ void populateInstructionListMap(const std::string& pwlType,
             range_vector = params._range_vector;
             shift_vector = params._shift_vector;
             bias_vector = params._bias_vector;
+        } else {
+            throw std::runtime_error("weights_tables: Couldn't find max_quant: " + std::to_string(max_quant));
         }
     }
 

@@ -552,10 +552,15 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                         const std::map<int32_t, int> MISH_SCALES = {
                             {388125, 3},
                             {355313, 1},
+                            {189063, 1},
+                            {307500, 1},
+                            {254844, 1},
                         };
                         int32_t max_quant = std::round(outQuantParams.getMax().at(0) * 10000.f);
                         if (MISH_SCALES.count(max_quant) > 0) {
                             postShift = MISH_SCALES.at(max_quant);
+                        } else {
+                            throw std::runtime_error("compute_tensor_quant: Couldn't find max_quant: " + std::to_string(max_quant));
                         }
                     }
 
