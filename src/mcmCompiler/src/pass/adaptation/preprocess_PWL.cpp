@@ -132,6 +132,17 @@ void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& mod
 
                 double fl_min = outQuantParams.getMin()[0];
                 double fl_max = outQuantParams.getMax()[0];
+                if (*dpuPostOp == "Mish") {
+                    const std::map<int32_t, std::pair<int, int>> MISH_RANGES = {
+                        {388125, {-32, 222}},
+                        {355313, {-34, 220}},
+                    };
+                    int32_t max_quant = std::round(outQuantParams.getMax().at(0) * 10000.f);
+                    if (MISH_RANGES.count(max_quant) > 0) {
+                        pwl_range = MISH_RANGES.at(max_quant);
+                    }
+                }
+
                 double scale = outQuantParams.getScale(0);
                 if (scale == 0.0) {
                     throw mv::ArgumentError(model, "getScale(0)",  " == 0",  conv->getName());
