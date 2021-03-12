@@ -638,7 +638,10 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
 //Idea: We use the equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always satisfies the
 //leaky relu. After we generate the instruction list table and we save the values of the registers inside.
 //The map of the bits per instruction are described here: https://docs.google.com/spreadsheets/d/1RcD1FYGiKCTCRTDsU-J4r_FaQyAQbzMLyRu7WkeNoOY/edit#gid=0.
-void populateInstructionListMap(const std::string& pwlType, mv::Data::TensorIterator instructionListTable)
+
+void populateInstructionListMap(const std::string& pwlType,
+                                mv::Data::TensorIterator instructionListTable,
+                                const mv::QuantizationParams& outQuantParams)
 {
     //NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
     //27 of course will be aligned to 32 and will contain NOPS inside
@@ -665,6 +668,36 @@ void populateInstructionListMap(const std::string& pwlType, mv::Data::TensorIter
         range_vector = {-128, -109, -90, -72, -54, -36, -18, 0, 128};
         shift_vector = {-12, -12, -12, -12, -12, -12, -12, 0};
         bias_vector = {1, 1, 1, 1, 1, 1, 1, 0};
+        struct mish_params_t {
+            std::vector<int> _range_vector;
+            std::vector<int> _shift_vector;
+            std::vector<int> _bias_vector;
+        };
+        const std::map<int32_t, mish_params_t> MISH_PARAMS = {
+            {388125, {
+                /// _range_vector
+                {-32, -21, -11, 0, 4, 10, 221, 222, 223},
+                /// _shift_vector
+                {2, 1, 0, -2, -3, -3, -3, -3},
+                /// _bias_vector
+                {8, 3, -5, 4, -8, 0, 0, 0},
+            }},
+            {355313, {
+                /// _range_vector
+                {-34, -24, -13, -3, 1, 4, 11, 220, 221},
+                /// _shift_vector
+                {3, 3, 3, 1, 0, -1, -1, -1},
+                /// _bias_vector
+                {5, 1, -2, 0, 1, -2, 0, 0},
+            }},
+        };
+        int32_t max_quant = std::round(outQuantParams.getMax().at(0) * 10000.f);
+        if (MISH_PARAMS.count(max_quant) > 0) {
+            const auto params = MISH_PARAMS.at(max_quant);
+            range_vector = params._range_vector;
+            shift_vector = params._shift_vector;
+            bias_vector = params._bias_vector;
+        }
     }
 
     std::size_t k = 0;
@@ -760,7 +793,9 @@ static void populateInstructionListTablesFcn(const mv::pass::PassEntry& , mv::Co
                 auto attrs = dpuTaskOp->getAttrs({dpuPWLTag});
                 for (auto && attr : attrs) {
                     if (attr.first.find("With") == 0) {
-                        populateInstructionListMap(attr.first.substr(4), instructionListTable);
+                        populateInstructionListMap(attr.first.substr(4),
+                                                   instructionListTable,
+                                                   dpuTaskOp->getOutputTensor(0)->getQuantParams());
                     }
                 }
             }
