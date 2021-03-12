@@ -53,7 +53,12 @@ std::unordered_set<std::string> MCMCompiler::getSupportedOptions() {
     return _config.getCompileOptions();
 }
 
-INFERENCE_PLUGIN_API(void)
-CreateVPUXCompiler(std::shared_ptr<vpux::ICompiler>& compiler) {
-    compiler = std::make_shared<MCMCompiler>();
+INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
+CreateVPUXCompiler(vpux::ICompiler*& compiler, InferenceEngine::ResponseDesc* resp) noexcept {
+    try {
+        compiler = new MCMCompiler();
+        return InferenceEngine::StatusCode::OK;
+    } catch (std::exception& ex) {
+        return InferenceEngine::DescriptionBuffer(InferenceEngine::StatusCode::GENERAL_ERROR, resp) << ex.what();
+    }
 }

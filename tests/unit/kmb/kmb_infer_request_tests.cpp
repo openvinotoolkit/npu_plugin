@@ -107,9 +107,13 @@ public:
 
     virtual bool free(void* /*handle*/) noexcept override { return true; }
 
+    void Release() noexcept override {}
+
     unsigned long getPhysicalAddress(void* /*handle*/) noexcept override { return 0; }
 
     virtual bool isValidPtr(void* /*ptr*/) noexcept { return false; }
+
+    virtual ~MockAllocator() = default;
 
     void* wrapRemoteMemoryHandle(
         const int& /*remoteMemoryFd*/, const size_t /*size*/, void* /*memHandle*/) noexcept override {

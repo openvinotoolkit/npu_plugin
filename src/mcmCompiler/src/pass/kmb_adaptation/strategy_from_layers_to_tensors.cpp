@@ -56,7 +56,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
                     inputTensor->getSparsityMap()->set<std::string>("splitStrategy", opStrategy);
             }
         }
-        else if (opType == "Input" || opType == "Crop" || opType == "UPATask" || opType == "Copy" || opType == "ImplicitInput")
+        else if (opType == "Input" || opType == "Crop" || opType == "UPATask" || opType == "Copy" || opType == "ImplicitInput" || opType == "LeakyRelu")
         {
             auto opStrategy = layer->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);

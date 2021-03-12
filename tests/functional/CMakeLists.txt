@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME kmbFuncTests)
+set(TARGET_NAME vpuxFuncTests)
 
 addIeTargetTest(
     NAME ${TARGET_NAME}

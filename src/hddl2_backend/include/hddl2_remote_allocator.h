@@ -55,6 +55,8 @@ public:
     explicit HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr,
                                   const LogLevel logLevel = LogLevel::None);
 
+    HDDL2RemoteAllocator(const HDDL2RemoteAllocator&) = delete;
+
     /**
      * @brief Lock memory and synchronize local buffer with remote
      * @return Pointer to local memory buffer
@@ -76,6 +78,9 @@ public:
      */
     bool free(void* remoteMemoryHandle) noexcept override;
 
+    /** @brief Free all memory */
+    void Release() noexcept override;
+
     /**
      * @brief Wrap already allocated on device memory
      * @return Allocated remote memory
@@ -91,6 +96,11 @@ public:
     unsigned long getPhysicalAddress(void* handle) noexcept override;
 
 protected:
+    /**
+     * @brief Disables the ability of deleting the object without release.
+     */
+    ~HDDL2RemoteAllocator() override = default;
+
     /**
      * @brief Fake free of already allocated on device memory by decrementing remote memory counter
      * @return Number of references on remote memory

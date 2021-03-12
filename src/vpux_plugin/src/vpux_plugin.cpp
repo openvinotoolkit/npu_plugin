@@ -22,6 +22,7 @@
 
 // Inference Engine include
 #include <ie_ngraph_utils.hpp>
+#include <details/ie_irelease.hpp>
 #include <ie_icore.hpp>
 #include <ie_metric_helpers.hpp>
 

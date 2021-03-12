@@ -53,8 +53,8 @@ enum class EngineBackendType : uint8_t { VPUAL = 1, HDDL2 = 2, ZeroApi = 3, Emul
 EngineBackend::EngineBackend(std::string pathToLib): _impl(pathToLib) {
 }
 
-inline const std::shared_ptr<Device> wrapDeviceWithImpl(const std::shared_ptr<IDevice>& device,
-                                                        const IEngineBackendPtr backendPtr) {
+inline const std::shared_ptr<Device> wrapDeviceWithImpl(
+        const std::shared_ptr<IDevice>& device, const InferenceEngine::details::SOPointer<IEngineBackend>& backendPtr) {
     if (device == nullptr) {
         return nullptr;
     }

@@ -1355,7 +1355,6 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, eviction_no_priority) {
 
   dynamic_spill_scheduler_t scheduler(g, resource_t(10)), scheduler_end;
   size_t original_ops = 0;
-  bool is_operation_b_spilled = false;
 
   std::unordered_set<std::string> spilled_ops;
   for (; scheduler != scheduler_end; ++scheduler) {
@@ -1365,7 +1364,7 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, eviction_no_priority) {
       original_ops++;
     }
     
-    if (scheduled_op.op_type_name() == "SPILLED_WRITE") {
+    if (scheduled_op.op_type_name() == std::string("SPILLED_WRITE")) {
       spilled_ops.insert(scheduled_op.op_);
     }
 
@@ -1408,7 +1407,7 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, eviction_with_priority) {
       original_ops++;
     }
 
-    if (scheduled_op.op_type_name() == "SPILLED_WRITE") {
+    if (scheduled_op.op_type_name() == std::string("SPILLED_WRITE")) {
       spilled_ops.insert(scheduled_op.op_);
     }
 

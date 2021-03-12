@@ -63,7 +63,8 @@ VideoWorkloadDevice::VideoWorkloadDevice(const InferenceEngine::ParamMap& paramM
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Device from context not found.";
     }
     _name = _workloadContext->getDevice()->getName();
-    _allocatorPtr = std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteAllocator>(_workloadContext, config.logLevel());
+    _allocatorPtr = InferenceEngine::details::shared_from_irelease(
+            new vpu::HDDL2Plugin::HDDL2RemoteAllocator(_workloadContext, config.logLevel()));
 }
 
 vpux::Executor::Ptr VideoWorkloadDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,

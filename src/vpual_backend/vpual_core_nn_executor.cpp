@@ -224,7 +224,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
-      _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
+      _csramAllocator(InferenceEngine::details::shared_from_irelease(new VpusmmAllocator(VPU_CSRAM_DEVICE_ID))),
       _config(config),
       _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
 #if defined(__arm__) || defined(__aarch64__)
@@ -304,7 +304,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
-      _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
+      _csramAllocator(InferenceEngine::details::shared_from_irelease(new VpusmmAllocator(VPU_CSRAM_DEVICE_ID))),
       _config(config),
       _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
       _nnXlinkPlg(other_nnXlinkPlg),

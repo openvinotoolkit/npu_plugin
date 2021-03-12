@@ -180,6 +180,10 @@ bool HDDL2RemoteAllocator::free(void* remoteMemoryHandle) noexcept {
     return true;
 }
 
+void HDDL2RemoteAllocator::Release() noexcept {
+    delete this;
+}
+
 // TODO LOCK_FOR_READ behavior when we will have lock for read-write
 /**
  * LOCK_FOR_READ - do not sync to device on this call

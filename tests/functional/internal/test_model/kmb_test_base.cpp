@@ -1942,3 +1942,68 @@ void ModelAdk::runTest(
 
     KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
 }
+
+void KmbSuperResNetworkTest::runTest(
+        const TestNetworkDesc& netDesc,
+        const std::string& imgName,
+        const TestImageDesc& image,
+        const std::string& paramName1,
+        const std::vector<unsigned>& paramValues1,
+        const std::string& paramName2,
+        const std::vector<unsigned>& paramValues2) {
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap& inputsDesc) {
+      IE_ASSERT(inputsDesc.size() == 3);
+      IE_ASSERT(actualBlobs.size() == 3);
+      IE_ASSERT(actualBlobs.size() == refBlobs.size());
+      
+      auto actualBlob = actualBlobs.begin()->second;
+      auto refBlob    = refBlobs.begin()->second;
+
+      auto actualOutput = vpux::toFP32(vpux::toDefLayout(as<MemoryBlob>(actualBlob)));
+      auto refOutput = vpux::toFP32(vpux::toDefLayout(as<MemoryBlob>(refBlob)));
+
+      IE_ASSERT(actualOutput->size() == refOutput->size());
+
+      auto actualData = actualOutput->buffer().as<float*>();
+      auto refData = refOutput->buffer().as<float*>();
+
+      for (size_t i = 0; i < actualOutput->size(); ++i) {
+          auto diff = std::abs(actualData[i] - refData[i]);
+          EXPECT_LE(diff, 0.1f);
+      }
+    };
+
+    const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
+                auto imgNameDesc = inputs.at(imgName)->getTensorDesc();
+                auto paramName1Desc = inputs.at(paramName1)->getTensorDesc();
+                auto paramName2Desc = inputs.at(paramName2)->getTensorDesc();
+
+                registerSingleImage(image, imgName, imgNameDesc);
+
+                registerBlobGenerator(paramName1, paramName1Desc, [&paramValues1](const TensorDesc& desc) {
+                    auto blob = make_blob_with_precision(TensorDesc(Precision::FP32, desc.getDims(), desc.getLayout()));
+
+                    blob->allocate();
+                    CopyVectorToBlob(blob, paramValues1);
+
+                    IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
+
+                    return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
+                });
+
+                registerBlobGenerator(paramName2, paramName2Desc, [&paramValues2](const TensorDesc& desc) {
+                    auto blob = make_blob_with_precision(TensorDesc(Precision::FP32, desc.getDims(), desc.getLayout()));
+
+                    blob->allocate();
+                    CopyVectorToBlob(blob, paramValues2);
+
+                    IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
+
+                    return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
+                });
+            };
+      
+    KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
+}

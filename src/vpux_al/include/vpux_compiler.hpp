@@ -30,7 +30,7 @@ namespace vpux {
 
 ///////////////////////////////////// INetworkDescription /////////////////////////////////////////
 using DataMap = std::map<std::string, InferenceEngine::DataPtr>;
-class INetworkDescription : public std::enable_shared_from_this<INetworkDescription> {
+class INetworkDescription : public InferenceEngine::details::IRelease {
 public:
     using Ptr = std::shared_ptr<INetworkDescription>;
     using CPtr = std::shared_ptr<const INetworkDescription>;
@@ -49,6 +49,9 @@ public:
     virtual const void* getNetworkModel() const = 0;
     virtual std::size_t getNetworkModelSize() const = 0;
     virtual ~INetworkDescription() = default;
+    virtual void Release() noexcept override {
+        delete this;
+    }
 };
 
 ///////////////////////////////////// NetworkDescription //////////////////////////////////////////
@@ -96,7 +99,7 @@ private:
 };
 
 //////////////////////////////////////////ICompiler ///////////////////////////////////////////////
-class ICompiler : public std::enable_shared_from_this<ICompiler> {
+class ICompiler : public InferenceEngine::details::IRelease {
 public:
     using Ptr = std::shared_ptr<ICompiler>;
     using CPtr = std::shared_ptr<const ICompiler>;
@@ -120,8 +123,11 @@ public:
         return {};
     };
 
-protected:
-    ~ICompiler() = default;
+    virtual void Release() noexcept override {
+        delete this;
+    }
+
+    virtual ~ICompiler() = default;
 };
 
 //////////////////////////////////////////Compiler ////////////////////////////////////////////////

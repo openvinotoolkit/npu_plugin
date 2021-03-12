@@ -164,7 +164,10 @@ InferenceEngine::IInferRequest::Ptr ExecutableNetwork::CreateInferRequest() {
             std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, resultExecutor, _callbackExecutor);
 
     InferenceEngine::IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(new InferenceEngine::InferRequestBase(asyncThreadSafeImpl));
+    asyncRequest.reset(new InferenceEngine::InferRequestBase(asyncThreadSafeImpl),
+                       [](InferenceEngine::IInferRequest* p) {
+                           p->Release();
+                       });
     asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
     return asyncRequest;
 }

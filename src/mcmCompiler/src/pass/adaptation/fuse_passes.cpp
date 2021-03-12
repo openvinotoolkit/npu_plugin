@@ -44,8 +44,7 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                     {"Minimum", fuseMinimumFcn},
                                     {"Maximum", fuseMaximumFcn}};
 
-    bool PPEAccuracy = globalParams->hasAttr("PPEAccuracy") ? globalParams->get<bool>("PPEAccuracy") : false;
-    if (PPEAccuracy)
+    if (checkPPEAccuracy(model))
     {
         std::vector<mv::Data::OpListIterator> biasOperations = om.getOps("Bias");
 

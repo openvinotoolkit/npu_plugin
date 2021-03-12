@@ -235,7 +235,12 @@ std::unordered_set<std::string> vpux::CompilerImpl::getSupportedOptions() {
     return {};
 }
 
-INFERENCE_PLUGIN_API(void)
-CreateVPUXCompiler(std::shared_ptr<ICompiler>& compiler)  {
-    compiler = std::make_shared<CompilerImpl>();
+INFERENCE_PLUGIN_API(StatusCode)
+CreateVPUXCompiler(ICompiler*& compiler, ResponseDesc* resp) noexcept {
+    try {
+        compiler = new CompilerImpl();
+        return StatusCode::OK;
+    } catch (const std::exception& ex) {
+        return DescriptionBuffer(StatusCode::GENERAL_ERROR, resp) << ex.what();
+    }
 }

@@ -108,6 +108,25 @@ mv::Data::TensorIterator convertEltwiseToTask(mv::OpModel& om, const std::vector
     return eltwiseTask;
 }
 
+mv::Data::TensorIterator convertLReluToUPATask(mv::OpModel& om,
+                                               const std::vector<mv::Data::TensorIterator>& inputs,
+                                               const std::map<std::string, mv::Attribute>& attrs,
+                                               const std::string& name,
+                                               bool /*software*/,
+                                               const mv::QuantizationParams& quantParams,
+                                               const mv::DType& outputTensorType,
+                                               const mv::Order& outputTensorOrder)
+{
+
+    auto alpha = attrs.at("alpha").get<double>();
+    mv::Data::TensorIterator lreluTask;
+
+    lreluTask = om.uPATaskLeakyRelu(mv::createDPUTaskName(name), inputs, alpha);
+    lreluTask->setQuantParams(quantParams);
+    lreluTask->setDType(outputTensorType);
+
+    return lreluTask;
+}
 
 mv::Data::TensorIterator convertMaxPoolToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool /*software*/,
@@ -997,7 +1016,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     mv::ControlModel cm(model);
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     //Note: Eltwise might be UPA might be DPU task...
-    std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise"};
+    std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise", "LeakyRelu"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
@@ -1016,6 +1035,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"DepthwiseConv", convertDepthwiseConvolutionToDPUTask},
     {"MaxPool", convertMaxPoolToDPUTask},
     {"Eltwise", convertEltwiseToTask},
+    {"LeakyRelu", convertLReluToUPATask},
     {"Identity", convertIdentityToUPATask},
     {"Softmax", convertSoftmaxToUPATask},
     {"Proposal", convertProposalToUPATask},

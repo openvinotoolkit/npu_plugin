@@ -43,7 +43,7 @@ bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
 class IDevice;
 class Device;
 
-class IEngineBackend : public std::enable_shared_from_this<IEngineBackend> {
+class IEngineBackend : public InferenceEngine::details::IRelease {
 public:
     /** @brief Get device, which can be used for inference. Backend responsible for selection. */
     virtual const std::shared_ptr<IDevice> getDevice() const;
@@ -58,12 +58,15 @@ public:
     /** @brief Get a list of supported options */
     virtual std::unordered_set<std::string> getSupportedOptions() const;
 
+    void Release() noexcept override {
+        delete this;
+    }
+
 protected:
-    ~IEngineBackend() = default;
+    virtual ~IEngineBackend() override = default;
 };
 
 class EngineBackendConfigurator;
-using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
 
 class EngineBackend final {
 public:
@@ -83,6 +86,8 @@ public:
 
 private:
     friend class EngineBackendConfigurator;
+
+    using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
     IEngineBackendPtr _impl = {};
 
 private:
@@ -115,6 +120,16 @@ public:
 
     // FIXME: temporary exposed to allow executor to use vpux::Allocator
     virtual unsigned long getPhysicalAddress(void* handle) noexcept = 0;
+
+    virtual void Release() noexcept override {
+        delete this;
+    }
+
+protected:
+    /**
+     * @brief Disables the ability of deleting the object without release.
+     */
+    ~Allocator() override = default;
 };
 
 //------------------------------------------------------------------------------
@@ -143,6 +158,10 @@ public:
         return _actual->free(handle);
     }
 
+    virtual void Release() noexcept override {
+        delete this;
+    }
+
     virtual void* wrapRemoteMemory(const InferenceEngine::ParamMap& paramMap) noexcept override {
         return _actual->wrapRemoteMemory(paramMap);
     }
@@ -158,7 +177,8 @@ public:
         return _actual->getPhysicalAddress(handle);
     }
 
-    ~AllocatorWrapper() {
+protected:
+    virtual ~AllocatorWrapper() override {
         _actual = nullptr;
     };
 };
@@ -166,7 +186,7 @@ public:
 //------------------------------------------------------------------------------
 class Executor;
 
-class IDevice : public std::enable_shared_from_this<IDevice> {
+class IDevice : public InferenceEngine::details::IRelease {
 public:
     virtual std::shared_ptr<Allocator> getAllocator() const = 0;
     /** @brief Get allocator, which is configured/suitable for provided params
@@ -178,8 +198,12 @@ public:
 
     virtual std::string getName() const = 0;
 
+    void Release() noexcept override {
+        delete this;
+    }
+
 protected:
-    ~IDevice() = default;
+    virtual ~IDevice() override = default;
 };
 
 class Device final {
@@ -187,9 +211,9 @@ private:
     // Device stores instances of classes inherited from IDevice. The instances come from _plg library.
     // Device has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
     // an instance of IDevice
-    std::shared_ptr<IDevice> _actual;
-    IEngineBackendPtr _plg;
-    std::shared_ptr<AllocatorWrapper> _allocatorWrapper;
+    std::shared_ptr<IDevice> _actual = nullptr;
+    InferenceEngine::details::SharedObjectLoader::Ptr _plg = nullptr;
+    std::shared_ptr<AllocatorWrapper> _allocatorWrapper = nullptr;
 
 public:
     using Ptr = std::shared_ptr<Device>;
@@ -198,7 +222,8 @@ public:
     Device(const std::shared_ptr<IDevice> device, InferenceEngine::details::SharedObjectLoader::Ptr plg)
             : _actual(device), _plg(plg) {
         if (_actual->getAllocator()) {
-            _allocatorWrapper = std::make_shared<AllocatorWrapper>(_actual->getAllocator(), _plg);
+            _allocatorWrapper =
+                    InferenceEngine::details::shared_from_irelease(new AllocatorWrapper(_actual->getAllocator(), _plg));
         }
     }
 
@@ -206,7 +231,8 @@ public:
         return _allocatorWrapper;
     }
     std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) {
-        return std::make_shared<AllocatorWrapper>(_actual->getAllocator(paramMap), _plg);
+        return InferenceEngine::details::shared_from_irelease(
+                new AllocatorWrapper(_actual->getAllocator(paramMap), _plg));
     }
 
     virtual std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
@@ -222,6 +248,7 @@ public:
         _actual = nullptr;
     }
 };
+
 //------------------------------------------------------------------------------
 using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;
 class Executor {

@@ -195,7 +195,12 @@ const std::vector<std::string> VpualEngineBackend::getDeviceNames() const {
 
 }  // namespace vpux
 
-INFERENCE_PLUGIN_API(void)
-CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& backend) {
-    backend = std::make_shared<vpux::VpualEngineBackend>();
+INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
+CreateVPUXEngineBackend(vpux::IEngineBackend*& backend, InferenceEngine::ResponseDesc* resp) noexcept {
+    try {
+        backend = new vpux::VpualEngineBackend();
+        return InferenceEngine::StatusCode::OK;
+    } catch (std::exception& ex) {
+        return InferenceEngine::DescriptionBuffer(InferenceEngine::StatusCode::GENERAL_ERROR, resp) << ex.what();
+    }
 }

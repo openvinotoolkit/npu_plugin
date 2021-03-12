@@ -964,7 +964,7 @@ namespace mv
                 }
 
                 //Input and Output must have Spilled==True
-                if((op.getOpType() == "Input") && (!spilling))
+                if((op.getOpType() == "Input" || op.getOpType() == "ImplicitInput") && (!spilling))
                     return FailCause::InputNotSpilled;
 
                 if((op.getOpType() == "Output") && (!spilling))
