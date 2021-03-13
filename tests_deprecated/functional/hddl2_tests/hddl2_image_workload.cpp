@@ -119,6 +119,8 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInferenceNCHWInput) {
                     numberOfTopClassesToCompare));
 }
 
+#ifdef USE_OPENCV
+
 // Case: Image with 256B alignment - not supported w/o preprocessing
 TEST_F(ImageWorkload_WithoutPreprocessing, ImageWithStrides_ThrowException) {
      const Models::ModelDesc modelToUse = modelForNoPreprocess;
@@ -167,6 +169,8 @@ TEST_F(ImageWorkload_WithoutPreprocessing, ImageWithStrides_ThrowException) {
     // ---- Run the request synchronously
     ASSERT_ANY_THROW(inferRequest.Infer());
 }
+
+#endif
 
 //------------------------------------------------------------------------------
 class ImageWorkload_WithPreprocessing : public ImageWorkload_Tests {
@@ -263,6 +267,8 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference_RGBToBGR) {
                     numberOfTopClassesToCompare));
 }
 
+#ifdef USE_OPENCV
+
 // Case: Image with 256B alignment
 TEST_F(ImageWorkload_WithPreprocessing, precommit_ImageWithStrides) {
     const Models::ModelDesc modelToUse = modelForPreprocessing;
@@ -348,6 +354,8 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_ImageWithStrides) {
                     vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
                     numberOfTopClassesToCompare));
 }
+
+#endif
 
 //------------------------------------------------------------------------------
 class ImageWorkload_SpecificCases : public ImageWorkload_Tests {
