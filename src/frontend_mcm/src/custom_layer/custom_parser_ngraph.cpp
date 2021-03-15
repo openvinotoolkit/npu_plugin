@@ -17,6 +17,7 @@
 #include <custom_layer/custom_parser_ngraph.hpp>
 
 #include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/simple_math.hpp"
 
 #include <debug.h>
 
@@ -86,12 +87,12 @@ static std::vector<int> calcSizesFromParams(const std::vector<size_t>& dims,
 
     std::move(begin(sizes), end(sizes), inserter(layerParams, end(layerParams)));
 
-    MathExpression expr;
+    vpux::MathExpression expr;
     expr.setVariables(layerParams);
 
     const auto parseSizeRule = [&expr](const std::string& rule) {
         expr.parse(rule);
-        return expr.evaluate();
+        return expr.evaluate().asInt();
     };
 
     auto parsedSizes = std::vector<int>{};
@@ -371,12 +372,13 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
                 // parse cnnLayer param
                 const auto param = [&]() -> std::string {
                     if (binding.portIndex < 0) {
-                        VPU_THROW_UNLESS(parseNumber<float>(cnnParam->second).hasValue(),
-                                         "Unable to deduce parameter '%s' for '%s' layer. "
-                                         "Without "
-                                         "port-index set, only viable "
-                                         "size value is a whole integer number.",
-                                         binding.argName, _node->description());
+                        vpux::StringRef paramVal(cnnParam->second);
+                        double val = 0.0;
+                        VPUX_THROW_UNLESS(!paramVal.getAsDouble(val),
+                                          "Unable to deduce parameter '{0}' for '{1}' layer. "
+                                          "Without port-index set, \"source\" attribute "
+                                          "should contain only Integer or Float type.",
+                                          binding.argName, _node->description());
                         return cnnParam->second;
                     }
 
@@ -395,21 +397,25 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
                 }();
 
                 if (binding.type == CustomParamType::Int) {
-                    const auto val = parseNumber<int>(param);
-                    VPU_THROW_UNLESS(val.hasValue(),
-                                     "Unable to deduce parameter '%s' for '%s' layer. "
-                                     "Name is: '%s', parameter is: '%s'",
-                                     binding.argName, _node->description(), _node->get_friendly_name(),
-                                     binding.irSource);
-                    stage.arguments.push_back(val.get());
+                    vpux::StringRef paramVal(param);
+                    int val = 0;
+                    VPUX_THROW_UNLESS(!paramVal.getAsInteger(10, val),
+                                      "Unable to deduce parameter '{0}' for '{1}' layer. "
+                                      "Name is: '{2}', parameter is: '{3}'",
+                                      binding.argName, _node->description(), _node->get_friendly_name(),
+                                      binding.irSource);
+
+                    stage.arguments.push_back(val);
                 } else {
-                    const auto val = parseNumber<float>(param);
-                    VPU_THROW_UNLESS(val.hasValue(),
-                                     "Unable to deduce parameter '%s' for '%s' layer. "
-                                     "Name is: '%s', parameter is: '%s'",
-                                     binding.argName, _node->description(), _node->get_friendly_name(),
-                                     binding.irSource);
-                    stage.arguments.push_back(floatAsInt(val.get()));
+                    vpux::StringRef paramVal(param);
+                    double val = 0.0;
+                    VPUX_THROW_UNLESS(!paramVal.getAsDouble(val),
+                                      "Unable to deduce parameter '{0}' for '{1}' layer. "
+                                      "Name is: '{2}', parameter is: '{3}'",
+                                      binding.argName, _node->description(), _node->get_friendly_name(),
+                                      binding.irSource);
+
+                    stage.arguments.push_back(floatAsInt(val));
                 }
                 // if not cnnLayer param, check if it is 'I.X' format param
             } else if (binding.irSource[1] == '.' && (binding.irSource[0] == 'I' || binding.irSource[0] == 'O')) {
@@ -454,25 +460,25 @@ StageInfo CustomLayerParserNGraph::parseKernelArguments(const std::vector<Custom
 
                 uint32_t number = 0;
                 if (binding.type == CustomParamType::Int) {
-                    const auto val = parseNumber<int>(binding.irSource);
+                    vpux::StringRef paramVal(binding.irSource);
+                    int val = 0;
+                    VPUX_THROW_UNLESS(!paramVal.getAsInteger(10, val),
+                                      "Unable to deduce parameter '{0}' for '{1}' layer. "
+                                      "Name is: '{2}', parameter is: '{3}'",
+                                      binding.argName, _node->description(), _node->get_friendly_name(),
+                                      binding.irSource);
 
-                    VPU_THROW_UNLESS(val.hasValue(),
-                                     "Unable to deduce parameter '%s' for '%s' layer. "
-                                     "Name is: '%s', parameter is: '%s'",
-                                     binding.argName, _node->description(), _node->get_friendly_name(),
-                                     binding.irSource);
-
-                    number = val.get();
+                    number = val;
                 } else {
-                    const auto val = parseNumber<float>(binding.irSource);
+                    vpux::StringRef paramVal(binding.irSource);
+                    double val = 0.0;
+                    VPUX_THROW_UNLESS(!paramVal.getAsDouble(val),
+                                      "Unable to deduce parameter '{0}' for '{1}' layer. "
+                                      "Name is: '{2}', parameter is: '{3}'",
+                                      binding.argName, _node->description(), _node->get_friendly_name(),
+                                      binding.irSource);
 
-                    VPU_THROW_UNLESS(val.hasValue(),
-                                     "Unable to deduce parameter '%s' for '%s' layer. "
-                                     "Name is: '%s', parameter is: '%s'",
-                                     binding.argName, _node->description(), _node->get_friendly_name(),
-                                     binding.irSource);
-
-                    number = floatAsInt(val.get());
+                    number = floatAsInt(val);
                 }
 
                 stage.arguments.push_back(number);
