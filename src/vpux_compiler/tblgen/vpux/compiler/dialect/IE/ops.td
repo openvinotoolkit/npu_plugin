@@ -1372,6 +1372,8 @@ def IE_ROIPoolingOp :
             "ROIPooling",
             [
                 ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<ROIPoolingLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine ROIPooling layer";

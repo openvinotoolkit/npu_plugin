@@ -1060,6 +1060,29 @@ def IERT_NegativeOp :
         MemRefOf<[F16, F32]>:$output
     );
 }
+//
+// ROIPoolingOp
+//
+
+def IERT_ROIPoolingOp :
+        IERT_LayerOp<
+            "ROIPooling",
+            [
+                DeclareOpInterfaceMethods<ROIPoolingLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time ROIPooling layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$coords,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32ArrayAttr:$output_size,
+        F32Attr:$spatial_scale,
+        IE_ROIPoolingMethod:$method
+    );
+}
 
 //
 // FullyConnected
