@@ -363,6 +363,8 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
                         numberOfTopClassesToCompare));
 }
 
+#ifdef USE_OPENCV
+
 // Case: remote frame with 256B alignment
 TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameWithStrides) {
     // ---- Load inference engine instance
@@ -485,3 +487,5 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameWithStrides) {
                     vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
                     numberOfTopClassesToCompare));
 }
+
+#endif
