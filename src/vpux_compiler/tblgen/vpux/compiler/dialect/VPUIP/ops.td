@@ -1396,4 +1396,53 @@ def VPUIP_NegativeUPAOp :
     }];
 }
 
+//
+// ROIPoolingUPAOp
+//
+
+def VPUIP_ROIPoolingUPAOp :
+        VPUIP_TaskOp<
+            "ROIPoolingUPA",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<ROIPoolingLayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "ROIPooling UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$coords,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        I32ArrayAttr:$output_size,
+        F32Attr:$spatial_scale,
+        IE_ROIPoolingMethod:$method,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$coords,
+                "mlir::Value":$output,
+                "mlir::ArrayAttr":$output_size, "mlir::FloatAttr":$spatial_scale, "IE::ROIPoolingMethodAttr":$method
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
 #endif
