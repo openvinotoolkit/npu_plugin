@@ -108,6 +108,7 @@ bool is_fq_agnostic(const std::shared_ptr<ngraph::Node>& node) {
             std::dynamic_pointer_cast<ngraph::op::v1::VariadicSplit>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v0::Concat>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v0::Interpolate>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v4::Interpolate>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v1::MaxPool>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v1::ReduceMax>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v0::ReorgYolo>(node) != nullptr ||
