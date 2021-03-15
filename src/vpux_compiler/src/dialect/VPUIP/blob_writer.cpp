@@ -19,6 +19,7 @@
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
@@ -141,27 +142,44 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
 
     Vector<uint8_t> quantZero;
     Vector<uint16_t> quantMult;
+    Vector<uint8_t> quantShift;
+
+    auto fixedPointFP16Mult = [](float val) {
+        const static int BITS = 15;
+        int exp;
+        auto mantissa = std::frexp(val, &exp);
+        return static_cast<uint16_t>(mantissa * std::pow(2, BITS));
+    };
+
+    auto fixedPointFP16Shift = [](float val) {
+        const static int BITS = 15;
+        int exp;
+        std::frexp(val, &exp);
+        return static_cast<uint8_t>(BITS - exp);
+    };
 
     if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>()) {
         const auto zero = checked_cast<uint8_t>(qType.getZeroPoint());
-        const auto mult = float16(static_cast<float>(qType.getScale())).to_bits();
-
+        const auto mult = fixedPointFP16Mult(static_cast<float>(qType.getScale()));
+        const auto shift = fixedPointFP16Shift(static_cast<float>(qType.getScale()));
         quantZero = createVector(makeArrayRef(zero));
         quantMult = createVector(makeArrayRef(mult));
+        quantShift = createVector(makeArrayRef<uint8_t>({shift}));
     } else if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
         quantZero = createVector(qType.getZeroPoints() | transformed([](int64_t val) {
                                      return checked_cast<uint8_t>(val);
                                  }));
-        quantMult = createVector(qType.getScales() | transformed([](double val) {
-                                     return float16(static_cast<float>(val)).to_bits();
+        quantMult = createVector(qType.getScales() | transformed([&](double val) {
+                                     return fixedPointFP16Mult(static_cast<float>(val));
                                  }));
+        quantShift = createVector(qType.getScales() | transformed([&](double val) {
+                                      return fixedPointFP16Shift(static_cast<float>(val));
+                                  }));
     } else {
         quantZero = createVector(makeArrayRef<uint8_t>(0));
         quantMult = createVector(makeArrayRef<uint16_t>(1));
+        quantShift = createVector(makeArrayRef<uint8_t>({0}));
     }
-
-    // TODO: can this be retrived from QuantizedType?
-    const auto quantShift = createVector(makeArrayRef<uint8_t>({0}));
 
     MVCNN::TensorReferenceBuilder builder(_impl);
     builder.add_name(serializedName);
@@ -238,9 +256,28 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
                           "Barrier Value {0} has non Barrier Resource for Operation {1}", val, *userOp);
 
         if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
-            ++numConsumers;
+            if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(userOp)) {
+                for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
+                    VPUX_THROW_UNLESS(
+                            dpuTaskOp.waitBarriers().size() == 0 && dpuTaskOp.updateBarriers().size() == 0,
+                            "DPUTaskOp specific waits and updates still needs to be implemented and verified.");
+                    ++numConsumers;
+                }
+            } else {
+                ++numConsumers;
+            }
         } else if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
-            ++numProducers;
+            if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(userOp)) {
+                for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
+                    VPUX_THROW_UNLESS(
+                            dpuTaskOp.waitBarriers().size() == 0 && dpuTaskOp.updateBarriers().size() == 0,
+                            "DPUTaskOp specific waits and updates still needs to be implemented and verified.");
+                    ++numProducers;
+                }
+            } else {
+                ++numProducers;
+            }
+
         } else {
             VPUX_THROW("Barrier Value {0} has unsupported Effect in Operation {1}", val, *userOp);
         }
