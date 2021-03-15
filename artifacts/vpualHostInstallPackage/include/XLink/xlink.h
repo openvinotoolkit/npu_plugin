@@ -8,6 +8,8 @@
 #ifndef __XLINK_H
 #define __XLINK_H
 
+#define XLINK_MAX_CHAN_BUFFERS 256
+
 #ifdef __cplusplus
 extern "C" {
 #endif

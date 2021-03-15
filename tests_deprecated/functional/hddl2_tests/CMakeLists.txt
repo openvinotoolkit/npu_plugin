@@ -18,6 +18,8 @@ set(TARGET_NAME "HDDL2FunctionalTests")
 
 file(GLOB_RECURSE HDDL2_TESTS_SOURCES "*.cpp")
 
+find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)
+
 addIeTargetTest(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -38,5 +40,11 @@ addIeTargetTest(
     LABELS
         VPUX
 )
+
+if(OpenCV_FOUND)
+    target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
+    target_link_libraries(${TARGET_NAME} PRIVATE opencv_core opencv_imgproc opencv_imgcodecs)
+endif()
+
 add_dependencies(${TARGET_NAME} ${VPUX_PLUGIN_TARGET} hddl2_backend)
 enable_warnings_as_errors(${TARGET_NAME})
