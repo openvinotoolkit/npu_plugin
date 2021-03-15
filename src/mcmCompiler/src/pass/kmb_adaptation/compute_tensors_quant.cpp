@@ -584,6 +584,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                             {98438, 4},
                             {98984, 4},
                             {99140, 4},
+                            {99141, 4},
                             {99843, 4},
                             {99844, 4},
                             {101641, 4},

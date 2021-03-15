@@ -1332,8 +1332,12 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
         clamp = std::max(clamp, -128);
 
         if(opIt->hasAttr("WithMish")) {
-            clamp = std::max(clamp, 0);
+            clamp = std::max(clamp, -128);
         }
+    }
+
+    if(opIt->hasAttr("WithMish")) {
+        clamp = std::max(clamp, -128);
     }
 
     return clamp;
@@ -1402,6 +1406,10 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
         mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         auto maximum = outputQuantParams.getMax()[0];
         clamp = round(maximum/outputQuantParams.getScale()[0]);
+        clamp = std::min(clamp, 127);
+    }
+
+    if(opIt->hasAttr("WithMish")) {
         clamp = std::min(clamp, 127);
     }
 
