@@ -30,10 +30,8 @@ static bool is_supported(const Precision& inPrecision, const Layout& inLayout, c
     bool inLayoutSupported = (supportedInLayouts.find(inLayout) != supportedInLayouts.end());
     bool outLayoutSupported = (supportedOutLayouts.find(outLayout) != supportedOutLayouts.end());
     bool compareWithReferenceSupported = outPrecision == Precision::FP16 || outPrecision == Precision::FP32;
-    bool compareWithReferenceRequired = KmbTestBase::RUN_INFER;
-    bool compareSupported = compareWithReferenceSupported || !compareWithReferenceRequired;
 
-    return (inPrecSupported && outPrecSupported && inLayoutSupported && outLayoutSupported && compareSupported);
+    return (inPrecSupported && outPrecSupported && inLayoutSupported && outLayoutSupported && compareWithReferenceSupported);
 }
 
 static std::vector<size_t> composeDimsByLayout(const Layout& layout) {
