@@ -16,7 +16,7 @@
 
 #include "test_model/kmb_test_base.hpp"
 
-TEST_F(KmbNetworkTestBase, split_conv_concat) {
+TEST_F(KmbNetworkTestBase, DISABLED_split_conv_concat) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results due to precision issues"); // TODO: create JIRA ticket
     const auto init_input = [=](const ConstInputsDataMap& inputs) {
         IE_ASSERT(inputs.size() == 1);
