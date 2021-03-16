@@ -889,8 +889,7 @@ TEST_F(SmokeNetworkTest, yolo_v4_tf_full) {
 }
 
 // Regression on compilation due to latest rebase
-TEST_F(KmbVasFDStage1Test, DISABLED_precommit_vasfd_stage1) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+TEST_F(KmbVasFDStage1Test, precommit_vasfd_stage1) {
     const std::string inputName = "data";
     const std::vector<std::string> layerNames = {
         "b12", "b16", "b24", "b32", "b48",
@@ -902,9 +901,10 @@ TEST_F(KmbVasFDStage1Test, DISABLED_precommit_vasfd_stage1) {
     runTest(
         TestNetworkDesc("KMB_models/FP16/face_detection_stage1/vasfd_stage1.xml")
             .setUserInputLayout(inputName, Layout::NHWC)
-            .setUserInputPrecision(inputName, Precision::FP16),
-    TestImageDesc("320x240/Alma_Powell_0_0.1133.jpg", ImageFormat::BGR),
-    0.35f, 0.1f, 0.3f, layerNames, anchorSizes, windowScales, windowLengths);
+            .setUserInputPrecision(inputName, Precision::U8)
+            .setCompileConfig({{"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "YES"}}),
+        TestImageDesc("320x240/Alma_Powell_0_0.1133.jpg", ImageFormat::BGR),
+        0.35f, 0.1f, 0.3f, layerNames, anchorSizes, windowScales, windowLengths);
 }
 
 TEST_F(KmbVasFDStage2Test, precommit_vasfd_stage2) {

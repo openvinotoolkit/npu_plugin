@@ -176,8 +176,8 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
-    auto ppeOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-    auto parentOp = om.getSourceOp(opIt->getInputTensor(0));
+    auto ppeOutputMemoryLocation = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->get<mv::Tensor::MemoryLocation>("Location");
+    auto parentOp = om.getSourceOp(opIt->getInputTensor(mv::IO_TENSOR_INPUT));
 
     std::vector<mv::Data::OpListIterator> fusableParents;
     auto isActivationAgnostic = [](mv::Data::OpListIterator &op)
@@ -203,13 +203,14 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
         }
     }
 
-    // Check for siblings, normally of all sibling would be same opType
+    // Check number of children of each fusable parent;
+    // normally if all children are the same opType,
     // one could proceed to attempt fuse all siblings.
     // Have this as a future optimization, for now just mark it as
     // software executed.
-    if (opIt.siblingsSize() || std::find_if(fusableParents.cbegin(),
-        fusableParents.cend(), [] (const mv::Data::OpListIterator &op)
-        {return !op->isHardwarizable();}) != fusableParents.cend())
+    if (std::find_if(fusableParents.begin(), fusableParents.end(),
+            [] (mv::Data::OpListIterator &op) {return op.childrenSize() > 1 || !op->isHardwarizable();})
+        != fusableParents.end())
     {
         opIt->set<bool>("softwareExecuted", true);
         return;
@@ -228,10 +229,10 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
     }
 
     // Link direct postOp parent with postOp consumers
-    auto sourceTensor = parentOp->getOutputTensor(0);
+    auto sourceTensor = parentOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
     opIt = linkNewOperationsFuse(parentOp, sourceTensor, om, opIt);
     if (ppeOutputMemoryLocation.isForced())
-        opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);
+        opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);
 }
 
 void fuseEltwiseFcn(mv::Data::OpListIterator &opIt1, mv::ComputationModel &model, const std::string& /*opType*/)

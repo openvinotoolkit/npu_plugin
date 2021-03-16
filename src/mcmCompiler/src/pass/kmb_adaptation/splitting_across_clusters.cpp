@@ -11,17 +11,29 @@
 #include "include/mcm/target/kmb/rectangle.hpp"
 #include "include/mcm/tensor/tiling.hpp"
 
+namespace {
+    using tensorComparatorFunc =
+        std::function<bool(
+        mv::Data::TensorIterator, mv::Data::TensorIterator)>;
+
+    using tensorSet = std::set<mv::Data::TensorIterator, tensorComparatorFunc>;
+
+    bool compareTensor(mv::Data::TensorIterator t0, mv::Data::TensorIterator t1) {
+        return t0->getName().compare(t1->getName()) < 0;
+    }
+}
+
 static const std::vector<mv::DPUModeList> TENSOR_MPE {{{1,1}}, {{16,1}}, {{1,16}}};
 
 static void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&,
                                     mv::Element&, mv::Element&);
-static void subTensorsGen(mv::ComputationModel& model, const std::vector<mv::Data::TensorIterator> &tensors, unsigned nClusters,
+static void subTensorsGen(mv::ComputationModel& model, const tensorSet &tensors, unsigned nClusters,
                           const mv::pass::PassEntry& pass, std::size_t id=0);
 static void unpopulatedSplitOverH(const unsigned nWorkloads, std::vector<mv::Workload> &subTensors, mv::Workloads &Tensor,
                                   const mv::pass::PassEntry& pass, int &success);
 static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Workload> &subTensors, mv::Workloads& Tensor,
                                 const mv::pass::PassEntry& pass, int &success);
-static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int outputChannels);
+static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, const std::size_t nWorkloads, const std::size_t outputChannels);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void recomputeTensorMultiClusterAttributesCauseOfSpillingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -71,118 +83,113 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
     auto globalParams = model.getGlobalConfigParams();
     unsigned int numClusters = (unsigned int)globalParams->get<int>("Number_of_Clusters");
 
-    if (numClusters > 1)
+    if (numClusters <= 1)
+        return;
+
+    tensorSet tensors(compareTensor);
+    //NOTE: special Tensors are marked the tensors that are populated that need to be handled
+    //as unpopulated, cases where compiler handes the activation sparsity!!!
+    //terrible...compiler concludes a solver of hardware limitations
+    tensorSet specialTensors(compareTensor);
+
+    //Todo:: the construction and logic of this pass needs to be refactored.
+    // The pass should not target specific ops to determine if it's output needs to have subtensors generated,
+    // but via location. If  the outputTensor is in NNCMX, then it needs a clustering strategy, and subtensors
+    // They can be also non DPUTasks like ConcatInCMX, Slice,Reshape etc...
+
+    for (auto& op : om.getOps())
     {
-        std::set <std::string> tensorNames;
-        //NOTE: special Tensors are marked the tensors that are populated that need to be handled
-        //as unpopulated, cases where compiler handes the activation sparsity!!!
-        //terrible...compiler concludes a solver of hardware limitations
-        std::set <std::string> specialTensorNames;
-        std::vector <mv::Data::TensorIterator> tensors;
-        std::vector <mv::Data::TensorIterator> specialTensors;
-
-        //Todo:: the construction and logic of this pass needs to be refactored.
-        // The pass should not target specific ops to determine if it's output needs to have subtensors generated,
-        // but via location. If  the outputTensor is in NNCMX, then it needs a clustering strategy, and subtensors
-        // They can be also non DPUTasks like ConcatInCMX, Slice,Reshape etc...
-
-        auto implicitConcats = om.getOps("ImplicitConcat");
-        for(auto layer : implicitConcats)
-        {
-            auto outputTensor = layer->getOutputTensor(0);
-            if(outputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
-            {
-                auto outputTensorName = layer->getOutputTensor(0)->getName();
-                tensorNames.insert(outputTensorName);
-            }
-        }
-        auto dpuTasks = om.getOps("DPUTask");
-        for(auto layer : dpuTasks)
-        {
-            auto outputTensorName = layer->getOutputTensor(0)->getName();
-            tensorNames.insert(outputTensorName);
-            for(std::size_t i = 0; i < layer->inputSlots(); ++i)
-            {
-                if (findSparseTensorIndex(layer, "unpopulatedSparsityMapIndex", i) ||
-                    findSparseTensorIndex(layer, "storageElementIndex", i))
-                    specialTensorNames.insert(layer->getInputTensor(i)->getName());
-                else
-                {
-                    auto inputTensorName = layer->getInputTensor(i)->getName();
-                    auto inputTensor = layer->getInputTensor(i);
-                    tensorNames.insert(inputTensorName);
-
-                    // New weights sparsity approach: no explicit costant operation
-                    // for sparsity map is present in the graph.
-                    // So check for sparsity has to be done only here
-                    if(inputTensor->isPopulated() && inputTensor->isSparse())
-                        tensorNames.insert(inputTensor->getSparsityMap()->getName());
-                }
-            }
-        }
-
         //Also need to generate subtensors for output tensor of input operation
         //  Note: Input can't provide output activation sparsity, so sparse subtensors
         // shouldn't be needed
-        auto inputOpsMap = om.getOpsOfTypes({"Input", "ImplicitInput"});
-        for (auto inputOps : inputOpsMap)
+        if (op->getOpType() == "Input" || op->getOpType() == "ImplicitInput")
         {
-            for (auto op: inputOps.second)
-            {
-                for (auto tensor : op->getOutputTensor()) {
-                    if((tensor->get<std::string>("splitStrategy") == "SplitOverH") ||
-                        (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
-                        tensorNames.insert(tensor->getName());
-                }
+            for (const auto& tensor : op->getOutputTensor()) {
+                if((tensor->get<std::string>("splitStrategy") == "SplitOverH") ||
+                    (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
+                    tensors.insert(tensor);
             }
+            continue;
         }
 
         //Also need to generate subtensors for input tensor of output operation
         //  Note: Output can't take input activation sparsity, so sparse subtensors
         // shouldn't be needed
-        auto outputOpsMap = om.getOpsOfTypes({"Output", "ImplicitOutput"});
-        for (auto outputOps : outputOpsMap)
+        if (op->getOpType() == "Output" || op->getOpType() == "ImplicitOutput")
         {
-            for (auto op: outputOps.second)
+            for (const auto& tensor : op->getInputTensor()) {
+                if((tensor->get<std::string>("splitStrategy") == "SplitOverH") ||
+                    (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
+                    tensors.insert(tensor);
+            }
+            continue;
+        }
+
+        const auto outputTensor = op->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+        if (op->isImplicit())
+        {
+            for (const auto& tensor : op->getInputTensor()) {
+                tensors.insert(tensor);
+            }
+
+            for (const auto& tensor : op->getOutputTensor()) {
+                tensors.insert(tensor);
+            }
+
+            continue;
+        }
+
+        if (op->getOpType() == "DPUTask")
+        {
+            tensors.insert(outputTensor);
+
+            for(std::size_t i = 0; i < op->inputSlots(); ++i)
             {
-                for (auto tensor : op->getInputTensor()) {
-                    if((tensor->get<std::string>("splitStrategy") == "SplitOverH") ||
-                        (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
-                        tensorNames.insert(tensor->getName());
+                const auto inputTensor = op->getInputTensor(i);
+                if (findSparseTensorIndex(op, "unpopulatedSparsityMapIndex", i) ||
+                    findSparseTensorIndex(op, "storageElementIndex", i))
+                    specialTensors.insert(inputTensor);
+                else
+                {
+                    tensors.insert(inputTensor);
+
+                    // New weights sparsity approach: no explicit costant operation
+                    // for sparsity map is present in the graph.
+                    // So check for sparsity has to be done only here
+                    if(inputTensor->isPopulated() && inputTensor->isSparse())
+                        tensors.insert(dm.getTensor(inputTensor->getSparsityMap()->getName()));
                 }
             }
         }
+    }
 
-        for (auto specialTensorName : specialTensorNames)
-            specialTensors.push_back(dm.getTensor(specialTensorName));
-        for (auto tensorName : tensorNames)
-            tensors.push_back(dm.getTensor(tensorName));
-        subTensorsGen(model, tensors, numClusters, pass);
-        subTensorsGen(model, specialTensors, numClusters, pass, 1);
+    subTensorsGen(model, tensors, numClusters, pass);
+    subTensorsGen(model, specialTensors, numClusters, pass, 1);
 
-        auto srcImplicitChainTypes = std::vector<std::string>({"Concat", "Crop", "ImplicitConcat", "Slice"});
-        auto destImplicitChainTypes = std::vector<std::string>({"Align", "Crop", "ImplicitConcat", "Slice"});
-        auto srcImplitcitOpsTypes = om.getOpsOfTypes(srcImplicitChainTypes);
-        for(auto srcImplicitOpsList : srcImplitcitOpsTypes)
+    tensors.clear();
+    auto srcImplicitChainTypes = std::vector<std::string>({"Concat"});
+    auto destImplicitChainTypes = std::vector<std::string>({"Align", "Crop", "ImplicitConcat", "Slice"});
+    auto srcImplitcitOpsTypes = om.getOpsOfTypes(srcImplicitChainTypes);
+    for(auto srcImplicitOpsList : srcImplitcitOpsTypes)
+    {
+        for(auto srcImplicitOp : srcImplicitOpsList.second)
         {
-            for(auto srcImplicitOp : srcImplicitOpsList.second)
-            {
-                auto sinkOperators = findSinkLayers(dm, srcImplicitOp->getOutputTensor(0));
-                if (std::find(destImplicitChainTypes.cbegin(), destImplicitChainTypes.cend(),
-                    sinkOperators[0]->getOpType()) != destImplicitChainTypes.cend())
-                    subTensorsGen(model, {srcImplicitOp->getOutputTensor(0)},numClusters, pass);
-            }
-        }
-        // Find a better way to handle subtensors generation trough implicit operations
-        for (auto cropOp : om.getOps("Crop")){
-            if (om.getSourceOp(cropOp->getInputTensor(0))->getOpType() == "DPUTask")
-                    subTensorsGen(model, {cropOp->getOutputTensor(0)},numClusters, pass);
+            const auto outputTensor = srcImplicitOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+            auto sinkOperators = findSinkLayers(dm, outputTensor);
+
+            if (sinkOperators.empty())
+                continue;
+
+            if (std::find(destImplicitChainTypes.cbegin(), destImplicitChainTypes.cend(),
+                sinkOperators[0]->getOpType()) != destImplicitChainTypes.cend())
+                tensors.insert(outputTensor);
         }
     }
-    return;
+    subTensorsGen(model, tensors, numClusters, pass);
+
 }
 
-void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::TensorIterator>& tensors, unsigned nClusters,
+void subTensorsGen(mv::ComputationModel& model, const tensorSet& tensors, unsigned nClusters,
                    const mv::pass::PassEntry& pass, std::size_t id)
 {
     mv::DataModel dm(model);
@@ -288,7 +295,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     if (sinkOperators[0]->getOpType() == "DPUTask")
                     {
                         mv::Tiling masterTile(axis, int(subTensors.size()));
-                        masterTile.setSize(sinkOperators[0]->getInputTensor(0)->getShape());
+                        masterTile.setSize(sinkOperators[0]->getInputTensor(mv::IO_TENSOR_INPUT)->getShape());
                         masterTile.generateSpatialTiling(sinkOperators[0]);
                         childtiles = masterTile.childTiles();
 
@@ -326,10 +333,10 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     {
                         while (sinkOperators[0]->getOpType() != "DPUTask" &&
                                 sinkOperators[0]->getOpType() != "Output"){
-                            sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
+                            sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(mv::IO_TENSOR_OUTPUT));
                         }
                         if(sinkOperators[0]->getOpType() != "Output")
-                            outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                            outputChannels = sinkOperators[0]->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape()[mv::IO_CHANNEL_DIMENSION];
                     }
                     auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads, outputChannels);
                     subTensors.clear();
@@ -414,7 +421,7 @@ static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Worklo
 }
 
 //TODO re-enable this version
-static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int outputChannels)
+static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, const std::size_t nWorkloads, const std::size_t outputChannels)
 {
     std::vector<mv::Workload> newSubTensors;
 
@@ -422,35 +429,30 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
     {
         if (subTensors.empty())
         {
-            std::size_t quantumofAlignedChannels, equalSlice, remainingSlice = 0;
-            if (outputChannels % 16 == 0)
-            {
-                quantumofAlignedChannels = outputChannels/16;
-                equalSlice = quantumofAlignedChannels/nWorkloads;
-                remainingSlice = quantumofAlignedChannels%nWorkloads;
-            }
-            else
-                throw mv::RuntimeError("SplittingTensorsAcrossClusters",
-                    "Trying to compute SubTensors for an unaligned Tensor");
-            for (int n = 0; n < nWorkloads; n++)
+            const std::size_t quantumofAlignedChannels = outputChannels/16;
+            const std::size_t unalignedRemainder = outputChannels % 16;
+            const std::size_t equalSlice = quantumofAlignedChannels/nWorkloads;
+            const std::size_t remainingSlice = quantumofAlignedChannels%nWorkloads;
+
+            for (std::size_t n = 0; n < nWorkloads; n++)
             {
                 mv::Workload subTensor;
                 if (n != nWorkloads - 1)
                 {
-                    subTensor.MaxX = tensor->getShape()[mv::IO_WIDTH_DIMENSION];
-                    subTensor.MinX = 0;
-                    subTensor.MaxZ = equalSlice * (n+1) * 16;
-                    subTensor.MinZ = equalSlice * n * 16;
-                    subTensor.MaxY = tensor->getShape()[mv::IO_HEIGHT_DIMENSION];
+                    subTensor.MaxZ = tensor->getShape()[mv::IO_WIDTH_DIMENSION] - 1;
+                    subTensor.MinZ = 0;
+                    subTensor.MaxX = equalSlice * (n+1) * 16 - 1;
+                    subTensor.MinX = equalSlice * n * 16;
+                    subTensor.MaxY = tensor->getShape()[mv::IO_HEIGHT_DIMENSION] - 1;
                     subTensor.MinY = 0;
                 }
                 else
                 {
-                    subTensor.MaxX = tensor->getShape()[mv::IO_WIDTH_DIMENSION];
-                    subTensor.MinX = 0;
-                    subTensor.MaxZ = (equalSlice + remainingSlice) * (n+1) * 16;
-                    subTensor.MinZ = equalSlice * n;
-                    subTensor.MaxY = tensor->getShape()[mv::IO_HEIGHT_DIMENSION];
+                    subTensor.MaxZ = tensor->getShape()[mv::IO_WIDTH_DIMENSION] - 1;
+                    subTensor.MinZ = 0;
+                    subTensor.MaxX = (equalSlice * (n+1) + remainingSlice) * 16 + unalignedRemainder - 1;
+                    subTensor.MinX = equalSlice * n * 16;
+                    subTensor.MaxY = tensor->getShape()[mv::IO_HEIGHT_DIMENSION] - 1;
                     subTensor.MinY = 0;
                 }
                 newSubTensors.push_back(subTensor);
@@ -466,7 +468,7 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
                     totalZ = subTensors[i].MaxX;
             totalZ++;
 
-            int t=0;
+            std::size_t t = 0;
             while (totalZ > 0)
             {
                 z_sizes[t] += 16;
@@ -475,7 +477,7 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
                 if (t == nWorkloads)
                     t = 0;
             }
-            for (int i = 0; i < nWorkloads; i++)
+            for (std::size_t i = 0; i < nWorkloads; i++)
             {
                 mv::Workload subTensor = subTensors[0];
 
@@ -503,7 +505,7 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
                 totalZ = subTensors[i].MaxY;
         totalZ++;
 
-        int t=0;
+        std::size_t t = 0;
         while (totalZ > 0)
         {
             z_sizes[t] += 16;
@@ -512,7 +514,7 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
             if (t == nWorkloads)
                 t = 0;
         }
-        for (int i = 0; i < nWorkloads; i++)
+        for (std::size_t i = 0; i < nWorkloads; i++)
         {
             mv::Workload subTensor = subTensors[0];
 
@@ -567,9 +569,31 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
             std::string opType = opIt->getOpType();
             if (opType == "DMATask")
             {
-                auto outputTensor = opIt->getOutputTensor(0);
-                auto inputTensor = opIt->getInputTensor(0);
-                
+                auto outputTensor = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+                auto inputTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
+
+                auto sourceOp = om.getSourceOp(inputTensor);
+
+                // Ensure input and output tensors of slice have compatible splitStrategy,
+                // so that the following DMA can move the tensor correctly.
+                if (sourceOp->getOpType() == "Slice")
+                {
+                    const std::pair<std::string, std::string> inOutStrategies(
+                        sourceOp->getInputTensor(mv::IO_TENSOR_INPUT)->get<std::string>("splitStrategy"),
+                        sourceOp->getOutputTensor(mv::IO_TENSOR_OUTPUT)->get<std::string>("splitStrategy"));
+
+                    if (inOutStrategies == SoKToSoH)
+                    {
+                        auto sourceOpOutputTensor = sourceOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+                        sourceOpOutputTensor->cleanSubtensors();
+                        sourceOpOutputTensor->set<std::string>("splitStrategy", inOutStrategies.first);
+
+                        tensorSet tensors(compareTensor);
+                        tensors.insert(sourceOpOutputTensor);
+                        subTensorsGen(model, tensors, numClusters, pass);
+                    }
+                }
+
                 if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX &&
                     !outputTensor->isPopulated())
                 {
@@ -580,7 +604,7 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                     if (sinkOperators[0]->getOpType() == "Copy" )
                         continue;
 
-                    if (opIt->getOutputTensor(0)->get<std::string>("splitStrategy") != "SplitOverHOverlapped")
+                    if (opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->get<std::string>("splitStrategy") != "SplitOverHOverlapped")
                     {
                         if (sinkOperators[0]->getOpType() == "DPUTask")
                         {
@@ -594,45 +618,56 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                                     outputTensor->cleanSubtensors();
                                     outputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
                                     inputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
-                                    subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);
+
+                                    tensorSet tensors(compareTensor);
+                                    tensors.insert({inputTensor, outputTensor});
 
                                     // support for input->slice->DMA->CMConv
 
-                                    auto sourceOp = om.getSourceOp(inputTensor);
                                     if (sourceOp->getOpType() == "Slice")
                                     {
                                         sourceOp->set<std::string>("splitStrategy", "SplitOverHOverlapped");
-                                        auto sourceOpInputTensor = sourceOp->getInputTensor(0);
+                                        auto sourceOpInputTensor = sourceOp->getInputTensor(mv::IO_TENSOR_INPUT);
                                         sourceOpInputTensor->cleanSubtensors();
                                         sourceOpInputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
                                         inputTensor->cleanSubtensors();
                                         inputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
-                                        subTensorsGen(model, {inputTensor, sourceOpInputTensor}, numClusters, pass);
+
+                                        tensors.insert(sourceOpInputTensor);
                                     }
+
+                                    subTensorsGen(model, tensors, numClusters, pass);
                                 }
                             }
                         }
 
                         if (sinkOperators[0]->getOpType() == "Align")
                         {
-                            auto nextSinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
+
+                            auto sinkOutTensor = sinkOperators[0]->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+                            auto nextSinkOperators = findSinkLayers(dm, sinkOutTensor);
                             if (nextSinkOperators[0]->getOpType() == "DPUTask")
                             {
                                 if (nextSinkOperators[0]->get<std::string>("taskOp") == "ChannelMajorConvolution" &&
                                     td.getTarget() != mv::Target::ma3720)
                                 {
-                                     if (nextSinkOperators[0]->get<std::string>("splitStrategy") == "SplitOverH")
-                                     {
-                                         outputTensor->setOrder(mv::Order(mv::Order::getColMajorID(4)));
-                                         sinkOperators[0]->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
-                                         sinkOperators[0]->getInputTensor(0)->cleanSubtensors();
-                                         sinkOperators[0]->getOutputTensor(0)->cleanSubtensors();
-                                         sinkOperators[0]->getInputTensor(0)->set<std::string>("splitStrategy", "SplitOverHOverlapped");
-                                         sinkOperators[0]->getOutputTensor(0)->set<std::string>("splitStrategy", "SplitOverHOverlapped");
-                                         subTensorsGen(model, {sinkOperators[0]->getInputTensor(0), sinkOperators[0]->getOutputTensor(0)}, numClusters, pass);
-                                     }
-                                 }
-                             }
+                                    if (nextSinkOperators[0]->get<std::string>("splitStrategy") == "SplitOverH")
+                                    {
+                                        outputTensor->setOrder(mv::Order(mv::Order::getColMajorID(4)));
+                                        auto sinkInTensor = sinkOperators[0]->getInputTensor(mv::IO_TENSOR_INPUT);
+
+                                        sinkOutTensor->setOrder(mv::Order(mv::Order::getColMajorID(4)));
+                                        sinkInTensor->cleanSubtensors();
+                                        sinkOutTensor->cleanSubtensors();
+                                        sinkInTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+                                        sinkOutTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+
+                                        tensorSet tensors(compareTensor);
+                                        tensors.insert({sinkInTensor, sinkOutTensor});
+                                        subTensorsGen(model, tensors, numClusters, pass);
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -662,7 +697,7 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                                 }
                             }
 
-                            std::vector <mv::Data::TensorIterator> vectorSubs = {};
+                            tensorSet setSubs(compareTensor);
                             outputTensor->cleanSubtensors();
                             if (possibleCombination == clusteringToSoH || possibleCombination == HKSwitchToHKSwitch ||
                                  possibleCombination == SoKToSoH || possibleCombination == SoKToHKSwitch ||
@@ -670,16 +705,16 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                             {
                                 inputTensor->cleanSubtensors();
                                 inputTensor->set<std::string>("overwriteStrategy", "ClusteringToSoH");
-                                vectorSubs = {inputTensor, outputTensor};
+                                setSubs = {inputTensor, outputTensor};
                             }
                             else if ((possibleCombination == SoHToClustering || possibleCombination == SoHToSoK))
                             {
                                 inputTensor->set<std::string>("overwriteStrategy", "SoHToClustering");
-                                vectorSubs = {outputTensor};
+                                setSubs = {outputTensor};
                             }
 
                             // ... and splitting has to be done again!!! <- Price for efficiency
-                            subTensorsGen(model, vectorSubs, numClusters, pass);
+                            subTensorsGen(model, setSubs, numClusters, pass);
 
                         }
                     }
@@ -724,7 +759,10 @@ void recomputeTensorMultiClusterAttributesCauseOfSpillingFcn(const mv::pass::Pas
                         else
                             sstrategy = om.getSourceOp(inputTensor)->getInputTensor()[0]->get<std::string>("splitStrategy");
                         inputTensor->set<std::string>("splitStrategy", sstrategy);
-                        subTensorsGen(model, {inputTensor}, numClusters, pass);
+
+                        tensorSet tensors(compareTensor);
+                        tensors.insert(inputTensor);
+                        subTensorsGen(model, tensors, numClusters, pass);
                     }
                 }
             }

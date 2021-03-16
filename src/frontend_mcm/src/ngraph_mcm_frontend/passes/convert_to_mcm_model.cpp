@@ -302,7 +302,7 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
     }
 
     // MCM Compiler requirements
-    mcmModel.output("", mcmInputs.at(0), outputType);
+    mcmModel.output(result->get_friendly_name(), mcmInputs.at(0), outputType);
 }
 
 void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
