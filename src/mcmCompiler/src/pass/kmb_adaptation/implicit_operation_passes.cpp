@@ -78,7 +78,7 @@ bool isStridingOp(mv::Data::OpListIterator opIt)
 {
     if (opIt->getOpType() == "Slice" || opIt->getOpType() == "Crop")
     {
-        auto const inputTensor = opIt->getInputTensor(0);
+        auto const inputTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
         auto const inOrder = inputTensor->getOrder();
         auto const inShape = inputTensor->getShape();
 
@@ -88,7 +88,7 @@ bool isStridingOp(mv::Data::OpListIterator opIt)
                 break;
         }
 
-        auto const sliceSz = inShape - opIt->getOutputTensor(0)->getShape();
+        auto const sliceSz = inShape - opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
         auto const majorDim = inOrder[dim];
 
         for (std::size_t idx = 0; idx < sliceSz.ndims(); idx++)
@@ -100,15 +100,104 @@ bool isStridingOp(mv::Data::OpListIterator opIt)
 
     return false;
 }
+
+void moveTensorToSameMemLoc(mv::OpModel& om, mv::Data::OpListIterator opIt, std::vector<mv::Data::FlowListIterator> flows,
+    mv::Tensor::MemoryLocation const& target, mv::Tensor::MemoryLocation const& intermediary)
+{
+    std::vector<mv::Data::OpListIterator> sinks;
+    std::vector<std::size_t> slots;
+
+    std::string const targetStr = target.toString();
+    std::string const intermediaryStr = intermediary.toString();
+
+    for (auto& flow : flows)
+    {
+        sinks.push_back(flow.sink());
+        slots.push_back(flow->get<std::size_t>("sinkInput"));
+    }
+
+    auto intermediaryT = mv::insertDMAReplacementRemoveFlows(om, opIt,
+                opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT),
+                dmaDirectionStrings[targetStr + "2" + intermediaryStr],
+                0, flows, slots, sinks,
+                opIt->getName() + "_to" + intermediaryStr);
+    intermediaryT->set<mv::Tensor::MemoryLocation>("Location", intermediary);
+    auto iOp = om.getSourceOp(intermediaryT);
+
+    flows.clear();
+    for (auto flow = iOp.leftmostOutput(); flow != om.flowEnd(); ++flow)
+    {
+        flows.push_back(flow);
+    }
+
+    for (auto& flow : flows)
+    {
+        auto sink = flow.sink();
+        auto targetT = mv::insertDMAReplacementRemoveFlows(om, opIt, intermediaryT,
+                dmaDirectionStrings[intermediaryStr + "2" + targetStr], 0,
+                {flow}, {flow->get<std::size_t>("sinkInput")}, {sink},
+                sink->getName() + "_to" + targetStr);
+        targetT->set<mv::Tensor::MemoryLocation>("Location", target);
+    }
+}
+
+// If input location is the same as output location for Align op, there should be
+// DMAs inserted to actually "align" the tensor.
+void resolveAlign(mv::OpModel& om)
+{
+    auto alignOps = om.getOps("Align");
+
+    for (auto op : alignOps)
+    {
+        const auto inputTensor = op->getInputTensor(mv::IO_TENSOR_INPUT);
+        for (auto flow = op.leftmostOutput(); flow != om.flowEnd(); ++flow)
+        {
+            const auto outputLocation = flow->getTensor()->get<mv::Tensor::MemoryLocation>("Location");
+
+            auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
+            auto sourceOp = om.getSourceOp(inputTensor);
+
+            while (sourceOp->isImplicit()
+                    && (sourceOp->inputSlots() == 1)
+                    && (inputLocation == outputLocation))
+            {
+                const auto scrInputTensor = sourceOp->getInputTensor(mv::IO_TENSOR_INPUT);
+                inputLocation = scrInputTensor->get<mv::Tensor::MemoryLocation>("Location");
+                sourceOp = om.getSourceOp(scrInputTensor);
+            }
+
+            if (inputLocation != outputLocation)
+                continue;
+
+            auto src = om.getSourceOp(inputTensor);
+            for (const auto& flowName: inputTensor->getFlowNames())
+            {
+                auto srcFlow = om.getDataFlow(flowName);
+                if (srcFlow.sink()->getName() == op->getName())
+                {
+                    const auto intermediary =
+                        (inputLocation == mv::Tensor::MemoryLocation::NNCMX) ?
+                        mv::Tensor::MemoryLocation::DDR :
+                        mv::Tensor::MemoryLocation::NNCMX;
+                    moveTensorToSameMemLoc(om, src, {srcFlow}, inputLocation, intermediary);
+                    break;
+                }
+            }
+        }
+    }
+}
 }
 
 void propagateImplicitOpsFromOutput(mv::Op& op, mv::OpModel& om)
 {
     for (auto input : op.getInputTensor())
     {
-        input->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
         auto previousOp = om.getSourceOp(input);
-        auto opType = previousOp->getOpType();
+        if (previousOp->getOpType() == "DPUTask")
+            return;
+
+        input->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+        const auto opType = previousOp->getOpType();
         if (opType == "Concat" || opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" ||
             opType == "ImplicitOutput" || opType == "ImplicitUnion" || opType == "ImplicitJoin")
             propagateImplicitOpsFromOutput(*previousOp, om);
@@ -138,7 +227,7 @@ void resolveImplicitConcats(mv::OpModel& om)
         // stop iterating
         bool found = false;
 
-        std::vector<mv::Data::FlowSiblingIterator> concats;
+        std::vector<mv::Data::FlowListIterator> concats;
         concats.reserve(concat.childrenSize());
 
         for (mv::Data::FlowSiblingIterator flow = concat.leftmostOutput(); flow != om.flowEnd(); ++flow) {
@@ -181,27 +270,8 @@ void resolveImplicitConcats(mv::OpModel& om)
         if (!found || concats.size() < 2)
             continue;
 
-        for(auto& operation: concats) {
-
-            mv::Data::OpListIterator concatOp = operation.sink();
-            size_t sinkInput = operation->get<std::size_t>("sinkInput");
-
-            auto dma = mv::insertDMAReplacementRemoveFlows(om, concat, concatOp->getInputTensor(sinkInput),
-                                                              mv::DmaDirectionEnum::DDR2NNCMX, 0,
-            {operation},
-            {sinkInput}, {concatOp},
-                concat->getName() + "To" + concatOp->getName());
-            dma->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
-
-            mv::Data::OpListIterator firstDma = om.getSourceOp(dma);
-
-            auto dma2 = mv::insertDMAReplacementRemoveFlows(om, firstDma, firstDma->getOutputTensor(mv::IO_TENSOR_OUTPUT),
-                                                mv::DmaDirectionEnum::NNCMX2DDR, 0,
-            {firstDma.leftmostOutput()},
-            {sinkInput}, {concatOp},
-                firstDma->getName() + "To" + concatOp->getName());
-            dma2->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
-        }
+        moveTensorToSameMemLoc(om, concat, concats,
+            mv::Tensor::MemoryLocation::DDR, mv::Tensor::MemoryLocation::NNCMX);
     }
 }
 
@@ -210,15 +280,20 @@ void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
+    const std::vector<std::string> inputInOutputOps = {"Concat",
+        "ImplicitConcat", "ImplicitReshape", "ImplicitPermute",
+        "ImplicitOutput", "ImplicitUnion", "ImplicitJoin", "Copy",
+        "Align"};
+    
+    const std::vector<std::string> outputInInputOps = {"Slice",
+        "Crop", "ImplicitInputSlice", "ImplicitInput"};
+
     //TODO::the following attributes need to come either from JSON config or from OP definition
-    auto opType = opIt->getOpType();
-    if (opType == "Concat" || opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" ||
-        opType == "ImplicitOutput" || opType == "ImplicitUnion" || opType == "ImplicitJoin")
+    const auto& opType = opIt->getOpType();
+    if (std::find(inputInOutputOps.begin(), inputInOutputOps.end(), opType) != inputInOutputOps.end())
         opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
-    if (opType == "Slice" || opType == "Crop" || opType == "ImplicitInputSlice" || opType == "ImplicitInput")
+    else if (std::find(outputInInputOps.begin(), outputInInputOps.end(), opType) != outputInInputOps.end())
         opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));
-    if (opType == "Copy" || opType == "Align")
-        opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
 
     if (!opIt->hasAttr("ImplicitFlow"))
         return;
@@ -250,7 +325,7 @@ void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::
     // once it becomes supported, revise the logic.
 
     auto inputTensors = opIt->getInputTensor();
-    auto outputTensor = opIt->getOutputTensor(0);
+    auto outputTensor = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
 
     auto outputLocation  = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
 
@@ -336,7 +411,7 @@ void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::
 
                 }
                 // For pipelining, pass strategy decision to overlap dpu, dma tasks
-                if(opIt->hasAttr("schedule_for_dpu_dma_overlap") || 
+                if(opIt->hasAttr("schedule_for_dpu_dma_overlap") ||
                         sinkOp->hasAttr("schedule_for_dpu_dma_overlap"))
                 {
                     unsigned pipelineId = 0;
@@ -485,7 +560,7 @@ void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::
         {
             for (auto tensor : opIt->getOutputTensor())
             {
-                std::vector<mv::Data::FlowListIterator> flowsToRemove;
+                std::vector<mv::Data::FlowListIterator> removableFlows;
                 std::vector<std::size_t> inSlots;
                 std::vector<mv::Data::OpListIterator> flowSinks;
                 auto const& flows = tensor->get<std::set<std::string>>("flows");
@@ -497,19 +572,39 @@ void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::
                         !(sinkOp->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
                         sinkOp->get<bool>("activationSparsityCompilerSolvingForDilatedConv")))
                     {
-                        flowsToRemove.push_back(flow);
+                        removableFlows.push_back(flow);
                         flowSinks.push_back(sinkOp);
                         inSlots.push_back(flow->get<std::size_t>("sinkInput"));
                     }
                 }
-                if (!flowsToRemove.empty()) {
+                if (!removableFlows.empty()) {
                     auto dmaTaskOut = mv::insertDMAReplacementRemoveFlows(om, opIt, tensor,
                         mv::DmaDirection(mv::DmaDirectionEnum::NNCMX2DDR),
-                        0, flowsToRemove, inSlots, flowSinks,
+                        0, removableFlows, inSlots, flowSinks,
                         tensor->getName() + "_unstrided");
                     dmaTaskOut->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
                 }
             }
+        }
+
+        // In cases where an OUTPUT_IN_INPUT implicit op goes into an
+        // ImplicitConcat op, there needs to be a DMA to remove
+        // extra strides and make the tensor compact.
+        // If input and output locations differ, that is taken care of. However,
+        // when the locations are identical, there need to be extra DMAs added to
+        // solve this case.
+        std::vector<mv::Data::FlowListIterator> flows;
+        for (const auto& flowName: outputTensor->getFlowNames())
+        {
+            auto flow = om.getDataFlow(flowName);
+            if (flow.sink()->getOpType() == "ImplicitConcat")
+            {
+                flows.push_back(flow);
+            }
+        }
+
+        if (inputLocation == mv::Tensor::MemoryLocation::DDR && !flows.empty()) {
+            moveTensorToSameMemLoc(om, opIt, flows, mv::Tensor::MemoryLocation::DDR, mv::Tensor::MemoryLocation::NNCMX);
         }
     }
 }
@@ -522,6 +617,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
     // Propagate throught implicit layers and set their tensor location to OUTPUT
     propagateImplicitOpsFromOutput(*om.getOutput(), om);
+    resolveAlign(om);
 
     for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
     {

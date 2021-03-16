@@ -28,7 +28,7 @@ class Attrs {
     T get_attr_of_real_op(operation_t op_in) const {
       operation_non_const_t op = const_cast<operation_non_const_t>(op_in);
       if (!op->outputSlots()) { return T(); }
-      mv::Data::TensorIterator tensor_itr = op->getOutputTensor(0UL);
+      mv::Data::TensorIterator tensor_itr = op->getOutputTensor(mv::IO_TENSOR_OUTPUT);
       return tensor_itr->get<T>(attr_name_);
     }
 
@@ -48,7 +48,7 @@ class Attrs {
       for (const auto& itr : attr_table_) {
         mv::Data::OpListIterator op_itr =
             omodel_.getOp((itr.first)->getName());
-        mv::Data::TensorIterator tensor_itr = op_itr->getOutputTensor(0UL);
+        mv::Data::TensorIterator tensor_itr = op_itr->getOutputTensor(mv::IO_TENSOR_OUTPUT);
         tensor_itr->set<T>(attr_name_, itr.second);
       }
     }

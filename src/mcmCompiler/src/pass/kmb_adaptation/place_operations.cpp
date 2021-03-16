@@ -34,15 +34,18 @@ void placeNeutralMaxPoolBefore(const mv::pass::PassEntry&, mv::ComputationModel&
 {
     mv::OpModel om(model);
     auto concats = om.getOps("Concat");
+    const auto globalParams = model.getGlobalConfigParams();
+    const bool allowFloatOutput =
+        globalParams->hasAttr("FloatOutput") && globalParams->get<bool>("FloatOutput");
 
     for (auto& concatOp : concats)
     {
-        auto numInputs = concatOp->getInputTensor().size();
+        const auto numInputs = concatOp->getInputTensor().size();
         unsigned short numUPAOps = 0;
 
         for (size_t i = 0; i < numInputs; i++)
         {
-            auto sourceOp = om.getSourceOp(concatOp->getInputTensor(i));
+            const auto sourceOp = om.getSourceOp(concatOp->getInputTensor(i));
             if (sourceOp->isUPA() || sourceOp->getOpType() == "UPATask")
                 numUPAOps++;
         }
@@ -51,22 +54,26 @@ void placeNeutralMaxPoolBefore(const mv::pass::PassEntry&, mv::ComputationModel&
 
         for (size_t i = 0; i < numInputs; i++)
         {
-            auto sourceOp = om.getSourceOp(concatOp->getInputTensor(i));
+            const auto sourceOp = om.getSourceOp(concatOp->getInputTensor(i));
             if (sourceOp->isUPA() || sourceOp->getOpType() == "UPATask")
             {
                 auto inputFlow = concatOp.leftmostInput();
-                auto outputTensor = sourceOp->getOutputTensor(0);
+                const auto outputTensor = sourceOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
                 auto neutralMaxPool = om.maxPool(concatOp->getName() + "MaxPool", outputTensor, {1,1}, {1,1}, {0, 0, 0, 0}, false);
-                neutralMaxPool->setDType(mv::DType("UInt8"));
                 neutralMaxPool->setQuantParams(outputTensor->getQuantParams());
                 auto maxPoolOp = om.getSourceOp(neutralMaxPool);
                 maxPoolOp->set<unsigned>("opId", sourceOp->get<unsigned>("opId"));
+
+                if (neutralMaxPool->getDType() == mv::DType("Float16") && allowFloatOutput) {
+                    maxPoolOp->set<bool>("floatPrecision", true);
+                }
+
                 while(inputFlow != om.flowEnd())
                 {
                     auto tensor = inputFlow->getTensor();
                     if (tensor->getName() == outputTensor->getName())
                     {
-                        auto slot = inputFlow->get<size_t>("sinkInput");
+                        const auto slot = inputFlow->get<size_t>("sinkInput");
                         om.undefineFlow(inputFlow);
                         concatOp->setInputTensor(neutralMaxPool, slot, false);
                         om.defineFlow(neutralMaxPool, concatOp, slot);
