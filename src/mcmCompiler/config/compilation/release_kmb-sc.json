@@ -24,7 +24,7 @@
                 "enablePipelining": false,
                 "enablePrefetching": true,
                 "enableWeightsSparsity": false,
-                "enableStaticBarriers": true,
+                "enableBarrierSafety": true,
                 "real_physical_barriers": 8,
                 "barrier_bound": 4
             }

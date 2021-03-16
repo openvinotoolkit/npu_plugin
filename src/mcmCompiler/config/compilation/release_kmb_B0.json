@@ -28,7 +28,7 @@
                 "enablePipelining": true,
                 "enablePrefetching": true,
                 "enableWeightsSparsity": true,
-                "enableStaticBarriers": true,
+                "enableBarrierSafety": true,
                 "enableSplitBarriers" : false,
                 "enableTensorFusion": true,
                 "real_physical_barriers": 32,

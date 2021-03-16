@@ -27,7 +27,7 @@
                 "enableStreaming": true,
                 "enablePipelining": true,
                 "enablePrefetching": true,
-                "enableStaticBarriers": true,
+                "enableBarrierSafety": true,
                 "enableSplitBarriers" : true,
                 "enableSparsityA0" : true,
                 "enableDWSOHA0" : true,
