@@ -214,4 +214,96 @@ def VPUIP_EltwiseLayerType :
     let genSpecializedAttr = 1;
 }
 
+//
+// PPEType
+//
+
+def VPUIP_PPELayerType :
+        StrEnumAttr<
+            "PPELayerType",
+            "Post Processing Element Type",
+            [
+                // Low-level instructions
+                StrEnumAttrCase<"STORE">,
+                StrEnumAttrCase<"LOAD">,
+                StrEnumAttrCase<"CLEAR">,
+                StrEnumAttrCase<"NOOP">,
+                StrEnumAttrCase<"HALT">,
+
+                // Element-Wise Operations
+                StrEnumAttrCase<"ADD">,
+                StrEnumAttrCase<"SUB">,
+                StrEnumAttrCase<"MULT">,
+                StrEnumAttrCase<"MAXIMUM">,
+                StrEnumAttrCase<"MINIMUM">,
+                StrEnumAttrCase<"AND">,
+                StrEnumAttrCase<"OR">,
+                StrEnumAttrCase<"XOR">,
+
+                // Activations
+                StrEnumAttrCase<"LRELU">,
+                StrEnumAttrCase<"LRELUX">,
+                StrEnumAttrCase<"LPRELU">,
+                StrEnumAttrCase<"CEIL">,
+                StrEnumAttrCase<"FLOOR">,
+                StrEnumAttrCase<"POW">,
+                StrEnumAttrCase<"EXP">,
+                StrEnumAttrCase<"SIGMOID">,
+                StrEnumAttrCase<"TANH">,
+                StrEnumAttrCase<"SQRT">,
+                StrEnumAttrCase<"RSQRT">,
+                StrEnumAttrCase<"FLEXARB">,
+                StrEnumAttrCase<"NOT">,
+                StrEnumAttrCase<"ABS">,
+                StrEnumAttrCase<"NEG">
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
+}
+
+//
+// MPEMode
+//
+
+def VPUIP_MPEMode :
+        StrEnumAttr<
+            "MPEMode",
+            "MPE Mode",
+            [
+                StrEnumAttrCase<"VECTOR">,
+                StrEnumAttrCase<"MATRIX">,
+                StrEnumAttrCase<"VECTOR_FP16">,
+                StrEnumAttrCase<"CUBOID_16x16">,
+                StrEnumAttrCase<"CUBOID_8x16">,
+                StrEnumAttrCase<"NOP">
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
+}
+
+//
+// NCETaskType
+//
+
+def VPUIP_NCETaskType :
+        StrEnumAttr<
+            "NCETaskType",
+            "NCE task type",
+            [
+                StrEnumAttrCase<"CONV">,
+                StrEnumAttrCase<"DWCONV">,
+                StrEnumAttrCase<"MAXPOOL">,
+                StrEnumAttrCase<"AVEPOOL">,
+                StrEnumAttrCase<"FCL">,
+                StrEnumAttrCase<"ELTWISE">,
+                StrEnumAttrCase<"IDENTITY">,
+                StrEnumAttrCase<"CMCONV">
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
+}
+
 #endif

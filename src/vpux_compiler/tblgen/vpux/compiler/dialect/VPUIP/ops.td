@@ -1396,4 +1396,219 @@ def VPUIP_NegativeUPAOp :
     }];
 }
 
+//
+// ROIPoolingUPAOp
+//
+
+def VPUIP_ROIPoolingUPAOp :
+        VPUIP_TaskOp<
+            "ROIPoolingUPA",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<ROIPoolingLayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "ROIPooling UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$coords,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        I32ArrayAttr:$output_size,
+        F32Attr:$spatial_scale,
+        IE_ROIPoolingMethod:$method,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$coords,
+                "mlir::Value":$output,
+                "mlir::ArrayAttr":$output_size, "mlir::FloatAttr":$spatial_scale, "IE::ROIPoolingMethodAttr":$method
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
+// DPUTaskOp
+//
+
+def VPUIP_DPUTaskOp :
+        VPUIP_Op<
+            "DPUTask",
+            [
+                NoSideEffect,
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "This object represents workload for a single DPU tile";
+
+    // TODO: Convert `I32ArrayAttr` into `MemRefOf` for `start` and `end` inputs.
+    //       Should use result of `subview` of tensors once [CVS-49600] is done.
+    let arguments = (ins
+        I32ArrayAttr:$start,
+        I32ArrayAttr:$end,
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        VPUIP_MPEMode:$mpe_mode,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+
+    let builders = [
+        OpBuilder<(ins
+            "mlir::ArrayAttr":$start, "mlir::ArrayAttr":$end, "mlir::ArrayAttr":$pads_begin,
+            "mlir::ArrayAttr":$pads_end, "vpux::VPUIP::MPEMode":$mpe_mode
+        )>
+    ];
+}
+
+//
+// PPETaskOp
+//
+
+def VPUIP_PPETaskOp :
+        VPUIP_Op<
+            "PPETask",
+            [
+                NoSideEffect
+            ]
+        > {
+    let summary = "PPE Type for NCE Task";
+
+    let arguments = (ins
+        VPUIP_PPELayerType:$ppe_layer_type
+    );
+
+    let assemblyFormat = [{
+        attr-dict $ppe_layer_type
+    }];
+}
+
+//
+// EndOp
+//
+
+def VPUIP_EndOp :
+        VPUIP_Op<
+            "End",
+            [
+                NoSideEffect,
+                Terminator,
+                NativeOpTrait<"ReturnLike">,
+                HasParent<"vpux::VPUIP::NCEClusterTaskOp">
+            ]
+        > {
+    let summary = "End indicator for IERT NCEClusterTaskOp variants section";
+
+    let assemblyFormat = "attr-dict";
+}
+
+//
+// NCEClusterTaskOp
+//
+
+def VPUIP_NCEClusterTaskOp :
+        VPUIP_TaskOp<
+            "NCEClusterTask",
+            [
+                SingleBlockImplicitTerminator<"vpux::VPUIP::EndOp">,
+                DeclareOpInterfaceMethods<VPUIP_NCETaskOpInterface>
+            ]
+        > {
+
+    let summary = "NCE Cluster Task Operation";
+
+    let description = [{
+        This operation defines NCE cluster task which describes single cluster of 5 DPUs. It is
+        comprised of two argument categories:
+
+        * Variants - describes the attributes for an individual DPU within the cluster.
+        * Invariants - describes the collective attributes of the cluster.
+
+        The variants argument takes on a region argument and up to 5 DPUTaskOps. The invariants
+        take on a variety of argument types.
+
+        The NCEClusterTaskOp also supports fixed PPE functions as well as generic PPE instruction
+        lists. The generic PPE instruction list argument needs to be described as a region of PPE
+        supported ops. Single fixed PPE functions and generic PPE instruciton list usage is
+        mutually exclusive.
+    }];
+
+    let regions = (region
+        SizedRegion<1>:$variants,
+        VariadicRegion<SizedRegion<1>>:$ppe_tasks
+    );
+
+    let arguments = (ins
+        MemRefOf<[F16, UI8, quant_QuantizedType]>:$input,
+        MemRefOf<[F16, UI8, quant_QuantizedType]>:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        MemRefOf<[F16, UI8, quant_QuantizedType]>:$parent_input,
+        MemRefOf<[F16, UI8, quant_QuantizedType]>:$parent_output,
+
+        VPUIP_NCETaskType:$task_type,
+        OptionalAttr<VPUIP_PPELayerType>:$fixed_ppe_task,
+        Optional<MemRefOf<[F16, UI8, quant_QuantizedType]>>:$filter,
+        Optional<MemRefOf<[SI32]>>:$weight_table,
+        OptionalAttr<I32ArrayAttr>:$kernel_padding,
+        OptionalAttr<I32ArrayAttr>:$strides
+    );
+
+    let builders = [
+        OpBuilder<(ins
+            "mlir::Value":$input, "mlir::Value":$output, "mlir::Value":$parent_input,
+            "mlir::Value":$parent_output, "vpux::VPUIP::NCETaskType":$task_type,
+            "vpux::VPUIP::PPELayerTypeAttr":$fixed_ppe_task, "mlir::Value":$filter,
+            "mlir::Value":$weight_table, "mlir::ArrayAttr":$kernel_padding,
+            "mlir::ArrayAttr":$strides
+        )>
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input  `:` type($input)
+                     (`,` $filter^ `:` type($filter))?
+                     (`,` $weight_table^ `:` type($weight_table))? `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `parent_input` `(` $parent_input `:` type($parent_input) `)`
+        `parent_output` `(` $parent_output `:` type($parent_output) `)`
+        `variants` `:` $variants
+        (`PPE` `:` $ppe_tasks^)?
+    }];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+}
+
 #endif

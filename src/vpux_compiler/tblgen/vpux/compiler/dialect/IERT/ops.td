@@ -170,7 +170,9 @@ def IERT_ExecutorResourceOp :
         IERT_Op<
             "ExecutorResource",
             [
-                HasParent<"vpux::IERT::RunTimeResourcesOp">
+                ParentOneOf<["vpux::IERT::ExecutorResourceOp","vpux::IERT::RunTimeResourcesOp"]>,
+                SingleBlockImplicitTerminator<"vpux::IERT::EndOp">,
+                NoRegionArguments
             ]
         > {
     let summary = "Information about executor resource";
@@ -187,9 +189,19 @@ def IERT_ExecutorResourceOp :
         I32Attr:$count
     );
 
+    let regions = (region
+        SizedRegion<1>:$subExecutors
+    );
+
+    let extraClassDeclaration = [{
+        vpux::IERT::ExecutorResourceOp addAvailableExecutor(mlir::Attribute kind, uint32_t count);
+        vpux::IERT::ExecutorResourceOp getAvailableExecutor(mlir::Attribute kind);
+    }];
+
     let assemblyFormat = [{
-        $count `of` $kind
         attr-dict
+        $count `of` $kind
+        $subExecutors
     }];
 }
 
@@ -204,7 +216,7 @@ def IERT_EndOp :
                 NoSideEffect,
                 Terminator,
                 NativeOpTrait<"ReturnLike">,
-                HasParent<"vpux::IERT::RunTimeResourcesOp">
+                ParentOneOf<["vpux::IERT::RunTimeResourcesOp","vpux::IERT::ExecutorResourceOp"]>
             ]
         > {
     let summary = "End indicator for IERT resources section";
@@ -1046,6 +1058,29 @@ def IERT_NegativeOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output
+    );
+}
+//
+// ROIPoolingOp
+//
+
+def IERT_ROIPoolingOp :
+        IERT_LayerOp<
+            "ROIPooling",
+            [
+                DeclareOpInterfaceMethods<ROIPoolingLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time ROIPooling layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$coords,
+        MemRefOf<[F16, F32]>:$output,
+
+        I32ArrayAttr:$output_size,
+        F32Attr:$spatial_scale,
+        IE_ROIPoolingMethod:$method
     );
 }
 

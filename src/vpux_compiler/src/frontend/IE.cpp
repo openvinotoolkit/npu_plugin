@@ -152,6 +152,7 @@ private:
     IE::ProposalAttr importProposalAttrs(const ngraph::op::ProposalAttrs& val);
     IE::InterpolateAttr importInterpolateAttrs(const ngraph::op::InterpolateAttrs& val);
     IE::DetectionOutputAttr importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val);
+    IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
 
 private:
     mlir::MLIRContext* _ctx = nullptr;
@@ -792,7 +793,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     const auto outputSize = getInt32ArrayAttr(_ctx, origNode->get_output_size());
     const auto spatialScaleAttr = getFP32Attr(_ctx, origNode->get_spatial_scale());
-    const auto method = mlir::StringAttr::get(_ctx, origNode->get_method()).cast<IE::ROIPoolingMethodAttr>();
+    const auto method = importROIPoolingMethod(origNode->get_method());
 
     auto op = builder.create<IE::ROIPoolingOp>(createLocation(origNode), inputs[0], inputs[1], outputSize,
                                                spatialScaleAttr, method);
@@ -1152,6 +1153,18 @@ IE::DetectionOutputAttr NGraphImporter::importDetectionOutputAttrs(const ngraph:
             numClassesAttr, backgroundLabelIdAttr, topKAttr, varianceEncodedInTargetAttr, keepTopKAttr, codeTypeAttr,
             shareLocationAttr, nmsThresholdAttr, confidenceThresholdAttr, clipAfterNmsAttr, clipBeforeNmsAttr,
             decreaseLabel_idAttr, normalizedAttr, inputHeightAttr, inputWidthAttr, objectnessScoreAttr, _ctx);
+}
+
+IE::ROIPoolingMethodAttr NGraphImporter::importROIPoolingMethod(const std::string& method) {
+    IE::ROIPoolingMethodAttr attr;
+    if (method == "max") {
+        attr = IE::ROIPoolingMethodAttr::get(_ctx, IE::ROIPoolingMethod::max);
+    } else if (method == "bilinear") {
+        attr = IE::ROIPoolingMethodAttr::get(_ctx, IE::ROIPoolingMethod::bilinear);
+    } else {
+        VPUX_THROW("Unknown ROIPoolingMethod");
+    }
+    return attr;
 }
 
 mlir::AffineMap importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout, size_t numDims) {

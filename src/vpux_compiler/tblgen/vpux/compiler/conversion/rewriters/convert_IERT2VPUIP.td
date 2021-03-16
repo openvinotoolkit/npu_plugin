@@ -477,4 +477,18 @@ def RewriteNegative :
             (createNegativeUPAOp $input, $output)
         >;
 
+//
+// IERT.ROIPooling -> ROIPoolingUPA.
+//
+def createROIPoolingUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ROIPoolingUPAOp>(
+                $_loc, $0, $1, $2, $3, $4, $5)
+        }]>;
+def RewriteROIPooling :
+        Pat<
+            (IERT_ROIPoolingOp $input, $coords, $output, $output_size, $spatial_scale, $method),
+            (createROIPoolingUPAOp $input, $coords, $output, $output_size, $spatial_scale, $method)
+        >;
+
 #endif
