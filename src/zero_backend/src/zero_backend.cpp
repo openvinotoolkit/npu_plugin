@@ -81,6 +81,15 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
     else
         return {};
 }
+const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
+    const auto& devices = ZeroDevicesSingleton::getInstanceDevices();
+    std::vector<std::string> devicesNames;
+    std::for_each(devices.cbegin(), devices.cend(), [&devicesNames](const auto& device) {
+        devicesNames.push_back(device.first);
+    });
+
+    return devicesNames;
+}
 
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
 CreateVPUXEngineBackend(vpux::IEngineBackend*& backend, InferenceEngine::ResponseDesc* resp) noexcept {
