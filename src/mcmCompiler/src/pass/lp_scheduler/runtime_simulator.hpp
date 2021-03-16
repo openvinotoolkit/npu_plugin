@@ -46,15 +46,21 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
   //////////////////////////////////////////////////////////////////////////////
 
     Runtime_Barrier_Simulation_Assigner(const dag_t& input,
-        size_t barrier_bound, mv::OpModel& om) : 
+        size_t barrier_bound, mv::OpModel& om, int specialUPABarrier) : 
         Runtime_Barrier_Simulation_Checker<OpDAG, OpTypeSelector, RealBarrierMapper, DAGTraits>(input, barrier_bound), 
-        om_(&om) {}
+        om_(&om), specialUPABarrier_(specialUPABarrier) {}
+
+    bool is_barrier_op(mv::Control::OpListIterator op)
+    {
+      return op->getOpType() == "BarrierTask";
+    }
 
     virtual ~Runtime_Barrier_Simulation_Assigner() = default;
 
     bool assign() {
       init();
       build_level_sets();
+      mv::ControlModel cm(*om_);
 
       op_list_t barrier_list, compute_list, data_list, upa_list;
 
@@ -66,6 +72,135 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
         mv::Attribute barrierB = b->getAttrs()["Barrier"];
         return barrierA.get<mv::Barrier>().getIndex() < barrierB.get<mv::Barrier>().getIndex(); 
         });
+      
+      std::vector<operation_t> bNewVector(barrier_list.begin(), barrier_list.end());
+      // find special UPA wait barrier
+      int targetIndex = -1;
+      if(bNewVector.size() > 2*barrier_bound_)
+      {
+        for(unsigned i = 0; i < bNewVector.size(); i++)
+        {
+          op_iterator_t oitr = om_->getOp(bNewVector[i]->getName());
+          if(oitr->hasAttr("specialUPABarrier"))
+          {
+            if(targetIndex < 0)
+            {
+                targetIndex = i;
+            }
+          }
+        }
+
+        unsigned specialID = bNewVector.size();
+        if(targetIndex < 0)
+        {
+          for(unsigned i = 0; i < bNewVector.size(); i++)
+          {
+            op_iterator_t oitr = om_->getOp(bNewVector[i]->getName());
+            if(oitr->hasAttr("upaConsumer"))
+            {
+              if(oitr->get<unsigned>("upaConsumer") < specialID)
+              {
+                  targetIndex = i;
+                  specialID = oitr->get<unsigned>("upaConsumer");
+              }
+            }
+          }
+        }
+      }
+
+      if(targetIndex > 0)
+      {
+        auto targetBarrier = bNewVector[targetIndex];
+        if(targetIndex > 31)
+        {
+          bNewVector.erase(bNewVector.begin() + targetIndex);
+          bNewVector.insert(bNewVector.begin() + 31, targetBarrier);
+        }
+        else
+        {
+          bNewVector.insert(bNewVector.begin() + 31, targetBarrier);
+          bNewVector.erase(bNewVector.begin() + targetIndex);          
+        }
+        
+        int newID = 0;
+        for(unsigned i = 0; i < bNewVector.size(); i++)
+        {
+          op_iterator_t oitr = om_->getOp(bNewVector[i]->getName());
+          mv::Barrier &barrier = oitr->get<mv::Barrier>("Barrier");
+          barrier.setID(newID);
+          barrier.setIndex(newID);
+          newID++;
+        }
+
+        // STEP-1: clear all the references //
+        mv::Control::FlowListIterator fitr, fitr_next;
+        for (fitr=cm.flowBegin(); fitr!=cm.flowEnd(); ++fitr) {
+          mv::Control::OpListIterator src_itr = fitr.source();
+          mv::Control::OpListIterator sink_itr = fitr.sink(); 
+          mv::Control::OpListIterator bar_itr, op_itr;
+
+          assert( (src_itr != cm.opEnd()) && (sink_itr != cm.opEnd()) );
+          if (!is_barrier_op(src_itr) && !is_barrier_op(sink_itr)) { continue; }
+
+          if (is_barrier_op(src_itr)) {
+            assert(!is_barrier_op(sink_itr));
+            bar_itr = src_itr;
+            op_itr = sink_itr;
+          } else {
+            assert(is_barrier_op(sink_itr));
+            bar_itr = sink_itr;
+            op_itr = src_itr;
+          }
+
+        
+          mv::Barrier& barrier = bar_itr->get<mv::Barrier>("Barrier");
+          barrier.clearProducersConsumers();
+
+          mv::BarrierDependencies& barrierRef =
+            op_itr->get<mv::BarrierDependencies>("BarrierDeps");
+          barrierRef.clear();
+        }
+
+        // STEP-2:
+        // foreach control edge (u, v) 
+        //
+        // CASE-1: (bar->op)
+        //    op.addWaitBarrier(bar)
+        //    bar.addConsumer(op) 
+        //   
+        // CASE-2: (op->bar)
+        for (fitr=cm.flowBegin(); fitr!=cm.flowEnd(); ++fitr) {
+          mv::Control::OpListIterator src_itr = fitr.source();
+          mv::Control::OpListIterator sink_itr = fitr.sink(); 
+          assert( (src_itr != cm.opEnd()) && (sink_itr != cm.opEnd()) );
+
+          if (!is_barrier_op(src_itr) && !is_barrier_op(sink_itr)) { continue; }
+
+          if (is_barrier_op(src_itr)) {
+            assert(!is_barrier_op(sink_itr));
+
+            mv::Barrier& barrier = src_itr->get<mv::Barrier>("Barrier");
+            mv::BarrierDependencies& barrierRef =
+              sink_itr->get<mv::BarrierDependencies>("BarrierDeps");
+
+
+            barrierRef.addWaitBarrier(barrier.getIndex());
+            barrier.addConsumer(sink_itr->getName());
+          } else {
+            assert(!is_barrier_op(src_itr));
+
+            mv::Barrier& barrier = sink_itr->get<mv::Barrier>("Barrier");
+            mv::BarrierDependencies& barrierRef =
+              src_itr->get<mv::BarrierDependencies>("BarrierDeps");
+
+
+            barrierRef.addUpdateBarrier(barrier.getIndex());
+            barrier.addProducer(src_itr->getName());
+          }
+        } // foreach control edge //
+      }
+
+      op_list_t barrier_list_new(bNewVector.begin(), bNewVector.end());
 
       // sort dma/dpu/upa
       data_list.sort([](const operation_t& a, const operation_t& b) -> bool {
@@ -93,9 +228,10 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
                           "Starting Runtime Simulation");
       bool filled_atleast_one = false;
       while (!data_list.empty() || !compute_list.empty()
-            || !barrier_list.empty() || !upa_list.empty()) {
+            || !barrier_list_new.empty() || !upa_list.empty()) {
         filled_atleast_one = false;
-        filled_atleast_one |= fill_barrier_tasks(barrier_list);
+        filled_atleast_one |= fill_barrier_tasks(barrier_list_new);
+        scheduleID++;
         filled_atleast_one |= process_tasks(data_list);
         filled_atleast_one |= process_tasks(compute_list);
         filled_atleast_one |= process_tasks(upa_list);
@@ -127,6 +263,10 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
     
   private:
     mv::OpModel * om_;
+    unsigned scheduleID;
+    unsigned lastUPABarrier;
+    bool specificIDInUse;
+    int specialUPABarrier_;
 
     bool is_task_ready(const operation_t& task) {
       const dag_t& dag = *input_ptr_;
@@ -186,8 +326,17 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
             barrier_info.out_degree_--;
 
             if (barrier_info.out_degree_ == 0UL) {
+                op_iterator_t oitr = om_->getOp(barrier_op->getName());
+                oitr->set<unsigned>("readyForReset", scheduleID);
                 // return the barrier //
-                return_real_barrier(barrier_op);
+                if(oitr->hasAttr("upaConsumer"))
+                {
+                    specificIDInUse = false;
+                    active_barrier_table_iterator_t aitrUPA = active_barrier_table_.find(barrier_op);
+                    active_barrier_table_.erase(aitrUPA);
+                }
+                else
+                    return_real_barrier(barrier_op);
             }
         }
       }
@@ -204,23 +353,30 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
             active_barrier_info_t& barrier_info = aitr->second;
             assert(barrier_info.in_degree_ > 0UL);
             barrier_info.in_degree_--;
+            if(barrier_info.in_degree_ == 0)
+            {
+                op_iterator_t oitr = om_->getOp(barrier_op->getName());
+                oitr->set<unsigned>("readyForConsume", scheduleID);
+            }
         }
       }
     }
 
-    bool process_tasks(op_list_t& task_list) {
-      bool filled_atleast_once = Checker::process_tasks(task_list);
-      
-      // print
-      op_list_iterator_t tbegin = task_list.begin(), tend = task_list.end();
-      if (Logger::getVerboseLevel()==VerboseLevel::Debug){
-        while (tbegin != tend) {
-          operation_t op = *tbegin;
-          if (!is_task_ready(op) ) { break; }
-          mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeSimulator",
-                          "Process task: " + op->getName());
-          ++tbegin;
-        }
+    bool process_tasks(op_list_t& task_list) {      
+      op_list_iterator_t tbegin = task_list.begin(),
+                         tend = task_list.end(), terase;
+      bool filled_atleast_once = false;
+      while (tbegin != tend) {
+        operation_t op = *tbegin;
+        if (!is_task_ready(op) ) { break; }
+        mv::Data::OpListIterator task = om_->getOp(op->getName());
+        task->set<unsigned>("scheduleID", scheduleID);
+        process_task(op);
+        filled_atleast_once = true;
+        terase = tbegin;
+        ++tbegin;
+        task_list.erase(terase);
+        break;
       }
       
       return filled_atleast_once;
@@ -255,12 +411,43 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
       size_t real = real_barrier_list_.front();
       op_iterator_t oitr = om_->getOp(btask->getName());      
       mv::Barrier &barrier = oitr->get<mv::Barrier>("Barrier");
+      oitr->set<unsigned>("scheduleID", scheduleID);
       // assign physical id to barrier
-      barrier.setRealBarrierIndex(real);
       mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeSimulator",
                           "Physical ID assignment: " + oitr->getName() + " : "+ std::to_string(barrier.getIndex())
                           + "->" + std::to_string(real));
-      real_barrier_list_.pop_front();
+      if(oitr->hasAttr("upaConsumer"))
+      {
+        auto num = oitr->get<unsigned>("upaConsumer");
+        if((num > lastUPABarrier) || specificIDInUse)
+        {
+          oitr->erase("upaConsumer");
+          barrier.setRealBarrierIndex(real);
+          real_barrier_list_.pop_front();
+          lastUPABarrier++;            
+        }
+        else
+        {
+          lastUPABarrier++;
+          specificIDInUse = true;
+        }
+      }
+      else
+      {
+        barrier.setRealBarrierIndex(real);
+        real_barrier_list_.pop_front();
+      }
+      
+      std::vector<unsigned> safetyBarrierPool;
+      for (auto iter = active_barrier_table_.begin(); iter != active_barrier_table_.end(); iter++)
+      {
+          op_iterator_t activeOp = om_->getOp(iter->first->getName());
+          auto curID = (activeOp->get<mv::Barrier>("Barrier")).getIndex();
+          unsigned originalConsumers = (activeOp->get<mv::Barrier>("Barrier")).getNumConsumers();
+          if(((iter->second).in_degree_ > 0) || ((iter->second).out_degree_ == originalConsumers))
+              safetyBarrierPool.push_back(curID);
+      }
+      oitr->set<std::vector<unsigned>>("safetyBarrierPool", safetyBarrierPool);
 
       assert(active_barrier_table_.size() < (2*barrier_bound_));
 
@@ -274,6 +461,18 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
 
       active_barrier_table_.insert(std::make_pair(btask,
             active_barrier_info_t(real, in_itr->second, out_itr->second)));
+    }
+
+    void init() {
+      scheduleID = 0;
+      lastUPABarrier = 0;
+      specificIDInUse = false;
+      real_barrier_list_.clear();
+
+      // 2n barriers, reserve 1 dedicated barrier for special UPA if necessary //
+      for (size_t i=0; i<(2*barrier_bound_ - specialUPABarrier_); i++) {
+        real_barrier_list_.push_back(i);
+      }
     }
     
     void logForBarrierTable(active_barrier_table_iterator_t bcurr, active_barrier_table_iterator_t bend){
@@ -342,12 +541,12 @@ struct Control_Model_Barrier_Assigner {
   //////////////////////////////////////////////////////////////////////////////
 
   static bool assign_physical_id(mv::ControlModel& cmodel,
-      size_t real_barrier_bound=8UL) {
+      size_t real_barrier_bound=8UL, int specialUPABarrier=0UL) {
     assert(real_barrier_bound%2UL == 0UL);
 
     dag_t dag(cmodel);
     mv::OpModel om(cmodel);
-    runtime_assigner_t assigner(dag, real_barrier_bound/2UL, om);
+    runtime_assigner_t assigner(dag, real_barrier_bound/2UL, om, specialUPABarrier);
     return assigner.assign();
   }
 };

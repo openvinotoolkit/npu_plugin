@@ -1199,7 +1199,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     };
 
     toBuild->options = std::vector<MVCNN::ExecutionFlag>();
-    if(!targetEmulator_(compilationDescriptor) && !globalConfigurationParameters->get<bool>("enableStaticBarriers"))
+    if(!targetEmulator_(compilationDescriptor) && !(globalConfigurationParameters->get<bool>("enableBarrierSafety")))
       toBuild->options.push_back(MVCNN::ExecutionFlag_DynamicBarriers);
 
     toBuild->layer_count = originalHeader->layer_count;
@@ -4918,9 +4918,9 @@ std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::Computation
     mv::ControlModel cm(model);
     auto globalParams = model.getGlobalConfigParams();
     bool isStatic= false;
-    if (globalParams->hasAttr("enableStaticBarriers"))
+    if (globalParams->hasAttr("enableBarrierSafety"))
     {
-      isStatic= globalParams->get<bool>("enableStaticBarriers");
+      isStatic= globalParams->get<bool>("enableBarrierSafety");
     }
     std::unique_ptr<MVCNN::BarrierT> toBuild = std::unique_ptr<MVCNN::BarrierT>(new MVCNN::BarrierT());
     auto barrier = opIt->get<mv::Barrier>("Barrier");
@@ -4932,6 +4932,11 @@ std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::Computation
     }
     toBuild->consumer_count = 0;
     toBuild->producer_count = 0;
+
+    if(opIt->hasAttr("safetyBarrierCount"))
+    {
+        toBuild->producer_count += opIt->get<unsigned>("safetyBarrierCount");
+    }
 
     for(auto producer = opIt.leftmostParent(); producer != cm.opEnd(); ++producer) {
         toBuild->producer_count += countProducerConsumerTasks(model, producer, true);
@@ -5065,7 +5070,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
     // Barrier Table must be build only on dynamic scheduling
-    if(!targetEmulator_(compilationDescriptor) && !globalConfigurationParameters->get<bool>("enableStaticBarriers"))
+    if(!targetEmulator_(compilationDescriptor) && !(globalConfigurationParameters->get<bool>("enableBarrierSafety")))
         graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 }
 

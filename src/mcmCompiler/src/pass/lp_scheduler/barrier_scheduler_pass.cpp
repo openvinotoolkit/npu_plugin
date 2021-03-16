@@ -36,7 +36,7 @@ void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
     barrier_scheduler.schedule();
     success =
         mv::lp_scheduler::Control_Model_Barrier_Checker::check_schedule(cm,
-              real_barrier_bound);
+              real_barrier_bound, false);
     printfInfo("BarrierScheduler", "[BarrierSimulatorCheckPass(%lu)]: %s\n",
         barrier_bound, success ? "PASSED" : "FAILED"); 
 

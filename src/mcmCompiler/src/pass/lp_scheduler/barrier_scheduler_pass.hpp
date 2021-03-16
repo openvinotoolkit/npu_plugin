@@ -868,12 +868,12 @@ struct Control_Model_Barrier_Checker {
   //////////////////////////////////////////////////////////////////////////////
 
   static bool check_schedule(mv::ControlModel& cmodel,
-      size_t real_barrier_bound=8UL) {
+      size_t real_barrier_bound=8UL, int specialUPABarrier=0UL) {
     assert(real_barrier_bound%2UL == 0UL);
 
     dag_t dag(cmodel);
     mv::OpModel om(cmodel);
-    runtime_checker_t checker(dag, real_barrier_bound/2UL, om);
+    runtime_checker_t checker(dag, real_barrier_bound/2UL, om, specialUPABarrier);
     return checker.assign();
   }
 
