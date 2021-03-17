@@ -188,7 +188,15 @@ TEST_P(ModelAdk, precommit_ModelA_ADK3) {
             TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
             0.0035f);
 }
-
+TEST_P(ModelAdk, precommit_StackedHourGlass_BDK1) {
+    runTest(
+            TestNetworkDesc("BDK1/StackedHourGlass_INT8/hg-s8-b1-mpii.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input.1", Precision::U8)
+                    .setUserInputLayout("input.1", Layout::NCHW)
+                    .setUserOutputPrecision("4702", Precision::FP16),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
+            0.0025f);
+}
 // [Track number: S#47647]
 TEST_F(KmbSuperResNetworkTest, precommit_SuperResolution_ADK3) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
