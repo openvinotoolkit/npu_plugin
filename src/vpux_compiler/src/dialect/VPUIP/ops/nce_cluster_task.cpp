@@ -334,7 +334,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::BlobWriter& writer) {
-    MVCNN::NCE2TaskBuilder builder(writer);
     SmallVector<flatbuffers::Offset<MVCNN::NCEVariantFields>> nceVariantFieldsList;
     for (auto dpuTaskOp : this->variants().getOps<VPUIP::DPUTaskOp>()) {
         auto padsBegin = parseIntArrayAttr(dpuTaskOp.pads_begin());
@@ -355,23 +354,19 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                                               static_cast<int16_t>(end[0]),        // workload_end_X
                                                               static_cast<int16_t>(end[1]),        // workload_end_Y
                                                               static_cast<int16_t>(end[2])         // workload_end_Z
-
         );
         nceVariantFieldsList.push_back(nceVariantFields);
     }
+    auto nceVariantFields = writer.createVector(nceVariantFieldsList);
 
-    std::vector<uint8_t> ppeList;
+    SmallVector<uint8_t> ppeList;
     if (this->fixed_ppe_task()) {
-        ppeList.push_back(getPPELayerType(this->fixed_ppe_task().getValue()));
+        ppeList.push_back(getPPELayerType(fixed_ppe_task().getValue()));
     } else {
-        for (auto& ppeRegion : this->ppe_tasks()) {
-            for (auto& ppeOps : ppeRegion.getOps()) {
-                VPUX_UNUSED(ppeOps);
-                VPUX_THROW("Generic PPE not yet implemented.");
-            }
-        }
+        // TODO: implement generic PPE serialization
+        VPUX_THROW_UNLESS(this->ppe_tasks().empty(), "Generic PPE not yet implemented.");
     }
-    auto ppeLayerTypes = writer.createVector(makeArrayRef(ppeList));
+    auto ppeLayerTypes = writer.createVector(ppeList);
     auto ppeFixedFunction = MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes);
     auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction);
 
@@ -422,7 +417,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                             weightsTable                                // weights_table
             );
 
-    builder.add_variant(writer.createVector(nceVariantFieldsList));
+    MVCNN::NCE2TaskBuilder builder(writer);
+    builder.add_variant(nceVariantFields);
     builder.add_invariant(nceInvariantFields);
 
     return {builder.Finish().Union(), MVCNN::SpecificTask_NCE2Task};
