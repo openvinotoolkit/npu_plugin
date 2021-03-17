@@ -69,7 +69,7 @@ void SetInternalMemorySpacePass::runOnFunction() {
 void SetInternalMemorySpacePass::passBody() {
     auto& aliasAnalysis = getAnalysis<mlir::BufferAliasAnalysis>();
 
-    const auto callback = [&](mlir::AllocOp allocOp) {
+    const auto callback = [&](mlir::memref::AllocOp allocOp) {
         _log.trace("Got Alloc Operation '{0}'", allocOp->getLoc());
 
         const auto aliases = aliasAnalysis.resolve(allocOp.memref());

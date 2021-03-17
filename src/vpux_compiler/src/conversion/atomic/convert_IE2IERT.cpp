@@ -94,7 +94,8 @@ SmallVector<mlir::Value> ConvertIE2IERTPass::allocateResults(mlir::Location loc,
     return to_small_vector(origResults | transformed([&](mlir::Value origVal) -> mlir::Value {
                                auto origType = origVal.getType();
                                auto memRefType = typeConverter.convertType(origType);
-                               auto allocOp = builder.create<mlir::AllocOp>(loc, memRefType.cast<mlir::MemRefType>());
+                               auto allocOp =
+                                       builder.create<mlir::memref::AllocOp>(loc, memRefType.cast<mlir::MemRefType>());
                                return allocOp.memref();
                            }));
 }
@@ -456,7 +457,7 @@ void ConvertIE2IERTPass::passBody() {
     target.addIllegalDialect<mlir::quant::QuantizationDialect>();
     target.addIllegalOp<mlir::linalg::TensorReshapeOp>();
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp, IE::EndOp>();
-    target.addLegalOp<mlir::AllocOp>();
+    target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<mlir::linalg::ReshapeOp>();
     mlir::populateBufferizeMaterializationLegality(target);
 

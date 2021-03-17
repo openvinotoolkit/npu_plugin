@@ -255,13 +255,13 @@ link_system_libraries(${OBJ_TARGET_NAME}
         MLIRIR
         MLIROptLib
         MLIRPass
-        MLIRQuant
         MLIRStandard
-        MLIRTransforms
-        MLIRTranslation
-        MLIRStandardOpsTransforms
+        MLIRMemRef
+        MLIRQuant
         MLIRLinalg
-        MLIRShape
+        MLIRTransforms
+        MLIRStandardOpsTransforms
+        MLIRTranslation
         flatbuffers
         IE::ngraph
         IE::inference_engine
