@@ -22,7 +22,7 @@ static void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_
 #endif
 
 //KMB default: HW PRELU MULT is I8, so 7 precision bits are available
-void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0, unsigned bits = 7);
+static void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyHack = 1.0, unsigned bits = 7);
 int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex);
 int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex);
 
@@ -55,15 +55,12 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
     auto dpuTasks = om.getOps("DPUTask");
     for(auto& dpuTask : dpuTasks)
     {
-        double leakyAlpha = 0;
-        if(dpuTask->hasAttr("leakyAlpha"))
-            leakyAlpha = dpuTask->get<double>("leakyAlpha");
         std::vector<std::string> postOps;
         if(dpuTask->hasAttr("postOpTypes"))
             postOps = dpuTask->get<std::vector<std::string>>("postOpTypes");
 
         std::replace_if(postOps.begin(), postOps.end(), mv::ControlModel::isDpuPwl, "FLEXARB");
-        addPpeTask(dpuTask, postOps, leakyAlpha, leakyReluHack, bits);
+        addPpeTask(dpuTask, postOps, leakyReluHack, bits);
     }
 }
 
@@ -1226,22 +1223,81 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     }
 }
 
-void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha, double leakyReluHack, unsigned bits)
+/**
+ * @brief get the common shift and multipliers with the command shift.
+ * @param scale the slope values of PReLU
+ * @param num_bits the bit size for multiplier
+ * @param mults the best multiplier with the common shift value
+ * @param common_shift the common shift value
+ */
+template<typename MultDataT>
+void get_best_mults_and_shift( const std::vector<double>& scale, unsigned num_bits, std::vector<MultDataT>& mults, uint8_t& common_shift )
+{
+    if( scale.size() == 0 ) return;
+
+    // get the miminum shift value for the common shift value
+    common_shift = 255; // set max
+    for( auto s : scale )
+    {
+        double v = s;
+        bool sign = std::signbit( v );
+        if( sign ) v *= -1.0f;
+        uint8_t num_shift = floor( num_bits - log2( v ) );
+        if( common_shift > num_shift ) common_shift = num_shift;
+    }
+
+    // resize mults if the sizes mismatch
+    if (scale.size() != mults.size())
+        mults.resize(scale.size());
+
+    // get multipliers with common shift
+    for( size_t index = 0; index < scale.size(); ++index )
+    {
+        double v = scale[index];
+
+        // get the sign bits
+        bool sign = std::signbit( v );
+        
+        // if it is negative, then make it posive
+        if( sign ) v *= -1.0f;
+
+        MultDataT best_mult = round( pow( 2, common_shift ) * v );
+
+        // get the sign bit back if it was a negative value
+        if( sign ) best_mult *= -1;
+
+        mults[index] = best_mult;
+    }
+}
+
+void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyReluHack, unsigned bits)
 {
     auto ppeFixedFunction = mv::PPEFixedFunction();
     bool flexarbINT8 = false;
     if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "FLEXARB") != ppeTaskTypes.end())
+    {
         flexarbINT8= true;
+    }
     //NOTE: the idea of the flex is that the post shift is not sign extendable so the clamps need to be like INT8
     ppeFixedFunction.setLowClamp(computeClampLow(opIt, flexarbINT8));
     ppeFixedFunction.setHighClamp(computeClampHigh(opIt, flexarbINT8));
 
     if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "LeakyRelu") != ppeTaskTypes.end())
     {
+        double leakyAlpha = 1.0;
+        if (opIt->hasAttr("leakyAlpha"))
+        {
+            leakyAlpha = opIt->get<double>( "leakyAlpha" );
+        }
+
         // NOTE: What are the default values here
         int32_t ppeMult=1;
         uint8_t ppeShift=0;
-        if (leakyAlpha != 0)
+        if (leakyAlpha == 0.0)
+        {
+            ppeMult=0;
+        }
+        else if (leakyAlpha != 1.0)
         {
             int exponent;
             double mantissa;
@@ -1250,10 +1306,24 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
             ppeShift = bits - exponent;
             ppeMult = (mantissa * pow(2, bits)) * leakyReluHack;
         }
+
         ppeFixedFunction.setLReluMult(ppeMult);
         ppeFixedFunction.setLReluShift(ppeShift);
     }
-
+    else if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "Prelu") != ppeTaskTypes.end())
+    {
+        if (opIt->hasAttr("slopes"))
+        {
+            const std::vector<double>& slopes = opIt->get<std::vector<double>>("slopes");
+            std::vector<int32_t> mults( slopes.size() );
+            uint8_t ppeShift = 0;
+        
+            get_best_mults_and_shift( slopes, bits, mults, ppeShift );
+        
+            ppeFixedFunction.setLReluMults( mults );
+            ppeFixedFunction.setLReluShift( ppeShift );
+        }
+    }
     for(auto& ppeTaskType: ppeTaskTypes)
     {
         auto ppeLayerType = mv::PPELayerType(ppeTaskType);
@@ -1326,10 +1396,35 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
         }
     }
 
-    if(opIt->hasAttr("leakyAlpha"))
+
+    double alpha = 1.0;
+    if (opIt->hasAttr("leakyAlpha"))
     {
-        auto alpha = opIt->get<double>("leakyAlpha");
-        clamp /= alpha;
+        alpha = opIt->get<double>("leakyAlpha");
+
+        if (alpha > 0.0)
+        {
+            clamp = static_cast<int32_t>(clamp / alpha);
+        }
+        else
+        {
+            // no negative values
+            clamp = 0;
+        }
+    }
+    else if (opIt->hasAttr("slopes"))
+    {
+        const std::vector<double>& slopes = opIt->get<std::vector<double>>( "slopes" );
+        alpha = *std::min_element(slopes.begin(), slopes.end());
+        if (alpha > 0.0)
+        {
+           clamp = static_cast<int32_t>(clamp / alpha);
+        }
+        else
+        {
+            // no negative values
+            clamp = 0;
+        }
     }
 
     // PWL activation runs immediately after clamp
@@ -1341,10 +1436,15 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
     {
         mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         auto minimum = outputQuantParams.getMin()[0];
-        if (opIt->hasAttr("leakyAlpha")) {
-            auto alpha = opIt->get<double>("leakyAlpha");
+        if (alpha < 0.0) 
+        {
+            minimum = 0; // no negative values
+        }
+        else if (alpha != 1.0)
+        {
             minimum /= alpha;
         }
+
         clamp = round(minimum/outputQuantParams.getScale()[0]);
         clamp = std::max(clamp, -128);
 

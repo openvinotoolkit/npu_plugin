@@ -34,7 +34,7 @@ void resolveRelu(mv::Data::OpListIterator& opIt)
     auto ppeFF = opIt->get<mv::PPETask>("PPETask").getFixedFunction();
 
     auto newPpeFF = mv::PPEFixedFunction(
-                        ppeFF.getLReluMult(),
+                        ppeFF.getLReluMults(),
                         ppeFF.getLReluShift(),
                         std::max(ppeFF.getLowClamp(), 0),
                         ppeFF.getHighClamp()

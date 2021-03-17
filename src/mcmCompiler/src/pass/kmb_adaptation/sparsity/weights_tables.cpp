@@ -23,6 +23,18 @@ static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::Computatio
 static void populateStorageElementPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateInstructionListTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
+// 8bit mult mask
+static const uint32_t PRELU_MULT_MASK = 0x000000FF;
+// 6bit shift mask
+static const uint32_t PRELU_SHIFT_MASK = 0x00003F00;
+static const uint32_t PRELU_SHIFT_SHIFT = 8;
+// round mode mask
+static const uint32_t ROUND_MODE_MASK = 0x0000C000;
+static const uint32_t ROUND_MODE_SHIFT = 14;
+// scale mask
+static const uint32_t SCALE_MODE_MASK = 0xFFFF0000;
+static const uint32_t SCALE_MODE_SHIFT = 16;
+
 namespace mv
 {
     namespace pass
@@ -284,14 +296,34 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
         {
             auto ppeFF = dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction();
             auto& ppeLayers = ppeFF.getLayers();
-            auto isLRelu = std::find(ppeLayers.begin(), ppeLayers.end(), mv::PPELayerTypeEnum::PPELayerType_LPRELU) != ppeLayers.end();
-            if (isLRelu)
-                std::fill(reluMultData.begin(), reluMultData.end(), dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult());
+            auto isLPRelu = std::find(ppeLayers.begin(), ppeLayers.end(), mv::PPELayerTypeEnum::PPELayerType_LPRELU) != ppeLayers.end();
+            if (isLPRelu)
+            {
+                // TODO
+                // check why no zero size when multipliers is defined as const std::vector<int32_t>&
+                std::vector<int32_t> multipliers = dpuTaskOp->get<mv::PPETask>( "PPETask" ).getFixedFunction().getLReluMults();
+                if (multipliers.size() == 1)
+                {
+                    std::fill(reluMultData.begin(), reluMultData.end(), multipliers[0]);
+                }
+                else if (multipliers.size() == outputChannels)
+                {
+                    reluMultData = multipliers;
+                }
+                else
+                {
+                    throw std::runtime_error("The number of slopes does not match with the number of output channels");
+                }
+            }
         }
 
         for (size_t i = 0; i < weightsTableData->size(); i+=WT_ELEMENTS_PER_CHANNEL)
         {
-            weightsTableData->at(i+2) = static_cast<int64_t>((mScaled[i/WT_ELEMENTS_PER_CHANNEL] << 16) | (round32[i/WT_ELEMENTS_PER_CHANNEL] << 14) | (mShift[i/WT_ELEMENTS_PER_CHANNEL]) << 8) | reluMultData[i/WT_ELEMENTS_PER_CHANNEL];
+            weightsTableData->at(i+2) = static_cast<int64_t>(
+                ((mScaled[i/WT_ELEMENTS_PER_CHANNEL] << SCALE_MODE_SHIFT) & SCALE_MODE_MASK) |
+                ((round32[i/WT_ELEMENTS_PER_CHANNEL] << ROUND_MODE_SHIFT) & ROUND_MODE_MASK) |
+                ((mShift[i/WT_ELEMENTS_PER_CHANNEL] << PRELU_SHIFT_SHIFT) & PRELU_SHIFT_MASK) |
+                (reluMultData[i/WT_ELEMENTS_PER_CHANNEL] & PRELU_MULT_MASK));
             if (hasBias)
                 weightsTableData->at(i+3) = biasData[i/WT_ELEMENTS_PER_CHANNEL];
         }

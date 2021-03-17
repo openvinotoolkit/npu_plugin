@@ -551,6 +551,19 @@ void convert(std::shared_ptr<ngraph::op::v0::Relu> relu, mv::OpModel& mcmModel, 
     registerOutputs(relu, {mcmReluOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::PRelu> prelu, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(prelu, mcmOutputsMap);
+    const auto& opName = prelu->get_friendly_name();
+
+    const auto mcmData = mcmInputs.at(0);
+    const auto mcmSlope = mcmInputs.at(1);
+    const auto mcmPReluOutput = mcmModel.prelu(opName, mcmData, mcmSlope);
+
+    mcmPReluOutput->setQuantParams(initialQuantParams());
+
+    registerOutputs(prelu, {mcmPReluOutput}, mcmOutputsMap);
+}
+
 void convert(std::shared_ptr<ngraph::op::v0::Elu> elu, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmData = getMcmInputs(elu, mcmOutputsMap).at(0);
     const auto& opName = elu->get_friendly_name();
@@ -1890,6 +1903,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v4::Interpolate),
     MAP_ENTRY(ngraph::op::v0::MVN),
     MAP_ENTRY(ngraph::op::v0::Ceiling),
+    MAP_ENTRY(ngraph::op::v0::PRelu)
 };
 
 #undef MAP_ENTRY
