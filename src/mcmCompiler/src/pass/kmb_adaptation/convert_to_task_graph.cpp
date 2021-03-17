@@ -925,6 +925,22 @@ mv::Data::TensorIterator convertRoundToUPATask(mv::OpModel& om,
     return op;
 }
 
+mv::Data::TensorIterator convertCeilingToUPATask(mv::OpModel& om,
+                                                 const std::vector<mv::Data::TensorIterator>& inputs,
+                                                 const std::map<std::string, mv::Attribute>& /*attrs*/,
+                                                 const std::string& name,
+                                                 bool /*software*/,
+                                                 const mv::QuantizationParams& quantParams,
+                                                 const mv::DType& outputTensorType,
+                                                 const mv::Order& outputTensorOrder)
+{
+    auto op = om.uPATaskCeiling(name, inputs);
+    op->setDType(outputTensorType);
+    op->setQuantParams(quantParams);
+    op->setOrder(outputTensorOrder);
+    return op;
+}
+
 mv::Data::TensorIterator convertErfToUPATask(mv::OpModel& om,
                                              const std::vector<mv::Data::TensorIterator>& inputs,
                                              const std::map<std::string, mv::Attribute>& /*attrs*/,
@@ -1022,7 +1038,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
                                                        "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu",
-                                                       "PermuteND", "Mish", "Floor", "Round", "Erf", "Pad", "Interpolate", "MVN"};
+                                                       "PermuteND", "Mish", "Floor", "Round", "Erf", "Pad", "Interpolate", "MVN", "Ceiling"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -1068,6 +1084,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Mish", convertMishToUPATask},
     {"Floor", convertFloorToUPATask},
     {"Round", convertRoundToUPATask},
+    {"Ceiling", convertCeilingToUPATask},
     {"Erf", convertErfToUPATask},
     {"Conversion", convertConversionToUPATask},
     {"Relu", convertReluToUPATask},
