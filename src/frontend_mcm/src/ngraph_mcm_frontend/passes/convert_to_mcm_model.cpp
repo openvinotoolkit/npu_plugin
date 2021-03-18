@@ -1603,6 +1603,10 @@ void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel
     const auto axis_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(axis_node);
     auto axis = axis_node_const->get_data_ptr<int64_t>()[0];
 
+    for (size_t i = 1; i < mcmInputs.size(); ++i) {
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
+    }
+
     std::vector<size_t> startCoords(mcmInputs.at(0)->getShape().ndims());
     std::vector<mv::Data::TensorIterator> mcmOutputs;
     auto outDimSize = split->get_output_shape(0).size();
