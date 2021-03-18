@@ -94,7 +94,7 @@ const vpux::details::OptionConcept& vpux::OptionsDesc::validate(StringRef key, S
     if (it == _impl.end()) {
         it = _deprecated.find(key);
         VPUX_THROW_UNLESS(it != _deprecated.end(), "{0}Option '{1}' is not supported for current configuration",
-                          NOT_FOUND_str, key);
+                          InferenceEngine::details::ExceptionTraits<InferenceEngine::NotFound>::string(), key);
 
         log.warning("Deprecated option '{0}' was used, '{1}' should be used instead", key, it->second->key());
     }

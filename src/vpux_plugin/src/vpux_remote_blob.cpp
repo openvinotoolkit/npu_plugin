@@ -46,7 +46,7 @@ VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemot
     //  this shown design flaw in RemoteBlob + IE:Allocator concept
     _memoryHandle = allocator->wrapRemoteMemory(updatedParams);
     if (_memoryHandle == nullptr) {
-        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Allocation error";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Allocation error";
     }
 }
 
@@ -82,7 +82,7 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
           _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", origBlob._logger->level(), vpu::consoleOutput())),
           _originalTensorDesc(origBlob.getOriginalTensorDesc()) {
     if (_allocatorPtr == nullptr) {
-        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set allocator";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Failed to set allocator";
     }
 
     if (tensorDesc.getDims().size() != 4) {
@@ -112,7 +112,7 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
 
     _memoryHandle = privateAllocator->wrapRemoteMemory(params);
     if (_memoryHandle == nullptr) {
-        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to copy remote memory handle";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Failed to copy remote memory handle";
     }
 }
 

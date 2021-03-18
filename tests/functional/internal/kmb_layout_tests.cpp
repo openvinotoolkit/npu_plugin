@@ -140,7 +140,7 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
             ASSERT_NO_THROW(runTest(netBuidler, tolerance, CompareMethod::Absolute));
         }
     } else {
-        ASSERT_THROW(runTest(netBuidler, tolerance, CompareMethod::Absolute), details::InferenceEngineException);
+        ASSERT_THROW(runTest(netBuidler, tolerance, CompareMethod::Absolute), Exception);
     }
 }
 

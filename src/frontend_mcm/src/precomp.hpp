@@ -29,7 +29,7 @@
 #include <caseless.hpp>
 #include <cpp_interfaces/exception2status.hpp>
 #include <description_buffer.hpp>
-#include <details/ie_exception.hpp>
+#include <legacy/graph_tools.hpp>
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_compound_blob.h>

@@ -17,7 +17,6 @@
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
 
 #include <algorithm>
-#include <details/ie_exception.hpp>
 #include <sstream>
 #include <string>
 #include <vector>

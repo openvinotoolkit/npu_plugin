@@ -19,7 +19,6 @@
 #include <file_utils.h>
 
 #include <cstdlib>
-#include <details/ie_exception.hpp>
 #include <details/ie_so_pointer.hpp>
 #include <memory>
 
@@ -107,7 +106,7 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
         default:
             return std::shared_ptr<EngineBackend>(new EngineBackend());
         }
-    } catch (const InferenceEngine::details::InferenceEngineException& e) {
+    } catch (const InferenceEngine::Exception& e) {
         logger.warning("Could not find a suitable backend. Will be used null backend: %s", e.what());
         return nullptr;
     } catch (const std::exception& e) {

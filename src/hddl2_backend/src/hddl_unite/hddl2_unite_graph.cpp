@@ -81,7 +81,7 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, co
 
     // FIXME This error handling part should be refactored according to new api
     if (statusCode == HddlStatusCode::HDDL_CONNECT_ERROR) {
-        THROW_IE_EXCEPTION << IE::details::as_status << IE::StatusCode::NETWORK_NOT_LOADED;
+        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotLoaded);
     } else if (statusCode != HddlStatusCode::HDDL_OK) {
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;
     }

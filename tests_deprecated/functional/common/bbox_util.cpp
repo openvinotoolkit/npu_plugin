@@ -4,11 +4,11 @@
 
 #include "bbox_util.h"
 
+#include <ie_common.h>
 #include <algorithm>
 #include <cfloat>
 #include <csignal>
 #include <ctime>
-#include <details/ie_exception.hpp>
 #include <map>
 #include <numeric>
 #include <string>

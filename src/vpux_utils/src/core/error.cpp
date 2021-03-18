@@ -18,7 +18,7 @@
 
 #include "vpux/utils/core/logger.hpp"
 
-#include <details/ie_exception.hpp>
+#include "ie_common.h"
 
 using namespace vpux;
 
@@ -36,5 +36,11 @@ using namespace vpux;
     Logger::global().error("Got exception in {0}:{1} : {2}", file, line, message);
 #endif
 
-    throw InferenceEngine::details::InferenceEngineException(file.str(), line, message);
+    std::stringstream strm;
+    strm
+#ifndef NDEBUG
+    << '\n' << file.str()  << ':' << line << ' '
+#endif
+    << message;
+    throw InferenceEngine::GeneralError{strm.str()};
 }

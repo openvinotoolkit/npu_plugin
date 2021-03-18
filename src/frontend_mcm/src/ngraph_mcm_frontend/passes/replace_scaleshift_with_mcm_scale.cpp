@@ -18,7 +18,6 @@
 
 #include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
 
-#include <details/ie_exception.hpp>
 #include <memory>
 #include <legacy/ngraph_ops/scaleshift.hpp>
 

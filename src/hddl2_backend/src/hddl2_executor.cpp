@@ -131,12 +131,10 @@ HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription
 
     try {
         executor = std::make_shared<vpux::HDDL2::HDDL2Executor>(networkDesc, config, allocator, workloadContext);
-    } catch (const IE::details::InferenceEngineException& exception) {
-        if (exception.hasStatus() && exception.getStatus() == IE::StatusCode::NETWORK_NOT_LOADED) {
-            logger->error(FAILED_LOAD_NETWORK.c_str());
-        } else {
-            logger->error("%s%s", EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
-        }
+    } catch (const IE::NetworkNotLoaded&) {
+        logger->error(FAILED_LOAD_NETWORK.c_str());
+    } catch (const IE::Exception& exception) {
+        logger->error("%s%s", EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
     } catch (const std::exception& exception) {
         logger->error("%s%s", EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
     }
@@ -171,7 +169,7 @@ HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
     UNUSED(params);
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
 }
 
 void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs) {
@@ -185,16 +183,15 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
 
     try {
         loadGraphToDevice();
-    } catch (const IE::details::InferenceEngineException& exception) {
-        if (exception.hasStatus() && exception.getStatus() == IE::StatusCode::NETWORK_NOT_LOADED) {
-            _logger->error(FAILED_LOAD_NETWORK.c_str());
-        } else {
-            _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
-        }
-        THROW_IE_EXCEPTION << "Couldn't load the graph into the device.";
+    } catch (const IE::NetworkNotLoaded&) {
+        _logger->error(FAILED_LOAD_NETWORK.c_str());
+        throw;
+    } catch (const IE::Exception& exception) {
+        _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
+        throw;
     } catch (const std::exception& exception) {
         _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
-        THROW_IE_EXCEPTION << "Couldn't load the graph into the device.";
+        THROW_IE_EXCEPTION << "Couldn't load the graph into the device." << exception.what();
     }
 
     const auto& networkInputs = _network->getInputsInfo();
@@ -347,7 +344,7 @@ std::map<std::string, IE::InferenceEngineProfileInfo> HDDL2Executor::getLayerSta
 
 InferenceEngine::Parameter HDDL2Executor::getParameter(const std::string& paramName) const {
     UNUSED(paramName);
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
 }
 
 void HDDL2Executor::loadGraphToDevice() {
