@@ -17,7 +17,6 @@
 #include <file_reader.h>
 #include <file_utils.h>
 
-#include <details/ie_exception.hpp>
 #include <fstream>
 #include <vpu/utils/io.hpp>
 #include <vpux_compiler.hpp>

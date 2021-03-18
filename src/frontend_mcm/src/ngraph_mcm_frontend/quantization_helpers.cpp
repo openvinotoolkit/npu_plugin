@@ -17,7 +17,7 @@
 // clang-format off
 
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
-#include <details/ie_exception.hpp>
+#include <ie_common.h>
 #include <ngraph/runtime/reference/autobroadcast_binop.hpp>
 #include <ngraph/node.hpp>
 #include <ngraph/op/constant.hpp>

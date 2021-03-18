@@ -43,8 +43,8 @@ namespace IE = InferenceEngine;
 static void checkNetworkPrecision(const IE::Precision& precision) {
     if (precision != IE::Precision::FP32 && precision != IE::Precision::FP16 && precision != IE::Precision::U8 &&
         precision != IE::Precision::I8) {
-        THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input precision: " << precision
-                           << "! Supported precisions: FP32, FP16, U8, I8";
+        THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
+                << "Unsupported input precision: " << precision << "! Supported precisions: FP32, FP16, U8, I8";
     }
 }
 
@@ -292,10 +292,10 @@ void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
 
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "SetBlob");
     if (name.empty()) {
-        THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotFound) << "Failed to set blob with empty name";
     }
     if (!data)
-        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
+        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
     const bool isCompoundBlob = data->is<IE::CompoundBlob>();
 
     IE::InputInfo::Ptr foundInput;
@@ -303,14 +303,14 @@ void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
     size_t dataSize = data->size();
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
         if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
-                               << "Failed to set Blob with precision not corresponding to user input precision";
+            THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
+                    << "Failed to set Blob with precision not corresponding to user input precision";
         }
 
         const bool preProcRequired = preProcessingRequired(foundInput, data);
         if (isCompoundBlob && !preProcRequired) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
-                               << "Cannot set compound blob: supported only for input pre-processing";
+            THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
+                    << "Cannot set compound blob: supported only for input pre-processing";
         }
 
         if (preProcRequired) {
@@ -332,8 +332,8 @@ void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
         }
     } else {
         if (isCompoundBlob) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
-                               << "cannot set compound blob: supported only for input pre-processing";
+            THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented)
+                    << "cannot set compound blob: supported only for input pre-processing";
         }
         size_t outputSize = IE::details::product(foundOutput->getDims());
         if (dataSize != outputSize) {
@@ -341,8 +341,8 @@ void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
                                << "!=" << outputSize << ").";
         }
         if (foundOutput->getPrecision() != data->getTensorDesc().getPrecision()) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
-                               << "Failed to set Blob with precision not corresponding to user output precision";
+            THROW_IE_EXCEPTION_WITH_STATUS(ParameterMismatch)
+                    << "Failed to set Blob with precision not corresponding to user output precision";
         }
         _outputs[name] = data;
     }

@@ -17,7 +17,6 @@
 // clang-format off
 
 #include "ngraph_mcm_frontend/passes/merge_TopK_convert.hpp"
-#include <details/ie_exception.hpp>
 #include <ngraph/op/convert.hpp>
 #include <ngraph/op/result.hpp>
 #include <legacy/ngraph_ops/topk_ie.hpp>

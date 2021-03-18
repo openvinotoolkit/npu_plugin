@@ -15,8 +15,9 @@
 //
 
 // clang-format on
+
 #include "ngraph_mcm_frontend/passes/insert_maxpool.hpp"
-#include <details/ie_exception.hpp>
+#include <ie_common.h>
 
 #include <memory>
 #include <ngraph/op/concat.hpp>

@@ -16,8 +16,8 @@
 
 // clang-format off
 
+#include <ie_common.h>
 #include "ngraph_mcm_frontend/passes/fuse_scale_in_previous_weights_fq.hpp"
-#include <details/ie_exception.hpp>
 #include <ngraph/op/constant.hpp>
 
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"

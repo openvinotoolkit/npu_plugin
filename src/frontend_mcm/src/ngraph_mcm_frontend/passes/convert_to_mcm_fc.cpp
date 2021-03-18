@@ -16,11 +16,11 @@
 
 // clang-format off
 
+#include <ie_common.h>
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_fc.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_fc.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_bias.hpp"
 
-#include <details/ie_exception.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 #include <memory>
 

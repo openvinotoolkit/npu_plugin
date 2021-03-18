@@ -133,7 +133,7 @@ TEST_F(kmbInferRequestConstructionUnitTests, cannotCreateInferRequestWithEmptyIn
     auto allocator = std::make_shared<MockAllocator>();
     ASSERT_THROW(inferRequest = std::make_shared<vpux::InferRequest>(ie::InputsDataMap(), ie::OutputsDataMap(),
                      executor, config, "networkName", allocator),
-        ie::details::InferenceEngineException);
+        ie::Exception);
 }
 
 TEST_F(kmbInferRequestConstructionUnitTests, canCreateInferRequestWithValidParameters) {

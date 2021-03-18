@@ -124,7 +124,7 @@ IE::QueryNetworkResult Engine::QueryNetwork(
     const IE::CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     VPUX_UNUSED(network);
     VPUX_UNUSED(config);
-    THROW_IE_EXCEPTION << IE::NOT_IMPLEMENTED;
+    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
     return {};
 }
 
@@ -154,7 +154,7 @@ IE::Parameter Engine::GetMetric(
     } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics.GetRangeForStreams());
     }
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
 }
 
 static const IE::Version version = {{2, 1}, CI_BUILD_NUMBER, "VPUXPlugin"};

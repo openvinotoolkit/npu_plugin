@@ -16,7 +16,7 @@
 
 // clang-format off
 
-#include <details/ie_exception.hpp>
+#include <ie_common.h>
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 
 #include <memory>

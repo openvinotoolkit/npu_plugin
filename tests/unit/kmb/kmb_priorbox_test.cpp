@@ -171,7 +171,7 @@ protected:
                 EXPECT_EQ(dst_ptr[i], kmb_priorbox_result[i]);
             }
 
-        } catch (const InferenceEngine::details::InferenceEngineException& e) {
+        } catch (const InferenceEngine::Exception& e) {
             FAIL() << e.what();
         }
     }

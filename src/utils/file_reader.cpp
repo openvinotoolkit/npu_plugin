@@ -163,7 +163,7 @@ InferenceEngine::Blob::Ptr fromNV12File(const std::string& filePath, size_t imag
 
 std::ifstream& skipMagic(std::ifstream& blobStream) {
     if (!blobStream.is_open()) {
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::NETWORK_NOT_READ;
+        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotRead);
     }
 
     InferenceEngine::ExportMagic magic = {};

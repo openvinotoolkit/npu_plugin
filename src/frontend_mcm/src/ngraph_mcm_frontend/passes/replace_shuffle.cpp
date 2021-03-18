@@ -17,7 +17,6 @@
 // clang-format on
 
 #include "ngraph_mcm_frontend/passes/replace_shuffle.hpp"
-#include <details/ie_exception.hpp>
 
 #include <memory>
 #include <ngraph/op/constant.hpp>

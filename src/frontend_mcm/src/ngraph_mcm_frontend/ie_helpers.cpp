@@ -17,7 +17,6 @@
 // clang-format off
 
 #include "ngraph_mcm_frontend/ie_helpers.hpp"
-#include <details/ie_exception.hpp>
 
 ngraph::element::Type cvtPrecisionToElemType(const ie::Precision& precision) {
     switch (precision) {
