@@ -192,4 +192,18 @@ def LowPrecision : FunctionPass<"low-precision"> {
     ];
 }
 
+//
+// ConvertFCToConv
+//
+
+def ConvertFCToConv : FunctionPass<"convert-fc-to-conv"> {
+    let summary = "Convert FullyConnected op to Convolution op";
+
+    let description = [{
+        This "atomic" pass replaces all FullyConnected ops with Convolution ops.
+    }];
+
+    let constructor = "vpux::IE::createConvertFCToConvPass()";
+}
+
 #endif
