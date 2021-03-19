@@ -54,10 +54,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10_u8_i
 }
 
 // [Track number: S#48139]
+// [Track number: E#7736]
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_dense_IRv10_fp16) {
-#ifndef __aarch64__
     SKIP_INFER_ON("VPUX", "bad results");
-#endif
     runTest(
             TestNetworkDesc("KMB_models/FP16/MobileNet_v2_pytorch/mobilenet-v2_pytorch_dense_fp16_ww34.xml")
                     .setUserInputPrecision("input", Precision::FP16)
@@ -888,8 +887,11 @@ TEST_F(SmokeNetworkTest, yolo_v4_tf_full) {
                     .setUserOutputPrecision("output", Precision::FP32));
 }
 
-// Regression on compilation due to latest rebase
 TEST_F(KmbVasFDStage1Test, precommit_vasfd_stage1) {
+// [Track number: #7733]
+#ifdef __aarch64__
+    SKIP_INFER_ON("VPUX", "Wrong results");
+#endif
     const std::string inputName = "data";
     const std::vector<std::string> layerNames = {
         "b12", "b16", "b24", "b32", "b48",
