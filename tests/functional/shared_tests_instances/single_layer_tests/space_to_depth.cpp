@@ -50,15 +50,7 @@ namespace {
             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     );
 
-    // All tests fail with one common error:
-    // Expected: executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration) doesn't
-    // throw an exception.
-    // Actual: it throws:Unsupported operation: SpaceToDepth_29964 with name SpaceToDepth_29980 with type
-    // SpaceToDepth with C++ type N6ngraph2op2v012SpaceToDepthE
-    // kmb-plugin/src/frontend_mcm/src/ngraph_mcm_frontend/passes/convert_to_mcm_model.cpp:1575
-    // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64
-    // [Track number: S#45262]
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_SpaceToDepthBS2, KmbSpaceToDepthLayerTest, SpaceToDepthBS2, KmbSpaceToDepthLayerTest::getTestCaseName);
+    INSTANTIATE_TEST_CASE_P(smoke_SpaceToDepthBS2, KmbSpaceToDepthLayerTest, SpaceToDepthBS2, KmbSpaceToDepthLayerTest::getTestCaseName);
 
     const std::vector<std::vector<size_t >> inputShapesBS3 = {
             {1, 1, 3, 3}, {1, 1, 6, 6}, {1, 1, 9, 9}, {2, 4, 9, 9}, {2, 3, 15, 12}};
@@ -75,14 +67,6 @@ namespace {
             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     );
 
-    // All tests fail with one common error:
-    // Expected: executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration) doesn't
-    // throw an exception.
-    // Actual: it throws:Unsupported operation: SpaceToDepth_29964 with name SpaceToDepth_29980 with type
-    // SpaceToDepth with C++ type N6ngraph2op2v012SpaceToDepthE
-    // kmb-plugin/src/frontend_mcm/src/ngraph_mcm_frontend/passes/convert_to_mcm_model.cpp:1575
-    // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64
-    // [Track number: S#45262]
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_SpaceToDepthBS3, KmbSpaceToDepthLayerTest, SpaceToDepthBS3, KmbSpaceToDepthLayerTest::getTestCaseName);
+    INSTANTIATE_TEST_CASE_P(smoke_SpaceToDepthBS3, KmbSpaceToDepthLayerTest, SpaceToDepthBS3, KmbSpaceToDepthLayerTest::getTestCaseName);
 
 }  // namespace
