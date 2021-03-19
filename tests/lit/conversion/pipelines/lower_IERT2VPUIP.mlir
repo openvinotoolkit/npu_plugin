@@ -4,15 +4,11 @@
 // The 'lower-IERT-to-VPUIP' pass:
 //
 //   * Replaces Layer Operations with VPUIP Tasks.
-//   * Adds `VPUIP.Graph` Operation.
 //   * Removes `std.global_memref` Operations.
 //
 
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
-
-// CHECK:       VPUIP.Graph
-// CHECK-SAME:      options : "NONE"
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedExecutors

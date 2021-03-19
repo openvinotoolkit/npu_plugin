@@ -17,6 +17,9 @@
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 
 using namespace vpux;
 
@@ -64,8 +67,28 @@ void SetCompileParamsPass::runOnOperation() {
 }
 
 void SetCompileParamsPass::passBody() {
+    auto& ctx = getContext();
     auto module = getOperation();
+
+    _log.trace("Set VPU architecture to {0}", _arch);
+
     VPUIP::setArch(module, _arch);
+
+    _log.trace("Add VPUIP.Graph Operation");
+
+    const auto options = VPUIP::ExecutionFlagAttr::get(&ctx, VPUIP::ExecutionFlag::NONE);
+
+    const auto version = VPUIP::VersionAttr::get(getInt32Attr(&ctx, 3),                         // majorV
+                                                 getInt32Attr(&ctx, 11),                        // minorV
+                                                 getInt32Attr(&ctx, 0),                         // patchV
+                                                 mlir::StringAttr::get(&ctx, ""),               // hash
+                                                 mlir::StringAttr::get(&ctx, "VPUX Compiler"),  // contextStr
+                                                 &ctx);
+
+    OpBuilderLogger builderLog(_log.nest());
+    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
+
+    builder.create<VPUIP::GraphOp>(mlir::UnknownLoc::get(&ctx), options, version);
 }
 
 }  // namespace

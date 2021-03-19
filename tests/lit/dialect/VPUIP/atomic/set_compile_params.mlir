@@ -3,6 +3,16 @@
 // CHECK: module @test attributes {VPUIP.arch = "MA2490"}
 module @test {
 
+// CHECK:       VPUIP.Graph
+// CHECK-SAME:      options : "NONE"
+// CHECK-SAME:      version : {
+// CHECK-SAME:          contextStr = "VPUX Compiler"
+// CHECK-SAME:          hash = ""
+// CHECK-SAME:          majorV = 3
+// CHECK-SAME:          minorV = 11
+// CHECK-SAME:          patchV = 0
+// CHECK-SAME:      }
+
 // CHECK: IERT.RunTimeResources availableMemory :  {
 // CHECK:   IERT.MemoryResource 1073741824 bytes
 // CHECK:   IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}

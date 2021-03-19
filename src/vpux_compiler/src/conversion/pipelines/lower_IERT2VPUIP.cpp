@@ -42,7 +42,6 @@ public:
 private:
     void passBody();
 
-    void addGraphOp();
     mlir::LogicalResult setRunTimeResources();
 
 private:
@@ -84,37 +83,10 @@ void LowerIERT2VPUIPPass::passBody() {
         return;
     }
 
-    addGraphOp();
-
     if (mlir::failed(setRunTimeResources())) {
         signalPassFailure();
         return;
     }
-}
-
-//
-// addGraphOp
-//
-
-void LowerIERT2VPUIPPass::addGraphOp() {
-    _log.trace("Add VPUIP.Graph Operation");
-
-    auto& ctx = getContext();
-    auto module = getOperation();
-
-    const auto options = VPUIP::ExecutionFlagAttr::get(&ctx, VPUIP::ExecutionFlag::NONE);
-
-    const auto version = VPUIP::VersionAttr::get(getInt32Attr(&ctx, 3),                         // majorV
-                                                 getInt32Attr(&ctx, 11),                        // minorV
-                                                 getInt32Attr(&ctx, 0),                         // patchV
-                                                 mlir::StringAttr::get(&ctx, ""),               // hash
-                                                 mlir::StringAttr::get(&ctx, "VPUX Compiler"),  // contextStr
-                                                 &ctx);
-
-    OpBuilderLogger builderLog(_log.nest());
-    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
-
-    builder.create<VPUIP::GraphOp>(mlir::UnknownLoc::get(&ctx), options, version);
 }
 
 //
