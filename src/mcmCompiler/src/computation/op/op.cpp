@@ -336,7 +336,7 @@ bool mv::Op::isUPA() const
                                         "RegionYolo", "ReorgYolo", "DetectionOutput", "Interp", "Norm",
                                         "Priorbox","Argmax","Permute","CustomOcl","CustomCpp","Sigmoid","Deconv","Tile",
                                         "RefConv", "Gather", "HSwish", "Swish", "Relu", "Conversion", "Tanh", "SoftPlus", "Elu",
-                                        "PermuteND", "Mish", "Floor", "Round", "Erf", "Gelu", "Pad", "Interpolate", "MVN", "Ceiling", "Exp"};
+                                        "PermuteND", "Mish", "Floor", "Round", "Erf", "Gelu", "Pad", "Interpolate", "MVN", "Ceiling", "Exp", "SpaceToDepth"};
     log(Logger::MessageType::Debug, "isUPA method is called for:" + getOpType());
     if (std::count(upaTypes.begin(), upaTypes.end(), getOpType()))
     {

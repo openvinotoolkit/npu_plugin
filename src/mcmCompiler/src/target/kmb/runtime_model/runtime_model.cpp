@@ -3886,6 +3886,31 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAMVNTask(ComputationModel& cm, E
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASpaceToDepthTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_SpaceToDepthParams;
+    auto softLayerParamsValue = new MVCNN::SpaceToDepthParamsT();
+
+    if (opIt->get<uint8_t>("mode") == 0)
+        softLayerParamsValue->mode = MVCNN::SpaceToDepthMode::SpaceToDepthMode_BLOCKS_FIRST;
+    else 
+    if (opIt->get<uint8_t>("mode") == 1)
+        softLayerParamsValue->mode = MVCNN::SpaceToDepthMode::SpaceToDepthMode_DEPTH_FIRST;
+
+    softLayerParamsValue->blockSize = opIt->get<uint32_t>("block_size");
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -3993,6 +4018,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAMVNTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "LeakyRelu")
         toReturn[0]->task.value = buildUPALeakyReluTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "SpaceToDepth")
+        toReturn[0]->task.value = buildUPASpaceToDepthTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 

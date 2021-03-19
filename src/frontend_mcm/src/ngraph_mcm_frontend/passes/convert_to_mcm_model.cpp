@@ -103,6 +103,7 @@
 #include <ngraph/op/variadic_split.hpp>
 #include <ngraph/op/strided_slice.hpp>
 #include <ngraph/op/mvn.hpp>
+#include <ngraph/op/space_to_depth.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
@@ -1833,6 +1834,25 @@ void convert(std::shared_ptr<ngraph::op::v0::MVN> MVN, mv::OpModel& mcmModel, No
     registerOutputs(MVN, {mcmMVN}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::SpaceToDepth> SpaceToDepth, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(SpaceToDepth, mcmOutputsMap);
+    IE_ASSERT(1 == mcmInputs.size());
+    const auto mcmData = mcmInputs.at(0);
+    const auto& opName = SpaceToDepth->get_friendly_name();
+
+    uint8_t mode;
+    if (SpaceToDepth->get_mode() == ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST)
+        mode = 0;
+    else if (SpaceToDepth->get_mode() == ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST)
+        mode = 1;
+    else
+        THROW_IE_EXCEPTION << "Invalid mode " << mode << " in SpaceToDepth layer ";
+
+    auto mcmSpaceToDepth = mcmModel.spaceToDepth(opName, mcmData, mode, SpaceToDepth->get_block_size());
+
+    registerOutputs(SpaceToDepth, {mcmSpaceToDepth}, mcmOutputsMap);
+}
+
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
 template <typename T>
@@ -1932,7 +1952,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v4::Interpolate),
     MAP_ENTRY(ngraph::op::v0::MVN),
     MAP_ENTRY(ngraph::op::v0::Ceiling),
-    MAP_ENTRY(ngraph::op::v0::PRelu)
+    MAP_ENTRY(ngraph::op::v0::PRelu),
+    MAP_ENTRY(ngraph::op::v0::SpaceToDepth)
 };
 
 #undef MAP_ENTRY
