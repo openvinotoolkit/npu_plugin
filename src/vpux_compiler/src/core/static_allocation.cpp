@@ -24,6 +24,7 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
+#include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 
 using namespace vpux;
@@ -90,7 +91,7 @@ vpux::StaticAllocation::StaticAllocation(mlir::Operation* rootOp, mlir::Attribut
     LinearScan<mlir::Value, Handler> scan(maxSize.count(), *this);
 
     auto callback = [&](mlir::Operation* op) {
-        if (auto allocOp = mlir::dyn_cast<mlir::AllocOp>(op)) {
+        if (auto allocOp = mlir::dyn_cast<mlir::memref::AllocOp>(op)) {
             const auto val = allocOp.memref();
             const auto type = val.getType().dyn_cast<mlir::MemRefType>();
 
@@ -105,7 +106,7 @@ vpux::StaticAllocation::StaticAllocation(mlir::Operation* rootOp, mlir::Attribut
                               "Failed to statically allocate memory with LinearScan for Value '{0}'", val);
 
             scan.handler().aliveValues.insert(val);
-        } else if (auto deallocOp = mlir::dyn_cast<mlir::DeallocOp>(op)) {
+        } else if (auto deallocOp = mlir::dyn_cast<mlir::memref::DeallocOp>(op)) {
             const auto val = deallocOp.memref();
 
             if (scan.handler().aliveValues.erase(val)) {
