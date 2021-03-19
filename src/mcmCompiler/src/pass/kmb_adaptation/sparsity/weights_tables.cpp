@@ -670,7 +670,10 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
 //Idea: We use the equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always satisfies the
 //leaky relu. After we generate the instruction list table and we save the values of the registers inside.
 //The map of the bits per instruction are described here: https://docs.google.com/spreadsheets/d/1RcD1FYGiKCTCRTDsU-J4r_FaQyAQbzMLyRu7WkeNoOY/edit#gid=0.
-void populateInstructionListMap(const std::string& pwlType, mv::Data::TensorIterator instructionListTable)
+
+void populateInstructionListMap(const std::string& pwlType,
+                                mv::Data::TensorIterator instructionListTable,
+                                const mv::QuantizationParams& outQuantParams)
 {
     //NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
     //27 of course will be aligned to 32 and will contain NOPS inside
@@ -694,9 +697,14 @@ void populateInstructionListMap(const std::string& pwlType, mv::Data::TensorIter
         shift_vector = {1, -1, 0, 0, 0, -1, -1, -4};
         bias_vector = {-119, 44, -43, -31, -19, 18, 10, 0};
     } else if (pwlType == "Mish") {
-        range_vector = {-128, -109, -90, -72, -54, -36, -18, 0, 128};
-        shift_vector = {-12, -12, -12, -12, -12, -12, -12, 0};
-        bias_vector = {1, 1, 1, 1, 1, 1, 1, 0};
+        const auto& quantOutHigh = outQuantParams.getMax();
+        if (quantOutHigh.empty()) {
+            throw std::runtime_error("populateInstructionListMap: empty output quantization parameters");
+        }
+        const auto params = mv::ControlModel::getMishParameters(quantOutHigh.at(0));
+        range_vector = params._range_vector;
+        shift_vector = params._shift_vector;
+        bias_vector = params._bias_vector;
     }
 
     std::size_t k = 0;
@@ -792,7 +800,9 @@ static void populateInstructionListTablesFcn(const mv::pass::PassEntry& , mv::Co
                 auto attrs = dpuTaskOp->getAttrs({dpuPWLTag});
                 for (auto && attr : attrs) {
                     if (attr.first.find("With") == 0) {
-                        populateInstructionListMap(attr.first.substr(4), instructionListTable);
+                        populateInstructionListMap(attr.first.substr(4),
+                                                   instructionListTable,
+                                                   dpuTaskOp->getOutputTensor(0)->getQuantParams());
                     }
                 }
             }
