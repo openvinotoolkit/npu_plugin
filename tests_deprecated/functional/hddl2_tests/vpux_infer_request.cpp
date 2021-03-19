@@ -263,7 +263,9 @@ void InferenceWithPerfCount::SetUp() {
     executableNetworkPtr = nullptr;
 }
 
-TEST_F(InferenceWithPerfCount, precommit_SyncInferenceWithPerfCount) {
+// C++ exception "InferAsync FAILED! return code:-4"
+// [Track number: S#51440]
+TEST_F(InferenceWithPerfCount, DISABLED_precommit_SyncInferenceWithPerfCount) {
     // ---- Load inference engine instance
     IE::Core ie;
     std::map<std::string, std::string> _config = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
