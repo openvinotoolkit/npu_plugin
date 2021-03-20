@@ -108,7 +108,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
         auto resources = IERT::RunTimeResourcesOp::getFromModule(op->getParentOfType<mlir::ModuleOp>());
         VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources definition");
 
-        auto available = resources.getAvailableExecutor(
+        auto available = resources.getExecutor(
                 VPUIP::PhysicalProcessorAttr::get(op->getContext(), VPUIP::PhysicalProcessor::SHAVE_UPA));
         VPUX_THROW_UNLESS(available != nullptr, "SHAVE_UPA executor is not avaialble in run-time");
 

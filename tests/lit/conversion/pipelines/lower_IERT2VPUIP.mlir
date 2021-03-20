@@ -10,11 +10,6 @@
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
 
-// CHECK:   IERT.RunTimeResources
-// CHECK:       usedExecutors
-// CHECK:           IERT.ExecutorResource 16 of "SHAVE_UPA"
-// CHECK:           IERT.ExecutorResource 1 of "NCE_Cluster"
-
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork
     entryPoint : @main
@@ -54,11 +49,6 @@ module @ConstantLayer {
 // CHECK:       VPUIP.Graph
 // CHECK-SAME:      options : "NONE"
 
-// CHECK:   IERT.RunTimeResources
-// CHECK:       usedExecutors
-// CHECK:           IERT.ExecutorResource 16 of "SHAVE_UPA"
-// CHECK:           IERT.ExecutorResource 1 of "NCE_Cluster"
-
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork
     entryPoint : @main
@@ -92,11 +82,6 @@ module @ReshapeInGraph {
 
 // CHECK:       VPUIP.Graph
 // CHECK-SAME:      options : "NONE"
-
-// CHECK:   IERT.RunTimeResources
-// CHECK:       usedExecutors
-// CHECK:           IERT.ExecutorResource 16 of "SHAVE_UPA"
-// CHECK:           IERT.ExecutorResource 1 of "NCE_Cluster"
 
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork

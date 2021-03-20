@@ -42,8 +42,6 @@ public:
 private:
     void passBody();
 
-    mlir::LogicalResult setRunTimeResources();
-
 private:
     Logger _log;
     mlir::OpPassManager _pm;
@@ -82,41 +80,6 @@ void LowerIERT2VPUIPPass::passBody() {
         signalPassFailure();
         return;
     }
-
-    if (mlir::failed(setRunTimeResources())) {
-        signalPassFailure();
-        return;
-    }
-}
-
-//
-// setRunTimeResources
-//
-
-mlir::LogicalResult LowerIERT2VPUIPPass::setRunTimeResources() {
-    _log.trace("Setup used run-time resources for executors");
-
-    auto& ctx = getContext();
-    auto module = getOperation();
-
-    auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
-    if (resources == nullptr) {
-        return errorAt(module, "Failed to get 'IERT.RunTimeResources' Operation from Module");
-    }
-
-    const auto getProcAttr = [&](VPUIP::PhysicalProcessor proc) {
-        return VPUIP::PhysicalProcessorAttr::get(&ctx, proc);
-    };
-
-    if (auto available = resources.getAvailableExecutor(getProcAttr(VPUIP::PhysicalProcessor::SHAVE_UPA))) {
-        resources.setUsedExecutor(getProcAttr(VPUIP::PhysicalProcessor::SHAVE_UPA), available.count());
-    }
-    if (auto available = resources.getAvailableExecutor(getProcAttr(VPUIP::PhysicalProcessor::NCE_Cluster))) {
-        // We have to set at least 1 NCE cluster to allow run-time work, even for full SW mode.
-        resources.setUsedExecutor(getProcAttr(VPUIP::PhysicalProcessor::NCE_Cluster), 1);
-    }
-
-    return mlir::success();
 }
 
 }  // namespace

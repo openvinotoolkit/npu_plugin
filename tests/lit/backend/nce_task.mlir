@@ -16,27 +16,17 @@ IERT.RunTimeResources
         IERT.MemoryResource 4096 bytes of "DDR"
         IERT.MemoryResource 917504 bytes of "CMX_NN"
     }
-    availableExecutors : {
-        IERT.ExecutorResource 2 of "ARM" {}
-        IERT.ExecutorResource 1 of "Leon_RT" {}
-        IERT.ExecutorResource 1 of "Leon_NN" {}
-        IERT.ExecutorResource 16 of "SHAVE_UPA" {}
-        IERT.ExecutorResource 20 of "SHAVE_NN" {}
+    executors : {
+        IERT.ExecutorResource 2 of "ARM"
+        IERT.ExecutorResource 1 of "Leon_RT"
+        IERT.ExecutorResource 1 of "Leon_NN"
+        IERT.ExecutorResource 16 of "SHAVE_UPA"
+        IERT.ExecutorResource 20 of "SHAVE_NN"
         IERT.ExecutorResource 4 of "NCE_Cluster" {
-            IERT.ExecutorResource 5 of "NCE_PerClusterDPU" {}
+            IERT.ExecutorResource 5 of "NCE_PerClusterDPU"
         }
-        IERT.ExecutorResource 1 of "DMA_UPA" {}
-        IERT.ExecutorResource 1 of "DMA_NN" {}
-    }
-    usedExecutors : {
-        IERT.ExecutorResource 2 of "ARM" {}
-        IERT.ExecutorResource 1 of "Leon_NN" {}
-        IERT.ExecutorResource 1 of "Leon_RT" {}
-        IERT.ExecutorResource 0 of "SHAVE_NN" {}
-        IERT.ExecutorResource 16 of "SHAVE_UPA" {}
-        IERT.ExecutorResource 5 of "NCE_PerClusterDPU" {
-            IERT.ExecutorResource 4 of "NCE_Cluster" {}
-        }
+        IERT.ExecutorResource 1 of "DMA_UPA"
+        IERT.ExecutorResource 1 of "DMA_NN"
     }
 
 VPUIP.Graph
