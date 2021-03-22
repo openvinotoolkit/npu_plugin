@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -21,6 +21,26 @@ include "mlir/Pass/PassBase.td"
 include "mlir/Dialect/Linalg/IR/LinalgOps.td"
 
 //
+// UseUserPrecision
+//
+
+def UseUserPrecision : Pass<"use-user-precision", "mlir::ModuleOp"> {
+    let summary = "Use user precisions for entry point function prototype";
+
+    let description = [{
+        This pass updates the CNNNetwork entry point function prototype
+        and use user-provided precisions for its operands and results.
+        The pass inserts Convert operations from/to topology precisions.
+    }];
+
+    let constructor = "vpux::IE::createUseUserPrecisionPass()";
+}
+
+//=================================================================================
+// AdjustForVPU
+//=================================================================================
+
+//
 // ConvertPrecisionToFP16
 //
 
@@ -28,7 +48,7 @@ def ConvertPrecisionToFP16 : Pass<"convert-precision-to-fp16", "mlir::ModuleOp">
     let summary = "Convert tensors precision from FP32 to FP16";
 
     let description = [{
-        This "atomic" pass replaces all FP32 tensors with FP16.
+        This pass replaces all FP32 tensors with FP16.
         It updates both function bodies as well as Function signatures.
     }];
 
@@ -43,7 +63,7 @@ def ConvertShapeTo4D : Pass<"convert-shape-to-4d", "mlir::ModuleOp"> {
     let summary = "Convert tensors shapes to 4D";
 
     let description = [{
-        This "atomic" pass replaces all ND tensor with 4D analogues.
+        This pass replaces all ND tensor with 4D analogues.
         Tensor with rank greater than 4 will be treated as an error.
     }];
 
@@ -62,7 +82,7 @@ def ConvertPaddingsToFloorMode : FunctionPass<"convert-paddings-to-floor-mode"> 
     let summary = "Convert Convolution and Pooling layers paddings to FLOOR rouding mode";
 
     let description = [{
-        This "atomic" pass updates padding attributes for Convolution and Pooling layers.
+        This pass updates padding attributes for Convolution and Pooling layers.
         It switches layer rounding mode to FLOOR and updates paddings to satisfy output shape.
     }];
 
@@ -77,45 +97,29 @@ def ConvertTile2PerAxisTile : FunctionPass<"convert-tile-to-per-axis-tiles"> {
     let summary = "Convert tile op by multiple axes to multiple PerAxisTile ops";
 
     let description = [{
-        This "atomic" pass replaces all Tile op with PerAxisTile ops.
+        This pass replaces all Tile op with PerAxisTile ops.
     }];
 
     let constructor = "vpux::IE::createConvertTile2PerAxisTilePass()";
 }
 
 //
-// AdjustForVPU
+// ConvertFCToConv
 //
 
-def AdjustForVPU : Pass<"adjust-for-vpu", "mlir::ModuleOp"> {
-    let summary = "Adjust IE Dialect IR for VPU target";
+def ConvertFCToConv : FunctionPass<"convert-fc-to-conv"> {
+    let summary = "Convert FullyConnected op to Convolution op";
 
     let description = [{
-        This "pipeline" pass includes various adaptation passes to adjust the IR for VPU target.
+        This pass replaces all FullyConnected ops with Convolution ops.
     }];
 
-    let constructor = "vpux::IE::createAdjustForVPUPass()";
-
-    let dependentDialects = [
-        "mlir::linalg::LinalgDialect"
-    ];
+    let constructor = "vpux::IE::createConvertFCToConvPass()";
 }
 
-//
-// UseUserPrecision
-//
-
-def UseUserPrecision : Pass<"use-user-precision", "mlir::ModuleOp"> {
-    let summary = "Use user precisions for entry point function prototype";
-
-    let description = [{
-        This "atomic" pass updates the CNNNetwork entry point function prototype
-        and use user-provided precisions for its operands and results.
-        The pass inserts Convert operations from/to topology precisions.
-    }];
-
-    let constructor = "vpux::IE::createUseUserPrecisionPass()";
-}
+//=================================================================================
+// LowPrecision
+//=================================================================================
 
 //
 // SplitFakeQuant
@@ -171,39 +175,6 @@ def MergeFakeQuant : FunctionPass<"merge-fake-quant"> {
     let dependentDialects = [
         "vpux::IE::IEDialect"
     ];
-}
-
-//
-// LowPrecision
-//
-
-def LowPrecision : FunctionPass<"low-precision"> {
-    let summary = "Low precision transformations";
-
-    let description = [{
-        This "pipeline" pass includes all transformations to support low precisions.
-    }];
-
-    let constructor = "vpux::IE::createLowPrecisionPass()";
-
-    let dependentDialects = [
-        "mlir::quant::QuantizationDialect",
-        "vpux::IE::IEDialect"
-    ];
-}
-
-//
-// ConvertFCToConv
-//
-
-def ConvertFCToConv : FunctionPass<"convert-fc-to-conv"> {
-    let summary = "Convert FullyConnected op to Convolution op";
-
-    let description = [{
-        This "atomic" pass replaces all FullyConnected ops with Convolution ops.
-    }];
-
-    let constructor = "vpux::IE::createConvertFCToConvPass()";
 }
 
 #endif

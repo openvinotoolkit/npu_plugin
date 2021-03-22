@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -29,46 +29,24 @@ using namespace vpux;
 // ReferenceMode
 //
 
-namespace {
-
-class ReferenceModePass final : public ReferenceModeBase<ReferenceModePass> {
-public:
-    explicit ReferenceModePass(Logger log);
-
-public:
-    void runOnOperation() final;
-
-private:
-    Logger _log;
-    mlir::OpPassManager _pm;
-};
-
-ReferenceModePass::ReferenceModePass(Logger log)
-        : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
-    _log.setName(Base::getArgumentName());
-
-    _pm.addPass(mlir::createCanonicalizerPass());
-    _pm.addPass(IE::createAdjustForVPUPass(_log.nest()));
-    _pm.addPass(IE::createUseUserPrecisionPass(_log.nest()));
-    _pm.addPass(mlir::createCanonicalizerPass());
-    _pm.addPass(IE::createLowPrecisionPass(_log.nest()));
-    _pm.addPass(createLowerIE2IERTPass(_log.nest()));
-    _pm.addPass(createLowerIERT2VPUIPPass(_log.nest()));
-    _pm.addPass(VPUIP::createAddLinearSchedulingPass(_log.nest()));
+void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
+    pm.addPass(mlir::createCanonicalizerPass());
+    IE::buildAdjustForVPUPipeline(pm, log);
+    pm.addPass(IE::createUseUserPrecisionPass(log));
+    pm.addPass(mlir::createCanonicalizerPass());
+    IE::buildLowPrecisionPipeline(pm, log);
+    buildLowerIE2IERTPipeline(pm, log);
+    buildLowerIERT2VPUIPPipeline(pm, log);
+    pm.addPass(VPUIP::createAddLinearSchedulingPass(log));
 }
 
-void ReferenceModePass::runOnOperation() {
-    if (mlir::failed(runPipeline(_pm, getOperation()))) {
-        signalPassFailure();
-    }
-}
-
-}  // namespace
-
 //
-// createReferenceModePass
+// registerPipelines
 //
 
-std::unique_ptr<mlir::Pass> vpux::createReferenceModePass(Logger log) {
-    return std::make_unique<ReferenceModePass>(log);
+void vpux::registerPipelines() {
+    mlir::PassPipelineRegistration<>("reference-mode", "Compile IE Network in Reference mode (SW only execution)",
+                                     [](mlir::OpPassManager& pm) {
+                                         buildReferenceModePipeline(pm);
+                                     });
 }

@@ -28,33 +28,43 @@ namespace {
 
 class SetInternalMemorySpacePass final : public IERT::SetInternalMemorySpaceBase<SetInternalMemorySpacePass> {
 public:
-    SetInternalMemorySpacePass(mlir::Attribute memSpace, Logger log);
+    SetInternalMemorySpacePass(IERT::AttrCreateFunc memSpaceCb, Logger log);
 
 public:
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
     void runOnFunction() final;
 
 private:
     void passBody();
 
 private:
+    IERT::AttrCreateFunc _memSpaceCb;
     mlir::Attribute _memSpace;
     Logger _log;
 };
 
-SetInternalMemorySpacePass::SetInternalMemorySpacePass(mlir::Attribute memSpace, Logger log)
-        : _memSpace(memSpace), _log(log) {
+SetInternalMemorySpacePass::SetInternalMemorySpacePass(IERT::AttrCreateFunc memSpaceCb, Logger log)
+        : _memSpaceCb(std::move(memSpaceCb)), _log(log) {
+    VPUX_THROW_UNLESS(_memSpaceCb != nullptr, "Missing memSpaceCb");
     _log.setName(Base::getArgumentName());
+}
+
+mlir::LogicalResult SetInternalMemorySpacePass::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
+    }
+
+    _memSpace = _memSpaceCb(ctx, memSpaceName.getValue());
+
+    if (_memSpace == nullptr) {
+        return mlir::failure();
+    }
+
+    return mlir::success();
 }
 
 void SetInternalMemorySpacePass::runOnFunction() {
     try {
-        auto& ctx = getContext();
-
-        if (_memSpace == nullptr) {
-            VPUX_THROW_UNLESS(!memSpaceName.getValue().empty(), "Missing memory space option");
-            _memSpace = mlir::StringAttr::get(&ctx, memSpaceName.getValue());
-        }
-
         passBody();
     } catch (const std::exception& e) {
         (void)errorAt(getOperation(), "{0} failed : {1}", getName(), e.what());
@@ -92,6 +102,6 @@ void SetInternalMemorySpacePass::passBody() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IERT::createSetInternalMemorySpacePass(mlir::Attribute memSpace, Logger log) {
-    return std::make_unique<SetInternalMemorySpacePass>(memSpace, log);
+std::unique_ptr<mlir::Pass> vpux::IERT::createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log) {
+    return std::make_unique<SetInternalMemorySpacePass>(std::move(memSpaceCb), log);
 }

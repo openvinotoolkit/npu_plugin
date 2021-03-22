@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -27,7 +27,7 @@ def AddLayoutsAndStrides : Pass<"add-layouts-and-strides", "mlir::ModuleOp"> {
     let summary = "Add layouts and strides to memref";
 
     let description = [{
-        This "atomic" adds default values for layouts and strides to the memref
+        This pass adds default values for layouts and strides to the memref
     }];
 
     let constructor = "vpux::IERT::createAddLayoutsAndStridesPass()";
@@ -41,10 +41,15 @@ def SetInternalMemorySpace : FunctionPass<"set-internal-memory-space"> {
     let summary = "Set specific memory space for all internal memory buffers";
 
     let description = [{
-        This "atomic" pass updates all Types for internal memory buffers and sets the specified memory space for them.
+        This pass updates all Types for internal memory buffers and sets the specified memory space for them.
     }];
 
-    let constructor = "vpux::IERT::createSetInternalMemorySpacePass(nullptr)";
+    let constructor = [{
+        vpux::IERT::createSetInternalMemorySpacePass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
 
     let options = [
         Option<
@@ -68,11 +73,16 @@ def StaticAllocation : Pass<"static-allocation", "mlir::ModuleOp"> {
     let summary = "Replace dynamic allocations with static";
 
     let description = [{
-        This "atomic" pass replaces all dynamic `alloc`/`dealloc` Operations with `IERT.StaticAlloc`.
+        This pass replaces all dynamic `alloc`/`dealloc` Operations with `IERT.StaticAlloc`.
         It uses simple LinearScan algorithm.
     }];
 
-    let constructor = "vpux::IERT::createStaticAllocationPass(nullptr)";
+    let constructor = [{
+        vpux::IERT::createStaticAllocationPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
 
     let options = [
         Option<

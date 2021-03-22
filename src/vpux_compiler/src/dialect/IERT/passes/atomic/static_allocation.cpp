@@ -43,9 +43,10 @@ namespace {
 
 class StaticAllocationPass final : public IERT::StaticAllocationBase<StaticAllocationPass> {
 public:
-    StaticAllocationPass(mlir::Attribute memSpace, Logger log);
+    StaticAllocationPass(IERT::AttrCreateFunc memSpaceCb, Logger log);
 
 public:
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
     void runOnOperation() final;
 
 public:
@@ -56,24 +57,32 @@ private:
     void passBody();
 
 private:
+    IERT::AttrCreateFunc _memSpaceCb;
     mlir::Attribute _memSpace;
     Logger _log;
 };
 
-StaticAllocationPass::StaticAllocationPass(mlir::Attribute memSpace, Logger log): _memSpace(memSpace), _log(log) {
+StaticAllocationPass::StaticAllocationPass(IERT::AttrCreateFunc memSpaceCb, Logger log)
+        : _memSpaceCb(std::move(memSpaceCb)), _log(log) {
     _log.setName(Base::getArgumentName());
+}
+
+mlir::LogicalResult StaticAllocationPass::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
+    }
+
+    _memSpace = _memSpaceCb(ctx, memSpaceName.getValue());
+
+    if (_memSpace == nullptr) {
+        return mlir::failure();
+    }
+
+    return mlir::success();
 }
 
 void StaticAllocationPass::runOnOperation() {
     try {
-        auto& ctx = getContext();
-
-        if (_memSpace == nullptr) {
-            if (!memSpaceName.getValue().empty()) {
-                _memSpace = mlir::StringAttr::get(&ctx, memSpaceName.getValue());
-            }
-        }
-
         passBody();
     } catch (const std::exception& e) {
         (void)errorAt(getOperation(), "{0} failed : {1}", getName(), e.what());
@@ -218,6 +227,6 @@ void StaticAllocationPass::passBody() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IERT::createStaticAllocationPass(mlir::Attribute memSpace, Logger log) {
-    return std::make_unique<StaticAllocationPass>(memSpace, log);
+std::unique_ptr<mlir::Pass> vpux::IERT::createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log) {
+    return std::make_unique<StaticAllocationPass>(std::move(memSpaceCb), log);
 }

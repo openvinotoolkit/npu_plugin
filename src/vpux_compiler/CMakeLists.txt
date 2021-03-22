@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Intel Corporation.
+# Copyright Intel Corporation.
 #
 # This software and the related documents are Intel copyrighted materials,
 # and your use of them is governed by the express license under which they
@@ -196,8 +196,6 @@ add_passes("dialect/VPUIP" "VPUIP")
 
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")
-
-add_passes("pipelines" "Pipelines")
 
 file(GLOB_RECURSE TBLGEN_SOURCES "*.td")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TBLGEN_SOURCES})

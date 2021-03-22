@@ -42,7 +42,7 @@ The **VPUX NN Compiler** architecture and its implementation is based on the fol
 2. Enforced architectural stability and self-validation during compilation pipeline.
 3. IR splitting onto separate stages with different level of details.
 4. Operation interfaces for generic passes.
-5. Atomic and pipeline passes.
+5. Atomic passes and pipelines.
 
 The third principle is achieved by MLIR architecture - Dialects concept.
 The **VPUX NN Compiler** consists of several Dialects with different level of details.
@@ -55,10 +55,9 @@ Operation Interfaces also allows to write more generic passes, which are not bou
 The fifth principle declares that each Pass in compilation pipeline must represent one single transformation
 to reach one particular goal (either IR adaptation or IR optimization).
 Such "atomic" pass is easier to be covered by unit testing.
-The "atomic" passes can be joined together in the compilation chain inside "pipeline" pass.
-The "pipeline" pass doesn't perform IR transformation on its own, instead it creates internal
-pipeline of other passes (either "atomic" or another "pipeline") using MLIR dynamic pass manager feature.
-The goal of "pipeline" pass is to establish correct order of underlying passes, while keeping actual transformation logic inside them.
+The "atomic" passes can be joined together in the compilation chain inside pipeline.
+The pipeline doesn't perform IR transformation on its own, instead it representes a sequence of other passes.
+The goal of pipeline is to establish correct order of underlying passes, while keeping actual transformation logic inside them.
 
 ## Topics
 

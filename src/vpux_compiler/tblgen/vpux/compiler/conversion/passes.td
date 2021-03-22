@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -27,7 +27,7 @@ def ConvertIE2IERT : FunctionPass<"convert-IE-to-IERT"> {
     let summary = "Bufferize the IE dialect into the IERT dialect on Function level";
 
     let description = [{
-        This "atomic" pass bufferizes IE Dialect into IERT Dialect.
+        This pass bufferizes IE Dialect into IERT Dialect.
         Only functions inner regions are affected, not signatures.
     }];
 
@@ -40,27 +40,6 @@ def ConvertIE2IERT : FunctionPass<"convert-IE-to-IERT"> {
 }
 
 //
-// LowerIE2IERT
-//
-
-def LowerIE2IERT : Pass<"lower-IE-to-IERT", "mlir::ModuleOp"> {
-    let summary = "Performs full lowering from the IE Dialect to IERT Dialect";
-
-    let description = [{
-        This "pipeline" pass performs full IR lowering from IE Dialect to IERT Dialect,
-        including Function types, call graph and return operations.
-    }];
-
-    let constructor = "vpux::createLowerIE2IERTPass()";
-
-    let dependentDialects = [
-        "vpux::IERT::IERTDialect",
-        "mlir::StandardOpsDialect",
-        "mlir::linalg::LinalgDialect"
-    ];
-}
-
-//
 // ConvertIERT2VPUIP
 //
 
@@ -68,30 +47,11 @@ def ConvertIERT2VPUIP : FunctionPass<"convert-IERT-to-VPUIP"> {
     let summary = "Convert IERT Dialect Layer Operations to VPUIP Dialect";
 
     let description = [{
-        This "atomic" pass converts Laye Operations from IERT Dialect to VPUIP Dialect.
+        This pass converts Laye Operations from IERT Dialect to VPUIP Dialect.
         It uses simple SW implementation for IERT operations without any optimizations.
     }];
 
     let constructor = "vpux::createConvertIERT2VPUIPPass()";
-
-    let dependentDialects = [
-        "vpux::VPUIP::VPUIPDialect"
-    ];
-}
-
-//
-// LowerIERT2VPUIP
-//
-
-def LowerIERT2VPUIP : Pass<"lower-IERT-to-VPUIP", "mlir::ModuleOp"> {
-    let summary = "Performs full lowering from IERT Dialect to VPUIP Dialect";
-
-    let description = [{
-        This "pipeline" pass performs full IR lowering from IERT Dialect to VPUIP Dialect,
-        including Module level Operations.
-    }];
-
-    let constructor = "vpux::createLowerIERT2VPUIPPass()";
 
     let dependentDialects = [
         "vpux::VPUIP::VPUIPDialect"

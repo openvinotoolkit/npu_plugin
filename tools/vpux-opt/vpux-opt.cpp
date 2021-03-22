@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -38,14 +38,15 @@ int main(int argc, char* argv[]) {
         registry.insert<vpux::VPUIP::VPUIPDialect>();
 
         vpux::IE::registerIEPasses();
+        vpux::IE::registerPipelines();
         vpux::IERT::registerIERTPasses();
         vpux::VPUIP::registerVPUIPPasses();
         vpux::registerConversionPasses();
-        vpux::registerPipelinesPasses();
+        vpux::registerConversionPipelines();
+        vpux::registerPipelines();
         mlir::registerTransformsPasses();
 
         const auto res = mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, true);
-
         return mlir::succeeded(res) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
