@@ -190,17 +190,16 @@ void resolveAlign(mv::OpModel& om)
 
 void propagateImplicitOpsFromOutput(mv::Op& op, mv::OpModel& om)
 {
+    for (auto output : op.getOutputTensor())
+        output->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+
     for (auto input : op.getInputTensor())
     {
         auto previousOp = om.getSourceOp(input);
-        if (previousOp->getOpType() == "DPUTask")
-            return;
-
-        input->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
-        const auto opType = previousOp->getOpType();
-        if (opType == "Concat" || opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" ||
-            opType == "ImplicitOutput" || opType == "ImplicitUnion" || opType == "ImplicitJoin")
+        if (previousOp->isImplicit())
             propagateImplicitOpsFromOutput(*previousOp, om);
+        else if (previousOp->get<std::string>("opType") == "DMATask")
+            input->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
     }
 }
 
@@ -615,7 +614,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
-    // Propagate throught implicit layers and set their tensor location to OUTPUT
+    // Propagate throught implicit layers and set their output tensor location to OUTPUT
     propagateImplicitOpsFromOutput(*om.getOutput(), om);
     resolveAlign(om);
 
