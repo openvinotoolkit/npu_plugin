@@ -235,7 +235,6 @@ std::unordered_set<std::string> vpux::CompilerImpl::getSupportedOptions() {
     return {};
 }
 
-<<<<<<< HEAD
 INFERENCE_PLUGIN_API(StatusCode)
 CreateVPUXCompiler(ICompiler*& compiler, ResponseDesc* resp) noexcept {
     try {
@@ -244,9 +243,4 @@ CreateVPUXCompiler(ICompiler*& compiler, ResponseDesc* resp) noexcept {
     } catch (const std::exception& ex) {
         return DescriptionBuffer(StatusCode::GENERAL_ERROR, resp) << ex.what();
     }
-=======
-INFERENCE_PLUGIN_API(void)
-CreateVPUXCompiler(std::shared_ptr<ICompiler>& compiler) {
-    compiler = std::make_shared<CompilerImpl>();
->>>>>>> [VPUX] Added SpaceToDepth layer
 }
