@@ -4234,7 +4234,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
                     if(tIt->isSparse())
                     {
                         auto sparsityMapIterator = dm.getTensor(tIt->getSparsityMap()->getName());
-                        toSort.push_back(&(*sparsityMapIterator));
+                        csramCacheable.insert(&(*sparsityMapIterator));
                         if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                         {
                             for(size_t i = 0; i < numClusters; ++i)
