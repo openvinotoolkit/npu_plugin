@@ -411,6 +411,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             if (leading_offset)
                 toBuild->data->data_index += leading_offset;
         }
+
+        //NOTE: adjust dilation + concat indexing, when a dilation conv/deconv is not idx = 0 input of concat
+        if (t->hasAttr("leftIndexDilation"))
+            toBuild->data->data_index += t->get<std::size_t>("leftIndexDilation");
     }
     else
     {
@@ -533,6 +537,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             else
                 toBuild->data->storage_element_index = 0;
         }
+
+        //NOTE: adjust dilation + concat indexing, when a dilation conv/deconv is not idx = 0 input of concat
+        if (t->hasAttr("leftIndexDilation"))
+            toBuild->data->data_index += t->get<std::size_t>("leftIndexDilation");
 
     }
 
@@ -1709,7 +1717,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildHWDMATaskT(Com
     //tmp->port = port;
     toPush->task.value = tmp.release();
     toReturn.push_back(std::move(toPush));
-   
+
     return toReturn;
 }
 
