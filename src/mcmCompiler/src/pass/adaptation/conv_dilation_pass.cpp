@@ -350,6 +350,11 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
             {
                 opsToLink[j]->setInputTensor(concatIt, inputSlots[j], false);
                 om.defineFlow(concatIt, opsToLink[j], inputSlots[j]);
+                //NOTE: leading to a concat and will have a complex data index
+                if ((opsToLink[j]->getOpType() == "Concat" || opsToLink[j]->getOpType() == "ImplicitConcat") &&
+                    inputSlots[j] != 0)
+                    om.getSourceOp(concatIt)->set<bool>("complexDataIndex", true);
+
             }
         }
     }
@@ -470,6 +475,9 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
             {
                 opsToLink[j]->setInputTensor(concatIt, inputSlots[j], false);
                 om.defineFlow(concatIt, opsToLink[j], inputSlots[j]);
+                if ((opsToLink[j]->getOpType() == "Concat" || opsToLink[j]->getOpType() == "ImplicitConcat") &&
+                    inputSlots[j] != 0)
+                    om.getSourceOp(concatIt)->set<bool>("complexDataIndex", true);
             }
         }
     }
