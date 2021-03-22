@@ -119,7 +119,7 @@ void ConvertTile2PerAxisTilePass::passBody() {
     target.addIllegalOp<IE::TileOp>();
     target.addLegalOp<IE::PerAxisTileOp>();
 
-    mlir::OwningRewritePatternList patterns;
+    mlir::OwningRewritePatternList patterns(&ctx);
     patterns.insert<TileOpConverter>(&ctx, _log.nest());
 
     auto module = getOperation();
