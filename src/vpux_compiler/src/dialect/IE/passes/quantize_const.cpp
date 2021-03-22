@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -27,12 +27,12 @@ using namespace vpux;
 namespace {
 
 //
-// DequantizeConstPass
+// QuantizeConstPass
 //
 
-class DequantizeConstPass final : public IE::DequantizeConstBase<DequantizeConstPass> {
+class QuantizeConstPass final : public IE::QuantizeConstBase<QuantizeConstPass> {
 public:
-    explicit DequantizeConstPass(Logger log): _log(log) {
+    explicit QuantizeConstPass(Logger log): _log(log) {
         _log.setName(Base::getArgumentName());
     }
 
@@ -40,7 +40,7 @@ public:
     void runOnFunction() final;
 
 public:
-    class DequantizeConst;
+    class QuantizeConst;
 
 private:
     void passBody();
@@ -49,7 +49,7 @@ private:
     Logger _log;
 };
 
-void DequantizeConstPass::runOnFunction() {
+void QuantizeConstPass::runOnFunction() {
     try {
         _log.trace("Run on Function '@{0}'", getFunction().sym_name());
 
@@ -61,48 +61,41 @@ void DequantizeConstPass::runOnFunction() {
 }
 
 //
-// DequantizeConst
+// QuantizeConst
 //
 
-class DequantizeConstPass::DequantizeConst final : public mlir::OpRewritePattern<mlir::quant::DequantizeCastOp> {
+class QuantizeConstPass::QuantizeConst final : public mlir::OpRewritePattern<mlir::quant::QuantizeCastOp> {
 public:
-    DequantizeConst(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<mlir::quant::DequantizeCastOp>(ctx), _log(log) {
+    QuantizeConst(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<mlir::quant::QuantizeCastOp>(ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::quant::DequantizeCastOp dCastOp,
+    mlir::LogicalResult matchAndRewrite(mlir::quant::QuantizeCastOp qCastOp,
                                         mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult DequantizeConstPass::DequantizeConst::matchAndRewrite(mlir::quant::DequantizeCastOp dCastOp,
-                                                                          mlir::PatternRewriter& rewriter) const {
-    auto inputConst = dCastOp.arg().getDefiningOp<ConstantInterface>();
+mlir::LogicalResult QuantizeConstPass::QuantizeConst::matchAndRewrite(mlir::quant::QuantizeCastOp qCastOp,
+                                                                      mlir::PatternRewriter& rewriter) const {
+    auto inputConst = qCastOp.arg().getDefiningOp<ConstantInterface>();
 
     if (inputConst == nullptr) {
         return mlir::failure();
     }
 
-    _log.trace("Got DequantizeCast Operation '{0}' with Constant input '{1}'", dCastOp->getLoc(), inputConst.getLoc());
+    _log.trace("Got QuantizeCast Operation '{0}' with Constant input '{1}'", qCastOp->getLoc(), inputConst.getLoc());
 
-    const auto qType = inputConst.getActualType();
-    const auto qElemType = qType.getElementType().cast<mlir::quant::QuantizedType>();
+    const auto qType = qCastOp.getType().cast<mlir::ShapedType>();
 
-    const auto newConstType =
-            mlir::RankedTensorType::getChecked(dCastOp.getLoc(), qType.getShape(), qElemType.getExpressedType());
-    if (newConstType == nullptr) {
-        return mlir::failure();
-    }
-
-    const auto constAttr = dequantize(inputConst.getContent(), qType, dCastOp.getLoc());
+    const auto constAttr = quantize(inputConst.getContent(), qType, qCastOp.getLoc());
     if (constAttr == nullptr) {
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::ConstantOp>(dCastOp, newConstType, constAttr);
+    rewriter.replaceOpWithNewOp<IE::ConstantOp>(qCastOp, qType, constAttr);
     return mlir::success();
 }
 
@@ -110,11 +103,11 @@ mlir::LogicalResult DequantizeConstPass::DequantizeConst::matchAndRewrite(mlir::
 // passBody
 //
 
-void DequantizeConstPass::passBody() {
+void QuantizeConstPass::passBody() {
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<DequantizeConst>(&ctx, _log.nest());
+    patterns.insert<QuantizeConst>(&ctx, _log.nest());
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns)))) {
@@ -125,9 +118,9 @@ void DequantizeConstPass::passBody() {
 }  // namespace
 
 //
-// createDequantizeConstPass
+// createQuantizeConstPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createDequantizeConstPass(Logger log) {
-    return std::make_unique<DequantizeConstPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createQuantizeConstPass(Logger log) {
+    return std::make_unique<QuantizeConstPass>(log);
 }
