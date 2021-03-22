@@ -220,6 +220,16 @@ void KmbTestBase::SetUp() {
 }
 
 void KmbTestBase::TearDown() {
+#ifdef __aarch64__
+    if (RUN_INFER) {
+        core.reset();
+        // FIXME: reset cache every time to destroy VpualDispatcherResource
+        // this workaround is required to free VPU device properly
+        // Track number: H#18013110883
+        PluginCache::get().reset();
+    }
+#endif
+
     ASSERT_NO_FATAL_FAILURE(TestsCommon::TearDown());
 }
 
