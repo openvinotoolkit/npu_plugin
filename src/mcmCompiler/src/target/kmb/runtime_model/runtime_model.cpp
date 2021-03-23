@@ -2096,25 +2096,37 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     auto parentOutputTensor = opIt->getOutputTensor(0);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
 
-
-
-    if (opIt->hasAttr("multiCast"))
+    if (opIt->hasAttr("multiCast") && opIt->get<bool>("multiCast") )
     {
-        if (opIt->get<bool>("multiCast"))
-        {
-            unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
-            toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
-            std::vector<unsigned int> locale_index;
+        unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+        toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
+        std::vector<unsigned int> locale_index;
+        
+        // if SOK and spill to DDR - no need to broadcast to all clusters.
+        // Just broadcast to cluster 0 where the DMA out will occur from
+        DataModel dm(cm);
+        mv::Data::OpListIterator nextOp = dm.switchContext(opIt).leftmostOutput().sink();
+        while(nextOp->isImplicit())
+            nextOp = nextOp.leftmostOutput().sink();
+        
+        if ((opIt->get<std::string>("splitStrategy")=="SplitOverK") && 
+            (nextOp->getOpType() == "DMATask") && 
+            (nextOp->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2DDR) )
+        {   // just broadcast to cluster 0
+            locale_index.push_back(0);
+        }
+        else
+        {   // normal operation - broadcast to all clusters
             for (unsigned idx = numTasks; idx > 0; idx--)
                 locale_index.push_back(idx-1);
-            toBuild->output_data->locale_index = locale_index;
-            auto numericStrides = parentOutputTensor->computeNumericStrides();
-            numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
-            std::reverse(numericStrides.begin(), numericStrides.end());
-            toBuild->output_data->strides = numericStrides;
         }
-    }
 
+        toBuild->output_data->locale_index = locale_index;
+        auto numericStrides = parentOutputTensor->computeNumericStrides();
+        numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        toBuild->output_data->strides = numericStrides;
+    }
 
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
     toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
