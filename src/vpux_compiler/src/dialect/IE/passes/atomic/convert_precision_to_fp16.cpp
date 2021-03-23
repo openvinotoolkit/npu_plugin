@@ -148,7 +148,7 @@ void ConvertPrecisionToFP16Pass::passBody() {
         return typeConverter.isSignatureLegal(funcOp.getType());
     });
 
-    mlir::OwningRewritePatternList patterns(&ctx);
+    mlir::RewritePatternSet patterns(&ctx);
     mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
     patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
     IE::ConvertOp::getCanonicalizationPatterns(patterns, &ctx);

@@ -163,7 +163,7 @@ void ConvertShapeTo4DPass::passBody() {
         return typeConverter.isSignatureLegal(funcOp.getType()) && typeConverter.isLegal(&funcOp.getBody());
     });
 
-    mlir::OwningRewritePatternList patterns(&ctx);
+    mlir::RewritePatternSet patterns(&ctx);
     mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
     patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
     mlir::linalg::TensorReshapeOp::getCanonicalizationPatterns(patterns, &ctx);

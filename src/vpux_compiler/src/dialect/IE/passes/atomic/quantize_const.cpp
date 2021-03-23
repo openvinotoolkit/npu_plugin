@@ -106,7 +106,7 @@ mlir::LogicalResult QuantizeConstPass::QuantizeConst::matchAndRewrite(mlir::quan
 void QuantizeConstPass::passBody() {
     auto& ctx = getContext();
 
-    mlir::OwningRewritePatternList patterns(&ctx);
+    mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<QuantizeConst>(&ctx, _log.nest());
 
     auto func = getFunction();

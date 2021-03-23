@@ -356,8 +356,7 @@ mlir::LogicalResult UseLinalgReshape::matchAndRewrite(IE::ReshapeOp origOp, mlir
 // getCanonicalizationPatterns
 //
 
-void vpux::IE::ReshapeOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
-                                                      mlir::MLIRContext* ctx) {
+void vpux::IE::ReshapeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* ctx) {
     patterns.insert<UseLinalgReshape>(ctx);
 }
 

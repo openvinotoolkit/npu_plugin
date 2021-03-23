@@ -193,8 +193,7 @@ mlir::LogicalResult UseCollapsingReshape::matchAndRewrite(IE::SqueezeOp origOp, 
 // getCanonicalizationPatterns
 //
 
-void vpux::IE::SqueezeOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
-                                                      mlir::MLIRContext* ctx) {
+void vpux::IE::SqueezeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* ctx) {
     patterns.insert<UseCollapsingReshape>(ctx);
 }
 

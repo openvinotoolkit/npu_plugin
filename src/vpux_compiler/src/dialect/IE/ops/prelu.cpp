@@ -83,7 +83,6 @@ mlir::LogicalResult UseLeakyRelu::matchAndRewrite(IE::PReluOp origOp, mlir::Patt
 
 }  // namespace
 
-void vpux::IE::PReluOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
-                                                    mlir::MLIRContext* context) {
+void vpux::IE::PReluOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.insert<UseLeakyRelu>(context);
 }

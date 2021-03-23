@@ -125,7 +125,7 @@ mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-void vpux::IE::ConvolutionOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
+void vpux::IE::ConvolutionOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
                                                           mlir::MLIRContext* context) {
     patterns.insert<FuseConvAndBias>(context);
 }
@@ -236,7 +236,7 @@ mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupConvolutionOp convOp,
 
 }  // namespace
 
-void vpux::IE::GroupConvolutionOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
+void vpux::IE::GroupConvolutionOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
                                                                mlir::MLIRContext* context) {
     patterns.insert<FuseConvAndBias>(context);
     patterns.insert<GroupsToAttr>(context);

@@ -82,8 +82,7 @@ mlir::LogicalResult vpux::IE::AddOp::inferReturnTypeComponents(
     return outShapeRes;
 }
 
-void vpux::IE::AddOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
-                                                  mlir::MLIRContext* context) {
+void vpux::IE::AddOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.insert<ConvertAddToScale>(context);
 }
 
