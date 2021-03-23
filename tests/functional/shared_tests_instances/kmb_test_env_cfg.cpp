@@ -20,7 +20,7 @@ bool strToBool(const char* varName, const char* varValue) {
         }
         return (intVal != 0);
     } catch (const std::exception& e) {
-        THROW_IE_EXCEPTION << "Environment variable " << varName << " has wrong value : " << e.what();
+        IE_THROW() << "Environment variable " << varName << " has wrong value : " << e.what();
     }
 }
 

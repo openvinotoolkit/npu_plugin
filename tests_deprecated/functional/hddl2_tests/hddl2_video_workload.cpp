@@ -65,11 +65,11 @@ HddlUnite::RemoteMemory::Ptr VideoWorkload_Tests::allocateRemoteMemory(
         HddlUnite::RemoteMemoryDesc(dataSize, 1, dataSize, 1));
 
     if (_remoteFrame == nullptr) {
-        THROW_IE_EXCEPTION << "Failed to allocate remote memory.";
+        IE_THROW() << "Failed to allocate remote memory.";
     }
 
     if (_remoteFrame->syncToDevice(data, dataSize) != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to sync memory to device.";
+        IE_THROW() << "Failed to sync memory to device.";
     }
     return _remoteFrame;
 }

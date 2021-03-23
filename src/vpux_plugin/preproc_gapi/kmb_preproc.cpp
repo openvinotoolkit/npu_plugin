@@ -69,7 +69,7 @@ void execDataPreprocessing(InferenceEngine::BlobMap& inputs, std::map<std::strin
     VPUX_UNUSED(preprocPoolId);
     VPUX_UNUSED(deviceId);
     VPUX_UNUSED(ppPath);
-    THROW_IE_EXCEPTION << "VPUAL is disabled. Used only for arm";
+    IE_THROW() << "VPUAL is disabled. Used only for arm";
 #endif
 }
 }  // namespace KmbPreproc

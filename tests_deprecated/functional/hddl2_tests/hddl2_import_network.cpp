@@ -69,7 +69,7 @@ TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithStream) {
 
     std::filebuf blobFile;
     if (!blobFile.open(blobInfo.graphPath, std::ios::in | std::ios::binary)) {
-        THROW_IE_EXCEPTION << "Could not open file: " << blobInfo.graphPath;
+        IE_THROW() << "Could not open file: " << blobInfo.graphPath;
     }
     std::istream tmp_stream(&blobFile);
 

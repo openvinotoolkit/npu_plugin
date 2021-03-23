@@ -63,11 +63,11 @@ namespace NV12Blob_Creator {
 
     inline InferenceEngine::NV12Blob::Ptr createBlob(const InferenceEngine::TensorDesc& tensorDesc) {
         if (tensorDesc.getLayout() != InferenceEngine::NCHW && tensorDesc.getLayout() != InferenceEngine::NHWC) {
-            THROW_IE_EXCEPTION << "Only NCHW / NHWC Layout supported in nv12 blob creator!. Input: "
+            IE_THROW() << "Only NCHW / NHWC Layout supported in nv12 blob creator!. Input: "
                                << tensorDesc.getLayout();
         }
         if (tensorDesc.getPrecision() != InferenceEngine::Precision::U8) {
-            THROW_IE_EXCEPTION << "Only U8 Precision supported in nv12 blob creator!";
+            IE_THROW() << "Only U8 Precision supported in nv12 blob creator!";
         }
         const InferenceEngine::SizeVector& dims = tensorDesc.getDims();
         const int N_index = 0;
@@ -76,7 +76,7 @@ namespace NV12Blob_Creator {
         const int W_index = 3;
 
         if (dims[N_index] != 1 || dims[C_index] != 3) {
-            THROW_IE_EXCEPTION << "Only batch 1 and channel == 3 supported for nv12 creator!";
+            IE_THROW() << "Only batch 1 and channel == 3 supported for nv12 creator!";
         }
 
         return createBlob(dims[W_index], dims[H_index]);

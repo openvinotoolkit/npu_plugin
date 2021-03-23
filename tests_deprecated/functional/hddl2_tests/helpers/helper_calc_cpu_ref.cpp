@@ -83,7 +83,7 @@ IE::Blob::Ptr ReferenceHelper::CalcCpuReferenceSingleOutput(const std::string & 
     IE::OutputsDataMap outputs_info = network.getOutputsInfo();
     const size_t NUM_OUTPUTS = 1;
     if (outputs_info.size() != NUM_OUTPUTS) {
-        THROW_IE_EXCEPTION << "Number of outputs isn't equal to 1";
+        IE_THROW() << "Number of outputs isn't equal to 1";
     }
 
     return CalcCpuReferenceCommon(network, inputBlob, preproc_info).begin()->second;

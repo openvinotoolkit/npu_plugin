@@ -92,7 +92,7 @@ void fillUniform_(const Blob::Ptr& blob, std::default_random_engine& rd, T min, 
         break;
     }
     default:
-        THROW_IE_EXCEPTION << "Unsupported precision " << blob->getTensorDesc().getPrecision();
+        IE_THROW() << "Unsupported precision " << blob->getTensorDesc().getPrecision();
     }
 }
 
@@ -133,7 +133,7 @@ void fillNormal(const Blob::Ptr& blob, std::default_random_engine& rd, float mea
         break;
     }
     default:
-        THROW_IE_EXCEPTION << "Unsupported precision " << blob->getTensorDesc().getPrecision();
+        IE_THROW() << "Unsupported precision " << blob->getTensorDesc().getPrecision();
     }
 }
 
@@ -187,7 +187,7 @@ void compareBlobs(const Blob::Ptr& actual, const Blob::Ptr& expected, float tole
         compareType = FuncTestUtils::ABS_AND_REL;
         break;
     default:
-        THROW_IE_EXCEPTION << "Unsupported compare method " << method;
+        IE_THROW() << "Unsupported compare method " << method;
     }
 
     FuncTestUtils::compareRawBuffers(
@@ -214,7 +214,7 @@ ngraph::element::Type precisionToType(const Precision& precision) {
     case Precision::I8:
         return ngraph::element::i8;
     default:
-        THROW_IE_EXCEPTION << "Unsupported precision " << precision;
+        IE_THROW() << "Unsupported precision " << precision;
     }
 }
 
@@ -234,6 +234,6 @@ Precision typeToPrecision(const ngraph::element::Type& type) {
     } else if (type == ngraph::element::i8) {
         return Precision::I8;
     } else {
-        THROW_IE_EXCEPTION << "Unsupported type " << type;
+        IE_THROW() << "Unsupported type " << type;
     }
 }

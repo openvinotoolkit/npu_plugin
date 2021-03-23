@@ -47,6 +47,6 @@ inline void ModelHelper::loadModel() {
 }
 
 inline InferenceEngine::CNNNetwork ModelHelper::getNetwork() const {
-    if (_network.getName().empty()) THROW_IE_EXCEPTION << "Network not loaded";
+    if (_network.getName().empty()) IE_THROW() << "Network not loaded";
     return _network;
 }

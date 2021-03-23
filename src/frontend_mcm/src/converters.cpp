@@ -54,7 +54,7 @@ InferenceEngine::Layout orderVectorToLayout(const std::vector<float>& tensorOrde
     std::map<InferenceEngine::Layout, std::vector<float>>::const_iterator mapIter =
             std::find_if(orderMapping.begin(), orderMapping.end(), mapSearchPredicate);
     if (mapIter == orderMapping.end()) {
-        THROW_IE_EXCEPTION << "orderToLayout: failed to convert input order";
+        IE_THROW() << "orderToLayout: failed to convert input order";
     }
     return mapIter->first;
 }
@@ -67,7 +67,7 @@ InferenceEngine::Precision MvcnnDTypeToPrecision(const MVCNN::DType& dtype) {
     std::map<InferenceEngine::Precision, MVCNN::DType>::const_iterator mapIter =
             std::find_if(dataTypeMapping.begin(), dataTypeMapping.end(), mapSearchPredicate);
     if (mapIter == dataTypeMapping.end()) {
-        THROW_IE_EXCEPTION << "DTypeToPrecision: failed to convert dtype: " << dtype;
+        IE_THROW() << "DTypeToPrecision: failed to convert dtype: " << dtype;
     }
     return mapIter->first;
 }
@@ -108,7 +108,7 @@ mv::DType precisionToDType(const InferenceEngine::Precision& InferenceEnginePrec
         mvType = mv::DType("Float32");
         break;
     default:
-        THROW_IE_EXCEPTION << "Data type handling is not implemented" << InferenceEnginePrecision.name();
+        IE_THROW() << "Data type handling is not implemented" << InferenceEnginePrecision.name();
     }
     return mvType;
 }

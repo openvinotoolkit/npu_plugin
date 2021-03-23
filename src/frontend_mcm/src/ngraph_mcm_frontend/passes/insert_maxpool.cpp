@@ -56,7 +56,7 @@ void insertPooling(const std::shared_ptr<ngraph::Node>& fq_node) {
     const auto old_fq = std::dynamic_pointer_cast<ngraph::op::FakeQuantize>(fq_node);
     // this check must never fail since all non-FQ nodes have already been filtered out at this point
     if (old_fq == nullptr) {
-        THROW_IE_EXCEPTION << "ForceFP16Split::insertPooling: failed to cast fake quantize pointer";
+        IE_THROW() << "ForceFP16Split::insertPooling: failed to cast fake quantize pointer";
     }
     auto levels = old_fq->get_levels();
     auto new_fq = std::make_shared<ngraph::op::FakeQuantize>(max_pool->output(0), input_low, input_high, output_low,

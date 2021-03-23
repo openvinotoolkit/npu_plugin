@@ -34,7 +34,7 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 static void checkDataNotNull(const IE::DataPtr& desc) {
     if (!desc) {
-        THROW_IE_EXCEPTION << "Data is null";
+        IE_THROW() << "Data is null";
     }
 }
 
@@ -45,7 +45,7 @@ void InferDataAdapter::createInferData() {
     _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, _workloadContext, maxRoiNum,
                                                         _networkDescription->getDeviceOutputsInfo().size());
     if (_inferDataPtr.get() == nullptr) {
-        THROW_IE_EXCEPTION << "InferDataAdapter: Failed to create Unite inferData";
+        IE_THROW() << "InferDataAdapter: Failed to create Unite inferData";
     }
 
     for (const auto& deviceInput : _networkDescription->getDeviceInputsInfo()) {
@@ -86,7 +86,7 @@ InferDataAdapter::InferDataAdapter(const vpux::NetworkDescription::CPtr& network
           _needUnitePreProcessing(true) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
     if (networkDescription == nullptr) {
-        THROW_IE_EXCEPTION << "InferDataAdapter: NetworkDescription is null";
+        IE_THROW() << "InferDataAdapter: NetworkDescription is null";
     }
     createInferData();
 }
@@ -108,10 +108,10 @@ static bool isInputBlobDescAlreadyCreated(const HddlUnite::Inference::InferData:
 
 void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const std::string& inputName) {
     if (blob == nullptr) {
-        THROW_IE_EXCEPTION << "InferDataAdapter: Blob for input is null";
+        IE_THROW() << "InferDataAdapter: Blob for input is null";
     }
     if (_inputs.find(inputName) == _inputs.end()) {
-        THROW_IE_EXCEPTION << "InferDataAdapter: Failed to find BlobDesc for: " << inputName;
+        IE_THROW() << "InferDataAdapter: Failed to find BlobDesc for: " << inputName;
     }
 
     auto blobDescriptorPtr = _inputs.at(inputName);
@@ -139,7 +139,7 @@ void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob
     if (!isInputBlobDescAlreadyCreated(_inferDataPtr, inputName)) {
         const auto success = _inferDataPtr->createBlob(inputName, HDDLUniteBlobDesc, isInput);
         if (!success) {
-            THROW_IE_EXCEPTION << "InferDataAdapter: Error creating HDDLUnite Blob";
+            IE_THROW() << "InferDataAdapter: Error creating HDDLUnite Blob";
         }
         /** setPPFlag should be called after inferData->createBLob call but before updateBlob **/
         _inferDataPtr->setPPFlag(_needUnitePreProcessing);
@@ -152,14 +152,14 @@ void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob
 
     const auto updatedHDDLUniteBlobDesc = blobDescriptorPtr->updateUniteBlobDesc(blob);
     if (!_inferDataPtr->getInputBlob(inputName)->updateBlob(updatedHDDLUniteBlobDesc)) {
-        THROW_IE_EXCEPTION << "InferDataAdapter: Error updating Unite Blob";
+        IE_THROW() << "InferDataAdapter: Error updating Unite Blob";
     }
     // Strides alignment is supported only for PP case
     // Hantro video-codec needs by it (only for KMB EVM B0)
     const size_t strideAlignment = 256;
     if (!(updatedHDDLUniteBlobDesc.m_widthStride % strideAlignment) &&
         (updatedHDDLUniteBlobDesc.m_resWidth % strideAlignment) && !_needUnitePreProcessing) {
-        THROW_IE_EXCEPTION << "InferDataAdapter: strides alignment is supported only for preprocessing.";
+        IE_THROW() << "InferDataAdapter: strides alignment is supported only for preprocessing.";
     }
 }
 
@@ -167,7 +167,7 @@ std::string InferDataAdapter::getOutputData(const std::string& outputName) {
     // TODO send roiIndex (second parameter)
     auto outputData = _inferDataPtr->getOutputData(outputName);
     if (outputData.empty()) {
-        THROW_IE_EXCEPTION << "Failed to get blob from hddlUnite!";
+        IE_THROW() << "Failed to get blob from hddlUnite!";
     }
     _profileData = _inferDataPtr->getProfileData();
     return outputData;
@@ -176,7 +176,7 @@ std::string InferDataAdapter::getOutputData(const std::string& outputName) {
 void InferDataAdapter::waitInferDone() const {
     auto status = _inferDataPtr->waitInferDone(_asyncInferenceWaitTimeoutMs);
     if (status != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to wait for inference result with error: " << status;
+        IE_THROW() << "Failed to wait for inference result with error: " << status;
     }
 }
 

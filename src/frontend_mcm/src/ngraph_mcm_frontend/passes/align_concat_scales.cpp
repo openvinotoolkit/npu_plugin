@@ -46,7 +46,7 @@ bool inputsHasSameScalesAndZeroPoints(const std::vector<std::shared_ptr<ngraph::
 
         auto fq1 = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(inputs[0]);
         if (fq1 == nullptr) {
-            THROW_IE_EXCEPTION << "Failed to cast first input to FakeQuantize";
+            IE_THROW() << "Failed to cast first input to FakeQuantize";
         }
         auto outputLow1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq1->input_value(3).get_node_shared_ptr());
         auto outputHigh1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq1->input_value(4).get_node_shared_ptr());
@@ -56,7 +56,7 @@ bool inputsHasSameScalesAndZeroPoints(const std::vector<std::shared_ptr<ngraph::
         for (size_t i = 1; i < inputs.size(); i++) {
             auto fq2 = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(inputs[i]);
             if (fq2 == nullptr) {
-                THROW_IE_EXCEPTION << "Failed to cast input to FakeQuantize";
+                IE_THROW() << "Failed to cast input to FakeQuantize";
             }
 
             auto outputLow2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq2->input_value(3).get_node_shared_ptr());

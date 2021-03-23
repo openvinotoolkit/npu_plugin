@@ -116,11 +116,11 @@ protected:
 Blob::Ptr KmbPrivateConfigTests::createFakeNHWCBlob(const Blob::Ptr& blob) const {
     auto tensorDesc = blob->getTensorDesc();
     if (tensorDesc.getLayout() != Layout::NHWC) {
-        THROW_IE_EXCEPTION << "fakeNHWCBlob works only with NHWC format";
+        IE_THROW() << "fakeNHWCBlob works only with NHWC format";
     }
 
     if (tensorDesc.getDims()[1] != 3) {
-        THROW_IE_EXCEPTION << "fakeNHWCBlob works only with channels == 3";
+        IE_THROW() << "fakeNHWCBlob works only with channels == 3";
     }
 
     tensorDesc.setLayout(Layout::NHWC);

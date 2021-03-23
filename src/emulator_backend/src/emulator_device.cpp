@@ -35,7 +35,7 @@ std::shared_ptr<Executor> EmulatorDevice::createExecutor(const NetworkDescriptio
                                                          const VPUXConfig& /*config*/) {
     _logger->debug("::createExecutor() started");
     if (network->getNetworkModel() == nullptr)
-        THROW_IE_EXCEPTION << "Network passed to emulator is incorrect";
+        IE_THROW() << "Network passed to emulator is incorrect";
     _logger->debug("::createExecutor() finished");
     return std::make_shared<EmulatorExecutor>(network);
 }  // namespace vpux

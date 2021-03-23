@@ -188,7 +188,7 @@ protected:
 
     ie::Blob::Ptr createVPUBlob(const ie::SizeVector dims, const ie::Layout layout = ie::Layout::NHWC) {
         if (dims.size() != 4) {
-            THROW_IE_EXCEPTION << "Dims size must be 4 for createVPUBlob method";
+            IE_THROW() << "Dims size must be 4 for createVPUBlob method";
         }
 
         ie::TensorDesc desc = {ie::Precision::U8, dims, layout};

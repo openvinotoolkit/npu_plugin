@@ -26,19 +26,18 @@ namespace IE = InferenceEngine;
 HddlUnite::RemoteMemory::Ptr getRemoteMemoryFromParams(const InferenceEngine::ParamMap& params) {
     HddlUnite::RemoteMemory::Ptr remoteMemory;
     if (params.empty()) {
-        THROW_IE_EXCEPTION << PARAMS_ERROR_str << "Param map for allocator is empty.";
+        IE_THROW() << PARAMS_ERROR_str << "Param map for allocator is empty.";
     }
 
     // Check that it's really contains required params
     const auto remote_memory_iter = params.find(IE::HDDL2_PARAM_KEY(REMOTE_MEMORY));
     if (remote_memory_iter == params.end()) {
-        THROW_IE_EXCEPTION << PARAMS_ERROR_str
-                           << "Param map does not contain remote memory file descriptor information";
+        IE_THROW() << PARAMS_ERROR_str << "Param map does not contain remote memory file descriptor information";
     }
     try {
         remoteMemory = remote_memory_iter->second.as<HddlUnite::RemoteMemory::Ptr>();
     } catch (...) {
-        THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Remote memory param have incorrect type information";
+        IE_THROW() << CONFIG_ERROR_str << "Remote memory param have incorrect type information";
     }
     return remoteMemory;
 }

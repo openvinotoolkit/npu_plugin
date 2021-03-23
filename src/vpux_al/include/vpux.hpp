@@ -231,7 +231,7 @@ public:
 
     virtual void setup(const InferenceEngine::ParamMap& params) = 0;
     virtual Executor::Ptr clone() const {
-        THROW_IE_EXCEPTION << "Not implemented";
+        IE_THROW() << "Not implemented";
     }
 
     virtual void push(const InferenceEngine::BlobMap& inputs) = 0;

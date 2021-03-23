@@ -29,7 +29,7 @@ int extractIdFromDeviceName(const std::string& name) {
     const size_t expectedSize = 5;
     if (name.size() != expectedSize) {
 #ifdef __aarch64__
-        THROW_IE_EXCEPTION << "Unexpected device name: " << name;
+        IE_THROW() << "Unexpected device name: " << name;
 #else
         return -1;
 #endif
@@ -118,16 +118,16 @@ std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const Infe
     }
 }
 const std::shared_ptr<IDevice> IEngineBackend::getDevice() const {
-    THROW_IE_EXCEPTION << "Default getDevice() not implemented";
+    IE_THROW() << "Default getDevice() not implemented";
 }
 const std::shared_ptr<IDevice> IEngineBackend::getDevice(const std::string&) const {
-    THROW_IE_EXCEPTION << "Specific device search not implemented";
+    IE_THROW() << "Specific device search not implemented";
 }
 const std::shared_ptr<IDevice> IEngineBackend::getDevice(const InferenceEngine::ParamMap&) const {
-    THROW_IE_EXCEPTION << "Get device based on params not implemented";
+    IE_THROW() << "Get device based on params not implemented";
 }
 const std::vector<std::string> IEngineBackend::getDeviceNames() const {
-    THROW_IE_EXCEPTION << "Get all device names not implemented";
+    IE_THROW() << "Get all device names not implemented";
 }
 
 std::unordered_set<std::string> IEngineBackend::getSupportedOptions() const {
@@ -139,7 +139,7 @@ void* Allocator::wrapRemoteMemory(const InferenceEngine::ParamMap&) noexcept {
     return nullptr;
 }
 std::shared_ptr<Allocator> IDevice::getAllocator(const InferenceEngine::ParamMap&) const {
-    THROW_IE_EXCEPTION << "Not supported";
+    IE_THROW() << "Not supported";
 }
 
 }  // namespace vpux

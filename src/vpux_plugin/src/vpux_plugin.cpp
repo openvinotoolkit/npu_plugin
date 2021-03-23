@@ -124,7 +124,7 @@ IE::QueryNetworkResult Engine::QueryNetwork(
     const IE::CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     VPUX_UNUSED(network);
     VPUX_UNUSED(config);
-    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+    IE_THROW(NotImplemented);
     return {};
 }
 
@@ -132,7 +132,7 @@ IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
     // Device in this case will be searched inside RemoteContext creation
     const auto device = _backends->getDevice(map);
     if (device == nullptr) {
-        THROW_IE_EXCEPTION << "CreateContext: Failed to find suitable device to use";
+        IE_THROW() << "CreateContext: Failed to find suitable device to use";
     }
     return std::make_shared<VPUXRemoteContext>(device, map, _parsedConfig);
 }
@@ -154,7 +154,7 @@ IE::Parameter Engine::GetMetric(
     } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics.GetRangeForStreams());
     }
-    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+    IE_THROW(NotImplemented);
 }
 
 static const IE::Version version = {{2, 1}, CI_BUILD_NUMBER, "VPUXPlugin"};

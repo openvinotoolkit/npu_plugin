@@ -24,7 +24,7 @@ namespace Blob_Creator {
 
     inline InferenceEngine::Blob::Ptr createBlob(const InferenceEngine::SizeVector &dims, const InferenceEngine::Layout &layout) {
         if (dims.size() != 4) {
-            THROW_IE_EXCEPTION << "Dims size must be 4 for CreateBlob method";
+            IE_THROW() << "Dims size must be 4 for CreateBlob method";
         }
         InferenceEngine::TensorDesc desc = {InferenceEngine::Precision::U8, dims, layout};
 

@@ -104,7 +104,7 @@ std::vector<PlatformInfo> getAvailableDevices() {
 #if defined(__arm__) || defined(__aarch64__)
     xlink_error initResult = xlink_initialize();
     if (initResult != X_LINK_SUCCESS) {
-        THROW_IE_EXCEPTION << "VpualExecutor::getDeviceList: xlink_inititalize failed with error: " << initResult;
+        IE_THROW() << "VpualExecutor::getDeviceList: xlink_inititalize failed with error: " << initResult;
     }
 
     // get all devices
@@ -113,7 +113,7 @@ std::vector<PlatformInfo> getAvailableDevices() {
     uint32_t availableDevicesCount = 0;
     xlink_error getDevResult = xlink_get_device_list(deviceIdList.data(), &availableDevicesCount);
     if (getDevResult != X_LINK_SUCCESS) {
-        THROW_IE_EXCEPTION << "VpualExecutor::getDeviceList: xlink_get_device_list failed with error: " << getDevResult;
+        IE_THROW() << "VpualExecutor::getDeviceList: xlink_get_device_list failed with error: " << getDevResult;
     }
     deviceIdList.resize(availableDevicesCount);
 
@@ -155,7 +155,7 @@ const std::map<std::string, std::shared_ptr<IDevice>> VpualEngineBackend::create
 
 const std::shared_ptr<IDevice> VpualEngineBackend::getDevice() const {
     if (_devices.empty()) {
-        THROW_IE_EXCEPTION << "There are no any devices!";
+        IE_THROW() << "There are no any devices!";
     }
     return _devices.begin()->second;
 }
@@ -174,7 +174,7 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const InferenceEngi
     try {
         deviceId = map.at(InferenceEngine::KMB_PARAM_KEY(DEVICE_ID)).as<std::string>();
     } catch (...) {
-        THROW_IE_EXCEPTION << "Device ID is not provided!";
+        IE_THROW() << "Device ID is not provided!";
     }
     try {
         return _devices.at(deviceId);

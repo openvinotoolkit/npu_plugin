@@ -112,10 +112,10 @@ static bool all_fqs_have_same_io_params(std::set<std::shared_ptr<ngraph::Node>> 
 
         auto fq_i_counts = fq_data1.size();
         if (fq_i_counts != fq_data2.size())
-            THROW_IE_EXCEPTION << "FQ " << fq_node->get_friendly_name() << " have different input low/high parameters count";
+            IE_THROW() << "FQ " << fq_node->get_friendly_name() << " have different input low/high parameters count";
         auto fq_o_counts = fq_data3.size();
         if (fq_o_counts != fq_data4.size())
-            THROW_IE_EXCEPTION << "FQ " << fq_node->get_friendly_name() << " have different output low/high parameters count";
+            IE_THROW() << "FQ " << fq_node->get_friendly_name() << " have different output low/high parameters count";
 
         if (fq_i_counts != fq_o_counts) {
             return false;

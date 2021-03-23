@@ -33,7 +33,7 @@ std::shared_ptr<Executor> VpualDevice::createExecutor(
     const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
     const auto& vpusmmAllocator = std::dynamic_pointer_cast<VpusmmAllocator>(_allocator);
     if (vpusmmAllocator == nullptr) {
-        THROW_IE_EXCEPTION << "Incompatible allocator passed into vpual_backend";
+        IE_THROW() << "Incompatible allocator passed into vpual_backend";
     }
     _config.parseFrom(config);
 

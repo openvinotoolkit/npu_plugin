@@ -66,25 +66,25 @@ private:
         void copyFrom(const std::vector<T>& vec) {
             const auto inSz = vec.size() * sizeof(T);
             if (inSz != _sz)
-                THROW_IE_EXCEPTION << "hostMem::copyFrom sizes mismatch";
+                IE_THROW() << "hostMem::copyFrom sizes mismatch";
             if (0 != memcpy_s(_data, _sz, vec.data(), inSz))
-                THROW_IE_EXCEPTION << "hostMem::copyFrom::ie_memcpy return != 0";
+                IE_THROW() << "hostMem::copyFrom::ie_memcpy return != 0";
         }
         void copyFrom(const InferenceEngine::Blob::Ptr& blob) {
             const InferenceEngine::MemoryBlob::CPtr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!mblob) THROW_IE_EXCEPTION << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
+            if (!mblob) IE_THROW() << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
             if (mblob->byteSize() != _sz)
-                THROW_IE_EXCEPTION << "hostMem::copyFrom sizes mismatch";
+                IE_THROW() << "hostMem::copyFrom sizes mismatch";
             if (0 != memcpy_s(_data, _sz, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
-                THROW_IE_EXCEPTION << "hostMem::copyFrom::ie_memcpy* return != 0";
+                IE_THROW() << "hostMem::copyFrom::ie_memcpy* return != 0";
         }
         void copyTo(InferenceEngine::Blob::Ptr& blob) const {
             InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!mblob) THROW_IE_EXCEPTION << "hostMem::copyTo failing of casting blob to MemoryBlob";
+            if (!mblob) IE_THROW() << "hostMem::copyTo failing of casting blob to MemoryBlob";
 
-            if (mblob->byteSize() != _sz) THROW_IE_EXCEPTION << "hostMem::copyTo sizes mismatch";
+            if (mblob->byteSize() != _sz) IE_THROW() << "hostMem::copyTo sizes mismatch";
             if (0 != memcpy_s(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), _data, _sz))
-                THROW_IE_EXCEPTION << "hostMem::copyTo::ie_memcpy return != 0";
+                IE_THROW() << "hostMem::copyTo::ie_memcpy return != 0";
         }
         ~hostMem();
 

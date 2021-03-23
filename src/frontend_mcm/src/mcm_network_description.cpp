@@ -48,11 +48,11 @@ MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNe
     const ie::OutputsDataMap& deserializedOutputs = metaInfo._outputs;
     const std::string& networkName = metaInfo._networkName;
     if (deserializedInputs.empty()) {
-        THROW_IE_EXCEPTION << "MCMNetworkDescription: meta-data does not contain inputs.";
+        IE_THROW() << "MCMNetworkDescription: meta-data does not contain inputs.";
     }
 
     if (deserializedOutputs.empty()) {
-        THROW_IE_EXCEPTION << "MCMNetworkDescription: meta-data does not contain outputs.";
+        IE_THROW() << "MCMNetworkDescription: meta-data does not contain outputs.";
     }
 
     // FIXME: the code below does matching of actual device in/outs with meta data to give
@@ -149,7 +149,7 @@ vpux::DataMap MCMNetworkDescription::matchElementsByLexicographicalOrder(const v
 
     if (names.empty()) {
         // FIXME fail more gracefully
-        THROW_IE_EXCEPTION << "matchElementsByLexicographicalOrder meta-data does not contain names.";
+        IE_THROW() << "matchElementsByLexicographicalOrder meta-data does not contain names.";
     }
 
     std::size_t curMatchPos = 0;

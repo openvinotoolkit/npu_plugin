@@ -34,10 +34,10 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 static void checkBlobIsValid(const IE::Blob::CPtr& blob) {
     if (blob == nullptr) {
-        THROW_IE_EXCEPTION << "Blob is null";
+        IE_THROW() << "Blob is null";
     }
     if (blob->size() == 0) {
-        THROW_IE_EXCEPTION << "Blob is empty";
+        IE_THROW() << "Blob is empty";
     }
 }
 
@@ -45,25 +45,25 @@ static void checkBlobCompatibility(const IE::Blob::CPtr& blob, const BlobDescTyp
     checkBlobIsValid(blob);
     if (blob->is<IE::RemoteBlob>()) {
         if (blobType == BlobDescType::ImageWorkload) {
-            THROW_IE_EXCEPTION << "Remote blob not supported for ImageWorkload! Context required.";
+            IE_THROW() << "Remote blob not supported for ImageWorkload! Context required.";
         }
     } else {
         if (blobType == BlobDescType::VideoWorkload) {
-            THROW_IE_EXCEPTION << "Local blob is not supported for VideoWorkload! Please use only remote blobs!";
+            IE_THROW() << "Local blob is not supported for VideoWorkload! Please use only remote blobs!";
         }
     }
     if (blob->is<IE::RemoteBlob>() || blob->is<IE::MemoryBlob>() || blob->is<IE::NV12Blob>()) {
         return;
     }
     if (blob->is<IE::CompoundBlob>()) {
-        THROW_IE_EXCEPTION << "CompoundBlob is not supported";
+        IE_THROW() << "CompoundBlob is not supported";
     }
-    THROW_IE_EXCEPTION << "Blob type is unexpected";
+    IE_THROW() << "Blob type is unexpected";
 }
 
 static void checkDataIsValid(const IE::DataPtr& data) {
     if (data == nullptr) {
-        THROW_IE_EXCEPTION << "Blob descriptor is null";
+        IE_THROW() << "Blob descriptor is null";
     }
 }
 
@@ -71,14 +71,14 @@ static IE::SizeVector getNV12ImageDims(const IE::Blob::CPtr& blobPtr) {
     if (blobPtr->is<IE::NV12Blob>()) {
         auto nv12Ptr = blobPtr->as<IE::NV12Blob>();
         if (nv12Ptr == nullptr) {
-            THROW_IE_EXCEPTION << "Failed to cast nv12 blob.";
+            IE_THROW() << "Failed to cast nv12 blob.";
         }
         auto yPlaneBlob = nv12Ptr->y();
         return yPlaneBlob->getTensorDesc().getDims();
     } else if (blobPtr->is<IE::RemoteBlob>()) {
         return blobPtr->getTensorDesc().getDims();
     }
-    THROW_IE_EXCEPTION << "Unsupported blob format with NV12 Data";
+    IE_THROW() << "Unsupported blob format with NV12 Data";
 }
 
 using matchColorFormats_t = std::unordered_map<int, HddlUnite::Inference::FourCC>;
@@ -109,7 +109,7 @@ static size_t getSizeFromTensor(const IE::TensorDesc& tensorDesc) {
 static bool isBlobContainsNV12Data(const IE::Blob::CPtr& blobPtr,
                                    const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams) {
     if (blobPtr == nullptr || blobParams == nullptr) {
-        THROW_IE_EXCEPTION << "Check for NV12 failed, variables is null!";
+        IE_THROW() << "Check for NV12 failed, variables is null!";
     }
     if (blobPtr->is<IE::NV12Blob>() || blobParams->getColorFormat() == IE::NV12) {
         return true;
@@ -146,7 +146,7 @@ AllocationInfo::AllocationInfo(const IE::Blob::CPtr& blob, const IE::ColorFormat
     if (isRemoteBlob(blob)) {
         const auto remoteBlob = std::dynamic_pointer_cast<const InferenceEngine::RemoteBlob>(blob);
         if (remoteBlob == nullptr) {
-            THROW_IE_EXCEPTION << "Can't create AllocationInfo object. Failed cast given blob to RemoteBlob!";
+            IE_THROW() << "Can't create AllocationInfo object. Failed cast given blob to RemoteBlob!";
         }
         auto parsedBlobParamsPtr = std::make_shared<vpux::ParsedRemoteBlobParams>();
         parsedBlobParamsPtr->update(remoteBlob->getParams());
@@ -169,7 +169,7 @@ bool AllocationInfo::operator!=(const AllocationInfo& rhs) const {
 
 static void validateAllocatorInfoFields(const AllocationInfo& allocationInfo) {
     if (allocationInfo.dataSize == 0) {
-        THROW_IE_EXCEPTION << "BlobDescriptorAdapter: dataSize is zero!";
+        IE_THROW() << "BlobDescriptorAdapter: dataSize is zero!";
     }
 }
 //------------------------------------------------------------------------------
@@ -230,7 +230,7 @@ const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::updateUniteBlobDesc
         parsedBlobParamsPtr->update(remoteBlob->getParams());
         const auto memoryDesc = vpux::HDDL2::getRemoteMemoryFromParams(remoteBlob->getParams());
         if (memoryDesc == nullptr) {
-            THROW_IE_EXCEPTION << "BlobDescriptorAdapter: Memory desc is null";
+            IE_THROW() << "BlobDescriptorAdapter: Memory desc is null";
         }
         _sourceInfo.remoteMemoryFd = memoryDesc->getDmaBufFd();
     } else {
@@ -265,15 +265,15 @@ const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::updateUniteBlobDesc
 
 void BlobDescriptorAdapter::createRepackedNV12Blob(const IE::Blob::CPtr& blobPtr) {
     if (!blobPtr->is<IE::NV12Blob>())
-        THROW_IE_EXCEPTION << "Incorrect blob for repacking!";
+        IE_THROW() << "Incorrect blob for repacking!";
 
     auto nv12Ptr = blobPtr->as<IE::NV12Blob>();
     if (nv12Ptr == nullptr)
-        THROW_IE_EXCEPTION << "Failed to cast nv12 blob.";
+        IE_THROW() << "Failed to cast nv12 blob.";
 
     auto nv12Tensor = nv12Ptr->getTensorDesc();
     if (nv12Tensor.getPrecision() != IE::Precision::U8)
-        THROW_IE_EXCEPTION << "Unsupported NV12 Blob precision.";
+        IE_THROW() << "Unsupported NV12 Blob precision.";
 
     IE::Blob::Ptr yPlane = nv12Ptr->y();
     IE::Blob::Ptr uvPlane = nv12Ptr->uv();
@@ -286,7 +286,7 @@ void BlobDescriptorAdapter::createRepackedNV12Blob(const IE::Blob::CPtr& blobPtr
     const auto yStrides = yPlane->getTensorDesc().getBlockingDesc().getStrides();
     const auto uvStrides = uvPlane->getTensorDesc().getBlockingDesc().getStrides();
     if (yStrides.empty() || uvStrides.empty()) {
-        THROW_IE_EXCEPTION << "Strides information is not provided.";
+        IE_THROW() << "Strides information is not provided.";
     }
     const size_t ySize = yStrides[0];
     const size_t uvSize = uvStrides[0];
@@ -299,30 +299,30 @@ void BlobDescriptorAdapter::createRepackedNV12Blob(const IE::Blob::CPtr& blobPtr
     {
         IE::MemoryBlob::Ptr yPlaneMBlob = IE::as<IE::MemoryBlob>(yPlane);
         if (yPlaneMBlob == nullptr)
-            THROW_IE_EXCEPTION << "Failed to cast yPlane blob to memory blob";
+            IE_THROW() << "Failed to cast yPlane blob to memory blob";
 
         auto yPlaneLockedMemory = yPlaneMBlob->rmap();
         auto yPlaneMemory = yPlaneLockedMemory.as<uint8_t*>();
         if (yPlaneMemory == nullptr)
-            THROW_IE_EXCEPTION << "Null yPlane memory";
+            IE_THROW() << "Null yPlane memory";
 
         IE::MemoryBlob::Ptr uvPlaneMBlob = IE::as<IE::MemoryBlob>(uvPlane);
         if (uvPlaneMBlob == nullptr)
-            THROW_IE_EXCEPTION << "Failed to cast uvPlane blob to memory blob";
+            IE_THROW() << "Failed to cast uvPlane blob to memory blob";
 
         auto uvPlaneLockedMemory = uvPlaneMBlob->rmap();
         auto uvPlaneMemory = uvPlaneLockedMemory.as<uint8_t*>();
         if (uvPlaneMemory == nullptr)
-            THROW_IE_EXCEPTION << "Null uvPlane memory";
+            IE_THROW() << "Null uvPlane memory";
 
         IE::MemoryBlob::Ptr repackedMBlob = IE::as<IE::MemoryBlob>(repackedBlob);
         if (repackedMBlob == nullptr)
-            THROW_IE_EXCEPTION << "Failed to cast blob to memory blob";
+            IE_THROW() << "Failed to cast blob to memory blob";
 
         auto repackedBlobLockedMemory = repackedMBlob->wmap();
         auto repackedBlobMemory = repackedBlobLockedMemory.as<uint8_t*>();
         if (repackedBlobMemory == nullptr)
-            THROW_IE_EXCEPTION << "Failed to allocate memory for blob";
+            IE_THROW() << "Failed to allocate memory for blob";
 
         ie_memcpy(repackedBlobMemory, ySize, yPlaneMemory, ySize);
         ie_memcpy(repackedBlobMemory + ySize, uvSize, uvPlaneMemory, uvSize);
@@ -353,7 +353,7 @@ void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr
     }
 
     if (dims.size() != 4) {
-        THROW_IE_EXCEPTION << "BlobDescriptorAdapter: Formats with dims != 4 are not supported.";
+        IE_THROW() << "BlobDescriptorAdapter: Formats with dims != 4 are not supported.";
     }
 
     // Dims stored in NCHW format
@@ -363,7 +363,7 @@ void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr
     const auto blockingDesc = _isNV12Blob ? _yPlaneTensorDesc.getBlockingDesc() : tensorDesc.getBlockingDesc();
     const auto strides = blockingDesc.getStrides();
     if (strides.empty()) {
-        THROW_IE_EXCEPTION << "Strides information is not provided.";
+        IE_THROW() << "Strides information is not provided.";
     }
 
     // Define strides and dimensions. Only NCHW/NHWC orders/layouts are supported. NV12 always has NHWC order

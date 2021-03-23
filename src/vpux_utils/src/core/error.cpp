@@ -39,8 +39,9 @@ using namespace vpux;
     std::stringstream strm;
     strm
 #ifndef NDEBUG
-    << '\n' << file.str()  << ':' << line << ' '
+            << '\n'
+            << file.str() << ':' << line << ' '
 #endif
-    << message;
+            << message;
     throw InferenceEngine::GeneralError{strm.str()};
 }

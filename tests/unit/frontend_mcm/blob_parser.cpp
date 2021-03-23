@@ -40,7 +40,7 @@ void BlobParser_Tests::SetUp() {
 
     std::ifstream blobFile(graphPath, std::ios::binary);
     if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << "[ERROR] *Could not open file: " << graphPath;
+        IE_THROW() << "[ERROR] *Could not open file: " << graphPath;
     }
 
     std::ostringstream blobContentStream;

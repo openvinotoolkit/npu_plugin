@@ -143,7 +143,7 @@ std::vector<mv::Data::TensorIterator> getMcmInputs(std::shared_ptr<ngraph::Node>
         try {
             out.push_back(mcmOutputsMap.at(input.get_source_output()));
         } catch (const std::exception &ex) {
-            THROW_IE_EXCEPTION << "For operation " << node->get_type_name() << " name " << node->get_friendly_name()
+            IE_THROW() << "For operation " << node->get_type_name() << " name " << node->get_friendly_name()
                 << "output not found: " << input.get_source_output().get_tensor().get_name()
                 << " " << ex.what();
         }
@@ -212,17 +212,17 @@ void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel
     const auto& opName = param->get_friendly_name();
 
     if (param->get_shape().size() > 4 || param->get_shape().size() == 0) {
-       THROW_IE_EXCEPTION << "Input shape size is not supported: " << param->get_shape().size();
+       IE_THROW() << "Input shape size is not supported: " << param->get_shape().size();
     }
 
     const InferenceEngine::Layout inputLayout = ieData->getTensorDesc().getLayout();
     if (!isInputLayoutSupported(inputLayout)) {
-        THROW_IE_EXCEPTION << "Input layout is not supported: " << ieData->getTensorDesc().getLayout();
+        IE_THROW() << "Input layout is not supported: " << ieData->getTensorDesc().getLayout();
     }
 
     const InferenceEngine::Precision inputPrecision = ieData->getTensorDesc().getPrecision();
     if (!isInputPrecisionSupported(inputPrecision)) {
-        THROW_IE_EXCEPTION << "Input data type is not supported: " << ieData->getTensorDesc().getPrecision();
+        IE_THROW() << "Input data type is not supported: " << ieData->getTensorDesc().getPrecision();
     }
 
     const auto mvOrder = [&] {
@@ -235,7 +235,7 @@ void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel
     auto mvDType = cvtElemTypeToMCM(cvtPrecisionToElemType(inputPrecision));
 
     if (allowU8InputForFp16Models && allowConvertInputPrecisionToU8) {
-        THROW_IE_EXCEPTION << "Сannot enable two options at once";
+        IE_THROW() << "Сannot enable two options at once";
     }
 
     // MCM Compiler requirements
@@ -260,12 +260,12 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
 
     const auto outputPrecision = ieData->getTensorDesc().getPrecision();
     if (!isOutputPrecisionSupported(outputPrecision)) {
-        THROW_IE_EXCEPTION << "Output data type is not supported: " << outputPrecision;
+        IE_THROW() << "Output data type is not supported: " << outputPrecision;
     }
 
     const InferenceEngine::Layout outputLayout = ieData->getTensorDesc().getLayout();
     if (!isOutputLayoutSupported(outputLayout)) {
-        THROW_IE_EXCEPTION << "Output layout is not supported: " << outputLayout;
+        IE_THROW() << "Output layout is not supported: " << outputLayout;
     }
 
     // TODO: kmbPlugin already has a function convert_data_type() for matching IE precision to mcm, but
@@ -294,11 +294,11 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
         outputType = mv::DType("BFloat16");
         break;
     default:
-        THROW_IE_EXCEPTION << "Data type handling is not implemented" << outputPrecision.name();
+        IE_THROW() << "Data type handling is not implemented" << outputPrecision.name();
     }
 
     if (result->get_shape().size() > 4 || result->get_shape().size() == 0) {
-       THROW_IE_EXCEPTION << "Output shape size is not supported: " << result->get_shape().size();
+       IE_THROW() << "Output shape size is not supported: " << result->get_shape().size();
     }
 
     // MCM Compiler requirements
@@ -605,7 +605,7 @@ void convert(std::shared_ptr<ngraph::op::v5::Round> op, mv::OpModel& mcmModel, N
     const auto round_mode = op->get_mode();
     const auto roundModeIter = roundMode.find(round_mode);
     if (roundModeIter == roundMode.end()) {
-        THROW_IE_EXCEPTION << "Convertor for operation " << op->get_friendly_name()
+        IE_THROW() << "Convertor for operation " << op->get_friendly_name()
                            << " failed due to unsupported mode " << static_cast<int>(round_mode);
 
     }
@@ -671,7 +671,7 @@ void convert(std::shared_ptr<ngraph::op::Eltwise> eltwise, mv::OpModel& mcmModel
     else if (ELTWISE_TYPE::Prod  == opType)
         mcmEltwiseOutput = mcmModel.eltwise(opName, mcmInputs, "Multiply");
     else
-        THROW_IE_EXCEPTION << "Operation " << eltwise->get_type_name() << " " << opName << " has unsupported parameter ";
+        IE_THROW() << "Operation " << eltwise->get_type_name() << " " << opName << " has unsupported parameter ";
     mcmEltwiseOutput->setQuantParams(initialQuantParams());
 
     registerOutputs(eltwise, {mcmEltwiseOutput}, mcmOutputsMap);
@@ -757,7 +757,7 @@ void convert(std::shared_ptr<ngraph::op::PowerIE> power, mv::OpModel& mcmModel, 
             reciprocal_result->setQuantParams(initialQuantParams());
             registerOutputs(power, {reciprocal_result}, mcmOutputsMap);
     } else
-        THROW_IE_EXCEPTION << "Operation " << power->get_type_name() << " " + opName + " has unsupported power " << power->power;
+        IE_THROW() << "Operation " << power->get_type_name() << " " + opName + " has unsupported power " << power->power;
 }
 
 void convert(std::shared_ptr<McmScale> scale, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -963,11 +963,11 @@ void convert(std::shared_ptr<ngraph::op::PriorBoxIE> priorbox, mv::OpModel& mcmM
     // scale_all_sizes  Scale all sizes
 
     if (mcmInputs.size() != 2)
-        THROW_IE_EXCEPTION << opName + " Incorrect number of input edges!";
+        IE_THROW() << opName + " Incorrect number of input edges!";
 
     if (priorbox->get_input_shape(0).size() != 4 ||
         priorbox->get_input_shape(1).size() != 4)
-        THROW_IE_EXCEPTION << opName + " PriorBox supports only 4D blobs!";
+        IE_THROW() << opName + " PriorBox supports only 4D blobs!";
     auto data_dims = priorbox->get_input_shape(0);
     auto image_dims = priorbox->get_input_shape(1);
     auto out_dims = priorbox->get_output_shape(0);
@@ -1141,7 +1141,7 @@ void convert(std::shared_ptr<ngraph::op::v1::TopK> topk, mv::OpModel& mcmModel, 
 
     auto const_k = std::dynamic_pointer_cast<ngraph::op::Constant> (topk->input(1).get_source_output().get_node_shared_ptr());
     if (!const_k) // can be dynamic. see top_k_to_top_k_ie
-        THROW_IE_EXCEPTION << opName + " has non-constant k";
+        IE_THROW() << opName + " has non-constant k";
     int32_t k = const_k->cast_vector<int32_t>().at(0); // topk->get_k();
 
     for (size_t i = 1; i < mcmInputs.size(); i++) {
@@ -1159,7 +1159,7 @@ void convert(std::shared_ptr<ngraph::op::v1::TopK> topk, mv::OpModel& mcmModel, 
     else if (2 == outputSlots)
         registerOutputs(topk, {mcmTopKOutput, topKOp->getOutputTensor(1)}, mcmOutputsMap);
     else
-        THROW_IE_EXCEPTION << opName + " has too many outputs " << outputSlots;
+        IE_THROW() << opName + " has too many outputs " << outputSlots;
 }
 
 void convert(std::shared_ptr<ngraph::op::TopKIE> topk, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -1173,7 +1173,7 @@ void convert(std::shared_ptr<ngraph::op::TopKIE> topk, mv::OpModel& mcmModel, No
 
     auto const_k = std::dynamic_pointer_cast<ngraph::op::Constant> (topk->input(1).get_source_output().get_node_shared_ptr());
     if (!const_k) // can be dynamic. see top_k_to_top_k_ie
-        THROW_IE_EXCEPTION << opName + " has non-constant k";
+        IE_THROW() << opName + " has non-constant k";
     int32_t k = const_k->cast_vector<int32_t>().at(0); // topk->get_k();
 
     for (size_t i = 1; i < mcmInputs.size(); i++) {
@@ -1191,7 +1191,7 @@ void convert(std::shared_ptr<ngraph::op::TopKIE> topk, mv::OpModel& mcmModel, No
     else if (2 == outputSlots)
         registerOutputs(topk, {mcmTopKOutput, topKOp->getOutputTensor(1)}, mcmOutputsMap);
     else
-        THROW_IE_EXCEPTION << opName + " has too many outputs " << outputSlots;
+        IE_THROW() << opName + " has too many outputs " << outputSlots;
 }
 
 const static std::map<std::string, std::string> interpolationMap = {
@@ -1315,7 +1315,7 @@ void convert(std::shared_ptr<ngraph::op::DeconvolutionIE> deconvIE, mv::OpModel&
     int padBottom = padsEnd.at(0);
 
     if (dilationX != dilationY)
-        THROW_IE_EXCEPTION << "Deconvolution supports only equal dilationX and dilationY";
+        IE_THROW() << "Deconvolution supports only equal dilationX and dilationY";
 
     // TODO: implement cvtPaddingsFromCeilToFloorMode for deconv, existing func does not suit
 
@@ -1417,13 +1417,13 @@ void convert(std::shared_ptr<ngraph::op::CropIE> crop, mv::OpModel& mcmModel, No
             mvOutDims[ndims - 1 - axes[i]] = dim[i];
         }
         if (mvOutDims != outShape)
-            THROW_IE_EXCEPTION << "Crop layer dim parameter mismatches output shape";
+            IE_THROW() << "Crop layer dim parameter mismatches output shape";
         // mcmModel.crop() is single dimensional and mcmModel.slice() is multdimensional
         auto mcmSlice = mcmModel.slice(crop->get_friendly_name(), mcmInputs.at(0), mvOffsets, outShape);
         mcmSlice->setQuantParams(initialQuantParams());
         registerOutputs(crop, {mcmSlice}, mcmOutputsMap);
     } else {
-        THROW_IE_EXCEPTION << "Unsupported Crop layer parameters:"
+        IE_THROW() << "Unsupported Crop layer parameters:"
             << " axes.size() = " << axes.size()
             << ", offset.size() = " << offset.size()
             << ", dims.size() = " << dim.size();
@@ -1525,7 +1525,7 @@ void convert(std::shared_ptr<ngraph::op::ProposalIE> proposalIE, mv::OpModel& mc
     if (framework == "tensorflow" || framework == "caffe") {
         std::transform(framework.begin(), framework.end(), framework.begin(), ::toupper);
     } else {
-        THROW_IE_EXCEPTION << "Proposal layer doesn't support framework: \'" << framework << "\'";
+        IE_THROW() << "Proposal layer doesn't support framework: \'" << framework << "\'";
     }
 
     auto mcmProposal = mcmModel.proposal(opName, mcmInputs, attrs.scale, attrs.ratio, attrs.base_size, attrs.pre_nms_topn,
@@ -1695,7 +1695,7 @@ void convert(std::shared_ptr<ngraph::op::v1::Pad> pad, mv::OpModel& mcmModel, No
             padMode = "symmetric";
             break;
         default:
-            THROW_IE_EXCEPTION << "Invalid border mode " << mode << " in layer ";
+            IE_THROW() << "Invalid border mode " << mode << " in layer ";
     }
 
     const auto padValue = 0.0; //pad->get_pad_value(); //in pad_ie.hpp
@@ -1746,7 +1746,7 @@ void convert(std::shared_ptr<ngraph::op::PadIE> pad, mv::OpModel& mcmModel, Node
             padMode = "symmetric";
             break;
         default:
-            THROW_IE_EXCEPTION << "Invalid border mode " << mode << " in layer ";
+            IE_THROW() << "Invalid border mode " << mode << " in layer ";
     }
 
     const auto padValue = pad->get_pad_value();
@@ -1891,14 +1891,14 @@ void ConvertNode(const std::shared_ptr<ngraph::Node> op, mv::OpModel& mcmModel, 
             try {
                 convertor(op, mcmModel, mcmOutputsMap, ieData, allowNCHWInput, allowU8InputForFp16Models, allowPermuteND, allowConvertInputPrecisionToU8);
             } catch (const std::runtime_error& ex) {
-                THROW_IE_EXCEPTION << "Convertor for operation " << op->get_friendly_name()
+                IE_THROW() << "Convertor for operation " << op->get_friendly_name()
                                    << " failed due to runtime error " << ex.what();
             }
         } else {
-            THROW_IE_EXCEPTION << "Convertor not found for operation: " << op->get_friendly_name();
+            IE_THROW() << "Convertor not found for operation: " << op->get_friendly_name();
         }
     } else {
-        THROW_IE_EXCEPTION << "Unsupported operation: " << op->get_friendly_name() << " with name " << op->get_name()
+        IE_THROW() << "Unsupported operation: " << op->get_friendly_name() << " with name " << op->get_name()
                            << " with type " << op->get_type_name() << " with C++ type " << typeid(*op.get()).name();
     }
 }
@@ -1975,7 +1975,7 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
             }
         }
         if (!isFound)
-            THROW_IE_EXCEPTION << "Input not found: " << inputInfo.first;
+            IE_THROW() << "Input not found: " << inputInfo.first;
     }
 
     if (!_config.customLayers().empty()) {
@@ -2018,7 +2018,7 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
             }
         }
         if (!isFound)
-            THROW_IE_EXCEPTION << "Output not found: " << outputInfo.first;
+            IE_THROW() << "Output not found: " << outputInfo.first;
     }
 
     return false;

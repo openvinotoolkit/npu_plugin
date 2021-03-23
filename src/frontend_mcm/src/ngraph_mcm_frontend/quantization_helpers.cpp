@@ -41,7 +41,7 @@ int64_t calculateZeroPoint(float low, float high, int levels, const ngraph::elem
         float x = -static_cast<float>(levels - 1) * ((high + low) * 0.5f) / (high - low);
         zeroPoint = static_cast<int>(std::round(x));
     } else {
-        THROW_IE_EXCEPTION << "Unsupported element type " << elemType;
+        IE_THROW() << "Unsupported element type " << elemType;
     }
 
     return zeroPoint;
@@ -192,7 +192,7 @@ int64_t quantizeVal(
     if (elemType == ngraph::element::u8) {
         qVal = static_cast<int64_t>(clamp(std::round(val / scale + zeroPoint), 0, 255));
     } else {
-        THROW_IE_EXCEPTION << "Unsupported element type " << elemType;
+        IE_THROW() << "Unsupported element type " << elemType;
     }
 
     return qVal;

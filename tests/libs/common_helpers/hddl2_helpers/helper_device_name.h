@@ -32,7 +32,7 @@ inline std::set<std::string> getDevicesNames() {
     std::vector<HddlUnite::Device> devices;
     HddlStatusCode code = getAvailableDevices(devices);
     if (code != HDDL_OK || devices.empty()) {
-        THROW_IE_EXCEPTION << "No devices found";
+        IE_THROW() << "No devices found";
     }
     std::set<std::string> deviceNames;
     for (const auto& device: devices) {
@@ -53,7 +53,7 @@ inline std::set<std::string> getDevicesNamesWithPrefix() {
 inline std::string getName() {
     auto devices = getDevicesNames();
     if (devices.size() > 1) {
-        THROW_IE_EXCEPTION << "More than 1 device is not supported";
+        IE_THROW() << "More than 1 device is not supported";
     }
     return *devices.begin();
 }

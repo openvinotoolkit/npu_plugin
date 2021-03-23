@@ -49,7 +49,7 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 static Executor::Ptr getExecutorForInference(const Executor::Ptr& executor, const vpu::Logger::Ptr& logger) {
     if (executor == nullptr) {
-        THROW_IE_EXCEPTION << NO_EXECUTOR_FOR_INFERENCE;
+        IE_THROW() << NO_EXECUTOR_FOR_INFERENCE;
     }
 
     try {
@@ -88,7 +88,7 @@ ExecutableNetwork::ExecutableNetwork(IE::CNNNetwork& network, const Device::Ptr&
         _networkPtr = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
     } else {
         _logger->warning("Failed to read NGraph network");
-        THROW_IE_EXCEPTION << "Failed to read NGraph network";
+        IE_THROW() << "Failed to read NGraph network";
     }
 
     _executorPtr = createExecutor(_networkPtr, config, device);
@@ -183,7 +183,7 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
     if (modelFile.is_open()) {
         ExportImpl(modelFile);
     } else {
-        THROW_IE_EXCEPTION << "The " << modelFileName << " file can not be opened for export.";
+        IE_THROW() << "The " << modelFileName << " file can not be opened for export.";
     }
 }
 
@@ -192,12 +192,12 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
         if (_networkPtr != nullptr) {
             IE_SET_METRIC_RETURN(NETWORK_NAME, _networkPtr->getName());
         } else {
-            THROW_IE_EXCEPTION << "GetMetric: network is not initialized";
+            IE_THROW() << "GetMetric: network is not initialized";
         }
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(8u));
     } else {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+        IE_THROW(NotImplemented);
     }
 
     return {};
@@ -210,7 +210,7 @@ Executor::Ptr ExecutableNetwork::createExecutor(const NetworkDescription::Ptr& n
                                                 const Device::Ptr& device) {
     loadBlobCounter++;  // increment blob static counter to make unique network ID
     if (network == nullptr) {
-        THROW_IE_EXCEPTION << "Network is null!";
+        IE_THROW() << "Network is null!";
     }
 
     // Default executor is nullptr, allow only perform export

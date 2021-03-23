@@ -37,7 +37,7 @@ HDDL2Backend::HDDL2Backend(const VPUXConfig& config)
     setUniteLogLevel(_config.logLevel());
     _devices = createDeviceMap();
     if (_devices.empty())
-        THROW_IE_EXCEPTION << "Device map is empty.";
+        IE_THROW() << "Device map is empty.";
 }
 
 /** Generic device */
@@ -71,7 +71,7 @@ const std::vector<std::string> HDDL2Backend::getDeviceNames() const {
     std::vector<HddlUnite::Device> devices;
     auto status = getAvailableDevices(devices);
     if (status != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to get devices names!";
+        IE_THROW() << "Failed to get devices names!";
     }
 
     std::vector<std::string> devicesNames;

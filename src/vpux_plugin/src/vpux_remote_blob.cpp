@@ -35,7 +35,7 @@ VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemot
           _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", logLevel, vpu::consoleOutput())),
           _originalTensorDesc(tensorDesc) {
     if (contextPtr == nullptr) {
-        THROW_IE_EXCEPTION << CONTEXT_ERROR_str << "Remote context is null.";
+        IE_THROW() << CONTEXT_ERROR_str << "Remote context is null.";
     }
     _parsedParams.update(params);
     _logger->trace("VPUXRemoteBlob wrapping %d size\n", static_cast<int>(this->size()));
@@ -46,7 +46,7 @@ VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemot
     //  this shown design flaw in RemoteBlob + IE:Allocator concept
     _memoryHandle = allocator->wrapRemoteMemory(updatedParams);
     if (_memoryHandle == nullptr) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Allocation error";
+        IE_THROW(NotAllocated) << "Allocation error";
     }
 }
 
@@ -69,7 +69,7 @@ static std::shared_ptr<IE::ROI> makeROIOverROI(const std::shared_ptr<const IE::R
     }
 
     if ((resultROI->posX + resultROI->sizeX > width) || (resultROI->posY + resultROI->sizeY > height)) {
-        THROW_IE_EXCEPTION << "ROI out of blob bounds";
+        IE_THROW() << "ROI out of blob bounds";
     }
     return resultROI;
 }
@@ -82,11 +82,11 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
           _logger(std::make_shared<vpu::Logger>("VPUXRemoteBlob", origBlob._logger->level(), vpu::consoleOutput())),
           _originalTensorDesc(origBlob.getOriginalTensorDesc()) {
     if (_allocatorPtr == nullptr) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Failed to set allocator";
+        IE_THROW(NotAllocated) << "Failed to set allocator";
     }
 
     if (tensorDesc.getDims().size() != 4) {
-        THROW_IE_EXCEPTION << "Unsupported layout for VPUXRemoteBlob";
+        IE_THROW() << "Unsupported layout for VPUXRemoteBlob";
     }
     const auto origBlobTensorDesc = origBlob.getOriginalTensorDesc();
     const auto orig_W = origBlobTensorDesc.getDims()[3];
@@ -107,12 +107,12 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
         auto origParams = origBlob.getParams();
         params.insert(origParams.begin(), origParams.end());
     } catch (std::exception& ex) {
-        THROW_IE_EXCEPTION << "VPUXRemoteBlob: Failed to use original blob params" << ex.what();
+        IE_THROW() << "VPUXRemoteBlob: Failed to use original blob params" << ex.what();
     }
 
     _memoryHandle = privateAllocator->wrapRemoteMemory(params);
     if (_memoryHandle == nullptr) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NotAllocated) << "Failed to copy remote memory handle";
+        IE_THROW(NotAllocated) << "Failed to copy remote memory handle";
     }
 }
 

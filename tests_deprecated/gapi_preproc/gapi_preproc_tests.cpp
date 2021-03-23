@@ -171,7 +171,7 @@ InferenceEngine::Blob::Ptr img2Blob(
     using namespace InferenceEngine;
 
     if (imgs.empty()) {
-        THROW_IE_EXCEPTION << "No images to create blob from";
+        IE_THROW() << "No images to create blob from";
     }
 
     // get image value in correct format
@@ -190,7 +190,7 @@ InferenceEngine::Blob::Ptr img2Blob(
         case CV_32FC4:
             return img.at<cv::Vec4f>(h, w)[c];
         default:
-            THROW_IE_EXCEPTION << "Image type is not recognized";
+            IE_THROW() << "Image type is not recognized";
         }
     };
 
@@ -249,7 +249,7 @@ InferenceEngine::Blob::Ptr img2Blob(
             }
         } break;
         default:
-            THROW_IE_EXCEPTION << "Inconsistent input layout for image processing: " << layout;
+            IE_THROW() << "Inconsistent input layout for image processing: " << layout;
         }
     }
     return resultBlob;
@@ -296,7 +296,7 @@ void Blob2Img(const InferenceEngine::Blob::Ptr& blobP, cv::Mat& img, InferenceEn
         }
     } break;
     default:
-        THROW_IE_EXCEPTION << "Inconsistent input layout for image processing: " << layout;
+        IE_THROW() << "Inconsistent input layout for image processing: " << layout;
     }
 }
 

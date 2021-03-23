@@ -61,7 +61,7 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const IE::RemoteContext::Ptr& co
     // TODO more complicated logic should be here. Might require changing in backend implementation
     const auto privateContext = std::dynamic_pointer_cast<VPUXRemoteContext>(context);
     if (context == nullptr) {
-        THROW_IE_EXCEPTION << FAILED_CAST_CONTEXT;
+        IE_THROW() << FAILED_CAST_CONTEXT;
     }
     const auto device = privateContext->getDevice();
     _logger->debug("Device from context found: {}", device->getName());

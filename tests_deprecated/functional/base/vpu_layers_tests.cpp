@@ -315,7 +315,7 @@ void vpuLayersTests::genInputBlobs(Precision precision) {
             inputBlob = make_shared_blob<float>({Precision::FP32, inputDims, layout});
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision for input. Supported U8, FP16, FP32";
+            IE_THROW() << "Unsupported precision for input. Supported U8, FP16, FP32";
         }
         inputBlob->allocate();
         ASSERT_NE(genDataCallback, nullptr);
@@ -344,7 +344,7 @@ void vpuLayersTests::genOutputBlobs(Precision precision) {
             outputBlob = make_shared_blob<float>({Precision::FP32, outputDims, layout});
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision for output. Supported FP16, FP32";
+            IE_THROW() << "Unsupported precision for output. Supported FP16, FP32";
         }
         outputBlob->allocate();
         StatusCode st = _inferRequest->SetBlob(outpt.first.c_str(), outputBlob, &_resp);
