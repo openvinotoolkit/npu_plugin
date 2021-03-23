@@ -38,12 +38,9 @@ namespace {
 
 class ConvertIE2IERTPass final : public ConvertIE2IERTBase<ConvertIE2IERTPass> {
 public:
-    explicit ConvertIE2IERTPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit ConvertIE2IERTPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnFunction() final;
 
 public:
     class ConstantRewrite;
@@ -56,35 +53,12 @@ public:
     class TransposeRewrite;
 
 public:
-    static const mlir::PatternBenefit genericBenefit;
-    static const mlir::PatternBenefit specificBenefitLow;
-    static const mlir::PatternBenefit specificBenefitHigh;
-
-public:
     static SmallVector<mlir::Value> allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
                                                     mlir::TypeConverter& typeConverter, mlir::ValueRange origResults);
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnFunc() final;
 };
-
-const mlir::PatternBenefit ConvertIE2IERTPass::genericBenefit(1);
-const mlir::PatternBenefit ConvertIE2IERTPass::specificBenefitLow(2);
-const mlir::PatternBenefit ConvertIE2IERTPass::specificBenefitHigh(3);
-
-void ConvertIE2IERTPass::runOnFunction() {
-    try {
-        _log.trace("Run on Function '@{0}'", getFunction().sym_name());
-
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // allocateResults
@@ -109,7 +83,7 @@ SmallVector<mlir::Value> ConvertIE2IERTPass::allocateResults(mlir::Location loc,
 class ConvertIE2IERTPass::ConstantRewrite final : public mlir::OpConversionPattern<IE::ConstantOp> {
 public:
     ConstantRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<IE::ConstantOp>(typeConverter, ctx, specificBenefitHigh), _log(log) {
+            : mlir::OpConversionPattern<IE::ConstantOp>(typeConverter, ctx, benefitHigh), _log(log) {
     }
 
 public:
@@ -142,7 +116,7 @@ mlir::LogicalResult ConvertIE2IERTPass::ConstantRewrite::matchAndRewrite(
 class ConvertIE2IERTPass::QuantRewrite final : public mlir::ConversionPattern {
 public:
     QuantRewrite(mlir::TypeConverter& typeConverter, Logger log)
-            : mlir::ConversionPattern(specificBenefitHigh, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
+            : mlir::ConversionPattern(benefitHigh, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
     }
 
 public:
@@ -201,8 +175,7 @@ mlir::LogicalResult ConvertIE2IERTPass::QuantRewrite::matchAndRewrite(mlir::Oper
 class ConvertIE2IERTPass::LinalgReshapeRewrite final : public mlir::OpConversionPattern<mlir::linalg::TensorReshapeOp> {
 public:
     LinalgReshapeRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<mlir::linalg::TensorReshapeOp>(typeConverter, ctx, specificBenefitHigh),
-              _log(log) {
+            : mlir::OpConversionPattern<mlir::linalg::TensorReshapeOp>(typeConverter, ctx, benefitHigh), _log(log) {
     }
 
 public:
@@ -237,7 +210,7 @@ mlir::LogicalResult ConvertIE2IERTPass::LinalgReshapeRewrite::matchAndRewrite(
 class ConvertIE2IERTPass::GenericReshapeRewrite final : public mlir::ConversionPattern {
 public:
     GenericReshapeRewrite(mlir::TypeConverter& typeConverter, Logger log)
-            : mlir::ConversionPattern(specificBenefitLow, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
+            : mlir::ConversionPattern(benefitMid, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
     }
 
 public:
@@ -285,7 +258,7 @@ mlir::LogicalResult ConvertIE2IERTPass::GenericReshapeRewrite::matchAndRewrite(
 class ConvertIE2IERTPass::LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, Logger log)
-            : mlir::ConversionPattern(genericBenefit, typeConverter, mlir::Pattern::MatchAnyOpTypeTag{}), _log(log) {
+            : mlir::ConversionPattern(benefitLow, typeConverter, mlir::Pattern::MatchAnyOpTypeTag{}), _log(log) {
     }
 
 public:
@@ -339,7 +312,7 @@ mlir::LogicalResult ConvertIE2IERTPass::LayerRewrite::matchAndRewrite(mlir::Oper
 class ConvertIE2IERTPass::DetectionOutputRewrite final : public mlir::OpConversionPattern<IE::DetectionOutputOp> {
 public:
     DetectionOutputRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<IE::DetectionOutputOp>(typeConverter, ctx, specificBenefitHigh), _log(log) {
+            : mlir::OpConversionPattern<IE::DetectionOutputOp>(typeConverter, ctx, benefitHigh), _log(log) {
     }
 
 public:
@@ -386,7 +359,7 @@ mlir::LogicalResult ConvertIE2IERTPass::DetectionOutputRewrite::matchAndRewrite(
 class ConvertIE2IERTPass::ScaleShiftRewrite final : public mlir::OpConversionPattern<IE::ScaleShiftOp> {
 public:
     ScaleShiftRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<IE::ScaleShiftOp>(typeConverter, ctx, specificBenefitHigh), _log(log) {
+            : mlir::OpConversionPattern<IE::ScaleShiftOp>(typeConverter, ctx, benefitHigh), _log(log) {
     }
 
 public:
@@ -437,7 +410,7 @@ mlir::LogicalResult ConvertIE2IERTPass::ScaleShiftRewrite::matchAndRewrite(
 class ConvertIE2IERTPass::TransposeRewrite final : public mlir::OpConversionPattern<IE::TransposeOp> {
 public:
     TransposeRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<IE::TransposeOp>(typeConverter, ctx, specificBenefitHigh), _log(log) {
+            : mlir::OpConversionPattern<IE::TransposeOp>(typeConverter, ctx, benefitHigh), _log(log) {
     }
 
 public:
@@ -474,10 +447,10 @@ mlir::LogicalResult ConvertIE2IERTPass::TransposeRewrite::matchAndRewrite(
 }
 
 //
-// passBody
+// safeRunOnFunc
 //
 
-void ConvertIE2IERTPass::passBody() {
+void ConvertIE2IERTPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::BufferizeTypeConverter typeConverter;

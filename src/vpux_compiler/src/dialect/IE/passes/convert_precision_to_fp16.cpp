@@ -43,31 +43,16 @@ namespace {
 
 class ConvertPrecisionToFP16Pass final : public IE::ConvertPrecisionToFP16Base<ConvertPrecisionToFP16Pass> {
 public:
-    explicit ConvertPrecisionToFP16Pass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit ConvertPrecisionToFP16Pass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnOperation() final;
 
 public:
     class GenericOpConverter;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnModule() final;
 };
-
-void ConvertPrecisionToFP16Pass::runOnOperation() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // GenericOpConverter
@@ -111,10 +96,10 @@ mlir::LogicalResult ConvertPrecisionToFP16Pass::GenericOpConverter::matchAndRewr
 }
 
 //
-// passBody
+// safeRunOnModule
 //
 
-void ConvertPrecisionToFP16Pass::passBody() {
+void ConvertPrecisionToFP16Pass::safeRunOnModule() {
     auto& ctx = getContext();
 
     const auto cvtType = [](mlir::OpBuilder& builder, mlir::RankedTensorType type, mlir::ValueRange inputs,
@@ -150,7 +135,7 @@ void ConvertPrecisionToFP16Pass::passBody() {
 
     mlir::RewritePatternSet patterns(&ctx);
     mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
-    patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
+    patterns.insert<GenericOpConverter>(typeConverter, _log);
     IE::ConvertOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto module = getOperation();

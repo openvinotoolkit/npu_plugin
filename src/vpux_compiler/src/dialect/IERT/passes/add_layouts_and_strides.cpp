@@ -30,31 +30,16 @@ namespace {
 
 class AddLayoutsAndStridesPass final : public IERT::AddLayoutsAndStridesBase<AddLayoutsAndStridesPass> {
 public:
-    explicit AddLayoutsAndStridesPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit AddLayoutsAndStridesPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnOperation() final;
 
 public:
     class GenericOpConverter;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnModule() final;
 };
-
-void AddLayoutsAndStridesPass::runOnOperation() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // GenericOpConverter
@@ -102,10 +87,10 @@ mlir::LogicalResult AddLayoutsAndStridesPass::GenericOpConverter::matchAndRewrit
 }
 
 //
-// passBody
+// safeRunOnModule
 //
 
-void AddLayoutsAndStridesPass::passBody() {
+void AddLayoutsAndStridesPass::safeRunOnModule() {
     auto& ctx = getContext();
 
     const auto cvtType = [](mlir::OpBuilder& builder, mlir::MemRefType type, mlir::ValueRange inputs,
@@ -157,7 +142,7 @@ void AddLayoutsAndStridesPass::passBody() {
 
     mlir::RewritePatternSet patterns(&ctx);
     mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
-    patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
+    patterns.insert<GenericOpConverter>(typeConverter, _log);
 
     auto module = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {

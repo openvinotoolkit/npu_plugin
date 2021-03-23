@@ -21,6 +21,7 @@
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/Regex.h>
 
+#include <cassert>
 #include <cstdio>
 
 using namespace vpux;
@@ -75,6 +76,13 @@ Logger vpux::Logger::nest(StringLiteral name, size_t inc) const {
     Logger nested(name, level());
     nested._indentLevel = _indentLevel + inc;
     return nested;
+}
+
+Logger vpux::Logger::unnest(size_t inc) const {
+    assert(_indentLevel >= inc);
+    Logger unnested(name(), level());
+    unnested._indentLevel = _indentLevel - inc;
+    return unnested;
 }
 
 bool vpux::Logger::isActive(LogLevel msgLevel) const {

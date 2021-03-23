@@ -47,24 +47,22 @@ public:
 
 public:
     mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
-    void runOnOperation() final;
 
 public:
     class AllocRewrite;
     class DeallocRewrite;
 
 private:
-    void passBody();
+    void safeRunOnModule() final;
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
     mlir::Attribute _memSpace;
-    Logger _log;
 };
 
 StaticAllocationPass::StaticAllocationPass(IERT::AttrCreateFunc memSpaceCb, Logger log)
-        : _memSpaceCb(std::move(memSpaceCb)), _log(log) {
-    _log.setName(Base::getArgumentName());
+        : _memSpaceCb(std::move(memSpaceCb)) {
+    Base::initLogger(log, Base::getArgumentName());
 }
 
 mlir::LogicalResult StaticAllocationPass::initialize(mlir::MLIRContext* ctx) {
@@ -79,15 +77,6 @@ mlir::LogicalResult StaticAllocationPass::initialize(mlir::MLIRContext* ctx) {
     }
 
     return mlir::success();
-}
-
-void StaticAllocationPass::runOnOperation() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
 }
 
 //
@@ -171,10 +160,10 @@ mlir::LogicalResult StaticAllocationPass::DeallocRewrite::matchAndRewrite(
 }
 
 //
-// passBody
+// safeRunOnModule
 //
 
-void StaticAllocationPass::passBody() {
+void StaticAllocationPass::safeRunOnModule() {
     auto& ctx = getContext();
     auto module = getOperation();
 
@@ -213,8 +202,8 @@ void StaticAllocationPass::passBody() {
     });
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<AllocRewrite>(allocInfo, &ctx, _log.nest());
-    patterns.insert<DeallocRewrite>(&ctx, _log.nest());
+    patterns.insert<AllocRewrite>(allocInfo, &ctx, _log);
+    patterns.insert<DeallocRewrite>(&ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
         _log.error("Failed to replace Alloc/Dealloc Operations");

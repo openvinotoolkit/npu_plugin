@@ -32,31 +32,16 @@ namespace {
 
 class ConvertTile2PerAxisTilePass final : public IE::ConvertTile2PerAxisTileBase<ConvertTile2PerAxisTilePass> {
 public:
-    explicit ConvertTile2PerAxisTilePass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit ConvertTile2PerAxisTilePass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnFunction() final;
 
 public:
     class TileOpConverter;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnFunc() final;
 };
-
-void ConvertTile2PerAxisTilePass::runOnFunction() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // GenericOpConverter
@@ -109,10 +94,10 @@ mlir::LogicalResult ConvertTile2PerAxisTilePass::TileOpConverter::matchAndRewrit
 }
 
 //
-// passBody
+// safeRunOnFunc
 //
 
-void ConvertTile2PerAxisTilePass::passBody() {
+void ConvertTile2PerAxisTilePass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
@@ -120,10 +105,10 @@ void ConvertTile2PerAxisTilePass::passBody() {
     target.addLegalOp<IE::PerAxisTileOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<TileOpConverter>(&ctx, _log.nest());
+    patterns.insert<TileOpConverter>(&ctx, _log);
 
-    auto module = getOperation();
-    if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
+    auto func = getFunction();
+    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
 }

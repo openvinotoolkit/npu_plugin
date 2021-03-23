@@ -23,7 +23,7 @@ include "mlir/Pass/PassBase.td"
 // AddLayoutsAndStrides
 //
 
-def AddLayoutsAndStrides : Pass<"add-layouts-and-strides", "mlir::ModuleOp"> {
+def AddLayoutsAndStrides : PassBase<"add-layouts-and-strides", "vpux::ModulePass"> {
     let summary = "Add layouts and strides to memref";
 
     let description = [{
@@ -37,7 +37,7 @@ def AddLayoutsAndStrides : Pass<"add-layouts-and-strides", "mlir::ModuleOp"> {
 // SetInternalMemorySpace
 //
 
-def SetInternalMemorySpace : FunctionPass<"set-internal-memory-space"> {
+def SetInternalMemorySpace : PassBase<"set-internal-memory-space", "vpux::FunctionPass"> {
     let summary = "Set specific memory space for all internal memory buffers";
 
     let description = [{
@@ -69,7 +69,7 @@ def SetInternalMemorySpace : FunctionPass<"set-internal-memory-space"> {
 // StaticAllocation
 //
 
-def StaticAllocation : Pass<"static-allocation", "mlir::ModuleOp"> {
+def StaticAllocation : PassBase<"static-allocation", "vpux::ModulePass"> {
     let summary = "Replace dynamic allocations with static";
 
     let description = [{

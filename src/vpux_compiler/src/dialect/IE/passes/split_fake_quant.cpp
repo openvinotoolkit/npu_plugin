@@ -31,34 +31,17 @@ namespace {
 
 class SplitFakeQuantPass final : public IE::SplitFakeQuantBase<SplitFakeQuantPass> {
 public:
-    explicit SplitFakeQuantPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit SplitFakeQuantPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnFunction() final;
 
 public:
     class UseQuantDequant;
     class UseConstDequant;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnFunc() final;
 };
-
-void SplitFakeQuantPass::runOnFunction() {
-    try {
-        _log.trace("Run on Function '@{0}'", getFunction().sym_name());
-
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // UseQuantDequant
@@ -193,10 +176,10 @@ mlir::LogicalResult SplitFakeQuantPass::UseConstDequant::matchAndRewrite(IE::Fak
 }
 
 //
-// passBody
+// safeRunOnFunc
 //
 
-void SplitFakeQuantPass::passBody() {
+void SplitFakeQuantPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
@@ -206,8 +189,8 @@ void SplitFakeQuantPass::passBody() {
     target.addLegalOp<mlir::quant::DequantizeCastOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<UseQuantDequant>(&ctx, _log.nest());
-    patterns.insert<UseConstDequant>(&ctx, _log.nest());
+    patterns.insert<UseQuantDequant>(&ctx, _log);
+    patterns.insert<UseConstDequant>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {

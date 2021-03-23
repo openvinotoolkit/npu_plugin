@@ -23,7 +23,7 @@ include "mlir/Pass/PassBase.td"
 // ConvertIE2IERT
 //
 
-def ConvertIE2IERT : FunctionPass<"convert-IE-to-IERT"> {
+def ConvertIE2IERT : PassBase<"convert-IE-to-IERT", "vpux::FunctionPass"> {
     let summary = "Bufferize the IE dialect into the IERT dialect on Function level";
 
     let description = [{
@@ -43,7 +43,7 @@ def ConvertIE2IERT : FunctionPass<"convert-IE-to-IERT"> {
 // ConvertIERT2VPUIP
 //
 
-def ConvertIERT2VPUIP : FunctionPass<"convert-IERT-to-VPUIP"> {
+def ConvertIERT2VPUIP : PassBase<"convert-IERT-to-VPUIP", "vpux::FunctionPass"> {
     let summary = "Convert IERT Dialect Layer Operations to VPUIP Dialect";
 
     let description = [{

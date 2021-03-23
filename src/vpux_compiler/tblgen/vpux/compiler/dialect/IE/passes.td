@@ -24,7 +24,7 @@ include "mlir/Dialect/Linalg/IR/LinalgOps.td"
 // UseUserPrecision
 //
 
-def UseUserPrecision : Pass<"use-user-precision", "mlir::ModuleOp"> {
+def UseUserPrecision : PassBase<"use-user-precision", "vpux::ModulePass"> {
     let summary = "Use user precisions for entry point function prototype";
 
     let description = [{
@@ -44,7 +44,7 @@ def UseUserPrecision : Pass<"use-user-precision", "mlir::ModuleOp"> {
 // ConvertPrecisionToFP16
 //
 
-def ConvertPrecisionToFP16 : Pass<"convert-precision-to-fp16", "mlir::ModuleOp"> {
+def ConvertPrecisionToFP16 : PassBase<"convert-precision-to-fp16", "vpux::ModulePass"> {
     let summary = "Convert tensors precision from FP32 to FP16";
 
     let description = [{
@@ -59,7 +59,7 @@ def ConvertPrecisionToFP16 : Pass<"convert-precision-to-fp16", "mlir::ModuleOp">
 // ConvertShapeTo4D
 //
 
-def ConvertShapeTo4D : Pass<"convert-shape-to-4d", "mlir::ModuleOp"> {
+def ConvertShapeTo4D : PassBase<"convert-shape-to-4d", "vpux::ModulePass"> {
     let summary = "Convert tensors shapes to 4D";
 
     let description = [{
@@ -78,7 +78,7 @@ def ConvertShapeTo4D : Pass<"convert-shape-to-4d", "mlir::ModuleOp"> {
 // ConvertPaddingsToFloorMode
 //
 
-def ConvertPaddingsToFloorMode : FunctionPass<"convert-paddings-to-floor-mode"> {
+def ConvertPaddingsToFloorMode : PassBase<"convert-paddings-to-floor-mode", "vpux::FunctionPass"> {
     let summary = "Convert Convolution and Pooling layers paddings to FLOOR rouding mode";
 
     let description = [{
@@ -93,7 +93,7 @@ def ConvertPaddingsToFloorMode : FunctionPass<"convert-paddings-to-floor-mode"> 
 // ConvertTile2PerAxisTile
 //
 
-def ConvertTile2PerAxisTile : FunctionPass<"convert-tile-to-per-axis-tiles"> {
+def ConvertTile2PerAxisTile : PassBase<"convert-tile-to-per-axis-tiles", "vpux::FunctionPass"> {
     let summary = "Convert tile op by multiple axes to multiple PerAxisTile ops";
 
     let description = [{
@@ -107,7 +107,7 @@ def ConvertTile2PerAxisTile : FunctionPass<"convert-tile-to-per-axis-tiles"> {
 // ConvertFCToConv
 //
 
-def ConvertFCToConv : FunctionPass<"convert-fc-to-conv"> {
+def ConvertFCToConv : PassBase<"convert-fc-to-conv", "vpux::FunctionPass"> {
     let summary = "Convert FullyConnected op to Convolution op";
 
     let description = [{
@@ -125,7 +125,7 @@ def ConvertFCToConv : FunctionPass<"convert-fc-to-conv"> {
 // SplitFakeQuant
 //
 
-def SplitFakeQuant : FunctionPass<"split-fake-quant"> {
+def SplitFakeQuant : PassBase<"split-fake-quant", "vpux::FunctionPass"> {
     let summary = "Splits IE FakeQuantize operations to `quant.qcast -> quant.dcast` pair";
 
     let constructor = "vpux::IE::createSplitFakeQuantPass()";
@@ -139,7 +139,7 @@ def SplitFakeQuant : FunctionPass<"split-fake-quant"> {
 // QuantizeConst
 //
 
-def QuantizeConst : FunctionPass<"quantize-const"> {
+def QuantizeConst : PassBase<"quantize-const", "vpux::FunctionPass"> {
     let summary = "Performs constant folding for `Constant -> quant.qcast` case";
 
     let constructor = "vpux::IE::createQuantizeConstPass()";
@@ -153,7 +153,7 @@ def QuantizeConst : FunctionPass<"quantize-const"> {
 // DequantizeConst
 //
 
-def DequantizeConst : FunctionPass<"dequantize-const"> {
+def DequantizeConst : PassBase<"dequantize-const", "vpux::FunctionPass"> {
     let summary = "Performs constant folding for `Constant -> quant.dcast` case";
 
     let constructor = "vpux::IE::createDequantizeConstPass()";
@@ -167,7 +167,7 @@ def DequantizeConst : FunctionPass<"dequantize-const"> {
 // MergeFakeQuant
 //
 
-def MergeFakeQuant : FunctionPass<"merge-fake-quant"> {
+def MergeFakeQuant : PassBase<"merge-fake-quant", "vpux::FunctionPass"> {
     let summary = "Merge pair `quant.qcast -> quant.dcast` into single IE.FakeQuantize";
 
     let constructor = "vpux::IE::createMergeFakeQuantPass()";

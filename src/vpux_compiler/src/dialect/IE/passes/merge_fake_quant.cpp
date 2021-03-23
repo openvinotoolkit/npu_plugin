@@ -32,33 +32,16 @@ namespace {
 
 class MergeFakeQuantPass final : public IE::MergeFakeQuantBase<MergeFakeQuantPass> {
 public:
-    explicit MergeFakeQuantPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit MergeFakeQuantPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnFunction() final;
 
 public:
     class UseFakeQuant;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnFunc() final;
 };
-
-void MergeFakeQuantPass::runOnFunction() {
-    try {
-        _log.trace("Run on Function '@{0}'", getFunction().sym_name());
-
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getFunction(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // UseFakeQuant
@@ -109,14 +92,14 @@ mlir::LogicalResult MergeFakeQuantPass::UseFakeQuant::matchAndRewrite(mlir::quan
 }
 
 //
-// passBody
+// safeRunOnFunc
 //
 
-void MergeFakeQuantPass::passBody() {
+void MergeFakeQuantPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<UseFakeQuant>(&ctx, _log.nest());
+    patterns.insert<UseFakeQuant>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns)))) {

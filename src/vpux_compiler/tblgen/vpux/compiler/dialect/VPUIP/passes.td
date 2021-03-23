@@ -23,7 +23,7 @@ include "mlir/Pass/PassBase.td"
 // SetCompileParams
 //
 
-def SetCompileParams : Pass<"set-compile-params", "mlir::ModuleOp"> {
+def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
     let summary = "Set compilation parameters related to VPUIP Dialect";
 
     let description = [{
@@ -50,7 +50,7 @@ def SetCompileParams : Pass<"set-compile-params", "mlir::ModuleOp"> {
 // AddLinearScheduling
 //
 
-def AddLinearScheduling : Pass<"add-linear-scheduling", "mlir::ModuleOp"> {
+def AddLinearScheduling : PassBase<"add-linear-scheduling", "vpux::ModulePass"> {
     let summary = "Impose simple linear execution";
 
     let description = [{

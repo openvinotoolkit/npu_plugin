@@ -45,31 +45,16 @@ constexpr size_t TARGET_TENSOR_DIM = 4;
 
 class ConvertShapeTo4DPass final : public IE::ConvertShapeTo4DBase<ConvertShapeTo4DPass> {
 public:
-    explicit ConvertShapeTo4DPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit ConvertShapeTo4DPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnOperation() final;
 
 public:
     class GenericOpConverter;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnModule() final;
 };
-
-void ConvertShapeTo4DPass::runOnOperation() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // GenericOpConverter
@@ -120,10 +105,10 @@ mlir::LogicalResult ConvertShapeTo4DPass::GenericOpConverter::matchAndRewrite(
 }
 
 //
-// passBody
+// safeRunOnModule
 //
 
-void ConvertShapeTo4DPass::passBody() {
+void ConvertShapeTo4DPass::safeRunOnModule() {
     auto& ctx = getContext();
 
     const auto cvtType = [](mlir::OpBuilder& builder, mlir::RankedTensorType type, mlir::ValueRange inputs,
@@ -165,7 +150,7 @@ void ConvertShapeTo4DPass::passBody() {
 
     mlir::RewritePatternSet patterns(&ctx);
     mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
-    patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
+    patterns.insert<GenericOpConverter>(typeConverter, _log);
     mlir::linalg::TensorReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto module = getOperation();

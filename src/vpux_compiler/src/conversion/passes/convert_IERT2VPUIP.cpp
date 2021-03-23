@@ -38,12 +38,9 @@ namespace {
 
 class ConvertIERT2VPUIPPass final : public ConvertIERT2VPUIPBase<ConvertIERT2VPUIPPass> {
 public:
-    explicit ConvertIERT2VPUIPPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit ConvertIERT2VPUIPPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnFunction() final;
 
 public:
     class ConstantRewrite;
@@ -52,22 +49,8 @@ public:
     class CheckUnsupportedTile;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnFunc() final;
 };
-
-void ConvertIERT2VPUIPPass::runOnFunction() {
-    try {
-        _log.trace("Run on Function '@{0}'", getFunction().sym_name());
-
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // ConstantRewrite
@@ -248,10 +231,10 @@ mlir::LogicalResult ConvertIERT2VPUIPPass::CheckUnsupportedTile::matchAndRewrite
 }
 
 //
-// passBody
+// safeRunOnFunc
 //
 
-void ConvertIERT2VPUIPPass::passBody() {
+void ConvertIERT2VPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
@@ -272,10 +255,10 @@ void ConvertIERT2VPUIPPass::passBody() {
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ConstantRewrite>(&ctx, _log.nest());
-    patterns.insert<FakeQuantizeRewrite>(&ctx, _log.nest());
-    patterns.insert<CheckUnsupportedTile>(&ctx, _log.nest());
-    patterns.insert<ViewLikeRewrite>(netInfo, netFunc, _log.nest());
+    patterns.insert<ConstantRewrite>(&ctx, _log);
+    patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
+    patterns.insert<CheckUnsupportedTile>(&ctx, _log);
+    patterns.insert<ViewLikeRewrite>(netInfo, netFunc, _log);
     populateWithGenerated(patterns);
 
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {

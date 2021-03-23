@@ -32,33 +32,16 @@ namespace {
 
 class DequantizeConstPass final : public IE::DequantizeConstBase<DequantizeConstPass> {
 public:
-    explicit DequantizeConstPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit DequantizeConstPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnFunction() final;
 
 public:
     class DequantizeConst;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnFunc() final;
 };
-
-void DequantizeConstPass::runOnFunction() {
-    try {
-        _log.trace("Run on Function '@{0}'", getFunction().sym_name());
-
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getFunction(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // DequantizeConst
@@ -107,14 +90,14 @@ mlir::LogicalResult DequantizeConstPass::DequantizeConst::matchAndRewrite(mlir::
 }
 
 //
-// passBody
+// safeRunOnFunc
 //
 
-void DequantizeConstPass::passBody() {
+void DequantizeConstPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<DequantizeConst>(&ctx, _log.nest());
+    patterns.insert<DequantizeConst>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns)))) {

@@ -32,21 +32,19 @@ public:
 
 public:
     mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
-    void runOnFunction() final;
 
 private:
-    void passBody();
+    void safeRunOnFunc() final;
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
     mlir::Attribute _memSpace;
-    Logger _log;
 };
 
 SetInternalMemorySpacePass::SetInternalMemorySpacePass(IERT::AttrCreateFunc memSpaceCb, Logger log)
-        : _memSpaceCb(std::move(memSpaceCb)), _log(log) {
+        : _memSpaceCb(std::move(memSpaceCb)) {
     VPUX_THROW_UNLESS(_memSpaceCb != nullptr, "Missing memSpaceCb");
-    _log.setName(Base::getArgumentName());
+    Base::initLogger(log, Base::getArgumentName());
 }
 
 mlir::LogicalResult SetInternalMemorySpacePass::initialize(mlir::MLIRContext* ctx) {
@@ -63,20 +61,11 @@ mlir::LogicalResult SetInternalMemorySpacePass::initialize(mlir::MLIRContext* ct
     return mlir::success();
 }
 
-void SetInternalMemorySpacePass::runOnFunction() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
-
 //
-// passBody
+// safeRunOnFunc
 //
 
-void SetInternalMemorySpacePass::passBody() {
+void SetInternalMemorySpacePass::safeRunOnFunc() {
     auto& aliasAnalysis = getAnalysis<mlir::BufferAliasAnalysis>();
 
     const auto callback = [&](mlir::memref::AllocOp allocOp) {
@@ -85,7 +74,7 @@ void SetInternalMemorySpacePass::passBody() {
         const auto aliases = aliasAnalysis.resolve(allocOp.memref());
 
         for (auto var : aliases) {
-            _log.nest().trace("Process alias buffer '{0}'", var);
+            _log.trace("Process alias buffer '{0}'", var);
 
             const auto origType = var.getType().dyn_cast<mlir::MemRefType>();
             VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}'", var.getType());

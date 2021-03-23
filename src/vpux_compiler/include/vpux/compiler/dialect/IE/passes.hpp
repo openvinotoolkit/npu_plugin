@@ -17,6 +17,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"
 
