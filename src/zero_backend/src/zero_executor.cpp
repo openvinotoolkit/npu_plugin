@@ -32,7 +32,7 @@ using namespace vpux;
 namespace {
 void throwOnFail(const std::string& step, const ze_result_t result) {
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_IE_EXCEPTION << "throwOnFail: " << step << " result: 0x" << std::hex << uint64_t(result);
+        IE_THROW() << "throwOnFail: " << step << " result: 0x" << std::hex << uint64_t(result);
     }
 }
 
@@ -53,7 +53,7 @@ size_t precisionToSize(const ze_graph_argument_precision_t val) {
     case ZE_GRAPH_ARGUMENT_PRECISION_INT8:
         return 1;
     default:
-        THROW_IE_EXCEPTION << "precisionToSize switch->default reached";
+        IE_THROW() << "precisionToSize switch->default reached";
     }
 }
 
@@ -103,7 +103,7 @@ size_t layoutCount(const ze_graph_argument_layout_t val) {
     case ZE_GRAPH_ARGUMENT_LAYOUT_CN:
         return 2;
     default:
-        THROW_IE_EXCEPTION << "layoutCount switch->default reached";
+        IE_THROW() << "layoutCount switch->default reached";
     }
 }
 
@@ -141,7 +141,7 @@ auto mapArguments(Map& zero, const std::string& key) -> typename Map::mapped_typ
             return p.second;
         }
     }
-    THROW_IE_EXCEPTION << "mapArguments: fail to map";
+    IE_THROW() << "mapArguments: fail to map";
 }
 }  // namespace
 
@@ -337,7 +337,7 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
 static void prepareInputForInference(
         const InferenceEngine::Blob::Ptr& actualInput, const InferenceEngine::Precision& expectedPrecision, void* dest_data=nullptr) {
     if (actualInput == nullptr) {
-        THROW_IE_EXCEPTION << "Actual input blob null pointer!";
+        IE_THROW() << "Actual input blob null pointer!";
     }
     if (actualInput->getTensorDesc().getPrecision() == expectedPrecision || dest_data == nullptr) {
         return;
@@ -366,7 +366,7 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
 
         auto& desc = mapArguments(_graph._inputs_desc_map, name);
         if (!twoApiLayoutCouplingCheck(desc.info.layout, input->getTensorDesc().getLayout()))
-            THROW_IE_EXCEPTION << "Layouts is different for push blobs";
+            IE_THROW() << "Layouts is different for push blobs";
         if (input->byteSize() != getSizeIOBytes(desc.info)) {
             _logger->info("Sizes are different for push blobs. Need precision convert");
         }
@@ -444,9 +444,9 @@ void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
 
         auto& desc = mapArguments(_graph._outputs_desc_map, name);
         if (!twoApiLayoutCouplingCheck(desc.info.layout, output->getTensorDesc().getLayout()))
-            THROW_IE_EXCEPTION << "Layouts is different for pull blobs";
+            IE_THROW() << "Layouts is different for pull blobs";
         if (output->byteSize() != getSizeIOBytes(desc.info))
-            THROW_IE_EXCEPTION << "Sizes are different for pull blobs";
+            IE_THROW() << "Sizes are different for pull blobs";
 
         auto& hostMem = mapArguments(_pipeline[depth]->_outputs_host_mem_map, name);
         hostMem.copyTo(output);
@@ -460,12 +460,12 @@ ZeroExecutor::~ZeroExecutor() {
 }
 
 InferenceEngine::Parameter ZeroExecutor::getParameter(const std::string&) const { return InferenceEngine::Parameter(); }
-void ZeroExecutor::setup(const InferenceEngine::ParamMap&) { THROW_IE_EXCEPTION << "Not implemented"; }
+void ZeroExecutor::setup(const InferenceEngine::ParamMap&) { IE_THROW() << "Not implemented"; }
 bool ZeroExecutor::isPreProcessingSupported(const PreprocMap& preProcMap) const { return false; }
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ZeroExecutor::getLayerStatistics() {
-    THROW_IE_EXCEPTION << "Not implemented";
+    IE_THROW() << "Not implemented";
     return std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>();
 }
 void ZeroExecutor::push(const InferenceEngine::BlobMap& /*inputs*/, const vpux::PreprocMap& /*preProcMap*/) {
-    THROW_IE_EXCEPTION << "Not implemented";
+    IE_THROW() << "Not implemented";
 }

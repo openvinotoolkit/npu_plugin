@@ -167,16 +167,16 @@ namespace G {
 inline int get_cv_depth(const TensorDesc &ie_desc) {
     switch (ie_desc.getPrecision()) {
     case Precision::U8:   return CV_8U;
-    default: THROW_IE_EXCEPTION << "Unsupported data type";
+    default: IE_THROW() << "Unsupported data type";
     }
 }
 
 static void checkBlobIsValid(const InferenceEngine::Blob::CPtr& blob) {
     if (blob == nullptr) {
-        THROW_IE_EXCEPTION << "Blob is null";
+        IE_THROW() << "Blob is null";
     }
     if (blob->size() == 0) {
-        THROW_IE_EXCEPTION << "Blob is empty";
+        IE_THROW() << "Blob is empty";
     }
 }
 
@@ -199,7 +199,7 @@ cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
             try {
                 r_desc = orig_tensor_desc->second.as<std::shared_ptr<IE::TensorDesc>>();
             } catch (...) {
-                THROW_IE_EXCEPTION << "Original tensor desc have incorrect type information";
+                IE_THROW() << "Original tensor desc have incorrect type information";
             }
             const auto& r_dims = r_desc.get()->getDims();
             if (r_desc.get()->getLayout() == Layout::NHWC) {
@@ -211,7 +211,7 @@ cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
                 int h = r_dims[2];
                 sz = {w, h};
             } else {
-                THROW_IE_EXCEPTION << "Unsupported layout";
+                IE_THROW() << "Unsupported layout";
             }
             return sz;
         }
@@ -229,7 +229,7 @@ cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
         int h = strides[0] / strides[2];
         sz = {w, h};
     } else {
-        THROW_IE_EXCEPTION << "Unsupported layout";
+        IE_THROW() << "Unsupported layout";
     }
     return sz;
 }
@@ -244,7 +244,7 @@ std::vector<cv::gapi::own::Mat> bind_to_blob(const Blob::Ptr& blob) {
 
     uint8_t* blob_ptr = static_cast<uint8_t*>(blob->buffer());
     if (blob_ptr == nullptr) {
-        THROW_IE_EXCEPTION << "Blob buffer is nullptr";
+        IE_THROW() << "Blob buffer is nullptr";
     }
     blob_ptr += blob->element_size()*ie_desc_blk.getOffsetPadding();
 
@@ -255,7 +255,7 @@ std::vector<cv::gapi::own::Mat> bind_to_blob(const Blob::Ptr& blob) {
                   blob_ptr, stride}};
     } else {  // NCHW
         if (desc.d.C <= 0) {
-            THROW_IE_EXCEPTION << "Invalid number of channels in blob tensor descriptor, "
+            IE_THROW() << "Invalid number of channels in blob tensor descriptor, "
                                   "expected >0, actual: " << desc.d.C;
         }
 
@@ -276,7 +276,7 @@ void validateColorFormats(const G::Desc &in_desc,
                           ColorFormat output_color_format) {
     const auto verify_desc = [] (const G::Desc& desc, ColorFormat fmt, const std::string& desc_prefix) {
         const auto throw_invalid_number_of_channels = [&](){
-            THROW_IE_EXCEPTION << desc_prefix << " tensor descriptor "
+            IE_THROW() << desc_prefix << " tensor descriptor "
                                << "has invalid number of channels "
                                << desc.d.C << " for " << fmt
                                << "color format";
@@ -303,7 +303,7 @@ void validateColorFormats(const G::Desc &in_desc,
 
     const auto verify_layout = [] (Layout layout, const std::string& layout_prefix) {
         if (layout != NHWC && layout != NCHW) {
-            THROW_IE_EXCEPTION << layout_prefix << " layout " << layout
+            IE_THROW() << layout_prefix << " layout " << layout
                                << " is not supported by pre-processing [by G-API]";
         }
     };
@@ -311,11 +311,11 @@ void validateColorFormats(const G::Desc &in_desc,
     // verify inputs/outputs and throw on error
 
     if (output_color_format == ColorFormat::RAW) {
-        THROW_IE_EXCEPTION << "Network's expected color format is unspecified";
+        IE_THROW() << "Network's expected color format is unspecified";
     }
 
     if (output_color_format == ColorFormat::NV12 || output_color_format == ColorFormat::I420) {
-        THROW_IE_EXCEPTION << "NV12/I420 network's color format is not supported [by G-API]";
+        IE_THROW() << "NV12/I420 network's color format is not supported [by G-API]";
     }
 
     verify_layout(in_layout,  "Input blob");
@@ -324,7 +324,7 @@ void validateColorFormats(const G::Desc &in_desc,
     if (input_color_format == ColorFormat::RAW) {
         // verify input and output have the same number of channels
         if (in_desc.d.C != out_desc.d.C) {
-            THROW_IE_EXCEPTION << "Input and network expected blobs have different number of "
+            IE_THROW() << "Input and network expected blobs have different number of "
                                << "channels: expected " << out_desc.d.C << " channels but provided "
                                << in_desc.d.C << " channels";
         }
@@ -334,7 +334,7 @@ void validateColorFormats(const G::Desc &in_desc,
     // planar 4-channel input is not supported, user can easily pass 3 channels instead of 4
     if (in_layout == NCHW
         && (input_color_format == ColorFormat::RGBX || input_color_format == ColorFormat::BGRX)) {
-        THROW_IE_EXCEPTION << "Input blob with NCHW layout and BGRX/RGBX color format is "
+        IE_THROW() << "Input blob with NCHW layout and BGRX/RGBX color format is "
                            << "explicitly not supported, use NCHW + BGR/RGB color format "
                            << "instead (3 image planes instead of 4)";
     }
@@ -355,10 +355,10 @@ void validateTensorDesc(const TensorDesc& desc) {
     if (!supports_layout(layout)
         || dims.size() != 4
         || desc.getBlockingDesc().getStrides().size() != 4) {
-        THROW_IE_EXCEPTION << "Preprocess support NCHW/NHWC only";
+        IE_THROW() << "Preprocess support NCHW/NHWC only";
     }
     if (has_zeros(dims)) {
-        THROW_IE_EXCEPTION << "Invalid input data dimensions: "
+        IE_THROW() << "Invalid input data dimensions: "
                            << details::dumpVec(dims);
     }
 }
@@ -369,7 +369,7 @@ void validateBlob(const NV12Blob::Ptr &inBlob) {
     const auto& y_blob = inBlob->y();
     const auto& uv_blob = inBlob->uv();
     if (!y_blob || !uv_blob) {
-        THROW_IE_EXCEPTION << "Invalid underlying blobs in NV12Blob";
+        IE_THROW() << "Invalid underlying blobs in NV12Blob";
     }
 
     validateTensorDesc(uv_blob->getTensorDesc());
@@ -430,7 +430,7 @@ public:
             case ColorFormat::RGB:  return RGBPreproc();
             case ColorFormat::BGR:  return BGRPreproc();
             case ColorFormat::RAW:  return RAWPreproc();
-            default : THROW_IE_EXCEPTION << "Unsupported input color format";
+            default : IE_THROW() << "Unsupported input color format";
         }
     }
 
@@ -445,7 +445,7 @@ private:
                 switch (ar) {
                 case RESIZE_AREA:     return cv::INTER_AREA;
                 case RESIZE_BILINEAR: return cv::INTER_LINEAR;
-                default: THROW_IE_EXCEPTION << "Unsupported resize operation";
+                default: IE_THROW() << "Unsupported resize operation";
                 }
             } (algorithm);
             const auto scale_sz  = cv::gapi::own::Size(out_desc.d.W, out_desc.d.H);
@@ -463,7 +463,7 @@ private:
             case 2: return gapi::merge2(src);
             case 3: return gapi::merge3p(src);
             case 4: return gapi::merge4(src);
-            default: THROW_IE_EXCEPTION << "Unsupported number of channels";
+            default: IE_THROW() << "Unsupported number of channels";
         }
     }
 
@@ -795,7 +795,7 @@ void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     // output is always a memory blob
     auto outMemoryBlob = as<MemoryBlob>(outBlob);
     if (!outMemoryBlob) {
-        THROW_IE_EXCEPTION  << "Unsupported network's input blob type: expected MemoryBlob";
+        IE_THROW()  << "Unsupported network's input blob type: expected MemoryBlob";
     }
 
     // If input color format is not NV12 (which is a future feature), a MemoryBlob is expected.
@@ -804,7 +804,7 @@ void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     case ColorFormat::NV12: {
         auto inNV12Blob = as<NV12Blob>(inBlob);
         if (!inNV12Blob) {
-            THROW_IE_EXCEPTION  << "Unsupported input blob for color format " << in_fmt
+            IE_THROW()  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected NV12Blob";
         }
         preprocessBlob(inNV12Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, deviceId);
@@ -813,7 +813,7 @@ void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     default:
         auto inMemoryBlob = as<MemoryBlob>(inBlob);
         if (!inMemoryBlob) {
-            THROW_IE_EXCEPTION  << "Unsupported input blob for color format " << in_fmt
+            IE_THROW()  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected MemoryBlob";
         }
         preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, deviceId);
@@ -830,7 +830,7 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     IE_ASSERT(out_fmt == ColorFormat::RGB || out_fmt == ColorFormat::BGR);
 
     //if (out_fmt == ColorFormat::RGB) {
-    //    THROW_IE_EXCEPTION << "M2I PP: RGB output color format is not supported";
+    //    IE_THROW() << "M2I PP: RGB output color format is not supported";
     //}
 
     auto inNV12Blob = as<NV12Blob>(inBlob);
@@ -852,7 +852,7 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
             switch (out_fmt) {
             case ColorFormat::RGB: return cv::gapi::m2i::CSC::NV12toRGB;
             case ColorFormat::BGR: return cv::gapi::m2i::CSC::NV12toBGR;
-            default: THROW_IE_EXCEPTION << "M2I PP: Unsupported color space conversion";
+            default: IE_THROW() << "M2I PP: Unsupported color space conversion";
             }
         }();
 
@@ -885,7 +885,7 @@ void PrivSHAVE_only_M2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     IE_ASSERT(out_fmt == ColorFormat::RGB || out_fmt == ColorFormat::BGR);
 
     //if (out_fmt == ColorFormat::RGB) {
-    //    THROW_IE_EXCEPTION << "M2I PP: RGB output color format is not supported";
+    //    IE_THROW() << "M2I PP: RGB output color format is not supported";
     //}
 
     auto inNV12Blob = as<NV12Blob>(inBlob);
@@ -907,7 +907,7 @@ void PrivSHAVE_only_M2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
             switch (out_fmt) {
             case ColorFormat::RGB: return cv::gapi::m2i::CSC::NV12toRGB;
             case ColorFormat::BGR: return cv::gapi::m2i::CSC::NV12toBGR;
-            default: THROW_IE_EXCEPTION << "M2I PP: Unsupported color space conversion";
+            default: IE_THROW() << "M2I PP: Unsupported color space conversion";
             }
         }();
 
@@ -942,7 +942,7 @@ PreprocEngine::PreprocEngine(unsigned int shaveFirst, unsigned int shaveLast,
     } else if (ppPath == Path::SHAVE_ONLY_M2I) {
         _priv.reset(new PrivSHAVE_only_M2I());
     } else {
-        THROW_IE_EXCEPTION << "Error: unsupported preprocessing path with code "
+        IE_THROW() << "Error: unsupported preprocessing path with code "
                            << std::to_string(static_cast<int>(ppPath));
     }
 }

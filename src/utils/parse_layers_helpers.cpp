@@ -45,7 +45,7 @@ std::vector<double> computePriorbox(const priorBoxParam& param) {
         exist = false;
 
         if (std::fabs(src_aspect_ratio) < std::numeric_limits<float>::epsilon()) {
-            THROW_IE_EXCEPTION << "aspect_ratio param can't be equal to zero";
+            IE_THROW() << "aspect_ratio param can't be equal to zero";
         }
 
         // skip existing ratios
@@ -98,7 +98,7 @@ std::vector<double> computePriorbox(const priorBoxParam& param) {
     if (param._src_variance.size() == 1 || param._src_variance.size() == 4) {
         for (float i : param._src_variance) {
             if (i < 0) {
-                THROW_IE_EXCEPTION << "Variance must be > 0.";
+                IE_THROW() << "Variance must be > 0.";
             }
 
             dst_variance.push_back(i);
@@ -106,7 +106,7 @@ std::vector<double> computePriorbox(const priorBoxParam& param) {
     } else if (param._src_variance.empty()) {
         dst_variance.push_back(0.1f);
     } else {
-        THROW_IE_EXCEPTION << "Wrong number of variance values. Not less than 1 and more than 4 variance values.";
+        IE_THROW() << "Wrong number of variance values. Not less than 1 and more than 4 variance values.";
     }
 
     const size_t W = param._data_dims[3];

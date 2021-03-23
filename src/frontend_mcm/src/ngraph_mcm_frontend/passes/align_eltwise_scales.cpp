@@ -37,11 +37,11 @@ bool inputsHasSameScales(
         for (size_t i = 0; i < inputs.size(); i++) {
             auto fq1 = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(inputs[i]);
             if (fq1 == nullptr) {
-                THROW_IE_EXCEPTION << "Failed to cast input to FakeQuantize";
+                IE_THROW() << "Failed to cast input to FakeQuantize";
             }
             auto fq2 = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(inputs[maxValuesIdx]);
             if (fq2 == nullptr) {
-                THROW_IE_EXCEPTION << "Failed to cast input at maxValuesIdx to FakeQuantize";
+                IE_THROW() << "Failed to cast input at maxValuesIdx to FakeQuantize";
             }
 
             auto outputLow1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq1->input_value(3).get_node_shared_ptr());

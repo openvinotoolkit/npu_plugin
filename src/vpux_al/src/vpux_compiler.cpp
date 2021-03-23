@@ -25,7 +25,7 @@ vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr actual,
                                              InferenceEngine::details::SharedObjectLoader::Ptr plg)
         : _actual(actual), _plg(plg) {
     if (_actual == nullptr) {
-        THROW_IE_EXCEPTION << "ExecutableNetwork wrapper was not initialized.";
+        IE_THROW() << "ExecutableNetwork wrapper was not initialized.";
     }
 }
 
@@ -38,7 +38,7 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(const std::str
                                                                   const VPUXConfig& config) {
     std::ifstream stream(filename, std::ios::binary);
     if (!stream.is_open()) {
-        THROW_IE_EXCEPTION << "Could not open file: " << filename;
+        IE_THROW() << "Could not open file: " << filename;
     }
     const std::string graphName = extractFileName(filename);
     return parse(stream, config, graphName);
@@ -48,7 +48,7 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& 
                                                                   const std::string& graphName) {
     const size_t graphSize = vpu::KmbPlugin::utils::getFileSize(stream);
     if (graphSize == 0) {
-        THROW_IE_EXCEPTION << "Blob is empty";
+        IE_THROW() << "Blob is empty";
     }
     auto blob = std::vector<char>(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
     return parse(blob, config, graphName);
@@ -63,7 +63,7 @@ vpux::Compiler::Ptr vpux::Compiler::create(const VPUXConfig& config) {
         return std::make_shared<Compiler>(getLibFilePath("vpux_compiler"));
     }
     default:
-        THROW_IE_EXCEPTION << "Compiler type not found";
+        IE_THROW() << "Compiler type not found";
     }
     IE_ASSERT(false);
 }

@@ -30,7 +30,7 @@ void KmbTestTool::exportNetwork(ExecutableNetwork& exeNet, const std::string& fs
     } else {
         std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
         if (!file.is_open())
-            THROW_IE_EXCEPTION << "exportNetwork(). Can't open file " << fileName;
+            IE_THROW() << "exportNetwork(). Can't open file " << fileName;
 
         exeNet.Export(file);
     }
@@ -49,7 +49,7 @@ ExecutableNetwork KmbTestTool::importNetwork(const std::shared_ptr<InferenceEngi
     } else {
         std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
         if (!file.is_open())
-            THROW_IE_EXCEPTION << "importNetwork(). Can't open file " << fileName;
+            IE_THROW() << "importNetwork(). Can't open file " << fileName;
 
         return core->ImportNetwork(file, DEVICE_NAME);
     }
@@ -61,11 +61,11 @@ void KmbTestTool::importBlob(InferenceEngine::Blob::Ptr blob, const std::string&
     const auto fileName = vpu::formatString("%v/%v", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName);
     std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
     if (!file.is_open())
-        THROW_IE_EXCEPTION << "importBlob(). Can't open file " << fileName;
+        IE_THROW() << "importBlob(). Can't open file " << fileName;
 
     file.read(blob->cbuffer().as<char*>(), static_cast<std::streamsize>(blob->byteSize()));
     if (!file)
-        THROW_IE_EXCEPTION << "exportBlob(). Error when reading file " << fileName;
+        IE_THROW() << "exportBlob(). Error when reading file " << fileName;
 }
 
 void KmbTestTool::exportBlob(const InferenceEngine::Blob::Ptr blob, const std::string& fsName) {
@@ -74,11 +74,11 @@ void KmbTestTool::exportBlob(const InferenceEngine::Blob::Ptr blob, const std::s
     const auto fileName = vpu::formatString("%v/%v", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName);
     std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
     if (!file.is_open())
-        THROW_IE_EXCEPTION << "exportBlob(). Can't open file " << fileName;
+        IE_THROW() << "exportBlob(). Can't open file " << fileName;
 
     file.write(blob->cbuffer().as<const char*>(), static_cast<std::streamsize>(blob->byteSize()));
     if (!file)
-        THROW_IE_EXCEPTION << "exportBlob(). Error when writing file " << fileName;
+        IE_THROW() << "exportBlob(). Error when writing file " << fileName;
 }
 
 unsigned long int FNV_hash(const std::string &str)

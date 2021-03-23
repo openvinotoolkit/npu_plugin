@@ -103,26 +103,26 @@ InferenceEngine::Blob::Ptr fromBinaryFile(const std::string& input_binary, const
                     blobRawDataFP16[i] = tmp;
                 }
             } else {
-                THROW_IE_EXCEPTION << "File has invalid size!";
+                IE_THROW() << "File has invalid size!";
             }
         } else if (desc.getPrecision() == InferenceEngine::Precision::FP32) {
             float* blobRawData = blob->buffer();
             if (sizeFile == count * sizeof(float)) {
                 in.read(reinterpret_cast<char*>(blobRawData), count * sizeof(float));
             } else {
-                THROW_IE_EXCEPTION << "File has invalid size!";
+                IE_THROW() << "File has invalid size!";
             }
         } else if (desc.getPrecision() == InferenceEngine::Precision::U8) {
             char* blobRawData = blob->buffer().as<char*>();
             if (sizeFile == count * sizeof(char)) {
                 in.read(blobRawData, count * sizeof(char));
             } else {
-                THROW_IE_EXCEPTION << "File has invalid size! Blob size: " << count * sizeof(char)
-                                   << " file size: " << sizeFile;
+                IE_THROW() << "File has invalid size! Blob size: " << count * sizeof(char)
+                           << " file size: " << sizeFile;
             }
         }
     } else {
-        THROW_IE_EXCEPTION << "File is not good.";
+        IE_THROW() << "File is not good.";
     }
     return blob;
 }
@@ -163,7 +163,7 @@ InferenceEngine::Blob::Ptr fromNV12File(const std::string& filePath, size_t imag
 
 std::ifstream& skipMagic(std::ifstream& blobStream) {
     if (!blobStream.is_open()) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotRead);
+        IE_THROW(NetworkNotRead);
     }
 
     InferenceEngine::ExportMagic magic = {};

@@ -41,7 +41,7 @@ bool strToBool(const char* varName, const char* varValue) {
         }
         return (intVal != 0);
     } catch (const std::exception& e) {
-        THROW_IE_EXCEPTION << "Environment variable " << varName << " has wrong value : " << e.what();
+        IE_THROW() << "Environment variable " << varName << " has wrong value : " << e.what();
     }
 }
 
@@ -388,7 +388,7 @@ void KmbTestBase::exportNetwork(ExecutableNetwork& exeNet) {
     } else {
         std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
         if (!file.is_open())
-            THROW_IE_EXCEPTION << "exportNetwork() failed. Can't open file " << fileName;
+            IE_THROW() << "exportNetwork() failed. Can't open file " << fileName;
 
         exeNet.Export(file);
     }
@@ -404,7 +404,7 @@ ExecutableNetwork KmbTestBase::importNetwork(const std::map<std::string, std::st
     } else {
         std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
         if (!file.is_open())
-            THROW_IE_EXCEPTION << "importNetwork() failed. Can't open file " << fileName;
+            IE_THROW() << "importNetwork() failed. Can't open file " << fileName;
 
         return core->ImportNetwork(file, DEVICE_NAME, importConfig);
     }
@@ -417,7 +417,7 @@ void KmbTestBase::dumpBlob(const std::string& blobName, const Blob::Ptr& blob) {
 
     std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
     if (!file.is_open())
-        THROW_IE_EXCEPTION << "dumpBlob() failed. Can't open file " << fileName;
+        IE_THROW() << "dumpBlob() failed. Can't open file " << fileName;
 
     file.write(blob->cbuffer().as<const char*>(), static_cast<std::streamsize>(blob->byteSize()));
 }
@@ -439,7 +439,7 @@ Blob::Ptr KmbTestBase::importBlob(const std::string& name, const TensorDesc& des
     const auto fileName = vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(name));
     std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
     if (!file.is_open())
-        THROW_IE_EXCEPTION << "importBlob() failed. Can't open file " << fileName;
+        IE_THROW() << "importBlob() failed. Can't open file " << fileName;
 
     file.read(blob->buffer().as<char*>(), static_cast<std::streamsize>(blob->byteSize()));
 
@@ -630,13 +630,13 @@ void TestNetworkDesc::fillUserInputInfo(InputsDataMap& info) const {
         if (_inputPrecisions.size() == 1) {
             info.begin()->second->setPrecision(_inputPrecisions.begin()->second);
         } else if (_inputPrecisions.size() > 1){
-            THROW_IE_EXCEPTION << "Input precision was set more than one time";
+            IE_THROW() << "Input precision was set more than one time";
         }
 
         if (_inputLayouts.size() == 1) {
             info.begin()->second->setLayout(_inputLayouts.begin()->second);
         } else if (_inputLayouts.size() > 1) {
-            THROW_IE_EXCEPTION << "Input layout was set more than one time";
+            IE_THROW() << "Input layout was set more than one time";
         }
     } else {
         for (const auto& p : info) {
@@ -772,7 +772,7 @@ Blob::Ptr KmbNetworkTestBase::loadBinFile(const TestBinFileDesc& binFile, size_t
 
     std::ifstream file(filePath.str().c_str(), std::ios_base::in | std::ios_base::binary | std::ios::ate);
     if (!file.is_open())
-        THROW_IE_EXCEPTION << "Load input file failed. Can't open file " << filePath.str();
+        IE_THROW() << "Load input file failed. Can't open file " << filePath.str();
 
     file.seekg(0, std::ios::end);
     int file_size = file.tellg();

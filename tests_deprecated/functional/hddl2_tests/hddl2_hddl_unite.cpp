@@ -227,7 +227,7 @@ void HddlUnite_BlobDescr::callInferenceOnBlobs() {
             blobDesc.m_srcPtr = (void*)simpleInputData.data();
             ASSERT_TRUE(inferDataPtr->getInputBlob(inputName)->updateBlob(blobDesc));
         } catch (const std::exception& ex) {
-            THROW_IE_EXCEPTION << "Failed to create default input blob: " << ex.what();
+            IE_THROW() << "Failed to create default input blob: " << ex.what();
         }
     }
 
@@ -243,14 +243,14 @@ void HddlUnite_BlobDescr::callInferenceOnBlobs() {
             HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetOutputSize);
             ASSERT_TRUE(inferDataPtr->createBlob(outputName, blobDesc, isInput));
         } catch (const std::exception& ex) {
-            THROW_IE_EXCEPTION << "Failed to create default output blob: " << ex.what();
+            IE_THROW() << "Failed to create default output blob: " << ex.what();
         }
     }
 
     auto graph = _uniteGraphHelper->getGraph();
     HddlStatusCode inferStatus = HddlUnite::Inference::inferSync(*graph, inferDataPtr);
     if (inferStatus != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to infer";
+        IE_THROW() << "Failed to infer";
     }
 }
 

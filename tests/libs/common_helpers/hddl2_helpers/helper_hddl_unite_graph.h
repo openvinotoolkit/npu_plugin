@@ -42,7 +42,7 @@ inline HddlUnite_Graph_Helper::HddlUnite_Graph_Helper() {
     HddlStatusCode statusCode = HddlUnite::Inference::loadGraph(
             _graphPtr, _graphName, _graphPath);
     if (statusCode != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to load graph";
+        IE_THROW() << "Failed to load graph";
     }
 }
 
@@ -55,7 +55,7 @@ inline HddlUnite_Graph_Helper::HddlUnite_Graph_Helper(const HddlUnite::WorkloadC
     HddlStatusCode statusCode = HddlUnite::Inference::loadGraph(
             _graphPtr, _graphName, _graphPath, {workloadContext});
     if (statusCode != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to load graph";
+        IE_THROW() << "Failed to load graph";
     }
 }
 

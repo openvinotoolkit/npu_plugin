@@ -30,16 +30,16 @@ namespace IE = InferenceEngine;
 ParsedContextParams::ParsedContextParams(const InferenceEngine::ParamMap& paramMap): _paramMap(paramMap) {
     // TODO Add trace logging
     if (_paramMap.empty()) {
-        THROW_IE_EXCEPTION << PARAMS_ERROR_str << "Param map for context is empty.";
+        IE_THROW() << PARAMS_ERROR_str << "Param map for context is empty.";
     }
     // Get workload id and based on it get HddlUniteContext
     if (_paramMap.find(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)) == _paramMap.end()) {
-        THROW_IE_EXCEPTION << PARAMS_ERROR_str << "Param map does not contain workload id information";
+        IE_THROW() << PARAMS_ERROR_str << "Param map does not contain workload id information";
     }
     try {
         _workloadId = _paramMap.at(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)).as<uint64_t>();
     } catch (...) {
-        THROW_IE_EXCEPTION << PARAMS_ERROR_str << "ParsedContextParams: Incorrect type of WORKLOAD_CONTEXT_ID.";
+        IE_THROW() << PARAMS_ERROR_str << "ParsedContextParams: Incorrect type of WORKLOAD_CONTEXT_ID.";
     }
 }
 
@@ -57,10 +57,10 @@ VideoWorkloadDevice::VideoWorkloadDevice(const InferenceEngine::ParamMap& paramM
     // TODO Create logger for context device
     _workloadContext = HddlUnite::queryWorkloadContext(_contextParams.getWorkloadId());
     if (_workloadContext == nullptr) {
-        THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Context is not found.";
+        IE_THROW() << HDDLUNITE_ERROR_str << "Context is not found.";
     }
     if (_workloadContext->getDevice() == nullptr) {
-        THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Device from context not found.";
+        IE_THROW() << HDDLUNITE_ERROR_str << "Device from context not found.";
     }
     _name = _workloadContext->getDevice()->getName();
     _allocatorPtr = std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteAllocator>(_workloadContext, config.logLevel());
@@ -81,7 +81,7 @@ std::shared_ptr<Allocator> VideoWorkloadDevice::getAllocator(const InferenceEngi
     } catch (...) {
         // TODO Add log message that allocator for such params not found.
     }
-    THROW_IE_EXCEPTION << "VideoWorkloadDevice: Appropriate allocator for provided params cannot be found.";
+    IE_THROW() << "VideoWorkloadDevice: Appropriate allocator for provided params cannot be found.";
 }
 }  // namespace HDDL2
 }  // namespace vpux

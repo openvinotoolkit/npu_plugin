@@ -297,7 +297,7 @@ namespace {
 
     BlobVector refProposal(const TestNetwork::NodePtr& layer, const BlobVector& inputs, const TestNetwork&) {
         if (inputs.size() != 3) {
-            THROW_IE_EXCEPTION << "Incorrect number of inputs";
+            IE_THROW() << "Incorrect number of inputs";
         }
 
         const auto proposal = std::dynamic_pointer_cast<ngraph::op::Proposal>(layer);

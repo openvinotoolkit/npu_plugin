@@ -55,7 +55,7 @@ TEST_F(vpuLayersTests, DISABLED_remoteCtx) {
     std::filebuf blobFile;
     if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
         blobFile.close();
-        THROW_IE_EXCEPTION << "Could not open file: " << graphPath;
+        IE_THROW() << "Could not open file: " << graphPath;
     }
     std::istream graphBlob(&blobFile);
 
@@ -119,7 +119,7 @@ TEST_F(vpuLayersTests, DISABLED_remoteCtxNV12) {
     std::filebuf blobFile;
     if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
         blobFile.close();
-        THROW_IE_EXCEPTION << "Could not open file: " << graphPath;
+        IE_THROW() << "Could not open file: " << graphPath;
     }
     std::istream graphBlob(&blobFile);
 
@@ -247,7 +247,7 @@ TEST_P(VpuRemoteCtxTests, DISABLED_remoteCtxNV12WithROI) {
     std::filebuf blobFile;
     if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
         blobFile.close();
-        THROW_IE_EXCEPTION << "Could not open file: " << graphPath;
+        IE_THROW() << "Could not open file: " << graphPath;
     }
     std::istream graphBlob(&blobFile);
 
@@ -317,7 +317,7 @@ TEST_F(vpuLayersTests, DISABLED_incompatibleRemoteCtx) {
     std::filebuf blobFile;
     if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
         blobFile.close();
-        THROW_IE_EXCEPTION << "Could not open file: " << graphPath;
+        IE_THROW() << "Could not open file: " << graphPath;
     }
     std::istream graphBlob(&blobFile);
 
@@ -339,7 +339,7 @@ TEST_F(vpuLayersTests, DISABLED_keyDeviceId) {
     std::filebuf blobFile;
     if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
         blobFile.close();
-        THROW_IE_EXCEPTION << "Could not open file: " << graphPath;
+        IE_THROW() << "Could not open file: " << graphPath;
     }
     std::istream graphBlob(&blobFile);
 

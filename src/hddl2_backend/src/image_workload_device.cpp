@@ -36,7 +36,7 @@ vpux::Executor::Ptr ImageWorkloadDevice::createExecutor(const NetworkDescription
 std::shared_ptr<Allocator> ImageWorkloadDevice::getAllocator(const InferenceEngine::ParamMap& paramMap) const {
     if (paramMap.empty())
         return _allocatorPtr;
-    THROW_IE_EXCEPTION << "ImageWorkloadDevice: ImageWorkload device doesn't have allocators for any params.";
+    IE_THROW() << "ImageWorkloadDevice: ImageWorkload device doesn't have allocators for any params.";
 }
 }  // namespace HDDL2
 }  // namespace vpux

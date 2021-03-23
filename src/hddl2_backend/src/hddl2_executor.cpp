@@ -47,27 +47,27 @@ static bool is2DTensor(const IE::SizeVector& dims) {
 
 static void copyDataToBlob(const IE::Blob::Ptr& dest, const void* source, const size_t& size) {
     if (source == nullptr) {
-        THROW_IE_EXCEPTION << "Source data is nullptr!";
+        IE_THROW() << "Source data is nullptr!";
     }
     if (dest->byteSize() != size) {
-        THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite: " << size
-                           << " and expected output: " << dest->byteSize();
+        IE_THROW() << "Output size mismatch between HddlUnite: " << size
+                   << " and expected output: " << dest->byteSize();
     }
     IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(dest);
     if (!mblob) {
-        THROW_IE_EXCEPTION << "Failed output blob type!";
+        IE_THROW() << "Failed output blob type!";
     }
     auto lockedMemory = mblob->wmap();
     void* data = lockedMemory.as<void*>();
     auto result = ie_memcpy(data, dest->byteSize(), source, size);
     if (result != 0) {
-        THROW_IE_EXCEPTION << "Failed to copy memory.";
+        IE_THROW() << "Failed to copy memory.";
     }
 }
 
 static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, const IE::Layout& expectedLayout) {
     if (actualInput == nullptr) {
-        THROW_IE_EXCEPTION << "Actual input blob null pointer!";
+        IE_THROW() << "Actual input blob null pointer!";
     }
     if (actualInput->getTensorDesc().getLayout() == expectedLayout ||
         /** Currently we ignore information of what type of remote blob we are using **/
@@ -169,7 +169,7 @@ HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
     UNUSED(params);
-    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+    IE_THROW(NotImplemented);
 }
 
 void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs) {
@@ -191,7 +191,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         throw;
     } catch (const std::exception& exception) {
         _logger->error("%s%s", FAILED_LOAD_NETWORK.c_str(), std::string("\nERROR: ") + exception.what());
-        THROW_IE_EXCEPTION << "Couldn't load the graph into the device." << exception.what();
+        IE_THROW() << "Couldn't load the graph into the device." << exception.what();
     }
 
     const auto& networkInputs = _network->getInputsInfo();
@@ -211,7 +211,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         const std::string inputName = networkInput.first;
         auto foundInputBlob = inputs.find(inputName);
         if (foundInputBlob == inputs.end()) {
-            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+            IE_THROW() << "Error: input [" << inputName << "] is not provided.";
         }
 
         const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
@@ -243,7 +243,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         }
         auto foundInputBlob = updatedInputs.find(inputName);
         if (foundInputBlob == updatedInputs.end()) {
-            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+            IE_THROW() << "Error: input [" << inputName << "] is not provided.";
         }
         const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
         _inferDataPtr->prepareUniteInput(inputBlobPtr, inputName);
@@ -260,11 +260,11 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
         const std::string outputName = networkOutput.first;
         auto foundOutputBlob = outputs.find(outputName);
         if (foundOutputBlob == outputs.end()) {
-            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
+            IE_THROW() << "Error: output [" << outputName << "] is not provided.";
         }
         const auto& deviceOutput = deviceOutputs.find(outputName);
         if (deviceOutput == deviceOutputs.end()) {
-            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] information for device not found.";
+            IE_THROW() << "Error: output [" << outputName << "] information for device not found.";
         }
         IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
 
@@ -278,16 +278,16 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
 
         if (deviceOutputPrecision == IE::Precision::FP32 || blobOutputPrecision == IE::Precision::FP32) {
             if (deviceOutputPrecision == IE::Precision::U8 || blobOutputPrecision == IE::Precision::U8) {
-                THROW_IE_EXCEPTION << "Error: output precision conversion from " << deviceOutputPrecision << " to "
-                                   << blobOutputPrecision << " is not supported.";
+                IE_THROW() << "Error: output precision conversion from " << deviceOutputPrecision << " to "
+                           << blobOutputPrecision << " is not supported.";
             }
         } else {
             if (deviceOutputPrecision == IE::Precision::U8 && blobOutputPrecision == IE::Precision::FP16) {
-                THROW_IE_EXCEPTION << "Error: output precision conversion from " << deviceOutputPrecision << " to "
-                                   << blobOutputPrecision << " is not supported.";
+                IE_THROW() << "Error: output precision conversion from " << deviceOutputPrecision << " to "
+                           << blobOutputPrecision << " is not supported.";
             }
             if (outputUniteData.size() != outputBlobPtr->byteSize()) {
-                THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output";
+                IE_THROW() << "Output size mismatch between HddlUnite and network expected output";
             }
         }
 
@@ -344,7 +344,7 @@ std::map<std::string, IE::InferenceEngineProfileInfo> HDDL2Executor::getLayerSta
 
 InferenceEngine::Parameter HDDL2Executor::getParameter(const std::string& paramName) const {
     UNUSED(paramName);
-    THROW_IE_EXCEPTION_WITH_STATUS(NotImplemented);
+    IE_THROW(NotImplemented);
 }
 
 void HDDL2Executor::loadGraphToDevice() {
@@ -373,7 +373,7 @@ void HDDL2Executor::loadGraphToDevice() {
             // Graph was found - use it
             _uniteGraphPtr = findUniteGraph->second.lock();
             if (_uniteGraphPtr == nullptr) {
-                THROW_IE_EXCEPTION << "HddlUnite graph was found but deleted.";
+                IE_THROW() << "HddlUnite graph was found but deleted.";
             }
         }
     }

@@ -411,11 +411,11 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NnCorePlg>& nnC
     for (unsigned int threadIdx = 0; threadIdx < threadCount; threadIdx++) {
         uint8_t* scratchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(memoryReqs));
         if (scratchVirtAddr == nullptr) {
-            THROW_IE_EXCEPTION << "scratchHelper: failed to allocate " << memoryReqs << " bytes of memory";
+            IE_THROW() << "scratchHelper: failed to allocate " << memoryReqs << " bytes of memory";
         }
         unsigned long scratchPhysAddr = allocatorPtr->getPhysicalAddress(scratchVirtAddr);
         if (scratchPhysAddr == 0) {
-            THROW_IE_EXCEPTION << "scratchHelper: failed to get physical address";
+            IE_THROW() << "scratchHelper: failed to get physical address";
         }
         // NB: narrowing unsigned long (uint64_t on 64-bit Yocto) to uint32_t here
         physAddrVec.push_back({scratchPhysAddr, memoryReqs});
@@ -432,11 +432,11 @@ static uint8_t* setPrefetchHelper(const std::shared_ptr<NnCorePlg>& nnCorePtr,
     uint8_t* preFetchVirtAddr = nullptr;
     if (preFetchSize > 0) {
         if (allocatorPtr == nullptr) {
-            THROW_IE_EXCEPTION << "prefetchHelper: allocator points to null";
+            IE_THROW() << "prefetchHelper: allocator points to null";
         }
         preFetchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(preFetchSize));
         if (preFetchVirtAddr == nullptr) {
-            THROW_IE_EXCEPTION << "prefetchHelper: failed to allocate " << preFetchSize << " bytes of memory";
+            IE_THROW() << "prefetchHelper: failed to allocate " << preFetchSize << " bytes of memory";
         }
         unsigned long preFetchPhysAddr = allocatorPtr->getPhysicalAddress(preFetchVirtAddr);
         uint32_t preFetchAddrLower32Bits = preFetchPhysAddr & 0xffffffff;
@@ -472,7 +472,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
 
     if (blob_file == nullptr) {
         _logger->error("allocateGraph: Error getting CMA for graph");
-        THROW_IE_EXCEPTION << "allocateGraph: allocation failed for graph";
+        IE_THROW() << "allocateGraph: allocation failed for graph";
     }
 
     std::memcpy(blob_file.get(), graphFileContent.data(), graphFileContent.size());
@@ -486,7 +486,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     auto status = _nnCorePlg->Create(*_blobHandle, nThreads);
     if (MVNCI_SUCCESS != status) {
         _logger->error("allocateGraph: failed to create NnCorePlg");
-        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: " << status;
+        IE_THROW() << "VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: " << status;
     }
 
     // pipeline depth means the size of NnExec messages queue
@@ -499,14 +499,14 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     auto xlinkStatus = _nnXlinkPlg->Create(pipelineDepth);
     if (xlinkStatus) {
         _logger->error("VpualCoreNNExecutor::allocateGraph: failed to create NnXlinkPlg");
-        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::allocateGraph: failed to create NnXlinkPlg: " << xlinkStatus;
+        IE_THROW() << "VpualCoreNNExecutor::allocateGraph: failed to create NnXlinkPlg: " << xlinkStatus;
     }
 
     MvNCIVersion blobVersion;
     status = _nnCorePlg->GetBlobVersion(blobVersion);
     if (MVNCI_SUCCESS != status) {
         _logger->error("allocateGraph: failed to get blob version");
-        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::allocateGraph: failed to get blob version: " << status;
+        IE_THROW() << "VpualCoreNNExecutor::allocateGraph: failed to get blob version: " << status;
     }
 
     const uint32_t upaShaves = _config.numberOfNnCoreShaves();
@@ -607,7 +607,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
 static ie::Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(const ie::Blob::Ptr& blob,
     const ie::Layout& srcLayout, const ie::Layout& dstLayout, const VpusmmAllocator::Ptr& allocator) {
     if (blob->getTensorDesc().getDims()[1] != 3) {
-        THROW_IE_EXCEPTION << "reallocateBlobToLayoutIgnoringOriginalLayout works only with channels == 3";
+        IE_THROW() << "reallocateBlobToLayoutIgnoringOriginalLayout works only with channels == 3";
     }
 
     // it would be nicer to construct srcTensorDesc from tensorDesc of blob
@@ -617,7 +617,7 @@ static ie::Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(const ie::Blob
     ie::TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), dstLayout};
     ie::Blob::Ptr dstBlob = make_blob_with_precision(dstTensorDesc, allocator);
     if (dstBlob == nullptr) {
-        THROW_IE_EXCEPTION
+        IE_THROW()
             << "reallocateBlobToLayoutIgnoringOriginalLayout: can't make_blob_with_precision with given params";
     }
     dstBlob->allocate();
@@ -631,7 +631,7 @@ static ie::Blob::Ptr reallocateBlobToLayout(
     ie::TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout};
     ie::Blob::Ptr kmbBlob = make_blob_with_precision(dstTensorDesc, allocator);
     if (kmbBlob == nullptr) {
-        THROW_IE_EXCEPTION << "reallocateBlobToLayout: can't make_blob_with_precision with given params";
+        IE_THROW() << "reallocateBlobToLayout: can't make_blob_with_precision with given params";
     }
     kmbBlob->allocate();
 
@@ -662,7 +662,7 @@ static bool needRepackForNHWC(const ie::TensorDesc& actualDesc) {
     case ie::Layout::CHW:
         return actualDims[0] != 1;
     default:
-        THROW_IE_EXCEPTION << "Unsupported layout for actual blob: " << actualLayout;
+        IE_THROW() << "Unsupported layout for actual blob: " << actualLayout;
     }
 }
 
@@ -749,7 +749,7 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
     auto status = _nnXlinkPlg->RequestInference(request);
     if (MVNCI_SUCCESS != status) {
         _logger->error("push: RequestInference failed");
-        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::push: RequestInference failed" << status;
+        IE_THROW() << "VpualCoreNNExecutor::push: RequestInference failed" << status;
     }
 
     _logger->info("::push finished");
@@ -759,7 +759,7 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 }
 
 void VpualCoreNNExecutor::push(const InferenceEngine::BlobMap&, const PreprocMap&) {
-    THROW_IE_EXCEPTION << "Not implemented";
+    IE_THROW() << "Not implemented";
 }
 
 uint32_t VpualCoreNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inputs) {
@@ -767,12 +767,12 @@ uint32_t VpualCoreNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inp
     if (inputs.size() == 1) {
         auto blob = ie::as<ie::MemoryBlob>(inputs.begin()->second);
         if (blob == nullptr) {
-            THROW_IE_EXCEPTION << "Input cannot be cast to memory blob";
+            IE_THROW() << "Input cannot be cast to memory blob";
         }
         auto memoryHolder = blob->rmap();
         physAddr = _allocator->getPhysicalAddress(memoryHolder.as<uint8_t*>());
         if (!physAddr) {
-            THROW_IE_EXCEPTION << "Memory of input is not valid";
+            IE_THROW() << "Memory of input is not valid";
         }
     } else {
         _logger->warning("There are multiple blobs. Need to combine them into single buffer.");
@@ -782,7 +782,7 @@ uint32_t VpualCoreNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inp
             auto blob = ie::as<ie::MemoryBlob>(input.second);
 
             if (!blob) {
-                THROW_IE_EXCEPTION << "Cannot cast to MemoryBlob";
+                IE_THROW() << "Cannot cast to MemoryBlob";
             }
             auto memoryHolder = blob->rmap();
 
@@ -792,7 +792,7 @@ uint32_t VpualCoreNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inp
 
         physAddr = _allocator->getPhysicalAddress(_inputBuffer.get());
         if (!physAddr) {
-            THROW_IE_EXCEPTION << "Memory of input is not valid";
+            IE_THROW() << "Memory of input is not valid";
         }
     }
 
@@ -811,11 +811,11 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     _wd->Pause(this);
     if (X_LINK_SUCCESS != status) {
         _logger->error("pull: WaitForResponse failed");
-        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::pull: WaitForResponse failed" << status;
+        IE_THROW() << "VpualCoreNNExecutor::pull: WaitForResponse failed" << status;
     }
     if (MVNCI_SUCCESS != response.status) {
         _logger->error("pull: for inference: %d, received error response: %d", response.inferenceID, response.status);
-        THROW_IE_EXCEPTION << "VpualCoreNNExecutor::pull: " << ", for inference: " << response.inferenceID
+        IE_THROW() << "VpualCoreNNExecutor::pull: " << ", for inference: " << response.inferenceID
                            << " received error response: " << response.status;
     }
     ie::BlobMap deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
@@ -881,7 +881,7 @@ void VpualCoreNNExecutor::repackDeviceOutputsToNetworkOutputs(
     }
 }
 
-void VpualCoreNNExecutor::setup(const ie::ParamMap&) { THROW_IE_EXCEPTION << "Not implemented"; }
+void VpualCoreNNExecutor::setup(const ie::ParamMap&) { IE_THROW() << "Not implemented"; }
 
 bool VpualCoreNNExecutor::isPreProcessingSupported(const PreprocMap&) const { return false; }
 
@@ -926,7 +926,7 @@ Executor::Ptr VpualCoreNNExecutor::clone() const {
 #if defined(__arm__) || defined(__aarch64__)
     return std::make_shared<VpualCoreNNExecutor>(_networkDescription, _allocator, _nnXlinkPlg, _nnCorePlg, _pipe, _wd, _mutex, _config);
 #else
-    THROW_IE_EXCEPTION << "VpualCoreNNExecutor::clone not implemented for x86_64";
+    IE_THROW() << "VpualCoreNNExecutor::clone not implemented for x86_64";
 #endif
 }
 

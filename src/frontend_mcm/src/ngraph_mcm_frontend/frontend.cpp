@@ -99,7 +99,7 @@ namespace {
                 }
             }
             if (!isFound)
-                THROW_IE_EXCEPTION << "Input not found: " << inputInfo.first;
+                IE_THROW() << "Input not found: " << inputInfo.first;
         }
 
         for (const auto& outputInfo : outputsInfo) {
@@ -117,7 +117,7 @@ namespace {
                 }
             }
             if (!isFound)
-                THROW_IE_EXCEPTION << "Ouput not found: " << outputInfo.first;
+                IE_THROW() << "Ouput not found: " << outputInfo.first;
         }
 
         return ioMap;
@@ -193,7 +193,7 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         std::function<void(MVCNN::GraphFileT&)> metaInfoSerializer =
             [&inputsInfo, &outputsInfo, &netName](MVCNN::GraphFileT& graphFileInstance) {
             if (graphFileInstance.header == nullptr) {
-                THROW_IE_EXCEPTION << "metaInfoSerializer: graph file header points to null";
+                IE_THROW() << "metaInfoSerializer: graph file header points to null";
             }
 
             for (const auto& inInfo : inputsInfo) {

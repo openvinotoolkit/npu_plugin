@@ -81,13 +81,13 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, co
 
     // FIXME This error handling part should be refactored according to new api
     if (statusCode == HddlStatusCode::HDDL_CONNECT_ERROR) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NetworkNotLoaded);
+        IE_THROW(NetworkNotLoaded);
     } else if (statusCode != HddlStatusCode::HDDL_OK) {
-        THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;
+        IE_THROW() << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;
     }
 
     if (_uniteGraphPtr == nullptr) {
-        THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Graph information is not provided";
+        IE_THROW() << HDDLUNITE_ERROR_str << "Graph information is not provided";
     }
 }
 
@@ -96,7 +96,7 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
         : _logger(std::make_shared<Logger>("Graph", config.logLevel(), consoleOutput())) {
     HddlStatusCode statusCode;
     if (workloadContext == nullptr) {
-        THROW_IE_EXCEPTION << "Workload context is null";
+        IE_THROW() << "Workload context is null";
     }
 
     const std::string graphName = network->getName();
@@ -111,10 +111,10 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
                                                  {*workloadContext}, nnThreadNum, nnShaveNum, hddlUniteConfig);
 
     if (statusCode != HddlStatusCode::HDDL_OK) {
-        THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;
+        IE_THROW() << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;
     }
     if (_uniteGraphPtr == nullptr) {
-        THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Graph information is not provided";
+        IE_THROW() << HDDLUNITE_ERROR_str << "Graph information is not provided";
     }
 }
 
@@ -126,16 +126,16 @@ HddlUniteGraph::~HddlUniteGraph() {
 
 void HddlUniteGraph::InferAsync(const InferDataAdapter::Ptr& data) const {
     if (data == nullptr) {
-        THROW_IE_EXCEPTION << "Data for inference is null!";
+        IE_THROW() << "Data for inference is null!";
     }
     if (_uniteGraphPtr == nullptr) {
-        THROW_IE_EXCEPTION << "Graph is null!";
+        IE_THROW() << "Graph is null!";
     }
 
     HddlStatusCode inferStatus = HddlUnite::Inference::inferAsync(*_uniteGraphPtr, data->getHDDLUniteInferData());
 
     if (inferStatus != HddlStatusCode::HDDL_OK) {
-        THROW_IE_EXCEPTION << "InferAsync FAILED! return code:" << inferStatus;
+        IE_THROW() << "InferAsync FAILED! return code:" << inferStatus;
     }
 }
 

@@ -72,7 +72,7 @@ InferenceEngine::CNNNetwork ExecutableNetworkFactory::createCNNNetwork(const std
 static std::string extractModelNameFromPath(const std::string& modelPath) {
     const auto pos = modelPath.rfind('/');
     if(pos == std::string::npos) {
-        THROW_IE_EXCEPTION << "[ExecutableNetworkFactory] Failed to find model name in path: " << modelPath;
+        IE_THROW() << "[ExecutableNetworkFactory] Failed to find model name in path: " << modelPath;
     }
     return modelPath.substr(pos);
 }

@@ -23,7 +23,7 @@ namespace {
                           const BlobVector& inputs,
                           const TestNetwork&) {
         if (inputs.size() != 2) {
-            THROW_IE_EXCEPTION << "Incorrect number of inputs";
+            IE_THROW() << "Incorrect number of inputs";
         }
 
         const auto& in_desc = inputs[0]->getTensorDesc();

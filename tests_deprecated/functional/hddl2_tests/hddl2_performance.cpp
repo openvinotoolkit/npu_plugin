@@ -65,11 +65,11 @@ HddlUnite::RemoteMemory::Ptr Performance_Tests::allocateRemoteMemory(
     _remoteFrame = std::make_shared<HddlUnite::RemoteMemory>(*context, remoteMemoryDesc);
 
     if (_remoteFrame == nullptr) {
-        THROW_IE_EXCEPTION << "Failed to allocate remote memory.";
+        IE_THROW() << "Failed to allocate remote memory.";
     }
 
     if (_remoteFrame->syncToDevice(data, dataSize) != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to sync memory to device.";
+        IE_THROW() << "Failed to sync memory to device.";
     }
     return _remoteFrame;
 }
@@ -116,7 +116,7 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
 
     std::filebuf blobFile;
     if (!blobFile.open(modelPath, std::ios::in | std::ios::binary)) {
-        THROW_IE_EXCEPTION << "Could not open file: " << modelPath;
+        IE_THROW() << "Could not open file: " << modelPath;
     }
     std::istream graphBlob(&blobFile);
 

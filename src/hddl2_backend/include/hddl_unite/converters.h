@@ -52,7 +52,7 @@ HddlUnite::Inference::Precision convertFromIEPrecision(const InferenceEngine::Pr
     case InferenceEngine::Precision::CUSTOM:
         return HddlUnite::Inference::CUSTOM;
     default:
-        THROW_IE_EXCEPTION << "Incorrect precision";
+        IE_THROW() << "Incorrect precision";
     }
 }
 

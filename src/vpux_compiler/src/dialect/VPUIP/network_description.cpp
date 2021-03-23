@@ -77,7 +77,7 @@ DimsOrder extractLayoutFromStrides(const llvm::ArrayRef<float>& inStrides) {
         }
     } else {
         // width-major
-        THROW_IE_EXCEPTION << "getIOLayout: W-major layout is not supported";
+        IE_THROW() << "getIOLayout: W-major layout is not supported";
     }
 
     return tensorLayout;
@@ -93,7 +93,7 @@ DimsOrder orderVectorToLayout(const llvm::ArrayRef<float>& inStrides) {
     std::unordered_map<DimsOrder, std::vector<float>>::const_iterator mapIter =
             std::find_if(orderMapping.begin(), orderMapping.end(), mapSearchPredicate);
     if (mapIter == orderMapping.end()) {
-        THROW_IE_EXCEPTION << "orderToLayout: failed to convert input order";
+        IE_THROW() << "orderToLayout: failed to convert input order";
     }
     return mapIter->first;
 }

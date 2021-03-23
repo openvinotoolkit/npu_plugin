@@ -39,7 +39,7 @@ void checkSupportedColorFormat(const IE::ColorFormat& colorFormat) {
     case IE::RGBX:
     case IE::BGRX:
     case IE::I420:
-        THROW_IE_EXCEPTION << "Unsupported color format.";
+        IE_THROW() << "Unsupported color format.";
     }
 }
 
@@ -59,7 +59,7 @@ void ParsedRemoteBlobParams::parse() {
         try {
             _roiPtr = _paramMap.at(IE::KMB_PARAM_KEY(ROI_PTR)).as<std::shared_ptr<IE::ROI>>();
         } catch (...) {
-            THROW_IE_EXCEPTION << "ROI param is incorrect!";
+            IE_THROW() << "ROI param is incorrect!";
         }
         // If we working with ROI, also need information about original tensor
         if (_paramMap.find(IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC)) != _paramMap.end()) {
@@ -67,7 +67,7 @@ void ParsedRemoteBlobParams::parse() {
                 _originalTensorDesc =
                         _paramMap.at(IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC)).as<std::shared_ptr<IE::TensorDesc>>();
             } catch (...) {
-                THROW_IE_EXCEPTION << "Original tensor desc have incorrect type information";
+                IE_THROW() << "Original tensor desc have incorrect type information";
             }
         }
     } else {
@@ -79,7 +79,7 @@ void ParsedRemoteBlobParams::parse() {
             _colorFormat = _paramMap.at(IE::HDDL2_PARAM_KEY(COLOR_FORMAT)).as<IE::ColorFormat>();
             checkSupportedColorFormat(_colorFormat);
         } catch (...) {
-            THROW_IE_EXCEPTION << "Color format param have incorrect type information";
+            IE_THROW() << "Color format param have incorrect type information";
         }
     } else {
         _colorFormat = IE::ColorFormat::BGR;

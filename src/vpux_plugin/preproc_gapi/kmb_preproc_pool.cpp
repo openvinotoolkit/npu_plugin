@@ -111,7 +111,7 @@ void PreprocPool::execDataPreprocessing(
     const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, unsigned int numberOfPipes, Path ppPath, const std::string& preprocPoolId,
     const int deviceId) {
     if (task.inputs.empty()) {
-        THROW_IE_EXCEPTION << "Inputs are empty.";
+        IE_THROW() << "Inputs are empty.";
     }
     auto dims = task.inputs.begin()->second->getTensorDesc().getDims();
     getPool(preprocPoolId, numberOfShaves, lpi, numberOfPipes, ppPath).execDataPreprocessing(task, deviceId);

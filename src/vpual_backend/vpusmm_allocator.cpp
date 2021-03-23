@@ -65,29 +65,29 @@ protected:
 
 VPUSMMAllocatorParams::VPUSMMAllocatorParams(const InferenceEngine::ParamMap& params): _paramMap(params) {
     if (params.empty()) {
-        THROW_IE_EXCEPTION << "VPUSMMAllocatorParams: Param map for blob is empty.";
+        IE_THROW() << "VPUSMMAllocatorParams: Param map for blob is empty.";
     }
 
     auto sizeIter = params.find(InferenceEngine::KMB_PARAM_KEY(ALLOCATION_SIZE));
     if (sizeIter == params.end()) {
-        THROW_IE_EXCEPTION << "VPUSMMAllocatorParams: Size of allocation is not provided.";
+        IE_THROW() << "VPUSMMAllocatorParams: Size of allocation is not provided.";
     }
     try {
         _size = params.at(InferenceEngine::KMB_PARAM_KEY(ALLOCATION_SIZE)).as<size_t>();
     } catch (...) {
-        THROW_IE_EXCEPTION << "VPUSMMAllocatorParams: Failed to get size of allocation.";
+        IE_THROW() << "VPUSMMAllocatorParams: Failed to get size of allocation.";
     }
 
     auto remoteMemoryFdIter = params.find(InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD));
     if (remoteMemoryFdIter == params.end()) {
-        THROW_IE_EXCEPTION << "VPUSMMAllocatorParams: "
+        IE_THROW() << "VPUSMMAllocatorParams: "
                            << "Param map does not contain remote memory file descriptor "
                               "information";
     }
     try {
         _remoteMemoryFd = remoteMemoryFdIter->second.as<KmbRemoteMemoryFD>();
     } catch (...) {
-        THROW_IE_EXCEPTION << "VPUSMMAllocatorParams: Remote memory fd param has incorrect type";
+        IE_THROW() << "VPUSMMAllocatorParams: Remote memory fd param has incorrect type";
     }
 
     auto remoteMemoryHandleIter = params.find(InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE));
@@ -99,17 +99,17 @@ VPUSMMAllocatorParams::VPUSMMAllocatorParams(const InferenceEngine::ParamMap& pa
             _remoteMemoryHandle = remoteMemoryHandleIter->second.as<KmbHandleParam>();
             _remoteMemoryOffset = 0;
         } catch (...) {
-            THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Remote memory handle param has incorrect type";
+            IE_THROW() << "KmbBlobParams::KmbBlobParams: Remote memory handle param has incorrect type";
         }
     } else if (remoteMemoryOffsetIter != params.end()) {
         try {
             _remoteMemoryHandle = nullptr;
             _remoteMemoryOffset = remoteMemoryOffsetIter->second.as<KmbOffsetParam>();
         } catch (...) {
-            THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Remote memory offset param has incorrect type";
+            IE_THROW() << "KmbBlobParams::KmbBlobParams: Remote memory offset param has incorrect type";
         }
     } else {
-        THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: "
+        IE_THROW() << "KmbBlobParams::KmbBlobParams: "
                            << "Param map should contain either remote memory handle "
                            << "or remote memory offset.";
     }

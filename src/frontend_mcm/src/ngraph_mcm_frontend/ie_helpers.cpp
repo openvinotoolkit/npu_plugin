@@ -39,7 +39,7 @@ ngraph::element::Type cvtPrecisionToElemType(const ie::Precision& precision) {
     case ie::Precision::BF16:
         return ngraph::element::bf16;
     default:
-        THROW_IE_EXCEPTION << "Unsupported precision " << precision;
+        IE_THROW() << "Unsupported precision " << precision;
     }
 }
 

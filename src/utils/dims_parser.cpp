@@ -41,7 +41,7 @@ void parseDims(const InferenceEngine::SizeVector& dims, size_t& dimN, size_t& di
         dimN = dims[0];
         break;
     default:
-        THROW_IE_EXCEPTION << "Unsupported dimensions layout";
+        IE_THROW() << "Unsupported dimensions layout";
         break;
     }
 }

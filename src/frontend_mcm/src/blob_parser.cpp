@@ -53,7 +53,7 @@ static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<float>
         }
     } else {
         // width-major
-        THROW_IE_EXCEPTION << "getIOLayout: W-major layout is not supported";
+        IE_THROW() << "getIOLayout: W-major layout is not supported";
     }
 
     return tensorLayout;

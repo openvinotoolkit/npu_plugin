@@ -134,7 +134,7 @@ TEST_F(ImageWorkload_WithoutPreprocessing, ImageWithStrides_ThrowException) {
     const std::string imagePath = TestDataHelpers::get_data_path() + "/"+  std::to_string(imageWidth) + "x" + std::to_string(imageHeight) + "/cat3.bmp";
     cv::Mat originalImage = cv::imread(imagePath);
     if(originalImage.empty()) {
-        THROW_IE_EXCEPTION << "Could not read the image: " << imagePath;
+        IE_THROW() << "Could not read the image: " << imagePath;
     }
 
     // ---- Add padding to image at right side

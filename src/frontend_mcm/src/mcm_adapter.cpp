@@ -61,7 +61,7 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const std::vector
                                                                const MCMConfig& config) {
     Logger::Ptr logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
     if (logger == nullptr) {
-        THROW_IE_EXCEPTION << "Logger has not been created";
+        IE_THROW() << "Logger has not been created";
     }
     const MVCNN::GraphFile* graphFilePtr = MVCNN::GetGraphFile(outBlob.data());
     MVCNN::GraphFileT graphFileInstance;
