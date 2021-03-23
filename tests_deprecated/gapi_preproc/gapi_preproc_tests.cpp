@@ -378,7 +378,12 @@ TEST_P(NV12toRGBpTestGAPI, AccuracyTest) {
         toPlanar(out_mat_ocv_interleaved, out_mat_ocv);
     }
     // Comparison //////////////////////////////////////////////////////////////
-    { EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi)); }
+    {
+        cv::Mat absDiff;
+        cv::absdiff(out_mat_gapi, out_mat_ocv, absDiff);
+        EXPECT_EQ(0, cv::countNonZero(absDiff > 2));
+    }
+
 }
 
 using testing::Values;
@@ -431,7 +436,7 @@ TEST_P(ResizePTestGAPI, AccuracyTest) {
     {
         cv::Mat absDiff;
         cv::absdiff(out_mat_gapi, out_mat_ocv, absDiff);
-        EXPECT_EQ(0, cv::countNonZero(absDiff > 1));
+        EXPECT_EQ(0, cv::countNonZero(absDiff > 3));
     }
 }
 
@@ -479,9 +484,7 @@ TEST_P(Merge3PTestGAPI, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        cv::Mat absDiff;
-        cv::absdiff(out_mat_gapi, out_mat_ocv, absDiff);
-        EXPECT_EQ(0, cv::countNonZero(absDiff > 1));
+        EXPECT_EQ(0, cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF));
     }
 
     std::cout << in_mat << std::endl << std::endl;
@@ -597,13 +600,13 @@ INSTANTIATE_TEST_CASE_P(Preproc, KmbPreprocEngineTest,
                                        AllocTestParams{BlobAPI::Remote, 256, false},
                                        AllocTestParams{BlobAPI::Remote, 1920, false})));
 
-// FIXME: hsdes ticket https://hsdes.intel.com/appstore/article/#/1508160288
-INSTANTIATE_TEST_CASE_P(DISABLED_Preproc, KmbPreprocEngineTest,
+INSTANTIATE_TEST_CASE_P(Preproc_1508160288, KmbPreprocEngineTest,
                         Combine(Values(std::make_pair(cv::Size(1920, 1080), cv::Size(224, 224))),
                                 Values(InferenceEngine::ColorFormat::BGR,
                                        InferenceEngine::ColorFormat::RGB),
                                 Values(InferenceEngine::KmbPreproc::Path::SIPP),
-                                Values(AllocTestParams{BlobAPI::Default, 1, false})));
+                                Values(AllocTestParams{BlobAPI::Default, 1920, true})));
+
 
 // FIXME: doesn't converge with opencv, need to figure out tolerance
 INSTANTIATE_TEST_CASE_P(DISABLED_PreprocM2I, KmbPreprocEngineTest,
