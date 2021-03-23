@@ -65,6 +65,7 @@ namespace mv
         bool floatScaleTable;
         bool allowMultipleInputScales;
         size_t leakyAccuracyBits;
+        bool pwlEnabled;
     };
 
     struct BTCDescriptor : public CodecDescriptor
@@ -136,6 +137,7 @@ namespace mv
         const std::shared_ptr<CodecDescriptor>& codecDef() const;
         const std::map<std::string, WorkloadConfig> & getWorkloadConfigs() const;
         const std::vector<mv::DataTypeSupport> & dtypeSupport() const;
+        bool isDpuPwl(const std::string& opName) const;
 
         std::string getLogID() const override;
 

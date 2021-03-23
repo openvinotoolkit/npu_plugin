@@ -38,7 +38,7 @@ namespace mv
     bool isEqualScale(const mv::QuantizationParams& left, const mv::QuantizationParams& right);
     bool isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right);
     bool checkPPEAccuracy(mv::ComputationModel& model);
-
+    std::vector<std::string>::const_iterator findIsDPUPwlPostOp(const std::vector<std::string>& postOps, const mv::TargetDescriptor& td);
 }
 
 void provideAccuracyinPPEs(mv::ComputationModel& model);

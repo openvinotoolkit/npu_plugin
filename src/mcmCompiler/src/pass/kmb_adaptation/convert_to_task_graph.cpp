@@ -59,7 +59,12 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         if(dpuTask->hasAttr("postOpTypes"))
             postOps = dpuTask->get<std::vector<std::string>>("postOpTypes");
 
-        std::replace_if(postOps.begin(), postOps.end(), mv::ControlModel::isDpuPwl, "FLEXARB");
+        for (auto itr = postOps.begin(); itr != postOps.end(); ++itr) {
+            if(td.isDpuPwl(*itr)) {
+                *itr = "FLEXARB";
+            }
+        }
+
         addPpeTask(dpuTask, postOps, leakyReluHack, bits);
     }
 }
@@ -1392,6 +1397,12 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
                     clamp = static_cast<int32_t>(clampValue);
                 else if (computeDType == FP16)
                     clamp = static_cast<int32_t>(clampValue * pow(2,16));
+            }
+            else if(opIt->hasAttr("postOpTypes"))
+            {
+                auto postOps = opIt->get<std::vector<std::string>>("postOpTypes");
+                if (std::find(postOps.begin(), postOps.end(), "Relu") != postOps.end())
+                    clamp = 0;
             }
         }
     }

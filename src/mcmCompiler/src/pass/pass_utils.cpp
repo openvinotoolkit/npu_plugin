@@ -541,3 +541,12 @@ bool mv::checkPPEAccuracy(mv::ComputationModel& model) {
     }
     return PPEAccuracy;
 }
+
+std::vector<std::string>::const_iterator mv::findIsDPUPwlPostOp(const std::vector<std::string>& postOps, const mv::TargetDescriptor& td) {
+    for (auto itr = postOps.begin(); itr != postOps.end(); ++itr) {
+        if(td.isDpuPwl(*itr)) {
+            return itr;
+        }
+    }
+    return postOps.end();
+}

@@ -60,6 +60,7 @@ void mv::TargetDescriptor::reset()
     generalConfigs_.floatScaleTable = false;
     generalConfigs_.allowMultipleInputScales = false;
     generalConfigs_.leakyAccuracyBits = 7;
+    generalConfigs_.pwlEnabled = true;
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
@@ -124,6 +125,19 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                     generalConfigs_.floatScaleTable = jsonDescriptor["general"]["floatScaleTable"].get<bool>();
                 }
             }
+            if (jsonDescriptor["general"].hasKey("pwlEnabled"))
+            {
+                if (jsonDescriptor["general"]["pwlEnabled"].valueType() != json::JSONType::Bool)
+                {
+                    reset();
+                    return false;
+                }
+                else
+                {
+                    generalConfigs_.pwlEnabled = jsonDescriptor["general"]["pwlEnabled"].get<bool>();
+                }
+            }
+
             if (jsonDescriptor["general"].hasKey("allowMultipleInputScales"))
             {
                 if (jsonDescriptor["general"]["allowMultipleInputScales"].valueType() != json::JSONType::Bool)
@@ -710,4 +724,13 @@ std::string mv::TargetDescriptor::getLogID() const
 const mv::GeneralTargetConfigs& mv::TargetDescriptor::generalTargetConfigs() const
 {
     return generalConfigs_;
+}
+
+bool mv::TargetDescriptor::isDpuPwl(const std::string& opName) const
+{
+    if (!generalConfigs_.pwlEnabled)
+        return false;
+
+    const std::vector<std::string> dpuPWLNames = { "LeakyRelu", "Mish", };
+    return std::find(dpuPWLNames.cbegin(), dpuPWLNames.cend(), opName) != dpuPWLNames.end();
 }
