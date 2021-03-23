@@ -166,8 +166,7 @@ mlir::LogicalResult UseExpansionReshape::matchAndRewrite(IE::UnsqueezeOp origOp,
 // getCanonicalizationPatterns
 //
 
-void vpux::IE::UnsqueezeOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
-                                                        mlir::MLIRContext* ctx) {
+void vpux::IE::UnsqueezeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* ctx) {
     patterns.insert<UseExpansionReshape>(ctx);
 }
 

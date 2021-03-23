@@ -58,7 +58,7 @@ namespace {
 
 }  // namespace
 
-void vpux::IE::ConvertOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext*) {
+void vpux::IE::ConvertOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext*) {
     populateWithGenerated(patterns);
 }
 

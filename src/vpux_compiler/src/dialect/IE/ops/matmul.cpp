@@ -162,7 +162,6 @@ mlir::LogicalResult UseFullyConnected::matchAndRewrite(IE::MatMulOp matmulOp, ml
 
 }  // namespace
 
-void vpux::IE::MatMulOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
-                                                     mlir::MLIRContext* context) {
+void vpux::IE::MatMulOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.insert<UseFullyConnected>(context);
 }

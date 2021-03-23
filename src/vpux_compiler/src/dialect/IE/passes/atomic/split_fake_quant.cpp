@@ -205,7 +205,7 @@ void SplitFakeQuantPass::passBody() {
     target.addLegalOp<mlir::quant::QuantizeCastOp>();
     target.addLegalOp<mlir::quant::DequantizeCastOp>();
 
-    mlir::OwningRewritePatternList patterns(&ctx);
+    mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<UseQuantDequant>(&ctx, _log.nest());
     patterns.insert<UseConstDequant>(&ctx, _log.nest());
 

@@ -271,7 +271,7 @@ void ConvertIERT2VPUIPPass::passBody() {
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
 
-    mlir::OwningRewritePatternList patterns(&ctx);
+    mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ConstantRewrite>(&ctx, _log.nest());
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log.nest());
     patterns.insert<CheckUnsupportedTile>(&ctx, _log.nest());
