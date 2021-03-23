@@ -1065,10 +1065,10 @@ mv::Data::TensorIterator convertSpaceToDepthToUPATask(mv::OpModel& om, const std
                                                         const mv::DType& outputTensorType,
                                                         const mv::Order& outputTensorOrder)
 {
-    auto mode = attrs.at("mode").get<uint8_t>();
+    auto mode = attrs.at("mode").get<std::string>();
     auto block_size = attrs.at("block_size").get<uint32_t>();
 
-    auto spaceToDepth = om.uPATaskSpaceToDepth(name, inputs, mode, block_size);
+    auto spaceToDepth = om.uPATaskSpaceToDepth(name, inputs, block_size, mode);
     spaceToDepth->setDType(outputTensorType);
     spaceToDepth->setQuantParams(quantParams);
     spaceToDepth->setOrder(outputTensorOrder);

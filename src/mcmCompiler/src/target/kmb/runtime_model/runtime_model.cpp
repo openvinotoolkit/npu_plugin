@@ -3894,11 +3894,16 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASpaceToDepthTask(ComputationMod
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_SpaceToDepthParams;
     auto softLayerParamsValue = new MVCNN::SpaceToDepthParamsT();
 
-    if (opIt->get<uint8_t>("mode") == 0)
+    auto mode = opIt->get<std::string>("mode");
+    if (mode.compare(std::string("blocks_first")) == 0) {
         softLayerParamsValue->mode = MVCNN::SpaceToDepthMode::SpaceToDepthMode_BLOCKS_FIRST;
-    else 
-    if (opIt->get<uint8_t>("mode") == 1)
+    } else if (mode.compare(std::string("depth_first")) == 0) {
         softLayerParamsValue->mode = MVCNN::SpaceToDepthMode::SpaceToDepthMode_DEPTH_FIRST;
+    } else {
+        delete toBuild;
+        delete softLayerParamsValue;
+        throw ArgumentError("buildUPAPadTask", "file:content", "invalid", "Invalid mode for SpaceToDepth");
+    }
 
     softLayerParamsValue->blockSize = opIt->get<uint32_t>("block_size");
 

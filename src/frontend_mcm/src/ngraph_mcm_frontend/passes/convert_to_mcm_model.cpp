@@ -1840,15 +1840,19 @@ void convert(std::shared_ptr<ngraph::op::v0::SpaceToDepth> SpaceToDepth, mv::OpM
     const auto mcmData = mcmInputs.at(0);
     const auto& opName = SpaceToDepth->get_friendly_name();
 
-    uint8_t mode;
-    if (SpaceToDepth->get_mode() == ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST)
-        mode = 0;
-    else if (SpaceToDepth->get_mode() == ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST)
-        mode = 1;
-    else
-        THROW_IE_EXCEPTION << "Invalid mode " << mode << " in SpaceToDepth layer ";
+    std::string mode;
+    switch (SpaceToDepth->get_mode()) {
+        case ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST:
+            mode = "blocks_first";
+            break;
+        case ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST:
+            mode = "depth_first";
+            break;
+        default:
+            THROW_IE_EXCEPTION << "Invalid mode " << mode << " in SpaceToDepth layer ";;
+    }
 
-    auto mcmSpaceToDepth = mcmModel.spaceToDepth(opName, mcmData, mode, SpaceToDepth->get_block_size());
+    auto mcmSpaceToDepth = mcmModel.spaceToDepth(opName, mcmData, SpaceToDepth->get_block_size(), mode);
 
     registerOutputs(SpaceToDepth, {mcmSpaceToDepth}, mcmOutputsMap);
 }
