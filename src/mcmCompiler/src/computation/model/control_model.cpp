@@ -317,12 +317,6 @@ bool mv::ControlModel::isDag()
     return mv::isDAG(controlGraph_);
 }
 
-bool mv::ControlModel::isDpuPwl(const std::string& opName)
-{
-    const std::vector<std::string> dpuPWLNames = { "LeakyRelu", "Mish", };
-    return std::find(dpuPWLNames.cbegin(), dpuPWLNames.cend(), opName) != dpuPWLNames.end();
-}
-
 mv::mish_params_t mv::ControlModel::getMishParameters(const double maxQuant) {
     const std::map<int32_t, mish_params_t> MISH_PARAMS = {
         {65000, {

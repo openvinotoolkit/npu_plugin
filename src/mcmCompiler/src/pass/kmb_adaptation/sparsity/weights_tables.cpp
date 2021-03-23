@@ -849,7 +849,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
     }
 }
 
-static void generateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void generateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -863,7 +863,8 @@ static void generateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::Com
             {
                 auto postOps = dpuTaskOp->get<std::vector<std::string>>("postOpTypes");
                 //"FLEXARB"
-                auto ppeIterator = std::find_if(postOps.begin(), postOps.end(), mv::ControlModel::isDpuPwl);
+                auto ppeIterator = findIsDPUPwlPostOp(postOps, td);
+
                 if ( ppeIterator != dpuTaskOp->get<std::vector<std::string>>("postOpTypes").end())
                 {
                     std::string opName = dpuTaskOp->getName();

@@ -4,7 +4,8 @@
     {
         "floatScaleTable" : true,
         "allowMultipleInputScales": true,
-        "leakyAccuracyBits": 31
+        "leakyAccuracyBits": 31,
+        "pwlEnabled": false
     },
     "dtype":
     {

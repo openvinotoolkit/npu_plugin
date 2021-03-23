@@ -541,7 +541,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                     };
                     //"FLEXARB"
                     auto postOps = opIt->get<std::vector<std::string>>("postOpTypes");
-                    auto ppeIterator = std::find_if(postOps.begin(), postOps.end(), mv::ControlModel::isDpuPwl);
+                    auto ppeIterator = findIsDPUPwlPostOp(postOps, td);
 
                     if (ppeIterator != postOps.end()) {
                         postShift = dpuPwlScale[*ppeIterator];
