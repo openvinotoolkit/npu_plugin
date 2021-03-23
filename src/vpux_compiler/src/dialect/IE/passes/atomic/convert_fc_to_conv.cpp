@@ -135,7 +135,7 @@ void ConvertFCToConvPass::passBody() {
     target.addLegalOp<IE::ConvolutionOp>();
     target.addLegalOp<IE::ReshapeOp>();
 
-    mlir::OwningRewritePatternList patterns;
+    mlir::OwningRewritePatternList patterns(&ctx);
     patterns.insert<FullyConnectedOpConverter>(&ctx, _log.nest());
 
     auto module = getOperation();

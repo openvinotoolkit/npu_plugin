@@ -1070,7 +1070,7 @@ operation ::= `VPUIP.UPADMA` attr-dict
 
 ## Type definition
 
-### `VPUIP_Barrier` (BarrierType)
+### BarrierType
 
 VPUIP Barrier Type
 

@@ -203,7 +203,7 @@ void StaticAllocationPass::passBody() {
         return type == nullptr || type.getMemorySpace() != _memSpace;
     });
 
-    mlir::OwningRewritePatternList patterns;
+    mlir::OwningRewritePatternList patterns(&ctx);
     patterns.insert<AllocRewrite>(allocInfo, &ctx, _log.nest());
     patterns.insert<DeallocRewrite>(&ctx, _log.nest());
 

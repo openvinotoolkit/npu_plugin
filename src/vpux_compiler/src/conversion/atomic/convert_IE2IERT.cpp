@@ -461,7 +461,7 @@ void ConvertIE2IERTPass::passBody() {
     target.addLegalOp<mlir::linalg::ReshapeOp>();
     mlir::populateBufferizeMaterializationLegality(target);
 
-    mlir::OwningRewritePatternList patterns;
+    mlir::OwningRewritePatternList patterns(&ctx);
     patterns.insert<DetectionOutputRewrite>(typeConverter, _log.nest());
     patterns.insert<ScaleShiftRewrite>(typeConverter, _log.nest());
     patterns.insert<ConstantRewrite>(typeConverter, &ctx, _log.nest());
