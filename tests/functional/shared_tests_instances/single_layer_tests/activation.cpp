@@ -24,6 +24,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMCM {
     ngraph::helpers::RoundHalfToEven,
     ngraph::helpers::RoundHalfAwayFromZero,
     ngraph::helpers::Erf,
+    ngraph::helpers::Gelu,
     ngraph::helpers::Ceiling
 };
 
@@ -100,6 +101,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Floor,    {{1.0f}}},
     {Ceiling,  {{1.0f}}},
     {Erf,      {{1.0f}}},
+    {Gelu,     {{1.0f}}},
     {Swish,    {{1.0f}}},
     {Negative, {{1.0f}}},
     {RoundHalfToEven,       {}},
