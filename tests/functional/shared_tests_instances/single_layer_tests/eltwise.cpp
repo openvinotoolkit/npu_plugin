@@ -11,7 +11,9 @@ namespace LayerTestsDefinitions {
 namespace {
 std::set<ngraph::helpers::EltwiseTypes> supportedTypesMCM {
     ngraph::helpers::EltwiseTypes::ADD,
-    ngraph::helpers::EltwiseTypes::MULTIPLY
+    ngraph::helpers::EltwiseTypes::MULTIPLY,
+    ngraph::helpers::EltwiseTypes::SUBTRACT,
+    ngraph::helpers::EltwiseTypes::SQUARED_DIFF
 };
 
 std::set<ngraph::helpers::EltwiseTypes> supportedTypesMLIR {
@@ -27,8 +29,22 @@ std::set<ngraph::helpers::EltwiseTypes> supportedTypesMLIR {
 class KmbEltwiseLayerTest: public EltwiseLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         ngraph::helpers::EltwiseTypes eltwiseOp;
-        std::tie(std::ignore,
-                 eltwiseOp, std::ignore, std::ignore, std::ignore,
+        std::vector<std::vector<size_t>> inShapes;
+        CommonTestUtils::OpType opType;
+        std::set<std::vector<std::vector<size_t>>> scalarOnlyShapes = {
+            {{1, 10, 100}},
+            {{4, 4, 16}},
+            {{1, 1, 1, 3}},
+            {{1, 2, 4}},
+            {{1, 4, 4}},
+            {{1, 4, 4, 1}}
+        };
+        std::set<std::vector<std::vector<size_t>>> badShapesForMLIR = {
+                {{2, 17, 5, 4}, {1, 17, 1, 1}},
+        };
+
+        std::tie(inShapes,
+                 eltwiseOp, std::ignore, opType, std::ignore,
                  std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) = GetParam();
 
         if (isCompilerMCM()) {
@@ -37,14 +53,76 @@ class KmbEltwiseLayerTest: public EltwiseLayerTest, virtual public LayerTestsUti
                 throw LayerTestsUtils::KmbSkipTestException("Unsupported eltwise type in MCM compiler");
             }
 
-            if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-                throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+            // Skip below is due to error with operation type SquaredDifference at step
+            // [Debug  ][VPU][KMB nGraph Parser] Convert nGraph to MCM Model
+            // kmb-plugin/tests/functional/shared_tests_instances/kmb_layer_test.cpp:152: Failure
+            // Expected: executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration) doesn't
+            // throw an exception.
+            // Actual: it throws:Unsupported operation: SquaredDifference_3722 with name SquaredDifference_3728 with
+            // type SquaredDifference with C++ type N6ngraph2op2v017SquaredDifferenceE
+            // kmb-plugin/src/frontend_mcm/src/ngraph_mcm_frontend/passes/convert_to_mcm_model.cpp:1901
+            // openvino/inference-engine/include/details/ie_exception_conversion.hpp:66
+            // [Track number: S#51154]
+            if (eltwiseOp == ngraph::helpers::EltwiseTypes::SQUARED_DIFF) {
+                throw LayerTestsUtils::KmbSkipTestException("Unsupported operation: SquaredDifference");
+            }
+
+            // Skip below is due to error during run of tests on KMB-board (it is oly for VECTOR OpType):
+            // [Debug  ][VPU][VpualCoreNNExecutor] Allocated buffer for input with the size:
+            // [Info   ][VPU][VpualCoreNNExecutor] allocateGraph begins
+            // [Error  ][VPU][VpualCoreNNExecutor] allocateGraph: failed to create NnCorePlg
+            // kmb-plugin/tests/functional/shared_tests_instances/kmb_layer_test.cpp:152: Failure
+            // Expected: executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration)
+            // doesn't throw an exception.
+            // Actual: it throws:VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: 6
+            // [Track number: S#51349]
+            if (scalarOnlyShapes.find(inShapes) != scalarOnlyShapes.end() &&
+                                                                opType == CommonTestUtils::OpType::VECTOR) {
+                throw LayerTestsUtils::KmbSkipTestException("VECTOR OpType is unsupported");
             }
         } else {
             if (supportedTypesMLIR.find(eltwiseOp) ==
                 supportedTypesMLIR.end()) {
                 throw LayerTestsUtils::KmbSkipTestException("Experimental compiler doesn't supports this eltwise operation yet");
             }
+            // Skip below is due to error during run of tests on KMB-board (it is for MLIR compiler only):
+            // [Debug  ][VPU][VpualCoreNNExecutor] Allocated buffer for input with the size:
+            // [Info   ][VPU][VpualCoreNNExecutor] allocateGraph begins
+            // [Error  ][VPU][VpualCoreNNExecutor] allocateGraph: failed to create NnCorePlg
+            // kmb-plugin/tests/functional/shared_tests_instances/kmb_layer_test.cpp:152: Failure
+            // Expected: executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration)
+            // doesn't throw an exception.
+            // Actual: it throws:VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: 6
+            // [Track number: S#51349]
+            if ( badShapesForMLIR.find(inShapes) != badShapesForMLIR.end()) {
+                throw LayerTestsUtils::KmbSkipTestException("Error on KMB-board: failed to create NnCorePlg: 6");
+            }
+        }
+    }
+
+    // There are errors at validation step on KMB-board for some input shapes:
+    // KmbLayerTestsCommon::Validate()
+    // LayerTestsCommon::Validate()
+    // openvino/inference-engine/tests/functional/shared_test_classes/include/
+    // shared_test_classes/base/layer_test_utils.hpp:173: Failure
+    // Value of: max != 0 && (diff <= static_cast<float>(threshold))
+    // Actual: false
+    // Expected: true
+    // Relative comparison of values expected: -4 and actual: 0 at index 1 with
+    // threshold 0.0099999997764825821 failed
+    // [Track number: S#51346]
+    void SkipBeforeValidate() override {
+        ngraph::helpers::EltwiseTypes eltwiseOp;
+        std::vector<std::vector<size_t>> inShapes;
+        std::tie(inShapes,
+                 eltwiseOp, std::ignore, std::ignore, std::ignore,
+                 std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) = GetParam();
+        std::set<std::vector<std::vector<size_t>>> badShapes = {
+            {{2, 17, 5, 4}, {1, 17, 1, 1}},
+            {{1, 4, 4, 1}}
+        };
+        if ( badShapes.find(inShapes) != badShapes.end()  ) {
+            throw LayerTestsUtils::KmbSkipTestException("Mismatch in comparison");
         }
     }
 
@@ -74,6 +152,8 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
     {{1, 10, 100}},
     {{4, 4, 16}},
     {{1, 1, 1, 3}},
+    {{2, 17, 5, 4}, {1, 17, 1, 1}},
+    {{2, 17, 5, 1}, {1, 17, 1, 4}},
     {{1, 2, 4}},
     {{1, 4, 4}},
     {{1, 4, 4, 1}},
@@ -99,10 +179,12 @@ std::vector<CommonTestUtils::OpType> opTypes = {
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
     ngraph::helpers::EltwiseTypes::ADD,
     ngraph::helpers::EltwiseTypes::MULTIPLY,
+    ngraph::helpers::EltwiseTypes::SUBTRACT,
     ngraph::helpers::EltwiseTypes::DIVIDE,
+    ngraph::helpers::EltwiseTypes::FLOOR_MOD,
     ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
     ngraph::helpers::EltwiseTypes::POWER,
-    ngraph::helpers::EltwiseTypes::FLOOR_MOD
+    ngraph::helpers::EltwiseTypes::MOD
 };
 
 std::map<std::string, std::string> additional_config = {};
@@ -140,9 +222,14 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_CompareWithRefs, KmbEltwiseLayerTest, mul
 // Do not forget to remove it and corresponding variables when main test DISABLED_smoke_CompareWithRefs
 // will work properly.
 std::vector<std::vector<std::vector<size_t>>> inShapes_pass_mcm = {
-    {{1, 1, 1, 3}},
     {{1, 4, 4, 1}},
     {{1, 4, 1, 1}},
+    {{1, 10, 100}},
+    {{4, 4, 16}},
+    {{1, 1, 1, 3}},
+    {{2, 17, 5, 4}, {1, 17, 1, 1}},
+    {{1, 2, 4}},
+    {{1, 4, 4}}
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes_pass_mcm = {
