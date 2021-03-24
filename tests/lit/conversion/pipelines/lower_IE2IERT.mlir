@@ -7,7 +7,6 @@
 //   * Changes all Values types from `tensor` to `memref`.
 //   * Changes Function results tensors to arguments.
 //   * Inserts `linalg.copy` for `IERT.Constant` as result case.
-//   * Inserts `memref.dealloc` Operations for inner buffers.
 //
 
 // CHECK: func @SingleLayer([[ARG0:%.*]]: memref<1x1000xf16>, [[ARG1:%.*]]: memref<1x1000xf16>) {
@@ -15,7 +14,9 @@ func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %0 = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %0 : tensor<1x1000xf16>
 
-    // CHECK: IERT.SoftMax([[ARG0]], [[ARG1]]) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16>
+    // CHECK: [[VAR0:%.*]] = memref.alloc() : memref<1x1000xf16>
+    // CHECK: IERT.SoftMax([[ARG0]], [[VAR0]]) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16>
+    // CHECK: linalg.copy([[VAR0]], [[ARG1]]) : memref<1x1000xf16>, memref<1x1000xf16>
     // CHECK: return
 }
 
@@ -63,6 +64,5 @@ func @ReshapeInGraph(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512x1x1xf32> {
     // CHECK: IERT.SoftMax([[VAR0]], [[VAR1]]) {axisInd = 1 : i32} : memref<1x512xf32>, memref<1x512xf32>
     // CHECK: [[VAR2:%.*]] = linalg.reshape [[VAR1]] [#map0, #map1] : memref<1x512xf32> into memref<1x512x1x1xf32>
     // CHECK: linalg.copy([[VAR2]], [[ARG1]]) : memref<1x512x1x1xf32>, memref<1x512x1x1xf32>
-    // CHECK: memref.dealloc [[VAR1]] : memref<1x512xf32>
     // CHECK: return
 }

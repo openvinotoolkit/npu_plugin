@@ -43,18 +43,12 @@ namespace vpux {
 
 void buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
-std::unique_ptr<mlir::Pass> createConvertIE2IERTPass(Logger log = Logger::global());
-
 //
-// Performs full lowering from IERT Dialect to VPUIP Dialect.
-//
-// This pipeline performs full IR lowering from IERT Dialect to VPUIP Dialect,
-// including Module level Operations.
+// Passes
 //
 
-void buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
-
-std::unique_ptr<mlir::Pass> createConvertIERT2VPUIPPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createBufferizeIEPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createLowerIERT2VPUIPPass(Logger log = Logger::global());
 
 //
 // Registration

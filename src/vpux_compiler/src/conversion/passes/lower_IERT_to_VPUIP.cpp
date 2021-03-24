@@ -33,12 +33,12 @@ namespace {
 #include <vpux/compiler/conversion/rewriters/generated/convert_IERT2VPUIP.hpp.inc>
 
 //
-// ConvertIERT2VPUIPPass
+// LowerIERT2VPUIPPass
 //
 
-class ConvertIERT2VPUIPPass final : public ConvertIERT2VPUIPBase<ConvertIERT2VPUIPPass> {
+class LowerIERT2VPUIPPass final : public LowerIERT2VPUIPBase<LowerIERT2VPUIPPass> {
 public:
-    explicit ConvertIERT2VPUIPPass(Logger log) {
+    explicit LowerIERT2VPUIPPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -56,7 +56,7 @@ private:
 // ConstantRewrite
 //
 
-class ConvertIERT2VPUIPPass::ConstantRewrite final : public mlir::OpRewritePattern<IERT::ConstantOp> {
+class LowerIERT2VPUIPPass::ConstantRewrite final : public mlir::OpRewritePattern<IERT::ConstantOp> {
 public:
     ConstantRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::ConstantOp>(ctx), _log(log) {
     }
@@ -68,8 +68,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertIERT2VPUIPPass::ConstantRewrite::matchAndRewrite(IERT::ConstantOp origOp,
-                                                                            mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult LowerIERT2VPUIPPass::ConstantRewrite::matchAndRewrite(IERT::ConstantOp origOp,
+                                                                          mlir::PatternRewriter& rewriter) const {
     _log.trace("Found Constant Operation '{0}'", origOp->getLoc());
 
     rewriter.replaceOpWithNewOp<VPUIP::DeclareConstantTensorOp>(origOp, origOp.getType(), origOp.value());
@@ -82,7 +82,7 @@ mlir::LogicalResult ConvertIERT2VPUIPPass::ConstantRewrite::matchAndRewrite(IERT
 // FakeQuantizeRewrite
 //
 
-class ConvertIERT2VPUIPPass::FakeQuantizeRewrite final : public mlir::OpRewritePattern<IERT::FakeQuantizeOp> {
+class LowerIERT2VPUIPPass::FakeQuantizeRewrite final : public mlir::OpRewritePattern<IERT::FakeQuantizeOp> {
 public:
     FakeQuantizeRewrite(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<IERT::FakeQuantizeOp>(ctx), _log(log) {
@@ -95,8 +95,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(IERT::FakeQuantizeOp origOp,
-                                                                                mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult LowerIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(IERT::FakeQuantizeOp origOp,
+                                                                              mlir::PatternRewriter& rewriter) const {
     _log.trace("Found FakeQuantize Operation '{0}'", origOp->getLoc());
 
     auto inLowConst = origOp.input_low().getDefiningOp<ConstantInterface>();
@@ -120,7 +120,7 @@ mlir::LogicalResult ConvertIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(
 // ReshapeRewrite
 //
 
-class ConvertIERT2VPUIPPass::ViewLikeRewrite final : public mlir::RewritePattern {
+class LowerIERT2VPUIPPass::ViewLikeRewrite final : public mlir::RewritePattern {
 public:
     ViewLikeRewrite(IE::CNNNetworkOp netInfo, mlir::FuncOp netFunc, Logger log)
             : mlir::RewritePattern(MatchAnyOpTypeTag{}, 1, netInfo.getContext()),
@@ -138,8 +138,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::Operation* origOp,
-                                                                            mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::Operation* origOp,
+                                                                          mlir::PatternRewriter& rewriter) const {
     auto view = mlir::cast<mlir::ViewLikeOpInterface>(origOp);
     if (view == nullptr) {
         return mlir::failure();
@@ -213,7 +213,7 @@ mlir::LogicalResult ConvertIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir
 // CheckUnsupportedTile
 //
 
-class ConvertIERT2VPUIPPass::CheckUnsupportedTile final : public mlir::OpRewritePattern<IERT::TileOp> {
+class LowerIERT2VPUIPPass::CheckUnsupportedTile final : public mlir::OpRewritePattern<IERT::TileOp> {
 public:
     CheckUnsupportedTile(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::TileOp>(ctx), _log(log) {
     }
@@ -225,8 +225,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertIERT2VPUIPPass::CheckUnsupportedTile::matchAndRewrite(IERT::TileOp origOp,
-                                                                                 mlir::PatternRewriter&) const {
+mlir::LogicalResult LowerIERT2VPUIPPass::CheckUnsupportedTile::matchAndRewrite(IERT::TileOp origOp,
+                                                                               mlir::PatternRewriter&) const {
     _log.trace("Found TileOp Operation '{0}'", origOp->getLoc());
     (void)errorAt(origOp, "Tile operation desn't introduced in VPUIP dialect. All TileOp's should be replaced with "
                           "PerAxisTileOp. Please, make shure that `convert-tile-to-per-axis-tiles` is enabled");
@@ -237,7 +237,7 @@ mlir::LogicalResult ConvertIERT2VPUIPPass::CheckUnsupportedTile::matchAndRewrite
 // safeRunOnFunc
 //
 
-void ConvertIERT2VPUIPPass::safeRunOnFunc() {
+void LowerIERT2VPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
@@ -275,6 +275,6 @@ void ConvertIERT2VPUIPPass::safeRunOnFunc() {
 // createLowerIERT2VPUIPPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::createConvertIERT2VPUIPPass(Logger log) {
-    return std::make_unique<ConvertIERT2VPUIPPass>(log);
+std::unique_ptr<mlir::Pass> vpux::createLowerIERT2VPUIPPass(Logger log) {
+    return std::make_unique<LowerIERT2VPUIPPass>(log);
 }

@@ -29,26 +29,10 @@ using namespace vpux;
 //
 
 void vpux::buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log) {
-    pm.addPass(createConvertIE2IERTPass(log));
+    pm.addPass(createBufferizeIEPass(log));
     pm.addPass(mlir::createFuncBufferizePass());
     pm.addPass(mlir::createBufferResultsToOutParamsPass());
     pm.addPass(mlir::createFinalizingBufferizePass());
-    pm.addPass(mlir::createBufferDeallocationPass());
-    pm.addPass(mlir::createCopyRemovalPass());
-}
-
-//
-// LowerIERT2VPUIP
-//
-
-void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log) {
-    const auto memSpaceCb = [](mlir::MLIRContext* ctx, StringRef) -> mlir::Attribute {
-        return VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::DDR);
-    };
-
-    pm.addPass(IERT::createSetInternalMemorySpacePass(memSpaceCb, log));
-    pm.addPass(IERT::createStaticAllocationPass(memSpaceCb, log));
-    pm.addPass(createConvertIERT2VPUIPPass(log));
 }
 
 //
@@ -59,10 +43,5 @@ void vpux::registerConversionPipelines() {
     mlir::PassPipelineRegistration<>("lower-IE-to-IERT", "Performs full lowering from the IE Dialect to IERT Dialect",
                                      [](mlir::OpPassManager& pm) {
                                          buildLowerIE2IERTPipeline(pm);
-                                     });
-
-    mlir::PassPipelineRegistration<>("lower-IERT-to-VPUIP", "Performs full lowering from IERT Dialect to VPUIP Dialect",
-                                     [](mlir::OpPassManager& pm) {
-                                         buildLowerIERT2VPUIPPipeline(pm);
                                      });
 }

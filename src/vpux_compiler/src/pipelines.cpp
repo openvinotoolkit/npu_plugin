@@ -18,6 +18,7 @@
 
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include <mlir/Pass/PassManager.h>
@@ -30,13 +31,30 @@ using namespace vpux;
 //
 
 void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
+    const auto ddrMemSpaceCb = [](mlir::MLIRContext* ctx, StringRef) -> mlir::Attribute {
+        return VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::DDR);
+    };
+
+    // IE Dialect level
     pm.addPass(mlir::createCanonicalizerPass());
     IE::buildAdjustForVPUPipeline(pm, log);
     pm.addPass(IE::createUseUserPrecisionPass(log));
     pm.addPass(mlir::createCanonicalizerPass());
     IE::buildLowPrecisionPipeline(pm, log);
+
+    // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
-    buildLowerIERT2VPUIPPipeline(pm, log);
+
+    // IERT Dialect level
+    pm.addPass(mlir::createBufferDeallocationPass());
+    pm.addPass(mlir::createCopyRemovalPass());
+    pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpaceCb, log));
+    pm.addPass(IERT::createStaticAllocationPass(ddrMemSpaceCb, log));
+
+    // Lower IERT->VPUIP
+    pm.addPass(createLowerIERT2VPUIPPass(log));
+
+    // VPUIP Dialect level
     pm.addPass(VPUIP::createAddLinearSchedulingPass(log));
 }
 

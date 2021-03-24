@@ -1,11 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --convert-IERT-to-VPUIP %s | FileCheck %s
-
-//
-// The 'convert-IERT-to-VPUIP' pass:
-//
-//   * Updates only Function inner regions.
-//   * Replaces only Layer Operations and `IERT.StaticAlloc`.
-//
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --lower-IERT-to-VPUIP %s | FileCheck %s
 
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
