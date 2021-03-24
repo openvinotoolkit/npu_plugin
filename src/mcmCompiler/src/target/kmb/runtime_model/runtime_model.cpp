@@ -2729,9 +2729,22 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpolateTask(ComputationMode
 
     // Fill in required params
     softLayerParamsValue->antialias = opIt->get<bool>("antialias");
-    softLayerParamsValue->interpolationMode = interpModeMap.find(mode)->second;
-    softLayerParamsValue->coordTransformMode = coordTransformModeMap.find(coord)->second;
-    softLayerParamsValue->nearestMode = nearestModeMap.find(near)->second;
+
+    const auto interpolateModeIter = interpModeMap.find(mode);
+    if (interpolateModeIter == interpModeMap.end())
+        throw std::runtime_error("interpModeMap map doesn't contain reqested interpolate mode");
+    softLayerParamsValue->interpolationMode = interpolateModeIter->second;
+
+    const auto coordModeIter = coordTransformModeMap.find(coord);
+    if (coordModeIter == coordTransformModeMap.end())
+        throw std::runtime_error("coordTransformModeMap map doesn't contain reqested coordinate transformation mode");
+    softLayerParamsValue->coordTransformMode = coordModeIter->second;
+
+    const auto nearestModeIter = nearestModeMap.find(near);
+    if (nearestModeIter == nearestModeMap.end())
+        throw std::runtime_error("nearestModeMap map doesn't contain reqested nearest mode");
+    softLayerParamsValue->nearestMode = nearestModeIter->second;
+
     softLayerParamsValue->align_corners = softLayerParamsValue->coordTransformMode == coordTransformModeMap.find("align_corners")->second;
 
     // Fill in tensors

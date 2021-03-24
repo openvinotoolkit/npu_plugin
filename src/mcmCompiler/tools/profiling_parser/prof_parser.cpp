@@ -44,5 +44,5 @@ int main(int argc, char** argv)
         std::cout << "Task(" << task.start_layer_id <<"->" << task.end_layer_id << "): " << task.name << " Time: " << task.time << std::endl;
     }
     std::cout << "TotalTime: " << prof_total_info.time << std::endl;
-
+    return 0;
 }
