@@ -1305,9 +1305,23 @@ void convert(std::shared_ptr<ngraph::op::v4::Interpolate> interpolate, mv::OpMod
     const auto& opName = interpolate->get_friendly_name();
     const auto antialias = false;
     const auto& interpolateAttrs = interpolate->get_attrs();
-    const std::string mode  = interpolateMode.find(interpolateAttrs.mode)->second;
-    const std::string coord = coordMode.find(interpolateAttrs.coordinate_transformation_mode)->second;
-    const std::string near  = nearestMode.find(interpolateAttrs.nearest_mode)->second;
+
+    const auto interpolateModeIter = interpolateMode.find(interpolateAttrs.mode);
+    if (interpolateModeIter == interpolateMode.end())
+        THROW_IE_EXCEPTION << "interpolateMode map doesn't contain reqested interpolate mode";
+    const std::string mode  = interpolateModeIter->second;
+
+
+    const auto coordModeIter = coordMode.find(interpolateAttrs.coordinate_transformation_mode);
+    if (coordModeIter == coordMode.end())
+        THROW_IE_EXCEPTION << "coordMode map doesn't contain reqested coordinate transformation mode";
+    const std::string coord  = coordModeIter->second;
+
+    const auto nearestModeIter = nearestMode.find(interpolateAttrs.nearest_mode);
+    if (nearestModeIter == nearestMode.end())
+        THROW_IE_EXCEPTION << "nearestMode map doesn't contain reqested nearest mode";
+    const std::string near  = nearestModeIter->second;
+
     const auto align_corners = (coord == "align_corners");
 
     mv::Shape output_shape = getWHCN(interpolate->get_output_shape(0));
