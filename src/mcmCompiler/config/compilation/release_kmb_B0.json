@@ -5,7 +5,9 @@
                 "name" : "GlobalConfigParams",
                 "recorded_model": false,
                 "recordWeightsAsText": false,
-                "referenceDevice": "B0",
+                "referenceDevice": "A0",
+                "systemClockMhz" : 500,
+                "memoryBandwidth" : 16,
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "WorkloadCost": 300,
@@ -13,6 +15,8 @@
                 "cmx": 917504,
                 "enable_channel_major_conv": true,
                 "HuffmanCompression": false,
+                "DPUTasksinFloat": false,
+                "RemovePermuteNoOp": true,
                 "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
                 "Int32Output": false,
@@ -21,9 +25,9 @@
                 "PWLUsage": true,
                 "ReferenceMode": false,
                 "enableStreaming": true,
-                "enablePipelining": false,
+                "enablePipelining": true,
                 "enablePrefetching": true,
-                "enableWeightsSparsity": false,
+                "enableWeightsSparsity": true,
                 "enableStaticBarriers": true,
                 "real_physical_barriers": 32,
                 "barrier_bound": 16
@@ -31,5 +35,5 @@
         ]
     },
 
-    "@MERGE@": "@FILE@/base/release_kmb_base_B0.json"
+    "@MERGE@": "@FILE@/base/release_kmb_base_A0.json"
 }
