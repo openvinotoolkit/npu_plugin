@@ -42,7 +42,7 @@ static void AssignPhysicalBarrierFcn(const mv::pass::PassEntry&, mv::Computation
         mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeSimulator",
                         "Finished Runtime Simulation: Pass");
       } else {
-        mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeSimulator",
+        mv::Logger::log(mv::Logger::MessageType::Error, "RuntimeSimulator",
                         "Finished Runtime Simulation: Fail");
         throw "Failed to pass runtime simulation\n";
       }

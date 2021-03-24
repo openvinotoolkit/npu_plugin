@@ -200,6 +200,7 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "CombineTaskInputBarriers",
             "SplitBarrier",
             {
                 "name" : "AssignPhysicalBarrier",
