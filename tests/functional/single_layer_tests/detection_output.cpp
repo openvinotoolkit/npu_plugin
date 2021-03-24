@@ -551,8 +551,7 @@ const auto params3Inputs = ::testing::Combine(
 // TODO [Track number: C#48015]
 #ifndef WIN32
 
-// TODO: [Track number: C#40001]
-TEST_P(KmbDetectionOutputLayerTest, DISABLED_CompareWithRefs) {
+TEST_P(KmbDetectionOutputLayerTest, CompareWithRefs) {
     Run();
 };
 
