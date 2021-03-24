@@ -123,7 +123,10 @@ mlir::LogicalResult ConvertIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(
 class ConvertIERT2VPUIPPass::ViewLikeRewrite final : public mlir::RewritePattern {
 public:
     ViewLikeRewrite(IE::CNNNetworkOp netInfo, mlir::FuncOp netFunc, Logger log)
-            : mlir::RewritePattern(1, MatchAnyOpTypeTag{}), _netInfo(netInfo), _netFunc(netFunc), _log(log) {
+            : mlir::RewritePattern(MatchAnyOpTypeTag{}, 1, netInfo.getContext()),
+              _netInfo(netInfo),
+              _netFunc(netFunc),
+              _log(log) {
     }
 
 public:

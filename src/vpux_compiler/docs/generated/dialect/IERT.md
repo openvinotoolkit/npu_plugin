@@ -828,15 +828,15 @@ operation ::= `IERT.SoftMax` `(` operands `)` attr-dict `:` type(operands)
 `input` | memref of 16-bit float or 32-bit float values
 `output` | memref of 16-bit float or 32-bit float values
 
-### `IERT.SquaredDiff` (vpux::IERT::SquaredDiffOp)
+### `IERT.SquaredDifference` (vpux::IERT::SquaredDifferenceOp)
 
-InferenceEngine run-time SquaredDiff layer
+InferenceEngine run-time SquaredDifference layer
 
 
 Syntax:
 
 ```
-operation ::= `IERT.SquaredDiff` `(` operands `)` attr-dict `:` type(operands)
+operation ::= `IERT.SquaredDifference` `(` operands `)` attr-dict `:` type(operands)
 ```
 
 
@@ -960,5 +960,6 @@ operation ::= `IERT.Transpose` `(` operands `)` attr-dict `:` type(operands)
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float or 32-bit float values
+`order` | memref of 64-bit signed integer values
 `output` | memref of 16-bit float or 32-bit float values
 

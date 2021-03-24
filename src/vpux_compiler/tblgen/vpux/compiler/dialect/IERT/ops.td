@@ -747,19 +747,19 @@ def IERT_DivideOp :
 }
 
 //
-// SquaredDiffOp
+// SquaredDifferenceOp
 //
 
-def IERT_SquaredDiffOp :
+def IERT_SquaredDifferenceOp :
         IERT_LayerOp<
-            "SquaredDiff",
+            "SquaredDifference",
             [
                 SameOperandsElementType,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<EltwiseLayerInterface>
             ]
         > {
-    let summary = "InferenceEngine run-time SquaredDiff layer";
+    let summary = "InferenceEngine run-time SquaredDifference layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
@@ -1080,7 +1080,7 @@ def IERT_ROIPoolingOp :
 }
 
 //
-// FullyConnected
+// FullyConnectedOp
 //
 
 def IERT_FullyConnectedOp:
@@ -1117,6 +1117,7 @@ def IERT_TransposeOp :
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
+        Optional<MemRefOf<[SI64]>>:$order,
         MemRefOf<[F16, F32]>:$output,
 
         AffineMapAttr:$order_value

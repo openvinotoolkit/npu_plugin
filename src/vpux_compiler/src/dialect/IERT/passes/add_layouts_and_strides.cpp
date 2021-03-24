@@ -47,8 +47,8 @@ private:
 
 class AddLayoutsAndStridesPass::GenericOpConverter final : public mlir::ConversionPattern {
 public:
-    GenericOpConverter(mlir::TypeConverter& typeConverter, Logger log)
-            : mlir::ConversionPattern(1 /*benefit*/, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
+    GenericOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::ConversionPattern(typeConverter, MatchAnyOpTypeTag{}, benefitHigh, ctx), _log(log) {
     }
 
 public:
@@ -142,7 +142,7 @@ void AddLayoutsAndStridesPass::safeRunOnModule() {
 
     mlir::RewritePatternSet patterns(&ctx);
     mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
-    patterns.insert<GenericOpConverter>(typeConverter, _log);
+    patterns.insert<GenericOpConverter>(typeConverter, &ctx, _log);
 
     auto module = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {

@@ -62,8 +62,8 @@ private:
 
 class ConvertShapeTo4DPass::GenericOpConverter final : public mlir::ConversionPattern {
 public:
-    GenericOpConverter(mlir::TypeConverter& shapeConverter, Logger log)
-            : mlir::ConversionPattern(1 /*benefit*/, shapeConverter, MatchAnyOpTypeTag{}), _log(log) {
+    GenericOpConverter(mlir::TypeConverter& shapeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::ConversionPattern(shapeConverter, MatchAnyOpTypeTag{}, benefitHigh, ctx), _log(log) {
     }
 
 public:
@@ -150,7 +150,7 @@ void ConvertShapeTo4DPass::safeRunOnModule() {
 
     mlir::RewritePatternSet patterns(&ctx);
     mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
-    patterns.insert<GenericOpConverter>(typeConverter, _log);
+    patterns.insert<GenericOpConverter>(typeConverter, &ctx, _log);
     mlir::linalg::TensorReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto module = getOperation();
