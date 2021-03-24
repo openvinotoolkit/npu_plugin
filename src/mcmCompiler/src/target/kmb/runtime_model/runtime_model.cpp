@@ -3674,6 +3674,26 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAGeluTask(mv::ComputationModel &c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAExpTask(mv::ComputationModel &cm,
+                                                        mv::Element &compilationDescriptor,
+                                                        mv::Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_ExpParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -3951,6 +3971,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAErfTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Gelu")
         toReturn[0]->task.value = buildUPAGeluTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Exp")
+        toReturn[0]->task.value = buildUPAExpTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Conversion")
         toReturn[0]->task.value = buildUPAConversionTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Relu")
