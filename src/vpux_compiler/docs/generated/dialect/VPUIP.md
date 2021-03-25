@@ -741,6 +741,39 @@ operation ::= `VPUIP.PerAxisTileUPA` attr-dict
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 
+### `VPUIP.PermuteUPA` (vpux::VPUIP::PermuteUPAOp)
+
+Permute UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.PermuteUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output `:` type($output) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`order_value` | ::mlir::AffineMapAttr | AffineMap attribute
+`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
 ### `VPUIP.PoolingUPA` (vpux::VPUIP::PoolingUPAOp)
 
 MAX and AVG Pooling UPA SHAVE kernel

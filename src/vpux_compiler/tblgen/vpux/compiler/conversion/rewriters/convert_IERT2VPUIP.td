@@ -491,4 +491,20 @@ def RewriteROIPooling :
             (createROIPoolingUPAOp $input, $coords, $output, $output_size, $spatial_scale, $method)
         >;
 
+//
+// IERT.Transpose -> VPUIP.Permute
+//
+
+def createPermuteUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PermuteUPAOp>(
+                $_loc, $0, $1, $2)
+        }]>;
+
+def RewriteTranspose :
+        Pat<
+            (IERT_TransposeOp $input, $output, $order_value),
+            (createPermuteUPAOp $input, $output, $order_value)
+        >;
+
 #endif

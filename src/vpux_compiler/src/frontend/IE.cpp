@@ -707,10 +707,11 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Transpose>& origNode) {
     const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() <= 2, "nGraph Transpose node '{0}' has unsupported number of inputs '{1}'",
+
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Transpose node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto op = builder.create<IE::TransposeOp>(createLocation(origNode), inputs[0], inputs[1]);
+    auto op = builder.create<IE::TransposeOp>(createLocation(origNode), inputs[0], inputs[1], nullptr);
     addOutputs(origNode, op);
 }
 
