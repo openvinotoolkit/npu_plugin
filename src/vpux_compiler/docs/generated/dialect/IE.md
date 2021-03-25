@@ -1652,12 +1652,18 @@ operation ::= `IE.Transpose` `(` operands `)` attr-dict `:` type(operands) `->` 
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`order_value` | ::mlir::AffineMapAttr | AffineMap attribute
+
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`order` | ranked tensor of integer values
+`order` | ranked tensor of 64-bit signed integer values
 
 #### Results:
 

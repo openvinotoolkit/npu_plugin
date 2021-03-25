@@ -657,4 +657,30 @@ def ROIPoolingLayerInterface : OpInterface<"ROIPoolingLayerInterface"> {
         }
     }];
 }
+
+//
+// TransposeLayerInterface
+//
+
+def TransposeLayerInterface : OpInterface<"TransposeLayerInterface"> {
+    let description = "Interface for Transpose Layer";
+
+    let cppNamespace = "vpux";
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            if ($_op.order() != nullptr) {
+                return {$_op.input(), $_op.order()};
+            }
+            else {
+                return {$_op.input()};
+            }
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
+}
+
 #endif

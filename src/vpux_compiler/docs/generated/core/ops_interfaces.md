@@ -307,3 +307,7 @@ NOTE: This method *must* be implemented by the user.
 
 Interface for Swish Layer
 ### Methods:
+## TransposeLayerInterface (`TransposeLayerInterface`)
+
+Interface for Transpose Layer
+### Methods:

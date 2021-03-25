@@ -1107,4 +1107,25 @@ def IERT_FullyConnectedOp:
     );
 }
 
+//
+// TransposeOp
+//
+
+def IERT_TransposeOp :
+        IERT_LayerOp<
+            "Transpose",
+            [
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time Transpose layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output,
+
+        AffineMapAttr:$order_value
+    );
+}
+
 #endif

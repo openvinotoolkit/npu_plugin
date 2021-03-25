@@ -60,7 +60,8 @@ Bypass related preparations
 `sudo apt-get install -y clang-format-9`
 
 ### Code style
-Build target `clang_format_fix_all` to fix code style issues.
+* Set CMake option `-D CLANG_FORMAT=/usr/bin/clang-format-9`
+* Build target `clang_format_fix_all` to fix code style issues.
 
 ### Developer build
 

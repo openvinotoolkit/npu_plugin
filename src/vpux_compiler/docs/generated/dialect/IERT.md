@@ -942,3 +942,28 @@ operation ::= `IERT.Tile` `(` operands `)` attr-dict `:` type(operands)
 `repeats` | memref of 64-bit signed integer values
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Transpose` (vpux::IERT::TransposeOp)
+
+InferenceEngine run-time Transpose layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Transpose` `(` operands `)` attr-dict `:` type(operands)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`order_value` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output` | memref of 16-bit float or 32-bit float values
+
