@@ -1,6 +1,6 @@
 # Debugging Technics
 
-Some of the Debugging Technics works only in Developer Build mode.
+**Note:** Some of the Debugging Technics works only in Developer Build mode.
 To turn it on add `-D ENABLE_DEVELOPER_BUILD=ON` CMake option to the plugin build.
 
 ## vpux-translate and vpu-opt Tools
@@ -10,7 +10,7 @@ These two tools can be used to call specific parts of the compiler (frontend, ba
 `vpux-translate` is a CMD wrapper for compiler frontend and backend.
 It allows to:
 
-* Convert InferenceEngine XML IR to MLIR (`vpux-translate --import-IE <path to xml> -o <MLIR file name>`).
+* Convert InferenceEngine XML IR to MLIR in **IE Dialect** (`vpux-translate --import-IE <path to xml> -o <MLIR file name>`).
 * Convert MLIR in **VPUIP Dialect** (`vpux-translate --export-VPUIP <path to MLIR file> -o <graph blob file name>`).
 
 `vpux-opt` is a CMD wrapper for compiler passes.

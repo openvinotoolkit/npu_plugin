@@ -2,7 +2,18 @@
 # 'VPUIP' Dialect
 
 VPU NN RunTime Dialect
-The `VPUIP` Dialect represents NN RunTime IR in terms of MLIR framework.
+The **VPUIP Dialect** represents NN RunTime IR in terms of MLIR framework.
+
+It allows to work with the graph schema inside MLIR framework:
+
+* Validate it.
+* Perform additional low level transformations/optimizations.
+
+It handles such VPU-specifics as:
+
+* Memory/executors hierarchy.
+* HW barriers notion.
+* Supported operation set.
 
 [TOC]
 
