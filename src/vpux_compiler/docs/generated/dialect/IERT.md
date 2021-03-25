@@ -256,18 +256,6 @@ operation ::= `IERT.Elu` `(` operands `)` attr-dict `:` type(operands)
 `input` | memref of 16-bit float or 32-bit float values
 `output` | memref of 16-bit float or 32-bit float values
 
-### `IERT.End` (vpux::IERT::EndOp)
-
-End indicator for IERT resources section
-
-
-Syntax:
-
-```
-operation ::= `IERT.End` attr-dict
-```
-
-
 ### `IERT.ExecutorResource` (vpux::IERT::ExecutorResourceOp)
 
 Information about executor resource

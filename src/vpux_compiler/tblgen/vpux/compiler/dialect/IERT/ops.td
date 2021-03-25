@@ -26,6 +26,7 @@ include "vpux/compiler/dialect/IE/attributes.td"
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/IR/RegionKindInterface.td"
 
 //
 // Base classes
@@ -65,9 +66,9 @@ def IERT_RunTimeResourcesOp :
             [
                 IsolatedFromAbove,
                 HasParent<"mlir::ModuleOp">,
-                SingleBlockImplicitTerminator<"vpux::IERT::EndOp">,
                 NoRegionArguments
             ]
+            # GraphRegionNoTerminator.traits
         > {
     let summary = "Definition of run-time resources";
 
@@ -162,9 +163,9 @@ def IERT_ExecutorResourceOp :
             "ExecutorResource",
             [
                 ParentOneOf<["vpux::IERT::ExecutorResourceOp","vpux::IERT::RunTimeResourcesOp"]>,
-                SingleBlockImplicitTerminator<"vpux::IERT::EndOp">,
                 NoRegionArguments
             ]
+            # GraphRegionNoTerminator.traits
         > {
     let summary = "Information about executor resource";
 
@@ -198,25 +199,6 @@ def IERT_ExecutorResourceOp :
         $count `of` $kind
         $subExecutors
     }];
-}
-
-//
-// EndOp
-//
-
-def IERT_EndOp :
-        IERT_Op<
-            "End",
-            [
-                NoSideEffect,
-                Terminator,
-                NativeOpTrait<"ReturnLike">,
-                ParentOneOf<["vpux::IERT::RunTimeResourcesOp","vpux::IERT::ExecutorResourceOp"]>
-            ]
-        > {
-    let summary = "End indicator for IERT resources section";
-
-    let assemblyFormat = "attr-dict";
 }
 
 //

@@ -25,6 +25,7 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 
 //
@@ -66,10 +67,10 @@ def IE_CNNNetworkOp :
             [
                 IsolatedFromAbove,
                 HasParent<"mlir::ModuleOp">,
-                SingleBlockImplicitTerminator<"vpux::IE::EndOp">,
                 NoRegionArguments,
                 DeclareOpInterfaceMethods<SymbolUserOpInterface>
             ]
+            # GraphRegionNoTerminator.traits
         > {
     let summary = "InferenceEngine CNN Network description";
 
@@ -155,25 +156,6 @@ def IE_DataInfoOp :
     let verifier = [{
         return vpux::IE::verifyOp(*this);
     }];
-}
-
-//
-// EndOp
-//
-
-def IE_EndOp :
-        IE_Op<
-            "End",
-            [
-                NoSideEffect,
-                Terminator,
-                NativeOpTrait<"ReturnLike">,
-                HasParent<"vpux::IE::CNNNetworkOp">
-            ]
-        > {
-    let summary = "End indicator for IE CNNNetwork inputs/outputs info lists";
-
-    let assemblyFormat = "attr-dict";
 }
 
 //

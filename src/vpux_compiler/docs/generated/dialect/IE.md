@@ -414,18 +414,6 @@ operation ::= `IE.Elu` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
-### `IE.End` (vpux::IE::EndOp)
-
-End indicator for IE CNNNetwork inputs/outputs info lists
-
-
-Syntax:
-
-```
-operation ::= `IE.End` attr-dict
-```
-
-
 ### `IE.Exp` (vpux::IE::ExpOp)
 
 InferenceEngine Exp layer

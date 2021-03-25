@@ -263,10 +263,10 @@ void LowerIERT2VPUIPPass::safeRunOnFunc() {
     target.addIllegalDialect<IE::IEDialect>();
     target.addIllegalDialect<IERT::IERTDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
-    target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp, IE::EndOp>();
+    target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp>();
     target.addLegalOp<IERT::RunTimeResourcesOp, IERT::MemoryResourceOp, IERT::ExecutorResourceOp>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
-    target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
+    target.addLegalOp<mlir::ModuleOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ConstantRewrite>(&ctx, _log);

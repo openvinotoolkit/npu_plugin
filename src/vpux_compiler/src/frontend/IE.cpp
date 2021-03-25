@@ -1290,8 +1290,8 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
 
     auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(ctx), mainFuncName);
-    IE::CNNNetworkOp::ensureTerminator(cnnOp.inputsInfo(), builder, cnnOp.getLoc());
-    IE::CNNNetworkOp::ensureTerminator(cnnOp.outputsInfo(), builder, cnnOp.getLoc());
+    cnnOp.inputsInfo().emplaceBlock();
+    cnnOp.outputsInfo().emplaceBlock();
 
     auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), &builderLog);
     for (const auto& param : netGraph->get_parameters()) {

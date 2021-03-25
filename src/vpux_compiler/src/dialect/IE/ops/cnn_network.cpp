@@ -115,21 +115,11 @@ mlir::LogicalResult verifyDataInfoRegion(mlir::Operation* op, mlir::Region& regi
     }
 
     auto& allOps = region.front().getOperations();
-    const auto totalNumOps = allOps.size();
 
-    for (auto&& p : allOps | indexed) {
-        auto& infoOp = p.value();
-
-        if (static_cast<size_t>(p.index()) == totalNumOps - 1) {
-            if (!mlir::isa<IE::EndOp>(infoOp)) {
-                return errorAt(op, "'{0}' Region must end with Terminator '{1}', got '{2}'", regionName,
-                               IE::EndOp::getOperationName(), infoOp.getName());
-            }
-        } else {
-            if (!mlir::isa<IE::DataInfoOp>(infoOp)) {
-                return errorAt(op, "'{0}' Region must contain only DataInfo operations, got '{1}'", regionName,
-                               infoOp.getName());
-            }
+    for (auto& infoOp : allOps) {
+        if (!mlir::isa<IE::DataInfoOp>(infoOp)) {
+            return errorAt(op, "'{0}' Region must contain only DataInfo operations, got '{1}'", regionName,
+                           infoOp.getName());
         }
     }
 
@@ -171,8 +161,7 @@ mlir::LogicalResult vpux::IE::verifyOp(CNNNetworkOp op) {
 }
 
 size_t vpux::IE::CNNNetworkOp::getNetInputsCount() {
-    // -1 to exclude Block Terminator
-    return inputsInfo().front().getOperations().size() - 1;
+    return inputsInfo().front().getOperations().size();
 }
 
 SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getInputsInfo() {
@@ -180,8 +169,7 @@ SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getInputsInfo() {
 }
 
 size_t vpux::IE::CNNNetworkOp::getNetOutputsCount() {
-    // -1 to exclude Block Terminator
-    return outputsInfo().front().getOperations().size() - 1;
+    return outputsInfo().front().getOperations().size();
 }
 
 SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getOutputsInfo() {
