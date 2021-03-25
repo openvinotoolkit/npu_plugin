@@ -399,27 +399,7 @@ Benefit computeBenefit(const mv::LogSender& logger,
 // assignments.
 unsigned setTensorIndex(const mv::LogSender& logger, unsigned numClusters, TensorInfo* ti, unsigned idx)
 {
-    // N.B. This is essentially duplicating the logic for
-    // graphFileIndex assignment used in allocate_memory_kmb.
-    if (ti->tensor->hasAttr("splitStrategy")
-        && !ti->tensor->hasAttr("weightTable")
-        && !ti->tensor->hasAttr("sparsityMap")
-        && ti->tensor->get<std::string>("splitStrategy") == "SplitOverK")
-    {
-        for (unsigned j = 0; j < numClusters; ++j)
-        {
-            logger.log(mv::Logger::MessageType::Debug,
-                       "Setting graphFileIndex (dense SplitOverK " + to_string(j)
-                       + " of " + ti->tensor->getLogID() + "): " + to_string(idx));
-            ti->tensor->getSubTensor(j).set<unsigned>("graphFileIndex", idx++);
-        }
-    }
-    else
-    {
-        logger.log(mv::Logger::MessageType::Debug,
-                   "Setting graphFileIndex (fallback " + ti->tensor->getLogID() + "): " + to_string(idx));
         ti->tensor->set<unsigned>("graphFileIndex", idx++);
-    }
     ti->updatedGraphfileIndex = true;
     return idx;
 }
@@ -471,6 +451,7 @@ void layoutDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
     unsigned numClusters = dataModel.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     mv::ControlModel controlModel(model);
+
     auto ops = controlModel.schedulingSort();
 
     // The goal of this pass is to determine a set of weight tensors
@@ -608,14 +589,48 @@ void layoutDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
     std::list<TensorInfo> tensorInfos;
     std::unordered_map<mv::Tensor*, TensorInfo*> tensorInfoMap;
 
-    for (auto t = model.tensorBegin(); t != model.tensorEnd(); ++t)
-    {
-        if (!t->hasAttr("allocators") || !t->get<std::set<std::string>>("allocators").count("GraphFile"))
-        {
-            continue;
-        }
-        auto it = tensorInfos.emplace(tensorInfos.end(), TensorInfo{&*t, t->computeTotalSize()});
+    auto addToTensorInfoMap = [&](mv::Tensor* t){
+        auto it = tensorInfos.emplace(tensorInfos.end(), TensorInfo{t, t->computeTotalSize()});
         tensorInfoMap[&*t] = &*it;
+    };
+
+    for (auto& opInfo : opInfos)
+    {
+        // For tensor selection, determine the exact set of tensors that will be
+        // stored in the graphfile according to the logic in buildGraphFile.
+        std::string opType = opInfo.op->getOpType();
+        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
+        {
+            auto tIt = opInfo.op->getOutputTensor(0);
+
+            if (tIt->isSparse())
+            {
+                auto sparsityMapIterator = dataModel.getTensor(tIt->getSparsityMap()->getName());
+                addToTensorInfoMap(&(*sparsityMapIterator));
+                if (tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                {
+                    for (size_t i = 0; i < numClusters; ++i)
+                    {
+                        addToTensorInfoMap(&(tIt->getSubTensor(i)));
+                    }
+                }
+                else
+                {
+                    addToTensorInfoMap(&(*tIt));
+                }
+            }
+            else if (tIt->isAllocatedPerCluster())
+            {
+                for(size_t i = 0; i < numClusters; ++i)
+                {
+                    addToTensorInfoMap(&(tIt->getSubTensor(i)));
+                }
+            }
+            else
+            {
+                addToTensorInfoMap(&(*tIt));
+            }
+        }
     }
 
     for (auto& opInfo : opInfos)
