@@ -18,7 +18,6 @@
 #include <gtest/gtest.h>
 
 #include <vpux_infer_request.h>
-#include <vpu/utils/perf_report.hpp>
 #include <vpual_config.hpp>
 #include <vpux.hpp>
 #include <vpux_private_config.hpp>

@@ -28,7 +28,6 @@
 #include <map>
 #include <utility>
 #include <vector>
-#include <vpu/utils/extra.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/enums.hpp>

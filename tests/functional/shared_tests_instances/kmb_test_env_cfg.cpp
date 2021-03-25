@@ -4,9 +4,10 @@
 
 #include "kmb_test_env_cfg.hpp"
 
+#include <details/ie_exception.hpp>
+
 #include <cstdlib>
 #include <stdexcept>
-#include <vpu/utils/error.hpp>
 
 namespace LayerTestsUtils {
 

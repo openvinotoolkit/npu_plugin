@@ -7,8 +7,8 @@
 
 namespace vpu {
 
-SmallVector<std::string> deduceKernelArguments(const pugi::xml_node& node) {
-    auto arguments = SmallVector<std::string>{};
+std::vector<std::string> deduceKernelArguments(const pugi::xml_node& node) {
+    auto arguments = std::vector<std::string>{};
     for (const auto& child : node.child("Parameters")) {
         arguments.push_back(XMLParseUtils::GetStrAttr(child, "arg-name"));
     }

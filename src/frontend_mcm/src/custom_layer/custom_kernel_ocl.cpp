@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <xml_parse_utils.h>
+#include "custom_layer/custom_kernel.hpp"
 
+#include "custom_layer/ShaveElfMetadataParser.hpp"
+
+#include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/helper_macros.hpp"
+
+#include <xml_parse_utils.h>
 #include <caseless.hpp>
-#include <custom_layer/ShaveElfMetadataParser.hpp>
-#include <custom_layer/custom_kernel.hpp>
-#include <vpu/utils/error.hpp>
-#include <vpu/utils/extra.hpp>
 
 namespace vpu {
 
@@ -17,7 +19,7 @@ struct Argument final {
     uint32_t typeSize;
 };
 
-VPU_PACKED(Elf32Shdr {
+VPUX_PACKED(Elf32Shdr {
     uint32_t shName;
     uint32_t pad0[3];
     uint32_t shOffset;
@@ -25,7 +27,7 @@ VPU_PACKED(Elf32Shdr {
     uint32_t pad1[4];
 };)
 
-VPU_PACKED(Elf32Ehdr {
+VPUX_PACKED(Elf32Ehdr {
     uint32_t pad0[7];
     uint32_t ePhoff;
     uint32_t eShoff;
@@ -72,17 +74,17 @@ static const Elf32Shdr* get_elf_section_with_name(const uint8_t* elf_data, const
     return nullptr;
 }
 
-SmallVector<Argument> deduceKernelArguments(const md_parser_t& parser, int kernelId) {
+std::vector<Argument> deduceKernelArguments(const md_parser_t& parser, int kernelId) {
     const auto kernelDesc = parser.get_kernel(kernelId);
     IE_ASSERT(kernelDesc != nullptr);
     // Number of elements we get from parser is always greater by one
     const auto argCount = kernelDesc->arg_count - 1;
 
-    auto arguments = SmallVector<Argument>{};
+    auto arguments = std::vector<Argument>{};
     arguments.reserve(argCount);
     for (size_t i = 0; i < argCount; i++) {
         const auto arg = parser.get_argument(kernelDesc, i);
-        VPU_THROW_UNLESS(arg, "Error while parsing custom layer elf file.");
+        VPUX_THROW_UNLESS(arg, "Error while parsing custom layer elf file.");
         const auto argName = parser.get_name(arg);
 
         // skip hoisted buffers
@@ -99,14 +101,14 @@ SmallVector<Argument> deduceKernelArguments(const md_parser_t& parser, int kerne
 md_parser_t createParser(const std::vector<uint8_t>& kernelBinary) {
     const auto elf = kernelBinary.data();
     const Elf32Shdr* neoMetadataShdr = get_elf_section_with_name(elf, ".neo_metadata");
-    VPU_THROW_UNLESS(neoMetadataShdr, "Error while parsing custom layer elf: Couldn't find .neo_metadata section");
+    VPUX_THROW_UNLESS(neoMetadataShdr, "Error while parsing custom layer elf: Couldn't find .neo_metadata section");
 
     const uint8_t* neoMetadata = elf + neoMetadataShdr->shOffset;
     const size_t neoMetadataSize = neoMetadataShdr->shSize;
 
     const Elf32Shdr* neoMetadataStrShdr = get_elf_section_with_name(elf, ".neo_metadata.str");
-    VPU_THROW_UNLESS(neoMetadataStrShdr,
-                     "Error while parsing custom layer elf: Couldn't find .neo_metadata.str section");
+    VPUX_THROW_UNLESS(neoMetadataStrShdr,
+                      "Error while parsing custom layer elf: Couldn't find .neo_metadata.str section");
 
     const char* neoMetadataStr = reinterpret_cast<const char*>(elf + neoMetadataStrShdr->shOffset);
     const size_t neoMetadataStrSize = neoMetadataStrShdr->shSize;
@@ -124,12 +126,12 @@ CustomKernelOcl::CustomKernelOcl(const pugi::xml_node& node, const std::string& 
     md_parser_t parser = createParser(_kernelBinary);
     const auto kernelEntryName = XMLParseUtils::GetStrAttr(node, "entry");
     _kernelId = parser.get_kernel_id(kernelEntryName);
-    VPU_THROW_UNLESS(_kernelId != -1, "Failed to find kernel with name `%l`", kernelEntryName);
+    VPUX_THROW_UNLESS(_kernelId != -1, "Failed to find kernel with name `{0}`", kernelEntryName);
 
-    VPU_THROW_UNLESS(parser.get_kernel_count() == 1,
-                     "Failed to load kernel binary\n"
-                     "\tReason: binary should contain only one kernel, but contains %l",
-                     parser.get_kernel_count());
+    VPUX_THROW_UNLESS(parser.get_kernel_count() == 1,
+                      "Failed to load kernel binary\n"
+                      "\tReason: binary should contain only one kernel, but contains {0}",
+                      parser.get_kernel_count());
 
     auto arguments = deduceKernelArguments(parser, _kernelId);
     auto bindings = processParametersNode(node);
@@ -143,9 +145,9 @@ CustomKernelOcl::CustomKernelOcl(const pugi::xml_node& node, const std::string& 
         IE_ASSERT(binding != bindings.end());
 
         if (binding->type == CustomParamType::Output && argument.typeSize != 1 && argument.typeSize != 2) {
-            VPU_THROW_EXCEPTION << "Custom layer output parameter '" << argument.name
-                                << "' has unsupported output data type with "
-                                << "underlying type size = " << argument.typeSize;
+            VPUX_THROW("Custom layer output parameter '{0}' has unsupported output data type "
+                       "with underlying type size = {1}",
+                       argument.name, argument.typeSize);
         }
 
         _kernelBindings.push_back(*binding);

@@ -20,7 +20,6 @@
 #include <map>
 #include <string>
 #include <unordered_set>
-#include <vpu/utils/numeric.hpp>
 #include <vpux/vpux_plugin_config.hpp>
 
 #include "vpual_private_config.hpp"

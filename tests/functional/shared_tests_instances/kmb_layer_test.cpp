@@ -12,7 +12,8 @@
 #include "kmb_test_tool.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include <vpu/utils/error.hpp>
+
+#include "vpux/utils/core/format.hpp"
 
 namespace LayerTestsUtils {
 
@@ -48,7 +49,7 @@ void KmbLayerTestsCommon::ExportInput() {
     int i = 0;
     for (const auto &input : executableNetwork.GetInputsInfo()) {
         const auto &info = input.second;
-        const auto ext = vpu::formatString(".%v.%v", info->name(), "in");
+        const auto ext = llvm::formatv(".{0}.{1}", info->name(), "in").str();
         kmbTestTool.exportBlob(inputs[i++],
             filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
@@ -59,7 +60,7 @@ void KmbLayerTestsCommon::ExportOutput() {
     const auto & outputs = GetOutputs();
     for (const auto &output : executableNetwork.GetOutputsInfo()) {
         const auto &info = output.second;
-        const auto ext = vpu::formatString(".%v.%v", info->getName(), "out");
+        const auto ext = llvm::formatv(".{0}.{1}", info->getName(), "out").str();
         kmbTestTool.exportBlob(outputs[i++],
             filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
@@ -70,7 +71,7 @@ void KmbLayerTestsCommon::ImportInput() {
     int i = 0;
     for (const auto &input : executableNetwork.GetInputsInfo()) {
         const auto &info = input.second;
-        const auto ext = vpu::formatString(".%v.%v", info->name(), "in");
+        const auto ext = llvm::formatv(".{0}.{1}", info->name(), "in").str();
         InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info->getTensorDesc());
         blob->allocate();
         kmbTestTool.importBlob(blob,
@@ -91,7 +92,7 @@ void KmbLayerTestsCommon::ExportReference(const std::vector<std::vector<std::uin
                 InferenceEngine::SizeVector{ref.size()},
                 InferenceEngine::Layout::C
             }, const_cast<std::uint8_t*>(&ref[0]), ref.size());
-        const auto ext = vpu::formatString(".%v.%v", name, "ref");
+        const auto ext = llvm::formatv(".{0}.{1}", name, "ref").str();
         kmbTestTool.exportBlob(referenceBlob,
             filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
@@ -109,7 +110,7 @@ void KmbLayerTestsCommon::ImportReference(std::vector<std::vector<std::uint8_t>>
                 InferenceEngine::SizeVector{ref.size()},
                 InferenceEngine::Layout::C
             }, &ref[0], ref.size());
-        const auto ext = vpu::formatString(".%v.%v", name, "ref");
+        const auto ext = llvm::formatv(".{0}.{1}", name, "ref").str();
         kmbTestTool.importBlob(referenceBlob,
             filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
