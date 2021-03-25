@@ -114,11 +114,11 @@ IE.CNNNetwork
 
 func @main(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) {
     %0 = linalg.reshape %arg0 [#map0, #map1] : memref<1x512xf16> into memref<1x512x1x1xf16>
-    %1 = alloc() : memref<1x512x1x1xf16>
+    %1 = memref.alloc() : memref<1x512x1x1xf16>
     IERT.SoftMax(%0, %1) {axisInd = 1 : i32} : memref<1x512x1x1xf16>, memref<1x512x1x1xf16>
     %2 = linalg.reshape %1 [#map0, #map1] : memref<1x512x1x1xf16> into memref<1x512xf16>
     linalg.copy(%2, %arg1) : memref<1x512xf16>, memref<1x512xf16>
-    dealloc %1 : memref<1x512x1x1xf16>
+    memref.dealloc %1 : memref<1x512x1x1xf16>
     return
 
     // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x512x1x1xf16>

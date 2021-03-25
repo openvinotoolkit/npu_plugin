@@ -13,12 +13,7 @@ if(ENABLE_HDDL2_TESTS)
         )
 
     set(HDDL2_LIBS
-            IE::gtest
-            IE::gtest_main
-            IE::IESharedTests
-            HddlUnite
             hddl2_backend_static
-            ${XLINK_LIB}
         )
 else()
     set(EXCLUDED_HDDL2_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hddl2_tests")

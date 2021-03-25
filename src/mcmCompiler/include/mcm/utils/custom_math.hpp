@@ -56,15 +56,19 @@ namespace mv
     uint16_t fp32_to_bf16(float value);
     uint16_t fp32_to_fp16(double value);
     uint16_t fp32_to_bf16(double value);
+
+    /**
+     * @brief Converts fp16 to fp32
+     */
     float fp16_to_fp32(uint16_t value);
 
-    // This is a helper function to get part of vector from equally divided slices
+    // This is a helper function to get part of vector, given start index and size of slice
     template <typename T>
-    T get_part_of_vec(T& vec, unsigned partIndex, unsigned totalNumberOfParts)
+    T get_part_of_vec(T& vec, const unsigned start, const unsigned size)
     {
-        assert(vec.size() % totalNumberOfParts == 0);
-        assert(partIndex < totalNumberOfParts);
-        return T(vec.cbegin() + partIndex * vec.size()/totalNumberOfParts, vec.cbegin() + (partIndex + 1) * vec.size()/totalNumberOfParts);
+        assert(start + size <= vec.size());
+        assert(size != 0);
+        return T(vec.cbegin() + start, vec.cbegin() + start + size);
     }
 }
 

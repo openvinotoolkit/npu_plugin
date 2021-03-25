@@ -912,7 +912,7 @@ int postProcessActualResults(std::vector<std::string>& actualResults, std::strin
 static void getProfilingData(const std::string &data_path)
 {
     std::cout << "Profiling Output" << std::endl;
-    std::string commandline = std::string("cd ") + std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + " && " 
+    std::string commandline = std::string("cd ") + std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + " && "
     + "./prof_parser " + FILE_BLOB_NAME + " " + data_path;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());

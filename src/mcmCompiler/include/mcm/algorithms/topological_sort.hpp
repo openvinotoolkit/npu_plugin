@@ -45,8 +45,9 @@ namespace mv
         MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
         typedef typename graph<T_node, T_edge>::node_list_iterator iterator_t;
 
-        if(!isDAG(g))
-            throw RuntimeError("Algorithm", "Trying to execute topologicalSort on a graph that is not a DAG");
+        // [Track number: S#47419]
+        // if(!isDAG(g))
+        //     throw RuntimeError("Algorithm", "Trying to execute topologicalSort on a graph that is not a DAG");
 
         std::vector<iterator_t> toReturn;
         std::stack<iterator_t> stk;

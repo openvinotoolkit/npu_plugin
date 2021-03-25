@@ -87,7 +87,7 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
                 // weight quant params need to be divided if they are per channel
                 // same as weight tensor is divided along channel axis
-                mv::QuantizationParams weightQuantParamsPart = weightQuantParams.getSlice(branchId, group);
+                mv::QuantizationParams weightQuantParamsPart = weightQuantParams.getSlice(branchId * weightsGroupSize, weightsGroupSize);
 
                 auto weightsSlice = om.slice(weightSliceName,
                                              weightTensor,
@@ -112,14 +112,15 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 {
                     mv::Data::TensorIterator biasSliceTensor;
                     std::vector<mv::DataElement> biasData = biasTensor->getData();
+                    const auto channelSz = outputChannels / group;
 
-                    biasData = get_part_of_vec(biasData, branchId, group);
+                    biasData = get_part_of_vec(biasData, branchId * channelSz, channelSz);
 
-                    biasSliceTensor = dm.defineTensor(biasName + "slice" + std::to_string(branchId), {outputChannels/group}, biasTensor->getDType(), biasTensor->getOrder(), biasData);
+                    biasSliceTensor = dm.defineTensor(biasName + "slice" + std::to_string(branchId), {channelSz}, biasTensor->getDType(), biasTensor->getOrder(), biasData);
 
                     if (biasTensor->isQuantized())
                     {
-                        biasSliceTensor->setQuantParams(biasTensor->getQuantParams().getSlice(branchId, group));
+                        biasSliceTensor->setQuantParams(biasTensor->getQuantParams().getSlice(branchId * channelSz, channelSz));
                     }
 
                     om.addAttr(sliceConvOp, "bias", biasSliceTensor->getName());

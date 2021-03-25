@@ -1,1 +1,1 @@
-tag:ci_tag_vpual_release_21ww10.4.1
+tag:ci_tag_Gold4_vpual_release_21ww12.2.1

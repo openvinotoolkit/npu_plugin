@@ -41,9 +41,8 @@ mlir::Type vpux::VPUIP::VPUIPDialect::parseType(mlir::DialectAsmParser& parser) 
         return nullptr;
     }
 
-    const auto type = generatedTypeParser(getContext(), parser, mnemonic);
-
-    if (type == nullptr) {
+    mlir::Type type;
+    if (!generatedTypeParser(getContext(), parser, mnemonic, type).hasValue()) {
         printTo(parser.emitError(parser.getCurrentLocation()), "Unknown VPUIP Type '{0}'", mnemonic);
     }
 

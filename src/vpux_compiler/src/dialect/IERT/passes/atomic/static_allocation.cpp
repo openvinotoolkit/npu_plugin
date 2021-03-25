@@ -28,6 +28,7 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
+#include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Value.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -84,21 +85,21 @@ void StaticAllocationPass::runOnOperation() {
 // AllocRewrite
 //
 
-class StaticAllocationPass::AllocRewrite final : public mlir::OpRewritePattern<mlir::AllocOp> {
+class StaticAllocationPass::AllocRewrite final : public mlir::OpRewritePattern<mlir::memref::AllocOp> {
 public:
     AllocRewrite(StaticAllocation& allocInfo, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<mlir::AllocOp>(ctx), _allocInfo(allocInfo), _log(log) {
+            : mlir::OpRewritePattern<mlir::memref::AllocOp>(ctx), _allocInfo(allocInfo), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::AllocOp origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(mlir::memref::AllocOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     std::reference_wrapper<StaticAllocation> _allocInfo;
     Logger _log;
 };
 
-mlir::LogicalResult StaticAllocationPass::AllocRewrite::matchAndRewrite(mlir::AllocOp origOp,
+mlir::LogicalResult StaticAllocationPass::AllocRewrite::matchAndRewrite(mlir::memref::AllocOp origOp,
                                                                         mlir::PatternRewriter& rewriter) const {
     _log.trace("Found Alloc Operation '{0}'", origOp->getLoc());
 
@@ -121,13 +122,14 @@ mlir::LogicalResult StaticAllocationPass::AllocRewrite::matchAndRewrite(mlir::Al
 // DeallocRewrite
 //
 
-class StaticAllocationPass::DeallocRewrite final : public mlir::OpConversionPattern<mlir::DeallocOp> {
+class StaticAllocationPass::DeallocRewrite final : public mlir::OpConversionPattern<mlir::memref::DeallocOp> {
 public:
-    DeallocRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpConversionPattern<mlir::DeallocOp>(ctx), _log(log) {
+    DeallocRewrite(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<mlir::memref::DeallocOp>(ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::DeallocOp origOp, ArrayRef<mlir::Value> newOperands,
+    mlir::LogicalResult matchAndRewrite(mlir::memref::DeallocOp origOp, ArrayRef<mlir::Value> newOperands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
@@ -135,7 +137,8 @@ private:
 };
 
 mlir::LogicalResult StaticAllocationPass::DeallocRewrite::matchAndRewrite(
-        mlir::DeallocOp origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
+        mlir::memref::DeallocOp origOp, ArrayRef<mlir::Value> newOperands,
+        mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found Dealloc Operation '{0}'", origOp->getLoc());
 
     VPUX_THROW_UNLESS(newOperands.size() == 1, "Got wrong newOperands count {0}", newOperands.size());
@@ -191,16 +194,16 @@ void StaticAllocationPass::passBody() {
 
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<IERT::IERTDialect>();
-    target.addDynamicallyLegalOp<mlir::AllocOp>([&](mlir::AllocOp op) {
+    target.addDynamicallyLegalOp<mlir::memref::AllocOp>([&](mlir::memref::AllocOp op) {
         const auto type = op.memref().getType().dyn_cast<mlir::MemRefType>();
         return type == nullptr || type.getMemorySpace() != _memSpace;
     });
-    target.addDynamicallyLegalOp<mlir::DeallocOp>([&](mlir::DeallocOp op) {
+    target.addDynamicallyLegalOp<mlir::memref::DeallocOp>([&](mlir::memref::DeallocOp op) {
         const auto type = op.memref().getType().dyn_cast<mlir::MemRefType>();
         return type == nullptr || type.getMemorySpace() != _memSpace;
     });
 
-    mlir::OwningRewritePatternList patterns;
+    mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<AllocRewrite>(allocInfo, &ctx, _log.nest());
     patterns.insert<DeallocRewrite>(&ctx, _log.nest());
 

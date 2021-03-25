@@ -164,6 +164,8 @@ public:
     string dotFileLocation;
     bool createStrategyDots=false;
     string jsonOutFileName;
+    bool loadStrategiesFromFile=false;
+    string jsonInFileName;
 
     StrategyManager(OpModel& model,mv::Element& passDesc);
 
@@ -190,6 +192,7 @@ public:
     void saveStrategyToJsonFile(std::vector<mv::Element> &stategiesToSave,std::string jsonOutputFileName);
     void saveStrategyToCompilationDescriptor(vector<mv::Element> &stategiesToSave, std::shared_ptr<mv::Element> compDesc);
     void saveMetaStrategy(CriticalPathNodes& criticalPathNodes);
+    void loadSavedStrategies();
 
 //    string strategyString(OptimizationGraphNode n);
 

@@ -91,7 +91,9 @@
 #include <ngraph/op/mish.hpp>
 #include <ngraph/op/floor.hpp>
 #include <ngraph/op/round.hpp>
+#include <ngraph/op/ceiling.hpp>
 #include <ngraph/op/erf.hpp>
+#include <ngraph/op/gelu.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -302,7 +304,7 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
     }
 
     // MCM Compiler requirements
-    mcmModel.output("", mcmInputs.at(0), outputType);
+    mcmModel.output(result->get_friendly_name(), mcmInputs.at(0), outputType);
 }
 
 void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -550,6 +552,19 @@ void convert(std::shared_ptr<ngraph::op::v0::Relu> relu, mv::OpModel& mcmModel, 
     registerOutputs(relu, {mcmReluOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::PRelu> prelu, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(prelu, mcmOutputsMap);
+    const auto& opName = prelu->get_friendly_name();
+
+    const auto mcmData = mcmInputs.at(0);
+    const auto mcmSlope = mcmInputs.at(1);
+    const auto mcmPReluOutput = mcmModel.prelu(opName, mcmData, mcmSlope);
+
+    mcmPReluOutput->setQuantParams(initialQuantParams());
+
+    registerOutputs(prelu, {mcmPReluOutput}, mcmOutputsMap);
+}
+
 void convert(std::shared_ptr<ngraph::op::v0::Elu> elu, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmData = getMcmInputs(elu, mcmOutputsMap).at(0);
     const auto& opName = elu->get_friendly_name();
@@ -620,12 +635,32 @@ void convert(std::shared_ptr<ngraph::op::v5::Round> op, mv::OpModel& mcmModel, N
     registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::Ceiling> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto& opName = op->get_friendly_name();
+    const auto& opInput = mcmInputs.at(0);
+    const auto mcmOpOutput = mcmModel.ceiling(opName, opInput);
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
 void convert(std::shared_ptr<ngraph::op::v0::Erf> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
     IE_ASSERT(1u == mcmInputs.size());
     const auto& opName = op->get_friendly_name();
     const auto& opInput = mcmInputs.at(0);
     const auto mcmOpOutput = mcmModel.erf(opName, opInput);
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::Gelu> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto& opName = op->get_friendly_name();
+    const auto& opInput = mcmInputs.at(0);
+    const auto mcmOpOutput = mcmModel.gelu(opName, opInput);
     mcmOpOutput->setQuantParams(initialQuantParams());
     registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
 }
@@ -1270,9 +1305,23 @@ void convert(std::shared_ptr<ngraph::op::v4::Interpolate> interpolate, mv::OpMod
     const auto& opName = interpolate->get_friendly_name();
     const auto antialias = false;
     const auto& interpolateAttrs = interpolate->get_attrs();
-    const std::string mode  = interpolateMode.find(interpolateAttrs.mode)->second;
-    const std::string coord = coordMode.find(interpolateAttrs.coordinate_transformation_mode)->second;
-    const std::string near  = nearestMode.find(interpolateAttrs.nearest_mode)->second;
+
+    const auto interpolateModeIter = interpolateMode.find(interpolateAttrs.mode);
+    if (interpolateModeIter == interpolateMode.end())
+        IE_THROW() << "interpolateMode map doesn't contain reqested interpolate mode";
+    const std::string mode  = interpolateModeIter->second;
+
+
+    const auto coordModeIter = coordMode.find(interpolateAttrs.coordinate_transformation_mode);
+    if (coordModeIter == coordMode.end())
+        IE_THROW() << "coordMode map doesn't contain reqested coordinate transformation mode";
+    const std::string coord  = coordModeIter->second;
+
+    const auto nearestModeIter = nearestMode.find(interpolateAttrs.nearest_mode);
+    if (nearestModeIter == nearestMode.end())
+        IE_THROW() << "nearestMode map doesn't contain reqested nearest mode";
+    const std::string near  = nearestModeIter->second;
+
     const auto align_corners = (coord == "align_corners");
 
     mv::Shape output_shape = getWHCN(interpolate->get_output_shape(0));
@@ -1579,6 +1628,10 @@ void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel
     const auto axis_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(axis_node);
     auto axis = axis_node_const->get_data_ptr<int64_t>()[0];
 
+    for (size_t i = 1; i < mcmInputs.size(); ++i) {
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
+    }
+
     std::vector<size_t> startCoords(mcmInputs.at(0)->getShape().ndims());
     std::vector<mv::Data::TensorIterator> mcmOutputs;
     auto outDimSize = split->get_output_shape(0).size();
@@ -1870,6 +1923,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::Floor),
     MAP_ENTRY(ngraph::op::v5::Round),
     MAP_ENTRY(ngraph::op::v0::Erf),
+    MAP_ENTRY(ngraph::op::v0::Gelu),
     MAP_ENTRY(ngraph::op::TileIE),
     MAP_ENTRY(ngraph::op::v1::VariadicSplit),
     MAP_ENTRY(ngraph::op::CTCGreedyDecoder),
@@ -1877,7 +1931,9 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::Pad),
     MAP_ENTRY(ngraph::op::PadIE),
     MAP_ENTRY(ngraph::op::v4::Interpolate),
-    MAP_ENTRY(ngraph::op::v0::MVN)
+    MAP_ENTRY(ngraph::op::v0::MVN),
+    MAP_ENTRY(ngraph::op::v0::Ceiling),
+    MAP_ENTRY(ngraph::op::v0::PRelu)
 };
 
 #undef MAP_ENTRY

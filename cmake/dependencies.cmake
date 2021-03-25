@@ -38,6 +38,12 @@ endif()
 
 fetch_models_and_validation_set()
 
+if(WIN32)
+    set(CPACK_GENERATOR "ZIP")
+else()
+    set(CPACK_GENERATOR "TGZ")
+endif()
+
 #
 # OpenCL compiler
 #
@@ -233,14 +239,37 @@ add_kmb_compile_custom_cpp_kernels()
 # HDDLUnite
 #
 
-if(ENABLE_HDDL2)
+if(ENABLE_HDDL2 AND UNIX)
+    set(PCIE_DRIVERS_KMB_ARCHIVE_VERSION RELEASE_ww11_2021)
+    set(PCIE_DRIVERS_KMB_ARCHIVE_HASH "eeac5d71c4fa5dd399f8fb0bab9bae6d847a6d5622f6e56d0a8991b06bc3e25f")
+
+    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+    elseif(DEFINED THIRDPARTY_SERVER_PATH)
+        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+    else()
+        message(FATAL_ERROR "HDDLUnite is not found (missing THIRDPARTY_SERVER_PATH).")
+    endif()
+
+    if(DEFINED IE_PATH_TO_DEPS)
+        reset_deps_cache(PCIE_DRIVERS)
+
+        RESOLVE_DEPENDENCY(PCIE_DRIVERS
+                ARCHIVE_LIN "hddl2/kmb-pcie-drivers_${PCIE_DRIVERS_KMB_ARCHIVE_VERSION}.tgz"
+                ENVIRONMENT "PCIE_DRIVERS"
+                TARGET_PATH "${TEMP}/pcie_drivers"
+                SHA256 ${PCIE_DRIVERS_KMB_ARCHIVE_HASH})
+
+        unset(IE_PATH_TO_DEPS)
+    endif()
+endif()
+
+if(ENABLE_HDDL2 AND NOT ENABLE_CUSTOM_HDDLUNITE)
     if(UNIX)
-        set(PCIE_DRIVERS_KMB_ARCHIVE_VERSION RELEASE_ww06_2021)
-        set(PCIE_DRIVERS_KMB_ARCHIVE_HASH "d6bba265d48e8bf849f2d489509f9738a065ef9d9292374f0e01f4099165b022")
-        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww06_2021)
-        set(HDDLUNITE_KMB_ARCHIVE_HASH "548e1617d51b9fb5187324692ab14bf7d85c333a7ebb4f15f090f0127745eaef")
-        set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww06_2021)
-        set(HDDLUNITE_VPUX_4_ARCHIVE_HASH "1727b1df1381001a93d4541f06e345ca4af7ef1065fe7889687be1233c7bcd00")
+        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww11.2_2021)
+        set(HDDLUNITE_KMB_ARCHIVE_HASH "1b27b77b7ae13f10aeca8703eadb591605f35e2aa6becd7edb7d42cc3b4b2ab4")
+        set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww11.2_2021)
+        set(HDDLUNITE_VPUX_4_ARCHIVE_HASH "eb98e90faff3747d5a1b57e596d355f5a9bcecea0c4cc0c2c6474e4add82c056")
         set(ARCH_FORMAT ".tgz")
     else()
         set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww51_Windows)
@@ -257,16 +286,6 @@ if(ENABLE_HDDL2)
     endif()
 
     if(DEFINED IE_PATH_TO_DEPS)
-        reset_deps_cache(PCIE_DRIVERS)
-
-        if(UNIX)
-            RESOLVE_DEPENDENCY(PCIE_DRIVERS
-                    ARCHIVE_LIN "hddl2/kmb-pcie-drivers_${PCIE_DRIVERS_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"
-                    ENVIRONMENT "PCIE_DRIVERS"
-                    TARGET_PATH "${TEMP}/pcie_drivers"
-                    SHA256 ${PCIE_DRIVERS_KMB_ARCHIVE_HASH})
-        endif()
-
         reset_deps_cache(HDDL_UNITE)
 
         RESOLVE_DEPENDENCY(HDDL_UNITE

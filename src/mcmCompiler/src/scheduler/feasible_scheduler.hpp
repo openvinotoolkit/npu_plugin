@@ -483,7 +483,10 @@ class Contiguous_Resource_State {
         const unit_t& demand,
         unit_t& interval_start, unit_t& interval_end) const {
 
-      if (!demand) { return true; }
+      if (!demand) {
+        interval_start = interval_end = 0;  // ensure interval is always initialized on caller stack
+        return true;
+      }
       // note this always produces open intervals of the form:
       // (a,b) = { x | a < x < b } //
       unit_t a = std::max(location_begin_-1, itr.interval_begin());
@@ -508,7 +511,7 @@ class Contiguous_Resource_State {
       itr = active_resources_.begin_free_intervals();
       itr_end = active_resources_.end_free_intervals();
       unit_t min_capacity = std::numeric_limits<unit_t>::max();
-      unit_t curr_start, curr_end;
+      unit_t curr_start = 0, curr_end = 0;
 
       output_interval_start = std::numeric_limits<unit_t>::max();
       output_interval_end = std::numeric_limits<unit_t>::min();

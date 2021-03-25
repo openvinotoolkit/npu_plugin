@@ -524,3 +524,29 @@ bool mv::isEqual(const mv::QuantizationParams& left, const mv::QuantizationParam
     bool isScaleEqual = isVectorsEqual(left.getScale(), right.getScale());
     return isZpEqual && isMinEqual && isMaxEqual && isScaleEqual;
 }
+
+// Need to enable PPEAccuracy when the option is true or when the model is SuperResolution
+bool mv::checkPPEAccuracy(mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+    bool PPEAccuracy = globalParams->hasAttr("PPEAccuracy") ? globalParams->get<bool>("PPEAccuracy") : false;
+
+    // WA for SuperResolution enabling
+    // Hardcoded by input number and shape
+    size_t inputNumber = om.getNumNetworkInputs();
+    if (inputNumber == 3) {
+        auto input0 = om.getNetworkInputs()[0];
+        if (input0->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 192)
+            PPEAccuracy = true;
+    }
+    return PPEAccuracy;
+}
+
+std::vector<std::string>::const_iterator mv::findIsDPUPwlPostOp(const std::vector<std::string>& postOps, const mv::TargetDescriptor& td) {
+    for (auto itr = postOps.begin(); itr != postOps.end(); ++itr) {
+        if(td.isDpuPwl(*itr)) {
+            return itr;
+        }
+    }
+    return postOps.end();
+}

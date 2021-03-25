@@ -293,6 +293,17 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, const 
     while(current_ops.size() == 1 && current_ops[0]->getOpType() != "FakeQuantize" && current_ops[0]->getOpType() != "Output" && current_ops[0]->getOpType() != "Deconv") {
         auto idx = (current_ops[0]->getOpType() == "TopK") ? 1 : 0;
         current_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(idx));
+        // the sink op is concat, pass it and continue searching the other path for FQ
+        if (current_ops.size() > 1 && (current_ops[0]->getOpType() == "Concat"))
+        {
+            for (size_t i = 0; i < current_ops.size(); i++) {
+                if (current_ops[i]->getOpType() == "Concat")
+                {
+                    current_ops.erase(current_ops.begin()+i);
+                    break;
+                }
+            }
+        }
     }
 
     std::vector<mv::QuantizationParams> outQuantParams;
@@ -370,7 +381,9 @@ void propagateParameters(const mv::pass::PassEntry& pass, mv::ComputationModel& 
         if (op->getOpType() == "Eltwise" || op->getOpType() == "Concat") {
             if (!areAllInputQuantParamsEqual(om, op, op->getOpType() == "Concat"))
             {
-                throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: inputs of the Concat do not have the same QuantParams"));
+                // replace the exception with a warning.
+                pass.log(mv::Logger::MessageType::Warning, "Inputs of layer type " + op->getOpType() + " : " +
+                                                                   op->getName() + " do not have the same QuantParams");
             }
         }
 
@@ -595,10 +608,16 @@ void quantizeIO(mv::ComputationModel& model) {
     mv::OpModel om(model);
     auto inputs = om.getOps("Input");
     auto implicit_inputs = om.getOps("ImplicitInput");
+    auto implicit_inputs_slice = om.getOps("ImplicitInputSlice");
     inputs.insert(inputs.end(), implicit_inputs.begin(), implicit_inputs.end());
+    inputs.insert(inputs.end(), implicit_inputs_slice.begin(), implicit_inputs_slice.end());
     mv::DataModel dm(om);
     for (auto input : inputs) {
         auto current_ops = findSinkLayers(dm, input->getOutputTensor(0));
+        // Recursively-loop until FakeQuantize (to extract QuantParams), Scale (for scaleshift fusing), or Output (end of network)
+        while(current_ops.size() == 1 && current_ops[0]->getOpType() != "FakeQuantize"  && current_ops[0]->getOpType() != "Scale" && current_ops[0]->getOpType() != "Output") {
+            current_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(0));
+        }
 
         mv::QuantizationParams inputQuantParams = input->getOutputTensor(0)->getQuantParams();
         if(current_ops.size() == 1 && current_ops[0]->getOpType() == "FakeQuantize") {

@@ -14,9 +14,11 @@
 // stated in the License.
 //
 
-#include <mlir/Transforms/DialectConversion.h>
-#include <vpux/compiler/core/attributes/stride_reqs.hpp>
 #include "vpux/compiler/dialect/IERT/passes.hpp"
+
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
+
+#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
@@ -145,16 +147,16 @@ void AddLayoutsAndStridesPass::passBody() {
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::linalg::ReshapeOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::linalg::CopyOp>(isLegalOp);
-    target.addDynamicallyLegalOp<mlir::AllocOp>(isLegalOp);
-    target.addDynamicallyLegalOp<mlir::DeallocOp>(isLegalOp);
+    target.addDynamicallyLegalOp<mlir::memref::AllocOp>(isLegalOp);
+    target.addDynamicallyLegalOp<mlir::memref::DeallocOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
     target.addLegalOp<IE::CNNNetworkOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
         return typeConverter.isSignatureLegal(funcOp.getType());
     });
 
-    mlir::OwningRewritePatternList patterns;
-    mlir::populateFuncOpTypeConversionPattern(patterns, &ctx, typeConverter);
+    mlir::RewritePatternSet patterns(&ctx);
+    mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
     patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
 
     auto module = getOperation();

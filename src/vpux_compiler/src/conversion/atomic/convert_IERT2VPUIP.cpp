@@ -271,12 +271,12 @@ void ConvertIERT2VPUIPPass::passBody() {
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
 
-    mlir::OwningRewritePatternList patterns;
+    mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ConstantRewrite>(&ctx, _log.nest());
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log.nest());
     patterns.insert<CheckUnsupportedTile>(&ctx, _log.nest());
     patterns.insert<ViewLikeRewrite>(netInfo, netFunc, _log.nest());
-    populateWithGenerated(&ctx, patterns);
+    populateWithGenerated(patterns);
 
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();

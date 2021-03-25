@@ -106,7 +106,7 @@ mlir::LogicalResult FuseFCAndBias::matchAndRewrite(IE::AddOp biasOp, mlir::Patte
 
 }  // namespace
 
-void vpux::IE::FullyConnectedOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
+void vpux::IE::FullyConnectedOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
                                                              mlir::MLIRContext* context) {
     patterns.insert<FuseFCAndBias>(context);
 }

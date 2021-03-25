@@ -17,7 +17,6 @@
 8. When the points above are resolved, you need to reassign the Merge Request to ([Project Maintainers](#maintainers-list))
    and ask him\her to merge. If everything is OK, the maintainer will merge MR.
 9. MRs with functionality required for an upcomming release after FF milestone should be targeting release branch directly.
-    * An MR with corresponding changes to master branch has to be created by the original MR author before merge to release branch.
 
 ### Request requirements
 * No warnings have been introduced

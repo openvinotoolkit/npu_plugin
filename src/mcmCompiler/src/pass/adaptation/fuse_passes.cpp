@@ -4,6 +4,7 @@
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include <functional>
 
@@ -39,14 +40,20 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                     {"Sigmoid", fuseUsualPPEFcn},
                                     {"Tanh", fuseUsualPPEFcn},
                                     {"Relu", fuseUsualPPEFcn},
+                                    {"Prelu", fuseUsualPPEFcn},
                                     {"LeakyRelu", fuseUsualPPEFcn},
                                     {"Mish", fuseUsualPPEFcn},
                                     {"Minimum", fuseMinimumFcn},
                                     {"Maximum", fuseMaximumFcn}};
 
-    bool PPEAccuracy = globalParams->hasAttr("PPEAccuracy") ? globalParams->get<bool>("PPEAccuracy") : false;
-    if (PPEAccuracy)
+    if (checkPPEAccuracy(model))
     {
+        std::vector<mv::Data::OpListIterator> preluOperations = om.getOps("Prelu");
+        if (preluOperations.size() > 0)
+        {
+            throw mv::OpError(preluOperations[0]->getLogID(), "no support of PRelu wiht PPEAccuracy");
+        }
+
         std::vector<mv::Data::OpListIterator> biasOperations = om.getOps("Bias");
 
         for (auto bias : biasOperations)
@@ -66,7 +73,7 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     }
     else
     {
-        std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Tanh", "Relu", "LeakyRelu", "Mish", "Minimum", "Maximum"};
+        std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Tanh", "Relu", "LeakyRelu", "Mish", "Minimum", "Maximum", "Prelu"};
         std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
 
         //NOTE: Iterate the fuse_types vector for correct order reason according to map
@@ -173,12 +180,15 @@ void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, c
     }
 }
 
-void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& opType)
+/**
+ * @brief fuse PPE function to parent op
+ */
+void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType )
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
-    auto ppeOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-    auto parentOp = om.getSourceOp(opIt->getInputTensor(0));
+    auto ppeOutputMemoryLocation = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->get<mv::Tensor::MemoryLocation>("Location");
+    auto parentOp = om.getSourceOp(opIt->getInputTensor(mv::IO_TENSOR_INPUT));
 
     std::vector<mv::Data::OpListIterator> fusableParents;
     auto isActivationAgnostic = [](mv::Data::OpListIterator &op)
@@ -204,20 +214,22 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
         }
     }
 
-    // Check for siblings, normally of all sibling would be same opType
+    // Check number of children of each fusable parent;
+    // normally if all children are the same opType,
     // one could proceed to attempt fuse all siblings.
     // Have this as a future optimization, for now just mark it as
     // software executed.
-    if (opIt.siblingsSize() || std::find_if(fusableParents.cbegin(),
-        fusableParents.cend(), [] (const mv::Data::OpListIterator &op)
-        {return !op->isHardwarizable();}) != fusableParents.cend())
+    if (std::find_if(fusableParents.begin(), fusableParents.end(),
+            [] (mv::Data::OpListIterator &op) {return op.childrenSize() > 1 || !op->isHardwarizable();})
+        != fusableParents.end())
     {
         opIt->set<bool>("softwareExecuted", true);
         return;
     }
 
     // Proceed with fusign postOp into each parentOp
-    for(auto parentIt : fusableParents) {
+    for(auto parentIt : fusableParents)
+    {
         std::vector<std::string> postOpTypes;
         if (parentIt->hasAttr("postOpTypes"))
             postOpTypes = parentIt->get<std::vector<std::string>>("postOpTypes");
@@ -225,14 +237,52 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
         parentIt->set<std::vector<std::string>>("postOpTypes", postOpTypes);
 
         if (opType == "LeakyRelu")
+        {
             parentIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
+        }
+        else if (opType == "Prelu")
+        {
+            // slope is the second input of PRelu
+            auto parentOpIt1 = om.getSourceOp(opIt->getInputTensor(1));
+            const std::string& parentOpType = parentOpIt1->getOpType();
+
+            // Constant Operator is only support
+            if ((parentOpType == "Constant") || (parentOpType == "ConstantInt") || (parentOpType == "ConstantDataElement"))
+            {
+                // TODO
+                // check how to handle non constant slopes as constant slops are only supported in the current implementation
+                throw mv::OpError(parentOpIt1->getLogID(), "Non Const slopes of PReLU are not supported");
+            }
+
+            // output densor of the const output tensor
+            auto slopeSourceTensor = parentOpIt1->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+
+            std::vector<mv::DataElement> data = slopeSourceTensor->getData();
+        
+            std::vector<double> slopes(data.size());
+            if (slopeSourceTensor->getDType() != mv::DType("Float16"))
+            {
+                // slopes are converted into fp16 before fusing passing
+                throw mv::OpError(parentOpIt1->getLogID(), "float16 data type is expected");
+            }
+
+            // converting slopes into double to use them for quantization param calculation later
+            std::transform(data.begin(), data.end(), slopes.begin(), 
+                [](const int64_t& arg){ return static_cast<double>(mv::fp16_to_fp32(static_cast<uint16_t>(arg))); });
+
+            // for quantization
+            parentIt->set<std::vector<double>>( "slopes", slopes );
+
+            // Note
+            // Constant is removed in linkNewOperationsFuse
+        }   
     }
 
     // Link direct postOp parent with postOp consumers
-    auto sourceTensor = parentOp->getOutputTensor(0);
+    auto sourceTensor = parentOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
     opIt = linkNewOperationsFuse(parentOp, sourceTensor, om, opIt);
     if (ppeOutputMemoryLocation.isForced())
-        opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);
+        opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);
 }
 
 void fuseEltwiseFcn(mv::Data::OpListIterator &opIt1, mv::ComputationModel &model, const std::string& /*opType*/)

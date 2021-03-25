@@ -35,6 +35,7 @@ set(LLVM_ENABLE_EH ON CACHE BOOL "" FORCE)
 set(LLVM_ENABLE_BACKTRACES ON CACHE BOOL "" FORCE)
 set(LLVM_ENABLE_CRASH_OVERRIDES ON CACHE BOOL "" FORCE)
 set(LLVM_ENABLE_PROJECTS "mlir" CACHE STRING "" FORCE)
+set(LLVM_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
 set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "" FORCE)
 set(CROSS_TOOLCHAIN_FLAGS_ "" CACHE STRING "" FORCE)
 set(CROSS_TOOLCHAIN_FLAGS_NATIVE "" CACHE STRING "" FORCE)
@@ -112,6 +113,110 @@ else()
 
     set(GAPI_M2I_LIBRARY "" CACHE INTERNAL "")
     set(GAPI_M2I_INCLUDES "" CACHE INTERNAL "")
+endif()
+
+#
+# hddlunite
+#
+# TODO: [Track number: S#46168] Investigate hddlunite build issue for ARM
+if(ENABLE_CUSTOM_HDDLUNITE AND NOT AARCH64)
+    set(HDDLUNITE_BUILD_DIR "${CMAKE_BINARY_DIR}/thirdparty/hddlunite/")
+    add_subdirectory(hddlunite)
+
+    set(HDDLUNITE_CPACK_RUNTIME_PATH hddl_unite/bin)
+    set(HDDLUNITE_CPACK_ARCHIVE_PATH hddl_unite/lib)
+    set(HDDLUNITE_CPACK_LIBRARY_PATH hddl_unite/lib)
+
+    if(NOT AARCH64 AND NOT WIN32)
+        install(FILES
+                hddlunite/common/APICommon.h
+                hddlunite/common/QueryType.h
+                hddlunite/api/include/ChannelUtils.h
+                hddlunite/api/include/DeviceLog.h
+                hddlunite/api/include/FileUtils.h
+                hddlunite/api/include/HddlUnite.h
+                hddlunite/api/include/HddlUniteC.h
+                hddlunite/api/include/DeviceResetC.h
+                hddlunite/api/include/DeviceReset.h
+                hddlunite/api/include/InferBlob.h
+                hddlunite/api/include/InferData.h
+                hddlunite/api/include/Inference.h
+                hddlunite/api/include/InferGraph.h
+                hddlunite/api/include/GAPIGraph.h
+                hddlunite/api/include/GAPIInvokeData.h
+                hddlunite/api/include/Query.h
+                hddlunite/api/include/RemoteMemory.h
+                hddlunite/api/include/RemotePipeline.h
+                hddlunite/api/include/WorkloadContext.h
+                hddlunite/api/include/WorkloadContextC.h
+                hddlunite/api/include/SetMode.h
+                hddlunite/utils/Parameter.h
+            DESTINATION "hddl_unite/include"
+            COMPONENT hddlunite
+        )
+
+        set(HDDLUNITE_COMPONENTS
+                FileSyncTool
+                FileTransferTool
+                GetDeviceLog
+                GroupTool
+                hddl_scheduler_service
+                SetHDDLMode
+                HddlUnite
+        )
+    elseif(AARCH64)
+        install(FILES
+                hddlunite/common/APICommon.h
+                hddlunite/device_client/include/DeviceClient.h
+            DESTINATION "hddl_unite/include"
+            COMPONENT hddlunite
+        )
+
+        set(HDDLUNITE_COMPONENTS
+                hddl_device_service
+                rop_manager
+        )
+    endif()
+
+    install(TARGETS ${HDDLUNITE_COMPONENTS}
+            EXPORT hddluniteTargets
+            RUNTIME DESTINATION ${HDDLUNITE_CPACK_RUNTIME_PATH} COMPONENT hddlunite
+            ARCHIVE DESTINATION ${HDDLUNITE_CPACK_ARCHIVE_PATH} COMPONENT hddlunite
+            LIBRARY DESTINATION ${HDDLUNITE_CPACK_LIBRARY_PATH} COMPONENT hddlunite
+    )
+
+    install(FILES   hddlunite_artifacts/config/hddl_service.config
+            DESTINATION "hddl_unite/config"
+            COMPONENT hddlunite)
+
+    if(NOT AARCH64 AND NOT WIN32)
+        set(HDDLUNITE_XLINK_LIB hddlunite/thirdparty/xlink/lib/XLink_DLL.lib)
+    elseif(WIN32)
+        set(HDDLUNITE_XLINK_LIB hddlunite/thirdparty/xlink/lib/XLink_DLL.dll)
+    endif()
+    install(FILES   ${HDDLUNITE_XLINK_LIB}
+            DESTINATION "hddl_unite/thirdparty/XLink"
+            COMPONENT hddlunite)
+
+    if(NOT AARCH64 AND NOT WIN32)
+        set(HDDLUNITE_ITT_LIB hddlunite/thirdparty/ittnotify/ittnotify_x86/lib/libittnotify_collector.so)
+    elseif(WIN32)
+        set(HDDLUNITE_ITT_LIB hddlunite/thirdparty/ittnotify/ittnotify_win/lib/ittnotify_collector.dll)
+    elseif(AARCH64)
+        set(HDDLUNITE_ITT_LIB hddlunite/thirdparty/ittnotify/ittnotify_arm/lib/libittnotify_collector.so)
+    endif()
+    install(FILES   ${HDDLUNITE_ITT_LIB}
+            DESTINATION ${HDDLUNITE_CPACK_LIBRARY_PATH}
+            COMPONENT hddlunite)
+
+    if(AARCH64)
+        set(HDDLUNITE_ENV hddlunite/hddlunite-install-script/env_arm.sh)
+    elseif(NOT WIN32)
+        set(HDDLUNITE_ENV hddlunite/hddlunite-install-script/env_host.sh)
+    endif()
+    install(FILES   ${HDDLUNITE_ENV}
+            DESTINATION hddl_unite/
+            COMPONENT hddlunite)
 endif()
 
 #

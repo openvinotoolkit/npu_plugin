@@ -8,12 +8,6 @@
 
 * <mr-link> (<description>)
 
-## MR to master
-
-(Required. Please add link to MR into master branch)
-
-* <mr-link> (<description>)
-
 ## Related tickets
 
 (Please list tickets which the MR closes if you have any)

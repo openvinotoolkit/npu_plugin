@@ -115,7 +115,7 @@ mlir::LogicalResult MergeFakeQuantPass::UseFakeQuant::matchAndRewrite(mlir::quan
 void MergeFakeQuantPass::passBody() {
     auto& ctx = getContext();
 
-    mlir::OwningRewritePatternList patterns;
+    mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<UseFakeQuant>(&ctx, _log.nest());
 
     auto func = getFunction();

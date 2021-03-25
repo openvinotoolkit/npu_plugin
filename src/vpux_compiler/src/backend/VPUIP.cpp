@@ -78,8 +78,8 @@ MVCNN::PhysicalProcessor createPhysicalProcessor(VPUIP::PhysicalProcessor proc) 
     }
 }
 
-flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
-                                                                    IERT::ExecutorResourceOp res) {
+void createProcessorMapping(VPUIP::BlobWriter& writer, IERT::ExecutorResourceOp res,
+                            std::vector<flatbuffers::Offset<MVCNN::ProcessorMapping>>& parentOffsets) {
     const auto kind = res.kindAttr().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
     VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", res.kindAttr());
 
@@ -87,7 +87,10 @@ flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobW
     builder.add_item(createPhysicalProcessor(kind.getValue()));
     builder.add_number(checked_cast<double>(res.count()));
     builder.add_is_bitmask(false);
-    return builder.Finish();
+    parentOffsets.push_back(builder.Finish());
+    for (const auto& subExec : res.subExecutors().getOps<IERT::ExecutorResourceOp>()) {
+        createProcessorMapping(writer, subExec, parentOffsets);
+    }
 }
 
 MVCNN::PhysicalMem createPhysicalMem(VPUIP::PhysicalMemory mem) {
@@ -124,10 +127,11 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
                                                     return createMemoryMapping(writer, res);
                                                 }));
 
-    const auto usedExecutors = writer.createVector(resources.usedExecutors().getOps<IERT::ExecutorResourceOp>() |
-                                                   transformed([&](IERT::ExecutorResourceOp res) {
-                                                       return createProcessorMapping(writer, res);
-                                                   }));
+    std::vector<flatbuffers::Offset<MVCNN::ProcessorMapping>> usedExecutorsOffsets;
+    for (const auto& executorResource : resources.usedExecutors().getOps<IERT::ExecutorResourceOp>()) {
+        createProcessorMapping(writer, executorResource, usedExecutorsOffsets);
+    }
+    const auto usedExecutors = writer.createVector(usedExecutorsOffsets);
 
     MVCNN::ResourcesBuilder builder(writer);
     builder.add_processor_allocation(usedExecutors);
@@ -269,6 +273,12 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
             const auto virtBarrier = writer.createBarrier(barrierOp.barrier());
             virtBarriers.push_back(virtBarrier);
         } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == netFunc.getOperation()) {
+            // do nothing
+        } else if (auto dpuTaskOp = mlir::dyn_cast<DPUTaskOp>(op)) {
+            // do nothing
+        } else if (auto endOp = mlir::dyn_cast<EndOp>(op)) {
+            // do nothing
+        } else if (auto endOp = mlir::dyn_cast<PPETaskOp>(op)) {
             // do nothing
         } else {
             VPUX_THROW("Unknown Operation '{0}' at '{1}'", op->getName(), op->getLoc());

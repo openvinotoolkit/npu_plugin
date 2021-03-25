@@ -77,7 +77,6 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SwishOp swishOp, mli
 
 }  // namespace
 
-void vpux::IE::SwishOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
-                                                    mlir::MLIRContext* context) {
+void vpux::IE::SwishOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.insert<ConvertConstToAttr>(context);
 }

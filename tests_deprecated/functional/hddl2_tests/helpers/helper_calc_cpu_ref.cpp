@@ -72,7 +72,7 @@ IE::BlobMap CalcCpuReferenceCommon(IE::CNNNetwork& network, const IE::Blob::Ptr&
 }
 }
 
-IE::Blob::Ptr ReferenceHelper::CalcCpuReferenceSingleOutput(const std::string & modelPath, const IE::Blob::Ptr& inputBlob,
+IE::Blob::Ptr ReferenceHelper::CalcCpuReferenceSingleOutput(const std::string& modelPath, const IE::Blob::Ptr& inputBlob,
     const IE::PreProcessInfo* preproc_info) {
     std::cout << "Calculating reference on CPU (single output)..." << std::endl;
 
@@ -89,12 +89,13 @@ IE::Blob::Ptr ReferenceHelper::CalcCpuReferenceSingleOutput(const std::string & 
     return CalcCpuReferenceCommon(network, inputBlob, preproc_info).begin()->second;
 }
 
-IE::BlobMap ReferenceHelper::CalcCpuReferenceMultipleOutput(const std::string& model_path, const IE::Blob::Ptr& input_blob,
+IE::BlobMap ReferenceHelper::CalcCpuReferenceMultipleOutput(const std::string& modelPath, const IE::Blob::Ptr& input_blob,
     const IE::PreProcessInfo* preproc_info) {
     std::cout << "Calculating reference on CPU (multiple output)..." << std::endl;
 
     IE::Core ie;
-    auto network = ie.ReadNetwork(model_path);
+    const std::string modelFullPath = ModelLoader_Helper::getTestModelsPath() + modelPath + ".xml";
+    auto network = ie.ReadNetwork(modelFullPath);
 
     return CalcCpuReferenceCommon(network, input_blob, preproc_info);
 }

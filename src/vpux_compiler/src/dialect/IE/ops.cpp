@@ -69,7 +69,7 @@ public:
 };
 
 mlir::LogicalResult IEDecodeAttributesHooks::decode(mlir::OpaqueElementsAttr input, mlir::ElementsAttr& output) const {
-    if (input.getDialect()->getTypeID() != mlir::TypeID::get<IE::IEDialect>()) {
+    if (input.getDialect() != IE::IEDialect::getDialectNamespace()) {
         return mlir::failure();
     }
 

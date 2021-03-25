@@ -113,7 +113,7 @@ mlir::LogicalResult DequantizeConstPass::DequantizeConst::matchAndRewrite(mlir::
 void DequantizeConstPass::passBody() {
     auto& ctx = getContext();
 
-    mlir::OwningRewritePatternList patterns;
+    mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<DequantizeConst>(&ctx, _log.nest());
 
     auto func = getFunction();

@@ -188,10 +188,10 @@ mv::QuantizationParams mv::QuantizationParams::initial() {
     return {{0}, {1}, {-inf}, {inf}};
 }
 
-// Return QuantizationParams which are created from an equally divided parts of each quantization parameter
+// Return QuantizationParams which are created from slices of different sizes out of each quantization parameter
 // in case it is a vector per channel. In case quant parameter is per tensor (vector size = 1) it is populated
 // without any change
-mv::QuantizationParams mv::QuantizationParams::getSlice(std::size_t slice_idx, std::size_t total_slices_number) {
+mv::QuantizationParams mv::QuantizationParams::getSlice(const std::size_t sliceStart, const std::size_t size) {
     mv::QuantizationParams quantParamsSlice = {{},{},{},{}};
     auto zp_vec = getZeroPoint();
     auto scale_vec = getScale();
@@ -199,13 +199,13 @@ mv::QuantizationParams mv::QuantizationParams::getSlice(std::size_t slice_idx, s
     auto max_vec = getMax();
 
     if(zp_vec.size() > 1)
-        zp_vec = get_part_of_vec(zp_vec, slice_idx, total_slices_number);
+        zp_vec = get_part_of_vec(zp_vec, sliceStart, size);
     if(scale_vec.size() > 1)
-        scale_vec = get_part_of_vec(scale_vec, slice_idx, total_slices_number);
+        scale_vec = get_part_of_vec(scale_vec, sliceStart, size);
     if(min_vec.size() > 1)
-        min_vec = get_part_of_vec(min_vec, slice_idx, total_slices_number);
+        min_vec = get_part_of_vec(min_vec, sliceStart, size);
     if(max_vec.size() > 1)
-        max_vec = get_part_of_vec(max_vec, slice_idx, total_slices_number);
+        max_vec = get_part_of_vec(max_vec, sliceStart, size);
 
     if (hasAttr("shift") && hasAttr("mult"))
     {
@@ -213,9 +213,9 @@ mv::QuantizationParams mv::QuantizationParams::getSlice(std::size_t slice_idx, s
         auto mult_vec = getMult();
 
         if(shift_vec.size() > 1)
-            shift_vec = get_part_of_vec(shift_vec, slice_idx, total_slices_number);
+            shift_vec = get_part_of_vec(shift_vec, sliceStart, size);
         if(mult_vec.size() > 1)
-            mult_vec = get_part_of_vec(mult_vec, slice_idx, total_slices_number);
+            mult_vec = get_part_of_vec(mult_vec, sliceStart, size);
 
         quantParamsSlice = mv::QuantizationParams(zp_vec, scale_vec, min_vec, max_vec, shift_vec, mult_vec);
     } else {

@@ -18,7 +18,7 @@
 
 #include <cmath>
 
-#include "details/ie_exception.hpp"
+#include <ie_common.h>
 #include "ie_parallel.hpp"
 
 using namespace InferenceEngine;

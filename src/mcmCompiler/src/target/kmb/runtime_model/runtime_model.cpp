@@ -146,6 +146,9 @@ mv::RuntimeModel::RuntimeModel(const mv::TargetDescriptor& td)
     if (td.getCodecName() == mv::CodecType::HDE)
     {
         auto hdeDef = std::dynamic_pointer_cast<mv::HdeDescriptor>(td.codecDef());
+        if (!hdeDef)
+            throw std::runtime_error("Failed to get pointer to HDE codec.");
+
         auto hde = new Hde(hdeDef->bitPerSymbol, hdeDef->maxNumberEncodedSymbols, 0, hdeDef->blockSize, false, hdeDef->bypassMode);
 
         if (!hde)
@@ -156,6 +159,9 @@ mv::RuntimeModel::RuntimeModel(const mv::TargetDescriptor& td)
     else if (td.getCodecName() == mv::CodecType::BTC)
     {
         auto btcDef = std::dynamic_pointer_cast<mv::BTCDescriptor>(td.codecDef());
+        if (!btcDef)
+            throw std::runtime_error("Failed to get pointer to BTC codec.");
+
         auto btc = new BTC(btcDef->bufferAlignment, btcDef->bitmapPreprocEnable, false, btcDef->bypassMode, 0);
 
         if (!btc)
@@ -405,6 +411,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             if (leading_offset)
                 toBuild->data->data_index += leading_offset;
         }
+
+        //NOTE: adjust dilation + concat indexing, when a dilation conv/deconv is not idx = 0 input of concat
+        if (t->hasAttr("leftIndexDilation"))
+            toBuild->data->data_index += t->get<std::size_t>("leftIndexDilation");
     }
     else
     {
@@ -527,6 +537,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             else
                 toBuild->data->storage_element_index = 0;
         }
+
+        //NOTE: adjust dilation + concat indexing, when a dilation conv/deconv is not idx = 0 input of concat
+        if (t->hasAttr("leftIndexDilation"))
+            toBuild->data->data_index += t->get<std::size_t>("leftIndexDilation");
 
     }
 
@@ -1703,7 +1717,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildHWDMATaskT(Com
     //tmp->port = port;
     toPush->task.value = tmp.release();
     toReturn.push_back(std::move(toPush));
-   
+
     return toReturn;
 }
 
@@ -1730,7 +1744,11 @@ std::unique_ptr<MVCNN::PPEFixedFunctionT> mv::RuntimeModel::buildPPEFixedFunctio
         toBuild->Ops[i] = convertPPELayerType(layers[i]);
     toBuild->Clamp_Low = ppeFixedFunction.getLowClamp();
     toBuild->Clamp_High = ppeFixedFunction.getHighClamp();
+
+    // Note depreciated attribute as the value is passed through weight table
+    // However, Lrelu_Mult (scalar) is left for compatability
     toBuild->Lrelu_Mult = ppeFixedFunction.getLReluMult();
+
     toBuild->Lrelu_Shift = ppeFixedFunction.getLReluShift();
 
     return toBuild;
@@ -1758,7 +1776,10 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT()
     toBuild->fixed_function->Clamp_High = 2147483647;
     toBuild->fixed_function->Clamp_Low = -2147483648;
     toBuild->fixed_function->Ops = std::vector<MVCNN::PPELayerType>();
+
+    // Note depreciated attribute as the value is passed through weight table
     toBuild->fixed_function->Lrelu_Mult = 1;
+
     toBuild->fixed_function->Lrelu_Shift = 0;
     toBuild->fixed_function->Ops.reserve(5);
 
@@ -2452,6 +2473,30 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPALeakyReluTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+
+    auto leakyReluParams = new MVCNN::LeakyReluParamsT();
+    auto alpha = opIt->get<double>("alpha");
+    leakyReluParams->negative_slope = alpha;
+
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_LeakyReluParams;
+    softLayerParamsValue->nested_params.value = leakyReluParams;
+     toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASigmoidTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -2684,9 +2729,22 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpolateTask(ComputationMode
 
     // Fill in required params
     softLayerParamsValue->antialias = opIt->get<bool>("antialias");
-    softLayerParamsValue->interpolationMode = interpModeMap.find(mode)->second;
-    softLayerParamsValue->coordTransformMode = coordTransformModeMap.find(coord)->second;
-    softLayerParamsValue->nearestMode = nearestModeMap.find(near)->second;
+
+    const auto interpolateModeIter = interpModeMap.find(mode);
+    if (interpolateModeIter == interpModeMap.end())
+        throw std::runtime_error("interpModeMap map doesn't contain reqested interpolate mode");
+    softLayerParamsValue->interpolationMode = interpolateModeIter->second;
+
+    const auto coordModeIter = coordTransformModeMap.find(coord);
+    if (coordModeIter == coordTransformModeMap.end())
+        throw std::runtime_error("coordTransformModeMap map doesn't contain reqested coordinate transformation mode");
+    softLayerParamsValue->coordTransformMode = coordModeIter->second;
+
+    const auto nearestModeIter = nearestModeMap.find(near);
+    if (nearestModeIter == nearestModeMap.end())
+        throw std::runtime_error("nearestModeMap map doesn't contain reqested nearest mode");
+    softLayerParamsValue->nearestMode = nearestModeIter->second;
+
     softLayerParamsValue->align_corners = softLayerParamsValue->coordTransformMode == coordTransformModeMap.find("align_corners")->second;
 
     // Fill in tensors
@@ -3556,6 +3614,26 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPARoundTask(mv::ComputationModel &
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPACeilingTask(mv::ComputationModel &cm,
+                                                            mv::Element &compilationDescriptor,
+                                                            mv::Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_CeilingParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAErfTask(mv::ComputationModel &cm,
                                                         mv::Element &compilationDescriptor,
                                                         mv::Control::OpListIterator opIt)
@@ -3568,6 +3646,46 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAErfTask(mv::ComputationModel &cm
     auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
 
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_ErfParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAGeluTask(mv::ComputationModel &cm,
+                                                        mv::Element &compilationDescriptor,
+                                                        mv::Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_GeluParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAExpTask(mv::ComputationModel &cm,
+                                                        mv::Element &compilationDescriptor,
+                                                        mv::Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_ExpParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
@@ -3847,8 +3965,14 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAFloorTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Round")
         toReturn[0]->task.value = buildUPARoundTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Ceiling")
+        toReturn[0]->task.value = buildUPACeilingTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Erf")
         toReturn[0]->task.value = buildUPAErfTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Gelu")
+        toReturn[0]->task.value = buildUPAGeluTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Exp")
+        toReturn[0]->task.value = buildUPAExpTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Conversion")
         toReturn[0]->task.value = buildUPAConversionTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Relu")
@@ -3867,6 +3991,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAInterpolateTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "MVN")
         toReturn[0]->task.value = buildUPAMVNTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "LeakyRelu")
+        toReturn[0]->task.value = buildUPALeakyReluTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 
@@ -4165,7 +4291,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
                     if(tIt->isSparse())
                     {
                         auto sparsityMapIterator = dm.getTensor(tIt->getSparsityMap()->getName());
-                        toSort.push_back(&(*sparsityMapIterator));
+                        csramCacheable.insert(&(*sparsityMapIterator));
                         if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                         {
                             for(size_t i = 0; i < numClusters; ++i)

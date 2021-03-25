@@ -24,13 +24,16 @@ static const std::set<Precision> supportedOutPrecisions = { Precision::U8, Preci
 static const std::set<Layout> supportedInLayouts = { Layout::NHWC, Layout::NCHW, Layout::CHW, Layout::NC, Layout::C };
 static const std::set<Layout> supportedOutLayouts = { Layout::NHWC, Layout::NCHW, Layout::CHW, Layout::NC, Layout::C };
 
-static bool is_supported(const Precision& inPrecision, const Layout& inLayout, const Precision& outPrecision, const Layout& outLayout) {
+static bool is_supported(const Precision& inPrecision,
+                         const Layout& inLayout,
+                         const Precision& outPrecision,
+                         const Layout& outLayout,
+                         bool compareWithReferenceRequired) {
     bool inPrecSupported = (supportedInPrecisions.find(inPrecision) != supportedInPrecisions.end());
     bool outPrecSupported = (supportedOutPrecisions.find(outPrecision) != supportedOutPrecisions.end());
     bool inLayoutSupported = (supportedInLayouts.find(inLayout) != supportedInLayouts.end());
     bool outLayoutSupported = (supportedOutLayouts.find(outLayout) != supportedOutLayouts.end());
     bool compareWithReferenceSupported = outPrecision == Precision::FP16 || outPrecision == Precision::FP32;
-    bool compareWithReferenceRequired = KmbTestBase::RUN_INFER;
     bool compareSupported = compareWithReferenceSupported || !compareWithReferenceRequired;
 
     return (inPrecSupported && outPrecSupported && inLayoutSupported && outLayoutSupported && compareSupported);
@@ -116,7 +119,11 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
             }
     );
 
-    if (!is_supported(userInDesc.getPrecision(), userInDesc.getLayout(), userOutDesc.getPrecision(), userOutDesc.getLayout())) {
+    if (!is_supported(userInDesc.getPrecision(),
+                      userInDesc.getLayout(),
+                      userOutDesc.getPrecision(),
+                      userOutDesc.getLayout(),
+                      KmbTestBase::RUN_INFER)) {
         SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Parameters are not supported, no graph to infer");
     }
 
@@ -133,7 +140,11 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
             .finalize();
     };
 
-    if (is_supported(userInDesc.getPrecision(), userInDesc.getLayout(), userOutDesc.getPrecision(), userOutDesc.getLayout())) {
+    if (is_supported(userInDesc.getPrecision(),
+                     userInDesc.getLayout(),
+                     userOutDesc.getPrecision(),
+                     userOutDesc.getLayout(),
+                     KmbTestBase::RUN_INFER)) {
         // FIXME: Power doesn't work with FP precision (hangs in runtime)
         // [Track number: S#31382]
         if (userInDesc.getPrecision() != Precision::FP16 && userInDesc.getPrecision() != Precision::FP32) {
@@ -167,8 +178,8 @@ static auto checkIncorrectLayouts = ::testing::Combine(::testing::Values(Precisi
 static auto checkOutputPrecisionsForceFP16 = ::testing::Combine(::testing::Values(Precision::U8),
     ::testing::ValuesIn(all_precisions), ::testing::Values(Layout::NHWC), ::testing::Values(false));
 
-INSTANTIATE_TEST_CASE_P(InPrecisions, KmbLayoutTests, checkInputPrecisions);
-INSTANTIATE_TEST_CASE_P(OutPrecisions, KmbLayoutTests, checkOutputPrecisions);
-INSTANTIATE_TEST_CASE_P(Layouts, KmbLayoutTests, checkLayouts);
-INSTANTIATE_TEST_CASE_P(IncorrectLayouts, KmbLayoutTests, checkIncorrectLayouts);
-INSTANTIATE_TEST_CASE_P(OutPrecisionsForceFP16, KmbLayoutTests, checkOutputPrecisionsForceFP16);
+INSTANTIATE_TEST_CASE_P(precommit_InPrecisions, KmbLayoutTests, checkInputPrecisions);
+INSTANTIATE_TEST_CASE_P(precommit_OutPrecisions, KmbLayoutTests, checkOutputPrecisions);
+INSTANTIATE_TEST_CASE_P(precommit_Layouts, KmbLayoutTests, checkLayouts);
+INSTANTIATE_TEST_CASE_P(precommit_IncorrectLayouts, KmbLayoutTests, checkIncorrectLayouts);
+INSTANTIATE_TEST_CASE_P(precommit_OutPrecisionsForceFP16, KmbLayoutTests, checkOutputPrecisionsForceFP16);

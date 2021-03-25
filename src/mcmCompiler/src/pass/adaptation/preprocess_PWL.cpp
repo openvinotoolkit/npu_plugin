@@ -73,7 +73,7 @@ void placeReQuantizeDepthwiseBefore(mv::OpModel & om, mv::Data::OpListIterator o
     om.defineFlow(reQuantizeDepthwise, opIt, index);
 }
 
-void preprocessForPWL(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void preprocessForPWL(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
@@ -89,7 +89,7 @@ void preprocessForPWL(const mv::pass::PassEntry&, mv::ComputationModel& model, m
             if (std::find(DPU_OPS.begin(), DPU_OPS.end(), opIterator->getOpType()) != DPU_OPS.end() &&
                 opIterator->hasAttr("postOpTypes")) {
                 auto postOpTypes = opIterator->get<std::vector<std::string>>("postOpTypes");
-                auto dpuPostOp = std::find_if(postOpTypes.begin(), postOpTypes.end(), mv::ControlModel::isDpuPwl);
+                auto dpuPostOp = findIsDPUPwlPostOp(postOpTypes, td);
                 if (dpuPostOp != postOpTypes.end()) {
                     opIterator->set<bool>("WithDPUPWL", true);
                     opIterator->set<bool>("With" + *dpuPostOp, true);
@@ -99,7 +99,7 @@ void preprocessForPWL(const mv::pass::PassEntry&, mv::ComputationModel& model, m
     }
 }
 
-void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -114,7 +114,7 @@ void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& mod
         if (conv->hasAttr("postOpTypes"))
         {
             auto postOpTypes = conv->get<std::vector<std::string>>("postOpTypes");
-            auto dpuPostOp = std::find_if(postOpTypes.begin(), postOpTypes.end(), mv::ControlModel::isDpuPwl);
+            auto dpuPostOp = findIsDPUPwlPostOp(postOpTypes, td);
             if (dpuPostOp != postOpTypes.end())
             {
                 auto pwl_range = pwl_ranges[*dpuPostOp];

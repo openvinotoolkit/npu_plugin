@@ -7,6 +7,12 @@
 
 namespace mv
 {
+    struct mish_params_t {
+        std::vector<int> _range_vector;
+        std::vector<int> _shift_vector;
+        std::vector<int> _bias_vector;
+        int _scale;
+    };
 
     class ControlModel : public ComputationModel
     {
@@ -37,7 +43,7 @@ namespace mv
         std::vector<Control::OpListIterator> schedulingSortDMA();
         void transitiveReduction(const std::string& edgeAttribute = "");
         bool isDag();
-        static bool isDpuPwl(const std::string& opName);
+        static mish_params_t getMishParameters(const double maxQuant);
         mv::Control::OpListIterator cycleResponsible();
         std::vector<Control::FlowListIterator> criticalPath(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp, const std::string& nodeAttribute = "", const std::string& edgeAttribute = "");
         std::vector<Control::FlowListIterator> criticalPath(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp, const std::string& nodeAttribute = "", const std::string& edgeAttribute = "");

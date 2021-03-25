@@ -89,7 +89,7 @@ mlir::LogicalResult vpux::IE::ScaleShiftOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-void vpux::IE::ScaleShiftOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
+void vpux::IE::ScaleShiftOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
                                                          mlir::MLIRContext* context) {
     patterns.insert<FuseScaleAndBias>(context);
 }

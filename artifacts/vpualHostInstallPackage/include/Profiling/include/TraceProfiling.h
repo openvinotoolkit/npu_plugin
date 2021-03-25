@@ -32,7 +32,12 @@ enum class ProfileType {
 enum class Components: uint32_t {
     ProfilerTest = 0,
     VPUAL,
-    NN_PERFORMANCE
+    NN_PERFORMANCE,
+    SIPP,
+    M2I,
+    OBJECT_TRACKER,
+    FLIC,
+    OSD
 };
 
 enum class ProfileLevel: int {

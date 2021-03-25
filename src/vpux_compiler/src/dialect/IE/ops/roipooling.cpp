@@ -33,8 +33,9 @@ mlir::LogicalResult vpux::IE::ROIPoolingOp::inferReturnTypeComponents(
 
     const auto output_size = parseIntArrayAttr(roiPooling.output_size());
     const auto inTypeFeatureMap = roiPooling.input().getType().cast<mlir::ShapedType>();
-    const auto inTypeCoord = roiPooling.coords().getType().cast<mlir::ShapedType>();
     const auto inShapeFeatureMap = inTypeFeatureMap.getShape();
+
+    const auto inTypeCoord = roiPooling.coords().getType().cast<mlir::ShapedType>();
     const auto inShapeCoord = inTypeCoord.getShape();
 
     if (inShapeFeatureMap.size() != 4) {
