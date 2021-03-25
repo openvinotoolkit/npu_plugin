@@ -34,8 +34,11 @@ EmulatorBackend::EmulatorBackend()
           _device(std::make_shared<EmulatorDevice>()) {
 }
 
+// nullptr is returned to make sure that
+// the emulator is chosen only when
+// it is requested explicitly by a user
 const std::shared_ptr<IDevice> EmulatorBackend::getDevice() const {
-    return _device;
+    return nullptr;
 }
 
 const std::shared_ptr<IDevice> EmulatorBackend::getDevice(const ie::ParamMap& map) const {
