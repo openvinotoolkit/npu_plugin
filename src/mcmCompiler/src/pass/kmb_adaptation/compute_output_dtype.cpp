@@ -314,7 +314,7 @@ namespace mv
     }
 }
 
-void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     using namespace mv;
     OpModel om(model);
@@ -354,6 +354,12 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
                 // limited to FP16
                 else if (kernelOp->getOpType() == "Input" && kernelOp.leftmostOutput().sink()->getOpType() == "Conversion")
                 {
+                    ++kernelOp;
+                }
+                else if (td.getTarget() == mv::Target::ma3720)
+                {
+                    if (outputTensor->getDType() == mv::DType("Float64"))
+                        outputTensor->setDType(mv::DType("Float32"));
                     ++kernelOp;
                 }
                 else
