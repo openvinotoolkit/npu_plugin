@@ -66,7 +66,7 @@ protected:
     virtual ~IEngineBackend() override = default;
 };
 
-class EngineBackendConfigurator;
+using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
 
 class EngineBackend final {
 public:
@@ -84,24 +84,11 @@ public:
         return _impl->getSupportedOptions();
     }
 
-private:
-    friend class EngineBackendConfigurator;
-
-    using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
-    IEngineBackendPtr _impl = {};
-
-private:
     EngineBackend(std::string pathToLib);
     EngineBackend() = default;
-    const std::map<std::string, std::shared_ptr<Device>> createDeviceMap();
-};
-
-class EngineBackendConfigurator {
-public:
-    static std::shared_ptr<EngineBackend> findBackend(const InferenceEngine::ParamMap& params = {});
 
 private:
-    EngineBackendConfigurator();
+    IEngineBackendPtr _impl = {};
 };
 
 //------------------------------------------------------------------------------

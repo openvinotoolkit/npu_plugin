@@ -53,7 +53,6 @@ static VPUXConfig mergePluginAndNetworkConfigs(
 //------------------------------------------------------------------------------
 Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)), _metrics(_backends) {
     _pluginName = DEVICE_NAME;  // "VPUX"
-    // TODO Different backends can require different compilers in future
     const auto compiler = Compiler::create(_parsedConfig);
     _parsedConfig.expandSupportedCompileOptions(compiler->getSupportedOptions());
     _parsedConfig.expandSupportedRunTimeOptions(_backends == nullptr ? std::unordered_set<std::string>() : _backends->getSupportedOptions());
@@ -97,7 +96,6 @@ IE::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
-    // TODO This backend instance should be replaced with VPUX after backend refactoring
     auto device = _backends->getDevice(networkConfig.deviceId());
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
     return IE::make_executable_network(executableNetwork);
