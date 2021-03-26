@@ -29,6 +29,7 @@
 
 #include <samples/common.hpp>
 #include <samples/args_helper.hpp>
+#include <samples/slog.hpp>
 
 #include "detection_sample_yolov2tiny.h"
 #include "region_yolov2tiny.h"
