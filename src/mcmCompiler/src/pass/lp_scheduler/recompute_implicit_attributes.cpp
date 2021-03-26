@@ -1,6 +1,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/op_model.hpp"
+#include "include/mcm/utils/helpers.hpp"
 
 namespace {
 
@@ -10,17 +11,9 @@ typedef mv::Op * operation_non_const_t;
 typedef std::list<operation_t> op_list_t;
 typedef std::unordered_map<operation_t, size_t> degree_map_t;
 
-size_t get_in_degree(mv::Data::OpListIterator op, mv::OpModel &om) {
-  size_t in_degree = 0UL;
-  for (auto pitr = op.leftmostParent(); pitr != om.opEnd(); ++pitr) {
-    ++in_degree;
-  }
-  return in_degree;
-}
-
 void compute_ops_in_degree(mv::OpModel &om, op_list_t& zero_in_degree_nodes, degree_map_t& in_degree_map) {
   for (auto itr = om.opBegin(); itr != om.opEnd(); ++itr) {
-    size_t in_degree = get_in_degree(itr, om);
+    size_t in_degree = itr.parentsSize();
     operation_t op = &(*itr);
 
     if (!in_degree) {
@@ -61,20 +54,20 @@ class Attribute_Propagator {
     }
 
     void dump(std::string const& file_name) const {
-      FILE *fptr = fopen(file_name.c_str(), "w");
-      if(fptr == nullptr) {
+      std::unique_ptr <FILE, mv::utils::RaiiWrapper<FILE, mv::utils::releaseFile>> fptr;
+      fptr.reset(fopen(file_name.c_str(), "w"));
+
+      if(!fptr.get()) {
         throw mv::RuntimeError("RecomputeImplicitOpAttr",
           "Can't open file " + file_name);
       }
 
       std::string const message = "op=%s " + attr_name_ + "=%s\n";
       for (const auto& itr : attr_table_) {
-        fprintf(fptr, message.c_str(),
+        fprintf(fptr.get(), message.c_str(),
               (itr.first)->getName().c_str(),
               attr_val_to_string(itr.second).c_str());
       }
-
-      fclose(fptr);
     }
 
     size_t recompute() {
