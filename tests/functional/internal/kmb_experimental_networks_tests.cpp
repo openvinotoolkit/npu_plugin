@@ -235,10 +235,7 @@ TEST_F(ModelAdk, ModelE_ADK3) {
 }
 
 // [Track number: S#47419]
-TEST_F(ModelAdk, DeBlur_ADK3) {
-#ifdef _WIN32
-    SKIP() << "SEH exception";
-#endif
+TEST_F(ModelAdk, precommit_DeBlur_ADK3) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
             TestNetworkDesc("ADK3/DeBlur_INT8/DeBlur_deepImageDeblur.xml", EXPERIMENTAL)
