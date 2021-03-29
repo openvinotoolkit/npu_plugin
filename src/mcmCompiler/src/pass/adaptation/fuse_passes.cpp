@@ -127,29 +127,62 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
     mv::OpModel om(model);
     mv::DataModel dm(model);
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-    if (parentOpIt->getOpType() == "Conv" ||
-        parentOpIt->getOpType() == "FullyConnected" ||
-        parentOpIt->getOpType() == "DepthwiseConv" ||
-        parentOpIt->getOpType() == "Deconv" ||
-        parentOpIt->getOpType() == "MaxPool")
+    
+    if(parentOpIt->getOpType() == "Concat" || parentOpIt->getOpType() == "Slice" || parentOpIt->getOpType() == "Reshape")
     {
-        auto bias = *opIt->getInputTensor(1);
-        auto biasOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-        if (parentOpIt->hasAttr("bias"))
+        std::vector<mv::Data::TensorIterator> sourceTensors;
+        if(parentOpIt->getOpType() == "Slice")
         {
-            auto biasTensor = model.getTensor(parentOpIt->get<std::string>("bias"));
-            biasTensor->add(bias);
+            auto parentOpIt2 = om.getSourceOp(parentOpIt->getInputTensor(0));
+            if(parentOpIt2->getOpType() == "Reshape")
+            {
+                auto parentOpIt3 = om.getSourceOp(parentOpIt2->getInputTensor(0));
+                if(parentOpIt3->getOpType() == "Concat")
+                    sourceTensors = parentOpIt3->getInputTensor();
+            }
+        }
+        else if(parentOpIt->getOpType() == "Reshape")
+        {
+            auto parentOpIt2 = om.getSourceOp(parentOpIt->getInputTensor(0));
+            if(parentOpIt2->getOpType() == "Concat")
+                sourceTensors = parentOpIt2->getInputTensor();
         }
         else
         {
-            std::string biasTensorName = mv::createBiasName(parentOpIt->getName());
-            mv::Data::TensorIterator biasTensor;
-            if (bias.hasAttr("quantParams"))
-                biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData(), bias.get<mv::QuantizationParams>("quantParams")) );
-            else
-                biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData()) );
-            om.addAttr(parentOpIt, "bias", biasTensor->getName());
+            sourceTensors = parentOpIt->getInputTensor();
+        }                    
+
+        for(auto& sourceTensor: sourceTensors)
+        {
+            std::cout << sourceTensor->getName() << std::endl;
+            auto grandParentOpIt = om.getSourceOp(sourceTensor);
+            if (grandParentOpIt->getOpType() == "Conv" ||
+                grandParentOpIt->getOpType() == "FullyConnected" ||
+                grandParentOpIt->getOpType() == "DepthwiseConv" ||
+                grandParentOpIt->getOpType() == "Deconv" ||
+                grandParentOpIt->getOpType() == "MaxPool")
+            {
+                std::cout << grandParentOpIt->getName() << std::endl;
+                auto bias = *opIt->getInputTensor(1);
+                if (grandParentOpIt->hasAttr("bias"))
+                {
+                    auto biasTensor = model.getTensor(grandParentOpIt->get<std::string>("bias"));
+                    biasTensor->add(bias);
+                }
+                else
+                {
+                    std::string biasTensorName = mv::createBiasName(grandParentOpIt->getName());
+                    mv::Data::TensorIterator biasTensor;
+                    if (bias.hasAttr("quantParams"))
+                        biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData(), bias.get<mv::QuantizationParams>("quantParams")) );
+                    else
+                        biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData()) );
+                    om.addAttr(grandParentOpIt, "bias", biasTensor->getName());
+                }
+            }
         }
+
+        auto biasOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto sourceTensor = parentOpIt->getOutputTensor(0);
         sourceTensor->setDType(opIt->getOutputTensor(0)->getDType());
         sourceTensor->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
@@ -159,6 +192,40 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", biasOutputMemoryLocation);
         }
     }
+    else
+    {
+        if (parentOpIt->getOpType() == "Conv" ||
+            parentOpIt->getOpType() == "FullyConnected" ||
+            parentOpIt->getOpType() == "DepthwiseConv" ||
+            parentOpIt->getOpType() == "Deconv" ||
+            parentOpIt->getOpType() == "MaxPool")
+        {
+            auto bias = *opIt->getInputTensor(1);
+            auto biasOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            if (parentOpIt->hasAttr("bias"))
+            {
+                auto biasTensor = model.getTensor(parentOpIt->get<std::string>("bias"));
+                biasTensor->add(bias);
+            }
+            else
+            {
+                std::string biasTensorName = mv::createBiasName(parentOpIt->getName());
+                mv::Data::TensorIterator biasTensor;
+                if (bias.hasAttr("quantParams"))
+                    biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData(), bias.get<mv::QuantizationParams>("quantParams")) );
+                else
+                    biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData()) );
+                om.addAttr(parentOpIt, "bias", biasTensor->getName());
+            }
+            auto sourceTensor = parentOpIt->getOutputTensor(0);
+            opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+            if (biasOutputMemoryLocation.isForced())
+            {
+                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", biasOutputMemoryLocation);
+            }
+        }
+    }
+    
 }
 
 void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
@@ -196,7 +263,7 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
 
     std::vector<mv::Data::OpListIterator> fusableParents;
     auto isActivationAgnostic = [](mv::Data::OpListIterator &op)
-        {return op->isImplicit() || op->getOpType() == "Concat";};
+        {return op->isImplicit() || op->getOpType() == "Concat" || op->getOpType() == "Reshape";};
 
     if (!isActivationAgnostic(parentOp))
         fusableParents.push_back(parentOp);
@@ -208,7 +275,7 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
             auto current_op_itr = op_itr_bfs.front();
             for(auto parentIt = current_op_itr.leftmostParent();
                 parentIt != om.opEnd(); ++parentIt) {
-                if (parentIt->isImplicit() || parentIt->getOpType() == "Concat") {
+                if (parentIt->isImplicit() || parentIt->getOpType() == "Concat" || parentIt->getOpType() == "Reshape") {
                     op_itr_bfs.push(parentIt);
                 } else {
                     fusableParents.push_back(parentIt);
