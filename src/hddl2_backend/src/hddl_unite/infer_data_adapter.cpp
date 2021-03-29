@@ -96,7 +96,7 @@ void InferDataAdapter::setPreprocessFlag(const bool preprocessingRequired) {
 }
 
 static bool isInputBlobDescAlreadyCreated(const HddlUnite::Inference::InferData::Ptr& inferDataPtr,
-                                          const std::string inputBlobName) {
+                                          const std::string& inputBlobName) {
     const auto& inputBlobs = inferDataPtr->getInBlobs();
     auto result =
             std::find_if(inputBlobs.begin(), inputBlobs.end(),

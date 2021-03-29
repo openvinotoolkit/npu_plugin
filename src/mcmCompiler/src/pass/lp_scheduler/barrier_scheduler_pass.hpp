@@ -225,7 +225,7 @@ class Control_Model_Barrier_Scheduler {
           sprintf(barrier_name, "Barrier_%zu", barrier_task_id++);
 
           std::set<std::string> empty_set;
-          struct mv::Barrier new_barrier(empty_set, empty_set);
+          mv::Barrier new_barrier(empty_set, empty_set);
 
           om_ptr_->barrierTask(barrier_name, new_barrier);
           op_iterator_t barrier_new = om_ptr_->getOp(barrier_name);

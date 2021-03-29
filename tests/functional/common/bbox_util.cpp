@@ -146,7 +146,7 @@ template <typename T>
 struct ScoresIndexedComparator {
     explicit ScoresIndexedComparator(const std::vector<T>& scores) : _scores(scores) {}
 
-    bool operator()(int idx1, int idx2) {
+    bool operator()(const size_t idx1, const size_t idx2) const {
         if (_scores[idx1] > _scores[idx2]) return true;
         if (_scores[idx1] < _scores[idx2]) return false;
         return idx1 < idx2;

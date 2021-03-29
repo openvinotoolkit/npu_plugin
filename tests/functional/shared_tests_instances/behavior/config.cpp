@@ -14,8 +14,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32
 };
 
-const std::vector<std::map<std::string, std::string>> configs = {};
-
 const std::vector<std::map<std::string, std::string>> Configs = {
     {},
     {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}},
