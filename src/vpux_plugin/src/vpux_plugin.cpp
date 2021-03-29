@@ -153,6 +153,8 @@ IE::Parameter Engine::GetMetric(
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics.GetRangeForAsyncInferRequest());
     } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics.GetRangeForStreams());
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     }
     IE_THROW(NotImplemented);
 }

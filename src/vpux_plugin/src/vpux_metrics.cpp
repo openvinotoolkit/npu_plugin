@@ -27,7 +27,7 @@ Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
             METRIC_KEY(SUPPORTED_METRICS),         METRIC_KEY(AVAILABLE_DEVICES),
             METRIC_KEY(FULL_DEVICE_NAME),          METRIC_KEY(SUPPORTED_CONFIG_KEYS),
             METRIC_KEY(OPTIMIZATION_CAPABILITIES), METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
-            METRIC_KEY(RANGE_FOR_STREAMS),
+            METRIC_KEY(RANGE_FOR_STREAMS),         METRIC_KEY(IMPORT_EXPORT_SUPPORT),
     };
 
     _supportedConfigKeys = {
