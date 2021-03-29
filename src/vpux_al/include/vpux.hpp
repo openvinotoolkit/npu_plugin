@@ -222,8 +222,8 @@ public:
                 new AllocatorWrapper(_actual->getAllocator(paramMap), _plg));
     }
 
-    virtual std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
-                                                     const VPUXConfig& config) {
+    std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
+                                             const VPUXConfig& config) {
         return _actual->createExecutor(networkDescription, config);
     }
 

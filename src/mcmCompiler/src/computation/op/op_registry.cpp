@@ -883,11 +883,12 @@ std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, co
         throw OpError("OpRegistry", "Attempt of obtaining CompositionAPI definition for an unregistered op type " + opType);
 
     OpEntry* const opPtr = instance().find(opType);
-    auto copiedOps = opPtr->getCopyOperations();
 
     if (!opPtr)
         throw MasterError("OpRegistry", "Registered op type " + opType +
             " not found in the op registry");
+
+    auto copiedOps = opPtr->getCopyOperations();
 
     if (opPtr->getOutputsCount() > 1)
         throw MasterError("OpRegistry", "Multi-output ops currently unsupported in CompositionAPI generator");

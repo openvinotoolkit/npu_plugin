@@ -294,7 +294,7 @@ static std::vector<utils::BoundingBox> yolov2BoxExtractor(float threshold, std::
 
     int lw = 13;
     int lh = 13;
-    float nms = 0.4;
+    float nms = 0.4f;
 
     std::vector<utils::Box> boxes(lw * lh * num);
     std::vector<std::vector<float>> probs(lw * lh * num, std::vector<float>(classes + 1, 0.0));
