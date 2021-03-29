@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -23,11 +23,11 @@ include "mlir/Pass/PassBase.td"
 // SetCompileParams
 //
 
-def SetCompileParams : Pass<"set-compile-params", "mlir::ModuleOp"> {
+def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
     let summary = "Set compilation parameters related to VPUIP Dialect";
 
     let description = [{
-        This "atomic" pass attaches compilation parameters related to VPUIP Dialect
+        This pass attaches compilation parameters related to VPUIP Dialect
         to Module attributes and initializes IERT Dialect resources information.
     }];
 
@@ -50,11 +50,11 @@ def SetCompileParams : Pass<"set-compile-params", "mlir::ModuleOp"> {
 // AddLinearScheduling
 //
 
-def AddLinearScheduling : Pass<"add-linear-scheduling", "mlir::ModuleOp"> {
+def AddLinearScheduling : PassBase<"add-linear-scheduling", "vpux::ModulePass"> {
     let summary = "Impose simple linear execution";
 
     let description = [{
-        The pass inserts barriers to impose simple linear execution in IR order.
+        This pass inserts barriers to impose simple linear execution in IR order.
     }];
 
     let constructor = "vpux::VPUIP::createAddLinearSchedulingPass()";

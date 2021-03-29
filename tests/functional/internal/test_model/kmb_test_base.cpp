@@ -24,7 +24,6 @@
 #include <blob_factory.hpp>
 #include "functional_test_utils/plugin_cache.hpp"
 #include <format_reader_ptr.h>
-#include <vpu/utils/error.hpp>
 #include <blob_factory.hpp>
 
 //
@@ -166,6 +165,22 @@ const bool KmbTestBase::PRINT_PERF_COUNTERS = []() -> bool {
     return false;
 }();
 
+const std::string KmbTestBase::COMPILATION_DESC = []() -> std::string {
+    if (const auto var = std::getenv("IE_KMB_TESTS_COMPILATION_DESC")) {
+        return var;
+    }
+
+    return std::string();
+}();
+
+const std::string KmbTestBase::TARGET_DESC = []() -> std::string {
+    if (const auto var = std::getenv("IE_KMB_TESTS_TARGET_DESC")) {
+        return var;
+    }
+
+    return std::string();
+}();
+
 void KmbTestBase::SetUp() {
     ASSERT_NO_FATAL_FAILURE(CommonTestUtils::TestsCommon::SetUp());
 
@@ -274,7 +289,16 @@ ExecutableNetwork KmbTestBase::getExecNetwork(
     if (RUN_COMPILER || forceCompilation) {
         std::cout << "=== COMPILE NETWORK" << std::endl;
 
-        exeNet = core->LoadNetwork(netCreator(), DEVICE_NAME, configCreator());
+        auto config = configCreator();
+        if (!COMPILATION_DESC.empty()) {
+            config[VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR)] = COMPILATION_DESC;
+        }
+
+        if (!TARGET_DESC.empty()) {
+            config[VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR)] = TARGET_DESC;
+        }
+
+        exeNet = core->LoadNetwork(netCreator(), DEVICE_NAME, config);
 
         if (EXPORT_NETWORK) {
             std::cout << "    === EXPORT NETWORK" << std::endl;

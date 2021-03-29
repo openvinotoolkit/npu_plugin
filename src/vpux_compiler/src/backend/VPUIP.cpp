@@ -78,19 +78,16 @@ MVCNN::PhysicalProcessor createPhysicalProcessor(VPUIP::PhysicalProcessor proc) 
     }
 }
 
-void createProcessorMapping(VPUIP::BlobWriter& writer, IERT::ExecutorResourceOp res,
-                            std::vector<flatbuffers::Offset<MVCNN::ProcessorMapping>>& parentOffsets) {
-    const auto kind = res.kindAttr().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
-    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", res.kindAttr());
+flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
+                                                                    IERT::ExecutorResourceOp res) {
+    const auto kind = res.kind().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
+    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", res.kind());
 
     MVCNN::ProcessorMappingBuilder builder(writer);
     builder.add_item(createPhysicalProcessor(kind.getValue()));
     builder.add_number(checked_cast<double>(res.count()));
     builder.add_is_bitmask(false);
-    parentOffsets.push_back(builder.Finish());
-    for (const auto& subExec : res.subExecutors().getOps<IERT::ExecutorResourceOp>()) {
-        createProcessorMapping(writer, subExec, parentOffsets);
-    }
+    return builder.Finish();
 }
 
 MVCNN::PhysicalMem createPhysicalMem(VPUIP::PhysicalMemory mem) {
@@ -122,19 +119,21 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
     VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources information");
 
-    const auto usedMemory = writer.createVector(resources.usedMemory().getOps<IERT::MemoryResourceOp>() |
-                                                transformed([&](IERT::MemoryResourceOp res) {
-                                                    return createMemoryMapping(writer, res);
-                                                }));
+    const auto usedMemory =
+            writer.createVector(resources.getUsedMemory() | transformed([&](IERT::MemoryResourceOp res) {
+                                    return createMemoryMapping(writer, res);
+                                }));
 
-    std::vector<flatbuffers::Offset<MVCNN::ProcessorMapping>> usedExecutorsOffsets;
-    for (const auto& executorResource : resources.usedExecutors().getOps<IERT::ExecutorResourceOp>()) {
-        createProcessorMapping(writer, executorResource, usedExecutorsOffsets);
-    }
-    const auto usedExecutors = writer.createVector(usedExecutorsOffsets);
+    SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
+    resources.walk([&](IERT::ExecutorResourceOp res) {
+        if (res.kind().isa<VPUIP::PhysicalProcessorAttr>()) {
+            executorsOffsets.push_back(createProcessorMapping(writer, res));
+        }
+    });
+    const auto executors = writer.createVector(executorsOffsets);
 
     MVCNN::ResourcesBuilder builder(writer);
-    builder.add_processor_allocation(usedExecutors);
+    builder.add_processor_allocation(executors);
     builder.add_memory_sizes(usedMemory);
     return builder.Finish();
 }

@@ -4,9 +4,10 @@
 
 #include "kmb_test_env_cfg.hpp"
 
+#include <details/ie_exception.hpp>
+
 #include <cstdlib>
 #include <stdexcept>
-#include <vpu/utils/error.hpp>
 
 namespace LayerTestsUtils {
 
@@ -81,6 +82,14 @@ KmbTestEnvConfig::KmbTestEnvConfig() {
 
     if (auto var = std::getenv("IE_KMB_TESTS_LONG_FILE_NAME")) {
         IE_KMB_TESTS_LONG_FILE_NAME = strToBool("IE_KMB_TESTS_LONG_FILE_NAME", var);
+    }
+
+    if (auto var = std::getenv("IE_KMB_TESTS_COMPILATION_DESC")) {
+        IE_KMB_TESTS_COMPILATION_DESC = var;
+    }
+
+    if (auto var = std::getenv("IE_KMB_TESTS_TARGET_DESC")) {
+        IE_KMB_TESTS_TARGET_DESC = var;
     }
 }
 

@@ -80,7 +80,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
             return errorAt(op, "Missing IERT run-time resources definition");
         }
 
-        auto available = resources.getAvailableExecutor(
+        auto available = resources.getExecutor(
                 VPUIP::PhysicalProcessorAttr::get(op->getContext(), VPUIP::PhysicalProcessor::SHAVE_UPA));
         if (available == nullptr) {
             return errorAt(op, "SHAVE_UPA executor is not avaialble in run-time");

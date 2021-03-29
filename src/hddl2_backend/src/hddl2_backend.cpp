@@ -36,8 +36,6 @@ HDDL2Backend::HDDL2Backend(const VPUXConfig& config)
           _logger(std::make_shared<vpu::Logger>("HDDL2Backend", _config.logLevel(), vpu::consoleOutput())) {
     setUniteLogLevel(_config.logLevel());
     _devices = createDeviceMap();
-    if (_devices.empty())
-        IE_THROW() << "Device map is empty.";
 }
 
 /** Generic device */

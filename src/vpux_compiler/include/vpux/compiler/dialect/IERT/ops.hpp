@@ -51,6 +51,7 @@ namespace vpux {
 namespace IERT {
 
 mlir::LogicalResult verifyOp(RunTimeResourcesOp op);
+mlir::LogicalResult verifyOp(ExecutorResourceOp op);
 mlir::LogicalResult verifyOp(GenericReshapeOp op);
 
 }  // namespace IERT

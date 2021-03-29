@@ -48,10 +48,10 @@ namespace vpux {
 // VPUX_PACKED
 //
 
-#if defined(__GNUC__)
-#define VPUX_PACKED __attribute__((packed))
-#else
-#define VPUX_PACKED
+#ifdef _MSC_VER
+#define VPUX_PACKED(body) __pragma(pack(push, 1)) struct body __pragma(pack(pop))
+#elif defined(__GNUC__)
+#define VPUX_PACKED(body) struct __attribute__((packed)) body
 #endif
 
 //

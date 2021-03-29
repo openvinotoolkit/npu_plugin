@@ -754,19 +754,14 @@ Syntax:
 operation ::= `IERT.RunTimeResources` attr-dict
               `availableMemory` `:` $availableMemory
               `usedMemory` `:` $usedMemory
-              `availableExecutors` `:` $availableExecutors
-              `usedExecutors` `:` $usedExecutors
+              `executors` `:` $executors
 ```
 
 This operation defines various resources consumed at run-time:
 
-  * Memory spaces for interal buffers.
+  * Available memory spaces for interal buffers.
+  * Used memory spaces for interal buffers.
   * Executors for asynchronous calls.
-
-The resources are divided onto 2 category:
-
-  * Avaialble - total amount of resources, which run-time can consume.
-  * Used - actual number of resources, which are needed for network execution.
 
 ### `IERT.ScaleShift` (vpux::IERT::ScaleShiftOp)
 
@@ -833,15 +828,15 @@ operation ::= `IERT.SoftMax` `(` operands `)` attr-dict `:` type(operands)
 `input` | memref of 16-bit float or 32-bit float values
 `output` | memref of 16-bit float or 32-bit float values
 
-### `IERT.SquaredDiff` (vpux::IERT::SquaredDiffOp)
+### `IERT.SquaredDifference` (vpux::IERT::SquaredDifferenceOp)
 
-InferenceEngine run-time SquaredDiff layer
+InferenceEngine run-time SquaredDifference layer
 
 
 Syntax:
 
 ```
-operation ::= `IERT.SquaredDiff` `(` operands `)` attr-dict `:` type(operands)
+operation ::= `IERT.SquaredDifference` `(` operands `)` attr-dict `:` type(operands)
 ```
 
 
@@ -965,5 +960,6 @@ operation ::= `IERT.Transpose` `(` operands `)` attr-dict `:` type(operands)
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float or 32-bit float values
+`order` | memref of 64-bit signed integer values
 `output` | memref of 16-bit float or 32-bit float values
 

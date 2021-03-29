@@ -9,9 +9,6 @@ module @SingleLayer {
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
 // CHECK:           IERT.MemoryResource 0 bytes of "DDR"
-// CHECK:       usedExecutors
-// CHECK:           IERT.ExecutorResource 16 of "SHAVE_UPA"
-// CHECK:           IERT.ExecutorResource 1 of "NCE_Cluster"
 
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork
@@ -50,9 +47,6 @@ module @ConstantLayer {
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
 // CHECK:           IERT.MemoryResource 0 bytes of "DDR"
-// CHECK:       usedExecutors
-// CHECK:           IERT.ExecutorResource 16 of "SHAVE_UPA"
-// CHECK:           IERT.ExecutorResource 1 of "NCE_Cluster"
 
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork

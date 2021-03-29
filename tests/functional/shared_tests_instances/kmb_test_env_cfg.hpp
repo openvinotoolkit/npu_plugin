@@ -19,6 +19,8 @@ public:
     std::string IE_KMB_TESTS_DEVICE_NAME;
     std::string IE_KMB_TESTS_DUMP_PATH;
     std::string IE_KMB_TESTS_LOG_LEVEL;
+    std::string IE_KMB_TESTS_COMPILATION_DESC;
+    std::string IE_KMB_TESTS_TARGET_DESC;
 
     bool IE_KMB_TESTS_RUN_COMPILER = true;
     bool IE_KMB_TESTS_RUN_EXPORT = !IS_ON_ARM;

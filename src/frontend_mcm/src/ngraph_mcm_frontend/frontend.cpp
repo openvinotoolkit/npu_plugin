@@ -39,6 +39,9 @@
 #include <ngraph_mcm_frontend/passes/propagate_fq.hpp>
 #include <ngraph_mcm_frontend/passes/align_scales.hpp>
 #include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
+
+#include "vpux/utils/core/error.hpp"
+
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -225,10 +228,10 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
             std::string groupPassPair;
             while (std::getline(banList, groupPassPair, ';')) {
                 const auto delim = groupPassPair.find(',');
-                VPU_THROW_UNLESS(delim != std::string::npos,
-                                 "McmCompilationPassBanList parsing error: provided value '%s'"
-                                 "should have comma separated Group,Pass string",
-                                 groupPassPair);
+                VPUX_THROW_UNLESS(delim != std::string::npos,
+                                  "McmCompilationPassBanList parsing error: provided value '{0}'"
+                                  "should have comma separated Group,Pass string",
+                                  groupPassPair);
                 const auto group = groupPassPair.substr(0, delim);
                 const auto pass = groupPassPair.substr(delim + 1, std::string::npos);
                 mcmCompDesc.remove(group, pass);

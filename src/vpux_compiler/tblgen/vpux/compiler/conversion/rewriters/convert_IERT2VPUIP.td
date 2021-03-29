@@ -360,7 +360,7 @@ def RewriteDivide :
 
 def RewriteSquaredDiff :
         Pat<
-            (IERT_SquaredDiffOp $input1, $input2, $output),
+            (IERT_SquaredDifferenceOp $input1, $input2, $output),
             (createEltwiseUPAOp<"SQUARED_DIFF"> $input1, $input2, $output)
         >;
 
@@ -501,10 +501,15 @@ def createPermuteUPAOp :
                 $_loc, $0, $1, $2)
         }]>;
 
+def HasConstantOrder : Constraint<CPred<"$0.empty() && $1 != nullptr">>;
+
 def RewriteTranspose :
         Pat<
-            (IERT_TransposeOp $input, $output, $order_value),
-            (createPermuteUPAOp $input, $output, $order_value)
+            (IERT_TransposeOp $input, $order, $output, $order_value),
+            (createPermuteUPAOp $input, $output, $order_value),
+            [
+                (HasConstantOrder $order, $order_value)
+            ]
         >;
 
 #endif

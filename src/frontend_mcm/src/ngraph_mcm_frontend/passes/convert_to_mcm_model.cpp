@@ -127,7 +127,6 @@
 #include <map>
 
 #include <include/mcm/tensor/tiling.hpp>
-#include <vpu/utils/error.hpp>
 #include <converters.hpp>
 #include <custom_layer/custom_layer.hpp>
 

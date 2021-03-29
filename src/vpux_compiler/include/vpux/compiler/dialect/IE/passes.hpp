@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -17,6 +17,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"
 
@@ -24,6 +25,7 @@
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
+#include <mlir/Pass/PassManager.h>
 
 #include <memory>
 
@@ -34,20 +36,40 @@ namespace IE {
 // Passes
 //
 
+std::unique_ptr<mlir::Pass> createUseUserPrecisionPass(Logger log = Logger::global());
+
+//
+// Adjust IE Dialect IR for VPU target.
+//
+// This pipeline includes various adaptation passes to adjust the IR for VPU target.
+//
+
+void buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+
 std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertTile2PerAxisTilePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertPrecisionToFP16Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createAdjustForVPUPass(Logger log = Logger::global());
 
-std::unique_ptr<mlir::Pass> createUseUserPrecisionPass(Logger log = Logger::global());
+//
+// Low precision transformations.
+//
+// This pipeline includes all transformations to support low precisions.
+//
+
+void buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createSplitFakeQuantPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createQuantizeConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createLowPrecisionPass(Logger log = Logger::global());
+
+//
+// Registration
+//
+
+void registerPipelines();
 
 //
 // Generated
