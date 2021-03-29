@@ -2188,12 +2188,21 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
             newShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] / 2;
             newShape[mv::IO_HEIGHT_DIMENSION] = newShape[mv::IO_HEIGHT_DIMENSION] * 2;
         };
-        auto reshapeTensor = om.reshape(operation->getName() + "reshape_full", opConcat, newShape);
+
+        auto identityReshapeTensor = om.reshape(operation->getName() + "reshape_identity", opConcat, opConcat->getShape());
+        identityReshapeTensor->setDType(dType);
+        identityReshapeTensor->setQuantParams(outputQuantParams);
+        identityReshapeTensor->set<unsigned>("opId", initialOpId);
+        auto identityReshapeOp = om.getSourceOp(identityReshapeTensor);
+        identityReshapeOp->set<unsigned>("opId", initialOpId);
+
+        auto reshapeTensor = om.reshape(operation->getName() + "reshape_full", identityReshapeTensor, newShape);
         reshapeTensor->setDType(dType);
         reshapeTensor->setQuantParams(outputQuantParams);
         reshapeTensor->set<unsigned>("opId", initialOpId);
         auto reshapeOp = om.getSourceOp(reshapeTensor);
         reshapeOp->set<unsigned>("opId", initialOpId);
+        reshapeOp->set<bool>("isImplicit", true);
 
         auto originalTensor = operation->getOutputTensor(mv::IO_TENSOR_OUTPUT);
         auto wDelta = reshapeTensor->getShape()[mv::IO_WIDTH_DIMENSION] - originalTensor->getShape()[mv::IO_WIDTH_DIMENSION];
