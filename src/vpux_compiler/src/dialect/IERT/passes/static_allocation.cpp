@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -43,42 +43,40 @@ namespace {
 
 class StaticAllocationPass final : public IERT::StaticAllocationBase<StaticAllocationPass> {
 public:
-    StaticAllocationPass(mlir::Attribute memSpace, Logger log);
+    StaticAllocationPass(IERT::AttrCreateFunc memSpaceCb, Logger log);
 
 public:
-    void runOnOperation() final;
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
 
 public:
     class AllocRewrite;
     class DeallocRewrite;
 
 private:
-    void passBody();
+    void safeRunOnModule() final;
 
 private:
+    IERT::AttrCreateFunc _memSpaceCb;
     mlir::Attribute _memSpace;
-    Logger _log;
 };
 
-StaticAllocationPass::StaticAllocationPass(mlir::Attribute memSpace, Logger log): _memSpace(memSpace), _log(log) {
-    _log.setName(Base::getArgumentName());
+StaticAllocationPass::StaticAllocationPass(IERT::AttrCreateFunc memSpaceCb, Logger log)
+        : _memSpaceCb(std::move(memSpaceCb)) {
+    Base::initLogger(log, Base::getArgumentName());
 }
 
-void StaticAllocationPass::runOnOperation() {
-    try {
-        auto& ctx = getContext();
-
-        if (_memSpace == nullptr) {
-            if (!memSpaceName.getValue().empty()) {
-                _memSpace = mlir::StringAttr::get(&ctx, memSpaceName.getValue());
-            }
-        }
-
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} failed : {1}", getName(), e.what());
-        signalPassFailure();
+mlir::LogicalResult StaticAllocationPass::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
     }
+
+    _memSpace = _memSpaceCb(ctx, memSpaceName.getValue());
+
+    if (_memSpace == nullptr) {
+        return mlir::failure();
+    }
+
+    return mlir::success();
 }
 
 //
@@ -162,10 +160,10 @@ mlir::LogicalResult StaticAllocationPass::DeallocRewrite::matchAndRewrite(
 }
 
 //
-// passBody
+// safeRunOnModule
 //
 
-void StaticAllocationPass::passBody() {
+void StaticAllocationPass::safeRunOnModule() {
     auto& ctx = getContext();
     auto module = getOperation();
 
@@ -204,8 +202,8 @@ void StaticAllocationPass::passBody() {
     });
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<AllocRewrite>(allocInfo, &ctx, _log.nest());
-    patterns.insert<DeallocRewrite>(&ctx, _log.nest());
+    patterns.insert<AllocRewrite>(allocInfo, &ctx, _log);
+    patterns.insert<DeallocRewrite>(&ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
         _log.error("Failed to replace Alloc/Dealloc Operations");
@@ -218,6 +216,6 @@ void StaticAllocationPass::passBody() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IERT::createStaticAllocationPass(mlir::Attribute memSpace, Logger log) {
-    return std::make_unique<StaticAllocationPass>(memSpace, log);
+std::unique_ptr<mlir::Pass> vpux::IERT::createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log) {
+    return std::make_unique<StaticAllocationPass>(std::move(memSpaceCb), log);
 }

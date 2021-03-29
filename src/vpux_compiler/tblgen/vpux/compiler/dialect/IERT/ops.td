@@ -74,21 +74,15 @@ def IERT_RunTimeResourcesOp :
     let description = [{
         This operation defines various resources consumed at run-time:
 
-          * Memory spaces for interal buffers.
+          * Available memory spaces for interal buffers.
+          * Used memory spaces for interal buffers.
           * Executors for asynchronous calls.
-
-        The resources are divided onto 2 category:
-
-          * Avaialble - total amount of resources, which run-time can consume.
-          * Used - actual number of resources, which are needed for network execution.
     }];
 
     let regions = (region
         SizedRegion<1>:$availableMemory,
         SizedRegion<1>:$usedMemory,
-
-        SizedRegion<1>:$availableExecutors,
-        SizedRegion<1>:$usedExecutors
+        SizedRegion<1>:$executors
     );
 
     let skipDefaultBuilders = 1;
@@ -105,23 +99,22 @@ def IERT_RunTimeResourcesOp :
 
         vpux::IERT::MemoryResourceOp addAvailableMemory(mlir::Attribute kind, vpux::Byte size);
         vpux::IERT::MemoryResourceOp getAvailableMemory(mlir::Attribute kind);
+        auto getAvailableMemory() { return availableMemory().getOps<vpux::IERT::MemoryResourceOp>(); }
 
         vpux::IERT::MemoryResourceOp setUsedMemory(mlir::Attribute kind, vpux::Byte size);
         vpux::IERT::MemoryResourceOp getUsedMemory(mlir::Attribute kind);
+        auto getUsedMemory() { return usedMemory().getOps<vpux::IERT::MemoryResourceOp>(); }
 
-        vpux::IERT::ExecutorResourceOp addAvailableExecutor(mlir::Attribute kind, uint32_t count);
-        vpux::IERT::ExecutorResourceOp getAvailableExecutor(mlir::Attribute kind);
-
-        vpux::IERT::ExecutorResourceOp setUsedExecutor(mlir::Attribute kind, uint32_t count);
-        vpux::IERT::ExecutorResourceOp getUsedExecutor(mlir::Attribute kind);
+        vpux::IERT::ExecutorResourceOp addExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
+        vpux::IERT::ExecutorResourceOp getExecutor(mlir::Attribute kind);
+        auto getExecutors() { return executors().getOps<vpux::IERT::ExecutorResourceOp>(); }
     }];
 
     let assemblyFormat = [{
         attr-dict
         `availableMemory` `:` $availableMemory
         `usedMemory` `:` $usedMemory
-        `availableExecutors` `:` $availableExecutors
-        `usedExecutors` `:` $usedExecutors
+        `executors` `:` $executors
     }];
 }
 
@@ -151,9 +144,7 @@ def IERT_MemoryResourceOp :
     );
 
     let extraClassDeclaration = [{
-        vpux::Byte size() {
-            return vpux::Byte(byteSize());
-        }
+        vpux::Byte size() { return vpux::Byte(byteSize()); }
     }];
 
     let assemblyFormat = [{
@@ -190,12 +181,16 @@ def IERT_ExecutorResourceOp :
     );
 
     let regions = (region
-        SizedRegion<1>:$subExecutors
+        VariadicRegion<SizedRegion<1>>:$subExecutors
     );
 
+    let verifier = [{
+        return vpux::IERT::verifyOp(*this);
+    }];
+
     let extraClassDeclaration = [{
-        vpux::IERT::ExecutorResourceOp addAvailableExecutor(mlir::Attribute kind, uint32_t count);
-        vpux::IERT::ExecutorResourceOp getAvailableExecutor(mlir::Attribute kind);
+        vpux::IERT::ExecutorResourceOp addSubExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
+        vpux::IERT::ExecutorResourceOp getSubExecutor(mlir::Attribute kind);
     }];
 
     let assemblyFormat = [{
@@ -752,19 +747,19 @@ def IERT_DivideOp :
 }
 
 //
-// SquaredDiffOp
+// SquaredDifferenceOp
 //
 
-def IERT_SquaredDiffOp :
+def IERT_SquaredDifferenceOp :
         IERT_LayerOp<
-            "SquaredDiff",
+            "SquaredDifference",
             [
                 SameOperandsElementType,
                 DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<EltwiseLayerInterface>
             ]
         > {
-    let summary = "InferenceEngine run-time SquaredDiff layer";
+    let summary = "InferenceEngine run-time SquaredDifference layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
@@ -1085,7 +1080,7 @@ def IERT_ROIPoolingOp :
 }
 
 //
-// FullyConnected
+// FullyConnectedOp
 //
 
 def IERT_FullyConnectedOp:
@@ -1122,6 +1117,7 @@ def IERT_TransposeOp :
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
+        Optional<MemRefOf<[SI64]>>:$order,
         MemRefOf<[F16, F32]>:$output,
 
         AffineMapAttr:$order_value

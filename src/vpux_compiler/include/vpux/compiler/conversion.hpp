@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"
 
@@ -27,20 +28,33 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
+#include <mlir/Pass/PassManager.h>
 
 #include <memory>
 
 namespace vpux {
 
 //
+// Performs full lowering from the IE Dialect to IERT Dialect.
+//
+// This pipeline performs full IR lowering from IE Dialect to IERT Dialect,
+// including Function types, call graph and return operations.
+//
+
+void buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+
+//
 // Passes
 //
 
-std::unique_ptr<mlir::Pass> createConvertIE2IERTPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createLowerIE2IERTPass(Logger log = Logger::global());
-
-std::unique_ptr<mlir::Pass> createConvertIERT2VPUIPPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createBufferizeIEPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createLowerIERT2VPUIPPass(Logger log = Logger::global());
+
+//
+// Registration
+//
+
+void registerConversionPipelines();
 
 //
 // Generated

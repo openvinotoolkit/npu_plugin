@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -30,34 +30,19 @@ namespace {
 
 class UseUserPrecisionPass final : public IE::UseUserPrecisionBase<UseUserPrecisionPass> {
 public:
-    explicit UseUserPrecisionPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit UseUserPrecisionPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
 
-public:
-    void runOnOperation() final;
-
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnModule() final;
 };
 
-void UseUserPrecisionPass::runOnOperation() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
-
 //
-// passBody
+// safeRunOnModule
 //
 
-void UseUserPrecisionPass::passBody() {
+void UseUserPrecisionPass::safeRunOnModule() {
     auto module = getOperation();
 
     IE::CNNNetworkOp netInfo;

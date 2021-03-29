@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -18,6 +18,7 @@
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/optional.hpp"

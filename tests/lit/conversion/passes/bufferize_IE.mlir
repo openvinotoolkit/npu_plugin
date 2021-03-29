@@ -1,13 +1,4 @@
-// RUN: vpux-opt --split-input-file --convert-IE-to-IERT %s | FileCheck %s
-
-//
-// The 'bufferize-IE' pass:
-//
-//   * Updates only Function inner regions.
-//   * Doesn't change Function signatures.
-//   * Replaces only Layer Operations.
-//   * Replaces `linalg.tesor_reshape` with `linalg.reshape`.
-//
+// RUN: vpux-opt --split-input-file --bufferize-IE %s | FileCheck %s
 
 func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %prob = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>

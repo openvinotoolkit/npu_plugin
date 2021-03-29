@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -18,65 +18,52 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/types.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
-#include "vpux/utils/IE/loop.hpp"
-#include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
-#include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
 
+#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
+#include <mlir/Transforms/Passes.h>
 
 using namespace vpux;
 
 namespace {
 
+constexpr size_t TARGET_TENSOR_DIM = 4;
+
 //
-// ConvertPrecisionToFP16Pass
+// ConvertShapeTo4DPass
 //
 
-class ConvertPrecisionToFP16Pass final : public IE::ConvertPrecisionToFP16Base<ConvertPrecisionToFP16Pass> {
+class ConvertShapeTo4DPass final : public IE::ConvertShapeTo4DBase<ConvertShapeTo4DPass> {
 public:
-    explicit ConvertPrecisionToFP16Pass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit ConvertShapeTo4DPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnOperation() final;
 
 public:
     class GenericOpConverter;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnModule() final;
 };
-
-void ConvertPrecisionToFP16Pass::runOnOperation() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // GenericOpConverter
 //
 
-class ConvertPrecisionToFP16Pass::GenericOpConverter final : public mlir::ConversionPattern {
+class ConvertShapeTo4DPass::GenericOpConverter final : public mlir::ConversionPattern {
 public:
-    GenericOpConverter(mlir::TypeConverter& typeConverter, Logger log)
-            : mlir::ConversionPattern(1 /*benefit*/, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
+    GenericOpConverter(mlir::TypeConverter& shapeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::ConversionPattern(shapeConverter, MatchAnyOpTypeTag{}, benefitHigh, ctx), _log(log) {
     }
 
 public:
@@ -87,7 +74,7 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertPrecisionToFP16Pass::GenericOpConverter::matchAndRewrite(
+mlir::LogicalResult ConvertShapeTo4DPass::GenericOpConverter::matchAndRewrite(
         mlir::Operation* origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Process Operation '{0}'", origOp->getLoc());
 
@@ -100,35 +87,49 @@ mlir::LogicalResult ConvertPrecisionToFP16Pass::GenericOpConverter::matchAndRewr
     mlir::BlockAndValueMapping mapper;
     mapper.map(origOperands, operands);
 
+    // TODO: implement this within op as an interface?
+    if (auto softMaxOp = mlir::dyn_cast<IE::SoftMaxOp>(*origOp)) {
+        auto newAxis = softMaxOp.axisInd() +
+                       (TARGET_TENSOR_DIM -
+                        origOp->getOperand(0).getType().dyn_cast<mlir::RankedTensorType>().getShape().size());
+        softMaxOp.axisIndAttr(rewriter.getI32IntegerAttr(checked_cast<int32_t>(newAxis)));
+    }
+
     auto* newOp = rewriter.clone(*origOp, mapper);
     for (auto result : newOp->getResults()) {
         result.setType(converter->convertType(result.getType()));
     }
-
     rewriter.replaceOp(origOp, newOp->getResults());
 
     return mlir::success();
 }
 
 //
-// passBody
+// safeRunOnModule
 //
 
-void ConvertPrecisionToFP16Pass::passBody() {
+void ConvertShapeTo4DPass::safeRunOnModule() {
     auto& ctx = getContext();
 
     const auto cvtType = [](mlir::OpBuilder& builder, mlir::RankedTensorType type, mlir::ValueRange inputs,
                             mlir::Location loc) -> mlir::Value {
         VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
-        return builder.createOrFold<IE::ConvertOp>(loc, inputs[0], mlir::TypeAttr::get(type.getElementType()));
+        return builder.createOrFold<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
     };
 
     mlir::TypeConverter typeConverter;
     typeConverter.addConversion([](mlir::RankedTensorType tensor) {
-        if (tensor.getElementType().isF32()) {
-            return mlir::RankedTensorType::get(tensor.getShape(), mlir::Float16Type::get(tensor.getContext()));
-        } else {
+        if (tensor.getShape().size() == TARGET_TENSOR_DIM) {
             return tensor;
+        } else if (tensor.getShape().size() > TARGET_TENSOR_DIM) {
+            VPUX_THROW("Tensors with rank > 4 is not supported");
+        } else {
+            const auto nDimsToAdd = TARGET_TENSOR_DIM - tensor.getShape().size();
+            SmallVector<int64_t> newShape(nDimsToAdd, 1);
+            for (auto s : tensor.getShape()) {
+                newShape.push_back(s);
+            }
+            return mlir::RankedTensorType::get(newShape, tensor.getElementType());
         }
     });
     typeConverter.addSourceMaterialization(cvtType);
@@ -140,18 +141,17 @@ void ConvertPrecisionToFP16Pass::passBody() {
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
-    target.addDynamicallyLegalOp<mlir::linalg::TensorReshapeOp>(isLegalOp);
+    target.addLegalOp<mlir::linalg::TensorReshapeOp>();
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
-    target.addLegalOp<IE::ConvertOp>();
     target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
-        return typeConverter.isSignatureLegal(funcOp.getType());
+        return typeConverter.isSignatureLegal(funcOp.getType()) && typeConverter.isLegal(&funcOp.getBody());
     });
 
     mlir::RewritePatternSet patterns(&ctx);
     mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
-    patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
-    IE::ConvertOp::getCanonicalizationPatterns(patterns, &ctx);
+    patterns.insert<GenericOpConverter>(typeConverter, &ctx, _log);
+    mlir::linalg::TensorReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto module = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
@@ -162,9 +162,9 @@ void ConvertPrecisionToFP16Pass::passBody() {
 }  // namespace
 
 //
-// createConvertPrecisionToFP16Pass
+// createConvertShapeTo4DPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createConvertPrecisionToFP16Pass(Logger log) {
-    return std::make_unique<ConvertPrecisionToFP16Pass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createConvertShapeTo4DPass(Logger log) {
+    return std::make_unique<ConvertShapeTo4DPass>(log);
 }

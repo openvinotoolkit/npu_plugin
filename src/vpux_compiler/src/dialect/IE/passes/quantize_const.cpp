@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -32,33 +32,16 @@ namespace {
 
 class QuantizeConstPass final : public IE::QuantizeConstBase<QuantizeConstPass> {
 public:
-    explicit QuantizeConstPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit QuantizeConstPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnFunction() final;
 
 public:
     class QuantizeConst;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnFunc() final;
 };
-
-void QuantizeConstPass::runOnFunction() {
-    try {
-        _log.trace("Run on Function '@{0}'", getFunction().sym_name());
-
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getFunction(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // QuantizeConst
@@ -100,14 +83,14 @@ mlir::LogicalResult QuantizeConstPass::QuantizeConst::matchAndRewrite(mlir::quan
 }
 
 //
-// passBody
+// safeRunOnFunc
 //
 
-void QuantizeConstPass::passBody() {
+void QuantizeConstPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<QuantizeConst>(&ctx, _log.nest());
+    patterns.insert<QuantizeConst>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns)))) {

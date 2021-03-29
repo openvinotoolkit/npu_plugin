@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -17,6 +17,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"
 
@@ -25,6 +26,7 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
 
+#include <functional>
 #include <memory>
 
 namespace vpux {
@@ -34,9 +36,11 @@ namespace IERT {
 // Passes
 //
 
+using AttrCreateFunc = std::function<mlir::Attribute(mlir::MLIRContext*, StringRef)>;
+
 std::unique_ptr<mlir::Pass> createAddLayoutsAndStridesPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(mlir::Attribute memSpace, Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createStaticAllocationPass(mlir::Attribute memSpace, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 
 //
 // Generated

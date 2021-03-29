@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -28,45 +28,44 @@ namespace {
 
 class SetInternalMemorySpacePass final : public IERT::SetInternalMemorySpaceBase<SetInternalMemorySpacePass> {
 public:
-    SetInternalMemorySpacePass(mlir::Attribute memSpace, Logger log);
+    SetInternalMemorySpacePass(IERT::AttrCreateFunc memSpaceCb, Logger log);
 
 public:
-    void runOnFunction() final;
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
 
 private:
-    void passBody();
+    void safeRunOnFunc() final;
 
 private:
+    IERT::AttrCreateFunc _memSpaceCb;
     mlir::Attribute _memSpace;
-    Logger _log;
 };
 
-SetInternalMemorySpacePass::SetInternalMemorySpacePass(mlir::Attribute memSpace, Logger log)
-        : _memSpace(memSpace), _log(log) {
-    _log.setName(Base::getArgumentName());
+SetInternalMemorySpacePass::SetInternalMemorySpacePass(IERT::AttrCreateFunc memSpaceCb, Logger log)
+        : _memSpaceCb(std::move(memSpaceCb)) {
+    VPUX_THROW_UNLESS(_memSpaceCb != nullptr, "Missing memSpaceCb");
+    Base::initLogger(log, Base::getArgumentName());
 }
 
-void SetInternalMemorySpacePass::runOnFunction() {
-    try {
-        auto& ctx = getContext();
-
-        if (_memSpace == nullptr) {
-            VPUX_THROW_UNLESS(!memSpaceName.getValue().empty(), "Missing memory space option");
-            _memSpace = mlir::StringAttr::get(&ctx, memSpaceName.getValue());
-        }
-
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} failed : {1}", getName(), e.what());
-        signalPassFailure();
+mlir::LogicalResult SetInternalMemorySpacePass::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
     }
+
+    _memSpace = _memSpaceCb(ctx, memSpaceName.getValue());
+
+    if (_memSpace == nullptr) {
+        return mlir::failure();
+    }
+
+    return mlir::success();
 }
 
 //
-// passBody
+// safeRunOnFunc
 //
 
-void SetInternalMemorySpacePass::passBody() {
+void SetInternalMemorySpacePass::safeRunOnFunc() {
     auto& aliasAnalysis = getAnalysis<mlir::BufferAliasAnalysis>();
 
     const auto callback = [&](mlir::memref::AllocOp allocOp) {
@@ -75,7 +74,7 @@ void SetInternalMemorySpacePass::passBody() {
         const auto aliases = aliasAnalysis.resolve(allocOp.memref());
 
         for (auto var : aliases) {
-            _log.nest().trace("Process alias buffer '{0}'", var);
+            _log.trace("Process alias buffer '{0}'", var);
 
             const auto origType = var.getType().dyn_cast<mlir::MemRefType>();
             VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}'", var.getType());
@@ -92,6 +91,6 @@ void SetInternalMemorySpacePass::passBody() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IERT::createSetInternalMemorySpacePass(mlir::Attribute memSpace, Logger log) {
-    return std::make_unique<SetInternalMemorySpacePass>(memSpace, log);
+std::unique_ptr<mlir::Pass> vpux::IERT::createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log) {
+    return std::make_unique<SetInternalMemorySpacePass>(std::move(memSpaceCb), log);
 }

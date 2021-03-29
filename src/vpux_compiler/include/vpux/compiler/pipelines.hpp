@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,31 +16,21 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-
 #include "vpux/utils/core/logger.hpp"
 
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Pass/Pass.h>
+#include <mlir/Pass/PassManager.h>
 
 namespace vpux {
 
-//
-// ReferenceMode
-//
-
-std::unique_ptr<mlir::Pass> createReferenceModePass(Logger log = Logger::global());
+void registerPipelines();
 
 //
-// Generated
+// Compiles IE Network in Reference mode (SW only execution).
+//
+// This pipeline performs full IR lowering from IE Dialect to VPUIP Dialect (using intermediate lowerings).
+// It uses simple SW implementation for layer operations without any optimizations.
 //
 
-#define GEN_PASS_CLASSES
-#include <vpux/compiler/pipelines/generated/passes.hpp.inc>
-#undef GEN_PASS_CLASSES
-
-#define GEN_PASS_REGISTRATION
-#include <vpux/compiler/pipelines/generated/passes.hpp.inc>
-#undef GEN_PASS_REGISTRATION
+void buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 }  // namespace vpux

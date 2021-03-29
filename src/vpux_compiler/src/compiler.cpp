@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -187,7 +187,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     }
 
     pm.addPass(createSetCompileParamsPass(getArchKind(config), log.nest()));
-    pm.addPass(createReferenceModePass(log.nest()));
+    buildReferenceModePipeline(pm, log.nest());
 
     //
     // Process the network

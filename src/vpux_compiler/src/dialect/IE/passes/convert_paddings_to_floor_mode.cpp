@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -34,40 +34,24 @@ namespace {
 
 class ConvertPaddingsToFloorModePass final : public IE::ConvertPaddingsToFloorModeBase<ConvertPaddingsToFloorModePass> {
 public:
-    explicit ConvertPaddingsToFloorModePass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit ConvertPaddingsToFloorModePass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
 
-public:
-    void runOnFunction() final;
-
 private:
-    void passBody();
+    void safeRunOnFunc() final;
 
     void updateOperation(IE::MaxPoolOp op);
     void updateOperation(IE::AvgPoolOp op);
     void updateOperation(IE::ConvolutionOp op);
-
-private:
-    Logger _log;
 };
 
-void ConvertPaddingsToFloorModePass::runOnFunction() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getFunction(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
-
 //
-// passBody
+// safeRunOnFunc
 //
 
-void ConvertPaddingsToFloorModePass::passBody() {
+void ConvertPaddingsToFloorModePass::safeRunOnFunc() {
     auto func = getFunction();
-    _log.trace("Run {0} Pass on Function '@{1}'", getName(), func.sym_name());
 
     const auto callback = [this](mlir::Operation* op) {
         llvm::TypeSwitch<mlir::Operation*, void>(op)

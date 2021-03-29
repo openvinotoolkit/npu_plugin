@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -30,31 +30,16 @@ namespace {
 
 class AddLayoutsAndStridesPass final : public IERT::AddLayoutsAndStridesBase<AddLayoutsAndStridesPass> {
 public:
-    explicit AddLayoutsAndStridesPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit AddLayoutsAndStridesPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnOperation() final;
 
 public:
     class GenericOpConverter;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnModule() final;
 };
-
-void AddLayoutsAndStridesPass::runOnOperation() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // GenericOpConverter
@@ -62,8 +47,8 @@ void AddLayoutsAndStridesPass::runOnOperation() {
 
 class AddLayoutsAndStridesPass::GenericOpConverter final : public mlir::ConversionPattern {
 public:
-    GenericOpConverter(mlir::TypeConverter& typeConverter, Logger log)
-            : mlir::ConversionPattern(1 /*benefit*/, typeConverter, MatchAnyOpTypeTag{}), _log(log) {
+    GenericOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::ConversionPattern(typeConverter, MatchAnyOpTypeTag{}, benefitHigh, ctx), _log(log) {
     }
 
 public:
@@ -102,10 +87,10 @@ mlir::LogicalResult AddLayoutsAndStridesPass::GenericOpConverter::matchAndRewrit
 }
 
 //
-// passBody
+// safeRunOnModule
 //
 
-void AddLayoutsAndStridesPass::passBody() {
+void AddLayoutsAndStridesPass::safeRunOnModule() {
     auto& ctx = getContext();
 
     const auto cvtType = [](mlir::OpBuilder& builder, mlir::MemRefType type, mlir::ValueRange inputs,
@@ -157,7 +142,7 @@ void AddLayoutsAndStridesPass::passBody() {
 
     mlir::RewritePatternSet patterns(&ctx);
     mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
-    patterns.insert<GenericOpConverter>(typeConverter, _log.nest());
+    patterns.insert<GenericOpConverter>(typeConverter, &ctx, _log);
 
     auto module = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {

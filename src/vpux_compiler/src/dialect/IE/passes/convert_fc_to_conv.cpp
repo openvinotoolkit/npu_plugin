@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -36,31 +36,16 @@ namespace {
 
 class ConvertFCToConvPass final : public IE::ConvertFCToConvBase<ConvertFCToConvPass> {
 public:
-    explicit ConvertFCToConvPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit ConvertFCToConvPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
-
-public:
-    void runOnFunction() final;
 
 public:
     class FullyConnectedOpConverter;
 
 private:
-    void passBody();
-
-private:
-    Logger _log;
+    void safeRunOnFunc() final;
 };
-
-void ConvertFCToConvPass::runOnFunction() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
 
 //
 // FullyConnectedOpConverter
@@ -123,10 +108,10 @@ mlir::LogicalResult ConvertFCToConvPass::FullyConnectedOpConverter::matchAndRewr
 }
 
 //
-// passBody
+// safeRunOnFunc
 //
 
-void ConvertFCToConvPass::passBody() {
+void ConvertFCToConvPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
@@ -136,10 +121,10 @@ void ConvertFCToConvPass::passBody() {
     target.addLegalOp<IE::ReshapeOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<FullyConnectedOpConverter>(&ctx, _log.nest());
+    patterns.insert<FullyConnectedOpConverter>(&ctx, _log);
 
-    auto module = getOperation();
-    if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
+    auto func = getFunction();
+    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
 }

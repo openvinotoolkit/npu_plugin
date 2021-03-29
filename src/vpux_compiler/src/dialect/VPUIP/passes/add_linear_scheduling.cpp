@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -33,15 +33,12 @@ namespace {
 
 class AddLinearSchedulingPass final : public VPUIP::AddLinearSchedulingBase<AddLinearSchedulingPass> {
 public:
-    explicit AddLinearSchedulingPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    explicit AddLinearSchedulingPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
     }
 
-public:
-    void runOnOperation() final;
-
 private:
-    void passBody();
+    void safeRunOnModule() final;
 
 private:
     void collectTrailingUPATasks(mlir::FuncOp graphFunc);
@@ -50,24 +47,14 @@ private:
     static VPUIP::TaskOpInterface getNextTask(mlir::Operation* op);
 
 private:
-    Logger _log;
     std::unordered_set<mlir::Operation*> _trailingSwTasks;
 };
 
-void AddLinearSchedulingPass::runOnOperation() {
-    try {
-        passBody();
-    } catch (const std::exception& e) {
-        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
-        signalPassFailure();
-    }
-}
-
 //
-// passBody
+// safeRunOnModule
 //
 
-void AddLinearSchedulingPass::passBody() {
+void AddLinearSchedulingPass::safeRunOnModule() {
     auto module = getOperation();
 
     IE::CNNNetworkOp netOp;
@@ -80,18 +67,16 @@ void AddLinearSchedulingPass::passBody() {
     uint32_t barrierID = 0;
 
     const auto callback = [&](mlir::Operation* op) {
-        auto innerLog = _log.nest();
-
-        innerLog.trace("Process Operation '{0}'", op->getLoc());
+        _log.trace("Process Operation '{0}'", op->getLoc());
 
         auto curTask = mlir::dyn_cast<VPUIP::TaskOpInterface>(op);
         if (curTask == nullptr) {
-            innerLog.trace("It is not a VPUIP Task");
+            _log.trace("It is not a VPUIP Task");
             return;
         }
 
         if (_trailingSwTasks.count(op) != 0) {
-            innerLog.trace("It is a trailing UPA Task");
+            _log.trace("It is a trailing UPA Task");
 
             auto upaTask = mlir::cast<VPUIP::UPATaskOpInterface>(op);
             upaTask.markAsTrailingSWLayer();
@@ -100,16 +85,16 @@ void AddLinearSchedulingPass::passBody() {
         }
 
         if (auto prevTask = getPrevTask(op)) {
-            innerLog.trace("It has dependency on previous task '{0}'", prevTask->getLoc());
+            _log.trace("It has dependency on previous task '{0}'", prevTask->getLoc());
 
             const auto prevBarriers = prevTask.updateBarriers();
             curTask.waitBarriersMutable().append(prevBarriers);
         }
 
         if (getNextTask(op) != nullptr) {
-            innerLog.trace("It has dependent task");
+            _log.trace("It has dependent task");
 
-            OpBuilderLogger builderLog(_log.nest());
+            OpBuilderLogger builderLog(_log);
             mlir::OpBuilder builder(op, &builderLog);
 
             auto newBarrierOp = builder.create<VPUIP::ConfigureBarrierOp>(op->getLoc(), barrierID);
@@ -130,12 +115,10 @@ void AddLinearSchedulingPass::collectTrailingUPATasks(mlir::FuncOp graphFunc) {
     auto tasks = to_small_vector(graphFunc.getOps<VPUIP::TaskOpInterface>());
 
     for (auto curTask : tasks | reversed) {
-        auto innerLog = _log.nest();
-
-        innerLog.trace("Process Task '{0}'", curTask->getLoc());
+        _log.trace("Process Task '{0}'", curTask->getLoc());
 
         if (curTask.getTaskType() != VPUIP::TaskType::UPA) {
-            innerLog.trace("Is it not an UPA task, stop processing");
+            _log.trace("Is it not an UPA task, stop processing");
             break;
         }
 
@@ -143,7 +126,7 @@ void AddLinearSchedulingPass::collectTrailingUPATasks(mlir::FuncOp graphFunc) {
         for (auto updateBarrier : curTask.updateBarriers()) {
             for (auto* depOp : updateBarrier.getUsers()) {
                 if (!mlir::isa<VPUIP::UPATaskOpInterface>(depOp)) {
-                    innerLog.trace("Is has non UPA dependent task '{0}'", depOp->getLoc());
+                    _log.trace("Is has non UPA dependent task '{0}'", depOp->getLoc());
 
                     hasNonUPADep = true;
                     break;
@@ -159,7 +142,7 @@ void AddLinearSchedulingPass::collectTrailingUPATasks(mlir::FuncOp graphFunc) {
             break;
         }
 
-        innerLog.trace("Is is a trailing UPA task");
+        _log.trace("Is is a trailing UPA task");
         _trailingSwTasks.insert(curTask.getOperation());
     }
 }
