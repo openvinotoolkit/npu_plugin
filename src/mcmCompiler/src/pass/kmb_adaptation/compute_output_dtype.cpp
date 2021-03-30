@@ -392,9 +392,7 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
     if (inputType == mv::DType("Int8") && target != mv::Target::ma3720) {
        throw std::runtime_error(td.toString(target) + " Compiler doesn't support I8 inputs for the moment, please rescale your data to U8");
     }
-    if (inputType == mv::DType("Int8") && target == mv::Target::ma3720) {
-        return; //Int8 supported by ma3720 - no need to convert
-    }
+
     for (; kernelOp != om.opEnd(); ++kernelOp)
     {
         if(kernelOp.outputsSize() > 0)
