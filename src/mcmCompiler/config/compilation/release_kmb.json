@@ -28,6 +28,7 @@
                 "enablePipelining": true,
                 "enablePrefetching": true,
                 "enableStaticBarriers": true,
+                "enableSplitBarriers" : true,
                 "enableWeightsSparsity": true,
                 "real_physical_barriers": 32,
                 "barrier_bound": 16
