@@ -231,6 +231,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
                   delete nnCorePlgPtr;
               }
           }),
+      _nnSync(new VpualCoreNNSynchronizer(_nnXlinkPlg, _logger)),
       _pipe(new Pipeline(MAX_PLUGS_PER_PIPE, deviceId),
           [](Pipeline* pipePtr) {
               if (pipePtr != nullptr) {
@@ -246,7 +247,6 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
                   delete pipePtr;
               }
           }),
-      _mutex(new Semaphore()),
       blob_file(nullptr,
           [this](void* blobFilePtr) {
               if (_allocator != nullptr) {
@@ -299,9 +299,9 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     const VpusmmAllocator::Ptr& allocator,
     const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
     const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
+    const std::shared_ptr<VpualCoreNNSynchronizer>& other_nnSync,
     const std::shared_ptr<Pipeline>& other_pipe,
     const std::shared_ptr<WatchDog>& wd,
-    const std::shared_ptr<Semaphore>& other_mutex,
     const VpualConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
@@ -310,8 +310,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
       _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
       _nnXlinkPlg(other_nnXlinkPlg),
       _nnCorePlg(other_nnCorePlg),
+      _nnSync(other_nnSync),
       _pipe(other_pipe),
-      _mutex(other_mutex),
       blob_file(nullptr,
           [this](void* blobFilePtr) {
               if (_allocator != nullptr) {
@@ -340,8 +340,11 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     _pipePrint = PipePrintHandler::get();
 #endif
 
-    if(_config.executorStreams() > 1)
-        _mutex->count_one();
+    //need _execId to be a unique-id, but only across the current set of
+    // executor clones..
+    static int gExecId = 1;
+    _execId = gExecId++;
+
     Byte inputsTotalSize(0);
     for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
         const auto& tensorDesc = in.second->getTensorDesc();
@@ -724,10 +727,8 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
         request.outputTensors.push_back(inferOutput);
     }
 
-    if(_config.executorStreams() > 1)
-        _mutex->wait();
-    auto status = _nnXlinkPlg->RequestInference(request);
-    if (MVNCI_SUCCESS != status) {
+    auto status = _nnSync->RequestInference(request,_execId);
+    if (X_LINK_SUCCESS != status) {
         _logger->error("push: RequestInference failed");
         IE_THROW() << "VpualCoreNNExecutor::push: RequestInference failed" << status;
     }
@@ -785,18 +786,12 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     _logger->info("pull started");
     NnExecResponseMsg response;
     _wd->Start(this);
-    auto status = _nnXlinkPlg->WaitForResponse(response);
-    if(_config.executorStreams() > 1)
-        _mutex->notify();
+    auto status = _nnSync->WaitForResponse(_execId);
     _wd->Pause(this);
-    if (X_LINK_SUCCESS != status) {
-        _logger->error("pull: WaitForResponse failed");
-        IE_THROW() << "VpualCoreNNExecutor::pull: WaitForResponse failed. Status = " << status;
-    }
-    if (MVNCI_SUCCESS != response.status) {
+    if (MVNCI_SUCCESS != status) {
         _logger->error("pull: for inference: %d, received error response: %d", response.inferenceID, response.status);
         IE_THROW() << "VpualCoreNNExecutor::pull: " << ", for inference: " << response.inferenceID
-                           << " received error response: " << response.status;
+                           << " received error response: " << status;
     }
     ie::BlobMap deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
     repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
@@ -897,7 +892,7 @@ InferenceEngine::Parameter VpualCoreNNExecutor::getParameter(const std::string&)
 
 Executor::Ptr VpualCoreNNExecutor::clone() const {
 #if defined(__arm__) || defined(__aarch64__)
-    return std::make_shared<VpualCoreNNExecutor>(_networkDescription, _allocator, _nnXlinkPlg, _nnCorePlg, _pipe, _wd, _mutex, _config);
+    return std::make_shared<VpualCoreNNExecutor>(_networkDescription, _allocator, _nnXlinkPlg, _nnCorePlg, _nnSync, _pipe, _wd, _config);
 #else
     IE_THROW() << "VpualCoreNNExecutor::clone not implemented for x86_64";
 #endif
