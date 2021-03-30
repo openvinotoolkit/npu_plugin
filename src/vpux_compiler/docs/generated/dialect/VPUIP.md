@@ -367,18 +367,6 @@ operation ::= `VPUIP.EluUPA` attr-dict
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 
-### `VPUIP.End` (vpux::VPUIP::EndOp)
-
-End indicator for IERT NCEClusterTaskOp variants section
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.End` attr-dict
-```
-
-
 ### `VPUIP.FakeQuantizeUPA` (vpux::VPUIP::FakeQuantizeUPAOp)
 
 FakeQuantize UPA SHAVE kernel

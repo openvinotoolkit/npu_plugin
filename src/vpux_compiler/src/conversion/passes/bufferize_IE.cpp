@@ -503,7 +503,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     target.addIllegalDialect<IE::IEDialect>();
     target.addIllegalDialect<mlir::quant::QuantizationDialect>();
     target.addIllegalOp<mlir::linalg::TensorReshapeOp>();
-    target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp, IE::EndOp>();
+    target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<mlir::linalg::ReshapeOp>();
     mlir::populateBufferizeMaterializationLegality(target);

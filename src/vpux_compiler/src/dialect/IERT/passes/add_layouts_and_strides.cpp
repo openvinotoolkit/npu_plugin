@@ -135,7 +135,7 @@ void AddLayoutsAndStridesPass::safeRunOnModule() {
     target.addDynamicallyLegalOp<mlir::linalg::CopyOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::memref::AllocOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::memref::DeallocOp>(isLegalOp);
-    target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
+    target.addLegalOp<mlir::ModuleOp>();
     target.addLegalOp<IE::CNNNetworkOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
         return typeConverter.isSignatureLegal(funcOp.getType());

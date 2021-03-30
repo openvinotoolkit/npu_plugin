@@ -128,7 +128,7 @@ void ConvertPrecisionToFP16Pass::safeRunOnModule() {
     target.addDynamicallyLegalOp<mlir::linalg::TensorReshapeOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addLegalOp<IE::ConvertOp>();
-    target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
+    target.addLegalOp<mlir::ModuleOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
         return typeConverter.isSignatureLegal(funcOp.getType());
     });

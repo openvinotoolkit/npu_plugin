@@ -33,12 +33,12 @@ func @QuantizedConv(%input: tensor<1x3x62x62xf32>) -> tensor<1x4x60x60xf32> {
 
     return %conv : tensor<1x4x60x60xf32>
 
-    // CHECK:       [[INPUT_MIN:%.*]] = IE.Constant tensor<f32> = dense<0.000000e+00> : tensor<f32>
-    // CHECK:       [[INPUT_MAX:%.*]] = IE.Constant tensor<f32> = dense<2.550000e+02> : tensor<f32>
-
     // CHECK:       [[WEIGHTS_FQ:%.*]] = IE.Constant
     // CHECK-SAME:      tensor<4x3x3x3xf32>
     // CHECK-SAME:      = dense<0.000000e+00> : tensor<4x3x3x3xf32>
+
+    // CHECK:       [[INPUT_MIN:%.*]] = IE.Constant tensor<f32> = dense<0.000000e+00> : tensor<f32>
+    // CHECK:       [[INPUT_MAX:%.*]] = IE.Constant tensor<f32> = dense<2.550000e+02> : tensor<f32>
 
     // CHECK:       [[INPUT_FQ:%.*]] = IE.FakeQuantize([[INPUT]], [[INPUT_MIN]], [[INPUT_MAX]], [[INPUT_MIN]], [[INPUT_MAX]])
     // CHECK-SAME:      levels = 256
