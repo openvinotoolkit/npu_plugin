@@ -14,6 +14,7 @@
 #endif
 
 #ifdef _WIN32
+#define NOMINMAX
 #include <windows.h>
 #endif
 
@@ -23,6 +24,8 @@
 #include <cstring>
 #include <description_buffer.hpp>
 #include <vpu/utils/simple_math.hpp>
+
+#include "vpux/utils/core/simple_math.hpp"
 
 namespace vpu {
 
@@ -176,7 +179,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
                              "each kernel should be provided with 'stage' attribute.",
                              _layerName);
 
-            const auto stageNum = std::stod(stageAttr.value());
+            const auto stageNum = std::stoi(stageAttr.value());
             VPU_THROW_UNLESS(stageOrder.find(stageNum) == stageOrder.end(),
                              "Error while binding %s custom layer: found duplicating stage id.", _layerName);
 
@@ -227,7 +230,7 @@ bool CustomLayer::isLegalSizeRule(const std::string& rule, std::map<std::string,
         std::move(begin(sizes), end(sizes), inserter(layerParams, end(layerParams)));
     }
 
-    MathExpression expr;
+    vpux::MathExpression expr;
     expr.setVariables(layerParams);
 
     try {
