@@ -120,21 +120,37 @@ vpux::DataMap MCMNetworkDescription::matchElementsByName(const vpux::DataMap& ac
     _logger->debug("MCMNetworkDescription::matchElementsByName started.");
     vpux::DataMap updatedMap;
 
+    // Copy original device outputs. Once the output name is matched it will be removed from the list //
+    // The rest will be copied and return with original name //
+    vpux::DataMap actualDeviceDataLocal = actualDeviceData;
+
     for (const auto& name : names) {
         bool isNameFound = false;
-        for (const auto& data : actualDeviceData) {
+        for (const auto& data : actualDeviceDataLocal) {
             if (data.first.find(name) != std::string::npos) {
                 const auto dataCorrectedName = data.second;
                 dataCorrectedName->setName(name);
                 updatedMap.insert({name, dataCorrectedName});
                 isNameFound = true;
+                actualDeviceDataLocal.erase(data.first);
                 _logger->debug("Matched \'%s\' with \'%s'\\n", name, data.first);
+                break;
             }
         }
         if (!isNameFound) {
             _logger->warning("Cannot match actual output names with device names.\n");
             updatedMap.clear();
             break;
+        }
+    }
+
+    if (updatedMap.size() != 0) {
+        for (const auto& data : actualDeviceDataLocal) {
+            std::string name = data.first;
+            const auto dataCorrectedName = data.second;
+            dataCorrectedName->setName(name);
+            updatedMap.insert({name, dataCorrectedName});
+            _logger->debug("Added \'%s\' with \'%s'\\n", name);
         }
     }
 
