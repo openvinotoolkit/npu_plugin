@@ -10,7 +10,9 @@ EmulatorNetworkDescription::EmulatorNetworkDescription(std::unique_ptr<mv::Compi
         : _name{name},
           _compiler{std::move(compiler)},
           _logger{std::unique_ptr<vpu::Logger>(
-                  new vpu::Logger("EmulatorNetworkDescription", config.logLevel(), consoleOutput()))} {
+                  new vpu::Logger("EmulatorNetworkDescription", config.logLevel(), consoleOutput()))},
+          _dataMapPlaceholder{},
+          _compiledNetworkPlaceholder{} {
 }
 
 const vpux::DataMap& EmulatorNetworkDescription::getInputsInfo() const {
