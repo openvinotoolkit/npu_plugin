@@ -78,8 +78,8 @@ static std::vector<size_t> composeDimsByLayout(const Layout& layout) {
     return resultDims;
 }
 
-// [Track number: D#49269]
-TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
+// [Track number: D#49269, E#8151]
+TEST_P(KmbLayoutTests, DISABLED_SetUnsupportedLayout) {
 #ifdef _WIN32
     SKIP() << "SEH exception";
 #endif
