@@ -29,7 +29,6 @@
                 "enablePrefetching": true,
                 "enableWeightsSparsity": true,
                 "enableStaticBarriers": true,
-                "enableSplitBarriers" : false,
                 "real_physical_barriers": 32,
                 "barrier_bound": 16
             }
