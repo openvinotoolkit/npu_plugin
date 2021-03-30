@@ -15,13 +15,12 @@
 //
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
 
 #include "vpux/utils/IE/format.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <array>
-
-#include <cassert>
 
 using namespace vpux;
 
@@ -157,9 +156,9 @@ DimsOrder::StorageType vpux::DimsOrder::getCodeFromPermutation(DimArrRef perm) {
         const auto& d = p.value();
 
         const StorageType dimDigit = checked_cast<StorageType>(d.ind() + 1);
-        const StorageType shift = checked_cast<StorageType>(DimsOrder::BITS_PER_DIM * p.index());
 
-        code |= (dimDigit << shift);
+        code <<= BITS_PER_DIM;
+        code |= dimDigit;
     }
 
     return code;
@@ -207,8 +206,7 @@ bool vpux::DimsOrder::hasDim(Dim d) const {
 
 size_t vpux::DimsOrder::dimPos(Dim d) const {
     const auto dimDigit = static_cast<StorageType>(d.ind()) + 1;
-
-    auto code = this->code();
+    auto code = _invertedCode;
 
     for (size_t i = 0; i < MAX_NUM_DIMS; ++i, code >>= BITS_PER_DIM) {
         const auto curDigit = code & INDEX_MASK;
@@ -225,7 +223,7 @@ size_t vpux::DimsOrder::dimPos(Dim d) const {
 }
 
 Dim vpux::DimsOrder::dimAt(size_t pos) const {
-    auto code = this->code();
+    auto code = _invertedCode;
     code >>= checked_cast<StorageType>(pos * BITS_PER_DIM);
 
     const auto curDigit = code & INDEX_MASK;
@@ -245,7 +243,7 @@ Dim vpux::DimsOrder::toDim(MemDim d) const {
 DimArr vpux::DimsOrder::toPermutation() const {
     DimArr out;
 
-    auto code = this->code();
+    auto code = _invertedCode;
 
     for (size_t i = 0; i < MAX_NUM_DIMS; ++i, code >>= BITS_PER_DIM) {
         auto curDigit = code & INDEX_MASK;
@@ -266,7 +264,7 @@ bool vpux::DimsOrder::isIdentity() const {
 DimsOrder vpux::DimsOrder::fromAffineMap(mlir::AffineMap map) {
     VPUX_THROW_UNLESS(map.isPermutation(), "Can't get DimsOrder from AffineMap '{0}'", map);
 
-    const auto perm = to_container<DimArr>(map.getResults() | reversed | transformed([](mlir::AffineExpr expr) {
+    const auto perm = to_container<DimArr>(map.getResults() | transformed([](mlir::AffineExpr expr) {
                                                const auto dim = expr.cast<mlir::AffineDimExpr>();
                                                const auto dimPos = dim.getPosition();
                                                return Dim(dimPos);
@@ -276,7 +274,7 @@ DimsOrder vpux::DimsOrder::fromAffineMap(mlir::AffineMap map) {
 }
 
 mlir::AffineMap vpux::DimsOrder::toAffineMap(mlir::MLIRContext* ctx) const {
-    const auto permutation = to_small_vector(toPermutation() | reversed | transformed([](Dim d) {
+    const auto permutation = to_small_vector(toPermutation() | transformed([](Dim d) {
                                                  return static_cast<unsigned>(d.ind());
                                              }));
 
@@ -284,24 +282,51 @@ mlir::AffineMap vpux::DimsOrder::toAffineMap(mlir::MLIRContext* ctx) const {
 }
 
 DimsOrder vpux::DimsOrder::fromType(mlir::MemRefType type) {
-    const auto maps = type.getAffineMaps();
+    const auto logicalStrides = getStrides(type);
 
-    if (maps.empty()) {
-        return fromNumDims(type.getRank());
+    SmallVector<Dim> perm(logicalStrides.size());
+    for (auto i : irange(perm.size())) {
+        perm[i] = Dim(i);
     }
 
-    // type has default layout
-    if (maps.size() == 1 && !maps[0].isPermutation()) {
-        return fromNumDims(type.getRank());
-    }
+    std::stable_sort(perm.begin(), perm.end(), [&](Dim d1, Dim d2) {
+        return logicalStrides[d1] > logicalStrides[d2];
+    });
 
-    return fromAffineMap(maps[0]);
+    return fromPermutation(perm);
 }
 
 DimsOrder vpux::DimsOrder::fromValue(mlir::Value val) {
     const auto type = val.getType().dyn_cast<mlir::MemRefType>();
     VPUX_THROW_UNLESS(type != nullptr, "Can't get DimsOrder from Type '{0}'", val.getType());
     return fromType(type);
+}
+
+bool vpux::DimsOrder::isCompatibleLayout(mlir::MemRefType type) const {
+    if (checked_cast<size_t>(type.getRank()) != numDims()) {
+        return false;
+    }
+
+    const auto logicalStrides = getStrides(type);
+    const auto currPerm = toPermutation();
+
+    if (currPerm.size() <= 1) {
+        return true;
+    }
+
+    for (size_t i = 0; i < currPerm.size() - 1; i++) {
+        if (logicalStrides[currPerm[i]] < logicalStrides[currPerm[i + 1]]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool vpux::DimsOrder::isCompatibleLayout(mlir::Value val) const {
+    const auto type = val.getType().dyn_cast<mlir::MemRefType>();
+    VPUX_THROW_UNLESS(type != nullptr, "Can't get DimsOrder from Type '{0}'", val.getType());
+    return isCompatibleLayout(type);
 }
 
 DimsOrder vpux::DimsOrder::fromIE(InferenceEngine::Layout layout) {
@@ -382,5 +407,17 @@ void vpux::DimsOrder::printFormat(llvm::raw_ostream& stream) const {
         stream << name.getValue();
     } else {
         printTo(stream, "{0}", toPermutation());
+    }
+}
+
+DimsOrder::DimsOrder(StorageType code): _code(code) {
+    for (size_t i = 0; i < MAX_NUM_DIMS; ++i, code >>= BITS_PER_DIM) {
+        auto dimDigit = code & INDEX_MASK;
+        if (dimDigit == 0) {
+            break;
+        }
+
+        _invertedCode <<= BITS_PER_DIM;
+        _invertedCode |= dimDigit;
     }
 }

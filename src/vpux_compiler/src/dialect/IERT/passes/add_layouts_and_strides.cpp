@@ -109,16 +109,17 @@ void AddLayoutsAndStridesPass::safeRunOnModule() {
             return type;
         }
 
+        const auto order = DimsOrder::fromNumDims(type.getRank());
         const auto elemSize = getElemTypeSize(type);
         const auto strides =
-                to_small_vector(StrideReqs::simple().calcStrides(type) | reversed | transformed([&](Bit val) {
+                to_small_vector(StrideReqs::simple(type.getRank()).calcStrides(order, type) | transformed([&](Bit val) {
                                     return val.count() / elemSize.count();
                                 }));
 
-        const auto order = DimsOrder::fromNumDims(type.getRank());
+        const auto layoutMap = order.toAffineMap(type.getContext());
         const auto stridesMap = mlir::makeStridedLinearLayoutMap(strides, 0, type.getContext());
-        return mlir::MemRefType::get(type.getShape(), type.getElementType(),
-                                     {order.toAffineMap(type.getContext()), stridesMap}, type.getMemorySpace());
+        return mlir::MemRefType::get(type.getShape(), type.getElementType(), stridesMap.compose(layoutMap),
+                                     type.getMemorySpace());
     });
     typeConverter.addSourceMaterialization(cvtType);
     typeConverter.addTargetMaterialization(cvtType);
