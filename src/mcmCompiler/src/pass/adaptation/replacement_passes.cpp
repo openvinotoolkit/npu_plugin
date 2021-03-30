@@ -2306,6 +2306,19 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
                 continue;
             }
         }
+        else if (opIt->getOpType() == "Conv")
+        {
+            // If input size == kernel size, simplify by forcing equal strides instead of splitting convs
+            auto inSize = opIt->getInputTensor(mv::IO_TENSOR_INPUT)->getShape();
+            auto kSize = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape();
+            if (inSize[mv::IO_HEIGHT_DIMENSION] == kSize[mv::KERNEL_HEIGHT] || inSize[mv::IO_WIDTH_DIMENSION] == kSize[mv::KERNEL_WIDTH])
+            {
+                auto maxStride = std::max(stride[mv::STRIDE_VERTICAL], stride[mv::STRIDE_HORIZONTAL]);
+                std::array<unsigned short, 2> newStride({maxStride,maxStride});
+                opIt->set("stride", newStride);
+                continue;
+            }
+        }
         pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
         auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
         if(((stride[mv::STRIDE_VERTICAL] == 1) && (stride[mv::STRIDE_HORIZONTAL] == 2))
