@@ -19,31 +19,26 @@ namespace mv {
 
 static void SplitBarrierFcn(
     const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& targetDesc, mv::Element&, mv::Element&){
-  
+
+  auto globalParams = model.getGlobalConfigParams();
+  bool isStatic = globalParams->hasAttr("enableStaticBarriers") && globalParams->get<bool>("enableStaticBarriers");
+  bool isA0 = !(globalParams->hasAttr("referenceDevice") && globalParams->get<std::string>("referenceDevice") == "B0")
+          && targetDesc.getTarget() != mv::Target::ma3100;
+  bool enableSplitBarriers = globalParams->hasAttr("enableSplitBarriers") && globalParams->get<bool>("enableSplitBarriers");
+
+  // check if it's not B0, static barriers are enabled and operation 'split barriers' is
+  // enabled itself
+  if (!(enableSplitBarriers && isStatic && isA0))
+  {
+    mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier", "No SplitBarrier WA");
+    return;
+  }
+
   mv::ControlModel cmodel(model);
   mv::OpModel om(model);
   auto bOps = om.getOps("BarrierTask");
   std::vector<std::pair<unsigned short, unsigned short>> dmaContrib(bOps.size());
   auto dmaOps = om.getOps("DMATask");
-
-  bool isStatic= false, isA0= true;
-  auto globalParams = model.getGlobalConfigParams();
-  if (globalParams->hasAttr("enableStaticBarriers"))
-  {
-    isStatic= globalParams->get<bool>("enableStaticBarriers");
-  }
-  if (globalParams->hasAttr("referenceDevice") && globalParams->get<std::string>("referenceDevice") == "B0"){
-    isA0= false;
-  }
-  // THB
-  if (targetDesc.getTarget()==mv::Target::ma3100){
-    isA0= false;
-  }
-  if (!(isStatic && isA0))
-  {
-    mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier", "No SplitBarrier WA");
-    return;
-  }
   
   mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier", "Static barriers assignment with SplitBarrier WA for A0");
 
