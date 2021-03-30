@@ -160,14 +160,14 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
 
     VPUIP::MemoryLocation location = VPUIP::MemoryLocation::VPU_DDR_Heap;
     Optional<uint32_t> locationIndex;
-    uint64_t baseOffset = 0;
+    Byte viewOffset(0);
 
     if (auto allocOp = origInput.getDefiningOp<IERT::StaticAllocOp>()) {
         _log.nest().trace("It aliases internal buffer produced by '{0}' StaticAlloc", allocOp.getLoc());
 
         // TODO: generalize location type
         location = VPUIP::MemoryLocation::VPU_DDR_Heap;
-        baseOffset = allocOp.offset();
+        viewOffset = Byte(allocOp.offset());
     } else if (auto blockArg = origInput.dyn_cast<mlir::BlockArgument>()) {
         _log.nest().trace("It aliases internal Function argument");
 
@@ -199,11 +199,22 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
         return mlir::failure();
     }
 
+    if (auto subViewOp = mlir::dyn_cast<mlir::memref::SubViewOp>(origOp)) {
+        const auto memRefSubview = subViewOp.getType();
+        int64_t subviewOffset;
+        SmallVector<int64_t, 4> resultStrides;
+        if (mlir::getStridesAndOffset(memRefSubview, resultStrides, subviewOffset).failed()) {
+            return errorAt(origOp, "Can't extract offsets and strides from SubView");
+        }
+        // Add offset for subview memref in bytes
+        Byte elemSize = getElemTypeSize(memRefSubview.getElementType());
+        viewOffset += subviewOffset * elemSize;
+    }
     if (locationIndex.hasValue()) {
         rewriter.replaceOpWithNewOp<VPUIP::DeclareTensorOp>(origOp, outType, location, locationIndex.getValue(),
-                                                            baseOffset);
+                                                            viewOffset.count());
     } else {
-        rewriter.replaceOpWithNewOp<VPUIP::DeclareTensorOp>(origOp, outType, location, baseOffset);
+        rewriter.replaceOpWithNewOp<VPUIP::DeclareTensorOp>(origOp, outType, location, viewOffset.count());
     }
 
     return mlir::success();

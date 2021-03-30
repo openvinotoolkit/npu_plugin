@@ -32,14 +32,14 @@ std::pair<CustomDimSource, int> CustomKernel::parseDimSource(const std::string& 
     const auto cmp = ie::details::CaselessEq<std::string>{};
     const auto pos = dims.find_first_of(',');
     const auto source = dims.substr(0, pos);
-    const auto dimSource = [&] {
+    const auto dimSource = [&]() -> CustomDimSource {
         if (cmp(source, "input")) {
             return CustomDimSource::Input;
         } else if (cmp(source, "output")) {
             return CustomDimSource::Output;
-        } else {
-            IE_THROW() << "Invalid dim source argument" << source;
         }
+        IE_THROW() << "Invalid dim source argument" << source;
+        return {};
     }();
 
     const auto idx = [&] {
@@ -64,6 +64,7 @@ CustomDataFormat CustomKernel::formatFromString(const std::string& str) {
     }
 
     IE_THROW() << "Tensor node has an invalid format '" << str << "'";
+    return {};
 }
 
 std::vector<std::string> CustomKernel::parseSizeRule(const std::string& size) {

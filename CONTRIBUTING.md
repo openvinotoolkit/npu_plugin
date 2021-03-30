@@ -85,10 +85,10 @@
 * Make sure there is no potential conflicts with other changes merged recently
 
 #### Maintainers List
-* Vladislav Vinogradov
-* Artemy Skrebkov
-* Alexander Novak
-* Sergey Losev
+* VPUX Plugin - Artemy, Skrebkov
+* mcmCompiler - Marina, Mineeva
+* MLIR Compiler - Vlad, Vinogradov
+
 
 ## How to run CI jobs
 1. [IE MDK](https://wiki.ith.intel.com/display/VPUWIKI/Functional+validation+CI)
