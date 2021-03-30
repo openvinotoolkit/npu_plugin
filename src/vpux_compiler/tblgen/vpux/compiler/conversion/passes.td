@@ -27,12 +27,13 @@ def BufferizeIE : PassBase<"bufferize-IE", "vpux::FunctionPass"> {
     let summary = "Bufferize the IE dialect into the IERT dialect on Function level";
 
     let description = [{
-        This pass bufferizes IE Dialect into IERT Dialect:
+This pass bufferizes **IE Dialect** into **IERT Dialect**:
 
-            * Updates only Function inner regions.
-            * Doesn't change Function signatures.
-            * Replaces Layer Operations with IERT analogues.
-            * Replaces `linalg.tesor_reshape` with `linalg.reshape`.
+* Updates only Function inner regions.
+* Doesn't change Function signatures.
+* Replaces Layer Operations with IERT analogues.
+* Replaces Quant Dialect Operations with IERT analogues.
+* Replaces `linalg.tensor_reshape` with `linalg.reshape`.
     }];
 
     let constructor = "vpux::createBufferizeIEPass()";
@@ -51,13 +52,13 @@ def LowerIERT2VPUIP : PassBase<"lower-IERT-to-VPUIP", "vpux::FunctionPass"> {
     let summary = "Convert IERT Dialect Layer Operations to VPUIP Dialect";
 
     let description = [{
-        This pass converts Laye Operations from IERT Dialect to VPUIP Dialect.
-        It uses simple SW implementation for IERT operations without any optimizations.
+This pass converts Layer Operations from IERT Dialect to VPUIP Dialect.
+It uses simple SHAVE implementation for IERT operations without any optimizations.
 
-        The pass:
+The pass:
 
-            * Updates only Function inner regions.
-            * Replaces only Layer Operations and `IERT.StaticAlloc`.
+* Updates only Function inner regions.
+* Replaces only Layer Operations and `IERT.StaticAlloc`.
     }];
 
     let constructor = "vpux::createLowerIERT2VPUIPPass()";

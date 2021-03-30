@@ -1,10 +1,8 @@
 # VPUX NN Compiler
 
-[TOC]
-
 ## Introduction
 
-The **VPUX NN Compiler** is a new experimental NN compiler for VPU platforms.
+The **VPUX NN Compiler** is a new NN compiler for VPU platforms.
 It is based on [MLIR framework](https://mlir.llvm.org/) and utilizes its API and features.
 
 ### Goals
@@ -44,6 +42,12 @@ The **VPUX NN Compiler** architecture and its implementation is based on the fol
 4. Operation interfaces for generic passes.
 5. Atomic passes and pipelines.
 
+The first principle is achieved by MLIR architecture - validation hooks.
+Each operation/attribute/type has its own validation hook, which checks all invariants of the entity.
+Each pass/transformation takes a valid IR as input and produces a valid IR as output.
+
+The second principle is described in details in [separate section](architectural_stability.md).
+
 The third principle is achieved by MLIR architecture - Dialects concept.
 The **VPUX NN Compiler** consists of several Dialects with different level of details.
 The IR is lowered from high level abstractions to more detailed representation step-by-step during compilation pipeline.
@@ -61,7 +65,9 @@ The goal of pipeline is to establish correct order of underlying passes, while k
 
 ## Topics
 
-* [Architectural Stability of NN Compiler](architectural_stability.md)
 * [Architecture](architecture.md)
+* [EDSL Integration](edsl.md)
+* [Custom Layers](custom_layers.md)
+* [Dynamic Shapes Support](dynamism.md)
 * [Build and Test Instructions](build_and_test.md)
 * [Debugging Technics](debugging.md)
