@@ -116,7 +116,17 @@ mv::DType precisionToDType(const InferenceEngine::Precision& InferenceEnginePrec
 mv::Order layoutToOrder(const InferenceEngine::Layout& ieLayout) {
     std::ostringstream layoutToOrder;
     layoutToOrder << ieLayout;
-    return mv::Order(layoutToOrder.str());
+    const auto ieLayoutStr = layoutToOrder.str();
+    auto mvLayoutStr = layoutToOrder.str();
+    const auto replaceDepth = [](const char& dim) -> char {
+        if (dim != 'D') {
+            return dim;
+        } else {
+            return 'T';
+        }
+    };
+    std::transform(ieLayoutStr.cbegin(), ieLayoutStr.cend(), mvLayoutStr.begin(), replaceDepth);
+    return mv::Order(mvLayoutStr);
 }
 
 mv::Shape sizeVectorToShape(InferenceEngine::SizeVector dims) {
