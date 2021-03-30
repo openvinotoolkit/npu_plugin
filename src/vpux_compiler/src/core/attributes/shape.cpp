@@ -65,7 +65,9 @@ MemShape vpux::getMemIndexND(int64_t memIndex1D, MemShapeRef memShape) {
     MemShape memIndexND(memShape.size());
 
     int64_t tempIndex1D = memIndex1D;
-    for (size_t ind = 0; ind < memIndexND.size(); ++ind) {
+
+    // memShape stores shape in major to minor
+    for (const auto ind : irange(memShape.size()) | reversed) {
         const auto md = MemDim(ind);
         const auto mdSize = memShape[md];
 
@@ -89,7 +91,9 @@ int64_t vpux::getMemIndex1D(MemShapeRef memIndexND, MemShapeRef memShape) {
     int64_t memIndex1D = 0;
 
     int64_t tempSize = 1;
-    for (size_t ind = 0; ind < memShape.size(); ++ind) {
+
+    // memShape stores shape in major to minor
+    for (const auto ind : irange(memShape.size()) | reversed) {
         const auto md = MemDim(ind);
         const auto mdSize = memShape[md];
         const auto mdInd = memIndexND[md];

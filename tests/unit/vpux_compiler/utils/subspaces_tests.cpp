@@ -20,7 +20,7 @@
 
 using namespace vpux;
 
-TEST(MLIR_MLIR_SubSpacesTests, GetCoord) {
+TEST(MLIR_SubSpacesTests, GetCoord) {
     const MemShape dims = {2, 4};
     const int64_t numSections = 8;
 
@@ -33,11 +33,15 @@ TEST(MLIR_MLIR_SubSpacesTests, GetCoord) {
 TEST(MLIR_SubSpacesTests, getOffset) {
     const auto elemSize = 8_Bit;
     const MemShape dims = {2, 4};
-    const MemShape coord = {1, 2};
-    const MemStrides strides = {elemSize, dims[MemDim(0)] * elemSize};
+    const MemShape coord = {1, 0};
+    const MemStrides strides = {dims[MemDim(1)] * elemSize, elemSize};
 
     const auto offset = subspace::getOffset(coord, strides);
-    EXPECT_EQ(offset, 1 * elemSize + 2 * 2 * elemSize);
+    EXPECT_EQ(offset, 4 * elemSize);
+
+    const MemShape coord2 = {1, 2};
+    const auto offset2 = subspace::getOffset(coord2, strides);
+    EXPECT_EQ(offset2, 4 * elemSize + 2 * elemSize);
 }
 
 TEST(MLIR_SubSpacesTests, Increment1Coord) {
@@ -45,12 +49,15 @@ TEST(MLIR_SubSpacesTests, Increment1Coord) {
     MemShape coord = {0, 0};
 
     subspace::increment1Coord(coord, dims);
-    EXPECT_EQ(coord[MemDim(0)], 1);
-    EXPECT_EQ(coord[MemDim(1)], 0);
-
-    subspace::increment1Coord(coord, dims);
     EXPECT_EQ(coord[MemDim(0)], 0);
     EXPECT_EQ(coord[MemDim(1)], 1);
+
+    subspace::increment1Coord(coord, dims);
+    subspace::increment1Coord(coord, dims);
+    subspace::increment1Coord(coord, dims);
+
+    EXPECT_EQ(coord[MemDim(0)], 1);
+    EXPECT_EQ(coord[MemDim(1)], 0);
 }
 
 TEST(MLIR_SubSpacesTests, IncrementNCoord) {
@@ -59,12 +66,21 @@ TEST(MLIR_SubSpacesTests, IncrementNCoord) {
 
     subspace::incrementNCoord(coord, dims, 2);
     EXPECT_EQ(coord[MemDim(0)], 0);
-    EXPECT_EQ(coord[MemDim(1)], 1);
+    EXPECT_EQ(coord[MemDim(1)], 2);
+
+    subspace::incrementNCoord(coord, dims, 2);
+    EXPECT_EQ(coord[MemDim(0)], 1);
+    EXPECT_EQ(coord[MemDim(1)], 0);
 }
 
 TEST(MLIR_SubSpacesTests, IncrementLine) {
-    const MemShape dims = {2, 4, 8};
+    const MemShape dims = {4, 4, 2};
     MemShape coord = {0, 0, 0};
+
+    subspace::incrementLine(coord, dims, MemDim(1));
+    EXPECT_EQ(coord[MemDim(0)], 0);
+    EXPECT_EQ(coord[MemDim(1)], 0);
+    EXPECT_EQ(coord[MemDim(2)], 1);
 
     subspace::incrementLine(coord, dims, MemDim(1));
     EXPECT_EQ(coord[MemDim(0)], 1);
@@ -72,24 +88,33 @@ TEST(MLIR_SubSpacesTests, IncrementLine) {
     EXPECT_EQ(coord[MemDim(2)], 0);
 
     subspace::incrementLine(coord, dims, MemDim(1));
-    EXPECT_EQ(coord[MemDim(0)], 0);
+    subspace::incrementLine(coord, dims, MemDim(1));
+    EXPECT_EQ(coord[MemDim(0)], 2);
     EXPECT_EQ(coord[MemDim(1)], 0);
-    EXPECT_EQ(coord[MemDim(2)], 1);
+    EXPECT_EQ(coord[MemDim(2)], 0);
 }
 
 TEST(MLIR_SubSpacesTests, IncrementPlane) {
-    const MemShape dims = {2, 4, 8};
-    MemShape coord = {0, 0, 0};
+    const MemShape dims = {2, 4, 8, 4};
+    MemShape coord = {0, 0, 0, 0};
 
-    subspace::incrementPlane(coord, dims, MemDim(0), MemDim(2));
+    subspace::incrementPlane(coord, dims, MemDim(1), MemDim(2));
+    EXPECT_EQ(coord[MemDim(0)], 0);
+    EXPECT_EQ(coord[MemDim(1)], 0);
+    EXPECT_EQ(coord[MemDim(2)], 0);
+    EXPECT_EQ(coord[MemDim(3)], 1);
+
+    subspace::incrementPlane(coord, dims, MemDim(2), MemDim(2));
+    EXPECT_EQ(coord[MemDim(0)], 0);
+    EXPECT_EQ(coord[MemDim(1)], 0);
+    EXPECT_EQ(coord[MemDim(2)], 0);
+    EXPECT_EQ(coord[MemDim(3)], 2);
+
+    subspace::incrementPlane(coord, dims, MemDim(2), MemDim(3));
     EXPECT_EQ(coord[MemDim(0)], 0);
     EXPECT_EQ(coord[MemDim(1)], 1);
     EXPECT_EQ(coord[MemDim(2)], 0);
-
-    subspace::incrementPlane(coord, dims, MemDim(0), MemDim(2));
-    EXPECT_EQ(coord[MemDim(0)], 0);
-    EXPECT_EQ(coord[MemDim(1)], 2);
-    EXPECT_EQ(coord[MemDim(2)], 0);
+    EXPECT_EQ(coord[MemDim(3)], 2);
 }
 
 TEST(MLIR_SubSpacesTests, GetTotalLines) {
@@ -111,9 +136,9 @@ TEST(MLIR_SubSpacesTests, GetSizes) {
 
     const auto sizes = subspace::getSizes(dims);
     ASSERT_EQ(sizes.size(), dims.size());
-    EXPECT_EQ(sizes[MemDim(0)], 1);
-    EXPECT_EQ(sizes[MemDim(1)], 2);
-    EXPECT_EQ(sizes[MemDim(2)], 2 * 4);
+    EXPECT_EQ(sizes[MemDim(0)], 8 * 4);
+    EXPECT_EQ(sizes[MemDim(1)], 8);
+    EXPECT_EQ(sizes[MemDim(2)], 1);
 }
 
 TEST(MLIR_SubSpacesTests, ArrayElementExclude) {

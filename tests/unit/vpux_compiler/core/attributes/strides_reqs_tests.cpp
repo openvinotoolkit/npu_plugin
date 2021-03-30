@@ -40,12 +40,12 @@ std::vector<std::pair<StrideReqKind, Bit>> getInvalidAttrs() {
 
 std::vector<std::tuple<MemShape, Bit, MemStrides>> getShapes2Strides() {
     return {
-            std::make_tuple(MemShape({2, 3}), 1_Byte, MemStrides({Bit(1_Byte), Bit(2_Byte)})),
-            std::make_tuple(MemShape({2, 3}), 4_Byte, MemStrides({Bit(4_Byte), Bit(8_Byte)})),
+            std::make_tuple(MemShape({2, 3}), 1_Byte, MemStrides({Bit(3_Byte), Bit(1_Byte)})),
+            std::make_tuple(MemShape({2, 3}), 4_Byte, MemStrides({Bit(12_Byte), Bit(4_Byte)})),
             std::make_tuple(MemShape({2, 3, 4, 5}), 1_Byte,
-                            MemStrides({Bit(1_Byte), Bit(2_Byte), Bit(6_Byte), Bit(24_Byte)})),
+                            MemStrides({Bit(60_Byte), Bit(20_Byte), Bit(5_Byte), Bit(1_Byte)})),
             std::make_tuple(MemShape({2, 3, 4, 5}), 4_Byte,
-                            MemStrides({Bit(4_Byte), Bit(8_Byte), Bit(24_Byte), Bit(96_Byte)})),
+                            MemStrides({Bit(240_Byte), Bit(80_Byte), Bit(20_Byte), Bit(4_Byte)})),
     };
 }
 

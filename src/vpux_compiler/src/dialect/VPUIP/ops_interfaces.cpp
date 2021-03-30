@@ -67,7 +67,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
             return errorAt(op, "Can't operate with '{0}' PhysicalMemory", mem.getValue());
         }
 
-        const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(0)));
+        const auto strideReqs = StrideReqs::simple(type.getRank());
 
         if (!strideReqs.checkStrides(val)) {
             return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", val, strideReqs);

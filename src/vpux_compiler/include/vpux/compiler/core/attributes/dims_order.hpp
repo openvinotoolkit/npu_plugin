@@ -113,6 +113,10 @@ public:
     static DimsOrder fromValue(mlir::Value val);
 
 public:
+    bool isCompatibleLayout(mlir::MemRefType type) const;
+    bool isCompatibleLayout(mlir::Value val) const;
+
+public:
     static DimsOrder fromIE(InferenceEngine::Layout layout);
     InferenceEngine::Layout toIE() const;
 
@@ -155,11 +159,11 @@ public:
     void printFormat(llvm::raw_ostream& streams) const;
 
 private:
-    explicit DimsOrder(StorageType code): _code(code) {
-    }
+    explicit DimsOrder(StorageType code);
 
 private:
-    StorageType _code = 0;
+    StorageType _code = 0;          // is serialized for the runtime
+    StorageType _invertedCode = 0;  // to store permutation in major to minor order
 };
 
 inline bool operator==(DimsOrder order1, DimsOrder order2) {

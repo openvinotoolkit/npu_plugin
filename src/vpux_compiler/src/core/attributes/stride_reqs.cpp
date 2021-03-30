@@ -90,9 +90,11 @@ bool vpux::operator!=(const DimStrideReq& req1, const DimStrideReq& req2) {
 // StrideReqs
 //
 
-StrideReqs vpux::StrideReqs::simple() {
+StrideReqs vpux::StrideReqs::simple(size_t numDims) {
+    numDims = numDims ? numDims - 1 : 0;
+
     StrideReqs r;
-    r.add(DimStrideReq::compact(MemDim(0)));
+    r.add(DimStrideReq::compact(MemDim(numDims)));
     return r;
 }
 
@@ -145,8 +147,8 @@ MemStrides vpux::StrideReqs::calcStrides(Bit elemSize, MemShapeRef memShape) con
     return StrideReqsRef(*this).calcStrides(elemSize, memShape);
 }
 
-MemStrides vpux::StrideReqs::calcStrides(mlir::ShapedType type) const {
-    return StrideReqsRef(*this).calcStrides(type);
+MemStrides vpux::StrideReqs::calcStrides(DimsOrder order, mlir::ShapedType type) const {
+    return StrideReqsRef(*this).calcStrides(order, type);
 }
 
 bool vpux::StrideReqs::checkStrides(mlir::MemRefType type) const {
@@ -214,14 +216,14 @@ void vpux::StrideReqsRef::calcStrides(MemStrides& memStrides, Bit elemSize, MemS
         return;
     }
 
-    for (const auto ind : irange(memShape.size())) {
+    for (const auto ind : irange(memShape.size()) | reversed) {
         const auto memDim = MemDim(ind);
         const auto req = (*this)[memDim];
 
-        if (ind == 0) {
+        if (ind == memShape.size() - 1) {
             memStrides[memDim] = elemSize;
         } else {
-            const auto prevMemDim = MemDim(ind - 1);
+            const auto prevMemDim = MemDim(ind + 1);
             memStrides[memDim] = memStrides[prevMemDim] * memShape[prevMemDim];
         }
 
@@ -237,11 +239,10 @@ MemStrides vpux::StrideReqsRef::calcStrides(Bit elemSize, MemShapeRef memShape) 
     return memStrides;
 }
 
-MemStrides vpux::StrideReqsRef::calcStrides(mlir::ShapedType type) const {
+MemStrides vpux::StrideReqsRef::calcStrides(DimsOrder order, mlir::ShapedType type) const {
     const auto elemSize = getElemTypeSize(type);
-    const auto dimsOrder = DimsOrder::fromNumDims(type.getRank());
     const auto shape = getShape(type);
-    const auto memShape = dimsOrder.toMemoryOrder(shape);
+    const auto memShape = order.toMemoryOrder(shape);
     return calcStrides(elemSize, memShape);
 }
 
@@ -271,12 +272,12 @@ bool vpux::StrideReqsRef::checkStrides(MemStridesRef memStrides, Bit elemSize, M
         const auto req = (*this)[memDim];
         const auto strideVal = memStrides[memDim];
 
-        if (ind == 0) {
+        if (ind == memShape.size() - 1) {
             if (strideVal < elemSize) {
                 return false;
             }
         } else {
-            const auto prevMemDim = MemDim(ind - 1);
+            const auto prevMemDim = MemDim(ind + 1);
 
             if (strideVal < memStrides[prevMemDim] * memShape[prevMemDim]) {
                 return false;
@@ -294,12 +295,12 @@ bool vpux::StrideReqsRef::checkStrides(MemStridesRef memStrides, Bit elemSize, M
                 return false;
             }
         } else if (req.getValue().kind() == StrideReqKind::Compact) {
-            if (ind == 0) {
+            if (ind == memShape.size() - 1) {
                 if (strideVal != elemSize) {
                     return false;
                 }
             } else {
-                const auto prevMemDim = MemDim(ind - 1);
+                const auto prevMemDim = MemDim(ind + 1);
 
                 if (strideVal != memStrides[prevMemDim] * memShape[prevMemDim]) {
                     return false;

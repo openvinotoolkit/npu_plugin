@@ -142,7 +142,7 @@ public:
     }
 
 public:
-    static StrideReqs simple();
+    static StrideReqs simple(size_t numDims);
     static StrideReqs compact(size_t numDims);
     static StrideReqs fixed(StridesRef strides);
 
@@ -158,7 +158,7 @@ public:
     void calcStrides(MemStrides& memStrides, Bit elemSize, MemShapeRef memShape) const;
 
     MemStrides calcStrides(Bit elemSize, MemShapeRef memShape) const;
-    MemStrides calcStrides(mlir::ShapedType memShape) const;
+    MemStrides calcStrides(DimsOrder order, mlir::ShapedType memShape) const;
 
 public:
     bool checkStrides(mlir::MemRefType type) const;
@@ -261,7 +261,7 @@ public:
     void calcStrides(MemStrides& memStrides, Bit elemSize, MemShapeRef memShape) const;
 
     MemStrides calcStrides(Bit elemSize, MemShapeRef memShape) const;
-    MemStrides calcStrides(mlir::ShapedType memShape) const;
+    MemStrides calcStrides(DimsOrder order, mlir::ShapedType memShape) const;
 
 public:
     bool checkStrides(mlir::MemRefType type) const;
