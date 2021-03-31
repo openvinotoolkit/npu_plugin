@@ -105,8 +105,7 @@ mlir::LogicalResult LowerIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(IE
     auto outHighConst = origOp.output_high().getDefiningOp<ConstantInterface>();
 
     if (inLowConst == nullptr || inHighConst == nullptr || outLowConst == nullptr || outHighConst == nullptr) {
-        _log.trace("Got non constant parameters");
-        return mlir::failure();
+        return matchFailed(rewriter, origOp, "Got non constant parameters");
     }
 
     rewriter.replaceOpWithNewOp<VPUIP::FakeQuantizeUPAOp>(origOp, origOp.input(), origOp.output(), origOp.levels(),
@@ -141,14 +140,13 @@ private:
 mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
                                                                           mlir::PatternRewriter& rewriter) const {
     if (!mlir::isa<IERT::GenericReshapeOp, mlir::linalg::ReshapeOp, mlir::memref::SubViewOp>(origOp.getOperation())) {
-        return mlir::failure();
+        return matchFailed(rewriter, origOp, "Unknown view-like operation '{0}'", origOp->getName());
     }
 
     _log.trace("Found Reshape Operation '{0}'", origOp->getLoc());
 
     if (origOp->getParentOfType<mlir::FuncOp>() != _netFunc) {
-        _log.nest().trace("It doesn't belong to network entry point Function");
-        return mlir::failure();
+        return matchFailed(rewriter, origOp, "The operation doesn't belong to network entry point Function");
     }
 
     const auto origInput = origOp.getViewSource();
@@ -168,8 +166,7 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
         _log.nest().trace("It aliases internal Function argument");
 
         if (blockArg.getOwner()->getParentOp() != _netFunc) {
-            _log.nest(2).trace("The Block doesn't belong to network entry point Function");
-            return mlir::failure();
+            return matchFailed(rewriter, origOp, "The view source doesn't belong to network entry point Function");
         }
 
         const auto argInd = checked_cast<size_t>(blockArg.getArgNumber());
@@ -187,12 +184,10 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
             location = VPUIP::MemoryLocation::ProgrammableOutput;
             locationIndex = checked_cast<uint32_t>(argInd - numNetInputs);
         } else {
-            _log.nest(2).trace("Wrong block argument index '{0}'", argInd);
-            return mlir::failure();
+            return matchFailed(rewriter, origOp, "The view source doesn't belong to network entry point Function");
         }
     } else {
-        _log.nest().trace("Unknown source owner");
-        return mlir::failure();
+        return matchFailed(rewriter, origOp, "Unknown source owner");
     }
 
     if (auto subViewOp = mlir::dyn_cast<mlir::memref::SubViewOp>(origOp.getOperation())) {
