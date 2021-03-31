@@ -285,6 +285,27 @@ namespace mv
                             streamsOverK.push_back(1);
                         }
 
+                        // Sad hack - due to recent changes on sparse data calculation
+                        // now the minimal streams for K in some cases are lower, and this
+                        // bring some performance regressions, on SSD512 for example
+                        // https://jira.devtools.intel.com/browse/EISW-7241
+                        // TODO: Future taks to add heuristics that increase the amount of
+                        // streaming, so we can get rid of this harcoding
+                        if (op.getOpType() == "Conv" &&
+                            op.getInputTensor(0)->getDType().getSizeInBytes() == 1)
+                        {
+                            if (op.getInputTensor(0)->getShape() == mv::Shape({32,32,512,1}) &&
+                                op.getInputTensor(1)->getShape() == mv::Shape({3,3,512,512}) &&
+                                op.getOutputTensor(0)->getShape() == mv::Shape({32,32,512,1}) &&
+                                clustering.get<std::string>() == "SplitOverH" &&
+                                hasStreamOverK) {
+                                streamsOverK = {8};
+                                log(mv::Logger::MessageType::Warning, "Following op " + op.getName() +
+                                    "  has been forced to be scheduled with fixed K stream of " +
+                                    std::to_string(streamsOverK[0]));
+                            }
+                        }
+
                         std::vector<size_t> streamsOverC;
                         if (hasStreamOverC)
                             streamsOverC = getStreamsOverC(op, clustering, {1,1,1,1,n}, inputSparsity.get<bool>(),
@@ -1356,7 +1377,11 @@ namespace mv
 
                 //TODO re-enable runtime sparsity in this case, see spatial_split_streaming L143 for issue
                 //Dummy slice prevents runtime sparsity from being activated in sparsity pass
-                if(parentOutputSparsity && childStreamShape["K"] > 1)
+                if (parentOutputSparsity && childStreamShape["K"] > 1)
+                    return INF;
+
+                // Runtime sparsity with streamed consumers is not currently supported
+                if (parentOutputSparsity && (childStreamShape["H"] * childStreamShape["C"] * childStreamShape["W"] * childStreamShape["B"]) > 1)
                     return INF;
 
                 // Note: Wasted output sparsity, output sparsity in this context is runtime generated

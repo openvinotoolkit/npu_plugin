@@ -87,28 +87,117 @@ void placeNeutralMaxPoolBefore(const mv::pass::PassEntry&, mv::ComputationModel&
 
 }
 
-void placeEltwiseDequantize(mv::OpModel & om, mv::Data::OpListIterator task)
+bool isOpSoftware(const mv::Data::OpListIterator& opIt) {
+    return opIt->isUPA() ||
+           (opIt->hasAttr("softwareExecuted") && opIt->get<bool>("softwareExecuted")) ||
+           (opIt->hasAttr("floatPrecision") && opIt->get<bool>("floatPrecision")) ||
+           (opIt->hasAttr("placeConversionToFloat") && opIt->get<bool>("placeConversionToFloat"));
+};
+
+std::vector<mv::Data::OpListIterator> findNonImplicitConsumerOps(mv::DataModel& dm, const mv::Data::TensorIterator& tensor)
 {
-    auto quantParams = task->getInputTensor(0)->getQuantParams();
-    auto neutralCopy = om.copy(task->getName() + "Neutral", task->getInputTensor(0));
-    neutralCopy->setDType(mv::DType("UInt8"));
-    neutralCopy->setQuantParams(quantParams);
-    auto neutralCopyOp = om.getSourceOp(neutralCopy);
-    neutralCopyOp->set<unsigned>("opId", task->get<unsigned>("opId"));
+    std::vector<mv::Data::OpListIterator> consumerOps;
+    const auto sinkLayers = mv::findSinkLayers(dm, tensor);
+    for (auto& sink : sinkLayers)
+    {
+        if (sink->isImplicit() || sink->getOpType() == "Concat")
+            for (auto& outputTensor : sink->getOutputTensor())
+            {
+                auto consumers = findNonImplicitConsumerOps(dm, outputTensor);
+                consumerOps.insert(consumerOps.end(), consumers.begin(), consumers.end());
+            }
+        else
+            consumerOps.push_back(sink);
+    }
+    return consumerOps;
+}
 
-    std::vector<mv::Data::TensorIterator> andInputs = {task->getInputTensor(0), neutralCopy};
-    auto placeEltwiseDequantize = om.eltwise(task->getName() + "AND_Conversion", andInputs, "And");
-    placeEltwiseDequantize->setQuantParams({{0}, {1.0f}, {}, {}});
-    auto placeEltwiseDequantizeOp = om.getSourceOp(placeEltwiseDequantize);
+void placeInputEltwiseDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpListIterator& opIt)
+{
+    auto allConsumersNeedFloat = [&dm](const mv::Data::TensorIterator& tensor) {
+        const auto consumerOps = findNonImplicitConsumerOps(dm, tensor);
+        for (auto& consumerOp : consumerOps) {
+            if (!isOpSoftware(consumerOp))
+                return false;
+        }
+        return true;
+    };
 
-    placeEltwiseDequantizeOp->getInputTensor(0)->setDType(mv::DType("UInt8"));
-    placeEltwiseDequantizeOp->getInputTensor(1)->setDType(mv::DType("UInt8"));
-    placeEltwiseDequantizeOp->getOutputTensor(0)->setDType(mv::DType("Float16"));
-    placeEltwiseDequantizeOp->set<bool>("mixedToFloat", true);
+    for (size_t i = 0; i < (opIt->getOpType() == "Eltwise" ? 2 : 1); ++i)
+    {
+        const auto inputTensor = opIt->getInputTensor(i);
+        if (inputTensor->isFloatingPointType())
+            continue;
 
-    placeEltwiseDequantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
-    task->setInputTensor(placeEltwiseDequantize, 0, false);
-    om.defineFlow(placeEltwiseDequantize, task, 0);
+        const auto parentOp = om.getSourceOp(inputTensor);
+        if (isOpSoftware(parentOp) && allConsumersNeedFloat(inputTensor))
+            continue;
+
+        auto inputFlow = opIt.leftmostInput();
+        while (inputFlow != om.flowEnd())
+        {
+            if (inputFlow->getTensor()->getName() == inputTensor->getName())
+                break;
+            ++inputFlow;
+        }
+
+        const auto quantParams = inputTensor->getQuantParams();
+        auto neutralCopy = om.copy(opIt->getName() + "_Neutral_" + std::to_string(i), inputTensor);
+        neutralCopy->setQuantParams(quantParams);
+        auto neutralCopyOp = om.getSourceOp(neutralCopy);
+        neutralCopyOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+
+        const std::vector<mv::Data::TensorIterator> andInputs = {inputTensor, neutralCopy};
+        auto dequantize = om.eltwise(opIt->getName() + "_AND_Conversion_" + std::to_string(i), andInputs, "And");
+        dequantize->setDType(mv::DType("Float16"));
+        dequantize->setQuantParams(mv::QuantizationParams::initial());
+
+        auto dequantizeOp = om.getSourceOp(dequantize);
+        dequantizeOp->set<bool>("mixedToFloat", true);
+        dequantizeOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+
+        om.undefineFlow(inputFlow);
+        opIt->setInputTensor(dequantize, i, false);
+        om.defineFlow(dequantize, opIt, i);
+    }
+}
+
+void placeOutputQuantize(mv::OpModel& om, mv::DataModel& dm, const mv::Data::OpListIterator& opIt) {
+    const auto outputTensor = opIt->getOutputTensor(0);
+    if (outputTensor->isFloatingPointType())
+        return;
+
+    const auto consumerOps = mv::findSinkLayers(dm, outputTensor);
+    if (std::all_of(consumerOps.begin(), consumerOps.end(), isOpSoftware))
+        return;
+
+    auto quantize = om.quantize(opIt->getName() + "_Quantize", {outputTensor});
+    quantize->setQuantParams(outputTensor->getQuantParams());
+
+    auto quantizeOp = om.getSourceOp(quantize);
+    quantizeOp->getInputTensor(0)->setDType(mv::DType("Float16"));
+    quantizeOp->getInputTensor(0)->setQuantParams(mv::QuantizationParams::initial());
+    quantizeOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+
+    for (auto consumerOp : consumerOps)
+    {
+        std::size_t i = 0;
+        for (; i < consumerOp->inputSlots(); ++i)
+        {
+            if (consumerOp->getInputTensor(i)->getName() == outputTensor->getName())
+                break;
+        }
+        auto inputFlow = consumerOp.leftmostInput();
+        while (inputFlow != om.flowEnd())
+        {
+            if (inputFlow->getTensor()->getName() == outputTensor->getName())
+                break;
+            ++inputFlow;
+        }
+        om.undefineFlow(inputFlow);
+        consumerOp->setInputTensor(quantize, i, false);
+        om.defineFlow(quantize, consumerOp, i);
+    }
 }
 
 void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -118,105 +207,80 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    // there is current list of the layers which might be converted to fp16
+    // There is current list of the layers which might be converted to Float16 or BFloat16
     // if the option 'placeConversionToFloat' was set previously in them.
-    auto fp_ops = om.getOpsOfTypes({"Conv", "DepthwiseConv", "Eltwise"});
+    auto opTypes = om.getOpsOfTypes({"Conv", "DepthwiseConv", "MaxPool", "Eltwise"});
 
-    for (auto& ops: fp_ops) {
-        for (auto& opIt : ops.second) {
-            if(opIt->hasAttr("placeConversionToFloat") && opIt->get<bool>("placeConversionToFloat")) {
-                auto previousOpIt = om.getSourceOp(opIt->getInputTensor(0));
-                std::vector<double> inputScale = opIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
-                bool isHSwish = false;
-                if (previousOpIt->getOpType() == "HSwish") {
-                    isHSwish = true;
-                    placeEltwiseDequantize(om, previousOpIt);
-                    auto oldInputFlow = previousOpIt.leftmostInput();
-                    while(oldInputFlow != om.flowEnd()) {
-                        om.undefineFlow(oldInputFlow);
-                        ++oldInputFlow;
-                    }
-                    // do not set FP16 for HSwish since it is UPA Taks and precision will be set later
-                } else {
-                    placeEltwiseDequantize(om, opIt);
+    for (auto& opType: opTypes)
+    {
+        for (auto& opIt : opType.second)
+        {
+            if (!opIt->hasAttr("placeConversionToFloat") || !opIt->get<bool>("placeConversionToFloat"))
+                continue;
 
-                    if(opIt->getOpType() == "Eltwise") {
-                        for (auto sourceFlow = opIt.leftmostInput(); sourceFlow != om.flowEnd(); ++sourceFlow)
-                        {
-                            if (sourceFlow.source()->getName() == previousOpIt->getName())
-                                om.undefineFlow(sourceFlow);
-                        }
-                    }
-                }
-                //NOTE: For now take for granted that the next guy is a convolution
-                opIt->set<bool>("floatPrecision", true);
-                opIt->getOutputTensor(0)->setDType(mv::DType("Float16"));
-                //NOTE: Do not care of the data type of input but it will be float so all
-                //inputs and outputs need to be converted to float, populated need de-quantize!!!
-                for(std::size_t i = 0; i < opIt->inputSlots(); ++i)
-                    opIt->getInputTensor(i)->setDType(mv::DType("Float16"));
-                opIt->getOutputTensor(0)->setDType(mv::DType("Float16"));
-//                opIt->setDType(mv::DType("Float16"));
-                bool hasBias = opIt->hasAttr("bias");
+            auto targetDType = mv::DType("Float16");
+            if (opIt->getInputTensor(0)->getDType() == mv::DType("BFloat16") || opIt->getOutputTensor(0)->getDType() == mv::DType("BFloat16"))
+                targetDType = mv::DType("BFloat16");
 
-                // If this conv was a tiled conv, pass the conversion to the adds as well
-                if(opIt->hasAttr("partitionedKernelToAdd"))
+            placeInputEltwiseDequantize(om, dm, opIt);
+            placeOutputQuantize(om, dm, opIt);
+
+            opIt->set<bool>("floatPrecision", true);
+            for (size_t i = 0; i < (opIt->getOpType() == "Eltwise" ? 2 : 1); ++i) {
+                opIt->getInputTensor(i)->setDType(targetDType);
+                opIt->getInputTensor(i)->setQuantParams(mv::QuantizationParams::initial());
+            }
+            opIt->getOutputTensor(0)->setDType(targetDType);
+            opIt->getOutputTensor(0)->setQuantParams(mv::QuantizationParams::initial());
+
+            // If this conv was a tiled conv, pass the conversion to the adds as well
+            if (opIt->hasAttr("partitionedKernelToAdd"))
+            {
+                if (opIt->get<bool>("partitionedKernelToAdd"))
                 {
-                    if(opIt->get<bool>("partitionedKernelToAdd"))
-                    {
-                        auto partitionAdd = opIt.leftmostOutput().sink();
-                        partitionAdd->getOutputTensor(0)->setDType(mv::DType("Float16"));
-                    }
+                    auto partitionAdd = opIt.leftmostOutput().sink();
+                    partitionAdd->getOutputTensor(0)->setDType(targetDType);
                 }
+            }
 
-                if (opIt->hasWeights())
+            if (opIt->hasWeights())
+            {
+                const auto weightsTensor = opIt->getInputTensor(1);
+                if (weightsTensor->isFloatingPointType())
+                    continue;
+                const auto dequantFP16Weights = dequantizeWeightsToFP16(weightsTensor, opIt, om);
+
+                if (opIt->hasAttr("bias"))
                 {
-                    mv::Data::TensorIterator weightsTensor =  opIt->getInputTensor(1);
-                    auto dequantFP16Weights = dequantizeWeightsToFP16(weightsTensor, opIt, om);
+                    const auto outputShape = opIt->getOutputTensor(0)->getShape();
+                    auto bias = dm.getTensor(opIt->get<std::string>("bias"));
+                    // hack
+                    std::vector<double> outputScale = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
+                    outputScale = extendToK(outputShape[mv::IO_CHANNEL_DIMENSION], outputScale, opIt->getOutputTensor(0)->getName());
 
-                    if (hasBias)
+                    auto biasScale = bias->getQuantParams().getScale();
+                    std::vector<int64_t> biasData;
+                    for (size_t k = 0; k < outputShape[mv::IO_CHANNEL_DIMENSION]; k++)
                     {
-                        mv::Data::TensorIterator bias =  dm.getTensor(opIt->get<std::string>("bias"));
-                        auto outputShape = opIt->getOutputTensor(0)->getShape();
-                        std::vector<int64_t> biasData;
-                        double biasOldScale, real_bias;
-                        int64_t real_bias_fp16;
-                        std::vector<double> weightsScale = opIt->getInputTensor(1)->get<mv::QuantizationParams>("quantParams").getScale();
-                        weightsScale = extendToK(outputShape[mv::IO_CHANNEL_DIMENSION], weightsScale, bias->getName());
-                        // hack
-                        std::vector<double> outputScale = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
-                        outputScale = extendToK(outputShape[mv::IO_CHANNEL_DIMENSION], outputScale, opIt->getOutputTensor(0)->getName());
-
-                        for (size_t k = 0; k < outputShape[mv::IO_CHANNEL_DIMENSION]; k++)
-                        {
-                            biasOldScale = weightsScale[k] * inputScale[0];
-                            if(opIt->hasAttr("biasOverflow") && opIt->get<bool>("biasOverflow")) {
-                                biasOldScale *= outputScale[k];
-                            }
-                            real_bias = ((int64_t) bias->at(k)) * biasOldScale;
-                            real_bias_fp16 = mv::fp32_to_fp16(real_bias);
-                            biasData.push_back(real_bias_fp16);
+                        double scale = biasScale[k];
+                        if (opIt->hasAttr("biasOverflow") && opIt->get<bool>("biasOverflow")) {
+                            scale *= outputScale[k];
                         }
-                        mv::Data::TensorIterator floatBias;
-                        std::string floatBiasName = mv::createBiasName(opIt->getName() + "FP16_bias");
-                        floatBias = dm.defineTensor(mv::Tensor(floatBiasName, bias->getShape(),
-                                                     mv::DType("Float16"), bias->getOrder(), biasData, {{0},{1},{},{}}));
-                        om.eraseAttr(opIt, "bias");
-                        om.addAttr(opIt, "bias", floatBiasName);
-                        bias->setDType(mv::DType("Float16"));
+                        const double realBias = ((int64_t) bias->at(k)) * scale;
+                        const int64_t realBiasFp16 = mv::fp32_to_fp16(realBias);
+                        biasData.push_back(realBiasFp16);
                     }
-                    if (!isHSwish) {
-                        for (auto sourceFlow = opIt.leftmostInput(); sourceFlow != om.flowEnd(); ++sourceFlow)
-                        {
-                            if (sourceFlow.source()->getName() == previousOpIt->getName())
-                                om.undefineFlow(sourceFlow);
-                        }
-                    }
-                    om.removeOp(om.getSourceOp(opIt->getInputTensor(1)));
-                    opIt->setInputTensor(dequantFP16Weights, 1, false);
-                    om.defineFlow(dequantFP16Weights, opIt, 1);
-                    om.getSourceOp(opIt->getInputTensor(1))->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+                    const auto floatBiasName = mv::createBiasName(opIt->getName() + "FP16_bias");
+                    const auto floatBias = dm.defineTensor(mv::Tensor(floatBiasName, bias->getShape(),
+                                                           mv::DType("Float16"), bias->getOrder(), biasData, {{0},{1},{},{}}));
+                    om.eraseAttr(opIt, "bias");
+                    om.addAttr(opIt, "bias", floatBiasName);
+                    bias->setDType(mv::DType("Float16"));
                 }
+                om.removeOp(om.getSourceOp(weightsTensor));
+                opIt->setInputTensor(dequantFP16Weights, 1, false);
+                om.defineFlow(dequantFP16Weights, opIt, 1);
+                om.getSourceOp(opIt->getInputTensor(1))->set<unsigned>("opId", opIt->get<unsigned>("opId"));
             }
         }
     }

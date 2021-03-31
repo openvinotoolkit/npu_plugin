@@ -151,6 +151,8 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
             om.addAttr(parentOpIt, "bias", biasTensor->getName());
         }
         auto sourceTensor = parentOpIt->getOutputTensor(0);
+        sourceTensor->setDType(opIt->getOutputTensor(0)->getDType());
+        sourceTensor->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
         opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
         if (biasOutputMemoryLocation.isForced())
         {
@@ -174,6 +176,8 @@ void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, c
             biasTensor->multiply(scale);
         }
         auto sourceTensor = parentOpIt->getOutputTensor(0);
+        sourceTensor->setDType(opIt->getOutputTensor(0)->getDType());
+        sourceTensor->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
         opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
         if (scaleOutputMemoryLocation.isForced())
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", scaleOutputMemoryLocation);
@@ -280,6 +284,8 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
 
     // Link direct postOp parent with postOp consumers
     auto sourceTensor = parentOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+    sourceTensor->setDType(opIt->getOutputTensor(0)->getDType());
+    sourceTensor->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
     opIt = linkNewOperationsFuse(parentOp, sourceTensor, om, opIt);
     if (ppeOutputMemoryLocation.isForced())
         opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);
@@ -309,6 +315,8 @@ void fuseMinimumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model,
     auto sourceTensor = parentOpIt->getOutputTensor(0);
     parentOpIt->set<double>("Minimum", minimumValue);
 
+    sourceTensor->setDType(opIt->getOutputTensor(0)->getDType());
+    sourceTensor->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (minimumOutputMemoryLocation.isForced())
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", minimumOutputMemoryLocation);
@@ -325,6 +333,8 @@ void fuseMaximumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model,
     auto sourceTensor = parentOpIt->getOutputTensor(0);
     parentOpIt->set<double>("Maximum", maximumValue);
 
+    sourceTensor->setDType(opIt->getOutputTensor(0)->getDType());
+    sourceTensor->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (maximumOutputMemoryLocation.isForced())
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", maximumOutputMemoryLocation);
@@ -374,6 +384,8 @@ void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &mode
         sourceTensor = om.bias("", sourceTensor, offset);
     else
         sourceTensor = om.eltwise("", {sourceTensor, offset}, "Add");
+    sourceTensor->setDType(opIt->getOutputTensor(0)->getDType());
+    sourceTensor->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (outputMemoryLocation.isForced())
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);

@@ -408,6 +408,7 @@ void populateActivationStorageElementMap(
     mv::Data::OpListIterator op,
     mv::ComputationModel& model)
 {
+    mv::OpModel om(model);
 
     using clusterSolverFunc =
         std::function<mv::Tensor*(
@@ -428,6 +429,26 @@ void populateActivationStorageElementMap(
         }
     };
 
+    const auto getTensorAddress =
+        [&om](const mv::Tensor* tensor,
+           const mv::Data::OpListIterator& opIt,
+           const size_t inputTensorIdx,
+           const clusterSolverFunc clSolver,
+           const size_t clIdx) {
+        if (tensor->hasAttr("address") || tensor->hasAttr("sliceAddress"))
+            return tensor->hasAttr("sliceAddress") ? tensor->get<std::size_t>("sliceAddress") : tensor->getAddress();
+
+        const auto parentOp = om.getSourceOp(opIt->getInputTensor(inputTensorIdx));
+        if (parentOp->getOpType() == "Align" || parentOp->getOpType() == "Crop" || (parentOp->getOpType() == "Copy" &&
+            parentOp->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") ==
+            parentOp->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location"))) {
+            const auto parentInput = clSolver(parentOp, 0, clIdx);
+            return parentInput->hasAttr("address") ? parentInput->getAddress() : parentInput->get<std::size_t>("sliceAddress");
+        }
+
+        throw std::runtime_error("Input tensor of " + opIt->getName() + " does not have an address.");
+    };
+
     const std::unordered_map<std::string, displacementCalcFunc> displacementFunctors =
     {
         {
@@ -446,14 +467,14 @@ void populateActivationStorageElementMap(
         },
         {
             "Eltwise",
-            [](mv::Data::OpListIterator op1,
+            [&getTensorAddress](mv::Data::OpListIterator op1,
                 size_t inputTensorIdx,
                 clusterSolverFunc clSolver,
                 size_t clIdx){
                 auto in0 = clSolver(op1, 0, clIdx);
                 auto in1 = clSolver(op1, 1, clIdx);
-                auto in0_addr = in0->hasAttr("sliceAddress") ? in0->get<std::size_t>("sliceAddress") : in0->getAddress();
-                auto in1_addr = in1->hasAttr("sliceAddress") ? in1->get<std::size_t>("sliceAddress") : in1->getAddress();
+                auto in0_addr = getTensorAddress(in0, op1, 0, clSolver, clIdx);
+                auto in1_addr = getTensorAddress(in1, op1, 1, clSolver, clIdx);
                 auto base_addr =std::min(
                     in0_addr,
                     in1_addr);

@@ -9,7 +9,7 @@ namespace mv
 {
     std::size_t realTensorSize(const mv::Data::TensorIterator tensorToSize, const mv::Shape& streamingPool, bool isCMConv);
     std::size_t activationTensorSize(mv::Op& op, const mv::Data::TensorIterator tensorToSize, std::string clustering, const mv::Shape& streamingPool, 
-                                            bool isCMConv, int totalClusters, bool isInput, bool dilation = false);
+                                            bool isCMConv, int totalClusters, bool isInput, mv::Shape& streamedShape, bool dilation = false);
     std::size_t alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamConfig, std::string clustering, int totalClusters);
     std::tuple<std::size_t,std::size_t,std::size_t> memorySize(mv::Op& op, int totalClusters, bool enableChannelMajorConv, std::string clustering, 
                                             bool inputActivationSparsity, bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig,
