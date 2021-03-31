@@ -123,6 +123,7 @@ void moveTensorToSameMemLoc(mv::OpModel& om, mv::Data::OpListIterator opIt, std:
                 opIt->getName() + "_to" + intermediaryStr);
     intermediaryT->set<mv::Tensor::MemoryLocation>("Location", intermediary);
     auto iOp = om.getSourceOp(intermediaryT);
+    iOp->set<bool>("explicitRelocate", true);
 
     flows.clear();
     for (auto flow = iOp.leftmostOutput(); flow != om.flowEnd(); ++flow)
@@ -138,6 +139,7 @@ void moveTensorToSameMemLoc(mv::OpModel& om, mv::Data::OpListIterator opIt, std:
                 {flow}, {flow->get<std::size_t>("sinkInput")}, {sink},
                 sink->getName() + "_to" + targetStr);
         targetT->set<mv::Tensor::MemoryLocation>("Location", target);
+        om.getSourceOp(targetT)->set<bool>("explicitRelocate", true);
     }
 }
 

@@ -1,4 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
@@ -7,6 +8,7 @@
 
 static void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void CleanRedundantDMAsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -22,7 +24,10 @@ namespace mv
             .setDescription(
                "Add DMA Tasks for UPA Tasks extra inputs");
 
-
+        MV_REGISTER_PASS(CleanRedundantDMAs)
+            .setFunc(CleanRedundantDMAsFcn)
+            .setDescription(
+               "Remove DMAs that move data unnecessarily (e.g. DDR->NNCMX->DDR)");
     }
 }
 
@@ -161,5 +166,64 @@ void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry&, mv::Computati
                 }
             }
         }
+    }
+}
+
+void CleanRedundantDMAsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element &)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto isException = [](const mv::Data::OpListIterator& firstDma, const mv::Data::OpListIterator& secondDma) {
+        return (firstDma->hasAttr("explicitRelocate") && firstDma->get<bool>("explicitRelocate")) ||
+               (secondDma->hasAttr("explicitRelocate") && secondDma->get<bool>("explicitRelocate"));
+    };
+
+    std::vector<mv::Data::OpListIterator> dmasToRemove;
+
+    auto dmaOps = om.getOps("DMATask");
+    for (auto& dmaOp : dmaOps) {
+        if (dmaOp->get<mv::DmaDirection>("direction") != mv::DmaDirectionEnum::NNCMX2DDR)
+            continue;
+
+        const auto inputTensor = dmaOp->getInputTensor(0);
+        const auto parentOp = om.getSourceOp(inputTensor);
+        if (parentOp->getOpType() != "DMATask" || parentOp->get<mv::DmaDirection>("direction") != mv::DmaDirectionEnum::DDR2NNCMX)
+            continue;
+
+        if (isException(parentOp, dmaOp))
+            continue;
+
+        const auto childOps = mv::findSinkLayers(dm, dmaOp->getOutputTensor(0));
+
+        mv::linkNewOperationsReplacementRemoveFlows(mv::Data::OpListIterator(), inputTensor, om, dmaOp);
+        if (mv::findSinkLayers(dm, inputTensor).size() == 1) {
+            dmasToRemove.push_back(parentOp);
+        } else {
+            const auto parentInputTensor = parentOp->getInputTensor(0);
+
+            for (auto childOp : childOps) {
+                std::size_t inputSlot = 0;
+                for (; inputSlot < childOp->inputSlots(); ++inputSlot)
+                    if (childOp->getInputTensor(inputSlot)->getName() == inputTensor->getName())
+                        break;
+                auto inputFlow = childOp.leftmostInput();
+                while(inputFlow != om.flowEnd())
+                {
+                    if (inputFlow->getTensor()->getName() == inputTensor->getName())
+                        break;
+                    ++inputFlow;
+                }
+
+                om.undefineFlow(inputFlow);
+                childOp->setInputTensor(parentInputTensor, inputSlot, false);
+                om.defineFlow(parentInputTensor, childOp, inputSlot);
+            }
+        }
+    }
+
+    for (auto& dmaOp : dmasToRemove) {
+        mv::linkNewOperationsReplacementRemoveFlows(mv::Data::OpListIterator(), dmaOp->getInputTensor(0), om, dmaOp);
     }
 }

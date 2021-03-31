@@ -423,12 +423,17 @@ void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::Co
 
         // Create strided convolutions on the outputs of the slices.
         for (size_t c = beginShape[k]; c < endShape[k]; c += strideShape[k]) {
-
-            std::vector<int64_t> constantWeights{255};
+            mv::Data::TensorIterator constantOutputTensor;
             mv::Shape constantShape({1, 1, 1, 1});
-            auto constantOutputTensor = om.constantInt(
-                    opIt->getName() + "_constant_" + std::to_string(c), constantWeights,
-                    constantShape, mv::DType("UInt8"), mv::Order::getColMajorID(4));
+            if (sourceTensor->isFloatingPointType()) {
+                std::vector<double> constantWeights{255};
+                constantOutputTensor = om.constant(opIt->getName() + "_constant_" + std::to_string(c),
+                        constantWeights, constantShape, mv::DType("Float64"), mv::Order::getColMajorID(4));
+            } else {
+                std::vector<int64_t> constantWeights{255};
+                constantOutputTensor = om.constantInt(opIt->getName() + "_constant_" + std::to_string(c),
+                        constantWeights, constantShape, mv::DType("UInt8"), mv::Order::getColMajorID(4));
+            }
 
             std::array<unsigned short, 2> kernelStrides = {
                 (unsigned short)strideShape[mv::IO_WIDTH_DIMENSION],
@@ -471,6 +476,7 @@ void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::Co
 // case 3 - If the output is to feed implicitOutput or Output,
 //          need to be replaced with SWEltwise to avoid being converted to DPUTask.
 //          alse for Super-Resolution model enabling.
+// case 4 - If any of the inputs for the eltwise is a constant
 void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -545,6 +551,16 @@ void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 opIt->set<bool>("placeConversionToFloat", false);
                 opIt->set<bool>("softwareExecuted", true);
             }
+        }
+
+        // case 4
+        if (std::any_of(inputs.begin(), inputs.end(), [&om](const mv::Data::TensorIterator& input) {
+                const auto parentOpType = om.getSourceOp(input)->getOpType();
+                return parentOpType == "Constant" ||
+                       parentOpType == "ConstantInt" ||
+                       parentOpType == "ConstantDataElement";
+            })) {
+            opIt->set<bool>("softwareExecuted", true);
         }
     }
 }
@@ -1139,7 +1155,7 @@ unsigned short getPad(std::pair<unsigned short, unsigned short> factors, size_t 
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel & om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
                                                 std::string name, double scaleValue, std::array<unsigned short, 2> newKernel,
-                                                std::array<unsigned short, 4> padding, bool quantRequired)
+                                                std::array<unsigned short, 4> padding)
 {
     auto inputShape = sourceTensor->getShape();
 
@@ -1181,10 +1197,10 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel & om, mv::Data::OpLi
         weights->setQuantParams(weightsQuantParams);
     }
 
-    double inf = std::numeric_limits<double>::infinity();
-    mv::QuantizationParams quantParams({{0}, {1}, {-inf}, {inf}});
-    if (sourceTensor->isQuantized() && quantRequired)
-        quantParams = opIt->getOutputTensor(0)->getQuantParams();
+    auto quantParams = !sourceTensor->getQuantParams().isEmpty() ? sourceTensor->getQuantParams() : mv::QuantizationParams::initial();
+    auto outputQuantParams = opIt->getOutputTensor(0)->getQuantParams();
+    if (!outputQuantParams.isEmpty() && !outputQuantParams.isNeutral())
+        quantParams = outputQuantParams;
 
     // Create depthwise conv (default dilation factor)
     auto depthwise_conv = om.depthwiseConv(name, sourceTensor, weights, stride, padding, 1);
@@ -1225,14 +1241,10 @@ bool canReplaceAveragePool(mv::Data::OpListIterator first, mv::Data::OpListItera
     auto first_attrs  = first->getAttrs({"opId"});
     auto second_attrs = second->getAttrs({"opId"});
 
-    auto first_scale  = first->getOutputTensor(0)->getQuantParams().getScale();
-    auto second_scale = second->getOutputTensor(0)->getQuantParams().getScale();
-
     auto first_dtype  = first->getOutputTensor(0)->getDType();
     auto second_dtype = second->getOutputTensor(0)->getDType();
 
-    if (!(first_scale == second_scale &&
-          first_attrs.at("stride") == second_attrs.at("stride") &&
+    if (!(first_attrs.at("stride") == second_attrs.at("stride") &&
           first_attrs.at("padding") == first_attrs.at("padding") &&
           first_attrs.at("exclude_pad") == second_attrs.at("exclude_pad") &&
           first_dtype == second_dtype))
@@ -1589,20 +1601,6 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         // Padding quantity relationship is (input size + pad) / k = output size, padding config is TRUE, FALSE
         std::array<unsigned short, 4> padding = {0, 0, 0, 0};
         std::array<unsigned short, 2> newKernel, newKernel_1 = {1,1};
-        std::pair<bool, bool> producers_quantized(true, true);
-        auto sinkOps = findSinkLayers(dm, opIt->getOutputTensor(0));
-        if (sinkOps[0]->isUPA()){
-            producers_quantized.first = true;
-            producers_quantized.second = false;
-        }
-        else if (sinkOps[0]->getOpType() == "Output"){
-            if (sinkOps[0]->hasAttr("precision")
-                && sinkOps[0]->get<mv::DType>("precision") == mv::DType("Float16"))
-            {
-                producers_quantized.first = true;
-                producers_quantized.second = false;
-            }
-        }
 
         newKernel[largeDim] = factors.first;//first was the large dimension
         newKernel_1[largeDim] = factors.second;
@@ -1664,7 +1662,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         if (opIt->getOpType() == "AveragePool")
             op0 = createPartialDepthwise(om, opIt, sourceTensor,
                                          name + "_DepthwiseConv0",
-                                         firstRescale, newKernel, padding, producers_quantized.first);
+                                         firstRescale, newKernel, padding);
         else if (opIt->getOpType()== "MaxPool")
         {
             std::array<unsigned short, 2> strides = newKernel;
@@ -1728,7 +1726,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         mv::Data::TensorIterator op1;
         if (input_op0->getOpType() == "DepthwiseConv" || input_op0->getOpType() == "AveragePool" )
             op1 = createPartialDepthwise(om, input_op0, op0,
-                                         name + "_DepthwiseConv1", secondRescale, newKernel_1, {0,0,0,0}, producers_quantized.second);
+                                         name + "_DepthwiseConv1", secondRescale, newKernel_1, {0,0,0,0});
         else if (input_op0->getOpType() == "MaxPool")
         {
             std::array<unsigned short, 2> strides = newKernel_1;

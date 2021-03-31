@@ -1189,19 +1189,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if (newOpType == "DPUTask")
             {
-                //NOTE: There are multiple cases of DPU Task:
-                //1)Simple U8 Input U8 Output
-                //2)Simple FP16 Input FP16 Output, floatPrecision
-                //3)u8->Fp16, done by an Eltwise And, z-major conv 1x1 output, mixedToFloat
-                //4)Fp16->u8, done by an Eltwise And, z-major conv 1x1 output, mixedToU8
-                if (newTensor->hasAttr("dType") && newTensor->getDType() == mv::DType("Int32"))
-                    newTensor->setDType(mv::DType("Int32"));
-                if ((newTensorOp->hasAttr("mixedToFloat") && newTensorOp->get<bool>("mixedToFloat")) ||
-                        newTensorOp->hasAttr("floatPrecision"))
-                    newTensor->setDType(mv::DType("Float16"));
-                else if (td.getTarget() != mv::Target::ma3720) //MTL don't force U8 for DPUTask output
-                    newTensor->setDType(mv::DType("UInt8"));
-                if (hasLeadingOffset)
+                 if (hasLeadingOffset)
                     newTensor->set<uint64_t>("leadingOffset", leadingOffset);
             }
             else if (newOpTaskType == "Quantize" ||
@@ -1211,7 +1199,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 // Conversion task will have properly configured DType and no need to override
                 // it to FP16 similar as for other UPATask
             }
-            else if(newOpType == "UPATask") // UPA
+            else if (newOpType == "UPATask")
                 newTensor->setDType(mv::DType("Float16"));
 
             setOutputDataFlow(om, newTensor, outputDataFlows);

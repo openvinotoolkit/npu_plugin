@@ -110,7 +110,7 @@ bool mv::QuantizationParams::isNeutral() const
 {
     const auto& scales = get<std::vector<double>>("scale");
     bool isScaleNeutral = std::all_of(scales.begin(), scales.end(), [](double x) {
-                                          return std::abs(1.0f - x) <= 0.01f;
+                                          return std::abs(1.0f - x) <= 0.001f;
                                       });
     const auto& zeroPoints = get<std::vector<int64_t>>("zeroPoint");
     bool isZeroPointNeutral = std::accumulate(zeroPoints.begin(), zeroPoints.end(), 0) == 0;
