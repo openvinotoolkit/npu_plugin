@@ -30,7 +30,7 @@ namespace {
 // Generated
 //
 
-#include <vpux/compiler/conversion/rewriters/generated/convert_IERT2VPUIP.hpp.inc>
+#include <vpux/compiler/conversion/rewriters/generated/lower_IERT_to_VPUIP.hpp.inc>
 
 //
 // LowerIERT2VPUIPPass
