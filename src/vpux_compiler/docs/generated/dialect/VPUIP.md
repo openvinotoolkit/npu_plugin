@@ -66,7 +66,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.ConfigureBarrier` attr-dict
-              ` ` `<` $id `>`
+              `<` $id `>`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
               `->` type(results)
