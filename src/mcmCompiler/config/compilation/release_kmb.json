@@ -14,7 +14,7 @@
                 "DDRScratch": 31457280,
                 "cmx": 917504,
                 "enable_channel_major_conv": true,
-                "HuffmanCompression": false,
+                "HuffmanCompression": true,
                 "DPUTasksinFloat": false,
                 "RemovePermuteNoOp": true,
                 "PredictionOfQuantizationOutput": false,
