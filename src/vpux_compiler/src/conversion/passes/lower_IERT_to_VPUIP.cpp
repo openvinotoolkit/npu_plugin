@@ -120,17 +120,17 @@ mlir::LogicalResult LowerIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(IE
 // ReshapeRewrite
 //
 
-class LowerIERT2VPUIPPass::ViewLikeRewrite final : public mlir::RewritePattern {
+class LowerIERT2VPUIPPass::ViewLikeRewrite final : public mlir::OpInterfaceRewritePattern<mlir::ViewLikeOpInterface> {
 public:
     ViewLikeRewrite(IE::CNNNetworkOp netInfo, mlir::FuncOp netFunc, Logger log)
-            : mlir::RewritePattern(MatchAnyOpTypeTag{}, 1, netInfo.getContext()),
+            : mlir::OpInterfaceRewritePattern<mlir::ViewLikeOpInterface>(netInfo.getContext()),
               _netInfo(netInfo),
               _netFunc(netFunc),
               _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(mlir::ViewLikeOpInterface origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     mutable IE::CNNNetworkOp _netInfo;
@@ -138,13 +138,9 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::Operation* origOp,
+mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
                                                                           mlir::PatternRewriter& rewriter) const {
-    auto view = mlir::cast<mlir::ViewLikeOpInterface>(origOp);
-    if (view == nullptr) {
-        return mlir::failure();
-    }
-    if (origOp->getNumResults() != 1) {
+    if (!mlir::isa<IERT::GenericReshapeOp, mlir::linalg::ReshapeOp, mlir::memref::SubViewOp>(origOp.getOperation())) {
         return mlir::failure();
     }
 
@@ -155,7 +151,7 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
         return mlir::failure();
     }
 
-    const auto origInput = view.getViewSource();
+    const auto origInput = origOp.getViewSource();
     const auto outType = origOp->getResult(0).getType();
 
     VPUIP::MemoryLocation location = VPUIP::MemoryLocation::VPU_DDR_Heap;
@@ -199,7 +195,7 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
         return mlir::failure();
     }
 
-    if (auto subViewOp = mlir::dyn_cast<mlir::memref::SubViewOp>(origOp)) {
+    if (auto subViewOp = mlir::dyn_cast<mlir::memref::SubViewOp>(origOp.getOperation())) {
         const auto memRefSubview = subViewOp.getType();
         int64_t subviewOffset;
         SmallVector<int64_t, 4> resultStrides;
@@ -210,6 +206,7 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
         Byte elemSize = getElemTypeSize(memRefSubview.getElementType());
         viewOffset += subviewOffset * elemSize;
     }
+
     if (locationIndex.hasValue()) {
         rewriter.replaceOpWithNewOp<VPUIP::DeclareTensorOp>(origOp, outType, location, locationIndex.getValue(),
                                                             viewOffset.count());

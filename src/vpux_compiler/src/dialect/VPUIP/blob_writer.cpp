@@ -39,7 +39,8 @@ using namespace vpux;
 VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op) {
     _log.trace("Create BLOB Task for {0}", *op);
 
-    auto task = mlir::cast<VPUIP::TaskOpInterface>(op);
+    auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op);
+    VPUX_THROW_UNLESS(task != nullptr, "Got non Task operation {0}", op->getName());
 
     VPUX_THROW_UNLESS(_tasks.count(op) == 0, "Operation {0} was already serialized", *op);
 
@@ -236,7 +237,7 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
     size_t numConsumers = 0;
     size_t numProducers = 0;
     for (auto userOp : val.getUsers()) {
-        auto opEffects = mlir::cast<mlir::MemoryEffectOpInterface>(userOp);
+        auto opEffects = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(userOp);
         VPUX_THROW_UNLESS(opEffects != nullptr,
                           "Barrier Value {0} is used by Operation {1} without "
                           "MemoryEffects interface",
