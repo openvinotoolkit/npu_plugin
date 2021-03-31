@@ -20,6 +20,15 @@ extern "C" {
  * slice with real underlying VPU hardware.
  */
 #define CSRAM_SLICE_ID 32
+#define PPR_SLICE_ID 64
+#define CSRAM_SLICE0 (CSRAM_SLICE_ID)
+#define CSRAM_SLICE1 (CSRAM_SLICE_ID + 1)
+#define CSRAM_SLICE2 (CSRAM_SLICE_ID + 2)
+#define CSRAM_SLICE3 (CSRAM_SLICE_ID + 3)
+#define PPR_SLICE0 (PPR_SLICE_ID)
+#define PPR_SLICE1 (PPR_SLICE_ID + 1)
+#define PPR_SLICE2 (PPR_SLICE_ID + 2)
+#define PPR_SLICE3 (PPR_SLICE_ID + 3)
 
 /** vpu-shared memory type
 */
