@@ -24,7 +24,6 @@
 #include <blob_factory.hpp>
 #include "functional_test_utils/plugin_cache.hpp"
 #include <format_reader_ptr.h>
-#include <vpu/utils/error.hpp>
 #include <blob_factory.hpp>
 
 //
@@ -101,31 +100,6 @@ const bool KmbTestBase::RUN_REF_CODE = []() -> bool {
 #endif
 }();
 
-const bool KmbTestBase::IS_BYPASS = []() -> bool {
-#ifdef __aarch64__
-    return false;
-#else
-    InferenceEngine::Core core;
-    const auto deviceList = core.GetAvailableDevices();
-    return !(std::find(deviceList.cbegin(), deviceList.cend(), "VPUX") == deviceList.cend());
-#endif
-}();
-
-const bool KmbTestBase::RUN_INFER = []() -> bool {
-    if (const auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
-        return strToBool("IE_KMB_TESTS_RUN_INFER", var);
-    }
-
-    if (KmbTestBase::DEVICE_NAME == "CPU") {
-        return true;
-    }
-
-#ifdef __aarch64__
-    return true;
-#else
-    return IS_BYPASS;
-#endif
-}();
 
 const std::string KmbTestBase::DUMP_PATH = []() -> std::string {
     if (const auto var = std::getenv("IE_KMB_TESTS_DUMP_PATH")) {
@@ -191,6 +165,22 @@ const bool KmbTestBase::PRINT_PERF_COUNTERS = []() -> bool {
     return false;
 }();
 
+const std::string KmbTestBase::COMPILATION_DESC = []() -> std::string {
+    if (const auto var = std::getenv("IE_KMB_TESTS_COMPILATION_DESC")) {
+        return var;
+    }
+
+    return std::string();
+}();
+
+const std::string KmbTestBase::TARGET_DESC = []() -> std::string {
+    if (const auto var = std::getenv("IE_KMB_TESTS_TARGET_DESC")) {
+        return var;
+    }
+
+    return std::string();
+}();
+
 void KmbTestBase::SetUp() {
     ASSERT_NO_FATAL_FAILURE(CommonTestUtils::TestsCommon::SetUp());
 
@@ -200,6 +190,18 @@ void KmbTestBase::SetUp() {
     rd.seed();
 
     core = PluginCache::get().ie();
+    RUN_INFER = [this]() -> bool {
+        if (const auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
+            return strToBool("IE_KMB_TESTS_RUN_INFER", var);
+        }
+
+        const auto devices = core->GetAvailableDevices();
+        const auto isVPUXDeviceAvailable = std::find_if(devices.cbegin(), devices.cend(), [](const std::string& device) {
+                return device.find("VPUX") != std::string::npos;
+            }) != devices.cend();
+
+        return isVPUXDeviceAvailable;
+    }();
 
     if (!LOG_LEVEL.empty()) {
         core->SetConfig({{CONFIG_KEY(LOG_LEVEL), LOG_LEVEL}}, DEVICE_NAME);
@@ -233,13 +235,16 @@ void KmbTestBase::SetUp() {
 }
 
 void KmbTestBase::TearDown() {
-    if (RUN_INFER && !IS_BYPASS) {
+#ifdef __aarch64__
+    if (RUN_INFER) {
         core.reset();
         // FIXME: reset cache every time to destroy VpualDispatcherResource
         // this workaround is required to free VPU device properly
         // Track number: H#18013110883
         PluginCache::get().reset();
     }
+#endif
+
     ASSERT_NO_FATAL_FAILURE(TestsCommon::TearDown());
 }
 
@@ -284,7 +289,16 @@ ExecutableNetwork KmbTestBase::getExecNetwork(
     if (RUN_COMPILER || forceCompilation) {
         std::cout << "=== COMPILE NETWORK" << std::endl;
 
-        exeNet = core->LoadNetwork(netCreator(), DEVICE_NAME, configCreator());
+        auto config = configCreator();
+        if (!COMPILATION_DESC.empty()) {
+            config[VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR)] = COMPILATION_DESC;
+        }
+
+        if (!TARGET_DESC.empty()) {
+            config[VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR)] = TARGET_DESC;
+        }
+
+        exeNet = core->LoadNetwork(netCreator(), DEVICE_NAME, config);
 
         if (EXPORT_NETWORK) {
             std::cout << "    === EXPORT NETWORK" << std::endl;
@@ -570,7 +584,8 @@ void KmbLayerTestBase::runTest(
 
     // TODO: layer inference for by-pass mode
     // [Track number: S#48139]
-    if (RUN_INFER && !IS_BYPASS) {
+#ifdef __aarch64__
+    if (RUN_INFER) {
         std::cout << "=== INFER" << std::endl;
 
         const auto actualOutputs = runInfer(exeNet, inputs, true);
@@ -580,6 +595,7 @@ void KmbLayerTestBase::runTest(
         checkWithOutputsInfo(actualOutputs, testNet.getOutputsInfo());
         compareWithReference(actualOutputs, refOutputs, tolerance, method);
     }
+#endif
 }
 
 ExecutableNetwork KmbLayerTestBase::getExecNetwork(
@@ -947,7 +963,7 @@ void KmbNetworkTestBase::runTest(
         if (skipInfer) {
             std::cout << skipMessage << std::endl;
             return;
-            }
+        }
         std::cout << "=== INFER" << std::endl;
 
         const auto actualOutputs = runInfer(exeNet, inputs, true);
@@ -1940,5 +1956,70 @@ void ModelAdk::runTest(
         }
     };
 
+    KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
+}
+
+void KmbSuperResNetworkTest::runTest(
+        const TestNetworkDesc& netDesc,
+        const std::string& imgName,
+        const TestImageDesc& image,
+        const std::string& paramName1,
+        const std::vector<unsigned>& paramValues1,
+        const std::string& paramName2,
+        const std::vector<unsigned>& paramValues2) {
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap& inputsDesc) {
+      IE_ASSERT(inputsDesc.size() == 3);
+      IE_ASSERT(actualBlobs.size() == 3);
+      IE_ASSERT(actualBlobs.size() == refBlobs.size());
+      
+      auto actualBlob = actualBlobs.begin()->second;
+      auto refBlob    = refBlobs.begin()->second;
+
+      auto actualOutput = vpux::toFP32(vpux::toDefLayout(as<MemoryBlob>(actualBlob)));
+      auto refOutput = vpux::toFP32(vpux::toDefLayout(as<MemoryBlob>(refBlob)));
+
+      IE_ASSERT(actualOutput->size() == refOutput->size());
+
+      auto actualData = actualOutput->buffer().as<float*>();
+      auto refData = refOutput->buffer().as<float*>();
+
+      for (size_t i = 0; i < actualOutput->size(); ++i) {
+          auto diff = std::abs(actualData[i] - refData[i]);
+          EXPECT_LE(diff, 0.1f);
+      }
+    };
+
+    const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
+                auto imgNameDesc = inputs.at(imgName)->getTensorDesc();
+                auto paramName1Desc = inputs.at(paramName1)->getTensorDesc();
+                auto paramName2Desc = inputs.at(paramName2)->getTensorDesc();
+
+                registerSingleImage(image, imgName, imgNameDesc);
+
+                registerBlobGenerator(paramName1, paramName1Desc, [&paramValues1](const TensorDesc& desc) {
+                    auto blob = make_blob_with_precision(TensorDesc(Precision::FP32, desc.getDims(), desc.getLayout()));
+
+                    blob->allocate();
+                    CopyVectorToBlob(blob, paramValues1);
+
+                    IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
+
+                    return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
+                });
+
+                registerBlobGenerator(paramName2, paramName2Desc, [&paramValues2](const TensorDesc& desc) {
+                    auto blob = make_blob_with_precision(TensorDesc(Precision::FP32, desc.getDims(), desc.getLayout()));
+
+                    blob->allocate();
+                    CopyVectorToBlob(blob, paramValues2);
+
+                    IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
+
+                    return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
+                });
+            };
+      
     KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
 }

@@ -39,6 +39,9 @@
 #include <ngraph_mcm_frontend/passes/propagate_fq.hpp>
 #include <ngraph_mcm_frontend/passes/align_scales.hpp>
 #include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
+
+#include "vpux/utils/core/error.hpp"
+
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 
@@ -147,25 +150,8 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         log->debug("Configure MCM Compiler");
         VPU_LOGGER_SECTION(log);
 
-        bool layoutNCHW = true;
-        for (const auto& netInput : inputsInfo) {
-            if (netInput.second->getLayout() != InferenceEngine::Layout::NCHW &&
-                netInput.second->getLayout() != InferenceEngine::Layout::CHW) {
-                layoutNCHW = false;
-                break;
-            }
-        }
-
-        std::string compDescName;
-        if (layoutNCHW) {
-            compDescName = "release_kmb_with_CM_Conv";
-        } else {
-            compDescName = "release_kmb";
-        }
-
-        if (!config.mcmCompilationDesciptor().empty()) {
-            compDescName = config.mcmCompilationDesciptor();
-        }
+        std::string compDescName = !config.mcmCompilationDesciptor().empty() ?
+                            config.mcmCompilationDesciptor() : "release_kmb";
 
         if (config.deviceId() == "EMULATOR") {
             compDescName = "emulator_kmb_SC-Prefetch1";
@@ -181,6 +167,13 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.mcmLogLevel()));
         mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.removePermuteNoOp());
+        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv",
+                                       std::find_if(inputsInfo.begin(), inputsInfo.end(),
+                                                        [](const std::pair<std::string, ie::InputInfo::Ptr>& input) {
+                    return input.second->getLayout() != InferenceEngine::Layout::NCHW &&
+                           input.second->getLayout() != InferenceEngine::Layout::CHW;
+                }) == inputsInfo.end());
+
 
         if (config.referenceMode()) {
             mcmCompDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
@@ -235,10 +228,10 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
             std::string groupPassPair;
             while (std::getline(banList, groupPassPair, ';')) {
                 const auto delim = groupPassPair.find(',');
-                VPU_THROW_UNLESS(delim != std::string::npos,
-                                 "McmCompilationPassBanList parsing error: provided value '%s'"
-                                 "should have comma separated Group,Pass string",
-                                 groupPassPair);
+                VPUX_THROW_UNLESS(delim != std::string::npos,
+                                  "McmCompilationPassBanList parsing error: provided value '{0}'"
+                                  "should have comma separated Group,Pass string",
+                                  groupPassPair);
                 const auto group = groupPassPair.substr(0, delim);
                 const auto pass = groupPassPair.substr(delim + 1, std::string::npos);
                 mcmCompDesc.remove(group, pass);

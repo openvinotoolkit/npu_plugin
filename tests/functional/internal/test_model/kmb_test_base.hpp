@@ -78,7 +78,6 @@ PRETTY_PARAM(UseCustomLayers, KernelType);
 #ifdef RUN_SKIPPED_TESTS
 #   define SKIP_INFER_ON(...)
 #   define SKIP_ON(...)
-#   define SKIP_INFER_BYPASS_ON(...)
 #else
 
 #   define SKIP_ON1(_device0_, _reason_)                                        \
@@ -130,40 +129,12 @@ PRETTY_PARAM(UseCustomLayers, KernelType);
             }                                                                           \
         } while (false)
 
-#   define SKIP_INFER_BYPASS_ON1(_device0_, _reason_)                                                   \
-        do {                                                                                            \
-            std::set<std::string> devices({_device0_});                                                 \
-            if (KmbTestBase::RUN_INFER && KmbTestBase::IS_BYPASS && devices.count(DEVICE_NAME) != 0) {  \
-                skipInfer = true;                                                                       \
-                skipMessage = "Skip infer for by-pass on " + DEVICE_NAME + " due to " + _reason_;       \
-            }                                                                                           \
-        } while (false)
-
-#   define SKIP_INFER_BYPASS_ON2(_device0_, _device1_, _reason_)                                        \
-        do {                                                                                            \
-            std::set<std::string> devices({_device0_, _device1_});                                      \
-            if (KmbTestBase::RUN_INFER && KmbTestBase::IS_BYPASS && devices.count(DEVICE_NAME) != 0) {  \
-                skipInfer = true;                                                                       \
-                skipMessage = "Skip infer for by-pass on " + DEVICE_NAME + " due to " + _reason_;       \
-            }                                                                                           \
-        } while (false)
-
-#   define SKIP_INFER_BYPASS_ON3(_device0_, _device1_, _device2_, _reason_)                             \
-        do {                                                                                            \
-            std::set<std::string> devices({_device0_, _device1_, _device2_});                           \
-            if (KmbTestBase::RUN_INFER && KmbTestBase::IS_BYPASS && devices.count(DEVICE_NAME) != 0) {  \
-                skipInfer = true;                                                                       \
-                skipMessage = "Skip infer for by-pass on " + DEVICE_NAME + " due to " + _reason_;       \
-            }                                                                                           \
-        } while (false)
-
 #endif
 
 #define GET_MACRO(_1,_2,_3, _4, NAME,...) NAME
 #ifndef RUN_SKIPPED_TESTS
 #define SKIP_INFER_ON(...) GET_MACRO(__VA_ARGS__, SKIP_INFER_ON3, SKIP_INFER_ON2, SKIP_INFER_ON1)(__VA_ARGS__)
 #define SKIP_ON(...) GET_MACRO(__VA_ARGS__, SKIP_ON3, SKIP_ON2, SKIP_ON1)(__VA_ARGS__)
-#define SKIP_INFER_BYPASS_ON(...) GET_MACRO(__VA_ARGS__, SKIP_INFER_BYPASS_ON3, SKIP_INFER_BYPASS_ON2, SKIP_INFER_BYPASS_ON1)(__VA_ARGS__)
 #endif
 
 //
@@ -208,8 +179,9 @@ public:
     static const std::string REF_DEVICE_NAME;
     static const bool RUN_COMPILER;
     static const bool RUN_REF_CODE;
-    static const bool RUN_INFER;
-    static const bool IS_BYPASS;
+    // RUN_INFER was made non-const to be able
+    // to disable inference but keep compilation for tests
+    bool RUN_INFER;
     static const std::string DUMP_PATH;
     static const bool EXPORT_NETWORK;
     static const bool RAW_EXPORT;
@@ -217,6 +189,8 @@ public:
     static const bool EXPORT_BLOBS;
     static const std::string LOG_LEVEL;
     static const bool PRINT_PERF_COUNTERS;
+    static const std::string COMPILATION_DESC;
+    static const std::string TARGET_DESC;
 
 public:
     void registerBlobGenerator(
@@ -273,7 +247,6 @@ protected:
     bool enable_CPU_lpt = false;
     bool skipInfer = false;
     std::string skipMessage;
-
 };
 
 //
@@ -763,4 +736,17 @@ public:
             const TestNetworkDesc& netDesc,
             const TestImageDesc& image,
             const float threshold);
+};
+
+
+class KmbSuperResNetworkTest : public ModelAdk {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const std::string& imgName,
+            const TestImageDesc& image,
+            const std::string& paramName1,
+            const std::vector<unsigned>& paramValues1,
+            const std::string& paramName2,
+            const std::vector<unsigned>& paramValues2);
 };

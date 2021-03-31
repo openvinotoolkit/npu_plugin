@@ -53,12 +53,15 @@ Bypass related preparations
 - [How to setup KMB bypass](guides/how-to-use-kmb-bypass.md)
 - [How to setup TBH bypass](guides/how-to-use-tbh-bypass.md)
 
+### [MCM Emulator](https://gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator#mcm-emulator)
+
 ## = Development =
 ### ClangFormat
 `sudo apt-get install -y clang-format-9`
 
 ### Code style
-Build target `clang_format_fix_all` to fix code style issues.
+* Set CMake option `-D CLANG_FORMAT=/usr/bin/clang-format-9`
+* Build target `clang_format_fix_all` to fix code style issues.
 
 ### Developer build
 

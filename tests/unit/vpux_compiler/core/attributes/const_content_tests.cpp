@@ -15,6 +15,7 @@
 //
 
 #include "vpux/compiler/core/attributes/const_content.hpp"
+#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/range.hpp"
@@ -75,6 +76,8 @@ TEST(MLIR_ConstContentAttrTest, FromSplatDenseElementsAttr) {
 TEST(MLIR_ConstContentAttrTest, FromOpaqueElementsAttr) {
     mlir::MLIRContext ctx;
 
+    auto* dialect = ctx.getOrLoadDialect<IE::IEDialect>();
+
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
     std::vector<float> vals(baseType.getNumElements());
@@ -83,7 +86,7 @@ TEST(MLIR_ConstContentAttrTest, FromOpaqueElementsAttr) {
     }
 
     const auto bytes = StringRef(reinterpret_cast<const char*>(vals.data()), vals.size() * sizeof(float));
-    const auto baseAttr = mlir::OpaqueElementsAttr::get(nullptr, baseType, bytes);
+    const auto baseAttr = mlir::OpaqueElementsAttr::get(dialect, baseType, bytes);
 
     const auto contentAttr = baseAttr.dyn_cast<ConstContentAttr>();
     ASSERT_NE(contentAttr, nullptr);

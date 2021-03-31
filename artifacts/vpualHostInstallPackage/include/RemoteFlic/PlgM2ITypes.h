@@ -111,7 +111,7 @@ class M2IDesc{
   M2ICfg cfg;
 
 public:
-  M2IDesc():nrTasks(0), vpuData(nullptr){};
+  M2IDesc():inFrm{{},0,0,0,0}, nrTasks(0), vpuData(nullptr), cfg{{},{}}{};
 
 
   ~M2IDesc(){};
@@ -125,8 +125,13 @@ public:
         return INVALID_PARAMS;
     }
 
-    if(!(inFrm.spec.type == NV12)){
+    if(!(inFrm.spec.type == NV12 || inFrm.spec.type == YUV420p || inFrm.spec.type == YUV422i)){
         std::cerr << "ERROR: Unsupported input frame type: " << inFrm.spec.type << std::endl;
+        return INVALID_PARAMS;
+    }
+
+    if(!(inFrm.spec.bitsPP == 8 || (inFrm.spec.bitsPP == 10 && inFrm.spec.type == YUV422i))){
+        std::cerr << "ERROR: Unsupported input bits per pixel: " << inFrm.spec.bitsPP << std::endl;
         return INVALID_PARAMS;
     }
 

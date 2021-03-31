@@ -1155,18 +1155,26 @@ def IE_HSwishOp :
 
 def IE_TransposeOp :
         IE_LayerOp<
-            "Transpose"
+            "Transpose",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<TransposeLayerInterface>
+            ]
         > {
     let summary = "InferenceEngine Transpose layer";
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        RankedTensorOf<[AnyInteger]>:$order
+        Optional<RankedTensorOf<[SI64]>>:$order,
+
+        OptionalAttr<AffineMapAttr>:$order_value
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let hasCanonicalizer = 1;
 }
 
 //
@@ -1372,6 +1380,8 @@ def IE_ROIPoolingOp :
             "ROIPooling",
             [
                 ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<ROIPoolingLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
             ]
         > {
     let summary = "InferenceEngine ROIPooling layer";

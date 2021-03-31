@@ -619,4 +619,68 @@ def FullyConnectedLayerInterface : OpInterface<"FullyConnectedLayerInterface"> {
     }];
 }
 
+//
+// ROIPoolingLayerInterface
+//
+
+def ROIPoolingLayerInterface : OpInterface<"ROIPoolingLayerInterface"> {
+    let description = "Interface for ROIPooling Layer";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "mlir::ArrayAttr", "getOutputSize", (ins),
+            [{}],
+            [{
+                return $_op.output_size();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get the source Value for the Operation",
+            "float", "getSpatialScale", (ins),
+            [{}],
+            [{
+                return $_op.spatial_scale().convertToFloat();
+            }]
+        >
+    ];
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {$_op.input(), $_op.coords()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
+}
+
+//
+// TransposeLayerInterface
+//
+
+def TransposeLayerInterface : OpInterface<"TransposeLayerInterface"> {
+    let description = "Interface for Transpose Layer";
+
+    let cppNamespace = "vpux";
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            if ($_op.order() != nullptr) {
+                return {$_op.input(), $_op.order()};
+            }
+            else {
+                return {$_op.input()};
+            }
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
+}
+
 #endif

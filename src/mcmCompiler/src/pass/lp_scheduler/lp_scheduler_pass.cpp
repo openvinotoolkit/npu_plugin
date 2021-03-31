@@ -132,7 +132,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     input_dag.reset(cm);
   }
 
-  if (passDesc.hasAttr("enable_inplace_eltwise")) {
+  if ((passDesc.hasAttr("enable_inplace_eltwise")) && (passDesc.get<bool>("enable_inplace_eltwise"))) {
     input_dag.enable_eltwise_transforms(cm);
   }
 

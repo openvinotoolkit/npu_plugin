@@ -27,7 +27,10 @@ namespace mv
                 new_shape = mv::Shape::augment(new_shape, 4);
             }
 
-            outputs.emplace_back(":0",  new_shape, inputs[0]->getDType(), order);
+            // if the input's order is not 4-dimension, replace the order with NHWC by default.
+            // will only impact SuperResolution. other networks don't have non-4-dimension input.
+            outputs.emplace_back(":0", new_shape, inputs[0]->getDType(), order.size() == 4 ? order : mv::Order("NHWC"));
+
         };
 
         static std::string empty;

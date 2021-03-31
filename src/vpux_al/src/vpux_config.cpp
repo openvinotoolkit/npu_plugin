@@ -16,7 +16,6 @@
 
 #include <file_utils.h>
 
-#include <vpu/utils/numeric.hpp>
 #include <vpux/vpux_compiler_config.hpp>
 #include <vpux/vpux_plugin_config.hpp>
 #include <vpux_config.hpp>

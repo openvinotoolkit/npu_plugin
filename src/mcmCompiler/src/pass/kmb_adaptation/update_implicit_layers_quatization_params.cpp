@@ -32,7 +32,7 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
     auto sortedOps = om.topologicalSort();
     for(auto opIt : sortedOps)
     {
-        if (!opIt->isImplicit())
+        if (!opIt->isImplicit() || opIt->getOpType() == "ImplicitInput" || opIt->getOpType() == "ImplicitInputSlice")
             continue;
 
         if (opIt->getOpType() == "ImplicitConcat" || opIt->getOpType() == "Concat")
@@ -119,8 +119,8 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
             {
                 // If slicing is done along channel axis, quantization parameters need to also be
                 // correctly partitioned
-                auto sliceId = (opIt->get<mv::Shape>("begin")[mv::IO_CHANNEL_DIMENSION])/outputChannels;
-                output->set<mv::QuantizationParams>("quantParams", inputQuantParams.getSlice(sliceId, numOfSlices));
+                const auto sliceStart = opIt->get<mv::Shape>("begin")[mv::IO_CHANNEL_DIMENSION];
+                output->set<mv::QuantizationParams>("quantParams", inputQuantParams.getSlice(sliceStart, outputChannels));
             }
             else
             {
@@ -146,12 +146,11 @@ std::vector<mv::Data::OpListIterator> findOutputNodeParentImplicitOps(mv::Comput
     mv::OpModel om(model);
     std::vector<mv::Data::OpListIterator> implicitOps;
     auto parentOp = om.getSourceOp(op->getInputTensor(0));
-    
+
     while(parentOp->isImplicit())
     {
         implicitOps.push_back(parentOp); 
         parentOp = om.getSourceOp(parentOp->getInputTensor(0));
-       
     }
     implicitOps.pop_back(); 
     return implicitOps;
@@ -363,7 +362,6 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
                         om.defineFlow(compensatorOutput, sinkOp, dpuId);
                     }
                 }
-
             }
         }
         else if (opType == "ImplicitReshape" || opType == "ImplicitPermute")
@@ -403,12 +401,16 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
                 {
                     for( size_t input = 0; input < implicitOp->inputSlots(); input++)
                         implicitOp->getInputTensor(input)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
-            
+
                     for( size_t output = 0; output < implicitOp->outputSlots(); output++)
                         implicitOp->getOutputTensor(output)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
                 }
             }
         }
+        else if (opType == "ImplicitInput")
+        {
+            auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
+        }
     }
 }
-

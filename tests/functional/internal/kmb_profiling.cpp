@@ -18,10 +18,10 @@
 
 class KmbProfilingTest : public KmbTestBase {
 public:
-    void runTest();
+    void runTest(const std::string output_name);
 };
 
-void KmbProfilingTest::runTest() {
+void KmbProfilingTest::runTest(const std::string output_name) {
     SKIP_ON("KMB", "HDDL2", "Not supported");
     const SizeVector inDims = {1, 3, 64, 64};
     const TensorDesc userInDesc = TensorDesc(Precision::U8, inDims, Layout::NHWC);
@@ -40,12 +40,12 @@ void KmbProfilingTest::runTest() {
         testNet
             .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
             .addNetInput("input", userInDesc.getDims(), netPresicion)
-            .addLayer<ConvolutionLayerDef>("conv", convParams)
+            .addLayer<ConvolutionLayerDef>(output_name, convParams)
                 .input("input")
                 .weights(genBlobUniform(getConvWeightsDesc(convParams, inDims.at(1), netPresicion), rd, 0.0f, 1.0f))
                 .build()
-            .addNetOutput(PortInfo("conv"))
-            .setUserOutput(PortInfo("conv"), userOutDesc.getPrecision(), userOutDesc.getLayout())
+            .addNetOutput(PortInfo(output_name))
+            .setUserOutput(PortInfo(output_name), userOutDesc.getPrecision(), userOutDesc.getLayout())
             .setCompileConfig(netConfig)
             .finalize();
 
@@ -82,6 +82,10 @@ void KmbProfilingTest::runTest() {
     }
 }
 
-TEST_F(KmbProfilingTest, profilingRunCompilation) {
-    runTest();
+TEST_F(KmbProfilingTest, precommit_profilingMatchedName) {
+    runTest("Result");
+}
+
+TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName) {
+    runTest("conv");
 }

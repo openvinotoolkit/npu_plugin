@@ -5,6 +5,7 @@
 #include "mcm/utils/custom_math.hpp"
 #include <numeric>
 #include <cmath>
+#include <functional>
 
 static void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -178,6 +179,41 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
                 bias = dm.getTensor(opIt->get<std::string>("bias"));
             }
             double_t real_weight, real_bias;
+
+            bool hasLeakyAlpha = false;
+            double leakyAlpha = 1.0; /* 1.0 means no need of multiplication of leakAlpha*/
+            bool hasSlopes = false;
+            std::vector<double> slopes;
+
+            if (opIt->hasAttr("leakyAlpha"))
+            {
+                // alpha of LeakyReLU
+                hasLeakyAlpha = true;
+                leakyAlpha = opIt->get<double>("leakyAlpha");
+            }
+            else if (opIt->hasAttr("slopes"))
+            {
+                // slopes of PReLU (channel-wise)
+                hasSlopes = true;
+            }
+
+            if (hasSlopes)
+            {
+                slopes = opIt->get<std::vector<double>>("slopes");
+                if (slopes.size() == 1)
+                {
+                    // not expected. It sohuld be converted to leaky relu
+                    leakyAlpha = slopes[0];
+                    // leakyrely is one case of PReLU: channel shared (leakyRelU) and channel wise
+                    // So, consider is as LeakyReLU
+                    hasLeakyAlpha = true;
+                }
+                else if (slopes.size() != kernelShape[mv::KERNEL_OUTPUT_CHANNELS])
+                {
+                    throw std::runtime_error("The number of slopes does not match with the number of output channels");
+                }
+            }
+
             for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
             {
                 double sum_weight = 0;
@@ -204,11 +240,37 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
                     outputMaxC += real_bias;
                 }
 
-                if (opIt->hasAttr("leakyAlpha"))
+                if (hasLeakyAlpha)
                 {
-                    auto alpha = opIt->get<double>("leakyAlpha");
-                    if (outputMinC < 0)
-                        outputMinC = outputMinC*alpha;
+                    // leaky relu is applied only negative values
+                    if (outputMinC < 0.0)
+                    {
+                        outputMinC = outputMinC*leakyAlpha;
+                    }
+                }
+                else if (hasSlopes)
+                {
+                    // This path is to adjust output min range per channel for PReLU
+                    // parametric relu is applied only negative values
+                    if (outputMinC < 0.0)
+                    {
+                        double slope = slopes[k];
+                        if (slope > 0.0)
+                        {
+                            outputMinC = outputMinC*slope;
+                        }
+                        else if (slope < 0.0)
+                        {
+                            outputMinC *= slope;
+                            if (outputMinC > outputMaxC)
+                            {
+                                outputMaxC = outputMinC;
+                            }
+
+                            // no negative values as negative * negative becomes positive value
+                            outputMinC = 0.0;
+                        }
+                    }
                 }
 
                 outMax[k] = outputMaxC;
@@ -252,7 +314,7 @@ namespace mv
     }
 }
 
-void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     using namespace mv;
     OpModel om(model);
@@ -292,6 +354,12 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
                 // limited to FP16
                 else if (kernelOp->getOpType() == "Input" && kernelOp.leftmostOutput().sink()->getOpType() == "Conversion")
                 {
+                    ++kernelOp;
+                }
+                else if (td.getTarget() == mv::Target::ma3720)
+                {
+                    if (outputTensor->getDType() == mv::DType("Float64"))
+                        outputTensor->setDType(mv::DType("Float32"));
                     ++kernelOp;
                 }
                 else

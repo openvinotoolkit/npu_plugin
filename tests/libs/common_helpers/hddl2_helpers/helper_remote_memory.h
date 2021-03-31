@@ -36,6 +36,8 @@ public:
 
     void destroyRemoteMemory();
 
+    void clearRemoteMemory();
+
     std::string getRemoteMemory(const size_t &size);
     bool isRemoteTheSame(const std::string &dataToCompare);
     void setRemoteMemory(const std::string& dataToSet);
@@ -88,6 +90,19 @@ RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &si
 
 inline void RemoteMemory_Helper::destroyRemoteMemory() {
     _remoteMemory = nullptr;
+}
+
+inline void RemoteMemory_Helper::clearRemoteMemory() {
+    if (_remoteMemory == nullptr) {
+        std::cerr << "[ERROR] Failed to clear remote memory - null pointer!" << std::endl;
+    }
+
+    const auto size = _remoteMemory->getMemoryDesc().getDataSize();
+    const std::vector<char> zeroData(size, 0);
+    auto retCode = _remoteMemory->syncToDevice(zeroData.data(), zeroData.size());
+    if (retCode != HDDL_OK) {
+        std::cerr << "[ERROR] Failed to clear remote memory - sync memory to device!" << std::endl;
+    }
 }
 
 inline std::string RemoteMemory_Helper::getRemoteMemory(const size_t &size) {

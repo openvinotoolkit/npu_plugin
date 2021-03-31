@@ -48,6 +48,7 @@ if(X86_64)
 endif()
 ie_dependent_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON "HAVE_HDDL_UNITE_PACKAGE" OFF)
 ie_dependent_option(ENABLE_HDDL2_TESTS "Enable Unit and Functional tests for HDDL2 Plugin" ON "ENABLE_HDDL2;ENABLE_TESTS" OFF)
+ie_option(ENABLE_CUSTOM_HDDLUNITE "Use custom build hddlunite" OFF)
 
 ie_dependent_option(ENABLE_MODELS "download all models required for functional testing" ON "ENABLE_FUNCTIONAL_TESTS" OFF)
 ie_dependent_option(ENABLE_VALIDATION_SET "download validation_set required for functional testing" ON "ENABLE_FUNCTIONAL_TESTS" OFF)
@@ -63,7 +64,11 @@ ie_option(ENABLE_DEVELOPER_BUILD "Enable developer build with extra validation/l
 if(NOT DEFINED MV_TOOLS_PATH AND DEFINED ENV{MV_TOOLS_DIR} AND DEFINED ENV{MV_TOOLS_VERSION})
     set(MV_TOOLS_PATH $ENV{MV_TOOLS_DIR}/$ENV{MV_TOOLS_VERSION})
 endif()
-ie_dependent_option(ENABLE_EMULATOR "Enable emulator as a plugin backend" ON "ENABLE_TESTS;MV_TOOLS_PATH" OFF)
+
+ie_dependent_option(ENABLE_EMULATOR "Enable emulator as a plugin backend" OFF "MV_TOOLS_PATH" OFF)
+if(ENABLE_EMULATOR)
+    add_definitions(-DENABLE_EMULATOR)
+endif()
 
 function (print_enabled_kmb_features)
     message(STATUS "KMB Plugin enabled features: ")

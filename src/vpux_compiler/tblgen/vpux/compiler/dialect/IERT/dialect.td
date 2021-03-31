@@ -35,8 +35,9 @@ def IERT_Dialect : Dialect {
     let dependentDialects = [
         "vpux::IE::IEDialect",
         "mlir::StandardOpsDialect",
-        "mlir::linalg::LinalgDialect",
-        "mlir::quant::QuantizationDialect"
+        "mlir::memref::MemRefDialect",
+        "mlir::quant::QuantizationDialect",
+        "mlir::linalg::LinalgDialect"
     ];
 }
 

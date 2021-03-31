@@ -883,11 +883,12 @@ std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, co
         throw OpError("OpRegistry", "Attempt of obtaining CompositionAPI definition for an unregistered op type " + opType);
 
     OpEntry* const opPtr = instance().find(opType);
-    auto copiedOps = opPtr->getCopyOperations();
 
     if (!opPtr)
         throw MasterError("OpRegistry", "Registered op type " + opType +
             " not found in the op registry");
+
+    auto copiedOps = opPtr->getCopyOperations();
 
     if (opPtr->getOutputsCount() > 1)
         throw MasterError("OpRegistry", "Multi-output ops currently unsupported in CompositionAPI generator");
@@ -1190,5 +1191,8 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/floor.cpp"
 #include    "src/computation/op/def/round.cpp"
 #include    "src/computation/op/def/erf.cpp"
+#include    "src/computation/op/def/gelu.cpp"
 #include    "src/computation/op/def/interpolate.cpp"
 #include    "src/computation/op/def/mvn.cpp"
+#include    "src/computation/op/def/ceiling.cpp"
+#include    "src/computation/op/def/spacetodepth.cpp"

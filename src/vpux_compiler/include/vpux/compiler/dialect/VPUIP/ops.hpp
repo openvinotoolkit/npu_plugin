@@ -63,6 +63,9 @@ mlir::LogicalResult verifyOp(PoolingUPAOp op);
 mlir::LogicalResult verifyOp(FakeQuantizeUPAOp op);
 mlir::LogicalResult verifyOp(QuantCastUPAOp op);
 mlir::LogicalResult verifyOp(PerAxisTileUPAOp op);
+mlir::LogicalResult verifyOp(ROIPoolingUPAOp op);
+mlir::LogicalResult verifyOp(NCEClusterTaskOp op);
+mlir::LogicalResult verifyOp(PermuteUPAOp op);
 mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 
 }  // namespace VPUIP

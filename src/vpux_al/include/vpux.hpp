@@ -62,7 +62,6 @@ protected:
     ~IEngineBackend() = default;
 };
 
-class EngineBackendConfigurator;
 using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
 
 class EngineBackend final {
@@ -81,22 +80,11 @@ public:
         return _impl->getSupportedOptions();
     }
 
-private:
-    friend class EngineBackendConfigurator;
-    IEngineBackendPtr _impl = {};
-
-private:
     EngineBackend(std::string pathToLib);
     EngineBackend() = default;
-    const std::map<std::string, std::shared_ptr<Device>> createDeviceMap();
-};
-
-class EngineBackendConfigurator {
-public:
-    static std::shared_ptr<EngineBackend> findBackend(const InferenceEngine::ParamMap& params = {});
 
 private:
-    EngineBackendConfigurator();
+    IEngineBackendPtr _impl = {};
 };
 
 //------------------------------------------------------------------------------
@@ -209,8 +197,8 @@ public:
         return std::make_shared<AllocatorWrapper>(_actual->getAllocator(paramMap), _plg);
     }
 
-    virtual std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
-                                                     const VPUXConfig& config) {
+    std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
+                                             const VPUXConfig& config) {
         return _actual->createExecutor(networkDescription, config);
     }
 

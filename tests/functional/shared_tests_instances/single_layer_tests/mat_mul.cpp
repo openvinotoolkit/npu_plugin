@@ -9,10 +9,15 @@
 
 namespace LayerTestsDefinitions {
     class KmbMatMulLayerTest : public MatMulTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-
+        void SkipBeforeLoad() override {
+            if (isCompilerMCM()) {
+                throw LayerTestsUtils::KmbSkipTestException("Issues with MCM compiler");
+            }
+        }
     };
 
-    TEST_P(KmbMatMulLayerTest, CompareWithRefs) {
+    TEST_P(KmbMatMulLayerTest, CompareWithRefs_MLIR) {
+	useCompilerMLIR();
         Run();
     }
 } // namespace LayerTestsDefinitions
@@ -23,8 +28,7 @@ namespace {
 
     const std::vector<InferenceEngine::Precision> inputPrecisions = {
             InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::FP16,
-            InferenceEngine::Precision::U8
+            InferenceEngine::Precision::FP16
     };
 
     const std::vector<ShapeRelatedParams> shapeRelatedParams = {
@@ -33,12 +37,26 @@ namespace {
             { { {9, 9, 9}, false }, { {9, 9}, false } }
     };
 
+    const std::vector<ShapeRelatedParams> fullyConnectedShapeParams = {
+            { { {1, 16}, false }, { {64, 16}, true } }
+    };
+
     std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
             ngraph::helpers::InputLayerType::CONSTANT,
             ngraph::helpers::InputLayerType::PARAMETER,
     };
 
     std::map<std::string, std::string> additional_config = {};
+
+    const auto fullyConnectedCase = ::testing::Combine(
+            ::testing::ValuesIn(fullyConnectedShapeParams),
+            ::testing::ValuesIn(inputPrecisions),
+            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Layout::ANY),
+            ::testing::ValuesIn(secondaryInputTypes),
+            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+            ::testing::Values(additional_config));
 
     // Test is disabled due to two types of errors:
     // 1. On step [Debug  ][VPU][KMB nGraph Parser] Convert nGraph to MCM Model
@@ -66,5 +84,7 @@ namespace {
             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
             ::testing::Values(additional_config)),
         KmbMatMulLayerTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_MatMul_to_FC_case, KmbMatMulLayerTest, fullyConnectedCase, KmbMatMulLayerTest::getTestCaseName);
 
 } // namespace

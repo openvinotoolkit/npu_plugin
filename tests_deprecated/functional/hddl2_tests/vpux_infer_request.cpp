@@ -137,6 +137,7 @@ TEST_F(InferRequest_GetBlob, InputRemoteBlobContainSameDataAsOnSet) {
     RemoteMemory_Helper remoteMemory;
     IE::TensorDesc inputTensorDesc = inputInfoPtr->getTensorDesc();
     auto remoMemory = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
+    remoteMemory.clearRemoteMemory();
     auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoMemory);
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContext->CreateBlob(inputInfoPtr->getTensorDesc(), blobParams);
     ASSERT_NE(nullptr, remoteBlobPtr);
@@ -153,8 +154,9 @@ TEST_F(InferRequest_GetBlob, InputRemoteBlobContainSameDataAsOnSet) {
     std::string resultData;
     {
         IE::Blob::Ptr inputBlob = inferRequest.GetBlob(inputName);
-        auto inputBlobData = inputBlob->buffer().as<char*>();
-        resultData = std::string(inputBlobData);
+        auto lockedMemory = inputBlob->cbuffer();
+        auto rBlobData = lockedMemory.as<char*>();
+        resultData = std::string(rBlobData);
     }
 
     ASSERT_EQ(inputData, resultData);
@@ -256,12 +258,14 @@ protected:
 };
 
 void InferenceWithPerfCount::SetUp() {
-    const Models::ModelDesc modelToUse = Models::squeezenet1_1;
+    const Models::ModelDesc modelToUse = Models::googlenet_v1;
     network = ExecutableNetworkFactory::createCNNNetwork(modelToUse.pathToModel);
     executableNetworkPtr = nullptr;
 }
 
-TEST_F(InferenceWithPerfCount, precommit_SyncInferenceWithPerfCount) {
+// C++ exception "InferAsync FAILED! return code:-4"
+// [Track number: S#51440]
+TEST_F(InferenceWithPerfCount, DISABLED_precommit_SyncInferenceWithPerfCount) {
     // ---- Load inference engine instance
     IE::Core ie;
     std::map<std::string, std::string> _config = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
@@ -352,8 +356,8 @@ class InferenceCheckPortsNetwork :
 public:
     std::string modelPath;
     std::string inputPath;
-    const size_t inputWidth = 227;
-    const size_t inputHeight = 227;
+    size_t inputWidth;
+    size_t inputHeight;
     const size_t numberOfTopClassesToCompare = 3;
     const bool orderedClasses = false;
     const IE::Precision inputPrecision = IE::Precision::U8;
@@ -363,13 +367,14 @@ protected:
 };
 
 void InferenceCheckPortsNetwork::SetUp() {
-    modelPath =
-        ModelsPath() + "/KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10.xml";
+    Models::ModelDesc modelToUse = Models::squeezenet1_1;
+    modelPath = modelToUse.pathToModel;
+    inputWidth = modelToUse.width;
+    inputHeight = modelToUse.height;
     inputPath = "cat3.bmp";
 }
 
-// [Track number: S#41541]
-TEST_P(InferenceCheckPortsNetwork, DISABLED_common) {
+TEST_P(InferenceCheckPortsNetwork, common) {
     const auto& testParam = GetParam();
     const auto inputLayout = std::get<0>(testParam);
     const auto blobInputLayout = std::get<1>(testParam);
@@ -379,7 +384,7 @@ TEST_P(InferenceCheckPortsNetwork, DISABLED_common) {
 
     // --- CNN Network and inputs
     std::cout << "Reading network..." << std::endl;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(modelPath));
+    ASSERT_NO_THROW(network = ExecutableNetworkFactory::createCNNNetwork(modelPath));
     IE::InputsDataMap input_info = network.getInputsInfo();
     for (auto& item : input_info) {
         auto input_data = item.second;
@@ -443,12 +448,11 @@ class InferenceCheckPortsYoloV3Network :
     public CoreAPI_Tests,
     public testing::WithParamInterface<IE::Layout> {
 public:
-    std::string graphPath;
     std::string modelPath;
     std::string inputPath;
 
-    const size_t inputWidth = 416;
-    const size_t inputHeight = 416;
+    size_t inputWidth;
+    size_t inputHeight;
     const int yolov3_classes = 80;
     const int yolov3_coords = 4;
     const int yolov3_num = 3;
@@ -463,20 +467,20 @@ protected:
 };
 
 void InferenceCheckPortsYoloV3Network::SetUp() {
-    graphPath =
-        ModelsPath() + "/KMB_models/BLOBS/yolo-v3/schema-3.24.3/yolo_v3_tf_dense_int8_IRv10.blob";
-    modelPath =
-        ModelsPath() + "/KMB_models/INT8/public/yolo_v3/yolo_v3_tf_dense_int8_IRv10.xml";
+    Models::ModelDesc modelToUse = Models::yolov3;
+    modelPath = modelToUse.pathToModel;
     inputPath = "person.bmp";
+    inputWidth = modelToUse.width;
+    inputHeight = modelToUse.height;
 }
 
-// [Track number: S#41541]
-TEST_P(InferenceCheckPortsYoloV3Network, DISABLED_common) {
+TEST_P(InferenceCheckPortsYoloV3Network, common) {
     const auto blobInputLayout = GetParam();
     std::cout << "Parameters: blob input layout = " << blobInputLayout <<std::endl;
 
-    std::cout << "Importing network..." << std::endl;
-    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork> (ie.ImportNetwork(graphPath, pluginName)));
+    std::cout << "Loading network..." << std::endl;
+    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>
+        (ExecutableNetworkFactory::createExecutableNetwork(modelPath)));
 
     // --- Infer request
     ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());

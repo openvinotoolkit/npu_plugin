@@ -155,6 +155,8 @@ namespace mv
                 createStrategyDots = globalConfig_["createStrategyDots"].get<bool>();
                 dotFileLocation = globalConfig_["dotFileLocation"].get<std::string>();
                 jsonOutFileName = globalConfig_["jsonOutFileName"].get<std::string>();
+                loadStrategiesFromFile = globalConfig_["loadStrategiesFromFile"].get<bool>();
+                jsonInFileName = globalConfig_["jsonInFileName"].get<std::string>();
                 //Input is in Kb
                 clusterMemory = (double)clusterMemoryKb * 1024.0 * safetyFactor;
                 globalEnableStreaming = globalStrategies_["enableStreaming"].get<bool>();
@@ -964,7 +966,7 @@ namespace mv
                 }
 
                 //Input and Output must have Spilled==True
-                if((op.getOpType() == "Input") && (!spilling))
+                if((op.getOpType() == "Input" || op.getOpType() == "ImplicitInput") && (!spilling))
                     return FailCause::InputNotSpilled;
 
                 if((op.getOpType() == "Output") && (!spilling))

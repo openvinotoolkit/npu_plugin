@@ -360,7 +360,7 @@ def RewriteDivide :
 
 def RewriteSquaredDiff :
         Pat<
-            (IERT_SquaredDiffOp $input1, $input2, $output),
+            (IERT_SquaredDifferenceOp $input1, $input2, $output),
             (createEltwiseUPAOp<"SQUARED_DIFF"> $input1, $input2, $output)
         >;
 
@@ -475,6 +475,41 @@ def RewriteNegative :
         Pat<
             (IERT_NegativeOp $input, $output),
             (createNegativeUPAOp $input, $output)
+        >;
+
+//
+// IERT.ROIPooling -> ROIPoolingUPA.
+//
+def createROIPoolingUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ROIPoolingUPAOp>(
+                $_loc, $0, $1, $2, $3, $4, $5)
+        }]>;
+def RewriteROIPooling :
+        Pat<
+            (IERT_ROIPoolingOp $input, $coords, $output, $output_size, $spatial_scale, $method),
+            (createROIPoolingUPAOp $input, $coords, $output, $output_size, $spatial_scale, $method)
+        >;
+
+//
+// IERT.Transpose -> VPUIP.Permute
+//
+
+def createPermuteUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PermuteUPAOp>(
+                $_loc, $0, $1, $2)
+        }]>;
+
+def HasConstantOrder : Constraint<CPred<"$0.empty() && $1 != nullptr">>;
+
+def RewriteTranspose :
+        Pat<
+            (IERT_TransposeOp $input, $order, $output, $order_value),
+            (createPermuteUPAOp $input, $output, $order_value),
+            [
+                (HasConstantOrder $order, $order_value)
+            ]
         >;
 
 #endif

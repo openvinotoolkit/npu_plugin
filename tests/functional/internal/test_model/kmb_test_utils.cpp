@@ -21,20 +21,7 @@
 #include <blob_transform.hpp>
 #include <functional_test_utils/blob_utils.hpp>
 
-#include <vpu/utils/checked_cast.hpp>
-
-namespace vpu {
-
-template <typename OutT, typename InT>
-typename std::enable_if<
-        std::is_floating_point<OutT>::value && std::is_integral<InT>::value,
-    OutT>::type checked_cast(InT value) {
-    // TODO: check range
-    // TODO: move to DLDT repository
-    return static_cast<OutT>(value);
-}
-
-}  // namespace vpu
+#include "vpux/utils/core/checked_cast.hpp"
 
 namespace {
 
@@ -46,7 +33,7 @@ void fill_(const Blob::Ptr& blob, std::default_random_engine& rd, Distribution& 
     IE_ASSERT(outPtr != nullptr);
 
     std::generate_n(outPtr, blob->size(), [&]() {
-        return vpu::checked_cast<T>(dist(rd));
+        return vpux::checked_cast<T>(dist(rd));
     });
 }
 template <typename T, class Distribution, class ConvertOp>
@@ -67,27 +54,27 @@ void fillUniform_(const Blob::Ptr& blob, std::default_random_engine& rd, T min, 
 
     switch (blob->getTensorDesc().getPrecision()) {
     case Precision::FP32: {
-        std::uniform_real_distribution<float> dist(vpu::checked_cast<float>(min), vpu::checked_cast<float>(max));
+        std::uniform_real_distribution<float> dist(vpux::checked_cast<float>(min), vpux::checked_cast<float>(max));
         fill_<float>(blob, rd, dist);
         break;
     }
     case Precision::FP16: {
-        std::uniform_real_distribution<float> dist(vpu::checked_cast<float>(min), vpu::checked_cast<float>(max));
+        std::uniform_real_distribution<float> dist(vpux::checked_cast<float>(min), vpux::checked_cast<float>(max));
         fill_<ie_fp16>(blob, rd, dist, PrecisionUtils::f32tof16);
         break;
     }
     case Precision::I32: {
-        std::uniform_int_distribution<int32_t> dist(vpu::checked_cast<int32_t>(min), vpu::checked_cast<int32_t>(max));
+        std::uniform_int_distribution<int32_t> dist(vpux::checked_cast<int32_t>(min), vpux::checked_cast<int32_t>(max));
         fill_<int32_t>(blob, rd, dist);
         break;
     }
     case Precision::U8: {
-        std::uniform_int_distribution<int32_t> dist(vpu::checked_cast<uint8_t>(min), vpu::checked_cast<uint8_t>(max));
+        std::uniform_int_distribution<int32_t> dist(vpux::checked_cast<uint8_t>(min), vpux::checked_cast<uint8_t>(max));
         fill_<uint8_t>(blob, rd, dist);
         break;
     }
     case Precision::I8: {
-        std::uniform_int_distribution<int32_t> dist(vpu::checked_cast<int8_t>(min), vpu::checked_cast<int8_t>(max));
+        std::uniform_int_distribution<int32_t> dist(vpux::checked_cast<int8_t>(min), vpux::checked_cast<int8_t>(max));
         fill_<int8_t>(blob, rd, dist);
         break;
     }

@@ -91,7 +91,9 @@
 #include <ngraph/op/mish.hpp>
 #include <ngraph/op/floor.hpp>
 #include <ngraph/op/round.hpp>
+#include <ngraph/op/ceiling.hpp>
 #include <ngraph/op/erf.hpp>
+#include <ngraph/op/gelu.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -101,6 +103,7 @@
 #include <ngraph/op/variadic_split.hpp>
 #include <ngraph/op/strided_slice.hpp>
 #include <ngraph/op/mvn.hpp>
+#include <ngraph/op/space_to_depth.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
@@ -125,7 +128,6 @@
 #include <map>
 
 #include <include/mcm/tensor/tiling.hpp>
-#include <vpu/utils/error.hpp>
 #include <converters.hpp>
 #include <custom_layer/custom_layer.hpp>
 
@@ -152,11 +154,19 @@ std::vector<mv::Data::TensorIterator> getMcmInputs(std::shared_ptr<ngraph::Node>
     return out;
 }
 
-mv::Shape getWHCN(const ngraph::Shape& shape) {
-    size_t dimN, dimZ, dimY, dimX;
+// 'memory order' being row-column-channel for CHW and channel-row-column for HWC
+// i.e. the order which is used to represent data in RAM
+mv::Shape getMemoryOrder(const ngraph::Shape& shape) {
+    size_t dimN, dimZ, dimY, dimX, dimD;
     std::vector<size_t> dims = shape;
-    vpu::parseDims(dims, dimN, dimZ, dimY, dimX);
-    return mv::Shape({dimX, dimY, dimZ, dimN});
+    vpu::parseDims(dims, dimN, dimZ, dimY, dimX, dimD);
+    mv::Shape result;
+    if (dims.size() == 5) {
+        result = mv::Shape({dimX, dimY, dimD, dimZ, dimN});
+    } else {
+        result = mv::Shape({dimX, dimY, dimZ, dimN});
+    }
+    return result;
 }
 
 void cvtPaddingsFromCeilToFloorMode(
@@ -182,7 +192,7 @@ bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
 
 bool isInputLayoutSupported(const ie::Layout& inputLayout) {
     const std::set<ie::Layout> supportedInLayouts = {
-        ie::Layout::NHWC, ie::Layout::NCHW, ie::Layout::CHW, ie::Layout::NC, ie::Layout::C};
+        ie::Layout::NHWC, ie::Layout::NCHW, ie::Layout::CHW, ie::Layout::NC, ie::Layout::C, ie::Layout::NCDHW};
     return supportedInLayouts.find(inputLayout) != supportedInLayouts.end();
 }
 
@@ -193,7 +203,7 @@ bool isOutputPrecisionSupported(const ie::Precision& outputPrecision) {
 
 bool isOutputLayoutSupported(const ie::Layout& outputLayout) {
     std::set<ie::Layout> supportedOutLayouts = {
-        ie::Layout::NHWC, ie::Layout::NCHW, ie::Layout::CHW, ie::Layout::NC, ie::Layout::C};
+        ie::Layout::NHWC, ie::Layout::NCHW, ie::Layout::CHW, ie::Layout::NC, ie::Layout::C, ie::Layout::NCDHW};
     return supportedOutLayouts.find(outputLayout) != supportedOutLayouts.end();
 }
 
@@ -205,13 +215,13 @@ static const mv::QuantizationParams& initialQuantParams() {
 
 void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
     InferenceEngine::DataPtr ieData, bool allowNCHWInput, bool allowU8InputForFp16Models, bool allowConvertInputPrecisionToU8) {
-    auto mvShape = getWHCN(param->get_shape());
+    auto mvShape = getMemoryOrder(param->get_shape());
     // Use data from InputInfo DataPtr
     // const auto mvDType = mv::DType("UInt8"); // Test framework sets fp32, cvtElemTypeToMCM(param->get_element_type());
     bool mvNetworkInput = true;
     const auto& opName = param->get_friendly_name();
 
-    if (param->get_shape().size() > 4 || param->get_shape().size() == 0) {
+    if (param->get_shape().size() > 5 || param->get_shape().size() == 0) {
        IE_THROW() << "Input shape size is not supported: " << param->get_shape().size();
     }
 
@@ -229,6 +239,8 @@ void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel
         if ((inputLayout == InferenceEngine::Layout::NCHW || inputLayout == InferenceEngine::Layout::CHW)
             && allowNCHWInput) {
             return layoutToOrder(InferenceEngine::Layout::NCHW);
+        } else if (inputLayout == InferenceEngine::Layout::NCDHW) {
+            return layoutToOrder(InferenceEngine::Layout::NCDHW);
         }
         return layoutToOrder(InferenceEngine::Layout::NHWC);
     }();
@@ -297,12 +309,12 @@ void convert(std::shared_ptr<ngraph::op::Result> result, mv::OpModel& mcmModel, 
         IE_THROW() << "Data type handling is not implemented" << outputPrecision.name();
     }
 
-    if (result->get_shape().size() > 4 || result->get_shape().size() == 0) {
+    if (result->get_shape().size() > 5 || result->get_shape().size() == 0) {
        IE_THROW() << "Output shape size is not supported: " << result->get_shape().size();
     }
 
     // MCM Compiler requirements
-    mcmModel.output("", mcmInputs.at(0), outputType);
+    mcmModel.output(result->get_friendly_name(), mcmInputs.at(0), outputType);
 }
 
 void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -550,6 +562,19 @@ void convert(std::shared_ptr<ngraph::op::v0::Relu> relu, mv::OpModel& mcmModel, 
     registerOutputs(relu, {mcmReluOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::PRelu> prelu, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(prelu, mcmOutputsMap);
+    const auto& opName = prelu->get_friendly_name();
+
+    const auto mcmData = mcmInputs.at(0);
+    const auto mcmSlope = mcmInputs.at(1);
+    const auto mcmPReluOutput = mcmModel.prelu(opName, mcmData, mcmSlope);
+
+    mcmPReluOutput->setQuantParams(initialQuantParams());
+
+    registerOutputs(prelu, {mcmPReluOutput}, mcmOutputsMap);
+}
+
 void convert(std::shared_ptr<ngraph::op::v0::Elu> elu, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmData = getMcmInputs(elu, mcmOutputsMap).at(0);
     const auto& opName = elu->get_friendly_name();
@@ -620,12 +645,32 @@ void convert(std::shared_ptr<ngraph::op::v5::Round> op, mv::OpModel& mcmModel, N
     registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::Ceiling> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto& opName = op->get_friendly_name();
+    const auto& opInput = mcmInputs.at(0);
+    const auto mcmOpOutput = mcmModel.ceiling(opName, opInput);
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
 void convert(std::shared_ptr<ngraph::op::v0::Erf> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
     IE_ASSERT(1u == mcmInputs.size());
     const auto& opName = op->get_friendly_name();
     const auto& opInput = mcmInputs.at(0);
     const auto mcmOpOutput = mcmModel.erf(opName, opInput);
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::Gelu> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto& opName = op->get_friendly_name();
+    const auto& opInput = mcmInputs.at(0);
+    const auto mcmOpOutput = mcmModel.gelu(opName, opInput);
     mcmOpOutput->setQuantParams(initialQuantParams());
     registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
 }
@@ -685,7 +730,7 @@ void convert(std::shared_ptr<ngraph::op::v1::Reshape> reshape, mv::OpModel& mcmM
         mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
     }
 
-    mv::Shape newShape = getWHCN(reshape->get_output_shape(0));
+    mv::Shape newShape = getMemoryOrder(reshape->get_output_shape(0));
 
     auto mcmReshapeOutput = mcmModel.reshape(opName, mcmData, newShape);
     mcmReshapeOutput->setQuantParams(initialQuantParams());
@@ -731,7 +776,7 @@ void convert(std::shared_ptr<ngraph::op::PowerIE> power, mv::OpModel& mcmModel, 
 
     if (1.0f == power->power) {
         const auto shape = power->get_output_shape(0);
-        const size_t weights_size = (1 == shape.size()) ? shape.at(0) : getWHCN(shape)[2];
+        const size_t weights_size = (1 == shape.size()) ? shape.at(0) : getMemoryOrder(shape)[2];
 
         std::vector<double> weights(weights_size, scale);
         mv::Shape weightsShape = {weights.size()};
@@ -840,7 +885,7 @@ void convert(std::shared_ptr<ngraph::op::v0::Squeeze> reshape, mv::OpModel& mcmM
         mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
     }
 
-    mv::Shape newShape = getWHCN(reshape->get_shape());
+    mv::Shape newShape = getMemoryOrder(reshape->get_shape());
 
     auto mcmReshapeOutput = mcmModel.reshape(opName, mcmData, newShape);
     mcmReshapeOutput->setQuantParams(initialQuantParams());
@@ -857,7 +902,7 @@ void convert(std::shared_ptr<ngraph::op::v0::Unsqueeze> reshape, mv::OpModel& mc
         mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
     }
 
-    mv::Shape newShape = getWHCN(reshape->get_shape());
+    mv::Shape newShape = getMemoryOrder(reshape->get_shape());
 
     auto mcmReshapeOutput = mcmModel.reshape(opName, mcmData, newShape);
     mcmReshapeOutput->setQuantParams(initialQuantParams());
@@ -1213,7 +1258,7 @@ void convert(std::shared_ptr<ngraph::op::ResampleV2> resample, mv::OpModel& mcmM
         mode = resampleAttrs.mode;
     }
 
-    mv::Shape output_shape = getWHCN(resample->get_output_shape(0));
+    mv::Shape output_shape = getMemoryOrder(resample->get_output_shape(0));
     auto mcmResampleOutput = mcmModel.resample(opName, mcmData, interpolationMap.at(mode), antialias, output_shape);
     mcmResampleOutput->setQuantParams(initialQuantParams());
 
@@ -1270,12 +1315,26 @@ void convert(std::shared_ptr<ngraph::op::v4::Interpolate> interpolate, mv::OpMod
     const auto& opName = interpolate->get_friendly_name();
     const auto antialias = false;
     const auto& interpolateAttrs = interpolate->get_attrs();
-    const std::string mode  = interpolateMode.find(interpolateAttrs.mode)->second;
-    const std::string coord = coordMode.find(interpolateAttrs.coordinate_transformation_mode)->second;
-    const std::string near  = nearestMode.find(interpolateAttrs.nearest_mode)->second;
+
+    const auto interpolateModeIter = interpolateMode.find(interpolateAttrs.mode);
+    if (interpolateModeIter == interpolateMode.end())
+        IE_THROW() << "interpolateMode map doesn't contain reqested interpolate mode";
+    const std::string mode  = interpolateModeIter->second;
+
+
+    const auto coordModeIter = coordMode.find(interpolateAttrs.coordinate_transformation_mode);
+    if (coordModeIter == coordMode.end())
+        IE_THROW() << "coordMode map doesn't contain reqested coordinate transformation mode";
+    const std::string coord  = coordModeIter->second;
+
+    const auto nearestModeIter = nearestMode.find(interpolateAttrs.nearest_mode);
+    if (nearestModeIter == nearestMode.end())
+        IE_THROW() << "nearestMode map doesn't contain reqested nearest mode";
+    const std::string near  = nearestModeIter->second;
+
     const auto align_corners = (coord == "align_corners");
 
-    mv::Shape output_shape = getWHCN(interpolate->get_output_shape(0));
+    mv::Shape output_shape = getMemoryOrder(interpolate->get_output_shape(0));
     auto mcmInterpolateOutput = mcmModel.interpolate(opName, mcmData, output_shape, mode, near, coord, align_corners, antialias);
     mcmInterpolateOutput->setQuantParams(initialQuantParams());
 
@@ -1405,7 +1464,7 @@ void convert(std::shared_ptr<ngraph::op::CropIE> crop, mv::OpModel& mcmModel, No
     const std::vector<int64_t>& axes = crop->axes;     // number of a dimension to crop
     const std::vector<int64_t>& dim = crop->dim;       // starting point for crop in the input blob
     const std::vector<int64_t>& offset = crop->offset; // resulting size of the output blob for the specified axis
-    const mv::Shape outShape = getWHCN(crop->get_output_shape(0));
+    const mv::Shape outShape = getMemoryOrder(crop->get_output_shape(0));
     const std::size_t ndims = outShape.ndims();
 
     if (ndims == axes.size() && ndims == offset.size() && ndims == dim.size()) {
@@ -1579,12 +1638,16 @@ void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel
     const auto axis_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(axis_node);
     auto axis = axis_node_const->get_data_ptr<int64_t>()[0];
 
+    for (size_t i = 1; i < mcmInputs.size(); ++i) {
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
+    }
+
     std::vector<size_t> startCoords(mcmInputs.at(0)->getShape().ndims());
     std::vector<mv::Data::TensorIterator> mcmOutputs;
     auto outDimSize = split->get_output_shape(0).size();
     for (size_t i = 0; i < split->get_output_size(); ++i) {
         mv::Shape beginShape(startCoords);
-        mv::Shape sizeShape(getWHCN(split->get_output_shape(i)));
+        mv::Shape sizeShape(getMemoryOrder(split->get_output_shape(i)));
         auto mcmSplit = mcmModel.slice(opName + ":" + std::to_string(i), mcmInputs.at(0), beginShape, sizeShape);
         mcmSplit->setQuantParams(initialQuantParams());
         mcmOutputs.push_back(mcmSplit);
@@ -1609,9 +1672,9 @@ void convert(std::shared_ptr<ngraph::op::v1::StridedSlice> stridedSlice, mv::OpM
         mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
     }
 
-    mv::Shape beginShape(getWHCN(begin_node_const->cast_vector<size_t>()));
-    mv::Shape endShape(getWHCN(end_node_const->cast_vector<size_t>()));
-    mv::Shape strideShape(getWHCN(stride_node_const->cast_vector<size_t>()));
+    mv::Shape beginShape(getMemoryOrder(begin_node_const->cast_vector<size_t>()));
+    mv::Shape endShape(getMemoryOrder(end_node_const->cast_vector<size_t>()));
+    mv::Shape strideShape(getMemoryOrder(stride_node_const->cast_vector<size_t>()));
 
     auto mcmStridedSlice = mcmModel.stridedSlice(opName, mcmInputs.at(0), beginShape, endShape, strideShape);
 
@@ -1649,7 +1712,7 @@ void convert(std::shared_ptr<ngraph::op::v1::VariadicSplit> variadicSplit,
     auto outDimSize = variadicSplit->get_output_shape(0).size();
     for (size_t i = 0; i < variadicSplit->get_output_size(); ++i) {
         mv::Shape beginShape(startCoords);
-        mv::Shape sizeShape(getWHCN(variadicSplit->get_output_shape(i)));
+        mv::Shape sizeShape(getMemoryOrder(variadicSplit->get_output_shape(i)));
         auto mcmSplit = mcmModel.slice(opName + ":" + std::to_string(i), mcmInputs.at(0), beginShape, sizeShape);
         mcmSplit->setQuantParams(initialQuantParams());
         mcmOutputs.push_back(mcmSplit);
@@ -1781,6 +1844,29 @@ void convert(std::shared_ptr<ngraph::op::v0::MVN> MVN, mv::OpModel& mcmModel, No
     registerOutputs(MVN, {mcmMVN}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::SpaceToDepth> SpaceToDepth, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(SpaceToDepth, mcmOutputsMap);
+    IE_ASSERT(1 == mcmInputs.size());
+    const auto mcmData = mcmInputs.at(0);
+    const auto& opName = SpaceToDepth->get_friendly_name();
+
+    std::string mode;
+    switch (SpaceToDepth->get_mode()) {
+        case ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST:
+            mode = "blocks_first";
+            break;
+        case ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST:
+            mode = "depth_first";
+            break;
+        default:
+            THROW_IE_EXCEPTION << "Invalid mode " << mode << " in SpaceToDepth layer ";;
+    }
+
+    auto mcmSpaceToDepth = mcmModel.spaceToDepth(opName, mcmData, SpaceToDepth->get_block_size(), mode);
+
+    registerOutputs(SpaceToDepth, {mcmSpaceToDepth}, mcmOutputsMap);
+}
+
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
 template <typename T>
@@ -1870,6 +1956,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::Floor),
     MAP_ENTRY(ngraph::op::v5::Round),
     MAP_ENTRY(ngraph::op::v0::Erf),
+    MAP_ENTRY(ngraph::op::v0::Gelu),
     MAP_ENTRY(ngraph::op::TileIE),
     MAP_ENTRY(ngraph::op::v1::VariadicSplit),
     MAP_ENTRY(ngraph::op::CTCGreedyDecoder),
@@ -1877,7 +1964,10 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::Pad),
     MAP_ENTRY(ngraph::op::PadIE),
     MAP_ENTRY(ngraph::op::v4::Interpolate),
-    MAP_ENTRY(ngraph::op::v0::MVN)
+    MAP_ENTRY(ngraph::op::v0::MVN),
+    MAP_ENTRY(ngraph::op::v0::Ceiling),
+    MAP_ENTRY(ngraph::op::v0::PRelu),
+    MAP_ENTRY(ngraph::op::v0::SpaceToDepth)
 };
 
 #undef MAP_ENTRY
@@ -1984,7 +2074,7 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
 
     for (const auto& op : func->get_ordered_ops()) {
         if (ngraph::op::Constant::type_info == op->get_type_info()) {
-            ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr, false, false, false, allowPermuteND);
+            ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr, false, false, allowPermuteND, false);
         }
     }
 
@@ -2006,14 +2096,14 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
             }
         }
 
-        ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr, false, false, false, allowPermuteND);
+        ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr, false, false, allowPermuteND, false);
     }
 
     for (const auto& outputInfo : _networkOutputs) {
         bool isFound = false;
         for (const auto& op : func->get_results()) {
             if (op->get_friendly_name() == _ioMap.at(outputInfo.first)) {
-                ConvertNode(op, _mcmModel, _mcmOutputsMap, outputInfo.second, false, false, false, allowPermuteND);
+                ConvertNode(op, _mcmModel, _mcmOutputsMap, outputInfo.second, false, false, allowPermuteND, false);
                 isFound = true;
             }
         }

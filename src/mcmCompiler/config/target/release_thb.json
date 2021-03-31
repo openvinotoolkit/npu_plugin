@@ -3,7 +3,8 @@
     "target": "ma3100",
     "general":
     {
-        "leakyAccuracyBits": 7
+        "leakyAccuracyBits": 7,
+        "pwlEnabled": true
     },
     "dtype":
     {

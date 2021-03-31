@@ -23,6 +23,18 @@ static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::Computatio
 static void populateStorageElementPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateInstructionListTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
+// 8bit mult mask
+static const uint32_t PRELU_MULT_MASK = 0x000000FF;
+// 6bit shift mask
+static const uint32_t PRELU_SHIFT_MASK = 0x00003F00;
+static const uint32_t PRELU_SHIFT_SHIFT = 8;
+// round mode mask
+static const uint32_t ROUND_MODE_MASK = 0x0000C000;
+static const uint32_t ROUND_MODE_SHIFT = 14;
+// scale mask
+static const uint32_t SCALE_MODE_MASK = 0xFFFF0000;
+static const uint32_t SCALE_MODE_SHIFT = 16;
+
 namespace mv
 {
     namespace pass
@@ -284,14 +296,34 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
         {
             auto ppeFF = dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction();
             auto& ppeLayers = ppeFF.getLayers();
-            auto isLRelu = std::find(ppeLayers.begin(), ppeLayers.end(), mv::PPELayerTypeEnum::PPELayerType_LPRELU) != ppeLayers.end();
-            if (isLRelu)
-                std::fill(reluMultData.begin(), reluMultData.end(), dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult());
+            auto isLPRelu = std::find(ppeLayers.begin(), ppeLayers.end(), mv::PPELayerTypeEnum::PPELayerType_LPRELU) != ppeLayers.end();
+            if (isLPRelu)
+            {
+                // TODO
+                // check why no zero size when multipliers is defined as const std::vector<int32_t>&
+                std::vector<int32_t> multipliers = dpuTaskOp->get<mv::PPETask>( "PPETask" ).getFixedFunction().getLReluMults();
+                if (multipliers.size() == 1)
+                {
+                    std::fill(reluMultData.begin(), reluMultData.end(), multipliers[0]);
+                }
+                else if (multipliers.size() == outputChannels)
+                {
+                    reluMultData = multipliers;
+                }
+                else
+                {
+                    throw std::runtime_error("The number of slopes does not match with the number of output channels");
+                }
+            }
         }
 
         for (size_t i = 0; i < weightsTableData->size(); i+=WT_ELEMENTS_PER_CHANNEL)
         {
-            weightsTableData->at(i+2) = static_cast<int64_t>((mScaled[i/WT_ELEMENTS_PER_CHANNEL] << 16) | (round32[i/WT_ELEMENTS_PER_CHANNEL] << 14) | (mShift[i/WT_ELEMENTS_PER_CHANNEL]) << 8) | reluMultData[i/WT_ELEMENTS_PER_CHANNEL];
+            weightsTableData->at(i+2) = static_cast<int64_t>(
+                ((mScaled[i/WT_ELEMENTS_PER_CHANNEL] << SCALE_MODE_SHIFT) & SCALE_MODE_MASK) |
+                ((round32[i/WT_ELEMENTS_PER_CHANNEL] << ROUND_MODE_SHIFT) & ROUND_MODE_MASK) |
+                ((mShift[i/WT_ELEMENTS_PER_CHANNEL] << PRELU_SHIFT_SHIFT) & PRELU_SHIFT_MASK) |
+                (reluMultData[i/WT_ELEMENTS_PER_CHANNEL] & PRELU_MULT_MASK));
             if (hasBias)
                 weightsTableData->at(i+3) = biasData[i/WT_ELEMENTS_PER_CHANNEL];
         }
@@ -638,7 +670,10 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
 //Idea: We use the equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always satisfies the
 //leaky relu. After we generate the instruction list table and we save the values of the registers inside.
 //The map of the bits per instruction are described here: https://docs.google.com/spreadsheets/d/1RcD1FYGiKCTCRTDsU-J4r_FaQyAQbzMLyRu7WkeNoOY/edit#gid=0.
-void populateInstructionListMap(const std::string& pwlType, mv::Data::TensorIterator instructionListTable)
+
+void populateInstructionListMap(const std::string& pwlType,
+                                mv::Data::TensorIterator instructionListTable,
+                                const mv::QuantizationParams& outQuantParams)
 {
     //NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
     //27 of course will be aligned to 32 and will contain NOPS inside
@@ -662,9 +697,14 @@ void populateInstructionListMap(const std::string& pwlType, mv::Data::TensorIter
         shift_vector = {1, -1, 0, 0, 0, -1, -1, -4};
         bias_vector = {-119, 44, -43, -31, -19, 18, 10, 0};
     } else if (pwlType == "Mish") {
-        range_vector = {-128, -109, -90, -72, -54, -36, -18, 0, 128};
-        shift_vector = {-12, -12, -12, -12, -12, -12, -12, 0};
-        bias_vector = {1, 1, 1, 1, 1, 1, 1, 0};
+        const auto& quantOutHigh = outQuantParams.getMax();
+        if (quantOutHigh.empty()) {
+            throw std::runtime_error("populateInstructionListMap: empty output quantization parameters");
+        }
+        const auto params = mv::ControlModel::getMishParameters(quantOutHigh.at(0));
+        range_vector = params._range_vector;
+        shift_vector = params._shift_vector;
+        bias_vector = params._bias_vector;
     }
 
     std::size_t k = 0;
@@ -760,7 +800,9 @@ static void populateInstructionListTablesFcn(const mv::pass::PassEntry& , mv::Co
                 auto attrs = dpuTaskOp->getAttrs({dpuPWLTag});
                 for (auto && attr : attrs) {
                     if (attr.first.find("With") == 0) {
-                        populateInstructionListMap(attr.first.substr(4), instructionListTable);
+                        populateInstructionListMap(attr.first.substr(4),
+                                                   instructionListTable,
+                                                   dpuTaskOp->getOutputTensor(0)->getQuantParams());
                     }
                 }
             }
@@ -807,7 +849,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
     }
 }
 
-static void generateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void generateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -821,7 +863,8 @@ static void generateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::Com
             {
                 auto postOps = dpuTaskOp->get<std::vector<std::string>>("postOpTypes");
                 //"FLEXARB"
-                auto ppeIterator = std::find_if(postOps.begin(), postOps.end(), mv::ControlModel::isDpuPwl);
+                auto ppeIterator = findIsDPUPwlPostOp(postOps, td);
+
                 if ( ppeIterator != dpuTaskOp->get<std::vector<std::string>>("postOpTypes").end())
                 {
                     std::string opName = dpuTaskOp->getName();

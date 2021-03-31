@@ -71,52 +71,6 @@ const std::shared_ptr<Device> EngineBackend::getDevice(const InferenceEngine::Pa
     return wrapDeviceWithImpl(_impl->getDevice(paramMap), _impl);
 }
 
-//------------------------------------------------------------------------------
-std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const InferenceEngine::ParamMap& params) {
-    auto logLevel = vpu::LogLevel::Warning;
-    if (params.find(CONFIG_KEY(LOG_LEVEL)) != params.end()) {
-        logLevel = params.at(CONFIG_KEY(LOG_LEVEL));
-    }
-    vpu::Logger logger("EngineBackendConfigurator", logLevel, vpu::consoleOutput());
-
-#if defined(__arm__) || defined(__aarch64__)
-    const EngineBackendType type = EngineBackendType::VPUAL;
-#else
-    const char* const env_p = std::getenv("IE_PLUGIN_USE_ZERO_BACKEND");
-    const EngineBackendType type =
-            params.at(CONFIG_KEY(DEVICE_ID)).as<std::string>() == "EMULATOR"
-                    ? EngineBackendType::Emulator
-                    : ((env_p && env_p[0] == '1') ? EngineBackendType::ZeroApi : EngineBackendType::HDDL2);
-#endif
-
-    try {
-        switch (type) {
-        case EngineBackendType::VPUAL: {
-            return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("vpual_backend")));
-        }
-        case EngineBackendType::HDDL2: {
-            return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("hddl2_backend")));
-        }
-        case EngineBackendType::ZeroApi: {
-            return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("zero_backend")));
-        }
-        case EngineBackendType::Emulator: {
-            return std::shared_ptr<EngineBackend>(new EngineBackend(getLibFilePath("emulator_backend")));
-        }
-        default:
-            return std::shared_ptr<EngineBackend>(new EngineBackend());
-        }
-    } catch (const InferenceEngine::Exception& e) {
-        logger.warning("Could not find a suitable backend. Will be used null backend: %s", e.what());
-        return nullptr;
-    } catch (const std::exception& e) {
-        logger.warning("Could not find a suitable backend. Will be used null backend: %s", e.what());
-        return nullptr;
-    } catch (...) {
-        logger.warning("Could not find a suitable backend. Will be used null backend");
-        return nullptr;
-    }
-}
 const std::shared_ptr<IDevice> IEngineBackend::getDevice() const {
     IE_THROW() << "Default getDevice() not implemented";
 }

@@ -21,7 +21,6 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <vpu/utils/numeric.hpp>
 
 using namespace vpu;
 

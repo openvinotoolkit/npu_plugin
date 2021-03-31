@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -18,6 +18,7 @@
 
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include <mlir/Pass/PassManager.h>
@@ -29,46 +30,41 @@ using namespace vpux;
 // ReferenceMode
 //
 
-namespace {
+void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
+    const auto ddrMemSpaceCb = [](mlir::MLIRContext* ctx, StringRef) -> mlir::Attribute {
+        return VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::DDR);
+    };
 
-class ReferenceModePass final : public ReferenceModeBase<ReferenceModePass> {
-public:
-    explicit ReferenceModePass(Logger log);
+    // IE Dialect level
+    pm.addPass(mlir::createCanonicalizerPass());
+    IE::buildAdjustForVPUPipeline(pm, log);
+    pm.addPass(IE::createUseUserPrecisionPass(log));
+    pm.addPass(mlir::createCanonicalizerPass());
+    IE::buildLowPrecisionPipeline(pm, log);
 
-public:
-    void runOnOperation() final;
+    // Lower IE->IERT
+    buildLowerIE2IERTPipeline(pm, log);
 
-private:
-    Logger _log;
-    mlir::OpPassManager _pm;
-};
+    // IERT Dialect level
+    pm.addPass(mlir::createBufferDeallocationPass());
+    pm.addPass(mlir::createCopyRemovalPass());
+    pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpaceCb, log));
+    pm.addPass(IERT::createStaticAllocationPass(ddrMemSpaceCb, log));
 
-ReferenceModePass::ReferenceModePass(Logger log)
-        : _log(log), _pm(mlir::ModuleOp::getOperationName(), mlir::OpPassManager::Nesting::Implicit) {
-    _log.setName(Base::getArgumentName());
+    // Lower IERT->VPUIP
+    pm.addPass(createLowerIERT2VPUIPPass(log));
 
-    _pm.addPass(mlir::createCanonicalizerPass());
-    _pm.addPass(IE::createAdjustForVPUPass(_log.nest()));
-    _pm.addPass(IE::createUseUserPrecisionPass(_log.nest()));
-    _pm.addPass(mlir::createCanonicalizerPass());
-    _pm.addPass(IE::createLowPrecisionPass(_log.nest()));
-    _pm.addPass(createLowerIE2IERTPass(_log.nest()));
-    _pm.addPass(createLowerIERT2VPUIPPass(_log.nest()));
-    _pm.addPass(VPUIP::createAddLinearSchedulingPass(_log.nest()));
+    // VPUIP Dialect level
+    pm.addPass(VPUIP::createAddLinearSchedulingPass(log));
 }
 
-void ReferenceModePass::runOnOperation() {
-    if (mlir::failed(runPipeline(_pm, getOperation()))) {
-        signalPassFailure();
-    }
-}
-
-}  // namespace
-
 //
-// createReferenceModePass
+// registerPipelines
 //
 
-std::unique_ptr<mlir::Pass> vpux::createReferenceModePass(Logger log) {
-    return std::make_unique<ReferenceModePass>(log);
+void vpux::registerPipelines() {
+    mlir::PassPipelineRegistration<>("reference-mode", "Compile IE Network in Reference mode (SW only execution)",
+                                     [](mlir::OpPassManager& pm) {
+                                         buildReferenceModePipeline(pm);
+                                     });
 }

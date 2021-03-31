@@ -527,6 +527,7 @@ bool testSSDDetection(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs,
     const auto& refOutBlob = refOutputs.begin()->second;
     IE_ASSERT(refOutBlob->getTensorDesc().getPrecision() == ie::Precision::FP32);
     IE_ASSERT(outBlob->getTensorDesc().getPrecision() == ie::Precision::FP32);
+    IE_ASSERT(!inputsDesc.empty());
 
     const auto& inputDesc = inputsDesc.begin()->second->getTensorDesc();
 

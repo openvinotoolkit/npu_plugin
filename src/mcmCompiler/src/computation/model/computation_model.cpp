@@ -674,14 +674,29 @@ void mv::ComputationModel::setGlobalConfigParams(mv::Element& element)
     *globalConfigParams_ = element;
 }
 
-void mv::ComputationModel::addGlobalConfigParams(mv::Element& element)
+void mv::ComputationModel::addGlobalConfigParams(mv::Element& element, bool overwrite)
 {
     auto keys = element.attrsKeys();
-    for (auto it = keys.begin(); it != keys.end(); ++it)
-    {
-        // do not overwrite params set by config of CDs
+    for (auto it = keys.begin(); it != keys.end(); ++it) {
         if (!(globalConfigParams_->hasAttr(*it)))
-            globalConfigParams_->set(*it, element.get(*it));
+                globalConfigParams_->set(*it, element.get(*it));
+        else {
+            if (overwrite) {
+                auto params = globalConfigParams_.get();
+                auto strategListFromGlobalParams = params->get<std::vector<mv::Element>>(*it);
+                auto strategListToInsert = element.get<std::vector<mv::Element>>(*it);
+                for (auto elemFromGlobal : strategListFromGlobalParams) {
+                    for (auto& elemToInsert : strategListToInsert) {
+                        if (elemFromGlobal.get("name_filter") == elemToInsert.get("name_filter")) {
+                            elemToInsert = elemFromGlobal;
+                            break;
+                        }
+                    }
+                }
+                globalConfigParams_->erase(*it);
+                globalConfigParams_->set(*it, strategListToInsert);
+            }
+        }
     }
 }
 

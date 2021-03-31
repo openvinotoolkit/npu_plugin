@@ -541,10 +541,20 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                     };
                     //"FLEXARB"
                     auto postOps = opIt->get<std::vector<std::string>>("postOpTypes");
-                    auto ppeIterator = std::find_if(postOps.begin(), postOps.end(), mv::ControlModel::isDpuPwl);
+                    auto ppeIterator = findIsDPUPwlPostOp(postOps, td);
 
                     if (ppeIterator != postOps.end()) {
                         postShift = dpuPwlScale[*ppeIterator];
+                    }
+
+                    if (ppeIterator != postOps.end() && *ppeIterator == "Mish") {
+                        const auto outQuantParams = output->get<mv::QuantizationParams>("quantParams");
+                        const auto& quantOutHigh = outQuantParams.getMax();
+                        if (quantOutHigh.empty()) {
+                            throw mv::RuntimeError(model, "computeTensorsQuantParams: empty output quantization parameters");
+                        }
+                        const auto params = mv::ControlModel::getMishParameters(quantOutHigh.at(0));
+                        postShift = params._scale;
                     }
 
                     mv::QuantizationParams postQuantization = {

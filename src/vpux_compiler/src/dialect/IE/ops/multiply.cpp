@@ -83,8 +83,7 @@ mlir::LogicalResult vpux::IE::MultiplyOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-void vpux::IE::MultiplyOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
-                                                       mlir::MLIRContext* context) {
+void vpux::IE::MultiplyOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.insert<ConvertMultiplyToScale>(context);
 }
 

@@ -20,6 +20,7 @@
 
 #include <mlir/IR/Location.h>
 #include <mlir/IR/Operation.h>
+#include <mlir/IR/PatternMatch.h>
 #include <mlir/Pass/Pass.h>
 
 namespace vpux {
@@ -32,6 +33,12 @@ mlir::LogicalResult errorAt(mlir::Location loc, StringRef format, Args&&... args
 template <typename... Args>
 mlir::LogicalResult errorAt(mlir::Operation* op, StringRef format, Args&&... args) {
     return printTo(op->emitError(), format.data(), std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+mlir::LogicalResult matchFailed(mlir::RewriterBase& rewriter, mlir::Operation* op, StringRef format, Args&&... args) {
+    const auto msg = llvm::formatv(format.data(), std::forward<Args>(args)...);
+    return rewriter.notifyMatchFailure(op, msg.str());
 }
 
 }  // namespace vpux

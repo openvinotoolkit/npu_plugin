@@ -60,17 +60,17 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
     const auto getDmaKind = [&](VPUIP::DMAEngine kind) {
         return VPUIP::DMAEngineAttr::get(module.getContext(), kind);
     };
-    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::Leon_RT), 1);
-    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::Leon_NN), 1);
-    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::SHAVE_UPA), 16);
-    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::SHAVE_NN), 20);
-    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 4);
-    resources.addAvailableExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
-    resources.addAvailableExecutor(getDmaKind(DMAEngine::DMA_UPA), 1);
+    resources.addExecutor(getProcKind(PhysicalProcessor::Leon_RT), 1);
+    resources.addExecutor(getProcKind(PhysicalProcessor::Leon_NN), 1);
+    resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_UPA), 16);
+    resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_NN), 20);
+    auto nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 4, true);
+    nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
+    resources.addExecutor(getDmaKind(DMAEngine::DMA_UPA), 1);
     if (kind == VPUIP::ArchKind::MA3100) {
-        resources.addAvailableExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
+        resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
     } else {
-        resources.addAvailableExecutor(getDmaKind(DMAEngine::DMA_NN), 1);
+        resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 1);
     }
 }
 

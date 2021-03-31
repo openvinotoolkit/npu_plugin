@@ -72,6 +72,7 @@ public:
 public:
     Logger nest(size_t inc = 1) const;
     Logger nest(StringLiteral name, size_t inc = 1) const;
+    Logger unnest(size_t inc = 1) const;
 
 public:
     auto name() const {

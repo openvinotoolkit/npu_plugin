@@ -35,25 +35,47 @@ namespace MCMAdapter {
 // FIXME: inconsistency with how we extract layout info from meta data
 // we need a single way how to extract layout from compiled network
 static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<float>& strides) {
-    const std::size_t MAX_DIM_COUNT = 5;
-    const std::size_t /*DIM_X = 0, DIM_N = 1,*/ DIM_C = 2, DIM_H = 3, DIM_W = 4;
-
-    IE_ASSERT(strides.size() == MAX_DIM_COUNT)
-            << "extractLayoutFromStrides works only with " << MAX_DIM_COUNT << " elements in strides parameter";
+    const size_t NCHW_DIM_COUNT = 5;
+    const size_t NCDHW_DIM_COUNT = 6;
+    IE_ASSERT(strides.size() == NCHW_DIM_COUNT || strides.size() == NCDHW_DIM_COUNT)
+            << " extractLayoutFromStrides works only with 5 or 6 elements in strides parameter";
 
     InferenceEngine::Layout tensorLayout = InferenceEngine::Layout::NCHW;
-    auto maxStrideVal = *std::max_element(strides.begin() + DIM_C, strides.end());
-    if (maxStrideVal == strides[DIM_H]) {
-        if (std::max(strides[DIM_W], strides[DIM_C]) == strides[DIM_W]) {
-            tensorLayout = InferenceEngine::Layout::NHWC;
-        }
-    } else if (maxStrideVal == strides[DIM_C]) {
-        if (std::max(strides[DIM_W], strides[DIM_H]) == strides[DIM_H]) {
-            tensorLayout = InferenceEngine::Layout::NCHW;
+    if (strides.size() == NCHW_DIM_COUNT) {
+        /// size_t DIM_BYTE_SIZE = 0;
+        /// size_t DIM_N = 1;
+        size_t DIM_C = 2;
+        size_t DIM_H = 3;
+        size_t DIM_W = 4;
+        auto maxStrideVal = *std::max_element(strides.begin() + DIM_C, strides.end());
+        if (maxStrideVal == strides[DIM_H]) {
+            if (std::max(strides[DIM_W], strides[DIM_C]) == strides[DIM_W]) {
+                tensorLayout = InferenceEngine::Layout::NHWC;
+            }
+        } else if (maxStrideVal == strides[DIM_C]) {
+            if (std::max(strides[DIM_W], strides[DIM_H]) == strides[DIM_H]) {
+                tensorLayout = InferenceEngine::Layout::NCHW;
+            }
+        } else {
+            // width-major
+            IE_THROW() << "getIOLayout: W-major layout is not supported";
         }
     } else {
-        // width-major
-        IE_THROW() << "getIOLayout: W-major layout is not supported";
+        /// size_t DIM_BYTE_SIZE = 0;
+        /// size_t DIM_N = 1;
+        size_t DIM_C = 2;
+        size_t DIM_D = 3;
+        /// size_t DIM_H = 4;
+        /// size_t DIM_W = 5;
+        auto maxStrideVal = *std::max_element(strides.begin() + DIM_C, strides.end());
+        if (maxStrideVal == strides[DIM_C]) {
+            tensorLayout = InferenceEngine::Layout::NCDHW;
+        } else if (maxStrideVal == strides[DIM_D]) {
+            tensorLayout = InferenceEngine::Layout::NDHWC;
+        } else {
+            // width-major
+            IE_THROW() << "getIOLayout: only NCDHW and NDHWC layouts are supported";
+        }
     }
 
     return tensorLayout;

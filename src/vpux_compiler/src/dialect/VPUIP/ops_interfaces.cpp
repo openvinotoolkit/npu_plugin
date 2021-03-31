@@ -35,7 +35,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
 
     auto task = mlir::dyn_cast<TaskOpInterface>(op);
     if (task == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement VPUIP UPATask interface", op->getName());
+        return errorAt(op, "Operation '{0}' doesn't implement VPUIP Task interface", op->getName());
     }
 
     auto upaTask = mlir::dyn_cast<UPATaskOpInterface>(op);
@@ -80,7 +80,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
             return errorAt(op, "Missing IERT run-time resources definition");
         }
 
-        auto available = resources.getAvailableExecutor(
+        auto available = resources.getExecutor(
                 VPUIP::PhysicalProcessorAttr::get(op->getContext(), VPUIP::PhysicalProcessor::SHAVE_UPA));
         if (available == nullptr) {
             return errorAt(op, "SHAVE_UPA executor is not avaialble in run-time");
@@ -104,6 +104,43 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
                     return errorAt(op, "Trailing UPA Task has non-SW dependency : '{0}'", depOp->getLoc());
                 }
             }
+        }
+    }
+
+    return mlir::success();
+}
+
+//
+// verifyNCETask
+//
+
+mlir::LogicalResult vpux::VPUIP::verifyNCETask(mlir::Operation* op) {
+    auto task = mlir::dyn_cast<TaskOpInterface>(op);
+    if (task == nullptr) {
+        return errorAt(op, "Operation '{0}' doesn't implement VPUIP Task interface", op->getName());
+    }
+
+    auto nceTask = mlir::dyn_cast<NCETaskOpInterface>(op);
+    if (nceTask == nullptr) {
+        return errorAt(op, "Operation '{0}' doesn't implement VPUIP NCETask interface", op->getName());
+    }
+
+    for (auto val : {nceTask.input(), nceTask.output()}) {
+        auto type = val.getType().cast<mlir::MemRefType>();
+        auto mem = getPhysicalMemory(type);
+
+        if (mlir::failed(mem)) {
+            return errorAt(op, "Unsupported memory space '{0}'", type.getMemorySpace());
+        }
+
+        if (mem.getValue() != PhysicalMemory::CMX_NN) {
+            return errorAt(op, "Can't operate with '{0}' PhysicalMemory. Only '{1}' PhsyicalMemory is allowed",
+                           mem.getValue(), PhysicalMemory::CMX_NN);
+        }
+
+        const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(0)));
+        if (!strideReqs.checkStrides(val)) {
+            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", val, strideReqs);
         }
     }
 

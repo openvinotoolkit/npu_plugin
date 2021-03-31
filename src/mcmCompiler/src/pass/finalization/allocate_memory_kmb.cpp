@@ -2,6 +2,8 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/op_model.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
+
 #include "include/mcm/computation/flow/implicit_flow.hpp"
 #include "include/mcm/base/exception/runtime_error.hpp"
 
@@ -121,7 +123,7 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
             // Subtensors are not
             dm.allocateTensor("GraphFile", stageIt, tIt);
 
-            // For weights sparsity there is a seperate constant per cluster, the sub-tensors are sparsified individually to get the kernel data offsets 
+            // For weights sparsity there is a seperate constant per cluster, the sub-tensors are sparsified individually to get the kernel data offsets
             if(tIt->isSparse())
             {
                 auto sparsityMap = tIt->getSparsityMap();
@@ -588,7 +590,7 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
                 //NOTE: CONCAT OVER N, same calculation for both z and c major because N is biggest for both
                 if(inp->getShape()[mv::IO_BATCH_DIMENSION] != out->getShape()[mv::IO_BATCH_DIMENSION])
                 {
-                    left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_CHANNEL_DIMENSION] 
+                    left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_CHANNEL_DIMENSION]
                                                         * inp->getShape()[mv::IO_HEIGHT_DIMENSION] * inp->getShape()[mv::IO_WIDTH_DIMENSION];
                     axisConcat = "N";
                 }
@@ -785,7 +787,7 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
             pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
                         " has implicit flow but was not assigned an allocator.");
         }
-        
+
     }
 }
 
@@ -801,6 +803,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
     mv::ControlModel cm(model);
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     auto stageIt = cm.getStage(0);
 
@@ -811,6 +814,54 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
         if(!opIterator->hasAttr("ImplicitFlow"))
             continue;
         allocateImplicitOperationsOp(opIterator, stageIt, pass, model);
+    }
+
+    //NOTE: when we have dilated/deconv operations lead to multiple concats we need to sum their indexes, will be very complex
+    //to do it in serialization so we compute the relative offset of the following buffers here
+    for (auto opIt = sortedOps.begin(); opIt != sortedOps.end(); ++opIt)
+    {
+        auto op = *opIt;
+        if (op->getOpType() == "DMATask")
+        {
+            bool complexIndex = false;
+            auto outputTensor = op->getOutputTensor()[mv::IO_TENSOR_OUTPUT];
+            if (outputTensor->hasAttr("leftIndexDilation") && (outputTensor->get<bool>("leftIndexDilation")))
+                continue;
+            else
+            {
+                if (outputTensor->hasAttr("dilatedWidthConcat") && outputTensor->get<bool>("dilatedWidthConcat"))
+                {
+                    std::size_t sum = 0;
+                    auto nextOps = mv::findSinkLayers(dm, outputTensor);
+                    if (nextOps.empty())
+                        throw mv::RuntimeError("allocateImplicitOperationsKmbFcn", "Found a dma task with no sink operation");
+                    auto nextOp = nextOps[0];
+                    while(nextOp->getOpType() == "ImplicitConcat")
+                    {
+                        auto tempOutputTensor = nextOp->getOutputTensor()[mv::IO_TENSOR_OUTPUT];
+                        if (tempOutputTensor->hasAttr("leftIndex"))
+                            sum += tempOutputTensor->get<std::size_t>("leftIndex");
+
+                        if (nextOp->hasAttr("dilatedWidthConcat"))
+                        {
+                            int64_t signed_diff = sum - tempOutputTensor->get<std::size_t>("leftIndex");
+                            if (signed_diff < 0)
+                                throw mv::RuntimeError("allocateImplicitOperationsKmbFcn", "Found a negative index");
+                            sum -= tempOutputTensor->get<std::size_t>("leftIndex");
+                        }
+                        if (!complexIndex) complexIndex = nextOp->hasAttr("complexDataIndex") && nextOp->get("complexDataIndex");
+                        nextOps = mv::findSinkLayers(dm, tempOutputTensor);
+                        if (nextOps.empty())
+                            throw mv::RuntimeError("allocateImplicitOperationsKmbFcn", "Found a concat task with no sink operation");
+
+                        nextOp = nextOps[mv::IO_TENSOR_OUTPUT];
+                    }
+
+                    if (complexIndex)
+                        outputTensor->set<std::size_t>("leftIndexDilation", sum);
+                }
+            }
+        }
     }
 }
 
@@ -836,7 +887,7 @@ void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& /*pass*/, mv::Computa
                 auto tensorAllocators = outputTensor->get<std::set<std::string>>("allocators");
                 if (tensorAllocators.empty())
                     throw mv::RuntimeError("setSliceAddressesInCMXFunc", "Tensor Allocators empty");
-                    
+
                 auto tensorAllocatorName = tensorAllocators.begin();
                 auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
                 mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor); // 0 is the only stage for now, but this will probably change in the future
