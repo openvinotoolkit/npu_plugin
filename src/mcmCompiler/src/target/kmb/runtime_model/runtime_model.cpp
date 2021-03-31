@@ -2715,10 +2715,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpTask(ComputationModel& cm
 
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpolateTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
-    auto toBuild = new MVCNN::UPALayerTaskT();
+    auto toBuild = std::make_unique<MVCNN::UPALayerTaskT>();
 
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_InterpolateParams;
-    auto softLayerParamsValue = new MVCNN::InterpolateParamsT();
+    auto softLayerParamsValue = std::make_unique<MVCNN::InterpolateParamsT>();
 
     auto input = opIt->getInputTensor(0);
     auto output = opIt->getOutputTensor(0);
@@ -2750,9 +2750,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpolateTask(ComputationMode
     // Fill in tensors
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
-    toBuild->softLayerParams.value = softLayerParamsValue;
+    toBuild->softLayerParams.value = softLayerParamsValue.release();
 
-    return toBuild;
+    return toBuild.release();
 }
 
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPANormTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
