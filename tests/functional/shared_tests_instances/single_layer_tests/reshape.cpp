@@ -12,20 +12,19 @@
 namespace LayerTestsDefinitions {
 
 class KmbReshapeLayerTest : public ReshapeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeLoad() override {
-        const auto netPrc = std::get<2>(GetParam());
-
-        // Use FP16 network precision as a marker for MCM supported test
-        if (isCompilerMCM() && netPrc != InferenceEngine::Precision::FP16) {
-            // [Track number: S#41220]
-            // [Track number: S#46306]
-            throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
+    void ConfigureNetwork() override {
+        LayerTestsUtils::KmbLayerTestsCommon::ConfigureNetwork();
+        if (isCompilerMCM()) {
+            disableMcmPasses({{"kmb_adapt", "ReshapeAsImplicit"}, {"adapt", "RemoveOps"}});
         }
     }
 
-    void SkipBeforeValidate() override {
+    void SkipBeforeInfer() override {
         if (isCompilerMCM()) {
-            throw LayerTestsUtils::KmbSkipTestException("comparison fails");
+            const auto inputShape = std::get<6>(GetParam());
+            if (inputShape.size() == 4 && inputShape[0] != 1) {
+                throw LayerTestsUtils::KmbSkipTestException("Runtime does not support Reshape with input tensor batch != 1");
+            }
         }
     }
 };
