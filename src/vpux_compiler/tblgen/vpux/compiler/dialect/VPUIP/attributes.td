@@ -164,10 +164,11 @@ def VPUIP_ArchKind :
             "ArchKind",
             "Represents VPU architecture generation",
             [
-                StrEnumAttrCase<"MA2490">,    // Keem bay A0
-                StrEnumAttrCase<"MA2490_B0">, // Keem bay B0
-                StrEnumAttrCase<"MA3100">,    // Thunder bay harbor A0
-                StrEnumAttrCase<"MA3720">,    // Meteor lake
+                StrEnumAttrCase<"VPU3400_A0">, // Keem bay A0
+                StrEnumAttrCase<"VPU3400">,    // Keem bay B0
+                StrEnumAttrCase<"VPU3700">,    // Keem bay B0
+                StrEnumAttrCase<"VPU3900">,    // Thunder bay harbor A0
+                StrEnumAttrCase<"VPU3720">,    // Meteor lake
             ]
         > {
     let cppNamespace = "vpux::VPUIP";

@@ -36,7 +36,7 @@ initializes **IERT Dialect** run-time resources information.
     let options = [
         Option<
             "archName", "vpu-arch",
-            "std::string", [{"MA2490"}],
+            "std::string", [{"VPU3400_A0"}],
             "VPU architecture to compile for"
         >
     ];

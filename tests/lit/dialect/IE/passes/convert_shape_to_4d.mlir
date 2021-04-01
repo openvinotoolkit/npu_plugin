@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --convert-shape-to-4d %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3400_A0" --convert-shape-to-4d %s | FileCheck %s
 
 //
 // The 'convert-shape-to-4d' pass:

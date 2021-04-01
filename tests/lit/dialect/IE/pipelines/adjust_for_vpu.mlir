@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --adjust-for-vpu %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3400_A0" --adjust-for-vpu %s | FileCheck %s
 
 //
 // The 'adjust-for-vpu' pass calls:

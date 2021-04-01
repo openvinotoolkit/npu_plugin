@@ -96,7 +96,7 @@ static const std::vector<ConfigMap> baseInferConfigs = {
     { {"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "NO"} },
     #endif
     { {"VPUX_PLATFORM", "AUTO"} },
-    { {"VPUX_PLATFORM", "MA2490"} },
+    { {"VPUX_PLATFORM", "VPU3400_A0"} },
 };
 
 static const std::vector<ConfigMap> colorFormatConfigs = {
