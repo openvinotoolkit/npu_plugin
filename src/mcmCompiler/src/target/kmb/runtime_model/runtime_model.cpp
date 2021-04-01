@@ -2427,14 +2427,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
                   cmx_concat_locale_index;
             }
 
-
             if (opIt->get<std::string>("taskOp") != "MaxPool")
                 toBuild->invariant->weights_data->locale_index = locale_index;
+
             if (opIt->get<std::string>("taskOp") != "Eltwise")
                 toBuild->invariant->weights_table->locale_index = locale_index;
-            if (opIt->get<std::string>("taskOp") == "MaxPool" ||
-                opIt->get<std::string>("taskOp") == "ChannelMajorConvolution" ||
-                opIt->get<std::string>("taskOp") == "DepthwiseConv")
+
+            if(opIt->hasAttr("fakeSparsity"))
                 toBuild->invariant->activation_window->locale_index = locale_index;
 
             auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };

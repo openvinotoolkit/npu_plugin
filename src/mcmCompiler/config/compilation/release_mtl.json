@@ -121,7 +121,6 @@
         "Singular": [
             "RemoveOps",
             "ReplacementOps",
-            "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
             "PreprocessForPWL",
