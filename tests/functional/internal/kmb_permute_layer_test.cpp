@@ -61,10 +61,7 @@ TEST_P(KmbPermuteLayerTests, Accuracy) {
     const auto order_desc = TensorDesc(Precision::I64, {p.order_.size()}, Layout::C);
 
     const auto range = std::make_pair(0.0f, 10.0f);
-    // FIXME change back to 0.f tolerance
-    // ND transpose has worse accuracy than 3d transpose
-    // [Track number: E#8466]
-    const auto tolerance = (p.permute_nd_ == InferenceEngine::PluginConfigParams::YES) ? 1.f : 0.f;
+    const auto tolerance = 0.f;
 
     registerBlobGenerator(
         "input", p.in_desc_,

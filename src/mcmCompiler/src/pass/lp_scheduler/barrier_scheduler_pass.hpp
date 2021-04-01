@@ -363,14 +363,14 @@ class Control_Model_Barrier_Scheduler {
       }
 
       control_model_.transitiveReduction();
-      recomputeProducerConsumerCounts();
+      recomputeProducerConsumerCounts(control_model_);
 
       size_t removed_barriers =
           removeBarriersWithNoConsumers(barrier_association, om);
       assert(btask_count >= removed_barriers);
 
       renumberBarrierTasks(om);
-      recomputeProducerConsumerCounts();
+      recomputeProducerConsumerCounts(control_model_);
 
       btask_count -= removed_barriers;
 
@@ -381,7 +381,7 @@ class Control_Model_Barrier_Scheduler {
       mv::OpModel om(control_model_);
       locate_and_remove_redundant_wait_barriers();
       renumberBarrierTasks(om);
-      recomputeProducerConsumerCounts();
+      recomputeProducerConsumerCounts(control_model_);
     }
 
     void remove_barriers_in_upa_chain_connected_to_output() {
@@ -446,7 +446,51 @@ class Control_Model_Barrier_Scheduler {
         }
       }
       renumberBarrierTasks(om);
-      recomputeProducerConsumerCounts();
+      recomputeProducerConsumerCounts(cm);
+    }
+
+    static void recomputeProducerConsumerCounts(mv::ControlModel &cm) {
+      // STEP-1: clear all the references //
+      clearProducerConsumerReferences(cm);
+
+      // STEP-2:
+      // foreach control edge (u, v) 
+      //
+      // CASE-1: (bar->op)
+      //    op.addWaitBarrier(bar)
+      //    bar.addConsumer(op) 
+      //   
+      // CASE-2: (op->bar)
+      mv::Control::FlowListIterator fitr, fitr_next;
+      for (fitr=cm.flowBegin(); fitr!=cm.flowEnd(); ++fitr) {
+        mv::Control::OpListIterator src_itr = fitr.source();
+        mv::Control::OpListIterator sink_itr = fitr.sink(); 
+        assert( (src_itr != cm.opEnd()) && (sink_itr != cm.opEnd()) );
+
+        if (!is_barrier_op(src_itr) && !is_barrier_op(sink_itr)) { continue; }
+
+        if (is_barrier_op(src_itr)) {
+          assert(!is_barrier_op(sink_itr));
+
+          mv::Barrier& barrier = src_itr->get<mv::Barrier>("Barrier");
+          mv::BarrierDependencies& barrierRef =
+            sink_itr->get<mv::BarrierDependencies>("BarrierDeps");
+
+
+          barrierRef.addWaitBarrier(barrier.getIndex());
+          barrier.addConsumer(sink_itr->getName());
+        } else {
+          assert(!is_barrier_op(src_itr));
+
+          mv::Barrier& barrier = sink_itr->get<mv::Barrier>("Barrier");
+          mv::BarrierDependencies& barrierRef =
+            src_itr->get<mv::BarrierDependencies>("BarrierDeps");
+
+
+          barrierRef.addUpdateBarrier(barrier.getIndex());
+          barrier.addProducer(src_itr->getName());
+        }
+      } // foreach control edge //
     }
 
     static void renumberBarrierTasks(mv::OpModel& om) {
@@ -464,7 +508,7 @@ class Control_Model_Barrier_Scheduler {
   private:
     
     template<typename T>
-    bool is_barrier_op(T op_itr) const { 
+    static bool is_barrier_op(T op_itr) { 
       return op_itr->getOpType() == "BarrierTask";
     }
 
@@ -697,8 +741,7 @@ class Control_Model_Barrier_Scheduler {
       return removed_count;
     }
 
-    void clearProducerConsumerReferences() {
-      mv::ControlModel &cm = control_model_;
+    static void clearProducerConsumerReferences(mv::ControlModel &cm) {
       mv::Control::FlowListIterator fitr, fitr_next;
       for (fitr=cm.flowBegin(); fitr!=cm.flowEnd(); ++fitr) {
         mv::Control::OpListIterator src_itr = fitr.source();
@@ -727,52 +770,6 @@ class Control_Model_Barrier_Scheduler {
         barrierRef.clear();
       }
     }
-
-    void recomputeProducerConsumerCounts() {
-      // STEP-1: clear all the references //
-      clearProducerConsumerReferences();
-
-      // STEP-2:
-      // foreach control edge (u, v) 
-      //
-      // CASE-1: (bar->op)
-      //    op.addWaitBarrier(bar)
-      //    bar.addConsumer(op) 
-      //   
-      // CASE-2: (op->bar)
-      mv::ControlModel &cm = control_model_;
-      mv::Control::FlowListIterator fitr, fitr_next;
-      for (fitr=cm.flowBegin(); fitr!=cm.flowEnd(); ++fitr) {
-        mv::Control::OpListIterator src_itr = fitr.source();
-        mv::Control::OpListIterator sink_itr = fitr.sink(); 
-        assert( (src_itr != cm.opEnd()) && (sink_itr != cm.opEnd()) );
-
-        if (!is_barrier_op(src_itr) && !is_barrier_op(sink_itr)) { continue; }
-
-        if (is_barrier_op(src_itr)) {
-          assert(!is_barrier_op(sink_itr));
-
-          mv::Barrier& barrier = src_itr->get<mv::Barrier>("Barrier");
-          mv::BarrierDependencies& barrierRef =
-            sink_itr->get<mv::BarrierDependencies>("BarrierDeps");
-
-
-          barrierRef.addWaitBarrier(barrier.getIndex());
-          barrier.addConsumer(sink_itr->getName());
-        } else {
-          assert(!is_barrier_op(src_itr));
-
-          mv::Barrier& barrier = sink_itr->get<mv::Barrier>("Barrier");
-          mv::BarrierDependencies& barrierRef =
-            src_itr->get<mv::BarrierDependencies>("BarrierDeps");
-
-
-          barrierRef.addUpdateBarrier(barrier.getIndex());
-          barrier.addProducer(src_itr->getName());
-        }
-      } // foreach control edge //
-    }
-
     bool is_output_or_input_op(const schedule_info_t& sinfo) const {
       operation_t op = sinfo.op_;
       return (op->getOpType() == "Output") || (op->getOpType() == "Input");

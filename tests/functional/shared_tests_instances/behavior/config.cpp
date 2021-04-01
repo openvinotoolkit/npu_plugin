@@ -21,7 +21,7 @@ const std::vector<std::map<std::string, std::string>> Configs = {
     {{CONFIG_KEY(DEVICE_ID), "VPU-0"}},
     {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
-    {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(MA2490)}}
+    {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(VPU3400_A0)}}
 };
 
 const std::vector<std::map<std::string, std::string>> InConfigs = {

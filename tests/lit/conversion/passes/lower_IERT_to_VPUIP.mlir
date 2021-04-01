@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --lower-IERT-to-VPUIP %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3400_A0" --lower-IERT-to-VPUIP %s | FileCheck %s
 
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {

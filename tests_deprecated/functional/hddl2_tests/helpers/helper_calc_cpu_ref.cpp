@@ -16,7 +16,8 @@
 
 #include "helper_calc_cpu_ref.h"
 
-#include <vpu/utils/ie_helpers.hpp>
+#include "vpux/utils/IE/blob.hpp"
+
 #include <blob_factory.hpp>
 #include "models/model_loader.h"
 
@@ -37,9 +38,7 @@ IE::BlobMap CalcCpuReferenceCommon(IE::CNNNetwork& network, const IE::Blob::Ptr&
     IE::Blob::Ptr correct_input_blob = nullptr;
     if (preproc_info == nullptr && input_blob->getTensorDesc().getBlockingDesc() != block_desc_network) {
         IE::TensorDesc correct_tensor_desc(input_blob->getTensorDesc().getPrecision(), input_blob->getTensorDesc().getDims(), block_desc_network);
-        correct_input_blob = make_blob_with_precision(correct_tensor_desc);
-        correct_input_blob->allocate();
-        vpu::copyBlob(input_blob, correct_input_blob);
+        correct_input_blob = vpux::toLayout(IE::as<IE::MemoryBlob>(input_blob), correct_tensor_desc.getLayout());
     } else {
         correct_input_blob = input_blob;
     }

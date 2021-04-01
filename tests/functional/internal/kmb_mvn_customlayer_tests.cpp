@@ -14,8 +14,6 @@
 // stated in the License.
 //
 
-#include <vpu/utils/ie_helpers.hpp>
-
 #include "kmb_mvn_test_params.hpp"
 #include "test_model/kmb_test_base.hpp"
 

@@ -726,7 +726,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             // SOK non-sparse weights are serialised individually so that they can be compressed by the HDE
             // Weight tables and sparsity maps are not compressed
             if(t->get<std::string>("splitStrategy") == "SplitOverK" && !t->hasAttr("weightTable") && !t->hasAttr("sparsityMap")
-               && !t->hasAttr("dilatedSubConvSM") && !t->hasAttr("dilatedSubConvSE"))
+               && !t->hasAttr("dilatedSubConvSM") && !t->hasAttr("dilatedSubConvSE")
+               && !t->hasAttr("interpNNSM") && !t->hasAttr("interpNNSE"))
             {
                 unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
                 toBuild->locale_index = std::vector<unsigned int>(1);
@@ -1892,6 +1893,7 @@ void mv::RuntimeModel::adaptFakeSparsityIndex(
                 inv1->weights_data->data->sparsity_index =
                     opIt1->getInputTensor(smTensorIdx[1])
                         ->getAddress();
+
             }
         }
     };
@@ -2007,8 +2009,12 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if ((opIt->hasAttr("activationSparsityCompilerSolving")
         && opIt->get<bool>("activationSparsityCompilerSolving")) ||
             (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
-             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")))
+             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")) ||
+            (opIt->hasAttr("activationSparsityCompilerSolvingForInterpNN") &&
+             opIt->get<bool>("activationSparsityCompilerSolvingForInterpNN")))
+
         adaptFakeSparsityIndex(toBuild, opIt);
+
 
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
     if(opIt->hasAttr("needsODUoffset"))
@@ -2166,7 +2172,9 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if ((opIt->hasAttr("activationSparsityCompilerSolving")
         && opIt->get<bool>("activationSparsityCompilerSolving")) ||
             (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
-             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")))
+             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")) ||
+            (opIt->hasAttr("activationSparsityCompilerSolvingForInterpNN") &&
+             opIt->get<bool>("activationSparsityCompilerSolvingForInterpNN")))
         adaptFakeSparsityIndex(toBuild, opIt);
 
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
@@ -2419,14 +2427,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
                   cmx_concat_locale_index;
             }
 
-
             if (opIt->get<std::string>("taskOp") != "MaxPool")
                 toBuild->invariant->weights_data->locale_index = locale_index;
+
             if (opIt->get<std::string>("taskOp") != "Eltwise")
                 toBuild->invariant->weights_table->locale_index = locale_index;
-            if (opIt->get<std::string>("taskOp") == "MaxPool" ||
-                opIt->get<std::string>("taskOp") == "ChannelMajorConvolution" ||
-                opIt->get<std::string>("taskOp") == "DepthwiseConv")
+
+            if(opIt->hasAttr("fakeSparsity"))
                 toBuild->invariant->activation_window->locale_index = locale_index;
 
             auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
@@ -2715,10 +2722,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpTask(ComputationModel& cm
 
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpolateTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
-    auto toBuild = new MVCNN::UPALayerTaskT();
+    auto toBuild = std::make_unique<MVCNN::UPALayerTaskT>();
 
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_InterpolateParams;
-    auto softLayerParamsValue = new MVCNN::InterpolateParamsT();
+    auto softLayerParamsValue = std::make_unique<MVCNN::InterpolateParamsT>();
 
     auto input = opIt->getInputTensor(0);
     auto output = opIt->getOutputTensor(0);
@@ -2750,9 +2757,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpolateTask(ComputationMode
     // Fill in tensors
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
-    toBuild->softLayerParams.value = softLayerParamsValue;
+    toBuild->softLayerParams.value = softLayerParamsValue.release();
 
-    return toBuild;
+    return toBuild.release();
 }
 
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPANormTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)

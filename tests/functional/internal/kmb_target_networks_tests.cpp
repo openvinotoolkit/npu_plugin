@@ -101,7 +101,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_Inception_V1) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
         TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        3, 0.05f);
+        3, 0.1f);
 }
 
 //
@@ -903,8 +903,7 @@ TEST_F(KmbVasFDStage1Test, precommit_vasfd_stage1) {
     runTest(
         TestNetworkDesc("KMB_models/FP16/face_detection_stage1/vasfd_stage1.xml")
             .setUserInputLayout(inputName, Layout::NHWC)
-            .setUserInputPrecision(inputName, Precision::U8)
-            .setCompileConfig({{"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "YES"}}),
+            .setUserInputPrecision(inputName, Precision::U8),
         TestImageDesc("320x240/Alma_Powell_0_0.1133.jpg", ImageFormat::BGR),
         0.35f, 0.1f, 0.3f, layerNames, anchorSizes, windowScales, windowLengths);
 }

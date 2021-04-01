@@ -27,8 +27,8 @@ def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
     let summary = "Set compilation parameters related to VPUIP Dialect";
 
     let description = [{
-        This pass attaches compilation parameters related to VPUIP Dialect
-        to Module attributes and initializes IERT Dialect resources information.
+This pass attaches compilation parameters related to **VPUIP Dialect** to Module attributes and
+initializes **IERT Dialect** run-time resources information.
     }];
 
     let constructor = "vpux::VPUIP::createSetCompileParamsPass(vpux::None)";
@@ -36,7 +36,7 @@ def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
     let options = [
         Option<
             "archName", "vpu-arch",
-            "std::string", [{"MA2490"}],
+            "std::string", [{"VPU3400_A0"}],
             "VPU architecture to compile for"
         >
     ];
@@ -54,7 +54,7 @@ def AddLinearScheduling : PassBase<"add-linear-scheduling", "vpux::ModulePass"> 
     let summary = "Impose simple linear execution";
 
     let description = [{
-        This pass inserts barriers to impose simple linear execution in IR order.
+This pass inserts barriers to impose simple linear execution in IR order.
     }];
 
     let constructor = "vpux::VPUIP::createAddLinearSchedulingPass()";

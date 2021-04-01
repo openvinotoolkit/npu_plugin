@@ -1,6 +1,6 @@
 // RUN: vpux-translate --export-VPUIP -o %t %s && flatc --raw-binary --json %vpuip_schema_file% -- %t && FileCheck %s --input-file %basename_t.json
 
-module @Test attributes {VPUIP.arch = "MA2490"} {
+module @Test attributes {VPUIP.arch = "VPU3400_A0"} {
 
 IERT.RunTimeResources
     availableMemory : {
@@ -45,7 +45,7 @@ IE.CNNNetwork
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
-    %1 = VPUIP.ConfigureBarrier <0> -> !VPUIP.Barrier
+    %1 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
     VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) updates(%1 : !VPUIP.Barrier)
     VPUIP.UPADMA inputs(%0 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%1 : !VPUIP.Barrier)
     return

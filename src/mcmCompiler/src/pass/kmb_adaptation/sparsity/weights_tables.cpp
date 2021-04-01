@@ -408,6 +408,7 @@ void populateActivationStorageElementMap(
     mv::Data::OpListIterator op,
     mv::ComputationModel& model)
 {
+    mv::OpModel om(model);
 
     using clusterSolverFunc =
         std::function<mv::Tensor*(
@@ -428,6 +429,26 @@ void populateActivationStorageElementMap(
         }
     };
 
+    const auto getTensorAddress =
+        [&om](const mv::Tensor* tensor,
+           const mv::Data::OpListIterator& opIt,
+           const size_t inputTensorIdx,
+           const clusterSolverFunc clSolver,
+           const size_t clIdx) {
+        if (tensor->hasAttr("address") || tensor->hasAttr("sliceAddress"))
+            return tensor->hasAttr("sliceAddress") ? tensor->get<std::size_t>("sliceAddress") : tensor->getAddress();
+
+        const auto parentOp = om.getSourceOp(opIt->getInputTensor(inputTensorIdx));
+        if (parentOp->getOpType() == "Align" || parentOp->getOpType() == "Crop" || (parentOp->getOpType() == "Copy" &&
+            parentOp->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") ==
+            parentOp->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location"))) {
+            const auto parentInput = clSolver(parentOp, 0, clIdx);
+            return parentInput->hasAttr("address") ? parentInput->getAddress() : parentInput->get<std::size_t>("sliceAddress");
+        }
+
+        throw std::runtime_error("Input tensor of " + opIt->getName() + " does not have an address.");
+    };
+
     const std::unordered_map<std::string, displacementCalcFunc> displacementFunctors =
     {
         {
@@ -446,14 +467,14 @@ void populateActivationStorageElementMap(
         },
         {
             "Eltwise",
-            [](mv::Data::OpListIterator op1,
+            [&getTensorAddress](mv::Data::OpListIterator op1,
                 size_t inputTensorIdx,
                 clusterSolverFunc clSolver,
                 size_t clIdx){
                 auto in0 = clSolver(op1, 0, clIdx);
                 auto in1 = clSolver(op1, 1, clIdx);
-                auto in0_addr = in0->hasAttr("address") ? in0->getAddress() : in0->get<std::size_t>("sliceAddress");
-                auto in1_addr = in1->hasAttr("address") ? in1->getAddress() : in1->get<std::size_t>("sliceAddress");
+                auto in0_addr = getTensorAddress(in0, op1, 0, clSolver, clIdx);
+                auto in1_addr = getTensorAddress(in1, op1, 1, clSolver, clIdx);
                 auto base_addr =std::min(
                     in0_addr,
                     in1_addr);
@@ -518,6 +539,9 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::OpListIt
 {
     auto input = dpuTaskOp->getInputTensor(0);
     auto subConvIndex = dpuTaskOp->get<unsigned>("subConvIndex");
+    if ((dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex")).empty())
+        throw mv::RuntimeError("populateActivationStorageElementMapForDilatedConvolution" , dpuTaskOp->getName() + " has no storageElementIndex attr to populate");
+        
     auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->
                                             get<std::vector<std::size_t>>("storageElementIndex")[0]);
     auto dilationFactor = dpuTaskOp->get<unsigned>("originalDilationFactor");
@@ -544,6 +568,44 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::OpListIt
             unpopulated_offsets[i++] = ((rowOffset + w * subConvElementIncrement ) << SHIFT_FOR_STORAGE_ELEMENT);
         }
         rowOffset += subConvRowIncrement;
+    }
+    activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
+}
+
+// Sub function to generate storage element pointer for InterpNN
+
+void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel&)
+{
+    auto input = dpuTaskOp->getInputTensor(0);
+    auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->
+                                            get<std::vector<std::size_t>>("storageElementIndex")[0]);
+
+    auto width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
+    auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
+    std::vector<int64_t> unpopulated_offsets(width*height, 0);
+
+    auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
+    long int channelIncrement = inputChannels * (input->getDType().getSizeInBits() / 8) ;
+
+    auto originalShape = activationStorageElement->get<mv::Shape>("originalShape");
+    auto old_width = originalShape[mv::IO_WIDTH_DIMENSION];
+    auto old_height = originalShape[mv::IO_HEIGHT_DIMENSION];
+    auto new_width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
+    auto new_height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
+    auto scale_factor_width = int(new_width/old_width);
+    auto scale_factor_height = int(new_height/old_height);
+
+    // Populate SEP table
+    for (auto row=0; row < int(new_height / scale_factor_height); ++row){
+        for (auto col=0; col < int(new_width / scale_factor_width); ++col){
+            auto old_offset = (row*old_width + col) * channelIncrement;
+            for (auto new_row=0; new_row < scale_factor_height; ++new_row){
+                for (auto new_col=0; new_col < scale_factor_width; ++new_col){
+                    auto new_offset = row*new_width*scale_factor_height + new_row*new_width + col*scale_factor_width + new_col;
+                    unpopulated_offsets[new_offset] = (old_offset << SHIFT_FOR_STORAGE_ELEMENT);
+                }
+            }
+        }
     }
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
 }
@@ -776,6 +838,13 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
                     && op->get<bool>("activationSparsityCompilerSolvingForDilatedConv"))
             {
                 populateActivationStorageElementMapForDilatedConvolution(op, model);
+            }
+
+            // New logic for generating SEP for InterpNN
+            if(op->hasAttr("activationSparsityCompilerSolvingForInterpNN")
+                    && op->get<bool>("activationSparsityCompilerSolvingForInterpNN"))
+            {
+                populateActivationStorageElementMapForInterpNN(op, model);
             }
         }
     }

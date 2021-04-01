@@ -21,9 +21,9 @@ using namespace vpux;
 MemShape vpux::subspace::getCoord(MemShapeRef dims, int64_t numSections) {
     MemShape subspaceCoord(dims.size());
 
-    for (const auto& p : dims | indexed) {
-        const auto d = MemDim(p.index());
-        const auto dimVal = p.value();
+    for (const auto& index : irange(dims.size()) | reversed) {
+        const auto d = MemDim(index);
+        const auto dimVal = dims[d];
 
         const auto nUpSubspace = numSections / dimVal;
         subspaceCoord[d] = numSections - nUpSubspace * dimVal;
@@ -42,9 +42,9 @@ Bit vpux::subspace::getOffset(MemShapeRef subspaceCoord, MemStridesRef strides, 
     }
 
     Bit offset(0);
-    for (const auto& p : subspaceCoord | indexed) {
-        const auto d = MemDim(p.index());
-        const auto coord = p.value();
+    for (const auto& index : irange(subspaceCoord.size()) | reversed) {
+        const auto d = MemDim(index);
+        const auto coord = subspaceCoord[d];
 
         if (broadcast.empty() || !broadcast[d.ind()]) {
             offset = offset + coord * strides[d];
@@ -55,9 +55,9 @@ Bit vpux::subspace::getOffset(MemShapeRef subspaceCoord, MemStridesRef strides, 
 }
 
 void vpux::subspace::increment1Coord(MemShape& subspaceCoord, MemShapeRef dims) {
-    for (auto& p : subspaceCoord | indexed) {
-        const auto d = MemDim(p.index());
-        auto& coord = p.value();
+    for (const auto& index : irange(subspaceCoord.size()) | reversed) {
+        const auto d = MemDim(index);
+        auto& coord = subspaceCoord[d];
 
         if (coord < dims[d] - 1) {
             ++coord;
@@ -69,9 +69,9 @@ void vpux::subspace::increment1Coord(MemShape& subspaceCoord, MemShapeRef dims) 
 }
 
 void vpux::subspace::incrementNCoord(MemShape& subspaceCoord, MemShapeRef dims, int64_t inc) {
-    for (auto& p : subspaceCoord | indexed) {
-        const auto d = MemDim(p.index());
-        auto& coord = p.value();
+    for (const auto& index : irange(subspaceCoord.size()) | reversed) {
+        const auto d = MemDim(index);
+        auto& coord = subspaceCoord[d];
 
         inc += coord;
         coord = inc % dims[d];
@@ -81,9 +81,9 @@ void vpux::subspace::incrementNCoord(MemShape& subspaceCoord, MemShapeRef dims, 
 }
 
 void vpux::subspace::incrementLine(MemShape& lineCoord, MemShapeRef dims, MemDim axis) {
-    for (auto& p : lineCoord | indexed) {
-        const auto d = MemDim(p.index());
-        auto& coord = p.value();
+    for (const auto& index : irange(lineCoord.size()) | reversed) {
+        const auto d = MemDim(index);
+        auto& coord = lineCoord[d];
 
         if (d != axis) {
             if (coord < dims[d] - 1) {
@@ -97,9 +97,9 @@ void vpux::subspace::incrementLine(MemShape& lineCoord, MemShapeRef dims, MemDim
 }
 
 void vpux::subspace::incrementPlane(MemShape& planeCoord, MemShapeRef dims, MemDim axis0, MemDim axis1) {
-    for (auto& p : planeCoord | indexed) {
-        const auto d = MemDim(p.index());
-        auto& coord = p.value();
+    for (const auto& index : irange(planeCoord.size()) | reversed) {
+        const auto d = MemDim(index);
+        auto& coord = planeCoord[d];
 
         if (d != axis0 && d != axis1) {
             if (coord < dims[d] - 1) {
@@ -124,9 +124,9 @@ MemShape vpux::subspace::getSizes(MemShapeRef subspaceDims) {
     MemShape subspaceSizes(subspaceDims.size());
 
     int64_t totalSubspaces = 1;
-    for (const auto& p : subspaceDims | indexed) {
-        const auto d = MemDim(p.index());
-        const auto dimVal = p.value();
+    for (const auto& index : irange(subspaceDims.size()) | reversed) {
+        const auto d = MemDim(index);
+        const auto dimVal = subspaceDims[d];
 
         subspaceSizes[d] = totalSubspaces;
         totalSubspaces *= dimVal;

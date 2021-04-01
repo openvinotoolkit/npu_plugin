@@ -208,8 +208,10 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/ppe_replacement.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/concat_as_implicit.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/resample_as_implicit.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/reshape_as_implicit.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/permute_as_implicit.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_implicitOps.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/update_implicit_layers_quatization_params.cpp"
 
 
@@ -287,7 +289,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/cmx_concat_transform.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/pipeline_transform.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_dmas_from_concat.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/recompute_implicit_memory_locations.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/recompute_implicit_attributes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/pipeline_across_parallel_branches.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/mem_context_huge_activation_transform.cpp"
 

@@ -195,6 +195,22 @@ static mv::QuantizationParams computeAlignedQuantParams(mv::Data::OpListIterator
     return {{zeroPoint},{masterScale},{minConcatScale},{maxConcatScale}};
 }
 
+void propagateThroughImplicitChildren(mv::DataModel& dm, const mv::Data::OpListIterator& opIt, const mv::QuantizationParams& quantParams)
+{
+    if (opIt->outputSlots() > 1)
+        return;
+
+    opIt->getOutputTensor(0)->setQuantParams(quantParams);
+
+    auto childOps = mv::findSinkLayers(dm, opIt->getOutputTensor(0));
+    for (auto& childOp : childOps) {
+        if (childOp->getOpType() == "Output" || childOp->getOpType() == "ImplicitOutput")
+            continue;
+        if (childOp->isImplicit())
+            propagateThroughImplicitChildren(dm, childOp, quantParams);
+    }
+}
+
 void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -243,7 +259,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterQuant.getScale()[0], masterQuant.getZeroPoint()[0]);
             }
-            concatIt->getOutputTensor(0)->setQuantParams(masterQuant);
+            propagateThroughImplicitChildren(dm, concatIt, masterQuant);
         }
     }
     markCompensatedConcats(childConcats);
@@ -259,7 +275,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 double weightScale = 1.0f;
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterQuant.getScale()[0], masterQuant.getZeroPoint()[0]);
             }
-            concatIt->getOutputTensor(0)->setQuantParams(masterQuant);
+            propagateThroughImplicitChildren(dm, concatIt, masterQuant);
         }
     }
 }
@@ -267,26 +283,40 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
 void computeQuantMultShift(
     std::vector<float>& scale,
     std::vector<unsigned>& shift,
-    std::vector<unsigned>& mult)
+    std::vector<unsigned>& mult,
+    signed& postshift,
+    const unsigned actualScaleSize)
 {
     //TODO need to handle 16bits case - per Alessandro bias need to be converted to int32
     auto bits = 15;
     auto scaleSize = scale.size();
     int exponent;
     double mantissa;
+    std::vector<signed> postShifts(actualScaleSize, 0);
 
     {
         for (size_t i = 0; i < scaleSize; i++)
         {
             mantissa = std::frexp(scale[i], &exponent);
+            if (i < actualScaleSize && exponent > bits) {
+                postShifts[i] = (exponent - bits);
+                exponent -= postShifts[i];
+            }
             shift[i] = bits - exponent;
             mult[i] = (mantissa * pow(2, bits));
         }
     }
+
+    // TODO: Add support for different channel scales and compensate through mult and shift
+    if (std::adjacent_find(postShifts.begin(), postShifts.end(), std::not_equal_to<>()) != postShifts.end())
+        throw mv::RuntimeError("computeQuantMultShift", "Different PSHIFT values for channels are not supported");
+
+    postshift -= postShifts[0];
 }
 
 void updatePWLQuantParams(mv::Data::OpListIterator& op,
-    std::vector<float>& inputScale) {
+    std::vector<float>& inputScale,
+    const unsigned actualOutputChannels) {
 
     if(!op->hasAttr("pwlQuantParams"))
         return;
@@ -311,10 +341,12 @@ void updatePWLQuantParams(mv::Data::OpListIterator& op,
 
     std::vector<unsigned> reQuantShift(quantSize, 0);
     std::vector<unsigned> reQuantMult(quantSize, 1);
+    auto postShift = pwlQuant.getPostShift();
 
-    computeQuantMultShift(reQuantScale, reQuantShift, reQuantMult);
+    computeQuantMultShift(reQuantScale, reQuantShift, reQuantMult, postShift, actualOutputChannels);
 
     op->get<mv::QuantizationParams>("pwlQuantParams").quantize(reQuantShift, reQuantMult);
+    op->get<mv::QuantizationParams>("pwlQuantParams").setPostShift(postShift);
 }
 
 void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
@@ -355,8 +387,8 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                 auto inputDType = opIt->getInputTensor(0)->getDType();
                 floatScaleTable = inputDType == mv::DType("Float16") || inputDType == mv::DType("BFloat16");
             }
-            auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-            outputChannels = mv::round_up(outputChannels, 16);
+            const auto actualOutputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+            auto outputChannels = mv::round_up(actualOutputChannels, 16);
 
             std::vector<unsigned> shift(outputChannels, 0);
             std::vector<unsigned> mult(outputChannels, 0);
@@ -382,6 +414,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                 std::vector <int64_t> zeroPoint(outputChannels, 0);
                 bool outputOfAccWithBias = true;
                 mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
+                signed outputPostShift = outputQuantization.getPostShift();
                 if (!(output->hasAttr("dType") && output->getDType() == mv::DType("Int32")))
                 {
                     //NOTE: Here I compute all the quantization parameters like they should be
@@ -443,6 +476,8 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                     auto& input2Quantization = input2->get<mv::QuantizationParams>("quantParams");
                     auto input1Scale = extendToK(outputChannels, inputQuantization.getScale(), input->getName());
                     auto input2Scale = extendToK(outputChannels, input2Quantization.getScale(), input2->getName());
+                    auto input1PostShift = inputQuantization.getPostShift();
+                    auto input2PostShift = inputQuantization.getPostShift();
                     std::vector<unsigned> shift(outputChannels, 0);
                     std::vector<unsigned> mult(outputChannels, 0);
                     if (std::fabs(input1Scale[0] - input2Scale[0]) > std::numeric_limits<double>::epsilon())
@@ -459,10 +494,12 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                                     std::vector <float> scale2Adjusted(outputChannels);
 
                                     std::transform(input2Scale.begin(), input2Scale.end(), input1Scale.begin(), scale2Adjusted.begin(), std::divides<double>());
-                                    computeQuantMultShift(scale2Adjusted, shift, mult);
+                                    computeQuantMultShift(scale2Adjusted, shift, mult, input2PostShift, actualOutputChannels);
                                     input2->set<std::vector<unsigned>>("preAdjustedShift", input2Quantization.getShift());
                                     input2->set<std::vector<unsigned>>("preAdjustedMult", input2Quantization.getMult());
+                                    input2->set<signed>("preAdjustedPostShift", input2Quantization.getPostShift());
                                     input2Quantization.quantize(shift, mult);
+                                    input2Quantization.setPostShift(input2PostShift);
 
                                     input->set<std::vector<unsigned>>("preAdjustedShift", inputQuantization.getShift());
                                     input->set<std::vector<unsigned>>("preAdjustedMult", inputQuantization.getMult());
@@ -473,11 +510,13 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                             {
                                     std::vector <float> scale1Adjusted(outputChannels);
                                     std::transform(input1Scale.begin(), input1Scale.end(), input2Scale.begin(), scale1Adjusted.begin(), std::divides<double>());
-                                    computeQuantMultShift(scale1Adjusted, shift, mult);
+                                    computeQuantMultShift(scale1Adjusted, shift, mult, input1PostShift, actualOutputChannels);
                                     //save old values for weightsTable calculations
                                     input->set<std::vector<unsigned>>("preAdjustedShift", inputQuantization.getShift());
                                     input->set<std::vector<unsigned>>("preAdjustedMult", inputQuantization.getMult());
+                                    input->set<signed>("preAdjustedPostShift", inputQuantization.getPostShift());
                                     inputQuantization.quantize(shift, mult);
+                                    inputQuantization.setPostShift(input1PostShift);
 
                                     input2->set<std::vector<unsigned>>("preAdjustedShift", input2Quantization.getShift());
                                     input2->set<std::vector<unsigned>>("preAdjustedMult", input2Quantization.getMult());
@@ -507,7 +546,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                     }
                 }
 
-                updatePWLQuantParams(opIt, m);
+                updatePWLQuantParams(opIt, m, actualOutputChannels);
 
                 // m / S3
                 std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
@@ -523,14 +562,15 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                     }
                 }
                 else
-                    computeQuantMultShift(m, shift, mult);
+                    computeQuantMultShift(m, shift, mult, outputPostShift, actualOutputChannels);
 
                 outputQuantization.quantize(shift, mult);
+                outputQuantization.setPostShift(outputPostShift);
 
                 // Custom PWL table, supports only Leaky Relu at this point
                 if (opIt->hasAttr("postOpTypes"))
                 {
-                    signed postShift = 0;
+                    signed postShift = outputQuantization.getPostShift();
                     // TODO: post_shift of 4 is just the current computed value for the sole
                     // case of leaky relu done in PWL, need to provide a path from target descritptor
                     // to pass logic to parametrize each custom PWL table entries.

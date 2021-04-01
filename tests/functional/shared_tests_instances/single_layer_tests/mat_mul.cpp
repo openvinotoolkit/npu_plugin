@@ -10,11 +10,36 @@
 namespace LayerTestsDefinitions {
     class KmbMatMulLayerTest : public MatMulTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
         void SkipBeforeLoad() override {
+            InferenceEngine::Precision netPrecision;
+            InferenceEngine::Precision inPrc, outPrc;
+            InferenceEngine::Layout inLayout;
+            ShapeRelatedParams shapeRelatedParams;
+            ngraph::helpers::InputLayerType secondaryInputType;
+            std::string targetDevice;
+            std::map<std::string, std::string> additionalConfig;
+            std::tie(shapeRelatedParams, netPrecision, inPrc, outPrc, inLayout, secondaryInputType, targetDevice, additionalConfig) =
+                    GetParam();
+
             if (isCompilerMCM()) {
-                throw LayerTestsUtils::KmbSkipTestException("Issues with MCM compiler");
+                if (shapeRelatedParams.input1.first == InferenceEngine::SizeVector({1, 16})) {
+                    throw LayerTestsUtils::KmbSkipTestException("Unsupported MCM case");
+                }
+            } else {
+                if (shapeRelatedParams.input1.first == InferenceEngine::SizeVector({1, 2048})) {
+                    throw LayerTestsUtils::KmbSkipTestException("Unsupported MLIR case");
+                }
+            }
+        }
+        void SkipBeforeValidate() override {
+            if (isCompilerMCM()) {
+                throw LayerTestsUtils::KmbSkipTestException("comparison fails");
             }
         }
     };
+
+    TEST_P(KmbMatMulLayerTest, CompareWithRefs) {
+        Run();
+    }
 
     TEST_P(KmbMatMulLayerTest, CompareWithRefs_MLIR) {
 	useCompilerMLIR();
@@ -44,6 +69,14 @@ namespace {
     std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
             ngraph::helpers::InputLayerType::CONSTANT,
             ngraph::helpers::InputLayerType::PARAMETER,
+    };
+
+    const std::vector<ShapeRelatedParams> shapeRelatedParams_kpi_mcm = {
+            { { {1, 2048}, false }, { {1000, 2048}, true } },
+    };
+
+    std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes_kpi_mcm = {
+            ngraph::helpers::InputLayerType::CONSTANT,
     };
 
     std::map<std::string, std::string> additional_config = {};
@@ -86,5 +119,17 @@ namespace {
         KmbMatMulLayerTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_MatMul_to_FC_case, KmbMatMulLayerTest, fullyConnectedCase, KmbMatMulLayerTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_MatMul_kpi_mcm, KmbMatMulLayerTest,
+        ::testing::Combine(
+            ::testing::ValuesIn(shapeRelatedParams_kpi_mcm),
+            ::testing::ValuesIn(inputPrecisions),
+            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Layout::ANY),
+            ::testing::ValuesIn(secondaryInputTypes_kpi_mcm),
+            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+            ::testing::Values(additional_config)),
+        KmbMatMulLayerTest::getTestCaseName);
 
 } // namespace

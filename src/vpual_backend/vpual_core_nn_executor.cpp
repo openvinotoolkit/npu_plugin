@@ -28,7 +28,6 @@
 #include <map>
 #include <utility>
 #include <vector>
-#include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/enums.hpp>
 
@@ -448,7 +447,7 @@ static uint8_t* setPrefetchHelper(const std::shared_ptr<NnCorePlg>& nnCorePtr,
 }
 
 const static vpu::EnumSet<InferenceEngine::VPUXConfigParams::VPUXPlatform> platformsWithCSRAM = {
-    InferenceEngine::VPUXConfigParams::VPUXPlatform::MA3100,
+    InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900,
 };
 }  // namespace
 #endif
@@ -603,40 +602,21 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
 #endif
 }
 
-static ie::Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(const ie::Blob::Ptr& blob,
-    const ie::Layout& srcLayout, const ie::Layout& dstLayout, const VpusmmAllocator::Ptr& allocator) {
+static ie::MemoryBlob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
+        const ie::MemoryBlob::Ptr& blob, ie::Layout srcLayout, ie::Layout dstLayout,
+        const VpusmmAllocator::Ptr& allocator) {
     if (blob->getTensorDesc().getDims()[1] != 3) {
         IE_THROW() << "reallocateBlobToLayoutIgnoringOriginalLayout works only with channels == 3";
     }
 
+    const auto blobMem = blob->rmap();
+
     // it would be nicer to construct srcTensorDesc from tensorDesc of blob
     // and then call srcTensorDesc.setLayout(srcLayout) but copyBlob does work in that case
     ie::TensorDesc srcTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), srcLayout};
-    ie::Blob::Ptr srcBlob = make_blob_with_precision(srcTensorDesc, blob->buffer());
-    ie::TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), dstLayout};
-    ie::Blob::Ptr dstBlob = make_blob_with_precision(dstTensorDesc, allocator);
-    if (dstBlob == nullptr) {
-        IE_THROW()
-            << "reallocateBlobToLayoutIgnoringOriginalLayout: can't make_blob_with_precision with given params";
-    }
-    dstBlob->allocate();
+    const auto srcBlob = makeBlob(srcTensorDesc, nullptr, blobMem.as<void*>());
 
-    vpu::copyBlob(srcBlob, dstBlob);
-    return dstBlob;
-}
-
-static ie::Blob::Ptr reallocateBlobToLayout(
-    const ie::Blob::Ptr& blob, const ie::Layout& layout, const VpusmmAllocator::Ptr& allocator) {
-    ie::TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout};
-    ie::Blob::Ptr kmbBlob = make_blob_with_precision(dstTensorDesc, allocator);
-    if (kmbBlob == nullptr) {
-        IE_THROW() << "reallocateBlobToLayout: can't make_blob_with_precision with given params";
-    }
-    kmbBlob->allocate();
-
-    vpu::copyBlob(blob, kmbBlob);
-
-    return kmbBlob;
+    return toLayout(srcBlob, dstLayout, allocator);
 }
 
 static bool needRepackForNHWC(const ie::TensorDesc& actualDesc) {
@@ -666,18 +646,22 @@ static bool needRepackForNHWC(const ie::TensorDesc& actualDesc) {
 }
 
 ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
-    const ie::Blob::Ptr& actualInput, const ie::TensorDesc& deviceDesc) {
+        const ie::Blob::Ptr& actualInput, const ie::TensorDesc& deviceDesc) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "prepareInputForInference");
 
-    ie::Blob::Ptr inputForInference = actualInput;
     const auto& actualDesc = actualInput->getTensorDesc();
     const auto& actualInputPrecision = actualDesc.getPrecision();
+
     const auto& devicePrecision = deviceDesc.getPrecision();
+    const auto& deviceLayout = deviceDesc.getLayout();
+
+    auto inputForInference = ie::as<ie::MemoryBlob>(actualInput);
+
     if (actualInputPrecision != devicePrecision) {
         _logger->warning("Input blob is inconsistent with network input. "
                          "Need to do convert precision from %d to %d.",
                          actualInputPrecision, devicePrecision);
-        inputForInference = toPrecision(ie::as<ie::MemoryBlob>(actualInput), devicePrecision, _allocator);
+        inputForInference = toPrecision(inputForInference, devicePrecision, _allocator);
     }
 
     // HACK: to overcome inability python API to pass a blob of NHWC layout
@@ -689,28 +673,22 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(
 
     if (!isBlobAllocatedByAllocator(inputForInference, _allocator)) {
         _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
-        auto inputForInferenceReAlloc = reallocateBlob(ie::as<ie::MemoryBlob>(inputForInference), _allocator);
-        inputForInference = inputForInferenceReAlloc;
+        inputForInference = copyBlob(inputForInference, _allocator);
     }
-
-    const auto& deviceLayout = deviceDesc.getLayout();
 
     if (needRepackForNHWC(actualDesc) && deviceLayout == ie::Layout::NHWC) {
         _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
+
         // NB: It's possible to make repack data only with the same number of dimensions
         // So just make a view without any copy
-        const auto outputMemoryBlob = ie::as<ie::MemoryBlob>(inputForInference);
-        IE_ASSERT(outputMemoryBlob != nullptr);
-        const auto outputMemory = outputMemoryBlob->rmap();
-        IE_ASSERT(outputMemory != nullptr);
-        const auto outputPtr = outputMemory.as<void*>();
-        IE_ASSERT(outputPtr != nullptr);
-        ie::Blob::Ptr actualView4D = make_blob_with_precision(vpu::getNCHW(inputForInference->getTensorDesc()), outputPtr);
-        inputForInference = reallocateBlobToLayout(actualView4D, deviceLayout, _allocator);
+        const auto inMem = inputForInference->rmap();
+        const auto actualView4D = makeBlob(vpu::getNCHW(inputForInference->getTensorDesc()), nullptr, inMem.as<void*>());
+        inputForInference = toLayout(actualView4D, deviceLayout, _allocator);
     }
 
     return inputForInference;
 }
+
 void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "push");
@@ -839,43 +817,36 @@ ie::BlobMap VpualCoreNNExecutor::extractOutputsFromPhysAddr(uint32_t physAddr) {
 }
 
 void VpualCoreNNExecutor::repackDeviceOutputsToNetworkOutputs(
-    const ie::BlobMap& deviceOutputs, ie::BlobMap& networkOutputs) {
+        const ie::BlobMap& deviceOutputs, ie::BlobMap& networkOutputs) {
     for (const auto& item : deviceOutputs) {
         const auto& name = item.first;
 
         if (name == "profilingOutput") continue;
 
-        const auto& deviceBlob = item.second;
+        const auto deviceBlob = ie::as<ie::MemoryBlob>(item.second);
         const auto& deviceDesc = deviceBlob->getTensorDesc();
-        const auto& outputBlob = networkOutputs[name];
+
+        const auto outputBlob = ie::as<ie::MemoryBlob>(networkOutputs.at(name));
         const auto& networkDesc = outputBlob->getTensorDesc();
 
-        ie::Blob::Ptr deviceBlobWithNetworkPrecision = nullptr;
         if (deviceDesc.getPrecision() != networkDesc.getPrecision()) {
-            _logger->warning("Output blob is inconsistent with network output. "
-                             "Need to do convert precision from %d to %d.",
+            _logger->warning(
+                "Output blob is inconsistent with network output. Need to do convert precision from %d to %d.",
                 deviceDesc.getPrecision(), networkDesc.getPrecision());
-            deviceBlobWithNetworkPrecision = toPrecision(ie::as<ie::MemoryBlob>(deviceBlob), networkDesc.getPrecision());
-        } else {
-            deviceBlobWithNetworkPrecision = deviceBlob;
         }
 
-        const auto& outputMemoryBlob = ie::as<ie::MemoryBlob>(outputBlob);
-        IE_ASSERT(outputMemoryBlob != nullptr);
-        const auto outputMemory = outputMemoryBlob->rmap();
-        IE_ASSERT(outputMemory != nullptr);
-        const auto outputPtr = outputMemory.as<void*>();
-        IE_ASSERT(outputPtr != nullptr);
+        const auto deviceBlobWithNetworkPrecision = toPrecision(deviceBlob, networkDesc.getPrecision());
+
+        const auto outputMemory = outputBlob->wmap();
         if (needRepackForNHWC(networkDesc) && deviceDesc.getLayout() == ie::Layout::NHWC) {
-            _logger->warning("Output blob is inconsistent with network output."
-                             "Need to do re-layout from %d to %d.",
-                networkDesc.getLayout(), deviceDesc.getLayout());
-            // NB: It's possible to make repack data only with the same number of dimensions
-            // So just make a view without any copy
-            const auto actualView4D = make_blob_with_precision(vpu::getNCHW(networkDesc), outputPtr);
-            vpu::copyBlob(deviceBlobWithNetworkPrecision, actualView4D);
+            _logger->warning(
+                "Output blob is inconsistent with network output. Need to do re-layout from %d to %d.",
+                deviceDesc.getLayout(), networkDesc.getLayout());
+
+            const auto actualView4D = makeBlob(vpu::getNCHW(networkDesc), nullptr, outputMemory.as<void*>());
+            cvtBlobLayout(deviceBlobWithNetworkPrecision, actualView4D);
         } else {
-            vpu::copyBlob(deviceBlobWithNetworkPrecision, deviceDesc.getLayout(), outputPtr);
+            toLayout(deviceBlobWithNetworkPrecision, deviceDesc.getLayout(), nullptr, outputMemory.as<void*>());
         }
     }
 }

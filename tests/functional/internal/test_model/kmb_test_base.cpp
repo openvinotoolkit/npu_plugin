@@ -412,14 +412,16 @@ ExecutableNetwork KmbTestBase::importNetwork(const std::map<std::string, std::st
     IE_ASSERT(!DUMP_PATH.empty());
 
     const auto fileName = vpu::formatString("%v/%v.net", DUMP_PATH, dumpBaseName);
+    std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
+    if (!file.is_open()) {
+        std::stringstream str;
+        str << "importNetwork() failed. Cannot open file " << fileName;
+        throw import_error(str.str());
+    }
 
     if (RAW_EXPORT) {
         return core->ImportNetwork(fileName, DEVICE_NAME, importConfig);
     } else {
-        std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
-        if (!file.is_open())
-            IE_THROW() << "importNetwork() failed. Can't open file " << fileName;
-
         return core->ImportNetwork(file, DEVICE_NAME, importConfig);
     }
 }
@@ -567,35 +569,41 @@ BlobMap KmbTestBase::getInputs(const ExecutableNetwork& testNet) {
 void KmbLayerTestBase::runTest(
         const NetworkBuilder& builder,
         const float tolerance, const CompareMethod method) {
-    if (!RUN_COMPILER || !RUN_REF_CODE) {
-        if (DUMP_PATH.empty()) {
-            SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
+    try {
+        if (!RUN_COMPILER || !RUN_REF_CODE) {
+            if (DUMP_PATH.empty()) {
+                SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
+            }
         }
-    }
 
-    TestNetwork testNet;
-    builder(testNet);
+        TestNetwork testNet;
+        builder(testNet);
 
-    auto exeNet = getExecNetwork(testNet);
+        auto exeNet = getExecNetwork(testNet);
 
-    const auto inputs = getInputs(exeNet);
+        const auto inputs = getInputs(exeNet);
 
-    const auto refOutputs = getRefOutputs(testNet, inputs);
+        const auto refOutputs = getRefOutputs(testNet, inputs);
 
-    // TODO: layer inference for by-pass mode
-    // [Track number: S#48139]
+        // TODO: layer inference for by-pass mode
+        // [Track number: S#48139]
 #ifdef __aarch64__
-    if (RUN_INFER) {
-        std::cout << "=== INFER" << std::endl;
+        if (RUN_INFER) {
+            std::cout << "=== INFER" << std::endl;
 
-        const auto actualOutputs = runInfer(exeNet, inputs, true);
+            const auto actualOutputs = runInfer(exeNet, inputs, true);
 
-        std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
+            std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
 
-        checkWithOutputsInfo(actualOutputs, testNet.getOutputsInfo());
-        compareWithReference(actualOutputs, refOutputs, tolerance, method);
-    }
+            checkWithOutputsInfo(actualOutputs, testNet.getOutputsInfo());
+            compareWithReference(actualOutputs, refOutputs, tolerance, method);
+        }
 #endif
+    }
+    catch (const import_error& ex) {
+        std::cerr << ex.what() << std::endl;
+        SKIP() << ex.what();
+    }
 }
 
 ExecutableNetwork KmbLayerTestBase::getExecNetwork(
@@ -907,71 +915,77 @@ void KmbNetworkTestBase::runTest(
         const TestNetworkDesc& netDesc,
         const InitIntputCallback& inputCallback,
         const CheckCallback& checkCallback) {
-    if (!RUN_COMPILER || !RUN_REF_CODE) {
-        if (DUMP_PATH.empty()) {
-            SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
-        }
-    }
-
-    if (netDesc.isExperimental() && getExperimentalModelsPath().empty()) {
-        SKIP() << "EXPERIMENTAL_MODELS_PATH is not set";
-    }
-
-    auto exeNet = getExecNetwork(netDesc);
-
-    const auto inputsInfo = exeNet.GetInputsInfo();
-    const auto outputsInfo = exeNet.GetOutputsInfo();
-
-    inputCallback(inputsInfo);
-
-    BlobMap inputs;
-    for (const auto& inputInfo : inputsInfo) {
-        const auto& inputName = inputInfo.first;
-        // HACK: to overcome IE bug with incorrect TensorDesc::setLayout
-        const auto& desc = inputInfo.second->getTensorDesc();
-        const auto& inputBlob = vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(getBlobByName(inputName)),
-                                                     desc.getLayout()), desc.getPrecision());
-        inputs.emplace(inputName, inputBlob);
-    }
-
-    BlobMap refOutputBlobs;
-
-    if (RUN_REF_CODE) {
-        std::cout << "=== CALC REFERENCE WITH " << REF_DEVICE_NAME << std::endl;
-        refOutputBlobs = calcRefOutput(netDesc, inputs, netDesc.isLPTRefModeEnabled());
-
-        if (EXPORT_BLOBS) {
-            std::cout << "    === EXPORT REFERENCE" << std::endl;
-            for (const auto& refOutput : refOutputBlobs) {
-                dumpBlob(refOutput.first, vpux::toDefLayout(vpux::toDefPrecision(as<MemoryBlob>(refOutput.second))));
+    try {
+        if (!RUN_COMPILER || !RUN_REF_CODE) {
+            if (DUMP_PATH.empty()) {
+                SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
             }
         }
-    } else if (RUN_INFER) {
-        std::cout << "=== IMPORT REFERENCE" << std::endl;
 
-        for (const auto& outputInfo : outputsInfo) {
-            const auto& outputDims = outputInfo.second->getTensorDesc().getDims();
+        if (netDesc.isExperimental() && getExperimentalModelsPath().empty()) {
+            SKIP() << "EXPERIMENTAL_MODELS_PATH is not set";
+        }
 
-            const auto refOutputTensorDesc = TensorDesc(Precision::FP32, outputDims,
-                                                        TensorDesc::getLayoutByDims(outputDims));
+        auto exeNet = getExecNetwork(netDesc);
 
-            refOutputBlobs.emplace(outputInfo.first, importBlob(outputInfo.first, refOutputTensorDesc));
+        const auto inputsInfo = exeNet.GetInputsInfo();
+        const auto outputsInfo = exeNet.GetOutputsInfo();
+
+        inputCallback(inputsInfo);
+
+        BlobMap inputs;
+        for (const auto& inputInfo : inputsInfo) {
+            const auto& inputName = inputInfo.first;
+            // HACK: to overcome IE bug with incorrect TensorDesc::setLayout
+            const auto& desc = inputInfo.second->getTensorDesc();
+            const auto& inputBlob = vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(getBlobByName(inputName)),
+                                                        desc.getLayout()), desc.getPrecision());
+            inputs.emplace(inputName, inputBlob);
+        }
+
+        BlobMap refOutputBlobs;
+
+        if (RUN_REF_CODE) {
+            std::cout << "=== CALC REFERENCE WITH " << REF_DEVICE_NAME << std::endl;
+            refOutputBlobs = calcRefOutput(netDesc, inputs, netDesc.isLPTRefModeEnabled());
+
+            if (EXPORT_BLOBS) {
+                std::cout << "    === EXPORT REFERENCE" << std::endl;
+                for (const auto& refOutput : refOutputBlobs) {
+                    dumpBlob(refOutput.first, vpux::toDefLayout(vpux::toDefPrecision(as<MemoryBlob>(refOutput.second))));
+                }
+            }
+        } else if (RUN_INFER) {
+            std::cout << "=== IMPORT REFERENCE" << std::endl;
+
+            for (const auto& outputInfo : outputsInfo) {
+                const auto& outputDims = outputInfo.second->getTensorDesc().getDims();
+
+                const auto refOutputTensorDesc = TensorDesc(Precision::FP32, outputDims,
+                                                            TensorDesc::getLayoutByDims(outputDims));
+
+                refOutputBlobs.emplace(outputInfo.first, importBlob(outputInfo.first, refOutputTensorDesc));
+            }
+        }
+
+        if (RUN_INFER) {
+            if (skipInfer) {
+                std::cout << skipMessage << std::endl;
+                return;
+            }
+            std::cout << "=== INFER" << std::endl;
+
+            const auto actualOutputs = runInfer(exeNet, inputs, true);
+
+            std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
+            checkLayouts(actualOutputs,    netDesc.outputLayouts());
+            checkPrecisions(actualOutputs, netDesc.outputPrecisions());
+            checkCallback(actualOutputs, refOutputBlobs, inputsInfo);
         }
     }
-
-    if (RUN_INFER) {
-        if (skipInfer) {
-            std::cout << skipMessage << std::endl;
-            return;
-        }
-        std::cout << "=== INFER" << std::endl;
-
-        const auto actualOutputs = runInfer(exeNet, inputs, true);
-
-        std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
-        checkLayouts(actualOutputs,    netDesc.outputLayouts());
-        checkPrecisions(actualOutputs, netDesc.outputPrecisions());
-        checkCallback(actualOutputs, refOutputBlobs, inputsInfo);
+    catch (const import_error& ex) {
+        std::cerr << ex.what() << std::endl;
+        SKIP() << ex.what();
     }
 }
 
@@ -1973,7 +1987,7 @@ void KmbSuperResNetworkTest::runTest(
       IE_ASSERT(inputsDesc.size() == 3);
       IE_ASSERT(actualBlobs.size() == 3);
       IE_ASSERT(actualBlobs.size() == refBlobs.size());
-      
+
       auto actualBlob = actualBlobs.begin()->second;
       auto refBlob    = refBlobs.begin()->second;
 
@@ -2020,6 +2034,6 @@ void KmbSuperResNetworkTest::runTest(
                     return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
                 });
             };
-      
+
     KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
 }

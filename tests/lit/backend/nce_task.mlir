@@ -3,7 +3,7 @@
 #NHWC = affine_map<(n, c, h, w) -> (n, h, w, c)>
 #OXYI = affine_map<(o, i, x, y) -> (o, x, y, i)>
 
-module @Test attributes {VPUIP.arch = "MA2490"} {
+module @Test attributes {VPUIP.arch = "VPU3400_A0"} {
 
 IERT.RunTimeResources
     availableMemory : {
@@ -107,8 +107,8 @@ func @main(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">, %out
     // Barriers
     //
 
-    %0 = VPUIP.ConfigureBarrier <0> -> !VPUIP.Barrier
-    %1 = VPUIP.ConfigureBarrier <1> -> !VPUIP.Barrier
+    %0 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+    %1 = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
 
     //
     // DMAs

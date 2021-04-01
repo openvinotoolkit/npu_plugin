@@ -15,7 +15,7 @@ static void cropOrPadFinalOutputFunc(const mv::pass::PassEntry& pass, mv::Comput
 static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::TensorIterator biasTensor, unsigned biasTensorSizePadded, mv::DataModel dm);
 static void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt);
+static mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt, bool keepSinkOutputShape);
 static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels);
 void alignInputForChannelMajorConvolution(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -153,7 +153,7 @@ void cropOrPadFinalOutputFunc(const mv::pass::PassEntry& , mv::ComputationModel&
         if (parentOpIt->getOpType() == "Crop")
         {
             auto cropParentOpIt = om.getSourceOp(parentOpIt->getInputTensor(0));
-            fuseCropAlign(cropParentOpIt, cropParentOpIt->getOutputTensor(0), om, parentOpIt);
+            fuseCropAlign(cropParentOpIt, cropParentOpIt->getOutputTensor(0), om, parentOpIt, /*keepSinkOutputShape=*/false);
         }
     }
     else
@@ -172,7 +172,7 @@ void cropOrPadFinalOutputFunc(const mv::pass::PassEntry& , mv::ComputationModel&
 
 }
 
-mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt)
+mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt, bool keepSinkOutputShape=false)
 {
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
@@ -190,6 +190,7 @@ mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::
         om.removeOp(paramOp);
     }
 
+    auto new_shape = opIt->getOutputTensor(0)->getShape();
     om.removeOp(opIt);
     opIt = parentOpIt;
 
@@ -198,6 +199,10 @@ mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::
         opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
         om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
     }
+
+    // For ImplicitResample, the Align is optimized-away, but the Align's output shape must remain
+    if (keepSinkOutputShape)
+        opIt->getOutputTensor(0)->setShape(new_shape);
 
     return opIt;
 }
@@ -229,6 +234,22 @@ void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel&
                 sink->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == outputLocation)
             {
                 fuseCropAlign(parentOpIt, parentOpIt->getOutputTensor(0), om, sink);
+            }
+            else if (opType == "ImplicitResample")
+            {
+                auto sink_flows = sink->getOutputTensor(0)->get<std::set<std::string>>("flows");
+                for (auto& flowStr : sink_flows)
+                {
+                    auto flow = om.getDataFlow(flowStr);
+                    if (flow.sink()->getOpType() == "Align")
+                    {
+                        removeCrop = false;
+                        // First remove Crop before ImplicitResample
+                        fuseCropAlign(parentOpIt, parentOpIt->getOutputTensor(0), om, layer);
+                        // Then remove Align after ImplicitResample, keeping the aligned output shape
+                        fuseCropAlign(sink, sink->getOutputTensor(0), om, flow.sink(), /*keepSinkOutputShape=*/true);
+                    }
+                }
             }
             else
             {
