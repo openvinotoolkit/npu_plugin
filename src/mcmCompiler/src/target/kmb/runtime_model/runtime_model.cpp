@@ -547,6 +547,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName, tensorLocation);
     toBuild->data_dtype = convertDtype(t->getDType());
 
+    if (t->hasAttr("base_ptrs"))
+        toBuild->base_ptrs = t->get<std::vector<unsigned short>>("base_ptrs");
+
     // could also be t->hasAttr("quantizationParameters")
     // but in my opinion quantization for a tensor of floats makes very little sense
     // leaving this comment here for future generations
@@ -868,6 +871,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName, tensorLocation);
     toBuild->data_dtype = convertDtype(t->getDType());
+
+    if (t->hasAttr("base_ptrs"))
+        toBuild->base_ptrs = t->get<std::vector<unsigned short>>("base_ptrs");
 
     // could also be t->hasAttr("quantizationParameters")
     // but in my opinion quantization for a tensor of floats makes very little sense
@@ -1928,6 +1934,55 @@ void mv::RuntimeModel::updatePWLTaskT(std::unique_ptr<MVCNN::NCEInvariantFieldsT
     toBuild->parent_output_tensor->quant_post_shift_right = quantPostShift;
 }
 
+void mv::RuntimeModel::specializeBasePtrs(const mv::Control::OpListIterator& opIt, std::unique_ptr<MVCNN::NCEInvariantFieldsT>& toBuild, const unsigned int clusterId, const unsigned int maxClusters)
+{
+    if (!opIt->hasAttr("inputActivationSparsity") || !opIt->get<bool>("inputActivationSparsity"))
+    {
+        toBuild->input_data->base_ptrs.clear();
+        if (opIt->hasAttr("taskOp") && opIt->get<std::string>("taskOp") == "Eltwise")
+            toBuild->weights_data->base_ptrs.clear();
+    }
+    else if (opIt->hasAttr("taskOp") && opIt->get<std::string>("taskOp") == "Eltwise")
+    {
+        if (opIt->getInputTensor(0)->hasAttr("base_ptrs") && opIt->getInputTensor(1)->hasAttr("base_ptrs"))
+        {
+            const auto firstInputBasePtrs = opIt->getInputTensor(0)->get<std::vector<unsigned short>>("base_ptrs");
+            toBuild->input_data->base_ptrs = std::vector<unsigned short>(maxClusters, 0);
+            toBuild->input_data->base_ptrs[0] = firstInputBasePtrs[clusterId];
+
+            const auto secondInputBasePtrs = opIt->getInputTensor(1)->get<std::vector<unsigned short>>("base_ptrs");
+            toBuild->weights_data->base_ptrs = std::vector<unsigned short>(maxClusters, 0);
+            toBuild->weights_data->base_ptrs[1] = secondInputBasePtrs[clusterId];
+        }
+        else
+            Logger::log(mv::Logger::MessageType::Warning, "RuntimeModel",
+                "Sparse Eltwise (" + opIt->getName() + ") needs base_ptrs for both inputs");
+    }
+    else if (!opIt->hasAttr("is_segmented") || !opIt->get<bool>("is_segmented"))
+    {
+        if (opIt->getInputTensor(0)->hasAttr("base_ptrs"))
+        {
+            const auto basePtrs = opIt->getInputTensor(0)->get<std::vector<unsigned short>>("base_ptrs");
+            toBuild->input_data->base_ptrs = std::vector<unsigned short>(maxClusters, 0);
+            toBuild->input_data->base_ptrs[0] = basePtrs[clusterId];
+        }
+    }
+
+    if (!opIt->hasAttr("outputActivationSparsity") || !opIt->get<bool>("outputActivationSparsity"))
+    {
+        toBuild->output_data->base_ptrs.clear();
+    }
+    else
+    {
+        if (opIt->getOutputTensor(0)->hasAttr("base_ptrs"))
+        {
+            const auto basePtrs = opIt->getOutputTensor(0)->get<std::vector<unsigned short>>("base_ptrs");
+            toBuild->output_data->base_ptrs = std::vector<unsigned short>(maxClusters, 0);
+            toBuild->output_data->base_ptrs[clusterId] = basePtrs[clusterId];
+        }
+    }
+}
+
 std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
@@ -2015,14 +2070,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
         adaptFakeSparsityIndex(toBuild, opIt);
 
-
-    // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
-    if(opIt->hasAttr("needsODUoffset"))
-    {
-        auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
-        if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
-           toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
-    }
+    if (opIt->hasAttr("is_segmented"))
+        toBuild->is_segmented = opIt->get<bool>("is_segmented");
 
     return toBuild;
 }
@@ -2096,8 +2145,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     auto parentOutputTensor = opIt->getOutputTensor(0);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
 
-
-
     if (opIt->hasAttr("multiCast"))
     {
         if (opIt->get<bool>("multiCast"))
@@ -2114,7 +2161,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             toBuild->output_data->strides = numericStrides;
         }
     }
-
 
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
     toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
@@ -2177,13 +2223,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
              opIt->get<bool>("activationSparsityCompilerSolvingForInterpNN")))
         adaptFakeSparsityIndex(toBuild, opIt);
 
-    // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
-    if(opIt->hasAttr("needsODUoffset"))
-    {
-        auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
-        if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
-            toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
-    }
+    if (opIt->hasAttr("is_segmented"))
+        toBuild->is_segmented = opIt->get<bool>("is_segmented");
 
     return toBuild;
 }
@@ -2387,6 +2428,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             auto toBuild = new MVCNN::NCE2TaskT();
             toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i, splitting);
             toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt, i);
+            specializeBasePtrs(opIt, toBuild->invariant, i);
 
             auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
             auto comp = [](const MVCNN::MPE_Mode &l, const MVCNN::MPE_Mode &r){ return l == r; };
@@ -2411,7 +2453,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             auto toBuild = new MVCNN::NCE2TaskT();
             toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i, splitting);
             toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
-
+            specializeBasePtrs(opIt, toBuild->invariant, i);
 
             auto locale_index = std::vector<unsigned int>(1,i);
             toBuild->invariant->input_data->locale_index = locale_index;

@@ -232,15 +232,4 @@ bool KmbLayerTestsCommon::isCompilerMLIR() const {
     return it->second == VPUX_CONFIG_VALUE(MLIR);
 }
 
-void KmbLayerTestsCommon::disableMcmPasses(const std::vector<std::pair<std::string, std::string>>& banList) {
-    const auto passFold = [](std::string list, const std::pair<std::string, std::string>& pass) {
-        return std::move(list) + pass.first + "," + pass.second + ";";
-    };
-
-    auto configValue = std::accumulate(begin(banList), end(banList), std::string{}, passFold);
-    configValue.pop_back();
-
-    configuration[VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST)] = std::move(configValue);
-}
-
 }  // namespace LayerTestsUtils
