@@ -43,8 +43,6 @@ protected:
     void useCompilerMLIR();
     bool isCompilerMCM() const;
     bool isCompilerMLIR() const;
-
-    void disableMcmPasses(const std::vector<std::pair<std::string, std::string>>& banList);
 };
 
 class KmbSkipTestException: public std::runtime_error {
