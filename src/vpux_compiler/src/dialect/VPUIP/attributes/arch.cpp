@@ -49,7 +49,7 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
     addMem(VPUIP::PhysicalMemory::DDR, 30_MB, 0.6, 8);
     addMem(VPUIP::PhysicalMemory::CMX_UPA, 4_MB, 0.85, 16);
     addMem(VPUIP::PhysicalMemory::CMX_NN, 1_MB, 1.0, 32);
-    if (kind == VPUIP::ArchKind::MA3100) {
+    if (kind == VPUIP::ArchKind::VPU3900) {
         addMem(VPUIP::PhysicalMemory::CSRAM, 24_MB, 0.85, 64);
     }
 
@@ -67,7 +67,7 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
     auto nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 4, true);
     nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
     resources.addExecutor(getDmaKind(DMAEngine::DMA_UPA), 1);
-    if (kind == VPUIP::ArchKind::MA3100) {
+    if (kind == VPUIP::ArchKind::VPU3900) {
         resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
     } else {
         resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 1);

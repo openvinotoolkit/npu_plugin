@@ -3,7 +3,7 @@
 #NHWC = affine_map<(n, c, h, w) -> (n, h, w, c)>
 #OXYI = affine_map<(o, i, x, y) -> (o, x, y, i)>
 
-module @Test attributes {VPUIP.arch = "MA2490"} {
+module @Test attributes {VPUIP.arch = "VPU3400_A0"} {
 
 IERT.RunTimeResources
     availableMemory : {

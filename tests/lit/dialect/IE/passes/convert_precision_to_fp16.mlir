@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --convert-precision-to-fp16 %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3400_A0" --convert-precision-to-fp16 %s | FileCheck %s
 
 //
 // The 'convert-precision-to-fp16' pass:
