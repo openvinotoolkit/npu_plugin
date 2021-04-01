@@ -62,6 +62,7 @@
               "enable_cmx_concat" : true,
               "enable_inplace_eltwise" : true
             },
+            "AssignSEBasePtr",
             {
                 "name" : "RecomputeImplicitOpAttr",
                 "attribute" : "Location"

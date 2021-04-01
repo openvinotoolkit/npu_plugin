@@ -227,13 +227,6 @@ class Pipeline_Chains {
       return op_itr->hasAttr(attr_name);
     }
 
-    template<typename T>
-    bool is_this_dpu_selectable_into_the_chain(T dpu_op) const {
-      // TODO: the logic of compute odu_offset is extrremely flakey and is
-      // sensitive to address locations to avoid pipelining across these chains.
-      return !(op_has_this_attribute(dpu_op, "needsODUoffset"));
-    }
-
     bool is_eltwise_with_soh_runtime_sparsity(operation_t dpu_op) const {
       auto op_itr = omodel_.getOp(dpu_op->getName());
       bool is_eltwise_with_soh_runtime_sparsity_flag = false;
@@ -372,10 +365,6 @@ class Pipeline_Chains {
           for (auto opIt : next_level_itr->second)
           {
             operation_t current_dpu_op = opIt;
-            // if (!is_this_dpu_selectable_into_the_chain(current_dpu_op)) { break; }
-            //NOTE: the logic of not inserting the ops that have odu_offset is extended as It looks,
-            // like that even by inserting ops that are previous or next from the ones with odu_offset
-            // create crc missmatch. For now empty the chain in case of finding ops that previously needed odu_offset.
             if (is_eltwise_with_soh_runtime_sparsity(current_dpu_op))
             {
               dpu_chain.clear();
