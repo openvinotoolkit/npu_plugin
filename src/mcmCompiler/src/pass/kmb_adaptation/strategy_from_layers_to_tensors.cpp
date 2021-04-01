@@ -100,6 +100,13 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             implicitPermute->getOutputTensor(0)->set<std::string>("splitStrategy",
                                                     implicitPermute->getInputTensor(0)->get<std::string>("splitStrategy"));
     }
+    auto implicitResampleOps = om.getOps("ImplicitResample");
+    for (auto& implicitResample : implicitResampleOps)
+    {
+        if (implicitResample->getInputTensor(0)->hasAttr("splitStrategy"))
+            implicitResample->getOutputTensor(0)->set<std::string>("splitStrategy",
+                                                    implicitResample->getInputTensor(0)->get<std::string>("splitStrategy"));
+    }
     auto implicitReshapeOps = om.getOps("ImplicitReshape");
     for (auto implicitReshape : implicitReshapeOps)
     {
@@ -125,7 +132,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
         std::string opType = layer->getOpType();
-        if (opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute"
+        if (opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" || opType == "ImplicitResample"
             || opType == "Concat" || opType == "ImplicitOutput" || opType == "ImplicitUnion")
         {
             if(!(layer->getInputTensor(0)->hasAttr("splitStrategy"))){

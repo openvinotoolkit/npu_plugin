@@ -35,9 +35,13 @@ void propagateRealSparsityLoss(mv::OpModel& om, mv::Data::OpListIterator op)
             childOp->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
             childOp->get<bool>("activationSparsityCompilerSolvingForDilatedConv");
 
+        auto isInterpNN =
+            childOp->hasAttr("activationSparsityCompilerSolvingForInterpNN") &&
+            childOp->get<bool>("activationSparsityCompilerSolvingForInterpNN");
+
         if (childOp->hasAttr("inputActivationSparsity") &&
             childOp->get<bool>("inputActivationSparsity") &&
-            !isDilatedConv)
+            !isDilatedConv && !isInterpNN)
             childOp->set<bool>("activationSparsityCompilerSolving", true);
     }
 }

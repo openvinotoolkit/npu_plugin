@@ -284,7 +284,7 @@ void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::
     const std::vector<std::string> inputInOutputOps = {"Concat",
         "ImplicitConcat", "ImplicitReshape", "ImplicitPermute",
         "ImplicitOutput", "ImplicitUnion", "ImplicitJoin", "Copy",
-        "Align"};
+        "Align", "ImplicitResample"};
     
     const std::vector<std::string> outputInInputOps = {"Slice",
         "Crop", "ImplicitInputSlice", "ImplicitInput"};

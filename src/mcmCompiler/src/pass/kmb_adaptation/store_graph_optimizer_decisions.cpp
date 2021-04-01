@@ -16,6 +16,7 @@ static void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::C
 static void storeLayerPipeliningStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void ensureCMXConcatsDMASPlacedCorrectly(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void validateImplicitResampleConvStreaming(const mv::pass::PassEntry&, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -64,6 +65,7 @@ void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::Computati
     storeDilationConcatsDDRFcn(pass, model);
     solveDilatedSlicingFcn(pass, model);
     validateDilationSubConvolutions(pass, model);
+    validateImplicitResampleConvStreaming(pass, model);
 }
 
 void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -529,4 +531,49 @@ void ensureCMXConcatsDMASPlacedCorrectly(const mv::pass::PassEntry&,
             }
         }
     }
+}
+
+//NOTE: This validates the resample operations which are marked as Implicit
+//and makes sure the identity convolution following resample is not streaming
+void validateImplicitResampleConvStreaming(const mv::pass::PassEntry&, mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    auto globalParams = model.getGlobalConfigParams();
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+
+    for (auto& layerNameStrategy : strategyList)
+    {
+        std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+        mv::Data::OpListIterator opIt;
+        if (nodeName != "Example")
+        {
+            opIt =  om.getOp(nodeName);
+            if(opIt->getOpType() == "Conv" && opIt->hasAttr("activationSparsityCompilerSolvingForInterpNN"))
+            {
+                auto inputTensor = opIt->getInputTensor(0);
+                auto resampleOp = om.getSourceOp(inputTensor);
+                auto isResampleImplicit = false;
+                if(resampleOp->getOpType() == "Resample" && resampleOp->hasAttr("isImplicit"))
+                {
+                    isResampleImplicit = resampleOp->get<bool>("isImplicit");
+                }
+
+                if(isResampleImplicit && opIt->get<bool>("activationSparsityCompilerSolvingForInterpNN"))
+                {
+                    auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
+                    bool isStreaming = (streaming_strategy[0].get<int>("W") > 1 ||
+                                        streaming_strategy[1].get<int>("H") > 1 ||
+                                        streaming_strategy[2].get<int>("C") > 1 ||
+                                        streaming_strategy[3].get<int>("K") > 1 ||
+                                        streaming_strategy[4].get<int>("N") > 1) ? true : false;
+                    if(isStreaming)
+                    {
+                        throw mv::RuntimeError(om, "Error: Identity Convolution " + nodeName + "after implicit resample" + resampleOp->getName() + " is streaming");
+                    }
+                }
+            }
+        }
+    }
+
+
 }
