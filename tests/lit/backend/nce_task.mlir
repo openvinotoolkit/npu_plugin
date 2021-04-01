@@ -107,8 +107,8 @@ func @main(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">, %out
     // Barriers
     //
 
-    %0 = VPUIP.ConfigureBarrier <0> -> !VPUIP.Barrier
-    %1 = VPUIP.ConfigureBarrier <1> -> !VPUIP.Barrier
+    %0 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+    %1 = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
 
     //
     // DMAs

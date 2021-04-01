@@ -269,6 +269,9 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
 
             ++constantTensorInd;
         } else if (auto barrierOp = mlir::dyn_cast<DeclareVirtualBarrierOp>(op)) {
+            VPUX_THROW_UNLESS(VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers),
+                              "Graph was not configured for virtual barriers usage");
+
             const auto virtBarrier = writer.createBarrier(barrierOp.barrier());
             virtBarriers.push_back(virtBarrier);
         } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == netFunc.getOperation()) {
