@@ -39,8 +39,29 @@ InferenceEngine::MemoryBlob::Ptr makeScalarBlob(
         double val, const InferenceEngine::Precision& precision = InferenceEngine::Precision::FP32, size_t numDims = 1);
 
 //
-// toPrecision
+// makeBlob
 //
+
+InferenceEngine::MemoryBlob::Ptr makeBlob(const InferenceEngine::TensorDesc& desc,
+                                          const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
+                                          void* ptr = nullptr);
+
+//
+// copyBlob
+//
+
+void copyBlob(const InferenceEngine::MemoryBlob::Ptr& in, const InferenceEngine::MemoryBlob::Ptr& out);
+
+InferenceEngine::MemoryBlob::Ptr copyBlob(const InferenceEngine::MemoryBlob::Ptr& in,
+                                          const std::shared_ptr<InferenceEngine::IAllocator>& allocator);
+
+InferenceEngine::MemoryBlob::Ptr copyBlob(const InferenceEngine::MemoryBlob::Ptr& in, void* ptr);
+
+//
+// cvtBlobPrecision
+//
+
+void cvtBlobPrecision(const InferenceEngine::MemoryBlob::Ptr& in, const InferenceEngine::MemoryBlob::Ptr& out);
 
 InferenceEngine::MemoryBlob::Ptr toPrecision(const InferenceEngine::MemoryBlob::Ptr& in,
                                              const InferenceEngine::Precision& precision,
@@ -62,8 +83,10 @@ inline InferenceEngine::MemoryBlob::Ptr toFP16(const InferenceEngine::MemoryBlob
 }
 
 //
-// toLayout
+// cvtBlobLayout
 //
+
+void cvtBlobLayout(const InferenceEngine::MemoryBlob::Ptr& in, const InferenceEngine::MemoryBlob::Ptr& out);
 
 InferenceEngine::MemoryBlob::Ptr toLayout(const InferenceEngine::MemoryBlob::Ptr& in, InferenceEngine::Layout layout,
                                           const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
@@ -71,13 +94,6 @@ InferenceEngine::MemoryBlob::Ptr toLayout(const InferenceEngine::MemoryBlob::Ptr
 InferenceEngine::MemoryBlob::Ptr toDefLayout(const InferenceEngine::MemoryBlob::Ptr& in,
                                              const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                              void* ptr = nullptr);
-
-//
-// reallocateBlob
-//
-
-InferenceEngine::MemoryBlob::Ptr reallocateBlob(const InferenceEngine::MemoryBlob::Ptr& in,
-                                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator);
 
 //
 // dumpBlobs

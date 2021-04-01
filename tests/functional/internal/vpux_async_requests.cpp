@@ -20,8 +20,6 @@
 #include <mutex>
 #include <string>
 
-#include <vpu/utils/ie_helpers.hpp>
-
 struct AsyncTestParams final {
     PARAMETER(std::size_t, nireq);
     PARAMETER(std::size_t, niter);
