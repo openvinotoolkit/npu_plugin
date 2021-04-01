@@ -683,7 +683,7 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
                                             outputBuffer, inputBuffer,
                                             lhs_padding, rhs_padding);
         }
-        else if (opType == "Copy" || opType == "Align" || opType == "ImplicitOutput" || opType == "ImplicitInput")
+        else if (opType == "Copy" || opType == "Align" || opType == "ImplicitOutput" || opType == "ImplicitInput" || opType == "ImplicitResample")
         {
             auto outputTensor = opIterator->getOutputTensor(0);
             auto inputTensor = opIterator->getInputTensor(0);
@@ -716,7 +716,7 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
                                             stageIt, outputTensor);
             }
 
-            if (opType == "Align")
+            if (opType == "Align" || opType == "ImplicitResample")
             {
                 auto ndims = inputTensor->getShape().ndims();
 

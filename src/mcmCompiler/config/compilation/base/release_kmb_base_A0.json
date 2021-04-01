@@ -3,8 +3,7 @@
         "Singular": [
             "DecideConcatLocation",
             "ConcatAsImplicit",
-            "PermuteAsImplicit",
-            "ReshapeAsImplicit",
+            "ConvertToImplicitOps",
             "StoreWorkloadStrategy",
             "LoadPWLQuantParams",
             "ConvertOpsToTasks",

@@ -252,7 +252,9 @@ namespace mv
                 !hasAttr("sparsityMap") &&
                 !hasAttr("solvedSparsity") &&
                 !hasAttr("dilatedSubConvSM") &&
-                !hasAttr("dilatedSubConvSE");
+                !hasAttr("dilatedSubConvSE") &&
+                !hasAttr("interpNNSM") &&
+                !hasAttr("interpNNSE");
         }
 
         inline size_t size() const

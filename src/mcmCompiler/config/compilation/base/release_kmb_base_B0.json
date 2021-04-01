@@ -2,8 +2,7 @@
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
-            "PermuteAsImplicit",
-            "ReshapeAsImplicit",
+            "ConvertToImplicitOps",
             "StoreWorkloadStrategy",
             "LoadPWLQuantParams",
             "ConvertOpsToTasks",

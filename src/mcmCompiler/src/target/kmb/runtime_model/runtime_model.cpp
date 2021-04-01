@@ -726,7 +726,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             // SOK non-sparse weights are serialised individually so that they can be compressed by the HDE
             // Weight tables and sparsity maps are not compressed
             if(t->get<std::string>("splitStrategy") == "SplitOverK" && !t->hasAttr("weightTable") && !t->hasAttr("sparsityMap")
-               && !t->hasAttr("dilatedSubConvSM") && !t->hasAttr("dilatedSubConvSE"))
+               && !t->hasAttr("dilatedSubConvSM") && !t->hasAttr("dilatedSubConvSE")
+               && !t->hasAttr("interpNNSM") && !t->hasAttr("interpNNSE"))
             {
                 unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
                 toBuild->locale_index = std::vector<unsigned int>(1);
@@ -1892,6 +1893,7 @@ void mv::RuntimeModel::adaptFakeSparsityIndex(
                 inv1->weights_data->data->sparsity_index =
                     opIt1->getInputTensor(smTensorIdx[1])
                         ->getAddress();
+
             }
         }
     };
@@ -2007,8 +2009,12 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if ((opIt->hasAttr("activationSparsityCompilerSolving")
         && opIt->get<bool>("activationSparsityCompilerSolving")) ||
             (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
-             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")))
+             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")) ||
+            (opIt->hasAttr("activationSparsityCompilerSolvingForInterpNN") &&
+             opIt->get<bool>("activationSparsityCompilerSolvingForInterpNN")))
+
         adaptFakeSparsityIndex(toBuild, opIt);
+
 
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
     if(opIt->hasAttr("needsODUoffset"))
@@ -2166,7 +2172,9 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if ((opIt->hasAttr("activationSparsityCompilerSolving")
         && opIt->get<bool>("activationSparsityCompilerSolving")) ||
             (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
-             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")))
+             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")) ||
+            (opIt->hasAttr("activationSparsityCompilerSolvingForInterpNN") &&
+             opIt->get<bool>("activationSparsityCompilerSolvingForInterpNN")))
         adaptFakeSparsityIndex(toBuild, opIt);
 
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
