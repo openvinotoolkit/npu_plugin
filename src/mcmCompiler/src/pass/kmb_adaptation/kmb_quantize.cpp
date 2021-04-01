@@ -72,9 +72,28 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
                     tensor = previousOpIt->getInputTensor()[0];
                     alignCase = true;
                 }
-                auto quantize = om.uPATaskQuantize("Quantize" + task->getName() + std::to_string(id), {tensor});
-                quantize->setDType(dtypeNeededInInput);
-                quantize->setQuantParams(tensorQuantParams);
+                
+                // avoid to add redundant Quantize
+                mv::Data::TensorIterator quantize;
+                mv::DataModel dm(om);
+                bool findExistQuantize = false;
+                auto childOps = mv::findSinkLayers(dm, tensor);
+                for(auto& op: childOps)
+                {
+                    if((op->getOpType() == "UPATask") && (op->get<std::string>("taskOp") == "Quantize"))
+                    {
+                        quantize = op->getOutputTensor(0);
+                        findExistQuantize = true;
+                        break;
+                    }
+                }
+
+                if(!findExistQuantize)
+                {
+                    quantize = om.uPATaskQuantize("Quantize" + task->getName() + std::to_string(id), {tensor});
+                    quantize->setDType(dtypeNeededInInput);
+                    quantize->setQuantParams(tensorQuantParams);
+                }
 
                 auto quantOp = om.getSourceOp(quantize);
                 auto sourceOp = om.getSourceOp(tensor);
