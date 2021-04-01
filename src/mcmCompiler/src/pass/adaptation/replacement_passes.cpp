@@ -429,7 +429,7 @@ void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::Co
             mv::Data::TensorIterator constantOutputTensor;
             mv::Shape constantShape({1, 1, 1, 1});
             if (sourceTensor->isFloatingPointType()) {
-                std::vector<double> constantWeights{255};
+                std::vector<double> constantWeights{1.0};
                 constantOutputTensor = om.constant(opIt->getName() + "_constant_" + std::to_string(c),
                         constantWeights, constantShape, mv::DType("Float64"), mv::Order::getColMajorID(4));
             } else {
