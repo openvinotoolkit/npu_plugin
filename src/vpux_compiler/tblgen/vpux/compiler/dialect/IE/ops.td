@@ -356,18 +356,27 @@ def IE_SplitOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        AnyRankedTensor:$axis,
+        Optional<AnyRankedTensor>:$axis,
 
-        I32Attr:$num_splits
+        I32Attr:$num_splits,
+        OptionalAttr<SI32Attr>:$axis_value
     );
 
     let results = (outs
         Variadic<AnyRankedTensor>:$outputs
     );
 
+    let hasCanonicalizer = 1;
+
     let extraClassDeclaration = [{
+        vpux::Dim getAxis();
+
         vpux::SmallVector<mlir::Value> getInputs() {
-            return {input(), axis()};
+            if (axis() != nullptr) {
+                return {input(), axis()};
+            } else {
+                return {input()};
+            }
         }
 
         vpux::SmallVector<mlir::Value> getOutputs() {
@@ -1361,7 +1370,7 @@ def IE_ConcatOp :
     let arguments = (ins
         Variadic<AnyRankedTensor>:$inputs,
 
-        I32Attr:$axis
+        SI32Attr:$axis
     );
 
     let results = (outs
@@ -1369,6 +1378,8 @@ def IE_ConcatOp :
     );
 
     let extraClassDeclaration = [{
+        vpux::Dim getAxis();
+
         vpux::SmallVector<mlir::Value> getInputs() {
             return {inputs()};
         }

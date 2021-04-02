@@ -212,23 +212,25 @@ mlir::LogicalResult BufferizeIEPass::SplitRewrite::matchAndRewrite(IE::SplitOp o
                       "Got wrong newOperands size : '{0}', expected '{1}'", newOperands.size(),
                       origOp->getNumOperands());
 
+    if (!origOp.axis_value().hasValue()) {
+        return matchFailed(rewriter, origOp, "Got non constant axis");
+    }
+
     const auto inputType = newOperands[0].getType().cast<mlir::ShapedType>();
+    const auto inputShape = getShape(inputType);
+
+    const auto axis = origOp.getAxis();
 
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
-    auto axis = origOp.axis().getDefiningOp<ConstantInterface>().getContent().getValues<int64_t>()[0];
-    if (axis < 0) {
-        axis += inputType.getRank();
-    }
-
     auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.getResults());
 
     // Prepare strides array for subview. We have dense array, so all strides have to be equal 1
-    SmallVector<int64_t> svStrides(inputType.getRank(), 1);
-    SmallVector<int64_t> svOffsets(inputType.getRank(), 0);
+    SmallVector<int64_t> svStrides(inputShape.size(), 1);
+    SmallVector<int64_t> svOffsets(inputShape.size(), 0);
 
-    const auto offsetStep = inputType.getShape()[axis] / origOp.num_splits();
+    const auto offsetStep = inputShape[axis] / origOp.num_splits();
 
     for (auto i : irange(origOp->getNumResults())) {
         const auto origOutputType = origOp.getResult(i).getType().cast<mlir::ShapedType>();
@@ -241,7 +243,7 @@ mlir::LogicalResult BufferizeIEPass::SplitRewrite::matchAndRewrite(IE::SplitOp o
         _log.trace("Copy SubView result to output buffer");
         rewriter.create<IERT::CopyOp>(origOp->getLoc(), subView, allocatedBufs[i]);
 
-        svOffsets[axis] += offsetStep;
+        svOffsets[axis.ind()] += offsetStep;
     }
 
     rewriter.replaceOp(origOp, allocatedBufs);
@@ -275,6 +277,8 @@ mlir::LogicalResult BufferizeIEPass::ConcatRewrite::matchAndRewrite(IE::ConcatOp
                       "Got wrong newOperands size : '{0}', expected '{1}'", newOperands.size(),
                       origOp->getNumOperands());
 
+    const auto axis = origOp.getAxis();
+
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
@@ -282,8 +286,6 @@ mlir::LogicalResult BufferizeIEPass::ConcatRewrite::matchAndRewrite(IE::ConcatOp
     auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, {origOp.getResult()});
 
     const auto outputRank = origOp.getType().getRank();
-
-    int64_t simplifiedAxis = (outputRank + origOp.axis()) % outputRank;
 
     // Prepare strides array for subview. We have dense array, so all strides have to be equal 1
     SmallVector<int64_t> svStrides(outputRank, 1);
@@ -300,7 +302,7 @@ mlir::LogicalResult BufferizeIEPass::ConcatRewrite::matchAndRewrite(IE::ConcatOp
         _log.trace("Copy new operand to SubView");
         rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[i], subView);
 
-        svOffsets[simplifiedAxis] += svSizes[simplifiedAxis];
+        svOffsets[axis.ind()] += svSizes[axis.ind()];
     }
 
     rewriter.replaceOp(origOp, allocatedBufs);

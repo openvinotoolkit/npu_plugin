@@ -20,6 +20,39 @@
 
 using namespace vpux;
 
+//
+// getAxis
+//
+
+namespace {
+
+Dim normalizeAxis(IE::ConcatOpAdaptor concat) {
+    const auto inType = concat.inputs().front().getType().cast<mlir::ShapedType>();
+    const auto inRank = inType.getRank();
+
+    auto axisInd = concat.axis().getSInt();
+
+    // Negative value means counting dimension from the end
+    if (axisInd < 0) {
+        axisInd += inRank;
+    }
+
+    VPUX_THROW_UNLESS(axisInd >= 0 && axisInd < inRank, "Got wrong Concat axis '{0}', out of range '{1}'", axisInd,
+                      inRank);
+
+    return Dim(axisInd);
+}
+
+}  // namespace
+
+Dim vpux::IE::ConcatOp::getAxis() {
+    return normalizeAxis(*this);
+}
+
+//
+// inferReturnTypeComponents
+//
+
 mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
@@ -30,26 +63,19 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto numInputs = concat.inputs().size();
-    const auto inType = concat.inputs()[0].getType().cast<mlir::ShapedType>();
-    const auto inRank = inType.getRank();
+    const auto axis = normalizeAxis(concat);
 
-    auto inAxis = concat.axis().getInt();
+    // Init with first input
+    auto outShape = getShape(concat.inputs().front()).toValues();
 
-    // Check: axis. Negative value means counting dimension from the end
-    if (inAxis < 0) {
-        inAxis += inRank;
+    // Concat with rest inputs
+    for (auto i : irange<size_t>(1, concat.inputs().size())) {
+        const auto curShape = getShape(concat.inputs()[i]);
+        outShape[axis] += curShape[axis];
     }
 
-    // init with first input
-    auto outShape = to_small_vector(inType.getShape());
+    const auto elemType = concat.inputs().front().getType().cast<mlir::ShapedType>().getElementType();
+    inferredReturnShapes.emplace_back(outShape.raw(), elemType);
 
-    // concat with rest inputs
-    for (size_t i = 1; i < numInputs; i++) {
-        const auto curInType = concat.inputs()[i].getType().cast<mlir::ShapedType>();
-        outShape[inAxis] += curInType.getShape()[inAxis];
-    }
-
-    inferredReturnShapes.emplace_back(outShape, inType.getElementType());
     return mlir::success();
 }
