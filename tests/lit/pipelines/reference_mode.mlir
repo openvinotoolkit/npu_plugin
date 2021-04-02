@@ -8,7 +8,7 @@ module @SingleLayer {
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
-// CHECK:           IERT.MemoryResource 0 bytes of "DDR"
+// CHECK:           IERT.MemoryResource 2048 bytes of "DDR"
 
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork
@@ -26,12 +26,12 @@ IE.CNNNetwork
 func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %0 = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %0 : tensor<1x1000xf16>
-
+    // CHECK: [[VAR0:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16, "DDR">
+    // CHECK: [[VAR1:%.*]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
     // CHECK:       VPUIP.SoftMaxUPA
     // CHECK-SAME:      axisInd = 1
-    // CHECK-SAME:      isTrailingSWLayer
     // CHECK-SAME:      inputs(%[[VAL_0]] : memref<1x1000xf16>)
-    // CHECK-SAME:      outputs(%[[VAL_1]] : memref<1x1000xf16>)
+    // CHECK-SAME:      updates([[VAR1]] : !VPUIP.Barrier)
 }
 
 }
@@ -46,7 +46,7 @@ module @ConstantLayer {
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
-// CHECK:           IERT.MemoryResource 0 bytes of "DDR"
+// CHECK:           IERT.MemoryResource 128 bytes of "DDR"
 
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork
@@ -86,17 +86,19 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
     // CHECK:       %[[VAL_3:.*]] = VPUIP.DeclareConstantTensor
     // CHECK-SAME:      memref<1x2x2x2xf16>
 
-    // CHECK:       VPUIP.SoftMaxUPA
-    // CHECK-SAME:      axisInd = 1
-    // CHECK-SAME:      isTrailingSWLayer
-    // CHECK-SAME:      inputs(%[[VAL_0]] : memref<1x2x2x2xf16>)
-    // CHECK-SAME:      outputs(%[[VAL_1]] : memref<1x2x2x2xf16>)
+    // CHECK: [[VAR2:%.*]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
 
     // CHECK:       VPUIP.SoftMaxUPA
     // CHECK-SAME:      axisInd = 1
-    // CHECK-SAME:      isTrailingSWLayer
+    // CHECK-SAME:      inputs(%[[VAL_0]] : memref<1x2x2x2xf16>)
+    // CHECK-SAME:      updates([[VAR2]] : !VPUIP.Barrier)
+
+    // CHECK: [[VAR4:%.*]] = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
+
+    // CHECK:       VPUIP.SoftMaxUPA
+    // CHECK-SAME:      axisInd = 1
     // CHECK-SAME:      inputs(%[[VAL_3]] : memref<1x2x2x2xf16>)
-    // CHECK-SAME:      outputs(%[[VAL_2]] : memref<1x2x2x2xf16>)
+    // CHECK-SAME:      updates([[VAR4]] : !VPUIP.Barrier)
 }
 
 }

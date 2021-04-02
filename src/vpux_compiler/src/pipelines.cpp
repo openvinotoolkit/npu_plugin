@@ -47,7 +47,6 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
 
     // IERT Dialect level
     pm.addPass(mlir::createBufferDeallocationPass());
-    pm.addPass(mlir::createCopyRemovalPass());
     pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpaceCb, log));
     pm.addPass(IERT::createStaticAllocationPass(ddrMemSpaceCb, log));
 

@@ -30,8 +30,8 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto numInputs = concat.input().size();
-    const auto inType = concat.input()[0].getType().cast<mlir::ShapedType>();
+    const auto numInputs = concat.inputs().size();
+    const auto inType = concat.inputs()[0].getType().cast<mlir::ShapedType>();
     const auto inRank = inType.getRank();
 
     auto inAxis = concat.axis().getInt();
@@ -46,7 +46,7 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
 
     // concat with rest inputs
     for (size_t i = 1; i < numInputs; i++) {
-        const auto curInType = concat.input()[i].getType().cast<mlir::ShapedType>();
+        const auto curInType = concat.inputs()[i].getType().cast<mlir::ShapedType>();
         outShape[inAxis] += curInType.getShape()[inAxis];
     }
 

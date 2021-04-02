@@ -191,7 +191,7 @@ operation ::= `IE.Concat` `(` operands `)` attr-dict `:` type(operands) `->` typ
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | ranked tensor of any type values
+`inputs` | ranked tensor of any type values
 
 #### Results:
 

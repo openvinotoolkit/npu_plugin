@@ -347,7 +347,10 @@ def IE_ReLUOp :
 
 def IE_SplitOp :
         IE_LayerOp<
-            "Split"
+            "Split",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
         > {
     let summary = "InferenceEngine Split layer";
 
@@ -361,6 +364,16 @@ def IE_SplitOp :
     let results = (outs
         Variadic<AnyRankedTensor>:$outputs
     );
+
+    let extraClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {input(), axis()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {outputs()};
+        }
+    }];
 }
 
 //
@@ -1338,12 +1351,15 @@ def IE_NormalizeL2Op :
 
 def IE_ConcatOp :
         IE_LayerOp<
-            "Concat"
+            "Concat",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
         > {
     let summary = "InferenceEngine Concat layer";
 
     let arguments = (ins
-        Variadic<AnyRankedTensor>:$input,
+        Variadic<AnyRankedTensor>:$inputs,
 
         I32Attr:$axis
     );
@@ -1351,6 +1367,16 @@ def IE_ConcatOp :
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let extraClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {inputs()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {output()};
+        }
+    }];
 }
 
 //
