@@ -846,7 +846,14 @@ void VpualCoreNNExecutor::repackDeviceOutputsToNetworkOutputs(
             const auto actualView4D = makeBlob(vpu::getNCHW(networkDesc), nullptr, outputMemory.as<void*>());
             cvtBlobLayout(deviceBlobWithNetworkPrecision, actualView4D);
         } else {
-            toLayout(deviceBlobWithNetworkPrecision, deviceDesc.getLayout(), nullptr, outputMemory.as<void*>());
+            auto& outputBlobToSwap = networkOutputs.at(name);
+            auto deviceBlobToSwap = item.second;
+            if (outputBlobToSwap->getTensorDesc() == deviceBlobToSwap->getTensorDesc()) {
+                _logger->info("Swapping infer request output blob with device output blob.");
+                std::swap(outputBlobToSwap, deviceBlobToSwap);
+            } else {
+                toLayout(deviceBlobWithNetworkPrecision, deviceDesc.getLayout(), nullptr, outputMemory.as<void*>());
+            }
         }
     }
 }
