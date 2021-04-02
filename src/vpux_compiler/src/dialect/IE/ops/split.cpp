@@ -41,7 +41,12 @@ mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
         return errorAt(loc, "Axis must be a scalar");
     }
 
-    const auto axis = axisConst.getContent().getValues<int64_t>()[0];
+    auto axis = axisConst.getContent().getValues<int64_t>()[0];
+
+    // Check: axis. Negative value means counting dimension from the end
+    if (axis < 0) {
+        axis += inType.getRank();
+    }
 
     auto outShape = to_small_vector(inType.getShape());
     if (outShape[axis] < split.num_splits().getInt() || outShape[axis] % split.num_splits().getInt() != 0) {

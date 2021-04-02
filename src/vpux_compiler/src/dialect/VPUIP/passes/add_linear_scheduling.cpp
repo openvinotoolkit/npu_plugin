@@ -74,15 +74,15 @@ void AddLinearSchedulingPass::safeRunOnModule() {
             _log.trace("It is not a VPUIP Task");
             return;
         }
+        // [Track number: W#6150]
+        // if (_trailingSwTasks.count(op) != 0) {
+        //    _log.trace("It is a trailing UPA Task");
 
-        if (_trailingSwTasks.count(op) != 0) {
-            _log.trace("It is a trailing UPA Task");
+        //    auto upaTask = mlir::cast<VPUIP::UPATaskOpInterface>(op);
+        //    upaTask.markAsTrailingSWLayer();
 
-            auto upaTask = mlir::cast<VPUIP::UPATaskOpInterface>(op);
-            upaTask.markAsTrailingSWLayer();
-
-            return;
-        }
+        //    return;
+        //}
 
         if (auto prevTask = getPrevTask(op)) {
             _log.trace("It has dependency on previous task '{0}'", prevTask->getLoc());
