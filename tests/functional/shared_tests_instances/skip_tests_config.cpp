@@ -25,5 +25,8 @@ std::vector<std::string> disabledTestPatterns() {
 
         // [Track number: s#47412]
         ".*IEClassGetConfigTest_ThrowUnsupported\\.GetConfigThrow.*",
+
+        // TODO Add safe Softplus support
+        ".*ActivationLayerTest.*SoftPlus.*"
     };
 }
