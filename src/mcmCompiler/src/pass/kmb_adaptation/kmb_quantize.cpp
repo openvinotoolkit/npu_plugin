@@ -374,6 +374,7 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::Comput
             if (std::find(dpuTasksFP16Names.begin(), dpuTasksFP16Names.end(),
                     op->getName()) != dpuTasksFP16Names.end() ||
                 op->getOpType() == "UPATask" ||
+                (op->getOpType() == "Output" && op->getInputTensor(0)->getDType() == mv::DType("Float16")) ||
                 (op->getOpType() == "ImplicitOutput" && op->getOutputTensor(0)->getDType() == mv::DType("Float16")))
                 slicesFP16.push_back(slice);
     }
