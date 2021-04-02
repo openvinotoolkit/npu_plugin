@@ -224,7 +224,7 @@ unsigned mv::Op::addInputTensor(Data::TensorIterator tensor)
         throw OpError(*this, "This operation does not support extra inputs after creation");
 }
 
-mv::Data::TensorIterator mv::Op::getInputTensor(std::size_t idx) 
+mv::Data::TensorIterator mv::Op::getInputTensor(std::size_t idx)
 {
     if (idx >= inputs_.size())
         throw IndexError(*this, idx, "Exceeds the number of inputs");
@@ -298,7 +298,7 @@ std::vector<mv::Data::TensorIterator> mv::Op::getOutputTensor()
     return outputs_;
 }
 
-std::size_t mv::Op::inputSlots() const 
+std::size_t mv::Op::inputSlots() const
 {
     return inputs_.size();
 }
@@ -336,7 +336,8 @@ bool mv::Op::isUPA() const
                                         "RegionYolo", "ReorgYolo", "DetectionOutput", "Interp", "Norm",
                                         "Priorbox","Argmax","Permute","CustomOcl","CustomCpp","Sigmoid","Deconv","Tile",
                                         "RefConv", "Gather", "HSwish", "Swish", "Relu", "Conversion", "Tanh", "SoftPlus", "Elu",
-                                        "PermuteND", "Mish", "Floor", "Round", "Erf", "Gelu", "Pad", "Interpolate", "MVN", "Ceiling", "Exp", "SpaceToDepth"};
+                                        "PermuteND", "Mish", "Floor", "Round", "Erf", "Gelu", "Pad", "Interpolate", "MVN",
+                                         "Ceiling", "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen"};
     log(Logger::MessageType::Debug, "isUPA method is called for:" + getOpType());
     if (std::count(upaTypes.begin(), upaTypes.end(), getOpType()))
     {

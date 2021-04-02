@@ -1651,4 +1651,59 @@ def IE_FullyConnectedOp:
     let hasCanonicalizer = 1;
 }
 
+//
+// CTCGreedyDecoderOp
+//
+
+def IE_CTCGreedyDecoderOp :
+        IE_LayerOp<
+            "CTCGreedyDecoder",
+            [
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<CTCGreedyDecoderLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine CTCGreedyDecoder layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$sequenceLengths,
+
+        UnitAttr:$mergeRepeated
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// CTCGreedyDecoderSeqLenOp
+//
+
+def IE_CTCGreedyDecoderSeqLenOp :
+        IE_LayerOp<
+            "CTCGreedyDecoderSeqLen",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<CTCGreedyDecoderSeqLenLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine CTCGreedyDecoderSeqLen layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[SI32]>:$sequenceLength,
+        Optional<RankedTensorOf<[SI32]>>:$blankIndex,
+
+        UnitAttr:$mergeRepeated
+    );
+
+    let results = (outs
+        RankedTensorOf<[SI32]>:$output,
+        RankedTensorOf<[SI32]>:$outputLength
+    );
+}
+
 #endif

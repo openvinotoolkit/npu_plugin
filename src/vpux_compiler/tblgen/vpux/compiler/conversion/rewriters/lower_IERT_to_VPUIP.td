@@ -512,4 +512,38 @@ def RewriteTranspose :
             ]
         >;
 
+//
+// IERT.CTCGreedyDecoder -> VPUIP.CTCGreedyDecoderUPA
+//
+
+def createCTCGreedyDecoderUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::CTCGreedyDecoderUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteCTCGreedyDecoder :
+        Pat<
+            (IERT_CTCGreedyDecoderOp $input, $sequenceLengths, $output, $mergeRepeated),
+            (createCTCGreedyDecoderUPAOp $input, $sequenceLengths, $output, $mergeRepeated)
+        >;
+
+//
+// IERT.CTCGreedyDecoderSeqLen -> VPUIP.CTCGreedyDecoderSeqLenUPA
+//
+
+def createCTCGreedyDecoderSeqLenUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp>(
+                $_loc, $0, $1,
+                $2.size() == 1 ? $2[0] : nullptr,
+                $3, $4, $5)
+        }]>;
+
+def RewriteCTCGreedyDecoderSeqLen :
+        Pat<
+            (IERT_CTCGreedyDecoderSeqLenOp $input, $sequenceLength, $blankIndex, $output, $outputLength, $mergeRepeated),
+            (createCTCGreedyDecoderSeqLenUPAOp $input, $sequenceLength, $blankIndex, $output, $outputLength, $mergeRepeated)
+        >;
+
 #endif

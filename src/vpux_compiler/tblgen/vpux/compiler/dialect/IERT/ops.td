@@ -1069,7 +1069,6 @@ def IERT_FullyConnectedOp:
         IERT_LayerOp<
             "FullyConnected",
             [
-                ResultsAreFloatLike,
                 DeclareOpInterfaceMethods<FullyConnectedLayerInterface>,
                 DeclareOpInterfaceMethods<LayerInterface>
             ]
@@ -1103,6 +1102,55 @@ def IERT_TransposeOp :
         MemRefOf<[F16, F32]>:$output,
 
         AffineMapAttr:$order_value
+    );
+}
+
+
+//
+// CTCGreedyDecoderOp
+//
+
+def IERT_CTCGreedyDecoderOp :
+        IERT_LayerOp<
+            "CTCGreedyDecoder",
+            [
+                DeclareOpInterfaceMethods<CTCGreedyDecoderLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time CTCGreedyDecoder layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$sequenceLengths,
+        MemRefOf<[F16, F32]>:$output,
+
+        UnitAttr:$mergeRepeated
+    );
+}
+
+//
+// CTCGreedyDecoderSeqLenOp
+//
+
+def IERT_CTCGreedyDecoderSeqLenOp :
+        IERT_LayerOp<
+            "CTCGreedyDecoderSeqLen",
+            [
+                DeclareOpInterfaceMethods<CTCGreedyDecoderSeqLenLayerInterface>,
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time CTCGreedyDecoderSeqLen layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[SI32]>:$sequenceLength,
+        Optional<MemRefOf<[SI32]>>:$blankIndex,
+        MemRefOf<[SI32]>:$output,
+        MemRefOf<[SI32]>:$outputLength,
+
+        UnitAttr:$mergeRepeated
     );
 }
 

@@ -44,6 +44,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/shape.hpp>
 #include <ngraph/type/element_type.hpp>
@@ -56,6 +57,7 @@
 #include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 
 using namespace vpux;
 
@@ -126,6 +128,8 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::Swish>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::GRN>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Negative>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::CTCGreedyDecoder>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset6::CTCGreedyDecoderSeqLen>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -227,6 +231,8 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
             MAP_ENTRY(ngraph::opset4::Swish),
             MAP_ENTRY(ngraph::opset1::GRN),
             MAP_ENTRY(ngraph::opset1::Negative),
+            MAP_ENTRY(ngraph::opset1::CTCGreedyDecoder),
+            MAP_ENTRY(ngraph::opset6::CTCGreedyDecoderSeqLen),
     };
 
 #undef MAP_ENTRY
@@ -947,6 +953,29 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<ngraph::opset1::CTCGreedyDecoder>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph CTCGreedyDecoder node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::CTCGreedyDecoderOp>(createLocation(origNode), inputs[0], inputs[1],
+                                                     origNode->get_ctc_merge_repeated());
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<ngraph::opset6::CTCGreedyDecoderSeqLen>& origNode) {
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 3,
+                      "nGraph CTCGreedyDecoderSeqLen node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::CTCGreedyDecoderSeqLenOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2],
+                                                           origNode->get_merge_repeated());
+    addOutputs(origNode, op);
+}
+
 //
 // IR builder helpers
 //
@@ -965,9 +994,10 @@ SmallVector<mlir::Value> NGraphImporter::getInputs(const OrigNodePtr& node) {
 void NGraphImporter::addOutputs(const OrigNodePtr& node, mlir::Operation* op) {
     const auto results = op->getOpResults();
 
-    VPUX_THROW_UNLESS(results.size() == node->get_output_size(),
-                      "Mismatch between orignal Node '{0}' number of outputs '{1}' and created number of outputs '{2}'",
-                      node->get_friendly_name(), node->get_output_size(), results.size());
+    VPUX_THROW_UNLESS(
+            results.size() == node->get_output_size(),
+            "Mismatch between original Node '{0}' number of outputs '{1}' and created number of outputs '{2}'",
+            node->get_friendly_name(), node->get_output_size(), results.size());
 
     for (const auto& res : results) {
         _importedVals.emplace(node->output(res.getResultNumber()), res);
@@ -1253,6 +1283,7 @@ void runNGraphPasses(std::shared_ptr<ngraph::Function> netGraph) {
     passConfig->disable<ngraph::pass::ConvertSubtract>();
     passConfig->disable<ngraph::pass::ConvertDivide>();
     passConfig->disable<ngraph::pass::ConvertNegative>();
+    passConfig->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::CommonOptimizations>();

@@ -458,7 +458,7 @@ def LeakyReluLayerInterface : OpInterface<"LeakyReluLayerInterface"> {
 //
 
 def EltwiseLayerInterface : OpInterface<"EltwiseLayerInterface"> {
-    let description = "Interface for ltwise Layer";
+    let description = "Interface for Eltwise Layer";
 
     let cppNamespace = "vpux";
 
@@ -679,6 +679,51 @@ def TransposeLayerInterface : OpInterface<"TransposeLayerInterface"> {
 
         vpux::SmallVector<mlir::Value> getOutputs() {
             return {$_op.output()};
+        }
+    }];
+}
+
+//
+// CTCGreedyDecoderLayerInterface
+//
+
+def CTCGreedyDecoderLayerInterface : OpInterface<"CTCGreedyDecoderLayerInterface"> {
+    let description = "Interface for CTCGreedyDecoder Layer";
+
+    let cppNamespace = "vpux";
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {$_op.input(), $_op.sequenceLengths()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
+}
+
+//
+// CTCGreedyDecoderSeqLenLayerInterface
+//
+
+def CTCGreedyDecoderSeqLenLayerInterface : OpInterface<"CTCGreedyDecoderSeqLenLayerInterface"> {
+    let description = "Interface for CTCGreedyDecoderSeqLen Layer";
+
+    let cppNamespace = "vpux";
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            if ($_op.blankIndex() != nullptr) {
+                return {$_op.input(), $_op.sequenceLength(), $_op.blankIndex() };
+            }
+            else {
+                return {$_op.input(), $_op.sequenceLength() };
+            }
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output(), $_op.outputLength() };
         }
     }];
 }

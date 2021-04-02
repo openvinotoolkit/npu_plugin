@@ -33,19 +33,18 @@ class KmbCTCDecoderLayerTests :
     public KmbLayerTestBase,
     public testing::WithParamInterface<std::tuple<CTCDecoderTestParams, UseCustomLayers>> {};
 
-// [Track number: S#43632]
-TEST_P(KmbCTCDecoderLayerTests, DISABLED_accuracy) {
+TEST_P(KmbCTCDecoderLayerTests, accuracy) {
     const auto &p = std::get<0>(GetParam());
     const auto &useCustomLayers = std::get<1>(GetParam());
 
     const auto dims = p.dims();
     const auto layout = p.layout();
 
-    const auto userInDesc = TensorDesc(Precision::U8, dims, layout);
-    const auto seqIndDesc = TensorDesc(Precision::FP16, {dims[1], 1}, Layout::HW);
-    const auto userOutDesc = TensorDesc(Precision::FP32, {1, dims[1], 1, 1}, Layout::NCHW);
+    const auto userInDesc = TensorDesc(Precision::FP16, dims, layout);
+    const auto seqIndDesc = TensorDesc(Precision::FP16, {dims[0], dims[1]}, Layout::NC);
+    const auto userOutDesc = TensorDesc(Precision::FP32, {dims[1], dims[0], 1, 1}, Layout::NCHW);
 
-    const auto tolerance = 1e-3f;
+    const auto tolerance = 0.f;
 
     const auto inputRange = std::make_pair(0, 4);
 
@@ -74,22 +73,27 @@ TEST_P(KmbCTCDecoderLayerTests, DISABLED_accuracy) {
     runTest(netBuilder, tolerance, CompareMethod::Absolute);
 }
 
+// [Track number: S#43632]
+// Custom layers are sensitive to the network layout.
+// MCM uses 'NHWC' layout by default ('NCHW' layout can be enabled for tests).
+// CTCGreedyDecoder-1 has 'CHW' layout for the input.
+// MCM has 'NHWC' layout instead.
+// CHW - NHWC layout missmatch.
+const std::vector<UseCustomLayers> layerType = {
+// #ifdef KMB_HAS_CUSTOM_OCL_KERNELS
+//    KernelType::Ocl,
+// #endif
+//#ifdef KMB_HAS_CUSTOM_CPP_KERNELS
+//    KernelType::Cpp,
+//#endif
+    KernelType::Native
+};
+
 const std::vector<CTCDecoderTestParams> ctcParams = {
     CTCDecoderTestParams()
             .dims({88, 1, 71})
             .layout(Layout::CHW)
 };
 
-const std::vector<UseCustomLayers> CustomLayersParams = {
-#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
-    KernelType::Ocl,
-#endif
-#ifdef KMB_HAS_CUSTOM_CPP_KERNELS
-    KernelType::Cpp
-#endif
-};
-
-#if defined(KMB_HAS_CUSTOM_OCL_KERNELS) || defined(KMB_HAS_CUSTOM_CPP_KERNELS)
 INSTANTIATE_TEST_CASE_P(precommit, KmbCTCDecoderLayerTests,
-    testing::Combine(testing::ValuesIn(ctcParams), testing::ValuesIn(CustomLayersParams)));
-#endif
+    testing::Combine(testing::ValuesIn(ctcParams), testing::ValuesIn(layerType)));
