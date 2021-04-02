@@ -1082,6 +1082,40 @@ void KmbClassifyNetworkTest::runTest(
     KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }
 
+void KmbStereoNetworkTest::runTest(
+        const TestNetworkDesc& netDesc,
+        const TestBinFileDesc& file,
+        const float threshold) {
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap&) {
+        IE_ASSERT(actualBlobs.size() == 1u &&
+            actualBlobs.size() == refBlobs.size());
+        auto actualBlob = actualBlobs.begin()->second;
+        auto refBlob    = refBlobs.begin()->second;
+
+        auto actualOutput = vpux::toFP32(as<MemoryBlob>(actualBlob));
+        auto refOutput = vpux::toFP32(as<MemoryBlob>(refBlob));
+
+        IE_ASSERT(actualOutput->size() == refOutput->size());
+
+        auto actualData = actualOutput->buffer().as<float*>();
+        auto refData = refOutput->buffer().as<float*>();
+
+        for (size_t i = 0; i < actualOutput->size(); ++i) {
+            auto diff = std::abs(actualData[i] - refData[i]);
+            EXPECT_LE(diff, threshold);
+        }
+    };
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleBinFile(file, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
+
 void KmbClassifyNetworkTest::runTest(
         const TestNetworkDesc& netDesc,
         const TestBinFileDesc& file,
