@@ -19,7 +19,7 @@
 #include "helpers/network_desc.h"
 #include "hddl2_helpers/skip_conditions.h"
 
-using namespace vpux::HDDL2;
+using namespace vpux::hddl2;
 
 class Executor_UnitTests: public ::testing::Test {
 public:

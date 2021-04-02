@@ -27,7 +27,7 @@
 #include "hddl_unite/hddl2_unite_graph.h"
 
 namespace vpux {
-namespace HDDL2 {
+namespace hddl2 {
 class HDDL2Executor final : public Executor {
 public:
     using Ptr = std::shared_ptr<HDDL2Executor>;
@@ -66,8 +66,8 @@ private:
 
     NetworkDescription::CPtr _network;
 
-    vpu::HDDL2Plugin::HddlUniteGraph::Ptr _uniteGraphPtr = nullptr;
-    vpu::HDDL2Plugin::InferDataAdapter::Ptr _inferDataPtr = nullptr;
+    HddlUniteGraph::Ptr _uniteGraphPtr = nullptr;
+    InferDataAdapter::Ptr _inferDataPtr = nullptr;
 
     // Variables below might be not required for executor
     std::shared_ptr<vpux::Allocator> _allocatorPtr = nullptr;
@@ -81,7 +81,7 @@ private:
     const size_t _baseExecutorId;
 
     static std::atomic<size_t> _executorIdCounter;
-    static std::map<size_t, std::weak_ptr<vpu::HDDL2Plugin::HddlUniteGraph>> _uniteGraphMap;
+    static std::map<size_t, std::weak_ptr<HddlUniteGraph>> _uniteGraphMap;
 };
-}  // namespace HDDL2
+}  // namespace hddl2
 }  // namespace vpux

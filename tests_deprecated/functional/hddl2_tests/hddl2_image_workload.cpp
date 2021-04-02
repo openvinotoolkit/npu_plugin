@@ -43,7 +43,7 @@ public:
     // TODO For preprocessing 224x224 model required (or width and height % 2 == 0)
     Models::ModelDesc modelForPreprocessing = Models::googlenet_v1;
 
-    const size_t numberOfTopClassesToCompare = 3;
+    const size_t numberOfTopClassesToCompare = 5;
 };
 
 //------------------------------------------------------------------------------

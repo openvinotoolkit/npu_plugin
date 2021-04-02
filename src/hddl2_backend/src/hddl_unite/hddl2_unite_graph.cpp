@@ -24,9 +24,11 @@
 #include <Inference.h>
 #include <WorkloadContext.h>
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace hddl2 {
 namespace IE = InferenceEngine;
+
+using namespace vpu;
 
 static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& deviceID) {
     if (deviceID.empty())
@@ -139,5 +141,5 @@ void HddlUniteGraph::InferAsync(const InferDataAdapter::Ptr& data) const {
     }
 }
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace hddl2
+}  // namespace vpux

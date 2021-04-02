@@ -28,7 +28,7 @@
 
 #include "hddl2_params.hpp"
 
-using namespace vpu::HDDL2Plugin;
+using namespace vpux::hddl2;
 namespace IE = InferenceEngine;
 
 class BlobDescriptorAdapter_UnitTests: public ::testing::Test {

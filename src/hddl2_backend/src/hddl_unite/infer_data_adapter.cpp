@@ -25,8 +25,8 @@
 // Low-level
 #include "Inference.h"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace hddl2 {
 
 namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
@@ -198,5 +198,5 @@ std::map<std::string, IE::InferenceEngineProfileInfo> InferDataAdapter::getHDDLU
     perfCounts["Total scoring time on preprocess"] = info;
     return perfCounts;
 }
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace hddl2
+}  // namespace vpux

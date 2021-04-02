@@ -16,11 +16,12 @@
 
 #include "hddl2_helper.h"
 
+#include "converters.h"
 #include "hddl2/hddl2_params.hpp"
 #include "hddl2_exceptions.h"
 
 namespace vpux {
-namespace HDDL2 {
+namespace hddl2 {
 
 namespace IE = InferenceEngine;
 HddlUnite::RemoteMemory::Ptr getRemoteMemoryFromParams(const InferenceEngine::ParamMap& params) {
@@ -43,5 +44,16 @@ HddlUnite::RemoteMemory::Ptr getRemoteMemoryFromParams(const InferenceEngine::Pa
     return remoteMemory;
 }
 
-}  // namespace HDDL2
+void setUniteLogLevel(const vpu::LogLevel logLevel, const vpu::Logger::Ptr logger) {
+    const auto status = HddlUnite::setClientLogLevel(Unite::convertIELogLevelToUnite(logLevel));
+    if (status != HddlStatusCode::HDDL_OK) {
+        if (logger != nullptr) {
+            logger->warning("Failed to set client log level for HddlUnite");
+        } else {
+            std::cerr << "Failed to set client log level for HddlUnite" << std::endl;
+        }
+    }
+}
+
+}  // namespace hddl2
 }  // namespace vpux

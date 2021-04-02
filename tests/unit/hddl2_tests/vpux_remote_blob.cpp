@@ -29,7 +29,7 @@
 #include "skip_conditions.h"
 #include "vpux_params.hpp"
 
-using namespace vpu::HDDL2Plugin;
+using namespace vpux::hddl2;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
@@ -58,11 +58,11 @@ protected:
 };
 
 void HDDL2_RemoteBlob_UnitTests::SetUp() {
-    if (vpux::HDDL2::HDDL2Backend::isServiceAvailable()) {
+    if (HDDL2Backend::isServiceAvailable()) {
         _remoteContextHelperPtr = std::make_shared<RemoteContext_Helper>();
         _remoteMemoryHelperPtr = std::make_shared<RemoteMemory_Helper>();
         auto workloadContextPtr = _remoteContextHelperPtr->getWorkloadContext();
-        allocator = InferenceEngine::details::shared_from_irelease(new vpu::HDDL2Plugin::HDDL2RemoteAllocator(workloadContextPtr));
+        allocator = InferenceEngine::details::shared_from_irelease(new HDDL2RemoteAllocator(workloadContextPtr));
 
         tensorDesc = _tensorDescriptionHelper.tensorDesc;
         tensorSize = _tensorDescriptionHelper.tensorSize;

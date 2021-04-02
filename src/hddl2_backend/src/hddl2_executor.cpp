@@ -27,12 +27,13 @@
 #include <ie_remote_context.hpp>
 
 #include "hddl2_exceptions.h"
+#include "hddl2_helper.h"
 #include "hddl_unite/hddl2_unite_graph.h"
 #include "vpux_params_private_options.h"
 #include "vpux_remote_context.h"
 
 namespace vpux {
-namespace HDDL2 {
+namespace hddl2 {
 
 namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
@@ -144,21 +145,21 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
 }
 //------------------------------------------------------------------------------
 std::atomic<size_t> HDDL2Executor::_executorIdCounter{0};
-std::map<size_t, std::weak_ptr<vpu::HDDL2Plugin::HddlUniteGraph>> HDDL2Executor::_uniteGraphMap;
+std::map<size_t, std::weak_ptr<HddlUniteGraph>> HDDL2Executor::_uniteGraphMap;
 
 HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
                                                   const VPUXConfig& config,
                                                   const std::shared_ptr<vpux::Allocator>& allocator,
                                                   const HddlUnite::WorkloadContext::Ptr& workloadContext) {
     auto logger = std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput());
-    vpux::HDDL2::HDDL2Executor::Ptr executor = nullptr;
+    HDDL2Executor::Ptr executor = nullptr;
 
-    if (!vpux::HDDL2::HDDL2Backend::isServiceAvailable()) {
+    if (!HDDL2Backend::isServiceAvailable()) {
         return executor;
     }
 
     try {
-        executor = std::make_shared<vpux::HDDL2::HDDL2Executor>(networkDesc, config, allocator, workloadContext);
+        executor = std::make_shared<HDDL2Executor>(networkDesc, config, allocator, workloadContext);
     } catch (const IE::details::InferenceEngineException& exception) {
         if (exception.hasStatus() && exception.getStatus() == IE::StatusCode::NETWORK_NOT_LOADED) {
             logger->error(FAILED_LOAD_NETWORK.c_str());
@@ -181,8 +182,8 @@ HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, cons
           _workloadContext(workloadContext),
           _baseExecutorId(_executorIdCounter++) {
     _config.parseFrom(config);
-    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext,
-                                                                         _config.graphColorFormat());
+    setUniteLogLevel(_config.logLevel(), _logger);
+    _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
 }
 
 HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
@@ -193,8 +194,7 @@ HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
           _allocatorPtr(ex._allocatorPtr),
           _workloadContext(ex._workloadContext),
           _baseExecutorId(ex._baseExecutorId) {
-    _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::InferDataAdapter>(_network, _workloadContext,
-                                                                         _config.graphColorFormat());
+    _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
 }
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
@@ -346,7 +346,7 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
         auto memDeviceLock = memDeviceBlob->rmap();
         std::memcpy(memOutputLock.as<uint8_t*>(), memDeviceLock.as<uint8_t*>(), outputBlobPtr->byteSize());
     }
-}  // namespace HDDL2
+}  // namespace hddl2
 
 static bool preProcSupported(const IE::ResizeAlgorithm resizeAlgo, const IE::ColorFormat colorFormat) {
     return ((resizeAlgo == IE::RESIZE_BILINEAR) && (colorFormat == IE::ColorFormat::NV12)) ||
@@ -393,11 +393,9 @@ void HDDL2Executor::loadGraphToDevice() {
         // No graph in the map - need to load it to the device and add to the map
         if (findUniteGraph == _uniteGraphMap.end()) {
             if (_workloadContext == nullptr) {
-                _uniteGraphPtr =
-                        std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _config.deviceId(), _config);
+                _uniteGraphPtr = std::make_shared<HddlUniteGraph>(_network, _config.deviceId(), _config);
             } else {
-                _uniteGraphPtr =
-                        std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _workloadContext, _config);
+                _uniteGraphPtr = std::make_shared<HddlUniteGraph>(_network, _workloadContext, _config);
             }
             _uniteGraphMap[_baseExecutorId] = _uniteGraphPtr;
         } else {
@@ -414,5 +412,5 @@ Executor::Ptr HDDL2Executor::clone() const {
     return std::make_shared<HDDL2Executor>(*this);
 }
 
-}  // namespace HDDL2
+}  // namespace hddl2
 }  // namespace vpux
