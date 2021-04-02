@@ -22,6 +22,7 @@
 #include "vpux/utils/core/logger.hpp"
 
 #include <mlir/Dialect/Linalg/IR/LinalgOps.h>
+#include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
@@ -38,6 +39,7 @@ namespace IERT {
 
 using AttrCreateFunc = std::function<mlir::Attribute(mlir::MLIRContext*, StringRef)>;
 
+std::unique_ptr<mlir::Pass> createComposeSubViewPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAddLayoutsAndStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
