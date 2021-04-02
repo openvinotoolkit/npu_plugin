@@ -42,15 +42,9 @@ class IE_Op<string mnemonic, list<OpTrait> traits = []> :
 class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
         IE_Op<
             mnemonic,
-            !listconcat(
-                traits,
-                [
-                    NoSideEffect,
-                    NativeOpTrait<"InferTensorType">,
-                    InferTypeOpInterface,
-                    DeclareOpInterfaceMethods<InferShapedTypeOpInterface>
-                ]
-            )
+            [
+                NoSideEffect
+            ] # InferTensorType<["inferReturnTypeComponents"]>.traits # traits
         > {
     let assemblyFormat = [{
         `(` operands `)` attr-dict `:` type(operands) `->` type(results)
