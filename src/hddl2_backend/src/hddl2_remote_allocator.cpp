@@ -24,9 +24,11 @@
 #include "hddl2_helper.h"
 #include "hddl2_remote_allocator.h"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace hddl2 {
 namespace IE = InferenceEngine;
+
+using namespace vpu;
 
 //------------------------------------------------------------------------------
 bool static isValidRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) {
@@ -77,7 +79,7 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& ma
     // TODO potential (low influence) performance problem, since this will be called on each wrap
     HddlUnite::RemoteMemory::Ptr remoteMemory = nullptr;
     try {
-        remoteMemory = vpux::HDDL2::getRemoteMemoryFromParams(map);
+        remoteMemory = getRemoteMemoryFromParams(map);
     } catch (const std::exception& ex) {
         _logger->error("Failed to get remote memory! {}", ex.what());
         return nullptr;
@@ -276,5 +278,5 @@ unsigned long HDDL2RemoteAllocator::getPhysicalAddress(void* handle) noexcept {
     return 0;
 }
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace hddl2
+}  // namespace vpux

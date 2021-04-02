@@ -24,9 +24,8 @@
 #include "converters.h"
 #include "hddl2_helper.h"
 
-using namespace vpu::HDDL2Plugin;
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace hddl2 {
 
 namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
@@ -228,7 +227,7 @@ const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::updateUniteBlobDesc
         const auto remoteBlob = std::dynamic_pointer_cast<const InferenceEngine::RemoteBlob>(blobPtr);
         checkBlobIsValid(remoteBlob);
         parsedBlobParamsPtr->update(remoteBlob->getParams());
-        const auto memoryDesc = vpux::HDDL2::getRemoteMemoryFromParams(remoteBlob->getParams());
+        const auto memoryDesc = getRemoteMemoryFromParams(remoteBlob->getParams());
         if (memoryDesc == nullptr) {
             THROW_IE_EXCEPTION << "BlobDescriptorAdapter: Memory desc is null";
         }
@@ -406,5 +405,5 @@ bool BlobDescriptorAdapter::isROIPreprocessingRequired() const {
     return _sourceInfo.roiRectangles.size() > 0;
 }
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace hddl2
+}  // namespace vpux

@@ -17,13 +17,16 @@
 #pragma once
 // IE
 #include <ie_remote_context.hpp>
+// Plugin
+#include <vpux_config.hpp>
 // Low-level
 #include <RemoteMemory.h>
 
 namespace vpux {
-namespace HDDL2 {
+namespace hddl2 {
 
 HddlUnite::RemoteMemory::Ptr getRemoteMemoryFromParams(const InferenceEngine::ParamMap& params);
+void setUniteLogLevel(const vpu::LogLevel logLevel, const vpu::Logger::Ptr logger = nullptr);
 
-}  // namespace HDDL2
+}  // namespace hddl2
 }  // namespace vpux

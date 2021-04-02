@@ -18,8 +18,8 @@
 
 #include <cpp_interfaces/exception2status.hpp>
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace hddl2 {
 
 #define HDDLUNITE_ERROR_str std::string("[HDDLUNITE_ERROR] ")
 #define FILES_ERROR_str std::string("[FILES_ERROR] ")
@@ -51,5 +51,5 @@ namespace HDDL2Plugin {
     std::string("Can't create infer request!\n" \
                 "Please make sure that the device is available. Only exports can be made.")
 
-}  //  namespace HDDL2Plugin
-}  //  namespace vpu
+}  //  namespace hddl2
+}  //  namespace vpux

@@ -30,7 +30,7 @@
 #include "WorkloadContext.h"
 
 namespace vpux {
-namespace HDDL2 {
+namespace hddl2 {
 
 class ParsedContextParams final {
 public:
@@ -72,10 +72,10 @@ private:
     InferenceEngine::RemoteContext::Ptr _contextPtr;
     ParsedContextParams _contextParams;
 
-    vpu::HDDL2Plugin::HDDL2RemoteAllocator::Ptr _allocatorPtr = nullptr;
+    HDDL2RemoteAllocator::Ptr _allocatorPtr = nullptr;
     HddlUnite::WorkloadContext::Ptr _workloadContext = nullptr;
     std::string _name;
 };
 
-}  // namespace HDDL2
+}  // namespace hddl2
 }  // namespace vpux

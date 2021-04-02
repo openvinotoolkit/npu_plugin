@@ -20,13 +20,13 @@
 #include <vpux_config.hpp>
 
 namespace vpux {
-namespace HDDL2 {
+namespace hddl2 {
 class HDDL2Backend final : public vpux::IEngineBackend {
 public:
     using Ptr = std::shared_ptr<HDDL2Backend>;
     using CPtr = std::shared_ptr<const HDDL2Backend>;
 
-    explicit HDDL2Backend(const VPUXConfig& config = {});
+    explicit HDDL2Backend();
 
     const std::shared_ptr<IDevice> getDevice() const override;
     const std::shared_ptr<IDevice> getDevice(const std::string& specificDeviceName) const override;
@@ -44,13 +44,10 @@ public:
     static bool isServiceRunning();
 
 private:
-    void setUniteLogLevel(const vpu::LogLevel logLevel);
-
-private:
     VPUXConfig _config;
     vpu::Logger::Ptr _logger = nullptr;
     std::map<std::string, std::shared_ptr<IDevice>> _devices;
     std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();
 };
-}  // namespace HDDL2
+}  // namespace hddl2
 }  // namespace vpux

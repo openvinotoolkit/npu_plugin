@@ -139,6 +139,7 @@ std::vector<PlatformInfo> getAvailableDevices() {
 
 VpualEngineBackend::VpualEngineBackend()
     : _logger(std::unique_ptr<vpu::Logger>(
+          // [Track number: S#42840]
           // TODO: config will come by another PR, for now let's use Error log level
           new vpu::Logger("VpualBackend", vpu::LogLevel::Error /*_config.logLevel()*/, vpu::consoleOutput()))),
       _devices(createDeviceMap()) {}

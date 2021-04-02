@@ -22,8 +22,8 @@
 #include "ie_remote_context.hpp"
 #include "vpux_remote_context.h"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace hddl2 {
 
 //------------------------------------------------------------------------------
 class RemoteContext_Helper {
