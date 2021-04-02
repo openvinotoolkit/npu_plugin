@@ -998,8 +998,6 @@ namespace mv
                 if(!enableChannelMajorConv && clustering == "SplitOverHOverlapped")
                     return FailCause::ChannelMjr1;
 
-               if(isChanMajor && clustering == "SplitOverH" && streamShape["H"] > 1)
-                   return FailCause::ChannelMjr2;
 
                 if(isChanMajor && (strategy["inputSparsity"].get<bool>() || strategy["weightsSparsity"].get<bool>()))
                     return FailCause::ChannelMjr2;

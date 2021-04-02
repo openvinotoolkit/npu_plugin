@@ -655,6 +655,14 @@ protected:
     static void comparePersonsAttributes(const PersonAttributes& p1, const PersonAttributes& p2, float tolerance);
 };
 
+class KmbStereoNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestBinFileDesc& file,
+            const float threshold);
+};
+
 // inherit parseOutput from KmbClassifyNetworkTest
 class VehicleAttrRecNetworkTest : public KmbClassifyNetworkTest {
 public:
