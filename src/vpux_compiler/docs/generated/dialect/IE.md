@@ -138,6 +138,70 @@ This operation is bound to MLIR Module and holds extra information about Inferen
 | :-------: | :-------: | ----------- |
 `entryPoint` | ::mlir::FlatSymbolRefAttr | flat symbol reference attribute
 
+### `IE.CTCGreedyDecoder` (vpux::IE::CTCGreedyDecoderOp)
+
+InferenceEngine CTCGreedyDecoder layer
+
+
+Syntax:
+
+```
+operation ::= `IE.CTCGreedyDecoder` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mergeRepeated` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`sequenceLengths` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.CTCGreedyDecoderSeqLen` (vpux::IE::CTCGreedyDecoderSeqLenOp)
+
+InferenceEngine CTCGreedyDecoderSeqLen layer
+
+
+Syntax:
+
+```
+operation ::= `IE.CTCGreedyDecoderSeqLen` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mergeRepeated` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`sequenceLength` | ranked tensor of 32-bit signed integer values
+`blankIndex` | ranked tensor of 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 32-bit signed integer values
+`outputLength` | ranked tensor of 32-bit signed integer values
+
 ### `IE.Clamp` (vpux::IE::ClampOp)
 
 InferenceEngine Clamp layer

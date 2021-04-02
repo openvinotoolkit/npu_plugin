@@ -33,10 +33,10 @@ void refCTCGreedyDecoderFromVPU(const Blob::Ptr& src, const Blob::Ptr& seqInd, c
     IE_ASSERT(dstData != nullptr);
 
     const auto& dims = src->getTensorDesc().getDims();
-    IE_ASSERT(dims[0] == 1);
-    const int T = dims[1];  // Time
-    const int B = dims[2];  // Batches
-    const int C = dims[3];  // Chars
+
+    const int T = dims[0];  // Time
+    const int B = dims[1];  // Batches
+    const int C = dims[2];  // Chars
 
     std::fill_n(dstData, B*T, -1.0f);
 

@@ -503,6 +503,19 @@ mlir::Operation* createRTLayer(IE::TransposeOp origOp, ArrayRef<mlir::Value> all
                                        origOp.order_valueAttr());
 }
 
+mlir::Operation* createRTLayer(IE::CTCGreedyDecoderOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::CTCGreedyDecoderOp::Adaptor newOp(allBufs);
+    return b.create<IERT::CTCGreedyDecoderOp>(origOp.getLoc(), newOp.input(), newOp.sequenceLengths(), newOp.output(),
+                                              origOp.mergeRepeatedAttr());
+}
+
+mlir::Operation* createRTLayer(IE::CTCGreedyDecoderSeqLenOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::CTCGreedyDecoderSeqLenOp::Adaptor newOp(allBufs);
+    return b.create<IERT::CTCGreedyDecoderSeqLenOp>(origOp.getLoc(), newOp.input(), newOp.sequenceLength(),
+                                                    newOp.blankIndex(), newOp.output(), newOp.outputLength(),
+                                                    origOp.mergeRepeatedAttr());
+}
+
 class BufferizeIEPass::LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -574,6 +587,8 @@ mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operati
     CASE(IE::DetectionOutputOp)
     CASE(IE::ScaleShiftOp)
     CASE(IE::TransposeOp)
+    CASE(IE::CTCGreedyDecoderOp)
+    CASE(IE::CTCGreedyDecoderSeqLenOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

@@ -1196,3 +1196,4 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/mvn.cpp"
 #include    "src/computation/op/def/ceiling.cpp"
 #include    "src/computation/op/def/spacetodepth.cpp"
+#include    "src/computation/op/def/ctc_greedy_decoder_seq_len.cpp"
