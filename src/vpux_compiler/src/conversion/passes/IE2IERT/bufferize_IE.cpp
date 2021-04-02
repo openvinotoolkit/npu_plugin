@@ -14,10 +14,9 @@
 // stated in the License.
 //
 
-#include <vpux/compiler/core/attributes/stride_reqs.hpp>
-
 #include "vpux/compiler/conversion.hpp"
 
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -48,9 +47,9 @@ public:
     class ConstantRewrite;
     class LinalgReshapeRewrite;
     class GenericReshapeRewrite;
-    class SplitsRewrite;
+    class SplitRewrite;
+    class ConcatRewrite;
     class LayerRewrite;
-    class ConcatsRewrite;
 
 public:
     static SmallVector<mlir::Value> allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
@@ -187,12 +186,12 @@ mlir::LogicalResult BufferizeIEPass::GenericReshapeRewrite::matchAndRewrite(
 }
 
 //
-// SplitsRewrite
+// SplitRewrite
 //
 
-class BufferizeIEPass::SplitsRewrite final : public mlir::OpConversionPattern<IE::SplitOp> {
+class BufferizeIEPass::SplitRewrite final : public mlir::OpConversionPattern<IE::SplitOp> {
 public:
-    SplitsRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+    SplitRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::OpConversionPattern<IE::SplitOp>(typeConverter, ctx), _log(log) {
     }
 
@@ -204,54 +203,58 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult BufferizeIEPass::SplitsRewrite::matchAndRewrite(IE::SplitOp origOp,
-                                                                    ArrayRef<mlir::Value> newOperands,
-                                                                    mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult BufferizeIEPass::SplitRewrite::matchAndRewrite(IE::SplitOp origOp,
+                                                                   ArrayRef<mlir::Value> newOperands,
+                                                                   mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found Split Operation '{0}'", origOp->getLoc());
+
+    VPUX_THROW_UNLESS(newOperands.size() == origOp->getNumOperands(),
+                      "Got wrong newOperands size : '{0}', expected '{1}'", newOperands.size(),
+                      origOp->getNumOperands());
+
+    const auto inputType = newOperands[0].getType().cast<mlir::ShapedType>();
 
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
-    const auto inputTensor = newOperands[0];
-    const auto inputType = inputTensor.getType();
-    const auto inputShape = inputType.cast<mlir::ShapedType>();
-
     auto axis = origOp.axis().getDefiningOp<ConstantInterface>().getContent().getValues<int64_t>()[0];
     if (axis < 0) {
-        axis += inputShape.getRank();
+        axis += inputType.getRank();
     }
 
+    auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.getResults());
+
     // Prepare strides array for subview. We have dense array, so all strides have to be equal 1
-    mlir::SmallVector<int64_t, 4> svStrides(inputShape.getRank(), 1);
+    SmallVector<int64_t> svStrides(inputType.getRank(), 1);
+    SmallVector<int64_t> svOffsets(inputType.getRank(), 0);
 
-    mlir::SmallVector<int64_t, 4> svOffsets(inputShape.getRank(), 0);
+    const auto offsetStep = inputType.getShape()[axis] / origOp.num_splits();
 
-    auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.getOutputs());
-    for (size_t i = 0; i < origOp.getOutputs().size();
-         ++i, svOffsets[axis] += inputShape.getShape()[axis] / origOp.num_splits()) {
-        const auto oldOutputType = origOp.getOutputs()[0].getType();
+    for (auto i : irange(origOp->getNumResults())) {
+        const auto origOutputType = origOp.getResult(i).getType().cast<mlir::ShapedType>();
+        const auto svSizes = origOutputType.getShape();
 
-        // SubView size is completely the same as old output shape
-        const auto svSize = oldOutputType.cast<mlir::ShapedType>().getShape();
-        auto subView =
-                rewriter.create<mlir::memref::SubViewOp>(origOp.getLoc(), newOperands[0], svOffsets, svSize, svStrides);
+        _log.trace("Create SubView for output #'{0}'", i);
+        auto subView = rewriter.create<mlir::memref::SubViewOp>(origOp.getLoc(), newOperands[0], svOffsets, svSizes,
+                                                                svStrides);
 
         _log.trace("Copy SubView result to output buffer");
         rewriter.create<IERT::CopyOp>(origOp->getLoc(), subView, allocatedBufs[i]);
+
+        svOffsets[axis] += offsetStep;
     }
 
     rewriter.replaceOp(origOp, allocatedBufs);
-
     return mlir::success();
 }
 
 //
-// ConcatsRewrite
+// ConcatRewrite
 //
 
-class BufferizeIEPass::ConcatsRewrite final : public mlir::OpConversionPattern<IE::ConcatOp> {
+class BufferizeIEPass::ConcatRewrite final : public mlir::OpConversionPattern<IE::ConcatOp> {
 public:
-    ConcatsRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+    ConcatRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::OpConversionPattern<IE::ConcatOp>(typeConverter, ctx), _log(log) {
     }
 
@@ -263,37 +266,43 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult BufferizeIEPass::ConcatsRewrite::matchAndRewrite(IE::ConcatOp origOp,
-                                                                     ArrayRef<mlir::Value> newOperands,
-                                                                     mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult BufferizeIEPass::ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp,
+                                                                    ArrayRef<mlir::Value> newOperands,
+                                                                    mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found Layer Operation '{0}'", origOp->getLoc());
 
-    auto origInputs = origOp.getInputs();
-    auto origOutputs = origOp.getOutputs();
-    VPUX_THROW_UNLESS(newOperands.size() == origInputs.size(), "Got wrong newOperands size : '{0}', expected '{1}'",
-                      newOperands.size(), origInputs.size());
+    VPUX_THROW_UNLESS(newOperands.size() == origOp->getNumOperands(),
+                      "Got wrong newOperands size : '{0}', expected '{1}'", newOperands.size(),
+                      origOp->getNumOperands());
 
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
     _log.trace("Add Alloc Operations for results");
-    auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOutputs);
+    auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, {origOp.getResult()});
 
-    auto outputRank = origOutputs[0].getType().cast<mlir::ShapedType>().getRank();
+    const auto outputRank = origOp.getType().getRank();
+
     int64_t simplifiedAxis = (outputRank + origOp.axis()) % outputRank;
 
-    mlir::SmallVector<int64_t> strides(outputRank, 1);
-    mlir::SmallVector<int64_t> offsets(outputRank, 0);
+    // Prepare strides array for subview. We have dense array, so all strides have to be equal 1
+    SmallVector<int64_t> svStrides(outputRank, 1);
+    SmallVector<int64_t> svOffsets(outputRank, 0);
 
-    for (size_t i = 0; i < origInputs.size(); ++i) {
-        const auto sizes = newOperands[i].getType().cast<mlir::ShapedType>().getShape();
-        _log.trace("Create SubView for index '{0}'", i);
-        auto subView =
-                rewriter.create<mlir::memref::SubViewOp>(origOp->getLoc(), allocatedBufs[0], offsets, sizes, strides);
+    for (auto i : irange(origOp->getNumOperands())) {
+        const auto newInputType = newOperands[i].getType().cast<mlir::ShapedType>();
+        const auto svSizes = newInputType.getShape();
 
+        _log.trace("Create SubView for input #'{0}'", i);
+        auto subView = rewriter.create<mlir::memref::SubViewOp>(origOp->getLoc(), allocatedBufs[0], svOffsets, svSizes,
+                                                                svStrides);
+
+        _log.trace("Copy new operand to SubView");
         rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[i], subView);
-        offsets[simplifiedAxis] += newOperands[i].getType().cast<mlir::ShapedType>().getShape()[simplifiedAxis];
+
+        svOffsets[simplifiedAxis] += svSizes[simplifiedAxis];
     }
+
     rewriter.replaceOp(origOp, allocatedBufs);
     return mlir::success();
 }
@@ -641,11 +650,11 @@ void BufferizeIEPass::safeRunOnFunc() {
     mlir::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ConcatsRewrite>(typeConverter, &ctx, _log);
     patterns.insert<ConstantRewrite>(typeConverter, &ctx, _log);
     patterns.insert<LinalgReshapeRewrite>(typeConverter, &ctx, _log);
     patterns.insert<GenericReshapeRewrite>(typeConverter, &ctx, _log);
-    patterns.insert<SplitsRewrite>(typeConverter, &ctx, _log);
+    patterns.insert<SplitRewrite>(typeConverter, &ctx, _log);
+    patterns.insert<ConcatRewrite>(typeConverter, &ctx, _log);
     patterns.insert<LayerRewrite>(typeConverter, &ctx, _log);
 
     auto func = getFunction();
