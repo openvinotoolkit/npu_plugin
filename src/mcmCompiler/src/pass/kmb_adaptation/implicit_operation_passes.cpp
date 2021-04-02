@@ -198,7 +198,9 @@ void propagateImplicitOpsFromOutput(mv::Op& op, mv::OpModel& om)
     for (auto input : op.getInputTensor())
     {
         auto previousOp = om.getSourceOp(input);
-        if (previousOp->isImplicit())
+        if (previousOp->hasAttr("propagateLocation") && previousOp->get<bool>("propagateLocation") == false)
+            continue;
+        else if (previousOp->isImplicit())
             propagateImplicitOpsFromOutput(*previousOp, om);
         else if (previousOp->get<std::string>("opType") == "DMATask")
             input->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
