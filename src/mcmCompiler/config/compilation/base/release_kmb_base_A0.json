@@ -3,8 +3,7 @@
         "Singular": [
             "DecideConcatLocation",
             "ConcatAsImplicit",
-            "PermuteAsImplicit",
-            "ReshapeAsImplicit",
+            "ConvertToImplicitOps",
             "StoreWorkloadStrategy",
             "LoadPWLQuantParams",
             "ConvertOpsToTasks",
@@ -63,8 +62,10 @@
               "enable_cmx_concat" : true,
               "enable_inplace_eltwise" : true
             },
+            "AssignSEBasePtr",
             {
-              "name" : "RecomputeImplicitOpMemoryLocations"
+                "name" : "RecomputeImplicitOpAttr",
+                "attribute" : "Location"
             },
             "RecomputeTensorMultiClusterAttributesCauseOfSpilling",
             {
@@ -87,6 +88,10 @@
               "output" : "lp_scheduler_output.txt",
               "allocator_mode": true,
               "ddr_control_edges" : true
+            },
+            {
+                "name" : "RecomputeImplicitOpAttr",
+                "attribute" : "address"
             },
             "SetSliceAddressesInCMX",
             "LayerNumbering",

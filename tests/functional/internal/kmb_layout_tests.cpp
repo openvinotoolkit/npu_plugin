@@ -20,7 +20,7 @@ class KmbLayoutTests : public KmbLayerTestBase,
     public testing::WithParamInterface<std::tuple<Precision, Precision, Layout, bool>> {};
 
 static const std::set<Precision> supportedInPrecisions = { Precision::U8, Precision::FP16, Precision::FP32 };
-static const std::set<Precision> supportedOutPrecisions = { Precision::U8, Precision::FP16, Precision::FP32 };
+static const std::set<Precision> supportedOutPrecisions = { Precision::U8, Precision::FP16, Precision::FP32, Precision::I32 };
 static const std::set<Layout> supportedInLayouts = { Layout::NHWC, Layout::NCHW, Layout::CHW, Layout::NC, Layout::C };
 static const std::set<Layout> supportedOutLayouts = { Layout::NHWC, Layout::NCHW, Layout::CHW, Layout::NC, Layout::C };
 

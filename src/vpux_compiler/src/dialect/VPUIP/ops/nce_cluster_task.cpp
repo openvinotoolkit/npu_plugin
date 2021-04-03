@@ -285,7 +285,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
     }
 
     for (auto& resOp : op.variants().getOps()) {
-        if (!mlir::isa<VPUIP::DPUTaskOp>(&resOp) && !mlir::isa<VPUIP::EndOp>(&resOp)) {
+        if (!mlir::isa<VPUIP::DPUTaskOp>(&resOp)) {
             return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'variants' region", resOp.getName(),
                            resOp.getLoc());
         }
@@ -297,7 +297,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
             return errorAt(op, "'fixed_ppe_task' attribute and 'PPE' region are mutually exclusive, but found both");
         }
         for (auto& resOp : ppeRegion.getOps()) {
-            if (!mlir::isa<VPUIP::PPETaskOp>(&resOp) && !mlir::isa<VPUIP::EndOp>(&resOp)) {
+            if (!mlir::isa<VPUIP::PPETaskOp>(&resOp)) {
                 return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'PPE' region", resOp.getName(),
                                resOp.getLoc());
             }

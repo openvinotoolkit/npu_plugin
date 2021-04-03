@@ -150,14 +150,64 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         log->debug("Configure MCM Compiler");
         VPU_LOGGER_SECTION(log);
 
-        std::string compDescName = !config.mcmCompilationDesciptor().empty() ?
+        std::string compDescName;
+        std::string targetDescName;
+
+        if (config.mcmTargetDesciptor() != "release_kmb") {
+            targetDescName = !config.mcmTargetDesciptor().empty() ?
+                              config.mcmTargetDesciptor() : "release_kmb";
+        }
+        else {
+            switch (config.platform()) {
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900: {
+                    targetDescName = "release_thb";
+                    break;
+                }
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720: {
+                    targetDescName = "release_mtl";
+                    break;
+                }
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
+                default: {
+                    targetDescName = "release_kmb";
+                }
+            }
+        }
+
+        if (config.mcmCompilationDesciptor() != "release_kmb") {
+            compDescName = !config.mcmCompilationDesciptor().empty() ?
                             config.mcmCompilationDesciptor() : "release_kmb";
+        }
+        else {
+            switch (config.platform()) {
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700: {
+                    compDescName = "release_kmb_B0";
+                    break;
+                }
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720: {
+                    compDescName = "release_mtl";
+                    break;
+                }
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
+                default: {
+                    compDescName = "release_kmb";
+                }
+            }
+        }
 
         if (config.deviceId() == "EMULATOR") {
             compDescName = "emulator_kmb_SC-Prefetch1";
         }
 
-        const auto targetPath = ie::getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + config.mcmTargetDesciptor() + ".json";
+        const auto targetPath = ie::getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + targetDescName + ".json";
         const auto compDescPath = ie::getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" + compDescName + ".json";
 
         IE_ASSERT(mcmCompiler->loadTargetDescriptor(targetPath));

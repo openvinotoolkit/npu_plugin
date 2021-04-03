@@ -43,15 +43,16 @@ std::vector<std::pair<DimsOrder, size_t>> getOrders2Dims() {
 std::vector<std::pair<std::vector<Dim>, DimsOrder>> getPerm2Order() {
     return std::vector<std::pair<std::vector<Dim>, DimsOrder>>{
             std::make_pair(std::vector<Dim>({Dim(0)}), DimsOrder::C),
-            std::make_pair(std::vector<Dim>({Dim(1), Dim(0)}), DimsOrder::NC),
-            std::make_pair(std::vector<Dim>({Dim(2), Dim(1), Dim(0)}), DimsOrder::CHW),
-            std::make_pair(std::vector<Dim>({Dim(0), Dim(2), Dim(1)}), DimsOrder::HWC),
-            std::make_pair(std::vector<Dim>({Dim(2), Dim(0), Dim(1)}), DimsOrder::HCW),
-            std::make_pair(std::vector<Dim>({Dim(3), Dim(2), Dim(1), Dim(0)}), DimsOrder::NCHW),
-            std::make_pair(std::vector<Dim>({Dim(1), Dim(3), Dim(2), Dim(0)}), DimsOrder::NHWC),
-            std::make_pair(std::vector<Dim>({Dim(3), Dim(1), Dim(2), Dim(0)}), DimsOrder::NHCW),
-            std::make_pair(std::vector<Dim>({Dim(4), Dim(3), Dim(2), Dim(1), Dim(0)}), DimsOrder::NCDHW),
-            std::make_pair(std::vector<Dim>({Dim(1), Dim(4), Dim(3), Dim(2), Dim(0)}), DimsOrder::NDHWC)};
+            std::make_pair(std::vector<Dim>({Dim(0), Dim(1)}), DimsOrder::NC),
+            std::make_pair(std::vector<Dim>({Dim(0), Dim(1), Dim(2)}), DimsOrder::CHW),
+            std::make_pair(std::vector<Dim>({Dim(1), Dim(2), Dim(0)}), DimsOrder::HWC),
+            std::make_pair(std::vector<Dim>({Dim(1), Dim(0), Dim(2)}), DimsOrder::HCW),
+            std::make_pair(std::vector<Dim>({Dim(0), Dim(1), Dim(2), Dim(3)}), DimsOrder::NCHW),
+            std::make_pair(std::vector<Dim>({Dim(0), Dim(2), Dim(3), Dim(1)}), DimsOrder::NHWC),
+            std::make_pair(std::vector<Dim>({Dim(0), Dim(2), Dim(1), Dim(3)}), DimsOrder::NHCW),
+            std::make_pair(std::vector<Dim>({Dim(0), Dim(1), Dim(2), Dim(3), Dim(4)}), DimsOrder::NCDHW),
+            std::make_pair(std::vector<Dim>({Dim(0), Dim(2), Dim(3), Dim(4), Dim(1)}), DimsOrder::NDHWC)
+    };
 }
 std::vector<std::pair<DimsOrder::StorageType, DimsOrder>> getCode2Order() {
     return std::vector<std::pair<DimsOrder::StorageType, DimsOrder>>{
@@ -73,16 +74,32 @@ std::vector<std::pair<DimsOrder, StringRef>> getOrders2Name() {
 }
 
 using ShapeType = SmallVector<int64_t>;
-using StridesType = SmallVector<int64_t>;
-std::vector<std::tuple<DimsOrder, ShapeType, StridesType>> getFromType() {
+using MemStridesType = SmallVector<int64_t>;
+using ExpectedDimsOrderType = DimsOrder;
+using ValueDimsOrderType = DimsOrder;
+using ResType = bool;
+
+std::vector<std::tuple<ExpectedDimsOrderType, ValueDimsOrderType, ShapeType, MemStridesType>> getFromType() {
     return {
-// No affine maps
-        {DimsOrder::CHW, {1, 8, 4}, {}},
-// One affine map
-        {DimsOrder::CHW, {1, 8, 4}, {32, 4, 1}},
-        {DimsOrder::HWC, {1, 8, 4}, {}},
-// Two affine maps
-        {DimsOrder::HWC, {1, 8, 4}, {4, 1, 1}}
+        {DimsOrder::CHW,  DimsOrder::CHW,  {8, 4, 2},    {}},
+        {DimsOrder::CHW,  DimsOrder::HCW,  {1, 3, 6},    {}},
+        {DimsOrder::HCW,  DimsOrder::HCW,  {2, 3, 6},    {}},
+        {DimsOrder::CHW,  DimsOrder::HCW,  {1, 3, 6},    {6, 6, 1}},
+        {DimsOrder::NCHW, DimsOrder::NHCW, {5, 1, 2, 3}, {}},
+        {DimsOrder::NHCW, DimsOrder::NHCW, {5, 4, 3, 2}, {}},
+        {DimsOrder::NCHW, DimsOrder::NHCW, {5, 1, 2, 3}, {6, 3, 3, 1}},
+    };
+}
+
+std::vector<std::tuple<ExpectedDimsOrderType, ValueDimsOrderType, ShapeType, MemStridesType, ResType>> getIsCompatibleLayout() {
+    return {
+        {DimsOrder::CHW, DimsOrder::CHW,   {1, 2, 4},    {8, 4, 1},    true},
+
+        {DimsOrder::HCW, DimsOrder::CHW,   {1, 1, 6},    {6, 6, 1},    true},
+        {DimsOrder::HCW, DimsOrder::CHW,   {2, 2, 6},    {12, 6, 1},   false},
+
+        {DimsOrder::NCHW, DimsOrder::NHCW, {5, 2, 1, 3}, {6, 3, 3, 1}, true},
+        {DimsOrder::NCHW, DimsOrder::HCW,  {1, 1, 1},    {1, 1, 1},    false},  // type.getRank() != numDims()
     };
 }
 
@@ -253,15 +270,15 @@ TEST(MLIR_DimsOrderTest, dimPosTest) {
 }
 
 TEST(MLIR_DimsOrderTest, dimPosTest_4D) {
-    EXPECT_EQ(DimsOrder::NCHW.dimPos(Dim(3)), 0);
-    EXPECT_EQ(DimsOrder::NCHW.dimPos(Dim(2)), 1);
-    EXPECT_EQ(DimsOrder::NCHW.dimPos(Dim(1)), 2);
-    EXPECT_EQ(DimsOrder::NCHW.dimPos(Dim(0)), 3);
+    EXPECT_EQ(DimsOrder::NCHW.dimPos(Dim(3)), 3);
+    EXPECT_EQ(DimsOrder::NCHW.dimPos(Dim(2)), 2);
+    EXPECT_EQ(DimsOrder::NCHW.dimPos(Dim(1)), 1);
+    EXPECT_EQ(DimsOrder::NCHW.dimPos(Dim(0)), 0);
 
-    EXPECT_EQ(DimsOrder::NHWC.dimPos(Dim(1)), 0);
-    EXPECT_EQ(DimsOrder::NHWC.dimPos(Dim(3)), 1);
-    EXPECT_EQ(DimsOrder::NHWC.dimPos(Dim(2)), 2);
-    EXPECT_EQ(DimsOrder::NHWC.dimPos(Dim(0)), 3);
+    EXPECT_EQ(DimsOrder::NHWC.dimPos(Dim(1)), 3);
+    EXPECT_EQ(DimsOrder::NHWC.dimPos(Dim(3)), 2);
+    EXPECT_EQ(DimsOrder::NHWC.dimPos(Dim(2)), 1);
+    EXPECT_EQ(DimsOrder::NHWC.dimPos(Dim(0)), 0);
 }
 
 TEST(MLIR_DimsOrderTest, dimAtTest) {
@@ -279,15 +296,15 @@ TEST(MLIR_DimsOrderTest, dimAtTest) {
 }
 
 TEST(MLIR_DimsOrderTest, dimAtTest_4D) {
-    EXPECT_EQ(DimsOrder::NCHW.dimAt(0), Dim(3));
-    EXPECT_EQ(DimsOrder::NCHW.dimAt(1), Dim(2));
-    EXPECT_EQ(DimsOrder::NCHW.dimAt(2), Dim(1));
-    EXPECT_EQ(DimsOrder::NCHW.dimAt(3), Dim(0));
+    EXPECT_EQ(DimsOrder::NCHW.dimAt(0), Dim(0));
+    EXPECT_EQ(DimsOrder::NCHW.dimAt(1), Dim(1));
+    EXPECT_EQ(DimsOrder::NCHW.dimAt(2), Dim(2));
+    EXPECT_EQ(DimsOrder::NCHW.dimAt(3), Dim(3));
 
-    EXPECT_EQ(DimsOrder::NHWC.dimAt(0), Dim(1));
-    EXPECT_EQ(DimsOrder::NHWC.dimAt(1), Dim(3));
-    EXPECT_EQ(DimsOrder::NHWC.dimAt(2), Dim(2));
-    EXPECT_EQ(DimsOrder::NHWC.dimAt(3), Dim(0));
+    EXPECT_EQ(DimsOrder::NHWC.dimAt(0), Dim(0));
+    EXPECT_EQ(DimsOrder::NHWC.dimAt(1), Dim(2));
+    EXPECT_EQ(DimsOrder::NHWC.dimAt(2), Dim(3));
+    EXPECT_EQ(DimsOrder::NHWC.dimAt(3), Dim(1));
 }
 
 TEST(MLIR_DimsOrderTest, toPermutationTest) {
@@ -300,15 +317,15 @@ TEST(MLIR_DimsOrderTest, toPermutationTest) {
 }
 
 TEST(MLIR_DimsOrderTest, MemDim_4D) {
-    EXPECT_EQ(DimsOrder::NCHW.toMemDim(Dim(0)), MemDim(3));
-    EXPECT_EQ(DimsOrder::NCHW.toMemDim(Dim(1)), MemDim(2));
-    EXPECT_EQ(DimsOrder::NCHW.toMemDim(Dim(2)), MemDim(1));
-    EXPECT_EQ(DimsOrder::NCHW.toMemDim(Dim(3)), MemDim(0));
+    EXPECT_EQ(DimsOrder::NCHW.toMemDim(Dim(0)), MemDim(0));
+    EXPECT_EQ(DimsOrder::NCHW.toMemDim(Dim(1)), MemDim(1));
+    EXPECT_EQ(DimsOrder::NCHW.toMemDim(Dim(2)), MemDim(2));
+    EXPECT_EQ(DimsOrder::NCHW.toMemDim(Dim(3)), MemDim(3));
 
-    EXPECT_EQ(DimsOrder::NHWC.toMemDim(Dim(0)), MemDim(3));
-    EXPECT_EQ(DimsOrder::NHWC.toMemDim(Dim(1)), MemDim(0));
-    EXPECT_EQ(DimsOrder::NHWC.toMemDim(Dim(2)), MemDim(2));
-    EXPECT_EQ(DimsOrder::NHWC.toMemDim(Dim(3)), MemDim(1));
+    EXPECT_EQ(DimsOrder::NHWC.toMemDim(Dim(0)), MemDim(0));
+    EXPECT_EQ(DimsOrder::NHWC.toMemDim(Dim(1)), MemDim(3));
+    EXPECT_EQ(DimsOrder::NHWC.toMemDim(Dim(2)), MemDim(1));
+    EXPECT_EQ(DimsOrder::NHWC.toMemDim(Dim(3)), MemDim(2));
 }
 
 TEST(MLIR_DimsOrderTest, fromIETest) {
@@ -368,29 +385,57 @@ TEST(MLIR_DimsOrderTest, getCanonicalName) {
     ASSERT_FALSE(nonDefault.hasValue());
 }
 
-
 TEST(MLIR_DimsOrderTest, fromTypeTest) {
     const auto testData = getFromType();
 
     for (const auto& testCase : testData) {
         mlir::MLIRContext ctx;
+        DimsOrder originOrder;
         DimsOrder expOrder;
         SmallVector<int64_t> shape{};
-        SmallVector<int64_t> memStridesVec{};
+        SmallVector<int64_t> memStrides{};
 
-        std::tie(expOrder, shape, memStridesVec) = testCase;
+        std::tie(expOrder, originOrder, shape, memStrides) = testCase;
 
-        SmallVector<mlir::AffineMap> maps;
-        if(!memStridesVec.empty()) {
-            const auto stridesMap = mlir::makeStridedLinearLayoutMap(makeArrayRef(memStridesVec), 0, &ctx);
-            maps = SmallVector<mlir::AffineMap>{expOrder.toAffineMap(&ctx), stridesMap};
+        const auto layoutMap = originOrder.toAffineMap(&ctx);
+        mlir::MemRefType memRefType;
+        if(originOrder != DimsOrder::fromNumDims(shape.size())) {
+            if(!memStrides.empty()) {
+                // strided memref
+                const auto map = mlir::makeStridedLinearLayoutMap(memStrides, 0, &ctx).compose(layoutMap);
+                memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), map);
+            } else {
+                // memref with pure permutation
+                memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), layoutMap);
+            }
         } else {
-            maps = SmallVector<mlir::AffineMap>{expOrder.toAffineMap(&ctx)};
+            // simple memref
+            memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx));
         }
 
-        const auto memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), makeArrayRef(maps));
         const auto actualOrder = DimsOrder::fromType(memRefType);
-
         EXPECT_EQ(expOrder, actualOrder);
+    }
+}
+
+TEST(MLIR_DimsOrderTest, isCompatibleLayoutTest) {
+    const auto testData = getIsCompatibleLayout();
+
+    for (const auto& testCase : testData) {
+        mlir::MLIRContext ctx;
+        DimsOrder originOrder;
+        DimsOrder expOrder;
+        SmallVector<int64_t> shape{};
+        SmallVector<int64_t> memStrides{};
+        ResType isCompatible{};
+
+        std::tie(expOrder, originOrder, shape, memStrides, isCompatible) = testCase;
+
+        const auto layoutMap = originOrder.toAffineMap(&ctx);
+        const auto stridesMap = mlir::makeStridedLinearLayoutMap(memStrides, 0, &ctx);
+
+        const auto memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), stridesMap.compose(layoutMap));
+
+        EXPECT_EQ(expOrder.isCompatibleLayout(memRefType), isCompatible);
     }
 }

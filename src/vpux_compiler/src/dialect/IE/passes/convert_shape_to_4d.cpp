@@ -143,7 +143,7 @@ void ConvertShapeTo4DPass::safeRunOnModule() {
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
     target.addLegalOp<mlir::linalg::TensorReshapeOp>();
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
-    target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
+    target.addLegalOp<mlir::ModuleOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
         return typeConverter.isSignatureLegal(funcOp.getType()) && typeConverter.isLegal(&funcOp.getBody());
     });

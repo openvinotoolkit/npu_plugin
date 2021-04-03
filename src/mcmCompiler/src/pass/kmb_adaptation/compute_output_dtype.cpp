@@ -392,9 +392,7 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
     if (inputType == mv::DType("Int8") && target != mv::Target::ma3720) {
        throw std::runtime_error(td.toString(target) + " Compiler doesn't support I8 inputs for the moment, please rescale your data to U8");
     }
-    if (inputType == mv::DType("Int8") && target == mv::Target::ma3720) {
-        return; //Int8 supported by ma3720 - no need to convert
-    }
+
     for (; kernelOp != om.opEnd(); ++kernelOp)
     {
         if(kernelOp.outputsSize() > 0)
@@ -424,6 +422,14 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
     mv::OpModel om(model);
     auto returnedParams = model.getGlobalConfigParams();
 
+    auto perTensorScale = [](const mv::Data::TensorIterator& tensor) {
+        const auto& channelScale = tensor->get<mv::QuantizationParams>("quantParams").getScale();
+        return std::all_of(channelScale.begin(), channelScale.end(),
+                           [&](double x) {
+                               return std::abs(x - channelScale[0]) <= 0.01f;
+                           });
+    };
+
     if (returnedParams->hasAttr("PredictionOfQuantizationOutput") &&
         returnedParams->get<bool>("PredictionOfQuantizationOutput")) {
         updateOutputQuantParams(pass, model);
@@ -432,22 +438,23 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
             for (auto& op : p.second) {
                 const auto& opType = p.first;
 
-                // TODO: Can we encapsulate isEmpty() inside isNeutral()?
                 bool inputQuantized = true;
                 for (size_t i = 0; i < (opType == "Eltwise" ? 2 : 1); ++i) {
-                    inputQuantized &= !op->getInputTensor(i)->getQuantParams().isEmpty() &&
-                                      !op->getInputTensor(i)->getQuantParams().isNeutral();
+                    inputQuantized &= !op->getInputTensor(i)->isFloatingPointType() &&
+                                      !op->getInputTensor(i)->getQuantParams().isEmpty();
                 }
-                bool outputQuantized = !op->getOutputTensor()[0]->getQuantParams().isNeutral() &&
-                                       !op->getOutputTensor()[0]->getQuantParams().isEmpty();
+                bool outputQuantized = !op->getOutputTensor(0)->isFloatingPointType() &&
+                                       !op->getOutputTensor(0)->getQuantParams().isEmpty();
 
-                if (op->getOutputTensor()[0]->getDType() ==  mv::DType("Float16")) {
+                if (!inputQuantized && !outputQuantized) {
                     if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput")) {
-                        op->set<bool>("floatPrecision", true);
+                        // This will ensure that the constants are properly dequantized and tensors are set
+                        // to fp16 for cases such as u8 with neutral quantParams
+                        op->set<bool>("placeConversionToFloat", true);
                     }
                 } else if (inputQuantized && !outputQuantized) {
                     if (returnedParams->hasAttr("Int32Output") && returnedParams->get<bool>("Int32Output")) {
-                        op->getOutputTensor()[0]->setDType(mv::DType("Int32"));
+                        op->getOutputTensor(0)->setDType(mv::DType("Int32"));
                     }
                     // NOTE: HW limitation, in mixed mode the grids of the MPEs are conflicting between
                     // each other, which leads to 1x1 workloads, so we will do an explicit conversion
@@ -457,16 +464,19 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             op->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) {
                             if (td.getTarget() != mv::Target::ma3720)
                                 op->set<bool>("mixedToFloat", true);
-                            op->getOutputTensor()[0]->setDType(mv::DType("Float16"));
+                            op->getOutputTensor(0)->setDType(mv::DType("Float16"));
                         } else {
-                            const auto& channelScale = op->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
-                            bool perTensor = std::all_of(channelScale.begin(), channelScale.end(),
-                                                         [&](double x) {
-                                                             return std::abs(x - channelScale[0]) <= 0.01f;
-                                                         });
-                            if (perTensor) {
+                            if (perTensorScale(op->getInputTensor(0))) {
                                 op->set<bool>("placeConversionToFloat", true);
                             }
+                        }
+                    }
+                }
+                else if (!inputQuantized && outputQuantized)
+                {
+                    if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput")) {
+                        if (perTensorScale(op->getInputTensor(0))) {
+                            op->set<bool>("placeConversionToFloat", true);
                         }
                     }
                 }

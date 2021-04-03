@@ -364,7 +364,7 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
                 }
             }
         }
-        else if (opType == "ImplicitReshape" || opType == "ImplicitPermute")
+        else if (opType == "ImplicitReshape" || opType == "ImplicitPermute" || opType == "ImplicitResample")
         {
             auto input = opIt->getInputTensor(0);
             // Recursively search for non-implicit input op

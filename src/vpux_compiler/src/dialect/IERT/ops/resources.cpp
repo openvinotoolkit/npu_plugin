@@ -55,10 +55,10 @@ IERT::ExecutorResourceOp addExecutor(mlir::Location loc, mlir::Region& executor,
     }
 
     auto countAttr = getInt32Attr(loc.getContext(), count);
-    auto builder = mlir::OpBuilder::atBlockTerminator(&executor.front());
+    auto builder = mlir::OpBuilder::atBlockEnd(&executor.front());
     auto resOp = builder.create<IERT::ExecutorResourceOp>(loc, kind, countAttr, withSubRegion ? 1 : 0);
     if (withSubRegion) {
-        IERT::ExecutorResourceOp::ensureTerminator(resOp.subExecutors().front(), builder, loc);
+        resOp.subExecutors().front().emplaceBlock();
     }
     return resOp;
 }
@@ -69,29 +69,29 @@ IERT::ExecutorResourceOp addExecutor(mlir::Location loc, mlir::Region& executor,
 // RunTimeResourcesOp
 //
 
-void vpux::IERT::RunTimeResourcesOp::build(mlir::OpBuilder& builder, mlir::OperationState& state) {
-    ensureTerminator(*state.addRegion(), builder, state.location);
-    ensureTerminator(*state.addRegion(), builder, state.location);
-    ensureTerminator(*state.addRegion(), builder, state.location);
+void vpux::IERT::RunTimeResourcesOp::build(mlir::OpBuilder&, mlir::OperationState& state) {
+    state.addRegion()->emplaceBlock();
+    state.addRegion()->emplaceBlock();
+    state.addRegion()->emplaceBlock();
 }
 
 mlir::LogicalResult vpux::IERT::verifyOp(IERT::RunTimeResourcesOp op) {
     for (auto& resOp : op.availableMemory().getOps()) {
-        if (!mlir::isa<IERT::MemoryResourceOp>(&resOp) && !mlir::isa<IERT::EndOp>(&resOp)) {
+        if (!mlir::isa<IERT::MemoryResourceOp>(&resOp)) {
             return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'availableMemory' region", resOp.getName(),
                            resOp.getLoc());
         }
     }
 
     for (auto& resOp : op.usedMemory().getOps()) {
-        if (!mlir::isa<IERT::MemoryResourceOp>(&resOp) && !mlir::isa<IERT::EndOp>(&resOp)) {
+        if (!mlir::isa<IERT::MemoryResourceOp>(&resOp)) {
             return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'usedMemory' region", resOp.getName(),
                            resOp.getLoc());
         }
     }
 
     for (auto& resOp : op.executors().getOps()) {
-        if (!mlir::isa<IERT::ExecutorResourceOp>(&resOp) && !mlir::isa<IERT::EndOp>(&resOp)) {
+        if (!mlir::isa<IERT::ExecutorResourceOp>(&resOp)) {
             return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'executors' region", resOp.getName(),
                            resOp.getLoc());
         }
@@ -122,7 +122,7 @@ IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::addAvailableMemory(mlir::
 
     auto byteSizeAttr = getInt64Attr(getContext(), size.count());
 
-    auto builder = mlir::OpBuilder::atBlockTerminator(&availableMemory().front());
+    auto builder = mlir::OpBuilder::atBlockEnd(&availableMemory().front());
     return builder.create<IERT::MemoryResourceOp>(getLoc(), kind, byteSizeAttr);
 }
 
@@ -151,7 +151,7 @@ IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::setUsedMemory(mlir::Attri
         }
     }
 
-    auto builder = mlir::OpBuilder::atBlockTerminator(&usedMemory().front());
+    auto builder = mlir::OpBuilder::atBlockEnd(&usedMemory().front());
     return builder.create<IERT::MemoryResourceOp>(getLoc(), kind, byteSizeAttr);
 }
 
@@ -185,7 +185,7 @@ mlir::LogicalResult vpux::IERT::verifyOp(IERT::ExecutorResourceOp op) {
 
     if (!op.subExecutors().empty()) {
         for (auto& resOp : op.subExecutors().front().getOps()) {
-            if (!mlir::isa<IERT::ExecutorResourceOp>(&resOp) && !mlir::isa<IERT::EndOp>(&resOp)) {
+            if (!mlir::isa<IERT::ExecutorResourceOp>(&resOp)) {
                 return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'subExecutors' region", resOp.getName(),
                                resOp.getLoc());
             }

@@ -30,10 +30,10 @@ using namespace vpux;
     VPUX_UNUSED(file);
     VPUX_UNUSED(line);
 
-#ifdef NDEBUG
-    Logger::global().error("Got exception : {0}", message);
-#else
+#ifdef VPUX_DEVELOPER_BUILD
     Logger::global().error("Got exception in {0}:{1} : {2}", file, line, message);
+#else
+    Logger::global().error("Got exception : {0}", message);
 #endif
 
     std::stringstream strm;

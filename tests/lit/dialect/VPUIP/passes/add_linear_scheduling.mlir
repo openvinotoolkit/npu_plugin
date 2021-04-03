@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --add-linear-scheduling %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3400_A0" --add-linear-scheduling %s | FileCheck %s
 
 // CHECK-LABEL: @linear_dma_graph
 module @linear_dma_graph {
@@ -25,20 +25,20 @@ IE.CNNNetwork
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
     VPUIP.UPADMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>)
-    // CHECK:       %[[B0:.*]] = VPUIP.ConfigureBarrier <0>
+    // CHECK:       %[[B0:.*]] = VPUIP.ConfigureBarrier<0>
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      updates(%[[B0]] : !VPUIP.Barrier)
 
     %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1x1x1000xf16>
     VPUIP.UPADMA inputs(%0 : memref<1x1x1x1000xf16>) outputs(%1 : memref<1x1x1x1000xf16>)
-    // CHECK:       %[[B1:.*]] = VPUIP.ConfigureBarrier <1>
+    // CHECK:       %[[B1:.*]] = VPUIP.ConfigureBarrier<1>
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B0]] : !VPUIP.Barrier)
     // CHECK-SAME:      updates(%[[B1]] : !VPUIP.Barrier)
 
     %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
     VPUIP.UPADMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%2 : memref<1x1x1x1000xf16>)
-    // CHECK:       %[[B2:.*]] = VPUIP.ConfigureBarrier <0>
+    // CHECK:       %[[B2:.*]] = VPUIP.ConfigureBarrier<0>
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B1]] : !VPUIP.Barrier)
     // CHECK-SAME:      updates(%[[B2]] : !VPUIP.Barrier)

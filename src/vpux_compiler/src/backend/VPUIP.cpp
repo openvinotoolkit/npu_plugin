@@ -269,15 +269,14 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
 
             ++constantTensorInd;
         } else if (auto barrierOp = mlir::dyn_cast<DeclareVirtualBarrierOp>(op)) {
+            VPUX_THROW_UNLESS(VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers),
+                              "Graph was not configured for virtual barriers usage");
+
             const auto virtBarrier = writer.createBarrier(barrierOp.barrier());
             virtBarriers.push_back(virtBarrier);
         } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == netFunc.getOperation()) {
             // do nothing
-        } else if (auto dpuTaskOp = mlir::dyn_cast<DPUTaskOp>(op)) {
-            // do nothing
-        } else if (auto endOp = mlir::dyn_cast<EndOp>(op)) {
-            // do nothing
-        } else if (auto endOp = mlir::dyn_cast<PPETaskOp>(op)) {
+        } else if (mlir::dyn_cast<DPUTaskOp>(op) != nullptr || mlir::dyn_cast<PPETaskOp>(op) != nullptr) {
             // do nothing
         } else {
             VPUX_THROW("Unknown Operation '{0}' at '{1}'", op->getName(), op->getLoc());

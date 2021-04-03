@@ -2,7 +2,18 @@
 # 'VPUIP' Dialect
 
 VPU NN RunTime Dialect
-The `VPUIP` Dialect represents NN RunTime IR in terms of MLIR framework.
+The **VPUIP Dialect** represents NN RunTime IR in terms of MLIR framework.
+
+It allows to work with the graph schema inside MLIR framework:
+
+* Validate it.
+* Perform additional low level transformations/optimizations.
+
+It handles such VPU-specifics as:
+
+* Memory/executors hierarchy.
+* HW barriers notion.
+* Supported operation set.
 
 [TOC]
 
@@ -55,7 +66,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.ConfigureBarrier` attr-dict
-              ` ` `<` $id `>`
+              `<` $id `>`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
               `->` type(results)
@@ -366,18 +377,6 @@ operation ::= `VPUIP.EluUPA` attr-dict
 `output` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
-
-### `VPUIP.End` (vpux::VPUIP::EndOp)
-
-End indicator for IERT NCEClusterTaskOp variants section
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.End` attr-dict
-```
-
 
 ### `VPUIP.FakeQuantizeUPA` (vpux::VPUIP::FakeQuantizeUPAOp)
 

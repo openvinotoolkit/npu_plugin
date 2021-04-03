@@ -2,8 +2,7 @@
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
-            "PermuteAsImplicit",
-            "ReshapeAsImplicit",
+            "ConvertToImplicitOps",
             "StoreWorkloadStrategy",
             "LoadPWLQuantParams",
             "ConvertOpsToTasks",
@@ -45,6 +44,7 @@
               "ddr_address_generation" : true,
               "no_temporal_edges" : true
             },
+            "AssignSEBasePtr",
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"

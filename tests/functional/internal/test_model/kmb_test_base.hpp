@@ -173,6 +173,9 @@ class KmbTestBase : public CommonTestUtils::TestsCommon {
 public:
     using BlobGenerator = std::function<Blob::Ptr(const TensorDesc& desc)>;
     using CompileConfig = std::map<std::string, std::string>;
+    class import_error : public std::runtime_error {
+        using std::runtime_error::runtime_error;
+    };
 
 public:
     static const std::string DEVICE_NAME;

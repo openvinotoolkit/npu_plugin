@@ -12,7 +12,6 @@
             },
             "AssignInputNode",
             "AssignOutputNode",
-            "DecideComputePrecision",
             "AssignUniqueOpId",
             {
                 "name": "ApplyTargetVars",
@@ -166,6 +165,7 @@
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
+            "CleanRedundantDMAs",
             "EnsureSplitStrategiesForSpilling"
         ]
     },
@@ -200,6 +200,7 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "CombineTaskInputBarriers",
             "SplitBarrier",
             {
                 "name" : "AssignPhysicalBarrier",

@@ -28,6 +28,7 @@ include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/CopyOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 
 //
@@ -230,7 +231,7 @@ def VPUIP_ConfigureBarrierOp :
 
     let assemblyFormat = [{
         attr-dict
-        ` ` `<` $id `>`
+        `<` $id `>`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
@@ -1560,25 +1561,6 @@ def VPUIP_PPETaskOp :
 }
 
 //
-// EndOp
-//
-
-def VPUIP_EndOp :
-        VPUIP_Op<
-            "End",
-            [
-                NoSideEffect,
-                Terminator,
-                NativeOpTrait<"ReturnLike">,
-                HasParent<"vpux::VPUIP::NCEClusterTaskOp">
-            ]
-        > {
-    let summary = "End indicator for IERT NCEClusterTaskOp variants section";
-
-    let assemblyFormat = "attr-dict";
-}
-
-//
 // NCEClusterTaskOp
 //
 
@@ -1586,9 +1568,9 @@ def VPUIP_NCEClusterTaskOp :
         VPUIP_TaskOp<
             "NCEClusterTask",
             [
-                SingleBlockImplicitTerminator<"vpux::VPUIP::EndOp">,
                 DeclareOpInterfaceMethods<VPUIP_NCETaskOpInterface>
             ]
+            # GraphRegionNoTerminator.traits
         > {
 
     let summary = "NCE Cluster Task Operation";

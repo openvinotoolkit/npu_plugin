@@ -5,6 +5,8 @@
 static void SplitBarrierFcn(
     const mv::pass::PassEntry& , mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void RemoveRedundantBarriersForDMA(mv::ComputationModel& model);
+static void CombineTaskInputBarriersFcn(
+    const mv::pass::PassEntry& , mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 
 namespace mv {
@@ -13,6 +15,10 @@ namespace mv {
     MV_REGISTER_PASS(SplitBarrier)
       .setFunc(SplitBarrierFcn)
       .setDescription("Split barriers for A0 workaround and make sure a barrier only has dma consumers or none-dma comsumers");
+
+    MV_REGISTER_PASS(CombineTaskInputBarriers)
+      .setFunc(CombineTaskInputBarriersFcn)
+      .setDescription("Optimize task input barriers. In case all barriers have one common consumer, Pass combine barriers into one and connects all operations to it");
 
   } // namespace mv //
 } // namespace pass //
@@ -353,4 +359,43 @@ static void RemoveRedundantBarriersForDMA(mv::ComputationModel& model){
   }
   
   mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier", "Removed "+ std::to_string(removed_waits)+ " wait and "+ std::to_string(removed_updates) +" update barrier counts for DMA tasks");
+}
+
+static void CombineTaskInputBarriersFcn(
+    const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& /*targetDesc*/, mv::Element&, mv::Element&){
+  
+  mv::OpModel om(model);
+  mv::ControlModel cm(model);
+
+  std::vector<mv::Data::OpListIterator> ops_to_remove;
+
+  for(auto opIt = cm.opBegin(); opIt != cm.opEnd(); ++opIt) {
+    if (opIt->getOpType() != "DPUTask") continue;
+
+    mv::Barrier *firstBarrier = nullptr;
+    mv::Control::OpListIterator firstBarrierOp = cm.opEnd(); 
+    for (auto parentOp = opIt.leftmostParent(); parentOp != cm.opEnd(); ++parentOp) {
+      if (parentOp->getOpType() == "BarrierTask") {
+        mv::Barrier &barrier = parentOp->get<mv::Barrier>("Barrier");
+        if (barrier.getNumConsumers() != 1)  continue;
+
+        if (firstBarrierOp == cm.opEnd()) {
+          firstBarrierOp = parentOp;
+          firstBarrier = &barrier;
+        } else {
+          ops_to_remove.push_back(om.switchContext(parentOp));
+          for (auto barrierParentOp = parentOp.leftmostParent(); barrierParentOp != cm.opEnd(); ++barrierParentOp) {
+            cm.defineFlow(barrierParentOp, firstBarrierOp);
+          }
+        }
+      }
+    }
+  }
+
+  for(auto& opIt:ops_to_remove) {
+    om.removeOp(opIt);
+  }
+
+  mv::lp_scheduler::Control_Model_Barrier_Scheduler::renumberBarrierTasks(om);
+  mv::lp_scheduler::Control_Model_Barrier_Scheduler::recomputeProducerConsumerCounts(cm);
 }

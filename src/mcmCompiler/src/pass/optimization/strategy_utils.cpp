@@ -43,7 +43,7 @@ std::size_t inferOutputSize(std::size_t inputSize, std::size_t padding_start, st
     return ( inputSize + padding_start + padding_end - kernel_size) / kernel_stride + 1;
 }
 
-std::size_t mv::activationTensorSize(mv::Op& op, const mv::Data::TensorIterator tensorToSize, std::string clustering, const mv::Shape& streamingPool, bool isCMConv, int totalClusters, bool isInput, bool dilation)
+std::size_t mv::activationTensorSize(mv::Op& op, const mv::Data::TensorIterator tensorToSize, std::string clustering, const mv::Shape& streamingPool, bool isCMConv, int totalClusters, bool isInput, mv::Shape& streamedShape, bool dilation)
 {
     auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
     auto dtypeMultiplier = std::ceil(tensorToSize->getDType().getSizeInBits()/8.0);
@@ -123,14 +123,20 @@ std::size_t mv::activationTensorSize(mv::Op& op, const mv::Data::TensorIterator 
         streamedChannels = mv::round_up(streamedChannels, 16);
     }
 
-    if(clustering == "SplitOverH")
-    {
-        streamedHeight = div(streamedHeight,totalClusters);
-    }
     if((opType == "Conv" || opType == "DepthwiseConv" || opType == "MaxPool" ||
         opType == "Eltwise") && (!isCMConv || !isInput)) //for DPU tasks we align both input (except CM) and output tensors channels
     {
         streamedChannels = mv::round_up(streamedChannels, 16);
+    }
+
+    streamedShape[mv::IO_WIDTH_DIMENSION]   = tensorShape[mv::IO_WIDTH_DIMENSION];
+    streamedShape[mv::IO_HEIGHT_DIMENSION]  = streamedHeight;
+    streamedShape[mv::IO_CHANNEL_DIMENSION] = streamedChannels;
+    streamedShape[mv::IO_BATCH_DIMENSION]   = streamedBatch;
+
+    if(clustering == "SplitOverH")
+    {
+        streamedHeight = div(streamedHeight,totalClusters);
     }
 
     return tensorShape[mv::IO_WIDTH_DIMENSION] * streamedHeight * streamedChannels * streamedBatch * dtypeMultiplier;
@@ -175,6 +181,8 @@ std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int t
     //the input of the slice...
     bool dilatedLayerInputMemory = false;
 
+    Shape streamedShape;
+
     auto opType = op.getOpType();
     auto isCMConv = false;
 
@@ -190,7 +198,7 @@ std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int t
         Shape temporaryStreamConfig = {streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]};
         if(!parentSpilling)
             temporaryStreamConfig = {1,1,1,1,1};
-        inputSize = activationTensorSize(op, op.getInputTensor(0),clustering,temporaryStreamConfig, isCMConv, totalClusters, true, dilatedLayerInputMemory);
+        inputSize = activationTensorSize(op, op.getInputTensor(0),clustering,temporaryStreamConfig, isCMConv, totalClusters, true, streamedShape, dilatedLayerInputMemory);
     }
     if(opType != "Output")
     {
@@ -200,7 +208,7 @@ std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int t
         if (!spilling)
             temporaryStreamConfig = {1,1,1,1,1};
 
-        outputSize = activationTensorSize(op, op.getOutputTensor(0),clustering,temporaryStreamConfig, isCMConv, totalClusters, false);
+        outputSize = activationTensorSize(op, op.getOutputTensor(0),clustering,temporaryStreamConfig, isCMConv, totalClusters, false, streamedShape);
     }
 
     auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
@@ -239,7 +247,7 @@ std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int t
         Shape temporaryStreamConfig = {streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]};
         if(!parentSpilling)
             temporaryStreamConfig = {1,1,1,1,1};
-        inputSize += activationTensorSize(op, op.getInputTensor(1),clustering,temporaryStreamConfig, isCMConv, totalClusters, true);
+        inputSize += activationTensorSize(op, op.getInputTensor(1),clustering,temporaryStreamConfig, isCMConv, totalClusters, true, streamedShape);
     }
 
     //Additional memory footprint for sparsity
@@ -293,22 +301,19 @@ std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int t
         inputSize += fakeSparsitySize;
     }
     if(inputActivationSparsity){
-        //Alignment due to input channels mult of 16 requirement
-        //Only ZM Conv and Elwise are sparse consumers, both need
-        //input channels mult of 16
-        auto tensorSize = op.getInputTensor(0)->computeTotalSize(16, false, false, true);
-        size_t streamDivisor = streamConfig["W"] * streamConfig["H"] * streamConfig["C"];
-        //Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
-        auto sparseInputSize = std::ceil((double)tensorSize /
-            (8 * op.getInputTensor(0)->getDType().getSizeInBytes()));
-        //Storage element table calculation, 4 bytes pointers
-        //Bigger with C streaming
-        sparseInputSize += op.getInputTensor(0)->getShape()[IO_WIDTH_DIMENSION] *
-            op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION] *
-            streamConfig["C"] * 4;
-        //Alignment due to bus access requirements
-        sparseInputSize = mv::round_up(sparseInputSize, 16);
-        inputSize += (sparseInputSize / streamDivisor);
+        for (size_t i = 0; i < (opType == "Eltwise" ? 2 : 1); ++i) {
+            Shape temporaryStreamConfig = {streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]};
+            if(!parentSpilling)
+                temporaryStreamConfig = {1,1,1,1,1};
+            const auto inputStreamSize = activationTensorSize(op, op.getInputTensor(i), clustering, temporaryStreamConfig, isCMConv, totalClusters, true, streamedShape, dilatedLayerInputMemory);
+            auto sparsityMapSize = std::ceil((double)inputStreamSize /
+                (8 * op.getInputTensor(i)->getDType().getSizeInBytes()));
+            sparsityMapSize = mv::round_up(sparsityMapSize, 16);
+            auto storageElementSize = streamedShape[IO_WIDTH_DIMENSION] *
+                streamedShape[IO_HEIGHT_DIMENSION] * streamConfig["C"] * 4;
+            storageElementSize = mv::round_up(storageElementSize, 16);
+            inputSize += sparsityMapSize + storageElementSize;
+        }
     }
     if(outputActivationSparsity){
         //Alignment due to output channels mult of 16 requirement

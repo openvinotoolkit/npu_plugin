@@ -121,7 +121,6 @@
         "Singular": [
             "RemoveOps",
             "ReplacementOps",
-            "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
             "PreprocessForPWL",
@@ -313,7 +312,8 @@
               "enable_inplace_eltwise": true
             },
             {
-              "name" : "RecomputeImplicitOpMemoryLocations"
+                "name" : "RecomputeImplicitOpAttr",
+                "attribute" : "Location"
             },
             "RecomputeTensorMultiClusterAttributesCauseOfSpilling",
             {
@@ -336,6 +336,10 @@
               "output" : "lp_scheduler_output.txt",
               "allocator_mode": true,
               "ddr_control_edges" : true
+            },
+            {
+                "name" : "RecomputeImplicitOpAttr",
+                "attribute" : "address"
             },
             "SetSliceAddressesInCMX",
             "LayerNumbering",

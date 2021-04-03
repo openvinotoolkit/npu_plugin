@@ -26,7 +26,7 @@ The VPUX plugin accepts the following options:
 | `LOG_LEVEL`    | `LOG_LEVEL_NONE`/ `LOG_LEVEL_ERROR`/ `LOG_LEVEL_WARNING`/ `LOG_LEVEL_DEBUG` / `LOG_LEVEL_TRACE` | `LOG_LEVEL_NONE` | Set log level for VPUX plugin |
 | `PERF_COUNT` | `YES`/`NO` | `NO` | Enable or disable performance counter |
 | `DEVICE_ID`    | `VPU-0`/ `VPU-1`/ `VPU-2`/ `VPU-3` | `VPU-0` | `VPU-0` | Device identifier |
-| `VPUX_PLATFORM`    | `MA2490`/ `MA2490_B0`/ `MA3100`/ `MA3720` | `MA2490` | Device platform |
+| `VPUX_PLATFORM`    | `VPU3400_A0`/ `VPU3400`/ `VPU3700`/ `VPU3800`/ `VPU3900` | `VPU3720` | Device platform |
 | `VPUX_THROUGHPUT_STREAMS`    | positive integer | 2 | Set the number of threads to use for model execution |
 | `KMB_THROUGHPUT_STREAMS`    | positive integer | 2 | **[Deprecated]** Set the number of threads to use for model execution |
 | `VPUX_INFERENCE_SHAVES`    | positive integer | 0 | Set the number of shaves to be used by NNCore plug-in during inference. 0 - use default value |

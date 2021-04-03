@@ -189,7 +189,7 @@ mv::Data::OpListIterator mv::BaseOpModel::cloneOp(
   auto newOp = Op(*this, opType, name, inputs, args, false, false);
 
   for (size_t i = 0; i < newOp.outputSlots(); ++i) {
-    newOp.getOutputTensor(i)->setAttrs(outputs[i]->getAttrs());
+    newOp.getOutputTensor(i)->setAttrs(outputs[i]->getAttrs({"flows", "sourceOp"}));
   }
 
   auto opNode = dataGraph_.node_insert(newOp);

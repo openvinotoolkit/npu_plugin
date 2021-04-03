@@ -1,6 +1,6 @@
-// RUN: vpux-opt --set-compile-params="vpu-arch=MA2490" %s | FileCheck %s
+// RUN: vpux-opt --set-compile-params="vpu-arch=VPU3400_A0" %s | FileCheck %s
 
-// CHECK: module @test attributes {VPUIP.arch = "MA2490"}
+// CHECK: module @test attributes {VPUIP.arch = "VPU3400_A0"}
 module @test {
 
 // CHECK:       VPUIP.Graph

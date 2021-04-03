@@ -159,7 +159,7 @@ namespace mv
         // All floating point datatypes
         // FP16 is underlyingly stored on int64
         inline bool isFloatingPointType() const {
-            return getDType().isDoubleType() || getDType() == mv::DType("Float16");
+            return getDType().isDoubleType() || getDType() == mv::DType("Float16") || getDType() == mv::DType("BFloat16");
         }
 
         std::vector<DataElement> getData();
@@ -252,7 +252,9 @@ namespace mv
                 !hasAttr("sparsityMap") &&
                 !hasAttr("solvedSparsity") &&
                 !hasAttr("dilatedSubConvSM") &&
-                !hasAttr("dilatedSubConvSE");
+                !hasAttr("dilatedSubConvSE") &&
+                !hasAttr("interpNNSM") &&
+                !hasAttr("interpNNSE");
         }
 
         inline size_t size() const

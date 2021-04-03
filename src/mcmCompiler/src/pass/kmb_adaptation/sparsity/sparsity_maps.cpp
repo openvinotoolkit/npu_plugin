@@ -342,6 +342,65 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 seTensorIdx.push_back(newSize - 1);
                 dpuTask->set<std::vector<size_t>>("storageElementIndex", seTensorIdx);
             }
+            if (dpuTask->hasAttr("activationSparsityCompilerSolvingForInterpNN") && dpuTask->get<bool>("activationSparsityCompilerSolvingForInterpNN"))
+            {
+                // Find ImplicitResample inputTensor index to find originalShape attr
+                auto implicitResampleIdx = 0;
+                for (unsigned i=0; i<dpuTask->getInputTensor().size(); ++i)
+                {
+                    if (om.getSourceOp(dpuTask->getInputTensor(i))->getOpType() == "ImplicitResample")
+                    {
+                        implicitResampleIdx = i;
+                        break;
+                    }
+                }
+
+                auto inputTensorShape = dpuTask->getInputTensor(0)->getShape();
+                //every element of sparsity map describes 8 elements of normal tensor
+                //TODO re-use sparsity map if possible?
+                // if the sparsity map should only be the size of the "sub conv input tensor" then change this in future
+                auto mapShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
+                                           {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
+                                           {inputTensorShape[mv::IO_CHANNEL_DIMENSION]/8},
+                                           {1}});
+
+                std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255); // 255 converts to all 1's in SM
+                std::string unpopulatedSparsityMapName = dpuTask->getName() + "activation_map";
+                auto unpopulatedSparsityMap = om.constantInt(unpopulatedSparsityMapName, unpopulatedSparsityMapData, mapShape, mv::DType("UInt8"), mv::Order("NHWC"));
+                om.getSourceOp(unpopulatedSparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
+                unsigned newInputsSize = dpuTask->addInputTensor(unpopulatedSparsityMap);
+                unpopulatedSparsityMap->set<bool>("interpNNSM", true);
+                om.defineFlow(unpopulatedSparsityMap, dpuTask, newInputsSize - 1);
+                auto smTensorIdx = dpuTask->hasAttr("unpopulatedSparsityMapIndex") ?
+                        dpuTask->get<std::vector<size_t>>("unpopulatedSparsityMapIndex") :
+                        std::vector<size_t>();
+                smTensorIdx.push_back(newInputsSize - 1);
+                dpuTask->set<std::vector<size_t>>("unpopulatedSparsityMapIndex", smTensorIdx);
+
+                // Here we generate a storage element pointer table of all 0's for the InterpNN case
+                // The logic to generate SEPs for InterpNN should be added in weight_tables.cpp - function populateActivationStorageElementMapForInterpNN()
+
+                mv::Shape storageElementShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
+                                                           {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
+                                                           {1},
+                                                           {1}});
+                std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);
+                std::string storageElementName = dpuTask->getName() + "storage_element_map";
+                auto storageElement = om.constantInt(storageElementName, storageElementData, storageElementShape, mv::DType("Int32"), mv::Order("NHWC"));
+                storageElement->set<bool>("interpNNSE", true);
+                om.getSourceOp(storageElement)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
+                unsigned newSize = dpuTask->addInputTensor(storageElement);
+                om.defineFlow(storageElement, dpuTask, newSize - 1);
+                auto seTensorIdx = dpuTask->hasAttr("storageElementIndex") ?
+                    dpuTask->get<std::vector<size_t>>("storageElementIndex") :
+                    std::vector<size_t>();
+                seTensorIdx.push_back(newSize - 1);
+                dpuTask->set<std::vector<size_t>>("storageElementIndex", seTensorIdx);
+
+                // Store original inputTensor shape, used later to compute SEP table offsets
+                auto originalShape = om.getSourceOp(dpuTask->getInputTensor(implicitResampleIdx))->get<mv::Shape>("originalShape");
+                storageElement->set<mv::Shape>("originalShape", originalShape);
+            }
         }
     }
 }
@@ -541,13 +600,6 @@ static void generateSparsityMapsEltwiseFcn(const mv::pass::PassEntry&, mv::Compu
                 {
                     input0->setSparse();
                     input1->setSparse();
-                    // Note: odu_offset to be set on the input of the eltwise that results in positive number
-                    // Store ref to tensor odu_offset will be calculated from, so we can find address at serialization
-                    auto input0_op = om.getSourceOp(input0);
-                    input0_op->set<std::string>("needsODUoffset", input1->getName());
-
-                    auto input1_op = om.getSourceOp(input1);
-                    input1_op->set<std::string>("needsODUoffset", input0->getName());
                 }
             }
         }

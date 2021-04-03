@@ -19,7 +19,6 @@
 #include <blob_factory.hpp>
 #include <ngraph/op/normalize_l2.hpp>
 #include <precision_utils.h>
-#include "vpu/utils/ie_helpers.hpp"
 
 namespace {
 

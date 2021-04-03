@@ -8,7 +8,6 @@
 #include <ngraph/node.hpp>
 #include <ngraph/shape.hpp>
 #include <ngraph_mcm_frontend/mcm_helpers.hpp>
-#include <vpu/utils/simple_math.hpp>
 
 #include "custom_layer.hpp"
 

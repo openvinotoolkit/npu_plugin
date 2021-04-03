@@ -66,10 +66,11 @@ std::string getNameByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
 }
 
 const static std::map<uint32_t, InferenceEngine::VPUXConfigParams::VPUXPlatform> platformIdMap = {
-    {0, InferenceEngine::VPUXConfigParams::VPUXPlatform::MA2490},  // KMB
-    {1, InferenceEngine::VPUXConfigParams::VPUXPlatform::MA3100},  // TBH prime
-    {2, InferenceEngine::VPUXConfigParams::VPUXPlatform::MA3100},  // TBH
-    {4, InferenceEngine::VPUXConfigParams::VPUXPlatform::MA3720},  // MTL
+    {0, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0},  // KMB
+    {1, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400},     // KMB
+    {2, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800},     // TBH prime
+    {3, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900},     // TBH
+    {4, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},     // MTL
 };
 
 InferenceEngine::VPUXConfigParams::VPUXPlatform getPlatformByHandle(const std::shared_ptr<xlink_handle>& devHandle) {

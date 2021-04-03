@@ -86,7 +86,7 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
 
       logForOps(barrier_list, data_list, compute_list, upa_list);
 
-      // ---simulate execuation---
+      // ---simulate execution---
       mv::Logger::log(mv::Logger::MessageType::Debug, "PassManager",
                           "Starting Runtime Simulation");
       bool filled_atleast_one = false;
@@ -275,6 +275,9 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
     }
     
     void logForBarrierTable(active_barrier_table_iterator_t bcurr, active_barrier_table_iterator_t bend){
+        if (real_barrier_list_.empty()) {
+            mv::Logger::log(mv::Logger::MessageType::Error, "RuntimeSimulator", "real_barrier_list_ is empty");
+        }
         if(Logger::getVerboseLevel()==VerboseLevel::Debug)
         {
             for(auto iter=bcurr; iter!=bend; iter++){

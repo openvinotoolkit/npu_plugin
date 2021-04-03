@@ -18,8 +18,6 @@
 
 #include <blob_transform.hpp>
 
-#include "vpu/utils/ie_helpers.hpp"
-
 namespace {
 
 static void refMVNFromVPU(const Blob::Ptr src, Blob::Ptr dst, int normalize_variance,

@@ -321,16 +321,6 @@ void PipeLineAcrossParallelBranches(const mv::pass::PassEntry& ,
     local_pass_util::get_weight_read_inputs(om, dpu_op,
           std::back_inserter(reads));
 
-    ////////////////////////////////////////////////////////////////////////////
-    // TODO(vamsikku): If the network has any DPU ops which needsODUoffset its
-    // very flaky with any pipelining of weights and there is a JIRA to figure
-    // out why this happens.
-    {
-      auto dpu_op_itr = om.getOp(dpu_op->getName());
-      if (dpu_op_itr->hasAttr("needsODUoffset")) { return; }
-    }
-    ////////////////////////////////////////////////////////////////////////////
-
     const scheduled_op_info_t &info = scheduled_op_map[dpu_op];
     size_t dpu_time = info.time_;
 

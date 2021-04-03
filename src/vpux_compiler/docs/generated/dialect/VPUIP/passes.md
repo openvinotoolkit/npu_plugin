@@ -2,8 +2,8 @@
 ### `-add-linear-scheduling`: Impose simple linear execution
 This pass inserts barriers to impose simple linear execution in IR order.
 ### `-set-compile-params`: Set compilation parameters related to VPUIP Dialect
-This pass attaches compilation parameters related to VPUIP Dialect
-to Module attributes and initializes IERT Dialect resources information.
+This pass attaches compilation parameters related to **VPUIP Dialect** to Module attributes and
+initializes **IERT Dialect** run-time resources information.
 
 #### Options
 ```

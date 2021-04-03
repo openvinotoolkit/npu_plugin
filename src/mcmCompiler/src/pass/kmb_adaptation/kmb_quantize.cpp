@@ -5,7 +5,6 @@
 #include "include/mcm/pass/pass_utils.hpp"
 #include "mcm/utils/custom_math.hpp"
 
-
 static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void configureOutputPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void deQuantizeU8ConstToFP16ConstFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -73,9 +72,28 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
                     tensor = previousOpIt->getInputTensor()[0];
                     alignCase = true;
                 }
-                auto quantize = om.uPATaskQuantize("Quantize" + task->getName() + std::to_string(id), {tensor});
-                quantize->setDType(dtypeNeededInInput);
-                quantize->setQuantParams(tensorQuantParams);
+                
+                // avoid to add redundant Quantize
+                mv::Data::TensorIterator quantize;
+                mv::DataModel dm(om);
+                bool findExistQuantize = false;
+                auto childOps = mv::findSinkLayers(dm, tensor);
+                for(auto& op: childOps)
+                {
+                    if((op->getOpType() == "UPATask") && (op->get<std::string>("taskOp") == "Quantize"))
+                    {
+                        quantize = op->getOutputTensor(0);
+                        findExistQuantize = true;
+                        break;
+                    }
+                }
+
+                if(!findExistQuantize)
+                {
+                    quantize = om.uPATaskQuantize("Quantize" + task->getName() + std::to_string(id), {tensor});
+                    quantize->setDType(dtypeNeededInInput);
+                    quantize->setQuantParams(tensorQuantParams);
+                }
 
                 auto quantOp = om.getSourceOp(quantize);
                 auto sourceOp = om.getSourceOp(tensor);
@@ -257,6 +275,46 @@ void addMultiOutputQuantizationLayers(mv::OpModel & om, const mv::pass::PassEntr
     }
 }
 
+// Removes pairs of Quantize ops where the initial and final tensors have the same data type
+// e.g. [DTYPE1] -> Quantize -> [DTYPE2] -> Quantize -> [DTYPE1]
+void cleanRedundantConversions(mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    const auto upaTasks = om.getOps("UPATask");
+    std::unordered_map<std::string, mv::Data::OpListIterator> quantizeOps;
+    for (auto& upaTask : upaTasks)
+    {
+        if (upaTask->get<std::string>("taskOp") == "Quantize")
+            quantizeOps.insert({upaTask->getName(), upaTask});
+    }
+
+    auto quantizeOpIt = quantizeOps.begin();
+    while (quantizeOpIt != quantizeOps.end())
+    {
+        const auto quantizeOp  = quantizeOpIt->second;
+        const auto inputTensor = quantizeOp->getInputTensor(0);
+        const auto consumerOps = mv::findSinkLayers(dm, quantizeOp->getOutputTensor(0));
+        if (!std::all_of(consumerOps.cbegin(), consumerOps.cend(), [&inputTensor](const mv::Data::OpListIterator& op) {
+                return op->hasAttr("taskOp") && op->get<std::string>("taskOp") == "Quantize" &&
+                       op->getOutputTensor(0)->getDType() == inputTensor->getDType();
+            }))
+        {
+            ++quantizeOpIt;
+            continue;
+        }
+
+        for (auto& consumerOp : consumerOps)
+        {
+            quantizeOps.erase(consumerOp->getName());
+            mv::linkNewOperationsRemove(quantizeOp, quantizeOp->getOutputTensor(0), om, consumerOp);
+        }
+
+        quantizeOpIt = quantizeOps.erase(quantizeOpIt);
+        mv::linkNewOperationsRemove(om.getSourceOp(inputTensor), inputTensor, om, quantizeOp);
+    }
+}
 
 static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
@@ -364,7 +422,18 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::Comput
 
     addQuantizationLayers(om, implicitJoinU8, U8);
     addQuantizationLayers(om, implicitJoinFP16, FP16);
+
+    cleanRedundantConversions(model);
 }
+
+void propagateLocationToParents(mv::OpModel& om, const mv::Data::OpListIterator& opIt, const mv::Tensor::MemoryLocation& location) {
+    for (auto& inputTensor : opIt->getInputTensor()) {
+        inputTensor->set<mv::Tensor::MemoryLocation>("Location", location);
+        auto parentOp = om.getSourceOp(inputTensor);
+        if (parentOp->isImplicit())
+            propagateLocationToParents(om, parentOp, location);
+    }
+};
 
 static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -420,14 +489,7 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
             quantOp->set<std::string>("splitStrategy", sourceOp->get<std::string>("splitStrategy"));
 
         tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
-        inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
-        // Propagate location upwards
-        while (sourceOp->isImplicit() && sourceOp->inputSlots())
-        {
-            inputTensor = sourceOp->getInputTensor(0);
-            inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
-            sourceOp = om.getSourceOp(inputTensor);
-        }
+        propagateLocationToParents(om, outputOp, mv::Tensor::MemoryLocation::DDR);
 
         quantOp->set<unsigned>("opId", outputOp->get<unsigned>("opId") - 1);
         om.undefineFlow(outputOp.leftmostInput());

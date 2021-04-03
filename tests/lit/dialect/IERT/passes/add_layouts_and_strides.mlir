@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MA2490" --add-layouts-and-strides %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3400_A0" --add-layouts-and-strides %s | FileCheck %s
 
 //
 // The 'add-layouts-and-strides' pass:

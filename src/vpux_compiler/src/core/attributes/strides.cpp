@@ -71,7 +71,7 @@ Byte vpux::getTypeTotalSize(mlir::MemRefType type) {
     VPUX_THROW_UNLESS(memShape.size() == memStrides.size(), "Size and strides mismatch : {0} vs {1}", memShape,
                       memStrides);
 
-    return Byte(memStrides.back() * memShape.back());
+    return Byte(memStrides.front() * memShape.front());
 }
 
 //
@@ -81,9 +81,9 @@ Byte vpux::getTypeTotalSize(mlir::MemRefType type) {
 Strides vpux::getStrides(mlir::MemRefType type) {
     const auto maps = type.getAffineMaps();
 
-    if (maps.empty() || (maps.size() == 1 && maps.front().isPermutation())) {
-        const auto dimsOrder = DimsOrder::fromType(type);
-        const auto memStrides = StrideReqs::simple().calcStrides(type);
+    if (maps.size() == 1 && maps.front().isPermutation()) {
+        const auto dimsOrder = DimsOrder::fromAffineMap(maps.front());
+        const auto memStrides = StrideReqs::simple(type.getRank()).calcStrides(dimsOrder, type);
         return dimsOrder.toLogicalOrder(memStrides);
     }
 

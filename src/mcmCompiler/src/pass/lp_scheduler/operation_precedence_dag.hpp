@@ -327,7 +327,7 @@ class Operation_Dag {
       //NOTE: please add all implicit ops to this list -- except ImplicitConcat
       //All implicit ops are short-circuited during scheduling. ImplicitConcat
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
-      implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
+      implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitResample", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
           "ImplicitInputSlice", "ImplicitJoin"} ),
       cmx_concat_subgraphs_(), eltwise_rep_map_(), pseudo_edge_set_() {
@@ -340,7 +340,7 @@ class Operation_Dag {
       //NOTE: please add all implicit ops to this list -- except ImplicitConcat
       //All implicit ops are short-circuited during scheduling. ImplicitConcat
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
-      implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
+      implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitResample", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
           "ImplicitInputSlice", "ImplicitJoin"} ),
         cmx_concat_subgraphs_(), eltwise_rep_map_(), pseudo_edge_set_() { }

@@ -1,7 +1,5 @@
 # Architectural Stability of NN Compiler
 
-[TOC]
-
 ## Introduction
 
 The stability and debuggability of NN compiler architecture is quite important feature.

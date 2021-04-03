@@ -64,7 +64,7 @@ void vpux::VPUIP::PermuteUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::Ope
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PermuteUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto order = DimsOrder::fromAffineMap(this->order_value());
-    const auto orderUPA = writer.createVector(irange(order.numDims()) | reversed | transformed([&](int64_t idx) {
+    const auto orderUPA = writer.createVector(irange(order.numDims()) | transformed([&](int64_t idx) {
                                                   return checked_cast<int32_t>(order.dimAt(idx).ind());
                                               }));
 

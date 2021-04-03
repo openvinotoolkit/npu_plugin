@@ -22,7 +22,6 @@
 #include <helper_remote_context.h>
 #include <yolo_helpers.hpp>
 
-#include <vpu/utils/ie_helpers.hpp>
 #include <fstream>
 
 #include "comparators.h"
@@ -316,25 +315,43 @@ TEST_F(InferenceWithCheckLayout, precommit_SyncInferenceAndCheckLayout) {
     ASSERT_EQ(blobInputLayout, networkInputLayout);
 }
 
+static IE::MemoryBlob::Ptr copyBlob(IE::MemoryBlob::Ptr in) {
+    const auto out = IE::as<IE::MemoryBlob>(make_blob_with_precision(in->getTensorDesc()));
+    out->allocate();
+
+    const auto inMem = in->rmap();
+    const auto outMem = out->wmap();
+
+    const auto inPtr = inMem.as<const uint8_t*>();
+    VPUX_THROW_UNLESS(inPtr != nullptr, "Blob was not allocated");
+
+    const auto outPtr = outMem.as<uint8_t*>();
+    VPUX_THROW_UNLESS(outPtr != nullptr, "Blob was not allocated");
+
+    std::copy_n(inPtr, in->byteSize(), outPtr);
+
+    return out;
+}
+
 TEST_F(InferenceWithCheckLayout, precommit_CheckInputsLayoutAfterTwoInferences) {
     const auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
-    const auto firstInputBlob = vpu::copyBlob(cat227x227Blob);
+    const auto firstInputBlob = copyBlob(IE::as<IE::MemoryBlob>(cat227x227Blob));
     inferRequest.SetBlob(inputBlobName, firstInputBlob);
     inferRequest.Infer();
 
     const auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
-    const auto firstOutputBlob = vpu::copyBlob(inferRequest.GetBlob(outputBlobName));
+    const auto firstOutputBlob = copyBlob(IE::as<IE::MemoryBlob>(inferRequest.GetBlob(outputBlobName)));
 
-    const auto secondInputBlob = vpu::copyBlob(cat227x227Blob);
+    const auto secondInputBlob = copyBlob(IE::as<IE::MemoryBlob>(cat227x227Blob));
     inferRequest.SetBlob(inputBlobName, secondInputBlob);
     inferRequest.Infer();
 
-    const auto secondOutputBlob = vpu::copyBlob(inferRequest.GetBlob(outputBlobName));
+    const auto secondOutputBlob = copyBlob(IE::as<IE::MemoryBlob>(inferRequest.GetBlob(outputBlobName)));
 
     ASSERT_NO_THROW(
         Comparators::compareTopClasses(
-                    vpux::toFP32(IE::as<IE::MemoryBlob>(firstOutputBlob)),
-                    vpux::toFP32(IE::as<IE::MemoryBlob>(secondOutputBlob)),
+                    vpux::toFP32(firstOutputBlob),
+                    vpux::toFP32(secondOutputBlob),
                     numberOfTopClassesToCompare));
 }
 
