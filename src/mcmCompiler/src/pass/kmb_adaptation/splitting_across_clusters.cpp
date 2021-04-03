@@ -719,9 +719,9 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                             {
                                 inputTensor->cleanSubtensors();
                                 inputTensor->set<std::string>("overwriteStrategy", "ClusteringToSoH");
-                                setSubs = {inputTensor, outputTensor};
                                 inputTensor->set<std::string>("splitStrategy", "SplitOverH");
                                 outputTensor->set<std::string>("splitStrategy", "SplitOverH");
+                                setSubs = {inputTensor, outputTensor};
                             }
                             else if ((possibleCombination == SoHToClustering || possibleCombination == SoHToSoK))
                             {
