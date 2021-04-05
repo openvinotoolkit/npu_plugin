@@ -45,6 +45,27 @@ This pass bufferizes **IE Dialect** into **IERT Dialect**:
 }
 
 //
+// AddBuffersForNetResults
+//
+
+def AddBuffersForNetResults : PassBase<"add-buffers-for-net-results", "vpux::ModulePass"> {
+    let summary = "Add network results in Function parameters";
+
+    let description = [{
+This pass adds buffers to the function parameters to copy the network result to them.
+In contrast to MLIR standard analogue pass, this pass preserves the function results to utilize use-def chains on bufferized IR.
+The `return` operation will take an aliases of output buffers from the function arguments.
+    }];
+
+    let constructor = "vpux::createAddBuffersForNetResults()";
+
+    let dependentDialects = [
+        "mlir::linalg::LinalgDialect",
+        "mlir::StandardOpsDialect"
+    ];
+}
+
+//
 // LowerIERT2VPUIP
 //
 
