@@ -33,7 +33,7 @@ func @ReshapeInGraph(%arg0: memref<1x512x1x1xf32>, %arg1: memref<1x512x1x1xf32>)
     %1 = memref.alloc() : memref<1x512xf32>
     IERT.SoftMax(%0, %1) {axisInd = 1 : i32} : memref<1x512xf32>, memref<1x512xf32>
     %2 = linalg.reshape %1 [#map0, #map1] : memref<1x512xf32> into memref<1x512x1x1xf32>
-    linalg.copy(%2, %arg1) : memref<1x512x1x1xf32>, memref<1x512x1x1xf32>
+    IERT.Copy(%2, %arg1) : memref<1x512x1x1xf32>, memref<1x512x1x1xf32>
     memref.dealloc %1 : memref<1x512xf32>
     return %arg1 : memref<1x512x1x1xf32>
 
@@ -41,7 +41,7 @@ func @ReshapeInGraph(%arg0: memref<1x512x1x1xf32>, %arg1: memref<1x512x1x1xf32>)
     // CHECK: [[VAR1:%.*]] = memref.alloc() : memref<1x512xf32, "DDR">
     // CHECK: IERT.SoftMax([[VAR0]], [[VAR1]]) {axisInd = 1 : i32} : memref<1x512xf32>, memref<1x512xf32, "DDR">
     // CHECK: [[VAR2:%.*]] = linalg.reshape [[VAR1]] [#map0, #map1] : memref<1x512xf32, "DDR"> into memref<1x512x1x1xf32, "DDR">
-    // CHECK: linalg.copy([[VAR2]], %arg1) : memref<1x512x1x1xf32, "DDR">, memref<1x512x1x1xf32>
+    // CHECK: IERT.Copy([[VAR2]], %arg1) : memref<1x512x1x1xf32, "DDR">, memref<1x512x1x1xf32>
     // CHECK: memref.dealloc [[VAR1]] : memref<1x512xf32, "DDR">
     // CHECK: return %arg1 : memref<1x512x1x1xf32>
 }

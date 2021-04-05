@@ -24,10 +24,8 @@ include "mlir/IR/OpBase.td"
 include "mlir/Dialect/Linalg/IR/LinalgStructuredOps.td"
 
 //
-// linalg.copy -> VPUIP.NNDMA
+// IERT.Copy -> VPUIP.NNDMA
 //
-
-def NullAttr : Attr<CPred<"$_self == nullptr">>;
 
 def createNNDMAOp :
         NativeCodeCall<[{
@@ -41,7 +39,7 @@ def createUPADMAOp :
 
 def RewriteCopy :
         Pat<
-            (CopyOp $input, $output, NullAttr:$inputPermutation, NullAttr:$outputPermutation),
+            (IERT_CopyOp $input, $output),
             (createNNDMAOp $input, $output)
         >;
 

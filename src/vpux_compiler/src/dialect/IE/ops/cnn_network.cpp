@@ -60,7 +60,7 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
         netFunc.walk([&inputsInfo, &netFunc, &res](mlir::ReturnOp op) {
             const auto operands = op.getOperands();
             for (const auto ind : irange(operands.size())) {
-                const auto rawInd = checked_cast<unsigned >(inputsInfo.size() + ind);
+                const auto rawInd = checked_cast<unsigned>(inputsInfo.size() + ind);
 
                 const auto output = operands[ind];
                 const auto outputBuffer = netFunc.getArgument(rawInd);

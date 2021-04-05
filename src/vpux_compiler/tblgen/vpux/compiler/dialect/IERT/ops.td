@@ -286,6 +286,27 @@ def IERT_ConvertOp :
 }
 
 //
+// CopyOp
+//
+
+def IERT_CopyOp :
+        IERT_LayerOp<
+            "Copy",
+            [
+                SameOperandsShape,
+                SameOperandsElementType,
+                SingleInputAndResultLayer
+            ]
+        > {
+    let summary = "InferenceEngine run-time Copy layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output
+    );
+}
+
+//
 // SoftMaxOp
 //
 

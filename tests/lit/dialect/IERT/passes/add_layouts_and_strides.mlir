@@ -37,7 +37,7 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x100
     IERT.SoftMax(%1, %2) {axisInd = 1 : i32} : memref<1x1000xf16, "DDR">, memref<1x1000xf16, "DDR">
     memref.dealloc %1 : memref<1x1000xf16, "DDR">
 
-    linalg.copy(%2, %arg1) : memref<1x1000xf16, "DDR">, memref<1x1000xf16>
+    IERT.Copy(%2, %arg1) : memref<1x1000xf16, "DDR">, memref<1x1000xf16>
     memref.dealloc %2 : memref<1x1000xf16, "DDR">
 
     return %arg1 : memref<1x1000xf16>
@@ -53,7 +53,7 @@ func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x100
     // CHECK: IERT.SoftMax(%1, %2) {axisInd = 1 : i32} : memref<1x1000xf16, #map, "DDR">, memref<1x1000xf16, #map, "DDR">
     // CHECK: memref.dealloc %1 : memref<1x1000xf16, #map, "DDR">
 
-    // CHECK: linalg.copy(%2, %arg1) : memref<1x1000xf16, #map, "DDR">, memref<1x1000xf16, #map>
+    // CHECK: IERT.Copy(%2, %arg1) : memref<1x1000xf16, #map, "DDR">, memref<1x1000xf16, #map>
     // CHECK: memref.dealloc %2 : memref<1x1000xf16, #map, "DDR">
     // CHECK: return [[ARG1]] : memref<1x1000xf16, #map>
 }

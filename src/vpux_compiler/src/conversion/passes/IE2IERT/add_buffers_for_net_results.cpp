@@ -59,7 +59,7 @@ void updateReturnOps(mlir::FuncOp func, ArrayRef<mlir::BlockArgument> appendedEn
     func.walk([&](mlir::ReturnOp op) {
         mlir::OpBuilder builder(op);
         for (auto i : irange(op.getNumOperands())) {
-            builder.create<mlir::linalg::CopyOp>(op.getLoc(), op.getOperand(i), appendedEntryArgs[i]);
+            builder.create<IERT::CopyOp>(op.getLoc(), op.getOperand(i), appendedEntryArgs[i]);
             op.setOperand(i, appendedEntryArgs[i]);
         }
     });

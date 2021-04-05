@@ -60,7 +60,7 @@ The `return` operation will take an aliases of output buffers from the function 
     let constructor = "vpux::createAddBuffersForNetResults()";
 
     let dependentDialects = [
-        "mlir::linalg::LinalgDialect",
+        "vpux::IERT::IERTDialect",
         "mlir::StandardOpsDialect"
     ];
 }

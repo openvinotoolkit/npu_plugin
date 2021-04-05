@@ -39,7 +39,7 @@ IE.CNNNetwork
 
 func @main(%arg0: memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16> {
     %0 = IERT.Constant memref<1x2x2x2xf16> = dense<1.0> : tensor<1x2x2x2xf16>
-    linalg.copy(%0, %arg0) : memref<1x2x2x2xf16>, memref<1x2x2x2xf16>
+    IERT.Copy(%0, %arg0) : memref<1x2x2x2xf16>, memref<1x2x2x2xf16>
     return %arg0: memref<1x2x2x2xf16>
 
     // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareConstantTensor memref<1x2x2x2xf16>
@@ -121,7 +121,7 @@ func @main(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf
     %1 = IERT.StaticAlloc<0> -> memref<1x512x1x1xf16, "DDR">
     IERT.SoftMax(%0, %1) {axisInd = 1 : i32} : memref<1x512x1x1xf16>, memref<1x512x1x1xf16, "DDR">
     %2 = linalg.reshape %1 [#map0, #map1] : memref<1x512x1x1xf16, "DDR"> into memref<1x512xf16, "DDR">
-    linalg.copy(%2, %arg1) : memref<1x512xf16, "DDR">, memref<1x512xf16>
+    IERT.Copy(%2, %arg1) : memref<1x512xf16, "DDR">, memref<1x512xf16>
     return %arg1: memref<1x512xf16>
 
     // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x512x1x1xf16>
