@@ -49,7 +49,7 @@ TEST_P(KmbSplitSoftmaxLayerTest, SubgraphCompareWithRefs_MLIR) {
     Run();
 }
 
-TEST_P(KmbSplitSoftmaxLayerTest, SubgraphCompareWithRefs_MCM) {
+TEST_P(KmbSplitSoftmaxLayerTest, DISABLED_SubgraphCompareWithRefs_MCM) {
     Run();
 }
 
