@@ -22,7 +22,7 @@ IE.CNNNetwork
         IE.DataInfo "prob" : memref<1x1x1x1000xf16>
     }
 
-func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
+func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
     VPUIP.UPADMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>)
     // CHECK:       %[[B0:.*]] = VPUIP.ConfigureBarrier<0>
@@ -47,7 +47,7 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
     // CHECK:       VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B2]] : !VPUIP.Barrier)
 
-    return
+    return %arg1 : memref<1x1x1x1000xf16>
 }
 
 }
@@ -76,7 +76,7 @@ IE.CNNNetwork
         IE.DataInfo "prob" : memref<1x1x1x1000xf16>
     }
 
-func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
+func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
     VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>)
     // CHECK:           VPUIP.SoftMaxUPA
@@ -92,7 +92,7 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) {
     // CHECK:           VPUIP.SoftMaxUPA
     // CHECK-SAME:      waits(%3 : !VPUIP.Barrier)
 
-    return
+    return  %arg1 : memref<1x1x1x1000xf16>
 }
 
 }

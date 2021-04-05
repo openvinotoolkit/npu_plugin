@@ -22,7 +22,7 @@ IE.CNNNetwork
 
 // CHECK:       func @main(
 // CHECK-SAME:      %[[VAL_0:.*]]: memref<1x1000xf16>,
-// CHECK-SAME:      %[[VAL_1:.*]]: memref<1x1000xf16>) {
+// CHECK-SAME:      %[[VAL_1:.*]]: memref<1x1000xf16>) -> memref<1x1000xf16> {
 func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %0 = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %0 : tensor<1x1000xf16>
@@ -32,6 +32,11 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     // CHECK-SAME:      axisInd = 1
     // CHECK-SAME:      inputs(%[[VAL_0]] : memref<1x1000xf16>)
     // CHECK-SAME:      updates([[VAR1]] : !VPUIP.Barrier)
+    // CHECK:       VPUIP.NNDMA
+    // CHECK-SAME:      inputs([[VAR0]] : memref<1x1000xf16, "DDR">)
+    // CHECK-SAME:      outputs(%[[VAL_1]] : memref<1x1000xf16>)
+
+    // CHECK: return %[[VAL_1]] : memref<1x1000xf16>
 }
 
 }
@@ -62,7 +67,7 @@ IE.CNNNetwork
 // CHECK:       func @main(
 // CHECK-SAME:      %[[VAL_0:[a-z]*[a-z0-9]*]]: memref<1x2x2x2xf16>,
 // CHECK-SAME:      %[[VAL_1:[a-z]*[a-z0-9]*]]: memref<1x2x2x2xf16>,
-// CHECK-SAME:      %[[VAL_2:[a-z]*[a-z0-9]*]]: memref<1x2x2x2xf16>) {
+// CHECK-SAME:      %[[VAL_2:[a-z]*[a-z0-9]*]]: memref<1x2x2x2xf16>) -> (memref<1x2x2x2xf16>, memref<1x2x2x2xf16>) {
 func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>) {
     %cst = IE.Constant tensor<1x2x2x2xf16> =
         dense<[
@@ -99,6 +104,10 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
     // CHECK-SAME:      axisInd = 1
     // CHECK-SAME:      inputs(%[[VAL_3]] : memref<1x2x2x2xf16>)
     // CHECK-SAME:      updates([[VAR4]] : !VPUIP.Barrier)
+    // CHECK:       VPUIP.NNDMA
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK: return %[[VAL_1]], %[[VAL_2]] : memref<1x2x2x2xf16>, memref<1x2x2x2xf16>
 }
 
 }
@@ -120,7 +129,7 @@ IE.CNNNetwork
     }
 
 // CHECK:       func @main(
-// CHECK-SAME:      %[[ARG:.*]]: memref<1x2x4x2xf16>
+// CHECK-SAME:      %[[ARG:.*]]: memref<1x2x4x2xf16>) -> memref<1x2x4x2xf16> {
 func @main() -> tensor<1x2x4x2xf16> {
     %0 = IE.Constant tensor<1x2x4x2xf16> =
         dense<[[
@@ -148,6 +157,8 @@ func @main() -> tensor<1x2x4x2xf16> {
     // CHECK:       VPUIP.NNDMA
     // CHECK-SAME:      inputs(%[[CST]] : memref<1x2x4x2xf16>)
     // CHECK-SAME:      outputs(%[[ARG]] : memref<1x2x4x2xf16>)
+
+    // CHECK: return %[[ARG]] : memref<1x2x4x2xf16>
 }
 
 }
