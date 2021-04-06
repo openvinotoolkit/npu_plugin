@@ -2306,7 +2306,7 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
                 continue;
             }
         }
-        else if (opIt->getOpType() == "Conv")
+        if (opIt->getOpType() == "Conv")
         {
             // If input size == kernel size, simplify by forcing equal strides instead of splitting convs
             auto inSize = opIt->getInputTensor(mv::IO_TENSOR_INPUT)->getShape();
