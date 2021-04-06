@@ -301,8 +301,8 @@ set(pass
 )
 
 set(compiler
-    "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor"
-    "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit"
+    "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor.cpp"
+    "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/kmb/runtime_model/runtime_model.cpp"
 )
 
