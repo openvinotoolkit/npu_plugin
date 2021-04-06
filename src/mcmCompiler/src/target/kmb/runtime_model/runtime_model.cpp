@@ -3833,18 +3833,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReluTask(ComputationModel& cm, 
 
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPreluTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
-    auto input   = opIt->getInputTensor(0);
-    auto weights = opIt->getInputTensor(1);
-    auto output  = opIt->getOutputTensor(0);
-
-    if ( weights->getShape()[mv::IO_HEIGHT_DIMENSION] != 1 ||
-         weights->getShape()[mv::IO_WIDTH_DIMENSION]  != 1 ||
-         weights->getShape()[mv::IO_CHANNEL_DIMENSION] != input->getShape()[mv::IO_CHANNEL_DIMENSION])
-    {
-        Logger::log(mv::Logger::MessageType::Error, "RuntimeModel",
-                    "buildUPAPreluTask: unsupported slope size: it must be constant or vector per input channel");
-        return nullptr; // failure
-    }
+    auto input   = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
+    auto weights = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET);
+    auto output  = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
 
     auto toBuild = new MVCNN::UPALayerTaskT();
 
