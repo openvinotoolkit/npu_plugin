@@ -129,7 +129,7 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
         if (inputTensor->isFloatingPointType())
             continue;
 
-        const auto parentOp = om.getSourceOp(inputTensor);
+        auto parentOp = om.getSourceOp(inputTensor);
         if (isOpSoftware(parentOp) && allConsumersNeedFloat(inputTensor))
             continue;
 
@@ -141,8 +141,23 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
             ++inputFlow;
         }
 
-        auto quantParams = inputTensor->getQuantParams();
+        // First check if parent op on other output branches has already HwConvert op in place
+        // which can be reused. In such case just attach to output of this HwConvert
+        for(auto childOp = parentOp.leftmostChild(); childOp != om.opEnd(); ++childOp)
+        {
+            auto opType = childOp->getOpType();
+            auto childOpOutput = childOp->getOutputTensor(0);
+            if (opType == "HwConvert" && childOpOutput->getDType() == mv::DType("Float16"))
+            {
+                // Connect to this op output
+                om.undefineFlow(inputFlow);
+                opIt->setInputTensor(childOpOutput, i, false);
+                om.defineFlow(childOpOutput, opIt, i);
+                return;
+            }
+        }
 
+        // Insert HwConvert operation to perform U8->FP16 conversion on DPU
         auto placeHwConvert = om.hwConvert(opIt->getName() + "_dequantize" + std::to_string(i), inputTensor, mv::DType("Float16"));
 
         auto placeHwConvertOp = om.getSourceOp(placeHwConvert);
