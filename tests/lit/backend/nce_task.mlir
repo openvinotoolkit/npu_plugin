@@ -47,7 +47,7 @@ IE.CNNNetwork
         IE.DataInfo "output" : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">
     }
 
-func @main(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">, %output : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">) {
+func @main(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">, %output : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">) -> memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">{
 
     //
     // DDR Tensors
@@ -317,7 +317,7 @@ func @main(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">, %out
         inputs(%output_ddr : memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "DDR">)
         outputs(%output : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">)
 
-    return
+    return %output : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">
 }
 
 }

@@ -301,6 +301,25 @@ operation ::= `IERT.Convolution` `(` operands `)` attr-dict `:` type(operands)
 `bias` | memref of 16-bit float or 32-bit float values
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Copy` (vpux::IERT::CopyOp)
+
+InferenceEngine run-time Copy layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Copy` `(` operands `)` attr-dict `:` type(operands)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output` | memref of any type values
+
 ### `IERT.Dequantize` (vpux::IERT::DequantizeOp)
 
 InferenceEngine run-time Dequantize layer

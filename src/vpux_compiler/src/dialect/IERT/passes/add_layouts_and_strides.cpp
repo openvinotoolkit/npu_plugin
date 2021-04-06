@@ -132,7 +132,6 @@ void AddLayoutsAndStridesPass::safeRunOnModule() {
     target.addDynamicallyLegalDialect<IERT::IERTDialect>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::linalg::ReshapeOp>(isLegalOp);
-    target.addDynamicallyLegalOp<mlir::linalg::CopyOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::memref::AllocOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::memref::DeallocOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp>();

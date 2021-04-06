@@ -237,7 +237,7 @@ mlir::LogicalResult BufferizeIEPass::SplitsRewrite::matchAndRewrite(IE::SplitOp 
                 rewriter.create<mlir::memref::SubViewOp>(origOp.getLoc(), newOperands[0], svOffsets, svSize, svStrides);
 
         _log.trace("Copy SubView result to output buffer");
-        rewriter.create<mlir::linalg::CopyOp>(origOp->getLoc(), subView, allocatedBufs[i]);
+        rewriter.create<IERT::CopyOp>(origOp->getLoc(), subView, allocatedBufs[i]);
     }
 
     rewriter.replaceOp(origOp, allocatedBufs);
@@ -291,7 +291,7 @@ mlir::LogicalResult BufferizeIEPass::ConcatsRewrite::matchAndRewrite(IE::ConcatO
         auto subView =
                 rewriter.create<mlir::memref::SubViewOp>(origOp->getLoc(), allocatedBufs[0], offsets, sizes, strides);
 
-        rewriter.create<mlir::linalg::CopyOp>(origOp->getLoc(), newOperands[i], subView);
+        rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[i], subView);
         offsets[simplifiedAxis] += newOperands[i].getType().cast<mlir::ShapedType>().getShape()[simplifiedAxis];
     }
     rewriter.replaceOp(origOp, allocatedBufs);
@@ -638,8 +638,6 @@ void BufferizeIEPass::safeRunOnFunc() {
     target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<mlir::linalg::ReshapeOp>();
     target.addLegalOp<mlir::memref::SubViewOp>();
-    target.addLegalOp<mlir::linalg::CopyOp>();
-    target.addLegalOp<mlir::linalg::YieldOp>();
     mlir::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);

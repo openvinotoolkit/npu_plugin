@@ -26,6 +26,63 @@
 
 using namespace vpux;
 
+static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, mlir::FuncOp netFunc,
+                                                  SmallVector<IE::DataInfoOp>& inputsInfo,
+                                                  SmallVector<IE::DataInfoOp>& outputsInfo) {
+    const auto netFuncType = netFunc.getType();
+    const auto args = netFunc.getArgumentTypes();
+
+    if (netFuncType.getNumResults() != outputsInfo.size()) {
+        return errorAt(cnnOp, "entryPoint '@{0}' outputs count '{1}' doesn't match userOutputs count '{2}'",
+                       cnnOp.entryPoint(), netFuncType.getNumResults(), outputsInfo.size());
+    }
+
+    const auto isArgsTensorized = std::all_of(args.begin(), args.end(), [](mlir::Type type) {
+        return type.isa<mlir::RankedTensorType>();
+    });
+    const auto isTensorized = (netFuncType.getNumInputs() == inputsInfo.size()) && isArgsTensorized;
+    if (isTensorized) {
+        return mlir::success();
+    }
+
+    const auto isArgsBufferized = std::all_of(args.begin(), args.end(), [](mlir::Type type) {
+        return type.isa<mlir::BaseMemRefType>();
+    });
+    const auto isSemiBufferized = (netFuncType.getNumInputs() == inputsInfo.size()) && isArgsBufferized;
+    if (isSemiBufferized) {
+        return mlir::success();
+    }
+
+    const auto isBufferized =
+            (netFuncType.getNumInputs() == inputsInfo.size() + outputsInfo.size()) && isArgsBufferized;
+    if (isBufferized) {
+        mlir::LogicalResult res = mlir::success();
+        netFunc.walk([&inputsInfo, &netFunc, &res](mlir::ReturnOp op) {
+            const auto operands = op.getOperands();
+            for (const auto ind : irange(operands.size())) {
+                const auto rawInd = checked_cast<unsigned>(inputsInfo.size() + ind);
+
+                const auto output = operands[ind];
+                const auto outputBuffer = netFunc.getArgument(rawInd);
+                if (outputBuffer != output) {
+                    op.emitError() << "function output at index=" << ind
+                                   << " should be an alias of the output buffer, but it's not";
+                    res = mlir::failure();
+                    break;
+                }
+            }
+        });
+
+        return res.failed() ? res : mlir::success();
+    }
+
+    return errorAt(cnnOp,
+                   "entryPoint '@{0}' has invalid state. inputs count '{1}', results count '{2}', user inputs "
+                   "count '{3}', user outputs count '{4}'",
+                   cnnOp.entryPoint(), netFuncType.getNumInputs(), netFuncType.getNumResults(), inputsInfo.size(),
+                   outputsInfo.size());
+}
+
 //
 // CNNNetworkOp
 //
@@ -37,70 +94,47 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
         return errorAt(*this, "entryPoint '@{0}' doesn't refer to existing Function", entryPoint());
     }
 
+    auto& cnnOp = *this;
     auto inputsInfo = to_small_vector(this->inputsInfo().getOps<IE::DataInfoOp>());
     auto outputsInfo = to_small_vector(this->outputsInfo().getOps<IE::DataInfoOp>());
 
-    const auto netFuncType = netFunc.getType();
-    const auto isBufferized = netFuncType.getNumResults() == 0;
-
-    if (isBufferized) {
-        if (netFuncType.getNumInputs() != inputsInfo.size() + outputsInfo.size()) {
-            return errorAt(*this,
-                           "entryPoint '@{0}' inputs count '{1}' doesn't match userInputs count '{2}' and "
-                           "userOutputs count '{3}'",
-                           entryPoint(), netFuncType.getNumInputs(), inputsInfo.size(), outputsInfo.size());
-        }
-    } else {
-        if (netFuncType.getNumInputs() != inputsInfo.size()) {
-            return errorAt(*this, "entryPoint '@{0}' inputs count '{1}' doesn't match userInputs count '{2}'",
-                           entryPoint(), netFuncType.getNumInputs(), inputsInfo.size());
-        }
-
-        if (netFuncType.getNumResults() != outputsInfo.size()) {
-            return errorAt(*this, "entryPoint '@{0}' outputs count '{1}' doesn't match userOutputs count '{2}'",
-                           entryPoint(), netFuncType.getNumResults(), outputsInfo.size());
-        }
+    if (checkFunctionPrototype(cnnOp, netFunc, inputsInfo, outputsInfo).failed()) {
+        return mlir::failure();
     }
 
-    for (const auto ind : irange(inputsInfo.size())) {
-        const auto funcType = netFuncType.getInput(static_cast<uint32_t>(ind)).dyn_cast<mlir::ShapedType>();
-
+    const auto compareShape = [&cnnOp](mlir::ShapedType funcType, mlir::ShapedType userType, size_t ind) {
         if (funcType == nullptr) {
-            return errorAt(*this, "entryPoint '@{0}' input #{1} is not a 'ShapedType'", entryPoint(), ind);
+            return errorAt(cnnOp, "entryPoint '@{0}' input #{1} is not a 'ShapedType'", cnnOp.entryPoint(), ind);
         }
 
-        const auto userType = inputsInfo[ind].userType().dyn_cast<mlir::ShapedType>();
-
         if (userType == nullptr) {
-            return errorAt(*this, "User input #{0} is not a 'ShapedType'", ind);
+            return errorAt(cnnOp, "User input #{0} is not a 'ShapedType'", ind);
         }
 
         if (funcType.getNumElements() != userType.getNumElements()) {
-            return errorAt(*this, "entryPoint '@{0}' input #{1} is not compatible with user type '{2}'", entryPoint(),
-                           ind, userType);
+            return errorAt(cnnOp, "entryPoint '@{0}' input #{1} is not compatible with user type '{2}'",
+                           cnnOp.entryPoint(), ind, userType);
+        }
+
+        return mlir::success();
+    };
+
+    const auto netFuncType = netFunc.getType();
+    for (const auto ind : irange(inputsInfo.size())) {
+        const auto funcType = netFuncType.getInput(static_cast<uint32_t>(ind)).dyn_cast<mlir::ShapedType>();
+        const auto userType = inputsInfo[ind].userType().dyn_cast<mlir::ShapedType>();
+
+        if (compareShape(funcType, userType, ind).failed()) {
+            return mlir::failure();
         }
     }
 
     for (const auto ind : irange(outputsInfo.size())) {
-        const auto rawInd = inputsInfo.size() + ind;
-
-        const auto funcType = isBufferized
-                                      ? netFuncType.getInput(static_cast<uint32_t>(rawInd)).dyn_cast<mlir::ShapedType>()
-                                      : netFuncType.getResult(static_cast<uint32_t>(ind)).dyn_cast<mlir::ShapedType>();
-
-        if (funcType == nullptr) {
-            return errorAt(*this, "entryPoint '@{0}' output #{1} is not a 'ShapedType'", entryPoint(), ind);
-        }
-
+        const auto funcType = netFuncType.getResult(static_cast<uint32_t>(ind)).dyn_cast<mlir::ShapedType>();
         const auto userType = outputsInfo[ind].userType().dyn_cast<mlir::ShapedType>();
 
-        if (userType == nullptr) {
-            return errorAt(*this, "User output #{0} is not a 'ShapedType'", ind);
-        }
-
-        if (funcType.getNumElements() != userType.getNumElements()) {
-            return errorAt(*this, "entryPoint '@{0}' output #{1} is not compatible with user type '{2}'", entryPoint(),
-                           ind, userType);
+        if (compareShape(funcType, userType, ind).failed()) {
+            return mlir::failure();
         }
     }
 

@@ -51,9 +51,9 @@ func @Split2Subview(%tensor: tensor<2x6x4x2xf32>) -> (tensor<1x6x4x2xf32>, tenso
     // CHECK:       [[VAR1:%.*]] = memref.alloc() : memref<1x6x4x2xf32>
 
     // CHECK:       [[VAR2:%.*]] = memref.subview [[BUFFER]][0, 0, 0, 0] [1, 6, 4, 2] [1, 1, 1, 1] : memref<2x6x4x2xf32> to memref<1x6x4x2xf32, #map0>
-    // CHECK:       linalg.copy([[VAR2]], [[VAR0]])
+    // CHECK:       IERT.Copy([[VAR2]], [[VAR0]])
     // CHECK:       [[VAR3:%.*]] = memref.subview [[BUFFER]][1, 0, 0, 0] [1, 6, 4, 2] [1, 1, 1, 1] : memref<2x6x4x2xf32> to memref<1x6x4x2xf32, #map1>
-    // CHECK:       linalg.copy([[VAR3]], [[VAR1]])
+    // CHECK:       IERT.Copy([[VAR3]], [[VAR1]])
 
     // CHECK:       [[OUT0:%.*]] = memref.tensor_load [[VAR0]] : memref<1x6x4x2xf32>
     // CHECK:       [[OUT1:%.*]] = memref.tensor_load [[VAR1]] : memref<1x6x4x2xf32>
@@ -72,9 +72,9 @@ func @Concat(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1
   // CHECK: [[VAR1:%.*]] = memref.buffer_cast %arg1 : memref<1x2x3x4xf32>
   // CHECK: [[VAR2:%.*]] = memref.alloc() : memref<1x4x3x4xf32>
   // CHECK: [[VAR3:%.*]] = memref.subview [[VAR2]][0, 0, 0, 0] [1, 2, 3, 4] [1, 1, 1, 1] : memref<1x4x3x4xf32> to memref<1x2x3x4xf32, #map0>
-  // CHECK: linalg.copy([[VAR0]], [[VAR3]])
+  // CHECK: IERT.Copy([[VAR0]], [[VAR3]])
   // CHECK: [[VAR4:%.*]] = memref.subview [[VAR2]][0, 2, 0, 0] [1, 2, 3, 4] [1, 1, 1, 1] : memref<1x4x3x4xf32> to memref<1x2x3x4xf32, #map1>
-  // CHECK: linalg.copy([[VAR1]], [[VAR4]])
+  // CHECK: IERT.Copy([[VAR1]], [[VAR4]])
   // CHECK: [[VAR5:%.*]] = memref.tensor_load %2 : memref<1x4x3x4xf32>
   // CHECK: return [[VAR5]] : tensor<1x4x3x4xf32>
 }
