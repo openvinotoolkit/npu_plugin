@@ -2,7 +2,7 @@
 
 ## Components in this repository
 - MCM Compiler
-- VPUX MLIR Compiler
+- [VPUX MLIR Compiler](src/vpux_compiler/docs/index.md)
 - VPUX Plugin
     - VPUAL Backend
     - Zero Backend
