@@ -31,37 +31,35 @@
  */
 
 /** Remote methods for the plugin. */
-enum XPoolMethods : uint32_t
-{
+enum XPoolMethods : uint32_t {
     XP_UNKNOWN = 0,
-    XP_CREATE  = 1,
+    XP_CREATE = 1,
 };
 
 template <typename T>
-class XPool : public PluginStub
-{
-  public:
+class XPool : public PluginStub {
+public:
     /** Output message. */
     PoolSender<PoPtr<T>> out;
 
     /** Allocation / Free function typedefs. */
     typedef DevicePtr (*AllocatorFunction)(uint32_t);
     typedef void (*FreeFunction)(DevicePtr);
-    typedef void (*FreeFunctionCtx)(DevicePtr, void*);
+    typedef void (*FreeFunctionCtx)(DevicePtr, void *);
 
-  private:
+private:
     /** Allocator function for new buffers. */
-    AllocatorFunction Alloc { nullptr };
+    AllocatorFunction Alloc{nullptr};
     /** Free function for released buffers. */
-    FreeFunction Free { nullptr };
-    FreeFunctionCtx FreeCtx { nullptr };
+    FreeFunction Free{nullptr};
+    FreeFunctionCtx FreeCtx{nullptr};
 
     /** Threads listening on the XLink channel. */
     std::thread allocThread;
     std::thread freeThread;
 
     /** Flag to mark the plugin's state. Threads will close when not alive. */
-    volatile bool alive { false };
+    volatile bool alive{false};
 
     /** Details on the buffers in our pool. */
     uint32_t buffersInPool;
@@ -78,16 +76,14 @@ class XPool : public PluginStub
     /** XLink channel ID used. */
     uint16_t chanId;
 
-    void *user_context_ { nullptr };
+    void *user_context_{nullptr};
 
-
-  private:
-
+private:
     /** Method to perform allocations when new buffers are needed. */
     void AllocThread(void) {
-        while(alive) {
+        while (alive) {
             // TODO verify exit condition?
-            auto rc { SendBufferBlocking(Alloc(bufferSize), bufferSize) };
+            auto rc{SendBufferBlocking(Alloc(bufferSize), bufferSize)};
             // TODO more graceful handling of this?
             if (0 != rc) {
                 throw std::runtime_error("XPool error when allocating new buffer.");
@@ -97,109 +93,85 @@ class XPool : public PluginStub
 
     /** Method to free buffers when the VPU releases them. */
     void FreeThread(void) {
-        while(alive) {
+        while (alive) {
             // TODO try not to throw as much..?
             {
                 std::unique_lock<std::mutex> m_lock(xpool_mutex_);
-                xpool_ava_cond_.wait(m_lock, [&](){
-                    return !output_buffers.empty() || !alive;
-                });
-	    }
+                xpool_ava_cond_.wait(m_lock, [&]() { return !output_buffers.empty() || !alive; });
+            }
 
             // Check if there is an output buffer in our queue
             if (false == output_buffers.empty()) {
-
 #ifdef __REMOTE_HOST__
 
-                DevicePtr &out_data { output_buffers.front() };
+                DevicePtr &out_data{output_buffers.front()};
 
                 // Read data size
                 //  - Could be template specialised to read metadata.
                 //      - or still just templated...
 
                 uint8_t msg[128];
-                uint32_t size { 0 };
-                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
+                uint32_t size{0};
+                xlink_handle XlinkDeviceHandle{getXlinkDeviceHandle(getDeviceId())};
                 auto sc = xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId, msg, &size);
                 if (sc != X_LINK_SUCCESS) {
-                    std::string error_message {
-                        "XPool: XLink read error: "
-                        + std::to_string(sc)
-                        };
+                    std::string error_message{"XPool: XLink read error: " + std::to_string(sc)};
                     throw std::runtime_error(error_message);
                 }
 
                 // Read data
-                size_t data_size { ((uint32_t*)msg)[0] };
+                size_t data_size{((uint32_t *)msg)[0]};
 
                 // Need to ensure data_size is not too big for this buffer
                 // Should maybe make the queue from a struct of DevicePtr and size_t
 
-                sc = xlink_read_data(&XlinkDeviceHandle, chanId, &out_data, (uint32_t*)&data_size);
+                sc = xlink_read_data(&XlinkDeviceHandle, chanId, &out_data, (uint32_t *)&data_size);
                 if (sc) {
-                    std::string error_message {
-                        "XPool: XLink read error: "
-                        + std::to_string(sc)
-                        };
+                    std::string error_message{"XPool: XLink read error: " + std::to_string(sc)};
                 }
 
 #else // __REMOTE_HOST__
 
-                DevicePtr &expected_data { output_buffers.front() };
-                DevicePtr out_data { 0 };
+                DevicePtr &expected_data{output_buffers.front()};
+                DevicePtr out_data{0};
 
                 // Read data size / metadata
                 //  - Could be template specialised to read specific metadata.
                 //      - or still just templated...
 
                 uint8_t msg[128];
-                uint32_t size { 0 };
-                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
-                auto sc { xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId,
-                                                    msg, &size) };
+                uint32_t size{0};
+                xlink_handle XlinkDeviceHandle{getXlinkDeviceHandle(getDeviceId())};
+                auto sc{xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId, msg, &size)};
                 if (sc != X_LINK_SUCCESS) {
-                    std::string error_message {
-                        "XPool: XLink read error: "
-                        + std::to_string(sc)
-                        };
+                    std::string error_message{"XPool: XLink read error: " + std::to_string(sc)};
                     throw std::runtime_error(error_message);
                 }
 
                 // Read data
-                size_t expected_size { ((uint32_t*)msg)[0] };
-                size_t data_size { 0 };
+                size_t expected_size{((uint32_t *)msg)[0]};
+                size_t data_size{0};
 
                 // TODO - Fix this api, it's very convoluted.
-                DevicePtr *ptr_paddr { &out_data };
-                sc = xlink_read_data(&XlinkDeviceHandle, chanId,
-                                     reinterpret_cast<uint8_t**>(&ptr_paddr),
-                                     (uint32_t*)&data_size);
+                DevicePtr *ptr_paddr{&out_data};
+                sc = xlink_read_data(&XlinkDeviceHandle, chanId, reinterpret_cast<uint8_t **>(&ptr_paddr),
+                                     (uint32_t *)&data_size);
 
                 if (sc != X_LINK_SUCCESS) {
-                    std::string error_message {
-                        "XPool: XLink read error: "
-                        + std::to_string(sc)
-                        };
+                    std::string error_message{"XPool: XLink read error: " + std::to_string(sc)};
                     throw std::runtime_error(error_message);
                 }
 
                 // TODO - Do we need to do this validation? Remote case?
                 if (data_size != expected_size) {
-                    std::string error_message {
-                        "XPool unexpected size returned. E: "
-                        + std::to_string(expected_size)
-                        + " A: "
-                        + std::to_string(data_size)
-                        };
+                    std::string error_message{"XPool unexpected size returned. E: " + std::to_string(expected_size) +
+                                              " A: " + std::to_string(data_size)};
                     throw std::runtime_error(error_message);
                 }
                 if (out_data != expected_data) {
                     std::stringstream error_message;
-                    error_message << "XPool unexpected buffer returned. E: "
-                        << std::hex
-                        << expected_data
-                        << " A: "
-                        << out_data;
+                    error_message << "XPool unexpected buffer returned. E: " << std::hex << expected_data
+                                  << " A: " << out_data;
                     throw std::runtime_error(error_message.str());
                 }
 
@@ -221,16 +193,14 @@ class XPool : public PluginStub
         }
     }
 
-
-  public:
-
+public:
     /** Constructor declaration (definition is type dependant). */
     XPool(uint32_t device_id);
 
     // TODO - May be gcc bug, but we need this declaration to help with initialisation.
     //        Copy-elision should occur, so we will never use it.
-    XPool(const XPool&); // Declare copy ctor, but don't define.
-    XPool& operator=(const XPool&) = delete;
+    XPool(const XPool &); // Declare copy ctor, but don't define.
+    XPool &operator=(const XPool &) = delete;
 
     /**
      * Destructor.
@@ -238,30 +208,21 @@ class XPool : public PluginStub
      * Detatch & delete the threads if they exist and haven't been joined.
      */
     ~XPool() {
-        if(allocThread.joinable()) {
+        if (allocThread.joinable()) {
             std::cerr << "Warning: Killing joinable thread." << std::endl;
             allocThread.detach();
         }
-        if(freeThread.joinable()) {
+        if (freeThread.joinable()) {
             std::cerr << "Warning: Killing joinable thread." << std::endl;
             freeThread.detach();
         }
     }
 
-    void SetFreeFunction(FreeFunction freefunc)
-    {
-        Free = freefunc;
-    }
+    void SetFreeFunction(FreeFunction freefunc) { Free = freefunc; }
 
-    void SetFreeFunction(FreeFunctionCtx freefunc)
-    {
-        FreeCtx = freefunc;
-    }
+    void SetFreeFunction(FreeFunctionCtx freefunc) { FreeCtx = freefunc; }
 
-    void SetUserContext(void *context)
-    {
-        user_context_ = context;
-    }
+    void SetUserContext(void *context) { user_context_ = context; }
 
     /**
      * Create method.
@@ -271,8 +232,7 @@ class XPool : public PluginStub
      * @param xId_unused  not used anymore.
      * @param freefunc  [optional] Free function for buffers no longer in use.
      */
-    int Create(uint32_t nBuf, uint32_t bSize, uint16_t xId_unused, FreeFunction freefunc = NULL)
-    {
+    int Create(uint32_t nBuf, uint32_t bSize, uint16_t xId_unused, FreeFunction freefunc = NULL) {
         UNUSED(xId_unused);
         uint16_t xId;
         // Save the parameters.
@@ -302,7 +262,7 @@ class XPool : public PluginStub
         }
 
         // Open blocking each way, with no timeout.
-        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
+        xlink_handle XlinkDeviceHandle{getXlinkDeviceHandle(getDeviceId())};
         xlink_error status = xlink_open_channel(&XlinkDeviceHandle, xId, RXB_TXB, (nBuf * bSize) * 4, 0);
         if (status) {
             std::cerr << "XPool Open Channel Status: " << status << std::endl;
@@ -315,7 +275,7 @@ class XPool : public PluginStub
         alive = true;
 
         // Start the free thread on this XLink channel.
-        freeThread = std::thread { &XPool::FreeThread,  this };
+        freeThread = std::thread{&XPool::FreeThread, this};
 
         // Add the member message to the plugin.
         Add(&out);
@@ -335,8 +295,7 @@ class XPool : public PluginStub
      * @param allocfunc Allocation function for new buffers.
      * @param freefunc  [optional] Free function for buffers no longer in use.
      */
-    int Create(uint32_t nBuf, uint32_t bSize, uint16_t xId, AllocatorFunction allocfunc, FreeFunction freefunc = NULL)
-    {
+    int Create(uint32_t nBuf, uint32_t bSize, uint16_t xId, AllocatorFunction allocfunc, FreeFunction freefunc = NULL) {
         assert(NULL != allocfunc);
         Alloc = allocfunc;
 
@@ -345,14 +304,14 @@ class XPool : public PluginStub
 
         if (0 == rc) {
             // Start the allocation thread on this XLink channel.
-            allocThread = std::thread { &XPool::AllocThread, this };
+            allocThread = std::thread{&XPool::AllocThread, this};
         }
 
         return rc;
     }
 
     /** Stop Method. Indicate to the threads to return. */
-    void Stop (void) {
+    void Stop(void) {
         alive = false;
         xpool_ava_cond_.notify_all();
     }
@@ -368,27 +327,29 @@ class XPool : public PluginStub
     }
 
     /** Delete method. Close the channel. */
-    void Delete (void) {
-        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
+    void Delete(void) {
+        xlink_handle XlinkDeviceHandle{getXlinkDeviceHandle(getDeviceId())};
         xlink_error rc = xlink_close_channel(&XlinkDeviceHandle, chanId);
         if (X_LINK_SUCCESS != rc) {
-            std::string error_message {
-                        "XPool close channel status: "
-                        + std::to_string(rc)
-                        };
-                    throw std::runtime_error(error_message);
+            std::string error_message{"XPool close channel status: " + std::to_string(rc)};
+            throw std::runtime_error(error_message);
         }
     }
 
     /** Send a buffer over XLink to the XPool plugin on the VPU. */
-    int SendBuffer(DevicePtr buffer, uint32_t size)
-    {
+    int SendBuffer(DevicePtr buffer, uint32_t size) {
         // Lock this function in order to perform xlink write and output_buffer
         // update together
         static std::mutex send_mutex;
         std::lock_guard<std::mutex> lock(send_mutex);
 
-        assert(size >= bufferSize); // Ensure this buffer is big enough.
+        // Ensure this buffer is big enough.
+        if (size < bufferSize) {
+            std::cerr << "XPool::SendBuffer buffer is not big enough." << std::endl;
+            std::cerr << "Expected to have at least " << bufferSize << " bytes." << std::endl;
+            std::cerr << "Got " << size << " bytes." << std::endl;
+            return static_cast<int>(X_LINK_ERROR);
+        }
 
         // This would block if we are potentially overflowing, but it could
         // cause a locked state:
@@ -402,13 +363,13 @@ class XPool : public PluginStub
             std::cout << "Warning, sending more buffers than XPool can hold on the VPU." << std::endl;
         }
 
-        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
+        xlink_handle XlinkDeviceHandle{getXlinkDeviceHandle(getDeviceId())};
 #ifdef __REMOTE_HOST__
         // TODO We actually just want to do a sort of:
         //    xlink_allocate_vpu_buffer(chan, bufferSize);
-        auto rc { xlink_write_data(&XlinkDeviceHandle, chanId, buffer, bufferSize) };
-#else // __REMOTE_HOST__
-        auto rc { xlink_write_data(&XlinkDeviceHandle, chanId, reinterpret_cast<uint8_t *>(&buffer), bufferSize) };
+        auto rc{xlink_write_data(&XlinkDeviceHandle, chanId, buffer, bufferSize)};
+#else  // __REMOTE_HOST__
+        auto rc{xlink_write_data(&XlinkDeviceHandle, chanId, reinterpret_cast<uint8_t *>(&buffer), bufferSize)};
 #endif // __REMOTE_HOST__
         if (X_LINK_SUCCESS != rc) {
             std::cerr << "XPool: XLink write error: " << rc << std::endl;
@@ -423,14 +384,13 @@ class XPool : public PluginStub
     }
 
     // Possible blocking versions of the SendBuffer function:
-    int SendBufferBlocking(DevicePtr buffer, uint32_t size)
-    {
+    int SendBufferBlocking(DevicePtr buffer, uint32_t size) {
         // Wait until the buffer is needed:
         {
             std::unique_lock<std::mutex> m_lock(xpool_mutex_);
-            xpool_cond_.wait(m_lock, [this]{return output_buffers.size() < buffersInPool;});
+            xpool_cond_.wait(m_lock, [this] { return output_buffers.size() < buffersInPool; });
         }
-        int rc { SendBuffer(buffer, size) };
+        int rc{SendBuffer(buffer, size)};
         return rc;
     }
 
