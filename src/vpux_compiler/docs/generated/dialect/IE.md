@@ -249,7 +249,7 @@ operation ::= `IE.Concat` `(` operands `)` attr-dict `:` type(operands) `->` typ
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axis` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`axis` | ::mlir::IntegerAttr | 32-bit signed integer attribute
 
 #### Operands:
 
@@ -1507,6 +1507,7 @@ operation ::= `IE.Split` `(` operands `)` attr-dict `:` type(operands) `->` type
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `num_splits` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`axis_value` | ::mlir::IntegerAttr | 32-bit signed integer attribute
 
 #### Operands:
 

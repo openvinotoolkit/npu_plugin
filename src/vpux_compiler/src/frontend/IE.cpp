@@ -382,7 +382,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto num_splits = origNode->get_num_splits();
     const auto numSplitsAttr = getInt32Attr(_ctx, checked_cast<uint32_t>(num_splits));
 
-    auto op = builder.create<IE::SplitOp>(createLocation(origNode), inputs[0], inputs[1], numSplitsAttr);
+    auto op = builder.create<IE::SplitOp>(createLocation(origNode), inputs[0], inputs[1], numSplitsAttr, nullptr);
     addOutputs(origNode, op);
 }
 
@@ -813,7 +813,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                       origNode->get_friendly_name(), inputs.size());
 
     const auto axis = origNode->get_axis();
-    const auto axisAttr = getInt32Attr(_ctx, checked_cast<int32_t>(axis));
+    const auto axisAttr = getSInt32Attr(_ctx, checked_cast<int32_t>(axis));
 
     auto op = builder.create<IE::ConcatOp>(createLocation(origNode), inputs, axisAttr);
     addOutputs(origNode, op);

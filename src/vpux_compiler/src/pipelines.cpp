@@ -46,6 +46,7 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
     buildLowerIE2IERTPipeline(pm, log);
 
     // IERT Dialect level
+    pm.addPass(IERT::createComposeSubViewPass(log));
     pm.addPass(mlir::createBufferDeallocationPass());
     pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpaceCb, log));
     pm.addPass(IERT::createStaticAllocationPass(ddrMemSpaceCb, log));
