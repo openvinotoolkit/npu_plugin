@@ -12,6 +12,13 @@
 namespace LayerTestsDefinitions {
 
 class KmbSplitLayerTest : public SplitLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeLoad() override {
+        // [Track number: E#9525]
+        if (isCompilerMCM()) {
+            throw LayerTestsUtils::KmbSkipTestException("Issue in LoadNetwork() with blob from mcmCompiler, failed to create NnCorePlg: 1");
+        }
+    }
+
     void SkipBeforeInfer() override {
         throw LayerTestsUtils::KmbSkipTestException("Issues with Runtime. Outputs is empty because runtime doesn't wait while dma is finished");
     }
@@ -35,7 +42,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16};
 
-INSTANTIATE_TEST_CASE_P(Split, KmbSplitLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Split, KmbSplitLayerTest,
                         ::testing::Combine(::testing::Values(2, 3), ::testing::Values(0, 1, 2, 3),
                                            ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32),
