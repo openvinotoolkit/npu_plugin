@@ -30,8 +30,7 @@ enable_warnings_as_errors(${TARGET_NAME})
 target_include_directories(${TARGET_NAME}
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    PRIVATE
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/vpu")
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include")
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE

@@ -78,7 +78,7 @@ private:
 
 private:
     VPUXConfig _parsedConfig;
-    VPUXBackends::CPtr _backends;
+    VPUXBackends::Ptr _backends;
     Metrics _metrics;
 };
 
