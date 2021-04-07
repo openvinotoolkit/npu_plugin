@@ -69,6 +69,10 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
     std::vector<double> min;
     std::vector<double> max;
 
+    if (!weightsTensor->hasAttr("quantParams")) {
+        weightsTensor->setQuantParams(mv::QuantizationParams::initial());
+    }
+
     //Note: Quantization of weights
     if (branch == 0)
     {

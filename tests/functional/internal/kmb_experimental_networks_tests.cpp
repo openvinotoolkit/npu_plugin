@@ -222,6 +222,17 @@ TEST_F(KmbSuperResNetworkTest, precommit_SuperResolution_ADK3) {
             paramName2, {255});
 }
 
+TEST_F(SmokeNetworkTest, SuperResolution_AA_ADK3) {
+    runTest(
+            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8_AA.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("netInput", Precision::U8)
+                    .setUserInputPrecision("t_param", Precision::U8)
+                    .setUserInputPrecision("t_param1", Precision::U8)
+                    .setUserOutputPrecision("tl_unet1x2x4x/out1x/add_2", Precision::FP16)
+                    .setUserOutputPrecision("tl_unet1x2x4x/out2x/add_2", Precision::FP16)
+                    .setUserOutputPrecision("tl_unet1x2x4x/out4x/add_1", Precision::FP16));
+}
+
 TEST_F(ModelAdk, ModelE_ADK3) {
     runTest(
             TestNetworkDesc("ADK3/ModelE_INT8/ModelE_INT8.xml", EXPERIMENTAL)
