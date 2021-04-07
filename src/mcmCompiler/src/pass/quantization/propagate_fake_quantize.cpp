@@ -52,6 +52,20 @@ static void updateChildrenPrecisionRecursiveDown(mv::Data::OpListIterator explor
     }
 }
 
+// This recursive function will traverse up and update each tensor precision to destination type
+static void updateParentPrecisionRecursiveUp(mv::Data::OpListIterator exploreOp, mv::OpModel& om, mv::DType dataType)
+{
+    auto inputTensor = exploreOp->getInputTensor(0);
+    auto parentOp = om.getSourceOp(inputTensor);
+    inputTensor->setDType(dataType);
+    inputTensor->set<bool>("FPConversionPath", true);
+    parentOp->set<mv::DType>("dType", dataType);
+    if (parentOp->getOpType() != "Input")
+    {
+        updateParentPrecisionRecursiveUp(parentOp, om, dataType);
+    }
+}
+
 // This recursive function will search down for FakeQuantize operations. It will stop until either FQ is encountered
 // or if it got to output or DPU task
 static void getFakeQuantizeRecursiveDown(mv::Data::OpListIterator exploreOp, std::vector<mv::Data::OpListIterator>& fqOps, std::vector<mv::Data::OpListIterator>& notQuantizedDpuTasks, mv::OpModel& om)
@@ -93,6 +107,13 @@ static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::Compu
     }
 
     auto networkInputs = om.getNetworkInputs();
+
+    // This pass 'DecideComputePrecision' is only a WA to make FP-input SuperResolution pass. 
+    // Will be removed after ticket CVS-40814 being merged.
+    // This condition is to avoid regression on aclnet network.
+    if (networkInputs.size() < 2)
+        return;
+    
     // Vector of FakeQuantize operations for input node
     std::vector<mv::Data::OpListIterator> inputFqOps;
     std::vector<mv::Data::OpListIterator> notQuantizedDpuTasks;
@@ -235,6 +256,10 @@ static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::Compu
         {
             opsToLink[op]->setInputTensor(conversionOutput, inputSlots[op], false);
             om.defineFlow(conversionOutput, opsToLink[op], inputSlots[op]);
+        }
+
+        if (om.getSourceOp(inputTensor)->getOpType() == "ImplicitInput") {
+            updateParentPrecisionRecursiveUp(conversionOp, om, inputTensor->getDType());
         }
     }
 
