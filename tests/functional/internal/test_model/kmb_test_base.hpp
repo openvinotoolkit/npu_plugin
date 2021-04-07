@@ -750,14 +750,14 @@ public:
 };
 
 
-class KmbSuperResNetworkTest : public ModelAdk {
+class KmbSuperResNetworkTest : public KmbNetworkTestBase {
 public:
     void runTest(
             const TestNetworkDesc& netDesc,
             const std::string& imgName,
-            const TestImageDesc& image,
+            const TestBinFileDesc& image,
             const std::string& paramName1,
-            const std::vector<unsigned>& paramValues1,
+            const TestBinFileDesc& paramValues1,
             const std::string& paramName2,
-            const std::vector<unsigned>& paramValues2);
+            const TestBinFileDesc& paramValues2);
 };

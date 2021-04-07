@@ -199,28 +199,6 @@ TEST_P(ModelAdk, DISABLED_precommit_StackedHourGlass_BDK1) {
             TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
             0.0025f);
 }
-// [Track number: S#47647]
-TEST_F(KmbSuperResNetworkTest, precommit_SuperResolution_ADK3) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
-    const std::string imgName  = "netInput";
-    const std::string paramName1 = "t_param";
-    const std::string paramName2 = "t_param1";
-    runTest(
-            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8.xml", EXPERIMENTAL)
-                .setUserInputPrecision(imgName, Precision::U8)
-                .setUserInputLayout(imgName, Layout::NCHW)
-                .setUserInputPrecision(paramName1, Precision::U8)
-                .setUserInputLayout(paramName1, Layout::C)
-                .setUserInputPrecision(paramName2, Precision::U8)
-                .setUserInputLayout(paramName2, Layout::C)
-                .setUserOutputPrecision("scale1x", Precision::FP16)
-                .setUserOutputPrecision("scale2x", Precision::FP16)
-                .setUserOutputPrecision("scale4x", Precision::FP16),
-            imgName,
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-            paramName1, {255},
-            paramName2, {255});
-}
 
 TEST_F(SmokeNetworkTest, SuperResolution_AA_ADK3) {
     runTest(
@@ -281,3 +259,81 @@ TEST_F(KmbClassifyNetworkTest, precommit_MobilenetV2_ADK3) {
             TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
             1, 2.0f);
 }
+
+// [Track number: S#47647]
+TEST_F(KmbSuperResNetworkTest, precommit_SuperResolution_ADK3) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    const std::string imgName  = "netInput";
+    const std::string paramName1 = "t_param";
+    const std::string paramName2 = "t_param1";
+    runTest(
+            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8.xml", EXPERIMENTAL)
+            .setUserInputPrecision(imgName, Precision::U8)
+            .setUserInputLayout(imgName, Layout::NHWC)
+            .setUserInputPrecision(paramName1, Precision::U8)
+            .setUserInputLayout(paramName1, Layout::C)
+            .setUserInputPrecision(paramName2, Precision::U8)
+            .setUserInputLayout(paramName2, Layout::C)
+            .setUserOutputPrecision("tl_unet1x2x4x/out1x/add_2", Precision::FP16)
+            .setUserOutputPrecision("tl_unet1x2x4x/out2x/add_2", Precision::FP16)
+            .setUserOutputPrecision("tl_unet1x2x4x/out4x/add_1", Precision::FP16),
+            imgName,
+            TestBinFileDesc("vpu/super_resolution_input/input-0-U8.bin", {1, 3, 192, 192}, Precision::U8),
+            paramName1,
+            TestBinFileDesc("vpu/super_resolution_input/input-1-U8.bin", {1}, Precision::U8),
+            paramName2,
+            TestBinFileDesc("vpu/super_resolution_input/input-2-U8.bin", {1}, Precision::U8));
+}
+
+class KmbSuperResNetworkTestParameterized : public KmbSuperResNetworkTest,
+    public testing::WithParamInterface<std::tuple<InferenceEngine::Precision, InferenceEngine::Precision>> {};
+
+// [Track number: S#47647]
+TEST_P(KmbSuperResNetworkTestParameterized, PrecisionTest) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    auto inputPrecision = std::get<0>(GetParam());
+    auto outputPrecision = std::get<1>(GetParam());
+    const std::string imgName  = "netInput";
+    const std::string paramName1 = "t_param";
+    const std::string paramName2 = "t_param1";
+
+    std::map<InferenceEngine::Precision, std::string> precisionToStr = {
+        {InferenceEngine::Precision::U8, "U8"},
+        {InferenceEngine::Precision::FP16, "FP16"},
+        {InferenceEngine::Precision::FP32, "FP32"}
+    };
+    runTest(
+            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8.xml", EXPERIMENTAL)
+            .setUserInputPrecision(imgName, inputPrecision)
+            .setUserInputLayout(imgName, Layout::NHWC)
+            .setUserInputPrecision(paramName1, inputPrecision)
+            .setUserInputLayout(paramName1, Layout::C)
+            .setUserInputPrecision(paramName2, inputPrecision)
+            .setUserInputLayout(paramName2, Layout::C)
+            .setUserOutputPrecision("tl_unet1x2x4x/out1x/add_2", outputPrecision)
+            .setUserOutputPrecision("tl_unet1x2x4x/out2x/add_2", outputPrecision)
+            .setUserOutputPrecision("tl_unet1x2x4x/out4x/add_1", outputPrecision),
+            imgName,
+            TestBinFileDesc("vpu/super_resolution_input/input-0-"+precisionToStr[inputPrecision]+".bin", {1, 3, 192, 192}, inputPrecision),
+            paramName1,
+            TestBinFileDesc("vpu/super_resolution_input/input-1-"+precisionToStr[inputPrecision]+".bin", {1}, inputPrecision),
+            paramName2,
+            TestBinFileDesc("vpu/super_resolution_input/input-2-"+precisionToStr[inputPrecision]+".bin", {1}, inputPrecision));
+    }
+
+static const std::vector<InferenceEngine::Precision> SRInputPrecision = {
+            InferenceEngine::Precision::U8,
+            InferenceEngine::Precision::FP16,
+            InferenceEngine::Precision::FP32
+};
+
+static const std::vector<InferenceEngine::Precision> SROutputPrecision = {
+            InferenceEngine::Precision::FP16,
+            InferenceEngine::Precision::FP32
+};
+
+static const auto allPrecisionCombine = ::testing::Combine(
+        ::testing::ValuesIn(SRInputPrecision),
+        ::testing::ValuesIn(SROutputPrecision));
+
+INSTANTIATE_TEST_CASE_P(PrecisionCombine, KmbSuperResNetworkTestParameterized, allPrecisionCombine);
