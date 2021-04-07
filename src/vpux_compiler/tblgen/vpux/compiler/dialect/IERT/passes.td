@@ -20,20 +20,6 @@
 include "mlir/Pass/PassBase.td"
 
 //
-// ComposeSubView
-//
-
-def ComposeSubView : PassBase<"compose-subview", "vpux::FunctionPass"> {
-    let summary = "Combine composed subview ops";
-
-    let constructor = "vpux::IERT::createComposeSubViewPass()";
-
-    let dependentDialects = [
-        "mlir::memref::MemRefDialect"
-    ];
-}
-
-//
 // AddLayoutsAndStrides
 //
 
