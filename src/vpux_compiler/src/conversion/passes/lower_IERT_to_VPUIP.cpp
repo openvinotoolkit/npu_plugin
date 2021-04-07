@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/conversion.hpp"
 
+#include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
@@ -115,15 +116,16 @@ mlir::LogicalResult LowerIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(IE
 }
 
 //
-// ReshapeRewrite
+// ViewLikeRewrite
 //
 
 class LowerIERT2VPUIPPass::ViewLikeRewrite final : public mlir::OpInterfaceRewritePattern<mlir::ViewLikeOpInterface> {
 public:
-    ViewLikeRewrite(IE::CNNNetworkOp netInfo, mlir::FuncOp netFunc, Logger log)
+    ViewLikeRewrite(IE::CNNNetworkOp netInfo, mlir::FuncOp netFunc, AliasesInfo* aliasInfo, Logger log)
             : mlir::OpInterfaceRewritePattern<mlir::ViewLikeOpInterface>(netInfo.getContext()),
               _netInfo(netInfo),
               _netFunc(netFunc),
+              _aliasInfo(aliasInfo),
               _log(log) {
     }
 
@@ -133,6 +135,7 @@ public:
 private:
     mutable IE::CNNNetworkOp _netInfo;
     mutable mlir::FuncOp _netFunc;
+    AliasesInfo* _aliasInfo = nullptr;
     Logger _log;
 };
 
@@ -142,26 +145,26 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
         return matchFailed(rewriter, origOp, "Unknown view-like operation '{0}'", origOp->getName());
     }
 
-    _log.trace("Found Reshape Operation '{0}'", origOp->getLoc());
+    _log.trace("Found view-like Operation '{0}'", origOp->getLoc());
 
     if (origOp->getParentOfType<mlir::FuncOp>() != _netFunc) {
         return matchFailed(rewriter, origOp, "The operation doesn't belong to network entry point Function");
     }
 
     const auto origInput = origOp.getViewSource();
-    const auto outType = origOp->getResult(0).getType();
+    const auto rootVal = _aliasInfo->getRoot(origInput);
 
     VPUIP::MemoryLocation location = VPUIP::MemoryLocation::VPU_DDR_Heap;
     Optional<uint32_t> locationIndex;
     Byte viewOffset(0);
 
-    if (auto allocOp = origInput.getDefiningOp<IERT::StaticAllocOp>()) {
+    if (auto allocOp = rootVal.getDefiningOp<IERT::StaticAllocOp>()) {
         _log.nest().trace("It aliases internal buffer produced by '{0}' StaticAlloc", allocOp.getLoc());
 
         // TODO: generalize location type
         location = VPUIP::MemoryLocation::VPU_DDR_Heap;
         viewOffset = Byte(allocOp.offset());
-    } else if (auto blockArg = origInput.dyn_cast<mlir::BlockArgument>()) {
+    } else if (auto blockArg = rootVal.dyn_cast<mlir::BlockArgument>()) {
         _log.nest().trace("It aliases internal Function argument");
 
         if (blockArg.getOwner()->getParentOp() != _netFunc) {
@@ -190,16 +193,18 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
     }
 
     if (auto subViewOp = mlir::dyn_cast<mlir::memref::SubViewOp>(origOp.getOperation())) {
-        const auto memRefSubview = subViewOp.getType();
-        int64_t subviewOffset;
-        SmallVector<int64_t, 4> resultStrides;
-        if (mlir::getStridesAndOffset(memRefSubview, resultStrides, subviewOffset).failed()) {
+        int64_t subviewOffset = 0;
+        SmallVector<int64_t> resultStrides;
+        if (mlir::getStridesAndOffset(subViewOp.getType(), resultStrides, subviewOffset).failed()) {
             return errorAt(origOp, "Can't extract offsets and strides from SubView");
         }
+
         // Add offset for subview memref in bytes
-        Byte elemSize = getElemTypeSize(memRefSubview.getElementType());
+        const Byte elemSize = getElemTypeSize(subViewOp.getType().getElementType());
         viewOffset += subviewOffset * elemSize;
     }
+
+    const auto outType = origOp->getResult(0).getType();
 
     if (locationIndex.hasValue()) {
         rewriter.replaceOpWithNewOp<VPUIP::DeclareTensorOp>(origOp, outType, location, locationIndex.getValue(),
@@ -218,6 +223,8 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
 void LowerIERT2VPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
+
+    auto& aliasInfo = getAnalysis<AliasesInfo>();
 
     auto module = func->getParentOfType<mlir::ModuleOp>();
     VPUX_THROW_UNLESS(module != nullptr, "Can't get module from Function '{0}'", func.getLoc());
@@ -238,7 +245,7 @@ void LowerIERT2VPUIPPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ConstantRewrite>(&ctx, _log);
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
-    patterns.insert<ViewLikeRewrite>(netInfo, netFunc, _log);
+    patterns.insert<ViewLikeRewrite>(netInfo, netFunc, &aliasInfo, _log);
     populateWithGenerated(patterns);
 
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
