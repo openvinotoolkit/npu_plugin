@@ -77,10 +77,6 @@ if(AARCH64)
     add_subdirectory(gapi_sipp/m2i)
     add_subdirectory(gapi_sipp/vpu)
 
-    if(ENABLE_TESTS)
-        add_subdirectory(tests/integration)
-    endif()
-
     set(VPUAL_XLINK_LIBRARY XLink CACHE INTERNAL "")
     set(VPUAL_XLINK_INCLUDES $<TARGET_PROPERTY:XLink,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
 
