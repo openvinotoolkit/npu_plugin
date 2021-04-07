@@ -2321,8 +2321,9 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
         }
         pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
         auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
-        if(((stride[mv::STRIDE_VERTICAL] == 1) && (stride[mv::STRIDE_HORIZONTAL] == 2))
-        || ((stride[mv::STRIDE_VERTICAL] == 2) && (stride[mv::STRIDE_HORIZONTAL] == 1)))
+        if((opIt->getOpType() == "Conv") &&
+           ((stride[mv::STRIDE_VERTICAL] == 1 && stride[mv::STRIDE_HORIZONTAL] == 2) ||
+            (stride[mv::STRIDE_VERTICAL] == 2 && stride[mv::STRIDE_HORIZONTAL] == 1)))
         {
             opIt = splitOperationSlicingV2 (om,
                                             opIt,
@@ -2330,7 +2331,7 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
                                             stride[mv::STRIDE_VERTICAL],
                                             nextOp);
         }
-        else
+        else if (opIt->getOpType() != "Conv")
         {
              //stride supported not slicing, stride not supported slicing with slices dimensions of stride
             opIt = splitOperationSlicingFixedWidthHeight (om,
