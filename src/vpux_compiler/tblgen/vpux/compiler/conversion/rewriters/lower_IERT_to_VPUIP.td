@@ -24,10 +24,8 @@ include "mlir/IR/OpBase.td"
 include "mlir/Dialect/Linalg/IR/LinalgStructuredOps.td"
 
 //
-// linalg.copy -> VPUIP.NNDMA
+// IERT.Copy -> VPUIP.NNDMA
 //
-
-def NullAttr : Attr<CPred<"$_self == nullptr">>;
 
 def createNNDMAOp :
         NativeCodeCall<[{
@@ -41,7 +39,7 @@ def createUPADMAOp :
 
 def RewriteCopy :
         Pat<
-            (CopyOp $input, $output, NullAttr:$inputPermutation, NullAttr:$outputPermutation),
+            (IERT_CopyOp $input, $output),
             (createNNDMAOp $input, $output)
         >;
 
@@ -510,6 +508,40 @@ def RewriteTranspose :
             [
                 (HasConstantOrder $order, $order_value)
             ]
+        >;
+
+//
+// IERT.CTCGreedyDecoder -> VPUIP.CTCGreedyDecoderUPA
+//
+
+def createCTCGreedyDecoderUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::CTCGreedyDecoderUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteCTCGreedyDecoder :
+        Pat<
+            (IERT_CTCGreedyDecoderOp $input, $sequenceLengths, $output, $mergeRepeated),
+            (createCTCGreedyDecoderUPAOp $input, $sequenceLengths, $output, $mergeRepeated)
+        >;
+
+//
+// IERT.CTCGreedyDecoderSeqLen -> VPUIP.CTCGreedyDecoderSeqLenUPA
+//
+
+def createCTCGreedyDecoderSeqLenUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp>(
+                $_loc, $0, $1,
+                $2.size() == 1 ? $2[0] : nullptr,
+                $3, $4, $5)
+        }]>;
+
+def RewriteCTCGreedyDecoderSeqLen :
+        Pat<
+            (IERT_CTCGreedyDecoderSeqLenOp $input, $sequenceLength, $blankIndex, $output, $outputLength, $mergeRepeated),
+            (createCTCGreedyDecoderSeqLenUPAOp $input, $sequenceLength, $blankIndex, $output, $outputLength, $mergeRepeated)
         >;
 
 #endif

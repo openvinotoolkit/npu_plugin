@@ -458,7 +458,6 @@ protected:
 
         return {convertVecFloat2Uint(refFloat)};
     }
-
 private:
     void GenInput() {
         // TODO [Track number: C#48015]

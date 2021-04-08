@@ -94,6 +94,7 @@
 #include <ngraph/op/ceiling.hpp>
 #include <ngraph/op/erf.hpp>
 #include <ngraph/op/gelu.hpp>
+#include <ngraph/op/ctc_greedy_decoder_seq_len.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -1849,6 +1850,25 @@ void convert(std::shared_ptr<ngraph::op::v0::SpaceToDepth> SpaceToDepth, mv::OpM
     registerOutputs(SpaceToDepth, {mcmSpaceToDepth}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v6::CTCGreedyDecoderSeqLen> CTCGreedyDecoderSeqLen,
+    mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(CTCGreedyDecoderSeqLen, mcmOutputsMap);
+    IE_ASSERT(mcmInputs.size() == 2u || mcmInputs.size() == 3u);
+
+    auto ctcOutput0 = mcmModel.cTCGreedyDecoderSeqLen(
+        CTCGreedyDecoderSeqLen->get_friendly_name(),
+        mcmInputs.at(0), mcmInputs.at(1), mcmInputs.at(2),
+        CTCGreedyDecoderSeqLen->get_merge_repeated());
+    ctcOutput0->setQuantParams(initialQuantParams());
+
+    auto ctcOp = mcmModel.getSourceOp(ctcOutput0);
+    const auto outputSlots = ctcOp->outputSlots();
+    IE_ASSERT(2 == outputSlots);
+    auto ctcOutput1 = ctcOp->getOutputTensor(1);
+    ctcOutput1->setQuantParams(initialQuantParams());
+    registerOutputs(CTCGreedyDecoderSeqLen, {ctcOutput0, ctcOutput1}, mcmOutputsMap);
+}
+
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
 template <typename T>
@@ -1947,7 +1967,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::MVN),
     MAP_ENTRY(ngraph::op::v0::Ceiling),
     MAP_ENTRY(ngraph::op::v0::PRelu),
-    MAP_ENTRY(ngraph::op::v0::SpaceToDepth)
+    MAP_ENTRY(ngraph::op::v0::SpaceToDepth),
+    MAP_ENTRY(ngraph::op::v6::CTCGreedyDecoderSeqLen),
 };
 
 #undef MAP_ENTRY

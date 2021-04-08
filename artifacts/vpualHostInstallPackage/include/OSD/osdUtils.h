@@ -42,17 +42,19 @@ uint32_t countNzPix(uint8_t *buff, uint32_t sz);
 
 #define ARGB(a,r,g,b) (((a)<<24)|((r)<<16)|((g)<<8)|(b))
 
-static inline void OsduLL2Cflush(const void *addr, size_t size){
+/* TODO: Remove if below code is unnecessary
+inline void OsduLL2Cflush(const void *addr, size_t size){
     // assert( (((uint32_t)addr) & 63) == 0);
     // assert( (((uint32_t)size) & 63) == 0);
     // Do nothing. - TODO remove
 }
 
-static inline void OsduLL2Cinval(const void *addr, size_t size){
+inline void OsduLL2Cinval(const void *addr, size_t size){
     // assert( (((uint32_t)addr) & 63) == 0);
     // assert( (((uint32_t)size) & 63) == 0);
     // Do nothing. - TODO remove
 }
+*/
 
 //Compiler-independent random algo (xorshift)
 void     ciSrand(unsigned int seed);

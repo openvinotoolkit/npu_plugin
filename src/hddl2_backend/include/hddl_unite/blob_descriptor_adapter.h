@@ -26,8 +26,8 @@
 // Low-level
 #include "Inference.h"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace hddl2 {
 
 /** @brief Blobs for image workload have different ways of creation */
 enum class BlobDescType { VideoWorkload = 1, ImageWorkload = 2 };
@@ -151,5 +151,5 @@ private:
     InferenceEngine::Blob::Ptr _repackedBlob;  //!< Repacked NV12 Blob if specified
 };
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace hddl2
+}  // namespace vpux

@@ -23,6 +23,76 @@ It handles such VPU-specifics as:
 This object represents closely a Barrier in the device
 ## Operation definition
 
+### `VPUIP.CTCGreedyDecoderSeqLenUPA` (vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp)
+
+CTCGreedyDecoderSeqLen UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.CTCGreedyDecoderSeqLenUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $sequenceLength `:` type($sequenceLength) `,` ($blankIndex^ `:` type($blankIndex))? `)`
+              `outputs` `(` $output `:` type($output) `,` $outputLength `:` type($outputLength) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mergeRepeated` | ::mlir::UnitAttr | unit attribute
+`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`sequenceLength` | memref of 32-bit signed integer values
+`blankIndex` | memref of 32-bit signed integer values
+`output` | memref of 32-bit signed integer values
+`outputLength` | memref of 32-bit signed integer values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+### `VPUIP.CTCGreedyDecoderUPA` (vpux::VPUIP::CTCGreedyDecoderUPAOp)
+
+CTCGreedyDecoder UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.CTCGreedyDecoderUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $sequenceLengths `:` type($sequenceLengths) `)`
+              `outputs` `(` $output `:` type($output) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mergeRepeated` | ::mlir::UnitAttr | unit attribute
+`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`sequenceLengths` | memref of 16-bit float values
+`output` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
 ### `VPUIP.ClampUPA` (vpux::VPUIP::ClampUPAOp)
 
 Clamp UPA SHAVE kernel

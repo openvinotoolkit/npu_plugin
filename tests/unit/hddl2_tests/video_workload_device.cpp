@@ -22,7 +22,8 @@
 #include "helper_remote_context.h"
 #include "helper_remote_allocator.h"
 
-using namespace vpux::HDDL2;
+using namespace vpux::hddl2;
+using namespace vpu;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
@@ -31,12 +32,12 @@ public:
     std::shared_ptr<VideoWorkloadDevice> device = nullptr;
 
 protected:
-    vpu::HDDL2Plugin::RemoteContext_Helper::Ptr _remoteContextHelperPtr = nullptr;
+    RemoteContext_Helper::Ptr _remoteContextHelperPtr = nullptr;
     void SetUp() override;
 };
 void VideoWorkloadDevice_UnitTests::SetUp() {
     if (canWorkWithDevice()) {
-        _remoteContextHelperPtr = std::make_shared<vpu::HDDL2Plugin::RemoteContext_Helper>();
+        _remoteContextHelperPtr = std::make_shared<RemoteContext_Helper>();
         const IE::ParamMap _deviceParams = _remoteContextHelperPtr->wrapWorkloadIdToMap( _remoteContextHelperPtr->getWorkloadId());
         device = std::make_shared<VideoWorkloadDevice>(_deviceParams);
     }

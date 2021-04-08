@@ -146,6 +146,32 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_Caffe2_IRv10_SqueezeNet_1_1) 
 }
 
 //
+// Stereo360p
+//
+
+TEST_F(KmbStereoNetworkTest, INT8_Stereo_360p) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/customnets/stereo/ngraph_stereo_360p.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NCHW)
+            .setUserOutputPrecision("output", Precision::FP32),
+        TestBinFileDesc("640x360/stereo_640x360.bin", {1, 1, 360, 640}, Precision::U8), 0.0f);
+}
+
+//
+// Stereo720p
+//
+
+TEST_F(KmbStereoNetworkTest, precommit_INT8_Stereo_720p) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/customnets/stereo/ngraph_stereo_720p.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NCHW)
+            .setUserOutputPrecision("output", Precision::FP32),
+        TestBinFileDesc("1280x720/stereo_1280x720.bin", {1, 1, 720, 1280}, Precision::U8), 0.0f);
+}
+
+//
 // TinyYolo V1
 //
 

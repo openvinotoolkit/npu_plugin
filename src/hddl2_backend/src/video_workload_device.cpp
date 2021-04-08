@@ -24,7 +24,7 @@
 #include "video_workload_device.h"
 
 namespace vpux {
-namespace HDDL2 {
+namespace hddl2 {
 namespace IE = InferenceEngine;
 
 ParsedContextParams::ParsedContextParams(const InferenceEngine::ParamMap& paramMap): _paramMap(paramMap) {
@@ -63,18 +63,18 @@ VideoWorkloadDevice::VideoWorkloadDevice(const InferenceEngine::ParamMap& paramM
         IE_THROW() << HDDLUNITE_ERROR_str << "Device from context not found.";
     }
     _name = _workloadContext->getDevice()->getName();
-    _allocatorPtr = std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteAllocator>(_workloadContext, config.logLevel());
+    _allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(_workloadContext, config.logLevel());
 }
 
 vpux::Executor::Ptr VideoWorkloadDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
                                                         const VPUXConfig& config) {
-    return vpux::HDDL2::HDDL2Executor::prepareExecutor(networkDescription, config, _allocatorPtr, _workloadContext);
+    return HDDL2Executor::prepareExecutor(networkDescription, config, _allocatorPtr, _workloadContext);
 }
 
 std::shared_ptr<Allocator> VideoWorkloadDevice::getAllocator(const InferenceEngine::ParamMap& paramMap) const {
     try {
         // VideoWorkload allocator only suitable for HddlUnite::RemoteMemory. Will throw, if not found.
-        const auto remoteMemory = vpux::HDDL2::getRemoteMemoryFromParams(paramMap);
+        const auto remoteMemory = getRemoteMemoryFromParams(paramMap);
         if (remoteMemory != nullptr) {
             return _allocatorPtr;
         }
@@ -83,5 +83,5 @@ std::shared_ptr<Allocator> VideoWorkloadDevice::getAllocator(const InferenceEngi
     }
     IE_THROW() << "VideoWorkloadDevice: Appropriate allocator for provided params cannot be found.";
 }
-}  // namespace HDDL2
+}  // namespace hddl2
 }  // namespace vpux

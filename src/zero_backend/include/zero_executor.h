@@ -28,6 +28,9 @@
 #include "vpux.hpp"
 #include "ze_api.h"
 
+#include "ze_fence_ext.h"
+#include "ze_graph_ext.h"
+
 namespace vpux {
 
 class ZeroExecutor final : public Executor {
@@ -35,7 +38,8 @@ public:
     using Ptr = std::shared_ptr<ZeroExecutor>;
     using CPtr = std::shared_ptr<const ZeroExecutor>;
 
-    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle,
+    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
         const vpux::NetworkDescription::Ptr& networkDescription, const VPUXConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
@@ -48,13 +52,13 @@ public:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
     InferenceEngine::Parameter getParameter(const std::string& paramName) const override;
 
-    ~ZeroExecutor();
+    ~ZeroExecutor() = default;
 
 private:
 
     struct hostMem {
         hostMem() = default;
-        hostMem(const ze_driver_handle_t drh_, const size_t sz_);
+        hostMem(const ze_driver_handle_t drh_, const ze_context_handle_t _context, const size_t sz_);
         hostMem(const hostMem&) = delete;
         hostMem& operator=(const hostMem&) = delete;
         hostMem& operator=(hostMem&&) = delete;
@@ -92,12 +96,14 @@ private:
         size_t _sz = 0;
         void* _data = nullptr;
         const ze_driver_handle_t _drh = nullptr;
+        const ze_context_handle_t _context = nullptr;
         const static size_t _alignment = 4096;
     };
 
     struct deviceMem {
         deviceMem() = default;
-        deviceMem(const ze_driver_handle_t drh_, const ze_device_handle_t deh_, const size_t sz);
+        deviceMem(const ze_driver_handle_t drh_, const ze_device_handle_t deh_,
+                  const ze_context_handle_t context, const size_t sz);
         deviceMem(const deviceMem&) = delete;
         deviceMem& operator=(const deviceMem&) = delete;
         deviceMem& operator=(deviceMem&&) = delete;
@@ -111,13 +117,14 @@ private:
         size_t _sz = 0;
         void* _data = nullptr;
         const ze_driver_handle_t _drh = nullptr;
-
+        const ze_context_handle_t _context = nullptr;
         const static size_t _alignment = 4096;
     };
 
     struct commandList {
         commandList() = default;
-        commandList(const ze_device_handle_t& deh_);
+        commandList(const ze_device_handle_t& deh_, const ze_context_handle_t& context,
+                    ze_graph_dditable_ext_t* graph_ddi_table_ext);
         commandList(const commandList&) = delete;
         commandList& operator=(const commandList&) = delete;
         void reset();
@@ -127,13 +134,15 @@ private:
         void close();
         ~commandList();
         ze_command_list_handle_t _handle = nullptr;
+        const ze_context_handle_t _context = nullptr;
+        ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     };
 
     struct commandQueue;
 
     struct fence {
         fence() = default;
-        fence(const commandQueue& cq_);
+        fence(const commandQueue& cq_, ze_fence_dditable_ext_t* fence_ddi_table_ext);
         fence(const fence&) = delete;
         fence& operator=(const fence&) = delete;
         void reset();
@@ -142,16 +151,18 @@ private:
         void deviceSignal(uint32_t fence_value_);
         ~fence();
         ze_fence_handle_t _handle = nullptr;
+        ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
     };
 
     struct commandQueue {
         commandQueue() = default;
-        commandQueue(const ze_device_handle_t& deh_);
+        commandQueue(const ze_device_handle_t& deh_, const ze_context_handle_t& context);
         commandQueue(const commandQueue&) = delete;
         commandQueue& operator=(const commandQueue&) = delete;
         void executeCommandList(commandList& cl_);
         ~commandQueue();
         ze_command_queue_handle_t _handle = nullptr;
+        ze_context_handle_t _context = nullptr;
     };
 
     struct argumentDescriptor {
@@ -162,13 +173,15 @@ private:
     struct graph {
         graph() = default;
         graph(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_,
-            const NetworkDescription::CPtr _networkDesc);
+            const ze_context_handle_t& context, const NetworkDescription::CPtr _networkDesc,
+            ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext);
         graph(const graph&) = delete;
         graph& operator=(const graph&) = delete;
         void init();
         void setArgumentValue(uint32_t argi_, const void* argv_) const;
         ~graph();
         ze_graph_handle_t _handle = nullptr;
+        ze_context_handle_t _context = nullptr;
         hostMem _mem;
         ze_graph_properties_t _props{ };
         std::map<std::string, argumentDescriptor> _inputs_desc_map;
@@ -176,6 +189,8 @@ private:
         commandQueue _command_queue;
         commandList _command_list;
         fence _fence;
+
+        ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     };
 
     enum stage {
@@ -188,11 +203,12 @@ private:
 
     struct pipeline {
         pipeline() = default;
-        pipeline(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_,
-                 const std::array<commandQueue, stage::COUNT>& cq_, const graph& graph_);
+        pipeline(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_, const ze_context_handle_t context,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
+                 const graph& graph_);
         pipeline(const pipeline&) = delete;
         pipeline& operator=(const pipeline&) = delete;
-        ~pipeline();
+        ~pipeline() = default;
 
         std::map<std::string, hostMem> _inputs_host_mem_map;
         std::map<std::string, deviceMem> _inputs_device_mem_map;
@@ -206,6 +222,7 @@ private:
 
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;
+    ze_context_handle_t _context = nullptr;
 
     graph _graph;
 
@@ -215,7 +232,7 @@ private:
     NetworkDescription::CPtr _networkDesc;
 
     std::array<commandQueue, stage::COUNT> _command_queue;
-    std::array<fence, stage::COUNT> _fence;
+    std::array <fence, stage::COUNT> _fence;
 
     std::vector<std::unique_ptr<pipeline>> _pipeline;
     const uint32_t _pipeline_depth;

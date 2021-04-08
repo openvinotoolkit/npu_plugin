@@ -131,6 +131,17 @@ mlir::ArrayAttr getFP64ArrayAttr(mlir::MLIRContext* ctx, Range range) {
     return mlir::ArrayAttr::get(ctx, attrs);
 }
 
+template <class Range>
+mlir::ArrayAttr getBoolArrayAttr(mlir::MLIRContext* ctx, Range range) {
+    SmallVector<mlir::Attribute> attrs;
+
+    for (const auto val : range) {
+        attrs.push_back(mlir::BoolAttr::get(ctx, checked_cast<bool>(val)));
+    }
+
+    return mlir::ArrayAttr::get(ctx, attrs);
+}
+
 //
 // parse<scalar>ArrayAttr
 //

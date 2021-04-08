@@ -788,9 +788,12 @@ Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, size_t chann
 Blob::Ptr KmbNetworkTestBase::loadBinFile(const TestBinFileDesc& binFile, size_t channels, size_t height, size_t width) {
     std::ostringstream filePath;
     const auto binFileShape = binFile.getShape();
-    IE_ASSERT(channels == binFileShape[1]);
-    IE_ASSERT(height == binFileShape[2]);
-    IE_ASSERT(width == binFileShape[3]);
+    bool singleDimBinFile = (binFileShape.size() == 1);
+    if (!singleDimBinFile) {
+        IE_ASSERT(channels == binFileShape[1]);
+        IE_ASSERT(height == binFileShape[2]);
+        IE_ASSERT(width == binFileShape[3]);
+    }
 
     filePath << getTestDataPath() << "/" << binFile.fileName();
 
@@ -804,7 +807,8 @@ Blob::Ptr KmbNetworkTestBase::loadBinFile(const TestBinFileDesc& binFile, size_t
 
     IE_ASSERT(file_size == binFile.getSize());
 
-    const auto tensorDesc = TensorDesc(binFile.getPrecision(), binFileShape, Layout::NHWC);
+    auto layout = singleDimBinFile ? Layout::C : Layout::NHWC;
+    const TensorDesc tensorDesc = TensorDesc(binFile.getPrecision(), binFileShape, layout);
 
     const auto blob = make_blob_with_precision(tensorDesc);
     blob->allocate();
@@ -1006,7 +1010,15 @@ void KmbNetworkTestBase::registerSingleBinFile(const TestBinFileDesc& file, cons
         inputName,
         inputDesc,
         [file](const TensorDesc& desc) {
-          const auto blob = loadBinFile(file, desc.getDims()[1], desc.getDims()[2], desc.getDims()[3]);
+          auto channel = desc.getDims()[0];
+          auto height = desc.getDims()[0];
+          auto width = desc.getDims()[0];
+          if (desc.getDims().size() == 4 ) {
+              channel = desc.getDims()[1];
+              height = desc.getDims()[2];
+              width = desc.getDims()[3];
+          }
+          const auto blob = loadBinFile(file, channel, height, width);
           IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
 
           return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
@@ -1077,6 +1089,40 @@ void KmbClassifyNetworkTest::runTest(
     const auto init_input = [=](const ConstInputsDataMap& inputs) {
         IE_ASSERT(inputs.size() == 1);
         registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
+
+void KmbStereoNetworkTest::runTest(
+        const TestNetworkDesc& netDesc,
+        const TestBinFileDesc& file,
+        const float threshold) {
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap&) {
+        IE_ASSERT(actualBlobs.size() == 1u &&
+            actualBlobs.size() == refBlobs.size());
+        auto actualBlob = actualBlobs.begin()->second;
+        auto refBlob    = refBlobs.begin()->second;
+
+        auto actualOutput = vpux::toFP32(as<MemoryBlob>(actualBlob));
+        auto refOutput = vpux::toFP32(as<MemoryBlob>(refBlob));
+
+        IE_ASSERT(actualOutput->size() == refOutput->size());
+
+        auto actualData = actualOutput->buffer().as<float*>();
+        auto refData = refOutput->buffer().as<float*>();
+
+        for (size_t i = 0; i < actualOutput->size(); ++i) {
+            auto diff = std::abs(actualData[i] - refData[i]);
+            EXPECT_LE(diff, threshold);
+        }
+    };
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleBinFile(file, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
     };
 
     KmbNetworkTestBase::runTest(netDesc, init_input, check);
@@ -1976,11 +2022,11 @@ void ModelAdk::runTest(
 void KmbSuperResNetworkTest::runTest(
         const TestNetworkDesc& netDesc,
         const std::string& imgName,
-        const TestImageDesc& image,
+        const TestBinFileDesc& image,
         const std::string& paramName1,
-        const std::vector<unsigned>& paramValues1,
+        const TestBinFileDesc& paramValues1,
         const std::string& paramName2,
-        const std::vector<unsigned>& paramValues2) {
+        const TestBinFileDesc& paramValues2) {
     const auto check = [=](const BlobMap& actualBlobs,
                            const BlobMap& refBlobs,
                            const ConstInputsDataMap& inputsDesc) {
@@ -2010,29 +2056,9 @@ void KmbSuperResNetworkTest::runTest(
                 auto paramName1Desc = inputs.at(paramName1)->getTensorDesc();
                 auto paramName2Desc = inputs.at(paramName2)->getTensorDesc();
 
-                registerSingleImage(image, imgName, imgNameDesc);
-
-                registerBlobGenerator(paramName1, paramName1Desc, [&paramValues1](const TensorDesc& desc) {
-                    auto blob = make_blob_with_precision(TensorDesc(Precision::FP32, desc.getDims(), desc.getLayout()));
-
-                    blob->allocate();
-                    CopyVectorToBlob(blob, paramValues1);
-
-                    IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
-
-                    return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
-                });
-
-                registerBlobGenerator(paramName2, paramName2Desc, [&paramValues2](const TensorDesc& desc) {
-                    auto blob = make_blob_with_precision(TensorDesc(Precision::FP32, desc.getDims(), desc.getLayout()));
-
-                    blob->allocate();
-                    CopyVectorToBlob(blob, paramValues2);
-
-                    IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
-
-                    return vpux::toPrecision(vpux::toLayout(as<MemoryBlob>(blob), desc.getLayout()), desc.getPrecision());
-                });
+                registerSingleBinFile(image, imgName, imgNameDesc);
+                registerSingleBinFile(paramValues1, paramName1, paramName1Desc);
+                registerSingleBinFile(paramValues2, paramName2, paramName2Desc);
             };
 
     KmbNetworkTestBase::runTest(netDesc, init_inputs, check);

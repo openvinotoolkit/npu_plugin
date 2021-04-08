@@ -23,7 +23,7 @@
 namespace IE = InferenceEngine;
 
 namespace vpux {
-namespace HDDL2 {
+namespace hddl2 {
 
 //------------------------------------------------------------------------------
 ImageWorkloadDevice::ImageWorkloadDevice(const std::string& name): _name(name) {
@@ -38,5 +38,5 @@ std::shared_ptr<Allocator> ImageWorkloadDevice::getAllocator(const InferenceEngi
         return _allocatorPtr;
     IE_THROW() << "ImageWorkloadDevice: ImageWorkload device doesn't have allocators for any params.";
 }
-}  // namespace HDDL2
+}  // namespace hddl2
 }  // namespace vpux

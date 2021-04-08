@@ -21,20 +21,21 @@
 #include "hddl2_exceptions.h"
 // Subplugin
 #include "hddl2_backend.h"
+#include "hddl2_helper.h"
 #include "image_workload_device.h"
 #include "video_workload_device.h"
 // Low-level
 #include <HddlUnite.h>
 
-using namespace vpux::HDDL2;
 namespace vpux {
-namespace HDDL2 {
+namespace hddl2 {
 
-// TODO Use config from VPUX Plugin, not default. [Track number: S#42840]
-HDDL2Backend::HDDL2Backend(const VPUXConfig& config)
-        : _config(config),
-          _logger(std::make_shared<vpu::Logger>("HDDL2Backend", _config.logLevel(), vpu::consoleOutput())) {
-    setUniteLogLevel(_config.logLevel());
+HDDL2Backend::HDDL2Backend()
+        :  // [Track number: S#42840]
+           // TODO: config will come by another PR, for now let's use Error log level
+          _logger(std::make_shared<vpu::Logger>("HDDL2Backend", vpu::LogLevel::Error /*_config.logLevel()*/,
+                                                vpu::consoleOutput())) {
+    setUniteLogLevel(vpu::LogLevel::Error /*_config.logLevel()*/);
     _devices = createDeviceMap();
 }
 
@@ -113,38 +114,10 @@ bool HDDL2Backend::isServiceRunning() {
     return HddlUnite::isServiceRunning();
 }
 
-HddlUnite::clientLogLevel convertIELogLevelToUnite(const vpu::LogLevel ieLogLevel) {
-    switch (ieLogLevel) {
-    case vpu::LogLevel::None:
-        return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;
-    case vpu::LogLevel::Fatal:
-        return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;
-    case vpu::LogLevel::Error:
-        return HddlUnite::clientLogLevel::LOGLEVEL_ERROR;
-    case vpu::LogLevel::Warning:
-        return HddlUnite::clientLogLevel::LOGLEVEL_WARN;
-    case vpu::LogLevel::Info:
-        return HddlUnite::clientLogLevel::LOGLEVEL_INFO;
-    case vpu::LogLevel::Debug:
-        return HddlUnite::clientLogLevel::LOGLEVEL_DEBUG;
-    case vpu::LogLevel::Trace:
-        return HddlUnite::clientLogLevel::LOGLEVEL_PROCESS;
-    default:
-        return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;
-    }
-}
-
-void HDDL2Backend::setUniteLogLevel(const vpu::LogLevel logLevel) {
-    const auto status = HddlUnite::setClientLogLevel(convertIELogLevelToUnite(logLevel));
-    if (status != HddlStatusCode::HDDL_OK) {
-        _logger->warning("Failed to set client log level for HddlUnite");
-    }
-}
-
 INFERENCE_PLUGIN_API(void)
 CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& backend) {
     backend = std::make_shared<HDDL2Backend>();
 }
 
-}  // namespace HDDL2
+}  // namespace hddl2
 }  // namespace vpux

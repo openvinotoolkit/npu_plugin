@@ -29,7 +29,7 @@
 #include "skip_conditions.h"
 #include "vpux_params.hpp"
 
-using namespace vpu::HDDL2Plugin;
+using namespace vpux::hddl2;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
@@ -58,11 +58,11 @@ protected:
 };
 
 void HDDL2_RemoteBlob_UnitTests::SetUp() {
-    if (vpux::HDDL2::HDDL2Backend::isServiceAvailable()) {
+    if (HDDL2Backend::isServiceAvailable()) {
         _remoteContextHelperPtr = std::make_shared<RemoteContext_Helper>();
         _remoteMemoryHelperPtr = std::make_shared<RemoteMemory_Helper>();
         auto workloadContextPtr = _remoteContextHelperPtr->getWorkloadContext();
-        allocator = std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteAllocator>(workloadContextPtr);
+        allocator = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr);
 
         tensorDesc = _tensorDescriptionHelper.tensorDesc;
         tensorSize = _tensorDescriptionHelper.tensorSize;
@@ -143,7 +143,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobCorrectAfterDeletingParent) {
 
         bDataBefore = remoteROIBlobPtr->rmap().as<uint8_t*>();
         bSizeBefore = remoteROIBlobPtr->byteSize();
-        blobDataBefore.assign(bDataBefore, bDataBefore + bSizeBefore);        
+        blobDataBefore.assign(bDataBefore, bDataBefore + bSizeBefore);
     }
 
     uint8_t *bDataAfter = nullptr;

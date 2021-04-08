@@ -2145,21 +2145,36 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     auto parentOutputTensor = opIt->getOutputTensor(0);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
 
-    if (opIt->hasAttr("multiCast"))
+    if (opIt->hasAttr("multiCast") && opIt->get<bool>("multiCast") )
     {
-        if (opIt->get<bool>("multiCast"))
-        {
-            unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
-            toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
-            std::vector<unsigned int> locale_index;
+        unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+        toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
+        std::vector<unsigned int> locale_index;
+        
+        // if SOK and spill to DDR - no need to broadcast to all clusters.
+        // Just broadcast to cluster 0 where the DMA out will occur from
+        DataModel dm(cm);
+        mv::Data::OpListIterator nextOp = dm.switchContext(opIt).leftmostOutput().sink();
+        while(nextOp->isImplicit())
+            nextOp = nextOp.leftmostOutput().sink();
+        
+        if ((opIt->get<std::string>("splitStrategy")=="SplitOverK") && 
+            (nextOp->getOpType() == "DMATask") && 
+            (nextOp->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2DDR) )
+        {   // just broadcast to cluster 0
+            locale_index.push_back(0);
+        }
+        else
+        {   // normal operation - broadcast to all clusters
             for (unsigned idx = numTasks; idx > 0; idx--)
                 locale_index.push_back(idx-1);
-            toBuild->output_data->locale_index = locale_index;
-            auto numericStrides = parentOutputTensor->computeNumericStrides();
-            numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
-            std::reverse(numericStrides.begin(), numericStrides.end());
-            toBuild->output_data->strides = numericStrides;
         }
+
+        toBuild->output_data->locale_index = locale_index;
+        auto numericStrides = parentOutputTensor->computeNumericStrides();
+        numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        toBuild->output_data->strides = numericStrides;
     }
 
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
@@ -3238,17 +3253,14 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACTCDecoderTask(ComputationModel
     auto input1 = opIt->getInputTensor(1);
     auto output = opIt->getOutputTensor(0);
     auto toBuild = new MVCNN::UPALayerTaskT();
-    //toBuild->maxShaves = ;
+    toBuild->maxShaves = 1;
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CTCDecoderParams;
     auto softLayerParamsValue = new MVCNN::CTCDecoderParamsT();
 
     // Fill in required params
-    softLayerParamsValue->ctc_merge_repeated = false;//opIt->get<bool>("ctc_merge_repeated");
+    softLayerParamsValue->ctc_merge_repeated = opIt->get<bool>("ctc_merge_repeated");
 
     toBuild->softLayerParams.value = softLayerParamsValue;
-
-    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input0);
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
@@ -3965,6 +3977,30 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASpaceToDepthTask(ComputationMod
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACTCGreedyDecoderSeqLenTask(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CTCGreedyDecoderSeqLenParams;
+    toBuild->maxShaves = 1;
+
+    for (std::size_t i = 0; i < opIt->inputSlots(); ++i) {
+        auto input = opIt->getInputTensor(i);
+        toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    }
+
+    for (std::size_t i = 0; i < opIt->outputSlots(); ++i) {
+        auto output = opIt->getOutputTensor(i);
+        toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+    }
+
+    auto params = new MVCNN::CTCGreedyDecoderSeqLenParamsT();
+    params->mergeRepeated = opIt->get<bool>("merge_repeated");
+
+    toBuild->softLayerParams.value = params;
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -4074,6 +4110,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPALeakyReluTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "SpaceToDepth")
         toReturn[0]->task.value = buildUPASpaceToDepthTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "CTCGreedyDecoderSeqLen")
+        toReturn[0]->task.value = buildUPACTCGreedyDecoderSeqLenTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 

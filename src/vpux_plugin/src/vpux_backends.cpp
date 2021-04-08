@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2020-2021 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -18,6 +18,7 @@
 #include "vpux_backends.h"
 
 #include <fstream>
+#include <memory>
 
 #include "vpux_exceptions.h"
 #include "vpux_remote_context.h"
@@ -25,45 +26,29 @@
 namespace vpux {
 namespace IE = InferenceEngine;
 
-// TODO: generation of available backends list can be done during execution of CMake scripts
-static const std::vector<std::string> backendRegistry = {
-#if defined(__arm__) || defined(__aarch64__)
-        "vpual_backend",
-#endif
-        "hddl2_backend",
-#if defined(_WIN32) || defined(_WIN64)
-        "zero_backend",
-#endif
-#if defined(ENABLE_EMULATOR)
-        "emulator_backend",
-#endif
-};
-
 // TODO Config will be useless here, since only default values will be used
-VPUXBackends::VPUXBackends(const VPUXConfig& config)
-        : _logger(std::make_shared<vpu::Logger>("VPUXBackends", config.logLevel(), vpu::consoleOutput())) {
+VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry)
+        : _logger(vpu::Logger("VPUXBackends", vpu::LogLevel::Error, vpu::consoleOutput())) {
     std::vector<std::shared_ptr<EngineBackend>> registeredBackends;
     for (const auto& name : backendRegistry) {
         const auto path = getLibFilePath(name);
         const auto exists = std::ifstream(path.c_str()).good();
         if (exists) {
-            // FIXME: generally, we shouldn't catch exception here and rely only on results
-            // of requesting backend for device but zero_backend throws an exception on CI hosts
-            // which needs to be investigated to avoid having try/catch block
             try {
                 const auto backend = std::make_shared<EngineBackend>(path);
                 if (backend->getDeviceNames().size() != 0) {
-                    _logger->debug("Register %s", name);
+                    _logger.debug("Register %s", name);
                     registeredBackends.emplace_back(backend);
                 }
+            } catch (const IE::details::InferenceEngineException& e) {
+                _logger.warning("Exception '%s' while searching for a device by %s", e.what(), name);
             } catch (...) {
-                _logger->warning("Exception while searching for a device by %s", name);
-                break;
+                _logger.warning("Unknown exception while searching for a device by %s", name);
             }
         }
     }
     if (registeredBackends.empty()) {
-        _logger->warning("Cannot find backend for inference. Make sure if device is available.");
+        _logger.warning("Cannot find backend for inference. Make sure if device is available.");
         registeredBackends.emplace_back(nullptr);
     }
     // TODO: implementation of getDevice methods needs to be updated to go over all
@@ -73,7 +58,7 @@ VPUXBackends::VPUXBackends(const VPUXConfig& config)
 }
 
 std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName) const {
-    _logger->debug("Searching for device %s to use started...", specificName);
+    _logger.debug("Searching for device %s to use started...", specificName);
     // TODO iterate over all available backends
     std::shared_ptr<Device> deviceToUse = nullptr;
     // TODO Ignore default VPU-0. Track #S-38444
@@ -88,9 +73,9 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName)
     }
 
     if (deviceToUse == nullptr) {
-        _logger->warning("Device to use not found!");
+        _logger.warning("Device to use not found!");
     } else {
-        _logger->debug("Device to use found: %s", deviceToUse->getName());
+        _logger.debug("Device to use found: %s", deviceToUse->getName());
     }
     return deviceToUse;
 }
@@ -106,7 +91,7 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const IE::RemoteContext::Ptr& co
         IE_THROW() << FAILED_CAST_CONTEXT;
     }
     const auto device = privateContext->getDevice();
-    _logger->debug("Device from context found: {}", device->getName());
+    _logger.debug("Device from context found: {}", device->getName());
     return device;
 }
 
@@ -119,8 +104,8 @@ std::unordered_set<std::string> VPUXBackends::getSupportedOptions() const {
 }
 
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below
-void VPUXBackends::setup(const VPUXConfig& config) const {
-    _logger->setLevel(config.logLevel());
+void VPUXBackends::setup(const VPUXConfig& config) {
+    _logger.setLevel(config.logLevel());
 }
 
 }  // namespace vpux

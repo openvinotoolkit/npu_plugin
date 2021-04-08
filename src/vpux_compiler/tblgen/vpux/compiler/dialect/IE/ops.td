@@ -42,15 +42,9 @@ class IE_Op<string mnemonic, list<OpTrait> traits = []> :
 class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
         IE_Op<
             mnemonic,
-            !listconcat(
-                traits,
-                [
-                    NoSideEffect,
-                    NativeOpTrait<"InferTensorType">,
-                    InferTypeOpInterface,
-                    DeclareOpInterfaceMethods<InferShapedTypeOpInterface>
-                ]
-            )
+            [
+                NoSideEffect
+            ] # InferTensorType<["inferReturnTypeComponents"]>.traits # traits
         > {
     let assemblyFormat = [{
         `(` operands `)` attr-dict `:` type(operands) `->` type(results)
@@ -347,20 +341,42 @@ def IE_ReLUOp :
 
 def IE_SplitOp :
         IE_LayerOp<
-            "Split"
+            "Split",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
         > {
     let summary = "InferenceEngine Split layer";
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        AnyRankedTensor:$axis,
+        Optional<AnyRankedTensor>:$axis,
 
-        I32Attr:$num_splits
+        I32Attr:$num_splits,
+        OptionalAttr<SI32Attr>:$axis_value
     );
 
     let results = (outs
         Variadic<AnyRankedTensor>:$outputs
     );
+
+    let hasCanonicalizer = 1;
+
+    let extraClassDeclaration = [{
+        vpux::Dim getAxis();
+
+        vpux::SmallVector<mlir::Value> getInputs() {
+            if (axis() != nullptr) {
+                return {input(), axis()};
+            } else {
+                return {input()};
+            }
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {outputs()};
+        }
+    }];
 }
 
 //
@@ -1338,19 +1354,34 @@ def IE_NormalizeL2Op :
 
 def IE_ConcatOp :
         IE_LayerOp<
-            "Concat"
+            "Concat",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>
+            ]
         > {
     let summary = "InferenceEngine Concat layer";
 
     let arguments = (ins
-        Variadic<AnyRankedTensor>:$input,
+        Variadic<AnyRankedTensor>:$inputs,
 
-        I32Attr:$axis
+        SI32Attr:$axis
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let extraClassDeclaration = [{
+        vpux::Dim getAxis();
+
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {inputs()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {output()};
+        }
+    }];
 }
 
 //
@@ -1623,6 +1654,61 @@ def IE_FullyConnectedOp:
     );
 
     let hasCanonicalizer = 1;
+}
+
+//
+// CTCGreedyDecoderOp
+//
+
+def IE_CTCGreedyDecoderOp :
+        IE_LayerOp<
+            "CTCGreedyDecoder",
+            [
+                ResultsAreFloatLike,
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<CTCGreedyDecoderLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine CTCGreedyDecoder layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$sequenceLengths,
+
+        UnitAttr:$mergeRepeated
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// CTCGreedyDecoderSeqLenOp
+//
+
+def IE_CTCGreedyDecoderSeqLenOp :
+        IE_LayerOp<
+            "CTCGreedyDecoderSeqLen",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<CTCGreedyDecoderSeqLenLayerInterface>
+            ]
+        > {
+    let summary = "InferenceEngine CTCGreedyDecoderSeqLen layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[SI32]>:$sequenceLength,
+        Optional<RankedTensorOf<[SI32]>>:$blankIndex,
+
+        UnitAttr:$mergeRepeated
+    );
+
+    let results = (outs
+        RankedTensorOf<[SI32]>:$output,
+        RankedTensorOf<[SI32]>:$outputLength
+    );
 }
 
 #endif

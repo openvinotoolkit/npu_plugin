@@ -584,12 +584,13 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
 
                     if (inOutStrategies == SoKToSoH)
                     {
-                        auto sourceOpOutputTensor = sourceOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
-                        sourceOpOutputTensor->cleanSubtensors();
-                        sourceOpOutputTensor->set<std::string>("splitStrategy", inOutStrategies.first);
+                        inputTensor->cleanSubtensors();
+                        inputTensor->set<std::string>("splitStrategy", inOutStrategies.first);
+                        outputTensor->cleanSubtensors();
+                        outputTensor->set<std::string>("splitStrategy", inOutStrategies.first);
 
                         tensorSet tensors(compareTensor);
-                        tensors.insert(sourceOpOutputTensor);
+                        tensors.insert({inputTensor, outputTensor});
                         subTensorsGen(model, tensors, numClusters, pass);
                     }
                 }

@@ -18,12 +18,17 @@
 
 // IE
 #include "ie_precision.hpp"
+// Plugin
+#include <vpux_config.hpp>
+// Low-level
+#include <HddlUnite.h>
+#include <Inference.h>
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace hddl2 {
 namespace Unite {
 
-HddlUnite::Inference::Precision convertFromIEPrecision(const InferenceEngine::Precision& precision) {
+inline HddlUnite::Inference::Precision convertFromIEPrecision(const InferenceEngine::Precision& precision) {
     switch (precision) {
     case InferenceEngine::Precision::UNSPECIFIED:
         return HddlUnite::Inference::UNSPECIFIED;
@@ -56,6 +61,27 @@ HddlUnite::Inference::Precision convertFromIEPrecision(const InferenceEngine::Pr
     }
 }
 
+inline HddlUnite::clientLogLevel convertIELogLevelToUnite(const vpu::LogLevel ieLogLevel) {
+    switch (ieLogLevel) {
+    case vpu::LogLevel::None:
+        return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;
+    case vpu::LogLevel::Fatal:
+        return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;
+    case vpu::LogLevel::Error:
+        return HddlUnite::clientLogLevel::LOGLEVEL_ERROR;
+    case vpu::LogLevel::Warning:
+        return HddlUnite::clientLogLevel::LOGLEVEL_WARN;
+    case vpu::LogLevel::Info:
+        return HddlUnite::clientLogLevel::LOGLEVEL_INFO;
+    case vpu::LogLevel::Debug:
+        return HddlUnite::clientLogLevel::LOGLEVEL_DEBUG;
+    case vpu::LogLevel::Trace:
+        return HddlUnite::clientLogLevel::LOGLEVEL_PROCESS;
+    default:
+        return HddlUnite::clientLogLevel::LOGLEVEL_FATAL;
+    }
+}
+
 }  // namespace Unite
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace hddl2
+}  // namespace vpux

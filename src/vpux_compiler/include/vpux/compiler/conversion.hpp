@@ -47,6 +47,7 @@ void buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log = Logger::glo
 // Passes
 //
 
+std::unique_ptr<mlir::Pass> createAddBuffersForNetResults(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createBufferizeIEPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createLowerIERT2VPUIPPass(Logger log = Logger::global());
 
