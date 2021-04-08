@@ -24,6 +24,10 @@
 #include "ze_fence_ext.h"
 #include "ze_graph_ext.h"
 
+#include "zero_config.h"
+#include "zero_private_config.h"
+
+
 namespace vpux {
 class ZeroDevice : public IDevice {
     ze_driver_handle_t _driver_handle = nullptr;
@@ -32,6 +36,8 @@ class ZeroDevice : public IDevice {
 
     ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
+
+    ZeroConfig _config;
 
 public:
     ZeroDevice(ze_driver_handle_t driver, ze_device_handle_t device, ze_context_handle_t context,
