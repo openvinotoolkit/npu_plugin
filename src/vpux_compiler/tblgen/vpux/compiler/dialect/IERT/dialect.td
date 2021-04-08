@@ -121,7 +121,8 @@ The `IERT.RunTimeResources` is filled by underlying low-level dialect to provide
         "mlir::StandardOpsDialect",
         "mlir::memref::MemRefDialect",
         "mlir::quant::QuantizationDialect",
-        "mlir::linalg::LinalgDialect"
+        "mlir::linalg::LinalgDialect",
+        "mlir::async::AsyncDialect"
     ];
 }
 
