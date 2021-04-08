@@ -41,17 +41,15 @@ public:
             const InferenceEngine::CNNNetwork& network, InferenceEngine::RemoteContext::Ptr ptr,
             const std::map<std::string, std::string>& map) override;
 
-    using InferenceEngine::InferencePluginInternal::ImportNetwork;
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
+            const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(const std::string& modelFileName,
-                                                     const std::map<std::string, std::string>& config) override;
+    InferenceEngine::ExecutableNetworkInternal::Ptr ImportNetworkImpl(
+            std::istream& networkModel, const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
-                                                         const std::map<std::string, std::string>& config) override;
-
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
-                                                         const InferenceEngine::RemoteContext::Ptr& context,
-                                                         const std::map<std::string, std::string>& config) override;
+    InferenceEngine::ExecutableNetworkInternal::Ptr ImportNetworkImpl(
+            std::istream& networkModel, const InferenceEngine::RemoteContext::Ptr& context,
+            const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 

@@ -90,28 +90,26 @@ IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwo
 //------------------------------------------------------------------------------
 //      Import network
 //------------------------------------------------------------------------------
-IE::ExecutableNetwork Engine::ImportNetwork(const std::string& modelFileName,
-                                            const std::map<std::string, std::string>& config) {
+IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& modelFileName,
+                                                          const std::map<std::string, std::string>& config) {
     std::ifstream blobStream(modelFileName, std::ios::binary);
     return ImportNetworkImpl(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
-IE::ExecutableNetwork Engine::ImportNetworkImpl(std::istream& networkModel,
-                                                const std::map<std::string, std::string>& config) {
+IE::ExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& networkModel,
+                                                             const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(networkConfig.deviceId());
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
-    return IE::make_executable_network(executableNetwork);
+    return std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
 }
 
-IE::ExecutableNetwork Engine::ImportNetworkImpl(std::istream& networkModel, const IE::RemoteContext::Ptr& context,
-                                                const std::map<std::string, std::string>& config) {
+IE::ExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& networkModel, const IE::RemoteContext::Ptr& context,
+                                                             const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(context);
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
-    return IE::make_executable_network(executableNetwork);
+    return std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
 }
 
 //------------------------------------------------------------------------------
