@@ -16,7 +16,7 @@
 
 #include "test_model/kmb_test_base.hpp"
 
-class KmbProfilingTest : public KmbTestBase {
+class KmbProfilingTest : public KmbLayerTestBase {
 public:
     void runTest(const std::string output_name);
 };
@@ -49,9 +49,8 @@ void KmbProfilingTest::runTest(const std::string output_name) {
             .setCompileConfig(netConfig)
             .finalize();
 
-            CNNNetwork cnnNet = testNet.getCNNNetwork();
 
-        ExecutableNetwork exeNet = core->LoadNetwork(cnnNet, DEVICE_NAME, netConfig);
+        ExecutableNetwork exeNet = getExecNetwork(testNet);
         KmbTestBase::exportNetwork(exeNet);
     }
 
