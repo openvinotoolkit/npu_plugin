@@ -27,6 +27,6 @@ class CoreAPI_Tests : public ::testing::Test,
                       public IE_Core_Helper {
 public:
     InferenceEngine::CNNNetwork network;
-    InferenceEngine::ExecutableNetwork::Ptr executableNetworkPtr = nullptr;
+    std::shared_ptr<InferenceEngine::ExecutableNetwork> executableNetworkPtr = nullptr;
     InferenceEngine::InferRequest inferRequest;
 };
