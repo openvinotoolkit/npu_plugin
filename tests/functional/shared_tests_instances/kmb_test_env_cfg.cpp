@@ -84,12 +84,8 @@ KmbTestEnvConfig::KmbTestEnvConfig() {
         IE_KMB_TESTS_LONG_FILE_NAME = strToBool("IE_KMB_TESTS_LONG_FILE_NAME", var);
     }
 
-    if (auto var = std::getenv("IE_KMB_TESTS_COMPILATION_DESC")) {
-        IE_KMB_TESTS_COMPILATION_DESC = var;
-    }
-
-    if (auto var = std::getenv("IE_KMB_TESTS_TARGET_DESC")) {
-        IE_KMB_TESTS_TARGET_DESC = var;
+    if (auto var = std::getenv("IE_KMB_TESTS_PLATFORM")) {
+        IE_KMB_TESTS_PLATFORM = var;
     }
 }
 

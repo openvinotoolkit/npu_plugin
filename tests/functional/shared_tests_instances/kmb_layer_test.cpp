@@ -27,16 +27,12 @@ KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
     if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
         core->SetConfig({{CONFIG_KEY(LOG_LEVEL), envConfig.IE_KMB_TESTS_LOG_LEVEL}}, testPlatformTargetDevice);
     }
-    if (!envConfig.IE_KMB_TESTS_TARGET_DESC.empty()) {
-        configuration[VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR)] = envConfig.IE_KMB_TESTS_TARGET_DESC;
-    }
-    if (!envConfig.IE_KMB_TESTS_COMPILATION_DESC.empty()) {
-        configuration[VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR)] = envConfig.IE_KMB_TESTS_COMPILATION_DESC;
-    }
 }
 
 void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
+
+    configuration[VPUX_CONFIG_KEY(PLATFORM)] = envConfig.IE_KMB_TESTS_PLATFORM;
     ConfigureNetwork();
 }
 
@@ -156,6 +152,7 @@ void KmbLayerTestsCommon::Run() {
         if (envConfig.IE_KMB_TESTS_RUN_COMPILER) {
             std::cout << "KmbLayerTestsCommon::Compile" << std::endl;
             SkipBeforeLoad();
+
             ASSERT_NO_THROW(executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration));
             report.compiled(testInfo);
 
