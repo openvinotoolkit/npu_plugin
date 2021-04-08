@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "vpux/compiler/dialect/IERT/passes.hpp"
+#include "vpux/compiler/core/passes.hpp"
 
 #include <mlir/Dialect/StandardOps/Transforms/ComposeSubView.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
@@ -27,7 +27,7 @@ namespace {
 // ComposeSubViewPass
 //
 
-class ComposeSubViewPass final : public IERT::ComposeSubViewBase<ComposeSubViewPass> {
+class ComposeSubViewPass final : public ComposeSubViewBase<ComposeSubViewPass> {
 public:
     explicit ComposeSubViewPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
@@ -55,6 +55,6 @@ void ComposeSubViewPass::safeRunOnFunc() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IERT::createComposeSubViewPass(Logger log) {
+std::unique_ptr<mlir::Pass> vpux::createComposeSubViewPass(Logger log) {
     return std::make_unique<ComposeSubViewPass>(log);
 }

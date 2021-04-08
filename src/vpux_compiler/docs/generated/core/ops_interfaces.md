@@ -225,6 +225,20 @@ float getNegativeSlope();
 Get the source Value for the Operation
 NOTE: This method *must* be implemented by the user.
 
+## MultiViewOpInterface (`MultiViewOpInterface`)
+
+An extended version of view-like operation.
+It allows to define several resuling views in single operation.
+
+### Methods:
+#### `getViewSource`
+
+```c++
+mlir::Value getViewSource(ptrdiff_t resultInd);
+```
+The source buffer from which the corresponding view is created, NULL if the result is not a view
+NOTE: This method *must* be implemented by the user.
+
 ## PReluLayerInterface (`PReluLayerInterface`)
 
 Interface for PRelu Layer

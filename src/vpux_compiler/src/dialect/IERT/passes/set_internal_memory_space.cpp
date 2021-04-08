@@ -16,7 +16,7 @@
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
-#include <mlir/Analysis/BufferAliasAnalysis.h>
+#include "vpux/compiler/core/aliases_info.hpp"
 
 using namespace vpux;
 
@@ -66,12 +66,12 @@ mlir::LogicalResult SetInternalMemorySpacePass::initialize(mlir::MLIRContext* ct
 //
 
 void SetInternalMemorySpacePass::safeRunOnFunc() {
-    auto& aliasAnalysis = getAnalysis<mlir::BufferAliasAnalysis>();
+    auto& aliasInfo = getAnalysis<AliasesInfo>();
 
     const auto callback = [&](mlir::memref::AllocOp allocOp) {
         _log.trace("Got Alloc Operation '{0}'", allocOp->getLoc());
 
-        const auto aliases = aliasAnalysis.resolve(allocOp.memref());
+        const auto& aliases = aliasInfo.getAliases(allocOp.memref());
 
         for (auto var : aliases) {
             _log.trace("Process alias buffer '{0}'", var);

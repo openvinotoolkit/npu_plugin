@@ -17,6 +17,7 @@
 #include "vpux/compiler/pipelines.hpp"
 
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/core/passes.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -46,8 +47,8 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
     buildLowerIE2IERTPipeline(pm, log);
 
     // IERT Dialect level
-    pm.addPass(IERT::createComposeSubViewPass(log));
-    pm.addPass(mlir::createBufferDeallocationPass());
+    pm.addPass(createComposeSubViewPass(log));
+    pm.addPass(createDeallocPlacementPass(log));
     pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpaceCb, log));
     pm.addPass(IERT::createStaticAllocationPass(ddrMemSpaceCb, log));
 

@@ -16,44 +16,32 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"
 
-#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
 
-#include <functional>
-#include <memory>
-
 namespace vpux {
-namespace IERT {
 
 //
 // Passes
 //
 
-using AttrCreateFunc = std::function<mlir::Attribute(mlir::MLIRContext*, StringRef)>;
-
-std::unique_ptr<mlir::Pass> createAddLayoutsAndStridesPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createComposeSubViewPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createDeallocPlacementPass(Logger log = Logger::global());
 
 //
 // Generated
 //
 
 #define GEN_PASS_CLASSES
-#include <vpux/compiler/dialect/IERT/generated/passes.hpp.inc>
+#include <vpux/compiler/core/generated/passes.hpp.inc>
 #undef GEN_PASS_CLASSES
 
 #define GEN_PASS_REGISTRATION
-#include <vpux/compiler/dialect/IERT/generated/passes.hpp.inc>
+#include <vpux/compiler/core/generated/passes.hpp.inc>
 #undef GEN_PASS_REGISTRATION
 
-}  // namespace IERT
 }  // namespace vpux

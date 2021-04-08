@@ -20,6 +20,26 @@
 include "mlir/IR/OpBase.td"
 
 //
+// MultiViewOpInterface
+//
+
+def MultiViewOpInterface : OpInterface<"MultiViewOpInterface"> {
+    let description = [{
+        An extended version of view-like operation.
+        It allows to define several resuling views in single operation.
+    }];
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "The source buffer from which the corresponding view is created, NULL if the result is not a view",
+            "mlir::Value", "getViewSource", (ins "ptrdiff_t":$resultInd)
+        >
+    ];
+}
+
+//
 // ConstantInterface
 //
 
