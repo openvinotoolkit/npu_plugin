@@ -147,6 +147,12 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
             auto parentOpIt2 = om.getSourceOp(parentOpIt->getInputTensor(0));
             if(parentOpIt2->getOpType() == "Concat")
                 sourceTensors = parentOpIt2->getInputTensor();
+            else if(parentOpIt2->getOpType() == "Reshape")
+            {
+                auto parentOpIt3 = om.getSourceOp(parentOpIt2->getInputTensor(0));
+                if(parentOpIt3->getOpType() == "Concat")
+                    sourceTensors = parentOpIt3->getInputTensor();
+            }
         }
         else
         {
@@ -289,9 +295,10 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
     // one could proceed to attempt fuse all siblings.
     // Have this as a future optimization, for now just mark it as
     // software executed.
-    if (std::find_if(fusableParents.begin(), fusableParents.end(),
+    if ((!parentOp->isHardwarizable() && parentOp.childrenSize() > 1) ||
+        (std::find_if(fusableParents.begin(), fusableParents.end(),
             [] (mv::Data::OpListIterator &op) {return op.childrenSize() > 1 || !op->isHardwarizable();})
-        != fusableParents.end())
+        != fusableParents.end()))
     {
         opIt->set<bool>("softwareExecuted", true);
         return;
