@@ -159,7 +159,7 @@ public:
               _netFunc(netFunc),
               _aliasInfo(aliasInfo),
               _log(log) {
-        VPUX_THROW_UNLESS(aliasInfo != nullptr, "Got NULL pointer in ViewLikeRewrite");
+        VPUX_THROW_UNLESS(_aliasInfo != nullptr, "Got NULL pointer for AliasesInfo in ViewLikeRewrite");
     }
 
 public:

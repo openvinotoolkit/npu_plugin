@@ -21,9 +21,10 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/range.hpp"
 
-#include <llvm/ADT/TypeSwitch.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/Interfaces/ViewLikeInterface.h>
+
+#include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
 
@@ -40,7 +41,7 @@ vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func) {
         addAlias(funcArg, funcArg);
     }
 
-    func.walk([&](mlir::Operation* op) {
+    func.walk<mlir::WalkOrder::PostOrder>([&](mlir::Operation* op) {
         llvm::TypeSwitch<mlir::Operation*, void>(op)
                 .Case<mlir::ViewLikeOpInterface>([&](mlir::ViewLikeOpInterface viewOp) {
                     const auto result = viewOp->getResult(0);
@@ -84,14 +85,14 @@ vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func) {
     });
 }
 
-const AliasesInfo::ValuesSet& vpux::AliasesInfo::getAliases(mlir::Value val) const {
-    const auto it = _aliases.find(val);
-    VPUX_THROW_UNLESS(it != _aliases.end(), "Value '{0}' is not covered by aliases analysis", val);
-    return it->second;
-}
-
 mlir::Value vpux::AliasesInfo::getRoot(mlir::Value val) const {
     const auto it = _roots.find(val);
     VPUX_THROW_UNLESS(it != _roots.end(), "Value '{0}' is not covered by aliases analysis", val);
+    return it->second;
+}
+
+const AliasesInfo::ValuesSet& vpux::AliasesInfo::getAliases(mlir::Value val) const {
+    const auto it = _aliases.find(val);
+    VPUX_THROW_UNLESS(it != _aliases.end(), "Value '{0}' is not covered by aliases analysis", val);
     return it->second;
 }

@@ -16,9 +16,10 @@
 
 #pragma once
 
-#include <llvm/ADT/SmallPtrSet.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Value.h>
+
+#include <llvm/ADT/SmallPtrSet.h>
 
 namespace vpux {
 
@@ -31,8 +32,8 @@ public:
 public:
     explicit AliasesInfo(mlir::FuncOp func);
 
-    const ValuesSet& getAliases(mlir::Value val) const;
     mlir::Value getRoot(mlir::Value val) const;
+    const ValuesSet& getAliases(mlir::Value val) const;
 
 private:
     AliasesMap _aliases;

@@ -97,6 +97,7 @@ TEST(MLIR_AliasesInfo, ValidCases) {
 
     const auto& funcArgAliases = info.getAliases(funcArg);
     EXPECT_EQ(funcArgAliases.size(), 3) << "%arg aliases: %arg, %1, %2#1";
+
     for (const auto alias : funcArgAliases) {
         if (auto* producerOp = alias.getDefiningOp()) {
             EXPECT_TRUE(mlir::isa<mlir::memref::SubViewOp>(producerOp) || mlir::isa<TestMultiViewOp>(producerOp));
