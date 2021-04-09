@@ -461,7 +461,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator sla
     for (std::size_t i = 0; i < shape.ndims(); ++i)
     {
         oldTotal *= allocatedShape[i];
-        newTotal *= shape[i] + leftPadding[i] + rightPadding[i];
+        newTotal *= (shape[i] + leftPadding[i] + rightPadding[i]);
     }
     if (oldTotal != newTotal)
     {

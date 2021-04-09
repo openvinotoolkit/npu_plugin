@@ -128,6 +128,7 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
     mv::DataModel dm(model);
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
     
+    // Handle op pattern from asymmetric stride Conv replacement in splitOperationSlicingV2()
     if(parentOpIt->getOpType() == "Concat" || parentOpIt->getOpType() == "Slice" || parentOpIt->getOpType() == "Reshape")
     {
         std::vector<mv::Data::TensorIterator> sourceTensors;
@@ -154,7 +155,6 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
 
         for(auto& sourceTensor: sourceTensors)
         {
-            std::cout << sourceTensor->getName() << std::endl;
             auto grandParentOpIt = om.getSourceOp(sourceTensor);
             if (grandParentOpIt->getOpType() == "Conv" ||
                 grandParentOpIt->getOpType() == "FullyConnected" ||
@@ -162,7 +162,6 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
                 grandParentOpIt->getOpType() == "Deconv" ||
                 grandParentOpIt->getOpType() == "MaxPool")
             {
-                std::cout << grandParentOpIt->getName() << std::endl;
                 auto bias = *opIt->getInputTensor(1);
                 if (grandParentOpIt->hasAttr("bias"))
                 {

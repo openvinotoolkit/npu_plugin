@@ -2023,8 +2023,6 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
     auto height = inputShape[mv::IO_HEIGHT_DIMENSION];
     std::array<unsigned short, 2> stride = operation->get<std::array<unsigned short, 2>>("stride");
 
-    if(((stride[mv::STRIDE_VERTICAL] == 1) && (stride[mv::STRIDE_HORIZONTAL] == 2))
-        || ((stride[mv::STRIDE_VERTICAL] == 2) && (stride[mv::STRIDE_HORIZONTAL] == 1)))
     {
         std::array<unsigned short, 2> newStride = {2,2};
         std::array<unsigned short, 2> kSize;
