@@ -21,6 +21,7 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/range.hpp"
 
+#include <mlir/Dialect/Async/IR/Async.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/Interfaces/ViewLikeInterface.h>
 
@@ -28,22 +29,40 @@
 
 using namespace vpux;
 
-vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func) {
-    const auto addAlias = [&](mlir::Value root, mlir::Value alias) {
-        _aliases[root].insert(alias);
-        _roots.insert({alias, root});
-    };
+vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func): _log(Logger::global().nest("aliases-info", 0)) {
+    _log.trace("Analyze aliases for Function '@{0}'", func.getName());
+    _log = _log.nest();
 
-    // Function arguments are roots for themselves
+    _log.trace("Function arguments are roots for themselves");
+    _log = _log.nest();
     for (const auto funcArg : func.getArguments()) {
+        _log.trace("Argument '{0}'", funcArg);
+
         VPUX_THROW_UNLESS(funcArg.getType().isa<mlir::MemRefType>(),
                           "AliasesInfo analysis works only with MemRef types, got '{0}'", funcArg.getType());
         addAlias(funcArg, funcArg);
     }
+    _log = _log.unnest();
 
-    func.walk<mlir::WalkOrder::PostOrder>([&](mlir::Operation* op) {
-        llvm::TypeSwitch<mlir::Operation*, void>(op)
+    _log.trace("Traverse the Function body");
+    _log = _log.nest();
+    traverse(func.getOps());
+}
+
+void vpux::AliasesInfo::addAlias(mlir::Value root, mlir::Value alias) {
+    _log.trace("Add alias '{0}' for '{1}'", alias, root);
+
+    _aliases[root].insert(alias);
+    _roots.insert({alias, root});
+}
+
+void vpux::AliasesInfo::traverse(OpRange ops) {
+    for (auto& op : ops) {
+        llvm::TypeSwitch<mlir::Operation*, void>(&op)
                 .Case<mlir::ViewLikeOpInterface>([&](mlir::ViewLikeOpInterface viewOp) {
+                    _log.trace("Got ViewLike Operation '{0}' at '{1}'", viewOp->getName(), viewOp->getLoc());
+                    _log = _log.nest();
+
                     const auto result = viewOp->getResult(0);
                     const auto source = viewOp.getViewSource();
 
@@ -54,9 +73,16 @@ vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func) {
 
                     const auto root = getRoot(source);
                     addAlias(root, result);
+
+                    _log = _log.unnest();
                 })
                 .Case<MultiViewOpInterface>([&](MultiViewOpInterface viewOp) {
+                    _log.trace("Got MultiView Operation '{0}' at '{1}'", viewOp->getName(), viewOp->getLoc());
+                    _log = _log.nest();
+
                     for (const auto result : viewOp->getResults()) {
+                        _log.trace("Result '{0}'", result);
+
                         VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
                                           "AliasesInfo analysis works only with MemRef types, got '{0}'",
                                           result.getType());
@@ -74,15 +100,110 @@ vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func) {
                         const auto root = getRoot(source);
                         addAlias(root, result);
                     }
+
+                    _log = _log.unnest();
+                })
+                .Case<mlir::async::ExecuteOp>([&](mlir::async::ExecuteOp executeOp) {
+                    // It looks like `async::ExecuteOp` doesn't implement `RegionBranchOpInterface` correctly.
+                    // At least it doesn't report correspondance between its operands and the body region arguments.
+
+                    _log.trace("Got 'async.execute' Operation at '{0}'", executeOp->getLoc());
+                    _log = _log.nest();
+
+                    const auto outerArgs = executeOp.operands();
+                    const auto innerArgs = executeOp.body().getArguments();
+                    VPUX_THROW_UNLESS(
+                            outerArgs.size() == innerArgs.size(),
+                            "Mismatch between 'async.execute' operands and its body region arguments at '{0}'",
+                            executeOp->getLoc());
+
+                    for (auto i : irange(outerArgs.size())) {
+                        _log.trace("Check operand '{0}' and corresponding region argument '{1}'", outerArgs[i],
+                                   innerArgs[i]);
+
+                        const auto futureType = outerArgs[i].getType().dyn_cast<mlir::async::ValueType>();
+                        VPUX_THROW_UNLESS(futureType != nullptr,
+                                          "AliasesInfo analysis works only with !async.value<MemRef> types, got '{0}'",
+                                          outerArgs[i].getType());
+
+                        VPUX_THROW_UNLESS(futureType.getValueType().isa<mlir::MemRefType>(),
+                                          "AliasesInfo analysis works only with MemRef types, got '{0}'", futureType);
+                        VPUX_THROW_UNLESS(innerArgs[i].getType().isa<mlir::MemRefType>(),
+                                          "AliasesInfo analysis works only with MemRef types, got '{0}'",
+                                          innerArgs[i].getType());
+
+                        const auto root = getRoot(outerArgs[i]);
+                        addAlias(root, innerArgs[i]);
+                    }
+
+                    _log.trace("Traverse the 'async.execute' body");
+                    _log = _log.nest();
+                    traverse(executeOp.getOps());
+                    _log = _log.unnest();
+
+                    const auto outerResults = executeOp.results();
+                    const auto innerResults = executeOp.body().front().getTerminator()->getOperands();
+                    VPUX_THROW_UNLESS(
+                            innerResults.size() == outerResults.size(),
+                            "Mismatch between 'async.yield' operands and its parent 'async.execute' results at '{0}'",
+                            executeOp->getLoc());
+
+                    for (auto i : irange(innerResults.size())) {
+                        _log.trace("Check result '{0}' and corresponding region result '{1}'", outerResults[i],
+                                   innerResults[i]);
+
+                        const auto futureType = outerResults[i].getType().dyn_cast<mlir::async::ValueType>();
+                        VPUX_THROW_UNLESS(futureType != nullptr,
+                                          "AliasesInfo analysis works only with !async.value<MemRef> types, got '{0}'",
+                                          outerResults[i].getType());
+
+                        VPUX_THROW_UNLESS(innerResults[i].getType().isa<mlir::MemRefType>(),
+                                          "AliasesInfo analysis works only with MemRef types, got '{0}'",
+                                          innerResults[i].getType());
+                        VPUX_THROW_UNLESS(futureType.getValueType().isa<mlir::MemRefType>(),
+                                          "AliasesInfo analysis works only with MemRef types, got '{0}'", futureType);
+
+                        const auto root = getRoot(innerResults[i]);
+                        addAlias(root, outerResults[i]);
+                    }
+
+                    _log = _log.unnest();
+                })
+                .Case<mlir::async::AwaitOp>([&](mlir::async::AwaitOp waitOp) {
+                    _log.trace("Got 'async.await' Operation at '{0}'", waitOp->getLoc());
+                    _log = _log.nest();
+
+                    if (const auto result = waitOp.result()) {
+                        const auto futureType = waitOp.operand().getType().dyn_cast<mlir::async::ValueType>();
+                        VPUX_THROW_UNLESS(futureType != nullptr,
+                                          "AliasesInfo analysis works only with !async.value<MemRef> types, got '{0}'",
+                                          waitOp.operand().getType());
+
+                        VPUX_THROW_UNLESS(futureType.getValueType().isa<mlir::MemRefType>(),
+                                          "AliasesInfo analysis works only with MemRef types, got '{0}'", futureType);
+                        VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
+                                          "AliasesInfo analysis works only with MemRef types, got '{0}'",
+                                          result.getType());
+
+                        const auto root = getRoot(waitOp.operand());
+                        addAlias(root, result);
+                    }
+
+                    _log = _log.unnest();
                 })
                 .Default([&](mlir::Operation* op) {
+                    _log.trace("Got generic Operation '{0}' at '{1}'", op->getName(), op->getLoc());
+                    _log = _log.nest();
+
                     for (const auto result : op->getResults()) {
                         if (result.getType().isa<mlir::MemRefType>()) {
                             addAlias(result, result);
                         }
                     }
+
+                    _log = _log.unnest();
                 });
-    });
+    }
 }
 
 mlir::Value vpux::AliasesInfo::getRoot(mlir::Value val) const {

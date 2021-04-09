@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "vpux/utils/core/logger.hpp"
+
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Value.h>
 
@@ -28,6 +30,7 @@ public:
     using ValuesSet = llvm::SmallPtrSet<mlir::Value, 16>;
     using AliasesMap = llvm::DenseMap<mlir::Value, ValuesSet>;
     using ValuesMap = llvm::DenseMap<mlir::Value, mlir::Value>;
+    using OpRange = llvm::iterator_range<mlir::Region::OpIterator>;
 
 public:
     explicit AliasesInfo(mlir::FuncOp func);
@@ -36,8 +39,13 @@ public:
     const ValuesSet& getAliases(mlir::Value val) const;
 
 private:
+    void addAlias(mlir::Value root, mlir::Value alias);
+    void traverse(OpRange ops);
+
+private:
     AliasesMap _aliases;
     ValuesMap _roots;
+    Logger _log;
 };
 
 }  // namespace vpux

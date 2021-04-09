@@ -55,7 +55,10 @@ mlir::Operation* DeallocPlacementPass::getLastUser(mlir::Value val, const Aliase
 
     const auto& aliases = info.getAliases(val);
 
-    for (const auto alias : aliases) {
+    for (auto alias : aliases) {
+        VPUX_THROW_UNLESS(alias.getParentBlock() == val.getParentBlock(),
+                          "Alias '{0}' doesn't belong to the same block as '{1}'", alias, val);
+
         for (auto* user : alias.getUsers()) {
             VPUX_THROW_UNLESS(user != nullptr && !mlir::isa<mlir::memref::DeallocOp>(user),
                               "Wrong allocated value user");
