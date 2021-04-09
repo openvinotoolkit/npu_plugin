@@ -147,12 +147,6 @@ void placeInputEltwiseDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::O
         auto neutralCopyOp = om.getSourceOp(neutralCopy);
         neutralCopyOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 
-        // WA to enable StackedHourGlass, B1 and B2
-        // the Copy should be 'executable' to make the outputTensor located on CMX
-        // otherwise runtime crashes.
-        if (opIt->getOpType() == "Conv")
-            neutralCopyOp->set<bool>("mixedPrecisionCopy", true);
-
         const std::vector<mv::Data::TensorIterator> andInputs = {inputTensor, neutralCopy};
         auto dequantize = om.eltwise(opIt->getName() + "_AND_Conversion_" + std::to_string(i), andInputs, "And");
         dequantize->setDType(mv::DType("Float16"));
