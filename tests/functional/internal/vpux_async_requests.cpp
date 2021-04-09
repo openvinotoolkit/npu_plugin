@@ -30,7 +30,7 @@ std::ostream& operator<<(std::ostream& os, const AsyncTestParams &p) {
     return os;
 }
 
-class VpuxAsyncTests: public KmbLayerTestBase, public testing::WithParamInterface<AsyncTestParams> {};
+class VpuxAsyncTests: public KmbTestBase, public testing::WithParamInterface<AsyncTestParams> {};
 
 TEST_P(VpuxAsyncTests, regression_ADK) {
     const auto &p = GetParam();
@@ -79,7 +79,8 @@ TEST_P(VpuxAsyncTests, regression_ADK) {
             .addNetOutput(PortInfo("power"))
             .finalize();
 
-        auto exeNet = getExecNetwork(testNet);
+        const auto cnnNet = testNet.getCNNNetwork();
+        auto exeNet = core->LoadNetwork(cnnNet, DEVICE_NAME);
 
         KmbTestBase::exportNetwork(exeNet);
     }
