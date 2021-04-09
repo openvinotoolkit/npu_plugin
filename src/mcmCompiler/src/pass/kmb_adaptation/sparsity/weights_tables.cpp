@@ -9,6 +9,8 @@
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/target/kmb/ppe_task.hpp"
+#include "include/mcm/target/kmb/pwl/pwl_dyn_fit.hpp"
+#include "include/mcm/target/kmb/pwl/ref_functions.hpp"
 #include <cmath>
 #include <math.h>
 
@@ -647,6 +649,45 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
 }
 
+void createPWLTable(const double& quantOutLow, const double& quantOutHigh,
+                    const std::function<double(double)>& refFunction, std::vector<int>& range_vector,
+                    std::vector<int>& shift_vector, std::vector<int>& bias_vector) {
+
+    auto pwlfnc = PWLDoubleFit()
+                          .setRange(quantOutLow, quantOutHigh)
+                          .setFunction(refFunction)
+                          .setBitness(8u)
+                          .setMaxIntervals(8u)
+                          .solve();
+    
+    if (pwlfnc.segments().empty()) {
+            throw std::runtime_error("populateInstructionListMap: Invalid PWL intervals created");
+    }
+
+    for (size_t s = 0; s < pwlfnc.segments().size(); s++) {
+        range_vector.push_back(pwlfnc.segments()[s].getRange().begin());
+        shift_vector.push_back(pwlfnc.segments()[s].getShift());
+        bias_vector.push_back(pwlfnc.segments()[s].getBias());
+    }
+    //Add the closing interval
+    range_vector.push_back(quantOutHigh);
+
+    /*The PWL table currently only works with exactly 8 intervals, so here the table is expanded to 8 intervals if required.
+      The table expansion inserts dummy intervals of the max point n times to ensure that there are 9 intervals. 
+    */
+    size_t extraIntervals = 9 - range_vector.size();
+    size_t lastIntervalShift = shift_vector.back();
+    size_t lastIntervalBias = bias_vector.back();
+
+    for (std::size_t i = 0; i < extraIntervals; i++) {
+        range_vector.insert(range_vector.end() - 1 - i, quantOutHigh);
+        shift_vector.insert(shift_vector.end() - 1 - i, lastIntervalShift);
+        bias_vector.insert(bias_vector.end() - 1 - i, lastIntervalBias);
+    }
+
+    //Change the sign of m
+    std::for_each(shift_vector.begin(), shift_vector.end(), [](int& i) {i *= -1;});
+}
 
 //NOTE: The whole idea of the pwl is that we are going to use a linear function that represents leaky Relu.
 //This comes through the equation and idea of Alessandro https://colab.research.google.com/drive/1xTQyJtZiPtMw-r1jUGks-aspbrpuEdKR#scrollTo=biQruEJ7olzD.
@@ -674,22 +715,25 @@ void populateInstructionListMap(const std::string& pwlType,
     std::vector<int> range_vector;
     std::vector<int> shift_vector;
     std::vector<int> bias_vector;
+    std::function<double(double)> refFunction;
 
     if (pwlType == "LeakyRelu") {
         range_vector = {-128, -109, -90, -72, -54, -36, -18, 0, 128};
         shift_vector = {1, -1, 0, 0, 0, -1, -1, -4};
         bias_vector = {-119, 44, -43, -31, -19, 18, 10, 0};
     } else if (pwlType == "Mish") {
+        
+        refFunction = mish;
         const auto& quantOutHigh = outQuantParams.getMax();
+        const auto& quantOutLow = outQuantParams.getMin();
         if (quantOutHigh.empty()) {
             throw std::runtime_error("populateInstructionListMap: empty output quantization parameters");
         }
-        const auto params = mv::ControlModel::getMishParameters(quantOutHigh.at(0));
-        range_vector = params._range_vector;
-        shift_vector = params._shift_vector;
-        bias_vector = params._bias_vector;
-    }
 
+        createPWLTable(quantOutLow.at(0), quantOutHigh.at(0), refFunction, range_vector, shift_vector, bias_vector);
+    }
+    
+    //Populate the instruction list from the table
     std::size_t k = 0;
     for (std::size_t j = 0; j < 32; j++)
     {

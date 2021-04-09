@@ -122,6 +122,7 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_layer_type.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/kmb/workloads.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/pwl/pwl_dyn_fit.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/tensor/order/order_def/1D.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/order/order_def/2D.cpp"
