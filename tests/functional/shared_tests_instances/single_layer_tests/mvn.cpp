@@ -16,6 +16,12 @@ TEST_P(KmbMvnLayerTest, basicTest) {
     Run();
 }
 
+class KmbMvn6LayerTest : public Mvn6LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+
+TEST_P(KmbMvn6LayerTest, basicTest) {
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -84,3 +90,25 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(epsilon),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     ), KmbMvnLayerTest::getTestCaseName);
+
+//Test MVN-6
+
+const std::vector<std::string> epsMode = {
+    "inside_sqrt",
+    "outside_sqrt"
+};
+
+const std::vector<float> epsilonF = {
+    0.0001
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_MVN6_4D, KmbMvn6LayerTest, ::testing::Combine(
+                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 10, 5, 17}}),
+                            ::testing::Values(InferenceEngine::Precision::FP16),
+                            ::testing::Values(InferenceEngine::Precision::I32),
+                            ::testing::ValuesIn(std::vector<std::vector<int>>{{1, 2, 3}, {2, 3}, {-2, -1}, {-2, -1, -3}}),
+                            ::testing::ValuesIn(normalizeVariance),
+                            ::testing::ValuesIn(epsilonF),
+                            ::testing::Values("outside_sqrt"),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        KmbMvn6LayerTest::getTestCaseName);
