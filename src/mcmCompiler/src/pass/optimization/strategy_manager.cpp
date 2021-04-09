@@ -575,8 +575,7 @@ void setOptimalTensorLocation(mv::Data::OpListIterator op, bool spilling, const 
         op->set<bool>("goPredictsSpill", spilling);
 
         bool isStreaming = (streamShape["W"] * streamShape["H"] * streamShape["C"] * streamShape["K"] * streamShape["B"]) > 1;
-        if ((spilling && executable) || isStreaming || op->getOpType() == "ImplicitInput" ||
-                (op->hasAttr("mixedPrecisionCopy") && op->get<bool>("mixedPrecisionCopy"))) // TODO remove this isStreaming check
+        if ((spilling && executable) || isStreaming || op->getOpType() == "ImplicitInput") // TODO remove this isStreaming check
             outTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
         else
             outTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
