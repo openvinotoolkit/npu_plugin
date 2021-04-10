@@ -42,4 +42,6 @@ void vpux::registerDialects(mlir::DialectRegistry& registry) {
     registry.insert<IE::IEDialect>();
     registry.insert<IERT::IERTDialect>();
     registry.insert<VPUIP::VPUIPDialect>();
+
+    VPUIP::VPUIPDialect::setupExtraInterfaces(registry);
 }
