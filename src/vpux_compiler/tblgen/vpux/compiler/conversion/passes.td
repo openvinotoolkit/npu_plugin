@@ -40,7 +40,8 @@ def BufferizeIE : PassBase<"bufferize-IE", "vpux::FunctionPass"> {
 
     let dependentDialects = [
         "vpux::IERT::IERTDialect",
-        "mlir::StandardOpsDialect"
+        "mlir::StandardOpsDialect",
+        "mlir::memref::MemRefDialect"
     ];
 }
 
@@ -61,7 +62,8 @@ def AddBuffersForNetResults : PassBase<"add-buffers-for-net-results", "vpux::Mod
 
     let dependentDialects = [
         "vpux::IERT::IERTDialect",
-        "mlir::StandardOpsDialect"
+        "mlir::StandardOpsDialect",
+        "mlir::memref::MemRefDialect"
     ];
 }
 

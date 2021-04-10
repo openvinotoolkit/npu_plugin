@@ -42,7 +42,8 @@ def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
     ];
 
     let dependentDialects = [
-        "vpux::IERT::IERTDialect"
+        "vpux::IERT::IERTDialect",
+        "vpux::VPUIP::VPUIPDialect"
     ];
 }
 

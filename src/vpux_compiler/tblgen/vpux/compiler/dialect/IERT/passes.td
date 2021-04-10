@@ -58,11 +58,6 @@ def SetInternalMemorySpace : PassBase<"set-internal-memory-space", "vpux::Functi
             "Memory space to perform allocation"
         >
     ];
-
-    let dependentDialects = [
-        "mlir::StandardOpsDialect",
-        "mlir::linalg::LinalgDialect"
-    ];
 }
 
 //
@@ -90,6 +85,10 @@ def StaticAllocation : PassBase<"static-allocation", "vpux::ModulePass"> {
             "std::string", [{""}],
             "Memory space to perform allocation"
         >
+    ];
+
+    let dependentDialects = [
+        "vpux::IERT::IERTDialect"
     ];
 }
 

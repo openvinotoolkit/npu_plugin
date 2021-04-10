@@ -22,6 +22,7 @@
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/init.hpp"
 #include "vpux/compiler/pipelines.hpp"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
@@ -31,24 +32,24 @@
 #include <cstdlib>
 #include <iostream>
 
+using namespace vpux;
+
 int main(int argc, char* argv[]) {
     try {
         mlir::DialectRegistry registry;
-        registry.insert<vpux::IE::IEDialect>();
-        registry.insert<vpux::IERT::IERTDialect>();
-        registry.insert<vpux::VPUIP::VPUIPDialect>();
+        registerDialects(registry);
 
-        vpux::registerCorePasses();
-        vpux::IE::registerIEPasses();
-        vpux::IE::registerPipelines();
-        vpux::IERT::registerIERTPasses();
-        vpux::VPUIP::registerVPUIPPasses();
-        vpux::registerConversionPasses();
-        vpux::registerConversionPipelines();
-        vpux::registerPipelines();
+        registerCorePasses();
+        IE::registerIEPasses();
+        IE::registerPipelines();
+        IERT::registerIERTPasses();
+        VPUIP::registerVPUIPPasses();
+        registerConversionPasses();
+        registerConversionPipelines();
+        registerPipelines();
         mlir::registerTransformsPasses();
 
-        const auto res = mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, true);
+        const auto res = mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, false);
         return mlir::succeeded(res) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;

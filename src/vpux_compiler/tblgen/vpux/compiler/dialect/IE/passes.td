@@ -33,6 +33,10 @@ def UseUserPrecision : PassBase<"use-user-precision", "vpux::ModulePass"> {
     }];
 
     let constructor = "vpux::IE::createUseUserPrecisionPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
 }
 
 //=================================================================================
@@ -54,6 +58,10 @@ def ConvertPrecisionToFP16 : PassBase<"convert-precision-to-fp16", "vpux::Module
     }];
 
     let constructor = "vpux::IE::createConvertPrecisionToFP16Pass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
 }
 
 //
@@ -107,6 +115,10 @@ def ConvertTile2PerAxisTile : PassBase<"convert-tile-to-per-axis-tiles", "vpux::
     }];
 
     let constructor = "vpux::IE::createConvertTile2PerAxisTilePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
 }
 
 //
@@ -124,6 +136,10 @@ def ConvertFCToConv : PassBase<"convert-fc-to-conv", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createConvertFCToConvPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
 }
 
 //=================================================================================
@@ -146,6 +162,7 @@ def SplitFakeQuant : PassBase<"split-fake-quant", "vpux::FunctionPass"> {
     let constructor = "vpux::IE::createSplitFakeQuantPass()";
 
     let dependentDialects = [
+        "vpux::IE::IEDialect",
         "mlir::quant::QuantizationDialect"
     ];
 }
