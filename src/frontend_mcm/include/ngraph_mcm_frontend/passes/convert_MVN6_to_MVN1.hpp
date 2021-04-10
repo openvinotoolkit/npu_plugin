@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -13,28 +13,17 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
+
 #pragma once
 
-#include <map>
-#include <memory>
-#include <vpux.hpp>
+// clang-format off
 
-#include "zero_config.h"
+#include <ngraph/pass/graph_rewrite.hpp>
+#include <ngraph/pass/pass.hpp>
 
-namespace vpux {
-
-class ZeroEngineBackend final : public vpux::IEngineBackend {
+class ConvertMVN6toMVN1 : public ngraph::pass::MatcherPass {
 public:
-    ZeroEngineBackend() = default;
-    virtual const std::shared_ptr<IDevice> getDevice() const override;
-    const std::string getName() const override { return "dKMB"; }
-    const std::vector<std::string> getDeviceNames() const override;
-    std::unordered_set<std::string> getSupportedOptions() const override {
-        return _config.getRunTimeOptions();
-    }
-
-private:
-    ZeroConfig _config;
+    ConvertMVN6toMVN1();
 };
 
-}  // namespace vpux
+// clang-format on

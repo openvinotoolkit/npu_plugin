@@ -95,6 +95,7 @@
 #include <ngraph/op/erf.hpp>
 #include <ngraph/op/gelu.hpp>
 #include <ngraph/op/ctc_greedy_decoder_seq_len.hpp>
+#include <ngraph/op/log.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -654,6 +655,16 @@ void convert(std::shared_ptr<ngraph::op::v0::Gelu> op, mv::OpModel& mcmModel, No
     const auto& opName = op->get_friendly_name();
     const auto& opInput = mcmInputs.at(0);
     const auto mcmOpOutput = mcmModel.gelu(opName, opInput);
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::Log> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(1u == mcmInputs.size());
+    const auto& opName = op->get_friendly_name();
+    const auto& opInput = mcmInputs.at(0);
+    const auto mcmOpOutput = mcmModel.log(opName, opInput);
     mcmOpOutput->setQuantParams(initialQuantParams());
     registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
 }
@@ -1957,6 +1968,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v5::Round),
     MAP_ENTRY(ngraph::op::v0::Erf),
     MAP_ENTRY(ngraph::op::v0::Gelu),
+    MAP_ENTRY(ngraph::op::v0::Log),
     MAP_ENTRY(ngraph::op::TileIE),
     MAP_ENTRY(ngraph::op::v1::VariadicSplit),
     MAP_ENTRY(ngraph::op::CTCGreedyDecoder),

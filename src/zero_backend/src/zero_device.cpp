@@ -28,10 +28,19 @@ std::shared_ptr<Allocator> ZeroDevice::getAllocator() const {
 
 std::shared_ptr<Executor> ZeroDevice::createExecutor(
     const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
-    std::shared_ptr<Executor> result =
-        std::make_shared<ZeroExecutor>(_driver_handle, _device_handle, _context,
-            _graph_ddi_table_ext, _fence_ddi_table_ext,
-            networkDescription, config);
+    _config.parseFrom(config);
+    std::shared_ptr<Executor> result;
+
+    if (_config.ze_syncType() == InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE) {
+        result = std::make_shared<ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE>>(
+                _driver_handle, _device_handle, _context, _graph_ddi_table_ext, _fence_ddi_table_ext,
+                networkDescription, _config);
+    } else {
+        result = std::make_shared<ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT>>(
+                _driver_handle, _device_handle, _context, _graph_ddi_table_ext, _fence_ddi_table_ext,
+                networkDescription, _config);
+    }
+
     return result;
 }
 

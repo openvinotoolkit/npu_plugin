@@ -25,6 +25,7 @@
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_fc.hpp"
 #include "ngraph_mcm_frontend/passes/merge_TopK_convert.hpp"
 #include "ngraph_mcm_frontend/passes/replace_add_with_eltwise.hpp"
+#include "ngraph_mcm_frontend/passes/convert_MVN6_to_MVN1.hpp"
 #include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
@@ -346,6 +347,7 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         passManager.register_pass<ConvertToMcmFC>();
         passManager.register_pass<ReplaceScaleShiftWithMcmScale>();
         passManager.register_pass<ReplaceAddWithMcmEltwise>();
+        passManager.register_pass<ConvertMVN6toMVN1>();
         passManager.register_pass<ngraph::pass::ConstantFolding>();
         passManager.register_pass<BroadcastEltwiseInputs>();
         passManager.register_pass<MergeTopKConvert>();

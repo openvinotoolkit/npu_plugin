@@ -31,106 +31,116 @@
 #include "ze_fence_ext.h"
 #include "ze_graph_ext.h"
 
+#include "zero_config.h"
+#include "zero_private_config.h"
+
 namespace vpux {
 
-class ZeroExecutor final : public Executor {
+    class ZeroExecutorCommon : public Executor {
 public:
-    using Ptr = std::shared_ptr<ZeroExecutor>;
-    using CPtr = std::shared_ptr<const ZeroExecutor>;
+    ZeroExecutorCommon(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
+                       ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
+                       const vpux::NetworkDescription::Ptr& networkDescription, const ZeroConfig& config);
 
-    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
-                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
-        const vpux::NetworkDescription::Ptr& networkDescription, const VPUXConfig& config);
-
-    void push(const InferenceEngine::BlobMap& inputs) override;
     void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;
-
-    void pull(InferenceEngine::BlobMap& outputs) override;
     // TODO: not implemented
     void setup(const InferenceEngine::ParamMap& params) override;
-    bool isPreProcessingSupported(const PreprocMap& preProcMap) const override;
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
+    bool isPreProcessingSupported(const PreprocMap& preProcessMap) const override;
     InferenceEngine::Parameter getParameter(const std::string& paramName) const override;
 
-    ~ZeroExecutor() = default;
+    ~ZeroExecutorCommon() = default;
 
-private:
-
+protected:
     struct hostMem {
         hostMem() = default;
-        hostMem(const ze_driver_handle_t drh_, const ze_context_handle_t _context, const size_t sz_);
+        hostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context, const size_t size);
         hostMem(const hostMem&) = delete;
         hostMem& operator=(const hostMem&) = delete;
         hostMem& operator=(hostMem&&) = delete;
 
-        const void* data() const { return _data; }
-        void* data() { return _data; }
-        size_t size() const { return _sz; }
+        const void* data() const {
+            return _data;
+        }
+        void* data() {
+            return _data;
+        }
+        size_t size() const {
+            return _size;
+        }
         template <typename T>
         void copyFrom(const std::vector<T>& vec) {
             const auto inSz = vec.size() * sizeof(T);
-            if (inSz != _sz)
+            if (inSz != _size)
                 IE_THROW() << "hostMem::copyFrom sizes mismatch";
-            if (0 != memcpy_s(_data, _sz, vec.data(), inSz))
+            if (0 != memcpy_s(_data, _size, vec.data(), inSz))
                 IE_THROW() << "hostMem::copyFrom::ie_memcpy return != 0";
         }
         void copyFrom(const InferenceEngine::Blob::Ptr& blob) {
             const InferenceEngine::MemoryBlob::CPtr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!mblob) IE_THROW() << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
-            if (mblob->byteSize() != _sz)
+            if (!mblob)
+                IE_THROW() << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
+            if (mblob->byteSize() != _size)
                 IE_THROW() << "hostMem::copyFrom sizes mismatch";
-            if (0 != memcpy_s(_data, _sz, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
+            if (0 != memcpy_s(_data, _size, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
                 IE_THROW() << "hostMem::copyFrom::ie_memcpy* return != 0";
         }
         void copyTo(InferenceEngine::Blob::Ptr& blob) const {
             InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!mblob) IE_THROW() << "hostMem::copyTo failing of casting blob to MemoryBlob";
+            if (!mblob)
+                IE_THROW() << "hostMem::copyTo failing of casting blob to MemoryBlob";
 
-            if (mblob->byteSize() != _sz) IE_THROW() << "hostMem::copyTo sizes mismatch";
-            if (0 != memcpy_s(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), _data, _sz))
+            if (mblob->byteSize() != _size)
+                IE_THROW() << "hostMem::copyTo sizes mismatch";
+            if (0 != memcpy_s(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), _data, _size))
                 IE_THROW() << "hostMem::copyTo::ie_memcpy return != 0";
         }
         ~hostMem();
 
     private:
-        size_t _sz = 0;
+        size_t _size = 0;
         void* _data = nullptr;
-        const ze_driver_handle_t _drh = nullptr;
+        const ze_driver_handle_t _driver_handle = nullptr;
         const ze_context_handle_t _context = nullptr;
         const static size_t _alignment = 4096;
     };
 
     struct deviceMem {
         deviceMem() = default;
-        deviceMem(const ze_driver_handle_t drh_, const ze_device_handle_t deh_,
-                  const ze_context_handle_t context, const size_t sz);
+        deviceMem(const ze_driver_handle_t driver_handle, const ze_device_handle_t device_handle,
+                  const ze_context_handle_t context, const size_t size);
         deviceMem(const deviceMem&) = delete;
         deviceMem& operator=(const deviceMem&) = delete;
         deviceMem& operator=(deviceMem&&) = delete;
 
-        const void* data() const { return _data; }
-        void* data() { return _data; }
-        size_t size() const { return _sz; }
+        const void* data() const {
+            return _data;
+        }
+        void* data() {
+            return _data;
+        }
+        size_t size() const {
+            return _size;
+        }
         ~deviceMem();
 
     private:
-        size_t _sz = 0;
+        size_t _size = 0;
         void* _data = nullptr;
-        const ze_driver_handle_t _drh = nullptr;
+        const ze_driver_handle_t _driver_handle = nullptr;
         const ze_context_handle_t _context = nullptr;
         const static size_t _alignment = 4096;
     };
 
     struct commandList {
         commandList() = default;
-        commandList(const ze_device_handle_t& deh_, const ze_context_handle_t& context,
+        commandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
                     ze_graph_dditable_ext_t* graph_ddi_table_ext);
         commandList(const commandList&) = delete;
         commandList& operator=(const commandList&) = delete;
         void reset();
-        void appendMemoryCopy(void* dst, const void* src, size_t sz);
-        void appendGraphInitialize(const ze_graph_handle_t& gh_);
-        void appendGraphExecute(const ze_graph_handle_t& gh_);
+        void appendMemoryCopy(void* dst, const void* src, size_t size);
+        void appendGraphInitialize(const ze_graph_handle_t& graph_handle);
+        void appendGraphExecute(const ze_graph_handle_t& graph_handle);
         void close();
         ~commandList();
         ze_command_list_handle_t _handle = nullptr;
@@ -138,28 +148,12 @@ private:
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     };
 
-    struct commandQueue;
-
-    struct fence {
-        fence() = default;
-        fence(const commandQueue& cq_, ze_fence_dditable_ext_t* fence_ddi_table_ext);
-        fence(const fence&) = delete;
-        fence& operator=(const fence&) = delete;
-        void reset();
-        void hostSynchronize(uint32_t fence_value_);
-        void deviceSynchronize(const commandQueue& queue_, uint32_t fence_value_);
-        void deviceSignal(uint32_t fence_value_);
-        ~fence();
-        ze_fence_handle_t _handle = nullptr;
-        ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
-    };
-
     struct commandQueue {
         commandQueue() = default;
-        commandQueue(const ze_device_handle_t& deh_, const ze_context_handle_t& context);
+        commandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context);
         commandQueue(const commandQueue&) = delete;
         commandQueue& operator=(const commandQueue&) = delete;
-        void executeCommandList(commandList& cl_);
+        void executeCommandList(commandList& command_list);
         ~commandQueue();
         ze_command_queue_handle_t _handle = nullptr;
         ze_context_handle_t _context = nullptr;
@@ -170,25 +164,23 @@ private:
         uint32_t idx;
     };
 
-    struct graph {
-        graph() = default;
-        graph(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_,
-            const ze_context_handle_t& context, const NetworkDescription::CPtr _networkDesc,
-            ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext);
-        graph(const graph&) = delete;
-        graph& operator=(const graph&) = delete;
-        void init();
+    struct graphCommon {
+        graphCommon(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
+                    const ze_context_handle_t& context, const NetworkDescription::CPtr networkDescm,
+                    ze_graph_dditable_ext_t* graph_ddi_table_ext);
+        graphCommon(const graphCommon&) = delete;
+        graphCommon& operator=(const graphCommon&) = delete;
+        virtual void init() = 0;
         void setArgumentValue(uint32_t argi_, const void* argv_) const;
-        ~graph();
+        ~graphCommon();
         ze_graph_handle_t _handle = nullptr;
         ze_context_handle_t _context = nullptr;
         hostMem _mem;
-        ze_graph_properties_t _props{ };
+        ze_graph_properties_t _props{};
         std::map<std::string, argumentDescriptor> _inputs_desc_map;
         std::map<std::string, argumentDescriptor> _outputs_desc_map;
         commandQueue _command_queue;
         commandList _command_list;
-        fence _fence;
 
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     };
@@ -201,14 +193,13 @@ private:
         COUNT
     };
 
-    struct pipeline {
-        pipeline() = default;
-        pipeline(const ze_driver_handle_t& drh_, const ze_device_handle_t& deh_, const ze_context_handle_t context,
-                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
-                 const graph& graph_);
-        pipeline(const pipeline&) = delete;
-        pipeline& operator=(const pipeline&) = delete;
-        ~pipeline() = default;
+    struct pipelineCommon {
+        pipelineCommon(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
+                       const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                       const graphCommon& graph_);
+        pipelineCommon(const pipelineCommon&) = delete;
+        pipelineCommon& operator=(const pipelineCommon&) = delete;
+        ~pipelineCommon() = default;
 
         std::map<std::string, hostMem> _inputs_host_mem_map;
         std::map<std::string, deviceMem> _inputs_device_mem_map;
@@ -217,25 +208,182 @@ private:
         std::array<commandList, stage::COUNT> _command_list;
     };
 
-    const VPUXConfig& _config;
+protected:
+    const ZeroConfig& _config;
     vpu::Logger::Ptr _logger;
 
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;
     ze_context_handle_t _context = nullptr;
 
-    graph _graph;
+    ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
+    ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
 
     uint32_t _push_count;
     uint32_t _pull_count;
+    uint32_t _perf_count;
 
     NetworkDescription::CPtr _networkDesc;
 
+    const uint32_t _pipeline_depth;
+};
+
+
+template <InferenceEngine::VPUXConfigParams::ze_syncType mode_t>
+class ZeroExecutor final : public Executor {};
+
+template <>
+class ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE> final : public ZeroExecutorCommon {
+public:
+    using Ptr = std::shared_ptr<ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE>>;
+    using CPtr = std::shared_ptr<const ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE>>;
+
+    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
+                 const vpux::NetworkDescription::Ptr& networkDescription, const ZeroConfig& config);
+
+    void push(const InferenceEngine::BlobMap& inputs) override;
+    void pull(InferenceEngine::BlobMap& outputs) override;
+
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
+
+    ~ZeroExecutor() = default;
+
+private:
+    struct fence {
+        fence() = default;
+        fence(const commandQueue& command_queue, ze_fence_dditable_ext_t* fence_ddi_table_ext);
+        fence(const fence&) = delete;
+        fence& operator=(const fence&) = delete;
+        void reset();
+        void hostSynchronize(uint32_t fence_value);
+        void deviceSynchronize(const commandQueue& queue, uint32_t fence_value);
+        void deviceSignal(uint32_t fence_value);
+        ~fence();
+        ze_fence_handle_t _handle = nullptr;
+        ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
+    };
+
+    struct graph_t : public ZeroExecutorCommon::graphCommon {
+        graph_t(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
+                const ze_context_handle_t& context, const NetworkDescription::CPtr networkDescm,
+                ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext);
+        graph_t(const graph_t&) = delete;
+        graph_t& operator=(const graph_t&) = delete;
+        void init();
+        ~graph_t() = default;
+
+        fence _fence;
+    };
+
+    struct pipeline : public ZeroExecutorCommon::pipelineCommon {
+        pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
+                 const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const graph_t& graph);
+        pipeline(const pipeline&) = delete;
+        pipeline& operator=(const pipeline&) = delete;
+        ~pipeline() = default;
+    };
+
+    graph_t _graph;
+
     std::array<commandQueue, stage::COUNT> _command_queue;
-    std::array <fence, stage::COUNT> _fence;
+    std::array<fence, stage::COUNT> _fence;
 
     std::vector<std::unique_ptr<pipeline>> _pipeline;
-    const uint32_t _pipeline_depth;
+};
+
+
+template <>
+class ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT> final : public ZeroExecutorCommon {
+public:
+    using Ptr = std::shared_ptr<ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT>>;
+    using CPtr = std::shared_ptr<const ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT>>;
+
+    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
+                 const vpux::NetworkDescription::Ptr& networkDescription, const ZeroConfig& config);
+
+    void push(const InferenceEngine::BlobMap& inputs) override;
+    void pull(InferenceEngine::BlobMap& outputs) override;
+
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
+
+    ~ZeroExecutor() = default;
+
+private:
+    struct eventPool_t {
+        eventPool_t() = default;
+        eventPool_t(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count);
+        eventPool_t(const eventPool_t&) = delete;
+        eventPool_t& operator=(const eventPool_t&) = delete;
+
+        ~eventPool_t() {
+            zeEventPoolDestroy(_handle);
+        };
+
+        const uint32_t _event_count;
+        ze_event_pool_handle_t _handle = nullptr;
+    };
+
+    struct event_t {
+        event_t(ze_device_handle_t device_handle, const ze_context_handle_t& context,
+                const ze_event_pool_handle_t& event_pool,
+                uint32_t event_index);
+        event_t(const event_t&) = delete;
+        event_t& operator=(const event_t&) = delete;
+        void AppendSignalEvent(commandList& command_list);
+        void AppendWaitOnEvent(commandList& command_list);
+        void HostSynchronize();
+        void HostReset();
+
+        ~event_t() {
+            zeEventDestroy(_handle);
+        };
+
+        ze_device_handle_t _device_t = nullptr;
+        ze_context_handle_t _context = nullptr;
+
+        ze_event_handle_t _handle = nullptr;
+    };
+
+    struct graph_t : public ZeroExecutorCommon::graphCommon {
+        graph_t(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
+                const ze_context_handle_t& context, const NetworkDescription::CPtr networkDescm,
+                ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext);
+        graph_t(const graph_t&) = delete;
+        graph_t& operator=(const graph_t&) = delete;
+        void init();
+        ~graph_t() = default;
+
+        eventPool_t _event_pool;
+        event_t _event;
+    };
+
+    struct pipeline : public ZeroExecutorCommon::pipelineCommon {
+        pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
+                 const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const graph_t& graph);
+        pipeline(const pipeline&) = delete;
+        pipeline& operator=(const pipeline&) = delete;
+        ~pipeline();
+
+        std::condition_variable _cond_var;
+        std::mutex _mutex;
+        bool _available;
+
+        eventPool_t _event_pool;
+        std::array<event_t, stage::COUNT> _event;
+    };
+
+    graph_t _graph;
+
+    std::array<commandQueue, stage::COUNT> _command_queue;
+
+    eventPool_t _event_pool;
+    std::array<event_t, stage::COUNT> _event;
+
+    std::vector<std::unique_ptr<pipeline>> _pipeline;
 };
 
 }  // namespace vpux

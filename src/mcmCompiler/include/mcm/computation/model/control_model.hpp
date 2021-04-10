@@ -43,7 +43,6 @@ namespace mv
         std::vector<Control::OpListIterator> schedulingSortDMA();
         void transitiveReduction(const std::string& edgeAttribute = "");
         bool isDag();
-        static mish_params_t getMishParameters(const double maxQuant);
         mv::Control::OpListIterator cycleResponsible();
         std::vector<Control::FlowListIterator> criticalPath(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp, const std::string& nodeAttribute = "", const std::string& edgeAttribute = "");
         std::vector<Control::FlowListIterator> criticalPath(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp, const std::string& nodeAttribute = "", const std::string& edgeAttribute = "");
