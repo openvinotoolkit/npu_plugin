@@ -25,7 +25,7 @@
 #include "vpux.hpp"
 
 namespace vpux {
-namespace HDDL2 {
+namespace hddl2 {
 /**
  * @brief General device, for ImageWorkload.
  * If specific name not provided, device selection will be postponed until inference
@@ -50,5 +50,5 @@ private:
     const std::string _name;
 };
 
-}  // namespace HDDL2
+}  // namespace hddl2
 }  // namespace vpux

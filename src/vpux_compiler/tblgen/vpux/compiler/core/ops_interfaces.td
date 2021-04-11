@@ -20,6 +20,26 @@
 include "mlir/IR/OpBase.td"
 
 //
+// MultiViewOpInterface
+//
+
+def MultiViewOpInterface : OpInterface<"MultiViewOpInterface"> {
+    let description = [{
+        An extended version of view-like operation.
+        It allows to define several resuling views in single operation.
+    }];
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "The source buffer from which the corresponding view is created, NULL if the result is not a view",
+            "mlir::Value", "getViewSource", (ins "ptrdiff_t":$resultInd)
+        >
+    ];
+}
+
+//
 // ConstantInterface
 //
 
@@ -458,7 +478,7 @@ def LeakyReluLayerInterface : OpInterface<"LeakyReluLayerInterface"> {
 //
 
 def EltwiseLayerInterface : OpInterface<"EltwiseLayerInterface"> {
-    let description = "Interface for ltwise Layer";
+    let description = "Interface for Eltwise Layer";
 
     let cppNamespace = "vpux";
 
@@ -679,6 +699,51 @@ def TransposeLayerInterface : OpInterface<"TransposeLayerInterface"> {
 
         vpux::SmallVector<mlir::Value> getOutputs() {
             return {$_op.output()};
+        }
+    }];
+}
+
+//
+// CTCGreedyDecoderLayerInterface
+//
+
+def CTCGreedyDecoderLayerInterface : OpInterface<"CTCGreedyDecoderLayerInterface"> {
+    let description = "Interface for CTCGreedyDecoder Layer";
+
+    let cppNamespace = "vpux";
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            return {$_op.input(), $_op.sequenceLengths()};
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output()};
+        }
+    }];
+}
+
+//
+// CTCGreedyDecoderSeqLenLayerInterface
+//
+
+def CTCGreedyDecoderSeqLenLayerInterface : OpInterface<"CTCGreedyDecoderSeqLenLayerInterface"> {
+    let description = "Interface for CTCGreedyDecoderSeqLen Layer";
+
+    let cppNamespace = "vpux";
+
+    let extraTraitClassDeclaration = [{
+        vpux::SmallVector<mlir::Value> getInputs() {
+            if ($_op.blankIndex() != nullptr) {
+                return {$_op.input(), $_op.sequenceLength(), $_op.blankIndex() };
+            }
+            else {
+                return {$_op.input(), $_op.sequenceLength() };
+            }
+        }
+
+        vpux::SmallVector<mlir::Value> getOutputs() {
+            return {$_op.output(), $_op.outputLength() };
         }
     }];
 }

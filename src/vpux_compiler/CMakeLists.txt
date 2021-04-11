@@ -177,6 +177,7 @@ macro(add_rewriters subdir)
 endmacro()
 
 add_op_interfaces("core")
+add_passes("core" "Core")
 
 add_dialect("IE")
 add_enum_attrs("IE")

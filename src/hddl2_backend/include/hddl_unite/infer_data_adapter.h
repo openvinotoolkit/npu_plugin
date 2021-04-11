@@ -33,8 +33,8 @@
 #include "InferData.h"
 #include "InferGraph.h"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace hddl2 {
 
 /**
  * @brief Carries information necessary for invoking infer request on HddlUnite
@@ -94,5 +94,5 @@ private:  // Workarounds
     std::vector<std::string> _onceFlagOutputAllocations;
 };
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace hddl2
+}  // namespace vpux

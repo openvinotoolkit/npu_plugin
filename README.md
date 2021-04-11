@@ -2,7 +2,7 @@
 
 ## Components in this repository
 - MCM Compiler
-- VPUX MLIR Compiler
+- [VPUX MLIR Compiler](src/vpux_compiler/docs/index.md)
 - VPUX Plugin
     - VPUAL Backend
     - Zero Backend
@@ -94,6 +94,14 @@ The following environment variables should be set:
     make debugi
     ```
 5. Run the app on the device, the logs will be displayed via moviDebug2
+
+### Profiling - enable performance measuring in compiler
+
+To enable incertion of additional timer DMAs in the network:
+
+1. Compile and run inference using benchmark_app with additional flag "-pc" (For using existing blob see 2.)
+2. To compile blob (using compile_tool) with profiling enabled user should enable it in the compiler config file(*json): 
+    look for "PerformanceCounting" in "GlobalConfigParams"
 
 ## === Integration ===
 #### How to update graph schema in mcmCompiler

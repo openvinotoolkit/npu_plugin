@@ -18,6 +18,9 @@
 # Project properties
 #
 
+set(CMAKE_POLICY_DEFAULT_CMP0115 NEW)
+set(CMAKE_POLICY_DEFAULT_CMP0116 OLD)
+
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 # Honor <LANG>_VISIBILITY_PRESET for all target types (including static libraries).

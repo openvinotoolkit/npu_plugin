@@ -116,7 +116,7 @@ void ConvertTile2PerAxisTilePass::safeRunOnFunc() {
 }  // namespace
 
 //
-// createConvertShapeTo4DPass
+// createConvertTile2PerAxisTilePass
 //
 
 std::unique_ptr<mlir::Pass> vpux::IE::createConvertTile2PerAxisTilePass(Logger log) {

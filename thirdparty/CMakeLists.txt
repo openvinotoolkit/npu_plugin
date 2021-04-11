@@ -77,10 +77,6 @@ if(AARCH64)
     add_subdirectory(gapi_sipp/m2i)
     add_subdirectory(gapi_sipp/vpu)
 
-    if(ENABLE_TESTS)
-        add_subdirectory(tests/integration)
-    endif()
-
     set(VPUAL_XLINK_LIBRARY XLink CACHE INTERNAL "")
     set(VPUAL_XLINK_INCLUDES $<TARGET_PROPERTY:XLink,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
 
@@ -226,5 +222,8 @@ endif()
 if(ENABLE_ZEROAPI_BACKEND)
     add_library(zeroApi STATIC IMPORTED GLOBAL)
     set_target_properties(zeroApi PROPERTIES IMPORTED_LOCATION ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/zePackage/lib/ze_loader_vpu64.lib)
-    set_target_properties(zeroApi PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/zePackage/inc)
+    target_include_directories(zeroApi
+    INTERFACE
+        ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/zePackage/include/level_zero/)
+
 endif()

@@ -655,6 +655,14 @@ protected:
     static void comparePersonsAttributes(const PersonAttributes& p1, const PersonAttributes& p2, float tolerance);
 };
 
+class KmbStereoNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestBinFileDesc& file,
+            const float threshold);
+};
+
 // inherit parseOutput from KmbClassifyNetworkTest
 class VehicleAttrRecNetworkTest : public KmbClassifyNetworkTest {
 public:
@@ -742,14 +750,14 @@ public:
 };
 
 
-class KmbSuperResNetworkTest : public ModelAdk {
+class KmbSuperResNetworkTest : public KmbNetworkTestBase {
 public:
     void runTest(
             const TestNetworkDesc& netDesc,
             const std::string& imgName,
-            const TestImageDesc& image,
+            const TestBinFileDesc& image,
             const std::string& paramName1,
-            const std::vector<unsigned>& paramValues1,
+            const TestBinFileDesc& paramValues1,
             const std::string& paramName2,
-            const std::vector<unsigned>& paramValues2);
+            const TestBinFileDesc& paramValues2);
 };

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2020-2021 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -30,7 +30,7 @@ public:
     using Ptr = std::shared_ptr<VPUXBackends>;
     using CPtr = std::shared_ptr<const VPUXBackends>;
 
-    explicit VPUXBackends(const VPUXConfig& config);
+    explicit VPUXBackends(const std::vector<std::string>& backendRegistry);
 
     std::shared_ptr<Device> getDevice(const std::string& specificName = "") const;
     std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
@@ -38,10 +38,10 @@ public:
     std::vector<std::string> getAvailableDevicesNames() const;
     std::unordered_set<std::string> getSupportedOptions() const;
 
-    void setup(const VPUXConfig& config) const;
+    void setup(const VPUXConfig& config);
 
 private:
-    vpu::Logger::Ptr _logger;
+    vpu::Logger _logger;
     std::shared_ptr<EngineBackend> _backend;
 };
 

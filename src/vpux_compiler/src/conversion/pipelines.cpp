@@ -17,7 +17,6 @@
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 
 #include <mlir/Dialect/StandardOps/Transforms/Passes.h>
 #include <mlir/Transforms/Passes.h>
@@ -31,7 +30,7 @@ using namespace vpux;
 void vpux::buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(createBufferizeIEPass(log));
     pm.addPass(mlir::createFuncBufferizePass());
-    pm.addPass(mlir::createBufferResultsToOutParamsPass());
+    pm.addPass(vpux::createAddBuffersForNetResults());
     pm.addPass(mlir::createFinalizingBufferizePass());
 }
 

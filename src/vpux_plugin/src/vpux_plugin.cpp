@@ -52,12 +52,26 @@ static VPUXConfig mergePluginAndNetworkConfigs(const VPUXConfig& pluginConfig,
 }
 
 //------------------------------------------------------------------------------
-Engine::Engine(): _backends(std::make_shared<VPUXBackends>(_parsedConfig)), _metrics(_backends) {
+// TODO: generation of available backends list can be done during execution of CMake scripts
+static const std::vector<std::string> backendRegistry = {
+#if defined(_WIN32) || defined(_WIN64)
+        "zero_backend",
+#endif
+#if defined(__arm__) || defined(__aarch64__)
+        "vpual_backend",
+#endif
+#if defined(ENABLE_HDDL2)
+        "hddl2_backend",
+#endif
+#if defined(ENABLE_EMULATOR)
+        "emulator_backend",
+#endif
+};
+Engine::Engine(): _backends(std::make_shared<VPUXBackends>(backendRegistry)), _metrics(_backends) {
     _pluginName = DEVICE_NAME;  // "VPUX"
     const auto compiler = Compiler::create(_parsedConfig);
     _parsedConfig.expandSupportedCompileOptions(compiler->getSupportedOptions());
-    _parsedConfig.expandSupportedRunTimeOptions(_backends == nullptr ? std::unordered_set<std::string>()
-                                                                     : _backends->getSupportedOptions());
+    _parsedConfig.expandSupportedRunTimeOptions(_backends->getSupportedOptions());
 }
 
 //------------------------------------------------------------------------------

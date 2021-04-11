@@ -28,7 +28,8 @@ namespace vpux {
 
 EmulatorBackend::EmulatorBackend()
         : _logger(std::unique_ptr<vpu::Logger>(
-                  // TODO: config will come by another PR, for now let's use Error log level
+                  // [Track number: S#42840]
+                  // TODO: config will come by another PR, for now let's use Error log level [Track number: S#42840]
                   new vpu::Logger("EmulatorBackend", vpu::LogLevel::Error /*_config.logLevel()*/,
                                   vpu::consoleOutput()))),
           _device(std::make_shared<EmulatorDevice>()) {

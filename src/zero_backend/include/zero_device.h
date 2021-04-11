@@ -21,14 +21,32 @@
 #include <vpux_compiler.hpp>
 
 #include "ze_api.h"
+#include "ze_fence_ext.h"
+#include "ze_graph_ext.h"
+
+#include "zero_config.h"
+#include "zero_private_config.h"
+
 
 namespace vpux {
 class ZeroDevice : public IDevice {
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;
+    ze_context_handle_t _context = nullptr;
+
+    ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
+    ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
+
+    ZeroConfig _config;
 
 public:
-    ZeroDevice(ze_driver_handle_t driver, ze_device_handle_t device): _driver_handle(driver), _device_handle(device) {}
+    ZeroDevice(ze_driver_handle_t driver, ze_device_handle_t device, ze_context_handle_t context,
+               ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext)
+            : _driver_handle(driver),
+              _device_handle(device),
+              _context(context),
+              _graph_ddi_table_ext(graph_ddi_table_ext),
+              _fence_ddi_table_ext(fence_ddi_table_ext) { }
 
     std::shared_ptr<Allocator> getAllocator() const override;
 

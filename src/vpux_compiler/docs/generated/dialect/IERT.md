@@ -142,6 +142,60 @@ operation ::= `IERT.AvgPool` `(` operands `)` attr-dict `:` type(operands)
 `input` | memref of 16-bit float or 32-bit float values
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.CTCGreedyDecoder` (vpux::IERT::CTCGreedyDecoderOp)
+
+InferenceEngine run-time CTCGreedyDecoder layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.CTCGreedyDecoder` `(` operands `)` attr-dict `:` type(operands)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mergeRepeated` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`sequenceLengths` | memref of 16-bit float or 32-bit float values
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.CTCGreedyDecoderSeqLen` (vpux::IERT::CTCGreedyDecoderSeqLenOp)
+
+InferenceEngine run-time CTCGreedyDecoderSeqLen layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.CTCGreedyDecoderSeqLen` `(` operands `)` attr-dict `:` type(operands)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mergeRepeated` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`sequenceLength` | memref of 32-bit signed integer values
+`blankIndex` | memref of 32-bit signed integer values
+`output` | memref of 32-bit signed integer values
+`outputLength` | memref of 32-bit signed integer values
+
 ### `IERT.Clamp` (vpux::IERT::ClampOp)
 
 InferenceEngine run-time Clamp layer
@@ -246,6 +300,25 @@ operation ::= `IERT.Convolution` `(` operands `)` attr-dict `:` type(operands)
 `filter` | memref of 16-bit float or 32-bit float values
 `bias` | memref of 16-bit float or 32-bit float values
 `output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.Copy` (vpux::IERT::CopyOp)
+
+InferenceEngine run-time Copy layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Copy` `(` operands `)` attr-dict `:` type(operands)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output` | memref of any type values
 
 ### `IERT.Dequantize` (vpux::IERT::DequantizeOp)
 

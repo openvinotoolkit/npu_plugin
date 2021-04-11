@@ -246,7 +246,9 @@ void addMultiOutputQuantizationLayers(mv::OpModel & om, const mv::pass::PassEntr
         if (!(parentOp->hasAttr("taskOp") &&
               parentOp->get<std::string>("taskOp") == "Eltwise" &&
               parentOp->hasAttr("softwareExecuted") &&
-              parentOp->get<bool>("softwareExecuted")))
+              parentOp->get<bool>("softwareExecuted") &&
+              outputOp->hasAttr("precision") && outputOp->get<mv::DType>("precision") == mv::DType("Float16")))
+            // if output precision is not Float16, a conversion op will be added, no need for quantization.
             continue;
         unsigned outputFlowSize = 0;
         mv::Data::FlowListIterator flowToRemove(parentOp.leftmostOutput());

@@ -22,10 +22,12 @@ endif()
 set(MCM_SCHEDULER_INCLUDES_DIR
     "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/src/")
 
+add_subdirectory(kmb/test_utils)
+
 addIeTargetTest(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-    EXCLUDED_SOURCE_PATHS ${EXCLUDED_HDDL2_UNIT_TESTS_DIR}
+    EXCLUDED_SOURCE_PATHS ${EXCLUDED_HDDL2_UNIT_TESTS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/kmb/test_utils
     INCLUDES
         ${HDDL2_INCLUDES}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
@@ -54,5 +56,6 @@ addIeTargetTest(
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tests")
+add_dependencies(${TARGET_NAME} throw_test_backend vpu3700_test_backend no_devices_test_backend)
 
 enable_warnings_as_errors(${TARGET_NAME})

@@ -28,7 +28,7 @@
 #include "vpux_metrics.h"
 #include "vpux_plugin.h"
 
-using namespace vpu::HDDL2Plugin;
+using namespace vpux::hddl2;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------

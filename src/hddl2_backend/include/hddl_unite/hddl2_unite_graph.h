@@ -27,8 +27,8 @@
 // Low-level
 #include "InferGraph.h"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace hddl2 {
 
 class HddlUniteGraph final {
 public:
@@ -49,8 +49,8 @@ public:
 
 private:
     HddlUnite::Inference::Graph::Ptr _uniteGraphPtr = nullptr;
-    const Logger::Ptr _logger;
+    const vpu::Logger::Ptr _logger;
 };
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace hddl2
+}  // namespace vpux

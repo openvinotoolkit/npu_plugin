@@ -31,8 +31,9 @@
 #include <HddlUnite.h>
 #include <RemoteMemory.h>
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace hddl2 {
+
 //------------------------------------------------------------------------------
 struct HDDL2RemoteMemoryContainer {
     explicit HDDL2RemoteMemoryContainer(const HddlUnite::RemoteMemory::Ptr& remoteMemory);
@@ -53,7 +54,7 @@ public:
     using Ptr = std::shared_ptr<HDDL2RemoteAllocator>;
 
     explicit HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr,
-                                  const LogLevel logLevel = LogLevel::None);
+                                  const vpu::LogLevel logLevel = vpu::LogLevel::None);
 
     /**
      * @brief Lock memory and synchronize local buffer with remote
@@ -108,9 +109,9 @@ private:
 
     std::map<void*, HDDL2RemoteMemoryContainer> _memoryStorage;
     std::mutex memStorageMutex;
-    const Logger::Ptr _logger;
+    const vpu::Logger::Ptr _logger;
     std::map<void*, size_t> _memoryHandleCounter;
 };
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace hddl2
+}  // namespace vpux

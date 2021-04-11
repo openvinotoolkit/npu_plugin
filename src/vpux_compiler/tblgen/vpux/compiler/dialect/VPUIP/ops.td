@@ -1643,4 +1643,108 @@ def VPUIP_NCEClusterTaskOp :
     }];
 }
 
+
+
+//
+// CTCGreedyDecoderUPAOp
+//
+
+def VPUIP_CTCGreedyDecoderUPAOp :
+        VPUIP_TaskOp<
+            "CTCGreedyDecoderUPA",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<CTCGreedyDecoderLayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "CTCGreedyDecoder UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$sequenceLengths,
+        F16MemRef:$output,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        UnitAttr:$mergeRepeated,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$sequenceLengths,
+                "mlir::Value":$output,
+                "mlir::UnitAttr":$mergeRepeated
+            )
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $sequenceLengths `:` type($sequenceLengths) `)`
+        `outputs` `(` $output `:` type($output) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
+// CTCGreedyDecoderSeqLenUPAOp
+//
+
+def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
+        VPUIP_TaskOp<
+            "CTCGreedyDecoderSeqLenUPA",
+            [
+                DeclareOpInterfaceMethods<LayerInterface>,
+                DeclareOpInterfaceMethods<CTCGreedyDecoderSeqLenLayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+            ]
+        > {
+    let summary = "CTCGreedyDecoderSeqLen UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        MemRefOf<[SI32]>:$sequenceLength,
+        Optional<MemRefOf<[SI32]>>:$blankIndex,
+        MemRefOf<[SI32]>:$output,
+        MemRefOf<[SI32]>:$outputLength,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        UnitAttr:$mergeRepeated,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$sequenceLength, "mlir::Value":$blankIndex,
+                "mlir::Value":$output, "mlir::Value":$outputLength,
+                "mlir::UnitAttr":$mergeRepeated
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $sequenceLength `:` type($sequenceLength) `,` ($blankIndex^ `:` type($blankIndex))? `)`
+        `outputs` `(` $output `:` type($output) `,` $outputLength `:` type($outputLength) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
 #endif

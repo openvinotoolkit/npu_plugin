@@ -19,10 +19,11 @@
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2/hddl2_params.hpp"
 
-namespace vpu {
-namespace HDDL2Plugin {
-
 namespace IE = InferenceEngine;
+
+namespace vpux {
+namespace hddl2 {
+
 using memoryHandle = void*;
 //------------------------------------------------------------------------------
 class Allocator_Helper {
@@ -116,5 +117,5 @@ inline std::string Allocator_CreatedRemoteMemory_Helper::getRemoteMemory(const s
     return "";
 }
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace hddl2
+}  // namespace vpux

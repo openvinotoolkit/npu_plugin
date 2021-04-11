@@ -1,1 +1,2 @@
-commit:b4ebc9c063e9718a954777aa4aafe27f5bb52570
+tag:ci_tag_rtems4_nightly_20210406
+commit:8a936d9f70db14c04f631cffec63f4c78148788d

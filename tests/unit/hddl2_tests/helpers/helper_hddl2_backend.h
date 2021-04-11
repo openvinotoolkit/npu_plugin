@@ -28,11 +28,11 @@ public:
     const std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& map);
 
 protected:
-    HDDL2::HDDL2Backend::Ptr _backend;
+    hddl2::HDDL2Backend::Ptr _backend;
 };
 
 //------------------------------------------------------------------------------
-inline HDDL2Backend_Helper::HDDL2Backend_Helper() : _backend(std::make_shared<HDDL2::HDDL2Backend>()) {}
+inline HDDL2Backend_Helper::HDDL2Backend_Helper() : _backend(std::make_shared<hddl2::HDDL2Backend>()) {}
 inline const std::shared_ptr<Device> HDDL2Backend_Helper::getDevice(const InferenceEngine::ParamMap& map) {
     return std::make_shared<Device>(_backend->getDevice(map), nullptr);
 }
