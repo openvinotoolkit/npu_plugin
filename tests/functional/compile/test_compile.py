@@ -64,11 +64,15 @@ def test_compile(request, param_ir):
     """
     out = os.path.splitext(os.path.join(param_ir.output_dir, param_ir.model))[0] + ".blob"
     os.makedirs(os.path.split(out)[0], exist_ok=True)
+    config = open("vpu3700.config", "w")
+    config.write("VPUX_PLATFORM VPU3700\n")
+    config.close()
     returncode, output, peak_memory = measured_run([
         param_ir.compiler_tool,
         '-d=VPUX',
         f'-m={os.path.join(param_ir.models_dir, param_ir.model)}',
-        f'-o={out}'
+        f'-o={out}',
+        f'-c=vpu3700.config'
     ])
     print(output)
     request.node.peak_memory = peak_memory
