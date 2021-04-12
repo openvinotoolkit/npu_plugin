@@ -316,7 +316,7 @@
               "name" : "RecomputeImplicitOpAttr",
               "attribute" : "Location"
             },
-            "RecomputeTensorMultiClusterAttributesCauseOfSpilling",
+            "SplittingTensorsAcrossClusters",
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"

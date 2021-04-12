@@ -35,7 +35,6 @@ static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Worklo
                                 const mv::pass::PassEntry& pass, int &success);
 static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, const std::size_t nWorkloads, const std::size_t outputChannels);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void recomputeTensorMultiClusterAttributesCauseOfSpillingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -51,11 +50,6 @@ namespace mv
             .setFunc(ensureSplitStrategiesForSpilling)
             .setDescription(
                "Ensures Split Strategies still valid after Spilling cases");
-
-        MV_REGISTER_PASS(RecomputeTensorMultiClusterAttributesCauseOfSpilling)
-            .setFunc(recomputeTensorMultiClusterAttributesCauseOfSpillingFcn)
-            .setDescription(
-               "Ensures Split Strategies attributes are assigned correctly after scheduler spillings ");
     }
 }
 
@@ -78,6 +72,20 @@ bool findSparseTensorIndex(
 void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                              mv::Element &)
 {
+    auto insertTensor = [](tensorSet& tensors, const mv::Data::TensorIterator& tensor, const mv::Data::OpListIterator& parentOp) {
+        if (tensor->hasSubTensors())
+            return;
+
+        if (!tensor->hasAttr("splitStrategy"))
+        {
+            if (parentOp->hasAttr("splitStrategy"))
+                tensor->set<std::string>("splitStrategy", parentOp->get<std::string>("splitStrategy"));
+            else if (parentOp->inputSlots() && parentOp->getInputTensor(0)->hasAttr("splitStrategy"))
+                tensor->set<std::string>("splitStrategy", parentOp->getInputTensor(0)->get<std::string>("splitStrategy"));
+        }
+        tensors.insert(tensor);
+    };
+
     mv::OpModel om(model);
     mv::DataModel dm(model);
     auto globalParams = model.getGlobalConfigParams();
@@ -107,7 +115,7 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             for (const auto& tensor : op->getOutputTensor()) {
                 if((tensor->get<std::string>("splitStrategy") == "SplitOverH") ||
                     (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
-                    tensors.insert(tensor);
+                    insertTensor(tensors, tensor, op);
             }
             continue;
         }
@@ -120,7 +128,7 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             for (const auto& tensor : op->getInputTensor()) {
                 if((tensor->get<std::string>("splitStrategy") == "SplitOverH") ||
                     (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
-                    tensors.insert(tensor);
+                    insertTensor(tensors, tensor, om.getSourceOp(tensor));
             }
             continue;
         }
@@ -129,11 +137,11 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         if (op->isImplicit())
         {
             for (const auto& tensor : op->getInputTensor()) {
-                tensors.insert(tensor);
+                insertTensor(tensors, tensor, om.getSourceOp(tensor));
             }
 
             for (const auto& tensor : op->getOutputTensor()) {
-                tensors.insert(tensor);
+                insertTensor(tensors, tensor, op);
             }
 
             continue;
@@ -141,23 +149,28 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
 
         if (op->getOpType() == "DPUTask")
         {
-            tensors.insert(outputTensor);
+            insertTensor(tensors, outputTensor, op);
 
             for(std::size_t i = 0; i < op->inputSlots(); ++i)
             {
                 const auto inputTensor = op->getInputTensor(i);
                 if (findSparseTensorIndex(op, "unpopulatedSparsityMapIndex", i) ||
                     findSparseTensorIndex(op, "storageElementIndex", i))
-                    specialTensors.insert(inputTensor);
+                    insertTensor(specialTensors, inputTensor, om.getSourceOp(inputTensor));
                 else
                 {
-                    tensors.insert(inputTensor);
+                    insertTensor(tensors, inputTensor, om.getSourceOp(inputTensor));
 
                     // New weights sparsity approach: no explicit costant operation
                     // for sparsity map is present in the graph.
                     // So check for sparsity has to be done only here
                     if(inputTensor->isPopulated() && inputTensor->isSparse())
-                        tensors.insert(dm.getTensor(inputTensor->getSparsityMap()->getName()));
+                    {
+                        const auto sparsityMap = inputTensor->getSparsityMap();
+                        const auto tensor = dm.isTensorDefined(sparsityMap) ?
+                            dm.getTensor(sparsityMap->getName()) : dm.defineTensor(sparsityMap);
+                        insertTensor(tensors, tensor, op);
+                    }
                 }
             }
         }
@@ -182,7 +195,7 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
 
             if (std::find(destImplicitChainTypes.cbegin(), destImplicitChainTypes.cend(),
                 sinkOperators[0]->getOpType()) != destImplicitChainTypes.cend())
-                tensors.insert(outputTensor);
+                insertTensor(tensors, outputTensor, srcImplicitOp);
         }
     }
     subTensorsGen(model, tensors, numClusters, pass);
@@ -717,52 +730,6 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                             subTensorsGen(model, setSubs, numClusters, pass);
 
                         }
-                    }
-                }
-            }
-        }
-    }
-    return;
-
-}
-
-
-
-// Pass role: In case that the scheduler inserts spilling reads/writes we might meet a case where the input of the dpu task will be out of
-// subtensors, splitStrategies etc. So we need to recompute them. Cost for changing the strategies!!
-void recomputeTensorMultiClusterAttributesCauseOfSpillingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    mv::OpModel om(model);
-
-    auto globalParams = model.getGlobalConfigParams();
-    unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
-
-    if (numClusters > 1)
-    {
-        for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
-        {
-            std::string opType = opIt->getOpType();
-            if (opType == "DPUTask")
-            {
-                for (auto inputTensor : opIt->getInputTensor())
-                {
-                    if (!inputTensor->hasAttr("splitStrategy"))
-                    {
-                        //NOTE: The correct think to do here is to assign to the input tensor the strategy of the previous
-                        //operation but sometimes the previous operation can be an implicit op or an op with no strategy
-                        //so assign the one of its input tensor...
-                        std::string sstrategy;
-                        if (om.getSourceOp(inputTensor)->hasAttr("splitStrategy"))
-                            sstrategy = om.getSourceOp(inputTensor)->get<std::string>("splitStrategy");
-                        else
-                            sstrategy = om.getSourceOp(inputTensor)->getInputTensor()[0]->get<std::string>("splitStrategy");
-                        inputTensor->set<std::string>("splitStrategy", sstrategy);
-
-                        tensorSet tensors(compareTensor);
-                        tensors.insert(inputTensor);
-                        subTensorsGen(model, tensors, numClusters, pass);
                     }
                 }
             }

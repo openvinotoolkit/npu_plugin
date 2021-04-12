@@ -161,12 +161,9 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
         // Weights sparsity new approach
         if(tensorIt->isPopulated() && tensorIt->isSparse())
         {
-            if(tensorIt->get<bool>("allocateSparsityMap"))
-            {
-                auto sparsityMap = tensorIt->getSparsityMap();
-                auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
-                dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
-            }
+            auto sparsityMap = tensorIt->getSparsityMap();
+            auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
+            dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
         } else if (tensorIt->isSparse()) {
 
           // unpopulated sparse tensor : also defines them. //
