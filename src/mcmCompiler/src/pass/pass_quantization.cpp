@@ -212,9 +212,6 @@ mv::QuantizationParams mv::extractQuantParams(mv::Data::OpListIterator fqOp, boo
     if (fqOp->getOpType() != "FakeQuantize")
         throw std::runtime_error("extractQuantParams works only with FQ layers");
 
-    auto inputs = fqOp->getInputTensor();
-    auto attrs = fqOp->getAttrs();
-
     auto levels = fqOp->get<unsigned>("levels");
 
     std::vector<double> min_range;

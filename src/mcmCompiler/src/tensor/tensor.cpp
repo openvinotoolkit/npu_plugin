@@ -241,9 +241,8 @@ void mv::Tensor::populate(const std::vector<double>& data)
     }
 
     if (getOrder() != internalOrder_){
-        std::vector<std::size_t> sub(shape_.ndims());
         for(std::size_t j = 0; j < data.size();++j){
-            sub = getOrder().indToSub(shape_, j);
+            std::vector<std::size_t> sub = getOrder().indToSub(shape_, j);
             auto idx = internalOrder_.subToInd(shape_, sub);
             auto b = idx / blockSize_;
             auto i = idx % blockSize_;
@@ -278,9 +277,8 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
     }
 
     if (getOrder() != internalOrder_){
-        std::vector<std::size_t> sub(shape_.ndims());
         for(std::size_t j = 0; j < data.size();++j){
-            sub = getOrder().indToSub(shape_, j);
+            std::vector<std::size_t> sub = getOrder().indToSub(shape_, j);
             auto idx = internalOrder_.subToInd(shape_, sub);
             auto b = idx / blockSize_;
             auto i = idx % blockSize_;
@@ -320,9 +318,8 @@ void mv::Tensor::populate(const std::vector<int64_t>& data)
         data_.push_back(std::make_shared<std::vector<DataElement>>(blockSize_, false));
 
     if (getOrder() != internalOrder_){
-        std::vector<std::size_t> sub(shape_.ndims());
         for(std::size_t j = 0; j < data.size();++j){
-            sub = getOrder().indToSub(shape_, j);
+            std::vector<std::size_t> sub = getOrder().indToSub(shape_, j);
             auto idx = internalOrder_.subToInd(shape_, sub);
             auto b = idx / blockSize_;
             auto i = idx % blockSize_;
@@ -768,14 +765,13 @@ std::vector<double> mv::Tensor::getDoubleData()
 
     std::vector<double> orderedData(shape_.totalSize());
 
-    std::vector<std::size_t> sub(shape_.ndims());
     auto temp_dataTotal = data_.size() * blockSize_;
     for (std::size_t i = 0; i < temp_dataTotal; ++i)
     {
         auto t = i/blockSize_;
         auto u = i%blockSize_;
         if (getOrder() != internalOrder_){
-            sub = internalOrder_.indToSub(shape_, i);
+            std::vector<std::size_t> sub = internalOrder_.indToSub(shape_, i);
             auto idx = getOrder().subToInd(shape_, sub);
             orderedData[idx] = data_[t]->at(u);
         }
@@ -794,7 +790,6 @@ std::vector<mv::DataElement> mv::Tensor::getData()
 
     std::vector<DataElement> orderedData(shape_.totalSize(), DataElement(isDoubleType()));
 
-    std::vector<std::size_t> sub(shape_.ndims());
     auto temp_dataTotal = data_.size()*blockSize_;
     temp_dataTotal = shape_.totalSize();
     for (std::size_t i = 0; i < temp_dataTotal; ++i)
@@ -802,7 +797,7 @@ std::vector<mv::DataElement> mv::Tensor::getData()
         auto t = i/blockSize_;
         auto u = i%blockSize_;
         if (getOrder() != internalOrder_){
-            sub = internalOrder_.indToSub(shape_, i);
+            std::vector<std::size_t> sub = internalOrder_.indToSub(shape_, i);
             auto idx = getOrder().subToInd(shape_, sub);
             orderedData[idx] = data_[t]->at(u);
         }
@@ -908,7 +903,6 @@ int mv::Tensor::getZeroValuesCount()
     int numZeroPoints = 0;
 
     auto shape = getShape();
-    std::vector<std::size_t> sub(shape.ndims());
     std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
 
     int64_t datai;
@@ -920,7 +914,7 @@ int mv::Tensor::getZeroValuesCount()
     {
         for (std::size_t i = 0; i < outputChannelSize; i++)
         {
-            sub = getOrder().indToSub(shape, k*outputChannelSize + i);
+            std::vector<std::size_t> sub = getOrder().indToSub(shape, k*outputChannelSize + i);
             auto idx = internalOrder_.subToInd(shape, sub);
             auto b = idx/blockSize_;
             auto d = idx%blockSize_;
@@ -944,7 +938,6 @@ std::vector<int64_t> mv::Tensor::getIntData()
 
     std::vector<int64_t> orderedData(shape_.totalSize());
 
-    std::vector<std::size_t> sub(shape_.ndims());
     auto temp_dataTotal = data_.size() * blockSize_;
     for (std::size_t i = 0; i < temp_dataTotal; ++i)
     {
@@ -952,7 +945,7 @@ std::vector<int64_t> mv::Tensor::getIntData()
         auto u = i % blockSize_;
         if (getOrder() != internalOrder_)
         {
-            sub = internalOrder_.indToSub(shape_, i);
+            std::vector<std::size_t> sub = internalOrder_.indToSub(shape_, i);
             auto temp = getOrder().subToInd(shape_, sub);
             orderedData[temp] = data_[t]->at(u);
         }
@@ -1388,7 +1381,6 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsign
     if (isPopulated())
     {
         //NOTE Shape of Populated will be aligned already, so I am using the shape not the workload
-        auto shape = getShape();
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
@@ -1407,7 +1399,6 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsign
     }
     else
     {
-        auto shape = getShape();
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
