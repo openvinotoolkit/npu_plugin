@@ -45,11 +45,14 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/shape.hpp>
 #include <ngraph/type/element_type.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
+#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
@@ -1286,6 +1289,10 @@ void runNGraphPasses(std::shared_ptr<ngraph::Function> netGraph) {
     passConfig->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
     ngraph::pass::Manager manager(passConfig);
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
+    manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
     manager.run_passes(netGraph);
