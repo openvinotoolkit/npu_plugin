@@ -124,7 +124,6 @@ TEST_P(PWLAccuracy, test) {
 }
 
 auto Symmetrical = [](float low, float high, float step_range = 1.) {
-    std::pair<float, float> ranges = {low, high};
     float min_range = 2.;
 
     std::vector<std::tuple<float, float>> pp;
