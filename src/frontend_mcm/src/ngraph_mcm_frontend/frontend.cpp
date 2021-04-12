@@ -169,13 +169,15 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
                     targetDescName = "release_mtl";
                     break;
                 }
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0:
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
-                default: {
                     targetDescName = "release_kmb";
-                }
+                    break;
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
+                default:
+                    errMsg = "Error: VPUXPlatform is not defined.";
+                    return {};
             }
         }
 
@@ -194,13 +196,15 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
                     compDescName = "release_mtl";
                     break;
                 }
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0:
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
-                default: {
                     compDescName = "release_kmb";
-                }
+                    break;
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
+                default:
+                    errMsg = "Error: VPUXPlatform is not defined.";
+                    return {};
             }
         }
 
