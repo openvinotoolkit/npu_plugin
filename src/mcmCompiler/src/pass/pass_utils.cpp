@@ -550,3 +550,34 @@ std::vector<std::string>::const_iterator mv::findIsDPUPwlPostOp(const std::vecto
     }
     return postOps.end();
 }
+
+bool mv::matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    auto opIt = it;
+
+    for (auto& layer : pattern) {
+        if (opIt->getOpType() != layer) {
+            return false;
+        }
+
+        opIt = om.getSourceOp(opIt->getInputTensor(0));
+    }
+
+    return true;
+}
+
+bool mv::matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::Data::OpListIterator& lastIt, mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    auto opIt = it;
+
+    for (auto& layer : pattern) {
+        if (opIt->getOpType() != layer) {
+            return false;
+        }
+
+        lastIt = opIt;
+        opIt = om.getSourceOp(opIt->getInputTensor(0));
+    }
+
+    return true;
+}

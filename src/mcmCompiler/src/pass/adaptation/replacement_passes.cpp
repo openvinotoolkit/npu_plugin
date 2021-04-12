@@ -1225,21 +1225,6 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel & om, mv::Data::OpLi
     return depthwise_conv;
 }
 
-bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::ComputationModel& model) {
-    mv::OpModel om(model);
-    auto opIt = it;
-
-    for (auto& layer : pattern) {
-        if (opIt->getOpType() != layer) {
-            return false;
-        }
-
-        opIt = om.getSourceOp(opIt->getInputTensor(0));
-    }
-
-    return true;
-}
-
 bool canReplaceAveragePool(mv::Data::OpListIterator first, mv::Data::OpListIterator second, mv::OpModel& om) {
     auto first_attrs  = first->getAttrs({"opId"});
     auto second_attrs = second->getAttrs({"opId"});
@@ -1266,6 +1251,7 @@ bool canReplaceAveragePool(mv::Data::OpListIterator first, mv::Data::OpListItera
 }
 
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& , mv::ComputationModel& model) {
+    using namespace mv;
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     // Note: Pattern is reversed. First AveragePool in vector is the last AveragePool in graph
@@ -2339,22 +2325,6 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
                                                         nextOp);
         }        
     }
-}
-
-bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::Data::OpListIterator& lastIt, mv::ComputationModel& model) {
-    mv::OpModel om(model);
-    auto opIt = it;
-
-    for (auto& layer : pattern) {
-        if (opIt->getOpType() != layer) {
-            return false;
-        }
-
-        lastIt = opIt;
-        opIt = om.getSourceOp(opIt->getInputTensor(0));
-    }
-    
-    return true;
 }
 
 void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model)
