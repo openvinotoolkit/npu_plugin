@@ -260,7 +260,7 @@ bool isSliceToBeMovedToDdr(mv::Data::OpListIterator sliceOp, mv::OpModel& om)
     return true;
 }
 
-bool isSliceToOutput(mv::Data::OpListIterator sliceOp, mv::OpModel& om)
+bool isSliceToOutput(mv::Data::OpListIterator& sliceOp, mv::OpModel& om)
 {
     return (sliceOp.leftmostOutput().sink()->getOpType() == "Output");
 }

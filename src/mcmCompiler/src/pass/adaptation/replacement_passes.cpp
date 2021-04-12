@@ -1998,7 +1998,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
     return operation;
 }
 
-mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model, mv::Data::OpListIterator operation, size_t widthSlice, size_t heightSlice, mv::Data::OpListIterator nextOpIt)
+mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model, mv::Data::OpListIterator& operation, size_t widthSlice, size_t heightSlice, mv::Data::OpListIterator& nextOpIt)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
