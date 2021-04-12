@@ -126,8 +126,8 @@ Element(other),
 shape_(other.shape_),
 internalOrder_(other.internalOrder_),
 blockSize_(other.blockSize_),
-sparsityMap_(other.sparsityMap_),
-storageElement_(other.storageElement_),
+sparsityMap_(),
+storageElement_(),
 subTensors_(),
 kernelDataOffsets_(other.kernelDataOffsets_),
 noneZeroElements_(other.noneZeroElements_)
@@ -148,18 +148,21 @@ noneZeroElements_(other.noneZeroElements_)
     {
         data_ = other.data_;
         blocks_ = other.blocks_;
-    } else if (other.isSparse()) {
-      // when copying an unpopulated sparse tensor create brand new sparsitymap
-      // and storage pointers as they cannot be shared like populated (read-only)
-      // tensors.
-      set<bool>("sparse", false);
-      for (size_t i=0; i<other.numSubTensors(); i++) {
-        subTensors_[i]->set<bool>("sparse", false);
-      }
-      setSparse();
-      if (other.hasAttr("address")) {
-        setAddress(other.get<size_t>("address"));
-      }
+    }
+
+    if (other.isSparse()) {
+        set<bool>("sparse", false);
+        for (size_t i = 0; i < other.numSubTensors(); i++) {
+            subTensors_[i]->set<bool>("sparse", false);
+        }
+        setSparse();
+        if (isPopulated()) {
+            sparsityMap_ = std::make_shared<Tensor>(*other.sparsityMap_);
+            sparsityMap_->setName(createSparsityMapName(getName()));
+        }
+        if (other.hasAttr("address")) {
+            setAddress(other.get<size_t>("address"));
+        }
     }
 }
 
@@ -544,7 +547,6 @@ bool mv::Tensor::setSparse()
         return false;
 
     set<bool>("sparse", true);
-    set<bool>("allocateSparsityMap", true);
 
     auto shape = getShape();
     size_t N = shape[shape.ndims()-1];
@@ -1228,8 +1230,6 @@ mv::Tensor& mv::Tensor::operator=(const Tensor& other)
     shape_ = other.shape_;
     internalOrder_ = other.internalOrder_;
     blockSize_ = other.blockSize_;
-    sparsityMap_ = other.sparsityMap_;
-    storageElement_ = other.storageElement_;
     subTensors_ = other.subTensors_;
     kernelDataOffsets_ = other.kernelDataOffsets_;
 
@@ -1247,18 +1247,21 @@ mv::Tensor& mv::Tensor::operator=(const Tensor& other)
     {
         data_ = other.data_;
         blocks_ = other.blocks_;
-    } else if (other.isSparse()) {
-      // when copying an unpopulated sparse tensor create brand new sparsitymap
-      // and storage pointers as they cannot be shared like populated (read-only)
-      // tensors.
-      set<bool>("sparse", false);
-      for (size_t i=0; i<other.numSubTensors(); i++) {
-        subTensors_[i]->set<bool>("sparse", false);
-      }
-      setSparse();
-      if (other.hasAttr("address")) {
-        setAddress(other.get<size_t>("address"));
-      }
+    }
+
+    if (other.isSparse()) {
+        set<bool>("sparse", false);
+        for (size_t i = 0; i < other.numSubTensors(); i++) {
+            subTensors_[i]->set<bool>("sparse", false);
+        }
+        setSparse();
+        if (isPopulated()) {
+            sparsityMap_ = std::make_shared<Tensor>(*other.sparsityMap_);
+            sparsityMap_->setName(createSparsityMapName(getName()));
+        }
+        if (other.hasAttr("address")) {
+            setAddress(other.get<size_t>("address"));
+        }
     }
 
     return *this;

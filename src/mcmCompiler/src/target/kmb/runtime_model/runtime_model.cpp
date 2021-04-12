@@ -1607,20 +1607,17 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
         if(inputTensor->isSparse())
         {
-          if (inputTensor->isPopulated()) {
-            // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
-            auto tensorSparsityMap =
-                dm.getTensor(inputTensor->getSparsityMap()->getName());
-            case1MC(numTasks, cm, direction, compilationDescriptor,
-                padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
-                  tensorSparsityMap, port, portLimit, "GraphFile", "VPU_CMX_NN");
-          } else {
             auto inputSparsityMap =
                 dm.getTensor(inputTensor->getSparsityMap()->getName());
-            auto inputStorageElementTable =
-                dm.getTensor(inputTensor->getStorageElement()->getName());
             auto outputSparsityMap =
                 dm.getTensor(outputTensor->getSparsityMap()->getName());
+          if (inputTensor->isPopulated()) {
+            case1MC(numTasks, cm, direction, compilationDescriptor,
+                padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
+                  outputSparsityMap, port, portLimit, "GraphFile", "VPU_CMX_NN");
+          } else {
+            auto inputStorageElementTable =
+                dm.getTensor(inputTensor->getStorageElement()->getName());
             auto outputStorageElementTable =
                 dm.getTensor(outputTensor->getStorageElement()->getName());
 
@@ -1653,19 +1650,17 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         // Sparsity Map (SM).
         if(inputTensor->isSparse())
         {
+          auto inputSparsityMap =
+            dm.getTensor(inputTensor->getSparsityMap()->getName());
+          auto outputSparsityMap =
+            dm.getTensor(outputTensor->getSparsityMap()->getName());
           if (inputTensor->isPopulated()) {
-            // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
-            auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
             case2MC(numTasks, cm, direction, compilationDescriptor,
-                padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
-                  tensorSparsityMap, port, portLimit, "GraphFile", "VPU_CMX_NN");
+                padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
+                  outputSparsityMap, port, portLimit, "GraphFile", "VPU_CMX_NN");
           } else {
-            auto inputSparsityMap =
-                dm.getTensor(inputTensor->getSparsityMap()->getName());
             auto inputStorageElementTable =
                 dm.getTensor(inputTensor->getStorageElement()->getName());
-            auto outputSparsityMap =
-                dm.getTensor(outputTensor->getSparsityMap()->getName());
             auto outputStorageElementTable =
                 dm.getTensor(outputTensor->getStorageElement()->getName());
 
