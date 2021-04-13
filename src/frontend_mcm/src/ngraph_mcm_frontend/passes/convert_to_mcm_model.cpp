@@ -1651,6 +1651,53 @@ void convert(std::shared_ptr<ngraph::op::v1::Split> split, mv::OpModel& mcmModel
     registerOutputs(split, mcmOutputs, mcmOutputsMap);
 }
 
+static std::vector<int64_t> apply_masks(const std::vector<int64_t>& indexes,
+                                        const std::vector<size_t>& real_indexes,
+                                        const std::vector<int64_t>& mask) {
+    IE_ASSERT(indexes.size() == real_indexes.size());
+    IE_ASSERT(indexes.size() == mask.size());
+    // 1 means that the 'real' index must be used along corresponding dimension
+    std::vector<int64_t> masked_indexes;
+    for (size_t pos = 0; pos < mask.size(); pos++) {
+        if (mask.at(pos) > 0) {
+            masked_indexes.push_back(real_indexes.at(pos));
+        } else {
+            masked_indexes.push_back(indexes.at(pos));
+        }
+    }
+    return masked_indexes;
+}
+
+static std::vector<size_t> apply_negative_indexes(const std::vector<int64_t>& in_indexes,
+                                                  const std::vector<size_t>& input_shape) {
+    IE_ASSERT(in_indexes.size() == input_shape.size());
+    // negative values mean indexing starts from the end
+    std::vector<size_t> out_indexes;
+    for (size_t pos = 0; pos < in_indexes.size(); pos++) {
+        if (in_indexes.at(pos) < 0) {
+            out_indexes.push_back(input_shape.at(pos) + in_indexes.at(pos));
+        } else {
+            out_indexes.push_back(in_indexes.at(pos));
+        }
+    }
+    return out_indexes;
+}
+
+static std::vector<size_t> clamp_indexes(const std::vector<size_t>& in_indexes,
+                                         const std::vector<size_t>& input_shape) {
+    IE_ASSERT(in_indexes.size() == input_shape.size());
+    // out-of-bounds values will be silently clamped
+    std::vector<size_t> out_indexes;
+    for (size_t pos = 0; pos < in_indexes.size(); pos++) {
+        if (in_indexes.at(pos) > input_shape.at(pos)) {
+            out_indexes.push_back(input_shape.at(pos));
+        } else {
+            out_indexes.push_back(in_indexes.at(pos));
+        }
+    }
+    return out_indexes;
+}
+
 void convert(std::shared_ptr<ngraph::op::v1::StridedSlice> stridedSlice, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto& opName = stridedSlice->get_friendly_name();
     const auto mcmInputs = getMcmInputs(stridedSlice, mcmOutputsMap);
@@ -1662,13 +1709,31 @@ void convert(std::shared_ptr<ngraph::op::v1::StridedSlice> stridedSlice, mv::OpM
     const auto end_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(end_node);
     const auto stride_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(stride_node);
 
+    const auto input_shape = stridedSlice->get_input_shape(0);
+
+    // apply mask to begin node
+    const auto begin_mask = stridedSlice->get_begin_mask();
+    const auto begin_node_data = begin_node_const->cast_vector<int64_t>();
+    std::vector<size_t> real_begin_indexes(input_shape.size(), 0);
+    std::vector<int64_t> begin_node_masked = apply_masks(begin_node_data, real_begin_indexes, begin_mask);
+    std::vector<size_t> begin_node_positive = apply_negative_indexes(begin_node_masked, input_shape);
+    std::vector<size_t> begin_node_clamped = clamp_indexes(begin_node_positive, input_shape);
+
+    // apply mask to end node
+    const auto end_mask = stridedSlice->get_end_mask();
+    const auto end_node_data = end_node_const->cast_vector<int64_t>();
+    std::vector<size_t> real_end_indexes = input_shape;
+    std::vector<int64_t> end_node_masked = apply_masks(end_node_data, real_end_indexes, end_mask);
+    std::vector<size_t> end_node_positive = apply_negative_indexes(end_node_masked, input_shape);
+    std::vector<size_t> end_node_clamped = clamp_indexes(end_node_positive, input_shape);
+
     // Remove unused constant inputs.
     for (size_t i = 1; i < mcmInputs.size(); ++i) {
         mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
     }
 
-    mv::Shape beginShape(getMemoryOrder(begin_node_const->cast_vector<size_t>()));
-    mv::Shape endShape(getMemoryOrder(end_node_const->cast_vector<size_t>()));
+    mv::Shape beginShape(getMemoryOrder(begin_node_clamped));
+    mv::Shape endShape(getMemoryOrder(end_node_clamped));
     mv::Shape strideShape(getMemoryOrder(stride_node_const->cast_vector<size_t>()));
 
     auto mcmStridedSlice = mcmModel.stridedSlice(opName, mcmInputs.at(0), beginShape, endShape, strideShape);
