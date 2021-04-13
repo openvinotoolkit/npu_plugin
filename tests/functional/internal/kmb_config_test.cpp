@@ -19,7 +19,7 @@
 using ConfigMap = std::map<std::string, std::string>;
 using ConfigTestParams = std::tuple<ConfigMap, ConfigMap, ConfigMap, ConfigMap, ConfigMap, ConfigMap>;
 
-class KmbConfigTest : public KmbNetworkTestBase, public testing::WithParamInterface<ConfigTestParams> {
+class KmbConfigTest : public KmbLayerTestBase, public testing::WithParamInterface<ConfigTestParams> {
 public:
     void runTest(
         const ConfigMap& compileConfig,
@@ -41,8 +41,7 @@ void KmbConfigTest::runTest(
         .finalize();
 
     testNet.setCompileConfig(compileConfig);
-    CNNNetwork cnnNet = testNet.getCNNNetwork();
-    ExecutableNetwork exeNet = core->LoadNetwork(cnnNet, DEVICE_NAME, compileConfig);
+    ExecutableNetwork exeNet = KmbLayerTestBase::getExecNetwork(testNet);
     KmbTestBase::exportNetwork(exeNet);
 
     if (RUN_INFER) {
