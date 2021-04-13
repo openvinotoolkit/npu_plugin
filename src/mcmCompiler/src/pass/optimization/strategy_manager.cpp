@@ -597,18 +597,6 @@ void updateTensorLocationFromCriticalPath(StrategyManager::CriticalPathNodes& cr
         auto op = model.getOp(opName);
         setOptimalTensorLocation(op, spilling, streamShape);
     }
-
-    // align the input/output location for mixedPrecisionCopy
-    for(auto op : model.getOps("Copy"))
-    {
-        auto parentOpType = model.getSourceOp(op->getInputTensor(0))->getOpType();
-        if(op->hasAttr("mixedPrecisionCopy") && op->get<bool>("mixedPrecisionCopy") && (parentOpType != "Input") && (parentOpType != "ImplicitInput"))
-        {
-            auto inputTensor = op->getInputTensor(0);
-            auto outTensor = op->getOutputTensor(0);
-            outTensor->set<mv::Tensor::MemoryLocation>("Location", inputTensor->get("Location"));
-        }
-    }
 }
 
 void updateTensorLocationAfterLoadStrategies(OpModel& model)
