@@ -3605,26 +3605,26 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAPowerTask(mv::ComputationModel &
                                                           mv::Element &compilationDescriptor,
                                                           mv::Control::OpListIterator opIt)
 {
-    auto* postOpsParamsValue = new MVCNN::PowerParamsT();
+    auto postOpsParamsValue = std::unique_ptr<MVCNN::PowerParamsT>(new MVCNN::PowerParamsT());
     postOpsParamsValue->power = opIt->get<double>("power");
     postOpsParamsValue->scale = opIt->get<double>("scale");
     postOpsParamsValue->shift = opIt->get<double>("shift");
 
-    auto* softLayerParamsValue = new MVCNN::PostOpsParamsT();
+    auto softLayerParamsValue = std::unique_ptr<MVCNN::PostOpsParamsT>(new MVCNN::PostOpsParamsT());
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_PowerParams;
-    softLayerParamsValue->nested_params.value = postOpsParamsValue;
+    softLayerParamsValue->nested_params.value = postOpsParamsValue.release();
 
-    auto input = opIt->getInputTensor(0);
-    auto output = opIt->getOutputTensor(0);
-    auto toBuild = new MVCNN::UPALayerTaskT();
+    auto input = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
+    auto output = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+    auto toBuild = std::unique_ptr<MVCNN::UPALayerTaskT>(new MVCNN::UPALayerTaskT());
 
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
-    toBuild->softLayerParams.value = softLayerParamsValue;
+    toBuild->softLayerParams.value = softLayerParamsValue.release();
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
-    return toBuild;
+    return toBuild.release();
 }
 
 MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAMishTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
@@ -4181,13 +4181,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPASpaceToDepthTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "CTCGreedyDecoderSeqLen")
         toReturn[0]->task.value = buildUPACTCGreedyDecoderSeqLenTask(cm, compilationDescriptor, opIt);
-<<<<<<< HEAD
     else if(underlyingTask == "Prelu")
         toReturn[0]->task.value = buildUPAPreluTask(cm, compilationDescriptor, opIt);
-=======
     else if(underlyingTask == "Power")
         toReturn[0]->task.value = buildUPAPowerTask(cm, compilationDescriptor, opIt);
->>>>>>> Power: rework MCM layer
 
     // TODO: Add other UPA layers
 
