@@ -2008,9 +2008,11 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
     auto width = inputShape[mv::IO_WIDTH_DIMENSION];
     auto height = inputShape[mv::IO_HEIGHT_DIMENSION];
     std::array<unsigned short, 2> stride = operation->get<std::array<unsigned short, 2>>("stride");
+    auto maxStride = std::max(stride[mv::STRIDE_HORIZONTAL], stride[mv::STRIDE_VERTICAL]);
+    auto minStride = std::min(stride[mv::STRIDE_HORIZONTAL], stride[mv::STRIDE_VERTICAL]);
 
     {
-        std::array<unsigned short, 2> newStride = {2,2};
+        std::array<unsigned short, 2> newStride = {maxStride, maxStride};
         std::array<unsigned short, 2> kSize;
         if ( operation->hasAttr("kSize") )
             kSize = operation->get<std::array<unsigned short, 2>>("kSize");
@@ -2021,54 +2023,39 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
         std::array<unsigned short, 4> initialPadding = operation->get<std::array<unsigned short, 4>>("padding");
         std::array<unsigned short, 4> padding = initialPadding;
 
-        std::size_t branchWidth, branchHeight;
-        mv::Shape beginInputShape, branchInputSize; //coordinates to slice
-        //if strides bigger than supported stride, replace the operation with big strides by the chunks of operations with strides of a batch
+        mv::Shape beginInputShape; //coordinates to slice
 
-        branchWidth = stride[mv::STRIDE_HORIZONTAL];//no overlap
-        branchHeight = stride[mv::STRIDE_VERTICAL];//no overlap
-        branchInputSize = {branchWidth, branchHeight, inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
-        padding = {0, 0, 0, 0};
         //sliced op iteratively and the vector
         mv::Data::TensorIterator op;
         mv::Data::TensorIterator opConcatHorizontal;
         std::vector <mv::Data::TensorIterator> opsHorizontal;
-
-        //concat iteratively on the line vertically on the width axis and the vector of Horizontally Concats to be concatenated Vertically
         mv::Data::TensorIterator opConcat;
         std::vector <mv::Data::TensorIterator> opsSlicesConcatHorizontally;
-        
-        size_t input_w = std::max(stride[mv::STRIDE_HORIZONTAL], kSize[mv::KERNEL_WIDTH]);
-        size_t input_h = std::max(stride[mv::STRIDE_VERTICAL], kSize[mv::KERNEL_HEIGHT]);
 
-        bool is_equal_kernel = kSize[mv::KERNEL_WIDTH] == stride[mv::STRIDE_WIDTH]
-                && kSize[mv::KERNEL_HEIGHT] == stride[mv::STRIDE_HEIGHT];
-
-        size_t hslices = stride[mv::STRIDE_VERTICAL];
-        size_t vslices = stride[mv::STRIDE_HORIZONTAL];
+        size_t hslices = 1;
+        size_t vslices = 1;
+        if(stride[mv::STRIDE_VERTICAL] > stride[mv::STRIDE_HORIZONTAL])
+            hslices = stride[mv::STRIDE_VERTICAL] / stride[mv::STRIDE_HORIZONTAL];
+        else
+            vslices = stride[mv::STRIDE_HORIZONTAL] / stride[mv::STRIDE_VERTICAL];
 
         auto outputQuantParams = operation->getOutputTensor(0)->getQuantParams();
         auto dType = operation->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
 
-        unsigned int i = 0; //counts the slices on the 0x axis
-        unsigned int j = 0; //counts the slices on the 0y axis
-        do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on oy axis 
-            do {//slicing on the horizontal axis , agnostic whether we need to slice horizontally that's why [do .. while] is chosen to execute at least once the code if we not slice on ox axis
-                //start new tile from the boundaries, with origin at the strides
-                beginInputShape = { (unsigned long)( (i)*(heightSlice - 1)),
-                                    (unsigned long)( (j)*(widthSlice - 1)),
+        unsigned int i = 0; //counts the slices on the width axis
+        unsigned int j = 0; //counts the slices on the height axis
+        do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on height axis 
+            do {//slicing on the horizontal axis , agnostic whether we need to slice horizontally that's why [do .. while] is chosen to execute at least once the code if we not slice on width axis
+                beginInputShape = { (unsigned long)( (i)*minStride),
+                                    (unsigned long)( (j)*minStride),
                                     0, 0};
 
-                // padding = { static_cast<unsigned short>((i == 0)         ? initialPadding[mv::PADDING_LEFT]  : 0),
-                //             static_cast<unsigned short>((i+1 == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0),
-                //             static_cast<unsigned short>((j == 0)         ? initialPadding[mv::PADDING_TOP]   : 0),
-                //             static_cast<unsigned short>((j+1 == vslices) ? initialPadding[mv::PADDING_BOT]   : 0) };
-                padding[mv::PADDING_RIGHT] = initialPadding[mv::PADDING_RIGHT] + i;
-                padding[mv::PADDING_BOT] = initialPadding[mv::PADDING_BOT] + j;
+                padding[mv::PADDING_RIGHT] = initialPadding[mv::PADDING_RIGHT] + (i)*minStride;
+                padding[mv::PADDING_BOT] = initialPadding[mv::PADDING_BOT] + (j)*minStride;
                             
                 mv::Shape branchInputSize = {
-                                width - i,
-                                height - j,
+                                width - (i)*minStride,
+                                height - (j)*minStride,
                                 inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
                                 inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};           
                 std::string sliceName ("Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j));
@@ -2082,44 +2069,14 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
                 sliceInputOp->set<unsigned>("opId", initialOpId);
                 auto parentOpIt = om.getSourceOp(inputTensor);
 
-                if (operation->getOpType() == "AveragePool")
-                {
-                    op = om.averagePool(operation->getName() + sliceName,
-                                        sliceInput,
-                                        kSize,
-                                        newStride,
-                                        padding,
-                                        true); // exclude pad
-                }
-                else if (operation->getOpType() == "DepthwiseConv")
-                {
-                    op  = om.depthwiseConv(operation->getName() + sliceName,
-                                        sliceInput,
-                                        operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET),
-                                        newStride,
-                                        padding,
-                                        operation->get<unsigned>("dilationFactor"));
-                    om.getSourceOp(op)->set<bool>("DWWithReplaceLargeStrides", true);
-                }
-                else if (operation->getOpType()== "Conv")
-                {
-                    op = om.conv(operation->getName() + sliceName,
-                                sliceInput,
-                                operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET),
-                                newStride,
-                                padding,
-                                operation->get<unsigned>("dilationFactor"),
-                                1); // no group dilation
-                }
-                else if (operation->getOpType()== "MaxPool")
-                {
-                    op = om.maxPool(operation->getName() + sliceName,
-                                    sliceInput,
-                                    kSize,
-                                    newStride,
-                                    padding,
-                                    true); // exclude pad
-                }
+                op = om.conv(operation->getName() + sliceName,
+                            sliceInput,
+                            operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET),
+                            newStride,
+                            padding,
+                            operation->get<unsigned>("dilationFactor"),
+                            1); // no group dilation
+
                 op->setDType(dType);
                 op->setQuantParams(outputQuantParams);
                 op->set<unsigned>("opId", initialOpId);
@@ -2164,13 +2121,13 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
         mv::Shape newShape = opConcat->getShape();
         if(hslices > 1)
         {
-            newShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] * 2;
-            newShape[mv::IO_CHANNEL_DIMENSION] = newShape[mv::IO_CHANNEL_DIMENSION] / 2;
+            newShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] * hslices;
+            newShape[mv::IO_CHANNEL_DIMENSION] = newShape[mv::IO_CHANNEL_DIMENSION] / hslices;
         }
         else if(vslices > 1)
         {
-            newShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] / 2;
-            newShape[mv::IO_HEIGHT_DIMENSION] = newShape[mv::IO_HEIGHT_DIMENSION] * 2;
+            newShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] / vslices;
+            newShape[mv::IO_HEIGHT_DIMENSION] = newShape[mv::IO_HEIGHT_DIMENSION] * vslices;
         };
 
         auto identityReshapeTensor = om.reshape(operation->getName() + "reshape_identity", opConcat, opConcat->getShape());
@@ -2304,10 +2261,10 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
             }
         }
         pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
-        auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+        auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];       
         if((opIt->getOpType() == "Conv") &&
-           ((stride[mv::STRIDE_VERTICAL] == 1 && stride[mv::STRIDE_HORIZONTAL] == 2) ||
-            (stride[mv::STRIDE_VERTICAL] == 2 && stride[mv::STRIDE_HORIZONTAL] == 1)))
+           ((stride[mv::STRIDE_VERTICAL] % stride[mv::STRIDE_HORIZONTAL] == 0) ||
+            (stride[mv::STRIDE_HORIZONTAL] % stride[mv::STRIDE_VERTICAL] == 0)))
         {
             opIt = splitOperationSlicingV2 (om,
                                             opIt,
