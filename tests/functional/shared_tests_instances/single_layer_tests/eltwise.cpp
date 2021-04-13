@@ -53,20 +53,6 @@ class KmbEltwiseLayerTest: public EltwiseLayerTest, virtual public LayerTestsUti
                 throw LayerTestsUtils::KmbSkipTestException("Unsupported eltwise type in MCM compiler");
             }
 
-            // Skip below is due to error with operation type SquaredDifference at step
-            // [Debug  ][VPU][KMB nGraph Parser] Convert nGraph to MCM Model
-            // kmb-plugin/tests/functional/shared_tests_instances/kmb_layer_test.cpp:152: Failure
-            // Expected: executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration) doesn't
-            // throw an exception.
-            // Actual: it throws:Unsupported operation: SquaredDifference_3722 with name SquaredDifference_3728 with
-            // type SquaredDifference with C++ type N6ngraph2op2v017SquaredDifferenceE
-            // kmb-plugin/src/frontend_mcm/src/ngraph_mcm_frontend/passes/convert_to_mcm_model.cpp:1901
-            // openvino/inference-engine/include/details/ie_exception_conversion.hpp:66
-            // [Track number: S#51154]
-            if (eltwiseOp == ngraph::helpers::EltwiseTypes::SQUARED_DIFF) {
-                throw LayerTestsUtils::KmbSkipTestException("Unsupported operation: SquaredDifference");
-            }
-
             // Skip below is due to error during run of tests on KMB-board (it is oly for VECTOR OpType):
             // [Debug  ][VPU][VpualCoreNNExecutor] Allocated buffer for input with the size:
             // [Info   ][VPU][VpualCoreNNExecutor] allocateGraph begins
@@ -76,7 +62,7 @@ class KmbEltwiseLayerTest: public EltwiseLayerTest, virtual public LayerTestsUti
             // doesn't throw an exception.
             // Actual: it throws:VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: 6
             // [Track number: S#51349]
-            if (scalarOnlyShapes.find(inShapes) != scalarOnlyShapes.end() &&
+            if (scalarOnlyShapes.find(inShapes) == scalarOnlyShapes.end() ||
                                                                 opType == CommonTestUtils::OpType::VECTOR) {
                 throw LayerTestsUtils::KmbSkipTestException("VECTOR OpType is unsupported");
             }

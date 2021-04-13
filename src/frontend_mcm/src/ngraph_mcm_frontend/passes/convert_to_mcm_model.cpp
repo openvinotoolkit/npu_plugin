@@ -106,6 +106,7 @@
 #include <ngraph/op/strided_slice.hpp>
 #include <ngraph/op/mvn.hpp>
 #include <ngraph/op/space_to_depth.hpp>
+#include <ngraph/op/squared_difference.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
@@ -1880,6 +1881,16 @@ void convert(std::shared_ptr<ngraph::op::v6::CTCGreedyDecoderSeqLen> CTCGreedyDe
     registerOutputs(CTCGreedyDecoderSeqLen, {ctcOutput0, ctcOutput1}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::SquaredDifference> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "SqDiff");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
 template <typename T>
@@ -1981,6 +1992,7 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::PRelu),
     MAP_ENTRY(ngraph::op::v0::SpaceToDepth),
     MAP_ENTRY(ngraph::op::v6::CTCGreedyDecoderSeqLen),
+    MAP_ENTRY(ngraph::op::v0::SquaredDifference)
 };
 
 #undef MAP_ENTRY

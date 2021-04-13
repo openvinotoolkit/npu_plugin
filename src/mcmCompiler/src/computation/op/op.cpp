@@ -350,12 +350,22 @@ bool mv::Op::isSparsityConsumer() const
 {
     bool isSparseConsumerOp = false;
     const std::vector<std::string> sparseConsumers = {"Conv", "Eltwise"};
-    if (std::count(sparseConsumers.cbegin(), sparseConsumers.cend(),
-        getOpType()))
+
+    auto opType = getOpType();
+    if (std::count(sparseConsumers.cbegin(), sparseConsumers.cend(), opType))
     {
         isSparseConsumerOp = true;
+        if (opType == "Eltwise")
+        {
+            auto opAttrs = getAttrs();
+            if (opAttrs.find("eltwiseType") != opAttrs.end())
+            {
+                if (opAttrs["eltwiseType"].toString() == "\"SqDiff\"")
+                    isSparseConsumerOp = false;
+            }
+        }
     }
-    else if (getOpType() == "DPUTask" && std::count(sparseConsumers.cbegin(),
+    else if (opType == "DPUTask" && std::count(sparseConsumers.cbegin(),
         sparseConsumers.cend(), get<std::string>("taskOp")))
     {
         isSparseConsumerOp = true;
@@ -368,12 +378,22 @@ bool mv::Op::isHardwarizable() const
     bool isHardwarizableOp = false;
     std::vector<std::string> hardwarizableTypes =
         {"Conv", "Eltwise", "DepthwiseConv", "MaxPool"};
-    if (std::count(hardwarizableTypes.cbegin(), hardwarizableTypes.cend(),
-        getOpType()))
+
+    auto opType = getOpType();
+    if (std::count(hardwarizableTypes.cbegin(), hardwarizableTypes.cend(), opType))
     {
         isHardwarizableOp = true;
+        if (opType == "Eltwise")
+        {
+            auto opAttrs = getAttrs();
+            if (opAttrs.find("eltwiseType") != opAttrs.end())
+            {
+                if (opAttrs["eltwiseType"].toString() == "\"SqDiff\"")
+                    isHardwarizableOp = false;
+            }
+        }
     }
-    else if (getOpType() == "DPUTask" && std::count(hardwarizableTypes.cbegin(),
+    else if (opType == "DPUTask" && std::count(hardwarizableTypes.cbegin(),
         hardwarizableTypes.cend(), get<std::string>("taskOp")))
     {
         isHardwarizableOp = true;
