@@ -150,6 +150,7 @@
                 "name" : "AssignPhysicalBarrier",
                 "real_physical_barriers": 32
             },
+            "VerifyDMASchedulingOrder",
             "BuildGraphFileKmb",
             "UpdatePhysicalIDinGraphFile",
             {
