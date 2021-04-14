@@ -453,6 +453,7 @@
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_UpdateImplicitLayersQuantizationParams")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_UpdatePhysicalIDinGraphFile")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_UseReferenceOps")
+#pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_VerifyDMASchedulingOrder")
 #pragma comment(linker, "/include:__MCM_REGISTER__StrategySetEntry__KmbOptLayerInitConcat")
 #pragma comment(linker, "/include:__MCM_REGISTER__StrategySetEntry__KmbOptLayerInitConv")
 #pragma comment(linker, "/include:__MCM_REGISTER__StrategySetEntry__KmbOptLayerInitDefault")
