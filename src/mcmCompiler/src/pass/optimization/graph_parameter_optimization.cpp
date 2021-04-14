@@ -793,6 +793,10 @@ namespace mv
                 auto sparsityOverhead = op.getInputTensor(0)->isFloatingPointType() ?
                     0.0625 : 0.125;
 
+                // Disable weights sparsity if weights are all equal to zeroPoints
+                if(zeroPoints == (op.getInputTensor(1)->getShape()).totalSize())
+                    return false;
+
                 // Enable weights sparsity if actual sparsity level observed in the tensor
                 // is high enough to warrant the overhead of enabling sparsity
                 if(std::isgreaterequal(actualSparsity, sparsityOverhead))
