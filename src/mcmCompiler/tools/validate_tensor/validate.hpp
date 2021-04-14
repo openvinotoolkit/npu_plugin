@@ -54,6 +54,9 @@ static const char layout_message[] = "Optional. NHWC or NCHW (default) ";
 /// @brief message for debug
 static const char debug_message[] = "Optional. Build in debug mode ";
 
+/// @brief message for vpux platform config
+static const char vpux_platform_message[] = "Required. Vpux platform config file, e.g. vpu3700.config for KMB B0 700MHz";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -105,6 +108,10 @@ DEFINE_string(il, "", layout_message);
 /// @brief Define flag for building in debug mode.
 DEFINE_bool(d, false, debug_message);
 
+/// @brief Define parameter for set VPUX_PLATFORM
+/// It is a required parameter
+DEFINE_string(c, "", vpux_platform_message);
+
 /**
 * @brief This function show a help message
 */
@@ -119,9 +126,10 @@ static void showUsage() {
     std::cout << "    -i <path>           " << image_message << std::endl;
     std::cout << "    -t <float>          " << tolerence_message << std::endl;
     std::cout << "    -d                  " << debug_message << std::endl;
+    std::cout << "    -c                  " << vpux_platform_message << std::endl;
     //std::cout << "    -b <path>           " << blob_message << std::endl;
     //std::cout << "    -a <path>           " << a_tensor_message << std::endl;
     //std::cout << "    -e <path>           " << e_tensor_message << std::endl;
     //std::cout << "    -q true|false         " << quantize_message << std::endl;
-    std::cout << std::endl << "eg, ./validate -i ~/cat.jpg -m ~/models/resnet50.xml -k 10.1.1.1" << std::endl;
+    std::cout << std::endl << "eg, ./validate -i ~/cat.jpg -m ~/models/resnet50.xml -k 10.1.1.1 -c vpu3700.config" << std::endl;
 }
