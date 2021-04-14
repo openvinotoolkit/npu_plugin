@@ -285,6 +285,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_json.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/global_params_reset.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/assign_intermediate_outputs.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/serialization/verify_dma_scheduling_order.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/validation/basic_checks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"
