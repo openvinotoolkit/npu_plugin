@@ -367,6 +367,7 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             "DMAOrdering",
+            "VerifyDMASchedulingOrder",
             "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",
