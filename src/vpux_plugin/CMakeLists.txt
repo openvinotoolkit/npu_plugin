@@ -163,7 +163,7 @@ if(AARCH64)
         COMMAND ${CMAKE_COMMAND} -E make_directory
             "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpu"
         COMMAND ${CMAKE_COMMAND} -E copy
-            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
+            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/*.bin"
             "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpu/"
         COMMENT "[Firmware] Copy vpu.bin"
     )
