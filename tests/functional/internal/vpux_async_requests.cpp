@@ -44,9 +44,10 @@ TEST_P(VpuxAsyncTests, regression_ADK) {
 #endif
 
     if (RUN_COMPILER) {
-        const auto precision = Precision::U8;
+        const std::vector<size_t> dims = {1, 3, 32, 32};
         const auto layout = Layout::NHWC;
-        const std::vector<size_t> dims = {1, 1, 10, 10};
+        const auto userInDesc = TensorDesc(Precision::U8, dims, layout);
+        const auto userOutDesc = TensorDesc(Precision::FP16, layout);
 
         const auto scaleDesc = TensorDesc(Precision::FP32, dims, layout);
         registerBlobGenerator(
@@ -56,10 +57,8 @@ TEST_P(VpuxAsyncTests, regression_ADK) {
                 }
         );
 
-        const auto inputDesc = TensorDesc(precision, dims, layout);
         for (std::size_t i = 0; i < nireq; i++) {
-            registerBlobGenerator(
-                    std::string("input") + std::to_string(i), inputDesc,
+            registerBlobGenerator(std::string("input") + std::to_string(i), userInDesc,
                     [&](const TensorDesc& desc) {
                         return vpux::makeSplatBlob(desc, 1.f + static_cast<float>(i));
                     }
@@ -68,14 +67,13 @@ TEST_P(VpuxAsyncTests, regression_ADK) {
 
         const auto netPrecision = Precision::FP32;
         TestNetwork testNet;
-        testNet
-            .setUserInput("input", inputDesc.getPrecision(), inputDesc.getLayout())
-            .addNetInput("input", inputDesc.getDims(), netPrecision)
+        testNet.setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
+                .addNetInput("input", userInDesc.getDims(), netPrecision)
             .addLayer<PowerLayerDef>("power")
                 .input1("input")
                 .input2(getBlobByName("scale"))
                 .build()
-            .setUserOutput(PortInfo("power"), inputDesc.getPrecision(), inputDesc.getLayout())
+                .setUserOutput(PortInfo("power"), userOutDesc.getPrecision(), userOutDesc.getLayout())
             .addNetOutput(PortInfo("power"))
             .finalize();
 
