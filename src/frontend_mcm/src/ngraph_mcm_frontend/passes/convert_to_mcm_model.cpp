@@ -134,6 +134,12 @@
 #include <converters.hpp>
 #include <custom_layer/custom_layer.hpp>
 
+namespace mv {
+    namespace op_conversion {
+        bool isConversionSupported(const DType& inDType, const DType& outDType, const std::string& opName, std::string& errMsg);
+    }
+}
+
 namespace {
 
 using Callback = void (*)(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
@@ -744,6 +750,38 @@ void convert(std::shared_ptr<McmFC> fc, mv::OpModel& mcmModel, NodeOutputToMcmMa
 
     registerOutputs(fc, {mcmFCOutput}, mcmOutputsMap);
 }
+
+void convert(std::shared_ptr<ngraph::op::v0::Convert> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    const auto mcmData = mcmInputs.at(0);
+    const auto inDType = mcmData->getDType();
+
+    const auto& opName = op->get_friendly_name();
+    const auto outType = op->get_convert_element_type();
+    const auto outDType = cvtElemTypeToMCM(outType);
+
+    std::string errMsg;
+    if (!mv::op_conversion::isConversionSupported(inDType, outDType, opName, errMsg)) {
+        THROW_IE_EXCEPTION << errMsg;
+    }
+
+    // E#9602: Convert layer does not support floating-point to U8 (and back)
+    using typename mv::DType;
+    if ((inDType == DType("UInt8") && (outDType == DType("Float16") || outDType == DType("Float32"))) ||
+        (outDType == DType("UInt8") && (inDType == DType("Float16") || inDType == DType("Float32"))))
+    {
+        THROW_IE_EXCEPTION << "Convert layer does not support FP<->U8 cases"
+                           << " (" << opName << ")"
+                           <<  ": inDType=" <<  inDType.toString()
+                           << ", outDType=" << outDType.toString();
+    }
+
+    const auto mcmConvertOutput = mcmModel.conversion(opName, mcmData, outDType);
+    mcmConvertOutput->setQuantParams(initialQuantParams());
+
+    registerOutputs(op, {mcmConvertOutput}, mcmOutputsMap);
+}
+
 void convert(std::shared_ptr<ngraph::op::v0::FakeQuantize> fq, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(fq, mcmOutputsMap);
     IE_ASSERT(5 == mcmInputs.size());
@@ -2057,7 +2095,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::PRelu),
     MAP_ENTRY(ngraph::op::v0::SpaceToDepth),
     MAP_ENTRY(ngraph::op::v6::CTCGreedyDecoderSeqLen),
-    MAP_ENTRY(ngraph::op::v0::SquaredDifference)
+    MAP_ENTRY(ngraph::op::v0::SquaredDifference),
+    MAP_ENTRY(ngraph::op::v0::Convert),
 };
 
 #undef MAP_ENTRY
