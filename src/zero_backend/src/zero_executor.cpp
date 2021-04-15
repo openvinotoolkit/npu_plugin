@@ -438,8 +438,10 @@ void ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE>::pus
         const InferenceEngine::Blob::Ptr& input = inferInput.second;
 
         auto& desc = mapArguments(_graph._inputs_desc_map, name);
-        if (!twoApiLayoutCouplingCheck(desc.info.layout, input->getTensorDesc().getLayout()))
-            THROW_IE_EXCEPTION << "Layouts is different for push blobs";
+
+        // [Track number: S#10003]
+        //if (!twoApiLayoutCouplingCheck(desc.info.layout, input->getTensorDesc().getLayout()))
+            //THROW_IE_EXCEPTION << "Layouts is different for push blobs";
         if (input->byteSize() != getSizeIOBytes(desc.info)) {
             _logger->info("Sizes are different for push blobs. Need precision convert");
         }
@@ -515,8 +517,10 @@ void ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE>::pul
         InferenceEngine::Blob::Ptr& output = inferOutput.second;
 
         auto& desc = mapArguments(_graph._outputs_desc_map, name, out_id);
-        if (!twoApiLayoutCouplingCheck(desc.info.layout, output->getTensorDesc().getLayout()))
-            THROW_IE_EXCEPTION << "Layouts is different for pull blobs";
+
+        // [Track number: S#10003]
+        //if (!twoApiLayoutCouplingCheck(desc.info.layout, output->getTensorDesc().getLayout()))
+            //THROW_IE_EXCEPTION << "Layouts is different for pull blobs";
         if (output->byteSize() != getSizeIOBytes(desc.info))
             THROW_IE_EXCEPTION << "Sizes are different for pull blobs";
 
