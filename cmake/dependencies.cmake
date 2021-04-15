@@ -262,67 +262,54 @@ if(ENABLE_HDDL2 AND UNIX)
 
         unset(IE_PATH_TO_DEPS)
     endif()
-endif()
 
-if(ENABLE_HDDL2 AND NOT ENABLE_CUSTOM_HDDLUNITE)
-    if(UNIX)
+    if(NOT ENABLE_CUSTOM_HDDLUNITE)
         set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww11.2_2021)
         set(HDDLUNITE_KMB_ARCHIVE_HASH "1b27b77b7ae13f10aeca8703eadb591605f35e2aa6becd7edb7d42cc3b4b2ab4")
         set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww11.2_2021)
         set(HDDLUNITE_VPUX_4_ARCHIVE_HASH "eb98e90faff3747d5a1b57e596d355f5a9bcecea0c4cc0c2c6474e4add82c056")
         set(ARCH_FORMAT ".tgz")
-    else()
-        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww51_Windows)
-        set(HDDLUNITE_KMB_ARCHIVE_HASH "7db757bdb0ec297af307cf15711ecc260e914ba50878fda7f677d2822bb43798")
-        set(ARCH_FORMAT ".zip")
-    endif()
 
-    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
-        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
-    elseif(DEFINED THIRDPARTY_SERVER_PATH)
-        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
-    else()
-        message(FATAL_ERROR "HDDLUnite is not found (missing THIRDPARTY_SERVER_PATH).")
-    endif()
+        if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+            set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+        elseif(DEFINED THIRDPARTY_SERVER_PATH)
+            set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+        else()
+            message(FATAL_ERROR "HDDLUnite is not found (missing THIRDPARTY_SERVER_PATH).")
+        endif()
 
-    if(DEFINED IE_PATH_TO_DEPS)
-        reset_deps_cache(HDDL_UNITE)
+        if(DEFINED IE_PATH_TO_DEPS)
+            reset_deps_cache(HDDL_UNITE)
 
-        RESOLVE_DEPENDENCY(HDDL_UNITE
-                ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"
-                ENVIRONMENT "HDDL_UNITE"
-                TARGET_PATH "${TEMP}/hddl_unite"
-                SHA256 ${HDDLUNITE_KMB_ARCHIVE_HASH})
-        if(UNIX)
+            RESOLVE_DEPENDENCY(HDDL_UNITE
+                    ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"
+                    ENVIRONMENT "HDDL_UNITE"
+                    TARGET_PATH "${TEMP}/hddl_unite"
+                    SHA256 ${HDDLUNITE_KMB_ARCHIVE_HASH})
+
             RESOLVE_DEPENDENCY(HDDL_UNITE_VPUX_4
                     ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_VPUX_4_ARCHIVE_VERSION}${ARCH_FORMAT}"
                     ENVIRONMENT "HDDL_UNITE_VPUX_4"
                     TARGET_PATH "${TEMP}/vpux_4/hddl_unite"
                     SHA256 ${HDDLUNITE_VPUX_4_ARCHIVE_HASH})
+
+            unset(IE_PATH_TO_DEPS)
         endif()
 
-        unset(IE_PATH_TO_DEPS)
-    endif()
+        find_library(HDDL_UNITE_LIBRARY
+            NAMES HddlUnite
+            HINTS "${HDDL_UNITE}/lib"
+            NO_DEFAULT_PATH)
 
-    find_library(HDDL_UNITE_LIBRARY
-        NAMES HddlUnite
-        HINTS "${HDDL_UNITE}/lib"
-        NO_DEFAULT_PATH)
+        log_rpath(HDDL_UNITE "${HDDL_UNITE_LIBRARY}")
 
-    log_rpath(HDDL_UNITE "${HDDL_UNITE_LIBRARY}")
-
-    if (WIN32)
-        add_library(HddlUnite STATIC IMPORTED GLOBAL)
-    else()
         add_library(HddlUnite SHARED IMPORTED GLOBAL)
-    endif()
 
-    set_target_properties(HddlUnite PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${HDDL_UNITE}/include"
-        IMPORTED_LOCATION ${HDDL_UNITE_LIBRARY}
-        IMPORTED_NO_SONAME TRUE)
+        set_target_properties(HddlUnite PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${HDDL_UNITE}/include"
+            IMPORTED_LOCATION ${HDDL_UNITE_LIBRARY}
+            IMPORTED_NO_SONAME TRUE)
 
-    if(UNIX)
         find_library(XLINK_LIBRARY
             NAMES XLink
             HINTS "${HDDL_UNITE}/thirdparty/XLink/lib"
@@ -335,7 +322,6 @@ if(ENABLE_HDDL2 AND NOT ENABLE_CUSTOM_HDDLUNITE)
             IMPORTED_NO_SONAME TRUE)
 
         set(XLINK_LIB HDDLUniteXLink CACHE INTERNAL "")
-    else()
-        set(XLINK_LIB "" CACHE INTERNAL "")
+
     endif()
 endif()
