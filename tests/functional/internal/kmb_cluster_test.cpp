@@ -24,10 +24,8 @@ public:
 
 int32_t KmbClusterTest::runTest(const TestNetworkDesc& netDesc, const std::string& netFileName) {
     const auto blobFileName = vpu::formatString("%v/%v.net", KmbTestBase::DUMP_PATH, netFileName);
-
     if (KmbTestBase::RUN_COMPILER) {
-        CNNNetwork cnnNet = KmbNetworkTestBase::readNetwork(netDesc, true);
-        ExecutableNetwork exeNet = core->LoadNetwork(cnnNet, DEVICE_NAME, netDesc.compileConfig());
+        ExecutableNetwork exeNet = getExecNetwork(netDesc);
         exeNet.Export(blobFileName);
     }
 
@@ -68,37 +66,47 @@ int32_t KmbClusterTest::runTest(const TestNetworkDesc& netDesc, const std::strin
     return 0;
 }
 
-TEST_F(KmbClusterTest, checkInferTime) {
+struct ClusterTestParams final {
+    ClusterTestParams(const std::string& netName, const std::string& numClusters) : _netName(netName), _numClusters(numClusters) {}
+    const std::string _netName;
+    const std::string _numClusters;
+};
+
+std::ostream& operator<<(std::ostream& os, const ClusterTestParams& p) {
+    vpu::formatPrint(os, "[net name: %s, clusters: %s]", p._netName, p._numClusters);
+    return os;
+}
+
+class KmbClusterTestWithParams : public KmbClusterTest, public testing::WithParamInterface<ClusterTestParams> {};
+
+TEST_P(KmbClusterTestWithParams, checkInferTime) {
 #ifdef _WIN32
     // FIXME [Track number: E#6518]
     SKIP() << "Throws an exception on the second runTest call";
 #endif
+    const auto& p = GetParam();
     const std::string net_path = "ADK3/ModelE_INT8/ModelE_INT8.xml";
     constexpr bool EXPERIMENTAL = true;
 
-    const std::string fourClusterNetName = "fourCluster";
-    const auto fourClusterMs = runTest(
+    const std::string netName = p._netName;
+    const std::string clusters = p._numClusters;
+    const auto timeMs = runTest(
         TestNetworkDesc(net_path, EXPERIMENTAL)
             .setUserInputPrecision("input", Precision::FP16)
             .setUserOutputPrecision("PostProcess/stage0/x1/Sigmoid", Precision::FP16)
             .setUserOutputPrecision("PostProcess/stage0/x4/Sigmoid", Precision::FP16)
             .setUserOutputPrecision("PostProcess/stage1/x1/Sigmoid", Precision::FP16)
             .setUserOutputPrecision("PostProcess/stage1/x4/Sigmoid", Precision::FP16)
-            .setCompileConfig({{"VPU_COMPILER_NUM_CLUSTER", "4"}}),
-            fourClusterNetName);
+            .setCompileConfig({{"VPU_COMPILER_NUM_CLUSTER", clusters}}),
+            netName);
 
-    std::cout << "Four clusters time elapsed: " << fourClusterMs << std::endl;
-
-    const std::string oneClusterNetName = "oneCluster";
-    const auto oneClusterMs = runTest(
-        TestNetworkDesc(net_path, EXPERIMENTAL)
-            .setUserInputPrecision("input", Precision::FP16)
-            .setUserOutputPrecision("PostProcess/stage0/x1/Sigmoid", Precision::FP16)
-            .setUserOutputPrecision("PostProcess/stage0/x4/Sigmoid", Precision::FP16)
-            .setUserOutputPrecision("PostProcess/stage1/x1/Sigmoid", Precision::FP16)
-            .setUserOutputPrecision("PostProcess/stage1/x4/Sigmoid", Precision::FP16)
-            .setCompileConfig({{"VPU_COMPILER_NUM_CLUSTER", "1"}}),
-            oneClusterNetName);
-
-    std::cout << "Single cluster time elapsed: " << oneClusterMs << std::endl;
+    std::cout << "Number of clusters: " << clusters << std::endl;
+    std::cout << "Time elapsed: " << timeMs << std::endl;
 }
+
+static const std::vector<ClusterTestParams> params {
+   ClusterTestParams("oneCluster", "1"),
+   ClusterTestParams("fourClusters", "4"),
+};
+
+INSTANTIATE_TEST_CASE_P(perf, KmbClusterTestWithParams, testing::ValuesIn(params));
