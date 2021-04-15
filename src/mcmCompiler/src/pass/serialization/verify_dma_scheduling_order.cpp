@@ -43,25 +43,30 @@ void verifyDMASchedulingOrderFcn(const mv::pass::PassEntry& pass, mv::Computatio
     for (auto dmaOp : dmaOps)
     {
         // BFS to find the next DMA ops in the graph
-        std::queue<mv::Data::OpListIterator> bfsOpItr;
-        std::vector<mv::Data::OpListIterator> childDMAs;
-        bfsOpItr.push(dmaOp);
+        std::deque<mv::Data::OpListIterator> bfsOpItr;
+        std::set<std::string> childDMAs;
+        bfsOpItr.push_back(dmaOp);
         while (!bfsOpItr.empty()) {
             auto currentOpItr = bfsOpItr.front();
             for(auto childIt = currentOpItr.leftmostChild();
                 childIt != om.opEnd(); ++childIt) {
                 if (childIt->getOpType() == "DMATask") {
-                    childDMAs.push_back(childIt);
+                    childDMAs.insert(childIt->getName());
                 } else {
-                    bfsOpItr.push(childIt);
+                    if (std::find_if(bfsOpItr.cbegin(), bfsOpItr.cend(),
+                        [&childIt](mv::Data::OpListIterator it)->bool
+                        {return childIt->getName() == it->getName();})
+                        == bfsOpItr.cend())
+                    bfsOpItr.push_back(childIt);
                 }
             }
-            bfsOpItr.pop();
+            bfsOpItr.pop_front();
         }
 
         auto parentSchedulingNumber = dmaOp->get<unsigned>("schedulingNumber");
-        for (auto childOp : childDMAs)
+        for (auto childOpName : childDMAs)
         {
+            auto childOp = om.getOp(childOpName);
             if (childOp->getOpType() == "DMATask" &&
                 childOp->get<unsigned>("schedulingNumber") < parentSchedulingNumber)
             {
