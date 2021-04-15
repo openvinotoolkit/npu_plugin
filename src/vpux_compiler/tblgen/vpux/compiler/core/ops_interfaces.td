@@ -20,13 +20,29 @@
 include "mlir/IR/OpBase.td"
 
 //
+// InferReturnTypesForLayer
+//
+
+class InferReturnTypesForLayer<int numResult> {
+    code impl = [{
+      static ::mlir::LogicalResult inferReturnTypes(::mlir::MLIRContext *context,
+      ::llvm::Optional<::mlir::Location> location, ::mlir::ValueRange operands,
+      ::mlir::DictionaryAttr attributes, ::mlir::RegionRange regions,
+      ::llvm::SmallVectorImpl<::mlir::Type>&inferredReturnTypes) {
+        inferRTLayerReturnTypes(operands, }] #numResult# [{, inferredReturnTypes);
+        return ::mlir::success();
+      }
+    }];
+}
+
+//
 // MultiViewOpInterface
 //
 
 def MultiViewOpInterface : OpInterface<"MultiViewOpInterface"> {
     let description = [{
         An extended version of view-like operation.
-        It allows to define several resuling views in single operation.
+        It allows to define several resulting views in single operation.
     }];
 
     let cppNamespace = "vpux";
@@ -37,6 +53,14 @@ def MultiViewOpInterface : OpInterface<"MultiViewOpInterface"> {
             "mlir::Value", "getViewSource", (ins "ptrdiff_t":$resultInd)
         >
     ];
+}
+
+//
+// RTLayer
+//
+
+def RTLayer : NativeOpTrait<"RTLayer"> {
+    let cppNamespace = "vpux";
 }
 
 //
@@ -115,32 +139,16 @@ def LayerInterface : OpInterface<"LayerInterface"> {
     let methods = [
         InterfaceMethod<
             "Get all inputs (tensors or memory buffers) for the Operation",
-            "vpux::SmallVector<mlir::Value>", "getInputs", (ins),
-            [{
-                return $_op.getInputs();
-            }]
-        >,
+            "vpux::SmallVector<mlir::Value>", "getInputs", (ins)>,
 
         InterfaceMethod<
             "Get the outputs (tensors or memory buffers) for the Operation",
-            "vpux::SmallVector<mlir::Value>", "getOutputs", (ins),
-            [{
-                return $_op.getOutputs();
-            }]
-        >,
+            "vpux::SmallVector<mlir::Value>", "getOutputs", (ins)>,
     ];
 
     let verify = [{
         return vpux::verifyLayer($_op);
     }];
-}
-
-//
-// SingleInputAndResultLayer
-//
-
-def SingleInputAndResultLayer : NativeOpTrait<"SingleInputAndResultLayer"> {
-    let cppNamespace = "vpux";
 }
 
 //
@@ -154,26 +162,11 @@ def ConvertLayerInterface : OpInterface<"ConvertLayerInterface"> {
 
     let methods = [
         InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::Value", "input", (ins),
-            [{
-                return $_op.input();
-            }]
-        >,
-        InterfaceMethod<
             "Get the input Type",
             "mlir::ShapedType", "inputType", (ins),
             [{}],
             [{
                 return $_op.input().getType().template cast<mlir::ShapedType>();
-            }]
-        >,
-
-        InterfaceMethod<
-            "Get destination Value for the Operation",
-            "mlir::Value", "output", (ins),
-            [{
-                return $_op.output();
             }]
         >,
         InterfaceMethod<
@@ -202,26 +195,11 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
 
     let methods = [
         InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::Value", "input", (ins),
-            [{
-                return $_op.input();
-            }]
-        >,
-        InterfaceMethod<
             "Get the input Type",
             "mlir::ShapedType", "inputType", (ins),
             [{}],
             [{
                 return $_op.input().getType().template cast<mlir::ShapedType>();
-            }]
-        >,
-
-        InterfaceMethod<
-            "Get destination Value for the Operation",
-            "mlir::Value", "output", (ins),
-            [{
-                return $_op.output();
             }]
         >,
         InterfaceMethod<
@@ -232,7 +210,6 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
                 return $_op.output().getType().template cast<mlir::ShapedType>();
             }]
         >,
-
         InterfaceMethod<
             "Get the axis index in logical dimensions",
             "uint32_t", "axisInd", (ins),
@@ -295,457 +272,7 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
             }]
         >,
     ];
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            if ($_op.bias() != nullptr) {
-                return {$_op.input(), $_op.filter(), $_op.bias()};
-            } else {
-                return {$_op.input(), $_op.filter()};
-            }
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output()};
-        }
-    }];
 }
 
-//
-// ClampLayerInterface
-//
-
-def ClampLayerInterface : OpInterface<"ClampLayerInterface"> {
-    let description = "Interface for Clamp Layer";
-
-    let cppNamespace = "vpux";
-
-    let methods = [
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::Value", "input", (ins),
-            [{
-                return $_op.input();
-            }]
-        >,
-        InterfaceMethod<
-            "Get destination Value for the Operation",
-            "mlir::Value", "output", (ins),
-            [{
-                return $_op.output();
-            }]
-        >,
-
-        InterfaceMethod<
-            "Get the lower bound of the <min;max> range",
-            "float", "getMin", (ins),
-            [{}],
-            [{
-                return $_op.min().convertToFloat();
-            }]
-        >,
-        InterfaceMethod<
-            "Get the upper bound of the <min;max> range",
-            "float", "getMax", (ins),
-            [{}],
-            [{
-                return $_op.max().convertToFloat();
-            }]
-        >,
-    ];
-}
-
-//
-// EluLayerInterface
-//
-
-def EluLayerInterface : OpInterface<"EluLayerInterface"> {
-    let description = "Interface for Elu Layer";
-
-    let cppNamespace = "vpux";
-
-    let methods = [
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::Value", "input", (ins),
-            [{
-                return $_op.input();
-            }]
-        >,
-        InterfaceMethod<
-            "Get destination Value for the Operation",
-            "mlir::Value", "output", (ins),
-            [{
-                return $_op.output();
-            }]
-        >,
-
-        InterfaceMethod<
-            "Get the scale for the negative factor",
-            "float", "getX", (ins),
-            [{}],
-            [{
-                return $_op.x().convertToFloat();
-            }]
-        >,
-    ];
-}
-
-//
-// PReluLayerInterface
-//
-
-def PReluLayerInterface : OpInterface<"PReluLayerInterface"> {
-    let description = "Interface for PRelu Layer";
-
-    let cppNamespace = "vpux";
-
-    let methods = [
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::Value", "input", (ins),
-            [{
-                return $_op.input();
-            }]
-        >,
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::Value", "negative_slope", (ins),
-            [{
-                return $_op.negative_slope();
-            }]
-        >,
-
-        InterfaceMethod<
-            "Get destination Value for the Operation",
-            "mlir::Value", "output", (ins),
-            [{
-                return $_op.output();
-            }]
-        >,
-    ];
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            return {$_op.input(), $_op.negative_slope()};
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output()};
-        }
-    }];
-
-}
-
-//
-// LeakyReluLayerInterface
-//
-
-def LeakyReluLayerInterface : OpInterface<"LeakyReluLayerInterface"> {
-    let description = "Interface for LeakyRelu Layer";
-
-    let cppNamespace = "vpux";
-
-    let methods = [
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::Value", "input", (ins),
-            [{
-                return $_op.input();
-            }]
-        >,
-        InterfaceMethod<
-            "Get destination Value for the Operation",
-            "mlir::Value", "output", (ins),
-            [{
-                return $_op.output();
-            }]
-        >,
-
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "float", "getNegativeSlope", (ins),
-            [{}],
-            [{
-                return $_op.negative_slope().convertToFloat();
-            }]
-        >,
-    ];
-}
-
-//
-// EltwiseLayerInterface
-//
-
-def EltwiseLayerInterface : OpInterface<"EltwiseLayerInterface"> {
-    let description = "Interface for Eltwise Layer";
-
-    let cppNamespace = "vpux";
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            return {$_op.input1(), $_op.input2()};
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output()};
-        }
-    }];
-}
-
-//
-// SwishLayerInterface
-//
-
-def SwishLayerInterface : OpInterface<"SwishLayerInterface"> {
-    let description = "Interface for Swish Layer";
-
-    let cppNamespace = "vpux";
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            if ($_op.beta() != nullptr) {
-                return {$_op.input(), $_op.beta()};
-            }
-            else {
-                return {$_op.input()};
-            }
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output()};
-        }
-    }];
-}
-
-//
-// ScaleShiftLayerInterface
-//
-
-def ScaleShiftLayerInterface : OpInterface<"ScaleShiftLayerInterface"> {
-    let description = "Interface for ScaleShift Layer";
-
-    let cppNamespace = "vpux";
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            vpux::SmallVector<mlir::Value> inputs {$_op.input()};
-
-            if ($_op.weights() != nullptr) {
-                inputs.push_back($_op.weights());
-            }
-
-            if ($_op.biases() != nullptr) {
-                inputs.push_back($_op.biases());
-            }
-
-            return inputs;
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output()};
-        }
-    }];
-}
-
-//
-// GRNLayerInterface
-//
-
-def GRNLayerInterface : OpInterface<"GRNLayerInterface"> {
-    let description = "Interface for GRN Layer";
-
-    let cppNamespace = "vpux";
-
-    let methods = [
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::Value", "input", (ins),
-            [{
-                return $_op.input();
-            }]
-        >,
-        InterfaceMethod<
-            "Get destination Value for the Operation",
-            "mlir::Value", "output", (ins),
-            [{
-                return $_op.output();
-            }]
-        >,
-
-        InterfaceMethod<
-            "Get the bias added to the variance",
-            "float", "getBias", (ins),
-            [{}],
-            [{
-                return $_op.bias().convertToFloat();
-            }]
-        >,
-    ];
-}
-
-//
-// DetectionOutputLayerInterface
-//
-
-def DetectionOutputLayerInterface : OpInterface<"DetectionOutputLayerInterface"> {
-    let description = "Interface for DetectionOutput Layer";
-
-    let cppNamespace = "vpux";
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            vpux::SmallVector<mlir::Value> inputs {$_op.in_box_logits(), $_op.in_class_preds(), $_op.in_proposals()};
-
-            if ($_op.in_additional_preds() != nullptr) {
-                inputs.push_back($_op.in_additional_preds());
-            }
-
-            if ($_op.in_additional_proposals() != nullptr) {
-                inputs.push_back($_op.in_additional_proposals());
-            }
-
-            return inputs;
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output()};
-        }
-    }];
-}
-
-//
-// FullyConnectedLayerInterface
-//
-
-def FullyConnectedLayerInterface : OpInterface<"FullyConnectedLayerInterface"> {
-    let description = "Interface for FullyConnected Layer";
-
-    let cppNamespace = "vpux";
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            if ($_op.bias() != nullptr) {
-                return {$_op.input(), $_op.weights(), $_op.bias()};
-            }
-            else {
-                return {$_op.input(), $_op.weights()};
-            }
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output()};
-        }
-    }];
-}
-
-//
-// ROIPoolingLayerInterface
-//
-
-def ROIPoolingLayerInterface : OpInterface<"ROIPoolingLayerInterface"> {
-    let description = "Interface for ROIPooling Layer";
-
-    let cppNamespace = "vpux";
-
-    let methods = [
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::ArrayAttr", "getOutputSize", (ins),
-            [{}],
-            [{
-                return $_op.output_size();
-            }]
-        >,
-
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "float", "getSpatialScale", (ins),
-            [{}],
-            [{
-                return $_op.spatial_scale().convertToFloat();
-            }]
-        >
-    ];
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            return {$_op.input(), $_op.coords()};
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output()};
-        }
-    }];
-}
-
-//
-// TransposeLayerInterface
-//
-
-def TransposeLayerInterface : OpInterface<"TransposeLayerInterface"> {
-    let description = "Interface for Transpose Layer";
-
-    let cppNamespace = "vpux";
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            if ($_op.order() != nullptr) {
-                return {$_op.input(), $_op.order()};
-            }
-            else {
-                return {$_op.input()};
-            }
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output()};
-        }
-    }];
-}
-
-//
-// CTCGreedyDecoderLayerInterface
-//
-
-def CTCGreedyDecoderLayerInterface : OpInterface<"CTCGreedyDecoderLayerInterface"> {
-    let description = "Interface for CTCGreedyDecoder Layer";
-
-    let cppNamespace = "vpux";
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            return {$_op.input(), $_op.sequenceLengths()};
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output()};
-        }
-    }];
-}
-
-//
-// CTCGreedyDecoderSeqLenLayerInterface
-//
-
-def CTCGreedyDecoderSeqLenLayerInterface : OpInterface<"CTCGreedyDecoderSeqLenLayerInterface"> {
-    let description = "Interface for CTCGreedyDecoderSeqLen Layer";
-
-    let cppNamespace = "vpux";
-
-    let extraTraitClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            if ($_op.blankIndex() != nullptr) {
-                return {$_op.input(), $_op.sequenceLength(), $_op.blankIndex() };
-            }
-            else {
-                return {$_op.input(), $_op.sequenceLength() };
-            }
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output(), $_op.outputLength() };
-        }
-    }];
-}
 
 #endif

@@ -14,6 +14,7 @@
 // stated in the License.
 //
 
+#include <vpux/compiler/core/aliases_info.hpp>
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/utils/core/format.hpp"
@@ -57,14 +58,16 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
             (netFuncType.getNumInputs() == inputsInfo.size() + outputsInfo.size()) && isArgsBufferized;
     if (isBufferized) {
         mlir::LogicalResult res = mlir::success();
-        netFunc.walk([&inputsInfo, &netFunc, &res](mlir::ReturnOp op) {
+        const AliasesInfo info{netFunc};
+        netFunc.walk([&inputsInfo, &netFunc, &res, &info](mlir::ReturnOp op) {
             const auto operands = op.getOperands();
             for (const auto ind : irange(operands.size())) {
                 const auto rawInd = checked_cast<unsigned>(inputsInfo.size() + ind);
 
                 const auto output = operands[ind];
                 const auto outputBuffer = netFunc.getArgument(rawInd);
-                if (outputBuffer != output) {
+
+                if (info.getRoot(output) != outputBuffer) {
                     op.emitError() << "function output at index=" << ind
                                    << " should be an alias of the output buffer, but it's not";
                     res = mlir::failure();

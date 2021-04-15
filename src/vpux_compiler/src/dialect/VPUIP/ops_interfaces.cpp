@@ -15,6 +15,7 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
@@ -120,7 +121,7 @@ mlir::LogicalResult vpux::VPUIP::verifyNCETask(mlir::Operation* op) {
         return errorAt(op, "Operation '{0}' doesn't implement VPUIP Task interface", op->getName());
     }
 
-    auto nceTask = mlir::dyn_cast<NCETaskOpInterface>(op);
+    auto nceTask = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(op);
     if (nceTask == nullptr) {
         return errorAt(op, "Operation '{0}' doesn't implement VPUIP NCETask interface", op->getName());
     }

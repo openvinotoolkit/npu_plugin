@@ -21,14 +21,6 @@
 using namespace vpux;
 
 //
-// DeclareVirtualBarrierOp
-//
-
-void vpux::VPUIP::DeclareVirtualBarrierOp::build(mlir::OpBuilder& builder, mlir::OperationState& state) {
-    build(builder, state, vpux::VPUIP::BarrierType::get(builder.getContext()));
-}
-
-//
 // ConfigureBarrierOp
 //
 
