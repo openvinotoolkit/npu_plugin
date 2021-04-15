@@ -2145,28 +2145,8 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
         reshapeOp->set<unsigned>("opId", initialOpId);
         reshapeOp->set<bool>("isImplicit", true);
 
-        auto originalTensor = operation->getOutputTensor(mv::IO_TENSOR_OUTPUT);
-        auto wDelta = reshapeTensor->getShape()[mv::IO_WIDTH_DIMENSION] - originalTensor->getShape()[mv::IO_WIDTH_DIMENSION];
-        auto hDelta = reshapeTensor->getShape()[mv::IO_HEIGHT_DIMENSION] - originalTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
-        if(wDelta || hDelta)
-        {
-            auto sliceTensor = om.slice(operation->getName() + "slice_full",
-                                reshapeTensor,
-                                {0, 0, 0, 0},
-                                originalTensor->getShape());
-            sliceTensor->setDType(dType);
-            sliceTensor->setQuantParams(outputQuantParams);
-            sliceTensor->set<unsigned>("opId", initialOpId);
-            auto sliceOp = om.getSourceOp(sliceTensor);
-            sliceOp->set<unsigned>("opId", initialOpId);
-            //recircuit the graph flow
-            operation = linkNewOperationsReplacementRemoveFlows(nextOpIt, sliceTensor, om, operation);
-        }
-        else
-        {
-            //recircuit the graph flow
-            operation = linkNewOperationsReplacementRemoveFlows(nextOpIt, reshapeTensor, om, operation);
-        }
+        //recircuit the graph flow
+        operation = linkNewOperationsReplacementRemoveFlows(nextOpIt, reshapeTensor, om, operation);
                 
         return operation;
     }
@@ -2261,10 +2241,24 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
             }
         }
         pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
-        auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];       
-        if((opIt->getOpType() == "Conv") &&
-           ((stride[mv::STRIDE_VERTICAL] % stride[mv::STRIDE_HORIZONTAL] == 0) ||
-            (stride[mv::STRIDE_HORIZONTAL] % stride[mv::STRIDE_VERTICAL] == 0)))
+        auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+        auto originalTensorShape = (opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))->getShape();
+        bool useSplitOperationV2 = false;
+        if((stride[mv::STRIDE_VERTICAL] > stride[mv::STRIDE_HORIZONTAL]) && (stride[mv::STRIDE_VERTICAL] % stride[mv::STRIDE_HORIZONTAL] == 0))
+        {
+            auto slices = stride[mv::STRIDE_VERTICAL] / stride[mv::STRIDE_HORIZONTAL];
+            if(originalTensorShape[mv::IO_WIDTH_DIMENSION] % slices == 0)
+                useSplitOperationV2 = true;
+        }
+
+        if((stride[mv::STRIDE_HORIZONTAL] > stride[mv::STRIDE_VERTICAL]) && (stride[mv::STRIDE_HORIZONTAL] % stride[mv::STRIDE_VERTICAL] == 0))
+        {
+            auto slices = stride[mv::STRIDE_HORIZONTAL] / stride[mv::STRIDE_VERTICAL];
+            if(originalTensorShape[mv::IO_HEIGHT_DIMENSION] % slices == 0)
+                useSplitOperationV2 = true;
+        }
+
+        if((opIt->getOpType() == "Conv") && useSplitOperationV2)
         {
             opIt = splitOperationSlicingV2 (om,
                                             opIt,
