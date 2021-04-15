@@ -776,7 +776,7 @@ namespace mv
                 return attr;
             }
 
-            bool decideWeightsSparsity(mv::Op op)
+            bool decideWeightsSparsity(mv::Op op, float floatOverhead = 0.0625, float intOverhead = 0.125)
             {
                 // Only Z-major convolutions support weights sparsity, this is codified in the compilation descriptors
                 if( !createStrategyFromBool(op,"weightsSparsity") )
@@ -790,9 +790,8 @@ namespace mv
                 auto weightsSize = realTensorSize(op.getInputTensor(1), {1,1,1,1}, false);
                 auto zeroPoints = op.getInputTensor(1)->getZeroValuesCount();
                 double actualSparsity = (double) zeroPoints/ (double)weightsSize;
-
                 auto sparsityOverhead = op.getInputTensor(0)->isFloatingPointType() ?
-                    0.0625 : 0.125;
+                    floatOverhead : intOverhead;
 
                 // Enable weights sparsity if actual sparsity level observed in the tensor
                 // is high enough to warrant the overhead of enabling sparsity
@@ -1189,8 +1188,9 @@ namespace mv
 
                 if(op.getOpType() == "Conv" &&
                     op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
-                    !isCMConv && target == mv::Target::ma2490 && referenceDevice == "A0")
+                    !isCMConv) {
                         return true;
+                    }
 
                 return false;
             }
@@ -1213,8 +1213,7 @@ namespace mv
 
                 if (op.isSparsityConsumer() &&
                     op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
-                    !isCMConv &&
-                    target == mv::Target::ma2490 && referenceDevice == "A0")
+                    !isCMConv && checkA0Sparsity(model_))
                 {
                     return true;
                 }
