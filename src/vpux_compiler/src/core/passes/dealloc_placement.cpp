@@ -39,14 +39,14 @@ private:
     void safeRunOnFunc() final;
 
 private:
-    mlir::Operation* getLastUser(mlir::Value val, AliasesInfo& info);
+    static mlir::Operation* getLastUser(mlir::Value val, const AliasesInfo& info);
 };
 
 //
 // getLastUse
 //
 
-mlir::Operation* DeallocPlacementPass::getLastUser(mlir::Value val, AliasesInfo& info) {
+mlir::Operation* DeallocPlacementPass::getLastUser(mlir::Value val, const AliasesInfo& info) {
     auto* producer = val.getDefiningOp();
     VPUX_THROW_UNLESS(producer != nullptr && mlir::isa<mlir::memref::AllocOp>(producer),
                       "Wrong allocated value producer");

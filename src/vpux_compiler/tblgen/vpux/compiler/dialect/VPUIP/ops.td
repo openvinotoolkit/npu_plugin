@@ -27,6 +27,8 @@ include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/CopyOpInterface.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -42,15 +44,33 @@ class VPUIP_Op<string mnemonic, list<OpTrait> traits = []> :
             traits
         >;
 
-class VPUIP_TaskOp<string mnemonic, list<OpTrait> traits = []> :
+class VPUIP_TaskOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
         VPUIP_Op<
             mnemonic,
             !listconcat(
                 traits,
                 [
-                    AttrSizedOperandSegments,
+                    RTLayer,
+                    LayerInterface,
+                    InferTypeOpInterface,
                     MemoryEffectsOpInterface,
+                    AttrSizedOperandSegments,
                     DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
+                ]
+            )
+        > {
+
+    let extraClassDeclaration = InferReturnTypesForLayer<numResult>.impl;
+}
+
+class VPUIP_UPATaskOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
+        VPUIP_TaskOp<
+            numResult,
+            mnemonic,
+            !listconcat(
+                traits,
+                [
+                    DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
                 ]
             )
         >;
@@ -189,6 +209,7 @@ def VPUIP_DeclareVirtualBarrierOp :
         VPUIP_Barrier:$barrier
     );
 
+    let skipDefaultBuilders = 1;
     let builders = [
         OpBuilder<(ins)>
     ];
@@ -203,8 +224,12 @@ def VPUIP_DeclareVirtualBarrierOp :
 //
 
 def VPUIP_ConfigureBarrierOp :
-        VPUIP_TaskOp<
-            "ConfigureBarrier"
+        VPUIP_Op<"ConfigureBarrier",
+            [
+                MemoryEffectsOpInterface,
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
+            ]
         > {
     let summary = "A task to configure the setup for a barrier";
 
@@ -243,24 +268,26 @@ def VPUIP_ConfigureBarrierOp :
 //
 
 def VPUIP_UPADMAOp :
-        VPUIP_TaskOp<
-            "UPADMA",
+        VPUIP_TaskOp<1, "UPADMA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
-                VPUIP_SameDimsOrder,
-                DeclareOpInterfaceMethods<LayerInterface>
+                VPUIP_SameDimsOrder
             ]
         > {
     let summary = "UPA DMA task";
 
     let arguments = (ins
         AnyMemRef:$input,
-        AnyMemRef:$output,
+        AnyMemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers
+    );
+
+    let results = (outs
+        AnyMemRef:$output
     );
 
     let builders = [
@@ -273,14 +300,15 @@ def VPUIP_UPADMAOp :
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::UPADMA;
         }
-    }];
+    }] # InferReturnTypesForLayer<1>.impl;
 
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -289,27 +317,29 @@ def VPUIP_UPADMAOp :
 //
 
 def VPUIP_NNDMAOp :
-        VPUIP_TaskOp<
-            "NNDMA",
+        VPUIP_TaskOp<1, "NNDMA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
-                VPUIP_SameDimsOrder,
-                DeclareOpInterfaceMethods<LayerInterface>
+                VPUIP_SameDimsOrder
             ]
         > {
     let summary = "NN DMA task";
 
     let arguments = (ins
         AnyMemRef:$input,
-        AnyMemRef:$output,
+        AnyMemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         UnitAttr:$compression,
         DefaultValuedAttr<I32Attr, "0">:$port
+    );
+
+    let results = (outs
+        AnyMemRef:$output
     );
 
     let builders = [
@@ -322,14 +352,15 @@ def VPUIP_NNDMAOp :
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::NNDMA;
         }
-    }];
+    }] # InferReturnTypesForLayer<1>.impl;
 
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -338,22 +369,19 @@ def VPUIP_NNDMAOp :
 //
 
 def VPUIP_ConvertUPAOp :
-        VPUIP_TaskOp<
-            "ConvertUPA",
+        VPUIP_UPATaskOp<1, "ConvertUPA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameDimsOrder,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<ConvertLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                DeclareOpInterfaceMethods<ConvertLayerInterface>
             ]
         > {
     let summary = "Convert UPA SHAVE kernel";
 
     let arguments = (ins
         AnyMemRef:$input,
-        AnyMemRef:$output,
+        AnyMemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -366,6 +394,10 @@ def VPUIP_ConvertUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        AnyMemRef:$output
     );
 
     let builders = [
@@ -381,9 +413,10 @@ def VPUIP_ConvertUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -392,23 +425,20 @@ def VPUIP_ConvertUPAOp :
 //
 
 def VPUIP_SoftMaxUPAOp :
-        VPUIP_TaskOp<
-            "SoftMaxUPA",
+        VPUIP_UPATaskOp<1, "SoftMaxUPA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<SoftMaxLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                DeclareOpInterfaceMethods<SoftMaxLayerInterface>
             ]
         > {
     let summary = "SoftMax UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -417,6 +447,10 @@ def VPUIP_SoftMaxUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -435,9 +469,10 @@ def VPUIP_SoftMaxUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -446,21 +481,18 @@ def VPUIP_SoftMaxUPAOp :
 //
 
 def VPUIP_PoolingUPAOp :
-        VPUIP_TaskOp<
-            "PoolingUPA",
+        VPUIP_UPATaskOp<1, "PoolingUPA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameElementType,
-                VPUIP_SameDimsOrder,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                VPUIP_SameDimsOrder
             ]
         > {
     let summary = "MAX and AVG Pooling UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -474,6 +506,10 @@ def VPUIP_PoolingUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -495,9 +531,10 @@ def VPUIP_PoolingUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -506,14 +543,12 @@ def VPUIP_PoolingUPAOp :
 //
 
 def VPUIP_ConvolutionUPAOp :
-        VPUIP_TaskOp<
-            "ConvolutionUPA",
+        VPUIP_UPATaskOp<1, "ConvolutionUPA",
             [
+                ViewLikeOpInterface,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
             ]
         > {
     let summary = "Convolution UPA SHAVE kernel (reference implementation)";
@@ -522,7 +557,7 @@ def VPUIP_ConvolutionUPAOp :
         F16MemRef:$input,
         F16MemRef:$filter,
         Optional<F16MemRef>:$bias,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -535,6 +570,10 @@ def VPUIP_ConvolutionUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -551,9 +590,10 @@ def VPUIP_ConvolutionUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $filter `:` type($filter) (`,` $bias^ `:` type($bias))? `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -562,29 +602,30 @@ def VPUIP_ConvolutionUPAOp :
 //
 
 def VPUIP_ReLUUPAOp :
-        VPUIP_TaskOp<
-            "ReLUUPA",
+        VPUIP_UPATaskOp<1, "ReLUUPA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
-                VPUIP_Legacy4D,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                VPUIP_Legacy4D
             ]
         > {
     let summary = "ReLU UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -600,9 +641,10 @@ def VPUIP_ReLUUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -611,29 +653,30 @@ def VPUIP_ReLUUPAOp :
 //
 
 def VPUIP_SigmoidUPAOp :
-        VPUIP_TaskOp<
-            "SigmoidUPA",
+        VPUIP_UPATaskOp<1, "SigmoidUPA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
-                VPUIP_Legacy4D,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                VPUIP_Legacy4D
             ]
         > {
     let summary = "Sigmoid UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -649,9 +692,10 @@ def VPUIP_SigmoidUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -660,29 +704,30 @@ def VPUIP_SigmoidUPAOp :
 //
 
 def VPUIP_HSwishUPAOp :
-        VPUIP_TaskOp<
-            "HSwishUPA",
+        VPUIP_UPATaskOp<1, "HSwishUPA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
-                VPUIP_Legacy4D,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                VPUIP_Legacy4D
             ]
         > {
     let summary = "HSwish UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -698,9 +743,10 @@ def VPUIP_HSwishUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -709,24 +755,20 @@ def VPUIP_HSwishUPAOp :
 //
 
 def VPUIP_ClampUPAOp :
-        VPUIP_TaskOp<
-            "ClampUPA",
+        VPUIP_UPATaskOp<1, "ClampUPA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
-                VPUIP_Legacy4D,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<ClampLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                VPUIP_Legacy4D
             ]
         > {
     let summary = "Clamp UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -736,6 +778,10 @@ def VPUIP_ClampUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -754,9 +800,10 @@ def VPUIP_ClampUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -765,24 +812,20 @@ def VPUIP_ClampUPAOp :
 //
 
 def VPUIP_EluUPAOp :
-        VPUIP_TaskOp<
-            "EluUPA",
+        VPUIP_UPATaskOp<1, "EluUPA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
-                VPUIP_Legacy4D,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EluLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                VPUIP_Legacy4D
             ]
         > {
     let summary = "Elu UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -791,6 +834,10 @@ def VPUIP_EluUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -809,9 +856,10 @@ def VPUIP_EluUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -820,29 +868,30 @@ def VPUIP_EluUPAOp :
 //
 
 def VPUIP_TanhUPAOp :
-        VPUIP_TaskOp<
-            "TanhUPA",
+        VPUIP_UPATaskOp<1, "TanhUPA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
-                VPUIP_Legacy4D,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                VPUIP_Legacy4D
             ]
         > {
     let summary = "Tanh UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -858,9 +907,10 @@ def VPUIP_TanhUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -869,23 +919,20 @@ def VPUIP_TanhUPAOp :
 //
 
 def VPUIP_FakeQuantizeUPAOp :
-        VPUIP_TaskOp<
-            "FakeQuantizeUPA",
+        VPUIP_UPATaskOp<1, "FakeQuantizeUPA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameDimsOrder,
-                VPUIP_Legacy4D,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                VPUIP_Legacy4D
             ]
         > {
     let summary = "FakeQuantize UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -898,6 +945,10 @@ def VPUIP_FakeQuantizeUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -918,9 +969,10 @@ def VPUIP_FakeQuantizeUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -929,28 +981,29 @@ def VPUIP_FakeQuantizeUPAOp :
 //
 
 def VPUIP_QuantCastUPAOp :
-        VPUIP_TaskOp<
-            "QuantCastUPA",
+        VPUIP_UPATaskOp<1, "QuantCastUPA",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 VPUIP_SameShape,
                 VPUIP_SameDimsOrder,
-                VPUIP_Legacy4D,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                VPUIP_Legacy4D
             ]
         > {
     let summary = "FakeQuantize UPA SHAVE kernel";
 
     let arguments = (ins
         MemRefOf<[F16, quant_QuantizedType]>:$input,
-        MemRefOf<[F16, quant_QuantizedType]>:$output,
+        MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        MemRefOf<[F16, quant_QuantizedType]>:$output
     );
 
     let builders = [
@@ -964,9 +1017,10 @@ def VPUIP_QuantCastUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -975,12 +1029,9 @@ def VPUIP_QuantCastUPAOp :
 //
 
 def VPUIP_PReluUPAOp :
-        VPUIP_TaskOp<
-            "PReluUPA",
+        VPUIP_UPATaskOp<1, "PReluUPA",
             [
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<PReluLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "PRelu UPA SHAVE kernel";
@@ -988,13 +1039,17 @@ def VPUIP_PReluUPAOp :
     let arguments = (ins
         F16MemRef:$input,
         F16MemRef:$negative_slope,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1009,9 +1064,10 @@ def VPUIP_PReluUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $negative_slope `:` type($negative_slope) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -1020,20 +1076,16 @@ def VPUIP_PReluUPAOp :
 //
 
 def VPUIP_LeakyReluUPAOp :
-        VPUIP_TaskOp<
-            "LeakyReluUPA",
+        VPUIP_UPATaskOp<1,  "LeakyReluUPA",
             [
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "LeakyRelu UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1042,6 +1094,10 @@ def VPUIP_LeakyReluUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1056,9 +1112,10 @@ def VPUIP_LeakyReluUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -1067,13 +1124,9 @@ def VPUIP_LeakyReluUPAOp :
 //
 
 def VPUIP_EltwiseUPAOp :
-        VPUIP_TaskOp<
-            "EltwiseUPA",
+        VPUIP_UPATaskOp<1, "EltwiseUPA",
             [
-                VPUIP_SameElementType,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "Eltwise UPA SHAVE kernel";
@@ -1081,7 +1134,7 @@ def VPUIP_EltwiseUPAOp :
     let arguments = (ins
         F16MemRef:$input1,
         F16MemRef:$input2,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1090,6 +1143,10 @@ def VPUIP_EltwiseUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1105,9 +1162,10 @@ def VPUIP_EltwiseUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -1116,13 +1174,9 @@ def VPUIP_EltwiseUPAOp :
 //
 
 def VPUIP_DetectionOutputUPAOp :
-        VPUIP_TaskOp<
-            "DetectionOutputUPA",
+        VPUIP_UPATaskOp<1, "DetectionOutputUPA",
             [
-                AttrSizedOperandSegments,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<DetectionOutputLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "DetectionOutput UPA SHAVE kernel";
@@ -1134,7 +1188,7 @@ def VPUIP_DetectionOutputUPAOp :
         Optional<F16MemRef>:$in_additional_preds,
         Optional<F16MemRef>:$in_additional_proposals,
 
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1143,6 +1197,10 @@ def VPUIP_DetectionOutputUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1158,9 +1216,10 @@ def VPUIP_DetectionOutputUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $in_box_logits `:` type($in_box_logits) `,` $in_class_preds `:` type($in_class_preds) `,` $in_proposals `:` type($in_proposals) (`,` $in_additional_preds^ `:` type($in_additional_preds))? (`,` $in_additional_proposals^ `:` type($in_additional_proposals))? `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -1169,19 +1228,16 @@ def VPUIP_DetectionOutputUPAOp :
 //
 
 def VPUIP_SwishUPAOp :
-        VPUIP_TaskOp<
-            "SwishUPA",
+        VPUIP_UPATaskOp<1, "SwishUPA",
             [
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "Swish UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1190,6 +1246,10 @@ def VPUIP_SwishUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1204,9 +1264,10 @@ def VPUIP_SwishUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -1215,20 +1276,16 @@ def VPUIP_SwishUPAOp :
 //
 
 def VPUIP_GRNUPAOp :
-        VPUIP_TaskOp<
-            "GRNUPA",
+        VPUIP_UPATaskOp<1, "GRNUPA",
             [
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<GRNLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "GRN UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1237,6 +1294,10 @@ def VPUIP_GRNUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1251,9 +1312,10 @@ def VPUIP_GRNUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -1262,14 +1324,10 @@ def VPUIP_GRNUPAOp :
 //
 
 def VPUIP_ScaleShiftUPAOp :
-        VPUIP_TaskOp<
-            "ScaleShiftUPA",
+        VPUIP_UPATaskOp<1, "ScaleShiftUPA",
             [
-                VPUIP_SameElementType,
-                AttrSizedOperandSegments,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<ScaleShiftLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface,
+                VPUIP_SameElementType
             ]
         > {
     let summary = "ScaleShift UPA SHAVE kernel";
@@ -1278,13 +1336,17 @@ def VPUIP_ScaleShiftUPAOp :
         F16MemRef:$input,
         Optional<F16MemRef>:$weights,
         Optional<F16MemRef>:$biases,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1299,9 +1361,10 @@ def VPUIP_ScaleShiftUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) (`,` $weights^ `:` type($weights))? (`,` $biases^ `:` type($biases))? `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 
     let verifier = [{
@@ -1314,19 +1377,16 @@ def VPUIP_ScaleShiftUPAOp :
 //
 
 def VPUIP_PerAxisTileUPAOp :
-        VPUIP_TaskOp<
-            "PerAxisTileUPA",
+        VPUIP_UPATaskOp<1, "PerAxisTileUPA",
             [
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "Tile for per axis case UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1336,6 +1396,10 @@ def VPUIP_PerAxisTileUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1350,9 +1414,10 @@ def VPUIP_PerAxisTileUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -1361,25 +1426,26 @@ def VPUIP_PerAxisTileUPAOp :
 //
 
 def VPUIP_NegativeUPAOp :
-        VPUIP_TaskOp<
-            "NegativeUPA",
+        VPUIP_UPATaskOp<1, "NegativeUPA",
             [
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "Negative UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1391,9 +1457,10 @@ def VPUIP_NegativeUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -1402,12 +1469,9 @@ def VPUIP_NegativeUPAOp :
 //
 
 def VPUIP_ROIPoolingUPAOp :
-        VPUIP_TaskOp<
-            "ROIPoolingUPA",
+        VPUIP_UPATaskOp<1, "ROIPoolingUPA",
             [
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<ROIPoolingLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "ROIPooling UPA SHAVE kernel";
@@ -1415,7 +1479,7 @@ def VPUIP_ROIPoolingUPAOp :
     let arguments = (ins
         F16MemRef:$input,
         F16MemRef:$coords,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1426,6 +1490,10 @@ def VPUIP_ROIPoolingUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1441,9 +1509,10 @@ def VPUIP_ROIPoolingUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -1452,19 +1521,16 @@ def VPUIP_ROIPoolingUPAOp :
 //
 
 def VPUIP_PermuteUPAOp :
-        VPUIP_TaskOp<
-            "PermuteUPA",
+        VPUIP_UPATaskOp<1, "PermuteUPA",
             [
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "Permute UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1473,6 +1539,10 @@ def VPUIP_PermuteUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1487,9 +1557,10 @@ def VPUIP_PermuteUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 
     let verifier = [{
@@ -1565,9 +1636,9 @@ def VPUIP_PPETaskOp :
 //
 
 def VPUIP_NCEClusterTaskOp :
-        VPUIP_TaskOp<
-            "NCEClusterTask",
+        VPUIP_TaskOp<1, "NCEClusterTask",
             [
+                ViewLikeOpInterface,
                 DeclareOpInterfaceMethods<VPUIP_NCETaskOpInterface>
             ]
             # GraphRegionNoTerminator.traits
@@ -1598,29 +1669,33 @@ def VPUIP_NCEClusterTaskOp :
 
     let arguments = (ins
         MemRefOf<[F16, UI8, quant_QuantizedType]>:$input,
-        MemRefOf<[F16, UI8, quant_QuantizedType]>:$output,
+        Optional<MemRefOf<[F16, UI8, quant_QuantizedType]>>:$filter,
+        Optional<MemRefOf<[SI32]>>:$weight_table,
+        MemRefOf<[F16, UI8, quant_QuantizedType]>:$parent_input,
+        MemRefOf<[F16, UI8, quant_QuantizedType]>:$parent_output,
+
+        MemRefOf<[F16, UI8, quant_QuantizedType]>:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        MemRefOf<[F16, UI8, quant_QuantizedType]>:$parent_input,
-        MemRefOf<[F16, UI8, quant_QuantizedType]>:$parent_output,
-
         VPUIP_NCETaskType:$task_type,
         OptionalAttr<VPUIP_PPELayerType>:$fixed_ppe_task,
-        Optional<MemRefOf<[F16, UI8, quant_QuantizedType]>>:$filter,
-        Optional<MemRefOf<[SI32]>>:$weight_table,
         OptionalAttr<I32ArrayAttr>:$kernel_padding,
         OptionalAttr<I32ArrayAttr>:$strides
     );
 
+    let results = (outs
+        MemRefOf<[F16, UI8, quant_QuantizedType]>:$output
+    );
+
     let builders = [
         OpBuilder<(ins
-            "mlir::Value":$input, "mlir::Value":$output, "mlir::Value":$parent_input,
-            "mlir::Value":$parent_output, "vpux::VPUIP::NCETaskType":$task_type,
-            "vpux::VPUIP::PPELayerTypeAttr":$fixed_ppe_task, "mlir::Value":$filter,
-            "mlir::Value":$weight_table, "mlir::ArrayAttr":$kernel_padding,
-            "mlir::ArrayAttr":$strides
+            "mlir::Value":$input, "mlir::Value":$filter, "mlir::Value":$weight_table,
+            "mlir::Value":$parent_input, "mlir::Value":$parent_output,
+            "mlir::Value":$output,
+            "vpux::VPUIP::NCETaskType":$task_type, "vpux::VPUIP::PPELayerTypeAttr":$fixed_ppe_task,
+            "mlir::ArrayAttr":$kernel_padding, "mlir::ArrayAttr":$strides
         )>
     ];
 
@@ -1629,13 +1704,14 @@ def VPUIP_NCEClusterTaskOp :
         `inputs` `(` $input  `:` type($input)
                      (`,` $filter^ `:` type($filter))?
                      (`,` $weight_table^ `:` type($weight_table))? `)`
-        `outputs` `(` $output `:` type($output) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `parent_input` `(` $parent_input `:` type($parent_input) `)`
         `parent_output` `(` $parent_output `:` type($parent_output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `variants` `:` $variants
         (`PPE` `:` $ppe_tasks^)?
+        `->` type(results)
     }];
 
     let verifier = [{
@@ -1643,19 +1719,14 @@ def VPUIP_NCEClusterTaskOp :
     }];
 }
 
-
-
 //
 // CTCGreedyDecoderUPAOp
 //
 
 def VPUIP_CTCGreedyDecoderUPAOp :
-        VPUIP_TaskOp<
-            "CTCGreedyDecoderUPA",
+        VPUIP_UPATaskOp<1, "CTCGreedyDecoderUPA",
             [
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<CTCGreedyDecoderLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "CTCGreedyDecoder UPA SHAVE kernel";
@@ -1663,7 +1734,7 @@ def VPUIP_CTCGreedyDecoderUPAOp :
     let arguments = (ins
         F16MemRef:$input,
         F16MemRef:$sequenceLengths,
-        F16MemRef:$output,
+        F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1672,6 +1743,10 @@ def VPUIP_CTCGreedyDecoderUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
     );
 
     let builders = [
@@ -1691,9 +1766,10 @@ def VPUIP_CTCGreedyDecoderUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $sequenceLengths `:` type($sequenceLengths) `)`
-        `outputs` `(` $output `:` type($output) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 
@@ -1702,12 +1778,9 @@ def VPUIP_CTCGreedyDecoderUPAOp :
 //
 
 def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
-        VPUIP_TaskOp<
-            "CTCGreedyDecoderSeqLenUPA",
+        VPUIP_UPATaskOp<2, "CTCGreedyDecoderSeqLenUPA",
             [
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<CTCGreedyDecoderSeqLenLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>
+                MultiViewOpInterface
             ]
         > {
     let summary = "CTCGreedyDecoderSeqLen UPA SHAVE kernel";
@@ -1716,8 +1789,8 @@ def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
         F16MemRef:$input,
         MemRefOf<[SI32]>:$sequenceLength,
         Optional<MemRefOf<[SI32]>>:$blankIndex,
-        MemRefOf<[SI32]>:$output,
-        MemRefOf<[SI32]>:$outputLength,
+        MemRefOf<[SI32]>:$output_buff,
+        MemRefOf<[SI32]>:$outputLength_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1726,6 +1799,11 @@ def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        MemRefOf<[SI32]>:$output,
+        MemRefOf<[SI32]>:$outputLength
     );
 
     let builders = [
@@ -1741,9 +1819,10 @@ def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $sequenceLength `:` type($sequenceLength) `,` ($blankIndex^ `:` type($blankIndex))? `)`
-        `outputs` `(` $output `:` type($output) `,` $outputLength `:` type($outputLength) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `,` $outputLength_buff `:` type($outputLength_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
     }];
 }
 

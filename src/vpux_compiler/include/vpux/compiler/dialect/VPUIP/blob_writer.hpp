@@ -141,6 +141,9 @@ public:
     }
 
 private:
+    void setAliasForSerializedTensors(mlir::Operation* op);
+
+private:
     using TaskMap = std::unordered_map<mlir::Operation*, Task>;
     using TensorReferenceMap = mlir::DenseMap<mlir::Value, TensorReference>;
     using BarrierMap = mlir::DenseMap<mlir::Value, uint32_t>;

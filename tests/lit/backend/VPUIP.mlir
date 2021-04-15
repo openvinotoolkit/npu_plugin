@@ -46,9 +46,9 @@ IE.CNNNetwork
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
     %1 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-    VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) updates(%1 : !VPUIP.Barrier)
-    VPUIP.UPADMA inputs(%0 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%1 : !VPUIP.Barrier)
-    return %arg1: memref<1x1x1x1000xf16>
+    %2 = VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) updates(%1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
+    %3 = VPUIP.UPADMA inputs(%2 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
+    return %3: memref<1x1x1x1000xf16>
 }
 
 }

@@ -24,10 +24,10 @@ void vpux::VPUIP::GRNUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GRNUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto bias = getBias();
+    const auto biasVal = bias().convertToFloat();
 
     MVCNN::GRNParamsBuilder builder(writer);
-    builder.add_bias(checked_cast<float>(bias));
+    builder.add_bias(checked_cast<float>(biasVal));
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GRNParams});

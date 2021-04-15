@@ -20,6 +20,7 @@
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
 #include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/Quant/QuantOps.h>

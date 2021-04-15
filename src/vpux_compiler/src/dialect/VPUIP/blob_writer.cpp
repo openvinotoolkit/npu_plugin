@@ -44,7 +44,7 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
 
     VPUX_THROW_UNLESS(_tasks.count(op) == 0, "Operation {0} was already serialized", *op);
 
-    const auto curID = _tasks.size();
+    setAliasForSerializedTensors(op);
 
     String name;
     if (const auto nameLoc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
@@ -66,6 +66,7 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
     const auto barriers = barriersBuilder.Finish();
 
     const auto specifics = task.serialize(*this);
+    const auto curID = _tasks.size();
 
     MVCNN::TaskBuilder builder(_impl);
     if (!name.IsNull()) {
@@ -447,4 +448,33 @@ VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ConstCon
     builder.add_data(serializedContent);
     builder.add_csram_cacheable(csram_cacheable);
     return builder.Finish();
+}
+
+void vpux::VPUIP::BlobWriter::setAliasForSerializedTensors(mlir::Operation* op) {
+    if (auto layer = mlir::dyn_cast<mlir::ViewLikeOpInterface>(op)) {
+        const auto result = layer->getResult(0);
+        const auto source = layer.getViewSource();
+
+        VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
+                          result.getType());
+        VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
+                          source.getType());
+
+        _tensors.insert({result, getTensor(source)});
+    } else if (auto multiLayer = mlir::dyn_cast<MultiViewOpInterface>(op)) {
+        for (const auto result : multiLayer->getResults()) {
+            VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
+                              "Only MemRef type tensors are supported, got '{0}'", result.getType());
+
+            const auto source = multiLayer.getViewSource(result.getResultNumber());
+            if (source == nullptr) {
+                continue;
+            }
+
+            VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(),
+                              "Only MemRef type tensors are supported, got '{0}'", source.getType());
+
+            _tensors.insert({result, getTensor(source)});
+        }
+    }
 }

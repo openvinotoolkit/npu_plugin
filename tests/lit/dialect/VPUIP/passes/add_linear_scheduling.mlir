@@ -24,30 +24,30 @@ IE.CNNNetwork
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
-    VPUIP.UPADMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>)
+    %1 = VPUIP.UPADMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     // CHECK:       %[[B0:.*]] = VPUIP.ConfigureBarrier<0>
     // CHECK-NEXT:  VPUIP.UPADMA
-    // CHECK-SAME:      updates(%[[B0]] : !VPUIP.Barrier)
+    // CHECK-SAME:          updates(%[[B0]] : !VPUIP.Barrier)
 
-    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1x1x1000xf16>
-    VPUIP.UPADMA inputs(%0 : memref<1x1x1x1000xf16>) outputs(%1 : memref<1x1x1x1000xf16>)
+    %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1x1x1000xf16>
+    %3 = VPUIP.UPADMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%2 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     // CHECK:       %[[B1:.*]] = VPUIP.ConfigureBarrier<1>
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B0]] : !VPUIP.Barrier)
     // CHECK-SAME:      updates(%[[B1]] : !VPUIP.Barrier)
 
-    %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
-    VPUIP.UPADMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%2 : memref<1x1x1x1000xf16>)
+    %4 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
+    %5 = VPUIP.UPADMA inputs(%3 : memref<1x1x1x1000xf16>) outputs(%4 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     // CHECK:       %[[B2:.*]] = VPUIP.ConfigureBarrier<0>
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B1]] : !VPUIP.Barrier)
     // CHECK-SAME:      updates(%[[B2]] : !VPUIP.Barrier)
 
-    VPUIP.UPADMA inputs(%2 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>)
+    %6 = VPUIP.UPADMA inputs(%5 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     // CHECK:       VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B2]] : !VPUIP.Barrier)
 
-    return %arg1 : memref<1x1x1x1000xf16>
+    return %6 : memref<1x1x1x1000xf16>
 }
 
 }
@@ -78,19 +78,21 @@ IE.CNNNetwork
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
-    VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>)
-    // CHECK:           VPUIP.SoftMaxUPA
-    // CHECK-SAME:      updates(%1 : !VPUIP.Barrier)
+    %1 = VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+    // CHECK:       %[[B0:.*]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+    // CHECK-NEXT:           VPUIP.SoftMaxUPA
+    // CHECK-SAME:      updates(%[[B0]] : !VPUIP.Barrier)
 
-    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1x1x1000xf16>
-    VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%0 : memref<1x1x1x1000xf16>) outputs(%1 : memref<1x1x1x1000xf16>)
-    // CHECK:           VPUIP.SoftMaxUPA
-    // CHECK-SAME:      waits(%1 : !VPUIP.Barrier) updates(%3 : !VPUIP.Barrier)
+    %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" <2048> -> memref<1x1x1x1000xf16>
+    %3 = VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%1 : memref<1x1x1x1000xf16>) outputs(%2 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+    // CHECK:       %[[B1:.*]] = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
+    // CHECK-NEXT:           VPUIP.SoftMaxUPA
+    // CHECK-SAME:      waits(%[[B0]] : !VPUIP.Barrier) updates(%[[B1]] : !VPUIP.Barrier)
 
-    %2 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
-    VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%1 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>)
+    %4 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
+    %5 = VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%3 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     // CHECK:           VPUIP.SoftMaxUPA
-    // CHECK-SAME:      waits(%3 : !VPUIP.Barrier)
+    // CHECK-SAME:      waits(%[[B1]] : !VPUIP.Barrier)
 
     return  %arg1 : memref<1x1x1x1000xf16>
 }

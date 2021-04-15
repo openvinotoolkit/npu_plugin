@@ -229,6 +229,7 @@ mlir::LogicalResult BufferizeIEPass::SplitRewrite::matchAndRewrite(IE::SplitOp o
     // Prepare strides array for subview. We have dense array, so all strides have to be equal 1
     SmallVector<int64_t> svStrides(inputShape.size(), 1);
     SmallVector<int64_t> svOffsets(inputShape.size(), 0);
+    SmallVector<mlir::Value> results;
 
     const auto offsetStep = inputShape[axis] / origOp.num_splits();
 
@@ -241,12 +242,15 @@ mlir::LogicalResult BufferizeIEPass::SplitRewrite::matchAndRewrite(IE::SplitOp o
                                                                 svStrides);
 
         _log.trace("Copy SubView result to output buffer");
-        rewriter.create<IERT::CopyOp>(origOp->getLoc(), subView, allocatedBufs[i]);
+
+        auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), subView, allocatedBufs[i]);
+        results.push_back(copyOp.output());
 
         svOffsets[axis.ind()] += offsetStep;
     }
 
-    rewriter.replaceOp(origOp, allocatedBufs);
+    rewriter.replaceOp(origOp, results);
+
     return mlir::success();
 }
 
@@ -315,174 +319,177 @@ mlir::LogicalResult BufferizeIEPass::ConcatRewrite::matchAndRewrite(IE::ConcatOp
 
 mlir::Operation* createRTLayer(mlir::quant::QuantizeCastOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::QuantizeOp::Adaptor newOp(allBufs);
-    return b.create<IERT::QuantizeOp>(origOp.getLoc(), newOp.input(), newOp.output());
+    return b.create<IERT::QuantizeOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(mlir::quant::DequantizeCastOp origOp, ArrayRef<mlir::Value> allBufs,
                                mlir::OpBuilder& b) {
     IERT::DequantizeOp::Adaptor newOp(allBufs);
-    return b.create<IERT::DequantizeOp>(origOp.getLoc(), newOp.input(), newOp.output());
+    return b.create<IERT::DequantizeOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::ConvertOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ConvertOp::Adaptor newOp(allBufs);
-    return b.create<IERT::ConvertOp>(origOp.getLoc(), newOp.input(), newOp.output());
+    return b.create<IERT::ConvertOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::ReLUOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ReLUOp::Adaptor newOp(allBufs);
-    return b.create<IERT::ReLUOp>(origOp.getLoc(), newOp.input(), newOp.output());
+    return b.create<IERT::ReLUOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::SigmoidOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::SigmoidOp::Adaptor newOp(allBufs);
-    return b.create<IERT::SigmoidOp>(origOp.getLoc(), newOp.input(), newOp.output());
+    return b.create<IERT::SigmoidOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::HSwishOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::HSwishOp::Adaptor newOp(allBufs);
-    return b.create<IERT::HSwishOp>(origOp.getLoc(), newOp.input(), newOp.output());
+    return b.create<IERT::HSwishOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::TanhOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::TanhOp::Adaptor newOp(allBufs);
-    return b.create<IERT::TanhOp>(origOp.getLoc(), newOp.input(), newOp.output());
+    return b.create<IERT::TanhOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::NegativeOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::NegativeOp::Adaptor newOp(allBufs);
-    return b.create<IERT::NegativeOp>(origOp.getLoc(), newOp.input(), newOp.output());
+    return b.create<IERT::NegativeOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::PReluOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::PReluOp::Adaptor newOp(allBufs);
-    return b.create<IERT::PReluOp>(origOp.getLoc(), newOp.input(), newOp.negative_slope(), newOp.output());
+    return b.create<IERT::PReluOp>(origOp.getLoc(), newOp.input(), newOp.negative_slope(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::AddOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::AddOp::Adaptor newOp(allBufs);
-    return b.create<IERT::AddOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output());
+    return b.create<IERT::AddOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::MultiplyOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::MultiplyOp::Adaptor newOp(allBufs);
-    return b.create<IERT::MultiplyOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output());
+    return b.create<IERT::MultiplyOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::DivideOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::DivideOp::Adaptor newOp(allBufs);
-    return b.create<IERT::DivideOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output());
+    return b.create<IERT::DivideOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::SquaredDifferenceOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::SquaredDifferenceOp::Adaptor newOp(allBufs);
-    return b.create<IERT::SquaredDifferenceOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output());
+    return b.create<IERT::SquaredDifferenceOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::PowerOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::PowerOp::Adaptor newOp(allBufs);
-    return b.create<IERT::PowerOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output());
+    return b.create<IERT::PowerOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::FloorModOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::FloorModOp::Adaptor newOp(allBufs);
-    return b.create<IERT::FloorModOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output());
+    return b.create<IERT::FloorModOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::MinimumOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::MinimumOp::Adaptor newOp(allBufs);
-    return b.create<IERT::MinimumOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output());
+    return b.create<IERT::MinimumOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::MaximumOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::MaximumOp::Adaptor newOp(allBufs);
-    return b.create<IERT::MaximumOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output());
+    return b.create<IERT::MaximumOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::TileOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::TileOp::Adaptor newOp(allBufs);
-    return b.create<IERT::TileOp>(origOp.getLoc(), newOp.input(), newOp.repeats(), newOp.output());
+    return b.create<IERT::TileOp>(origOp.getLoc(), newOp.input(), newOp.repeats(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::SoftMaxOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::SoftMaxOp::Adaptor newOp(allBufs);
-    return b.create<IERT::SoftMaxOp>(origOp.getLoc(), newOp.input(), newOp.output(), origOp.axisIndAttr());
+    return b.create<IERT::SoftMaxOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axisIndAttr());
 }
 
 mlir::Operation* createRTLayer(IE::AvgPoolOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::AvgPoolOp::Adaptor newOp(allBufs);
-    return b.create<IERT::AvgPoolOp>(origOp.getLoc(), newOp.input(), newOp.output(), origOp.kernel_sizeAttr(),
+    return b.create<IERT::AvgPoolOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.kernel_sizeAttr(),
                                      origOp.stridesAttr(), origOp.pads_beginAttr(), origOp.pads_endAttr());
 }
 
 mlir::Operation* createRTLayer(IE::MaxPoolOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::MaxPoolOp::Adaptor newOp(allBufs);
-    return b.create<IERT::MaxPoolOp>(origOp.getLoc(), newOp.input(), newOp.output(), origOp.kernel_sizeAttr(),
+    return b.create<IERT::MaxPoolOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.kernel_sizeAttr(),
                                      origOp.stridesAttr(), origOp.pads_beginAttr(), origOp.pads_endAttr());
 }
 
 mlir::Operation* createRTLayer(IE::ClampOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ClampOp::Adaptor newOp(allBufs);
-    return b.create<IERT::ClampOp>(origOp.getLoc(), newOp.input(), newOp.output(), origOp.minAttr(), origOp.maxAttr());
+    return b.create<IERT::ClampOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.minAttr(),
+                                   origOp.maxAttr());
 }
 
 mlir::Operation* createRTLayer(IE::EluOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::EluOp::Adaptor newOp(allBufs);
-    return b.create<IERT::EluOp>(origOp.getLoc(), newOp.input(), newOp.output(), origOp.xAttr());
+    return b.create<IERT::EluOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.xAttr());
 }
 
 mlir::Operation* createRTLayer(IE::LeakyReluOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::LeakyReluOp::Adaptor newOp(allBufs);
-    return b.create<IERT::LeakyReluOp>(origOp.getLoc(), newOp.input(), newOp.output(), origOp.negative_slopeAttr());
+    return b.create<IERT::LeakyReluOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(),
+                                       origOp.negative_slopeAttr());
 }
 
 mlir::Operation* createRTLayer(IE::GRNOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::GRNOp::Adaptor newOp(allBufs);
-    return b.create<IERT::GRNOp>(origOp.getLoc(), newOp.input(), newOp.output(), origOp.biasAttr());
+    return b.create<IERT::GRNOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.biasAttr());
 }
 
 mlir::Operation* createRTLayer(IE::PerAxisTileOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::PerAxisTileOp::Adaptor newOp(allBufs);
-    return b.create<IERT::PerAxisTileOp>(origOp.getLoc(), newOp.input(), newOp.output(), origOp.axisAttr(),
+    return b.create<IERT::PerAxisTileOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axisAttr(),
                                          origOp.tilesAttr());
 }
 
 mlir::Operation* createRTLayer(IE::FakeQuantizeOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::FakeQuantizeOp::Adaptor newOp(allBufs);
     return b.create<IERT::FakeQuantizeOp>(origOp.getLoc(), newOp.input(), newOp.input_low(), newOp.input_high(),
-                                          newOp.output_low(), newOp.output_high(), newOp.output(), origOp.levelsAttr());
+                                          newOp.output_low(), newOp.output_high(), newOp.output_buff(),
+                                          origOp.levelsAttr());
 }
 
 mlir::Operation* createRTLayer(IE::ROIPoolingOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ROIPoolingOp::Adaptor newOp(allBufs);
-    return b.create<IERT::ROIPoolingOp>(origOp.getLoc(), newOp.input(), newOp.coords(), newOp.output(),
+    return b.create<IERT::ROIPoolingOp>(origOp.getLoc(), newOp.input(), newOp.coords(), newOp.output_buff(),
                                         origOp.output_sizeAttr(), origOp.spatial_scaleAttr(), origOp.methodAttr());
 }
 
 mlir::Operation* createRTLayer(IE::ConvolutionOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ConvolutionOp::Adaptor newOp(allBufs);
-    return b.create<IERT::ConvolutionOp>(origOp.getLoc(), newOp.input(), newOp.filter(), newOp.bias(), newOp.output(),
-                                         origOp.stridesAttr(), origOp.pads_beginAttr(), origOp.pads_endAttr(),
-                                         origOp.dilationsAttr());
+    return b.create<IERT::ConvolutionOp>(origOp.getLoc(), newOp.input(), newOp.filter(), newOp.bias(),
+                                         newOp.output_buff(), origOp.stridesAttr(), origOp.pads_beginAttr(),
+                                         origOp.pads_endAttr(), origOp.dilationsAttr());
 }
 
 mlir::Operation* createRTLayer(IE::GroupConvolutionOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::GroupConvolutionOp::Adaptor newOp(allBufs);
     return b.create<IERT::GroupConvolutionOp>(origOp.getLoc(), newOp.input(), newOp.filter(), newOp.bias(),
-                                              newOp.output(), origOp.stridesAttr(), origOp.pads_beginAttr(),
+                                              newOp.output_buff(), origOp.stridesAttr(), origOp.pads_beginAttr(),
                                               origOp.pads_endAttr(), origOp.dilationsAttr(), origOp.groupsAttr());
 }
 
 mlir::Operation* createRTLayer(IE::SwishOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::SwishOp::Adaptor newOp(allBufs);
-    return b.create<IERT::SwishOp>(origOp.getLoc(), newOp.input(), newOp.beta(), newOp.output(),
+    return b.create<IERT::SwishOp>(origOp.getLoc(), newOp.input(), newOp.beta(), newOp.output_buff(),
                                    origOp.beta_valueAttr());
 }
 
 mlir::Operation* createRTLayer(IE::FullyConnectedOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::FullyConnectedOp::Adaptor newOp(allBufs);
     return b.create<IERT::FullyConnectedOp>(origOp.getLoc(), newOp.input(), newOp.weights(), newOp.bias(),
-                                            newOp.output());
+                                            newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::DetectionOutputOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -510,20 +517,20 @@ mlir::Operation* createRTLayer(IE::ScaleShiftOp origOp, ArrayRef<mlir::Value> al
 
 mlir::Operation* createRTLayer(IE::TransposeOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::TransposeOp::Adaptor newOp(allBufs);
-    return b.create<IERT::TransposeOp>(origOp.getLoc(), newOp.input(), newOp.order(), newOp.output(),
+    return b.create<IERT::TransposeOp>(origOp.getLoc(), newOp.input(), newOp.order(), newOp.output_buff(),
                                        origOp.order_valueAttr());
 }
 
 mlir::Operation* createRTLayer(IE::CTCGreedyDecoderOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::CTCGreedyDecoderOp::Adaptor newOp(allBufs);
-    return b.create<IERT::CTCGreedyDecoderOp>(origOp.getLoc(), newOp.input(), newOp.sequenceLengths(), newOp.output(),
-                                              origOp.mergeRepeatedAttr());
+    return b.create<IERT::CTCGreedyDecoderOp>(origOp.getLoc(), newOp.input(), newOp.sequenceLengths(),
+                                              newOp.output_buff(), origOp.mergeRepeatedAttr());
 }
 
 mlir::Operation* createRTLayer(IE::CTCGreedyDecoderSeqLenOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::CTCGreedyDecoderSeqLenOp::Adaptor newOp(allBufs);
     return b.create<IERT::CTCGreedyDecoderSeqLenOp>(origOp.getLoc(), newOp.input(), newOp.sequenceLength(),
-                                                    newOp.blankIndex(), newOp.output(), newOp.outputLength(),
+                                                    newOp.blankIndex(), newOp.output_buff(), newOp.outputLength_buff(),
                                                     origOp.mergeRepeatedAttr());
 }
 
@@ -625,9 +632,9 @@ mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operati
     allBufs.append(newOperands.begin(), newOperands.end());
     allBufs.append(resultBufs.begin(), resultBufs.end());
 
-    createFunc(origOp, allBufs, rewriter);
+    const auto newOp = createFunc(origOp, allBufs, rewriter);
+    rewriter.replaceOp(origOp, newOp->getResults());
 
-    rewriter.replaceOp(origOp, resultBufs);
     return mlir::success();
 }
 

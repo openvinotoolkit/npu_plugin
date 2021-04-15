@@ -76,11 +76,9 @@ vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func) {
                 })
                 .Default([&](mlir::Operation* op) {
                     for (const auto result : op->getResults()) {
-                        VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
-                                          "AliasesInfo analysis works only with MemRef types, got '{0}'",
-                                          result.getType());
-
-                        addAlias(result, result);
+                        if (result.getType().isa<mlir::MemRefType>()) {
+                            addAlias(result, result);
+                        }
                     }
                 });
     });

@@ -148,53 +148,9 @@ def VPUIP_NCETaskOpInterface : OpInterface<"NCETaskOpInterface"> {
         return vpux::VPUIP::verifyNCETask($_op);
     }];
 
-    let methods = [
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::Value", "input", (ins),
-            [{
-                return $_op.input();
-            }]
-        >,
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::Value", "filter", (ins),
-            [{
-                return $_op.filter();
-            }]
-        >,
-        InterfaceMethod<
-            "Get the source Value for the Operation",
-            "mlir::Value", "weight_table", (ins),
-            [{
-                return $_op.weight_table();
-            }]
-        >,
-        InterfaceMethod<
-            "Get destination Value for the Operation",
-            "mlir::Value", "output", (ins),
-            [{
-                return $_op.output();
-            }]
-        >,
-    ];
-
     let extraTraitClassDeclaration = [{
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::NCE2;
-        }
-        vpux::SmallVector<mlir::Value> getInputs() {
-            vpux::SmallVector<mlir::Value> inputs = {$_op.input()};
-            if ($_op.filter() != nullptr) {
-                inputs.push_back($_op.filter());
-            }
-            if ($_op.weight_table() != nullptr) {
-                inputs.push_back($_op.weight_table());
-            }
-            return inputs;
-        }
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {$_op.output()};
         }
     }];
 }
