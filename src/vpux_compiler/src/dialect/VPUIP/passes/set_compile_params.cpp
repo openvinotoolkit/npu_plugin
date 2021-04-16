@@ -31,17 +31,27 @@ namespace {
 
 class SetCompileParamsPass final : public VPUIP::SetCompileParamsBase<SetCompileParamsPass> {
 public:
-    SetCompileParamsPass(Optional<VPUIP::ArchKind> arch, Logger log);
+    SetCompileParamsPass(Optional<VPUIP::ArchKind> arch, Optional<VPUIP::CompilationMode> compilationMode, Logger log);
 
 private:
     void safeRunOnModule() final;
 
 private:
     VPUIP::ArchKind _arch;
+    VPUIP::CompilationMode _compilationMode;
 };
 
-SetCompileParamsPass::SetCompileParamsPass(Optional<VPUIP::ArchKind> arch, Logger log) {
+SetCompileParamsPass::SetCompileParamsPass(Optional<VPUIP::ArchKind> arch,
+                                           Optional<VPUIP::CompilationMode> compilationMode, Logger log) {
     Base::initLogger(log, Base::getArgumentName());
+
+    if (compilationMode.hasValue()) {
+        _compilationMode = compilationMode.getValue();
+    } else {
+        auto parsed = VPUIP::symbolizeEnum<VPUIP::CompilationMode>(compilationModeName.getValue());
+        VPUX_THROW_UNLESS(parsed.hasValue(), "Unknown compilation mode: '{0}'", compilationModeName.getValue());
+        _compilationMode = parsed.getValue();
+    }
 
     if (arch.hasValue()) {
         _arch = arch.getValue();
@@ -76,6 +86,8 @@ void SetCompileParamsPass::safeRunOnModule() {
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
 
     builder.create<VPUIP::GraphOp>(mlir::UnknownLoc::get(&ctx), options, version);
+
+    VPUIP::setCompilationMode(module, _compilationMode);
 }
 
 }  // namespace
@@ -84,6 +96,8 @@ void SetCompileParamsPass::safeRunOnModule() {
 // createSetCompileParamsPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createSetCompileParamsPass(Optional<ArchKind> arch, Logger log) {
-    return std::make_unique<SetCompileParamsPass>(arch, log);
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createSetCompileParamsPass(Optional<ArchKind> arch,
+                                                                    Optional<CompilationMode> compilationMode,
+                                                                    Logger log) {
+    return std::make_unique<SetCompileParamsPass>(arch, compilationMode, log);
 }
