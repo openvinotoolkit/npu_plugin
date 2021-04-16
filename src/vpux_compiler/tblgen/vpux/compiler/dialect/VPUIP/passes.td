@@ -31,13 +31,18 @@ This pass attaches compilation parameters related to **VPUIP Dialect** to Module
 initializes **IERT Dialect** run-time resources information.
     }];
 
-    let constructor = "vpux::VPUIP::createSetCompileParamsPass(vpux::None)";
+    let constructor = "vpux::VPUIP::createSetCompileParamsPass(vpux::None, vpux::None)";
 
     let options = [
         Option<
             "archName", "vpu-arch",
-            "std::string", [{"VPU3400_A0"}],
+            "std::string", [{"VPU3700"}],
             "VPU architecture to compile for"
+        >,
+        Option<
+            "compilationModeName", "compilation-mode",
+            "std::string", [{"ReferenceSW"}],
+            "Set compilation mode as reference (ReferenceSW) or hardware (ReferenceHW)"
         >
     ];
 

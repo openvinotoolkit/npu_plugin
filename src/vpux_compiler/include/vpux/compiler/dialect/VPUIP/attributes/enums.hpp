@@ -29,6 +29,8 @@
 
 #include <vpux/compiler/dialect/VPUIP/generated/attributes/enums.hpp.inc>
 
+#include <mlir/IR/BuiltinOps.h>
+
 namespace vpux {
 namespace VPUIP {
 
@@ -40,6 +42,9 @@ PhysicalMemory getPhysicalMemory(MemoryLocation location);
 mlir::FailureOr<PhysicalMemory> getPhysicalMemory(mlir::MemRefType memref);
 
 bool isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref);
+
+CompilationMode getCompilationMode(mlir::ModuleOp module);
+void setCompilationMode(mlir::ModuleOp module, CompilationMode compilationMode);
 
 }  // namespace VPUIP
 }  // namespace vpux
