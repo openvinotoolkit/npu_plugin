@@ -140,6 +140,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     Optional<llvm::Regex> irPrintingFilter;
     bool printFullIR = false;
     VPUIP::CompilationMode compilationMode = VPUIP::CompilationMode::ReferenceSW;
+    bool printFullConstant = false;
 
 #ifdef VPUX_DEVELOPER_BUILD
     if (const auto env = std::getenv("IE_VPUX_ENABLE_PASS_VERIFIER")) {
@@ -171,6 +172,10 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
         const auto parsed = VPUIP::symbolizeCompilationMode(env);
         VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", env);
         compilationMode = parsed.getValue();
+    }
+
+    if (const auto env = std::getenv("IE_VPUX_PRINT_FULL_CONSTANT")) {
+        printFullConstant = std::stoi(env);
     }
 #endif
 
@@ -208,7 +213,11 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
             ctx.disableMultithreading();
         }
 
-        pm.enableIRPrinting(shouldPrintForPass, shouldPrintForPass, printFullIR, false, stream);
+        mlir::OpPrintingFlags flags = mlir::OpPrintingFlags();
+        if (!printFullConstant) {
+            flags.elideLargeElementsAttrs();
+        }
+        pm.enableIRPrinting(shouldPrintForPass, shouldPrintForPass, printFullIR, false, stream, flags);
     }
 
     pm.addPass(createSetCompileParamsPass(getArchKind(config), compilationMode, log.nest()));
