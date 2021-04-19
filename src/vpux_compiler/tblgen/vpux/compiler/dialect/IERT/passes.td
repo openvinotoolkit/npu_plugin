@@ -27,7 +27,7 @@ def AddLayoutsAndStrides : PassBase<"add-layouts-and-strides", "vpux::ModulePass
     let summary = "Add layouts and strides to memref";
 
     let description = [{
-This pass adds default values for layouts and strides to the memref types.
+        This pass adds default values for layouts and strides to the memref types.
     }];
 
     let constructor = "vpux::IERT::createAddLayoutsAndStridesPass()";
@@ -41,7 +41,7 @@ def SetInternalMemorySpace : PassBase<"set-internal-memory-space", "vpux::Functi
     let summary = "Set specific memory space for all internal memory buffers";
 
     let description = [{
-This pass updates all Types for internal memory buffers and sets the specified memory space for them.
+        This pass updates all Types for internal memory buffers and sets the specified memory space for them.
     }];
 
     let constructor = [{
@@ -58,11 +58,6 @@ This pass updates all Types for internal memory buffers and sets the specified m
             "Memory space to perform allocation"
         >
     ];
-
-    let dependentDialects = [
-        "mlir::StandardOpsDialect",
-        "mlir::linalg::LinalgDialect"
-    ];
 }
 
 //
@@ -73,8 +68,8 @@ def StaticAllocation : PassBase<"static-allocation", "vpux::ModulePass"> {
     let summary = "Replace dynamic allocations with static";
 
     let description = [{
-This pass replaces all dynamic `alloc`/`dealloc` Operations with `IERT.StaticAlloc`.
-It uses simple LinearScan algorithm.
+        This pass replaces all dynamic `alloc`/`dealloc` Operations with `IERT.StaticAlloc`.
+        It uses simple LinearScan algorithm.
     }];
 
     let constructor = [{
@@ -90,6 +85,10 @@ It uses simple LinearScan algorithm.
             "std::string", [{""}],
             "Memory space to perform allocation"
         >
+    ];
+
+    let dependentDialects = [
+        "vpux::IERT::IERTDialect"
     ];
 }
 

@@ -290,6 +290,7 @@ link_system_libraries(${OBJ_TARGET_NAME}
         MLIRMemRef
         MLIRQuant
         MLIRLinalg
+        MLIRAsync
         MLIRTransforms
         MLIRStandardOpsTransforms
         MLIRTranslation

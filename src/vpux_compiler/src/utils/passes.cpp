@@ -18,8 +18,6 @@
 
 #include "vpux/compiler/utils/error.hpp"
 
-#include "vpux/utils/core/scope_exit.hpp"
-
 using namespace vpux;
 
 //
@@ -44,11 +42,8 @@ void vpux::FunctionPass::runOnFunction() {
         _log.trace("Run on Function '{0}'", getFunction().getName());
 
         _log = _log.nest();
-        VPUX_SCOPE_EXIT {
-            _log = _log.unnest();
-        };
-
         safeRunOnFunc();
+        _log = _log.unnest();
     } catch (const std::exception& e) {
         (void)errorAt(getFunction(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();

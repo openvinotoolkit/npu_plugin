@@ -47,6 +47,10 @@ It handles such VPU-specifics as:
         "mlir::StandardOpsDialect",
         "mlir::quant::QuantizationDialect"
     ];
+
+    let extraClassDeclaration = [{
+        static void setupExtraInterfaces(mlir::DialectRegistry& registry);
+    }];
 }
 
 #endif

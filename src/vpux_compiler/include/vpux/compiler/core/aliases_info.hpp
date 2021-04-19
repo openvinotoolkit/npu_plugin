@@ -16,9 +16,12 @@
 
 #pragma once
 
-#include <llvm/ADT/SmallPtrSet.h>
+#include "vpux/utils/core/logger.hpp"
+
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Value.h>
+
+#include <llvm/ADT/SmallPtrSet.h>
 
 namespace vpux {
 
@@ -27,16 +30,22 @@ public:
     using ValuesSet = llvm::SmallPtrSet<mlir::Value, 16>;
     using AliasesMap = llvm::DenseMap<mlir::Value, ValuesSet>;
     using ValuesMap = llvm::DenseMap<mlir::Value, mlir::Value>;
+    using OpRange = llvm::iterator_range<mlir::Region::OpIterator>;
 
 public:
     explicit AliasesInfo(mlir::FuncOp func);
 
-    const ValuesSet& getAliases(mlir::Value val) const;
     mlir::Value getRoot(mlir::Value val) const;
+    const ValuesSet& getAliases(mlir::Value val) const;
+
+private:
+    void addAlias(mlir::Value root, mlir::Value alias);
+    void traverse(OpRange ops);
 
 private:
     AliasesMap _aliases;
     ValuesMap _roots;
+    Logger _log;
 };
 
 }  // namespace vpux
