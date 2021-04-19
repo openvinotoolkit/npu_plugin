@@ -19,8 +19,11 @@
 #include <string>
 #include <vector>
 
+#include <debug.h>
 #include <ie_blob.h>
+#include <ie_compound_blob.h>
 #include <ie_layouts.h>
+#include <blob_factory.hpp>
 
 #include "vpux_infer_request.h"
 #include "vpux_remote_blob.h"
@@ -69,7 +72,7 @@ static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc,
 InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
                            const Executor::Ptr& executor, const VPUXConfig& config, const std::string& netName,
                            const std::shared_ptr<InferenceEngine::IAllocator>& allocator)
-        : InferRequestInternal(networkInputs, networkOutputs),
+        : IInferRequestInternal(networkInputs, networkOutputs),
           _executorPtr(executor),
           _config(config),
           _logger(std::make_shared<vpu::Logger>("InferRequest", config.logLevel(), vpu::consoleOutput())),
@@ -286,7 +289,7 @@ std::map<std::string, IE::InferenceEngineProfileInfo> InferRequest::GetPerforman
 
 void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
     if (!data->is<VPUXRemoteBlob>()) {
-        IE::InferRequestInternal::SetBlob(name, data);
+        IE::IInferRequestInternal::SetBlob(name, data);
         return;
     }
 

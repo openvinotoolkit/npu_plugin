@@ -631,10 +631,7 @@ TEST_F(vpuLayersTests, DISABLED_allocateNV12TwoImagesGetBlob) {
     // set another image via GetBlob
     std::string inputDogPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input-dog-1080x1080-nv12.bin";
 
-    IInferRequest::Ptr inferReqInterfacePtr = static_cast<IInferRequest::Ptr&>(*commonInferReqPtr);
-    Blob::Ptr dogInputBlobPtr;
-    ResponseDesc resp;
-    inferReqInterfacePtr->GetBlob(input1_name.c_str(), dogInputBlobPtr, &resp);
+    Blob::Ptr dogInputBlobPtr = commonInferReqPtr->GetBlob(input1_name);
     NV12Blob::Ptr dogNV12blobPtr = as<NV12Blob>(dogInputBlobPtr);
     Blob::Ptr& dogYPlane = dogNV12blobPtr->y();
     Blob::Ptr& dogUVPlane = dogNV12blobPtr->uv();
