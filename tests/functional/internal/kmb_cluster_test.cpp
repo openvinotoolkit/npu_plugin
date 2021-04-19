@@ -84,6 +84,10 @@ TEST_P(KmbClusterTestWithParams, checkInferTime) {
     // FIXME [Track number: E#6518]
     SKIP() << "Throws an exception on the second runTest call";
 #endif
+    if (KmbTestBase::PLATFORM == "VPU3400_A0") {
+        // FIXME [Track number: E#10416]
+        SKIP() << "MCM Compiler error: Failed to pass runtime simulation";
+    }
     const auto& p = GetParam();
     const std::string net_path = "ADK3/ModelE_INT8/ModelE_INT8.xml";
     constexpr bool EXPERIMENTAL = true;
