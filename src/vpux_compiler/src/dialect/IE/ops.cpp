@@ -40,16 +40,16 @@ public:
 };
 
 mlir::LogicalResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const {
-    if (const auto affineMapAttr = attr.dyn_cast<mlir::AffineMapAttr>()) {
-        try {
-            const auto dimsOrder = DimsOrder::fromAffineMap(affineMapAttr.getValue());
+    if (const auto mapAttr = attr.dyn_cast<mlir::AffineMapAttr>()) {
+        const auto map = mapAttr.getValue();
+
+        if (map.isPermutation()) {
+            const auto dimsOrder = DimsOrder::fromAffineMap(map);
 
             if (const auto name = dimsOrder.getCanonicalName()) {
                 os << name.getValue();
                 return mlir::success();
             }
-        } catch (...) {
-            return mlir::failure();
         }
     }
 
