@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -14,46 +14,34 @@
 // stated in the License.
 //
 
-#pragma once
+#include "vpux/compiler/init.hpp"
 
-#include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
-
-#include "vpux/utils/core/mem_size.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include <mlir/Dialect/Async/IR/Async.h>
 #include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/IR/Dialect.h>
-#include <mlir/IR/DialectImplementation.h>
-#include <mlir/IR/SymbolTable.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/Interfaces/ViewLikeInterface.h>
+
+using namespace vpux;
 
 //
-// Generated
+// registerDialects
 //
 
-#include <vpux/compiler/dialect/IERT/generated/dialect.hpp.inc>
+void vpux::registerDialects(mlir::DialectRegistry& registry) {
+    registry.insert<mlir::async::AsyncDialect>();
+    registry.insert<mlir::linalg::LinalgDialect>();
+    registry.insert<mlir::memref::MemRefDialect>();
+    registry.insert<mlir::quant::QuantizationDialect>();
+    registry.insert<mlir::StandardOpsDialect>();
 
-#define GET_OP_CLASSES
-#include <vpux/compiler/dialect/IERT/generated/ops.hpp.inc>
-#undef GET_OP_CLASSES
+    registry.insert<IE::IEDialect>();
+    registry.insert<IERT::IERTDialect>();
+    registry.insert<VPUIP::VPUIPDialect>();
 
-//
-// Operation verifiers
-//
-
-namespace vpux {
-namespace IERT {
-
-mlir::LogicalResult verifyOp(RunTimeResourcesOp op);
-mlir::LogicalResult verifyOp(ExecutorResourceOp op);
-mlir::LogicalResult verifyOp(GenericReshapeOp op);
-
-}  // namespace IERT
-}  // namespace vpux
+    VPUIP::VPUIPDialect::setupExtraInterfaces(registry);
+}

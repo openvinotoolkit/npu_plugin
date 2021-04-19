@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
+#include "vpux/compiler/init.hpp"
 
 #include "vpux/utils/core/format.hpp"
 
@@ -41,6 +42,10 @@ namespace {
 //
 
 mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ctx) {
+    mlir::DialectRegistry registry;
+    registerDialects(registry);
+    ctx->appendDialectRegistry(registry);
+
     if (sourceMgr.getNumBuffers() != 1) {
         printTo(llvm::errs(),
                 "Invalid source file for IE IR, it has unsupported number of "
@@ -85,16 +90,6 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
     const auto buf = VPUIP::exportToBlob(module);
     output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
     return mlir::success();
-}
-
-//
-// registerDialects
-//
-
-void registerDialects(mlir::DialectRegistry& registry) {
-    registry.insert<IE::IEDialect>();
-    registry.insert<IERT::IERTDialect>();
-    registry.insert<VPUIP::VPUIPDialect>();
 }
 
 }  // namespace

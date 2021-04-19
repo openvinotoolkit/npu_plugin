@@ -23,6 +23,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
+#include "vpux/compiler/init.hpp"
 #include "vpux/compiler/pipelines.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
@@ -47,6 +48,10 @@ using namespace InferenceEngine;
 
 namespace {
 
+//
+// getLogLevel
+//
+
 LogLevel getLogLevel(const VPUXConfig& config) {
     switch (config.logLevel()) {
     case vpu::LogLevel::Fatal:
@@ -66,6 +71,10 @@ LogLevel getLogLevel(const VPUXConfig& config) {
     }
 }
 
+//
+// getArchKind
+//
+
 VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
     switch (config.platform()) {
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
@@ -83,6 +92,10 @@ VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
         VPUX_THROW("Unsupported VPUX platform");
     }
 }
+
+//
+// TimingLogger
+//
 
 class TimingLogger final : public mlir::PassManager::PassTimingConfig {
 public:
@@ -107,6 +120,10 @@ void TimingLogger::printTiming(PrintCallbackFn printCallback) {
 }
 
 }  // namespace
+
+//
+// CompilerImpl::compile
+//
 
 std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shared_ptr<ngraph::Function>& func,
                                                                  const std::string&, const InputsDataMap& inputsInfo,
@@ -163,12 +180,11 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
 
     Logger log("vpux-compiler", getLogLevel(config));
 
-    mlir::MLIRContext ctx;
-    addLogging(ctx, log);
+    mlir::DialectRegistry registry;
+    registerDialects(registry);
 
-    ctx.loadDialect<IE::IEDialect>();
-    ctx.loadDialect<IERT::IERTDialect>();
-    ctx.loadDialect<VPUIP::VPUIPDialect>();
+    mlir::MLIRContext ctx(registry);
+    addLogging(ctx, log);
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
 
@@ -240,14 +256,26 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     return std::make_shared<VPUIP::NetworkDescription>(std::move(compiledNetwork));
 }
 
+//
+// CompilerImpl::parse
+//
+
 std::shared_ptr<vpux::INetworkDescription> vpux::CompilerImpl::parse(const std::vector<char>& compiledNetwork,
                                                                      const vpux::VPUXConfig&, const std::string&) {
     return std::make_shared<VPUIP::NetworkDescription>(compiledNetwork);
 }
 
+//
+// CompilerImpl::getSupportedOptions
+//
+
 std::unordered_set<std::string> vpux::CompilerImpl::getSupportedOptions() {
     return {};
 }
+
+//
+// CreateVPUXCompiler
+//
 
 INFERENCE_PLUGIN_API(StatusCode)
 CreateVPUXCompiler(ICompiler*& compiler, ResponseDesc* resp) noexcept {
