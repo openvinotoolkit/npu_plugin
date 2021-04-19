@@ -447,7 +447,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrie
                     .setUserInputPrecision("input", Precision::U8),
             TestImageDesc("736x416/dss_val_05.png", ImageFormat::BGR),
             0.3f,
-            0.1f, 0.3f);
+            0.25f, 0.3f);
 }
 
 // TODO Update to YoloV3
