@@ -122,6 +122,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     bool localReproducer = true;
     Optional<llvm::Regex> irPrintingFilter;
     bool printFullIR = false;
+    VPUIP::CompilationMode compilationMode = VPUIP::CompilationMode::ReferenceSW;
 
 #ifdef VPUX_DEVELOPER_BUILD
     if (const auto env = std::getenv("IE_VPUX_ENABLE_PASS_VERIFIER")) {
@@ -147,6 +148,12 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     }
     if (const auto env = std::getenv("IE_VPUX_PRINT_FULL_IR")) {
         printFullIR = std::stoi(env);
+    }
+
+    if (const auto env = std::getenv("IE_VPUX_COMPILATION_MODE")) {
+        const auto parsed = VPUIP::symbolizeCompilationMode(env);
+        VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", env);
+        compilationMode = parsed.getValue();
     }
 #endif
 
@@ -188,8 +195,13 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
         pm.enableIRPrinting(shouldPrintForPass, shouldPrintForPass, printFullIR, false, stream);
     }
 
-    pm.addPass(createSetCompileParamsPass(getArchKind(config), log.nest()));
-    buildReferenceModePipeline(pm, log.nest());
+    pm.addPass(createSetCompileParamsPass(getArchKind(config), compilationMode, log.nest()));
+
+    if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
+        buildReferenceModePipeline(pm, log.nest());
+    } else {
+        VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
+    }
 
     //
     // Process the network

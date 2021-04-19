@@ -22,6 +22,10 @@
 
 using namespace vpux;
 
+namespace {
+constexpr StringLiteral compilationModeAttrName = "VPUIP.compilationMode";
+};
+
 //
 // MemoryLocation utilities
 //
@@ -65,6 +69,18 @@ mlir::FailureOr<VPUIP::PhysicalMemory> vpux::VPUIP::getPhysicalMemory(mlir::MemR
 
 bool vpux::VPUIP::isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref) {
     return getPhysicalMemory(location) == getPhysicalMemory(memref);
+}
+
+void vpux::VPUIP::setCompilationMode(mlir::ModuleOp module, CompilationMode compilationMode) {
+    module->setAttr(compilationModeAttrName, VPUIP::CompilationModeAttr::get(module.getContext(), compilationMode));
+}
+
+VPUIP::CompilationMode vpux::VPUIP::getCompilationMode(mlir::ModuleOp module) {
+    auto attr = module->getAttr(compilationModeAttrName);
+    VPUX_THROW_UNLESS(attr != nullptr, "Module doesn't contain '{0}' attribute", compilationModeAttrName);
+    VPUX_THROW_UNLESS(attr.isa<VPUIP::CompilationModeAttr>(), "Module attribute '{0}' has unsupported value '{1}'",
+                      compilationModeAttrName, attr);
+    return attr.cast<VPUIP::CompilationModeAttr>().getValue();
 }
 
 //

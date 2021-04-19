@@ -126,8 +126,8 @@ Element(other),
 shape_(other.shape_),
 internalOrder_(other.internalOrder_),
 blockSize_(other.blockSize_),
-sparsityMap_(other.sparsityMap_),
-storageElement_(other.storageElement_),
+sparsityMap_(),
+storageElement_(),
 subTensors_(),
 kernelDataOffsets_(other.kernelDataOffsets_),
 noneZeroElements_(other.noneZeroElements_)
@@ -148,18 +148,21 @@ noneZeroElements_(other.noneZeroElements_)
     {
         data_ = other.data_;
         blocks_ = other.blocks_;
-    } else if (other.isSparse()) {
-      // when copying an unpopulated sparse tensor create brand new sparsitymap
-      // and storage pointers as they cannot be shared like populated (read-only)
-      // tensors.
-      set<bool>("sparse", false);
-      for (size_t i=0; i<other.numSubTensors(); i++) {
-        subTensors_[i]->set<bool>("sparse", false);
-      }
-      setSparse();
-      if (other.hasAttr("address")) {
-        setAddress(other.get<size_t>("address"));
-      }
+    }
+
+    if (other.isSparse()) {
+        set<bool>("sparse", false);
+        for (size_t i = 0; i < other.numSubTensors(); i++) {
+            subTensors_[i]->set<bool>("sparse", false);
+        }
+        setSparse();
+        if (isPopulated()) {
+            sparsityMap_ = std::make_shared<Tensor>(*other.sparsityMap_);
+            sparsityMap_->setName(createSparsityMapName(getName()));
+        }
+        if (other.hasAttr("address")) {
+            setAddress(other.get<size_t>("address"));
+        }
     }
 }
 
@@ -238,9 +241,8 @@ void mv::Tensor::populate(const std::vector<double>& data)
     }
 
     if (getOrder() != internalOrder_){
-        std::vector<std::size_t> sub(shape_.ndims());
         for(std::size_t j = 0; j < data.size();++j){
-            sub = getOrder().indToSub(shape_, j);
+            std::vector<std::size_t> sub = getOrder().indToSub(shape_, j);
             auto idx = internalOrder_.subToInd(shape_, sub);
             auto b = idx / blockSize_;
             auto i = idx % blockSize_;
@@ -275,9 +277,8 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
     }
 
     if (getOrder() != internalOrder_){
-        std::vector<std::size_t> sub(shape_.ndims());
         for(std::size_t j = 0; j < data.size();++j){
-            sub = getOrder().indToSub(shape_, j);
+            std::vector<std::size_t> sub = getOrder().indToSub(shape_, j);
             auto idx = internalOrder_.subToInd(shape_, sub);
             auto b = idx / blockSize_;
             auto i = idx % blockSize_;
@@ -317,9 +318,8 @@ void mv::Tensor::populate(const std::vector<int64_t>& data)
         data_.push_back(std::make_shared<std::vector<DataElement>>(blockSize_, false));
 
     if (getOrder() != internalOrder_){
-        std::vector<std::size_t> sub(shape_.ndims());
         for(std::size_t j = 0; j < data.size();++j){
-            sub = getOrder().indToSub(shape_, j);
+            std::vector<std::size_t> sub = getOrder().indToSub(shape_, j);
             auto idx = internalOrder_.subToInd(shape_, sub);
             auto b = idx / blockSize_;
             auto i = idx % blockSize_;
@@ -437,55 +437,57 @@ void writeMapEntry(std::vector<int64_t>& sparsityMapData, std::size_t& sparsityM
 void mv::Tensor::populateSparsityMapTensor_()
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
-    auto shape = getShape();
+    const auto shape = getShape();
 
     std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
     std::vector<int64_t> sparsityMapData(sparsityMap_->shape_.totalSize(), 0);
     std::vector<size_t> sub(shape.ndims());
     uint8_t map = 0;
     std::size_t sparsityMapIdx = 0;
-    size_t n = 0;
     int shift = 0;
-    int channelIndex = mv::KERNEL_OUTPUT_CHANNELS;
     noneZeroElements_ = 0;
 
-    // Populating on a per channel basis
-    for (size_t t = 0; t < shape.totalSize(); t++)
+    const auto outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
+    const auto outputChannelSize = shape.totalSize() / outputChannels;
+
+    for (std::size_t k = 0; k < outputChannels; ++k)
     {
-        sub = getOrder().indToSub(shape, t);
-
-        // Starting a new channel
-        if (sub[channelIndex] != n)
+        // Add elements from an output channel to the sparsity map so that
+        // each bit represents one element (8 elements per byte)
+        if (getOrder() == internalOrder_)
         {
-            // This is needed in the case when tensor dimensions are not multiple of 8
-            // This should never happen because weights sets are padded to have alignment to 16
-            if (shift != 0)
-                writeMapEntry(sparsityMapData, sparsityMapIdx, map, shift);
-
-            // Updating current channel index
-            n = sub[channelIndex];
-
-            // Again, this should never happen, same reasoning as above
-            if (sparsityMapIdx % 16 != 0)
+            for (std::size_t i = 0; i < outputChannelSize; i++)
             {
-                auto padding = 16 - (sparsityMapIdx % 16);
-                sparsityMapIdx += padding;
+                const auto idx = k*outputChannelSize + i;
+                const auto b = idx/blockSize_;
+                const auto d = idx%blockSize_;
+                if (static_cast<int64_t>(data_[b]->at(d)) != zeroPoint[k])
+                    map ^= (1 << shift);
+                if (++shift == 8)
+                    writeMapEntry(sparsityMapData, sparsityMapIdx, map, shift);
+            }
+        }
+        else
+        {
+            for (std::size_t i = 0; i < outputChannelSize; i++)
+            {
+                sub = getOrder().indToSub(shape, k*outputChannelSize + i);
+                const auto idx = internalOrder_.subToInd(shape, sub);
+                const auto b = idx/blockSize_;
+                const auto d = idx%blockSize_;
+                if (static_cast<int64_t>(data_[b]->at(d)) != zeroPoint[k])
+                    map ^= (1 << shift);
+                if (++shift == 8)
+                    writeMapEntry(sparsityMapData, sparsityMapIdx, map, shift);
             }
         }
 
-        // Updating current entry: 1 UInt8 contains 8 bits, so can cover for 8 elements
-        // NOTE: NoneZero elements can't be counted here
-        // Because we need alignment to 16, which can be obtained only in getPackedData.
-        auto idx_order = internalOrder_.subToInd(shape, sub);
-        auto idx = idx_order / blockSize_;
-        auto idx_b = idx_order % blockSize_;
-
-        if (static_cast<int64_t>(data_[idx]->at(idx_b)) != zeroPoint[sub[channelIndex]])
-            map ^= (1 << shift);
-
-        // Finished one entry, writing it and resetting entry and shift variables
-        if (++shift == 8)
+        // This is needed in the case when tensor dimensions are not multiple of 8
+        // This should never happen because weights sets are padded to have alignment to 16
+        if (shift != 0)
             writeMapEntry(sparsityMapData, sparsityMapIdx, map, shift);
+
+        sparsityMapIdx = mv::round_up(sparsityMapIdx, 16);
     }
 
     // Following the above reasoning, this should never happen
@@ -544,7 +546,6 @@ bool mv::Tensor::setSparse()
         return false;
 
     set<bool>("sparse", true);
-    set<bool>("allocateSparsityMap", true);
 
     auto shape = getShape();
     size_t N = shape[shape.ndims()-1];
@@ -766,18 +767,24 @@ std::vector<double> mv::Tensor::getDoubleData()
 
     std::vector<double> orderedData(shape_.totalSize());
 
-    std::vector<std::size_t> sub(shape_.ndims());
     auto temp_dataTotal = data_.size() * blockSize_;
-    for (std::size_t i = 0; i < temp_dataTotal; ++i)
+    if (getOrder() != internalOrder_)
     {
-        auto t = i/blockSize_;
-        auto u = i%blockSize_;
-        if (getOrder() != internalOrder_){
-            sub = internalOrder_.indToSub(shape_, i);
-            auto idx = getOrder().subToInd(shape_, sub);
+        for (std::size_t i = 0; i < temp_dataTotal; ++i)
+        {
+            const auto t = i/blockSize_;
+            const auto u = i%blockSize_;
+            const auto sub = internalOrder_.indToSub(shape_, i);
+            const auto idx = getOrder().subToInd(shape_, sub);
             orderedData[idx] = data_[t]->at(u);
         }
-        else{
+    }
+    else
+    {
+        for (std::size_t i = 0; i < temp_dataTotal; ++i)
+        {
+            const auto t = i/blockSize_;
+            const auto u = i%blockSize_;
             orderedData[i] = data_[t]->at(u);
         }
     }
@@ -792,19 +799,24 @@ std::vector<mv::DataElement> mv::Tensor::getData()
 
     std::vector<DataElement> orderedData(shape_.totalSize(), DataElement(isDoubleType()));
 
-    std::vector<std::size_t> sub(shape_.ndims());
-    auto temp_dataTotal = data_.size()*blockSize_;
-    temp_dataTotal = shape_.totalSize();
-    for (std::size_t i = 0; i < temp_dataTotal; ++i)
+    const auto temp_dataTotal = shape_.totalSize();
+    if (getOrder() != internalOrder_)
     {
-        auto t = i/blockSize_;
-        auto u = i%blockSize_;
-        if (getOrder() != internalOrder_){
-            sub = internalOrder_.indToSub(shape_, i);
-            auto idx = getOrder().subToInd(shape_, sub);
+        for (std::size_t i = 0; i < temp_dataTotal; ++i)
+        {
+            const auto t = i/blockSize_;
+            const auto u = i%blockSize_;
+            const auto sub = internalOrder_.indToSub(shape_, i);
+            const auto idx = getOrder().subToInd(shape_, sub);
             orderedData[idx] = data_[t]->at(u);
         }
-        else{
+    }
+    else
+    {
+        for (std::size_t i = 0; i < temp_dataTotal; ++i)
+        {
+            const auto t = i/blockSize_;
+            const auto u = i%blockSize_;
             orderedData[i] = data_[t]->at(u);
         }
     }
@@ -848,7 +860,6 @@ const std::vector<int64_t> mv::Tensor::getDataPacked()
     std::vector<std::size_t> sub(shape.ndims());
     std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
 
-    int64_t datai;
     size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
     size_t outputChannelSize = shape.totalSize() / outputChannels;
     kernelDataOffsets_.resize(outputChannels);
@@ -858,44 +869,69 @@ const std::vector<int64_t> mv::Tensor::getDataPacked()
     for (std::size_t k = 0; k < outputChannels; ++k)
     {
         kernelDataOffsets_[k] = offset;
-        size_t prevNumOfElements = orderedDataPacked.size();
-
-        for (std::size_t i = 0; i < outputChannelSize; i++)
+        const size_t prevNumOfElements = orderedDataPacked.size();
+        if (getOrder() == internalOrder_)
         {
-            sub = getOrder().indToSub(shape, k*outputChannelSize + i);
-            auto idx = internalOrder_.subToInd(shape, sub);
-            auto b = idx/blockSize_;
-            auto d = idx%blockSize_;
-            datai = static_cast<int64_t>(data_[b]->at(d));
-            //skip zero values if sparse
-            if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
+            if (isSparse())
             {
-                orderedDataPacked.push_back(datai);
-                noneZeroElements_++;
+                for (std::size_t i = 0; i < outputChannelSize; i++)
+                {
+                    const auto idx = k*outputChannelSize + i;
+                    const auto b = idx/blockSize_;
+                    const auto d = idx%blockSize_;
+                    const auto datai = static_cast<int64_t>(data_[b]->at(d));
+                    if (datai != zeroPoint[k])
+                        orderedDataPacked.push_back(datai);
+                }
+                // Add padding. Needed only for sparse cases as weights are already aligned
+                const auto padSize = mv::round_up(orderedDataPacked.size(), 16) - orderedDataPacked.size();
+                std::fill_n(std::back_inserter(orderedDataPacked), padSize, zeroPoint[k]);
+            }
+            else
+            {
+                for (std::size_t i = 0; i < outputChannelSize; i++)
+                {
+                    const auto idx = k*outputChannelSize + i;
+                    const auto b = idx/blockSize_;
+                    const auto d = idx%blockSize_;
+                    orderedDataPacked.push_back(static_cast<int64_t>(data_[b]->at(d)));
+                }
             }
         }
-
-        // Add padding if needed - Needs to be done only in the sparse case
-        // As weights sets are aligned to 16
-        if (isSparse())
+        else
         {
-            //NOTE: Marco used the DType here, but does not seem normal, or better does not work
-            //Weights sets need to be always aligned to 16 no matter the data type, leaving here
-            //for historical reason
-//            auto size = orderedDataPacked.size() * std::ceil(getDType().getSizeInBits()/8.0);
-            auto size = orderedDataPacked.size();
-            auto padsize = mv::round_up(size, 16) - size;
-            int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
-            for (std::size_t j = 0; j < padsize; ++j)
+            if (isSparse())
             {
-                orderedDataPacked.push_back(zeroPointVal);
-                noneZeroElements_++;
+                for (std::size_t i = 0; i < outputChannelSize; i++)
+                {
+                    sub = getOrder().indToSub(shape, k*outputChannelSize + i);
+                    const auto idx = internalOrder_.subToInd(shape, sub);
+                    const auto b = idx/blockSize_;
+                    const auto d = idx%blockSize_;
+                    const auto datai = static_cast<int64_t>(data_[b]->at(d));
+                    if (datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
+                        orderedDataPacked.push_back(datai);
+                }
+                // Add padding. Needed only for sparse cases as weights are already aligned
+                const auto padSize = mv::round_up(orderedDataPacked.size(), 16) - orderedDataPacked.size();
+                std::fill_n(std::back_inserter(orderedDataPacked), padSize, zeroPoint[k]);
+            }
+            else
+            {
+                for (std::size_t i = 0; i < outputChannelSize; i++)
+                {
+                    sub = getOrder().indToSub(shape, k*outputChannelSize + i);
+                    const auto idx = internalOrder_.subToInd(shape, sub);
+                    const auto b = idx/blockSize_;
+                    const auto d = idx%blockSize_;
+                    orderedDataPacked.push_back(static_cast<int64_t>(data_[b]->at(d)));
+                }
             }
         }
-
-        size_t numberOfElementsInKernel = orderedDataPacked.size() - prevNumOfElements; //include padding
+        size_t numberOfElementsInKernel = orderedDataPacked.size() - prevNumOfElements; // Include padding
         offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
     }
+    noneZeroElements_ = orderedDataPacked.size();
 
     return orderedDataPacked;
 }
@@ -906,7 +942,6 @@ int mv::Tensor::getZeroValuesCount()
     int numZeroPoints = 0;
 
     auto shape = getShape();
-    std::vector<std::size_t> sub(shape.ndims());
     std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
 
     int64_t datai;
@@ -918,7 +953,7 @@ int mv::Tensor::getZeroValuesCount()
     {
         for (std::size_t i = 0; i < outputChannelSize; i++)
         {
-            sub = getOrder().indToSub(shape, k*outputChannelSize + i);
+            std::vector<std::size_t> sub = getOrder().indToSub(shape, k*outputChannelSize + i);
             auto idx = internalOrder_.subToInd(shape, sub);
             auto b = idx/blockSize_;
             auto d = idx%blockSize_;
@@ -942,19 +977,24 @@ std::vector<int64_t> mv::Tensor::getIntData()
 
     std::vector<int64_t> orderedData(shape_.totalSize());
 
-    std::vector<std::size_t> sub(shape_.ndims());
-    auto temp_dataTotal = data_.size() * blockSize_;
-    for (std::size_t i = 0; i < temp_dataTotal; ++i)
+    const auto temp_dataTotal = data_.size() * blockSize_;
+    if (getOrder() != internalOrder_)
     {
-        auto t = i / blockSize_;
-        auto u = i % blockSize_;
-        if (getOrder() != internalOrder_)
+        for (std::size_t i = 0; i < temp_dataTotal; ++i)
         {
-            sub = internalOrder_.indToSub(shape_, i);
-            auto temp = getOrder().subToInd(shape_, sub);
+            const auto t = i / blockSize_;
+            const auto u = i % blockSize_;
+            const auto sub = internalOrder_.indToSub(shape_, i);
+            const auto temp = getOrder().subToInd(shape_, sub);
             orderedData[temp] = data_[t]->at(u);
         }
-        else{
+    }
+    else
+    {
+        for (std::size_t i = 0; i < temp_dataTotal; ++i)
+        {
+            const auto t = i / blockSize_;
+            const auto u = i % blockSize_;
             orderedData[i] = data_[t]->at(u);
         }
     }
@@ -1228,8 +1268,6 @@ mv::Tensor& mv::Tensor::operator=(const Tensor& other)
     shape_ = other.shape_;
     internalOrder_ = other.internalOrder_;
     blockSize_ = other.blockSize_;
-    sparsityMap_ = other.sparsityMap_;
-    storageElement_ = other.storageElement_;
     subTensors_ = other.subTensors_;
     kernelDataOffsets_ = other.kernelDataOffsets_;
 
@@ -1247,18 +1285,21 @@ mv::Tensor& mv::Tensor::operator=(const Tensor& other)
     {
         data_ = other.data_;
         blocks_ = other.blocks_;
-    } else if (other.isSparse()) {
-      // when copying an unpopulated sparse tensor create brand new sparsitymap
-      // and storage pointers as they cannot be shared like populated (read-only)
-      // tensors.
-      set<bool>("sparse", false);
-      for (size_t i=0; i<other.numSubTensors(); i++) {
-        subTensors_[i]->set<bool>("sparse", false);
-      }
-      setSparse();
-      if (other.hasAttr("address")) {
-        setAddress(other.get<size_t>("address"));
-      }
+    }
+
+    if (other.isSparse()) {
+        set<bool>("sparse", false);
+        for (size_t i = 0; i < other.numSubTensors(); i++) {
+            subTensors_[i]->set<bool>("sparse", false);
+        }
+        setSparse();
+        if (isPopulated()) {
+            sparsityMap_ = std::make_shared<Tensor>(*other.sparsityMap_);
+            sparsityMap_->setName(createSparsityMapName(getName()));
+        }
+        if (other.hasAttr("address")) {
+            setAddress(other.get<size_t>("address"));
+        }
     }
 
     return *this;
@@ -1385,7 +1426,6 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsign
     if (isPopulated())
     {
         //NOTE Shape of Populated will be aligned already, so I am using the shape not the workload
-        auto shape = getShape();
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
@@ -1404,7 +1444,6 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsign
     }
     else
     {
-        auto shape = getShape();
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();

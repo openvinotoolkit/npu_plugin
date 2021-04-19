@@ -46,6 +46,7 @@
 #include "kmb_test_ctc_greedy_decoder_def.hpp"
 #include "kmb_test_gather_def.hpp"
 #include "kmb_test_tile_def.hpp"
+#include "kmb_test_prelu_def.hpp"
 
 #include <vpux/vpux_plugin_config.hpp>
 

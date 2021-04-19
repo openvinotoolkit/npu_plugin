@@ -83,6 +83,8 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
             throw std::logic_error("Parameter -m <path to model> is not set");
         if (FLAGS_k.empty())
             throw std::logic_error("Parameter -k <evm ip address> is not set");
+        if (FLAGS_c.empty())
+            throw std::logic_error("Parameter -c <vpux platform config> is not set");
         if (! FLAGS_il.empty() )
             if (FLAGS_il != "NHWC" && FLAGS_il != "NCHW")
                 throw std::logic_error("Parameter -il only supports NHWC or NCHW");
@@ -445,6 +447,12 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     }
 
     commandline += " -op FP16";
+
+    if (! FLAGS_c.empty() )
+    {
+        std::cout << "Taking -c from command line" << std::endl;
+        commandline += (" -c " + FLAGS_c);
+    }
 
     std::cout << commandline << std::endl;
     returnVal = std::system(commandline.c_str());

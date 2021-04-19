@@ -127,7 +127,7 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
             if(tIt->isSparse())
             {
                 auto sparsityMap = tIt->getSparsityMap();
-                auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
+                auto sparsityMapIterator = dm.isTensorDefined(sparsityMap) ? dm.getTensor(sparsityMap->getName()) : dm.defineTensor(sparsityMap);
                 dm.allocateTensor("GraphFile", stageIt, sparsityMapIterator);
                 sparsityMap->set<unsigned>("graphFileIndex", i++);
 
@@ -161,12 +161,9 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
         // Weights sparsity new approach
         if(tensorIt->isPopulated() && tensorIt->isSparse())
         {
-            if(tensorIt->get<bool>("allocateSparsityMap"))
-            {
-                auto sparsityMap = tensorIt->getSparsityMap();
-                auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
-                dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
-            }
+            auto sparsityMap = tensorIt->getSparsityMap();
+            auto sparsityMapIterator = dm.isTensorDefined(sparsityMap) ? dm.getTensor(sparsityMap->getName()) : dm.defineTensor(sparsityMap);
+            dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
         } else if (tensorIt->isSparse()) {
 
           // unpopulated sparse tensor : also defines them. //

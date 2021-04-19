@@ -148,7 +148,7 @@ void ConvActTest::buildFQFunction() {
     };
     function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedConvAcc");
 
-    threshold = 0.1f;
+    threshold = 0.4f;
 
 
     /*ngraph::pass::Manager manager;

@@ -31,22 +31,6 @@
 namespace vpux {
 
 //
-// SingleInputAndResultLayer
-//
-
-template <typename ConcreteOp>
-class SingleInputAndResultLayer : public mlir::OpTrait::TraitBase<ConcreteOp, SingleInputAndResultLayer> {
-public:
-    SmallVector<mlir::Value> getInputs() {
-        return {mlir::cast<ConcreteOp>(this->getOperation()).input()};
-    }
-
-    SmallVector<mlir::Value> getOutputs() {
-        return {mlir::cast<ConcreteOp>(this->getOperation()).output()};
-    }
-};
-
-//
 // Layer verifiers
 //
 
@@ -54,6 +38,37 @@ mlir::LogicalResult verifyConstant(mlir::Operation* op);
 mlir::LogicalResult verifyLayer(mlir::Operation* op);
 mlir::LogicalResult verifyConvertLayer(mlir::Operation* op);
 mlir::LogicalResult verifySoftMaxLayer(mlir::Operation* op);
+
+//
+// RTLayer
+//
+
+mlir::LogicalResult verifyRTLayerOp(mlir::Operation* op);
+mlir::OperandRange getRTLayerInOperand(mlir::Operation* op);
+mlir::OperandRange getRTLayerOutOperand(mlir::Operation* op);
+mlir::Value getRTLayerViewSource(mlir::Operation* op, ptrdiff_t resultInd);
+mlir::LogicalResult inferRTLayerReturnTypes(mlir::ValueRange operands, size_t numResults,
+                                            SmallVectorImpl<mlir::Type>& inferredReturnTypes);
+
+template <typename ConcreteOp>
+class RTLayer : public mlir::OpTrait::TraitBase<ConcreteOp, RTLayer> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifyRTLayerOp(op);
+    }
+
+    mlir::Value getViewSource(ptrdiff_t resultInd = 0) {
+        return getRTLayerViewSource(this->getOperation(), resultInd);
+    }
+
+    SmallVector<mlir::Value> getInputs() {
+        return getRTLayerInOperand(this->getOperation());
+    }
+
+    SmallVector<mlir::Value> getOutputs() {
+        return getRTLayerOutOperand(this->getOperation());
+    }
+};
 
 }  // namespace vpux
 

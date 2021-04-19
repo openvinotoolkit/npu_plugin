@@ -15,9 +15,16 @@ func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     return %0 : tensor<1x1000xf16>
 
     // CHECK: [[VAR0:%.*]] = memref.alloc() : memref<1x1000xf16>
-    // CHECK: IERT.SoftMax([[ARG0]], [[VAR0]]) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16>
-    // CHECK: IERT.Copy([[VAR0]], [[ARG1]]) : memref<1x1000xf16>, memref<1x1000xf16>
-    // CHECK: return [[ARG1]] : memref<1x1000xf16>
+    // CHECK: [[VAR1:%.*]] = IERT.SoftMax
+    // CHECK-SAME:      axisInd = 1
+    // CHECK-SAME:      inputs([[ARG0]] : memref<1x1000xf16>)
+    // CHECK-SAME:      outputs([[VAR0]] : memref<1x1000xf16>)
+
+    // CHECK: [[VAR2:%.*]] = IERT.Copy
+    // CHECK-SAME:      inputs([[VAR1]] : memref<1x1000xf16>)
+    // CHECK-SAME:      outputs([[ARG1]] : memref<1x1000xf16>)
+
+    // CHECK: return [[VAR2]] : memref<1x1000xf16>
 }
 
 // -----
@@ -28,8 +35,8 @@ func @ConstantLayer() -> tensor<1x2x2x2xf16> {
     return %0 : tensor<1x2x2x2xf16>
 
     // CHECK: [[VAR0:%.*]] = IERT.Constant memref<1x2x2x2xf16> = dense<1.000000e+00> : tensor<1x2x2x2xf32>
-    // CHECK: IERT.Copy([[VAR0]], [[ARG0]]) : memref<1x2x2x2xf16>, memref<1x2x2x2xf16>
-    // CHECK: return [[ARG0]] : memref<1x2x2x2xf16>
+    // CHECK: [[VAR1:%.*]] = IERT.Copy inputs([[VAR0]] : memref<1x2x2x2xf16>) outputs([[ARG0]] : memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16>
+    // CHECK: return [[VAR1]] : memref<1x2x2x2xf16>
 }
 
 // -----
@@ -43,8 +50,8 @@ func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
     return %0 : tensor<1x512xf32>
 
     // CHECK: [[VAR0:%.*]] = linalg.reshape [[ARG0]] [#map0, #map1] : memref<1x512x1x1xf32> into memref<1x512xf32>
-    // CHECK: IERT.Copy([[VAR0]], [[ARG1]]) : memref<1x512xf32>, memref<1x512xf32>
-    // CHECK: return [[ARG1]] : memref<1x512xf32>
+    // CHECK: [[VAR1:%.*]] = IERT.Copy inputs([[VAR0]] : memref<1x512xf32>) outputs([[ARG1]] : memref<1x512xf32>) -> memref<1x512xf32>
+    // CHECK: return [[VAR1]] : memref<1x512xf32>
 }
 
 // -----
@@ -61,8 +68,12 @@ func @ReshapeInGraph(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512x1x1xf32> {
 
     // CHECK: [[VAR0:%.*]] = linalg.reshape [[ARG0]] [#map0, #map1] : memref<1x512x1x1xf32> into memref<1x512xf32>
     // CHECK: [[VAR1:%.*]] = memref.alloc() : memref<1x512xf32>
-    // CHECK: IERT.SoftMax([[VAR0]], [[VAR1]]) {axisInd = 1 : i32} : memref<1x512xf32>, memref<1x512xf32>
-    // CHECK: [[VAR2:%.*]] = linalg.reshape [[VAR1]] [#map0, #map1] : memref<1x512xf32> into memref<1x512x1x1xf32>
-    // CHECK: IERT.Copy([[VAR2]], [[ARG1]]) : memref<1x512x1x1xf32>, memref<1x512x1x1xf32>
-    // CHECK: return [[ARG1]] : memref<1x512x1x1xf32>
+    // CHECK: [[VAR2:%.*]] = IERT.SoftMax
+    // CHECK-SAME:              axisInd = 1
+    // CHECK-SAME:              inputs([[VAR0]] : memref<1x512xf32>)
+    // CHECK-SAME:              outputs([[VAR1]] : memref<1x512xf32>)
+
+    // CHECK: [[VAR3:%.*]] = linalg.reshape [[VAR2]] [#map0, #map1] : memref<1x512xf32> into memref<1x512x1x1xf32>
+    // CHECK: [[VAR4:%.*]] = IERT.Copy inputs([[VAR3]] : memref<1x512x1x1xf32>) outputs([[ARG1]] : memref<1x512x1x1xf32>) -> memref<1x512x1x1xf32>
+    // CHECK: return [[VAR4]] : memref<1x512x1x1xf32>
 }

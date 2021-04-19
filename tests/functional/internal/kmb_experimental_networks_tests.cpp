@@ -190,7 +190,7 @@ TEST_P(ModelAdk, precommit_ModelA_ADK3) {
 }
 
 // [Track number: D#7790]
-TEST_P(ModelAdk, DISABLED_precommit_StackedHourGlass_BDK1) {
+TEST_P(ModelAdk, precommit_StackedHourGlass_BDK1) {
     runTest(
             TestNetworkDesc("BDK1/StackedHourGlass_INT8/hg-s8-b1-mpii.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input.1", Precision::U8)

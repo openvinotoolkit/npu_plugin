@@ -21,7 +21,10 @@ class KmbReshapeLayerTest : public ReshapeLayerTest, virtual public LayerTestsUt
 
     void SkipBeforeInfer() override {
         if (isCompilerMCM()) {
-            const auto inputShape = std::get<6>(GetParam());
+            InferenceEngine::SizeVector inputShape{};
+            std::tie(std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore,
+                inputShape, std::ignore, std::ignore, std::ignore) = GetParam();
+
             if (inputShape.size() == 4 && inputShape[0] != 1) {
                 throw LayerTestsUtils::KmbSkipTestException("Runtime does not support Reshape with input tensor batch != 1");
             }

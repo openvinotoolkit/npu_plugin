@@ -42,7 +42,13 @@ TEST_P(LoadNetwork, ThrowIfNoDeviceAndNoPlatform) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     {
         auto cnnNet = createDummyNetwork();
-        ASSERT_THROW(ie->LoadNetwork(cnnNet, "VPUX", configuration), InferenceEngine::details::InferenceEngineException);
+        const auto devices = ie->GetAvailableDevices();
+        const auto isVPUXDeviceAvailable = std::find_if(devices.cbegin(), devices.cend(), [](const std::string& device) {
+                return device.find("VPUX") != std::string::npos;
+            }) != devices.cend();
+        if (!isVPUXDeviceAvailable) {
+            ASSERT_THROW(ie->LoadNetwork(cnnNet, "VPUX", configuration), InferenceEngine::details::InferenceEngineException);
+        }
     }
 }
 

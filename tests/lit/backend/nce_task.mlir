@@ -114,20 +114,20 @@ func @main(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">, %out
     // DMAs
     //
 
-    VPUIP.NNDMA
+    %2 = VPUIP.NNDMA
         inputs(%weight_data_ddr : memref<16x1x1x16xui8, #OXYI, "GraphFile">)
-        outputs(%weight_data_cmx : memref<16x1x1x16xui8, #OXYI, "CMX_NN">)
-    VPUIP.NNDMA
+        outputs(%weight_data_cmx : memref<16x1x1x16xui8, #OXYI, "CMX_NN">) -> memref<16x1x1x16xui8, #OXYI, "CMX_NN">
+    %3 = VPUIP.NNDMA
         inputs(%weight_table_ddr : memref<16x1x1x4xsi32, "GraphFile">)
         outputs(%weight_table_cmx : memref<16x1x1x4xsi32, "CMX_NN">)
-        updates(%0 : !VPUIP.Barrier)
-    VPUIP.NNDMA
+        updates(%0 : !VPUIP.Barrier) -> memref<16x1x1x4xsi32, "CMX_NN">
+    %4 = VPUIP.NNDMA
         inputs(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">)
-        outputs(%input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">)
-    VPUIP.NNDMA
+        outputs(%input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">) -> memref<1x16x16x16xui8, #NHWC, "CMX_NN">
+    %5 = VPUIP.NNDMA
         inputs(%output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "CMX_NN">)
         outputs(%output_ddr : memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "DDR">)
-        waits(%1: !VPUIP.Barrier)
+        waits(%1: !VPUIP.Barrier) -> memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "DDR">
 
     //
     // NCEClusterTask Parent Tensors
@@ -141,17 +141,17 @@ func @main(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">, %out
     //
 
     // NCEClusterTasks using 'Clustering' split strategy
-    VPUIP.NCEClusterTask { task_type = "CONV", strides = [1 : i32, 1 : i32], kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32] }
+    %6 = VPUIP.NCEClusterTask { task_type = "CONV", strides = [1 : i32, 1 : i32], kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32] }
         inputs(
-            %input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">,
-            %weight_data_cmx : memref<16x1x1x16xui8, #OXYI, "CMX_NN">,
-            %weight_table_cmx : memref<16x1x1x4xsi32, "CMX_NN">
+            %4 : memref<1x16x16x16xui8, #NHWC, "CMX_NN">,
+            %2 : memref<16x1x1x16xui8, #OXYI, "CMX_NN">,
+            %3 : memref<16x1x1x4xsi32, "CMX_NN">
         )
+        parent_input(%parent_input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">)
+        parent_output(%parent_output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 0.0039215686274509803>, #NHWC, "CMX_NN">)
         outputs(%output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "CMX_NN">)
         waits(%0 : !VPUIP.Barrier)
         updates(%1 : !VPUIP.Barrier)
-        parent_input(%parent_input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">)
-        parent_output(%parent_output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 0.0039215686274509803>, #NHWC, "CMX_NN">)
         variants : {
             VPUIP.DPUTask {
                 start = [0 : i32, 0 : i32, 0 : i32],
@@ -181,19 +181,19 @@ func @main(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">, %out
                 pads_end = [0 : i32, 0 : i32],
                 mpe_mode = "MATRIX"
             }
-        }
+        } -> memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "CMX_NN">
 
-    VPUIP.NCEClusterTask { task_type = "CONV", strides = [1 : i32, 1 : i32], kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32] }
+    %7 = VPUIP.NCEClusterTask { task_type = "CONV", strides = [1 : i32, 1 : i32], kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32] }
         inputs(
-            %input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">,
-            %weight_data_cmx : memref<16x1x1x16xui8, #OXYI, "CMX_NN">,
-            %weight_table_cmx : memref<16x1x1x4xsi32, "CMX_NN">
+            %4 : memref<1x16x16x16xui8, #NHWC, "CMX_NN">,
+            %2 : memref<16x1x1x16xui8, #OXYI, "CMX_NN">,
+            %3 : memref<16x1x1x4xsi32, "CMX_NN">
         )
+        parent_input(%parent_input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">)
+        parent_output(%parent_output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 0.0039215686274509803>, #NHWC, "CMX_NN">)
         outputs(%output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "CMX_NN">)
         waits(%0 : !VPUIP.Barrier)
         updates(%1 : !VPUIP.Barrier)
-        parent_input(%parent_input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">)
-        parent_output(%parent_output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 0.0039215686274509803>, #NHWC, "CMX_NN">)
         variants : {
             VPUIP.DPUTask {
                 start = [0 : i32, 0 : i32, 0 : i32],
@@ -223,19 +223,19 @@ func @main(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">, %out
                 pads_end = [0 : i32, 0 : i32],
                 mpe_mode = "MATRIX"
             }
-        }
+        } -> memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "CMX_NN">
 
-    VPUIP.NCEClusterTask { task_type = "CONV", strides = [1 : i32, 1 : i32], kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32] }
+    %8 = VPUIP.NCEClusterTask { task_type = "CONV", strides = [1 : i32, 1 : i32], kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32] }
         inputs(
-            %input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">,
-            %weight_data_cmx : memref<16x1x1x16xui8, #OXYI, "CMX_NN">,
-            %weight_table_cmx : memref<16x1x1x4xsi32, "CMX_NN">
+            %4 : memref<1x16x16x16xui8, #NHWC, "CMX_NN">,
+            %2 : memref<16x1x1x16xui8, #OXYI, "CMX_NN">,
+            %3 : memref<16x1x1x4xsi32, "CMX_NN">
         )
+        parent_input(%parent_input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">)
+        parent_output(%parent_output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 0.0039215686274509803>, #NHWC, "CMX_NN">)
         outputs(%output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "CMX_NN">)
         waits(%0 : !VPUIP.Barrier)
         updates(%1 : !VPUIP.Barrier)
-        parent_input(%parent_input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">)
-        parent_output(%parent_output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 0.0039215686274509803>, #NHWC, "CMX_NN">)
         variants : {
             VPUIP.DPUTask {
                 start = [0 : i32, 0 : i32, 0 : i32],
@@ -265,19 +265,19 @@ func @main(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">, %out
                 pads_end = [0 : i32, 0 : i32],
                 mpe_mode = "MATRIX"
             }
-        }
+        } -> memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "CMX_NN">
 
-    VPUIP.NCEClusterTask { task_type = "CONV", strides = [1 : i32, 1 : i32], kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32] }
+    %9 = VPUIP.NCEClusterTask { task_type = "CONV", strides = [1 : i32, 1 : i32], kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32] }
         inputs(
-            %input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">,
-            %weight_data_cmx : memref<16x1x1x16xui8, #OXYI, "CMX_NN">,
-            %weight_table_cmx : memref<16x1x1x4xsi32, "CMX_NN">
+            %4 : memref<1x16x16x16xui8, #NHWC, "CMX_NN">,
+            %2 : memref<16x1x1x16xui8, #OXYI, "CMX_NN">,
+            %3 : memref<16x1x1x4xsi32, "CMX_NN">
         )
+        parent_input(%parent_input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">)
+        parent_output(%parent_output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 0.0039215686274509803>, #NHWC, "CMX_NN">)
         outputs(%output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "CMX_NN">)
         waits(%0 : !VPUIP.Barrier)
         updates(%1 : !VPUIP.Barrier)
-        parent_input(%parent_input_cmx : memref<1x16x16x16xui8, #NHWC, "CMX_NN">)
-        parent_output(%parent_output_cmx : memref<1x16x16x16x!quant.uniform<u8:f16, 0.0039215686274509803>, #NHWC, "CMX_NN">)
         variants : {
             VPUIP.DPUTask {
                 start = [0 : i32, 0 : i32, 0 : i32],
@@ -307,17 +307,17 @@ func @main(%input_ddr : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">, %out
                 pads_end = [0 : i32, 0 : i32],
                 mpe_mode = "MATRIX"
             }
-        }
+        } -> memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "CMX_NN">
 
     //
     // UPATasks
     //
 
-    VPUIP.QuantCastUPA { isTrailingSWLayer }
-        inputs(%output_ddr : memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "DDR">)
-        outputs(%output : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">)
+    %10 = VPUIP.QuantCastUPA { isTrailingSWLayer }
+        inputs(%5 : memref<1x16x16x16x!quant.uniform<u8:f16, 1.0>, #NHWC, "DDR">)
+        outputs(%output : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">) -> memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">
 
-    return %output : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">
+    return %10 : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">
 }
 
 }

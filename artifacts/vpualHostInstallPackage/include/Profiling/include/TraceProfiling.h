@@ -216,8 +216,8 @@ class TraceProfiling : private VpualStub {
 
   private:
 
-    buffer_t buffer0;
-    buffer_t buffer1;
+    buffer_t buffer0 = {0,0,0};
+    buffer_t buffer1 = {0,0,0};
 
     std::thread thread_object;
     std::atomic_bool alive {true};

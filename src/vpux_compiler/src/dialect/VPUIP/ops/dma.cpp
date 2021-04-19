@@ -52,7 +52,7 @@ void vpux::VPUIP::NNDMAOp::build(mlir::OpBuilder& builder, mlir::OperationState&
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto srcOff = writer.getTensor(input());
-    const auto dstOff = writer.getTensor(output());
+    const auto dstOff = writer.getTensor(output_buff());
 
     MVCNN::NNDMATaskBuilder builder(writer);
     builder.add_src(srcOff);

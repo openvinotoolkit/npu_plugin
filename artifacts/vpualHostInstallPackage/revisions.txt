@@ -1,2 +1,2 @@
-tag:ci_tag_Gold4_vpual_release_21ww15.2.1
-commit:f85994957412d571290a01b3a6d7b0c0df35a17b
+tag:ci_tag_vpual_release_21ww16.2.1
+commit:fa917caa35845d22abed33f642e68e03054d5a34

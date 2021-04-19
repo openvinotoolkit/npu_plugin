@@ -22,13 +22,13 @@
 using namespace vpux;
 
 void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                          mlir::Value output, mlir::Value parent_input, mlir::Value parent_output,
+                                          mlir::Value filter, mlir::Value weight_table, mlir::Value parent_input,
+                                          mlir::Value parent_output, mlir::Value output,
                                           vpux::VPUIP::NCETaskType task_type,
-                                          vpux::VPUIP::PPELayerTypeAttr fixed_ppe_task, mlir::Value filter,
-                                          mlir::Value weight_table, mlir::ArrayAttr kernel_padding,
+                                          vpux::VPUIP::PPELayerTypeAttr fixed_ppe_task, mlir::ArrayAttr kernel_padding,
                                           mlir::ArrayAttr strides) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, parent_input, parent_output, task_type,
-          fixed_ppe_task, filter, weight_table, kernel_padding, strides, 0);
+    build(builder, state, output.getType(), input, filter, weight_table, parent_input, parent_output, output,
+          mlir::ValueRange{}, mlir::ValueRange{}, task_type, fixed_ppe_task, kernel_padding, strides, 0);
 }
 
 namespace {

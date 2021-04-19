@@ -163,7 +163,7 @@ if(AARCH64)
         COMMAND ${CMAKE_COMMAND} -E make_directory
             "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpu"
         COMMAND ${CMAKE_COMMAND} -E copy
-            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
+            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/*.bin"
             "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpu/"
         COMMENT "[Firmware] Copy vpu.bin"
     )
@@ -179,8 +179,7 @@ if(AARCH64)
 endif()
 
 
-if(ENABLE_HDDL2)
-    if(UNIX)
+if(ENABLE_HDDL2 AND UNIX)
         add_custom_target(pcie_drivers_copy ALL
             COMMAND ${CMAKE_COMMAND} -E make_directory
                 "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/pcie_drivers"
@@ -192,10 +191,8 @@ if(ENABLE_HDDL2)
             COMMENT "[PCIe drivers] Copy driver packages"
         )
         add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend pcie_drivers_copy)
-    endif()
 
     if(ENABLE_CUSTOM_HDDLUNITE)
-        if(UNIX)
             add_custom_target(hddlunite_components_copy ALL
                 COMMAND ${CMAKE_COMMAND} -E make_directory
                     "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/config"
@@ -218,18 +215,7 @@ if(ENABLE_HDDL2)
             endif()
 
             add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend hddlunite_xlink_copy)
-        endif()
     else()
-        if(WIN32)
-            add_custom_target(hddl_unite_copy ALL
-                COMMAND ${CMAKE_COMMAND} -E copy_directory
-                    "${HDDL_UNITE}/bin/"
-                    "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}"
-                COMMENT "[HDDL Unite] Copy libraries"
-            )
-
-            add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend hddl_unite_copy)
-        else()
             add_custom_target(hddl_unite_copy ALL
                 COMMAND ${CMAKE_COMMAND} -E copy_directory
                     "${HDDL_UNITE}/lib/"
@@ -249,6 +235,5 @@ if(ENABLE_HDDL2)
             )
 
             add_dependencies(${VPUX_PLUGIN_TARGET} hddl2_backend hddl_unite_copy)
-        endif()
     endif()
 endif()

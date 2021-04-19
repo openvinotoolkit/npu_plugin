@@ -91,8 +91,14 @@ ExecutableNetwork::ExecutableNetwork(IE::CNNNetwork& network, const Device::Ptr&
     if (const auto func = network.getFunction()) {
         IE::InputsDataMap inputsInfo = network.getInputsInfo();
         IE::OutputsDataMap outputsInfo = network.getOutputsInfo();
-
-        _networkPtr = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
+        try {
+            _networkPtr = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
+        } catch (const std::exception& ex) {
+            IE_THROW() << ex.what();
+        } catch (...) {
+            _logger->error("Unexpected exception");
+            IE_THROW() << "VPUX ExecutableNetwork unexpected exception";
+        }
     } else {
         _logger->warning("Failed to read NGraph network");
         IE_THROW() << "Failed to read NGraph network";
