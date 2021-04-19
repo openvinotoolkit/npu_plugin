@@ -30,7 +30,7 @@ public:
                                const InferenceEngine::ITaskExecutor::Ptr& getResultExecutor,
                                const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
 
-    ~AsyncInferRequest() override;
+    ~AsyncInferRequest();
 
 private:
     InferRequest::Ptr _inferRequest;

@@ -17,15 +17,15 @@
 #pragma once
 
 // IE
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include <ie_input_info.hpp>
 // Plugin
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <vpux.hpp>
 #include <vpux_config.hpp>
 
 namespace vpux {
 
-class InferRequest : public InferenceEngine::InferRequestInternal {
+class InferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     using Ptr = std::shared_ptr<InferRequest>;
 
@@ -41,7 +41,7 @@ public:
 
     void GetResult();
 
-    using InferenceEngine::InferRequestInternal::SetBlob;
+    using InferenceEngine::IInferRequestInternal::SetBlob;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
 
 protected:

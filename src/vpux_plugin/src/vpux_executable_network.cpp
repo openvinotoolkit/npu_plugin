@@ -155,31 +155,22 @@ IE::ITaskExecutor::Ptr ExecutableNetwork::getNextTaskExecutor() {
 //------------------------------------------------------------------------------
 //      Create infer requests
 //------------------------------------------------------------------------------
-IE::InferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const IE::InputsDataMap networkInputs,
-                                                                        const IE::OutputsDataMap networkOutputs) {
+IE::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const IE::InputsDataMap networkInputs,
+                                                                         const IE::OutputsDataMap networkOutputs) {
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
     return std::make_shared<InferRequest>(networkInputs, networkOutputs, inferExecutor, _config, _networkName,
                                           allocator);
 }
 
-InferenceEngine::IInferRequest::Ptr ExecutableNetwork::CreateInferRequest() {
+InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequest() {
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
     auto syncRequestImpl = std::make_shared<InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config,
                                                           _networkName, allocator);
-
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-
-    auto resultExecutor = getNextTaskExecutor();
-
-    auto asyncThreadSafeImpl =
-            std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, resultExecutor, _callbackExecutor);
-
-    InferenceEngine::IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(new InferenceEngine::InferRequestBase(asyncThreadSafeImpl));
-    asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
-    return asyncRequest;
+    return std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, getNextTaskExecutor(),
+                                               _callbackExecutor);
 }
 
 //------------------------------------------------------------------------------

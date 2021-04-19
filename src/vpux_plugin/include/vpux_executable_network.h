@@ -37,10 +37,10 @@ public:
     explicit ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const VPUXConfig& config);
     ~ExecutableNetwork() override = default;
 
-    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
             const InferenceEngine::InputsDataMap networkInputs,
             const InferenceEngine::OutputsDataMap networkOutputs) override;
-    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     using InferenceEngine::ExecutableNetworkInternal::Export;
     void ExportImpl(std::ostream& model) override;
