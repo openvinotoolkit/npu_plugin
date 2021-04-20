@@ -134,9 +134,10 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
                     for(std::size_t j = 0; j < numClusters; ++j)
-                        tIt->getSubTensor(j).set<unsigned>("graphFileIndex", i++);
+                        if(tIt->getSubTensor(j).dataPackedSize())
+                            tIt->getSubTensor(j).set<unsigned>("graphFileIndex", i++);
                 }
-                else
+                else if(tIt->dataPackedSize())
                     tIt->set<unsigned>("graphFileIndex", i++);
             }
             else if(tIt->isAllocatedPerCluster())

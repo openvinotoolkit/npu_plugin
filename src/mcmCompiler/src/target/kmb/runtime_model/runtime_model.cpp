@@ -359,7 +359,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if (*tensorAllocatorName == "GraphFile")
     {
         toBuild->data->data_index = 0;
-        unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
+        unsigned graphfileIndex = t->hasAttr("graphFileIndex")? t->get<unsigned>("graphFileIndex"): 0;
         toBuild->locale_index = std::vector<unsigned int>(1);
         toBuild->locale_index[0] = graphfileIndex;
     }
@@ -754,7 +754,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             // In case data is sparse, packed subtensors are serialiazed. This simplifies our life a lot.
             // No data index to be provided, just have to take the graphfile index from the subtensor
 
-            unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
+            unsigned graphfileIndex = subtensor.hasAttr("graphFileIndex")? subtensor.get<unsigned>("graphFileIndex"): 0;
             toBuild->locale_index = std::vector<unsigned int>(1);
             toBuild->locale_index[0] = graphfileIndex;
 
@@ -4418,9 +4418,10 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
                     for(size_t i = 0; i < numClusters; ++i)
-                        toSort.push_back(&(tIt->getSubTensor(i)));
+                        if(tIt->getSubTensor(i).dataPackedSize())
+                            toSort.push_back(&(tIt->getSubTensor(i)));
                 }
-                else
+                else if(tIt->dataPackedSize())
                     toSort.push_back(&(*tIt));
             }
             else if(tIt->isAllocatedPerCluster())
