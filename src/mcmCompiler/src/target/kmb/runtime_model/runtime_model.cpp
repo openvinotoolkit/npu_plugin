@@ -359,6 +359,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if (*tensorAllocatorName == "GraphFile")
     {
         toBuild->data->data_index = 0;
+        // empty tensors will not have graphFileIndex because they will not be saved in the blob
         unsigned graphfileIndex = t->hasAttr("graphFileIndex")? t->get<unsigned>("graphFileIndex"): 0;
         toBuild->locale_index = std::vector<unsigned int>(1);
         toBuild->locale_index[0] = graphfileIndex;
@@ -753,6 +754,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         {
             // In case data is sparse, packed subtensors are serialiazed. This simplifies our life a lot.
             // No data index to be provided, just have to take the graphfile index from the subtensor
+            // Empty tensors will not have graphFileIndex because they will not be saved in the blob
 
             unsigned graphfileIndex = subtensor.hasAttr("graphFileIndex")? subtensor.get<unsigned>("graphFileIndex"): 0;
             toBuild->locale_index = std::vector<unsigned int>(1);
@@ -1362,6 +1364,7 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         {
             totalSize = src->getSubTensor(i).dataPackedSize();
             totalSizeDst = src->getSubTensor(i).dataPackedSize();
+            // DMAs associated to empty Tensors will be optimized out
             if (totalSize == 0)
                 return false;
         }
@@ -4415,6 +4418,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
             {
                 auto sparsityMapIterator = dm.getTensor(tIt->getSparsityMap()->getName());
                 toSort.push_back(&(*sparsityMapIterator));
+                // avoid to save empty tensor in the blob
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
                     for(size_t i = 0; i < numClusters; ++i)

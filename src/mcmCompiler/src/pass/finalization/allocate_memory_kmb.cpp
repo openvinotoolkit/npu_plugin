@@ -131,6 +131,7 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
                 dm.allocateTensor("GraphFile", stageIt, sparsityMapIterator);
                 sparsityMap->set<unsigned>("graphFileIndex", i++);
 
+                // Avoid to set graphFileIndex for empty tensors becasue they will not be saved in the blob 
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
                     for(std::size_t j = 0; j < numClusters; ++j)
