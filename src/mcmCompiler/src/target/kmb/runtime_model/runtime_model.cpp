@@ -1362,7 +1362,7 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         {
             totalSize = src->getSubTensor(i).dataPackedSize();
             totalSizeDst = src->getSubTensor(i).dataPackedSize();
-            if (totalSize == 0 && src->isAllocatedPerCluster())
+            if (totalSize == 0)
                 return false;
         }
 
@@ -4293,10 +4293,9 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             if ((inputTensor->get<std::string>("splitStrategy") == "Clustering"))
                 toReturn = 1;
 
-            if (inputTensor->isPopulated() && inputTensor->isSparse() &&
-                inputTensor->isAllocatedPerCluster())
+            if (inputTensor->isPopulated() && inputTensor->isSparse())
             {
-                if (inputTensor->hasSubTensors()) {
+                if (inputTensor->isAllocatedPerCluster() && inputTensor->hasSubTensors()) {
                     for (size_t i = 0; i < inputTensor->numSubTensors(); ++i)
                         if (inputTensor->getSubTensor(i).dataPackedSize() == 0)
                             empty_tensors++;
