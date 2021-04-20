@@ -130,7 +130,6 @@
             "StreamBinaryDataWeights",
             "DecideOutputDataType",
             "PlaceNeutralMaxPoolBefore",
-            "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             "MarkEltWiseUpaInputs",
