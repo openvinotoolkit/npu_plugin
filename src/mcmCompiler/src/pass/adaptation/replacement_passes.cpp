@@ -2052,7 +2052,10 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
 
                 padding[mv::PADDING_RIGHT] = initialPadding[mv::PADDING_RIGHT] + (i)*minStride;
                 padding[mv::PADDING_BOT] = initialPadding[mv::PADDING_BOT] + (j)*minStride;
-                            
+
+                if ((width <= i*minStride) || (height <= j*minStride))
+                    throw std::runtime_error("Invalid slice width or height");
+
                 mv::Shape branchInputSize = {
                                 width - (i)*minStride,
                                 height - (j)*minStride,
@@ -2119,7 +2122,9 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
         opConcatSlice->set<unsigned>("opId", initialOpId);
 
         mv::Shape newShape = opConcat->getShape();
-        if(hslices > 1)
+        if (hslices == 0 || vslices == 0)
+            throw std::runtime_error("Invalid hslice or vslice value");
+        else if(hslices > 1)
         {
             newShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] * hslices;
             newShape[mv::IO_CHANNEL_DIMENSION] = newShape[mv::IO_CHANNEL_DIMENSION] / hslices;
@@ -2128,7 +2133,7 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
         {
             newShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] / vslices;
             newShape[mv::IO_HEIGHT_DIMENSION] = newShape[mv::IO_HEIGHT_DIMENSION] * vslices;
-        };
+        }
 
         auto identityReshapeTensor = om.reshape(operation->getName() + "reshape_identity", opConcat, opConcat->getShape());
         identityReshapeTensor->setDType(dType);

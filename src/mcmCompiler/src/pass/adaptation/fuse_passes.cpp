@@ -132,12 +132,13 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
 
     // Check for op patterns between bias & DPUTask to fuse into
     mv::Data::OpListIterator lastIt;
-    std::vector<std::vector<std::string>> patterns;
     // Op patterns from asymmetric stride Conv replacement in splitOperationSlicingV2()
-    patterns.push_back({"Concat"});
-    patterns.push_back({"Slice","Reshape","Concat"});
-    patterns.push_back({"Reshape","Concat"});
-    patterns.push_back({"Reshape","Reshape","Concat"});
+    const std::vector<std::vector<std::string>> patterns = {
+        {"Concat"},
+        {"Slice","Reshape","Concat"},
+        {"Reshape","Concat"},
+        {"Reshape","Reshape","Concat"},
+    };
     for (auto& pattern : patterns)
     {
         if (mv::matchPattern(pattern, om.getSourceOp(opIt->getInputTensor(mv::IO_TENSOR_INPUT)), lastIt, model))
