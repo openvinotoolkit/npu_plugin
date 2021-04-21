@@ -142,15 +142,15 @@ bool mv::QuantizationParams:: infinitelimits() const
     bool is_infinite = false;
     if (hasAttr("min") && hasAttr("max"))
     {
-        for (std::size_t vec_size = 0; vec_size <= get<std::vector<double>>("min").size(); vec_size++)
+        const std::vector<double>& mins = get<std::vector<double>>("min");
+        const std::vector<double>& maxs = get<std::vector<double>>("max");
+        if (mins.size() != maxs.size())
+            throw std::runtime_error("Bad QuantizationParams: min.size() != max.size()");
+        if (0u == mins.size())
+            is_infinite = true;
+        for (std::size_t idx = 0; idx < mins.size() ; idx++)
         {
-            if (get<std::vector<double>>("min").size() == 0)
-            {
-                is_infinite = true;
-                break;
-            }
-            if (std::isinf(get<std::vector<double>>("min")[vec_size])
-                    || std::isinf(get<std::vector<double>>("max")[vec_size]))
+            if (std::isinf(mins[idx]) || std::isinf(maxs[idx]))
             {
                 is_infinite = true;
                 break;
