@@ -13,6 +13,11 @@ namespace mv
                 errMsg = "Invalid number of inputs - must be 1, has " + std::to_string(inputs.size());
                 return {false, 0};
             }
+            if (inputs[0]->getShape().ndims() != 4)
+            {
+                errMsg = "Input shape ndims is not equal to 4";
+                return {false, 0};
+            }
             return {true, 0};
         };
 
