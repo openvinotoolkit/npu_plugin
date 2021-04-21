@@ -582,6 +582,7 @@ void convert(std::shared_ptr<ngraph::op::v4::HSwish> hswish, mv::OpModel& mcmMod
     const auto mcmInputs = getMcmInputs(hswish, mcmOutputsMap);
     IE_ASSERT(1u == mcmInputs.size());
     const auto mcmOpOutput = mcmModel.hSwish(hswish->get_friendly_name(), mcmInputs.at(0));
+    mcmOpOutput->setQuantParams(initialQuantParams());
     registerOutputs(hswish, {mcmOpOutput}, mcmOutputsMap);
 }
 
