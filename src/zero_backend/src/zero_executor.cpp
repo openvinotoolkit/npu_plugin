@@ -256,7 +256,7 @@ ZeroExecutorCommon::graphCommon::graphCommon(const ze_driver_handle_t& driver_ha
     _mem.copyFrom(networkDesc->getCompiledNetwork());
 
     ze_graph_desc_t desc = {ZE_GRAPH_FORMAT_NATIVE, _mem.size(), static_cast<uint8_t*>(_mem.data())};
-    throwOnFail("zeGraphCreate", zeGraphCreate(device_handle, &desc, &_handle));
+    throwOnFail("zeGraphCreate", _graph_ddi_table_ext->pfnCreate(device_handle, &desc, &_handle));
 
     throwOnFail("zeGraphGetProperties", _graph_ddi_table_ext->pfnGetProperties(_handle, &_props));
     for (uint32_t index = 0; index < _props.numGraphArgs; ++index) {
