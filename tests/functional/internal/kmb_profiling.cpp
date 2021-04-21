@@ -26,13 +26,17 @@ void KmbProfilingTest::runTest(const std::string output_name) {
     const SizeVector inDims = {1, 3, 64, 64};
     const TensorDesc userInDesc = TensorDesc(Precision::U8, inDims, Layout::NHWC);
     const TensorDesc userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);
-    ConvolutionParams convParams = ConvolutionParams().outChannels(16).kernel(3).strides(2).pad(0).dilation(1);
-    const Precision netPresicion = Precision::U8;
+    const auto scaleDesc = TensorDesc(Precision::FP32, inDims, Layout::NHWC);
+    const Precision netPresicion = Precision::FP32;
     const std::map<std::string, std::string> netConfig = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
 
     registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {
         return vpux::makeSplatBlob(desc, 1.0f);
     });
+    registerBlobGenerator("scale", scaleDesc, [&](const TensorDesc& desc) {
+        return vpux::makeSplatBlob(desc, 1.f);
+    });
+
 
     if (RUN_COMPILER)
     {
@@ -40,9 +44,9 @@ void KmbProfilingTest::runTest(const std::string output_name) {
         testNet
             .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
             .addNetInput("input", userInDesc.getDims(), netPresicion)
-            .addLayer<ConvolutionLayerDef>(output_name, convParams)
-                .input("input")
-                .weights(genBlobUniform(getConvWeightsDesc(convParams, inDims.at(1), netPresicion), rd, 0.0f, 1.0f))
+                .addLayer<PowerLayerDef>(output_name)
+                .input1("input") 
+                .input2(getBlobByName("scale"))
                 .build()
             .addNetOutput(PortInfo(output_name))
             .setUserOutput(PortInfo(output_name), userOutDesc.getPrecision(), userOutDesc.getLayout())
