@@ -240,4 +240,8 @@ void KmbLayerTestsCommon::disableMcmPasses(const std::vector<std::pair<std::stri
     configuration[VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST)] = std::move(configValue);
 }
 
+void KmbLayerTestsCommon::TearDown() {
+    LayerTestsCommon::TearDown();
+    PluginCache::get().reset();
+}
 }  // namespace LayerTestsUtils
