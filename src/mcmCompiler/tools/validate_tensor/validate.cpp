@@ -446,7 +446,8 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         FLAGS_ip = inputPrecision;
     }
 
-    commandline += " -op FP16";
+    std::string outputPrecision = getEnvVarDefault("OUTPUT_PRECISION", "FP16");
+    commandline += " -op " + outputPrecision;
 
     if (! FLAGS_c.empty() )
     {
@@ -892,10 +893,11 @@ int postProcessActualResults(std::vector<std::string>& actualResults, std::strin
             sZMajor = " --zmajor";
 
         // call python script for numpy reshape/transpose
-        std::string dtypeStr = "U8";
+        std::string dtypeStr = "FP32";
         if (dtype == MVCNN::DType::DType_FP16) dtypeStr = "FP16";
         else if (dtype == MVCNN::DType::DType_I32) dtypeStr = "I32";
         else if (dtype == MVCNN::DType::DType_U32) dtypeStr = "U32";
+        else if (dtype == MVCNN::DType::DType_U8) dtypeStr = "U8";
         std::string outputFile="./output_transposed" + std::to_string(i) + ".dat";
         std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME") +
             std::string("/python/tools/post_process.py --file ") + actualResults[i] + " --dtype " + dtypeStr + " --shape " +
@@ -939,11 +941,13 @@ bool checkInference(std::string actualResults, std::string expectedResults, std:
 
     std::cout << "Checking inference results ..." << std::endl;
 
-    std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/output_class_reader.py ") + actualResults + " " + expectedResults;
+    std::string outputPrecision = getEnvVarDefault("OUTPUT_PRECISION", "FP16");
+
+    std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/output_class_reader.py ") + actualResults + " " + expectedResults + " " + outputPrecision;
     if (networkType == "yolo") 
-        commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/yolo_bbox.py ") + imagePath + " " + actualResults + " " + expectedResults;
+        commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/yolo_bbox.py ") + imagePath + " " + actualResults + " " + expectedResults + " " + outputPrecision;
     else if (networkType == "ssd") 
-        commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/ssd_bbox.py ") + imagePath;
+        commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/ssd_bbox.py ") + imagePath + " " + outputPrecision; ;
 
 
     std::cout << commandline << std::endl;
