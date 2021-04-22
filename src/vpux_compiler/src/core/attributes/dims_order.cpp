@@ -282,6 +282,11 @@ mlir::AffineMap vpux::DimsOrder::toAffineMap(mlir::MLIRContext* ctx) const {
 }
 
 DimsOrder vpux::DimsOrder::fromType(mlir::MemRefType type) {
+    const auto maps = type.getAffineMaps();
+    if (maps.size() == 1 && maps.front().isPermutation()) {
+        return fromAffineMap(maps.front());
+    }
+
     const auto logicalStrides = getStrides(type);
 
     SmallVector<Dim> perm(logicalStrides.size());
@@ -361,6 +366,8 @@ InferenceEngine::Layout vpux::DimsOrder::toIE() const {
         return InferenceEngine::Layout::NC;
     } else if (*this == DimsOrder::CHW) {
         return InferenceEngine::Layout::CHW;
+    } else if (*this == DimsOrder::HWC) {
+        return InferenceEngine::Layout::HWC;
     } else if (*this == DimsOrder::NCHW) {
         return InferenceEngine::Layout::NCHW;
     } else if (*this == DimsOrder::NHWC) {

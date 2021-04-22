@@ -959,8 +959,8 @@ operation ::= `VPUIP.PermuteUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float values
-`output_buff` | memref of 16-bit float values
+`input` | memref of any type values
+`output_buff` | memref of any type values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 
@@ -968,7 +968,7 @@ operation ::= `VPUIP.PermuteUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float values
+`output` | memref of any type values
 
 ### `VPUIP.PoolingUPA` (vpux::VPUIP::PoolingUPAOp)
 

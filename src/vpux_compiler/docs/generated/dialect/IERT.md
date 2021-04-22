@@ -711,6 +711,15 @@ operation ::= `IERT.GRN` attr-dict
 InferenceEngine run-time generic Reshape layer
 
 
+Syntax:
+
+```
+operation ::= `IERT.GenericReshape` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `->` type(results)
+```
+
+
 #### Operands:
 
 | Operand | Description |
@@ -1186,6 +1195,34 @@ operation ::= `IERT.ReLU` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.Reorder` (vpux::IERT::ReorderOp)
+
+InferenceEngine run-time Reorder layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Reorder` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
 
 ### `IERT.RunTimeResources` (vpux::IERT::RunTimeResourcesOp)
 
