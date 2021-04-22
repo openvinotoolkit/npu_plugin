@@ -31,6 +31,7 @@ void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Com
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void interpolateAsResample(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::ComputationModel& model);
 void resampleAsDepthDeConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -102,6 +103,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     reorgYoloAsConvConcatFcn(pass, model);
     insertPermuteBeforeDetFcn(pass, model);
     replacePermuteAsReshape(pass, model);
+    interpolateAsResample(pass, model);
     resampleWithStorageElementPointerTable(pass, model);
     replaceBroadcastEltwiseMultWithConv(pass, model);
 }
@@ -781,6 +783,61 @@ void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             linkNewOperationsReplacement(parentOpIt, reQuantizeDepthwise, om, opIt);
             reQuantizeDepthwise->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
 
+        }
+    }
+}
+
+void interpolateAsResample(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    auto interpolateOps = om.getOps("Interpolate");
+
+    for (auto& opIt : interpolateOps)
+    {
+        if (opIt->hasAttr("antialias") && opIt->hasAttr("coordinate_transformation_mode") &&
+            opIt->hasAttr("mode") && opIt->hasAttr("nearest_mode"))
+        {
+            auto anitialias = opIt->get<bool>("antialias");
+            auto coordinate_transformation_mode = opIt->get<std::string>("coordinate_transformation_mode");
+            auto mode = opIt->get<std::string>("mode");
+            auto nearest_mode = opIt->get<std::string>("nearest_mode");
+
+            if (!anitialias && coordinate_transformation_mode == "asymmetric" &&
+                mode == "nearest" && nearest_mode == "floor")
+            {
+                pass.log(mv::Logger::MessageType::Debug, "Replacing UPA Interpolate with Resample");
+                // convert to Resample
+                auto interpolation = "NEAREST";
+
+                auto prevOutputTensor = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+                auto outputMemoryLocation = prevOutputTensor->get<mv::Tensor::MemoryLocation>("Location");
+                auto outputQuantParams = prevOutputTensor->getQuantParams();
+
+                auto sourceTensor = opIt->getInputTensor(0);
+                auto parentOpIt = om.getSourceOp(sourceTensor);
+                auto inputShape = sourceTensor->getShape();
+
+                auto outputTensorType = prevOutputTensor->getDType();
+                auto outputShape = prevOutputTensor->getShape();
+                auto outputOrder = prevOutputTensor->getOrder();
+
+                auto resample = om.resample(opIt->getName() + "_resample", sourceTensor, interpolation, anitialias, outputShape);
+                resample->setDType(outputTensorType);
+
+                auto resampleOp = om.getSourceOp(resample);
+
+                if(opIt->hasAttr("opId"))
+                {
+                    unsigned currentOpId = opIt->get<unsigned>("opId");
+                    resampleOp->set<unsigned>("opId", currentOpId);
+                }
+                linkNewOperationsReplacement(parentOpIt, resample, om, opIt);
+                resample->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+                resample->setQuantParams(outputQuantParams);
+            }
         }
     }
 }
