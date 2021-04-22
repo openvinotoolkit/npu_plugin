@@ -268,6 +268,34 @@ operation ::= `IERT.Clamp` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ConcatView` (vpux::IERT::ConcatViewOp)
+
+InferenceEngine run-time ConcatView layer. Dummy operation to maintain use-def chains.
+
+
+Syntax:
+
+```
+operation ::= `IERT.ConcatView` attr-dict
+              (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputs` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.Constant` (vpux::IERT::ConstantOp)
 
 Constant memory buffer declaration

@@ -476,7 +476,7 @@ def RewriteNegative :
         >;
 
 //
-// IERT.ROIPooling -> ROIPoolingUPA.
+// IERT.ROIPooling -> VPUIP.ROIPoolingUPA
 //
 def createROIPoolingUPAOp :
         NativeCodeCall<[{

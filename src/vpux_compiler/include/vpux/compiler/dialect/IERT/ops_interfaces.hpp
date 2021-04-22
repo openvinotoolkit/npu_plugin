@@ -27,22 +27,6 @@ namespace vpux {
 namespace IERT {
 
 //
-// RunTimeLayer
-//
-
-using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
-
-void getLayerEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
-
-template <typename ConcreteOp>
-class RunTimeLayer : public mlir::OpTrait::TraitBase<ConcreteOp, RunTimeLayer> {
-public:
-    void getEffects(SmallVectorImpl<MemoryEffect>& effects) {
-        getLayerEffects(this->getOperation(), effects);
-    }
-};
-
-//
 // LayerInfoDialectInterface
 //
 
