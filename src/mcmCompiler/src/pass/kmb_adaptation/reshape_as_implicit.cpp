@@ -47,6 +47,10 @@ void reshapeAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         if (is_input_flat && is_output_flat)
             is_explicit = false;
 
+        // Check if forced to implicit
+        if (reshape->hasAttr("isImplicit") && reshape->get<bool>("isImplicit"))
+            is_explicit = false;
+
         // Skip if explicit
         if (is_explicit)
             continue;

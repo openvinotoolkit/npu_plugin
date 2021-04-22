@@ -456,12 +456,12 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator sla
             shape.toString() + " of the input tensor " + tensor->getName());
 
     // To accomodate implicit ops, allow shape mismatch if totalSize is equal
-    auto oldTotal = 0;
-    auto newTotal = 0;
+    auto oldTotal = 1;
+    auto newTotal = 1;
     for (std::size_t i = 0; i < shape.ndims(); ++i)
     {
-        oldTotal += allocatedShape[i];
-        newTotal += shape[i] + leftPadding[i] + rightPadding[i];
+        oldTotal *= allocatedShape[i];
+        newTotal *= (shape[i] + leftPadding[i] + rightPadding[i]);
     }
     if (oldTotal != newTotal)
     {
