@@ -2,6 +2,9 @@
 ### `-adjust-layouts`: Add required layouts to memref
 This pass adds the required layouts instead of the default value
 depending on the layer specification
+### `-cmx-tiling`: Tile Operations to the condition that all their I/O fit into CMX
+This pass will replace a set of operations with the pattern OP ==> Subview->Copy->Op->Copy->SubView.
+The condition for the replacment is that for each op the SUM of their I/O tensors to fit into CMX memory
 ### `-set-internal-memory-space`: Set specific memory space for all internal memory buffers
 This pass updates all Types for internal memory buffers and sets the specified memory space for them.
 

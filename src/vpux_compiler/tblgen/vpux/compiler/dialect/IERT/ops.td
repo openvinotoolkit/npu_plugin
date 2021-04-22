@@ -433,6 +433,7 @@ def IERT_MaxPoolOp :
         IERT_LayerOp<1, "MaxPool",
             [
                 ViewLikeOpInterface,
+                DeclareOpInterfaceMethods<TensorInterface_4D>,
                 SameOperandsElementType
             ]
         > {
@@ -469,6 +470,7 @@ def IERT_ConvolutionOp :
             [
                 ViewLikeOpInterface,
                 SameOperandsElementType,
+                DeclareOpInterfaceMethods<TensorInterface_4D>,
                 DeclareOpInterfaceMethods<ConvolutionLayerInterface>
             ]
         > {
