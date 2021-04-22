@@ -147,12 +147,21 @@ def parse_output(output, image_path, actual, display_image=False):
 
 def main():
     image = sys.argv[1]
-    output = np.fromfile(sys.argv[2], dtype=np.float16, count=13*13*125)
+
+    if sys.argv[4].upper() == "FP32":
+        dtype_used = np.float32
+        print("Using fp32 dtype...\n")
+    else: 
+        dtype_used = np.float16
+        print("Using fp16 dtype...\n")
+
+    output = np.fromfile(sys.argv[2], dtype=dtype_used, count=13*13*125)
     ref = np.fromfile(sys.argv[3], dtype=np.float32 , count=13*13*125)
     
     print (sys.argv[1])
     print (sys.argv[2])
     print (sys.argv[3])
+    print (sys.argv[4])
 
     if ref is not None:
         print("Expected Output:")
