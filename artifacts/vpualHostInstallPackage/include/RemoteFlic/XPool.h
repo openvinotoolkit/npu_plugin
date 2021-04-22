@@ -12,10 +12,10 @@
 #include <iostream>
 #include <thread>
 #include <atomic>
-#include <queue>
 #include <mutex>
 #include <condition_variable>
 #include <sstream>
+#include <unordered_set>
 
 #include <unistd.h>
 #include <mv_types.h>
@@ -65,10 +65,7 @@ private:
     uint32_t buffersInPool;
     uint32_t bufferSize;
 
-    // TODO check if there will be concurrency issues using std queue naitively.
-    // TODO - A fifo may not be best. Buffers may be freed out of order..?
-    // Buffers which are on the VPU currently.
-    std::queue<DevicePtr> output_buffers;
+    std::unordered_set <DevicePtr> output_buffers;
     std::mutex xpool_mutex_;
     std::condition_variable xpool_cond_;
     std::condition_variable xpool_ava_cond_;
@@ -104,7 +101,7 @@ private:
             if (false == output_buffers.empty()) {
 #ifdef __REMOTE_HOST__
 
-                DevicePtr &out_data{output_buffers.front()};
+                auto &out_data{*output_buffers.begin()};
 
                 // Read data size
                 //  - Could be template specialised to read metadata.
@@ -132,7 +129,6 @@ private:
 
 #else // __REMOTE_HOST__
 
-                DevicePtr &expected_data{output_buffers.front()};
                 DevicePtr out_data{0};
 
                 // Read data size / metadata
@@ -168,14 +164,22 @@ private:
                                               " A: " + std::to_string(data_size)};
                     throw std::runtime_error(error_message);
                 }
-                if (out_data != expected_data) {
-                    std::stringstream error_message;
-                    error_message << "XPool unexpected buffer returned. E: " << std::hex << expected_data
-                                  << " A: " << out_data;
-                    throw std::runtime_error(error_message.str());
+
+                auto result = output_buffers.find(out_data);
+
+                if(result == output_buffers.end())
+                {
+                    std::string error_message{"Data could not be found in the output buffer"};
+                    throw std::runtime_error(error_message);
                 }
 
 #endif // __REMOTE_HOST__
+                // Remove the buffer from the queue before releasing the buffer from the internal pool
+                // The queue contains only pending frames, in consequence
+                // dequeue the frame before returning it to the user.
+                std::unique_lock<std::mutex> m_lock(xpool_mutex_);
+                output_buffers.erase(result);
+                m_lock.unlock(); // Unlock before notification
 
                 // Notify user that the buffer is ready.
                 if (FreeCtx) {
@@ -184,10 +188,7 @@ private:
                 } else if (Free) {
                     Free(out_data);
                 }
-                // Remove the buffer from the queue.
-                std::unique_lock<std::mutex> m_lock(xpool_mutex_);
-                output_buffers.pop();
-                m_lock.unlock(); // Unlock before notification
+
                 xpool_cond_.notify_one();
             }
         }
@@ -376,7 +377,7 @@ public:
         } else {
             {
                 std::unique_lock<std::mutex> m_lock(xpool_mutex_);
-                output_buffers.push(buffer);
+                output_buffers.insert(buffer);
             }
             xpool_ava_cond_.notify_all();
         }
