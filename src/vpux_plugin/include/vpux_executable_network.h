@@ -32,7 +32,7 @@ class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDef
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
-    explicit ExecutableNetwork(InferenceEngine::CNNNetwork& network, const Device::Ptr& device,
+    explicit ExecutableNetwork(const InferenceEngine::CNNNetwork& network, const Device::Ptr& device,
                                const VPUXConfig& config);
     explicit ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const VPUXConfig& config);
     ~ExecutableNetwork() override = default;

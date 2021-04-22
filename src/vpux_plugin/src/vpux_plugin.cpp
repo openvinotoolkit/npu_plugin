@@ -81,9 +81,13 @@ IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork& 
                                                           std::shared_ptr<Device>& device,
                                                           const VPUXConfig& networkConfig) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "LoadExeNetwork");
-    IE::CNNNetwork clonedNetwork = IE::details::cloneNetwork(network);
-
-    return std::make_shared<ExecutableNetwork>(clonedNetwork, device, networkConfig);
+    try {
+        return std::make_shared<ExecutableNetwork>(network, device, networkConfig);
+    } catch (const std::exception&) {
+        throw;
+    } catch (...) {
+        THROW_IE_EXCEPTION << "VPUX LoadExeNetwork got unexpected exception from ExecutableNetwork";
+    }
 }
 
 IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
