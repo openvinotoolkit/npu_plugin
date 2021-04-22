@@ -294,6 +294,7 @@ mlir::LogicalResult BufferizeIEPass::ConcatRewrite::matchAndRewrite(IE::ConcatOp
     // Prepare strides array for subview. We have dense array, so all strides have to be equal 1
     SmallVector<int64_t> svStrides(outputRank, 1);
     SmallVector<int64_t> svOffsets(outputRank, 0);
+    SmallVector<mlir::Value> results;
 
     for (auto i : irange(origOp->getNumOperands())) {
         const auto newInputType = newOperands[i].getType().cast<mlir::ShapedType>();
@@ -304,12 +305,13 @@ mlir::LogicalResult BufferizeIEPass::ConcatRewrite::matchAndRewrite(IE::ConcatOp
                                                                 svStrides);
 
         _log.trace("Copy new operand to SubView");
-        rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[i], subView);
+        auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[i], subView);
+        results.push_back(copyOp.output());
 
         svOffsets[axis.ind()] += svSizes[axis.ind()];
     }
 
-    rewriter.replaceOp(origOp, allocatedBufs);
+    rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, results, allocatedBufs[0]);
     return mlir::success();
 }
 
