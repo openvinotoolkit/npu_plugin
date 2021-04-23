@@ -1221,11 +1221,12 @@ namespace mv
 
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
+                // TODO: Review the need for below KMB-A0 specific W/A for KMB-B0 and TBH platforms
                 if (op.getOpType() == "Conv" ) {
                     if( clustering == "SplitOverH" &&
                         (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1) &&
-                        !isCMConv &&
-                        target == mv::Target::ma2490 && referenceDevice == "A0")
+                        !isCMConv && (target == mv::Target::ma3100 ||  // Apply the W/A also for TBH to overcome accuracy regression
+                        (target == mv::Target::ma2490 && referenceDevice == "A0")))
                         {
                             return true;
                         }
