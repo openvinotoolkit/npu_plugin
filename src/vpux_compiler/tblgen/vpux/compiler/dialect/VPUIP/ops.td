@@ -1528,20 +1528,20 @@ def VPUIP_PermuteUPAOp :
     let summary = "Permute UPA SHAVE kernel";
 
     let arguments = (ins
-        F16MemRef:$input,
-        F16MemRef:$output_buff,
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        AffineMapAttr:$order_value,
+        OptionalAttr<AffineMapAttr>:$order_value,
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
     let results = (outs
-        F16MemRef:$output
+        AnyMemRef:$output
     );
 
     let builders = [

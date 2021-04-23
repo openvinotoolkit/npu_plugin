@@ -325,6 +325,38 @@ def IERT_CopyOp :
 }
 
 //
+// ReorderOp
+//
+
+def IERT_ReorderOp :
+        IERT_LayerOp<1, "Reorder",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape
+            ]
+        > {
+    let summary = "InferenceEngine run-time Reorder layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+
+    let hasCanonicalizer = 1;
+}
+
+//
 // SoftMaxOp
 //
 
@@ -1122,6 +1154,12 @@ def IERT_GenericReshapeOp :
 
     let verifier = [{
         return vpux::IERT::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `->` type(results)
     }];
 
     let hasFolder = 1;

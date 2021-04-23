@@ -28,8 +28,20 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
-    const auto order = DimsOrder::fromAffineMap(op.order_value());
-    const auto inShape = getShape(op.input());
+    const auto inType = op.input().getType().dyn_cast<mlir::ShapedType>();
+    const auto outType = op.output().getType().dyn_cast<mlir::ShapedType>();
+
+    if (inType.getRank() > outType.getRank()) {
+        return errorAt(op, "Input rank {0} doesn't match output rank {1}", inType.getRank(), outType.getRank());
+    }
+
+    if (!op.order_value().hasValue()) {
+        // An empty order attribute means Reorder case.
+        return mlir::success();
+    }
+
+    const auto order = DimsOrder::fromAffineMap(op.order_value().getValue());
+    const auto inShape = getShape(inType);
 
     if (order.numDims() > inShape.size()) {
         return errorAt(op, "Order vector size {0} doesn't match input rank {1}", order.numDims(), inShape.size());
@@ -42,16 +54,8 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
         }
     }
 
-    // TODO Support custom input/output layout [Track number: W#6148]
-    const auto& inAffineMaps = op.input().getType().cast<mlir::MemRefType>().getAffineMaps();
-    const auto& outAffineMaps = op.output().getType().cast<mlir::MemRefType>().getAffineMaps();
-
-    const auto hasSpecificLayout = [](ArrayRef<mlir::AffineMap> maps) {
-        return !maps.empty() && maps[0].isPermutation();
-    };
-
-    if (hasSpecificLayout(inAffineMaps) || hasSpecificLayout(outAffineMaps)) {
-        return errorAt(op, "Supported only default input/output layout");
+    if (DimsOrder::fromValue(op.input()) != DimsOrder::fromValue(op.output())) {
+        return errorAt(op, "The input and output layouts must be equal for Transpose operation");
     }
 
     return mlir::success();
@@ -63,7 +67,14 @@ void vpux::VPUIP::PermuteUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::Ope
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PermuteUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto order = DimsOrder::fromAffineMap(this->order_value());
+    DimsOrder order{};
+    if (this->order_value().hasValue()) {
+        order = DimsOrder::fromAffineMap(this->order_value().getValue());
+    } else {
+        const auto inType = input().getType().dyn_cast<mlir::ShapedType>();
+        order = DimsOrder::fromNumDims(inType.getRank());
+    }
+
     const auto orderUPA = writer.createVector(irange(order.numDims()) | transformed([&](int64_t idx) {
                                                   return checked_cast<int32_t>(order.dimAt(idx).ind());
                                               }));

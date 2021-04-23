@@ -4,10 +4,7 @@
 
 #include <vector>
 #include "single_layer_tests/minimum_maximum.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
-
-// using namespace LayerTestsDefinitions;
 
 namespace LayerTestsDefinitions {
 
@@ -33,11 +30,9 @@ TEST_P(KmbMaxMinLayerTest, CompareWithRefs_MLIR) {
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<std::vector<std::vector<size_t>>> inShapes = {
-        {{1,2,2,2}, {1,2,2,2}},
+const std::vector<std::vector<std::vector<size_t>>> inShapes4D = {
         {{1,64,32,32}, {1,64,32,32}},
-        {{1, 1, 1, 3}, {1}},
-        {{1, 2, 4}, {1}},
+        {{1, 1, 1, 3}, {1}}
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -53,9 +48,31 @@ const std::vector<ngraph::helpers::InputLayerType> inputType = {
         ngraph::helpers::InputLayerType::CONSTANT
 };
 
-INSTANTIATE_TEST_CASE_P(maximum, KmbMaxMinLayerTest,
+const std::vector<InferenceEngine::Layout> layout4D = {
+        InferenceEngine::Layout::NCHW,
+        InferenceEngine::Layout::NHWC
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_maximum_4D, KmbMaxMinLayerTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(inShapes),
+                                ::testing::ValuesIn(inShapes4D),
+                                ::testing::ValuesIn(opType),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::ValuesIn(layout4D),
+                                ::testing::ValuesIn(layout4D),
+                                ::testing::ValuesIn(inputType),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        KmbMaxMinLayerTest::getTestCaseName);
+
+const std::vector<std::vector<std::vector<size_t>>> inShapes3D = {
+        {{1, 2, 4}, {1}},
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_maximum_3D, KmbMaxMinLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes3D),
                                 ::testing::ValuesIn(opType),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

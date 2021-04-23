@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -26,9 +26,14 @@
 namespace vpux {
 
 using CvtOpBuilderCb = FuncRef<mlir::Operation*(mlir::OpBuilder&, mlir::Location, mlir::Value, mlir::Type)>;
+using CvtBufferizedOpBuilderCb = FuncRef<mlir::Operation*(mlir::OpBuilder&, mlir::Location, mlir::Value, mlir::Value)>;
 
 mlir::LogicalResult convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
                                 ArrayRef<mlir::Type> newResultTypes, CvtOpBuilderCb cvtOpBuilder,
                                 Logger log = Logger::global());
+
+mlir::LogicalResult convertBufferizedFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
+                                          ArrayRef<mlir::Type> newResultTypes, CvtBufferizedOpBuilderCb cvtOpBuilder,
+                                          Logger log = Logger::global());
 
 }  // namespace vpux

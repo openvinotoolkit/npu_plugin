@@ -6,12 +6,8 @@
 #include "kmb_test_report.hpp"
 #include "vpux_private_config.hpp"
 
-#include <transformations/op_conversions/convert_batch_to_space.hpp>
-#include <transformations/op_conversions/convert_space_to_batch.hpp>
-
 #include "kmb_test_tool.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "functional_test_utils/blob_utils.hpp"
 
 #include "vpux/utils/core/format.hpp"
 
@@ -121,8 +117,20 @@ void KmbLayerTestsCommon::ImportReference(std::vector<std::vector<std::uint8_t>>
 void KmbLayerTestsCommon::Validate() {
     std::cout << "LayerTestsCommon::Validate()" << std::endl;
 
+    const auto rearrangeDataToLayoutFromNumDims = [](std::vector<InferenceEngine::Blob::Ptr>& blobs) {
+        for (int i = 0; i < blobs.size(); ++i) {
+            const auto defaultLayout = InferenceEngine::TensorDesc::getLayoutByDims(blobs[i]->getTensorDesc().getDims());
+            if (blobs[i]->getTensorDesc().getLayout() != defaultLayout) {
+                blobs[i] = FuncTestUtils::convertBlobLayout(blobs[i], defaultLayout);
+            }
+        }
+    };
+
+    // TODO:#-52272 Move re-layout to the CalculateRefs method
+    rearrangeDataToLayoutFromNumDims(inputs);
+
     auto expectedOutputs = CalculateRefs();
-    const auto &actualOutputs = GetOutputs();
+    auto actualOutputs = GetOutputs();
 
     if (envConfig.IE_KMB_TESTS_IMPORT_REF) {
         std::cout << "KmbLayerTestsCommon::ImportReference()" << std::endl;
@@ -136,6 +144,7 @@ void KmbLayerTestsCommon::Validate() {
     IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
         << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
+    rearrangeDataToLayoutFromNumDims(actualOutputs);
     Compare(expectedOutputs, actualOutputs);
 }
 
