@@ -215,7 +215,7 @@ INSTANTIATE_TEST_CASE_P(
 // IE Class Load network
 
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassLoadNetworkTest_smoke,
+        IEClassLoadNetworkTest_smoke,
         IEClassLoadNetworkTest,
         ::testing::ValuesIn(devices));
 } // namespace
