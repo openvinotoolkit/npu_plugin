@@ -57,7 +57,7 @@ namespace mv
             if (inputs[0]->isPopulated())
             {
 
-                std::vector<mv::DataElement> temp(args.at("size").get<mv::Shape>().totalSize(), mv::DataElement(0));
+                std::vector<mv::DataElement> temp(args.at("size").get<mv::Shape>().totalSize(), mv::DataElement(inputs[0]->isDoubleType()));
                 outputs[0].populate(temp);
 
                 // NOTE: Sloooooooooooooow
