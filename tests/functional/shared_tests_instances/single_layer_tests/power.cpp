@@ -53,7 +53,12 @@ std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precis
                                                          InferenceEngine::Precision::FP16,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_power, KmbPowerLayerTest,
+// Test works only when power = 1, in all other cases there are similar errors:
+// C++ exception with description "Operation PowerIE Power_xxxxx has unsupported power N (where N unequals to 1)
+// kmb-plugin/src/frontend_mcm/src/ngraph_mcm_frontend/passes/convert_to_mcm_model.cpp:640
+// openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
+// [Track number: S#41811]
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_power, KmbPowerLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(inShapes),
                             ::testing::ValuesIn(netPrecisions),
@@ -64,5 +69,25 @@ INSTANTIATE_TEST_CASE_P(smoke_power, KmbPowerLayerTest,
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                             ::testing::ValuesIn(Power)),
                         KmbPowerLayerTest::getTestCaseName);
+
+// Subset of parameters and additional test for Power layer.
+// This subset is used to enable test on Power layer.
+// Do not forget to remove this subset and test when initial test DISABLED_smoke_power will be enabled.
+std::vector<std::vector<float >> Power_pass_mcm = {
+    {1.0f},
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_power_pass_mcm, KmbPowerLayerTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(inShapes),
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                            ::testing::ValuesIn(Power_pass_mcm)),
+                        KmbPowerLayerTest::getTestCaseName);
+// End of additional test and its parameters
 
 }  // namespace
