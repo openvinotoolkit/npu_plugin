@@ -34,7 +34,6 @@
 #include "executable_network_factory.h"
 #include "models/models_constant.h"
 
-#include <opencv_wraper.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/core.hpp>
 
