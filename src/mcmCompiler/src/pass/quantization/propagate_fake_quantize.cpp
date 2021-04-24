@@ -302,7 +302,7 @@ bool isOpQuantized(mv::OpModel& om, const mv::Data::OpListIterator& op) {
 bool isOpPassthrough(const mv::Data::OpListIterator& op)
 {
     std::vector<std::string> passthroughOps = {
-        "Bias", "Relu", "LeakyRelu", "Concat", "Maximum", "Minimum", "ReorgYolo", "Reshape", "Permute", "Interp", "Resample", "MaxPool", "Mish", "Sigmoid", "Tanh", "HSwish"
+        "Bias", "Relu", "LeakyRelu", "Concat", "Maximum", "Minimum", "ReorgYolo", "Reshape", "Permute", "Interp", "Resample", "MaxPool", "Mish", "Sigmoid", "Tanh"
     };
 
     return std::find(passthroughOps.begin(), passthroughOps.end(), op->getOpType()) != passthroughOps.end() ||
