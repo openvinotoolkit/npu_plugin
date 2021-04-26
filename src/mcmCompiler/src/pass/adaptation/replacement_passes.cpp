@@ -102,7 +102,8 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     reorgYoloAsConvConcatFcn(pass, model);
     insertPermuteBeforeDetFcn(pass, model);
     replacePermuteAsReshape(pass, model);
-    resampleWithStorageElementPointerTable(pass, model);
+    //resampleWithStorageElementPointerTable(pass, model);
+    resampleAsDepthDeConvFcn(pass, model);
     replaceBroadcastEltwiseMultWithConv(pass, model);
 }
 
