@@ -19,6 +19,33 @@ For example, `vpux-opt --lower-IE-to-IERT IE.mlir -o IERT.mlir`.
 
 For all available passes please check `vpux-opt --help` output.
 
+## Adding and printing Op names
+
+Compile network with --mlir-print-debuginfo flag:  
+`./vpux-translate --import-IE <xml path> --mlir-print-debuginfo -o net.mlir`  
+`./vpux-opt --set-compile-params="vpu-arch=VPU3400_A0" --reference-mode net.mlir --mlir-print-debuginfo -o net_out.mlir`  
+To print names in the code use:
+```cpp
+if (const auto loc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
+    //Option #1
+    StringRef name = loc.getName().strref();
+    std::cout << loc.getName().strref().data() << std::endl;
+    //Option #2
+    loc.getName().dump();
+    std::cout << std::endl;
+}
+```
+
+## Generating MLIR without big constants
+
+`./vpux-opt --mlir-elide-elementsattrs-if-larger 8 net.mlir -o net_user.mlir`
+
+## Generating of Dot graph
+
+Currently you can use this pass but new pass is going to be created soon for simple comparision to MCM compiler
+`./vpux-opt --print-op-graph net.mlir 2> graph.dot 1>nul`  
+Remove all graphs in output file except `digraph "main"`
+
 ## IR dumping (Developer build)
 
 The **VPUX NN Compiler** allows to dump Internal Representation before/after selected Passes.
