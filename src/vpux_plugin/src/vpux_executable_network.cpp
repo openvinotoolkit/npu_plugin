@@ -76,7 +76,7 @@ ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr
     // but due to different reasons it is not possible now.
     // KMB B0 platform is hard-coded the main one
     // Track number: TBD
-    if (device != nullptr) {
+    if (_config.platform() == IE::VPUXConfigParams::VPUXPlatform::AUTO && device != nullptr) {
         const_cast<VPUXConfig&>(_config).update({{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(VPU3700)}});
     }
 }
