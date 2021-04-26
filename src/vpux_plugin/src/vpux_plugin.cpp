@@ -144,10 +144,16 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
 
 IE::QueryNetworkResult Engine::QueryNetwork(const IE::CNNNetwork& network,
                                             const std::map<std::string, std::string>& config) const {
-    VPUX_UNUSED(network);
-    VPUX_UNUSED(config);
-    THROW_IE_EXCEPTION << IE::NOT_IMPLEMENTED;
-    return {};
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "QueryNetwork");
+
+    if (nullptr == network.getFunction()) {
+         THROW_IE_EXCEPTION << "VPUX Plugin supports only ngraph cnn network representation";
+    }
+
+    auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
+    Compiler::Ptr compiler = Compiler::create(networkConfig);
+
+    return compiler->query(network, networkConfig);
 }
 
 IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
