@@ -34,7 +34,7 @@ TEST_F(KmbNetworkTestBase, split_conv_concat) {
         init_input, check);
 }
 
-TEST_F(KmbNetworkTestBase, customnet_conv_strided_slice) {
+TEST_F(KmbNetworkTestBase, precommit_customnet_conv_strided_slice) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results due to precision issues"); // TODO: create JIRA ticket
     const auto init_input = [=](const ConstInputsDataMap& inputs) {
         IE_ASSERT(inputs.size() == 1);

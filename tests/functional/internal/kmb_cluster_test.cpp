@@ -79,7 +79,7 @@ std::ostream& operator<<(std::ostream& os, const ClusterTestParams& p) {
 
 class KmbClusterTestWithParams : public KmbClusterTest, public testing::WithParamInterface<ClusterTestParams> {};
 
-TEST_P(KmbClusterTestWithParams, checkInferTime) {
+TEST_P(KmbClusterTestWithParams, precommit_checkInferTime) {
 #ifdef _WIN32
     // FIXME [Track number: E#6518]
     SKIP() << "Throws an exception on the second runTest call";
