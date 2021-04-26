@@ -277,7 +277,7 @@ Syntax:
 
 ```
 operation ::= `IERT.ConcatView` attr-dict
-              (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
+              `inputs` `(` $inputs `:` type($inputs) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```

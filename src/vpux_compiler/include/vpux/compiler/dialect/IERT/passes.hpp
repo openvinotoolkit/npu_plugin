@@ -18,6 +18,7 @@
 
 #include "vpux/utils/core/logger.hpp"
 
+#include <mlir/Dialect/Async/IR/Async.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -40,6 +41,12 @@ std::unique_ptr<mlir::Pass> createUseUserLayout(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCMXTilingPass(Logger log = Logger::global());
+
+//
+// Asynchronous Scheduling pipeline
+//
+
+std::unique_ptr<mlir::Pass> createWrapIntoAsyncRegionsPass(Logger log = Logger::global());
 
 //
 // Generated

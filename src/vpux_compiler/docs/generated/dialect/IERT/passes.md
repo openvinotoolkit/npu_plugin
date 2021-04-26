@@ -24,3 +24,5 @@ It uses simple LinearScan algorithm.
 This pass updates the CNNNetwork entry point function prototype
 and use user-provided layouts for its operands and results.
 The pass inserts Reorder operations from/to topology layout.
+### `-wrap-into-async-regions`: Wraps layer operations into asynchronous regions
+This pass wraps each IERT layer operation into async region preserving linear execution.

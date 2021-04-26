@@ -120,7 +120,28 @@ def CXMTiling : PassBase<"cmx-tiling", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IERT::createCMXTilingPass()";
+}
 
+//=================================================================================
+// Asynchronous Scheduling
+//=================================================================================
+
+//
+// WrapIntoAsyncRegions
+//
+
+def WrapIntoAsyncRegions : PassBase<"wrap-into-async-regions", "vpux::FunctionPass"> {
+    let summary = "Wraps layer operations into asynchronous regions";
+
+    let description = [{
+        This pass wraps each IERT layer operation into async region preserving linear execution.
+    }];
+
+    let constructor = "vpux::IERT::createWrapIntoAsyncRegionsPass()";
+
+    let dependentDialects = [
+        "mlir::async::AsyncDialect"
+    ];
 }
 
 #endif
