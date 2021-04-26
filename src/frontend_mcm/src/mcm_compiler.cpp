@@ -40,6 +40,12 @@ std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(const std::share
     return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(std::move(compiledNetwork), copy, netName);
 }
 
+InferenceEngine::QueryNetworkResult MCMCompiler::query(const InferenceEngine::CNNNetwork& /*network*/,
+                                                       const vpux::VPUXConfig& /*config*/) {
+    InferenceEngine::QueryNetworkResult result;
+    return result;
+}
+
 std::shared_ptr<vpux::INetworkDescription> MCMCompiler::parse(const std::vector<char>& compiledNetwork,
                                                               const vpux::VPUXConfig& config,
                                                               const std::string& graphName) {

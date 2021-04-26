@@ -28,6 +28,9 @@ public:
                                                  const InferenceEngine::OutputsDataMap& outputsInfo,
                                                  const VPUXConfig& config) final;
 
+    InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& /*network*/,
+                                              const vpux::VPUXConfig& /*config*/) override;
+
     std::shared_ptr<INetworkDescription> parse(const std::vector<char>& network, const VPUXConfig& config,
                                                const std::string& graphName = "") final;
 
