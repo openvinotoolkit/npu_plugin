@@ -12,6 +12,10 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO Tests failed due to starting infer on IA side
         ".*CorrectConfigAPITests.*",
 
+        // ARM CPU Plugin is not available on Yocto
+        ".*IEClassLoadNetworkTest.*HETERO.*",
+        ".*IEClassLoadNetworkTest.*MULTI.*",
+
         // double free detected
         // [Track number: S#27343]
         ".*InferConfigInTests\\.CanInferWithConfig.*",

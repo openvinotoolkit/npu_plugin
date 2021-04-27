@@ -649,8 +649,9 @@ class Operation_Dag {
 
 
     static size_t eviction_priority(const dag_t& , const operation_t& op) {
-      if (op->hasAttr("cmx_concatable")) { return 3UL; }
-      else if (op->getOpType() == "DPUTask") { return 2UL; }
+      if (op->hasAttr("cmx_concatable")) { return 4UL; }
+      else if (op->getOpType() == "DPUTask") { return 3UL; }
+      else if (op->hasAttr("pipelined_dma_task")) { return 2UL; }
       return (op->hasAttr("multiple_weight_out_degree")) ? 1UL : 0UL;
     }
 

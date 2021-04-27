@@ -81,9 +81,13 @@ IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork& 
                                                           std::shared_ptr<Device>& device,
                                                           const VPUXConfig& networkConfig) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "LoadExeNetwork");
-    IE::CNNNetwork clonedNetwork = IE::details::cloneNetwork(network);
-
-    return std::make_shared<ExecutableNetwork>(clonedNetwork, device, networkConfig);
+    try {
+        return std::make_shared<ExecutableNetwork>(network, device, networkConfig);
+    } catch (const std::exception&) {
+        throw;
+    } catch (...) {
+        IE_THROW() << "VPUX LoadExeNetwork got unexpected exception from ExecutableNetwork";
+    }
 }
 
 IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
@@ -138,10 +142,16 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
 
 IE::QueryNetworkResult Engine::QueryNetwork(const IE::CNNNetwork& network,
                                             const std::map<std::string, std::string>& config) const {
-    VPUX_UNUSED(network);
-    VPUX_UNUSED(config);
-    IE_THROW(NotImplemented);
-    return {};
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "QueryNetwork");
+
+    if (nullptr == network.getFunction()) {
+         IE_THROW() << "VPUX Plugin supports only ngraph cnn network representation";
+    }
+
+    auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
+    Compiler::Ptr compiler = Compiler::create(networkConfig);
+
+    return compiler->query(network, networkConfig);
 }
 
 IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {

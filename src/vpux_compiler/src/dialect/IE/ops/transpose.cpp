@@ -106,11 +106,11 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
+namespace {
+
 //
 // ConvertConstToAttr
 //
-
-namespace {
 
 class ConvertConstToAttr final : public mlir::OpRewritePattern<IE::TransposeOp> {
 public:
@@ -144,9 +144,67 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::TransposeOp transpos
     return mlir::success();
 }
 
+//
+// FuseTransposes
+//
+
+class FuseTransposes final : public mlir::OpRewritePattern<IE::TransposeOp> {
+public:
+    using mlir::OpRewritePattern<IE::TransposeOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::TransposeOp transposeOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult FuseTransposes::matchAndRewrite(IE::TransposeOp transposeOp,
+                                                    mlir::PatternRewriter& rewriter) const {
+    if (!transposeOp.input().hasOneUse()) {
+        return mlir::failure();
+    }
+
+    auto prevTransposeOp = mlir::dyn_cast_or_null<IE::TransposeOp>(transposeOp.input().getDefiningOp());
+    if (prevTransposeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    SmallVector<int64_t> prevOrder{};
+    VPUX_THROW_UNLESS(getOrder(prevTransposeOp, prevOrder, prevTransposeOp->getLoc()).succeeded(),
+                      "Failed to get order for Transpose operation '{0}'", prevTransposeOp->getName());
+
+    SmallVector<int64_t> order{};
+    VPUX_THROW_UNLESS(getOrder(transposeOp, order, transposeOp->getLoc()).succeeded(),
+                      "Failed to get order for Transpose operation '{0}'", transposeOp->getName());
+
+    const auto prevPerm = to_small_vector(prevOrder | transformed([](int64_t val) {
+                                              return checked_cast<unsigned>(val);
+                                          }));
+
+    const auto perm = to_small_vector(order | transformed([](int64_t val) {
+                                          return checked_cast<unsigned>(val);
+                                      }));
+
+    auto prevPermMap = mlir::AffineMap::getPermutationMap(prevPerm, transposeOp->getContext());
+    auto permMap = mlir::AffineMap::getPermutationMap(perm, transposeOp->getContext());
+
+    const auto permAttr = mlir::AffineMapAttr::get(permMap.compose(prevPermMap));
+    rewriter.replaceOpWithNewOp<IE::TransposeOp>(transposeOp, transposeOp.getType(), prevTransposeOp.input(), nullptr,
+                                                 permAttr);
+
+    return mlir::success();
+}
+
 }  // namespace
 
 void vpux::IE::TransposeOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
                                                         mlir::MLIRContext* context) {
     patterns.insert<ConvertConstToAttr>(context);
+    patterns.insert<FuseTransposes>(context);
+}
+
+mlir::OpFoldResult vpux::IE::TransposeOp::fold(ArrayRef<mlir::Attribute>) {
+    if (input().getType() != output().getType()) {
+        return nullptr;
+    }
+
+    return input();
 }

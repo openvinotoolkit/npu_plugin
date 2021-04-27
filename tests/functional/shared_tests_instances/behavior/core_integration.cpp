@@ -207,6 +207,28 @@ INSTANTIATE_TEST_CASE_P(
 
 // IE Class Query network
 
+class IEClassQueryNetworkTest_VPU : public IEClassQueryNetworkTest {
+};
+
+TEST_P(IEClassQueryNetworkTest_VPU, QueryNetworkWithCorrectDeviceID) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    Core ie;
+
+    if (supportsDeviceID(ie, deviceName)) {
+        auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+        if (deviceIDs.empty())
+            GTEST_SKIP();
+        ASSERT_NO_THROW(ie.LoadNetwork(simpleNetwork, deviceName + "." + deviceIDs[0]));
+    } else {
+        GTEST_SKIP();
+    }
+}
+
+INSTANTIATE_TEST_CASE_P(
+        IEClassQueryNetworkTest_smoke,
+        IEClassQueryNetworkTest_VPU,
+        ::testing::ValuesIn(devices));
+
 INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassQueryNetworkTest_smoke,
         IEClassQueryNetworkTest,
@@ -215,7 +237,7 @@ INSTANTIATE_TEST_CASE_P(
 // IE Class Load network
 
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassLoadNetworkTest_smoke,
+        IEClassLoadNetworkTest_smoke,
         IEClassLoadNetworkTest,
         ::testing::ValuesIn(devices));
 } // namespace

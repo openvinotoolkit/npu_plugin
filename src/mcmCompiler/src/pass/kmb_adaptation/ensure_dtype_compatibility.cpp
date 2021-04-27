@@ -339,8 +339,10 @@ static void ensureDTypeCompatibilityFcn(const mv::pass::PassEntry&, mv::Computat
     // for either input or output flow, placinng a conversion layer will differ.
     const std::unordered_map<std::string, const std::unordered_map<std::string, dtypeConversionFunc>>
             dtypeConversionMap = {{"Float16", {{"UInt8", convertFP16ToU8}}},
-                                  {"UInt8", {{"Int8", convertU8ToI8}}},
-                                  {"UInt8", {{"Float16", convertU8ToFP16}}}};
+                                  {"UInt8", {
+                                      {"Int8", convertU8ToI8},
+                                      {"Float16", convertU8ToFP16},
+                                   }}};
     auto ops = om.getOps("DPUTask");
     for (auto opIt : ops) {
         for (auto dtypeCase : targetDesc.dtypeSupport()) {

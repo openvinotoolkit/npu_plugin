@@ -122,9 +122,17 @@ void TimingLogger::printTiming(PrintCallbackFn printCallback) {
 }  // namespace
 
 //
+// CompilerImpl::query
+//
+InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEngine::CNNNetwork& /*network*/,
+                                                              const vpux::VPUXConfig& /*config*/) {
+    InferenceEngine::QueryNetworkResult result;
+    return result;
+}
+
+//
 // CompilerImpl::compile
 //
-
 std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shared_ptr<ngraph::Function>& func,
                                                                  const std::string&, const InputsDataMap& inputsInfo,
                                                                  const OutputsDataMap& outputsInfo,

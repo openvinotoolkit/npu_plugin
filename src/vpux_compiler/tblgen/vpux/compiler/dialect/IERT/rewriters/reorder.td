@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -14,17 +14,26 @@
 // stated in the License.
 //
 
-#ifndef VPUX_COMPILER_DIALECT_IERT_OPS_INTERFACES
-#define VPUX_COMPILER_DIALECT_IERT_OPS_INTERFACES
+#ifndef VPUX_COMPILER_DIALECT_IERT_REWRITERS_CONVERT
+#define VPUX_COMPILER_DIALECT_IERT_REWRITERS_CONVERT
+
+include "vpux/compiler/dialect/IERT/ops.td"
 
 include "mlir/IR/OpBase.td"
 
 //
-// RunTimeLayer
+// FuseReorders
 //
 
-def IERT_RunTimeLayer : NativeOpTrait<"RunTimeLayer"> {
-    let cppNamespace = "vpux::IERT";
-}
+def NotABlockArgument: Constraint<CPred<"!$_self.isa<mlir::BlockArgument>()">>;
+
+def FuseReorders :
+        Pat<
+            (IERT_ReorderOp (IERT_ReorderOp $input, $output_buff1), $output_buff2),
+            (IERT_ReorderOp $input, $output_buff2),
+            [
+                (NotABlockArgument:$output_buff1)
+            ]
+        >;
 
 #endif

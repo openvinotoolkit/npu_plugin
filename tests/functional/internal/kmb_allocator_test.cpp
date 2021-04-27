@@ -46,7 +46,7 @@ static std::shared_ptr<ngraph::Function> buildTestGraph(const ngraph::Shape& inp
     return ngraphCallback;
 }
 
-TEST_F(KmbAllocatorTest, checkCSRAM) {
+TEST_F(KmbAllocatorTest, DISABLED_checkCSRAM) {
     TestNetwork testNet;
     testNet
         .setUserInput("input", Precision::FP16, Layout::NCHW)
@@ -84,12 +84,15 @@ TEST_F(KmbAllocatorTest, checkCSRAM) {
         MemoryUsage::procMemUsage(virtual_with_csram, resident_with_csram);
     }
 
-    double alloc_diff = (virtual_no_csram - virtual_with_csram) * 1024.0;
-    bool has_csram = csramAvailable();
-    if (has_csram) {
-        ASSERT_GE(alloc_diff, CSRAM_SIZE);
-    } else {
-        ASSERT_LT(alloc_diff, CSRAM_SIZE);
+    // there's nothing to check when test suite cannot run inference
+    if (RUN_INFER) {
+        double alloc_diff = (virtual_no_csram - virtual_with_csram) * 1024.0;
+        bool has_csram = csramAvailable();
+        if (has_csram) {
+            ASSERT_GE(alloc_diff, CSRAM_SIZE);
+        } else {
+            ASSERT_LT(alloc_diff, CSRAM_SIZE);
+        }
     }
 }
 
@@ -148,7 +151,7 @@ static double getMemUsage(const CNNNetwork& network,
     return virtual_usage;
 }
 
-TEST_F(KmbAllocatorTest, checkPreprocReallocation) {
+TEST_F(KmbAllocatorTest, DISABLED_checkPreprocReallocation) {
     auto inputShape = ngraph::Shape{1, 3, 224, 224};
     auto ngraphCallback = buildTestGraph(inputShape);
     CNNNetwork network(ngraphCallback);

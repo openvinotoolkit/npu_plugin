@@ -13,16 +13,16 @@ namespace LayerTestsDefinitions {
 
 class KmbPoolingLayerTest: public PoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (isCompilerMCM()) {
-            if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-                throw LayerTestsUtils::KmbSkipTestException("Issues with blobs generated with MCM compiler");
-            }
-        } else {
+        if (isCompilerMLIR()) {
             const auto& poolParams = std::get<0>(GetParam());
-            const auto poolType = std::get<0>(poolParams);
-            const auto& strides = std::get<2>(poolParams);
-            const auto padType = std::get<6>(poolParams);
+            auto poolType = ngraph::helpers::PoolingTypes{};
+            auto strides = std::vector<size_t>{};
+            auto padType = ngraph::op::PadType{};
+            std::tie(poolType, std::ignore, strides, std::ignore, std::ignore, std::ignore, padType, std::ignore) =
+                    poolParams;
 
+            // MLIR uses software layer, which seem to be flawed
+            // MCM uses hardware implementation of AvgPool, replacing with DW Conv
             if (poolType == ngraph::helpers::PoolingTypes::AVG &&
                 padType == ngraph::op::PadType::VALID &&
                 (strides.at(0) != 1 || strides.at(1) != 1)) {
@@ -37,7 +37,7 @@ TEST_P(KmbPoolingLayerTest, CompareWithRefs) {
 }
 
 // [Track number: S#49089]
-TEST_P(KmbPoolingLayerTest, DISABLED_CompareWithRefs_MLIR) {
+TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }

@@ -20,7 +20,6 @@
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
-include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
@@ -49,8 +48,7 @@ class IERT_LayerOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
                     RTLayer,
                     LayerInterface,
                     InferTypeOpInterface,
-                    MemoryEffectsOpInterface,
-                    IERT_RunTimeLayer,
+                    NoSideEffect
                 ]
             )
         > {
@@ -324,6 +322,38 @@ def IERT_CopyOp :
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
+}
+
+//
+// ReorderOp
+//
+
+def IERT_ReorderOp :
+        IERT_LayerOp<1, "Reorder",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape
+            ]
+        > {
+    let summary = "InferenceEngine run-time Reorder layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+
+    let hasCanonicalizer = 1;
 }
 
 //
@@ -1126,6 +1156,12 @@ def IERT_GenericReshapeOp :
         return vpux::IERT::verifyOp(*this);
     }];
 
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `->` type(results)
+    }];
+
     let hasFolder = 1;
 }
 
@@ -1453,6 +1489,35 @@ def IERT_TransposeOp :
     }];
 }
 
+//
+// ConcatViewOp
+//
+
+def IERT_ConcatViewOp :
+        IERT_LayerOp<1,"ConcatView",
+            [
+                ViewLikeOpInterface,
+                SameOperandsAndResultElementType,
+            ]
+        > {
+    let summary = "InferenceEngine run-time ConcatView layer. Dummy operation to maintain use-def chains.";
+
+    let arguments = (ins
+        Variadic<AnyMemRef>:$inputs,
+        AnyMemRef:$output_buff
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
 
 //
 // CTCGreedyDecoderOp

@@ -476,7 +476,7 @@ def RewriteNegative :
         >;
 
 //
-// IERT.ROIPooling -> ROIPoolingUPA.
+// IERT.ROIPooling -> VPUIP.ROIPoolingUPA
 //
 def createROIPoolingUPAOp :
         NativeCodeCall<[{
@@ -493,7 +493,7 @@ def RewriteROIPooling :
 // IERT.Transpose -> VPUIP.Permute
 //
 
-def createPermuteUPAOp :
+def createTransposeUPAOp :
         NativeCodeCall<[{
             $_builder.create<vpux::VPUIP::PermuteUPAOp>(
                 $_loc, $0, $1, $2)
@@ -504,10 +504,26 @@ def HasConstantOrder : Constraint<CPred<"$0.empty() && $1 != nullptr">>;
 def RewriteTranspose :
         Pat<
             (IERT_TransposeOp $input, $order, $output, $order_value),
-            (createPermuteUPAOp $input, $output, $order_value),
+            (createTransposeUPAOp $input, $output, $order_value),
             [
                 (HasConstantOrder $order, $order_value)
             ]
+        >;
+
+//
+// IERT.Reorder -> VPUIP.Permute
+//
+
+def createReorderUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PermuteUPAOp>(
+                $_loc, $0, $1, nullptr)
+        }]>;
+
+def RewriteReorder :
+        Pat<
+            (IERT_ReorderOp $input, $output),
+            (createReorderUPAOp $input, $output)
         >;
 
 //

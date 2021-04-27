@@ -300,6 +300,7 @@ namespace mv
                                 clustering.get<std::string>() == "SplitOverH" &&
                                 hasStreamOverK) {
                                 streamsOverK = {8};
+                                model_.getInput()->set<bool>("hardcoded_streams", true);
                                 log(mv::Logger::MessageType::Warning, "Following op " + op.getName() +
                                     "  has been forced to be scheduled with fixed K stream of " +
                                     std::to_string(streamsOverK[0]));

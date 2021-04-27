@@ -34,6 +34,23 @@ def AddLayoutsAndStrides : PassBase<"add-layouts-and-strides", "vpux::ModulePass
 }
 
 //
+// UseUserLayout
+//
+
+def UseUserLayout : PassBase<"use-user-layout", "vpux::ModulePass"> {
+    let summary = "Use user layouts for entry point function prototype";
+
+    let description = [{
+        This pass updates the CNNNetwork entry point function prototype
+        and use user-provided layouts for its operands and results.
+        The pass inserts Reorder operations from/to topology layout.
+    }];
+
+    let constructor = "vpux::IERT::createUseUserLayout()";
+}
+
+
+//
 // SetInternalMemorySpace
 //
 

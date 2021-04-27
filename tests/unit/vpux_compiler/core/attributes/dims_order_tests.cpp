@@ -82,10 +82,8 @@ using ResType = bool;
 std::vector<std::tuple<ExpectedDimsOrderType, ValueDimsOrderType, ShapeType, MemStridesType>> getFromType() {
     return {
         {DimsOrder::CHW,  DimsOrder::CHW,  {8, 4, 2},    {}},
-        {DimsOrder::CHW,  DimsOrder::HCW,  {1, 3, 6},    {}},
         {DimsOrder::HCW,  DimsOrder::HCW,  {2, 3, 6},    {}},
         {DimsOrder::CHW,  DimsOrder::HCW,  {1, 3, 6},    {6, 6, 1}},
-        {DimsOrder::NCHW, DimsOrder::NHCW, {5, 1, 2, 3}, {}},
         {DimsOrder::NHCW, DimsOrder::NHCW, {5, 4, 3, 2}, {}},
         {DimsOrder::NCHW, DimsOrder::NHCW, {5, 1, 2, 3}, {6, 3, 3, 1}},
     };
@@ -357,13 +355,13 @@ TEST(MLIR_DimsOrderTest, toIETest) {
     EXPECT_EQ(DimsOrder::C.toIE(), InferenceEngine::Layout::C);
     EXPECT_EQ(DimsOrder::NC.toIE(), InferenceEngine::Layout::NC);
     EXPECT_EQ(DimsOrder::CHW.toIE(), InferenceEngine::Layout::CHW);
+    EXPECT_EQ(DimsOrder::HWC.toIE(), InferenceEngine::Layout::HWC);
     EXPECT_EQ(DimsOrder::NCHW.toIE(), InferenceEngine::Layout::NCHW);
     EXPECT_EQ(DimsOrder::NHWC.toIE(), InferenceEngine::Layout::NHWC);
     EXPECT_EQ(DimsOrder::NCDHW.toIE(), InferenceEngine::Layout::NCDHW);
     EXPECT_EQ(DimsOrder::NDHWC.toIE(), InferenceEngine::Layout::NDHWC);
 
-    // HWC and HCW layouts is not supported by IE
-    EXPECT_ANY_THROW(DimsOrder::HWC.toIE());
+    // HCW layout is not supported by IE
     EXPECT_ANY_THROW(DimsOrder::HCW.toIE());
 }
 

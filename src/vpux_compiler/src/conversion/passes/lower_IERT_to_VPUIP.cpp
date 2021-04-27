@@ -46,6 +46,7 @@ public:
 public:
     class ConstantRewrite;
     class CTCGreedyDecoderSeqLenRewrite;
+    class ConcatViewRewrite;
     class FakeQuantizeRewrite;
     class ViewLikeRewrite;
 
@@ -106,6 +107,33 @@ mlir::LogicalResult LowerIERT2VPUIPPass::CTCGreedyDecoderSeqLenRewrite::matchAnd
             origOp, origOp.input(), origOp.sequenceLength(), origOp.blankIndex(), origOp.output_buff(),
             origOp.outputLength_buff(), origOp.mergeRepeatedAttr());
     _log.trace("Replaced with 'VPUIP.CTCGreedyDecoderSeqLenOp'");
+
+    return mlir::success();
+}
+
+//
+// ConcatViewRewrite
+//
+
+class LowerIERT2VPUIPPass::ConcatViewRewrite final : public mlir::OpRewritePattern<IERT::ConcatViewOp> {
+public:
+    ConcatViewRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::ConcatViewOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::ConcatViewOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult LowerIERT2VPUIPPass::ConcatViewRewrite::matchAndRewrite(IERT::ConcatViewOp origOp,
+                                                                            mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found ConcatOp Operation '{0}'", origOp->getLoc());
+
+    rewriter.replaceOp(origOp, origOp.output_buff());
+
+    _log.trace("Replaced with output_buff '{0}'", origOp.output_buff().getLoc());
 
     return mlir::success();
 }
@@ -278,6 +306,7 @@ void LowerIERT2VPUIPPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ConstantRewrite>(&ctx, _log);
     patterns.insert<CTCGreedyDecoderSeqLenRewrite>(&ctx, _log);
+    patterns.insert<ConcatViewRewrite>(&ctx, _log);
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
     patterns.insert<ViewLikeRewrite>(netInfo, netFunc, &aliasInfo, _log);
     populateWithGenerated(patterns);

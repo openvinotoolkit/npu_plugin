@@ -1215,6 +1215,8 @@ mlir::AffineMap importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout lay
     case InferenceEngine::Layout::NCHW:
     case InferenceEngine::Layout::NCDHW:
         return {};
+    case InferenceEngine::Layout::HWC:
+        return DimsOrder::HWC.toAffineMap(ctx);
     case InferenceEngine::Layout::NHWC:
         return DimsOrder::NHWC.toAffineMap(ctx);
     case InferenceEngine::Layout::NDHWC:
