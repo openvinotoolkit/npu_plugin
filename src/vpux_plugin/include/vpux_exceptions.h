@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <cpp_interfaces/exception2status.hpp>
-
 namespace vpux {
 
 #define CONTEXT_ERROR_str std::string("[INVALID REMOTE CONTEXT] ")

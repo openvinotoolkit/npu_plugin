@@ -16,7 +16,6 @@
 
 #include "zero_config.h"
 
-#include <cpp_interfaces/exception2status.hpp>
 #include <map>
 #include <string>
 #include <unordered_set>
