@@ -29,7 +29,6 @@
 #include "models/models_constant.h"
 #include "tests_common.hpp"
 
-#include <opencv_wraper.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/core.hpp>
 
