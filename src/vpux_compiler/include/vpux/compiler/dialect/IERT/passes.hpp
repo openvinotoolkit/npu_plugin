@@ -46,10 +46,18 @@ std::unique_ptr<mlir::Pass> createCMXTilingPass(Logger log = Logger::global());
 // Asynchronous Scheduling pipeline
 //
 
+void buildAsyncSchedulingPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+
 std::unique_ptr<mlir::Pass> createWrapIntoAsyncRegionsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMoveWaitResultToAsyncBlockArgsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMoveViewOpsIntoAsyncRegionsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeAsyncDepsPass(Logger log = Logger::global());
+
+//
+// Registration
+//
+
+void registerIERTPipelines();
 
 //
 // Generated

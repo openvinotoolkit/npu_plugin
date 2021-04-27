@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 
 using namespace vpux;
@@ -43,10 +44,10 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
 }
 
 //
-// registerPipelines
+// registerIEPipelines
 //
 
-void vpux::IE::registerPipelines() {
+void vpux::IE::registerIEPipelines() {
     mlir::PassPipelineRegistration<>("adjust-for-vpu", "Adjust IE Dialect IR for VPU target",
                                      [](mlir::OpPassManager& pm) {
                                          IE::buildAdjustForVPUPipeline(pm);
