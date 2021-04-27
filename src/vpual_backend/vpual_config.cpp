@@ -16,7 +16,6 @@
 
 #include "vpual_config.hpp"
 
-#include <cpp_interfaces/exception2status.hpp>
 #include <map>
 #include <string>
 #include <unordered_set>

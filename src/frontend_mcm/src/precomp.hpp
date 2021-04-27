@@ -20,7 +20,6 @@
 #include <blob_factory.hpp>
 #include <blob_transform.hpp>
 #include <caseless.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 #include <description_buffer.hpp>
 #include <legacy/graph_tools.hpp>
 #include <ie_blob.h>

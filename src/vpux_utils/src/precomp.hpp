@@ -24,7 +24,6 @@
 #include <precision_utils.h>
 #include <blob_factory.hpp>
 #include <blob_transform.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 #include <ie_core.hpp>
 #include <ie_icnn_network.hpp>
 #include <ie_input_info.hpp>

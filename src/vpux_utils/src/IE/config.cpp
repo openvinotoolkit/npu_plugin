@@ -19,7 +19,6 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/range.hpp"
 
-#include <cpp_interfaces/exception2status.hpp>
 #include <ie_plugin_config.hpp>
 
 #include <llvm/ADT/StringSwitch.h>

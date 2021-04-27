@@ -14,7 +14,6 @@
 // stated in the License.
 //
 
-#include <cpp_interfaces/exception2status.hpp>
 #include <map>
 #include <mcm_config.hpp>
 #include <private_vpu_compiler_config.hpp>

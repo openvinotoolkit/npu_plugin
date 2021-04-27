@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <cpp_interfaces/exception2status.hpp>
-
 namespace vpux {
 namespace hddl2 {
 
