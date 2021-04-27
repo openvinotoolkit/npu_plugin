@@ -23,6 +23,7 @@ class Pipeline_Chains {
       typedef std::unordered_map<operation_t, size_t> read_size_map_t;
       op_list_t dpu_chain_;
       std::list<op_list_t> weight_reads_;
+      std::list<op_list_t> activation_reads_;
       read_size_map_t total_read_size_map_;
 
       size_t cmx_size(operation_t op) const {
@@ -31,9 +32,13 @@ class Pipeline_Chains {
       }
 
       void compute_total_read_sizes() {
-        if (weight_reads_.empty())
-          throw RuntimeError("LpScheduler", "compute_total_read_sizes(): weight_reads_ is empty");
-        auto read_itr = weight_reads_.begin();
+        if (weight_reads_.empty() && activation_reads_.empty())
+          throw RuntimeError("LpScheduler", "compute_total_read_sizes(): weight_reads_ and activation_reads_ is empty");
+        std::list<op_list_t>::iterator read_itr;
+        if (activation_reads_.empty())
+          read_itr = weight_reads_.begin();
+        else
+          read_itr = activation_reads_.begin();
         for (operation_t dpu_op : dpu_chain_) {
           size_t total_read_size = 0UL;
           for (operation_t read_op : *read_itr) {
@@ -197,6 +202,21 @@ class Pipeline_Chains {
       }
     }
 
+    template<typename T, typename OutputIterator>
+    void get_non_shared_read_inputs(T dpu_op, OutputIterator output) const {
+      mv::Data::OpListIterator oitr = omodel_.getOp(dpu_op->getName());
+      output = &(*oitr.leftmostParent()); // activation
+      bool has_shared_weights = is_sharing_weights_operation(dpu_op);
+      for (auto pitr=oitr.leftmostParent(); pitr!=omodel_.opEnd(); ++pitr) {
+        if (!is_weight_read(pitr)) { continue; }
+        if (has_shared_weights) {
+          has_shared_weights = false;
+          continue; // skip shared weights
+        }
+        output = &(*pitr);
+      }
+    }
+
     // If op has multiple outputs this returns NULL //
     template<typename T>
     operation_t get_single_output(T dpu_op) const {
@@ -279,6 +299,54 @@ class Pipeline_Chains {
       return (op_itr->hasAttr("shareWeights") && op_itr->get<bool>("shareWeights"));
     }
 
+    bool share_the_same_weights(op_list_t operationLevelStream) const
+    {
+      std::set<std::string> weightOpNames;
+      weightOpNames.clear();
+
+      for (auto& i : operationLevelStream)
+      {
+          auto op_itr = omodel_.getOp(i->getName());
+          weightOpNames.insert(omodel_.getSourceOp(op_itr->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET))->getName());
+      }
+
+      return (weightOpNames.size() == 1);
+    }
+
+    bool can_activation_pipelining_be_applied(operation_t dpu_op)
+    {
+      // for activation chain pipelining the op (inputs + output) must fit twice in cmx
+      mv::Data::OpListIterator stream_1 = omodel_.getOp(dpu_op->getName());
+      size_t input_size = 0UL;
+      size_t output_size = 0UL;
+      size_t shared_weight_size = 0UL;
+      for (size_t idx=0UL; idx < stream_1->getInputTensor().size(); idx++)
+      {
+        if (stream_1->hasAttr("hasWeights") && stream_1->get<bool>("hasWeights") && idx==1UL)
+          shared_weight_size = stream_1->getInputTensor()[idx]->getClusterSize();
+        else
+          input_size += stream_1->getInputTensor()[idx]->getClusterSize();
+      }
+      output_size = stream_1->getOutputTensor(0UL)->getClusterSize();
+
+      auto globalParams = omodel_.getGlobalConfigParams();
+      size_t clusterMemory = globalParams->get<int>("cmx");
+
+      // allow a 15% cmx margin 
+      return (2 * input_size + 2 * output_size + shared_weight_size) < (clusterMemory * 0.85);
+    }
+
+    template<typename SubGraphContainer>
+    bool is_network_candidate(SubGraphContainer& chain_subgraphs)
+    {
+      // networks with few chains are prefferred to have streams parallelized
+      size_t activation_chain_count = 0UL;
+      for (chain_subgraph_t chain_subgraph : chain_subgraphs)
+        if (!(chain_subgraph.activation_reads_.empty()))
+          ++activation_chain_count;
+      return activation_chain_count > 1UL;
+    }
+
     template<typename OutputIterator>
     void locate_longer_chains(OutputIterator output)
     {
@@ -347,6 +415,42 @@ class Pipeline_Chains {
       while (level_itr != dpu_levels.end())
       {
         const op_list_t & dpu_list = level_itr->second;
+        // create activation chains
+        op_list_t activation_dpu_chain;
+        for (auto& opIt : level_itr->second)
+        {
+          operation_t current_dpu_op = opIt;
+          // make sure the op will fit in CMX
+          if (!can_activation_pipelining_be_applied(current_dpu_op))
+          {
+            activation_dpu_chain.clear();
+            break;
+          }
+          // chains created from ops that are optimizable in activation streaming performance
+          // a chain contains ops that belong to the same streaming - share the same weights
+          if (opIt->hasAttr("performance_optimized") && opIt->get<bool>("performance_optimized") &&
+              is_sharing_weights_operation(current_dpu_op) && share_the_same_weights(dpu_list))
+            activation_dpu_chain.push_back(current_dpu_op);
+        }
+
+        // currently no overlapping chains, want to be able to prefetch more then half.
+        // for smaller chains the scheduler parallelizes the ops
+        if (activation_dpu_chain.size() > 8UL)
+        {
+          // create a subgraph //
+          chain_subgraph_t chain_subgraph;
+          chain_subgraph.dpu_chain_ = activation_dpu_chain;
+          std::list<op_list_t> &activation_reads = chain_subgraph.activation_reads_;
+          // now create reads //
+          for (operation_t dpu_op : chain_subgraph.dpu_chain_)
+          {
+            op_list_t reads;
+            get_non_shared_read_inputs(dpu_op, std::back_inserter(reads));
+            activation_reads.push_back(reads);
+          }
+          output = chain_subgraph;
+        }
+
         //NOTE: if your dpu_list size is bigger than 1 but you belong to same streaming op, no problem!!
         if ((dpu_list.size() > 1UL) && !(comeFromTheSameParentStream(dpu_list)))
         {
@@ -356,18 +460,18 @@ class Pipeline_Chains {
 
         /// try to create a chain subgraph ////
         auto next_level_itr = level_itr;
-        op_list_t dpu_chain;
+        op_list_t weight_dpu_chain;
 
         //NOTE: chain means a linear subgraph, when you find in the dpu_levels
         // a list of dpus with level > 1 you stop attaching in the chain
         do
         {
-          for (auto opIt : next_level_itr->second)
+          for (auto& opIt : next_level_itr->second)
           {
             operation_t current_dpu_op = opIt;
             if (is_eltwise_with_soh_runtime_sparsity(current_dpu_op))
             {
-              dpu_chain.clear();
+              weight_dpu_chain.clear();
               break;
             }
 
@@ -378,25 +482,25 @@ class Pipeline_Chains {
             //check if the current dpu_op has an incoming edge which is not yet
             //in the chain.
 
-            dpu_chain.push_back(current_dpu_op);
+            weight_dpu_chain.push_back(current_dpu_op);
           }
           ++next_level_itr;
         }
         while ((next_level_itr != dpu_levels.end()) &&
                 can_this_level_be_appended_to_chain(next_level_itr));
 
-        if (dpu_chain.size() > 1UL)
+        if (weight_dpu_chain.size() > 1UL)
         {
           // create a subgraph //
           chain_subgraph_t chain_subgraph;
-          chain_subgraph.dpu_chain_ = dpu_chain;
-          std::list<op_list_t> &input_reads = chain_subgraph.weight_reads_;
+          chain_subgraph.dpu_chain_ = weight_dpu_chain;
+          std::list<op_list_t> &weight_reads = chain_subgraph.weight_reads_;
           // now create reads //
           for (operation_t dpu_op : chain_subgraph.dpu_chain_)
           {
-            op_list_t weight_reads;
-            get_weight_read_inputs(dpu_op, std::back_inserter(weight_reads));
-            input_reads.push_back(weight_reads);
+            op_list_t reads;
+            get_weight_read_inputs(dpu_op, std::back_inserter(reads));
+            weight_reads.push_back(reads);
           }
           output = chain_subgraph;
         }
@@ -418,7 +522,7 @@ class Pipeline_Chains {
       std::size_t numberOfOpsOnLevelWithNoStream = 0;
       parentOpStreamNames.clear();
 
-      for (auto i : operationLevelStream)
+      for (auto& i : operationLevelStream)
       {
           if (!i->hasAttr("parentOpName"))
           {
@@ -670,29 +774,69 @@ class Pipeline_Chains {
 
       chain_subgraphs.clear();
       locate_longer_chains(std::back_inserter(chain_subgraphs));
+      bool activation_pipelining = is_network_candidate(chain_subgraphs);
 
       for (chain_subgraph_t chain_subgraph : chain_subgraphs)
       {
-        const std::list<op_list_t>& weight_reads = chain_subgraph.weight_reads_;
+        if(activation_pipelining && !(chain_subgraph.activation_reads_.empty()))
+          pipeline_ops_in_chain(chain_subgraph, true, select_stages, fptr);
+        if(!(chain_subgraph.weight_reads_.empty()))
+          pipeline_ops_in_chain(chain_subgraph, false, select_stages, fptr);
+      }
+    }
+
+    void pipeline_ops_in_chain(chain_subgraph_t chain_subgraph,
+        bool activation_pipelining, size_t select_stages=0UL, 
+        FILE *fptr=stdout) {
+
         const op_list_t& dpu_chain = chain_subgraph.dpu_chain_;
         assert(!dpu_chain.empty() && "dpu_chain is empty");
-        if (dpu_chain.size() <= 3UL) { continue; }
+        if (dpu_chain.size() <= 3UL) { return; }
+
+        std::list<op_list_t>::iterator reads_begin;
+        std::list<op_list_t>::iterator reads_end;
+
+        if (activation_pipelining)
+        {
+          auto dpu_flow_control = dpu_chain.begin();
+          auto dpu_flow_control_prev = dpu_flow_control;
+          ++dpu_flow_control;
+
+          while (dpu_flow_control != dpu_chain.end())
+          {
+            // set the flow: H0 -> H1 -> ... -> Hn
+            mv::Data::OpListIterator prev_op = omodel_.getOp((*dpu_flow_control_prev)->getName());
+            mv::Data::OpListIterator curr_op = omodel_.getOp((*dpu_flow_control)->getName());
+            omodel_.defineFlow(prev_op->getOutputTensor(0UL), curr_op, 0UL);
+
+            ++dpu_flow_control;
+            ++dpu_flow_control_prev;
+          }
+
+          reads_begin = chain_subgraph.activation_reads_.begin();
+          reads_end = chain_subgraph.activation_reads_.end();
+        }
+        else
+        {
+          reads_begin = chain_subgraph.weight_reads_.begin();
+          reads_end = chain_subgraph.weight_reads_.end();
+        }
 
 
         chain_subgraph.print(fptr);
         //compute_working_memory_for_eltwise_chain(chain_subgraph);
         auto curr_dpu_itr = dpu_chain.begin();
-        auto curr_itr = weight_reads.begin();
+        auto curr_itr = reads_begin;
 
         auto pprev_dpu_itr = curr_dpu_itr;
 
         auto pprev_itr = curr_itr;
 
-        if (curr_itr == weight_reads.end()) { continue; }
+        if (curr_itr == reads_end) { return; }
         ++curr_itr;
         ++curr_dpu_itr;
 
-        if (curr_itr == weight_reads.end()) { continue; }
+        if (curr_itr == reads_end) { return; }
         ++curr_itr;
         ++curr_dpu_itr;
 
@@ -700,16 +844,16 @@ class Pipeline_Chains {
         std::unordered_map<operation_t, size_t> stage_memory;
         while (curr_dpu_itr != dpu_chain.end())
         {
-          if (curr_itr == weight_reads.end())
-            throw RuntimeError("transform_op_model", "curr_itr == weight_reads.end()");
+          if (curr_itr == reads_end)
+          throw RuntimeError("transform_op_model", "curr_itr == reads_end");
           const op_list_t & curr_read_list = *curr_itr;
-          if (pprev_itr == weight_reads.end())
-            throw RuntimeError("transform_op_model", "pprev_itr == weight_reads.end()");
+          if (pprev_itr == reads_end)
+            throw RuntimeError("transform_op_model", "pprev_itr == reads_end");
           const op_list_t & pprev_read_list = *pprev_itr;
           if (!pprev_read_list.empty())
           {
             auto net_dpu_itr = pprev_dpu_itr;
-            for (size_t sl=0; (sl < select_stages) &&
+            for (size_t sl=0; (sl < select_stages) && !activation_pipelining &&
                   (net_dpu_itr != dpu_chain.begin()); ++sl) { --net_dpu_itr; }
             mv::Data::OpListIterator src_itr =
                 omodel_.getOp((*net_dpu_itr)->getName());
@@ -740,7 +884,7 @@ class Pipeline_Chains {
             }
 
             //TODO(vamsikku): parameterize this based on CMX availablity //
-            if ( (stage_memory[*net_dpu_itr] + demand) > 700000)
+            if ( !activation_pipelining && (stage_memory[*net_dpu_itr] + demand) > 700000)
               goto MOVE_TO_NEXT_SUBGRAPH;
 
             stage_memory[*net_dpu_itr] += demand;
@@ -750,6 +894,8 @@ class Pipeline_Chains {
               mv::Data::OpListIterator sink_itr =
                   omodel_.getOp(curr_read_op->getName());
               sink_itr->set<bool>("pipeline_flow_control", true);
+              if (activation_pipelining)
+                sink_itr->set<bool>("pipelined_dma_task", true);
               mv::Data::TensorIterator src_tensor_itr
                   = src_itr->getOutputTensor(0UL);
               {
@@ -782,8 +928,6 @@ MOVE_TO_NEXT_SUBGRAPH:
         printf("======================\n");
 #endif
 
-
-      }
     }
 
     void inplace_eltwise_pipeline_transforms() {

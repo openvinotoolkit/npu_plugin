@@ -209,7 +209,7 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx)
         {
             if ((lastOffset + (*it)->size) >= size_ && name_ == "VPU_DDR_Heap")
             {
-                log(Logger::MessageType::Warning, "Memory allocator offset wrapping around. offset ("
+                log(Logger::MessageType::Debug, "Memory allocator offset wrapping around. offset ("
                                         + std::to_string(lastOffset) + ") + data (" + std::to_string((*it)->size)
                                         + ") will overflow " + name_ + " address range.");
                 lastOffset = 0;
