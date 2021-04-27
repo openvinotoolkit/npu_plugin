@@ -6,7 +6,10 @@ depending on the layer specification
 This pass will replace a set of operations with the pattern OP ==> Subview->Copy->Op->Copy->SubView.
 The condition for the replacment is that for each op the SUM of their I/O tensors to fit into CMX memory
 ### `-move-view-ops-into-async-regions`: Moves view-like Operations inside the asynchronous regions which depends on them
-### `-move-wait-result-to-async-block-args`: Moves 'async.await' result usage from 'async.region' body to it's operands
+### `-move-wait-result-to-async-block-args`: Moves 'async.await' result usage from 'async.execute' body to it's operands
+### `-optimize-async-deps`: Optimizes dependencies between 'async.execute' operations
+The pass removes 'async.await' Operations between two consecutive 'async.execute' regions and
+establish token-based dependencies between 'async.execute' operations.
 ### `-set-internal-memory-space`: Set specific memory space for all internal memory buffers
 This pass updates all Types for internal memory buffers and sets the specified memory space for them.
 
