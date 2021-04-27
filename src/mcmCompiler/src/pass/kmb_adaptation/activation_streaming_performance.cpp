@@ -213,7 +213,7 @@ bool isStreamOptimizable(mv::ComputationModel& model, mv::Data::OpListIterator o
     
     // Only consider ops that have input tensor in DDR
     // In case of parallel branches, don't trust the GO prediction
-    if(!parentSpilling || (prevOpType == "Concat" || prevOpType == "Eltwise"))
+    if(!parentSpilling || prevOpType == "Concat")
         return false;
 
     auto clusteringStrategy = opIt->get<std::string>("splitStrategy");
@@ -272,6 +272,23 @@ bool isStreamOptimizable(mv::ComputationModel& model, mv::Data::OpListIterator o
     return false;
 }
 
+bool isChannelMajorConvWithSOK(mv::ComputationModel& model, mv::Data::OpListIterator opIt)
+{
+    mv::OpModel om(model);
+    auto clusteringStrategy = opIt->get<std::string>("splitStrategy");
+    // accuracy issues when activation is pipelined and perf regression if streams increased
+    if (opIt->supportsCMConv() && clusteringStrategy == "SplitOverK")
+        return true;
+
+    return false;
+}
+
+bool hardcodedSparsityIssue(mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    return om.getInput()->hasAttr("hardcoded_streams") && om.getInput()->get<bool>("hardcoded_streams");
+}
+
 //ASSUMPTION: the op must fit in cmx with just streaming over H (or no streaming at all)
 std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListIterator opIt, size_t originalHStream)
 {
@@ -284,8 +301,8 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
     auto clusteringStrategy = opIt->get<std::string>("splitStrategy");
 
     // Step 1. Decide which tensor will be the benchmark for how many streams we should do
-    size_t input, output, weights;
-    input = output = weights = 0;
+    size_t magicStreams, input, output, weights;
+    magicStreams = input = output = weights = 0;
     std::tie(input, output, weights) = getMemorySize(model, opIt, {1,1,1,1,1});
 
     // Step 2. Calculate a possible number of streams using experimetnally found magic number
@@ -299,7 +316,14 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
     //      ((416*416*3)*2 + (416*416*32)) / (917504-(weights) * 0.6) = ~12.01 -> 13
     // Note that input and output in these equations are the full tensors because the 
     // getMemorySize call above is invoked without any streams {1,1,1,1,1}
-    size_t magicStreams = std::ceil((2*input + output)/ ((clusterMemory-weights)*0.6));
+    // for the case when output > input use 2 * max(input, output) + min()
+    if(!isChannelMajorConvWithSOK(model, opIt) && !hardcodedSparsityIssue(model))
+    {
+        opIt->set<bool>("performance_optimized", true);
+        magicStreams = std::ceil((2*std::max(input, output) + std::min(input, output))/ ((clusterMemory-weights)*0.6));
+    }
+    else
+        magicStreams = std::ceil((2*input + output)/ ((clusterMemory-weights)*0.6));
     if(magicStreams < originalHStream)
         magicStreams = originalHStream; //If GO gave carved it up into smaller pieces, must be for a reason
     else if(magicStreams > originalHStream*3)
