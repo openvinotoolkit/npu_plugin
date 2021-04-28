@@ -110,6 +110,8 @@ namespace mv
                 DeConvSubConvSOKHeight,
                 SpiltOverHForLayer79InACLNet,
                 SpiltOverHForLayer97and113ModelE,
+                SpiltOverHForConvModelF,
+                SpiltOverKForConvModelF,
                 SpiltOverHForFaceDetectionRetail0004,
                 SplitOverHOverlappedWronglyComputed,
                 SoftwareDeconvolutionSet,
@@ -1137,6 +1139,35 @@ namespace mv
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72 &&
                     op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 7 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 7)
                     return FailCause::SplitOverHOverlappedWronglyComputed;
+
+                //temporarily disable the SplitOverHOverlapped for custom network kernel size 1x7 subtensors not correct
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1 &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1024 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 1 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 7)
+                    return FailCause::SplitOverHOverlappedWronglyComputed;
+
+                // This is intended to be a temporary workaround for ModelF, layer 'af_01/01_conv/Conv2D', which does work with SOH
+                // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 16 &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1024 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 &&
+                    op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 16 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1024 &&
+                    op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 7 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 1)
+                    return FailCause::SpiltOverHForConvModelF;
+
+                // This is intended to be a temporary workaround for ModelF, layers which do work with SOK
+                // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
+                // layers: 'at_13/11_conv/Conv2D', 'at_14/12_conv/Conv2D', 'at_15/13_conv/Conv2D', 'at_16/14_conv/Conv2D'
+                if (clustering == "SplitOverK" && op.getOpType() == "Conv" && !isChanMajor &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 256 && op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 256 &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 1 &&
+                    ((op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 32 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 16) ||
+                     (op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 16 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 8) ||
+                     (op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 8 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 4) ||
+                     (op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 4 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 2)))
+                    return FailCause::SpiltOverKForConvModelF;
+
                 return FailCause::Pass; //good strategy
             }
 
