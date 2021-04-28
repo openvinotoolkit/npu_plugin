@@ -124,6 +124,15 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParam
     {LeakyRelu,{{0.01f}}},
 };
 
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesND = {
+    {Sigmoid,  {{1.0f}}},
+    {Tanh,     {{1.0f}}},
+    {Relu,     {{1.0f}}},
+    {Elu,      {{1.0f}}},
+    {Clamp,    {{-1.0f, 1.0f}}},
+    {HSwish,   {{1.0f}}},
+};
+
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
     {{1, 50, 1, 1}, {{}}},
     {{1, 128, 1, 1}, {{}}},
@@ -132,6 +141,11 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
     {{1, 50, 1, 1}, {{1}, {50}}},
     {{1, 128, 1, 1}, {{1}, {128}}},
+};
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basicNDCase = {
+    {{1, 50}, {{}}},
+    {{1, 128, 1}, {{}}},
 };
 
 const auto basicCases = ::testing::Combine(
@@ -154,8 +168,20 @@ const auto basicPReluCases = ::testing::Combine(
     ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
+const auto basicNDCases = ::testing::Combine(
+    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesND)),
+    ::testing::ValuesIn(netPrecisions),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::ValuesIn(CommonTestUtils::combineParams(basicNDCase)),
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Test, KmbActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Activation_Test_PRelu, KmbActivationLayerTest, basicPReluCases, ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Test_ND, KmbActivationLayerTest, basicNDCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace
