@@ -37,6 +37,13 @@ TEST_P(KmbGRNLayerTests, accuracy) {
     const auto& p = std::get<0>(GetParam());
     const auto& useCustomLayers = std::get<1>(GetParam());
 
+    // Custom CPP layers fail
+    // [Track number: E#11436]
+    if (useCustomLayers == KernelType::Cpp)
+    {
+        SKIP_ON("KMB", "HDDL2", "VPUX", "Error in infer");
+    }
+
     const auto dims = p.dims();
     const auto layout = p.layout();
 

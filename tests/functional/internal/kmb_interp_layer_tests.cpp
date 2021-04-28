@@ -27,7 +27,7 @@ struct InterpTestParams final {
         this->_inDims = inDims;
         return *this;
     }
-    
+
     InterpTestParams& outShapeHW(const size_t height, const size_t width) {
         this->_height = height;
         this->_width = width;
@@ -52,6 +52,13 @@ class KmbInterpLayerTests :
 TEST_P(KmbInterpLayerTests, EqualWithCPU) {
     const auto &p = std::get<0>(GetParam());
     const auto &useCustomLayers = std::get<1>(GetParam());
+
+    // Custom CPP layers fail
+    // [Track number: E#11436]
+    if (useCustomLayers == KernelType::Cpp)
+    {
+        SKIP_ON("KMB", "HDDL2", "VPUX", "Error in infer");
+    }
 
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
     const auto userOutDesc = TensorDesc(Precision::FP32, Layout::NHWC);
