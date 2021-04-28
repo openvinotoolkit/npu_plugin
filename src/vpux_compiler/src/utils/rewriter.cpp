@@ -17,6 +17,7 @@
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/aliases_info.hpp"
+#include "vpux/compiler/utils/extentions.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -94,13 +95,7 @@ mlir::LogicalResult vpux::convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> 
 
         val.setType(newType);
 
-        mlir::Operation* firstUser = nullptr;
-        for (auto* user : val.getUsers()) {
-            if (firstUser == nullptr || user->isBeforeInBlock(firstUser)) {
-                firstUser = user;
-            }
-        }
-
+        auto* firstUser = getFirstUser(val);
         if (firstUser == nullptr) {
             log.nest(2).trace("The argument has no users");
             continue;
@@ -206,13 +201,7 @@ mlir::LogicalResult vpux::convertBufferizedFunc(mlir::FuncOp funcOp, ArrayRef<ml
 
             operand.setType(newType);
 
-            mlir::Operation* firstUser = nullptr;
-            for (auto* user : operand.getUsers()) {
-                if (firstUser == nullptr || user->isBeforeInBlock(firstUser)) {
-                    firstUser = user;
-                }
-            }
-
+            auto* firstUser = getFirstUser(operand);
             if (firstUser == nullptr) {
                 log.nest(2).trace("The argument has no users");
                 continue;

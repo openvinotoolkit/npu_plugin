@@ -34,8 +34,8 @@ namespace {
 // Returns the number of operands that are the result of other layers
 // For this ops:
 // %6 = VPUIP.SomeTaskUPA inputs(%1 : memref, %2 : memref) outputs(%3 : memref) waits(%4 : !VPUIP.Barrier) updates(%5 :
-// !VPUIP.Barrier)) numOperands() == 5 <==> %1, %2, %3, %4, %5 getNumMemRefValues() == 3  <==> %1, %2 and %3
-ptrdiff_t getNumMemRefValues(const mlir::ValueRange& vals) {
+// !VPUIP.Barrier)) numOperands() == 5 <==> %1, %2, %3, %4, %5 getLastMemRefPosition() == 3  <==> %1, %2 and %3
+ptrdiff_t getLastMemRefPosition(const mlir::ValueRange& vals) {
     return std::find_if(vals.begin(), vals.end(),
                         [](mlir::Value val) {
                             return !val.getType().isa<mlir::MemRefType>();
@@ -268,12 +268,26 @@ mlir::LogicalResult vpux::verifyRTLayerOp(mlir::Operation* op) {
         return errorAt(op, "Operation '{0}' is not a Layer", op->getName());
     }
 
-    const auto hasTensor = std::any_of(op->getOperands().begin(), op->getOperands().end(), [](mlir::Value type) {
+    auto hasTensor = llvm::any_of(op->getOperands(), [](mlir::Value type) {
+        return type.getType().isa<mlir::RankedTensorType>();
+    });
+
+    hasTensor &= llvm::any_of(op->getResults(), [](mlir::Value type) {
         return type.getType().isa<mlir::RankedTensorType>();
     });
 
     if (hasTensor) {
         return errorAt(op, "Operation '{0}' is not a RT Layer, it operates with Tensor types", op->getName());
+    }
+
+    const auto inNum = getLastMemRefPosition(op->getOperands());
+    const auto outNum = getLastMemRefPosition(op->getResults());
+
+    if (inNum < outNum) {
+        return errorAt(op,
+                       "The number of operands must always be greater than or equal to the number of results, since "
+                       "they include buffers for the results. inNum={0}; outNum={1}",
+                       inNum, outNum);
     }
 
     return mlir::success();
@@ -282,9 +296,8 @@ mlir::LogicalResult vpux::verifyRTLayerOp(mlir::Operation* op) {
 mlir::OperandRange vpux::getRTLayerInOperand(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getLayerInputs");
 
-    const auto inNum = getNumMemRefValues(op->getOperands());
-    const auto outNum = getNumMemRefValues(op->getResults());
-    VPUX_THROW_UNLESS(inNum >= outNum, "Invalid operands count. inNum={0}; outNum={1}", inNum, outNum);
+    const auto inNum = getLastMemRefPosition(op->getOperands());
+    const auto outNum = getLastMemRefPosition(op->getResults());
 
     return op->getOperands().take_front(inNum - outNum);
 }
@@ -292,9 +305,8 @@ mlir::OperandRange vpux::getRTLayerInOperand(mlir::Operation* op) {
 mlir::OperandRange vpux::getRTLayerOutOperand(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getLayerInputs");
 
-    const auto inNum = getNumMemRefValues(op->getOperands());
-    const auto outNum = getNumMemRefValues(op->getResults());
-    VPUX_THROW_UNLESS(inNum >= outNum, "Invalid operands count. inNum={0}; outNum={1}", inNum, outNum);
+    const auto inNum = getLastMemRefPosition(op->getOperands());
+    const auto outNum = getLastMemRefPosition(op->getResults());
 
     return op->getOperands().slice(inNum - outNum, outNum);
 }
@@ -302,8 +314,8 @@ mlir::OperandRange vpux::getRTLayerOutOperand(mlir::Operation* op) {
 mlir::Value vpux::getRTLayerViewSource(mlir::Operation* op, ptrdiff_t resultInd) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getRTLayerViewSource");
 
-    const auto inNum = getNumMemRefValues(op->getOperands());
-    const auto outNum = getNumMemRefValues(op->getResults());
+    const auto inNum = getLastMemRefPosition(op->getOperands());
+    const auto outNum = getLastMemRefPosition(op->getResults());
 
     VPUX_THROW_UNLESS(resultInd < outNum, "Result index '{0}' is out of range '{1}'", resultInd, outNum);
     return op->getOperand(checked_cast<unsigned>(inNum - outNum + resultInd));
@@ -311,7 +323,7 @@ mlir::Value vpux::getRTLayerViewSource(mlir::Operation* op, ptrdiff_t resultInd)
 
 mlir::LogicalResult vpux::inferRTLayerReturnTypes(mlir::ValueRange operands, size_t numResults,
                                                   SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto inNum = getNumMemRefValues(operands);
+    const auto inNum = getLastMemRefPosition(operands);
 
     VPUX_THROW_UNLESS(numResults < checked_cast<size_t>(inNum),
                       "Call inferRTLayerReturnTypes for non RT Layer Operation");
