@@ -44,7 +44,6 @@ void mv::utils::validatePath(const std::string& filename)
         // Check if folder structure exists, create if necessary, eg, a/b/c/blob.bin
         std::size_t found = filename.find_last_of("/");
         std::string path = filename.substr(0,found) + "/";
-        std::string file = filename.substr(found+1);
 
         struct stat info;
         if( stat( path.c_str(), &info ) != 0 )

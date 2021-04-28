@@ -396,6 +396,10 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
             log->error("MCM Compiler error: %v", str);
             errMsg = str;
             return {};
+        } catch (const char* str) {
+            errMsg = (str != nullptr) ? std::string(str) : "(null)";
+            log->error("MCM Compiler error: %s", errMsg);
+            return {};
         } catch (std::exception& ex) {
             log->error("MCM Compiler exception: %v", ex.what());
             errMsg = ex.what();

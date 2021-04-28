@@ -307,4 +307,22 @@ def VPUIP_NCETaskType :
     let genSpecializedAttr = 1;
 }
 
+//
+// CompilationMode
+//
+
+def VPUIP_CompilationMode  :
+        StrEnumAttr<
+            "CompilationMode",
+            "Compilation Mode",
+            [
+                StrEnumAttrCase<"ReferenceSW">,
+                StrEnumAttrCase<"ReferenceHW">
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
+}
+
+
 #endif

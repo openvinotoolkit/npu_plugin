@@ -26,6 +26,7 @@ namespace mv
         DType& operator=(const DType& other);
         bool operator==(const DType& other) const;
         bool operator!=(const DType& other) const;
+        bool operator<(const DType& other) const;
 
         std::string getLogID() const override;
         unsigned getSizeInBits() const;

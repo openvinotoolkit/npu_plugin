@@ -18,6 +18,7 @@
 
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <mlir/IR/DialectInterface.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
@@ -26,19 +27,15 @@ namespace vpux {
 namespace IERT {
 
 //
-// RunTimeLayer
+// LayerInfoDialectInterface
 //
 
-using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
-
-void getLayerEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
-
-template <typename ConcreteOp>
-class RunTimeLayer : public mlir::OpTrait::TraitBase<ConcreteOp, RunTimeLayer> {
+class LayerInfoDialectInterface : public mlir::DialectInterface::Base<LayerInfoDialectInterface> {
 public:
-    void getEffects(SmallVectorImpl<MemoryEffect>& effects) {
-        getLayerEffects(this->getOperation(), effects);
+    explicit LayerInfoDialectInterface(mlir::Dialect* dialect): Base(dialect) {
     }
+
+    virtual mlir::Attribute getExecutor(mlir::Operation* op, uint32_t& numUnits) const = 0;
 };
 
 }  // namespace IERT

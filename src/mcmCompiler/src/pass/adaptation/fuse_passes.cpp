@@ -124,40 +124,70 @@ mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOp
 
 void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
 {
+    using namespace mv;
     mv::OpModel om(model);
     mv::DataModel dm(model);
-    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-    if (parentOpIt->getOpType() == "Conv" ||
-        parentOpIt->getOpType() == "FullyConnected" ||
-        parentOpIt->getOpType() == "DepthwiseConv" ||
-        parentOpIt->getOpType() == "Deconv" ||
-        parentOpIt->getOpType() == "MaxPool")
+    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(mv::IO_TENSOR_INPUT));
+    std::vector<mv::Data::TensorIterator> sourceTensors;
+
+    // Check for op patterns between bias & DPUTask to fuse into
+    mv::Data::OpListIterator lastIt;
+    // Op patterns from asymmetric stride Conv replacement in splitOperationSlicingV2()
+    const std::vector<std::vector<std::string>> patterns = {
+        {"Concat"},
+        {"Slice","Reshape","Concat"},
+        {"Reshape","Concat"},
+        {"Reshape","Reshape","Concat"},
+    };
+    for (auto& pattern : patterns)
     {
-        auto bias = *opIt->getInputTensor(1);
-        auto biasOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-        if (parentOpIt->hasAttr("bias"))
+        if (mv::matchPattern(pattern, om.getSourceOp(opIt->getInputTensor(mv::IO_TENSOR_INPUT)), lastIt, model))
         {
-            auto biasTensor = model.getTensor(parentOpIt->get<std::string>("bias"));
-            biasTensor->add(bias);
+            sourceTensors = lastIt->getInputTensor();
+            break;
         }
-        else
+    }
+
+    // If pattern not found, use original bias op
+    if (sourceTensors.empty())
+        sourceTensors.push_back(opIt->getInputTensor(mv::IO_TENSOR_INPUT));
+
+    for(auto& sourceTensor: sourceTensors)
+    {
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+        if (parentOpIt->getOpType() == "Conv" ||
+            parentOpIt->getOpType() == "FullyConnected" ||
+            parentOpIt->getOpType() == "DepthwiseConv" ||
+            parentOpIt->getOpType() == "Deconv" ||
+            parentOpIt->getOpType() == "MaxPool")
         {
-            std::string biasTensorName = mv::createBiasName(parentOpIt->getName());
-            mv::Data::TensorIterator biasTensor;
-            if (bias.hasAttr("quantParams"))
-                biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData(), bias.get<mv::QuantizationParams>("quantParams")) );
+            auto bias = *opIt->getInputTensor(1);
+            if (parentOpIt->hasAttr("bias"))
+            {
+                auto biasTensor = model.getTensor(parentOpIt->get<std::string>("bias"));
+                biasTensor->add(bias);
+            }
             else
-                biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData()) );
-            om.addAttr(parentOpIt, "bias", biasTensor->getName());
+            {
+                std::string biasTensorName = mv::createBiasName(parentOpIt->getName());
+                mv::Data::TensorIterator biasTensor;
+                if (bias.hasAttr("quantParams"))
+                    biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData(), bias.get<mv::QuantizationParams>("quantParams")) );
+                else
+                    biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData()) );
+                om.addAttr(parentOpIt, "bias", biasTensor->getName());
+            }
         }
-        auto sourceTensor = parentOpIt->getOutputTensor(0);
-        sourceTensor->setDType(opIt->getOutputTensor(0)->getDType());
-        sourceTensor->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
-        opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
-        if (biasOutputMemoryLocation.isForced())
-        {
-            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", biasOutputMemoryLocation);
-        }
+    }
+
+    auto biasOutputMemoryLocation = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->get<mv::Tensor::MemoryLocation>("Location");
+    auto sourceTensor = parentOpIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+    sourceTensor->setDType(opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType());
+    sourceTensor->setQuantParams(opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getQuantParams());
+    opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+    if (biasOutputMemoryLocation.isForced())
+    {
+        opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->set<mv::Tensor::MemoryLocation>("Location", biasOutputMemoryLocation);
     }
 }
 
@@ -196,7 +226,7 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
 
     std::vector<mv::Data::OpListIterator> fusableParents;
     auto isActivationAgnostic = [](mv::Data::OpListIterator &op)
-        {return op->isImplicit() || op->getOpType() == "Concat";};
+        {return op->isImplicit() || op->getOpType() == "Concat" || op->getOpType() == "Reshape";};
 
     if (!isActivationAgnostic(parentOp))
         fusableParents.push_back(parentOp);
@@ -208,7 +238,7 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
             auto current_op_itr = op_itr_bfs.front();
             for(auto parentIt = current_op_itr.leftmostParent();
                 parentIt != om.opEnd(); ++parentIt) {
-                if (parentIt->isImplicit() || parentIt->getOpType() == "Concat") {
+                if (parentIt->isImplicit() || parentIt->getOpType() == "Concat" || parentIt->getOpType() == "Reshape") {
                     op_itr_bfs.push(parentIt);
                 } else {
                     fusableParents.push_back(parentIt);
@@ -223,9 +253,10 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
     // one could proceed to attempt fuse all siblings.
     // Have this as a future optimization, for now just mark it as
     // software executed.
-    if (std::find_if(fusableParents.begin(), fusableParents.end(),
+    if ((!parentOp->isHardwarizable() && parentOp.childrenSize() > 1) ||
+        (std::find_if(fusableParents.begin(), fusableParents.end(),
             [] (mv::Data::OpListIterator &op) {return op.childrenSize() > 1 || !op->isHardwarizable();})
-        != fusableParents.end())
+        != fusableParents.end()))
     {
         opIt->set<bool>("softwareExecuted", true);
         return;

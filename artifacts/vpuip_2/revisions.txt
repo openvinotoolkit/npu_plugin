@@ -1,2 +1,2 @@
-tag:ci_tag_rtems4_nightly_20210406
-commit:8a936d9f70db14c04f631cffec63f4c78148788d
+tag:ci_tag_vpu_release_21ww17.2.1
+commit:bbf8ddeb134b73e9735a43e386e55db5849931a0

@@ -16,6 +16,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/small_vector.hpp"
@@ -275,31 +276,33 @@ mlir::FailureOr<UseLinalgReshape::ReshapeSpec> UseLinalgReshape::getExpandingSpe
     //
 
     size_t outMergeEnd = shapeSpec.size();
-    for (auto inInd2 : irange(inInd1 + 1, inShape.size()) | reversed) {
-        const auto specVal = shapeSpec[outMergeEnd - 1];
+    if (inInd1 < inShape.size()) {
+        for (auto inInd2 : irange(inInd1 + 1, inShape.size()) | reversed) {
+            const auto specVal = shapeSpec[outMergeEnd - 1];
 
-        log.nest().trace("Check spec at '{0}' : '{1}'", outMergeEnd - 1, specVal);
+            log.nest().trace("Check spec at '{0}' : '{1}'", outMergeEnd - 1, specVal);
 
-        if (specVal == -1) {
-            return mlir::failure();
-        }
-
-        if (outMergeEnd <= outMergeStart) {
-            return mlir::failure();
-        }
-
-        if (specVal == 0) {
-            if (!origOp.special_zero() || inInd2 <= inInd1) {
+            if (specVal == -1) {
                 return mlir::failure();
             }
-        } else if (specVal != 1 && inShape[inInd2] != specVal) {
-            return mlir::failure();
+
+            if (outMergeEnd <= outMergeStart) {
+                return mlir::failure();
+            }
+
+            if (specVal == 0) {
+                if (!origOp.special_zero() || inInd2 <= inInd1) {
+                    return mlir::failure();
+                }
+            } else if (specVal != 1 && inShape[inInd2] != specVal) {
+                return mlir::failure();
+            }
+
+            log.nest(2).trace("Output index '{0}' maps to input index '{1}'", outMergeEnd - 1, inInd2);
+
+            indices[inInd2].push_back(outMergeEnd - 1);
+            --outMergeEnd;
         }
-
-        log.nest(2).trace("Output index '{0}' maps to input index '{1}'", outMergeEnd - 1, inInd2);
-
-        indices[inInd2].push_back(outMergeEnd - 1);
-        --outMergeEnd;
     }
 
     //
@@ -353,10 +356,48 @@ mlir::LogicalResult UseLinalgReshape::matchAndRewrite(IE::ReshapeOp origOp, mlir
 }  // namespace
 
 //
+// MergeTwoReshapeOps
+//
+
+namespace {
+
+class MergeTwoReshapeOps final : public mlir::OpRewritePattern<IE::ReshapeOp> {
+public:
+    using mlir::OpRewritePattern<IE::ReshapeOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ReshapeOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult MergeTwoReshapeOps::matchAndRewrite(IE::ReshapeOp origOp, mlir::PatternRewriter& rewriter) const {
+    auto prevOp = origOp.input().getDefiningOp();
+    if (prevOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (!mlir::isa<mlir::linalg::TensorReshapeOp, IE::ReshapeOp>(prevOp)) {
+        return mlir::failure();
+    }
+
+    auto outputShape = origOp.getType().getShape();
+    const auto outShapeType = mlir::RankedTensorType::get({checked_cast<int64_t>(outputShape.size())},
+                                                          getSInt64Type(origOp->getContext()));
+    const auto outputShapeAttr = mlir::DenseElementsAttr::get(outShapeType, makeArrayRef(outputShape));
+    auto newShape = rewriter.create<IE::ConstantOp>(origOp->getLoc(), outShapeType, outputShapeAttr);
+
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, prevOp->getOperand(0), newShape, origOp.special_zero());
+
+    return mlir::success();
+}
+
+}  // namespace
+
+//
 // getCanonicalizationPatterns
 //
 
 void vpux::IE::ReshapeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* ctx) {
+    patterns.insert<MergeTwoReshapeOps>(ctx);
     patterns.insert<UseLinalgReshape>(ctx);
 }
 

@@ -41,7 +41,7 @@ def DeallocPlacement : PassBase<"dealloc-placement", "vpux::FunctionPass"> {
     let summary = "Insert dealloc operations for dynamically allocated memory buffers";
 
     let description = [{
-This pass supports multi-view Operations in contrast to the MLIR standard pass.
+        This pass supports multi-view Operations in contrast to the MLIR standard pass.
     }];
 
     let constructor = "vpux::createDeallocPlacementPass()";

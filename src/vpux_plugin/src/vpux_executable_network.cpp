@@ -76,7 +76,7 @@ ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr
     // but due to different reasons it is not possible now.
     // KMB B0 platform is hard-coded the main one
     // Track number: TBD
-    if (device != nullptr) {
+    if (_config.platform() == IE::VPUXConfigParams::VPUXPlatform::AUTO && device != nullptr) {
         const_cast<VPUXConfig&>(_config).update({{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(VPU3700)}});
     }
 }
@@ -84,15 +84,22 @@ ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
-ExecutableNetwork::ExecutableNetwork(IE::CNNNetwork& network, const Device::Ptr& device, const VPUXConfig& config)
+ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device::Ptr& device, const VPUXConfig& config)
         : ExecutableNetwork(config, device) {
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
+    IE::CNNNetwork network = IE::details::cloneNetwork(orignet);
     if (const auto func = network.getFunction()) {
         IE::InputsDataMap inputsInfo = network.getInputsInfo();
         IE::OutputsDataMap outputsInfo = network.getOutputsInfo();
-
-        _networkPtr = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
+        try {
+            _networkPtr = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
+        } catch (const std::exception& ex) {
+            IE_THROW() << ex.what();
+        } catch (...) {
+            _logger->error("Unexpected exception");
+            IE_THROW() << "VPUX ExecutableNetwork got unexpected exception from compiler";
+        }
     } else {
         _logger->warning("Failed to read NGraph network");
         IE_THROW() << "Failed to read NGraph network";

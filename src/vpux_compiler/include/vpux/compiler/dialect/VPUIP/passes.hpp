@@ -18,6 +18,7 @@
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"
@@ -35,7 +36,9 @@ namespace VPUIP {
 // Passes
 //
 
-std::unique_ptr<mlir::Pass> createSetCompileParamsPass(Optional<ArchKind> arch, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSetCompileParamsPass(Optional<ArchKind> arch,
+                                                       Optional<CompilationMode> compilationMode,
+                                                       Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createAddLinearSchedulingPass(Logger log = Logger::global());
 

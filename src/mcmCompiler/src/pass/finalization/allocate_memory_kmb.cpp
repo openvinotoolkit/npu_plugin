@@ -127,16 +127,18 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
             if(tIt->isSparse())
             {
                 auto sparsityMap = tIt->getSparsityMap();
-                auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
+                auto sparsityMapIterator = dm.isTensorDefined(sparsityMap) ? dm.getTensor(sparsityMap->getName()) : dm.defineTensor(sparsityMap);
                 dm.allocateTensor("GraphFile", stageIt, sparsityMapIterator);
                 sparsityMap->set<unsigned>("graphFileIndex", i++);
 
+                // Avoid to set graphFileIndex for empty tensors becasue they will not be saved in the blob 
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
                     for(std::size_t j = 0; j < numClusters; ++j)
-                        tIt->getSubTensor(j).set<unsigned>("graphFileIndex", i++);
+                        if(tIt->getSubTensor(j).dataPackedSize())
+                            tIt->getSubTensor(j).set<unsigned>("graphFileIndex", i++);
                 }
-                else
+                else if(tIt->dataPackedSize())
                     tIt->set<unsigned>("graphFileIndex", i++);
             }
             else if(tIt->isAllocatedPerCluster())
@@ -161,12 +163,9 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
         // Weights sparsity new approach
         if(tensorIt->isPopulated() && tensorIt->isSparse())
         {
-            if(tensorIt->get<bool>("allocateSparsityMap"))
-            {
-                auto sparsityMap = tensorIt->getSparsityMap();
-                auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
-                dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
-            }
+            auto sparsityMap = tensorIt->getSparsityMap();
+            auto sparsityMapIterator = dm.isTensorDefined(sparsityMap) ? dm.getTensor(sparsityMap->getName()) : dm.defineTensor(sparsityMap);
+            dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
         } else if (tensorIt->isSparse()) {
 
           // unpopulated sparse tensor : also defines them. //

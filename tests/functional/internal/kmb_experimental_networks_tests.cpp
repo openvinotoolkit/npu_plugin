@@ -34,7 +34,7 @@ TEST_F(KmbNetworkTestBase, split_conv_concat) {
         init_input, check);
 }
 
-TEST_F(KmbNetworkTestBase, customnet_conv_strided_slice) {
+TEST_F(KmbNetworkTestBase, precommit_customnet_conv_strided_slice) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results due to precision issues"); // TODO: create JIRA ticket
     const auto init_input = [=](const ConstInputsDataMap& inputs) {
         IE_ASSERT(inputs.size() == 1);
@@ -190,7 +190,7 @@ TEST_P(ModelAdk, precommit_ModelA_ADK3) {
 }
 
 // [Track number: D#7790]
-TEST_P(ModelAdk, DISABLED_precommit_StackedHourGlass_BDK1) {
+TEST_P(ModelAdk, precommit_StackedHourGlass_BDK1) {
     runTest(
             TestNetworkDesc("BDK1/StackedHourGlass_INT8/hg-s8-b1-mpii.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input.1", Precision::U8)

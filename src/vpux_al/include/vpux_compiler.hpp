@@ -25,6 +25,7 @@
 #include <ie_input_info.hpp>
 #include <ie_remote_context.hpp>
 #include <vpux_config.hpp>
+#include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 
 namespace vpux {
 
@@ -107,6 +108,9 @@ public:
                                                          const InferenceEngine::OutputsDataMap& outputsInfo,
                                                          const VPUXConfig& config = {}) = 0;
 
+    virtual InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network,
+                                                      const VPUXConfig& config = {}) = 0;
+
     virtual std::shared_ptr<vpux::INetworkDescription> parse(const std::vector<char>& network,
                                                              const VPUXConfig& config = {},
                                                              const std::string& graphName = "") = 0;
@@ -141,6 +145,11 @@ public:
                                                       const vpux::VPUXConfig& config = {}) {
         return std::make_shared<NetworkDescription>(_actual->compile(func, netName, inputsInfo, outputsInfo, config),
                                                     _actual);
+    }
+
+    InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network,
+                                              const vpux::VPUXConfig& config = {}) {
+        return _actual->query(network, config);
     }
 
     std::shared_ptr<vpux::NetworkDescription> parse(const std::vector<char>& network,

@@ -64,12 +64,12 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName)
     // TODO Ignore default VPU-0. Track #S-38444
     const std::string ignoredDeviceName("VPU-0");
 
-    if (specificName.empty() || specificName == ignoredDeviceName) {
-        if (_backend != nullptr) {
+    if (_backend != nullptr) {
+        if (specificName.empty() || specificName == ignoredDeviceName) {
             deviceToUse = _backend->getDevice();
+        } else {
+            deviceToUse = _backend->getDevice(specificName);
         }
-    } else {
-        deviceToUse = _backend->getDevice(specificName);
     }
 
     if (deviceToUse == nullptr) {

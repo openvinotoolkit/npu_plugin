@@ -22,27 +22,28 @@ class KmbConvertLayerTest: public ConvertLayerTest, virtual public LayerTestsUti
     }
 
     void SkipBeforeLoad() override {
-        if (isCompilerMCM()) {
-            // Tests fail with one of two common errors:
-            // 1. C++ exception with description "Unsupported operation: Convert_7756 with name Convert_7843 with
-            // type Convert with C++ type N6ngraph2op2v07ConvertE
-            // kmb-plugin/src/frontend_mcm/src/ngraph_mcm_frontend/passes/convert_to_mcm_model.cpp:1431
-            // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
-            //
-            // 2. C++ exception with description "Input image format I8 is not supported yet.
-            // Supported formats:F16, FP32 and U8.
-            // kmb-plugin/src/kmb_plugin/kmb_plugin.cpp:53
-            // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
-            // [Track number: S#41523]
-            throw LayerTestsUtils::KmbSkipTestException("Issues with MCM compiler");
+        if (inPrc == outPrc && isCompilerMCM()) {
+            throw LayerTestsUtils::KmbSkipTestException("Same input/output precision not supported for MCM");
         }
-
+        if (outPrc == InferenceEngine::Precision::FP32 && isCompilerMCM()) {
+            throw LayerTestsUtils::KmbSkipTestException("FP32 output issue for MCM (bug: E#9603");
+        }
+        if (inPrc == InferenceEngine::Precision::U8 &&
+            (outPrc == InferenceEngine::Precision::FP32 || outPrc == InferenceEngine::Precision::FP16) &&
+            isCompilerMCM()) {
+            throw LayerTestsUtils::KmbSkipTestException("FP <-> U8 issue for MCM (bug: E#9602");
+        }
+        if ((inPrc == InferenceEngine::Precision::FP32 || inPrc == InferenceEngine::Precision::FP16) &&
+            outPrc == InferenceEngine::Precision::U8 &&
+            isCompilerMCM()) {
+            throw LayerTestsUtils::KmbSkipTestException("FP <-> U8 issue for MCM (bug: E#9602");
+        }
         if (inPrc == InferenceEngine::Precision::I8 ||
             outPrc == InferenceEngine::Precision::I8) {
             throw LayerTestsUtils::KmbSkipTestException("I8 input/output precision is not supported");
         }
-        if (outPrc == InferenceEngine::Precision::U8) {
-            throw LayerTestsUtils::KmbSkipTestException("U8 output precision is not supported");
+        if (outPrc == InferenceEngine::Precision::U8 && isCompilerMLIR()) {
+            throw LayerTestsUtils::KmbSkipTestException("U8 output precision is not supported for MLIR");
         }
     }
 };

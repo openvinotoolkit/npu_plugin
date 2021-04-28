@@ -359,7 +359,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if (*tensorAllocatorName == "GraphFile")
     {
         toBuild->data->data_index = 0;
-        unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
+        // empty tensors will not have graphFileIndex because they will not be saved in the blob
+        unsigned graphfileIndex = t->hasAttr("graphFileIndex")? t->get<unsigned>("graphFileIndex"): 0;
         toBuild->locale_index = std::vector<unsigned int>(1);
         toBuild->locale_index[0] = graphfileIndex;
     }
@@ -753,8 +754,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         {
             // In case data is sparse, packed subtensors are serialiazed. This simplifies our life a lot.
             // No data index to be provided, just have to take the graphfile index from the subtensor
+            // Empty tensors will not have graphFileIndex because they will not be saved in the blob
 
-            unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
+            unsigned graphfileIndex = subtensor.hasAttr("graphFileIndex")? subtensor.get<unsigned>("graphFileIndex"): 0;
             toBuild->locale_index = std::vector<unsigned int>(1);
             toBuild->locale_index[0] = graphfileIndex;
 
@@ -1362,7 +1364,8 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         {
             totalSize = src->getSubTensor(i).dataPackedSize();
             totalSizeDst = src->getSubTensor(i).dataPackedSize();
-            if (totalSize == 0 && src->isAllocatedPerCluster())
+            // DMAs associated to empty Tensors will be optimized out
+            if (totalSize == 0)
                 return false;
         }
 
@@ -1607,20 +1610,17 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
         if(inputTensor->isSparse())
         {
-          if (inputTensor->isPopulated()) {
-            // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
-            auto tensorSparsityMap =
-                dm.getTensor(inputTensor->getSparsityMap()->getName());
-            case1MC(numTasks, cm, direction, compilationDescriptor,
-                padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
-                  tensorSparsityMap, port, portLimit, "GraphFile", "VPU_CMX_NN");
-          } else {
             auto inputSparsityMap =
                 dm.getTensor(inputTensor->getSparsityMap()->getName());
-            auto inputStorageElementTable =
-                dm.getTensor(inputTensor->getStorageElement()->getName());
             auto outputSparsityMap =
                 dm.getTensor(outputTensor->getSparsityMap()->getName());
+          if (inputTensor->isPopulated()) {
+            case1MC(numTasks, cm, direction, compilationDescriptor,
+                padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
+                  outputSparsityMap, port, portLimit, "GraphFile", "VPU_CMX_NN");
+          } else {
+            auto inputStorageElementTable =
+                dm.getTensor(inputTensor->getStorageElement()->getName());
             auto outputStorageElementTable =
                 dm.getTensor(outputTensor->getStorageElement()->getName());
 
@@ -1653,19 +1653,17 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         // Sparsity Map (SM).
         if(inputTensor->isSparse())
         {
+          auto inputSparsityMap =
+            dm.getTensor(inputTensor->getSparsityMap()->getName());
+          auto outputSparsityMap =
+            dm.getTensor(outputTensor->getSparsityMap()->getName());
           if (inputTensor->isPopulated()) {
-            // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
-            auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
             case2MC(numTasks, cm, direction, compilationDescriptor,
-                padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
-                  tensorSparsityMap, port, portLimit, "GraphFile", "VPU_CMX_NN");
+                padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
+                  outputSparsityMap, port, portLimit, "GraphFile", "VPU_CMX_NN");
           } else {
-            auto inputSparsityMap =
-                dm.getTensor(inputTensor->getSparsityMap()->getName());
             auto inputStorageElementTable =
                 dm.getTensor(inputTensor->getStorageElement()->getName());
-            auto outputSparsityMap =
-                dm.getTensor(outputTensor->getSparsityMap()->getName());
             auto outputStorageElementTable =
                 dm.getTensor(outputTensor->getStorageElement()->getName());
 
@@ -3210,6 +3208,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAEltwiseFP16Task(ComputationMode
         softLayerParamsValue->operation = "sum";
     else if (operation.compare(std::string("Multiply")) == 0)
         softLayerParamsValue->operation = "prod";
+    else if (operation.compare(std::string("SqDiff")) == 0)
+        softLayerParamsValue->operation = "sqdiff";
     else
         throw std::runtime_error("buildUPAEltwiseFP16Task: unsupported SW Eltwise Operation, check implementation.");
 
@@ -3834,6 +3834,27 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReluTask(ComputationModel& cm, 
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPreluTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input   = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
+    auto weights = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET);
+    auto output  = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
+    auto softLayerParamsValue = new MVCNN::PostOpsParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_PReluParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, weights)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAEluTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -4134,6 +4155,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPASpaceToDepthTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "CTCGreedyDecoderSeqLen")
         toReturn[0]->task.value = buildUPACTCGreedyDecoderSeqLenTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Prelu")
+        toReturn[0]->task.value = buildUPAPreluTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 
@@ -4273,10 +4296,9 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             if ((inputTensor->get<std::string>("splitStrategy") == "Clustering"))
                 toReturn = 1;
 
-            if (inputTensor->isPopulated() && inputTensor->isSparse() &&
-                inputTensor->isAllocatedPerCluster())
+            if (inputTensor->isPopulated() && inputTensor->isSparse())
             {
-                if (inputTensor->hasSubTensors()) {
+                if (inputTensor->isAllocatedPerCluster() && inputTensor->hasSubTensors()) {
                     for (size_t i = 0; i < inputTensor->numSubTensors(); ++i)
                         if (inputTensor->getSubTensor(i).dataPackedSize() == 0)
                             empty_tensors++;
@@ -4396,12 +4418,14 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
             {
                 auto sparsityMapIterator = dm.getTensor(tIt->getSparsityMap()->getName());
                 toSort.push_back(&(*sparsityMapIterator));
+                // avoid to save empty tensor in the blob
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
                     for(size_t i = 0; i < numClusters; ++i)
-                        toSort.push_back(&(tIt->getSubTensor(i)));
+                        if(tIt->getSubTensor(i).dataPackedSize())
+                            toSort.push_back(&(tIt->getSubTensor(i)));
                 }
-                else
+                else if(tIt->dataPackedSize())
                     toSort.push_back(&(*tIt));
             }
             else if(tIt->isAllocatedPerCluster())

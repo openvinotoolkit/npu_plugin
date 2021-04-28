@@ -17,6 +17,9 @@
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
 
+#include "vpux/utils/core/logger.hpp"
+
+#include <mlir/Dialect/Async/IR/Async.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -97,6 +100,7 @@ TEST(MLIR_AliasesInfo, ValidCases) {
 
     const auto& funcArgAliases = info.getAliases(funcArg);
     EXPECT_EQ(funcArgAliases.size(), 3) << "%arg aliases: %arg, %1, %2#1";
+
     for (const auto alias : funcArgAliases) {
         if (auto* producerOp = alias.getDefiningOp()) {
             EXPECT_TRUE(mlir::isa<mlir::memref::SubViewOp>(producerOp) || mlir::isa<TestMultiViewOp>(producerOp));
@@ -146,4 +150,52 @@ TEST(MLIR_AliasesInfo, ValidCases) {
             EXPECT_TRUE(viewRoot1.isa<mlir::BlockArgument>());
         }
     });
+}
+
+TEST(MLIR_AliasesInfo, AsyncRegions) {
+    mlir::DialectRegistry registry;
+    registry.insert<mlir::memref::MemRefDialect>();
+    registry.insert<mlir::async::AsyncDialect>();
+    registry.insert<mlir::StandardOpsDialect>();
+
+    mlir::MLIRContext ctx(registry);
+
+    constexpr llvm::StringLiteral inputIR = R"(
+        module @test {
+            func @main(%arg: memref<100xf32>) -> memref<70xf32> {
+                %0 = memref.subview %arg[0][90][1] : memref<100xf32> to memref<90xf32>
+
+                %t1, %f1 =
+                    async.execute () -> !async.value<memref<80xf32>>
+                    {
+                        %1 = memref.subview %0[0][80][1] : memref<90xf32> to memref<80xf32>
+                        async.yield %1 : memref<80xf32>
+                    }
+
+                %t2, %f2 =
+                    async.execute [%t1](%f1 as %1 : !async.value<memref<80xf32>>) -> !async.value<memref<70xf32>>
+                    {
+                        %2 = memref.subview %1[0][70][1] : memref<80xf32> to memref<70xf32>
+                        async.yield %2 : memref<70xf32>
+                    }
+
+                %2 = async.await %f2 : !async.value<memref<70xf32>>
+
+                return %2 : memref<70xf32>
+            }
+        }
+    )";
+
+    auto module = mlir::parseSourceString(inputIR, &ctx);
+    ASSERT_TRUE(module.get() != nullptr);
+
+    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
+    ASSERT_TRUE(func != nullptr);
+
+    vpux::AliasesInfo info(func);
+
+    const auto funcArg = func.getArgument(0);
+
+    const auto& aliases = info.getAliases(funcArg);
+    EXPECT_EQ(aliases.size(), 8) << "%arg aliases: %arg, %0, %1+%f1, %1+%2+%f2, %2";
 }

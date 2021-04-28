@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -14,17 +14,17 @@
 // stated in the License.
 //
 
-#ifndef VPUX_COMPILER_DIALECT_IERT_OPS_INTERFACES
-#define VPUX_COMPILER_DIALECT_IERT_OPS_INTERFACES
+#ifndef VPUX_COMPILER_DIALECT_IE_OPS_INTERFACES
+#define VPUX_COMPILER_DIALECT_IE_OPS_INTERFACES
 
 include "mlir/IR/OpBase.td"
 
 //
-// RunTimeLayer
+// IELayer
 //
 
-def IERT_RunTimeLayer : NativeOpTrait<"RunTimeLayer"> {
-    let cppNamespace = "vpux::IERT";
+def IE_Layer : NativeOpTrait<"IELayer"> {
+    let cppNamespace = "vpux::IE";
 }
 
 #endif

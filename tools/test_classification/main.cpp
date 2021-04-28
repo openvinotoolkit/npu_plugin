@@ -273,6 +273,9 @@ int main(int argc, char *argv[]) {
 
             if (inPrecision == Precision::U8) {
                 auto data = inputBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type *>();
+                if (data == nullptr) {
+                    throw std::logic_error("input blob buffer is null");
+                }
                 if(inputChannelMajor) // Input is Channel Major, BGR
                 {
                     for (size_t i = 0; i < inputSeq_u8.size(); ++i){

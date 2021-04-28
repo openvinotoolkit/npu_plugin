@@ -4,27 +4,7 @@
 
 Interface for VPUIP NCE Task
 ### Methods:
-#### `input`
-
-```c++
-mlir::Value input();
-```
-Get the source Value for the Operation#### `filter`
-
-```c++
-mlir::Value filter();
-```
-Get the source Value for the Operation#### `weight_table`
-
-```c++
-mlir::Value weight_table();
-```
-Get the source Value for the Operation#### `output`
-
-```c++
-mlir::Value output();
-```
-Get destination Value for the Operation## TaskOpInterface (`VPUIP_TaskOpInterface`)
+## TaskOpInterface (`VPUIP_TaskOpInterface`)
 
 Interface for VPUIP Task
 ### Methods:

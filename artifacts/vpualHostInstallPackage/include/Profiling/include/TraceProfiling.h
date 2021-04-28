@@ -59,7 +59,8 @@ enum class ProfilingEvent{
  */
 enum class ClockType {
     REALTIME,
-    MONOTONIC_RAW
+    MONOTONIC_RAW,
+    MONOTONIC_RAW_START
 };
 
 typedef void (*profilingEventCallback_t)(
@@ -107,9 +108,10 @@ class TraceProfiling : private VpualStub {
   private:
     uint16_t profilingChannelId = XLINK_INVALID_CHANNEL_ID;
     bool sm_enabled;
+    uint32_t device_id;
 
   public:
-    TraceProfiling(uint32_t device_id=0) : VpualStub("TraceProfiling", device_id), sm_enabled(false) {};
+    TraceProfiling(uint32_t device_id=0) : VpualStub("TraceProfiling", device_id), sm_enabled(false), device_id(device_id) {};
 
     void Create(uint32_t pBaseAddr0, uint32_t size, uint32_t pBaseAddr1, uint32_t size1, uint8_t *vAddr0, uint8_t *vAddr1, uint32_t alignment = 64);
     void Delete();
@@ -216,8 +218,8 @@ class TraceProfiling : private VpualStub {
 
   private:
 
-    buffer_t buffer0;
-    buffer_t buffer1;
+    buffer_t buffer0 = {0,0,0};
+    buffer_t buffer1 = {0,0,0};
 
     std::thread thread_object;
     std::atomic_bool alive {true};

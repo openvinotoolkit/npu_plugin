@@ -19,7 +19,7 @@
 class KmbNetworkNameTest : public KmbLayerTestBase {
 public:
     TestNetwork buildPowerLayer(const std::string& netName);
-    std::string runTest(const TestNetwork& netDesc, const std::string& netName);
+    std::string runTest(TestNetwork& netDesc, const std::string& netName);
 };
 
 TestNetwork KmbNetworkNameTest::buildPowerLayer(const std::string& netName) {
@@ -51,11 +51,10 @@ TestNetwork KmbNetworkNameTest::buildPowerLayer(const std::string& netName) {
     return testNet;
 }
 
-std::string KmbNetworkNameTest::runTest(const TestNetwork& netDesc, const std::string& netFileName) {
+std::string KmbNetworkNameTest::runTest(TestNetwork& netDesc, const std::string& netFileName) {
     const auto blobFileName = vpu::formatString("%v/%v.net", DUMP_PATH, netFileName);
     if (RUN_COMPILER) {
-        CNNNetwork cnnNet = netDesc.getCNNNetwork();
-        ExecutableNetwork exeNet = core->LoadNetwork(cnnNet, DEVICE_NAME, netDesc.compileConfig());
+        ExecutableNetwork exeNet = KmbLayerTestBase::getExecNetwork(netDesc);
         exeNet.Export(blobFileName);
     }
     ExecutableNetwork importedNet = core->ImportNetwork(blobFileName, DEVICE_NAME, {});

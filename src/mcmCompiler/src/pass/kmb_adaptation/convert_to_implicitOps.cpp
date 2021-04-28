@@ -60,6 +60,10 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             if (input_shape.isFlat() && output_shape.isFlat())
                 is_explicit = false;
 
+           // Check if forced to implicit
+           if (opIt->hasAttr("isImplicit") && opIt->get<bool>("isImplicit"))
+               is_explicit = false;
+
             // Skip if explicit
             if (is_explicit)
                 continue;            

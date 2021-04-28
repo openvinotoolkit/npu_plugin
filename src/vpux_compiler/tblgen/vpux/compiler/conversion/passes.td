@@ -27,20 +27,21 @@ def BufferizeIE : PassBase<"bufferize-IE", "vpux::FunctionPass"> {
     let summary = "Bufferize the IE dialect into the IERT dialect on Function level";
 
     let description = [{
-This pass bufferizes **IE Dialect** into **IERT Dialect**:
+        This pass bufferizes **IE Dialect** into **IERT Dialect**:
 
-* Updates only Function inner regions.
-* Doesn't change Function signatures.
-* Replaces Layer Operations with IERT analogues.
-* Replaces Quant Dialect Operations with IERT analogues.
-* Replaces `linalg.tensor_reshape` with `linalg.reshape`.
+        * Updates only Function inner regions.
+        * Doesn't change Function signatures.
+        * Replaces Layer Operations with IERT analogues.
+        * Replaces Quant Dialect Operations with IERT analogues.
+        * Replaces `linalg.tensor_reshape` with `linalg.reshape`.
     }];
 
     let constructor = "vpux::createBufferizeIEPass()";
 
     let dependentDialects = [
         "vpux::IERT::IERTDialect",
-        "mlir::StandardOpsDialect"
+        "mlir::StandardOpsDialect",
+        "mlir::memref::MemRefDialect"
     ];
 }
 
@@ -52,16 +53,17 @@ def AddBuffersForNetResults : PassBase<"add-buffers-for-net-results", "vpux::Mod
     let summary = "Add network results in Function parameters";
 
     let description = [{
-This pass adds buffers to the function parameters to copy the network result to them.
-In contrast to MLIR standard analogue pass, this pass preserves the function results to utilize use-def chains on bufferized IR.
-The `return` operation will take an aliases of output buffers from the function arguments.
+        This pass adds buffers to the function parameters to copy the network result to them.
+        In contrast to MLIR standard analogue pass, this pass preserves the function results to utilize use-def chains on bufferized IR.
+        The `return` operation will take an aliases of output buffers from the function arguments.
     }];
 
     let constructor = "vpux::createAddBuffersForNetResults()";
 
     let dependentDialects = [
         "vpux::IERT::IERTDialect",
-        "mlir::StandardOpsDialect"
+        "mlir::StandardOpsDialect",
+        "mlir::memref::MemRefDialect"
     ];
 }
 
@@ -73,13 +75,13 @@ def LowerIERT2VPUIP : PassBase<"lower-IERT-to-VPUIP", "vpux::FunctionPass"> {
     let summary = "Convert IERT Dialect Layer Operations to VPUIP Dialect";
 
     let description = [{
-This pass converts Layer Operations from IERT Dialect to VPUIP Dialect.
-It uses simple SHAVE implementation for IERT operations without any optimizations.
+        This pass converts Layer Operations from IERT Dialect to VPUIP Dialect.
+        It uses simple SHAVE implementation for IERT operations without any optimizations.
 
-The pass:
+        The pass:
 
-* Updates only Function inner regions.
-* Replaces only Layer Operations and `IERT.StaticAlloc`.
+        * Updates only Function inner regions.
+        * Replaces only Layer Operations and `IERT.StaticAlloc`.
     }];
 
     let constructor = "vpux::createLowerIERT2VPUIPPass()";

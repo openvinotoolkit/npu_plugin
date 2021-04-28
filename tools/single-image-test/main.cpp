@@ -48,6 +48,10 @@ DEFINE_string(network, "", "Network file (either XML or pre-compiled blob)");
 DEFINE_string(input, "", "Input file(s)");
 DEFINE_string(device, "", "Device to use");
 DEFINE_string(config, "", "Path to the configuration file (optional)");
+DEFINE_string(ip, "", "Input precision (default FP32)");
+DEFINE_string(op, "", "Input precision (default FP32)");
+DEFINE_string(il, "", "Input layout (default NCHW)");
+DEFINE_string(ol, "", "Input layout (default NCHW)");
 
 DEFINE_bool(run_test, false, "Run the test (compare current results with previously dumped)");
 DEFINE_string(mode, "", "Comparison mode to use");
@@ -98,6 +102,10 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Network file:     " << FLAGS_network << std::endl;
     std::cout << "    Input file(s):    " << FLAGS_input << std::endl;
     std::cout << "    Color format:     " << FLAGS_color_format << std::endl;
+    std::cout << "    Input precision:  " << FLAGS_ip << std::endl;
+    std::cout << "    Output precision: " << FLAGS_op << std::endl;
+    std::cout << "    Input layout:     " << FLAGS_il << std::endl;
+    std::cout << "    Output layout:    " << FLAGS_ol << std::endl;
     std::cout << "    Device:           " << FLAGS_device << std::endl;
     std::cout << "    Config file:      " << FLAGS_config << std::endl;
     std::cout << "    Run test:         " << FLAGS_run_test << std::endl;
@@ -272,7 +280,7 @@ void cvToIe(const cv::Mat& cvImg, const ie::MemoryBlob::Ptr& ieBlob, const std::
         } else {
             const auto inPtr = in.ptr<float>();
             const auto outPtr = out.ptr<ie::ie_fp16>();
-            ie::PrecisionUtils::f32tof16Arrays(outPtr, inPtr, out.size().area());
+            ie::PrecisionUtils::f32tof16Arrays(outPtr, inPtr, out.size().area()*C);
         }
 
         for (size_t n = 1; n < N; ++n) {
@@ -705,6 +713,20 @@ int main(int argc, char* argv[]) {
     try {
         parseCommandLine(argc, argv);
 
+        const std::unordered_set<std::string> allowedPrecision = {"U8", "FP16", "FP32"};
+        if (!FLAGS_ip.empty()) {
+            // input precision is U8, FP16 or FP32 only
+            std::transform(FLAGS_ip.begin(),FLAGS_ip.end(),FLAGS_ip.begin(), ::toupper);
+            if (allowedPrecision.count(FLAGS_ip) == 0)
+                throw std::logic_error("Parameter -ip " + FLAGS_ip + " is not supported");
+        }
+        if (!FLAGS_op.empty()) {
+            // input precision is U8, FP16 or FP32 only
+            std::transform(FLAGS_op.begin(),FLAGS_op.end(),FLAGS_op.begin(), ::toupper);
+            if (allowedPrecision.count(FLAGS_op) == 0)
+                throw std::logic_error("Parameter -op " + FLAGS_op + " is not supported");
+        }
+
         std::vector<std::string> inputFilesPerCase;
         std::vector<std::vector<std::string>> inputFilesForOneInfer;
         inputFilesPerCase = splitStringList(FLAGS_input, ':');
@@ -725,6 +747,59 @@ int main(int argc, char* argv[]) {
             std::cout << "Load network " << FLAGS_network << std::endl;
 
             auto cnnNet = ieCore.ReadNetwork(FLAGS_network);
+
+            // Input precision 
+            ie::InputsDataMap inputInfo(cnnNet.getInputsInfo());
+            if (!FLAGS_ip.empty()) {
+                ie::Precision prc_in = ie::Precision::U8;
+                if (FLAGS_ip == "FP16") 
+                    prc_in = ie::Precision::FP16;
+                else if (FLAGS_ip == "FP32") 
+                    prc_in = ie::Precision::FP32;
+                else 
+                    prc_in = ie::Precision::U8;
+                
+                for (auto inputInfoIt=inputInfo.begin(); inputInfoIt!=inputInfo.end(); ++inputInfoIt){
+                    inputInfoIt->second->setPrecision(prc_in);
+                }
+            }
+            // Input layout 
+            if (!FLAGS_il.empty()) {
+                const ie::Layout layout = FLAGS_il == "NCHW" ? ie::Layout::NCHW : ie::Layout::NHWC;
+                for (auto & info: inputInfo) info.second->setLayout(layout);
+            }
+            // Output precision
+            ie::OutputsDataMap outputInfo(cnnNet.getOutputsInfo());
+            if (!FLAGS_op.empty()) {
+                ie::Precision prc_out = ie::Precision::U8;
+                if (FLAGS_op == "FP16") 
+                    prc_out = ie::Precision::FP16;
+                else if (FLAGS_op == "FP32") 
+                    prc_out = ie::Precision::FP32;
+                else 
+                    prc_out = ie::Precision::U8;
+
+                // possibly multiple outputs
+                for (auto outputInfoIt=outputInfo.begin(); outputInfoIt!=outputInfo.end(); ++outputInfoIt){
+                    outputInfoIt->second->setPrecision(prc_out); 
+                }
+            }
+            // Output layout 
+            if (!FLAGS_ol.empty()) {
+                for (auto outputInfoIt=outputInfo.begin(); outputInfoIt!=outputInfo.end(); ++outputInfoIt){
+                    if (outputInfoIt->second->getDims().size() == 2) {
+                            outputInfoIt->second->setLayout(ie::Layout::NC);
+                    } else {
+                        if (FLAGS_ol == "NCHW"){
+                            outputInfoIt->second->setLayout(ie::Layout::NCHW);
+                        }
+                        else{
+                            outputInfoIt->second->setLayout(ie::Layout::NHWC);
+                        }         
+                    }
+                }
+            }
+
             exeNet = ieCore.LoadNetwork(cnnNet, FLAGS_device);
         } else {
             std::cout << "Import network " << FLAGS_network << std::endl;

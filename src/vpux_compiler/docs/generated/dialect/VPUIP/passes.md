@@ -7,5 +7,6 @@ initializes **IERT Dialect** run-time resources information.
 
 #### Options
 ```
--vpu-arch : VPU architecture to compile for
+-vpu-arch         : VPU architecture to compile for
+-compilation-mode : Set compilation mode as reference (ReferenceSW) or hardware (ReferenceHW)
 ```

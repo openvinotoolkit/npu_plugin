@@ -39,14 +39,14 @@ private:
     void safeRunOnFunc() final;
 
 private:
-    mlir::Operation* getLastUser(mlir::Value val, AliasesInfo& info);
+    static mlir::Operation* getLastUser(mlir::Value val, const AliasesInfo& info);
 };
 
 //
 // getLastUse
 //
 
-mlir::Operation* DeallocPlacementPass::getLastUser(mlir::Value val, AliasesInfo& info) {
+mlir::Operation* DeallocPlacementPass::getLastUser(mlir::Value val, const AliasesInfo& info) {
     auto* producer = val.getDefiningOp();
     VPUX_THROW_UNLESS(producer != nullptr && mlir::isa<mlir::memref::AllocOp>(producer),
                       "Wrong allocated value producer");
@@ -55,7 +55,10 @@ mlir::Operation* DeallocPlacementPass::getLastUser(mlir::Value val, AliasesInfo&
 
     const auto& aliases = info.getAliases(val);
 
-    for (const auto alias : aliases) {
+    for (auto alias : aliases) {
+        VPUX_THROW_UNLESS(alias.getParentBlock() == val.getParentBlock(),
+                          "Alias '{0}' doesn't belong to the same block as '{1}'", alias, val);
+
         for (auto* user : alias.getUsers()) {
             VPUX_THROW_UNLESS(user != nullptr && !mlir::isa<mlir::memref::DeallocOp>(user),
                               "Wrong allocated value user");

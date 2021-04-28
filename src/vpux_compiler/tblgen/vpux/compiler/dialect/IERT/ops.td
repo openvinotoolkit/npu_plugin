@@ -20,10 +20,10 @@
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
-include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/IR/RegionKindInterface.td"
@@ -39,21 +39,21 @@ class IERT_Op<string mnemonic, list<OpTrait> traits = []> :
             traits
         >;
 
-class IERT_LayerOp<string mnemonic, list<OpTrait> traits = []> :
+class IERT_LayerOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
         IERT_Op<
             mnemonic,
             !listconcat(
                 traits,
                 [
-                    IERT_RunTimeLayer,
-                    MemoryEffectsOpInterface,
-                    DeclareOpInterfaceMethods<LayerInterface>
+                    RTLayer,
+                    LayerInterface,
+                    InferTypeOpInterface,
+                    NoSideEffect
                 ]
             )
         > {
-    let assemblyFormat = [{
-        `(` operands `)` attr-dict `:` type(operands)
-    }];
+
+    let extraClassDeclaration = InferReturnTypesForLayer<numResult>.impl;
 }
 
 //
@@ -269,11 +269,10 @@ def IERT_ConstantOp :
 //
 
 def IERT_ConvertOp :
-        IERT_LayerOp<
-            "Convert",
+        IERT_LayerOp<1, "Convert",
             [
                 SameOperandsShape,
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 DeclareOpInterfaceMethods<ConvertLayerInterface>
             ]
         > {
@@ -281,8 +280,19 @@ def IERT_ConvertOp :
 
     let arguments = (ins
         AnyMemRef:$input,
+        AnyMemRef:$output_buff
+    );
+
+    let results = (outs
         AnyMemRef:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -290,20 +300,60 @@ def IERT_ConvertOp :
 //
 
 def IERT_CopyOp :
-        IERT_LayerOp<
-            "Copy",
+        IERT_LayerOp<1, "Copy",
             [
-                SameOperandsShape,
-                SameOperandsElementType,
-                SingleInputAndResultLayer
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time Copy layer";
 
     let arguments = (ins
         AnyMemRef:$input,
+        AnyMemRef:$output_buff
+    );
+
+    let results = (outs
         AnyMemRef:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ReorderOp
+//
+
+def IERT_ReorderOp :
+        IERT_LayerOp<1, "Reorder",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape
+            ]
+        > {
+    let summary = "InferenceEngine run-time Reorder layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+
+    let hasCanonicalizer = 1;
 }
 
 //
@@ -311,12 +361,11 @@ def IERT_CopyOp :
 //
 
 def IERT_SoftMaxOp :
-        IERT_LayerOp<
-            "SoftMax",
+        IERT_LayerOp<1, "SoftMax",
             [
                 SameOperandsShape,
+                ViewLikeOpInterface,
                 SameOperandsElementType,
-                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>
             ]
         > {
@@ -324,10 +373,21 @@ def IERT_SoftMaxOp :
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         I32Attr:$axisInd
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -335,24 +395,34 @@ def IERT_SoftMaxOp :
 //
 
 def IERT_AvgPoolOp :
-        IERT_LayerOp<
-            "AvgPool",
+        IERT_LayerOp<1, "AvgPool",
             [
-                SameOperandsElementType,
-                SingleInputAndResultLayer
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time AvgPool layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         I32ArrayAttr:$kernel_size,
         I32ArrayAttr:$strides,
         I32ArrayAttr:$pads_begin,
         I32ArrayAttr:$pads_end
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -360,24 +430,34 @@ def IERT_AvgPoolOp :
 //
 
 def IERT_MaxPoolOp :
-        IERT_LayerOp<
-            "MaxPool",
+        IERT_LayerOp<1, "MaxPool",
             [
-                SameOperandsElementType,
-                SingleInputAndResultLayer
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time MaxPool layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         I32ArrayAttr:$kernel_size,
         I32ArrayAttr:$strides,
         I32ArrayAttr:$pads_begin,
         I32ArrayAttr:$pads_end
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -385,12 +465,11 @@ def IERT_MaxPoolOp :
 //
 
 def IERT_ConvolutionOp :
-        IERT_LayerOp<
-            "Convolution",
+        IERT_LayerOp<1, "Convolution",
             [
+                ViewLikeOpInterface,
                 SameOperandsElementType,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
             ]
         > {
     let summary = "InferenceEngine run-time Convolution layer";
@@ -399,13 +478,24 @@ def IERT_ConvolutionOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$filter,
         Optional<MemRefOf<[F16, F32]>>:$bias,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         I32ArrayAttr:$strides,
         I32ArrayAttr:$pads_begin,
         I32ArrayAttr:$pads_end,
         I32ArrayAttr:$dilations
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $filter `:` type($filter) (`,` $bias^ `:` type($bias))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -413,12 +503,11 @@ def IERT_ConvolutionOp :
 //
 
 def IERT_GroupConvolutionOp :
-        IERT_LayerOp<
-            "GroupConvolution",
+        IERT_LayerOp<1, "GroupConvolution",
             [
+                ViewLikeOpInterface,
                 SameOperandsElementType,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
             ]
         > {
     let summary = "InferenceEngine run-time GroupConvolution layer";
@@ -427,7 +516,7 @@ def IERT_GroupConvolutionOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$filter,
         Optional<MemRefOf<[F16, F32]>>:$bias,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         I32ArrayAttr:$strides,
         I32ArrayAttr:$pads_begin,
@@ -435,6 +524,17 @@ def IERT_GroupConvolutionOp :
         I32ArrayAttr:$dilations,
         OptionalAttr<I32Attr>:$groups
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $filter `:` type($filter) (`,` $bias^ `:` type($bias))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -442,18 +542,28 @@ def IERT_GroupConvolutionOp :
 //
 
 def IERT_ReLUOp :
-        IERT_LayerOp<
-            "ReLU",
+        IERT_LayerOp<1, "ReLU",
             [
-                SingleInputAndResultLayer
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time ReLU layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -461,18 +571,28 @@ def IERT_ReLUOp :
 //
 
 def IERT_SigmoidOp :
-        IERT_LayerOp<
-            "Sigmoid",
+        IERT_LayerOp<1, "Sigmoid",
             [
-                SingleInputAndResultLayer
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time Sigmoid layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -480,24 +600,33 @@ def IERT_SigmoidOp :
 //
 
 def IERT_ClampOp :
-        IERT_LayerOp<
-            "Clamp",
+        IERT_LayerOp<1, "Clamp",
             [
+                ViewLikeOpInterface,
                 SameOperandsShape,
-                SameOperandsElementType,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<ClampLayerInterface>
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Clamp layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         F32Attr:$min,
         F32Attr:$max
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -505,23 +634,32 @@ def IERT_ClampOp :
 //
 
 def IERT_EluOp :
-        IERT_LayerOp<
-            "Elu",
+        IERT_LayerOp<1, "Elu",
             [
+                ViewLikeOpInterface,
                 SameOperandsShape,
-                SameOperandsElementType,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<EluLayerInterface>
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Elu layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         F32Attr:$x
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -529,20 +667,30 @@ def IERT_EluOp :
 //
 
 def IERT_HSwishOp :
-        IERT_LayerOp<
-            "HSwish",
+        IERT_LayerOp<1, "HSwish",
             [
+                ViewLikeOpInterface,
                 SameOperandsShape,
-                SameOperandsElementType,
-                SingleInputAndResultLayer
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time HSwish layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -550,20 +698,30 @@ def IERT_HSwishOp :
 //
 
 def IERT_TanhOp :
-        IERT_LayerOp<
-            "Tanh",
+        IERT_LayerOp<1, "Tanh",
             [
+                ViewLikeOpInterface,
                 SameOperandsShape,
-                SameOperandsElementType,
-                SingleInputAndResultLayer
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Tanh layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -571,8 +729,10 @@ def IERT_TanhOp :
 //
 
 def IERT_FakeQuantizeOp :
-        IERT_LayerOp<
-            "FakeQuantize"
+        IERT_LayerOp<1, "FakeQuantize",
+            [
+                ViewLikeOpInterface
+            ]
         > {
     let summary = "InferenceEngine FakeQuantize layer";
 
@@ -582,19 +742,20 @@ def IERT_FakeQuantizeOp :
         MemRefOf<[F16, F32]>:$input_high,
         MemRefOf<[F16, F32]>:$output_low,
         MemRefOf<[F16, F32]>:$output_high,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         I32Attr:$levels
     );
 
-    let extraClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            return {input(), input_low(), input_high(), output_low(), output_high()};
-        }
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
 
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {output()};
-        }
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $input_low `:` type($input_low) `,` $input_high `:` type($input_high) `,` $output_low `:` type($output_low) `,` $output_high `:` type($output_high) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
     }];
 }
 
@@ -603,18 +764,28 @@ def IERT_FakeQuantizeOp :
 //
 
 def IERT_QuantizeOp :
-        IERT_LayerOp<
-            "Quantize",
+        IERT_LayerOp<1, "Quantize",
             [
-                SingleInputAndResultLayer
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time Quantize layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[quant_QuantizedType]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[quant_QuantizedType]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -622,18 +793,28 @@ def IERT_QuantizeOp :
 //
 
 def IERT_DequantizeOp :
-        IERT_LayerOp<
-            "Dequantize",
+        IERT_LayerOp<1, "Dequantize",
             [
-                SingleInputAndResultLayer
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time Dequantize layer";
 
     let arguments = (ins
         MemRefOf<[quant_QuantizedType]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -641,12 +822,10 @@ def IERT_DequantizeOp :
 //
 
 def IERT_PReluOp :
-        IERT_LayerOp<
-            "PRelu",
+        IERT_LayerOp<1, "PRelu",
             [
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<PReluLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time PRelu layer";
@@ -654,8 +833,19 @@ def IERT_PReluOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$negative_slope,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $negative_slope `:` type($negative_slope) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -663,24 +853,32 @@ def IERT_PReluOp :
 //
 
 def IERT_LeakyReluOp :
-        IERT_LayerOp<
-            "LeakyRelu",
+        IERT_LayerOp<1, "LeakyRelu",
             [
-                SingleInputAndResultLayer,
+                ViewLikeOpInterface,
                 SameOperandsElementType,
-                SameOperandsShape,
-                DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                SameOperandsShape
             ]
         > {
     let summary = "InferenceEngine run-time LeakyRelu layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         F32Attr:$negative_slope
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -688,12 +886,10 @@ def IERT_LeakyReluOp :
 //
 
 def IERT_AddOp :
-        IERT_LayerOp<
-            "Add",
+        IERT_LayerOp<1, "Add",
             [
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Add layer";
@@ -701,8 +897,19 @@ def IERT_AddOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -710,12 +917,10 @@ def IERT_AddOp :
 //
 
 def IERT_MultiplyOp :
-        IERT_LayerOp<
-            "Multiply",
+        IERT_LayerOp<1, "Multiply",
             [
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Multiply layer";
@@ -723,8 +928,19 @@ def IERT_MultiplyOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -732,12 +948,10 @@ def IERT_MultiplyOp :
 //
 
 def IERT_DivideOp :
-        IERT_LayerOp<
-            "Divide",
+        IERT_LayerOp<1, "Divide",
             [
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Divide layer";
@@ -745,8 +959,19 @@ def IERT_DivideOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -754,12 +979,10 @@ def IERT_DivideOp :
 //
 
 def IERT_SquaredDifferenceOp :
-        IERT_LayerOp<
-            "SquaredDifference",
+        IERT_LayerOp<1, "SquaredDifference",
             [
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time SquaredDifference layer";
@@ -767,8 +990,19 @@ def IERT_SquaredDifferenceOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -776,12 +1010,10 @@ def IERT_SquaredDifferenceOp :
 //
 
 def IERT_PowerOp :
-        IERT_LayerOp<
-            "Power",
+        IERT_LayerOp<1, "Power",
             [
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Power layer";
@@ -789,8 +1021,19 @@ def IERT_PowerOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -798,12 +1041,10 @@ def IERT_PowerOp :
 //
 
 def IERT_FloorModOp :
-        IERT_LayerOp<
-            "FloorMod",
+        IERT_LayerOp<1, "FloorMod",
             [
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time FloorMod layer";
@@ -811,8 +1052,19 @@ def IERT_FloorModOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -820,12 +1072,10 @@ def IERT_FloorModOp :
 //
 
 def IERT_MinimumOp :
-        IERT_LayerOp<
-            "Minimum",
+        IERT_LayerOp<1, "Minimum",
             [
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Minimum layer";
@@ -833,8 +1083,19 @@ def IERT_MinimumOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -842,12 +1103,10 @@ def IERT_MinimumOp :
 //
 
 def IERT_MaximumOp :
-        IERT_LayerOp<
-            "Maximum",
+        IERT_LayerOp<1, "Maximum",
             [
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Maximum layer";
@@ -855,8 +1114,19 @@ def IERT_MaximumOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -886,6 +1156,12 @@ def IERT_GenericReshapeOp :
         return vpux::IERT::verifyOp(*this);
     }];
 
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `->` type(results)
+    }];
+
     let hasFolder = 1;
 }
 
@@ -894,12 +1170,10 @@ def IERT_GenericReshapeOp :
 //
 
 def IERT_DetectionOutputOp :
-        IERT_LayerOp<
-            "DetectionOutput",
+        IERT_LayerOp<1, "DetectionOutput",
             [
-                AttrSizedOperandSegments,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<DetectionOutputLayerInterface>
+                ViewLikeOpInterface,
+                AttrSizedOperandSegments
             ]
         > {
     let summary = "InferenceEngine run-time DetectionOutput layer";
@@ -911,10 +1185,21 @@ def IERT_DetectionOutputOp :
         Optional<MemRefOf<[AnyFloat]>>:$in_additional_preds,
         Optional<MemRefOf<[AnyFloat]>>:$in_additional_proposals,
 
-        MemRefOf<[AnyFloat]>:$output,
+        MemRefOf<[AnyFloat]>:$output_buff,
 
         IE_DetectionOutputAttrs:$attr
     );
+
+    let results = (outs
+        MemRefOf<[AnyFloat]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $in_box_logits `:` type($in_box_logits) `,` $in_class_preds `:` type($in_class_preds) `,` $in_proposals `:` type($in_proposals) (`,` $in_additional_preds^ `:` type($in_additional_preds))? (`,` $in_additional_proposals^ `:` type($in_additional_proposals))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -922,12 +1207,10 @@ def IERT_DetectionOutputOp :
 //
 
 def IERT_SwishOp :
-        IERT_LayerOp<
-            "Swish",
+        IERT_LayerOp<1, "Swish",
             [
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<SwishLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Swish layer";
@@ -935,10 +1218,21 @@ def IERT_SwishOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
         Optional<MemRefOf<[F16, F32]>>:$beta,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         OptionalAttr<F32Attr>:$beta_value
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) (`,` $beta^ `:` type($beta))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -946,13 +1240,11 @@ def IERT_SwishOp :
 //
 
 def IERT_ScaleShiftOp :
-        IERT_LayerOp<
-            "ScaleShift",
+        IERT_LayerOp<1, "ScaleShift",
             [
+                ViewLikeOpInterface,
                 AttrSizedOperandSegments,
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<ScaleShiftLayerInterface>
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time ScaleShift layer";
@@ -961,8 +1253,19 @@ def IERT_ScaleShiftOp :
         MemRefOf<[F16, F32]>:$input,
         Optional<MemRefOf<[F16, F32]>>:$weights,
         Optional<MemRefOf<[F16, F32]>>:$biases,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) (`,` $weights^ `:` type($weights))? (`,` $biases^ `:` type($biases))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -970,23 +1273,31 @@ def IERT_ScaleShiftOp :
 //
 
 def IERT_GRNOp :
-        IERT_LayerOp<
-            "GRN",
+        IERT_LayerOp<1, "GRN",
             [
-                SingleInputAndResultLayer,
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<GRNLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time GRN layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         F32Attr:$bias
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -994,8 +1305,10 @@ def IERT_GRNOp :
 //
 
 def IERT_TileOp :
-        IERT_LayerOp<
-            "Tile"
+        IERT_LayerOp<1, "Tile",
+            [
+                ViewLikeOpInterface
+            ]
         > {
     let summary = "InferenceEngine run-time Tile layer";
 
@@ -1003,17 +1316,18 @@ def IERT_TileOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[SI64]>:$repeats,
 
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
 
-    let extraClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            return {input(), repeats()};
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {output()};
-        }
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $repeats `:` type($repeats) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
     }];
 }
 
@@ -1022,21 +1336,31 @@ def IERT_TileOp :
 //
 
 def IERT_PerAxisTileOp :
-        IERT_LayerOp<
-            "PerAxisTile",
+        IERT_LayerOp<1, "PerAxisTile",
             [
-                SingleInputAndResultLayer
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time per axis Tile layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         I32Attr:$axis,
         I32Attr:$tiles
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -1044,29 +1368,38 @@ def IERT_PerAxisTileOp :
 //
 
 def IERT_NegativeOp :
-        IERT_LayerOp<
-            "Negative",
+        IERT_LayerOp<1, "Negative",
             [
-                SameOperandsElementType,
-                SingleInputAndResultLayer
+                ViewLikeOpInterface,
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Negative layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 //
 // ROIPoolingOp
 //
 
 def IERT_ROIPoolingOp :
-        IERT_LayerOp<
-            "ROIPooling",
+        IERT_LayerOp<1, "ROIPooling",
             [
-                DeclareOpInterfaceMethods<ROIPoolingLayerInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time ROIPooling layer";
@@ -1074,12 +1407,23 @@ def IERT_ROIPoolingOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$coords,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         I32ArrayAttr:$output_size,
         F32Attr:$spatial_scale,
         IE_ROIPoolingMethod:$method
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -1087,11 +1431,9 @@ def IERT_ROIPoolingOp :
 //
 
 def IERT_FullyConnectedOp:
-        IERT_LayerOp<
-            "FullyConnected",
+        IERT_LayerOp<1, "FullyConnected",
             [
-                DeclareOpInterfaceMethods<FullyConnectedLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time FullyConnected layer";
@@ -1100,8 +1442,19 @@ def IERT_FullyConnectedOp:
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$weights,
         Optional<MemRefOf<[F16, F32]>>:$bias,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
         MemRefOf<[F16, F32]>:$output
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $weights `:` type($weights) (`,` $bias^ `:` type($bias))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -1109,10 +1462,9 @@ def IERT_FullyConnectedOp:
 //
 
 def IERT_TransposeOp :
-        IERT_LayerOp<
-            "Transpose",
+        IERT_LayerOp<1, "Transpose",
             [
-                SingleInputAndResultLayer
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time Transpose layer";
@@ -1120,23 +1472,61 @@ def IERT_TransposeOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
         Optional<MemRefOf<[SI64]>>:$order,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         AffineMapAttr:$order_value
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) (`,` $order^ `:` type($order))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
+//
+// ConcatViewOp
+//
+
+def IERT_ConcatViewOp :
+        IERT_LayerOp<1,"ConcatView",
+            [
+                ViewLikeOpInterface,
+                SameOperandsAndResultElementType,
+            ]
+        > {
+    let summary = "InferenceEngine run-time ConcatView layer. Dummy operation to maintain use-def chains.";
+
+    let arguments = (ins
+        Variadic<AnyMemRef>:$inputs,
+        AnyMemRef:$output_buff
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
 
 //
 // CTCGreedyDecoderOp
 //
 
 def IERT_CTCGreedyDecoderOp :
-        IERT_LayerOp<
-            "CTCGreedyDecoder",
+        IERT_LayerOp<1, "CTCGreedyDecoder",
             [
-                DeclareOpInterfaceMethods<CTCGreedyDecoderLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time CTCGreedyDecoder layer";
@@ -1144,10 +1534,21 @@ def IERT_CTCGreedyDecoderOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$sequenceLengths,
-        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$output_buff,
 
         UnitAttr:$mergeRepeated
     );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $sequenceLengths `:` type($sequenceLengths) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //
@@ -1155,11 +1556,9 @@ def IERT_CTCGreedyDecoderOp :
 //
 
 def IERT_CTCGreedyDecoderSeqLenOp :
-        IERT_LayerOp<
-            "CTCGreedyDecoderSeqLen",
+        IERT_LayerOp<2,"CTCGreedyDecoderSeqLen",
             [
-                DeclareOpInterfaceMethods<CTCGreedyDecoderSeqLenLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                MultiViewOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time CTCGreedyDecoderSeqLen layer";
@@ -1168,11 +1567,23 @@ def IERT_CTCGreedyDecoderSeqLenOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[SI32]>:$sequenceLength,
         Optional<MemRefOf<[SI32]>>:$blankIndex,
-        MemRefOf<[SI32]>:$output,
-        MemRefOf<[SI32]>:$outputLength,
+        MemRefOf<[SI32]>:$output_buff,
+        MemRefOf<[SI32]>:$outputLength_buff,
 
         UnitAttr:$mergeRepeated
     );
+
+    let results = (outs
+        MemRefOf<[SI32]>:$output,
+        MemRefOf<[SI32]>:$outputLength
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $sequenceLength `:` type($sequenceLength) (`,` $blankIndex^ `:` type($blankIndex))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `,` $outputLength_buff `:` type($outputLength_buff) `)`
+        `->` type(results)
+    }];
 }
 
 #endif

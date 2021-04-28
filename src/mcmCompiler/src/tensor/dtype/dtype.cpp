@@ -61,6 +61,11 @@ bool mv::DType::operator!=(const DType &other) const
     return !operator==(other);
 }
 
+bool mv::DType::operator<(const DType &other) const
+{
+    return dType_ < other.dType_;
+}
+
 std::string mv::DType::getLogID() const
 {
     return "DType:" + toString();

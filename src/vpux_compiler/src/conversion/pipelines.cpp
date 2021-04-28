@@ -30,8 +30,8 @@ using namespace vpux;
 void vpux::buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(createBufferizeIEPass(log));
     pm.addPass(mlir::createFuncBufferizePass());
-    pm.addPass(vpux::createAddBuffersForNetResults());
     pm.addPass(mlir::createFinalizingBufferizePass());
+    pm.addPass(vpux::createAddBuffersForNetResults());
 }
 
 //

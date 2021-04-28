@@ -27,42 +27,51 @@ IE.CNNNetwork
 // CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x1000xf16>, [[ARG1:%arg[0-9]*]]: memref<1x1000xf16>) -> memref<1x1000xf16> {
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x1000xf16> {
     %0 = memref.alloc() : memref<1x1000xf16, "DDR">
-    IERT.SoftMax(%arg0, %0) {axisInd = 1 : i32} : memref<1x1000xf16>, memref<1x1000xf16, "DDR">
-
-    %1 = memref.alloc() : memref<1x1000xf16, "DDR">
-    IERT.SoftMax(%0, %1) {axisInd = 1 : i32} : memref<1x1000xf16, "DDR">, memref<1x1000xf16, "DDR">
-    memref.dealloc %0 : memref<1x1000xf16, "DDR">
+    %1 = IERT.SoftMax {axisInd = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16, "DDR">) -> memref<1x1000xf16, "DDR">
 
     %2 = memref.alloc() : memref<1x1000xf16, "DDR">
-    IERT.SoftMax(%1, %2) {axisInd = 1 : i32} : memref<1x1000xf16, "DDR">, memref<1x1000xf16, "DDR">
-    memref.dealloc %1 : memref<1x1000xf16, "DDR">
+    %3 = IERT.SoftMax {axisInd = 1 : i32} inputs(%1: memref<1x1000xf16, "DDR">) outputs(%2 : memref<1x1000xf16, "DDR">) -> memref<1x1000xf16, "DDR">
+    memref.dealloc %0 : memref<1x1000xf16, "DDR">
 
-    IERT.Copy(%2, %arg1) : memref<1x1000xf16, "DDR">, memref<1x1000xf16>
+    %4 = memref.alloc() : memref<1x1000xf16, "DDR">
+    %5 = IERT.SoftMax {axisInd = 1 : i32} inputs(%3: memref<1x1000xf16, "DDR">) outputs(%4 : memref<1x1000xf16, "DDR">) -> memref<1x1000xf16, "DDR">
     memref.dealloc %2 : memref<1x1000xf16, "DDR">
 
-    return %arg1 : memref<1x1000xf16>
+    %6 = IERT.Copy inputs(%5 : memref<1x1000xf16, "DDR">) outputs(%arg1 : memref<1x1000xf16>) -> memref<1x1000xf16>
+    memref.dealloc %4 : memref<1x1000xf16, "DDR">
+
+    return %6 : memref<1x1000xf16>
 
     // CHECK-NOT:   memref.alloc
-    // CHECK:       [[VAR0:%[0-9]*]] = IERT.StaticAlloc<0> -> memref<1x1000xf16, "DDR">
+    // CHECK:       [[VAR0:%.*]] = IERT.StaticAlloc<0> -> memref<1x1000xf16, "DDR">
 
-    // CHECK:       IERT.SoftMax([[ARG0]], [[VAR0]])
+    // CHECK:       [[VAR1:%.*]] = IERT.SoftMax
+    // CHECK-SAME:      axisInd = 1
+    // CHECK-SAME:      inputs([[ARG0]] : memref<1x1000xf16>)
+    // CHECK-SAME:      outputs([[VAR0]] : memref<1x1000xf16, "DDR">)
 
     // CHECK-NOT:   memref.alloc
-    // CHECK:       [[VAR1:%[0-9]*]] = IERT.StaticAlloc<2048> -> memref<1x1000xf16, "DDR">
+    // CHECK:       [[VAR2:%.*]] = IERT.StaticAlloc<2048> -> memref<1x1000xf16, "DDR">
 
-    // CHECK:       IERT.SoftMax([[VAR0]], [[VAR1]])
+    // CHECK:       [[VAR3:%.*]] = IERT.SoftMax
+    // CHECK-SAME:      axisInd = 1
+    // CHECK-SAME:      inputs([[VAR1]] : memref<1x1000xf16, "DDR">)
+    // CHECK-SAME:      outputs([[VAR2]] : memref<1x1000xf16, "DDR">)
     // CHECK-NOT:   memref.dealloc
 
     // CHECK-NOT:   memref.alloc
-    // CHECK:       [[VAR2:%[0-9]*]] = IERT.StaticAlloc<0> -> memref<1x1000xf16, "DDR">
+    // CHECK:       [[VAR4:%.*]] = IERT.StaticAlloc<0> -> memref<1x1000xf16, "DDR">
 
-    // CHECK:       IERT.SoftMax([[VAR1]], [[VAR2]])
+    // CHECK:       [[VAR5:%.*]] = IERT.SoftMax
+    // CHECK-SAME:      axisInd = 1
+    // CHECK-SAME:      inputs([[VAR3]] : memref<1x1000xf16, "DDR">)
+    // CHECK-SAME:      outputs([[VAR4]] : memref<1x1000xf16, "DDR">)
     // CHECK-NOT:   memref.dealloc
 
-    // CHECK:       IERT.Copy([[VAR2]], [[ARG1]])
+    // CHECK:       [[VAR6:%.*]] = IERT.Copy
     // CHECK-NOT:   memref.dealloc
 
-    // CHECK:       return [[ARG1]] : memref<1x1000xf16>
+    // CHECK:       return [[VAR6]] : memref<1x1000xf16>
 }
 
 }

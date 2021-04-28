@@ -27,22 +27,28 @@ def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
     let summary = "Set compilation parameters related to VPUIP Dialect";
 
     let description = [{
-This pass attaches compilation parameters related to **VPUIP Dialect** to Module attributes and
-initializes **IERT Dialect** run-time resources information.
+        This pass attaches compilation parameters related to **VPUIP Dialect** to Module attributes and
+        initializes **IERT Dialect** run-time resources information.
     }];
 
-    let constructor = "vpux::VPUIP::createSetCompileParamsPass(vpux::None)";
+    let constructor = "vpux::VPUIP::createSetCompileParamsPass(vpux::None, vpux::None)";
 
     let options = [
         Option<
             "archName", "vpu-arch",
-            "std::string", [{"VPU3400_A0"}],
+            "std::string", [{"VPU3700"}],
             "VPU architecture to compile for"
+        >,
+        Option<
+            "compilationModeName", "compilation-mode",
+            "std::string", [{"ReferenceSW"}],
+            "Set compilation mode as reference (ReferenceSW) or hardware (ReferenceHW)"
         >
     ];
 
     let dependentDialects = [
-        "vpux::IERT::IERTDialect"
+        "vpux::IERT::IERTDialect",
+        "vpux::VPUIP::VPUIPDialect"
     ];
 }
 
@@ -54,7 +60,7 @@ def AddLinearScheduling : PassBase<"add-linear-scheduling", "vpux::ModulePass"> 
     let summary = "Impose simple linear execution";
 
     let description = [{
-This pass inserts barriers to impose simple linear execution in IR order.
+        This pass inserts barriers to impose simple linear execution in IR order.
     }];
 
     let constructor = "vpux::VPUIP::createAddLinearSchedulingPass()";

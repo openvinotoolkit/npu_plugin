@@ -39,6 +39,8 @@ namespace mv
     bool isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right);
     bool checkPPEAccuracy(mv::ComputationModel& model);
     std::vector<std::string>::const_iterator findIsDPUPwlPostOp(const std::vector<std::string>& postOps, const mv::TargetDescriptor& td);
+    bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::ComputationModel& model);
+    bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::Data::OpListIterator& lastIt, mv::ComputationModel& model);
 }
 
 void provideAccuracyinPPEs(mv::ComputationModel& model);

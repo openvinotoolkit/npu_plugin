@@ -93,12 +93,19 @@ def parse_output(output, image_path, actual, display_image=False):
 
 
 def main():
-    output = np.fromfile(os.getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo/output-0.bin", dtype=np.float16)
+    if sys.argv[2].upper() == "FP32": 
+        dtype_used = np.float32
+        print("Using fp32 dtype...\n")
+    else: 
+        dtype_used = np.float16
+        print("Using fp16 dtype...\n")
+
+    output = np.fromfile(os.getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo/output-0.bin", dtype=dtype_used)
     ref = np.fromfile(os.getenv("OPENVINO_HOME") + "/bin/intel64/" + os.getenv("BUILD_TYPE") + "/output_cpu0.bin", dtype=np.float32)
     
     display_image=False
-    if len(sys.argv) > 2: # pass arg to display image
-        display_image=sys.argv[2]
+    if len(sys.argv) > 3: # pass arg to display image
+        display_image=sys.argv[3]
 
     if ref is not None:
         print("Expected Output:")

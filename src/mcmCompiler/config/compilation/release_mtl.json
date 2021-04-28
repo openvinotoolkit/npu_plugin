@@ -130,7 +130,6 @@
             "StreamBinaryDataWeights",
             "DecideOutputDataType",
             "PlaceNeutralMaxPoolBefore",
-            "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             "MarkEltWiseUpaInputs",
@@ -315,7 +314,7 @@
                 "name" : "RecomputeImplicitOpAttr",
                 "attribute" : "Location"
             },
-            "RecomputeTensorMultiClusterAttributesCauseOfSpilling",
+            "SplittingTensorsAcrossClusters",
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"

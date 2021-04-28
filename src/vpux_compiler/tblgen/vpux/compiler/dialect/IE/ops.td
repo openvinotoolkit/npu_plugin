@@ -19,6 +19,7 @@
 
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/dialect.td"
+include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 
 include "mlir/Interfaces/CastInterfaces.td"
@@ -43,7 +44,9 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
         IE_Op<
             mnemonic,
             [
-                NoSideEffect
+                IE_Layer,
+                NoSideEffect,
+                LayerInterface
             ] # InferTensorType<["inferReturnTypeComponents"]>.traits # traits
         > {
     let assemblyFormat = [{
@@ -197,9 +200,7 @@ def IE_ConvertOp :
         IE_LayerOp<
             "Convert",
             [
-                SingleInputAndResultLayer,
                 DeclareOpInterfaceMethods<CastOpInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<ConvertLayerInterface>
             ]
         > {
@@ -229,8 +230,6 @@ def IE_SoftMaxOp :
             [
                 ResultsAreFloatLike,
                 SameOperandsAndResultType,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>,
                 DeclareOpInterfaceMethods<SoftMaxLayerInterface>
             ]
         > {
@@ -255,10 +254,7 @@ def IE_SoftMaxOp :
 
 def IE_TileOp :
         IE_LayerOp<
-            "Tile",
-            [
-                DeclareOpInterfaceMethods<LayerInterface>
-            ]
+            "Tile"
         > {
     let summary = "InferenceEngine Tile layer";
 
@@ -271,16 +267,6 @@ def IE_TileOp :
         AnyRankedTensor:$output
     );
 
-    let extraClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            return {input(), repeats()};
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {output()};
-        }
-    }];
-
     let hasCanonicalizer = 1;
     let hasFolder = 1;
 }
@@ -291,11 +277,7 @@ def IE_TileOp :
 
 def IE_PerAxisTileOp :
         IE_LayerOp<
-            "PerAxisTile",
-            [
-                DeclareOpInterfaceMethods<LayerInterface>,
-                SingleInputAndResultLayer
-            ]
+            "PerAxisTile"
         > {
     let summary = "InferenceEngine per axis Tile layer";
 
@@ -319,9 +301,7 @@ def IE_ReLUOp :
             "ReLU",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>
+                SameOperandsAndResultType
             ]
         > {
     let summary = "InferenceEngine ReLU layer";
@@ -341,10 +321,7 @@ def IE_ReLUOp :
 
 def IE_SplitOp :
         IE_LayerOp<
-            "Split",
-            [
-                DeclareOpInterfaceMethods<LayerInterface>
-            ]
+            "Split"
         > {
     let summary = "InferenceEngine Split layer";
 
@@ -364,18 +341,6 @@ def IE_SplitOp :
 
     let extraClassDeclaration = [{
         vpux::Dim getAxis();
-
-        vpux::SmallVector<mlir::Value> getInputs() {
-            if (axis() != nullptr) {
-                return {input(), axis()};
-            } else {
-                return {input()};
-            }
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {outputs()};
-        }
     }];
 }
 
@@ -387,9 +352,7 @@ def IE_PowerOp :
         IE_LayerOp<
             "Power",
             [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine Power layer";
@@ -415,9 +378,7 @@ def IE_AddOp :
             "Add",
             [
                 Commutative,
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine Add layer";
@@ -445,9 +406,7 @@ def IE_DivideOp :
         IE_LayerOp<
             "Divide",
             [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine Divide layer";
@@ -472,9 +431,7 @@ def IE_SquaredDifferenceOp :
         IE_LayerOp<
             "SquaredDiff",
             [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine SquaredDiff layer";
@@ -499,9 +456,7 @@ def IE_FloorModOp :
         IE_LayerOp<
             "FloorMod",
             [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine FloorMod layer";
@@ -527,9 +482,7 @@ def IE_MultiplyOp :
             "Multiply",
             [
                 Commutative,
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine Multiply layer";
@@ -558,8 +511,7 @@ def IE_ConvolutionOp :
             "Convolution",
             [
                 ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
             ]
         > {
     let summary = "InferenceEngine Convolution layer";
@@ -591,8 +543,7 @@ def IE_GroupConvolutionOp :
             "GroupConvolution",
             [
                 ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
             ]
         > {
     let summary = "InferenceEngine GroupConvolution layer";
@@ -624,9 +575,7 @@ def IE_AvgPoolOp :
         IE_LayerOp<
             "AvgPool",
             [
-                ResultsAreFloatLike,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine AvgPool layer";
@@ -654,9 +603,7 @@ def IE_MaxPoolOp :
         IE_LayerOp<
             "MaxPool",
             [
-                ResultsAreFloatLike,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine MaxPool layer";
@@ -773,10 +720,7 @@ def IE_ClampOp :
             "Clamp",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<ClampLayerInterface>
+                SameOperandsAndResultType
             ]
         > {
     let summary = "InferenceEngine Clamp layer";
@@ -802,10 +746,7 @@ def IE_EluOp :
             "Elu",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EluLayerInterface>
+                SameOperandsAndResultType
             ]
         > {
     let summary = "InferenceEngine Elu layer";
@@ -884,9 +825,7 @@ def IE_SigmoidOp :
             "Sigmoid",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>
+                SameOperandsAndResultType
             ]
         > {
     let summary = "InferenceEngine Sigmoid layer";
@@ -957,14 +896,7 @@ def IE_UnsqueezeOp :
 //
 
 def IE_MinimumOp :
-        IE_LayerOp<
-            "Minimum",
-            [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
-            ]
-        > {
+        IE_LayerOp<"Minimum"> {
     let summary = "InferenceEngine Minimum layer";
 
     let arguments = (ins
@@ -984,14 +916,7 @@ def IE_MinimumOp :
 //
 
 def IE_MaximumOp :
-        IE_LayerOp<
-            "Maximum",
-            [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<EltwiseLayerInterface>
-            ]
-        > {
+        IE_LayerOp<"Maximum"> {
     let summary = "InferenceEngine Maximum layer";
 
     let arguments = (ins
@@ -1014,8 +939,7 @@ def IE_FakeQuantizeOp :
         IE_LayerOp<
             "FakeQuantize",
             [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<LayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine FakeQuantize layer";
@@ -1034,16 +958,6 @@ def IE_FakeQuantizeOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-
-    let extraClassDeclaration = [{
-        vpux::SmallVector<mlir::Value> getInputs() {
-            return {input(), input_low(), input_high(), output_low(), output_high()};
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {output()};
-        }
-    }];
 }
 
 //
@@ -1083,9 +997,7 @@ def IE_TanhOp :
             "Tanh",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>
+                SameOperandsAndResultType
             ]
         > {
     let summary = "InferenceEngine Tanh layer";
@@ -1131,9 +1043,7 @@ def IE_HSwishOp :
             "HSwish",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>
+                SameOperandsAndResultType
             ]
         > {
     let summary = "InferenceEngine HSwish layer";
@@ -1153,11 +1063,7 @@ def IE_HSwishOp :
 
 def IE_TransposeOp :
         IE_LayerOp<
-            "Transpose",
-            [
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<TransposeLayerInterface>
-            ]
+            "Transpose"
         > {
     let summary = "InferenceEngine Transpose layer";
 
@@ -1173,6 +1079,7 @@ def IE_TransposeOp :
     );
 
     let hasCanonicalizer = 1;
+    let hasFolder = 1;
 }
 
 //
@@ -1303,9 +1210,7 @@ def IE_DetectionOutputOp :
         IE_LayerOp<
             "DetectionOutput",
             [
-                AttrSizedOperandSegments,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<DetectionOutputLayerInterface>
+                AttrSizedOperandSegments
             ]
         > {
     let summary = "InferenceEngine DetectionOutput layer";
@@ -1354,10 +1259,7 @@ def IE_NormalizeL2Op :
 
 def IE_ConcatOp :
         IE_LayerOp<
-            "Concat",
-            [
-                DeclareOpInterfaceMethods<LayerInterface>
-            ]
+            "Concat"
         > {
     let summary = "InferenceEngine Concat layer";
 
@@ -1373,14 +1275,6 @@ def IE_ConcatOp :
 
     let extraClassDeclaration = [{
         vpux::Dim getAxis();
-
-        vpux::SmallVector<mlir::Value> getInputs() {
-            return {inputs()};
-        }
-
-        vpux::SmallVector<mlir::Value> getOutputs() {
-            return {output()};
-        }
     }];
 }
 
@@ -1392,9 +1286,7 @@ def IE_ROIPoolingOp :
         IE_LayerOp<
             "ROIPooling",
             [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<ROIPoolingLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine ROIPooling layer";
@@ -1474,11 +1366,7 @@ def IE_DeconvolutionOp:
 
 def IE_PReluOp :
         IE_LayerOp<
-            "PRelu",
-            [
-                DeclareOpInterfaceMethods<PReluLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
-            ]
+            "PRelu"
         > {
     let summary = "InferenceEngine PRelu layer";
 
@@ -1502,10 +1390,7 @@ def IE_LeakyReluOp :
         IE_LayerOp<
             "LeakyRelu",
             [
-                SingleInputAndResultLayer,
-                SameOperandsAndResultType,
-                DeclareOpInterfaceMethods<LeakyReluLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                SameOperandsAndResultType
             ]
         > {
     let summary = "InferenceEngine LeakyRelu layer";
@@ -1527,11 +1412,7 @@ def IE_LeakyReluOp :
 
 def IE_SwishOp :
         IE_LayerOp<
-            "Swish",
-            [
-                DeclareOpInterfaceMethods<SwishLayerInterface>,
-                DeclareOpInterfaceMethods<LayerInterface>
-            ]
+            "Swish"
         > {
     let summary = "InferenceEngine Swish layer";
 
@@ -1557,9 +1438,7 @@ def IE_ScaleShiftOp :
         IE_LayerOp<
             "ScaleShift",
             [
-                AttrSizedOperandSegments,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<ScaleShiftLayerInterface>
+                AttrSizedOperandSegments
             ]
         > {
     let summary = "InferenceEngine ScaleShift layer";
@@ -1585,10 +1464,7 @@ def IE_GRNOp :
         IE_LayerOp<
             "GRN",
             [
-                SingleInputAndResultLayer,
-                SameOperandsAndResultType,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<GRNLayerInterface>
+                SameOperandsAndResultType
             ]
         > {
     let summary = "InferenceEngine GRN layer";
@@ -1612,9 +1488,7 @@ def IE_NegativeOp :
         IE_LayerOp<
             "Negative",
             [
-                SameOperandsAndResultType,
-                SingleInputAndResultLayer,
-                DeclareOpInterfaceMethods<LayerInterface>
+                SameOperandsAndResultType
             ]
         > {
     let summary = "InferenceEngine Negative layer";
@@ -1636,9 +1510,7 @@ def IE_FullyConnectedOp:
         IE_LayerOp<
             "FullyConnected",
             [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<FullyConnectedLayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine FullyConnected layer";
@@ -1664,9 +1536,7 @@ def IE_CTCGreedyDecoderOp :
         IE_LayerOp<
             "CTCGreedyDecoder",
             [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<CTCGreedyDecoderLayerInterface>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine CTCGreedyDecoder layer";
@@ -1689,11 +1559,7 @@ def IE_CTCGreedyDecoderOp :
 
 def IE_CTCGreedyDecoderSeqLenOp :
         IE_LayerOp<
-            "CTCGreedyDecoderSeqLen",
-            [
-                DeclareOpInterfaceMethods<LayerInterface>,
-                DeclareOpInterfaceMethods<CTCGreedyDecoderSeqLenLayerInterface>
-            ]
+            "CTCGreedyDecoderSeqLen"
         > {
     let summary = "InferenceEngine CTCGreedyDecoderSeqLen layer";
 

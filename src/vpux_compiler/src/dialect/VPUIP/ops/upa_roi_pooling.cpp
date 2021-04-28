@@ -58,7 +58,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ROIPoolingUPAOp op) {
                        inShapeCoord.size());
     }
 
-    const auto output_size = parseIntArrayAttr(op.getOutputSize());
+    const auto output_size = parseIntArrayAttr(op.output_size());
     if (output_size.size() != 2) {
         return errorAt(op, "Dimension of pooled size is expected to be equal to 2. Got {0}", output_size.size());
     }
@@ -79,12 +79,12 @@ void vpux::VPUIP::ROIPoolingUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    float spatial_scale = getSpatialScale();
+    float spatial_scale_val = spatial_scale().convertToFloat();
     uint32_t num_rois = checked_cast<uint32_t>(coords().getType().cast<mlir::ShapedType>().getShape()[0]);
-    const auto output_size = parseIntArrayAttr(getOutputSize());
+    const auto output_size = parseIntArrayAttr(output_sizeAttr());
 
     MVCNN::ROIPoolingParamsBuilder builder(writer);
-    builder.add_spatial_scale(spatial_scale);
+    builder.add_spatial_scale(spatial_scale_val);
     builder.add_roi_pooling_method(ROIPoolingMethod2Int32(method()));
     builder.add_num_rois(num_rois);
     builder.add_pooled_h(checked_cast<uint32_t>(output_size[0]));

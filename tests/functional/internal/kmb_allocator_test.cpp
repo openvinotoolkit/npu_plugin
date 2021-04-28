@@ -46,27 +46,30 @@ static std::shared_ptr<ngraph::Function> buildTestGraph(const ngraph::Shape& inp
     return ngraphCallback;
 }
 
-TEST_F(KmbAllocatorTest, checkCSRAM) {
-    auto inputShape = ngraph::Shape{1, 3, 16, 16};
-    auto ngraphCallback = buildTestGraph(inputShape);
-    CNNNetwork network(ngraphCallback);
-    network.getInputsInfo().begin()->second->setPrecision(Precision::FP16);
-    network.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
-    network.setBatchSize(1);
-    network.getOutputsInfo().begin()->second->setPrecision(Precision::FP16);
+TEST_F(KmbAllocatorTest, DISABLED_checkCSRAM) {
+    TestNetwork testNet;
+    testNet
+        .setUserInput("input", Precision::FP16, Layout::NCHW)
+        .addNetInput("input", {1, 3, 512, 512}, Precision::FP32)
+        .addLayer<SoftmaxLayerDef>("softmax", 1)
+            .input("input")
+            .build()
+        .addNetOutput(PortInfo("softmax"))
+        .setUserOutput(PortInfo("softmax"), Precision::FP16, Layout::NCHW)
+        .finalize();
+
 
     const std::map<std::string, std::string> config_no_csram = {
         {"VPUX_CSRAM_SIZE", "0"},
     };
-
     double virtual_no_csram = 0.f;
     double resident_no_csram = 0.f;
     {
-        std::shared_ptr<InferenceEngine::Core> ie = std::make_shared<InferenceEngine::Core>();
-        InferenceEngine::ExecutableNetwork exe_net_no_csram = ie->LoadNetwork(network, DEVICE_NAME, config_no_csram);
+        InferenceEngine::Core ie;
+        testNet.setCompileConfig(config_no_csram);
+        ExecutableNetwork exe_net_no_csram = getExecNetwork(testNet);
         MemoryUsage::procMemUsage(virtual_no_csram, resident_no_csram);
     }
-
     const size_t CSRAM_SIZE = 2 * 1024 * 1024;
     const std::map<std::string, std::string> config_with_csram = {
         {"VPUX_CSRAM_SIZE", std::to_string(CSRAM_SIZE)},
@@ -76,16 +79,20 @@ TEST_F(KmbAllocatorTest, checkCSRAM) {
     double resident_with_csram = 0.f;
     {
         std::shared_ptr<InferenceEngine::Core> ie = std::make_shared<InferenceEngine::Core>();
-        InferenceEngine::ExecutableNetwork exe_net_with_csram = ie->LoadNetwork(network, DEVICE_NAME, config_with_csram);
+        testNet.setCompileConfig(config_with_csram);
+        ExecutableNetwork exe_net_no_csram = getExecNetwork(testNet);
         MemoryUsage::procMemUsage(virtual_with_csram, resident_with_csram);
     }
 
-    double alloc_diff = (virtual_no_csram - virtual_with_csram) * 1024.0;
-    bool has_csram = csramAvailable();
-    if (has_csram) {
-        ASSERT_GE(alloc_diff, CSRAM_SIZE);
-    } else {
-        ASSERT_LT(alloc_diff, CSRAM_SIZE);
+    // there's nothing to check when test suite cannot run inference
+    if (RUN_INFER) {
+        double alloc_diff = (virtual_no_csram - virtual_with_csram) * 1024.0;
+        bool has_csram = csramAvailable();
+        if (has_csram) {
+            ASSERT_GE(alloc_diff, CSRAM_SIZE);
+        } else {
+            ASSERT_LT(alloc_diff, CSRAM_SIZE);
+        }
     }
 }
 
@@ -144,7 +151,7 @@ static double getMemUsage(const CNNNetwork& network,
     return virtual_usage;
 }
 
-TEST_F(KmbAllocatorTest, checkPreprocReallocation) {
+TEST_F(KmbAllocatorTest, DISABLED_checkPreprocReallocation) {
     auto inputShape = ngraph::Shape{1, 3, 224, 224};
     auto ngraphCallback = buildTestGraph(inputShape);
     CNNNetwork network(ngraphCallback);

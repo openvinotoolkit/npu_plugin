@@ -128,35 +128,25 @@ const std::vector<PermuteTestParams> supportedCases {
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NHWC})
         .order({0, 1, 2, 3}),
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
+        .order({0, 2, 1, 3}),
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 18, 19, 19}, Layout::NHWC})
+        .order({0, 2, 3, 1}),
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 18, 19, 19}, Layout::NCHW})
+        .order({0, 2, 3, 1}),
 
     ///// use permuteND
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
         .order({0, 1, 2, 3})
         .permute_nd(InferenceEngine::PluginConfigParams::YES),
-
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 13, 13, 3, 85}, Layout::NCDHW})
         .order({0, 1, 2, 4, 3})
         .permute_nd(InferenceEngine::PluginConfigParams::YES),
-};
-
-// NB: Please note that these test cases doesn't include cases when batch not equal to one
-const std::vector<PermuteTestParams> unsupportedCases {
-    // FIXME: Doesn't match with CPU
-    PermuteTestParams()
-        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
-        .order({0, 2, 1, 3}),
-    // FIXME: It works fine for NCHW layout
-    PermuteTestParams()
-        .in_desc(TensorDesc{Precision::FP16, {1, 18, 19, 19}, Layout::NHWC})
-        .order({0, 2, 3, 1}),
-    // FIXME: Disabled FaceDetectionRetailCase [Track number: D#3455]
-    PermuteTestParams()
-        .in_desc(TensorDesc{Precision::FP16, {1, 18, 19, 19}, Layout::NCHW})
-        .order({0, 2, 3, 1}),
-
-    ///// use permuteND
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
         .order({0, 2, 3, 1})
@@ -176,9 +166,7 @@ const std::vector<PermuteTestParams> unsupportedCases {
 };
 
 INSTANTIATE_TEST_CASE_P(precommit_SupportedCases, KmbPermuteLayerTests, testing::ValuesIn(supportedCases));
-// [Track number: S-37612]
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit_FaceDetectionRetail, KmbPermuteLayerTests, testing::ValuesIn(FaceDetectionRetailCases));
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit_UnsupportedCases, KmbPermuteLayerTests, testing::ValuesIn(unsupportedCases));
+INSTANTIATE_TEST_CASE_P(precommit_FaceDetectionRetail, KmbPermuteLayerTests, testing::ValuesIn(FaceDetectionRetailCases));
 
 static std::vector<std::vector<int64_t>> genPermutations(std::vector<int64_t> seq) {
     std::vector<std::vector<int64_t>> permutations;

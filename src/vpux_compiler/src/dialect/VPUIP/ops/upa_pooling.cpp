@@ -94,7 +94,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PoolingUPAOp op) {
     const auto kernelY = kernel[0];
     const auto kernelX = kernel[1];
 
-    if (kernelY < 2 || kernelY > 64 || kernelX < 2 || kernelX > 64) {
+    if (kernelY < 1 || kernelY > 64 || kernelX < 1 || kernelX > 64) {
         return errorAt(op, "Got unsupported kernel '{0}', only up to 64 is supported", kernel);
     }
 

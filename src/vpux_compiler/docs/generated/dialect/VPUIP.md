@@ -33,9 +33,10 @@ Syntax:
 ```
 operation ::= `VPUIP.CTCGreedyDecoderSeqLenUPA` attr-dict
               `inputs` `(` $input `:` type($input) `,` $sequenceLength `:` type($sequenceLength) `,` ($blankIndex^ `:` type($blankIndex))? `)`
-              `outputs` `(` $output `:` type($output) `,` $outputLength `:` type($outputLength) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `,` $outputLength_buff `:` type($outputLength_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -54,10 +55,17 @@ operation ::= `VPUIP.CTCGreedyDecoderSeqLenUPA` attr-dict
 `input` | memref of 16-bit float values
 `sequenceLength` | memref of 32-bit signed integer values
 `blankIndex` | memref of 32-bit signed integer values
-`output` | memref of 32-bit signed integer values
-`outputLength` | memref of 32-bit signed integer values
+`output_buff` | memref of 32-bit signed integer values
+`outputLength_buff` | memref of 32-bit signed integer values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 32-bit signed integer values
+`outputLength` | memref of 32-bit signed integer values
 
 ### `VPUIP.CTCGreedyDecoderUPA` (vpux::VPUIP::CTCGreedyDecoderUPAOp)
 
@@ -69,9 +77,10 @@ Syntax:
 ```
 operation ::= `VPUIP.CTCGreedyDecoderUPA` attr-dict
               `inputs` `(` $input `:` type($input) `,` $sequenceLengths `:` type($sequenceLengths) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -89,9 +98,15 @@ operation ::= `VPUIP.CTCGreedyDecoderUPA` attr-dict
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
 `sequenceLengths` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.ClampUPA` (vpux::VPUIP::ClampUPAOp)
 
@@ -103,9 +118,10 @@ Syntax:
 ```
 operation ::= `VPUIP.ClampUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -123,9 +139,15 @@ operation ::= `VPUIP.ClampUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.ConfigureBarrier` (vpux::VPUIP::ConfigureBarrierOp)
 
@@ -172,9 +194,10 @@ Syntax:
 ```
 operation ::= `VPUIP.ConvertUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -195,9 +218,15 @@ operation ::= `VPUIP.ConvertUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of any type values
-`output` | memref of any type values
+`output_buff` | memref of any type values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
 
 ### `VPUIP.ConvolutionUPA` (vpux::VPUIP::ConvolutionUPAOp)
 
@@ -209,9 +238,10 @@ Syntax:
 ```
 operation ::= `VPUIP.ConvolutionUPA` attr-dict
               `inputs` `(` $input `:` type($input) `,` $filter `:` type($filter) (`,` $bias^ `:` type($bias))? `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -234,9 +264,15 @@ operation ::= `VPUIP.ConvolutionUPA` attr-dict
 `input` | memref of 16-bit float values
 `filter` | memref of 16-bit float values
 `bias` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.DPUTask` (vpux::VPUIP::DPUTaskOp)
 
@@ -354,9 +390,10 @@ Syntax:
 ```
 operation ::= `VPUIP.DetectionOutputUPA` attr-dict
               `inputs` `(` $in_box_logits `:` type($in_box_logits) `,` $in_class_preds `:` type($in_class_preds) `,` $in_proposals `:` type($in_proposals) (`,` $in_additional_preds^ `:` type($in_additional_preds))? (`,` $in_additional_proposals^ `:` type($in_additional_proposals))? `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -377,9 +414,15 @@ operation ::= `VPUIP.DetectionOutputUPA` attr-dict
 `in_proposals` | memref of 16-bit float values
 `in_additional_preds` | memref of 16-bit float values
 `in_additional_proposals` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.EltwiseUPA` (vpux::VPUIP::EltwiseUPAOp)
 
@@ -391,9 +434,10 @@ Syntax:
 ```
 operation ::= `VPUIP.EltwiseUPA` attr-dict
               `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -411,9 +455,15 @@ operation ::= `VPUIP.EltwiseUPA` attr-dict
 | :-----: | ----------- |
 `input1` | memref of 16-bit float values
 `input2` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.EluUPA` (vpux::VPUIP::EluUPAOp)
 
@@ -425,9 +475,10 @@ Syntax:
 ```
 operation ::= `VPUIP.EluUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -444,9 +495,15 @@ operation ::= `VPUIP.EluUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.FakeQuantizeUPA` (vpux::VPUIP::FakeQuantizeUPAOp)
 
@@ -458,9 +515,10 @@ Syntax:
 ```
 operation ::= `VPUIP.FakeQuantizeUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -481,9 +539,15 @@ operation ::= `VPUIP.FakeQuantizeUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.GRNUPA` (vpux::VPUIP::GRNUPAOp)
 
@@ -495,9 +559,10 @@ Syntax:
 ```
 operation ::= `VPUIP.GRNUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -514,9 +579,15 @@ operation ::= `VPUIP.GRNUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.Graph` (vpux::VPUIP::GraphOp)
 
@@ -549,9 +620,10 @@ Syntax:
 ```
 operation ::= `VPUIP.HSwishUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -567,9 +639,15 @@ operation ::= `VPUIP.HSwishUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.LeakyReluUPA` (vpux::VPUIP::LeakyReluUPAOp)
 
@@ -581,9 +659,10 @@ Syntax:
 ```
 operation ::= `VPUIP.LeakyReluUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -600,9 +679,15 @@ operation ::= `VPUIP.LeakyReluUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.NCEClusterTask` (vpux::VPUIP::NCEClusterTaskOp)
 
@@ -616,13 +701,14 @@ operation ::= `VPUIP.NCEClusterTask` attr-dict
               `inputs` `(` $input  `:` type($input)
               (`,` $filter^ `:` type($filter))?
               (`,` $weight_table^ `:` type($weight_table))? `)`
-              `outputs` `(` $output `:` type($output) `)`
-              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
               `parent_input` `(` $parent_input `:` type($parent_input) `)`
               `parent_output` `(` $parent_output `:` type($parent_output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
               `variants` `:` $variants
               (`PPE` `:` $ppe_tasks^)?
+              `->` type(results)
 ```
 
 This operation defines NCE cluster task which describes single cluster of 5 DPUs. It is
@@ -653,13 +739,19 @@ mutually exclusive.
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
-`output` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
-`waitBarriers` | VPUIP Barrier Type
-`updateBarriers` | VPUIP Barrier Type
-`parent_input` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
-`parent_output` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
 `filter` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
 `weight_table` | memref of 32-bit signed integer values
+`parent_input` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
+`parent_output` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
+`output_buff` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 
@@ -671,9 +763,10 @@ Syntax:
 ```
 operation ::= `VPUIP.NNDMA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -689,9 +782,15 @@ operation ::= `VPUIP.NNDMA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of any type values
-`output` | memref of any type values
+`output_buff` | memref of any type values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
 
 ### `VPUIP.NegativeUPA` (vpux::VPUIP::NegativeUPAOp)
 
@@ -703,9 +802,10 @@ Syntax:
 ```
 operation ::= `VPUIP.NegativeUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -721,9 +821,15 @@ operation ::= `VPUIP.NegativeUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.PPETask` (vpux::VPUIP::PPETaskOp)
 
@@ -753,9 +859,10 @@ Syntax:
 ```
 operation ::= `VPUIP.PReluUPA` attr-dict
               `inputs` `(` $input `:` type($input) `,` $negative_slope `:` type($negative_slope) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -772,9 +879,15 @@ operation ::= `VPUIP.PReluUPA` attr-dict
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
 `negative_slope` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.PerAxisTileUPA` (vpux::VPUIP::PerAxisTileUPAOp)
 
@@ -786,9 +899,10 @@ Syntax:
 ```
 operation ::= `VPUIP.PerAxisTileUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -806,9 +920,15 @@ operation ::= `VPUIP.PerAxisTileUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.PermuteUPA` (vpux::VPUIP::PermuteUPAOp)
 
@@ -820,9 +940,10 @@ Syntax:
 ```
 operation ::= `VPUIP.PermuteUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -838,10 +959,16 @@ operation ::= `VPUIP.PermuteUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`input` | memref of any type values
+`output_buff` | memref of any type values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
 
 ### `VPUIP.PoolingUPA` (vpux::VPUIP::PoolingUPAOp)
 
@@ -853,9 +980,10 @@ Syntax:
 ```
 operation ::= `VPUIP.PoolingUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -877,9 +1005,15 @@ operation ::= `VPUIP.PoolingUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.QuantCastUPA` (vpux::VPUIP::QuantCastUPAOp)
 
@@ -891,9 +1025,10 @@ Syntax:
 ```
 operation ::= `VPUIP.QuantCastUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -909,9 +1044,15 @@ operation ::= `VPUIP.QuantCastUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float or QuantizedType values
-`output` | memref of 16-bit float or QuantizedType values
+`output_buff` | memref of 16-bit float or QuantizedType values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or QuantizedType values
 
 ### `VPUIP.ROIPoolingUPA` (vpux::VPUIP::ROIPoolingUPAOp)
 
@@ -923,9 +1064,10 @@ Syntax:
 ```
 operation ::= `VPUIP.ROIPoolingUPA` attr-dict
               `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -945,9 +1087,15 @@ operation ::= `VPUIP.ROIPoolingUPA` attr-dict
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
 `coords` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.ReLUUPA` (vpux::VPUIP::ReLUUPAOp)
 
@@ -959,9 +1107,10 @@ Syntax:
 ```
 operation ::= `VPUIP.ReLUUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -977,9 +1126,15 @@ operation ::= `VPUIP.ReLUUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.ScaleShiftUPA` (vpux::VPUIP::ScaleShiftUPAOp)
 
@@ -991,9 +1146,10 @@ Syntax:
 ```
 operation ::= `VPUIP.ScaleShiftUPA` attr-dict
               `inputs` `(` $input `:` type($input) (`,` $weights^ `:` type($weights))? (`,` $biases^ `:` type($biases))? `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -1011,9 +1167,15 @@ operation ::= `VPUIP.ScaleShiftUPA` attr-dict
 `input` | memref of 16-bit float values
 `weights` | memref of 16-bit float values
 `biases` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.SigmoidUPA` (vpux::VPUIP::SigmoidUPAOp)
 
@@ -1025,9 +1187,10 @@ Syntax:
 ```
 operation ::= `VPUIP.SigmoidUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -1043,9 +1206,15 @@ operation ::= `VPUIP.SigmoidUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.SoftMaxUPA` (vpux::VPUIP::SoftMaxUPAOp)
 
@@ -1057,9 +1226,10 @@ Syntax:
 ```
 operation ::= `VPUIP.SoftMaxUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -1076,9 +1246,15 @@ operation ::= `VPUIP.SoftMaxUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.SwishUPA` (vpux::VPUIP::SwishUPAOp)
 
@@ -1090,9 +1266,10 @@ Syntax:
 ```
 operation ::= `VPUIP.SwishUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -1109,9 +1286,15 @@ operation ::= `VPUIP.SwishUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.TanhUPA` (vpux::VPUIP::TanhUPAOp)
 
@@ -1123,9 +1306,10 @@ Syntax:
 ```
 operation ::= `VPUIP.TanhUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -1141,9 +1325,15 @@ operation ::= `VPUIP.TanhUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`output` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.UPADMA` (vpux::VPUIP::UPADMAOp)
 
@@ -1155,9 +1345,10 @@ Syntax:
 ```
 operation ::= `VPUIP.UPADMA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output `:` type($output) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
 ```
 
 
@@ -1166,9 +1357,15 @@ operation ::= `VPUIP.UPADMA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of any type values
-`output` | memref of any type values
+`output_buff` | memref of any type values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
 
 ## Type definition
 

@@ -58,10 +58,10 @@ void vpux::VPUIP::ClampUPAOp::build(mlir::OpBuilder& builder, mlir::OperationSta
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ClampUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const float min = getMin();
-    const float max = getMax();
+    const float min_val = min().convertToFloat();
+    const float max_val = max().convertToFloat();
 
-    const auto clamp = MVCNN::CreateClampParams(writer, min, max);
+    const auto clamp = MVCNN::CreateClampParams(writer, min_val, max_val);
 
     MVCNN::PostOpsParamsBuilder builder(writer);
     builder.add_nested_params_type(MVCNN::PostOpsNestedParams_ClampParams);
@@ -81,9 +81,9 @@ void vpux::VPUIP::EluUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EluUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const float x = getX();
+    const float x_val = x().convertToFloat();
 
-    const auto elu = MVCNN::CreateEluParams(writer, x);
+    const auto elu = MVCNN::CreateEluParams(writer, x_val);
 
     MVCNN::PostOpsParamsBuilder builder(writer);
     builder.add_nested_params_type(MVCNN::PostOpsNestedParams_EluParams);
@@ -203,9 +203,9 @@ void vpux::VPUIP::LeakyReluUPAOp::build(mlir::OpBuilder& builder, mlir::Operatio
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LeakyReluUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const float negative_slope = getNegativeSlope();
+    const float negative_slope_val = negative_slope().convertToFloat();
 
-    const auto leaky_relu = MVCNN::CreateLeakyReluParams(writer, negative_slope);
+    const auto leaky_relu = MVCNN::CreateLeakyReluParams(writer, negative_slope_val);
 
     MVCNN::PostOpsParamsBuilder builder(writer);
     builder.add_nested_params_type(MVCNN::PostOpsNestedParams_LeakyReluParams);

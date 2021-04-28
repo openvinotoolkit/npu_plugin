@@ -35,7 +35,7 @@ The pass is used as a fallback to FP16 computations for the cases, where quantiz
 ### `-quantize-const`: Quantize constant tensors
 The pass is a part of `LowPrecision` pipeline.
 
-It performs constant folding for `Constant -> quant.qcast` case
+It performs constant folding for `Constant -> quant.qcast` case.
 ### `-split-fake-quant`: Splits FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 
