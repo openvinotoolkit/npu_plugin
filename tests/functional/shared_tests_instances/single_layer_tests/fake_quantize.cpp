@@ -42,6 +42,9 @@ const std::vector<std::vector<size_t>> inputShapes = {{1, 3, 10, 10}};
 const std::vector<std::vector<size_t>> constShapes = {{1}, {1, 3, 1, 1}};
 const std::vector<size_t> levels = {16, 255, 256};
 
+const std::vector<std::vector<size_t>> inputShapesND = {{1, 512}};
+const std::vector<std::vector<size_t>> constShapesND = {{1}};
+
 const std::pair<std::string, std::map<std::string, std::string>> config = {};
 const std::vector<float> fqArgs = {};
 const std::vector<float> inputParams = {};
@@ -50,6 +53,13 @@ const std::vector<float> inputParams = {};
 const auto fqParams = ::testing::Combine(
     ::testing::ValuesIn(levels),
     ::testing::ValuesIn(constShapes),
+    ::testing::Values(fqArgs),
+    ::testing::Values(inputParams)
+);
+
+const auto fqParamsND = ::testing::Combine(
+    ::testing::ValuesIn(levels),
+    ::testing::ValuesIn(constShapesND),
     ::testing::Values(fqArgs),
     ::testing::Values(inputParams)
 );
@@ -67,4 +77,16 @@ INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize, KmbFakeQuantizeLayerTest,
                             ::testing::Values(config)),
                         KmbFakeQuantizeLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize_ND, KmbFakeQuantizeLayerTest,
+                    ::testing::Combine(
+                            fqParamsND,
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::ValuesIn(inputShapesND),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                            ::testing::Values(config)),
+                    KmbFakeQuantizeLayerTest::getTestCaseName);
 }  // namespace
