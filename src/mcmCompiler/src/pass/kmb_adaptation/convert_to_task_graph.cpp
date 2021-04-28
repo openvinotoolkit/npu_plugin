@@ -1123,6 +1123,23 @@ mv::Data::TensorIterator convertPreluToUPATask(mv::OpModel& om, const std::vecto
     return prelu;
 }
 
+mv::Data::TensorIterator convertDepthToSpaceToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                        const std::map<std::string, mv::Attribute>& attrs,
+                                                        const std::string& name,  bool /*software*/,
+                                                        const mv::QuantizationParams& quantParams,
+                                                        const mv::DType& outputTensorType,
+                                                        const mv::Order& outputTensorOrder)
+{
+    auto mode = attrs.at("mode").get<std::string>();
+    auto block_size = attrs.at("block_size").get<uint32_t>();
+
+    auto depthToSpace = om.uPATaskDepthToSpace(name, inputs, block_size, mode);
+    depthToSpace->setDType(outputTensorType);
+    depthToSpace->setQuantParams(quantParams);
+    depthToSpace->setOrder(outputTensorOrder);
+    return depthToSpace;
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
 
@@ -1138,7 +1155,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
                                                        "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu",
                                                        "PermuteND", "Mish", "Floor", "Round", "Erf", "Gelu", "Pad", "Interpolate", "MVN", "Ceiling",
-                                                       "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu"};
+                                                       "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu", "DepthToSpace"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -1200,6 +1217,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"SpaceToDepth", convertSpaceToDepthToUPATask},
     {"CTCGreedyDecoderSeqLen", convertCTCGreedyDecoderSeqLenToUPATask},
     {"Prelu", convertPreluToUPATask},
+    {"DepthToSpace", convertDepthToSpaceToUPATask},
     };
 
     // Layer types that given current compiler state, it's
@@ -1354,7 +1372,7 @@ void get_best_mults_and_shift( const std::vector<double>& scale, unsigned num_bi
 
         // get the sign bits
         bool sign = std::signbit( v );
-        
+
         // if it is negative, then make it posive
         if( sign ) v *= -1.0f;
 
@@ -1414,9 +1432,9 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
             const std::vector<double>& slopes = opIt->get<std::vector<double>>("slopes");
             std::vector<int32_t> mults( slopes.size() );
             uint8_t ppeShift = 0;
-        
+
             get_best_mults_and_shift( slopes, bits, mults, ppeShift );
-        
+
             ppeFixedFunction.setLReluMults( mults );
             ppeFixedFunction.setLReluShift( ppeShift );
         }
@@ -1539,7 +1557,7 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
     {
         mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         auto minimum = outputQuantParams.getMin()[0];
-        if (alpha < 0.0) 
+        if (alpha < 0.0)
         {
             minimum = 0; // no negative values
         }

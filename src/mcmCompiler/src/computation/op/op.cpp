@@ -337,7 +337,7 @@ bool mv::Op::isUPA() const
                                         "Priorbox","Argmax","Permute","CustomOcl","CustomCpp","Sigmoid","Deconv","Tile",
                                         "RefConv", "Gather", "HSwish", "Swish", "Relu", "Conversion", "Tanh", "SoftPlus", "Elu",
                                         "PermuteND", "Mish", "Floor", "Round", "Erf", "Gelu", "Pad", "Interpolate", "MVN",
-                                         "Ceiling", "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu"};
+                                         "Ceiling", "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu", "DepthToSpace"};
     log(Logger::MessageType::Debug, "isUPA method is called for:" + getOpType());
     if (std::count(upaTypes.begin(), upaTypes.end(), getOpType()))
     {
