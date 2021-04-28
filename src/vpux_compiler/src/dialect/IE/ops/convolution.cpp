@@ -207,10 +207,6 @@ mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupConvolutionOp convOp,
         return mlir::failure();
     }
 
-    if (!mlir::isa_and_nonnull<ConstantInterface>(convOp.filter().getDefiningOp())) {
-        return mlir::failure();
-    }
-
     auto filterShape = to_small_vector(convOp.filter().getType().cast<mlir::ShapedType>().getShape());
 
     const auto groups = filterShape[0];
