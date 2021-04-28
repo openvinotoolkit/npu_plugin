@@ -283,8 +283,6 @@ Syntax:
 
 ```
 operation ::= `VPUIP.DPUTask` attr-dict
-              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
 ```
 
 
@@ -297,13 +295,6 @@ operation ::= `VPUIP.DPUTask` attr-dict
 `pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `mpe_mode` | vpux::VPUIP::MPEModeAttr | MPE Mode
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`waitBarriers` | VPUIP Barrier Type
-`updateBarriers` | VPUIP Barrier Type
 
 ### `VPUIP.DeclareConstantTensor` (vpux::VPUIP::DeclareConstantTensorOp)
 
@@ -802,18 +793,18 @@ Syntax:
 
 ```
 operation ::= `VPUIP.NCEClusterTask` attr-dict
-              `inputs` `(` $input  `:` type($input)
-              (`,` $filter^ `:` type($filter))?
-              (`,` $weight_table^ `:` type($weight_table))? `)`
-              (`,` $activation_window^ `:` type($activation_window))? `)`
+              `input` `(` $input  `:` type($input) `)`
+              (`weights` `(` $weights^  `:` type($weights) `)`)?
+              (`weight_table` `(` $weight_table^  `:` type($weight_table) `)`)?
+              (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
               `parent_input` `(` $parent_input `:` type($parent_input) `)`
               `parent_output` `(` $parent_output `:` type($parent_output) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-              `variants` `:` $variants
-              (`PPE` `:` $ppe_tasks^)?
               `->` type(results)
+              `variants` `:` $variants
+              `PPE` `:` $ppe
 ```
 
 This operation defines NCE cluster task which describes single cluster of 5 DPUs. It is
@@ -835,23 +826,22 @@ mutually exclusive.
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `task_type` | vpux::VPUIP::NCETaskTypeAttr | NCE task type
-`fixed_ppe_task` | vpux::VPUIP::PPELayerTypeAttr | Post Processing Element Type
-`kernel_padding` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `kernel_size` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`kernel_strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`kernel_padding` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `activation_window_channel_length` | ::mlir::IntegerAttr | 32-bit signless integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 8-bit unsigned integer or 16-bit float or bfloat16 type or QuantizedType values
-`filter` | memref of 8-bit unsigned integer or 16-bit float or bfloat16 type or QuantizedType values
+`input` | memref of 16-bit float or QuantizedType values
+`weights` | memref of 16-bit float or QuantizedType values
 `weight_table` | memref of 32-bit signed integer values
 `activation_window` | memref of 8-bit unsigned integer values
-`parent_input` | memref of 8-bit unsigned integer or 16-bit float or bfloat16 type or QuantizedType values
-`parent_output` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
-`output_buff` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
+`parent_input` | memref of any type values
+`parent_output` | memref of any type values
+`output_buff` | memref of 16-bit float or QuantizedType values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 
@@ -859,7 +849,7 @@ mutually exclusive.
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
+`output` | memref of 16-bit float or QuantizedType values
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 
@@ -947,7 +937,7 @@ PPE Type for NCE Task
 Syntax:
 
 ```
-operation ::= `VPUIP.PPETask` attr-dict $ppe_layer_type
+operation ::= `VPUIP.PPETask` $ppe_layer_type attr-dict
 ```
 
 

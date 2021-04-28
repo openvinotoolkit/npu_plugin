@@ -235,8 +235,6 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     // Create NCE per-cluster Operation
     //
 
-    const auto ppeAttr = vpux::VPUIP::PPELayerTypeAttr::get(getContext(), VPUIP::PPELayerType::NOOP);
-
     const auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
     const auto padsEnd = parseIntArrayAttr(origOp.pads_end());
     const auto kernelPaddingAttr =
@@ -244,10 +242,12 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto kernelSizeAttr = getInt32ArrayAttr(getContext(), makeArrayRef({KX, KY}));
 
-    auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(origOp->getLoc(), inputDPU, filterDPU, weightsTable, nullptr,
-                                                          inputDPU, outAllocOpCMX.memref(), outAllocOpCMX.memref(),
-                                                          VPUIP::NCETaskType::CONV, ppeAttr, kernelPaddingAttr,
-                                                          origOp.strides(), kernelSizeAttr, nullptr);
+    auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
+            origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
+            /*parent_input=*/inputDPU,
+            /*parent_output=*/outAllocOpCMX.memref(),
+            /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
+            kernelPaddingAttr, /*activation_window_channel_length=*/nullptr);
 
     //
     // Create DPU sub-task
@@ -350,17 +350,19 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     // Create NCE per-cluster Operation
     //
 
-    const auto ppeAttr = vpux::VPUIP::PPELayerTypeAttr::get(getContext(), VPUIP::PPELayerType::NOOP);
-
     const auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
     const auto padsEnd = parseIntArrayAttr(origOp.pads_end());
     const auto kernelPaddingAttr =
             getInt32ArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
 
+    const auto activation_window_channel_length = getInt32Attr(getContext(), static_cast<uint32_t>(bitPatternSize));
+
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-            origOp->getLoc(), inputDPU, nullptr, weightsTable, activationWindow, inputDPU, outAllocOpCMX.memref(),
-            outAllocOpCMX.memref(), VPUIP::NCETaskType::MAXPOOL, ppeAttr, kernelPaddingAttr, origOp.strides(),
-            origOp.kernel_size(), getInt32Attr(getContext(), static_cast<uint32_t>(bitPatternSize)));
+            origOp->getLoc(), inputDPU, /*weights=*/nullptr, weightsTable, activationWindow,
+            /*parent_input=*/inputDPU,
+            /*parent_output=*/outAllocOpCMX.memref(),
+            /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),
+            kernelPaddingAttr, activation_window_channel_length);
 
     //
     // Create DPU sub-task

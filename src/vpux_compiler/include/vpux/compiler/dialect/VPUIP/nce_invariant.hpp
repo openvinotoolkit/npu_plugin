@@ -49,6 +49,8 @@ public:
                                                   Logger log = Logger::global());
 
 public:
+    static mlir::LogicalResult verifyKernel(mlir::ArrayAttr kernelSize, mlir::ArrayAttr kernelStrides,
+                                            mlir::ArrayAttr kernelPadding, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IERT::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IERT::MaxPoolOp origOp, Logger log = Logger::global());
 };

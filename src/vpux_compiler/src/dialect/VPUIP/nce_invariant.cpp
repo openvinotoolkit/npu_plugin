@@ -177,34 +177,89 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::MaxPoolOp origOp,
 // verifyKernel
 //
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::ConvolutionOp origOp, Logger log) {
-    log.setName("NCEInvariant::verifyConvKernel");
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::ArrayAttr kernelSizeAttr,
+                                                            mlir::ArrayAttr kernelStridesAttr,
+                                                            mlir::ArrayAttr kernelPaddingAttr, Logger log) {
+    log.setName("NCEInvariant::verifyKernel");
 
-    const auto filterShape = getShape(origOp.filter());
-    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+    if (kernelSizeAttr == nullptr) {
+        log.warning("kernel size attribute is required");
+        return mlir::failure();
+    }
+    if (kernelStridesAttr == nullptr) {
+        log.warning("kernel strides attribute is required");
+        return mlir::failure();
+    }
+    if (kernelPaddingAttr == nullptr) {
+        log.warning("kernel padding attribute is required");
+        return mlir::failure();
+    }
 
-    if (KY > 11 || KX > 11) {
-        log.warning("{0}: Unsupported kernel size {1}x{2}. Supported size up to 11", origOp->getLoc(), KX, KY);
+    const auto kernelSize = parseIntArrayAttr(kernelSizeAttr);
+    const auto kernelStrides = parseIntArrayAttr(kernelStridesAttr);
+
+    static const int32_t NCE_MAX_KERNEL_SIZE = 11;
+    static const int32_t NCE_MAX_STRIDE_SIZE = 8;
+
+    if (kernelSize.size() != 2) {
+        log.warning("Unsupported kernel size: {0}", kernelSize.size());
+        return mlir::failure();
+    }
+
+    const auto KY = kernelSize[0];
+    const auto KX = kernelSize[1];
+
+    if (KY > NCE_MAX_KERNEL_SIZE || KY <= 0) {
+        log.warning("{0}: Unsupported kernel height dimension: '{0}'. Must be between 1-{1}.", KY, NCE_MAX_KERNEL_SIZE);
+        return mlir::failure();
+    }
+
+    if (KX > NCE_MAX_KERNEL_SIZE || KX <= 0) {
+        log.warning("{0}: Unsupported kernel width dimension: '{0}'. Must be between 1-{1}.", KX, NCE_MAX_KERNEL_SIZE);
+        return mlir::failure();
+    }
+
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    if (SY > NCE_MAX_STRIDE_SIZE || SY <= 0) {
+        log.warning("{0}: Unsupported stride height dimension: '{0}'. Must be between 1-{1}.", SY, NCE_MAX_STRIDE_SIZE);
+        return mlir::failure();
+    }
+
+    if (SX > NCE_MAX_STRIDE_SIZE || SX <= 0) {
+        log.warning("{0}: Unsupported stride width dimension: '{0}'. Must be between 1-{1}.", SX, NCE_MAX_STRIDE_SIZE);
         return mlir::failure();
     }
 
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::ConvolutionOp origOp, Logger log) {
+    log.setName("NCEInvariant::verifyConvKernel");
+
+    const auto filterShape = getShape(origOp.filter());
+    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
+    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+    const auto kernelSizeAttr = getInt32ArrayAttr(origOp.getContext(), makeArrayRef({KX, KY}));
+
+    const auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr(origOp.pads_end());
+    const auto kernelPaddingAttr =
+            getInt32ArrayAttr(origOp.getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
+
+    return verifyKernel(kernelSizeAttr, origOp.strides(), kernelPaddingAttr);
+}
+
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MaxPoolOp origOp, Logger log) {
     log.setName("NCEInvariant::verifyPoolKernel");
 
-    const auto kernelSize = parseIntArrayAttr(origOp.kernel_size());
-    VPUX_THROW_UNLESS(kernelSize.size() == 2, "Unsupported kernel size: {0}", kernelSize.size());
+    const auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr(origOp.pads_end());
+    const auto kernelPaddingAttr =
+            getInt32ArrayAttr(origOp.getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
 
-    if (kernelSize[0] > 11 || kernelSize[1] > 11) {
-        log.warning("{0}: Unsupported kernel size {1}x{2}. Supported size up to 11", origOp->getLoc(), kernelSize[0],
-                    kernelSize[1]);
-        return mlir::failure();
-    }
-
-    return mlir::success();
+    return verifyKernel(origOp.kernel_size(), origOp.strides(), kernelPaddingAttr);
 }
 
 //

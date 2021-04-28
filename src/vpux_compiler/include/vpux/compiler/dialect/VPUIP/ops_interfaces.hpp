@@ -40,12 +40,6 @@ class BlobWriter;
 mlir::LogicalResult verifyUPATask(mlir::Operation* op);
 
 //
-// verifyNCETask
-//
-
-mlir::LogicalResult verifyNCETask(mlir::Operation* op);
-
-//
 // getTaskEffects
 //
 

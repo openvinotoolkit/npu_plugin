@@ -68,14 +68,15 @@ void SetInternalMemorySpacePass::safeRunOnFunc() {
     const auto callback = [&](mlir::memref::AllocOp allocOp) {
         _log.trace("Got Alloc Operation '{0}'", allocOp->getLoc());
 
-        if (allocOp.getType().getMemorySpace()) {
+        if (allocOp.getType().getMemorySpace() != nullptr) {
+            _log.nest().trace("It already has a memory space '{0}'", allocOp.getType().getMemorySpace());
             return;
         }
 
         const auto& aliases = aliasInfo.getAliases(allocOp.memref());
 
         for (auto var : aliases) {
-            _log.trace("Process alias buffer '{0}'", var);
+            _log.nest().trace("Process alias buffer '{0}'", var);
 
             const auto origType = var.getType().dyn_cast<mlir::MemRefType>();
             VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}'", var.getType());
