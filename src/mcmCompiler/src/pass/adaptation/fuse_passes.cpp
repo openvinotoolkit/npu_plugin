@@ -584,7 +584,7 @@ void fuse_usual_ppe(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& pa
         const std::string& parentOpType = parentOpIt1->getOpType();
 
         // Constant Operator is only support
-        if ((parentOpType == "Constant") || (parentOpType == "ConstantInt") || (parentOpType == "ConstantDataElement"))
+        if ((parentOpType != "Constant") && (parentOpType != "ConstantInt") && (parentOpType != "ConstantDataElement"))
         {
             // TODO
             // check how to handle non constant slopes as constant slops are only supported in the current implementation
