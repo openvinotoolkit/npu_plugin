@@ -440,8 +440,11 @@ Blob::Ptr KmbTestBase::importBlob(const std::string& name, const TensorDesc& des
 
     const auto fileName = vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(name));
     std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
-    if (!file.is_open())
-        THROW_IE_EXCEPTION << "importBlob() failed. Can't open file " << fileName;
+    if (!file.is_open()) {
+        std::stringstream str;
+        str << "importBlob() failed. Cannot open file " << fileName;
+        throw import_error(str.str());
+    }
 
     file.read(blob->buffer().as<char*>(), static_cast<std::streamsize>(blob->byteSize()));
 
