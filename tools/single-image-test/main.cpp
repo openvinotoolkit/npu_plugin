@@ -729,7 +729,7 @@ int main(int argc, char* argv[]) {
 
         std::vector<std::string> inputFilesPerCase;
         std::vector<std::vector<std::string>> inputFilesForOneInfer;
-        inputFilesPerCase = splitStringList(FLAGS_input, ':');
+        inputFilesPerCase = splitStringList(FLAGS_input, ';');
         for (const auto& images : inputFilesPerCase) {
             inputFilesForOneInfer.push_back(splitStringList(images, ','));
         }
@@ -748,22 +748,22 @@ int main(int argc, char* argv[]) {
 
             auto cnnNet = ieCore.ReadNetwork(FLAGS_network);
 
-            // Input precision 
+            // Input precision
             ie::InputsDataMap inputInfo(cnnNet.getInputsInfo());
             if (!FLAGS_ip.empty()) {
                 ie::Precision prc_in = ie::Precision::U8;
-                if (FLAGS_ip == "FP16") 
+                if (FLAGS_ip == "FP16")
                     prc_in = ie::Precision::FP16;
-                else if (FLAGS_ip == "FP32") 
+                else if (FLAGS_ip == "FP32")
                     prc_in = ie::Precision::FP32;
-                else 
+                else
                     prc_in = ie::Precision::U8;
-                
+
                 for (auto inputInfoIt=inputInfo.begin(); inputInfoIt!=inputInfo.end(); ++inputInfoIt){
                     inputInfoIt->second->setPrecision(prc_in);
                 }
             }
-            // Input layout 
+            // Input layout
             if (!FLAGS_il.empty()) {
                 const ie::Layout layout = FLAGS_il == "NCHW" ? ie::Layout::NCHW : ie::Layout::NHWC;
                 for (auto & info: inputInfo) info.second->setLayout(layout);
@@ -772,19 +772,19 @@ int main(int argc, char* argv[]) {
             ie::OutputsDataMap outputInfo(cnnNet.getOutputsInfo());
             if (!FLAGS_op.empty()) {
                 ie::Precision prc_out = ie::Precision::U8;
-                if (FLAGS_op == "FP16") 
+                if (FLAGS_op == "FP16")
                     prc_out = ie::Precision::FP16;
-                else if (FLAGS_op == "FP32") 
+                else if (FLAGS_op == "FP32")
                     prc_out = ie::Precision::FP32;
-                else 
+                else
                     prc_out = ie::Precision::U8;
 
                 // possibly multiple outputs
                 for (auto outputInfoIt=outputInfo.begin(); outputInfoIt!=outputInfo.end(); ++outputInfoIt){
-                    outputInfoIt->second->setPrecision(prc_out); 
+                    outputInfoIt->second->setPrecision(prc_out);
                 }
             }
-            // Output layout 
+            // Output layout
             if (!FLAGS_ol.empty()) {
                 for (auto outputInfoIt=outputInfo.begin(); outputInfoIt!=outputInfo.end(); ++outputInfoIt){
                     if (outputInfoIt->second->getDims().size() == 2) {
@@ -795,7 +795,7 @@ int main(int argc, char* argv[]) {
                         }
                         else{
                             outputInfoIt->second->setLayout(ie::Layout::NHWC);
-                        }         
+                        }
                     }
                 }
             }
