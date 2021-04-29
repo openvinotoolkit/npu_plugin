@@ -14,34 +14,14 @@
 // stated in the License.
 //
 
-#ifndef VPUX_COMPILER_CONVERSION_REWRITERS_LOWER_IERT_TO_VPUIP
-#define VPUX_COMPILER_CONVERSION_REWRITERS_LOWER_IERT_TO_VPUIP
+#ifndef VPUX_COMPILER_CONVERSION_REWRITERS_CONVERT_IERT_OPS_TO_VPUIP
+#define VPUX_COMPILER_CONVERSION_REWRITERS_CONVERT_IERT_OPS_TO_VPUIP
 
 include "vpux/compiler/dialect/IERT/ops.td"
 include "vpux/compiler/dialect/VPUIP/ops.td"
 
 include "mlir/IR/OpBase.td"
 include "mlir/Dialect/Linalg/IR/LinalgStructuredOps.td"
-
-//
-// IERT.Copy -> VPUIP.NNDMA
-//
-
-def createNNDMAOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::NNDMAOp>($_loc, $0, $1)
-        }]>;
-
-def createUPADMAOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::UPADMAOp>($_loc, $0, $1)
-        }]>;
-
-def RewriteCopy :
-        Pat<
-            (IERT_CopyOp $input, $output),
-            (createNNDMAOp $input, $output)
-        >;
 
 //
 // IERT.StaticAlloc -> VPUIP.DeclareTensor
@@ -79,7 +59,52 @@ def RewriteStaticAllocNNCMX :
             ]
         >;
 
+//
+// IERT.Constant -> VPUIP.DeclareConstantTensor
+//
 
+def createDeclareConstantTensorOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::DeclareConstantTensorOp>(
+                $_loc, $0.getType(), $1, nullptr
+            )
+        }]>;
+
+def RewriteConstant :
+        Pat<
+            (IERT_ConstantOp:$output $value),
+            (createDeclareConstantTensorOp $output, $value)
+        >;
+
+//
+// IERT.ConcatView -> output_buff
+//
+
+def RewriteConcatView :
+        Pat<
+            (IERT_ConcatViewOp $inputs, $output_buff),
+            (replaceWithValue $output_buff)
+        >;
+
+//
+// IERT.Copy -> VPUIP.NNDMA
+//
+
+def createNNDMAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::NNDMAOp>($_loc, $0, $1)
+        }]>;
+
+def createUPADMAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::UPADMAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteCopy :
+        Pat<
+            (IERT_CopyOp $input, $output),
+            (createNNDMAOp $input, $output)
+        >;
 
 //
 // IERT.Convert -> VPUIP.ConvertUPA
