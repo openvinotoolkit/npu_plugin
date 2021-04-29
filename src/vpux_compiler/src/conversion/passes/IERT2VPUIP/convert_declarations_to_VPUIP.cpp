@@ -68,6 +68,7 @@ void ConvertDeclarations2VPUIPPass::safeRunOnFunc() {
     }
 
     mlir::ConversionTarget target(ctx);
+    target.addLegalDialect<mlir::async::AsyncDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::ConcatViewOp, mlir::memref::SubViewOp>();
