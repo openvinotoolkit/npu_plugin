@@ -29,26 +29,31 @@ public:
 void KmbConfigTest::runTest(
     const ConfigMap& compileConfig,
     const ConfigMap& inferConfig) {
-    TestNetwork testNet;
-    testNet
-        .setUserInput("input", Precision::FP16, Layout::NCHW)
-        .addNetInput("input", {1, 3, 512, 512}, Precision::FP32)
-        .addLayer<SoftmaxLayerDef>("softmax", 1)
-            .input("input")
-            .build()
-        .addNetOutput(PortInfo("softmax"))
-        .setUserOutput(PortInfo("softmax"), Precision::FP16, Layout::NCHW)
-        .finalize();
+    try {
+        TestNetwork testNet;
+        testNet
+            .setUserInput("input", Precision::FP16, Layout::NCHW)
+            .addNetInput("input", {1, 3, 512, 512}, Precision::FP32)
+            .addLayer<SoftmaxLayerDef>("softmax", 1)
+                .input("input")
+                .build()
+            .addNetOutput(PortInfo("softmax"))
+            .setUserOutput(PortInfo("softmax"), Precision::FP16, Layout::NCHW)
+            .finalize();
 
-    testNet.setCompileConfig(compileConfig);
-    ExecutableNetwork exeNet = KmbLayerTestBase::getExecNetwork(testNet);
-    KmbTestBase::exportNetwork(exeNet);
+        testNet.setCompileConfig(compileConfig);
+        ExecutableNetwork exeNet = KmbLayerTestBase::getExecNetwork(testNet);
+        KmbTestBase::exportNetwork(exeNet);
 
-    if (RUN_INFER) {
-        ExecutableNetwork importedNet = KmbTestBase::importNetwork(inferConfig);
-        constexpr bool printTime = false;
-        const BlobMap inputs = {};
-        KmbTestBase::runInfer(importedNet, inputs, printTime);
+        if (RUN_INFER) {
+            ExecutableNetwork importedNet = KmbTestBase::importNetwork(inferConfig);
+            constexpr bool printTime = false;
+            const BlobMap inputs = {};
+            KmbTestBase::runInfer(importedNet, inputs, printTime);
+        }
+    } catch (const import_error& ex) {
+        std::cerr << ex.what() << std::endl;
+        SKIP() << ex.what();
     }
 }
 
