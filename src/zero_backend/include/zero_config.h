@@ -39,6 +39,6 @@ protected:
 
 private:
     InferenceEngine::VPUXConfigParams::ze_syncType _ze_syncType =
-            InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE;
+            InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT;
 };
 }  // namespace vpux
