@@ -36,7 +36,8 @@ namespace mv
         PPELayerType_TANH = 24,
         PPELayerType_SQRT = 25,
         PPELayerType_RSQRT = 26,
-        PPELayerType_FLEXARB = 27
+        PPELayerType_FLEXARB = 27,
+        PPELayerType_PRELU = 28
     };
 
     struct PPELayerTypeEnumHash

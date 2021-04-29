@@ -123,6 +123,7 @@ const std::unordered_map<mv::PPELayerTypeEnum, MVCNN::PPELayerType, mv::EnumClas
    {PPELayerType_RELU, MVCNN::PPELayerType::PPELayerType_LRELU},
    {PPELayerType_RELUX, MVCNN::PPELayerType::PPELayerType_LRELUX},
    {PPELayerType_LPRELU, MVCNN::PPELayerType::PPELayerType_LPRELU},
+   {PPELayerType_PRELU, MVCNN::PPELayerType::PPELayerType_LPRELU},
    {PPELayerType_MAXIMUM, MVCNN::PPELayerType::PPELayerType_MAXIMUM},
    {PPELayerType_MINIMUM, MVCNN::PPELayerType::PPELayerType_MINIMUM},
    {PPELayerType_CEIL, MVCNN::PPELayerType::PPELayerType_CEIL},
