@@ -31,36 +31,37 @@ namespace {
 
 class SetCompileParamsPass final : public VPUIP::SetCompileParamsBase<SetCompileParamsPass> {
 public:
-    SetCompileParamsPass(Optional<VPUIP::ArchKind> arch, Optional<VPUIP::CompilationMode> compilationMode, Logger log);
+    SetCompileParamsPass() = default;
+    SetCompileParamsPass(VPUIP::ArchKind arch, VPUIP::CompilationMode compilationMode, Logger log);
 
 private:
+    mlir::LogicalResult initializeOptions(StringRef options) final;
     void safeRunOnModule() final;
 
 private:
-    VPUIP::ArchKind _arch;
-    VPUIP::CompilationMode _compilationMode;
+    VPUIP::ArchKind _arch = VPUIP::ArchKind::VPU3700;
+    VPUIP::CompilationMode _compilationMode = VPUIP::CompilationMode::ReferenceSW;
 };
 
-SetCompileParamsPass::SetCompileParamsPass(Optional<VPUIP::ArchKind> arch,
-                                           Optional<VPUIP::CompilationMode> compilationMode, Logger log) {
+SetCompileParamsPass::SetCompileParamsPass(VPUIP::ArchKind arch, VPUIP::CompilationMode compilationMode, Logger log)
+        : _arch(arch), _compilationMode(compilationMode) {
     Base::initLogger(log, Base::getArgumentName());
+}
 
-    if (compilationMode.hasValue()) {
-        _compilationMode = compilationMode.getValue();
-    } else {
-        auto parsed = VPUIP::symbolizeEnum<VPUIP::CompilationMode>(compilationModeName.getValue());
-        VPUX_THROW_UNLESS(parsed.hasValue(), "Unknown compilation mode: '{0}'", compilationModeName.getValue());
-        _compilationMode = parsed.getValue();
+mlir::LogicalResult SetCompileParamsPass::initializeOptions(StringRef options) {
+    if (mlir::failed(Base::initializeOptions(options))) {
+        return mlir::failure();
     }
 
-    if (arch.hasValue()) {
-        _arch = arch.getValue();
-    } else {
-        auto parsed = VPUIP::symbolizeEnum<VPUIP::ArchKind>(archName.getValue());
-        VPUX_THROW_UNLESS(parsed.hasValue(), "Unknown VPU architecture : '{0}'", archName.getValue());
+    auto archStr = VPUIP::symbolizeEnum<VPUIP::ArchKind>(archOpt.getValue());
+    VPUX_THROW_UNLESS(archStr.hasValue(), "Unknown VPU architecture : '{0}'", archOpt.getValue());
+    _arch = archStr.getValue();
 
-        _arch = parsed.getValue();
-    }
+    auto compilationModeStr = VPUIP::symbolizeEnum<VPUIP::CompilationMode>(compilationModeOpt.getValue());
+    VPUX_THROW_UNLESS(compilationModeStr.hasValue(), "Unknown compilation mode: '{0}'", compilationModeOpt.getValue());
+    _compilationMode = compilationModeStr.getValue();
+
+    return mlir::success();
 }
 
 void SetCompileParamsPass::safeRunOnModule() {
@@ -68,8 +69,10 @@ void SetCompileParamsPass::safeRunOnModule() {
     auto module = getOperation();
 
     _log.trace("Set VPU architecture to {0}", _arch);
-
     VPUIP::setArch(module, _arch);
+
+    _log.trace("Set compilation mode to {0}", _compilationMode);
+    VPUIP::setCompilationMode(module, _compilationMode);
 
     _log.trace("Add VPUIP.Graph Operation");
 
@@ -86,8 +89,6 @@ void SetCompileParamsPass::safeRunOnModule() {
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
 
     builder.create<VPUIP::GraphOp>(mlir::UnknownLoc::get(&ctx), options, version);
-
-    VPUIP::setCompilationMode(module, _compilationMode);
 }
 
 }  // namespace
@@ -96,8 +97,11 @@ void SetCompileParamsPass::safeRunOnModule() {
 // createSetCompileParamsPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createSetCompileParamsPass(Optional<ArchKind> arch,
-                                                                    Optional<CompilationMode> compilationMode,
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createSetCompileParamsPass() {
+    return std::make_unique<SetCompileParamsPass>();
+}
+
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createSetCompileParamsPass(ArchKind arch, CompilationMode compilationMode,
                                                                     Logger log) {
     return std::make_unique<SetCompileParamsPass>(arch, compilationMode, log);
 }

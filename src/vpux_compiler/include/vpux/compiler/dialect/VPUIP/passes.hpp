@@ -36,8 +36,8 @@ namespace VPUIP {
 // Passes
 //
 
-std::unique_ptr<mlir::Pass> createSetCompileParamsPass(Optional<ArchKind> arch,
-                                                       Optional<CompilationMode> compilationMode,
+std::unique_ptr<mlir::Pass> createSetCompileParamsPass();
+std::unique_ptr<mlir::Pass> createSetCompileParamsPass(ArchKind arch, CompilationMode compilationMode,
                                                        Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createAddLinearSchedulingPass(Logger log = Logger::global());

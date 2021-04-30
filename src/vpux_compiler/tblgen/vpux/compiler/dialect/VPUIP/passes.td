@@ -31,16 +31,16 @@ def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
         initializes **IERT Dialect** run-time resources information.
     }];
 
-    let constructor = "vpux::VPUIP::createSetCompileParamsPass(vpux::None, vpux::None)";
+    let constructor = "vpux::VPUIP::createSetCompileParamsPass()";
 
     let options = [
         Option<
-            "archName", "vpu-arch",
+            "archOpt", "vpu-arch",
             "std::string", [{"VPU3700"}],
             "VPU architecture to compile for"
         >,
         Option<
-            "compilationModeName", "compilation-mode",
+            "compilationModeOpt", "compilation-mode",
             "std::string", [{"ReferenceSW"}],
             "Set compilation mode as reference (ReferenceSW) or hardware (ReferenceHW)"
         >
