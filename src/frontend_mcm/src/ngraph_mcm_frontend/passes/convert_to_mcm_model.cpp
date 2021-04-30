@@ -805,19 +805,42 @@ void convert(std::shared_ptr<ngraph::op::v0::FakeQuantize> fq, mv::OpModel& mcmM
 // TODO: Replace PowerIE with ngraph::op::v1::Power --
 //       to process the `power` parameter as the 2nd input tensor
 // S#-50107: Power layer expects `power` parameter as attribute
-void convert(std::shared_ptr<ngraph::op::PowerIE> power_ie,
-             mv::OpModel& mcmModel,
-             NodeOutputToMcmMap& mcmOutputsMap) {
-    const auto mcmInputs = getMcmInputs(power_ie, mcmOutputsMap);
-    IE_ASSERT(1u == mcmInputs.size());
-    const auto power = power_ie->power;
-    const auto scale = power_ie->scale;
-    const auto shift = power_ie->shift;
-    const auto& opName = power_ie->get_friendly_name();
-    const auto& opInput = mcmInputs.at(0);
-    const auto mcmOpOutput = mcmModel.power(opName, opInput, power, scale, shift);
-    mcmOpOutput->setQuantParams(initialQuantParams());
-    registerOutputs(power_ie, {mcmOpOutput}, mcmOutputsMap);
+void convert(std::shared_ptr<ngraph::op::PowerIE> power, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(power, mcmOutputsMap);
+    IE_ASSERT(1 == mcmInputs.size());
+    const auto mcmData = mcmInputs.at(0);
+    const auto& opName = power->get_friendly_name();
+    const float scale = power->scale;
+    const float shift = power->shift;
+
+    if (-1.0f != power->power) {
+        const auto shape = power->get_output_shape(0);
+        const size_t weights_size = (1 == shape.size()) ? shape.at(0) : getMemoryOrder(shape)[2];
+
+        std::vector<double> weights(weights_size, scale);
+        mv::Shape weightsShape = {weights.size()};
+        auto mcmWeights = mcmModel.constant(
+            "", weights, weightsShape, mv::DType("Float32"), mv::Order::getColMajorID(1));
+        mcmWeights->setQuantParams(initialQuantParams());
+
+        const auto mcmScaleOutput = mcmModel.scale(opName, mcmData, mcmWeights);
+        mcmScaleOutput->setQuantParams(initialQuantParams());
+        if (0.0f != shift) {
+            std::vector<double> biases (weights.size(), shift);
+            mv::Shape shiftShape { biases.size() };
+            auto shiftData = mcmModel.constant("", biases, shiftShape, mv::DType("Float32"), mv::Order::getColMajorID(1));
+            shiftData->setQuantParams(initialQuantParams());
+            auto biasOutput = mcmModel.bias(opName + "_bias", mcmScaleOutput, shiftData);
+            biasOutput->setQuantParams(initialQuantParams());
+            registerOutputs(power, {biasOutput}, mcmOutputsMap);
+        } else {
+            registerOutputs(power, {mcmScaleOutput}, mcmOutputsMap);
+        }
+    } else {
+        auto reciprocal_result = mcmModel.reciprocal(opName, mcmData);
+        reciprocal_result->setQuantParams(initialQuantParams());
+        registerOutputs(power, {reciprocal_result}, mcmOutputsMap);
+    }
 }
 
 void convert(std::shared_ptr<McmScale> scale, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
