@@ -96,6 +96,7 @@
 #include <ngraph/op/gelu.hpp>
 #include <ngraph/op/ctc_greedy_decoder_seq_len.hpp>
 #include <ngraph/op/log.hpp>
+#include <ngraph/op/reverse_sequence.hpp>
 
 #include <ngraph/op/prior_box.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -1376,6 +1377,22 @@ void convert(std::shared_ptr<ngraph::op::v4::Interpolate> interpolate, mv::OpMod
     registerOutputs(interpolate, {mcmInterpolateOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::ReverseSequence> reverse, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(reverse, mcmOutputsMap);
+    IE_ASSERT(mcmInputs.size() == 2);
+
+    const auto& opName = reverse->get_friendly_name();
+    const auto seqAxis = reverse->get_sequence_axis();
+    const auto batchAxis = reverse->get_batch_axis();
+
+    mcmInputs.at(1)->setDType(mv::DType("Float16"));
+
+    auto mvReverseSequenceOutput = mcmModel.reverseSequence(opName, mcmInputs.at(0), mcmInputs.at(1), seqAxis, batchAxis);
+    mvReverseSequenceOutput->setQuantParams(initialQuantParams());
+
+    registerOutputs(reverse, {mvReverseSequenceOutput}, mcmOutputsMap);
+}
+
 void convert(std::shared_ptr<ngraph::op::DeconvolutionIE> deconvIE, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(deconvIE, mcmOutputsMap);
     IE_ASSERT(2u == mcmInputs.size() || 3u == mcmInputs.size());
@@ -2122,7 +2139,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v6::CTCGreedyDecoderSeqLen),
     MAP_ENTRY(ngraph::op::v0::Convert),
     MAP_ENTRY(ngraph::op::v0::SquaredDifference),
-    MAP_ENTRY(ngraph::op::v0::DepthToSpace)
+    MAP_ENTRY(ngraph::op::v0::DepthToSpace),
+    MAP_ENTRY(ngraph::op::v0::ReverseSequence)
 };
 
 #undef MAP_ENTRY

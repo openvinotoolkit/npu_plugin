@@ -2826,6 +2826,31 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpolateTask(ComputationMode
     return toBuild.release();
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReverseSequenceTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = std::make_unique<MVCNN::UPALayerTaskT>();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ReversesequenceParams;
+    auto softLayerParamsValue = std::make_unique<MVCNN::ReversesequenceParamsT>();
+
+    auto input = opIt->getInputTensor(0);
+    auto length = opIt->getInputTensor(1);
+    auto output = opIt->getOutputTensor(0);
+
+    // Fill in required params
+    softLayerParamsValue->seq_axis = opIt->get<int64_t>("seq_axis");
+    softLayerParamsValue->batch_axis = opIt->get<int64_t>("batch_axis");
+
+    toBuild->softLayerParams.value = softLayerParamsValue.release();
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, length)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild.release();
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPANormTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
 
@@ -4195,6 +4220,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAPreluTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "DepthToSpace")
         toReturn[0]->task.value = buildUPADepthToSpaceTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "ReverseSequence")
+        toReturn[0]->task.value = buildUPAReverseSequenceTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 
