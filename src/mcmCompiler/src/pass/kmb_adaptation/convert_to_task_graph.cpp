@@ -392,6 +392,24 @@ mv::Data::TensorIterator convertInterpolateToUPATask(mv::OpModel& om, const std:
     return interpolate;
 }
 
+mv::Data::TensorIterator convertReverseSequenceToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool /*software*/,
+                                    const mv::QuantizationParams& quantParams,
+                                    const mv::DType& outputTensorType,
+                                    const mv::Order& outputTensorOrder)
+{
+    auto seqAxis = attrs.at("seq_axis").get<int64_t>();
+    auto batchAxis = attrs.at("batch_axis").get<int64_t>();
+
+    auto reverse = om.uPATaskReverseSequence(name, inputs, seqAxis, batchAxis);
+
+    reverse->setDType(outputTensorType);
+    reverse->setQuantParams(quantParams);
+    reverse->setOrder(outputTensorOrder);
+
+    return reverse;
+}
+
 mv::Data::TensorIterator convertReshapeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool /*software*/,
                                     const mv::QuantizationParams& quantParams,
@@ -1158,7 +1176,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
                                                        "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu",
                                                        "PermuteND", "Mish", "Floor", "Round", "Erf", "Gelu", "Pad", "Interpolate", "MVN", "Ceiling",
-                                                       "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu", "DepthToSpace"};
+                                                       "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu", "DepthToSpace", "ReverseSequence"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -1221,6 +1239,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     {"CTCGreedyDecoderSeqLen", convertCTCGreedyDecoderSeqLenToUPATask},
     {"Prelu", convertPreluToUPATask},
     {"DepthToSpace", convertDepthToSpaceToUPATask},
+    {"ReverseSequence", convertReverseSequenceToUPATask}
     };
 
     // Layer types that given current compiler state, it's
