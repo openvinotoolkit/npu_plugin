@@ -344,7 +344,10 @@ void propagateToParentOps(mv::OpModel& om, mv::DataModel& dm, const mv::Data::Op
 
     for (auto inputTensor : inputTensors) {
         inputTensor->setDType(dType);
-        inputTensor->setQuantParams(quantParams);
+        if (!(opIt->getOpType() == "Relu" && om.getSourceOp(inputTensor)->getOpType() == "Bias" && om.getSourceOp(inputTensor).childrenSize() > 1))
+            inputTensor->setQuantParams(quantParams);
+        else
+            continue;
 
         const auto parentOp = om.getSourceOp(inputTensor);
         if (parentOp->getOpType() == "Input" || parentOp->getOpType() == "ImplicitInput")

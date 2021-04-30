@@ -67,6 +67,10 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             // Skip if explicit
             if (is_explicit)
                 continue;            
+
+            // Avoid unnecessary DMAs
+            if(input->hasAttr("Location"))
+                outputLocation = input->get<mv::Tensor::MemoryLocation>("Location");
         }
 
         if(opType == "Resample")
@@ -112,6 +116,15 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         implicitOp->setQuantParams(quantParams);
         om.getSourceOp(implicitOp)->set<unsigned>("opId", opId);
         implicitOp->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
+        if (opIt->hasAttr("explicitStrides"))
+            om.getSourceOp(implicitOp)->set<bool>("explicitStrides", opIt->get<bool>("explicitStrides"));
+
+        if (opIt->hasAttr("forceU8") && opIt->get<bool>("forceU8"))
+        {
+            om.getSourceOp(implicitOp)->set<bool>("forceU8", true);
+            implicitOp->setDType(mv::DType("UInt8"));
+        }
+
         if(!splitStrategy.empty())
             om.getSourceOp(implicitOp)->set<std::string>("splitStrategy", splitStrategy);
 
