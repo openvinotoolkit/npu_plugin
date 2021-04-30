@@ -321,11 +321,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::vector<float> dilatedStrides(4, 0);
     std::vector<float> bufferStrides(4, 0);
 
+    auto explicitStrides = (om.getSourceOp(t) && om.getSourceOp(t).leftmostChild() &&
+                            om.getSourceOp(t).leftmostChild()->hasAttr("explicitStrides") && om.getSourceOp(t).leftmostChild()->get<bool>("explicitStrides"));
     auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
     std::vector<float> numericStrides;
     if ((t->hasAttr("leadingOffset") && *tensorAllocatorName == "VPU_CMX_NN" ) ||
             (t->hasAttr("dilatedSlice") && *tensorAllocatorName == "VPU_CMX_NN" ))
         numericStrides = tensorBufferIt->getData()->computeNumericStrides();
+    else if (explicitStrides)
+        numericStrides = t->computeNumericStrides();
     else
         numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
 
@@ -682,6 +686,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         tensorAllocatorName = tensorAllocators.find(allocatorName);
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
 
+    auto explicitStrides = (om.getSourceOp(t) && om.getSourceOp(t).leftmostChild() &&
+                            om.getSourceOp(t).leftmostChild()->hasAttr("explicitStrides") && om.getSourceOp(t).leftmostChild()->get<bool>("explicitStrides"));
+
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
     // Shape is always of the subtensor
@@ -709,6 +716,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
         if (attrIsEqual)
             numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
+        else if (explicitStrides)
+            numericStrides = t->computeNumericStrides();
         else
             numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
