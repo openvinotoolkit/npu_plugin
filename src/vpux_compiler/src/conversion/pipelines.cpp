@@ -41,6 +41,8 @@ void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(mlir::createCanonicalizerPass());
     pm.addPass(createConvertDeclarations2VPUIPPass(log));
     pm.addPass(createConvertViewOps2VPUIPPass(log));
+    pm.addPass(createConvertAsyncOps2VPUIPPass(log));
+    pm.addPass(mlir::createCanonicalizerPass());
 }
 
 //

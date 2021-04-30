@@ -154,4 +154,23 @@ def ConvertViewOps2VPUIP : PassBase<"convert-view-ops-to-VPUIP", "vpux::Function
     ];
 }
 
+//
+// ConvertAsyncOps2VPUIP
+//
+
+def ConvertAsyncOps2VPUIP : PassBase<"convert-async-ops-to-VPUIP", "vpux::FunctionPass"> {
+    let summary = "Convert Async Dialect Operations to VPUIP Dialect";
+
+    let description = [{
+        This pass inlines 'async.execute' body to parent Block and replaces '!async.token' based dependencies with
+        VPUIP virtual barriers.
+    }];
+
+    let constructor = "vpux::createConvertAsyncOps2VPUIPPass()";
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect"
+    ];
+}
+
 #endif
