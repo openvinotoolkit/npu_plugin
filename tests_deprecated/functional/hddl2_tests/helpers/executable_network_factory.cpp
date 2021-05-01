@@ -14,6 +14,8 @@
 // stated in the License.
 //
 
+#include <iostream>
+
 #include "executable_network_factory.h"
 
 #ifndef __WIN32__
