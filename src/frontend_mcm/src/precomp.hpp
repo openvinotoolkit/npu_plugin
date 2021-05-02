@@ -30,7 +30,6 @@
 #include <ie_input_info.hpp>
 #include <ie_itt.hpp>
 #include <ie_layouts.h>
-#include <ie_parallel.hpp>
 #include <ie_precision.hpp>
 #include <ie_utils.hpp>
 #include <openvino/itt.hpp>
