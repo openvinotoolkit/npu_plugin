@@ -461,6 +461,16 @@ bool mv::Op::supportsCMConv()
     if(!(getOpType() == "Conv" && getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16))
         return false;
 
+    auto tensorWidthMultiple = 16;
+    std::array<unsigned short, 4> padding = {0, 0, 0, 0};
+    if (hasAttr("padding"))
+        padding = get<std::array<unsigned short, 4>>("padding");
+
+    if (tensorWidthMultiple > 1 &&
+        padding[mv::PADDING_RIGHT] != 0 &&
+        getInputTensor(mv::IO_TENSOR_INPUT)->getShape()[mv::IO_WIDTH_DIMENSION] % tensorWidthMultiple)
+        return false;
+
     std::vector<mv::Data::OpListIterator> ops_in_input_path;
     std::vector<mv::Data::OpListIterator> parents;
     parents.push_back(om.getSourceOp(getInputTensor(0)));

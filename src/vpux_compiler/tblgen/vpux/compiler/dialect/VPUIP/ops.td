@@ -1667,13 +1667,13 @@ def VPUIP_NCEClusterTaskOp :
     );
 
     let arguments = (ins
-        MemRefOf<[F16, UI8, quant_QuantizedType]>:$input,
-        Optional<MemRefOf<[F16, UI8, quant_QuantizedType]>>:$filter,
+        MemRefOf<[UI8, F16, BF16, quant_QuantizedType]>:$input,
+        Optional<MemRefOf<[UI8, F16, BF16, quant_QuantizedType]>>:$filter,
         Optional<MemRefOf<[SI32]>>:$weight_table,
-        MemRefOf<[F16, UI8, quant_QuantizedType]>:$parent_input,
-        MemRefOf<[F16, UI8, quant_QuantizedType]>:$parent_output,
+        MemRefOf<[UI8, F16, BF16, quant_QuantizedType]>:$parent_input,
+        MemRefOf<[UI8, F16, F32, BF16, quant_QuantizedType]>:$parent_output,
 
-        MemRefOf<[F16, UI8, quant_QuantizedType]>:$output_buff,
+        MemRefOf<[UI8, F16, F32, BF16, quant_QuantizedType]>:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1685,7 +1685,7 @@ def VPUIP_NCEClusterTaskOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, UI8, quant_QuantizedType]>:$output
+        MemRefOf<[UI8, F16, F32, BF16, quant_QuantizedType]>:$output
     );
 
     let builders = [

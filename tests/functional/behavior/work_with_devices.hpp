@@ -38,38 +38,6 @@ InferenceEngine::CNNNetwork createDummyNetwork() {
     return cnnNet;
 }
 
-TEST_P(LoadNetwork, ThrowIfNoDeviceAndNoPlatform) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    {
-        auto cnnNet = createDummyNetwork();
-        const auto devices = ie->GetAvailableDevices();
-        const auto isVPUXDeviceAvailable = std::find_if(devices.cbegin(), devices.cend(), [](const std::string& device) {
-                return device.find("VPUX") != std::string::npos;
-            }) != devices.cend();
-        if (!isVPUXDeviceAvailable) {
-            ASSERT_THROW(ie->LoadNetwork(cnnNet, "VPUX", configuration), InferenceEngine::details::InferenceEngineException);
-        }
-    }
-}
-
-TEST_P(LoadNetwork, NoThrowIfNoDeviceAndButPlatformPassed) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    {
-        auto cnnNet = createDummyNetwork();
-        ASSERT_THROW(ie->LoadNetwork(cnnNet, "VPUX", configuration), InferenceEngine::details::InferenceEngineException);
-    }
-}
-
-TEST_P(LoadNetwork, NotThrowIfCompileNetworkUsingPlatform) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    {
-        auto cnnNet = createDummyNetwork();
-        auto netConfiguration = configuration;
-        netConfiguration[VPUX_CONFIG_KEY(PLATFORM)] = VPUX_CONFIG_VALUE(VPU3400);
-        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, "VPUX", netConfiguration));
-    }
-}
-
 TEST_P(LoadNetwork, samePlatformProduceTheSameBlob) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     {
@@ -113,4 +81,36 @@ TEST_P(LoadNetwork, differentPlatformsProduceTheDifferentBlob) {
         ASSERT_NE(blobStream1.str(), blobStream2.str());
     }
 }
+
+class LoadNetworkWithoutDevice : public LoadNetwork {
+protected:
+    void SetUp() override {
+        const auto devices = ie->GetAvailableDevices();
+        const auto isVPUXDeviceAvailable = std::find_if(devices.cbegin(), devices.cend(), [](const std::string& device) {
+                return device.find("VPUX") != std::string::npos;
+            }) != devices.cend();
+        if (isVPUXDeviceAvailable) {
+            SKIP() << "Skip the tests since device is available";
+        }
+    }
+};
+
+TEST_P(LoadNetworkWithoutDevice, ThrowIfNoDeviceAndNoPlatform) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    {
+        auto cnnNet = createDummyNetwork();
+        ASSERT_THROW(ie->LoadNetwork(cnnNet, "VPUX", configuration), InferenceEngine::details::InferenceEngineException);
+    }
+}
+
+TEST_P(LoadNetworkWithoutDevice, NoThrowIfNoDeviceAndButPlatformPassed) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    {
+        auto cnnNet = createDummyNetwork();
+        auto netConfiguration = configuration;
+        netConfiguration[VPUX_CONFIG_KEY(PLATFORM)] = VPUX_CONFIG_VALUE(VPU3400);
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, "VPUX", netConfiguration));
+    }
+}
+
 }
