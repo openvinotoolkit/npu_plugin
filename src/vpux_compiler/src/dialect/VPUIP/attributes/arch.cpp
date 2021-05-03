@@ -47,10 +47,18 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
 
     resources.addAvailableMemory(nullptr, 1_GB);
     addMem(VPUIP::PhysicalMemory::DDR, 30_MB, 0.6, 8);
-    addMem(VPUIP::PhysicalMemory::CMX_UPA, 4_MB, 0.85, 16);
-    addMem(VPUIP::PhysicalMemory::CMX_NN, 1_MB, 1.0, 32);
-    if (kind == VPUIP::ArchKind::VPU3900) {
-        addMem(VPUIP::PhysicalMemory::CSRAM, 24_MB, 0.85, 64);
+
+    switch (kind) {
+    case VPUIP::ArchKind::VPU3720:
+        // No cmx upa in vpu 2.7
+        addMem(VPUIP::PhysicalMemory::CMX_NN, 2_MB, 1.0, 32);
+        break;
+    default:
+        addMem(VPUIP::PhysicalMemory::CMX_UPA, 4_MB, 0.85, 16);
+        addMem(VPUIP::PhysicalMemory::CMX_NN, 1_MB, 1.0, 32);
+        if (kind == VPUIP::ArchKind::VPU3900) {
+            addMem(VPUIP::PhysicalMemory::CSRAM, 24_MB, 0.85, 64);
+        }
     }
 
     const auto getProcKind = [&](VPUIP::PhysicalProcessor kind) {
@@ -60,17 +68,29 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
     const auto getDmaKind = [&](VPUIP::DMAEngine kind) {
         return VPUIP::DMAEngineAttr::get(module.getContext(), kind);
     };
+
+    vpux::IERT::ExecutorResourceOp nceCluster;
     resources.addExecutor(getProcKind(PhysicalProcessor::Leon_RT), 1);
     resources.addExecutor(getProcKind(PhysicalProcessor::Leon_NN), 1);
-    resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_UPA), 16);
-    resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_NN), 20);
-    auto nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 4, true);
-    nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
     resources.addExecutor(getDmaKind(DMAEngine::DMA_UPA), 1);
-    if (kind == VPUIP::ArchKind::VPU3900) {
+
+    switch (kind) {
+    case VPUIP::ArchKind::VPU3720:
+        resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_NN), 1);
+        nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 1, true);
+        nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 1);
         resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
-    } else {
-        resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 1);
+        break;
+    default:
+        resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_UPA), 16);
+        resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_NN), 20);
+        nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 4, true);
+        nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
+        if (kind == VPUIP::ArchKind::VPU3900) {
+            resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
+        } else {
+            resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 1);
+        }
     }
 }
 
