@@ -365,8 +365,9 @@ TEST_F(SmokeNetworkTest, yolo_v4_subgraph_ddr_output_test) {
 //
 // Stereo360p
 //
-
+// [Track number: S#11812]
 TEST_F(KmbStereoNetworkTest, INT8_Stereo_360p) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/stereo/ngraph_stereo_360p.xml")
             .setUserInputPrecision("input", Precision::U8)
