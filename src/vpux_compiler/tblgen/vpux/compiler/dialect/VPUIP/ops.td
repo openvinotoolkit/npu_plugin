@@ -263,6 +263,37 @@ def VPUIP_ConfigureBarrierOp :
 }
 
 //
+// EmptyOp
+//
+
+def VPUIP_EmptyOp :
+        VPUIP_Op<"Empty",
+            [
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
+            ]
+        > {
+    let summary = "Empty management task";
+
+    let arguments = (ins
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers
+    );
+
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::Controller;
+        }
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
 // UPADMAOp
 //
 
