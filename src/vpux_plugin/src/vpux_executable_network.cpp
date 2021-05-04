@@ -105,7 +105,7 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
         THROW_IE_EXCEPTION << "Failed to read NGraph network";
     }
 
-    _executorPtr = createExecutor(_networkPtr, config, device);
+    _executorPtr = createExecutor(_networkPtr, _config, device);
     ConfigureStreamsExecutor(network.getName());
 }
 
@@ -116,7 +116,7 @@ ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::P
         : ExecutableNetwork(config, device) {
     const std::string networkName = "net" + std::to_string(loadBlobCounter);
     _networkPtr = _compiler->parse(networkModel, _config, networkName);
-    _executorPtr = createExecutor(_networkPtr, config, device);
+    _executorPtr = createExecutor(_networkPtr, _config, device);
     _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
     _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
     ConfigureStreamsExecutor(networkName);

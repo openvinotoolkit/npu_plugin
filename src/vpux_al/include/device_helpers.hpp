@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -15,20 +15,15 @@
 //
 
 #pragma once
-// IE
-#include <ie_remote_context.hpp>
-// Plugin
-#include <vpux_config.hpp>
-// Low-level
-#include <RemoteMemory.h>
 
-namespace vpux {
-namespace hddl2 {
+#include <cstdint>
+#include <map>
 
-HddlUnite::RemoteMemory::Ptr getRemoteMemoryFromParams(const InferenceEngine::ParamMap& params);
-void setUniteLogLevel(const vpu::LogLevel logLevel, const vpu::Logger::Ptr logger = nullptr);
-std::map<uint32_t, std::string> getSwDeviceIdNameMap();
-std::string getSwDeviceIdFromName(const std::string& devName);
+#include "vpux/vpux_plugin_config.hpp"
 
-}  // namespace hddl2
-}  // namespace vpux
+namespace utils {
+uint32_t getSliceIdBySwDeviceId(const uint32_t swDevId);
+InferenceEngine::VPUXConfigParams::VPUXPlatform getPlatformBySwDeviceId(const uint32_t swDevId);
+std::string getPlatformNameByDeviceName(const std::string& deviceName);
+std::string getDeviceNameBySwDeviceId(const uint32_t swDevId);
+}  // namespace utils
