@@ -37,6 +37,7 @@
 
 #include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
+#include <device_helpers.hpp>
 
 namespace vpux {
 namespace IE = InferenceEngine;
@@ -94,6 +95,11 @@ IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwo
                                                               const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(networkConfig.deviceId());
+    if (device != nullptr && _backends->getBackendName() == "HDDL2") {
+        const auto platform = _backends->getCompilationPlatform(networkConfig.platform());
+        networkConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
+    }
+
     return LoadExeNetwork(network, device, networkConfig);
 }
 
@@ -102,6 +108,11 @@ IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwo
                                                               const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(context);
+    if (device != nullptr && _backends->getBackendName() == "HDDL2") {
+        const auto platform = _backends->getCompilationPlatform(networkConfig.platform());
+        networkConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
+    }
+
     return LoadExeNetwork(network, device, networkConfig);
 }
 

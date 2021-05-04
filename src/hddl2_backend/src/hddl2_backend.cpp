@@ -51,6 +51,20 @@ const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const std::string& specif
     if (it != devices.end()) {
         return std::make_shared<ImageWorkloadDevice>(*it);
     } else {
+        // TODO Old naming format VPUX.swDeviceId is deprecated, need to be removed in the future
+        // Check old naming format (deprecated)
+        uint32_t swDeviceId;
+        try {
+            swDeviceId = static_cast<uint32_t>(std::stol(specificDeviceName));
+        } catch (...) {
+            return nullptr;
+        }
+        const auto devMap = getSwDeviceIdNameMap();
+        const auto devIt = devMap.find(swDeviceId);
+        if (devIt != devMap.end()) {
+            return std::make_shared<ImageWorkloadDevice>((*devIt).second);
+        }
+
         return nullptr;
     }
 }
@@ -67,15 +81,9 @@ const std::vector<std::string> HDDL2Backend::getDeviceNames() const {
         return std::vector<std::string>();
     }
 
-    std::vector<HddlUnite::Device> devices;
-    auto status = getAvailableDevices(devices);
-    if (status != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to get devices names!";
-    }
-
     std::vector<std::string> devicesNames;
-    for (const auto& device : devices) {
-        devicesNames.push_back(std::to_string(device.getSwDeviceId()));
+    for (const auto& dev : getSwDeviceIdNameMap()) {
+        devicesNames.push_back(dev.second);
     }
     std::sort(devicesNames.begin(), devicesNames.end());
     return devicesNames;

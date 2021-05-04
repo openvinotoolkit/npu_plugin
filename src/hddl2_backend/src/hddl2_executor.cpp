@@ -393,7 +393,8 @@ void HDDL2Executor::loadGraphToDevice() {
         // No graph in the map - need to load it to the device and add to the map
         if (findUniteGraph == _uniteGraphMap.end()) {
             if (_workloadContext == nullptr) {
-                _uniteGraphPtr = std::make_shared<HddlUniteGraph>(_network, _config.deviceId(), _config);
+                _uniteGraphPtr =
+                        std::make_shared<HddlUniteGraph>(_network, getSwDeviceIdFromName(_config.deviceId()), _config);
             } else {
                 _uniteGraphPtr = std::make_shared<HddlUniteGraph>(_network, _workloadContext, _config);
             }

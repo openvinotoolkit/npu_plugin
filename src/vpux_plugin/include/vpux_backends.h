@@ -36,7 +36,9 @@ public:
     std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
     std::shared_ptr<Device> getDevice(const InferenceEngine::RemoteContext::Ptr& context) const;
     std::vector<std::string> getAvailableDevicesNames() const;
+    std::string getBackendName() const;
     std::unordered_set<std::string> getSupportedOptions() const;
+    std::string getCompilationPlatform(const InferenceEngine::VPUXConfigParams::VPUXPlatform platform) const;
 
     void setup(const VPUXConfig& config);
 
