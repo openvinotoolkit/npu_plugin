@@ -114,3 +114,28 @@ TEST_F(BlobDescriptorAdapter_UnitTests, Correct_HeightWidth_RemoteROI) {
     EXPECT_EQ(hddlUniteBlobDesc.m_resHeight, height);
 }
 
+TEST_F(BlobDescriptorAdapter_UnitTests, Correct_ROIAfterMultipleUpdating) {
+    SKIP_IF_NO_DEVICE();
+    BlobDescType blobType = BlobDescType::VideoWorkload;
+    const IE::ROI roi(0, 2, 2, 200, 200);
+
+    IE::TensorDesc tensorDesc(IE::Precision::U8, {1,1,height,width}, IE::Layout::NCHW);
+    IE::DataPtr blobDesc = std::make_shared<IE::Data>("inputBlob", tensorDesc);
+    auto blob = createRemoteBlob(tensorDesc);
+    const auto roiBlob = blob->createROI(roi);
+
+    BlobDescriptorAdapter adapter(blobType, blobDesc, IE::BGR, isInput);
+    adapter.createUniteBlobDesc(isInput);
+    const size_t NUM_ITER = 10;
+    HddlUnite::Inference::BlobDesc hddlUniteBlobDesc;
+    for (size_t curIter = 0; curIter < NUM_ITER; ++curIter) {
+        hddlUniteBlobDesc = adapter.updateUniteBlobDesc(roiBlob);
+    }
+
+    EXPECT_EQ(hddlUniteBlobDesc.m_rect.size(), 1);
+    EXPECT_EQ(hddlUniteBlobDesc.m_rect[0].x, roi.posX);
+    EXPECT_EQ(hddlUniteBlobDesc.m_rect[0].y, roi.posY);
+    EXPECT_EQ(hddlUniteBlobDesc.m_rect[0].width, roi.sizeX);
+    EXPECT_EQ(hddlUniteBlobDesc.m_rect[0].height, roi.sizeY);
+}
+
