@@ -307,7 +307,11 @@ TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
             0.3f);
 }
 
+// TODO: [Track number: E#9578]
 TEST_F(SmokeNetworkTest, precommit_yolo_v4_tf_full) {
+    if (isByPass()) {
+        SKIP() << "Skip for by-pass mode due to exception - couldn't load the graph into the device";
+    }
 #ifdef _WIN32
     SKIP() << "SEH exception";
 #endif
@@ -337,7 +341,11 @@ TEST_F(KmbDetectionNetworkTest, precommit_peleenet) {
             0.1f, 0.3f);
 }
 
+// TODO: [Track number: E#9578]
 TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32) {
+    if (isByPass()) {
+        SKIP() << "Skip for by-pass mode due to bad accuracy";
+    }
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/vehicle-license-plate-detection-barrier-0106/vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8),
