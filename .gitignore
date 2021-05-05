@@ -317,3 +317,5 @@ build.*
 tags
 results/
 tmp.*
+*report.txt
+output/
