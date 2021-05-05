@@ -84,10 +84,11 @@ ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
-ExecutableNetwork::ExecutableNetwork(IE::CNNNetwork& network, const Device::Ptr& device, const VPUXConfig& config)
+ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device::Ptr& device, const VPUXConfig& config)
         : ExecutableNetwork(config, device) {
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
+    IE::CNNNetwork network = IE::details::cloneNetwork(orignet);
     if (const auto func = network.getFunction()) {
         IE::InputsDataMap inputsInfo = network.getInputsInfo();
         IE::OutputsDataMap outputsInfo = network.getOutputsInfo();
@@ -97,7 +98,7 @@ ExecutableNetwork::ExecutableNetwork(IE::CNNNetwork& network, const Device::Ptr&
             THROW_IE_EXCEPTION << ex.what();
         } catch (...) {
             _logger->error("Unexpected exception");
-            THROW_IE_EXCEPTION << "VPUX ExecutableNetwork unexpected exception";
+            THROW_IE_EXCEPTION << "VPUX ExecutableNetwork got unexpected exception from compiler";
         }
     } else {
         _logger->warning("Failed to read NGraph network");
