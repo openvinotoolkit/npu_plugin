@@ -173,6 +173,17 @@ const std::string KmbTestBase::PLATFORM = []() -> std::string {
     return std::string("VPU3700");
 }();
 
+// TODO Workaround to disable some inference tests for by-pass mode
+// If HDDL scheduler is running on Linux host, this is by-pass mode
+bool KmbTestBase::isByPass() const {
+#if defined(_WIN32) || defined(__arm__) || defined(__aarch64__)
+    return false;
+#else
+    int result = system("pidof hddl_scheduler_service");
+    return (!result);
+#endif
+}
+
 void KmbTestBase::SetUp() {
     ASSERT_NO_FATAL_FAILURE(CommonTestUtils::TestsCommon::SetUp());
 
