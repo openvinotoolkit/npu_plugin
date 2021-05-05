@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -94,9 +94,9 @@ endif()
 
 add_library(kmb_custom_ocl_kernels INTERFACE)
 
-function(add_kmb_compile_custom_ocl_kernels)
-    set(SRC_DIR "${CMAKE_SOURCE_DIR}/src/custom_ocl_kernels")
-    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/kmb_custom_ocl_kernels")
+function(add_kmb_compile_custom_ocl_kernels KMB_SRC_DIR)
+    set(SRC_DIR "${CMAKE_SOURCE_DIR}/src/${KMB_SRC_DIR}")
+    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/kmb_${KMB_SRC_DIR}")
 
     file(MAKE_DIRECTORY "${DST_DIR}")
 
@@ -139,15 +139,15 @@ function(add_kmb_compile_custom_ocl_kernels)
             VERBATIM)
     endforeach()
 
-    add_custom_target(kmb_compile_custom_ocl_kernels
+    add_custom_target("kmb_compile_${KMB_SRC_DIR}"
         DEPENDS ${all_output_files}
-        COMMENT "[KMB] Compile custom ocl kernels")
+        COMMENT "[KMB] Compile ${SRC_DIR}")
 
-    add_dependencies(kmb_custom_ocl_kernels kmb_compile_custom_ocl_kernels)
+    add_dependencies(kmb_custom_ocl_kernels "kmb_compile_${KMB_SRC_DIR}")
 endfunction()
 
 if(VPU_CLC_MA2X9X_COMMAND)
-    add_kmb_compile_custom_ocl_kernels()
+    add_kmb_compile_custom_ocl_kernels("custom_ocl_kernels")
 endif()
 
 if(VPU_CLC_MA2X9X_COMMAND OR CMAKE_CROSSCOMPILING)
@@ -234,6 +234,16 @@ if (NOT DEFINED MV_TOOLS_PATH)
 endif()
 
 add_kmb_compile_custom_cpp_kernels()
+
+#
+# `kmb_custom_extension` CMake target
+#
+
+add_library(kmb_custom_extension INTERFACE)
+
+if(VPU_CLC_MA2X9X_COMMAND)
+    add_kmb_compile_custom_ocl_kernels("custom_extension_library")
+endif()
 
 #
 # HDDLUnite

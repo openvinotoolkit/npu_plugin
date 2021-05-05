@@ -1,5 +1,5 @@
 //
-// Copyright 2019-2020 Intel Corporation.
+// Copyright 2019-2021 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -99,6 +99,21 @@ public:
         return *this;
     }
 
+    TestNetwork& useCustomLayers(const std::string& name) {
+        _compileConfig[VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS)] = name;
+        allowNCHWLayoutForMcmModelInput(true);
+        return *this;
+    }
+
+    TestNetwork& useExtension(const std::string& name) {
+        _exts.push_back(make_so_pointer<IExtension>(name));
+        return *this;
+    }
+
+    const std::vector<IExtensionPtr>& getExtensions() const {
+        return _exts;
+    }
+
     TestNetwork& disableMcmPasses(const std::vector<std::pair<std::string, std::string>>& banList) {
         const auto passFold = [](std::string list, const std::pair<std::string, std::string>& pass) {
             return std::move(list) + pass.first + "," + pass.second + ";";
@@ -158,4 +173,6 @@ private:
 
     static const std::string _customOclLayerXmlDefault;
     static const std::string _customCppLayerXmlDefault;
+
+    std::vector<IExtensionPtr> _exts;
 };

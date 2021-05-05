@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -575,10 +575,13 @@ void KmbLayerTestBase::runTest(
                 SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
             }
         }
-
         TestNetwork testNet;
         builder(testNet);
 
+        for (const auto & ext : testNet.getExtensions())
+        {
+            core->AddExtension(ext);
+        }
         auto exeNet = getExecNetwork(testNet);
 
         const auto inputs = getInputs(exeNet);

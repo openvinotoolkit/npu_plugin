@@ -1,5 +1,5 @@
 #
-# Copyright 2019-2020 Intel Corporation.
+# Copyright 2019-2021 Intel Corporation.
 #
 # This software and the related documents are Intel copyrighted materials,
 # and your use of them is governed by the express license under which they
@@ -19,6 +19,7 @@ add_subdirectory(vpux_al)
 add_subdirectory(vpual_backend)
 add_subdirectory(mcmCompiler)
 add_subdirectory(frontend_mcm)
+add_subdirectory(custom_extension_library)
 
 # TODO Should be only on AARCH64. Enabled for kmbPlugin Windows build
 #if(AARCH64)
