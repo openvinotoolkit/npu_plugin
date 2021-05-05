@@ -27,6 +27,7 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceBigInputChannels(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replacePermuteReshapePermutePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -41,6 +42,8 @@ static void markCMCompatibleConvsFcn(const mv::pass::PassEntry& pass, mv::Comput
 static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void replaceLargeGlobalPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void insertUpaDmaAfterSliceOnOutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void cloneConvForNonReluOutput(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -85,8 +88,10 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
                        mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     fullyConnectedAsConv2DFcn(pass, model);
+    cloneConvForNonReluOutput(pass, model);
     replaceStridedSliceWithStridedConvConcat(pass, model);
     replacePoolReshapePatternFcn(pass, model);
+    replacePermuteReshapePermutePatternFcn(pass, model);
     replaceExpReduceSumMultipyFcn(pass, model);
     replaceLargeGlobalPoolingFcn(pass, model);
     replaceLargeKernelsFcn(pass, model);
@@ -103,9 +108,9 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     reorgYoloAsConvConcatFcn(pass, model);
     insertPermuteBeforeDetFcn(pass, model);
     replacePermuteAsReshape(pass, model);
-    interpolateAsResample(pass, model);
     resampleWithStorageElementPointerTable(pass, model);
     replaceBroadcastEltwiseMultWithConv(pass, model);
+    insertUpaDmaAfterSliceOnOutputFcn(pass, model);
 }
 
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
@@ -1374,6 +1379,71 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& , mv::ComputationMo
     }
 }
 
+void replacePermuteReshapePermutePatternFcn(const mv::pass::PassEntry& , mv::ComputationModel& model) {
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    const std::vector<std::string> pattern = {"Permute", "Reshape", "Permute"};
+    auto ops = om.getOps(*pattern.begin());
+
+    for (auto& opIt : ops)
+    {
+        if (!opIt) {
+            continue;
+        }
+
+        if (matchPattern(pattern, opIt, model)) {
+            auto permute2Op = opIt;
+            auto reshapeOp = om.getSourceOp(permute2Op->getInputTensor(mv::IO_TENSOR_INPUT));
+            auto permuteOp = om.getSourceOp(reshapeOp->getInputTensor(mv::IO_TENSOR_INPUT));
+
+            auto permuteInputTensor = permuteOp->getInputTensor(mv::IO_TENSOR_INPUT);
+
+            auto permuteShape = permuteOp->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
+            auto reshapeShape = reshapeOp->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
+            auto outputShape = permute2Op->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
+
+            // Verify compatible orders/shapes pattern
+            if (!(permuteOp->get<mv::Order>("order") == mv::Order("CWHN") &&
+                  permute2Op->get<mv::Order>("order") == mv::Order("HCWN") &&
+                  (permuteShape[mv::IO_CHANNEL_DIMENSION] == reshapeShape[mv::IO_CHANNEL_DIMENSION] &&
+                   permuteShape[mv::IO_HEIGHT_DIMENSION] == reshapeShape[mv::IO_HEIGHT_DIMENSION]/2 &&
+                   permuteShape[mv::IO_WIDTH_DIMENSION]/2 == reshapeShape[mv::IO_WIDTH_DIMENSION]) ||
+                  (permuteShape[mv::IO_CHANNEL_DIMENSION] == reshapeShape[mv::IO_CHANNEL_DIMENSION]/2 &&
+                   permuteShape[mv::IO_HEIGHT_DIMENSION] == reshapeShape[mv::IO_HEIGHT_DIMENSION] &&
+                   permuteShape[mv::IO_WIDTH_DIMENSION]/2 == reshapeShape[mv::IO_WIDTH_DIMENSION])))
+                continue;
+
+            auto name = reshapeOp->getName();
+            auto dtype = permuteInputTensor->getDType();
+            auto quantParams = permuteInputTensor->getQuantParams();
+            auto opId = opIt->get<unsigned>("opId");
+
+            auto it = om.getSourceOp(opIt->getInputTensor(mv::IO_TENSOR_INPUT));
+
+            for (size_t i = 0; i < pattern.size() - 1; ++i) {
+                auto parentOpIt = om.getSourceOp( it->getInputTensor(mv::IO_TENSOR_INPUT));
+                auto sourceTensor = parentOpIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+                it = linkNewOperationsRemove(parentOpIt, sourceTensor, om, it);
+            }
+
+            auto reshape = om.reshape(name + "_replace", it->getOutputTensor(mv::IO_TENSOR_OUTPUT), outputShape);
+            reshape->setDType(dtype);
+            reshape->setQuantParams(quantParams);
+            reshapeOp = om.getSourceOp(reshape);
+            reshapeOp->set<bool>("isImplicit", true);
+            reshapeOp->set<bool>("explicitStrides", true);
+
+            if(opIt->hasAttr("opId")) {
+                unsigned currentOpId = opIt->get<unsigned>("opId");
+                reshape->set<unsigned>("opId", currentOpId);
+                reshapeOp->set<unsigned>("opId", currentOpId);
+            }
+
+            linkNewOperationsReplacement(it, reshape, om, opIt);
+        }
+    }
+}
+
 namespace {
     struct poolParams {
         std::array<unsigned short, 4> padding;
@@ -2192,23 +2262,18 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
             newShape[mv::IO_HEIGHT_DIMENSION] = newShape[mv::IO_HEIGHT_DIMENSION] * vslices;
         }
 
-        auto identityReshapeTensor = om.reshape(operation->getName() + "reshape_identity", opConcat, opConcat->getShape());
-        identityReshapeTensor->setDType(dType);
-        identityReshapeTensor->setQuantParams(outputQuantParams);
-        identityReshapeTensor->set<unsigned>("opId", initialOpId);
-        auto identityReshapeOp = om.getSourceOp(identityReshapeTensor);
-        identityReshapeOp->set<unsigned>("opId", initialOpId);
-
-        auto reshapeTensor = om.reshape(operation->getName() + "reshape_full", identityReshapeTensor, newShape);
-        reshapeTensor->setDType(dType);
-        reshapeTensor->setQuantParams(outputQuantParams);
-        reshapeTensor->set<unsigned>("opId", initialOpId);
-        auto reshapeOp = om.getSourceOp(reshapeTensor);
-        reshapeOp->set<unsigned>("opId", initialOpId);
-        reshapeOp->set<bool>("isImplicit", true);
+        auto passthrough = om.identity(operation->getName() + "_dma", opConcat);
+        passthrough->setShape(newShape);
+        passthrough->setDType(dType);
+        passthrough->setQuantParams(outputQuantParams);
+        passthrough->set<unsigned>("opId", initialOpId);
+        auto passthroughOp = om.getSourceOp(passthrough);
+        passthroughOp->set<unsigned>("opId", initialOpId);
+        passthroughOp->set<bool>("forceU8", true);
+        passthroughOp->set<mv::Shape>("forceShape", newShape);
 
         //recircuit the graph flow
-        operation = linkNewOperationsReplacementRemoveFlows(nextOpIt, reshapeTensor, om, operation);
+        operation = linkNewOperationsReplacementRemoveFlows(nextOpIt, passthrough, om, operation);
                 
         return operation;
     }
@@ -2876,6 +2941,109 @@ void resampleWithStorageElementPointerTable(const mv::pass::PassEntry&, mv::Comp
                 identityConvOp->set<bool>("activationSparsityCompilerSolvingForInterpNN", true);
             }
 
+        }
+    }
+}
+
+void insertUpaDmaAfterSliceOnOutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    auto ops = om.getOps("Slice");
+    for (auto& it : ops)
+    {
+        if (it.leftmostOutput().sink()->getOpType() == "Output")
+        {
+            auto opId = it->get<unsigned>("opId");
+            auto outputTensor = it->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+            auto passthrough = om.identity(it->getName() + "_passthrough", it->getOutputTensor(0));
+            passthrough->setDType(outputTensor->getDType());
+            passthrough->setQuantParams(outputTensor->getQuantParams());
+            auto passthroughOp = om.getSourceOp(passthrough);
+            passthrough->set<unsigned>("opId", opId);
+            passthroughOp->set<unsigned>("opId", opId);
+
+            auto childOpIt = it.leftmostOutput().sink();
+            auto inputFlow = childOpIt.leftmostInput();
+            om.undefineFlow(inputFlow);
+            childOpIt->setInputTensor(passthrough, 0, false);
+            om.defineFlow(passthrough, childOpIt, 0);
+        }
+    }
+}
+
+// For paths where both the relu'd & non-relu'd output of Conv is used, clone the non-relu Conv
+// This is more accurate than executing the Relu separately on a Conv's quantized output
+void cloneConvForNonReluOutput(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    const std::vector<std::string> pattern = {"Relu", "Bias", "Conv"};
+    auto ops = om.getOps(*pattern.begin());
+
+    for (auto& opIt : ops)
+    {
+        if (!opIt) {
+            continue;
+        }
+
+        if (matchPattern(pattern, opIt, model))
+        {
+            auto reluOp = opIt;
+            auto biasOp = om.getSourceOp(reluOp->getInputTensor(mv::IO_TENSOR_INPUT));
+            auto convOp = om.getSourceOp(biasOp->getInputTensor(mv::IO_TENSOR_INPUT));
+
+            if (biasOp.childrenSize() != 2 || convOp->get<unsigned>("group") != 1)
+                continue;
+
+            auto dtype = convOp->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType();
+            auto nonReluConv_quantParams = convOp->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getQuantParams();
+
+            // Remove flow between Bias & nonRelu child
+            auto sourceFlowStart = biasOp.leftmostOutput();
+            mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart);
+            for (sinkFlow; sinkFlow != om.flowEnd(); ++sinkFlow) {
+                if (sinkFlow.sink()->getOpType() != "Relu")
+                    break;
+            }
+            auto nonReluBiasChildOp = sinkFlow.sink();
+            auto slot = sinkFlow->get<std::size_t>("sinkInput");
+            om.undefineFlow(sinkFlow);
+
+            // Clone Conv/Bias, & connect to nonRelu child
+            auto inputTensor = convOp->getInputTensor(mv::IO_TENSOR_INPUT);
+            auto newConv = om.conv(
+                convOp->getName() + "_nonRelu",
+                inputTensor,
+                convOp->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET),
+                convOp->get<std::array<unsigned short, 2>>("stride"),
+                convOp->get<std::array<unsigned short, 4>>("padding"),
+                convOp->get<unsigned>("dilationFactor"),
+                convOp->get<unsigned>("group"));
+            auto biasConstOpClone = om.cloneOp(
+                om.getSourceOp(biasOp->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)));
+            auto newBias = om.bias(
+                biasOp->getName() + "_nonRelu",
+                newConv,
+                biasConstOpClone->getOutputTensor(mv::IO_TENSOR_INPUT));
+
+            nonReluBiasChildOp->setInputTensor(newBias, slot, false);
+            om.defineFlow(newBias, nonReluBiasChildOp, slot);
+
+            newConv->setDType(dtype);
+            newConv->setQuantParams(nonReluConv_quantParams);
+            auto newConvOp = om.getSourceOp(newConv);
+            newConvOp->set<unsigned>("opId", convOp->get<unsigned>("opId"));
+
+            newBias->setDType(dtype);
+            newBias->setQuantParams(nonReluConv_quantParams);
+            auto newBiasOp = om.getSourceOp(newBias);
+            newBiasOp->set<unsigned>("opId", biasOp->get<unsigned>("opId"));
         }
     }
 }

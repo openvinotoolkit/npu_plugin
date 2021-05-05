@@ -260,11 +260,6 @@ bool isSliceToBeMovedToDdr(mv::Data::OpListIterator sliceOp, mv::OpModel& om)
     return true;
 }
 
-bool isSliceToOutput(mv::Data::OpListIterator& sliceOp, mv::OpModel& om)
-{
-    return (sliceOp.leftmostOutput().sink()->getOpType() == "Output");
-}
-
 void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -282,10 +277,6 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
             {
                 opIt->set<bool>("force_slice_in_DDR", true);
                 opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
-            } else if (isSliceToOutput(opIt, om))
-            {
-                opIt->getInputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
-                opIt->set<bool>("propagateLocation", false);
             } else {
                 auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
                 opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
@@ -403,10 +394,6 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
         // Then you should do a DMA directly from NNCMX to Programamble Output
         else if (opType == "Output" && om.getSourceOp(opIt->getInputTensor(0))->isImplicit())
         {
-            if (om.getSourceOp(opIt->getInputTensor(0))->hasAttr("propagateLocation") &&
-                om.getSourceOp(opIt->getInputTensor(0))->get<bool>("propagateLocation") == false)
-                continue;
-
             auto outputNodeParentImplicitOps = findOutputNodeParentImplicitOps(om, opIt);
             if(outputNodeParentImplicitOps.size())
             {
