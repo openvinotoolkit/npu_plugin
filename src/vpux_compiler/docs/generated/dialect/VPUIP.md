@@ -505,6 +505,27 @@ operation ::= `VPUIP.EluUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.Empty` (vpux::VPUIP::EmptyOp)
+
+Empty management task
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.Empty` attr-dict
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
 ### `VPUIP.FakeQuantizeUPA` (vpux::VPUIP::FakeQuantizeUPAOp)
 
 FakeQuantize UPA SHAVE kernel
@@ -738,12 +759,12 @@ mutually exclusive.
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
-`filter` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
+`input` | memref of 8-bit unsigned integer or 16-bit float or bfloat16 type or QuantizedType values
+`filter` | memref of 8-bit unsigned integer or 16-bit float or bfloat16 type or QuantizedType values
 `weight_table` | memref of 32-bit signed integer values
-`parent_input` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
-`parent_output` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
-`output_buff` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
+`parent_input` | memref of 8-bit unsigned integer or 16-bit float or bfloat16 type or QuantizedType values
+`parent_output` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
+`output_buff` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 
@@ -751,7 +772,7 @@ mutually exclusive.
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 8-bit unsigned integer or QuantizedType values
+`output` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 
