@@ -50,6 +50,9 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
                 // Conversion operations which can handle quantization on their own
                 continue;
             }
+
+            if (task->hasAttr("forceU8") && task->get<bool>("forceU8") && dtypeNeededInInput == mv::DType("Float16"))
+                continue;
         }
 
         auto inputFlow = task.leftmostInput();

@@ -321,11 +321,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::vector<float> dilatedStrides(4, 0);
     std::vector<float> bufferStrides(4, 0);
 
+    auto explicitStrides = (om.getSourceOp(t) && om.getSourceOp(t).leftmostChild() &&
+                            om.getSourceOp(t).leftmostChild()->hasAttr("explicitStrides") && om.getSourceOp(t).leftmostChild()->get<bool>("explicitStrides"));
     auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
     std::vector<float> numericStrides;
     if ((t->hasAttr("leadingOffset") && *tensorAllocatorName == "VPU_CMX_NN" ) ||
             (t->hasAttr("dilatedSlice") && *tensorAllocatorName == "VPU_CMX_NN" ))
         numericStrides = tensorBufferIt->getData()->computeNumericStrides();
+    else if (explicitStrides)
+        numericStrides = t->computeNumericStrides();
     else
         numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
 
@@ -682,6 +686,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         tensorAllocatorName = tensorAllocators.find(allocatorName);
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
 
+    auto explicitStrides = (om.getSourceOp(t) && om.getSourceOp(t).leftmostChild() &&
+                            om.getSourceOp(t).leftmostChild()->hasAttr("explicitStrides") && om.getSourceOp(t).leftmostChild()->get<bool>("explicitStrides"));
+
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
     // Shape is always of the subtensor
@@ -709,6 +716,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
         if (attrIsEqual)
             numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
+        else if (explicitStrides)
+            numericStrides = t->computeNumericStrides();
         else
             numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
@@ -2148,16 +2157,16 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
         toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
         std::vector<unsigned int> locale_index;
-        
+
         // if SOK and spill to DDR - no need to broadcast to all clusters.
         // Just broadcast to cluster 0 where the DMA out will occur from
         DataModel dm(cm);
         mv::Data::OpListIterator nextOp = dm.switchContext(opIt).leftmostOutput().sink();
         while(nextOp->isImplicit())
             nextOp = nextOp.leftmostOutput().sink();
-        
-        if ((opIt->get<std::string>("splitStrategy")=="SplitOverK") && 
-            (nextOp->getOpType() == "DMATask") && 
+
+        if ((opIt->get<std::string>("splitStrategy")=="SplitOverK") &&
+            (nextOp->getOpType() == "DMATask") &&
             (nextOp->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2DDR) )
         {   // just broadcast to cluster 0
             locale_index.push_back(0);
@@ -2813,6 +2822,31 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpolateTask(ComputationMode
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
     toBuild->softLayerParams.value = softLayerParamsValue.release();
+
+    return toBuild.release();
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReverseSequenceTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = std::make_unique<MVCNN::UPALayerTaskT>();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ReversesequenceParams;
+    auto softLayerParamsValue = std::make_unique<MVCNN::ReversesequenceParamsT>();
+
+    auto input = opIt->getInputTensor(0);
+    auto length = opIt->getInputTensor(1);
+    auto output = opIt->getOutputTensor(0);
+
+    // Fill in required params
+    softLayerParamsValue->seq_axis = opIt->get<int64_t>("seq_axis");
+    softLayerParamsValue->batch_axis = opIt->get<int64_t>("batch_axis");
+
+    toBuild->softLayerParams.value = softLayerParamsValue.release();
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, length)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
     return toBuild.release();
 }
@@ -3990,8 +4024,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAMVNTask(ComputationModel& cm, E
 
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASpaceToDepthTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
-    auto input = opIt->getInputTensor(0);
-    auto output = opIt->getOutputTensor(0);
+    auto input = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
+    auto output = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
     auto toBuild = new MVCNN::UPALayerTaskT();
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_SpaceToDepthParams;
     auto softLayerParamsValue = new MVCNN::SpaceToDepthParamsT();
@@ -4040,6 +4074,33 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACTCGreedyDecoderSeqLenTask(Comp
     toBuild->softLayerParams.value = params;
 
     return toBuild;
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADepthToSpaceTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
+    auto output = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+    auto toBuild = std::unique_ptr<MVCNN::UPALayerTaskT>(new MVCNN::UPALayerTaskT());
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_DepthToSpaceParams;
+    auto softLayerParamsValue = std::unique_ptr<MVCNN::DepthToSpaceParamsT>(new MVCNN::DepthToSpaceParamsT());
+    auto mode = opIt->get<std::string>("mode");
+    if (mode.compare(std::string("blocks_first")) == 0) {
+        softLayerParamsValue->mode = MVCNN::DepthToSpaceMode::DepthToSpaceMode_BLOCKS_FIRST;
+    } else if (mode.compare(std::string("depth_first")) == 0) {
+        softLayerParamsValue->mode = MVCNN::DepthToSpaceMode::DepthToSpaceMode_DEPTH_FIRST;
+    } else {
+        throw ArgumentError("buildUPAPadTask", "file:content", "invalid", "Invalid mode for DepthToSpace");
+    }
+
+    softLayerParamsValue->blockSize = opIt->get<uint32_t>("block_size");
+
+    toBuild->softLayerParams.value = softLayerParamsValue.release();
+
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+
+    return toBuild.release();
 }
 
 // For now 1:1 mapping
@@ -4157,6 +4218,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPACTCGreedyDecoderSeqLenTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Prelu")
         toReturn[0]->task.value = buildUPAPreluTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "DepthToSpace")
+        toReturn[0]->task.value = buildUPADepthToSpaceTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "ReverseSequence")
+        toReturn[0]->task.value = buildUPAReverseSequenceTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 
