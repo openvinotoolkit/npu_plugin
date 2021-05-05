@@ -802,6 +802,9 @@ void convert(std::shared_ptr<ngraph::op::v0::FakeQuantize> fq, mv::OpModel& mcmM
     registerOutputs(fq, {mcmFQOutput}, mcmOutputsMap);
 }
 
+// TODO: Replace PowerIE with ngraph::op::v1::Power --
+//       to process the `power` parameter as the 2nd input tensor
+// S#-50107: Power layer expects `power` parameter as attribute
 void convert(std::shared_ptr<ngraph::op::PowerIE> power, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(power, mcmOutputsMap);
     IE_ASSERT(1 == mcmInputs.size());
@@ -810,7 +813,7 @@ void convert(std::shared_ptr<ngraph::op::PowerIE> power, mv::OpModel& mcmModel, 
     const float scale = power->scale;
     const float shift = power->shift;
 
-    if (1.0f == power->power) {
+    if (-1.0f != power->power) {
         const auto shape = power->get_output_shape(0);
         const size_t weights_size = (1 == shape.size()) ? shape.at(0) : getMemoryOrder(shape)[2];
 
@@ -833,12 +836,11 @@ void convert(std::shared_ptr<ngraph::op::PowerIE> power, mv::OpModel& mcmModel, 
         } else {
             registerOutputs(power, {mcmScaleOutput}, mcmOutputsMap);
         }
-    } else if (-1.0f == power->power) {
-            auto reciprocal_result = mcmModel.reciprocal(opName, mcmData);
-            reciprocal_result->setQuantParams(initialQuantParams());
-            registerOutputs(power, {reciprocal_result}, mcmOutputsMap);
-    } else
-        THROW_IE_EXCEPTION << "Operation " << power->get_type_name() << " " + opName + " has unsupported power " << power->power;
+    } else {
+        auto reciprocal_result = mcmModel.reciprocal(opName, mcmData);
+        reciprocal_result->setQuantParams(initialQuantParams());
+        registerOutputs(power, {reciprocal_result}, mcmOutputsMap);
+    }
 }
 
 void convert(std::shared_ptr<McmScale> scale, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {

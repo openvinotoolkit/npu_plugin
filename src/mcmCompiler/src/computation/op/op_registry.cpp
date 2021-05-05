@@ -1200,3 +1200,4 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/ctc_greedy_decoder_seq_len.cpp"
 #include    "src/computation/op/def/depthtospace.cpp"
 #include    "src/computation/op/def/reverse_sequence.cpp"
+#include    "src/computation/op/def/power.cpp"
