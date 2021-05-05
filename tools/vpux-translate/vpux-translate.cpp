@@ -14,6 +14,8 @@
 // stated in the License.
 //
 
+#include "hwtest.hpp"
+
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
@@ -97,6 +99,7 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
 int main(int argc, char* argv[]) {
     try {
         mlir::TranslateToMLIRRegistration("import-IE", importIE);
+        mlir::TranslateToMLIRRegistration("import-HWTEST", importHWTEST);
         mlir::TranslateFromMLIRRegistration("export-VPUIP", exportVPUIP, registerDialects);
 
         const auto res = mlir::mlirTranslateMain(argc, argv, "VPUX Translation Testing Tool");

@@ -62,8 +62,8 @@ std::string KmbNetworkNameTest::runTest(TestNetwork& netDesc, const std::string&
 
     return netName;
 }
-
-TEST_F(KmbNetworkNameTest, fetchNetworkName) {
+// [Track number: E#9687]
+TEST_F(KmbNetworkNameTest, DISABLED_fetchNetworkName) {
     const std::string expectedNetName = "singleLayerNet";
     TestNetwork testNet = buildPowerLayer(expectedNetName);
     std::string netName = runTest(testNet, expectedNetName);
@@ -71,7 +71,8 @@ TEST_F(KmbNetworkNameTest, fetchNetworkName) {
     ASSERT_EQ(netName, expectedNetName);
 }
 
-TEST_F(KmbNetworkNameTest, checkUniqueId) {
+// [Track number: E#9687]
+TEST_F(KmbNetworkNameTest, DISABLED_checkUniqueId) {
     const std::string firstExpectedNetName = "firstNet";
     const std::string secondExpectedNetName = "secondNet";
     TestNetwork firstNetDesc = buildPowerLayer(firstExpectedNetName);

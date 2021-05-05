@@ -25,12 +25,12 @@ module @test {
 // CHECK-SAME:      executors :  {
 // CHECK:               IERT.ExecutorResource 1 of "Leon_RT"
 // CHECK:               IERT.ExecutorResource 1 of "Leon_NN"
+// CHECK:               IERT.ExecutorResource 1 of "DMA_UPA"
 // CHECK:               IERT.ExecutorResource 16 of "SHAVE_UPA"
 // CHECK:               IERT.ExecutorResource 20 of "SHAVE_NN"
 // CHECK:               IERT.ExecutorResource 4 of "NCE_Cluster" {
 // CHECK:                   IERT.ExecutorResource 5 of "NCE_PerClusterDPU"
 // CHECK:               }
-// CHECK:               IERT.ExecutorResource 1 of "DMA_UPA"
 // CHECK:               IERT.ExecutorResource 1 of "DMA_NN"
 // CHECK:           }
 

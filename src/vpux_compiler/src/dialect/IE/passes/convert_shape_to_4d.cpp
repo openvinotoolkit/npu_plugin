@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -30,7 +31,7 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
+#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include <mlir/Transforms/Passes.h>
 
 using namespace vpux;
@@ -50,111 +51,341 @@ public:
     }
 
 public:
-    class GenericOpConverter;
+    static SmallVector<int64_t> getNewShape(mlir::ShapedType tensor);
+    static IE::ReshapeOp addReshapeOperation(mlir::Operation* origOp, mlir::Value input, mlir::ArrayRef<int64_t> shape,
+                                             mlir::PatternRewriter& rewriter);
+
+public:
+    class ClampOpConverter;
+    class EluOpConverter;
+    class ReluOpConverter;
+    class SigmoidOpConverter;
+    class HSwishOpConverter;
+    class TanhOpConverter;
+    class FakeQuantizeOpConverter;
 
 private:
-    void safeRunOnModule() final;
+    void safeRunOnFunc() final;
 };
 
 //
-// GenericOpConverter
+// ClampOpConverter
 //
 
-class ConvertShapeTo4DPass::GenericOpConverter final : public mlir::ConversionPattern {
+class ConvertShapeTo4DPass::ClampOpConverter final : public mlir::OpRewritePattern<IE::ClampOp> {
 public:
-    GenericOpConverter(mlir::TypeConverter& shapeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::ConversionPattern(shapeConverter, MatchAnyOpTypeTag{}, benefitHigh, ctx), _log(log) {
+    ClampOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ClampOp>(ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> operands,
-                                        mlir::ConversionPatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::ClampOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertShapeTo4DPass::GenericOpConverter::matchAndRewrite(
-        mlir::Operation* origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Process Operation '{0}'", origOp->getLoc());
+mlir::LogicalResult ConvertShapeTo4DPass::ClampOpConverter::matchAndRewrite(IE::ClampOp origOp,
+                                                                            mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", origOp.getLoc());
 
-    auto* converter = getTypeConverter();
-    VPUX_THROW_UNLESS(converter != nullptr, "TypeConverter was not set");
-
-    const auto origOperands = origOp->getOperands();
-    VPUX_THROW_UNLESS(origOperands.size() == operands.size(), "Wrong operands size : {0}", operands.size());
-
-    mlir::BlockAndValueMapping mapper;
-    mapper.map(origOperands, operands);
-
-    // TODO: implement this within op as an interface?
-    if (auto softMaxOp = mlir::dyn_cast<IE::SoftMaxOp>(*origOp)) {
-        auto newAxis = softMaxOp.axisInd() +
-                       (TARGET_TENSOR_DIM -
-                        origOp->getOperand(0).getType().dyn_cast<mlir::RankedTensorType>().getShape().size());
-        softMaxOp.axisIndAttr(rewriter.getI32IntegerAttr(checked_cast<int32_t>(newAxis)));
+    auto opType = origOp.getType();
+    auto newShape = getNewShape(opType);
+    if (newShape.empty()) {
+        return mlir::failure();
     }
 
-    auto* newOp = rewriter.clone(*origOp, mapper);
-    for (auto result : newOp->getResults()) {
-        result.setType(converter->convertType(result.getType()));
-    }
-    rewriter.replaceOp(origOp, newOp->getResults());
+    auto reshapeBefore = addReshapeOperation(origOp, origOp.input(), makeArrayRef(newShape), rewriter);
+
+    auto newClampOp = rewriter.create<IE::ClampOp>(origOp->getLoc(), reshapeBefore, origOp.minAttr(), origOp.maxAttr());
+
+    auto reshapeAfter = addReshapeOperation(origOp, newClampOp.output(), opType.getShape(), rewriter);
+    rewriter.replaceOp(origOp, reshapeAfter.output());
 
     return mlir::success();
 }
 
 //
-// safeRunOnModule
+// EluOpConverter
 //
 
-void ConvertShapeTo4DPass::safeRunOnModule() {
+class ConvertShapeTo4DPass::EluOpConverter final : public mlir::OpRewritePattern<IE::EluOp> {
+public:
+    EluOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::EluOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::EluOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertShapeTo4DPass::EluOpConverter::matchAndRewrite(IE::EluOp origOp,
+                                                                          mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", origOp.getLoc());
+
+    auto opType = origOp.getType();
+    auto newShape = getNewShape(opType);
+    if (newShape.empty()) {
+        return mlir::failure();
+    }
+
+    auto reshapeBefore = addReshapeOperation(origOp, origOp.input(), makeArrayRef(newShape), rewriter);
+
+    auto newEluOp = rewriter.create<IE::EluOp>(origOp->getLoc(), reshapeBefore, origOp.xAttr());
+
+    auto reshapeAfter = addReshapeOperation(origOp, newEluOp.output(), opType.getShape(), rewriter);
+    rewriter.replaceOp(origOp, reshapeAfter.output());
+
+    return mlir::success();
+}
+
+//
+// ReluOpConverter
+//
+
+class ConvertShapeTo4DPass::ReluOpConverter final : public mlir::OpRewritePattern<IE::ReLUOp> {
+public:
+    ReluOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ReLUOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ReLUOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertShapeTo4DPass::ReluOpConverter::matchAndRewrite(IE::ReLUOp origOp,
+                                                                           mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", origOp.getLoc());
+
+    auto opType = origOp.getType();
+    auto newShape = getNewShape(opType);
+    if (newShape.empty()) {
+        return mlir::failure();
+    }
+
+    auto reshapeBefore = addReshapeOperation(origOp, origOp.input(), makeArrayRef(newShape), rewriter);
+
+    auto newReluOp = rewriter.create<IE::ReLUOp>(origOp->getLoc(), reshapeBefore);
+
+    auto reshapeAfter = addReshapeOperation(origOp, newReluOp.output(), opType.getShape(), rewriter);
+    rewriter.replaceOp(origOp, reshapeAfter.output());
+
+    return mlir::success();
+}
+
+//
+// SigmoidOpConverter
+//
+
+class ConvertShapeTo4DPass::SigmoidOpConverter final : public mlir::OpRewritePattern<IE::SigmoidOp> {
+public:
+    SigmoidOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::SigmoidOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::SigmoidOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertShapeTo4DPass::SigmoidOpConverter::matchAndRewrite(IE::SigmoidOp origOp,
+                                                                              mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", origOp.getLoc());
+
+    auto opType = origOp.getType();
+    auto newShape = getNewShape(opType);
+    if (newShape.empty()) {
+        return mlir::failure();
+    }
+
+    auto reshapeBefore = addReshapeOperation(origOp, origOp.input(), makeArrayRef(newShape), rewriter);
+
+    auto newSigmoidOp = rewriter.create<IE::SigmoidOp>(origOp->getLoc(), reshapeBefore);
+
+    auto reshapeAfter = addReshapeOperation(origOp, newSigmoidOp.output(), opType.getShape(), rewriter);
+    rewriter.replaceOp(origOp, reshapeAfter.output());
+
+    return mlir::success();
+}
+
+//
+// HSwishOpConverter
+//
+
+class ConvertShapeTo4DPass::HSwishOpConverter final : public mlir::OpRewritePattern<IE::HSwishOp> {
+public:
+    HSwishOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::HSwishOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::HSwishOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertShapeTo4DPass::HSwishOpConverter::matchAndRewrite(IE::HSwishOp origOp,
+                                                                             mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", origOp.getLoc());
+
+    auto opType = origOp.getType();
+    auto newShape = getNewShape(opType);
+    if (newShape.empty()) {
+        return mlir::failure();
+    }
+
+    auto reshapeBefore = addReshapeOperation(origOp, origOp.input(), makeArrayRef(newShape), rewriter);
+
+    auto newHSwishOp = rewriter.create<IE::HSwishOp>(origOp->getLoc(), reshapeBefore);
+
+    auto reshapeAfter = addReshapeOperation(origOp, newHSwishOp.output(), opType.getShape(), rewriter);
+    rewriter.replaceOp(origOp, reshapeAfter.output());
+
+    return mlir::success();
+}
+
+//
+// TanhOpConverter
+//
+
+class ConvertShapeTo4DPass::TanhOpConverter final : public mlir::OpRewritePattern<IE::TanhOp> {
+public:
+    TanhOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::TanhOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::TanhOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertShapeTo4DPass::TanhOpConverter::matchAndRewrite(IE::TanhOp origOp,
+                                                                           mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", origOp.getLoc());
+
+    auto opType = origOp.getType();
+    auto newShape = getNewShape(opType);
+    if (newShape.empty()) {
+        return mlir::failure();
+    }
+
+    auto reshapeBefore = addReshapeOperation(origOp, origOp.input(), makeArrayRef(newShape), rewriter);
+
+    auto newTanhOp = rewriter.create<IE::TanhOp>(origOp->getLoc(), reshapeBefore);
+
+    auto reshapeAfter = addReshapeOperation(origOp, newTanhOp.output(), opType.getShape(), rewriter);
+    rewriter.replaceOp(origOp, reshapeAfter.output());
+
+    return mlir::success();
+}
+
+//
+// FakeQuantizeOpConverter
+//
+
+class ConvertShapeTo4DPass::FakeQuantizeOpConverter final : public mlir::OpRewritePattern<IE::FakeQuantizeOp> {
+public:
+    FakeQuantizeOpConverter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::FakeQuantizeOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertShapeTo4DPass::FakeQuantizeOpConverter::matchAndRewrite(
+        IE::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", origOp.getLoc());
+
+    auto opType = origOp.getType();
+    auto newShape = getNewShape(opType);
+    auto newInputLowShape = getNewShape(origOp.input_low().getType().dyn_cast<mlir::ShapedType>());
+    auto newInputHighShape = getNewShape(origOp.input_high().getType().dyn_cast<mlir::ShapedType>());
+    auto newOutputLowShape = getNewShape(origOp.output_low().getType().dyn_cast<mlir::ShapedType>());
+    auto newOutputHighShape = getNewShape(origOp.output_high().getType().dyn_cast<mlir::ShapedType>());
+    if (newShape.empty() || newInputLowShape.empty() || newInputHighShape.empty() || newOutputLowShape.empty() ||
+        newOutputHighShape.empty()) {
+        return mlir::failure();
+    }
+
+    auto reshapeBefore = addReshapeOperation(origOp, origOp.input(), makeArrayRef(newShape), rewriter);
+    auto reshapedInputLow = addReshapeOperation(origOp, origOp.input_low(), makeArrayRef(newInputLowShape), rewriter);
+    auto reshapedInputHigh =
+            addReshapeOperation(origOp, origOp.input_high(), makeArrayRef(newInputHighShape), rewriter);
+    auto reshapedOutputLow =
+            addReshapeOperation(origOp, origOp.output_low(), makeArrayRef(newOutputLowShape), rewriter);
+    auto reshapedOutputHigh =
+            addReshapeOperation(origOp, origOp.output_high(), makeArrayRef(newOutputHighShape), rewriter);
+
+    auto newFakeQuantizeOp = rewriter.create<IE::FakeQuantizeOp>(
+            origOp->getLoc(), reshapeBefore, reshapedInputLow, reshapedInputHigh, reshapedOutputLow, reshapedOutputHigh,
+            origOp.levelsAttr(), origOp.auto_broadcastAttr());
+
+    auto reshapeAfter = addReshapeOperation(origOp, newFakeQuantizeOp.output(), opType.getShape(), rewriter);
+    rewriter.replaceOp(origOp, reshapeAfter.output());
+
+    return mlir::success();
+}
+
+//
+// getNewShape
+//
+
+SmallVector<int64_t> ConvertShapeTo4DPass::getNewShape(mlir::ShapedType tensor) {
+    if (tensor.getShape().size() == TARGET_TENSOR_DIM) {
+        return SmallVector<int64_t>();
+    } else if (tensor.getShape().size() > TARGET_TENSOR_DIM) {
+        VPUX_THROW("Tensors with rank > 4 is not supported");
+    } else {
+        SmallVector<int64_t> newShape(TARGET_TENSOR_DIM - tensor.getShape().size(), 1);
+        newShape.append(tensor.getShape().begin(), tensor.getShape().end());
+        return newShape;
+    }
+}
+
+//
+// addReshapeOperation
+//
+
+IE::ReshapeOp ConvertShapeTo4DPass::addReshapeOperation(mlir::Operation* origOp, mlir::Value input,
+                                                        mlir::ArrayRef<int64_t> shape,
+                                                        mlir::PatternRewriter& rewriter) {
+    int64_t shapeSize = shape.size();
+    const auto inputShapeType = mlir::RankedTensorType::get({shapeSize}, getSInt64Type(origOp->getContext()));
+    const auto inputShapeAttr = mlir::DenseElementsAttr::get(inputShapeType, shape);
+    auto inputShapeOp = rewriter.create<IE::ConstantOp>(origOp->getLoc(), inputShapeType, inputShapeAttr);
+    auto reshapeOp = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), input, inputShapeOp, false);
+
+    return reshapeOp;
+}
+
+//
+// safeRunOnFunc
+//
+
+void ConvertShapeTo4DPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    const auto cvtType = [](mlir::OpBuilder& builder, mlir::RankedTensorType type, mlir::ValueRange inputs,
-                            mlir::Location loc) -> mlir::Value {
-        VPUX_THROW_UNLESS(inputs.size() == 1, "Got wrong number of inputs : {0}", inputs.size());
-        return builder.createOrFold<mlir::linalg::TensorReshapeOp>(loc, type, inputs[0]);
-    };
-
-    mlir::TypeConverter typeConverter;
-    typeConverter.addConversion([](mlir::RankedTensorType tensor) {
-        if (tensor.getShape().size() == TARGET_TENSOR_DIM) {
-            return tensor;
-        } else if (tensor.getShape().size() > TARGET_TENSOR_DIM) {
-            VPUX_THROW("Tensors with rank > 4 is not supported");
-        } else {
-            const auto nDimsToAdd = TARGET_TENSOR_DIM - tensor.getShape().size();
-            SmallVector<int64_t> newShape(nDimsToAdd, 1);
-            for (auto s : tensor.getShape()) {
-                newShape.push_back(s);
-            }
-            return mlir::RankedTensorType::get(newShape, tensor.getElementType());
-        }
-    });
-    typeConverter.addSourceMaterialization(cvtType);
-    typeConverter.addTargetMaterialization(cvtType);
-
-    const auto isLegalOp = [&](mlir::Operation* op) {
-        return typeConverter.isLegal(op);
-    };
-
-    mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
-    target.addLegalOp<mlir::linalg::TensorReshapeOp>();
-    target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
-    target.addLegalOp<mlir::ModuleOp>();
-    target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
-        return typeConverter.isSignatureLegal(funcOp.getType()) && typeConverter.isLegal(&funcOp.getBody());
-    });
-
     mlir::RewritePatternSet patterns(&ctx);
-    mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
-    patterns.insert<GenericOpConverter>(typeConverter, &ctx, _log);
-    mlir::linalg::TensorReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
+    patterns.insert<ClampOpConverter>(&ctx, _log);
+    patterns.insert<EluOpConverter>(&ctx, _log);
+    patterns.insert<ReluOpConverter>(&ctx, _log);
+    patterns.insert<SigmoidOpConverter>(&ctx, _log);
+    patterns.insert<HSwishOpConverter>(&ctx, _log);
+    patterns.insert<TanhOpConverter>(&ctx, _log);
+    patterns.insert<FakeQuantizeOpConverter>(&ctx, _log);
+    IE::ReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 
-    auto module = getOperation();
-    if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
+    auto func = getFunction();
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns)))) {
         signalPassFailure();
     }
 }
