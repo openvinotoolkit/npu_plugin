@@ -35,6 +35,16 @@ const static std::map<ie::VPUXConfigParams::VPUXPlatform, std::string> platformN
         {ie::VPUXConfigParams::VPUXPlatform::VPU3720, VPUX_CONFIG_VALUE(VPU3720)},        // MTL
 };
 
+const static std::map<std::string, ie::VPUXConfigParams::VPUXPlatform> platformNameInverseMap = {
+        {VPUX_CONFIG_VALUE(AUTO), ie::VPUXConfigParams::VPUXPlatform::AUTO},              // auto detection
+        {VPUX_CONFIG_VALUE(VPU3400_A0), ie::VPUXConfigParams::VPUXPlatform::VPU3400_A0},  // KMB A0
+        {VPUX_CONFIG_VALUE(VPU3400), ie::VPUXConfigParams::VPUXPlatform::VPU3400},        // KMB B0 400 MHz
+        {VPUX_CONFIG_VALUE(VPU3700), ie::VPUXConfigParams::VPUXPlatform::VPU3700},        // KMB B0 700 MHz
+        {VPUX_CONFIG_VALUE(VPU3800), ie::VPUXConfigParams::VPUXPlatform::VPU3800},        // TBH Prime
+        {VPUX_CONFIG_VALUE(VPU3900), ie::VPUXConfigParams::VPUXPlatform::VPU3900},        // TBH Full
+        {VPUX_CONFIG_VALUE(VPU3720), ie::VPUXConfigParams::VPUXPlatform::VPU3720},        // MTL
+};
+
 uint32_t utils::getSliceIdBySwDeviceId(const uint32_t swDevId) {
     // bits 3-1 define slice ID
     // right shift to omit bit 0, thus slice id is stored in bits 2-0
@@ -65,4 +75,9 @@ std::string utils::getPlatformNameByDeviceName(const std::string& deviceName) {
     }
 
     return deviceName.substr(0, platformPos);
+}
+
+ie::VPUXConfigParams::VPUXPlatform utils::getPlatformByDeviceName(const std::string& deviceName) {
+    const auto platformName = getPlatformNameByDeviceName(deviceName);
+    return platformNameInverseMap.at(platformName);
 }

@@ -26,4 +26,5 @@ uint32_t getSliceIdBySwDeviceId(const uint32_t swDevId);
 InferenceEngine::VPUXConfigParams::VPUXPlatform getPlatformBySwDeviceId(const uint32_t swDevId);
 std::string getPlatformNameByDeviceName(const std::string& deviceName);
 std::string getDeviceNameBySwDeviceId(const uint32_t swDevId);
+InferenceEngine::VPUXConfigParams::VPUXPlatform getPlatformByDeviceName(const std::string& deviceName);
 }  // namespace utils
