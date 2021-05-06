@@ -134,16 +134,18 @@ std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPU
 
     const auto devNames = getAvailableDevicesNames();
     if (devNames.size() > 0) {
-        const auto compilationPlatform = utils::getPlatformNameByDeviceName(devNames.at(0));
+        const auto compilationPlatform = utils::getPlatformByDeviceName(devNames.at(0));
+        const auto compilationPlatformName = compilationPlatformMap.at(compilationPlatform);
         const auto anotherPlatformIt =
-                std::find_if(devNames.cbegin(), devNames.cend(), [compilationPlatform](const std::string& devName) {
-                    const auto curCompilationPlatform = utils::getPlatformNameByDeviceName(devName);
-                    return (curCompilationPlatform != compilationPlatform);
+                std::find_if(devNames.cbegin(), devNames.cend(), [compilationPlatformName](const std::string& devName) {
+                    const auto curCompilationPlatform = utils::getPlatformByDeviceName(devName);
+                    const auto curCompilationPlatformName = compilationPlatformMap.at(curCompilationPlatform);
+                    return (curCompilationPlatformName != compilationPlatformName);
                 });
         if (anotherPlatformIt != devNames.cend()) {
             THROW_IE_EXCEPTION << "Different VPUX platform have been detected. Not supported configuration.";
         }
-        return compilationPlatform;
+        return compilationPlatformName;
     }
 
     return VPUX_CONFIG_VALUE(VPU3700);
