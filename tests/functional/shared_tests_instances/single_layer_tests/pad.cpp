@@ -11,6 +11,11 @@ namespace LayerTestsDefinitions {
 
     class KmbPadLayerTest: public PadLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
+    TEST_P(KmbPadLayerTest, CompareWithRefs_MLIR) {
+        useCompilerMLIR();
+        Run();
+    }
+
     TEST_P(KmbPadLayerTest, CompareWithRefs) {
         Run();
     }

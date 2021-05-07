@@ -910,6 +910,49 @@ operation ::= `VPUIP.PReluUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.Pad` (vpux::VPUIP::PadUPAOp)
+
+Pad UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.Pad` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`pad_value` | ::mlir::FloatAttr | 32-bit float attribute
+`mode` | vpux::IE::PadModeAttr | TPadMode that the InferenceEngine supports
+`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.PerAxisTileUPA` (vpux::VPUIP::PerAxisTileUPAOp)
 
 Tile for per axis case UPA SHAVE kernel

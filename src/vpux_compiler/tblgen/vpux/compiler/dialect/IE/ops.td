@@ -1577,4 +1577,36 @@ def IE_CTCGreedyDecoderSeqLenOp :
     );
 }
 
+//
+// PadOp
+//
+
+def IE_PadOp :
+        IE_LayerOp<
+            "Pad",
+            [
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "InferenceEngine Pad layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        Optional<RankedTensorOf<[AnyInteger]>>:$pads_begin,
+        Optional<RankedTensorOf<[AnyInteger]>>:$pads_end,
+        Optional<RankedTensorOf<[AnyInteger, AnyFloat]>>:$pad_value,
+
+        OptionalAttr<I32ArrayAttr>:$pads_begin_attr,
+        OptionalAttr<I32ArrayAttr>:$pads_end_attr,
+        OptionalAttr<F32Attr>:$pad_value_attr,
+
+        IE_PadMode:$mode
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
 #endif
