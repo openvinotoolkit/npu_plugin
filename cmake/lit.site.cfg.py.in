@@ -25,6 +25,7 @@ config.bin_dir = path('../..')
 config.bin_dir = config.bin_dir % lit_config.params
 
 config.lit_tools_dir = ''
+config.enable_plaidml = @ENABLE_PLAIDML_BOOL@
 
 @EXTRA_SUBSTITUTIONS@
 
