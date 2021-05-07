@@ -1082,6 +1082,42 @@ operation ::= `IE.PRelu` `(` operands `)` attr-dict `:` type(operands) `->` type
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.Pad` (vpux::IE::PadOp)
+
+InferenceEngine Pad layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Pad` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`pads_begin_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`pads_end_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`pad_value_attr` | ::mlir::FloatAttr | 32-bit float attribute
+`mode` | vpux::IE::PadModeAttr | TPadMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`pads_begin` | ranked tensor of integer values
+`pads_end` | ranked tensor of integer values
+`pad_value` | ranked tensor of integer or floating-point values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.PerAxisTile` (vpux::IE::PerAxisTileOp)
 
 InferenceEngine per axis Tile layer

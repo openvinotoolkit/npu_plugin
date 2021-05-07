@@ -135,9 +135,8 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
     // Op patterns from asymmetric stride Conv replacement in splitOperationSlicingV2()
     const std::vector<std::vector<std::string>> patterns = {
         {"Concat"},
-        {"Slice","Reshape","Concat"},
-        {"Reshape","Concat"},
-        {"Reshape","Reshape","Concat"},
+        {"Slice","Identity","Concat"},
+        {"Identity","Concat"},
     };
     for (auto& pattern : patterns)
     {
@@ -226,7 +225,7 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
 
     std::vector<mv::Data::OpListIterator> fusableParents;
     auto isActivationAgnostic = [](mv::Data::OpListIterator &op)
-        {return op->isImplicit() || op->getOpType() == "Concat" || op->getOpType() == "Reshape";};
+        {return op->isImplicit() || op->getOpType() == "Concat" || op->getOpType() == "Identity";};
 
     if (!isActivationAgnostic(parentOp))
         fusableParents.push_back(parentOp);
@@ -238,7 +237,8 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
             auto current_op_itr = op_itr_bfs.front();
             for(auto parentIt = current_op_itr.leftmostParent();
                 parentIt != om.opEnd(); ++parentIt) {
-                if (parentIt->isImplicit() || parentIt->getOpType() == "Concat" || parentIt->getOpType() == "Reshape") {
+                mv::Data::OpListIterator parentOpIt = parentIt;
+                if (isActivationAgnostic(parentOpIt)) {
                     op_itr_bfs.push(parentIt);
                 } else {
                     fusableParents.push_back(parentIt);

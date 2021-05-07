@@ -211,4 +211,22 @@ def IE_DetectionOutputAttrs :
             ]
         >;
 
+//
+// PadMode
+//
+
+def IE_PadMode :
+        StrEnumAttr<
+            "PadMode",
+            "TPadMode that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"CONSTANT">,
+                StrEnumAttrCase<"EDGE">,
+                StrEnumAttrCase<"REFLECT">,
+                StrEnumAttrCase<"SYMMETRIC">,
+        ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
 #endif

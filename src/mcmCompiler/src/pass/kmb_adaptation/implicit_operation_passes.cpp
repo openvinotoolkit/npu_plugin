@@ -101,6 +101,48 @@ bool isStridingOp(mv::Data::OpListIterator opIt)
     return false;
 }
 
+void retrieveChildConcats(mv::OpModel& om, std::set<std::string>& concats, mv::Data::OpListIterator opIt)
+{
+    for (auto child_itr = opIt.leftmostChild(); child_itr != om.opEnd(); ++child_itr )
+    {
+        // using a set to prevent duplicate entries
+        auto child_op_type = child_itr->getOpType();
+        if (child_op_type == "ImplicitConcat")
+            concats.insert(child_itr->getName());
+        // DMAs will be removed if this concat will be CMX-ed
+        else if (child_itr->isImplicit() || 
+                (child_op_type == "DMATask" && !child_itr->hasAttr("explicitRelocate")) ||
+                (child_op_type == "DPUTask" && child_itr->hasAttr("splitted")))
+            retrieveChildConcats(om, concats, child_itr);
+    }
+}
+
+void ensureTopConcatCanBeCMXed(mv::OpModel& om, mv::Data::OpListIterator& opIt)
+{
+    auto globalParams = om.getGlobalConfigParams();
+    std::size_t cluster_memory = globalParams->get<int>("cmx");
+    std::size_t curr_cmx = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getClusterSize();
+
+    // NOTE: if the top concat can not fit, accuracy issues might arise
+    if (curr_cmx > cluster_memory)
+        return;
+
+    std::set<std::string> child_concats;
+    retrieveChildConcats(om, child_concats, opIt);
+
+    // verify that the concats do not exceed cmx
+    for (auto& concat_name : child_concats)
+    {
+        auto child_concat = om.getOp(concat_name);
+        auto concat_size = child_concat->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getClusterSize();
+        // if exceeds do not CMX the child concat
+        if (curr_cmx + concat_size > cluster_memory)
+            child_concat->set<bool>("avoid_cmx_concat", true);
+        else
+            curr_cmx += concat_size;
+    }
+}
+
 void moveTensorToSameMemLoc(mv::OpModel& om, mv::Data::OpListIterator opIt, std::vector<mv::Data::FlowListIterator> flows,
     mv::Tensor::MemoryLocation const& target, mv::Tensor::MemoryLocation const& intermediary)
 {
@@ -198,9 +240,7 @@ void propagateImplicitOpsFromOutput(mv::Op& op, mv::OpModel& om)
     for (auto input : op.getInputTensor())
     {
         auto previousOp = om.getSourceOp(input);
-        if (previousOp->hasAttr("propagateLocation") && previousOp->get<bool>("propagateLocation") == false)
-            continue;
-        else if (previousOp->isImplicit())
+        if (previousOp->isImplicit())
             propagateImplicitOpsFromOutput(*previousOp, om);
         else if (previousOp->get<std::string>("opType") == "DMATask")
             input->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
@@ -275,6 +315,9 @@ void resolveImplicitConcats(mv::OpModel& om)
 
         moveTensorToSameMemLoc(om, concat, concats,
             mv::Tensor::MemoryLocation::DDR, mv::Tensor::MemoryLocation::NNCMX);
+        
+        // accuracy issues when the top concat is not CMX-ed
+        ensureTopConcatCanBeCMXed(om, concat);
     }
 }
 

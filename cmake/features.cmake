@@ -73,6 +73,11 @@ if(ENABLE_EMULATOR)
     add_definitions(-DENABLE_EMULATOR)
 endif()
 
+ie_dependent_option(ENABLE_PLAIDML "Enable PlaidML/SHAVE kernel autogeneration" ON "LINUX;NOT CMAKE_CROSSCOMPILING" OFF)
+if(ENABLE_PLAIDML)
+    add_compile_definitions(ENABLE_PLAIDML)
+endif()
+
 function (print_enabled_kmb_features)
     message(STATUS "KMB Plugin enabled features: ")
     message(STATUS "")

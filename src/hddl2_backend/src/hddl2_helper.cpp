@@ -16,6 +16,9 @@
 
 #include "hddl2_helper.h"
 
+// Utils
+#include <device_helpers.hpp>
+
 #include "converters.h"
 #include "hddl2/hddl2_params.hpp"
 #include "hddl2_exceptions.h"
@@ -52,6 +55,44 @@ void setUniteLogLevel(const vpu::LogLevel logLevel, const vpu::Logger::Ptr logge
             std::cerr << "Failed to set client log level for HddlUnite" << std::endl;
         }
     }
+}
+
+std::map<uint32_t, std::string> getSwDeviceIdNameMap() {
+    std::vector<HddlUnite::Device> devices;
+    auto status = getAvailableDevices(devices);
+    if (status != HDDL_OK) {
+        THROW_IE_EXCEPTION << "Failed to get devices sw IDs!";
+    }
+
+    std::map<uint32_t, std::string> swIdNameMap;
+    for (const auto& device : devices) {
+        const auto swDevId = device.getSwDeviceId();
+        const auto devName = utils::getDeviceNameBySwDeviceId(swDevId);
+        swIdNameMap.insert({swDevId, devName});
+    }
+
+    return swIdNameMap;
+}
+
+std::string getSwDeviceIdFromName(const std::string& devName) {
+    const auto devMap = getSwDeviceIdNameMap();
+
+    // Firstly check new naming approach with platform.slice_id
+    for (const auto& dev : devMap) {
+        if (dev.second == devName) {
+            return std::to_string(dev.first);
+        }
+    }
+
+    // Secondly check old naming approach with swDeviceId
+    try {
+        std::stol(devName);
+    } catch (...) {
+        // Some unknown name - return empty string - scheduler is responsible for scheduling the device
+        return "";
+    }
+
+    return devName;
 }
 
 }  // namespace hddl2

@@ -40,8 +40,11 @@ namespace {
             DepthToSpace::DepthToSpaceMode::DEPTH_FIRST};
 
     const std::vector<std::vector<size_t >> inputShapesBS2 = {
-            {1, 4, 1, 1}, {1, 4, 2, 2}, {1, 4, 3, 3}, {2, 32, 3, 3}, {2, 16, 5, 4},
-            {1, 8, 1, 1, 1}, {1, 8, 2, 2, 2}, {1, 8, 3, 3, 3}, {2, 32, 3, 3, 3}, {2, 16, 5, 4, 6}};
+            {1, 4, 1, 1}, {1, 4, 2, 2}, {1, 4, 3, 3}, {2, 32, 3, 3}, {2, 16, 5, 4}};
+            // {1, 8, 1, 1, 1}, {1, 8, 2, 2, 2}, {1, 8, 3, 3, 3}, {2, 32, 3, 3, 3}, {2, 16, 5, 4, 6}};
+            // These 5-dimensional values from CPU-test, but kmb-plugin does not support dims.size() > 4.
+            // Therefore they are commented.
+            // For details please see: kmb-plugin/src/utils/dims_parser.cpp
 
     const auto DepthToSpaceBS2 = ::testing::Combine(
             ::testing::ValuesIn(inputShapesBS2),
@@ -51,12 +54,15 @@ namespace {
             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     );
 
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_DepthToSpaceBS2, KmbDepthToSpaceLayerTest,
+    INSTANTIATE_TEST_CASE_P(smoke_DepthToSpaceBS2, KmbDepthToSpaceLayerTest,
             DepthToSpaceBS2, KmbDepthToSpaceLayerTest::getTestCaseName);
 
     const std::vector<std::vector<size_t >> inputShapesBS3 = {
-            {1, 9, 1, 1}, {1, 9, 2, 2}, {1, 9, 3, 3}, {2, 36, 3, 3}, {2, 27, 5, 4},
-            {1, 27, 1, 1, 1}, {1, 27, 2, 2, 2}, {1, 27, 3, 3, 3}, {2, 108, 3, 3, 3}, {2, 54, 5, 4, 6}};
+            {1, 9, 1, 1}, {1, 9, 2, 2}, {1, 9, 3, 3}, {2, 36, 3, 3}, {2, 27, 5, 4}};
+            // {1, 27, 1, 1, 1}, {1, 27, 2, 2, 2}, {1, 27, 3, 3, 3}, {2, 108, 3, 3, 3}, {2, 54, 5, 4, 6}};
+            // These 5-dimensional values from CPU-test, but kmb-plugin does not support dims.size() > 4.
+            // Therefore they are commented.
+            // For details please see: kmb-plugin/src/utils/dims_parser.cpp
 
     const auto DepthToSpaceBS3 = ::testing::Combine(
             ::testing::ValuesIn(inputShapesBS3),
@@ -66,7 +72,7 @@ namespace {
             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     );
 
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_DepthToSpaceBS3, KmbDepthToSpaceLayerTest,
+    INSTANTIATE_TEST_CASE_P(smoke_DepthToSpaceBS3, KmbDepthToSpaceLayerTest,
             DepthToSpaceBS3, KmbDepthToSpaceLayerTest::getTestCaseName);
 
 }  // namespace

@@ -18,12 +18,12 @@
 
 #include <ie_memcpy.h>
 
+#include <condition_variable>
 #include <cstring>  // std::memcpy for pointer-only args
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-#include <condition_variable>
 
 #include "vpux.hpp"
 #include "ze_api.h"
@@ -36,7 +36,7 @@
 
 namespace vpux {
 
-    class ZeroExecutorCommon : public Executor {
+class ZeroExecutorCommon : public Executor {
 public:
     ZeroExecutorCommon(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
                        ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
@@ -159,20 +159,34 @@ protected:
         ze_context_handle_t _context = nullptr;
     };
 
+    struct fence {
+        fence() = default;
+        fence(const commandQueue& command_queue, ze_fence_dditable_ext_t* fence_ddi_table_ext);
+        fence(const fence&) = delete;
+        fence& operator=(const fence&) = delete;
+        void reset();
+        void hostSynchronize(uint32_t fence_value);
+        void deviceSynchronize(const commandQueue& queue, uint32_t fence_value);
+        void deviceSignal(uint32_t fence_value);
+        ~fence();
+        ze_fence_handle_t _handle = nullptr;
+        ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
+    };
+
     struct argumentDescriptor {
         ze_graph_argument_properties_t info;
         uint32_t idx;
     };
 
-    struct graphCommon {
-        graphCommon(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
-                    const ze_context_handle_t& context, const NetworkDescription::CPtr networkDescm,
-                    ze_graph_dditable_ext_t* graph_ddi_table_ext);
-        graphCommon(const graphCommon&) = delete;
-        graphCommon& operator=(const graphCommon&) = delete;
-        virtual void init() = 0;
+    struct graph {
+        graph(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
+              const ze_context_handle_t& context, const NetworkDescription::CPtr networkDescm,
+              ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext);
+        graph(const graph&) = delete;
+        graph& operator=(const graph&) = delete;
+        void init();
         void setArgumentValue(uint32_t argi_, const void* argv_) const;
-        ~graphCommon();
+        ~graph();
         ze_graph_handle_t _handle = nullptr;
         ze_context_handle_t _context = nullptr;
         hostMem _mem;
@@ -181,6 +195,8 @@ protected:
         std::map<std::string, argumentDescriptor> _outputs_desc_map;
         commandQueue _command_queue;
         commandList _command_list;
+        fence _fence;
+        uint32_t _fence_value;
 
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     };
@@ -196,7 +212,7 @@ protected:
     struct pipelineCommon {
         pipelineCommon(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
                        const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                       const graphCommon& graph_);
+                       const graph& graph_);
         pipelineCommon(const pipelineCommon&) = delete;
         pipelineCommon& operator=(const pipelineCommon&) = delete;
         ~pipelineCommon() = default;
@@ -225,9 +241,10 @@ protected:
 
     NetworkDescription::CPtr _networkDesc;
 
+    graph _graph;
+
     const uint32_t _pipeline_depth;
 };
-
 
 template <InferenceEngine::VPUXConfigParams::ze_syncType mode_t>
 class ZeroExecutor final : public Executor {};
@@ -250,49 +267,20 @@ public:
     ~ZeroExecutor() = default;
 
 private:
-    struct fence {
-        fence() = default;
-        fence(const commandQueue& command_queue, ze_fence_dditable_ext_t* fence_ddi_table_ext);
-        fence(const fence&) = delete;
-        fence& operator=(const fence&) = delete;
-        void reset();
-        void hostSynchronize(uint32_t fence_value);
-        void deviceSynchronize(const commandQueue& queue, uint32_t fence_value);
-        void deviceSignal(uint32_t fence_value);
-        ~fence();
-        ze_fence_handle_t _handle = nullptr;
-        ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
-    };
-
-    struct graph_t : public ZeroExecutorCommon::graphCommon {
-        graph_t(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
-                const ze_context_handle_t& context, const NetworkDescription::CPtr networkDescm,
-                ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext);
-        graph_t(const graph_t&) = delete;
-        graph_t& operator=(const graph_t&) = delete;
-        void init();
-        ~graph_t() = default;
-
-        fence _fence;
-    };
-
     struct pipeline : public ZeroExecutorCommon::pipelineCommon {
         pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
                  const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const graph_t& graph);
+                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const graph& graph);
         pipeline(const pipeline&) = delete;
         pipeline& operator=(const pipeline&) = delete;
         ~pipeline() = default;
     };
-
-    graph_t _graph;
 
     std::array<commandQueue, stage::COUNT> _command_queue;
     std::array<fence, stage::COUNT> _fence;
 
     std::vector<std::unique_ptr<pipeline>> _pipeline;
 };
-
 
 template <>
 class ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT> final : public ZeroExecutorCommon {
@@ -328,14 +316,12 @@ private:
 
     struct event_t {
         event_t(ze_device_handle_t device_handle, const ze_context_handle_t& context,
-                const ze_event_pool_handle_t& event_pool,
-                uint32_t event_index);
+                const ze_event_pool_handle_t& event_pool, uint32_t event_index);
         event_t(const event_t&) = delete;
         event_t& operator=(const event_t&) = delete;
         void AppendSignalEvent(commandList& command_list);
         void AppendWaitOnEvent(commandList& command_list);
-        void HostSynchronize();
-        void HostReset();
+        void AppendEventReset(commandList& command_list);
 
         ~event_t() {
             zeEventDestroy(_handle);
@@ -347,23 +333,10 @@ private:
         ze_event_handle_t _handle = nullptr;
     };
 
-    struct graph_t : public ZeroExecutorCommon::graphCommon {
-        graph_t(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
-                const ze_context_handle_t& context, const NetworkDescription::CPtr networkDescm,
-                ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext);
-        graph_t(const graph_t&) = delete;
-        graph_t& operator=(const graph_t&) = delete;
-        void init();
-        ~graph_t() = default;
-
-        eventPool_t _event_pool;
-        event_t _event;
-    };
-
     struct pipeline : public ZeroExecutorCommon::pipelineCommon {
         pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
                  const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const graph_t& graph);
+                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const graph& graph);
         pipeline(const pipeline&) = delete;
         pipeline& operator=(const pipeline&) = delete;
         ~pipeline();
@@ -376,12 +349,8 @@ private:
         std::array<event_t, stage::COUNT> _event;
     };
 
-    graph_t _graph;
-
     std::array<commandQueue, stage::COUNT> _command_queue;
-
-    eventPool_t _event_pool;
-    std::array<event_t, stage::COUNT> _event;
+    std::array<fence, stage::COUNT> _fence;
 
     std::vector<std::unique_ptr<pipeline>> _pipeline;
 };

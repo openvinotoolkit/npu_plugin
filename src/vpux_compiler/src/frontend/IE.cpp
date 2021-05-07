@@ -133,6 +133,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Negative>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::CTCGreedyDecoder>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset6::CTCGreedyDecoderSeqLen>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset6::Pad>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -160,6 +161,7 @@ private:
     IE::InterpolateAttr importInterpolateAttrs(const ngraph::op::InterpolateAttrs& val);
     IE::DetectionOutputAttr importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val);
     IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
+    IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
 
 private:
     mlir::MLIRContext* _ctx = nullptr;
@@ -236,6 +238,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
             MAP_ENTRY(ngraph::opset1::Negative),
             MAP_ENTRY(ngraph::opset1::CTCGreedyDecoder),
             MAP_ENTRY(ngraph::opset6::CTCGreedyDecoderSeqLen),
+            MAP_ENTRY(ngraph::opset6::Pad),
     };
 
 #undef MAP_ENTRY
@@ -979,6 +982,23 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset6::Pad>& origNode) {
+    const auto inputs = getInputs(origNode);
+
+    if (inputs.size() == 4) {
+        auto op = builder.create<IE::PadOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3],
+                                            nullptr, nullptr, nullptr, importPadMode(origNode->get_pad_mode()));
+        addOutputs(origNode, op);
+    } else if (inputs.size() == 3) {
+        auto op = builder.create<IE::PadOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], nullptr, nullptr,
+                                            nullptr, nullptr, importPadMode(origNode->get_pad_mode()));
+        addOutputs(origNode, op);
+    } else {
+        VPUX_THROW("nGraph Pad node '{0}' has unsupported number of inputs '{1}'", origNode->get_friendly_name(),
+                   inputs.size());
+    }
+}
+
 //
 // IR builder helpers
 //
@@ -1197,6 +1217,27 @@ IE::ROIPoolingMethodAttr NGraphImporter::importROIPoolingMethod(const std::strin
         attr = IE::ROIPoolingMethodAttr::get(_ctx, IE::ROIPoolingMethod::bilinear);
     } else {
         VPUX_THROW("Unknown ROIPoolingMethod");
+    }
+    return attr;
+}
+
+IE::PadModeAttr NGraphImporter::importPadMode(const ngraph::op::PadMode val) {
+    IE::PadModeAttr attr;
+    switch (val) {
+    case ngraph::op::PadMode::CONSTANT:
+        attr = IE::PadModeAttr::get(_ctx, IE::PadMode::CONSTANT);
+        break;
+    case ngraph::op::PadMode::EDGE:
+        attr = IE::PadModeAttr::get(_ctx, IE::PadMode::EDGE);
+        break;
+    case ngraph::op::PadMode::REFLECT:
+        attr = IE::PadModeAttr::get(_ctx, IE::PadMode::REFLECT);
+        break;
+    case ngraph::op::PadMode::SYMMETRIC:
+        attr = IE::PadModeAttr::get(_ctx, IE::PadMode::SYMMETRIC);
+        break;
+    default:
+        VPUX_THROW("Unknown PadMode");
     }
     return attr;
 }

@@ -1039,6 +1039,43 @@ operation ::= `IERT.PRelu` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Pad` (vpux::IERT::PadOp)
+
+InferenceEngine run-time Pad layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Pad` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`pad_value` | ::mlir::FloatAttr | 32-bit float attribute
+`mode` | vpux::IE::PadModeAttr | TPadMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.PerAxisTile` (vpux::IERT::PerAxisTileOp)
 
 InferenceEngine run-time per axis Tile layer
