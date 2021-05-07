@@ -284,16 +284,18 @@ target_include_directories(${OBJ_TARGET_NAME}
 
 link_system_libraries(${OBJ_TARGET_NAME}
     PUBLIC
+        MLIRAffineTransforms
+        MLIRAsync
         MLIRIR
+        MLIRLinalg
+        MLIRMemRef
         MLIROptLib
         MLIRPass
-        MLIRStandard
-        MLIRMemRef
         MLIRQuant
-        MLIRLinalg
-        MLIRAsync
-        MLIRTransforms
+        MLIRSCFTransforms
+        MLIRStandard
         MLIRStandardOpsTransforms
+        MLIRTransforms
         MLIRTranslation
         flatbuffers
         IE::ngraph
@@ -307,6 +309,23 @@ target_link_libraries(${OBJ_TARGET_NAME}
         vpux_utils
         vpux_al
 )
+if(ENABLE_PLAIDML)
+    target_link_libraries(${OBJ_TARGET_NAME}
+        PUBLIC
+            pmlc::conversion::pxa_to_affine
+            pmlc::conversion::tile_to_pxa
+            pmlc::dialect::affinex::transforms
+            pmlc::dialect::layer::ir
+            pmlc::dialect::layer::transforms
+            pmlc::dialect::pxa::ir
+            pmlc::dialect::pxa::transforms
+            pmlc::dialect::stdx::ir
+            pmlc::dialect::stdx::transforms
+            pmlc::dialect::tile::ir
+            pmlc::dialect::tile::transforms
+            pmlc::transforms
+    )
+endif()
 
 #
 # MODULE target

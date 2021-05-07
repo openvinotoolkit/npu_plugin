@@ -27,7 +27,14 @@ add_custom_target(copy_vpuip_schema_tests ALL
 set_target_properties(copy_vpuip_schema_tests PROPERTIES FOLDER "tests")
 
 set(vpuip_schema_file "path('../schema/graphfile.fbs')")
+
+if(ENABLE_PLAIDML)
+  set(ENABLE_PLAIDML_BOOL True)
+else()
+  set(ENABLE_PLAIDML_BOOL False)
+endif()
+
 vpux_setup_lit_tests(VPUX
-    PATTERNS "*.mlir"
+    PATTERNS "*.mlir;*.cfg"
     SUBSTITUTIONS vpuip_schema_file
 )

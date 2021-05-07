@@ -25,7 +25,20 @@
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/pipelines.hpp"
 
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#ifdef ENABLE_PLAIDML
+#include "pmlc/conversion/pxa_to_affine/passes.h"
+#include "pmlc/conversion/tile_to_pxa/passes.h"
+#include "pmlc/dialect/affinex/transforms/passes.h"
+#include "pmlc/dialect/layer/transforms/passes.h"
+#include "pmlc/dialect/pxa/transforms/passes.h"
+#include "pmlc/dialect/stdx/transforms/passes.h"
+#include "pmlc/dialect/tile/transforms/passes.h"
+#include "pmlc/transforms/passes.h"
+#endif
+
+#include <mlir/Dialect/Affine/Passes.h>
+#include <mlir/Dialect/SCF/Passes.h>
+#include <mlir/Dialect/StandardOps/Transforms/Passes.h>
 #include <mlir/Support/MlirOptMain.h>
 #include <mlir/Transforms/Passes.h>
 
@@ -48,6 +61,20 @@ int main(int argc, char* argv[]) {
         registerConversionPipelines();
         registerPipelines();
         mlir::registerTransformsPasses();
+        mlir::registerAffinePasses();
+        mlir::registerSCFPasses();
+        mlir::registerStandardPasses();
+
+#ifdef ENABLE_PLAIDML
+        pmlc::conversion::pxa_to_affine::registerPasses();
+        pmlc::conversion::tile_to_pxa::registerPasses();
+        pmlc::dialect::affinex::registerPasses();
+        pmlc::dialect::layer::registerPasses();
+        pmlc::dialect::pxa::registerPasses();
+        pmlc::dialect::stdx::registerPasses();
+        pmlc::dialect::tile::registerPasses();
+        pmlc::transforms::registerPasses();
+#endif
 
         const auto res = mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, false);
         return mlir::succeeded(res) ? EXIT_SUCCESS : EXIT_FAILURE;
