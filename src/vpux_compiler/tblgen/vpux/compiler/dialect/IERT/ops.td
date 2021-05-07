@@ -1586,4 +1586,38 @@ def IERT_CTCGreedyDecoderSeqLenOp :
     }];
 }
 
+//
+// PadOp
+//
+
+def IERT_PadOp :
+        IERT_LayerOp<1,"Pad",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time Pad layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        OptionalAttr<F32Attr>:$pad_value,
+        IE_PadMode:$mode
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif
