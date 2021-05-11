@@ -108,6 +108,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     reorgYoloAsConvConcatFcn(pass, model);
     insertPermuteBeforeDetFcn(pass, model);
     replacePermuteAsReshape(pass, model);
+    interpolateAsResample(pass, model);
     resampleWithStorageElementPointerTable(pass, model);
     replaceBroadcastEltwiseMultWithConv(pass, model);
     insertUpaDmaAfterSliceOnOutputFcn(pass, model);
@@ -792,6 +793,7 @@ void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     }
 }
 
+// Performance regression: EISW-10889
 void interpolateAsResample(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
