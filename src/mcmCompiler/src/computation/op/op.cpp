@@ -413,52 +413,42 @@ bool mv::Op::isHwFusable() const
     return isFusableOp;
 }
 
-bool mv::Op::isEltwiseTypeOp() const
+bool mv::Op::isDpuTypeOp(std::vector<std::string>& opTypes) const
 {
-    bool isEltwiseTypeOpFlag = false;
-    std::vector<std::string> eltwiseOpTypes =
-        {"Eltwise", "HwConvert"};
-    if (std::count(eltwiseOpTypes.cbegin(), eltwiseOpTypes.cend(),
+    if (std::count(opTypes.cbegin(), opTypes.cend(),
         getOpType()))
     {
-        isEltwiseTypeOpFlag = true;
+        return true;
     }
-    else if (getOpType() == "DPUTask" && std::count(eltwiseOpTypes.cbegin(),
-        eltwiseOpTypes.cend(), get<std::string>("taskOp")))
+    else if (getOpType() == "DPUTask" && std::count(opTypes.cbegin(),
+        opTypes.cend(), get<std::string>("taskOp")))
     {
-        isEltwiseTypeOpFlag = true;
+        return true;
     }
-    return isEltwiseTypeOpFlag;
+    return false;
+}
+
+bool mv::Op::isEltwiseTypeOp() const
+{
+    std::vector<std::string> eltwiseOpTypes =
+        {"Eltwise", "HwConvert"};
+
+    return isDpuTypeOp(eltwiseOpTypes);
 }
 
 bool mv::Op::isEltwiseSingleInputTypeOp() const
 {
-    bool isEltwiseSingleInputTypeOpFlag = false;
     std::vector<std::string> eltwiseSingleInputOpTypes =
         {"HwConvert"};
-    if (std::count(eltwiseSingleInputOpTypes.cbegin(), eltwiseSingleInputOpTypes.cend(),
-        getOpType()))
-    {
-        isEltwiseSingleInputTypeOpFlag = true;
-    }
-    else if (getOpType() == "DPUTask" && std::count(eltwiseSingleInputOpTypes.cbegin(),
-        eltwiseSingleInputOpTypes.cend(), get<std::string>("taskOp")))
-    {
-        isEltwiseSingleInputTypeOpFlag = true;
-    }
-    return isEltwiseSingleInputTypeOpFlag;
+
+    return isDpuTypeOp(eltwiseSingleInputOpTypes);
 }
 
 bool mv::Op::hasWeights() const
 {
-    bool hasWeights = false;
-    const std::vector<std::string> weightTypes = {"Conv", "DepthwiseConv"};
-    if (std::count(weightTypes.cbegin(), weightTypes.cend(), getOpType()))
-        hasWeights = true;
-    else if (getOpType() == "DPUTask" &&
-        std::count(weightTypes.cbegin(), weightTypes.cend(), get<std::string>("taskOp")))
-        hasWeights = true;
-    return hasWeights;
+    std::vector<std::string> weightTypes = {"Conv", "DepthwiseConv"};
+
+    return isDpuTypeOp(weightTypes);
 }
 
 bool mv::Op::hasPWLActivation() const

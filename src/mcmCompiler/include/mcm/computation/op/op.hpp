@@ -26,6 +26,7 @@ namespace mv
 
         std::vector<Data::TensorIterator> inputs_;
         std::vector<Data::TensorIterator> outputs_;
+        bool isDpuTypeOp(std::vector<std::string>& opTypes) const;
 
     public:
         Op(ComputationModel& model, const std::string& opType, const std::string& name,
