@@ -105,7 +105,7 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& m
         {
             "Float16",
             {
-            mv::QuantizationParams({0}, {1.0 / 64}, {-4.0}, {4.0}, {0}, {1}, {-4}),
+            mv::QuantizationParams({0}, {64}, {-4.0}, {4.0}, {0}, {1}, {-4}),
             mv::QuantizationParams({0}, {1.0}, {0}, {1.0})
             }
         }
@@ -124,7 +124,7 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& m
         {
             "Float16",
             {
-            mv::QuantizationParams({0}, {1.0 / 64}, {-4.0}, {4.0}, {0}, {1}, {-4}),
+            mv::QuantizationParams({0}, {64}, {-4.0}, {4.0}, {0}, {1}, {-4}),
             mv::QuantizationParams({0}, {1.0}, {-1.0}, {1.0})
             }
         }

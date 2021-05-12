@@ -302,7 +302,7 @@ bool isOpQuantized(mv::OpModel& om, const mv::Data::OpListIterator& op) {
 bool isOpPassthrough(const mv::Data::OpListIterator& op)
 {
     std::vector<std::string> passthroughOps = {
-        "Bias", "Relu", "LeakyRelu", "Concat", "Maximum", "Minimum", "ReorgYolo", "Reshape", "Permute", "Interp", "Resample", "MaxPool", "Mish", "Sigmoid", "Tanh"
+        "Bias", "Relu", "LeakyRelu", "Concat", "Maximum", "Minimum", "ReorgYolo", "Reshape", "Permute", "Interp", "Resample", "MaxPool", "Mish", "Sigmoid"
     };
 
     return std::find(passthroughOps.begin(), passthroughOps.end(), op->getOpType()) != passthroughOps.end() ||
@@ -872,7 +872,11 @@ void reduceConversionsPatterns(mv::ComputationModel& model)
         if (!opIt->inputSlots() || !opIt->outputSlots())
             continue;
 
-        if (!tensorQuantized(opIt->getInputTensor(0)) && tensorQuantized(opIt->getOutputTensor(0))) {
+        auto inputs = opIt->getInputTensor();
+        auto outputs = opIt->getOutputTensor();
+
+        if (!(std::any_of(inputs.begin(), inputs.end(), tensorQuantized)) &&
+            std::all_of(outputs.begin(), outputs.end(), tensorQuantized)) {
             if (iterateThroughPassthroughOps(dm, opIt))
                 iterateThroughPassthroughOps(dm, opIt, true);
         }
