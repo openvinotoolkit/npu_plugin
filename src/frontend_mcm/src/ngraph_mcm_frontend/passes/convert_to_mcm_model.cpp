@@ -129,6 +129,7 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <algorithm>
 
 #include <include/mcm/tensor/tiling.hpp>
 #include <converters.hpp>
@@ -705,11 +706,25 @@ void convert(std::shared_ptr<McmEltwise> eltwise, mv::OpModel& mcmModel, NodeOut
 }
 
 void convert(std::shared_ptr<ngraph::op::Eltwise> eltwise, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-    const auto mcmInputs = getMcmInputs(eltwise, mcmOutputsMap);
+    auto mcmInputs = getMcmInputs(eltwise, mcmOutputsMap);
     const auto& opName = eltwise->get_friendly_name();
     const auto& opType = eltwise->eltwise_type;
 
     IE_ASSERT(2 == mcmInputs.size());
+    if (mcmInputs[0]->isPopulated() && mcmInputs[1]->isPopulated()){
+        THROW_IE_EXCEPTION << "At least one input is unpopulated for Eltwise op ";
+    }else if (mcmInputs[0]->isPopulated() && (!mcmInputs[1]->isPopulated())){
+        /// swap them to ensure the input 0 is unpopulated, 
+        /// it's a compiler assumption.
+        std::swap(mcmInputs[0], mcmInputs[1]);
+    }   
+    
+    /// extend 1d weights to 4d to adapt compiler
+    auto weights_shape= mcmInputs[1]->getShape();
+    if (weights_shape.ndims()==1){
+        mcmInputs[1]->setShape(mv::Shape({1,1,weights_shape[0],1}));
+        mcmInputs[1]->setOrder(mv::Order::getZMajorID(4));
+    }
 
     mv::Data::TensorIterator mcmEltwiseOutput;
 
