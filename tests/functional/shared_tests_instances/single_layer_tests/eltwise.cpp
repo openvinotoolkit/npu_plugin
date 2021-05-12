@@ -83,6 +83,15 @@ class KmbEltwiseLayerTest: public EltwiseLayerTest, virtual public LayerTestsUti
             if ( badShapesForMLIR.find(inShapes) != badShapesForMLIR.end()) {
                 throw LayerTestsUtils::KmbSkipTestException("Error on KMB-board: failed to create NnCorePlg: 6");
             }
+            // Skip below is due to error during run of tests on KMB-board (MLIR compiler, 16 shaves used):
+            // [Error  ][VPU][VpualCoreNNExecutor] pull: WaitForResponse failed
+            // unknown file: Failure
+            // C++ exception with description "VpualCoreNNExecutor::pull: WaitForResponse failed8" thrown in the test body.
+            //        NnXlinkPlg: Close channel failed: 8
+            // [Track number: S#11028]
+            if (inShapes == std::vector<std::vector<size_t>>{{1, 4, 1, 1}} && opType == CommonTestUtils::OpType::VECTOR)  {
+                throw LayerTestsUtils::KmbSkipTestException("Error on KMB-board: NnXlinkPlg: Close channel failed: 8");
+            }
         }
     }
 
