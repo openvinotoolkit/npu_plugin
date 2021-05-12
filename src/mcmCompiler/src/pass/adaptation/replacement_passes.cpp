@@ -308,12 +308,27 @@ void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& pass, mv::Co
             weights_quantParams = populated_input->get<mv::QuantizationParams>("quantParams");
             output_quantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         }
-        auto weights = om.constantDataElement(opIt->getName() + "_weights", weightsData,
+        
+        //
+        // replace eltwise with depthwise conv when weights have only one element 
+        //
+        mv::Data::TensorIterator conv2D, weights;
+        if (weightsData.size()==1){
+            // broadcast weights to match input channel
+            auto weights_dtype= populated_input->getDType();
+            weightsData= std::vector<mv::DataElement>(unpopulated_shape[mv::IO_CHANNEL_DIMENSION], weightsData[0]);
+            weights = om.constantDataElement(opIt->getName() + "_weights", weightsData,
+                                              {1, 1, unpopulated_shape[mv::IO_CHANNEL_DIMENSION], 1},
+                                              weights_dtype, mv::Order::getZMajorID(4));
+            weights->setQuantParams(weights_quantParams);
+            conv2D = om.depthwiseConv(opIt->getName() + "_DepthwiseConv", unpopulated_input, weights, {1, 1}, {0, 0, 0, 0}, 1);
+        }else{
+            weights = om.constantDataElement(opIt->getName() + "_weights", weightsData,
                                               {1, 1, unpopulated_shape[mv::IO_CHANNEL_DIMENSION], populated_shape[mv::IO_CHANNEL_DIMENSION]},
                                               populated_input->getDType(), mv::Order::getZMajorID(4));
-        weights->setQuantParams(weights_quantParams);
-
-        auto conv2D = om.conv(opIt->getName() + "_2DConv", unpopulated_input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1);
+            weights->setQuantParams(weights_quantParams);
+            conv2D = om.conv(opIt->getName() + "_2DConv", unpopulated_input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1);
+        }
         conv2D->setQuantParams(output_quantParams);
 
         auto convOp = om.getSourceOp(conv2D);
