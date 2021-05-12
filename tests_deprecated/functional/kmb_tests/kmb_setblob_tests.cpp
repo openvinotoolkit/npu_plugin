@@ -18,7 +18,6 @@
 #include <vpu_layers_tests.hpp>
 #include <gtest/gtest.h>
 #include <file_reader.h>
-#include <regression_tests.hpp>
 
 #include "vpux/utils/IE/blob.hpp"
 
@@ -239,7 +238,7 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndInfer) {
 class vpuInferWithSetUp : public vpuLayersTests {
 public:
     std::stringstream out;
-    Regression::basic_streambuf<char, std::char_traits<char>>* ptr;
+    std::basic_streambuf<char, std::char_traits<char>>* ptr;
     void SetUp() override {
         vpuLayersTests::SetUp();
         ptr = std::cout.rdbuf();

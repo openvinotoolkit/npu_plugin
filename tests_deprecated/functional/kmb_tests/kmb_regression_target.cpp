@@ -23,7 +23,6 @@
 #include <blob_factory.hpp>
 #include <condition_variable>
 #include <mutex>
-#include <regression_tests.hpp>
 #include <vpux/vpux_plugin_config.hpp>
 #include <vpu_layers_tests.hpp>
 
@@ -36,7 +35,6 @@
 
 using namespace ::testing;
 using namespace InferenceEngine;
-using namespace Regression::Matchers;
 using namespace InferenceEngine::details;
 using namespace TestsTimeout;
 using namespace KmbRegressionTarget;
@@ -116,11 +114,6 @@ const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
         ._inputPath = "/KMB_models/BLOBS/tiny-yolo-v2/input.bin",
         ._outputPath = "/KMB_models/BLOBS/tiny-yolo-v2/output.bin",
     }};
-
-class VpuNoRegressionInference : public Regression::RegressionTests {
-public:
-    std::string getDeviceName() const override { return ""; }
-};
 
 void printTopResults(const Blob::Ptr& referenceOutputBlob, const Blob::Ptr& outputBlob, const std::string& graphSuffix) {
     Blob::Ptr refFP32 = vpux::toFP32(as<MemoryBlob>(referenceOutputBlob));

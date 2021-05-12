@@ -21,7 +21,6 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
-#include <regression_tests.hpp>
 #include <sstream>
 #include <vpu_layers_tests.hpp>
 

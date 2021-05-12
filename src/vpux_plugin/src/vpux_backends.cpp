@@ -40,7 +40,7 @@ VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry)
                     _logger.debug("Register %s", name);
                     registeredBackends.emplace_back(backend);
                 }
-            } catch (const IE::details::InferenceEngineException& e) {
+            } catch (const IE::Exception& e) {
                 _logger.warning("Exception '%s' while searching for a device by %s", e.what(), name);
             } catch (...) {
                 _logger.warning("Unknown exception while searching for a device by %s", name);
