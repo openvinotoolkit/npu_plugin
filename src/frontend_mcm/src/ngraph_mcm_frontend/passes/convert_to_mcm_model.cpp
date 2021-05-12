@@ -1666,8 +1666,17 @@ void convert(std::shared_ptr<ngraph::op::GatherIE> gatherIE, mv::OpModel& mcmMod
     IE_ASSERT(2u == mcmInputs.size());
     const auto& opName = gatherIE->get_friendly_name();
     const int64_t axis = gatherIE->get_axis();
+
+    auto data= mcmInputs.at(0);
+    auto index= mcmInputs.at(1);
+    if (index->getDType().toString() == "Float16"){
+        auto index_i32= mcmModel.conversion(opName+"/Conversion", index, mv::DType("Int32"));
+        index_i32->setQuantParams(initialQuantParams());
+        index = index_i32;
+    }
+
     // TODO: Replace Float16 with Default when MCM Compiler is fixed. See ticket #40356
-    auto mcmGather = mcmModel.gather(opName, mcmInputs.at(0), mcmInputs.at(1), axis);
+    auto mcmGather = mcmModel.gather(opName, data, index, axis);
     mcmGather->setDType(mv::DType("Float16"));
     mcmGather->setQuantParams(initialQuantParams());
 
