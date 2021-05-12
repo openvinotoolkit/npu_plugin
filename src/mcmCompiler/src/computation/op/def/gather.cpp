@@ -29,8 +29,19 @@ namespace mv
 
             ShapeDesc getShapeDesc(const Shape& sh) {
                 ShapeDesc outShapeDesc = shape0D;
+                
+                /// for 0d scalar or [1,X,X,X] case, we think it's 1d at least
+                if (sh[0] == 1){
+                    outShapeDesc= incrementShapeDesc(outShapeDesc);
+                }
+                /// Be careful the second non-trival dimension counts
+                bool see_non_trival= false;
                 for(size_t i = 0; i < sh.ndims(); ++i) {
-                    if((outShapeDesc == shape0D && sh[i] > 0) || (outShapeDesc > shape0D && sh[i] > 1)) {
+                    if(sh[i] > 1) {
+                        if (!see_non_trival){
+                            see_non_trival= true;
+                            continue;
+                        }
                         outShapeDesc = incrementShapeDesc(outShapeDesc);
                     }
                 }
