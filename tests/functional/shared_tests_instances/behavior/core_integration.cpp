@@ -38,23 +38,7 @@ INSTANTIATE_TEST_CASE_P(
 // IEClassNetworkTestP tests, customized to add SKIP_IF_CURRENT_TEST_IS_DISABLED()
 //
 
-class IEClassNetworkTestP_VPU : public IEClassNetworkTestP {
-};
-
-TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowIfNoDeviceName) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
-    std::stringstream strm;
-    ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    if (!strm.str().empty() && deviceName.find(CommonTestUtils::DEVICE_FPGA) != std::string::npos) {
-        SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm));
-    }
-    if (executableNetwork) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
-}
+using IEClassNetworkTestP_VPU = IEClassNetworkTestP;
 
 TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -62,11 +46,9 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {
     std::stringstream strm;
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, deviceName));
-    if (executableNetwork) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
+    ASSERT_NO_THROW(executableNetwork.Export(strm));
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
+    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
 TEST_P(IEClassNetworkTestP_VPU, smoke_ExportUsingFileNameImportFromStreamNoThrowWithDeviceName) {
@@ -108,15 +90,17 @@ INSTANTIATE_TEST_CASE_P(
         DISABLED_smoke_IEClassGetMetricP, IEClassNetworkTestP_VPU_GetMetric,
         ::testing::ValuesIn(devices));
 
+// TODO: enable with HETERO
 INSTANTIATE_TEST_CASE_P(
         DISABLED_smoke_IEClassImportExportTestP, IEClassNetworkTestP_VPU,
-        ::testing::Values(std::string(CommonTestUtils::DEVICE_KEEMBAY), "HETERO:" + std::string(CommonTestUtils::DEVICE_KEEMBAY)));
+        ::testing::Values(std::string(CommonTestUtils::DEVICE_KEEMBAY)));
 
 #if defined(ENABLE_MKL_DNN) && ENABLE_MKL_DNN
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassImportExportTestP_HETERO_CPU, IEClassNetworkTestP_VPU,
         ::testing::Values("HETERO:" + std::string(CommonTestUtils::DEVICE_KEEMBAY) + ",CPU"));
+
 #endif
 
 //
