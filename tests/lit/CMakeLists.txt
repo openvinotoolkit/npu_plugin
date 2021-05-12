@@ -35,6 +35,6 @@ else()
 endif()
 
 vpux_setup_lit_tests(VPUX
-    PATTERNS "*.mlir;*.cfg"
+    PATTERNS "*.mlir"
     SUBSTITUTIONS vpuip_schema_file
 )
