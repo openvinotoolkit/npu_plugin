@@ -44,10 +44,13 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
         {
             auto taskOp = task->get<std::string>("taskOp");
             if (taskOp == "Quantize" ||
-                taskOp == "Conversion")
+                taskOp == "Conversion" ||
+                taskOp == "Gather")
             {
                 // Skip inserting Quantization operation for exisitng Quantization tasks and
                 // Conversion operations which can handle quantization on their own
+                /// Gather index input need stay Int32 according to Runtime
+                /// todo: check gather input if need quantization
                 continue;
             }
 
