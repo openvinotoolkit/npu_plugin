@@ -1684,8 +1684,28 @@ void convert(std::shared_ptr<ngraph::op::GatherIE> gatherIE, mv::OpModel& mcmMod
 }
 
 void convert(std::shared_ptr<ngraph::op::v1::Maximum> maximum, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-    const auto mcmInputs = getMcmInputs(maximum, mcmOutputsMap);
+    auto mcmInputs = getMcmInputs(maximum, mcmOutputsMap);
     IE_ASSERT(2u == mcmInputs.size());
+    
+    /// extend 1d weights to 4d by reconstructing constant op
+    auto shape= mcmInputs[1]->getShape();
+    if (shape.ndims()==1){
+        auto weights= mcmInputs[1];
+        auto parent= mcmModel.getSourceOp(weights);
+        auto new_name= parent->getName() + "_4d";
+        auto new_dtype= weights->getDType();
+        mv::IteratorDetail::ModelValueIterator<std::map<std::string, 
+            std::shared_ptr<mv::Tensor>>::iterator, mv::Tensor> new_weights;
+        
+        if (new_dtype== mv::DType("Float32")){
+            new_weights= mcmModel.constant(new_name, weights->getDoubleData(), mv::Shape({1,1,shape[0],1}), new_dtype, mv::Order("NHWC"));
+        }else{
+            new_weights= mcmModel.constantInt(new_name, weights->getIntData(), mv::Shape({1,1,shape[0],1}), new_dtype, mv::Order("NHWC"));
+        }   
+        mcmInputs[1]= new_weights;
+        mcmModel.removeOp(parent);
+    }
+
     const auto& opName = maximum->get_friendly_name();
     auto mcmMax = mcmModel.eltwise(opName, mcmInputs, "Maximum");
     mcmMax->setQuantParams(initialQuantParams());
