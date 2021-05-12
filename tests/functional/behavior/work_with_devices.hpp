@@ -99,7 +99,7 @@ TEST_P(LoadNetworkWithoutDevice, ThrowIfNoDeviceAndNoPlatform) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     {
         auto cnnNet = createDummyNetwork();
-        ASSERT_THROW(ie->LoadNetwork(cnnNet, "VPUX", configuration), InferenceEngine::details::InferenceEngineException);
+        ASSERT_THROW(ie->LoadNetwork(cnnNet, "VPUX", configuration), InferenceEngine::Exception);
     }
 }
 

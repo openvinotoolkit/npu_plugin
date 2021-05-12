@@ -31,7 +31,7 @@ TEST(smoke_InterfaceTests, TestEngineClassGetMetric) {
         ASSERT_TRUE(supportedConfigKeysFound);  // plus implicit check for !supportedMetrics.empty()
 
         ASSERT_THROW(ie.GetMetric(expectedDeviceName, "THISMETRICNOTEXIST"),
-                     InferenceEngine::details::InferenceEngineException);
+                     InferenceEngine::Exception);
     }
 }
 
@@ -48,6 +48,6 @@ TEST(smoke_InterfaceTests, TestEngineClassGetConfig) {
         }
 
         ASSERT_THROW(ie.GetConfig(expectedDeviceName, "THISKEYNOTEXIST"),
-                     InferenceEngine::details::InferenceEngineException);
+                     InferenceEngine::Exception);
     }
 }

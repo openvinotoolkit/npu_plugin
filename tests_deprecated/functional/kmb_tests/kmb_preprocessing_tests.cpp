@@ -28,7 +28,6 @@
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
-#include <regression_tests.hpp>
 #include <vpux/vpux_plugin_config.hpp>
 #include <vpu_layers_tests.hpp>
 
@@ -36,7 +35,6 @@
 
 using namespace ::testing;
 using namespace InferenceEngine;
-using namespace Regression::Matchers;
 using namespace InferenceEngine::details;
 
 enum preprocessingType { PT_RESIZE, PT_NV12 };

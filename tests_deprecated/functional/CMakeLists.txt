@@ -25,15 +25,14 @@ if (UNIX)
                 ${CMAKE_CURRENT_SOURCE_DIR}/base
                 ${CMAKE_CURRENT_SOURCE_DIR}/common
             INCLUDES
-                ${CMAKE_CURRENT_SOURCE_DIR}/../common_helpers
                 ${CMAKE_CURRENT_SOURCE_DIR}/base
                 ${CMAKE_CURRENT_SOURCE_DIR}/common
-                ${CMAKE_CURRENT_SOURCE_DIR}/regression_tests/helpers
                 ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include
             DEFINES
                 -DKMB_ALPHA_TESTS_DATA_PATH="${MODELS_PATH}"
             LINK_LIBRARIES
                 IE::IESharedTests
+                IE::funcTestUtils
                 IE::vpu_common_lib
                 IE::ngraph
                 IE::ngraph_reference
