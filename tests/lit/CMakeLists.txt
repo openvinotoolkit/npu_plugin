@@ -30,11 +30,13 @@ set(vpuip_schema_file "path('../schema/graphfile.fbs')")
 
 if(ENABLE_PLAIDML)
   set(ENABLE_PLAIDML_BOOL True)
+  set(PATTERN_FILTER "*.mlir;*.plaidml")
 else()
   set(ENABLE_PLAIDML_BOOL False)
+  set(PATTERN_FILTER "*.mlir")
 endif()
 
 vpux_setup_lit_tests(VPUX
-    PATTERNS "*.mlir"
+    PATTERNS "${PATTERN_FILTER}"
     SUBSTITUTIONS vpuip_schema_file
 )
