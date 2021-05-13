@@ -184,6 +184,8 @@ IE::Parameter Engine::GetConfig(const std::string& name,
         return IE::Parameter(_parsedConfig.deviceId());
     } else if ((name == VPUX_CONFIG_KEY(THROUGHPUT_STREAMS)) || (name == KMB_CONFIG_KEY(THROUGHPUT_STREAMS))) {
         return IE::Parameter(_parsedConfig.throughputStreams());
+    } else if (name == VPUX_CONFIG_KEY(INFERENCE_SHAVES)) {
+        return IE::Parameter(_parsedConfig.numberOfNnCoreShaves());
     } else if (name == VPUX_CONFIG_KEY(PLATFORM)) {
         return IE::Parameter(static_cast<int>(_parsedConfig.platform()));
     } else {

@@ -424,17 +424,9 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     commandline = std::string("cd ") + std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + " && " +
         "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d VPUX -o " + FILE_BLOB_NAME;
 
-    // if exists, reads the input layout from commandline. Otherwise use env var
+    // if exists, reads the input layout from commandline.
     if (! FLAGS_il.empty() )
         commandline += " -il " + FLAGS_il;
-    else
-    {
-        bool layoutNHWC = (getEnvVarDefault("NHWC_LAYOUT", "false") == "true") ? true: false;
-        if (layoutNHWC)
-            commandline += " -il NHWC";
-        else
-            commandline += " -il NCHW";
-    }
 
     // if exists, reads the input precision from commandline. Otherwise use env var
     if (! FLAGS_ip.empty() )

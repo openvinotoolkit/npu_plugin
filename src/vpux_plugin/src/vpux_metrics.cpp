@@ -36,6 +36,7 @@ Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
             CONFIG_KEY(DEVICE_ID),
             VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
             KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+            VPUX_CONFIG_KEY(INFERENCE_SHAVES),
             VPUX_CONFIG_KEY(PLATFORM),
     };
 }

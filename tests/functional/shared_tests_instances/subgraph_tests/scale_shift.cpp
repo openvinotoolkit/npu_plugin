@@ -59,6 +59,16 @@ class KmbScaleShiftLayerTest: public ScaleShiftLayerTest, virtual public LayerTe
             if (badShapesForMLIR.find(inShape) != badShapesForMLIR.end() ) {
                 throw LayerTestsUtils::KmbSkipTestException("Infer hangs the board.");
             }
+
+            // Skip below is due to error during run of tests on KMB-board (MLIR compiler, 16 shaves used):
+            // [Error  ][VPU][VpualCoreNNExecutor] pull: WaitForResponse failed
+            // unknown file: Failure
+            // C++ exception with description "VpualCoreNNExecutor::pull: WaitForResponse failed8" thrown in the test body.
+            //        NnXlinkPlg: Close channel failed: 8
+            // [Track number: S#11028]
+            if (inShape == std::vector<std::vector<size_t>>{{1, 8, 4, 4},     {1, 8, 1, 1}}) {
+                throw LayerTestsUtils::KmbSkipTestException("Error on KMB-board: NnXlinkPlg: Close channel failed: 8");
+            }
         }
     }
 
