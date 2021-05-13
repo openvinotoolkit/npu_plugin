@@ -20,28 +20,29 @@
 #include "hddl2_params.hpp"
 #include "ie_core.hpp"
 #include "ie_metric_helpers.hpp"
+#include <device_helpers.hpp>
 
 namespace IE = InferenceEngine;
 
 class Metrics_Tests : public CoreAPI_Tests {
 public:
-    std::vector<std::string> getHddlDevicesIds();
-    std::vector<std::string> hddlDevicesIds;
+    std::vector<uint32_t> getHddlDevicesIds();
+    std::vector<uint32_t> hddlDevicesIds;
 
 protected:
     void SetUp() override;
 };
 
-std::vector<std::string> Metrics_Tests::getHddlDevicesIds() {
+std::vector<std::uint32_t> Metrics_Tests::getHddlDevicesIds() {
     std::vector<HddlUnite::Device> devices;
-    std::vector<std::string> devicesNames;
+    std::vector<std::uint32_t> devicesIds;
     auto status = getAvailableDevices(devices);
     if (status == HDDL_OK) {
         for (const auto& device : devices) {
-            devicesNames.push_back(std::to_string(device.getSwDeviceId()));
+            devicesIds.push_back(device.getSwDeviceId());
         }
     }
-    return devicesNames;
+    return devicesIds;
 }
 
 void Metrics_Tests::SetUp() { hddlDevicesIds = getHddlDevicesIds(); }
@@ -61,7 +62,7 @@ TEST_F(Metrics_Tests, canGetAvailableDevice) {
     for (const auto& id : hddlDevicesIds) {
         auto found_name =
             std::find_if(availableHDDL2Devices.begin(), availableHDDL2Devices.end(), [id](const std::string& str) {
-                return str.find(id) != std::string::npos;
+                return str.find(utils::getDeviceNameBySwDeviceId(id)) != std::string::npos;
             });
         ASSERT_NE(found_name, availableHDDL2Devices.end());
     }
@@ -89,7 +90,7 @@ TEST_F(Metrics_Tests, canFoundHddl2DevicesIdsInAllDevices_IfMany) {
     std::vector<std::string> allDevices = ie.GetAvailableDevices();
     for (const auto& id : hddlDevicesIds) {
         auto found_name = std::find_if(allDevices.begin(), allDevices.end(), [id](const std::string& str) {
-            return str.find(id) != std::string::npos;
+            return str.find(utils::getDeviceNameBySwDeviceId(id)) != std::string::npos;
         });
         ASSERT_NE(found_name, allDevices.end());
     }

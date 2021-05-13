@@ -23,6 +23,8 @@
 #include "vpux_exceptions.h"
 #include "vpux_remote_context.h"
 
+#include <device_helpers.hpp>
+
 namespace vpux {
 namespace IE = InferenceEngine;
 
@@ -55,6 +57,14 @@ VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry)
     // registered backends to search a device.
     // A single backend is chosen for now to keep existing behavior
     _backend = *registeredBackends.begin();
+}
+
+std::string VPUXBackends::getBackendName() const {
+    if (_backend != nullptr) {
+        return _backend->getName();
+    }
+
+    return "";
 }
 
 std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName) const {
@@ -106,6 +116,39 @@ std::unordered_set<std::string> VPUXBackends::getSupportedOptions() const {
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below
 void VPUXBackends::setup(const VPUXConfig& config) {
     _logger.setLevel(config.logLevel());
+}
+
+static std::map<IE::VPUXConfigParams::VPUXPlatform, std::string> compilationPlatformMap = {
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3400_A0, VPUX_CONFIG_VALUE(VPU3400_A0)},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3400, VPUX_CONFIG_VALUE(VPU3700)},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3700, VPUX_CONFIG_VALUE(VPU3700)},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3800, VPUX_CONFIG_VALUE(VPU3900)},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3900, VPUX_CONFIG_VALUE(VPU3900)},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3720, VPUX_CONFIG_VALUE(VPU3720)},
+};
+
+std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPUXPlatform platform) const {
+    if (platform != IE::VPUXConfigParams::VPUXPlatform::AUTO) {
+        return compilationPlatformMap.at(platform);
+    }
+
+    const auto devNames = getAvailableDevicesNames();
+    if (devNames.size() > 0) {
+        const auto compilationPlatform = utils::getPlatformByDeviceName(devNames.at(0));
+        const auto compilationPlatformName = compilationPlatformMap.at(compilationPlatform);
+        const auto anotherPlatformIt =
+                std::find_if(devNames.cbegin(), devNames.cend(), [compilationPlatformName](const std::string& devName) {
+                    const auto curCompilationPlatform = utils::getPlatformByDeviceName(devName);
+                    const auto curCompilationPlatformName = compilationPlatformMap.at(curCompilationPlatform);
+                    return (curCompilationPlatformName != compilationPlatformName);
+                });
+        if (anotherPlatformIt != devNames.cend()) {
+            THROW_IE_EXCEPTION << "Different VPUX platform have been detected. Not supported configuration.";
+        }
+        return compilationPlatformName;
+    }
+
+    return VPUX_CONFIG_VALUE(VPU3700);
 }
 
 }  // namespace vpux

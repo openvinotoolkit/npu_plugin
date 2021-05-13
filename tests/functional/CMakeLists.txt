@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2021 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -15,6 +15,7 @@ addIeTargetTest(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/tests/functional/shared_tests_instances"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/tests/functional/behavior"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/tests/functional/subgraph_tests"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/custom_extension_library"
         "${CMAKE_CURRENT_SOURCE_DIR}/internal"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_test_classes/include"
     DEPENDENCIES
@@ -25,10 +26,13 @@ addIeTargetTest(
         IE::ngraph
         IE::ngraph_reference
         IE::format_reader
+        IE::inference_engine
         kmb_utils
         kmb_custom_ocl_kernels
         kmb_custom_cpp_kernels
         common_tests_helpers
+        kmb_custom_extension
+        custom_extension_library
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\"

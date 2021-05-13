@@ -541,5 +541,20 @@ def RewriteCTCGreedyDecoder :
             (IERT_CTCGreedyDecoderOp $input, $sequenceLengths, $output, $mergeRepeated),
             (createCTCGreedyDecoderUPAOp $input, $sequenceLengths, $output, $mergeRepeated)
         >;
+//
+// IERT.Pad -> VPUIP.Pad
+//
+
+def createPadUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PadUPAOp>(
+                $_loc, $0, $1, $2, $3, $4, $5)
+        }]>;
+
+def RewritePad :
+        Pat<
+            (IERT_PadOp $input, $output, $pads_begin, $pads_end, $pad_value, $mode),
+            (createPadUPAOp $input, $output, $pads_begin, $pads_end, $pad_value, $mode)
+        >;
 
 #endif

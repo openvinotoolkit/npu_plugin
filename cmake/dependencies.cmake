@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -94,9 +94,9 @@ endif()
 
 add_library(kmb_custom_ocl_kernels INTERFACE)
 
-function(add_kmb_compile_custom_ocl_kernels)
-    set(SRC_DIR "${CMAKE_SOURCE_DIR}/src/custom_ocl_kernels")
-    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/kmb_custom_ocl_kernels")
+function(add_kmb_compile_custom_ocl_kernels KMB_SRC_DIR)
+    set(SRC_DIR "${CMAKE_SOURCE_DIR}/src/${KMB_SRC_DIR}")
+    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/kmb_${KMB_SRC_DIR}")
 
     file(MAKE_DIRECTORY "${DST_DIR}")
 
@@ -139,15 +139,15 @@ function(add_kmb_compile_custom_ocl_kernels)
             VERBATIM)
     endforeach()
 
-    add_custom_target(kmb_compile_custom_ocl_kernels
+    add_custom_target("kmb_compile_${KMB_SRC_DIR}"
         DEPENDS ${all_output_files}
-        COMMENT "[KMB] Compile custom ocl kernels")
+        COMMENT "[KMB] Compile ${SRC_DIR}")
 
-    add_dependencies(kmb_custom_ocl_kernels kmb_compile_custom_ocl_kernels)
+    add_dependencies(kmb_custom_ocl_kernels "kmb_compile_${KMB_SRC_DIR}")
 endfunction()
 
 if(VPU_CLC_MA2X9X_COMMAND)
-    add_kmb_compile_custom_ocl_kernels()
+    add_kmb_compile_custom_ocl_kernels("custom_ocl_kernels")
 endif()
 
 if(VPU_CLC_MA2X9X_COMMAND OR CMAKE_CROSSCOMPILING)
@@ -236,12 +236,22 @@ endif()
 add_kmb_compile_custom_cpp_kernels()
 
 #
+# `kmb_custom_extension` CMake target
+#
+
+add_library(kmb_custom_extension INTERFACE)
+
+if(VPU_CLC_MA2X9X_COMMAND)
+    add_kmb_compile_custom_ocl_kernels("custom_extension_library")
+endif()
+
+#
 # HDDLUnite
 #
 
 if(ENABLE_HDDL2 AND UNIX)
-    set(PCIE_DRIVERS_KMB_ARCHIVE_VERSION RELEASE_ww11.4_2021)
-    set(PCIE_DRIVERS_KMB_ARCHIVE_HASH "32043aa69110f5185b9d4df588df3320c05cb33613083fe7cdae83c3b2662913")
+    set(PCIE_DRIVERS_KMB_ARCHIVE_VERSION RELEASE_ww17_2021)
+    set(PCIE_DRIVERS_KMB_ARCHIVE_HASH "3d155615b6768d5b5f55a243cde4886408862180a5908c0805e699d59e317bf8")
 
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
@@ -264,10 +274,10 @@ if(ENABLE_HDDL2 AND UNIX)
     endif()
 
     if(NOT ENABLE_CUSTOM_HDDLUNITE)
-        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww11.3_2021)
-        set(HDDLUNITE_KMB_ARCHIVE_HASH "aafcc3acf50b8754d9a49c781d9c99cbe05265b598a4dd5f64039e13454d7947")
-        set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww11.2_2021)
-        set(HDDLUNITE_VPUX_4_ARCHIVE_HASH "eb98e90faff3747d5a1b57e596d355f5a9bcecea0c4cc0c2c6474e4add82c056")
+        set(HDDLUNITE_KMB_ARCHIVE_VERSION RELEASE_ww17.2_2021)
+        set(HDDLUNITE_KMB_ARCHIVE_HASH "d589b327e1a4c13a3a0e869730415a4456d058aab8b6486e66fb0d2c6706939c")
+        set(HDDLUNITE_VPUX_4_ARCHIVE_VERSION RELEASE_VPUX_4_ww17.2_2021)
+        set(HDDLUNITE_VPUX_4_ARCHIVE_HASH "db0e5739a6f99076fd68084bbade2ae618c1e9e02f7aa419086df49bea42fd09")
         set(ARCH_FORMAT ".tgz")
 
         if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
@@ -280,6 +290,7 @@ if(ENABLE_HDDL2 AND UNIX)
 
         if(DEFINED IE_PATH_TO_DEPS)
             reset_deps_cache(HDDL_UNITE)
+            reset_deps_cache(HDDL_UNITE_VPUX_4)
 
             RESOLVE_DEPENDENCY(HDDL_UNITE
                     ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_KMB_ARCHIVE_VERSION}${ARCH_FORMAT}"

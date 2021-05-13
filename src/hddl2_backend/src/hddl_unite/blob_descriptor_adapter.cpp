@@ -376,6 +376,7 @@ void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr
 void BlobDescriptorAdapter::getRect(const InferenceEngine::Blob::CPtr& blobPtr,
                                     const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams) {
     const auto& roiPtr = blobParams->getROIPtr();
+    _sourceInfo.roiRectangles.clear();
     if (blobPtr->is<IE::NV12Blob>() || roiPtr != nullptr) {
         if (roiPtr != nullptr) {
             // TODO Only one ROI is supported

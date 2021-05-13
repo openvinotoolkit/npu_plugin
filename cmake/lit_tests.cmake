@@ -66,7 +66,7 @@ function(vpux_setup_lit_tests TEST_NAME)
         set(LIT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
     endif()
 
-    file(GLOB_RECURSE SOURCES RELATIVE ${LIT_ROOT} ${LIT_PATTERNS})
+    file(GLOB_RECURSE SOURCES RELATIVE ${LIT_ROOT} CONFIGURE_DEPENDS ${LIT_PATTERNS})
     source_group(TREE ${LIT_ROOT} FILES ${SOURCES})
 
     set(SUFFIXES)

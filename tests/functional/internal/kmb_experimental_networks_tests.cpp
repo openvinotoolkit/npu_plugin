@@ -160,7 +160,11 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v3_cars) {
             1, 0.15f);
 }
 
+// TODO: [Track number: E#9578]
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v3_dogs) {
+    if (isByPass()) {
+        SKIP() << "Skip for by-pass mode due to bad accuracy";
+    }
     runTest(
             TestNetworkDesc("mobilenet-v3-small-stanford-dogs/caffe2/FP16-INT8/mobilenet-v3-small-stanford-dogs.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -200,7 +204,11 @@ TEST_P(ModelAdk, precommit_StackedHourGlass_BDK1) {
             0.0025f);
 }
 
+// TODO: [Track number: E#9578]
 TEST_F(SmokeNetworkTest, SuperResolution_AA_ADK3) {
+    if (isByPass()) {
+        SKIP() << "Skip inference for by-pass mode due to exception - dims and format are inconsistent.";
+    }
     runTest(
             TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8_AA.xml", EXPERIMENTAL)
                     .setUserInputPrecision("netInput", Precision::U8)

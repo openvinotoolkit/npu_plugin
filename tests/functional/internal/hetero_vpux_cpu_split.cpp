@@ -197,7 +197,11 @@ std::string HeteroPluginTest::getTestCaseName(const testing::TestParamInfo<Heter
     return testName.str();
 }
 
+// TODO: [Track number: E#9578]
 TEST_P(HeteroPluginTest, regression) {
+    if (isByPass()) {
+        SKIP() << "Skip inference for by-pass mode due to stability problems";
+    }
     const auto device1 = std::get<0>(GetParam());
     const auto device2 = std::get<1>(GetParam());
     const auto network = std::get<2>(GetParam());

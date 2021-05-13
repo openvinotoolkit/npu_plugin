@@ -263,6 +263,37 @@ def VPUIP_ConfigureBarrierOp :
 }
 
 //
+// EmptyOp
+//
+
+def VPUIP_EmptyOp :
+        VPUIP_Op<"Empty",
+            [
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
+            ]
+        > {
+    let summary = "Empty management task";
+
+    let arguments = (ins
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers
+    );
+
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::Controller;
+        }
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
 // UPADMAOp
 //
 
@@ -1825,4 +1856,57 @@ def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
     }];
 }
 
+//
+// PadOp
+//
+
+def VPUIP_PadUPAOp :
+        VPUIP_UPATaskOp<1,"Pad",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "Pad UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        I32ArrayAttr:$pads_begin,
+        I32ArrayAttr:$pads_end,
+        OptionalAttr<F32Attr>:$pad_value,
+        IE_PadMode:$mode,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output,
+                "mlir::ArrayAttr":$pads_begin, "mlir::ArrayAttr":$pads_end, "mlir::FloatAttr":$pad_value,
+                "IE::PadModeAttr":$mode
+            )
+        >
+    ];
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+
+}
 #endif

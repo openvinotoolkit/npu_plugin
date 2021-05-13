@@ -27,6 +27,8 @@ namespace hddl2 {
 
 HddlUnite::RemoteMemory::Ptr getRemoteMemoryFromParams(const InferenceEngine::ParamMap& params);
 void setUniteLogLevel(const vpu::LogLevel logLevel, const vpu::Logger::Ptr logger = nullptr);
+std::map<uint32_t, std::string> getSwDeviceIdNameMap();
+std::string getSwDeviceIdFromName(const std::string& devName);
 
 }  // namespace hddl2
 }  // namespace vpux

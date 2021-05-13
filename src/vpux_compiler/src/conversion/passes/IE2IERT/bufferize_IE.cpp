@@ -536,6 +536,17 @@ mlir::Operation* createRTLayer(IE::CTCGreedyDecoderSeqLenOp origOp, ArrayRef<mli
                                                     origOp.mergeRepeatedAttr());
 }
 
+mlir::Operation* createRTLayer(IE::PadOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::PadOp::Adaptor newOp(allBufs);
+    if (!origOp.pads_begin_attr().hasValue() || !origOp.pads_end_attr().hasValue()) {
+        VPUX_THROW("PadOp must use attributes for `pads_begin` and `pads_end` params");
+    }
+
+    return b.create<IERT::PadOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(),
+                                 origOp.pads_begin_attr().getValue(), origOp.pads_end_attr().getValue(),
+                                 origOp.pad_value_attrAttr(), origOp.mode());
+}
+
 class BufferizeIEPass::LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -609,6 +620,7 @@ mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operati
     CASE(IE::TransposeOp)
     CASE(IE::CTCGreedyDecoderOp)
     CASE(IE::CTCGreedyDecoderSeqLenOp)
+    CASE(IE::PadOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

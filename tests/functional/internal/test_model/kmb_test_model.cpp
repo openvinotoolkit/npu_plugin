@@ -1,5 +1,5 @@
 //
-// Copyright 2019-2020 Intel Corporation.
+// Copyright 2019-2021 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -227,7 +227,7 @@ TestNetwork& TestNetwork::addLayer(const std::string& name, const NodePtr& node,
 CNNNetwork TestNetwork::getCNNNetwork() const {
     IE_ASSERT(_func != nullptr);
 
-    const auto net = CNNNetwork(_func);
+    const auto net = CNNNetwork(_func, _exts);
 
     auto inputsInfo = net.getInputsInfo();
     auto outputsInfo = net.getOutputsInfo();

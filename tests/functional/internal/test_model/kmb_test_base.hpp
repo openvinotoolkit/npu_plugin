@@ -241,6 +241,10 @@ protected:
 
     BlobMap runInfer(ExecutableNetwork& exeNet, const BlobMap& inputs, bool printTime);
 
+    // TODO Workaround to disable some inference tests for by-pass mode
+    // [Track number: E#9485]
+    bool isByPass() const;
+
 protected:
     std::default_random_engine rd;
     std::shared_ptr<Core> core;

@@ -113,6 +113,11 @@ TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
 }
 
 TEST_F(HDDL2_HddlUnite_Tests, CanSetAndGetRemoteContextUsingId) {
+    const auto numDevices = DeviceName::getDevicesNames().size();
+    if (numDevices > 1) {
+        SKIP() << "Skipping single-device test - multiple devices have been detected";
+    }
+
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     WorkloadID workloadId = workloadContext->getWorkloadContextID();
 
