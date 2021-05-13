@@ -144,6 +144,14 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterat
         if (paramOp->getOutputTensor(0) != sourceTensor && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
             || paramOp->getOpType() == "ConstantDataElement"))
         {
+            
+            /// You can't remove a paramOp shared by two sinkOps
+            mv::DataModel dm(om);
+            if (findSinkLayers(dm, paramOp->getOutputTensor(0)).size()>1){
+                ++paramOp;
+                continue;
+            }
+
             auto backUp = paramOp;
             ++paramOp;
             om.removeOp(backUp);
