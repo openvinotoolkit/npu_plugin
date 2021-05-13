@@ -505,6 +505,23 @@ private:
         auto fused = std::dynamic_pointer_cast<ngraph::opset3::Constant>(pbFunction->get_result()->input_value(0).get_node_shared_ptr());
         _genPrior = fused->get_vector<float>();
     }
+
+    void SkipBeforeValidate() override {
+        DetectionOutputAttributes commonAttrs;
+        ParamsWhichSizeDepends specificAttrs;
+        ngraph::op::DetectionOutputAttrs attrs;
+        size_t batch;
+        std::string targetDevice;
+        std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, targetDevice) = GetParam();
+
+        std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
+                 attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
+
+        // [Track number: E#10211]
+        if (!attrs.decrease_label_id) {
+            throw LayerTestsUtils::KmbSkipTestException("validation fails");
+        }
+    }
 };
 
 const int numClasses = 2;

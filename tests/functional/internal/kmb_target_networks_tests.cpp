@@ -457,7 +457,8 @@ TEST_F(KmbClassifyNetworkTest, squeezenet1_1_caffe2_force_compilation) {
 
 class KmbDetectionNetworkTestWithSpecificLayout : public KmbDetectionNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 
-TEST_P(KmbDetectionNetworkTestWithSpecificLayout, face_detection_retail_caffe_IRV10_fp16_int8) {
+// [Track number: E#11501]
+TEST_P(KmbDetectionNetworkTestWithSpecificLayout, DISABLED_face_detection_retail_caffe_IRV10_fp16_int8) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
