@@ -34,7 +34,7 @@ namespace mv
             // to be in position 0
             if(inputs[0]->isPopulated())
             {
-                errMsg = "Input 0 of eltwise needs at least two inputs";
+                errMsg = "Eltwise needs input 0 must be unpopulated";
                 return {false, 2};
             }
             // SR Fix: removed input shape check,
