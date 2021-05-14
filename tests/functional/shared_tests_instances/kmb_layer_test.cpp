@@ -14,6 +14,7 @@
 namespace LayerTestsUtils {
 
 const TargetDevice testPlatformTargetDevice("VPUX");
+const auto DEFAULT_IE_KMB_TESTS_INFERENCE_SHAVES = "16";
 
 const KmbTestEnvConfig KmbLayerTestsCommon::envConfig;
 
@@ -28,6 +29,7 @@ KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
 void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
 
+    configuration[VPUX_CONFIG_KEY(INFERENCE_SHAVES)] = DEFAULT_IE_KMB_TESTS_INFERENCE_SHAVES;
     configuration[VPUX_CONFIG_KEY(PLATFORM)] = envConfig.IE_KMB_TESTS_PLATFORM;
     ConfigureNetwork();
 }
