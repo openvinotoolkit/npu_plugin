@@ -215,7 +215,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
 
     SmallVector<int64_t> in_shape{1, 16, 16, 16};
     SmallVector<int64_t> out_shape{1, 16, 16, 16};
-    SmallVector<int64_t> wt_data_shape{16, 1, 1, 16};
+    SmallVector<int64_t> wt_data_shape{16, 16, 1, 1};
     SmallVector<int64_t> wtTbl_data_shape{wt_data_shape[0], 1, 1, 4};
 
     auto totaltensorsize = [&](SmallVector<int64_t>& shape, mlir::Type elementtype) {
@@ -360,14 +360,16 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
     auto strides = getInt32ArrayAttr(builder.getContext(), stried_vec);
     std::vector<int32_t> padding_vec{0, 0, 0, 0};
     auto kernel_padding = getInt32ArrayAttr(builder.getContext(), padding_vec);
+    SmallVector<int64_t> kernel_vec = {wt_data_shape[2], wt_data_shape[3]};
+    auto kernel_size = getInt32ArrayAttr(builder.getContext(), kernel_vec);
 
     auto nceTask = funcbuilder.create<VPUIP::NCEClusterTaskOp>(
             builder.getUnknownLoc(), outputcmx_type, inputcmx.getOperation()->getResult(0),
-            wtData_cmx.getOperation()->getResult(0), wtTbl_cmx.getOperation()->getResult(0),
+            wtData_cmx.getOperation()->getResult(0), wtTbl_cmx.getOperation()->getResult(0), nullptr,
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
             mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::CONV, VPUIP::PPELayerTypeAttr(), kernel_padding,
-            strides, 0);
+            strides, kernel_size, 0);
 
     // Create DPU task for NCE task
     nceTask.variants().emplaceBlock();

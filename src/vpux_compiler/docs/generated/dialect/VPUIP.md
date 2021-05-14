@@ -722,6 +722,7 @@ operation ::= `VPUIP.NCEClusterTask` attr-dict
               `inputs` `(` $input  `:` type($input)
               (`,` $filter^ `:` type($filter))?
               (`,` $weight_table^ `:` type($weight_table))? `)`
+              (`,` $activation_window^ `:` type($activation_window))? `)`
               `parent_input` `(` $parent_input `:` type($parent_input) `)`
               `parent_output` `(` $parent_output `:` type($parent_output) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
@@ -754,6 +755,7 @@ mutually exclusive.
 `fixed_ppe_task` | vpux::VPUIP::PPELayerTypeAttr | Post Processing Element Type
 `kernel_padding` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`kernel_size` | ::mlir::ArrayAttr | 32-bit integer array attribute
 
 #### Operands:
 
@@ -762,6 +764,7 @@ mutually exclusive.
 `input` | memref of 8-bit unsigned integer or 16-bit float or bfloat16 type or QuantizedType values
 `filter` | memref of 8-bit unsigned integer or 16-bit float or bfloat16 type or QuantizedType values
 `weight_table` | memref of 32-bit signed integer values
+`activation_window` | memref of 8-bit unsigned integer values
 `parent_input` | memref of 8-bit unsigned integer or 16-bit float or bfloat16 type or QuantizedType values
 `parent_output` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
 `output_buff` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float or bfloat16 type or QuantizedType values

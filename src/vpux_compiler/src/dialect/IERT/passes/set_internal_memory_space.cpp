@@ -71,6 +71,10 @@ void SetInternalMemorySpacePass::safeRunOnFunc() {
     const auto callback = [&](mlir::memref::AllocOp allocOp) {
         _log.trace("Got Alloc Operation '{0}'", allocOp->getLoc());
 
+        if (allocOp.getType().getMemorySpace()) {
+            return;
+        }
+
         const auto& aliases = aliasInfo.getAliases(allocOp.memref());
 
         for (auto var : aliases) {

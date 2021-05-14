@@ -1606,7 +1606,6 @@ def VPUIP_DPUTaskOp :
         VPUIP_Op<
             "DPUTask",
             [
-                NoSideEffect,
                 AttrSizedOperandSegments
             ]
         > {
@@ -1701,6 +1700,7 @@ def VPUIP_NCEClusterTaskOp :
         MemRefOf<[UI8, F16, BF16, quant_QuantizedType]>:$input,
         Optional<MemRefOf<[UI8, F16, BF16, quant_QuantizedType]>>:$filter,
         Optional<MemRefOf<[SI32]>>:$weight_table,
+        Optional<MemRefOf<[UI8]>>:$activation_window,
         MemRefOf<[UI8, F16, BF16, quant_QuantizedType]>:$parent_input,
         MemRefOf<[UI8, F16, F32, BF16, quant_QuantizedType]>:$parent_output,
 
@@ -1712,7 +1712,8 @@ def VPUIP_NCEClusterTaskOp :
         VPUIP_NCETaskType:$task_type,
         OptionalAttr<VPUIP_PPELayerType>:$fixed_ppe_task,
         OptionalAttr<I32ArrayAttr>:$kernel_padding,
-        OptionalAttr<I32ArrayAttr>:$strides
+        OptionalAttr<I32ArrayAttr>:$strides,
+        OptionalAttr<I32ArrayAttr>:$kernel_size
     );
 
     let results = (outs
@@ -1722,10 +1723,10 @@ def VPUIP_NCEClusterTaskOp :
     let builders = [
         OpBuilder<(ins
             "mlir::Value":$input, "mlir::Value":$filter, "mlir::Value":$weight_table,
-            "mlir::Value":$parent_input, "mlir::Value":$parent_output,
+            "mlir::Value":$activation_window, "mlir::Value":$parent_input, "mlir::Value":$parent_output,
             "mlir::Value":$output,
             "vpux::VPUIP::NCETaskType":$task_type, "vpux::VPUIP::PPELayerTypeAttr":$fixed_ppe_task,
-            "mlir::ArrayAttr":$kernel_padding, "mlir::ArrayAttr":$strides
+            "mlir::ArrayAttr":$kernel_padding, "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$kernel_size
         )>
     ];
 
@@ -1734,6 +1735,7 @@ def VPUIP_NCEClusterTaskOp :
         `inputs` `(` $input  `:` type($input)
                      (`,` $filter^ `:` type($filter))?
                      (`,` $weight_table^ `:` type($weight_table))? `)`
+                     (`,` $activation_window^ `:` type($activation_window))? `)`
         `parent_input` `(` $parent_input `:` type($parent_input) `)`
         `parent_output` `(` $parent_output `:` type($parent_output) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
@@ -1747,6 +1749,12 @@ def VPUIP_NCEClusterTaskOp :
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
     }];
+
+    let extraClassDeclaration = [{
+        vpux::VPUIP::DPUTaskOp addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start, mlir::ArrayAttr end,
+                                          mlir::ArrayAttr padsBegin, mlir::ArrayAttr padsEnd,
+                                          VPUIP::MPEMode mpeMode);
+    }]#InferReturnTypesForLayer<1>.impl;
 }
 
 //

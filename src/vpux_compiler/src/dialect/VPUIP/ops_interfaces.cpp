@@ -121,12 +121,32 @@ mlir::LogicalResult vpux::VPUIP::verifyNCETask(mlir::Operation* op) {
         return errorAt(op, "Operation '{0}' doesn't implement VPUIP Task interface", op->getName());
     }
 
-    auto nceTask = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(op);
+    auto nceTask = mlir::dyn_cast<NCETaskOpInterface>(op);
     if (nceTask == nullptr) {
         return errorAt(op, "Operation '{0}' doesn't implement VPUIP NCETask interface", op->getName());
     }
 
-    for (auto val : {nceTask.input(), nceTask.output()}) {
+    auto layerOp = mlir::dyn_cast<LayerInterface>(op);
+    if (layerOp == nullptr) {
+        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+    }
+
+    auto inputs = layerOp.getInputs();
+    auto outputs = layerOp.getOutputs();
+
+    for (auto val : concat<mlir::Value>(inputs, outputs)) {
+        const auto valType = val.getType().dyn_cast_or_null<mlir::MemRefType>();
+        if (valType == nullptr) {
+            return errorAt(op, "Cannot cast Value '{0}' to MemRefType", val);
+        }
+        const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(valType.getRank() - 1)));
+
+        if (!strideReqs.checkStrides(val)) {
+            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", val, strideReqs);
+        }
+    }
+
+    for (auto val : concat<mlir::Value>(inputs, outputs)) {
         auto type = val.getType().cast<mlir::MemRefType>();
         auto mem = getPhysicalMemory(type);
 
@@ -135,13 +155,8 @@ mlir::LogicalResult vpux::VPUIP::verifyNCETask(mlir::Operation* op) {
         }
 
         if (mem.getValue() != PhysicalMemory::CMX_NN) {
-            return errorAt(op, "Can't operate with '{0}' PhysicalMemory. Only '{1}' PhsyicalMemory is allowed",
+            return errorAt(op, "Can't operate with '{0}' PhysicalMemory. Only '{1}' PhysicalMemory is allowed",
                            mem.getValue(), PhysicalMemory::CMX_NN);
-        }
-
-        const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(0)));
-        if (!strideReqs.checkStrides(val)) {
-            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", val, strideReqs);
         }
     }
 

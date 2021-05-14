@@ -26,6 +26,7 @@ vpux::VPUXConfig::VPUXConfig() {
     _compileOptions = merge(vpux::VPUXConfigBase::getCompileOptions(), {
                                                                                VPUX_CONFIG_KEY(PLATFORM),
                                                                                VPUX_CONFIG_KEY(COMPILER_TYPE),
+                                                                               VPUX_CONFIG_KEY(COMPILATION_MODE),
                                                                        });
     _runTimeOptions = merge(vpux::VPUXConfigBase::getRunTimeOptions(), {
                                                                                CONFIG_KEY(PERF_COUNT),
@@ -127,6 +128,7 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
             {VPUX_CONFIG_VALUE(MCM), IE::VPUXConfigParams::CompilerType::MCM},
             {VPUX_CONFIG_VALUE(MLIR), IE::VPUXConfigParams::CompilerType::MLIR}};
     setOption(_compilerType, vpuxCompilerType, config, VPUX_CONFIG_KEY(COMPILER_TYPE));
+    setOption(_compilationMode, config, VPUX_CONFIG_KEY(COMPILATION_MODE));
 
     parseEnvironment();
 }

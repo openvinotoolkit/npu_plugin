@@ -11,6 +11,8 @@ This pass bufferizes **IE Dialect** into **IERT Dialect**:
 * Replaces Layer Operations with IERT analogues.
 * Replaces Quant Dialect Operations with IERT analogues.
 * Replaces `linalg.tensor_reshape` with `linalg.reshape`.
+### `-convert-to-nce-ops`: Convert to NCE ops
+Convert ops which can be executed on NCE to explicit NCE ops.
 ### `-lower-IERT-to-VPUIP`: Convert IERT Dialect Layer Operations to VPUIP Dialect
 This pass converts Layer Operations from IERT Dialect to VPUIP Dialect.
 It uses simple SHAVE implementation for IERT operations without any optimizations.
