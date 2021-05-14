@@ -22,36 +22,45 @@
 using namespace vpux;
 
 void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                          mlir::Value filter, mlir::Value weight_table, mlir::Value parent_input,
-                                          mlir::Value parent_output, mlir::Value output,
+                                          mlir::Value filter, mlir::Value weight_table, mlir::Value activation_window,
+                                          mlir::Value parent_input, mlir::Value parent_output, mlir::Value output,
                                           vpux::VPUIP::NCETaskType task_type,
                                           vpux::VPUIP::PPELayerTypeAttr fixed_ppe_task, mlir::ArrayAttr kernel_padding,
-                                          mlir::ArrayAttr strides) {
-    build(builder, state, output.getType(), input, filter, weight_table, parent_input, parent_output, output,
-          mlir::ValueRange{}, mlir::ValueRange{}, task_type, fixed_ppe_task, kernel_padding, strides, 0);
+                                          mlir::ArrayAttr strides, mlir::ArrayAttr kernel_size) {
+    build(builder, state, output.getType(), input, filter, weight_table, activation_window, parent_input, parent_output,
+          output, mlir::ValueRange{}, mlir::ValueRange{}, task_type, fixed_ppe_task, kernel_padding, strides,
+          kernel_size, 0);
+}
+
+vpux::VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start,
+                                                                 mlir::ArrayAttr end, mlir::ArrayAttr padsBegin,
+                                                                 mlir::ArrayAttr padsEnd, VPUIP::MPEMode mpeMode) {
+    if (variants().empty()) {
+        variants().emplaceBlock();
+    }
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(&variants().back());
+    return builder.create<VPUIP::DPUTaskOp>(variants().getLoc(), start, end, padsBegin, padsEnd, mpeMode);
 }
 
 namespace {
 
 mlir::LogicalResult checkNCEKernel(VPUIP::NCEClusterTaskOp op) {
-    VPUX_THROW_UNLESS(op.filter(), "CheckNCEKernel requires filter");
     VPUX_THROW_UNLESS(op.strides().getValue(), "CheckNCEKernel requires strides");
 
-    const auto filterShape = getShape(op.filter());
     const auto strideShape = parseIntArrayAttr(op.strides().getValue());
-
-    static const auto KH = Dim(1);
-    static const auto KW = Dim(2);
+    const auto kernelSize = parseIntArrayAttr(op.kernel_size().getValue());
 
     static const int32_t NCE_MAX_KERNEL_SIZE = 11;
     static const int32_t NCE_MAX_STRIDE_SIZE = 8;
 
-    if (filterShape[KH] > NCE_MAX_KERNEL_SIZE || filterShape[KH] <= 0) {
-        return errorAt(op, "Unsupported kernel height dimension: '{0}'. Must be between 1-11.", filterShape[KH]);
+    if (kernelSize[0] > NCE_MAX_KERNEL_SIZE || kernelSize[0] <= 0) {
+        return errorAt(op, "Unsupported kernel height dimension: '{0}'. Must be between 1-11.", kernelSize[0]);
     }
-    if (filterShape[KW] > NCE_MAX_KERNEL_SIZE || filterShape[KW] <= 0) {
-        return errorAt(op, "Unsupported kernel height dimension: '{0}'. Must be between 1-11.", filterShape[KW]);
+    if (kernelSize[1] > NCE_MAX_KERNEL_SIZE || kernelSize[1] <= 0) {
+        return errorAt(op, "Unsupported kernel height dimension: '{0}'. Must be between 1-11.", kernelSize[1]);
     }
+
     if (strideShape[0] > NCE_MAX_STRIDE_SIZE || strideShape[0] <= 0) {
         return errorAt(op, "Unsupported stride height dimension: '{0}'. Must be between 1-8.", strideShape[0]);
     }
@@ -94,7 +103,7 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
 
     if (outputChannels * numElementsPerChannelInWeightTable != static_cast<size_t>(weightTableShape.totalSize())) {
         return errorAt(op,
-                       "Weight table size needs to be {1}*{0} bytes if the number of output channels is {2}, but size "
+                       "Weight table size needs to be {1}*{0} bytes if the number of input channels is {2}, but size "
                        "received is: {2}*{0} bytes",
                        weightTableElemTypeSize, outputChannels * numElementsPerChannelInWeightTable,
                        weightTableNumElements);
@@ -126,13 +135,6 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPUIP::NCETaskType
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::AVEPOOL || op.task_type() == VPUIP::NCETaskType::MAXPOOL,
                       "Expected task type '{0}' or '{1}', but got '{2}'", VPUIP::NCETaskType::AVEPOOL,
                       VPUIP::NCETaskType::MAXPOOL, op.task_type());
-
-    if (op.filter()) {
-        return errorAt(op, "filter should be empty for NCETaskType : '{0}'", taskType);
-    }
-    if (op.weight_table()) {
-        return errorAt(op, "weight_table should be empty for NCETaskType : '{0}'", taskType);
-    }
     if (!op.strides().hasValue()) {
         return errorAt(op, "strides is required for NCETaskType : '{0}'", taskType);
     }
@@ -361,7 +363,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
 
     SmallVector<uint8_t> ppeList;
     if (this->fixed_ppe_task()) {
-        ppeList.push_back(getPPELayerType(fixed_ppe_task().getValue()));
+        auto ppe_layer_type = getPPELayerType(fixed_ppe_task().getValue());
+        if (ppe_layer_type != MVCNN::PPELayerType_NOOP) {
+            ppeList.push_back(ppe_layer_type);
+        }
     } else {
         // TODO: implement generic PPE serialization
         VPUX_THROW_UNLESS(this->ppe_tasks().empty(), "Generic PPE not yet implemented.");
@@ -370,11 +375,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     auto ppeFixedFunction = MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes);
     auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction);
 
-    static const auto H = Dim(1);
-    static const auto W = Dim(2);
-
-    auto kernelHeight = this->filter() ? getShape(this->filter())[H] : 0;
-    auto kernelWidth = this->filter() ? getShape(this->filter())[W] : 0;
+    auto kernelHeight = this->kernel_size() ? parseIntArrayAttr(this->kernel_size().getValue())[0] : 0;
+    auto kernelWidth = this->kernel_size() ? parseIntArrayAttr(this->kernel_size().getValue())[1] : 0;
 
     auto kernelStridesHeight = this->strides() ? parseIntArrayAttr(this->strides().getValue())[0] : 0;
     auto kernelStridesWidth = this->strides() ? parseIntArrayAttr(this->strides().getValue())[1] : 0;
@@ -392,6 +394,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     auto outputData = writer.getTensor(this->output());
     auto weightsData = this->filter() ? writer.getTensor(this->filter()) : 0;
     auto weightsTable = this->weight_table() ? writer.getTensor(this->weight_table()) : 0;
+    auto activationWindow = this->activation_window() ? writer.getTensor(this->activation_window()) : 0;
+    auto activationWindowChannelLength = 4;
 
     auto invariantMPEMode = getMPEFrequentModeFromDPUTasks(this->variants());
 
@@ -414,7 +418,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                             inputData,                                  // input_data
                                             outputData,                                 // output_data
                                             weightsData,                                // weights_data
-                                            weightsTable                                // weights_table
+                                            weightsTable,                               // weights_table
+                                            activationWindow,                           // activation_window
+                                            activationWindowChannelLength               // activation_window_channel_length
             );
 
     MVCNN::NCE2TaskBuilder builder(writer);

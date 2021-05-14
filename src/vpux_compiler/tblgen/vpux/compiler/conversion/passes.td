@@ -91,4 +91,23 @@ def LowerIERT2VPUIP : PassBase<"lower-IERT-to-VPUIP", "vpux::FunctionPass"> {
     ];
 }
 
+//
+// ConvertToNCEOps
+//
+
+def ConvertToNCEOps : PassBase<"convert-to-nce-ops", "vpux::FunctionPass"> {
+    let summary = "Convert to NCE2 ops";
+
+    let description = [{
+        Convert ops which can be executed on NCE to explicit NCE ops.
+    }];
+
+    let constructor = "vpux::createConvertToNCEOpsPass()";
+
+    let dependentDialects = [
+        "vpux::IERT::IERTDialect",
+        "vpux::VPUIP::VPUIPDialect"
+    ];
+}
+
 #endif

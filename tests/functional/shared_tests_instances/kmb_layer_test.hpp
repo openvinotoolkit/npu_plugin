@@ -41,6 +41,7 @@ protected:
     virtual void SkipBeforeValidate() {}
 
     void useCompilerMLIR();
+    void setReferenceHardwareModeMLIR();
     bool isCompilerMCM() const;
     bool isCompilerMLIR() const;
 

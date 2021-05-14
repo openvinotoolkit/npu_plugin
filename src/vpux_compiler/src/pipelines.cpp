@@ -60,6 +60,40 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(VPUIP::createAddLinearSchedulingPass(log));
 }
 
+void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
+    const auto ddrMemSpaceCb = [](mlir::MLIRContext* ctx, StringRef) -> mlir::Attribute {
+        return VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::DDR);
+    };
+
+    const auto cmxMemSpaceCb = [](mlir::MLIRContext* ctx, StringRef) -> mlir::Attribute {
+        return VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
+    };
+
+    // IE Dialect level
+    pm.addPass(mlir::createCanonicalizerPass());
+    IE::buildAdjustForVPUPipeline(pm, log);
+    pm.addPass(IE::createUseUserPrecisionPass(log));
+    pm.addPass(mlir::createCanonicalizerPass());
+    IE::buildLowPrecisionPipeline(pm, log);
+
+    // Lower IE->IERT
+    buildLowerIE2IERTPipeline(pm, log);
+
+    // IERT Dialect level
+    pm.addPass(createConvertToNCEOpsPass());
+    pm.addPass(createComposeSubViewPass(log));
+    pm.addPass(createDeallocPlacementPass(log));
+    pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpaceCb, log));
+    pm.addPass(IERT::createStaticAllocationPass(ddrMemSpaceCb, log));
+    pm.addPass(IERT::createStaticAllocationPass(cmxMemSpaceCb, log));
+
+    // Lower IERT->VPUIP
+    pm.addPass(createLowerIERT2VPUIPPass(log));
+
+    // VPUIP Dialect level
+    pm.addPass(VPUIP::createAddLinearSchedulingPass(log));
+}
+
 //
 // registerPipelines
 //
@@ -68,5 +102,9 @@ void vpux::registerPipelines() {
     mlir::PassPipelineRegistration<>("reference-mode", "Compile IE Network in Reference mode (SW only execution)",
                                      [](mlir::OpPassManager& pm) {
                                          buildReferenceModePipeline(pm);
+                                     });
+    mlir::PassPipelineRegistration<>("hardware-mode", "Compile IE Network in Hardware mode (HW and SW execution)",
+                                     [](mlir::OpPassManager& pm) {
+                                         buildHardwareModePipeline(pm);
                                      });
 }

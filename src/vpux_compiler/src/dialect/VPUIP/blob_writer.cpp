@@ -129,6 +129,9 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
         uint64_t dataIndex, Optional<uint64_t> sparsityIndex, Optional<uint64_t> storageElementIndex,
         Optional<uint32_t> storageElementSize, Optional<uint32_t> leadingOffset, Optional<uint32_t> trailingOffset,
         Optional<float> density_rate, Optional<uint8_t> swizzling_key) {
+    const std::vector<uint16_t> basePtrsVec = {};
+    const auto basePtrsFb = createVector(basePtrsVec);
+
     const auto serializedName = createString(name);
 
     const auto serializedDataType = createDType(type.getElementType());
@@ -195,6 +198,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     builder.add_quant_mult(quantMult);
     builder.add_quant_shift(quantShift);
     builder.add_order(dimsOrder.code());
+    builder.add_base_ptrs(basePtrsFb);
     if (leadingOffset.hasValue()) {
         builder.add_leading_offset(leadingOffset.getValue());
     }

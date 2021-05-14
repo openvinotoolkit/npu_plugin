@@ -78,6 +78,9 @@ public:
     InferenceEngine::VPUXConfigParams::CompilerType compilerType() const noexcept {
         return _compilerType;
     }
+    const std::string& compilationMode() const {
+        return _compilationMode;
+    }
 
     void parseFrom(const VPUXConfig& other);
 
@@ -107,6 +110,8 @@ protected:
     uint32_t _inferenceTimeoutMs = 5 * 1000;
     InferenceEngine::VPUXConfigParams::CompilerType _compilerType =
             InferenceEngine::VPUXConfigParams::CompilerType::MCM;
+
+    std::string _compilationMode = "ReferenceSW";
 
 private:
     void parseEnvironment();

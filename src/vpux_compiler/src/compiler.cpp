@@ -93,6 +93,12 @@ VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
     }
 }
 
+VPUIP::CompilationMode getCompilationMode(const VPUXConfig& config) {
+    const auto parsed = VPUIP::symbolizeCompilationMode(config.compilationMode());
+    VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", config.compilationMode());
+    return parsed.getValue();
+}
+
 //
 // TimingLogger
 //
@@ -147,7 +153,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     bool localReproducer = true;
     Optional<llvm::Regex> irPrintingFilter;
     bool printFullIR = false;
-    VPUIP::CompilationMode compilationMode = VPUIP::CompilationMode::ReferenceSW;
+    VPUIP::CompilationMode compilationMode = getCompilationMode(config);
     bool printFullConstant = false;
 
 #ifdef VPUX_DEVELOPER_BUILD
@@ -232,6 +238,8 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
 
     if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
         buildReferenceModePipeline(pm, log.nest());
+    } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
+        buildHardwareModePipeline(pm, log.nest());
     } else {
         VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
     }

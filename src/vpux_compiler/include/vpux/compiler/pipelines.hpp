@@ -32,5 +32,6 @@ void registerPipelines();
 //
 
 void buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+void buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 }  // namespace vpux

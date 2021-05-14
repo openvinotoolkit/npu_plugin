@@ -218,6 +218,10 @@ void KmbLayerTestsCommon::useCompilerMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
 }
 
+void KmbLayerTestsCommon::setReferenceHardwareModeMLIR() {
+    configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceHW";
+}
+
 bool KmbLayerTestsCommon::isCompilerMCM() const {
     const auto it = configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE));
     if (it == configuration.end()) {

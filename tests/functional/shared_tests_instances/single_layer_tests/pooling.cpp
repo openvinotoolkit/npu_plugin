@@ -32,6 +32,8 @@ class KmbPoolingLayerTest: public PoolingLayerTest, virtual public LayerTestsUti
     }
 };
 
+class KmbPoolingLayerTestOnly_MLIR: public KmbPoolingLayerTest {};
+
 TEST_P(KmbPoolingLayerTest, CompareWithRefs) {
     Run();
 }
@@ -39,6 +41,12 @@ TEST_P(KmbPoolingLayerTest, CompareWithRefs) {
 // [Track number: S#49089]
 TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
+    Run();
+}
+
+TEST_P(KmbPoolingLayerTestOnly_MLIR, CompareWithRefs_HW) {
+    useCompilerMLIR();
+    setReferenceHardwareModeMLIR();
     Run();
 }
 
@@ -57,7 +65,25 @@ const std::vector<InferenceEngine::SizeVector> inShapes = {
     {1, 3, 30, 30}
 };
 
+const std::vector<InferenceEngine::SizeVector> inShapesMLIRHW = {
+        {1, 16, 1, 4},
+};
+
 ////* ========== Max Polling ========== */
+
+/* +========== MLIR HW cases ========== */
+const std::vector<poolSpecificParams> maxPoolMLIR_HW = {
+        std::make_tuple(
+                PoolingTypes::MAX,
+                std::vector<size_t> {1, 1},  // kernel
+                std::vector<size_t> {1, 1},  // strides
+                std::vector<size_t> {0, 0},  // padBegins
+                std::vector<size_t> {0, 0},  // padEnds
+                ngraph::op::RoundingType::FLOOR,
+                ngraph::op::PadType::EXPLICIT,
+                false  // placeholder value - exclude pad not applicable for max pooling
+        )
+};
 
 /* +========== Explicit Pad Floor Rounding ========== */
 
@@ -96,17 +122,29 @@ const std::vector<poolSpecificParams> maxPoolExplicitPadFloorRoundingParams = {
     ),
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MaxPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_maxPoolMLIR_HW, KmbPoolingLayerTestOnly_MLIR,
     ::testing::Combine(
-        ::testing::ValuesIn(maxPoolExplicitPadFloorRoundingParams),
+        ::testing::ValuesIn(maxPoolMLIR_HW),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(inShapes),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::ValuesIn(inShapesMLIRHW),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_MaxPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(maxPoolExplicitPadFloorRoundingParams),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inShapes),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        PoolingLayerTest::getTestCaseName);
 
 /* ========== Explicit Pad Ceil Rounding ========== */
 
