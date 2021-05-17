@@ -794,20 +794,25 @@ operation ::= `IE.Interpolate` `(` operands `)` attr-dict `:` type(operands) `->
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`attr` | vpux::IE::InterpolateAttr | DictionaryAttr with field(s): 'axes', 'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end' (each field having its own constraints)
+`sizes_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`scales_attr` | ::mlir::ArrayAttr | 32-bit float array attribute
+`axes_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`attr` | vpux::IE::InterpolateAttr | DictionaryAttr with field(s): 'mode', 'shape_calc_mode', 'coord_mode', 'nearest_mode', 'antialias', 'pads_begin', 'pads_end', 'cube_coeff' (each field having its own constraints)
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | ranked tensor of any type values
-`target_shape` | 1D tensor of integer values
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`sizes` | ranked tensor of integer values
+`scales` | ranked tensor of 16-bit float or 32-bit float values
+`axes` | ranked tensor of integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of any type values
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.LRN` (vpux::IE::LRNOp)
 
