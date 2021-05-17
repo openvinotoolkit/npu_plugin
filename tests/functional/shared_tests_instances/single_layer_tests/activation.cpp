@@ -41,7 +41,8 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::PReLu,
     ngraph::helpers::LeakyRelu,
     ngraph::helpers::Swish,
-    ngraph::helpers::Negative
+    ngraph::helpers::Negative,
+    ngraph::helpers::Exp,
 };
 } // namespace
 
@@ -112,8 +113,6 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {RoundHalfToEven,       {}},
     {RoundHalfAwayFromZero, {}},
 #if 0 // Unsupported layers
-    {Exp,      {{1.0f}}},
-    {Log,      {{1.0f}}},
     {Sign,     {{1.0f}}},
     {Abs,      {{1.0f}}},
 #endif
@@ -131,6 +130,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Elu,      {{1.0f}}},
     {Clamp,    {{-1.0f, 1.0f}}},
     {HSwish,   {{1.0f}}},
+    {Exp,      {{1.0f}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
