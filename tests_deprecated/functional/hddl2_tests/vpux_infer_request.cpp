@@ -75,8 +75,8 @@ TEST_F(InferRequest_SetBlob, RemoteBlob) {
 
     RemoteMemory_Helper remoteMemory;
     IE::TensorDesc inputTensorDesc = inputInfoPtr->getTensorDesc();
-    auto remoMemory = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
-    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoMemory);
+    auto remoteMemoryFD = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemFDToMap(remoteMemoryFD);
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContext->CreateBlob(inputInfoPtr->getTensorDesc(), blobParams);
     ASSERT_NE(nullptr, remoteBlobPtr);
 
@@ -133,11 +133,11 @@ TEST_F(InferRequest_GetBlob, InputRemoteBlobContainSameDataAsOnSet) {
     IE::RemoteContext::Ptr remoteContext = ie.CreateContext(pluginName, contextParams);
     ASSERT_NE(remoteContext, nullptr);
 
-    RemoteMemory_Helper remoteMemory;
+    RemoteMemory_Helper remoteMemoryHelper;
     IE::TensorDesc inputTensorDesc = inputInfoPtr->getTensorDesc();
-    auto remoMemory = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
-    remoteMemory.clearRemoteMemory();
-    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoMemory);
+    auto remoteMemoryFD = remoteMemoryHelper.allocateRemoteMemory(id, inputTensorDesc);
+    remoteMemoryHelper.clearRemoteMemory();
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemFDToMap(remoteMemoryFD);
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContext->CreateBlob(inputInfoPtr->getTensorDesc(), blobParams);
     ASSERT_NE(nullptr, remoteBlobPtr);
 
@@ -251,13 +251,15 @@ static void dumpPerformance(const std::map<std::string, IE::InferenceEngineProfi
 class InferenceWithPerfCount : public CoreAPI_Tests {
 public:
     const size_t numberOfTopClassesToCompare = 3;
+    const Models::ModelDesc modelToUse = Models::googlenet_v1;
+    const size_t inputWidth = modelToUse.width;
+    const size_t inputHeight = modelToUse.height;
 
 protected:
     void SetUp() override;
 };
 
 void InferenceWithPerfCount::SetUp() {
-    const Models::ModelDesc modelToUse = Models::googlenet_v1;
     network = ExecutableNetworkFactory::createCNNNetwork(modelToUse.pathToModel);
     executableNetworkPtr = nullptr;
 }
@@ -290,7 +292,10 @@ TEST_F(InferenceWithPerfCount, DISABLED_precommit_SyncInferenceWithPerfCount) {
 class InferenceWithCheckLayout : public ExecutableNetwork_Tests {
 public:
     const size_t numberOfTopClassesToCompare = 3;
-    IE::Blob::Ptr cat227x227Blob = nullptr;
+    IE::Blob::Ptr inputBlob = nullptr;
+    const size_t inputWidth = modelToUse.width;
+    const size_t inputHeight = modelToUse.height;
+
 protected:
     void SetUp() override;
 };
@@ -300,13 +305,13 @@ void InferenceWithCheckLayout::SetUp() {
     const auto& inputInfo = executableNetworkPtr->GetInputsInfo().begin()->second;
     const auto& inputLayout = inputInfo->getTensorDesc().getLayout();
     const bool isBGR = true;
-    cat227x227Blob = loadImage("cat3.bmp", modelToUse.width, modelToUse.height, inputLayout, isBGR);
+    inputBlob = loadImage("cat3.bmp", inputWidth, inputHeight, inputLayout, isBGR);
     inferRequest = executableNetworkPtr->CreateInferRequest();
 }
 
 TEST_F(InferenceWithCheckLayout, precommit_SyncInferenceAndCheckLayout) {
     const auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
-    inferRequest.SetBlob(inputBlobName, cat227x227Blob);
+    inferRequest.SetBlob(inputBlobName, inputBlob);
     inferRequest.Infer();
 
     const auto& inputInfo = executableNetworkPtr->GetInputsInfo().begin()->second;
@@ -335,14 +340,14 @@ static IE::MemoryBlob::Ptr copyBlob(IE::MemoryBlob::Ptr in) {
 
 TEST_F(InferenceWithCheckLayout, precommit_CheckInputsLayoutAfterTwoInferences) {
     const auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
-    const auto firstInputBlob = copyBlob(IE::as<IE::MemoryBlob>(cat227x227Blob));
+    const auto firstInputBlob = copyBlob(IE::as<IE::MemoryBlob>(inputBlob));
     inferRequest.SetBlob(inputBlobName, firstInputBlob);
     inferRequest.Infer();
 
     const auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
     const auto firstOutputBlob = copyBlob(IE::as<IE::MemoryBlob>(inferRequest.GetBlob(outputBlobName)));
 
-    const auto secondInputBlob = copyBlob(IE::as<IE::MemoryBlob>(cat227x227Blob));
+    const auto secondInputBlob = copyBlob(IE::as<IE::MemoryBlob>(inputBlob));
     inferRequest.SetBlob(inputBlobName, secondInputBlob);
     inferRequest.Infer();
 

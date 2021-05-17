@@ -49,8 +49,7 @@ struct AllocationInfo {
 
     // Size
     const HddlUnite::Inference::Precision precision;
-    // TODO Due to NV12 conversion workaround not to make const
-    uint64_t dataSize;
+    const uint64_t dataSize;
     // Flags
     const bool isRemoteMemory;
     const bool isNeedAllocation;
@@ -79,13 +78,13 @@ struct SourceInfo {
 struct NNInputInfo {
     NNInputInfo(const BlobDescType typeOfBlob, const InferenceEngine::DataPtr& blobDesc);
     // Size
-    HddlUnite::Inference::Precision precision;
-    uint64_t dataSize;
+    const HddlUnite::Inference::Precision precision;
+    const uint64_t dataSize;
     // Flags
-    bool isRemoteMemory;
-    bool isNeedAllocation;
+    const bool isRemoteMemory;
+    const bool isNeedAllocation;
     // TODO For multiple roi case?
-    uint32_t batch;
+    const uint32_t batch;
 };
 
 //------------------------------------------------------------------------------
@@ -113,7 +112,9 @@ public:
 
     /** @brief Update HddlUnite::BlobDesc with source data, format and ROI
      * @return BlobDesc updated with information from blob */
-    const HddlUnite::Inference::BlobDesc& updateUniteBlobDesc(const InferenceEngine::Blob::CPtr& blob);
+    const HddlUnite::Inference::BlobDesc& updateUniteBlobDesc(
+            const InferenceEngine::Blob::CPtr& blob,
+            const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR);
 
     /** @brief Create intermediate buffer for preprocessing result / NN input. Will have information only about size */
     HddlUnite::Inference::NNInputDesc createNNDesc() const;
@@ -126,29 +127,18 @@ public:
 
 private:
     const BlobDescType _blobType;
-    // TODO make const
-    AllocationInfo _allocationInfo;
+    const AllocationInfo _allocationInfo;
     SourceInfo _sourceInfo;
-    NNInputInfo _nnInputInfo;
+    const NNInputInfo _nnInputInfo;
     HddlUnite::Inference::BlobDesc _hddlUniteBlobDesc;
-    InferenceEngine::TensorDesc _yPlaneTensorDesc;
-    bool _isNV12Blob = false;
 
 private:
     /** Fill SourceInfo stuct with all frame related information **/
     void prepareImageFormatInfo(const InferenceEngine::Blob::CPtr& blobPtr,
-                                const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams);
-    /** Prepare ROI information **/
-    void getRect(const InferenceEngine::Blob::CPtr& blobPtr,
-                 const std::shared_ptr<vpux::ParsedRemoteBlobParams>& blobParams);
+                                const InferenceEngine::ColorFormat colorFormat);
 
-    // TODO [Workaround] Find suitable approach for IE::NV12 & HddlUnite::NV12 handling
-    /**
-     * @brief Workaround to provide to HddlUnite one sequence of raw data
-     * (NV12 Blob can contains two pointer to data which are not sequential)
-     */
-    void createRepackedNV12Blob(const InferenceEngine::Blob::CPtr& blobPtr);
-    InferenceEngine::Blob::Ptr _repackedBlob;  //!< Repacked NV12 Blob if specified
+    /** Prepare ROI information **/
+    void getRect(const InferenceEngine::Blob::CPtr& blobPtr, const vpux::ParsedRemoteBlobParams::CPtr& blobParams);
 };
 
 }  // namespace hddl2

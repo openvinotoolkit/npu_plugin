@@ -26,7 +26,7 @@
 
 #include <ie_core.hpp>
 
-#include "hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 
 using namespace vpux::hddl2;
 namespace IE = InferenceEngine;
@@ -40,7 +40,7 @@ public:
     IE::RemoteBlob::CPtr createRemoteBlob(const IE::TensorDesc& tensorDesc);
 
 protected:
-    HddlUnite::RemoteMemory::Ptr _remoteMemory = nullptr;
+    VpuxRemoteMemoryFD _remoteMemoryFD = -1;
     RemoteContext_Helper::Ptr _remoteContextHelperPtr = nullptr;
     RemoteMemory_Helper::Ptr _remoteMemoryHelperPtr = nullptr;
 };
@@ -51,11 +51,9 @@ IE::RemoteBlob::CPtr BlobDescriptorAdapter_UnitTests::createRemoteBlob(const IE:
     auto remoteContextPtr = _remoteContextHelperPtr->remoteContextPtr;
 
     WorkloadID workloadId = _remoteContextHelperPtr->getWorkloadId();
-    // Size this blob will be not used, size doesn't matter
-    const size_t size = 100;
-    _remoteMemory = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, size);
+    _remoteMemoryFD = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, tensorDesc);
 
-    const auto blobParamMap = RemoteBlob_Helper::wrapRemoteMemToMap(_remoteMemory);
+    const auto blobParamMap = RemoteBlob_Helper::wrapRemoteMemFDToMap(_remoteMemoryFD);
     return remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);
 }
 

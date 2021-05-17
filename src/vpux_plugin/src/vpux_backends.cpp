@@ -143,7 +143,7 @@ std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPU
                     return (curCompilationPlatformName != compilationPlatformName);
                 });
         if (anotherPlatformIt != devNames.cend()) {
-            THROW_IE_EXCEPTION << "Different VPUX platform have been detected. Not supported configuration.";
+            IE_THROW() << "Different VPUX platform have been detected. Not supported configuration.";
         }
         return compilationPlatformName;
     }

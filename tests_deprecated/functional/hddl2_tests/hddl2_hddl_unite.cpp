@@ -81,7 +81,8 @@ TEST_F(HDDL2_HddlUnite_Tests, CanCreateAndChangeRemoteMemory) {
 
     const size_t size = 100;
 
-    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
+    remoteMemoryHelper.allocateRemoteMemory(workloadContext->getWorkloadContextID(), size);
+    auto remoteMemoryPtr = remoteMemoryHelper.getRemoteMemoryPtr();
 
     { remoteMemoryPtr->syncToDevice(message.data(), message.size()); }
 
@@ -99,7 +100,8 @@ TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
 
     const size_t size = 100;
 
-    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
+    remoteMemoryHelper.allocateRemoteMemory(workloadContext->getWorkloadContextID(), size);
+    auto remoteMemoryPtr = remoteMemoryHelper.getRemoteMemoryPtr();
     { remoteMemoryPtr->syncToDevice(message.data(), message.size()); }
 
     // Wrapped memory
@@ -162,7 +164,7 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CreatingTwoWorkloadContextForSameProcessW
     ret = registerWorkloadContext(firstContext);
     EXPECT_EQ(ret, HDDL_OK);
 
-    // First context
+    // Second context
     WorkloadID secondWorkloadId = -1;
     auto secondContext = HddlUnite::createWorkloadContext();
 
@@ -209,7 +211,8 @@ void HddlUnite_BlobDescr::SetUp() {
     inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, workloadContext);
 
     WorkloadID workloadId = workloadContext->getWorkloadContextID();
-    remoteMemory = remoteMemoryHelper.allocateRemoteMemory(workloadId, allocationSize);
+    remoteMemoryHelper.allocateRemoteMemory(workloadId, allocationSize);
+    remoteMemory = remoteMemoryHelper.getRemoteMemoryPtr();
 
     _uniteGraphHelper = std::make_shared<HddlUnite_Graph_Helper>(*workloadContext);
 

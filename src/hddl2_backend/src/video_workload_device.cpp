@@ -17,9 +17,12 @@
 // Plugin
 #include <hddl2_helper.h>
 
-#include "hddl2/hddl2_params.hpp"
 #include "hddl2_exceptions.h"
 #include "hddl2_executor.h"
+// [Track number: E#12122]
+// TODO Remove this header after removing HDDL2 deprecated parameters in future releases
+#include "hddl2/hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 // Subplugin
 #include "video_workload_device.h"
 
@@ -33,13 +36,24 @@ ParsedContextParams::ParsedContextParams(const InferenceEngine::ParamMap& paramM
         IE_THROW() << PARAMS_ERROR_str << "Param map for context is empty.";
     }
     // Get workload id and based on it get HddlUniteContext
-    if (_paramMap.find(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)) == _paramMap.end()) {
-        IE_THROW() << PARAMS_ERROR_str << "Param map does not contain workload id information";
-    }
-    try {
-        _workloadId = _paramMap.at(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)).as<uint64_t>();
-    } catch (...) {
-        IE_THROW() << PARAMS_ERROR_str << "ParsedContextParams: Incorrect type of WORKLOAD_CONTEXT_ID.";
+
+    // [Track number: E#12122]
+    // TODO Remove this deprecated part after removing HDDL2 deprecated parameters in future releases
+    if (_paramMap.find(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)) != _paramMap.end()) {
+        try {
+            _workloadId = _paramMap.at(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)).as<uint64_t>();
+        } catch (...) {
+            IE_THROW() << PARAMS_ERROR_str << "ParsedContextParams: Incorrect type of WORKLOAD_CONTEXT_ID.";
+        }
+    } else {
+        if (_paramMap.find(IE::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID)) == _paramMap.end()) {
+            IE_THROW() << PARAMS_ERROR_str << "Param map does not contain workload id information";
+        }
+        try {
+            _workloadId = _paramMap.at(IE::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID)).as<uint64_t>();
+        } catch (...) {
+            IE_THROW() << PARAMS_ERROR_str << "ParsedContextParams: Incorrect type of WORKLOAD_CONTEXT_ID.";
+        }
     }
 }
 
@@ -73,9 +87,9 @@ vpux::Executor::Ptr VideoWorkloadDevice::createExecutor(const NetworkDescription
 
 std::shared_ptr<Allocator> VideoWorkloadDevice::getAllocator(const InferenceEngine::ParamMap& paramMap) const {
     try {
-        // VideoWorkload allocator only suitable for HddlUnite::RemoteMemory. Will throw, if not found.
-        const auto remoteMemory = getRemoteMemoryFromParams(paramMap);
-        if (remoteMemory != nullptr) {
+        // VideoWorkload allocator is suitable only for HddlUnite::RemoteMemory. Will throw, if it was not found.
+        const auto remoteMemoryFD = getRemoteMemoryFDFromParams(paramMap);
+        if (remoteMemoryFD >= 0) {
             return _allocatorPtr;
         }
     } catch (...) {

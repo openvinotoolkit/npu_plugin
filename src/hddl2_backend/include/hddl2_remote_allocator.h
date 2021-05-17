@@ -102,7 +102,7 @@ protected:
      * @brief Fake copy of already allocated on device memory by incrementing remote memory counter
      * @return Handle to allocated memory
      */
-    void* incrementRemoteMemoryCounter(const void* remoteMemoryHandle) noexcept;
+    void* incrementRemoteMemoryCounter(void* remoteMemoryHandle, const HddlUnite::eRemoteMemoryFormat format) noexcept;
 
 private:
     HddlUnite::WorkloadContext::Ptr _contextPtr = nullptr;

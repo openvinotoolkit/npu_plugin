@@ -24,8 +24,10 @@
 #include <ie_core.hpp>
 #include <tests_common.hpp>
 #include "executable_network_factory.h"
+#include <helper_remote_context.h>
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_tensor_description.h"
+#include "hddl2_helpers/helper_device_name.h"
 
 namespace IE = InferenceEngine;
 
@@ -35,31 +37,13 @@ public:
     const Models::ModelDesc modelToUse = Models::googlenet_v1;
     const size_t inputWidth = modelToUse.width;
     const size_t inputHeight = modelToUse.height;
-    const size_t nv12Size = inputWidth * inputHeight * 3 / 2;
     const size_t numberOfTopClassesToCompare = 3;
-
-    HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(
-            const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize);
-    std::string inputNV12Path = TestDataHelpers::get_data_path() + "/" + std::to_string(inputWidth) + "x" + std::to_string(inputHeight) + "/cat3.yuv";
+    const std::string inputNV12Path =
+        TestDataHelpers::get_data_path() + "/" + std::to_string(inputWidth) + "x" + std::to_string(inputHeight) + "/cat3.yuv";
 protected:
     void TearDown() override;
-    HddlUnite::RemoteMemory::Ptr _remoteFrame = nullptr;
+    RemoteMemory_Helper _remoteMemoryHelper;
 };
-
-HddlUnite::RemoteMemory::Ptr HDDL2_InferRequest_PerformanceTests::allocateRemoteMemory(
-        const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize) {
-    _remoteFrame = std::make_shared<HddlUnite::RemoteMemory> (*context,
-                                                              HddlUnite::RemoteMemoryDesc(dataSize, 1, dataSize, 1));
-
-    if (_remoteFrame == nullptr) {
-        IE_THROW() << "Failed to allocate remote memory.";
-    }
-
-    if (_remoteFrame->syncToDevice(data, dataSize) != HDDL_OK) {
-        IE_THROW() << "Failed to sync memory to device.";
-    }
-    return _remoteFrame;
-}
 
 void HDDL2_InferRequest_PerformanceTests::TearDown() { HddlUnite::unregisterWorkloadContext(workloadId); }
 
@@ -68,33 +52,51 @@ TEST_F(HDDL2_InferRequest_PerformanceTests, DifferentROISize_NotAffectPerformanc
     // ---- Load inference engine instance
     IE::Core ie;
 
-    // ---- Create workload context
-    HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
-    ASSERT_NE(nullptr, context.get());
-
-    context->setContext(workloadId);
-    EXPECT_EQ(workloadId, context->getWorkloadContextID());
-    EXPECT_EQ(HddlStatusCode::HDDL_OK, registerWorkloadContext(context));
+    // ---- Set workload context
+    WorkloadContext_Helper workloadContextHelper;
+    workloadId = workloadContextHelper.getWorkloadId();
+    IE::ParamMap contextParams = Remote_Context_Helper::wrapWorkloadIdToMap(workloadId);
+    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", contextParams);
 
     // ---- Load frame to remote memory (emulate VAAPI result)
     // ----- Load NV12 input
-    IE::NV12Blob::Ptr inputNV12Blob = NV12Blob_Creator::createFromFile(inputNV12Path, inputWidth, inputHeight);
-
-    const auto& nv12FrameTensor = IE::TensorDesc(IE::Precision::U8, {1, 1, 1, nv12Size}, IE::Layout::NCHW);
-    IE::Blob::Ptr inputRefBlob = make_blob_with_precision(nv12FrameTensor);
-    inputRefBlob->allocate();
-    const size_t offset = inputNV12Blob->y()->byteSize();
-    std::memcpy(IE::as<IE::MemoryBlob>(inputRefBlob)->wmap(), IE::as<IE::MemoryBlob>(inputNV12Blob->y())->rmap(),
-                inputNV12Blob->y()->byteSize());
-    std::memcpy(IE::as<IE::MemoryBlob>(inputRefBlob)->wmap().as<char*>() + offset,
-                IE::as<IE::MemoryBlob>(inputNV12Blob->uv())->rmap(), inputNV12Blob->uv()->byteSize());
+    std::vector<uint8_t> nv12InputBlobMemory;
+    size_t nv12Size = inputWidth * inputHeight * 3 / 2;
+    nv12InputBlobMemory.resize(nv12Size);
+    IE::NV12Blob::Ptr inputNV12Blob = NV12Blob_Creator::createFromFile(
+        inputNV12Path, inputWidth, inputHeight, nv12InputBlobMemory.data());
 
     // ----- Allocate memory with HddlUnite on device
-    auto remoteMemory = allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
+    auto remoteMemoryFD = _remoteMemoryHelper.allocateRemoteMemory(workloadId, nv12Size, inputNV12Blob->y()->cbuffer().as<void*>());
 
-    // ---- Init context map and create context based on it
-    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
-    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", paramMap);
+    // ---- Create remote NV12 blob by using already exists remote memory
+    const size_t yPlanes = 1;
+    const size_t uvPlanes = 2;
+    IE::ParamMap blobYParamMap = {{IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFD},
+                                    {IE::VPUX_PARAM_KEY(MEM_OFFSET), static_cast<size_t>(0)}};
+
+    IE::TensorDesc inputYTensor = IE::TensorDesc(IE::Precision::U8, {1, yPlanes, inputHeight, inputWidth}, IE::Layout::NHWC);
+    IE::RemoteBlob::Ptr remoteYBlobPtr = contextPtr->CreateBlob(inputYTensor, blobYParamMap);
+    ASSERT_NE(nullptr, remoteYBlobPtr);
+
+    IE::ParamMap blobUVParamMap = {{IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFD},
+                                    {IE::VPUX_PARAM_KEY(MEM_OFFSET), static_cast<size_t>(inputWidth * inputHeight * yPlanes)}};
+
+    IE::TensorDesc inputUVTensor = IE::TensorDesc(IE::Precision::U8, {1, uvPlanes, inputHeight / 2, inputWidth / 2}, IE::Layout::NHWC);
+    IE::RemoteBlob::Ptr remoteUVBlobPtr = contextPtr->CreateBlob(inputUVTensor, blobUVParamMap);
+    ASSERT_NE(nullptr, remoteUVBlobPtr);
+    IE::NV12Blob::Ptr remoteNV12BlobPtr = IE::make_shared_blob<IE::NV12Blob>(remoteYBlobPtr, remoteUVBlobPtr);
+    ASSERT_NE(nullptr, remoteNV12BlobPtr);
+
+    // Create first ROI blob
+    IE::ROI firstRoi {0, 5, 5, inputWidth - 100, inputHeight - 100};
+    IE::Blob::Ptr firstROIBlob = remoteNV12BlobPtr->createROI(firstRoi);
+    ASSERT_NE(nullptr, firstROIBlob);
+
+    // Second ROI blob with different size
+    IE::ROI secondRoi {0, 10, 10, inputWidth - 130, inputHeight - 130};
+    IE::Blob::Ptr secondROIBlob = remoteNV12BlobPtr->createROI(secondRoi);
+    ASSERT_NE(nullptr, secondROIBlob);
 
     // ---- Import network providing context as input to bind to context
     auto blobContentStream = ExecutableNetworkFactory::getGraphBlob(modelToUse.pathToModel);
@@ -104,27 +106,13 @@ TEST_F(HDDL2_InferRequest_PerformanceTests, DifferentROISize_NotAffectPerformanc
     IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
-    // ---- Create remote blob by using already exists remote memory and specify color format of it
-    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory},
-                                 {IE::HDDL2_PARAM_KEY(COLOR_FORMAT), IE::ColorFormat::NV12}};
-
     // Specify input
+    auto inputsInfo = executableNetwork.GetInputsInfo();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
-
-    IE::TensorDesc inputTensor = IE::TensorDesc(IE::Precision::U8, {1, 3, inputHeight, inputWidth}, IE::Layout::NCHW);
-    IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputTensor, blobParamMap);
 
     // Preprocessing
     IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
     preprocInfo.setColorFormat(IE::ColorFormat::NV12);
-
-    // Create first ROI blob
-    IE::ROI firstROI{0, 2, 2, 221, 221};
-    IE::Blob::Ptr firstROIBlob = remoteBlobPtr->createROI(firstROI);
-
-    // Second ROI blob with different size
-    IE::ROI secondROI{0, 2, 2, 211, 211};
-    IE::Blob::Ptr secondROIBlob = remoteBlobPtr->createROI(secondROI);
 
     const size_t BLOBS_COUNT = 1000;
     std::cout << "[TEST] Single ROI" << std::endl;
@@ -134,6 +122,7 @@ TEST_F(HDDL2_InferRequest_PerformanceTests, DifferentROISize_NotAffectPerformanc
         inferRequest.SetBlob(inputName, firstROIBlob, preprocInfo);
         inferRequest.Infer();
     }
+
     auto end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> setSingleROITime = end_time - start_time;
 

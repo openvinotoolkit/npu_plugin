@@ -21,7 +21,10 @@
 #include <WorkloadContext.h>
 #include <hddl2_helpers/helper_workload_context.h>
 
-#include "hddl2_params.hpp"
+// [Track number: E#12122]
+// TODO Remove this header after removing HDDL2 deprecated parameters in future releases
+#include "hddl2/hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 #include "helper_ie_core.h"
 
 //------------------------------------------------------------------------------
@@ -50,7 +53,12 @@ inline Remote_Context_Helper::Remote_Context_Helper() {
 
 inline InferenceEngine::ParamMap
 Remote_Context_Helper::wrapWorkloadIdToMap(const WorkloadID &id) {
-    return {{InferenceEngine::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), id}};
+    // [Track number: E#12122]
+    // TODO Remove HDDL2_PARAM_KEY part after removing deprecated HDDL2 parameters in future releases
+    if (std::rand()%2) {
+        return {{InferenceEngine::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), id}};
+    }
+    return {{InferenceEngine::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID), id}};
 }
 
 inline WorkloadID Remote_Context_Helper::getWorkloadId() const {

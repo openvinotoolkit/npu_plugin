@@ -40,6 +40,8 @@ public:
     const int MAX_WAIT = 60000;
     const size_t numberOfTopClassesToCompare = 3;
     const Models::ModelDesc modelToUse = Models::googlenet_v1;
+    const size_t inputWidth = modelToUse.width;
+    const size_t inputHeight = modelToUse.height;
 
 protected:
     void SetUp() override;
@@ -208,7 +210,7 @@ protected:
 
 void AsyncInferRequest_DifferentInput::SetUp() {
     AsyncInferRequest_Tests::SetUp();
-    inputNV12Path = TestDataHelpers::get_data_path() + "/" + std::to_string(modelToUse.width) + "x" + std::to_string(modelToUse.height) + "/cat3.yuv";
+    inputNV12Path = TestDataHelpers::get_data_path() + "/" + std::to_string(inputWidth) + "x" + std::to_string(inputHeight) + "/cat3.yuv";
     std::vector<Reference> availableReferences;
 
     availableReferences.emplace_back(Reference(false));
@@ -235,10 +237,11 @@ TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPrepr
     // --- Load random reference images
     for (int i = 0; i < REQUEST_LIMIT; ++i) {
         if (references.at(i).isNV12) {
-            // TODO Fix to follow same approach as hello nv12 classification sample
             // ----- Load NV12 input
+            std::vector<uint8_t> nv12InputBlobMemory;
+            nv12InputBlobMemory.resize(inputWidth * inputHeight * 3 / 2);
             IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(
-                inputNV12Path, modelToUse.width, modelToUse.height);
+                inputNV12Path, inputWidth, inputHeight, nv12InputBlobMemory.data());
 
             // Preprocessing
             IE::PreProcessInfo preprocInfo = requests.at(i).GetPreProcess(inputBlobName);

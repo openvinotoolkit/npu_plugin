@@ -27,7 +27,10 @@
 #endif
 
 #include "vpual_device.hpp"
+// [Track number: E#12122]
+// TODO Remove this header after removing KMB deprecated parameters in future releases
 #include "vpux/kmb_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 
 namespace vpux {
 
@@ -173,11 +176,20 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const std::string& 
 
 const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const InferenceEngine::ParamMap& map) const {
     std::string deviceId;
-    try {
-        deviceId = map.at(InferenceEngine::KMB_PARAM_KEY(DEVICE_ID)).as<std::string>();
-    } catch (...) {
-        IE_THROW() << "Device ID is not provided!";
+
+    // [Track number: E#12122]
+    // TODO Remove KMB_PARAM_KEY part after removing deprecated KMB parameters in future releases
+    auto deprDeviceIdIter = map.find(InferenceEngine::KMB_PARAM_KEY(DEVICE_ID));
+    if (deprDeviceIdIter != map.end()) {
+        deviceId = deprDeviceIdIter->second.as<std::string>();
+    } else {
+        try {
+            deviceId = map.at(InferenceEngine::VPUX_PARAM_KEY(DEVICE_ID)).as<std::string>();
+        } catch (...) {
+            IE_THROW() << "Device ID is not provided!";
+        }
     }
+
     try {
         return _devices.at(deviceId);
     } catch (...) {

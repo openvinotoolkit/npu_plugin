@@ -22,7 +22,7 @@
 #include "hddl2_helpers/helper_remote_blob.h"
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_helpers/helper_workload_context.h"
-#include "hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 #include "helper_remote_context.h"
 #include "skip_conditions.h"
 #include "vpux_metrics.h"
@@ -130,7 +130,7 @@ TEST_F(HDDL2_RemoteContext_UnitTests, getParams_containsWorkloadId) {
     SKIP_IF_NO_DEVICE();
     vpux::VPUXRemoteContext::Ptr context = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
 
-    const std::string workloadContextKey = IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID);
+    const std::string workloadContextKey = IE::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID);
 
     auto params = context->getParams();
     auto iter = params.find(workloadContextKey);
@@ -141,7 +141,7 @@ TEST_F(HDDL2_RemoteContext_UnitTests, getParams_containsWorkloadId) {
 TEST_F(HDDL2_RemoteContext_UnitTests, getParams_containsSameWorkloadId) {
     SKIP_IF_NO_DEVICE();
     vpux::VPUXRemoteContext::Ptr context = std::make_shared<vpux::VPUXRemoteContext>(devicePtr, params);
-    const std::string workloadContextKey = IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID);
+    const std::string workloadContextKey = IE::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID);
 
     auto params = context->getParams();
     auto iter = params.find(workloadContextKey);
@@ -170,9 +170,9 @@ void HDDL2_RemoteContext_CreateBlob_UnitTests::SetUp() {
     HDDL2_RemoteContext_UnitTests::SetUp();
     if (canWorkWithDevice()) {
         tensorDesc = _tensorDescriptionHelper.tensorDesc;
-        auto remoteMemory =
-            _remoteMemoryHelper.allocateRemoteMemory(workloadContextHelperPtr->getWorkloadId(), sizeToAllocate);
-        blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
+        auto remoteMemoryFD =
+            _remoteMemoryHelper.allocateRemoteMemory(workloadContextHelperPtr->getWorkloadId(), tensorDesc);
+        blobParams = RemoteBlob_Helper::wrapRemoteMemFDToMap(remoteMemoryFD);
     }
 }
 

@@ -17,7 +17,7 @@
 #include <core_api.h>
 
 #include "HddlUnite.h"
-#include "hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 #include "ie_core.hpp"
 #include "ie_metric_helpers.hpp"
 #include <device_helpers.hpp>

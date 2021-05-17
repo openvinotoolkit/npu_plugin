@@ -21,7 +21,7 @@
 #include <unordered_map>
 #include <vpux.hpp>
 
-#include "vpux/kmb_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 
 namespace vpux {
 
@@ -45,10 +45,10 @@ public:
     void* wrapRemoteMemory(const InferenceEngine::ParamMap& map) noexcept override;
     // TODO Deprecated, remove when will be possible
     void* wrapRemoteMemoryHandle(
-        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept override;
+        const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept override;
     void* wrapRemoteMemoryOffset(
-        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, const KmbOffsetParam& memOffset) noexcept override;
-    ~VpusmmAllocator();
+        const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size, const VpuxOffsetParam& memOffset) noexcept override;
+    virtual ~VpusmmAllocator();
 
 protected:
     std::mutex wrapMemoryMutex;

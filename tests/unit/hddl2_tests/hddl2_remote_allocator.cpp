@@ -64,7 +64,7 @@ using RemoteAllocator_WrapMemory = RemoteAllocator_UnitTests;
 TEST_F(RemoteAllocator_WrapMemory, IncorrectRemoteMemType_ReturnNull) {
     SKIP_IF_NO_DEVICE();
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr);
-    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), nullptr}};
+    IE::ParamMap paramMap = {{IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), nullptr}};
     const auto memoryHandle = allocatorPtr->wrapRemoteMemory(paramMap);
     EXPECT_EQ(memoryHandle, nullptr);
 }

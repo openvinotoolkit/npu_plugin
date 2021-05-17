@@ -61,9 +61,12 @@ protected:
      * @param[in/out] inputs Map with NN blobs. PP blobs should be placed instead for some inputs.
      * @details This should be done as separate step, if device cannot handle such preprocessing, input should not be
      * replaced  */
-    void moveBlobForPreprocessingToInputs(InferenceEngine::BlobMap& inputs,
-                                          const InferenceEngine::InputsDataMap& networkInputs,
-                                          const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
+    void moveBlobsForPreprocessingToInputs(
+            InferenceEngine::BlobMap& inputs, const InferenceEngine::InputsDataMap& networkInputs,
+            const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
+
+    void updateRemoteBlobs(InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap);
+    void updateRemoteBlobColorFormat(InferenceEngine::Blob::Ptr& blob, const InferenceEngine::ColorFormat colorFormat);
 
     // TODO Preprocessing should be moved into backend [Track number: S#43193]
 #ifdef __aarch64__

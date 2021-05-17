@@ -39,7 +39,7 @@ namespace IE = InferenceEngine;
 class ImageWorkload_Tests : public ::testing::Test {
 public:
     Models::ModelDesc modelForNoPreprocess = Models::squeezenet1_1;
-    // TODO For preprocessing 224x224 model required (or width and height % 2 == 0)
+    // TODO For preprocessing model with width and height % 2 == 0 required
     Models::ModelDesc modelForPreprocessing = Models::googlenet_v1;
 
     const size_t numberOfTopClassesToCompare = 5;
@@ -49,6 +49,8 @@ public:
 using ImageWorkload_WithoutPreprocessing = ImageWorkload_Tests;
 TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInference) {
     const Models::ModelDesc modelToUse = modelForNoPreprocess;
+    const size_t inputWidth = modelToUse.width;
+    const size_t inputHeight = modelToUse.height;
 
     IE::ExecutableNetwork executableNetwork =
             ExecutableNetworkFactory::createExecutableNetwork(modelToUse.pathToModel);
@@ -59,7 +61,7 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInference) {
 
     // ---- Set input
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    auto inputBlob = IE_Core_Helper::loadImage("cat3.bmp", modelToUse.width, modelToUse.height, IE::NHWC, true);
+    auto inputBlob = IE_Core_Helper::loadImage("cat3.bmp", inputWidth, inputHeight, IE::NHWC, true);
     ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     // ---- Run the request synchronously
@@ -83,6 +85,8 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInference) {
 /** @brief Validate repacking from NCHW to NHWC */
 TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInferenceNCHWInput) {
     const Models::ModelDesc modelToUse = modelForNoPreprocess;
+    const size_t inputWidth = modelToUse.width;
+    const size_t inputHeight = modelToUse.height;
 
     // ---- Import or load network
     IE::ExecutableNetwork executableNetwork =
@@ -96,7 +100,7 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInferenceNCHWInput) {
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
 
     // Load image in different layout to validate repacking
-    auto inputNCHWBlob = IE_Core_Helper::loadImage("cat3.bmp", modelToUse.width, modelToUse.height, IE::NCHW, true);
+    auto inputNCHWBlob = IE_Core_Helper::loadImage("cat3.bmp", inputWidth, inputHeight, IE::NCHW, true);
     ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputNCHWBlob));
 
     // ---- Run the request synchronously
@@ -107,7 +111,7 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInferenceNCHWInput) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    auto inputNHWCBlob = IE_Core_Helper::loadImage("cat3.bmp", modelToUse.width, modelToUse.height, IE::NHWC, true);
+    auto inputNHWCBlob = IE_Core_Helper::loadImage("cat3.bmp", inputWidth, inputHeight, IE::NHWC, true);
     IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputNHWCBlob);
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
@@ -120,8 +124,8 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInferenceNCHWInput) {
 
 #ifdef USE_OPENCV
 
-// Case: Image with 256B alignment - not supported w/o preprocessing
-TEST_F(ImageWorkload_WithoutPreprocessing, ImageWithStrides_ThrowException) {
+// Case: Image with 256B alignment - not supported w/o preprocessing + VideoWorkload
+TEST_F(ImageWorkload_WithoutPreprocessing, precommit_ImageWithStrides_ThrowException) {
      const Models::ModelDesc modelToUse = modelForNoPreprocess;
 
     // ---- Load image and add strides (227x227 image)
@@ -181,6 +185,8 @@ public:
 
 TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference) {
     const Models::ModelDesc modelToUse = modelForPreprocessing;
+    const size_t inputWidth = modelToUse.width;
+    const size_t inputHeight = modelToUse.height;
 
     // ---- Import or load network
     IE::ExecutableNetwork executableNetwork =
@@ -193,10 +199,11 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference) {
     // ---- Load NV12 Image and create blob from it
     auto inputName = executableNetwork.GetInputsInfo().begin()->first;
 
-    // TODO Fix to follow same approach as hello nv12 classification sample
     // ----- Load NV12 input
+    std::vector<uint8_t> nv12InputBlobMemory;
+    nv12InputBlobMemory.resize(inputWidth * inputHeight * 3 / 2);
     IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(
-                                        inputNV12Path, modelToUse.width, modelToUse.height);
+                                        inputNV12Path, inputWidth, inputHeight, nv12InputBlobMemory.data());
 
     // Preprocessing
     IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
@@ -224,6 +231,8 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference) {
 
 TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference_RGBToBGR) {
     const Models::ModelDesc modelToUse = modelForPreprocessing;
+    const size_t inputWidth = modelToUse.width;
+    const size_t inputHeight = modelToUse.height;
 
     // ---- Import or load network
     IE::ExecutableNetwork executableNetwork =
@@ -236,7 +245,7 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference_RGBToBGR) {
     // ---- Set RGB input
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
     const auto isBGR = false;
-    auto inputBlob = IE_Core_Helper::loadImage("cat3.bmp", modelToUse.width, modelToUse.height, IE::NHWC, isBGR);
+    auto inputBlob = IE_Core_Helper::loadImage("cat3.bmp", inputWidth, inputHeight, IE::NHWC, isBGR);
 
     // ---- Preprocessing
     auto inputName = executableNetwork.GetInputsInfo().begin()->first;
@@ -255,7 +264,7 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference_RGBToBGR) {
 
     // --- Reference Blob - Same image, BGR instead of RGB
     const bool isBGRforCPU = true;
-    auto inputBlobCPU = IE_Core_Helper::loadImage("cat3.bmp", modelToUse.width, modelToUse.height, IE::NHWC, isBGRforCPU);
+    auto inputBlobCPU = IE_Core_Helper::loadImage("cat3.bmp", inputWidth, inputHeight, IE::NHWC, isBGRforCPU);
     IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputBlobCPU);
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
@@ -268,8 +277,8 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference_RGBToBGR) {
 
 #ifdef USE_OPENCV
 
-// Case: Image with 256B alignment
-TEST_F(ImageWorkload_WithPreprocessing, precommit_ImageWithStrides) {
+// Case: Image with 256B alignment - not supported w/o preprocessing + VideoWorkload
+TEST_F(ImageWorkload_WithPreprocessing, precommit_ImageWithStrides_ThrowException) {
     const Models::ModelDesc modelToUse = modelForPreprocessing;
 
     // ----- Load NV12 input image
@@ -336,22 +345,7 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_ImageWithStrides) {
     ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob, preprocInfo));
 
     // ---- Run the request synchronously
-    ASSERT_NO_THROW(inferRequest.Infer());
-
-    // --- Get output
-    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
-    auto outputBlob = inferRequest.GetBlob(outputBlobName);
-
-    // --- Reference blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputBlob,  &preprocInfo);
-
-    // --- Compare with reference
-    ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
-    ASSERT_NO_THROW(
-            Comparators::compareTopClassesUnordered(
-                    vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
-                    vpux::toFP32(IE::as<IE::MemoryBlob>(refBlob)),
-                    numberOfTopClassesToCompare));
+    ASSERT_ANY_THROW(inferRequest.Infer());
 }
 
 #endif
@@ -367,6 +361,8 @@ public:
 /** @brief Execute inference with preprocessing and after that without preprocessing */
 TEST_F(ImageWorkload_SpecificCases, precommit_WithoutPreprocessingAndPreprocessing) {
     const Models::ModelDesc modelToUse = modelForPreprocessing;
+    const size_t inputWidth = modelToUse.width;
+    const size_t inputHeight = modelToUse.height;
 
     IE::ExecutableNetwork executableNetwork =
             ExecutableNetworkFactory::createExecutableNetwork(modelToUse.pathToModel);
@@ -374,7 +370,7 @@ TEST_F(ImageWorkload_SpecificCases, precommit_WithoutPreprocessingAndPreprocessi
 
     // ---- Without preprocessing - set blob
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    auto inputBlob = IE_Core_Helper::loadImage("cat3.bmp", modelToUse.width, modelToUse.height, IE::NHWC, true);
+    auto inputBlob = IE_Core_Helper::loadImage("cat3.bmp", inputWidth, inputHeight, IE::NHWC, true);
     ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     // ---- Without preprocessing - Infer and compare result
@@ -392,7 +388,9 @@ TEST_F(ImageWorkload_SpecificCases, precommit_WithoutPreprocessingAndPreprocessi
 
     // ---- With preprocessing - set blob
     auto inputName = executableNetwork.GetInputsInfo().begin()->first;
-    IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(inputNV12Path, modelToUse.width, modelToUse.height);
+    std::vector<uint8_t> nv12InputBlobMemory;
+    nv12InputBlobMemory.resize(inputWidth * inputHeight * 3 / 2);
+    IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(inputNV12Path, inputWidth, inputHeight, nv12InputBlobMemory.data());
     IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
     preprocInfo.setColorFormat(IE::ColorFormat::NV12);
     inferRequest.SetBlob(inputName, nv12InputBlob, preprocInfo);
@@ -411,6 +409,8 @@ TEST_F(ImageWorkload_SpecificCases, precommit_WithoutPreprocessingAndPreprocessi
 /** @brief Execute inference without preprocessing and after that with preprocessing  */
 TEST_F(ImageWorkload_SpecificCases, precommit_PreprocessingAndWithoutPreprocessing) {
     const Models::ModelDesc modelToUse = modelForPreprocessing;
+    const size_t inputWidth = modelToUse.width;
+    const size_t inputHeight = modelToUse.height;
 
     IE::ExecutableNetwork executableNetwork =
             ExecutableNetworkFactory::createExecutableNetwork(modelToUse.pathToModel);
@@ -418,7 +418,9 @@ TEST_F(ImageWorkload_SpecificCases, precommit_PreprocessingAndWithoutPreprocessi
 
     // ---- With preprocessing - set blob
     auto inputName = executableNetwork.GetInputsInfo().begin()->first;
-    IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(inputNV12Path, modelToUse.width, modelToUse.height);
+    std::vector<uint8_t> nv12InputBlobMemory;
+    nv12InputBlobMemory.resize(inputWidth * inputHeight * 3 / 2);
+    IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(inputNV12Path, inputWidth, inputHeight, nv12InputBlobMemory.data());
     IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
     preprocInfo.setColorFormat(IE::ColorFormat::NV12);
     inferRequest.SetBlob(inputName, nv12InputBlob, preprocInfo);
@@ -436,7 +438,7 @@ TEST_F(ImageWorkload_SpecificCases, precommit_PreprocessingAndWithoutPreprocessi
 
     // ---- Without preprocessing - set blob
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    auto inputBlob = IE_Core_Helper::loadImage("cat3.bmp", modelToUse.width, modelToUse.height, IE::NHWC, true);
+    auto inputBlob = IE_Core_Helper::loadImage("cat3.bmp", inputWidth, inputHeight, IE::NHWC, true);
     IE::PreProcessInfo preprocInfoDefault;
     ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob, preprocInfoDefault));
 

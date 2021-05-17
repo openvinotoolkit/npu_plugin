@@ -19,7 +19,10 @@
 #include <string>
 // Plugin
 #include "vpux_exceptions.h"
-#include "vpux_params_private_options.h"
+// [Track number: E#12122]
+// TODO Remove this header after removing HDDL2 deprecated parameters in future releases
+#include "hddl2/hddl2_params.hpp"
+#include "vpux_params_private_options.hpp"
 #include "vpux_remote_blob.h"
 
 namespace vpux {
@@ -37,17 +40,38 @@ VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemot
     if (contextPtr == nullptr) {
         IE_THROW() << CONTEXT_ERROR_str << "Remote context is null.";
     }
-    _parsedParams.update(params);
-    _logger->trace("VPUXRemoteBlob wrapping %d size\n", static_cast<int>(this->size()));
 
     auto updatedParams = IE::ParamMap(params);
-    updatedParams.insert({{IE::KMB_PARAM_KEY(ALLOCATION_SIZE), this->size()}});
+    updatedParams.insert(
+            {{IE::VPUX_PARAM_KEY(ORIGINAL_TENSOR_DESC), std::make_shared<IE::TensorDesc>(getOriginalTensorDesc())},
+             {IE::VPUX_PARAM_KEY(ALLOCATION_SIZE), this->size()}});
+
+    const auto& contextParams = contextPtr->getParams();
+    if (contextParams.find(IE::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID)) != contextParams.end()) {
+        uint64_t workloadId = contextParams.at(IE::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID)).as<uint64_t>();
+        updatedParams.insert({{IE::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}});
+    }
+
+    // ******************************************
+    // [Track number: E#12122]
+    // TODO Remove this part after removing HDDL2 deprecated parameters in future releases
+    if (contextParams.find(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)) != contextParams.end()) {
+        uint64_t workloadId = contextParams.at(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID)).as<uint64_t>();
+        updatedParams.insert({{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}});
+    }
+    // ******************************************
+
+    _parsedParams.update(updatedParams);
+
     // TODO since we can't use _allocatorPtr to wrap remote memory (instead, we are using input allocator)
     //  this shown design flaw in RemoteBlob + IE:Allocator concept
     _memoryHandle = allocator->wrapRemoteMemory(updatedParams);
     if (_memoryHandle == nullptr) {
         IE_THROW(NotAllocated) << "Allocation error";
     }
+
+    updatedParams.insert({{IE::VPUX_PARAM_KEY(MEM_HANDLE), _memoryHandle}});
+    _parsedParams.update(updatedParams);
 }
 
 VPUXRemoteBlob::~VPUXRemoteBlob() {
@@ -92,48 +116,56 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
     const auto orig_W = origBlobTensorDesc.getDims()[3];
     const auto orig_H = origBlobTensorDesc.getDims()[2];
     auto newROI = makeROIOverROI(_parsedParams.getROIPtr(), regionOfInterest, orig_W, orig_H);
-    // With ROI param full tensor desc also should be stored to be able to get full frame information
-    IE::ParamMap updatedROIPtrParam = {{IE::KMB_PARAM_KEY(ROI_PTR), newROI},
-                                       {IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC),
-                                        std::make_shared<IE::TensorDesc>(origBlob.getOriginalTensorDesc())}};
-    _parsedParams.update(updatedROIPtrParam);
+    IE::ParamMap updatedROIPtrParam = {{IE::VPUX_PARAM_KEY(ROI_PTR), newROI}};
+    _parsedParams.updateFull(updatedROIPtrParam);
 
     // TODO Remove this cast
     const auto privateAllocator = std::static_pointer_cast<Allocator>(_allocatorPtr);
-    IE::ParamMap params = {{IE::KMB_PARAM_KEY(BLOB_MEMORY_HANDLE), origBlob._memoryHandle},
-                           {IE::KMB_PARAM_KEY(ALLOCATION_SIZE), origBlob.size()}};
-
-    try {
-        auto origParams = origBlob.getParams();
-        params.insert(origParams.begin(), origParams.end());
-    } catch (std::exception& ex) {
-        IE_THROW() << "VPUXRemoteBlob: Failed to use original blob params" << ex.what();
-    }
-
-    _memoryHandle = privateAllocator->wrapRemoteMemory(params);
+    _memoryHandle = privateAllocator->wrapRemoteMemory(origBlob.getParams());
     if (_memoryHandle == nullptr) {
         IE_THROW(NotAllocated) << "Failed to copy remote memory handle";
     }
 }
 
+void VPUXRemoteBlob::updateColorFormat(const IE::ColorFormat colorFormat) {
+    if (_parsedParams.getBlobColorFormat() == colorFormat)
+        return;
+
+    auto updatedParams = IE::ParamMap(_parsedParams.getParamMap());
+    updatedParams.insert({{IE::VPUX_PARAM_KEY(BLOB_COLOR_FORMAT), colorFormat}});
+    _parsedParams.updateFull(updatedParams);
+
+    // Update RemoteMemory information inside allocator
+    const auto privateAllocator = std::static_pointer_cast<Allocator>(_allocatorPtr);
+    void* newMemoryHandle = privateAllocator->wrapRemoteMemory(updatedParams);
+    if (newMemoryHandle != _memoryHandle) {
+        IE_THROW() << "Memory handle changed suddenly.";
+    }
+}
+
 IE::LockedMemory<void> VPUXRemoteBlob::buffer() noexcept {
-    return IE::LockedMemory<void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
+    return IE::LockedMemory<void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle,
+                                  _parsedParams.getMemoryOffset());
 }
 
 IE::LockedMemory<const void> VPUXRemoteBlob::cbuffer() const noexcept {
-    return IE::LockedMemory<const void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
+    return IE::LockedMemory<const void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle,
+                                        _parsedParams.getMemoryOffset());
 }
 
 IE::LockedMemory<void> VPUXRemoteBlob::rwmap() noexcept {
-    return IE::LockedMemory<void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
+    return IE::LockedMemory<void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle,
+                                  _parsedParams.getMemoryOffset());
 }
 
 IE::LockedMemory<const void> VPUXRemoteBlob::rmap() const noexcept {
-    return IE::LockedMemory<const void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
+    return IE::LockedMemory<const void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle,
+                                        _parsedParams.getMemoryOffset());
 }
 
 IE::LockedMemory<void> VPUXRemoteBlob::wmap() noexcept {
-    return IE::LockedMemory<void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
+    return IE::LockedMemory<void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle,
+                                  _parsedParams.getMemoryOffset());
 }
 
 std::string VPUXRemoteBlob::getDeviceName() const noexcept {
@@ -150,24 +182,6 @@ std::shared_ptr<IE::RemoteContext> VPUXRemoteBlob::getContext() const noexcept {
 
 const std::shared_ptr<IE::IAllocator>& VPUXRemoteBlob::getAllocator() const noexcept {
     return _allocatorPtr;
-}
-
-size_t VPUXRemoteBlob::size() const noexcept {
-    if (_parsedParams.getColorFormat() == IE::ColorFormat::NV12) {
-        if (tensorDesc.getLayout() == IE::Layout::SCALAR)
-            return 1;
-        // FIXME It's a very bad solution
-        const auto dims = tensorDesc.getDims();
-        size_t height = dims.at(2);
-        size_t width = dims.at(3);
-        return (3 * width * height) / 2;
-    } else {
-        return MemoryBlob::size();
-    }
-}
-
-size_t VPUXRemoteBlob::byteSize() const noexcept {
-    return size() * element_size();
 }
 
 IE::Blob::Ptr VPUXRemoteBlob::createROI(const IE::ROI& regionOfInterest) const {

@@ -17,7 +17,8 @@
 #pragma once
 
 #include "hddl2_helpers/helper_remote_memory.h"
-#include "hddl2/hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
+#include "vpux_params_private_options.hpp"
 
 namespace IE = InferenceEngine;
 
@@ -70,7 +71,7 @@ private:
 
 inline memoryHandle Allocator_WrappedRemoteMemory_Helper::createMemory(const size_t &size) {
     UNUSED(size);
-    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), _remoteMemory}};
+    IE::ParamMap paramMap = {{IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), _remoteMemory->getDmaBufFd()}};
     return allocatorPtr->wrapRemoteMemory(paramMap);
 }
 
@@ -78,7 +79,8 @@ inline Allocator_WrappedRemoteMemory_Helper::
 Allocator_WrappedRemoteMemory_Helper(WorkloadContextPtr& workloadContextPtr)
                                         : Allocator_Helper(workloadContextPtr) {
     WorkloadID workloadId = workloadContextPtr->getWorkloadContextID();
-    _remoteMemory = _remoteMemoryHelper.allocateRemoteMemory(workloadId, defaultSizeToAllocate);
+    _remoteMemoryHelper.allocateRemoteMemory(workloadId, defaultSizeToAllocate);
+    _remoteMemory = _remoteMemoryHelper.getRemoteMemoryPtr();
 }
 
 inline std::string Allocator_WrappedRemoteMemory_Helper::getRemoteMemory(const size_t &size) {
