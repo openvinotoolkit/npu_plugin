@@ -243,6 +243,18 @@ TEST_F(ModelAdk, precommit_DeBlur_ADK3) {
             0.0025f);
 }
 
+// [Track number: EISW-10831]
+TEST_F(ModelAdk, DISABLED_DeBlur_AA_BDK2) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    runTest(
+            TestNetworkDesc("../clientmodels/BDK2/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("img_placeholder", Precision::U8)
+                    .setUserOutputPrecision("output", Precision::FP16)
+                    .setCompileConfig({{"VPUX_THROUGHPUT_STREAMS", "1"}}),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+            0.0025f);
+}
+
 const static std::vector<InferenceEngine::Precision> inputPrecision = {
                 InferenceEngine::Precision::U8,
                 InferenceEngine::Precision::FP16,
