@@ -23,7 +23,7 @@
 #include "hddl2_helpers/helper_remote_blob.h"
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_tensor_description.h"
-#include "hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 #include "helper_remote_context.h"
 #include "memory_usage.h"
 #include "skip_conditions.h"
@@ -51,7 +51,7 @@ public:
     void setRemoteMemory(const std::string& data);
 
 protected:
-    HddlUnite::RemoteMemory::Ptr _remoteMemory;
+    VpuxRemoteMemoryFD _remoteMemoryFD;
     TensorDescription_Helper _tensorDescriptionHelper;
     RemoteContext_Helper::Ptr _remoteContextHelperPtr = nullptr;
     RemoteMemory_Helper::Ptr _remoteMemoryHelperPtr = nullptr;
@@ -69,9 +69,8 @@ void HDDL2_RemoteBlob_UnitTests::SetUp() {
 
         remoteContextPtr = _remoteContextHelperPtr->remoteContextPtr;
         WorkloadID workloadId = _remoteContextHelperPtr->getWorkloadId();
-        _remoteMemory = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, tensorSize);
-
-        blobParamMap = RemoteBlob_Helper::wrapRemoteMemToMap(_remoteMemory);
+        _remoteMemoryFD = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, tensorDesc);
+        blobParamMap = RemoteBlob_Helper::wrapRemoteMemFDToMap(_remoteMemoryFD);
     }
 }
 
@@ -262,7 +261,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_FromEmptyParams_ThrowException) {
 // TODO FAIL - HddlUnite problem
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_constructor_FromIncorrectWorkloadID_ThrowException) {
     SKIP_IF_NO_DEVICE();
-    InferenceEngine::ParamMap incorrectWorkloadID = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), incorrectWorkloadID}};
+    InferenceEngine::ParamMap incorrectWorkloadID = {{IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), incorrectWorkloadID}};
 
     ASSERT_ANY_THROW(vpux::VPUXRemoteBlob blob(tensorDesc, remoteContextPtr, allocator, incorrectWorkloadID));
 }
@@ -276,8 +275,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_fromIncorrectPararams_ThrowExcept
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_fromIncorrectType_ThrowException) {
     SKIP_IF_NO_DEVICE();
-    int incorrectTypeValue = 10;
-    InferenceEngine::ParamMap incorrectTypeParams = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), incorrectTypeValue}};
+    void* incorrectTypeValue = nullptr;
+    InferenceEngine::ParamMap incorrectTypeParams = {{IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), incorrectTypeValue}};
 
     ASSERT_ANY_THROW(vpux::VPUXRemoteBlob blob(tensorDesc, remoteContextPtr, allocator, incorrectTypeParams));
 }
@@ -577,7 +576,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, getParams_AllocatedDefaultBlob_ReturnMapWithP
 
     auto params = remoteBlobPtr->getParams();
 
-    ASSERT_GE(1, params.size());
+    ASSERT_GE(params.size(), 1);
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, getParams_AllocatedDefaultBlob_SameAsInput) {
@@ -586,7 +585,9 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, getParams_AllocatedDefaultBlob_SameAsInput) {
 
     auto params = remoteBlobPtr->getParams();
 
-    ASSERT_EQ(blobParamMap, params);
+    auto memoryFDIter = params.find(IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD));
+    ASSERT_NE(memoryFDIter, params.end());
+    ASSERT_EQ(memoryFDIter->second.as<VpuxRemoteMemoryFD>(), _remoteMemoryFD);
 }
 
 // TODO We need tests, that on each inference call sync to device not happen. This require

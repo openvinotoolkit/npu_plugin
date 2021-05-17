@@ -18,7 +18,7 @@
 #include <skip_conditions.h>
 
 #include "video_workload_device.h"
-#include "hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 #include "helper_remote_context.h"
 #include "helper_remote_allocator.h"
 
@@ -59,10 +59,10 @@ TEST_F(VideoWorkloadDevice_UnitTests, constructor_CorrectAllocatorParams) {
     SKIP_IF_NO_DEVICE();
 
     RemoteMemory_Helper _remoteMemoryHelper;
-    const HddlUnite::RemoteMemory::Ptr remoteMemory =
+    const auto remoteMemoryFD =
         _remoteMemoryHelper.allocateRemoteMemory(_remoteContextHelperPtr->getWorkloadId(), 1);
 
-    IE::ParamMap correctParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory}};
+    IE::ParamMap correctParamMap = {{IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFD}};
     std::shared_ptr<vpux::Allocator> allocator = nullptr;
 
 

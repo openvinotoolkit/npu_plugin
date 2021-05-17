@@ -20,21 +20,22 @@
 
 #pragma once
 
-#include <vpux/kmb_params.hpp>
-// TODO Refactor namespace and names in configs/params activity
-namespace InferenceEngine {
-namespace KmbContextParams {
+#include <vpux/vpux_plugin_params.hpp>
 
-/** @brief Memory handle stored inside blob */
-DECLARE_KMB_PARAM_KEY(BLOB_MEMORY_HANDLE, void*);
+namespace InferenceEngine {
+namespace VpuxContextParams {
 
 /** @brief Allow to store ROI provided by user on createROI call */
-DECLARE_KMB_PARAM_KEY(ROI_PTR, std::shared_ptr<InferenceEngine::ROI>);
+DECLARE_VPUX_PARAM_KEY(ROI_PTR, std::shared_ptr<InferenceEngine::ROI>);
 
 /** @brief Information about original tensor desc, used with ROI to keep full frame information */
-DECLARE_KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC, std::shared_ptr<InferenceEngine::TensorDesc>);
+DECLARE_VPUX_PARAM_KEY(ORIGINAL_TENSOR_DESC, std::shared_ptr<InferenceEngine::TensorDesc>);
+
+/** @brief Information about blob color format */
+DECLARE_VPUX_PARAM_KEY(BLOB_COLOR_FORMAT, IE::ColorFormat);
 
 /** @brief VPUSMM allocator need to know size of allocation */
-DECLARE_KMB_PARAM_KEY(ALLOCATION_SIZE, size_t);
-}  // namespace KmbContextParams
+DECLARE_VPUX_PARAM_KEY(ALLOCATION_SIZE, size_t);
+
+}  // namespace VpuxContextParams
 }  // namespace InferenceEngine

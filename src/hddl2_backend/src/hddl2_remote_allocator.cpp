@@ -18,11 +18,13 @@
 #include <memory>
 #include <string>
 // Plugin
-#include "hddl2/hddl2_params.hpp"
-#include "vpux_params_private_options.h"
+#include "vpux/vpux_plugin_params.hpp"
+#include "vpux_params_private_options.hpp"
 // Subplugin
 #include "hddl2_helper.h"
 #include "hddl2_remote_allocator.h"
+// Low-level
+#include "Inference.h"
 
 namespace vpux {
 namespace hddl2 {
@@ -31,7 +33,22 @@ namespace IE = InferenceEngine;
 using namespace vpu;
 
 //------------------------------------------------------------------------------
-bool static isValidRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) {
+using matchColorFormats_t = std::unordered_map<int, HddlUnite::eRemoteMemoryFormat>;
+static HddlUnite::eRemoteMemoryFormat covertColorFormat(const IE::ColorFormat colorFormat) {
+    static const matchColorFormats_t matchColorFormats = {
+            {static_cast<int>(IE::ColorFormat::BGR), HddlUnite::eRemoteMemoryFormat::BGR},
+            {static_cast<int>(IE::ColorFormat::RGB), HddlUnite::eRemoteMemoryFormat::RGB},
+            {static_cast<int>(IE::ColorFormat::NV12), HddlUnite::eRemoteMemoryFormat::NV12}};
+
+    auto format = matchColorFormats.find(colorFormat);
+    if (format == matchColorFormats.end()) {
+        throw std::logic_error("Color format is not valid.");
+    }
+
+    return format->second;
+}
+
+static bool isValidRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) {
     // Using local namespace because INVALID_DMABUFFD is macro (-1) and HddlUnite::(-1) is incorrect
     using namespace HddlUnite;
     return remoteMemory->getDmaBufFd() != INVALID_DMABUFFD;
@@ -70,23 +87,86 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
 void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& map) noexcept {
     std::lock_guard<std::mutex> lock(memStorageMutex);
 
-    // If we already allocate this memory, just try to find it and increase counter
-    if (map.find(IE::KMB_PARAM_KEY(BLOB_MEMORY_HANDLE)) != map.end()) {
-        const auto memoryHandle = static_cast<void*>(map.at(IE::KMB_PARAM_KEY(BLOB_MEMORY_HANDLE)));
-        return incrementRemoteMemoryCounter(memoryHandle);
+    // Get blob color format from params
+    HddlUnite::eRemoteMemoryFormat colorFormat = HddlUnite::eRemoteMemoryFormat::BGR;
+    if (map.find(IE::VPUX_PARAM_KEY(BLOB_COLOR_FORMAT)) != map.end()) {
+        colorFormat = covertColorFormat(map.at(IE::VPUX_PARAM_KEY(BLOB_COLOR_FORMAT)));
     }
 
-    // TODO potential (low influence) performance problem, since this will be called on each wrap
-    HddlUnite::RemoteMemory::Ptr remoteMemory = nullptr;
+    // CreateROI case - if we've already wrapped memory with this handle
+    // we need to find it and increase counter
+    if (map.find(IE::VPUX_PARAM_KEY(MEM_HANDLE)) != map.end()) {
+        const auto memoryHandle = static_cast<void*>(map.at(IE::VPUX_PARAM_KEY(MEM_HANDLE)));
+        return incrementRemoteMemoryCounter(memoryHandle, colorFormat);
+    }
+
+    // Get remote memory FD from params
+    VpuxRemoteMemoryFD remoteMemoryFD = -1;
     try {
-        remoteMemory = getRemoteMemoryFromParams(map);
+        remoteMemoryFD = getRemoteMemoryFDFromParams(map);
     } catch (const std::exception& ex) {
-        _logger->error("Failed to get remote memory! {}", ex.what());
+        _logger->error("Failed to get remote memory FD! {}", ex.what());
         return nullptr;
     }
 
-    if (!remoteMemory) {
+    if (remoteMemoryFD < 0) {
         return nullptr;
+    }
+
+    // Common case - if we've already wrapped memory with this FD
+    // (for example - NV12 blob with common RemoteMemory + Y/UV offsets)
+    // we need to find it and increase counter
+    for (auto memoryIter = _memoryStorage.cbegin(); memoryIter != _memoryStorage.cend(); ++memoryIter) {
+        if (remoteMemoryFD == memoryIter->second.remoteMemory->getDmaBufFd()) {
+            return incrementRemoteMemoryCounter(memoryIter->first, colorFormat);
+        }
+    }
+
+    // Common case - we haven't wrapped yet memory with this FD
+    // We need to create RemoteMemory object with current FD
+    std::shared_ptr<IE::TensorDesc> tensorDesc = nullptr;
+    try {
+        tensorDesc = getOriginalTensorDescFromParams(map);
+    } catch (const std::exception& ex) {
+        _logger->error("Failed to get original tensor descriptor! {}", ex.what());
+        return nullptr;
+    }
+
+    HddlUnite::WorkloadContext::Ptr remoteContext = nullptr;
+    try {
+        WorkloadID workloadId = getWorkloadIDFromParams(map);
+        remoteContext = HddlUnite::queryWorkloadContext(workloadId);
+    } catch (const std::exception& ex) {
+        _logger->error("Failed to get workload context! {}", ex.what());
+        return nullptr;
+    }
+
+    if (remoteContext == nullptr) {
+        return nullptr;
+    }
+
+    HddlUnite::RemoteMemory::Ptr remoteMemory = nullptr;
+    const auto& strides = tensorDesc->getBlockingDesc().getStrides();
+    const auto& dims = tensorDesc->getDims();
+    if (dims.size() != 4) {
+        _logger->error("Remote allocator - layouts with dims != 4 are not supported!");
+        return nullptr;
+    }
+    if (strides.empty()) {
+        const auto elementSize = tensorDesc->getPrecision().size();
+        const size_t size =
+                elementSize * std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
+        HddlUnite::RemoteMemoryDesc memoryDesc(size, 1, size, 1);
+        remoteMemory = std::make_shared<HddlUnite::RemoteMemory>(*remoteContext, memoryDesc, remoteMemoryFD);
+    } else {
+        uint32_t mWidth = dims[3];
+        uint32_t mHeight = dims[2];
+        bool isNV12Blob = (colorFormat == HddlUnite::eRemoteMemoryFormat::NV12);
+        const bool isNCHW = isNV12Blob ? false : (tensorDesc->getLayout() == IE::Layout::NCHW);
+        uint32_t mWidthStride = strides[isNCHW ? 2 : 1];
+        uint32_t mHeightStride = strides[isNCHW ? 1 : 0] / mWidthStride;
+        HddlUnite::RemoteMemoryDesc memoryDesc(mWidth, mHeight, mWidthStride, mHeightStride, colorFormat);
+        remoteMemory = std::make_shared<HddlUnite::RemoteMemory>(*remoteContext, memoryDesc, remoteMemoryFD);
     }
 
     if (!isValidRemoteMemory(remoteMemory)) {
@@ -109,7 +189,8 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& ma
     }
 }
 
-void* HDDL2RemoteAllocator::incrementRemoteMemoryCounter(const void* remoteMemoryHandle) noexcept {
+void* HDDL2RemoteAllocator::incrementRemoteMemoryCounter(void* remoteMemoryHandle,
+                                                         const HddlUnite::eRemoteMemoryFormat format) noexcept {
     if (remoteMemoryHandle == nullptr) {
         _logger->warning("%s: Invalid address: %p \n", __FUNCTION__, remoteMemoryHandle);
         return nullptr;
@@ -119,6 +200,24 @@ void* HDDL2RemoteAllocator::incrementRemoteMemoryCounter(const void* remoteMemor
     if (counter_it == _memoryHandleCounter.end()) {
         _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
         return nullptr;
+    }
+
+    HddlUnite::RemoteMemory* remoteMemory = static_cast<HddlUnite::RemoteMemory*>(remoteMemoryHandle);
+    if (remoteMemory == nullptr) {
+        _logger->warning("%s: Invalid cast to HddlUnite::RemoteMemory: %p \n", __FUNCTION__, remoteMemoryHandle);
+        return nullptr;
+    }
+
+    if (remoteMemory->getMemoryDesc().m_format != format) {
+        HddlUnite::RemoteMemoryDesc updatedMemoryDesc = remoteMemory->getMemoryDesc();
+        updatedMemoryDesc.m_format = format;
+
+        auto status = remoteMemory->update(*remoteMemory->getWorkloadContext(), updatedMemoryDesc,
+                                           remoteMemory->getDmaBufFd());
+        if (status != HDDL_OK) {
+            _logger->warning("%s: Updating remote memory error: %p \n", __FUNCTION__, remoteMemoryHandle);
+            return nullptr;
+        }
     }
 
     ++_memoryHandleCounter[const_cast<void*>(remoteMemoryHandle)];

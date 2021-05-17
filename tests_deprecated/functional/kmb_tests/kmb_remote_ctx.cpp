@@ -22,7 +22,7 @@
 #include <vpu_layers_tests.hpp>
 #include <ie_compound_blob.h>
 
-#include "vpux/kmb_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 
 #include "vpux/utils/IE/blob.hpp"
 
@@ -49,7 +49,7 @@ TEST_F(vpuLayersTests, DISABLED_remoteCtx) {
 
     InferenceEngine::Core ie;
     const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, deviceName);
-    const ParamMap ctxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
+    const ParamMap ctxParams = { { InferenceEngine::VPUX_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
     InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(deviceName, ctxParams);
 
     std::filebuf blobFile;
@@ -78,8 +78,8 @@ TEST_F(vpuLayersTests, DISABLED_remoteCtx) {
     void* virtAddr = vpuAllocator->allocate(imageSize);
     auto remoteMemoryFd = vpuAllocator->getFileDescByVirtAddr(virtAddr);
     InferenceEngine::ParamMap blobParamMap = {
-        {InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd},
-        {InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE), virtAddr},
+        {InferenceEngine::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd},
+        {InferenceEngine::VPUX_PARAM_KEY(MEM_HANDLE), virtAddr},
     };
 
     InferenceEngine::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputTensorDesc, blobParamMap);
@@ -113,7 +113,7 @@ TEST_F(vpuLayersTests, DISABLED_remoteCtxNV12) {
 
     InferenceEngine::Core ie;
     const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, deviceName);
-    const ParamMap ctxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
+    const ParamMap ctxParams = { { InferenceEngine::VPUX_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
     InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(deviceName, ctxParams);
 
     std::filebuf blobFile;
@@ -145,13 +145,13 @@ TEST_F(vpuLayersTests, DISABLED_remoteCtxNV12) {
 
     TensorDesc ydesc(Precision::U8, { 1, 1, imHeight, imWidth }, Layout::NHWC);
     ParamMap blobParams = {
-        { InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd },
-        { InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE), userYPlane->rmap().as<KmbHandleParam>() },
+        { InferenceEngine::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd },
+        { InferenceEngine::VPUX_PARAM_KEY(MEM_HANDLE), userYPlane->rmap().as<VpuxHandleParam>() },
     };
     Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(contextPtr->CreateBlob(ydesc, blobParams));
 
     TensorDesc uvdesc(Precision::U8, { 1, 2, imHeight / 2, imWidth / 2 }, Layout::NHWC);
-    blobParams[InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE)] = userUVPlane->rmap().as<KmbHandleParam>();
+    blobParams[InferenceEngine::VPUX_PARAM_KEY(MEM_HANDLE)] = userUVPlane->rmap().as<VpuxHandleParam>();
     Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(contextPtr->CreateBlob(uvdesc, blobParams));
 
     remoteBlobPtr = make_shared_blob<NV12Blob>(y_blob, uv_blob);
@@ -201,24 +201,24 @@ static Blob::Ptr wrapImageToBlob(const Image& image, const InferenceEngine::Remo
     ROI crop_roi_y({0, image.rect.x, image.rect.y, image.rect.width, image.rect.height});
     ROI crop_roi_uv({0, image.rect.x / 2, image.rect.y / 2, image.rect.width / 2, image.rect.height / 2});
 
-    ParamMap paramsY = { { InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), image.remoteMemoryFd[0] }, };
+    ParamMap paramsY = { { InferenceEngine::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), image.remoteMemoryFd[0] }, };
     if (useOffsets) {
-        KmbOffsetParam lumaOffset = 0;
-        paramsY[InferenceEngine::KMB_PARAM_KEY(MEM_OFFSET)] = lumaOffset;
+        VpuxOffsetParam lumaOffset = 0;
+        paramsY[InferenceEngine::VPUX_PARAM_KEY(MEM_OFFSET)] = lumaOffset;
     } else {
-        paramsY[InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE)] = reinterpret_cast<void*>(image.planes[0]);
+        paramsY[InferenceEngine::VPUX_PARAM_KEY(MEM_HANDLE)] = reinterpret_cast<void*>(image.planes[0]);
     }
     RemoteBlob::Ptr blobY = contextPtr->CreateBlob(planeY, paramsY);
     if (blobY == nullptr) {
         throw std::runtime_error("Failed to create remote blob for Y plane");
     }
 
-    ParamMap paramsUV = { { InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), image.remoteMemoryFd[1] }, };
+    ParamMap paramsUV = { { InferenceEngine::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), image.remoteMemoryFd[1] }, };
     if (useOffsets) {
-        KmbOffsetParam chromaOffset = imageWidth * imageHeight;
-        paramsUV[InferenceEngine::KMB_PARAM_KEY(MEM_OFFSET)] = chromaOffset;
+        VpuxOffsetParam chromaOffset = imageWidth * imageHeight;
+        paramsUV[InferenceEngine::VPUX_PARAM_KEY(MEM_OFFSET)] = chromaOffset;
     } else {
-        paramsUV[InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE)] = reinterpret_cast<void*>(image.planes[1]);
+        paramsUV[InferenceEngine::VPUX_PARAM_KEY(MEM_HANDLE)] = reinterpret_cast<void*>(image.planes[1]);
     }
     RemoteBlob::Ptr blobUV = contextPtr->CreateBlob(planeUV, paramsUV);
     if (blobUV == nullptr) {
@@ -241,7 +241,7 @@ TEST_P(VpuRemoteCtxTests, DISABLED_remoteCtxNV12WithROI) {
 
     InferenceEngine::Core ie;
     const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, deviceName);
-    const ParamMap ctxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
+    const ParamMap ctxParams = { { InferenceEngine::VPUX_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
     InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(deviceName, ctxParams);
 
     std::filebuf blobFile;
@@ -325,7 +325,7 @@ TEST_F(vpuLayersTests, DISABLED_incompatibleRemoteCtx) {
     InferenceEngine::ExecutableNetwork executableNetwork;
     ASSERT_ANY_THROW(executableNetwork = ie.ImportNetwork(graphBlob, contextPtr, netParams));
 
-    const ParamMap invalidCtxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), "VPU-42" }, };
+    const ParamMap invalidCtxParams = { { InferenceEngine::VPUX_PARAM_KEY(DEVICE_ID), "VPU-42" }, };
     InferenceEngine::RemoteContext::Ptr invalidContextPtr;
     ASSERT_ANY_THROW(invalidContextPtr = ie.CreateContext(deviceName, invalidCtxParams));
 }

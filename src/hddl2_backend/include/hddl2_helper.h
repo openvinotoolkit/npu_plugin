@@ -21,11 +21,15 @@
 #include <vpux_config.hpp>
 // Low-level
 #include <RemoteMemory.h>
+#include <WorkloadContext.h>
 
 namespace vpux {
 namespace hddl2 {
 
-HddlUnite::RemoteMemory::Ptr getRemoteMemoryFromParams(const InferenceEngine::ParamMap& params);
+HddlUnite::RemoteMemory* getRemoteMemoryFromParams(const InferenceEngine::ParamMap& params);
+int32_t getRemoteMemoryFDFromParams(const InferenceEngine::ParamMap& params);
+std::shared_ptr<InferenceEngine::TensorDesc> getOriginalTensorDescFromParams(const InferenceEngine::ParamMap& params);
+WorkloadID getWorkloadIDFromParams(const InferenceEngine::ParamMap& params);
 void setUniteLogLevel(const vpu::LogLevel logLevel, const vpu::Logger::Ptr logger = nullptr);
 std::map<uint32_t, std::string> getSwDeviceIdNameMap();
 std::string getSwDeviceIdFromName(const std::string& devName);

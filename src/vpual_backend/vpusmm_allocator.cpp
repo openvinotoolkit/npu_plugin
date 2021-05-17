@@ -21,7 +21,10 @@
 #include <iostream>
 #include <memory>
 
-#include "vpux_params_private_options.h"
+#include "vpux_params_private_options.hpp"
+// [Track number: E#12122]
+// TODO Remove this header after removing KMB deprecated parameters in future releases
+#include "vpux/kmb_params.hpp"
 
 #if defined(__arm__) || defined(__aarch64__)
 #include <sys/mman.h>
@@ -44,22 +47,22 @@ static size_t alignMemorySize(const size_t size) {
 }
 #endif
 
-// TODO Cut copy of KmbBlobParams (wo config, _logger). Refactor to avoid duplication.
+// TODO Cut copy of VpuxBlobParams (wo config, _logger). Refactor to avoid duplication.
 class VPUSMMAllocatorParams {
 public:
     explicit VPUSMMAllocatorParams(const InferenceEngine::ParamMap& paramMap);
 
     InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
-    KmbRemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
-    KmbHandleParam getRemoteMemoryHandle() const { return _remoteMemoryHandle; }
-    KmbOffsetParam getRemoteMemoryOffset() const { return _remoteMemoryOffset; }
+    VpuxRemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
+    VpuxHandleParam getRemoteMemoryHandle() const { return _remoteMemoryHandle; }
+    VpuxOffsetParam getRemoteMemoryOffset() const { return _remoteMemoryOffset; }
     size_t getSize() const { return _size; }
 
 protected:
     InferenceEngine::ParamMap _paramMap;
-    KmbRemoteMemoryFD _remoteMemoryFd;
-    KmbHandleParam _remoteMemoryHandle;
-    KmbOffsetParam _remoteMemoryOffset;
+    VpuxRemoteMemoryFD _remoteMemoryFd;
+    VpuxHandleParam _remoteMemoryHandle;
+    VpuxOffsetParam _remoteMemoryOffset;
     size_t _size;
 };
 
@@ -68,50 +71,83 @@ VPUSMMAllocatorParams::VPUSMMAllocatorParams(const InferenceEngine::ParamMap& pa
         IE_THROW() << "VPUSMMAllocatorParams: Param map for blob is empty.";
     }
 
-    auto sizeIter = params.find(InferenceEngine::KMB_PARAM_KEY(ALLOCATION_SIZE));
+    auto sizeIter = params.find(InferenceEngine::VPUX_PARAM_KEY(ALLOCATION_SIZE));
     if (sizeIter == params.end()) {
         IE_THROW() << "VPUSMMAllocatorParams: Size of allocation is not provided.";
     }
     try {
-        _size = params.at(InferenceEngine::KMB_PARAM_KEY(ALLOCATION_SIZE)).as<size_t>();
+        _size = params.at(InferenceEngine::VPUX_PARAM_KEY(ALLOCATION_SIZE)).as<size_t>();
     } catch (...) {
         IE_THROW() << "VPUSMMAllocatorParams: Failed to get size of allocation.";
     }
 
-    auto remoteMemoryFdIter = params.find(InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD));
-    if (remoteMemoryFdIter == params.end()) {
-        IE_THROW() << "VPUSMMAllocatorParams: "
-                           << "Param map does not contain remote memory file descriptor "
-                              "information";
-    }
-    try {
-        _remoteMemoryFd = remoteMemoryFdIter->second.as<KmbRemoteMemoryFD>();
-    } catch (...) {
-        IE_THROW() << "VPUSMMAllocatorParams: Remote memory fd param has incorrect type";
-    }
-
-    auto remoteMemoryHandleIter = params.find(InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE));
-    auto remoteMemoryOffsetIter = params.find(InferenceEngine::KMB_PARAM_KEY(MEM_OFFSET));
-
-    // memory handle is preferable
-    if (remoteMemoryHandleIter != params.end()) {
+    // [Track number: E#12122]
+    // TODO Remove KMB_PARAM_KEY part after removing deprecated KMB parameters in future releases
+    auto deprRemoteMemoryFdIter = params.find(InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD));
+    if (deprRemoteMemoryFdIter != params.end()) {
         try {
-            _remoteMemoryHandle = remoteMemoryHandleIter->second.as<KmbHandleParam>();
-            _remoteMemoryOffset = 0;
+        _remoteMemoryFd = deprRemoteMemoryFdIter->second.as<VpuxRemoteMemoryFD>();
         } catch (...) {
-            IE_THROW() << "KmbBlobParams::KmbBlobParams: Remote memory handle param has incorrect type";
-        }
-    } else if (remoteMemoryOffsetIter != params.end()) {
-        try {
-            _remoteMemoryHandle = nullptr;
-            _remoteMemoryOffset = remoteMemoryOffsetIter->second.as<KmbOffsetParam>();
-        } catch (...) {
-            IE_THROW() << "KmbBlobParams::KmbBlobParams: Remote memory offset param has incorrect type";
+            IE_THROW() << "VPUSMMAllocatorParams: Remote memory fd param has incorrect type";
         }
     } else {
-        IE_THROW() << "KmbBlobParams::KmbBlobParams: "
-                           << "Param map should contain either remote memory handle "
-                           << "or remote memory offset.";
+        auto remoteMemoryFdIter = params.find(InferenceEngine::VPUX_PARAM_KEY(REMOTE_MEMORY_FD));
+        if (remoteMemoryFdIter == params.end()) {
+            IE_THROW() << "VPUSMMAllocatorParams: "
+                            << "Param map does not contain remote memory file descriptor "
+                                "information";
+        }
+        try {
+            _remoteMemoryFd = remoteMemoryFdIter->second.as<VpuxRemoteMemoryFD>();
+        } catch (...) {
+            IE_THROW() << "VPUSMMAllocatorParams: Remote memory fd param has incorrect type";
+        }
+    }
+
+    auto remoteMemoryHandleIter = params.find(InferenceEngine::VPUX_PARAM_KEY(MEM_HANDLE));
+    auto remoteMemoryOffsetIter = params.find(InferenceEngine::VPUX_PARAM_KEY(MEM_OFFSET));
+
+    // [Track number: E#12122]
+    // TODO Remove KMB_PARAM_KEY part after removing deprecated KMB parameters in future releases
+    auto deprRemoteMemoryHandleIter = params.find(InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE));
+    auto deprRemoteMemoryOffsetIter = params.find(InferenceEngine::KMB_PARAM_KEY(MEM_OFFSET));
+
+    // memory handle is preferable
+    if (deprRemoteMemoryHandleIter != params.end()) {
+        try {
+            _remoteMemoryHandle = remoteMemoryHandleIter->second.as<VpuxHandleParam>();
+            _remoteMemoryOffset = 0;
+        } catch (...) {
+            IE_THROW() << "VpuxBlobParams::VpuxBlobParams: Remote memory handle param has incorrect type";
+        }
+    } else if (deprRemoteMemoryOffsetIter != params.end()) {
+        try {
+            _remoteMemoryHandle = nullptr;
+            _remoteMemoryOffset = remoteMemoryOffsetIter->second.as<VpuxOffsetParam>();
+        } catch (...) {
+            IE_THROW() << "VpuxBlobParams::VpuxBlobParams: Remote memory offset param has incorrect type";
+        }
+    } else {
+        // memory handle is preferable
+        if (remoteMemoryHandleIter != params.end()) {
+            try {
+                _remoteMemoryHandle = remoteMemoryHandleIter->second.as<VpuxHandleParam>();
+                _remoteMemoryOffset = 0;
+            } catch (...) {
+                IE_THROW() << "VpuxBlobParams::VpuxBlobParams: Remote memory handle param has incorrect type";
+            }
+        } else if (remoteMemoryOffsetIter != params.end()) {
+            try {
+                _remoteMemoryHandle = nullptr;
+                _remoteMemoryOffset = remoteMemoryOffsetIter->second.as<VpuxOffsetParam>();
+            } catch (...) {
+                IE_THROW() << "VpuxBlobParams::VpuxBlobParams: Remote memory offset param has incorrect type";
+            }
+        } else {
+            IE_THROW() << "VpuxBlobParams::VpuxBlobParams: "
+                            << "Param map should contain either remote memory handle "
+                            << "or remote memory offset.";
+        }
     }
 }
 
@@ -146,7 +182,7 @@ bool VpusmmAllocator::isValidPtr(void* ptr) noexcept {
 }
 
 void* VpusmmAllocator::wrapRemoteMemoryHandle(
-    const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept {
+    const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     auto physAddr = vpurm_ptr_to_vpu(memHandle, _deviceId);
     if (physAddr == 0) {
@@ -171,7 +207,7 @@ void* VpusmmAllocator::wrapRemoteMemoryHandle(
 }
 
 void* VpusmmAllocator::wrapRemoteMemoryOffset(
-    const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, const KmbOffsetParam& memOffset) noexcept {
+    const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size, const VpuxOffsetParam& memOffset) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     auto physAddr = vpurm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT, _deviceId);
     size_t realSize = alignMemorySize(size + memOffset);

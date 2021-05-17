@@ -22,7 +22,7 @@
 #include "hddl2_helpers/helper_remote_blob.h"
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_tensor_description.h"
-#include "hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 #include "helper_remote_context.h"
 #include "skip_conditions.h"
 #include "vpux_remote_blob.h"
@@ -47,7 +47,7 @@ public:
     void setRemoteMemory(const std::string& data);
 
 protected:
-    HddlUnite::RemoteMemory::Ptr _remoteMemory = nullptr;
+    VpuxRemoteMemoryFD _remoteMemoryFD = -1;
     TensorDescription_Helper _tensorDescriptionHelper;
     RemoteContext_Helper::Ptr _remoteContextHelperPtr;
     RemoteMemory_Helper::Ptr _remoteMemoryHelperPtr;
@@ -65,9 +65,9 @@ void HDDL2_RemoteBlob_PerformanceTests::SetUp() {
 
         remoteContextPtr = _remoteContextHelperPtr->remoteContextPtr;
         WorkloadID workloadId = _remoteContextHelperPtr->getWorkloadId();
-        _remoteMemory = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, tensorSize);
+        _remoteMemoryFD = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, tensorDesc);
 
-        blobParamMap = RemoteBlob_Helper::wrapRemoteMemToMap(_remoteMemory);
+        blobParamMap = RemoteBlob_Helper::wrapRemoteMemFDToMap(_remoteMemoryFD);
     }
 }
 

@@ -62,15 +62,13 @@ public:
 
     std::string getDeviceName() const noexcept override;
 
-    size_t size() const noexcept override;
-
-    size_t byteSize() const noexcept override;
-
     InferenceEngine::Blob::Ptr createROI(const InferenceEngine::ROI& regionOfInterest) const override;
 
     InferenceEngine::ParamMap getParams() const override {
         return _parsedParams.getParamMap();
     }
+
+    void updateColorFormat(const InferenceEngine::ColorFormat colorFormat);
 
 private:
     /** @brief All objects, which might be used inside backend, should be stored in paramMap */

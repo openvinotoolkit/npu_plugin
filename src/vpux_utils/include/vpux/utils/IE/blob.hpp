@@ -20,6 +20,8 @@
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <ie_blob.h>
+#include <ie_compound_blob.h>
+#include <ie_remote_context.hpp>
 
 #include <memory>
 
@@ -106,5 +108,31 @@ void dumpBlobs(const InferenceEngine::BlobMap& blobMap, StringRef dstPath, Strin
 //
 
 Byte getMemorySize(const InferenceEngine::TensorDesc& desc);
+
+//
+// Check blob Types
+//
+
+inline bool isNV12AnyBlob(const InferenceEngine::Blob::CPtr& blob) {
+    return blob && blob->is<InferenceEngine::NV12Blob>();
+}
+
+inline bool isRemoteBlob(const InferenceEngine::Blob::CPtr& blob) {
+    return blob && blob->is<InferenceEngine::RemoteBlob>();
+}
+
+inline bool isRemoteNV12Blob(const InferenceEngine::Blob::CPtr& blob) {
+    return isNV12AnyBlob(blob) && isRemoteBlob(InferenceEngine::as<InferenceEngine::NV12Blob>(blob)->y()) &&
+           isRemoteBlob(InferenceEngine::as<InferenceEngine::NV12Blob>(blob)->uv());
+}
+
+inline bool isLocalNV12Blob(const InferenceEngine::Blob::CPtr& blob) {
+    return isNV12AnyBlob(blob) && !isRemoteBlob(InferenceEngine::as<InferenceEngine::NV12Blob>(blob)->y()) &&
+           !isRemoteBlob(InferenceEngine::as<InferenceEngine::NV12Blob>(blob)->uv());
+}
+
+inline bool isRemoteAnyBlob(const InferenceEngine::Blob::CPtr& blob) {
+    return (isRemoteBlob(blob) || isRemoteNV12Blob(blob));
+}
 
 }  // namespace vpux

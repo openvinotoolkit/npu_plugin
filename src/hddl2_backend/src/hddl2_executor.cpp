@@ -29,7 +29,7 @@
 #include "hddl2_exceptions.h"
 #include "hddl2_helper.h"
 #include "hddl_unite/hddl2_unite_graph.h"
-#include "vpux_params_private_options.h"
+#include "vpux_params_private_options.hpp"
 #include "vpux_remote_context.h"
 
 namespace vpux {
@@ -249,7 +249,7 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
 
         if (inputBlobPtr->is<IE::RemoteBlob>()) {
             const auto& param = std::static_pointer_cast<IE::RemoteBlob>(inputBlobPtr)->getParams();
-            needUnitePreProcessing |= (param.find(IE::KMB_PARAM_KEY(ROI_PTR)) != param.end());
+            needUnitePreProcessing |= (param.find(IE::VPUX_PARAM_KEY(ROI_PTR)) != param.end());
         }
 
         const auto deviceInputLayout = deviceInputs.at(inputName)->getLayout();
@@ -263,18 +263,18 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
         const std::string inputName = networkInput.first;
         const IE::DataPtr inputDesc = networkInput.second;
 
-        if (preProcMap.find(inputName) != preProcMap.end()) {
-            IE::Blob::CPtr blobRequiredPreProcessing;
-            InferenceEngine::PreProcessInfo preProcessInfo = preProcMap.find(inputName)->second;
-            // TODO preProcessInfo are not used [Track number: S#37393]
-            UNUSED(preProcessInfo);
-        }
         auto foundInputBlob = updatedInputs.find(inputName);
         if (foundInputBlob == updatedInputs.end()) {
             IE_THROW() << "Error: input [" << inputName << "] is not provided.";
         }
         const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
-        _inferDataPtr->prepareUniteInput(inputBlobPtr, inputName);
+        IE::ColorFormat inputColorFormat = IE::ColorFormat::BGR;
+        // TODO ResizeAlgorithm information from preProcessInfo is not used [Track number: S#37393]
+        if (preProcMap.find(inputName) != preProcMap.end()) {
+            InferenceEngine::PreProcessInfo preProcessInfo = preProcMap.find(inputName)->second;
+            inputColorFormat = preProcessInfo.getColorFormat();
+        }
+        _inferDataPtr->prepareUniteInput(inputBlobPtr, inputName, inputColorFormat);
     }
 
     _uniteGraphPtr->InferAsync(_inferDataPtr);

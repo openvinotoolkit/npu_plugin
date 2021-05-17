@@ -22,6 +22,7 @@
 #include "ie_preprocess_data.hpp"
 // Plugin
 #include "hddl_unite/infer_data_adapter.h"
+#include "vpux_remote_blob.h"
 // Low-level
 #include "Inference.h"
 
@@ -39,7 +40,7 @@ static void checkDataNotNull(const IE::DataPtr& desc) {
 }
 
 // TODO [Workaround] Until we will be able to reset input blobs and call createBlob for same name again
-//  It useful for if user set NV12 blob, run inference, and after call set blob with BGR blob, not NV
+//  It is useful if user sets NV12 blob, runs inference, and after that calls set blob with BGR blob, not NV
 //  This will require recreating of BlobDesc due to different color format / size;
 void InferDataAdapter::createInferData() {
     _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, _workloadContext, maxRoiNum,
@@ -78,10 +79,10 @@ void InferDataAdapter::createInferData() {
 //------------------------------------------------------------------------------
 InferDataAdapter::InferDataAdapter(const vpux::NetworkDescription::CPtr& networkDescription,
                                    const HddlUnite::WorkloadContext::Ptr& workloadContext,
-                                   const InferenceEngine::ColorFormat colorFormat)
+                                   const InferenceEngine::ColorFormat graphColorFormat)
         : _networkDescription(networkDescription),
           _workloadContext(workloadContext),
-          _graphColorFormat(colorFormat),
+          _graphColorFormat(graphColorFormat),
           _haveRemoteContext(workloadContext != nullptr),
           _needUnitePreProcessing(true) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
@@ -106,7 +107,8 @@ static bool isInputBlobDescAlreadyCreated(const HddlUnite::Inference::InferData:
     return result != inputBlobs.end();
 }
 
-void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const std::string& inputName) {
+void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const std::string& inputName,
+                                         const InferenceEngine::ColorFormat inputColorFormat) {
     if (blob == nullptr) {
         IE_THROW() << "InferDataAdapter: Blob for input is null";
     }
@@ -150,16 +152,16 @@ void InferDataAdapter::prepareUniteInput(const InferenceEngine::Blob::CPtr& blob
         }
     }
 
-    const auto updatedHDDLUniteBlobDesc = blobDescriptorPtr->updateUniteBlobDesc(blob);
+    const auto updatedHDDLUniteBlobDesc = blobDescriptorPtr->updateUniteBlobDesc(blob, inputColorFormat);
     if (!_inferDataPtr->getInputBlob(inputName)->updateBlob(updatedHDDLUniteBlobDesc)) {
         IE_THROW() << "InferDataAdapter: Error updating Unite Blob";
     }
-    // Strides alignment is supported only for PP case
-    // Hantro video-codec needs by it (only for KMB EVM B0)
-    const size_t strideAlignment = 256;
-    if (!(updatedHDDLUniteBlobDesc.m_widthStride % strideAlignment) &&
-        (updatedHDDLUniteBlobDesc.m_resWidth % strideAlignment) && !_needUnitePreProcessing) {
-        IE_THROW() << "InferDataAdapter: strides alignment is supported only for preprocessing.";
+    // Strides alignment is supported only for VideoWorkload + PP case
+    if (updatedHDDLUniteBlobDesc.m_widthStride % updatedHDDLUniteBlobDesc.m_resWidth) {
+        if (!_needUnitePreProcessing || !updatedHDDLUniteBlobDesc.m_isRemoteMem) {
+            IE_THROW()
+                    << "InferDataAdapter: strides alignment is supported only for Video Workload + preprocessing case.";
+        }
     }
 }
 

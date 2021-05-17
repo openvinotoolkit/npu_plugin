@@ -14,69 +14,65 @@
 // stated in the License.
 //
 
-// TODO This file has been kept for backward compatibility
-// Remove it in future releases after full transition to VPUX_PARAM
-// [Track number: E#12122]
-
 /**
  * @brief A header for properties of shared device contexts and shared device memory blobs
- * for KMB plugin
+ * for VPUX plugin
  *
- * @file kmb_params.hpp
- * @deprecated Use vpux_plugin_params.hpp instead
+ * @file vpux_plugin_params.hpp
  */
 #pragma once
 
 #include <string>
 
-using KmbRemoteMemoryFD = int;
-using KmbHandleParam = void*;
-using KmbOffsetParam = size_t;
+using VpuxRemoteMemoryFD = int;
+using VpuxHandleParam = void*;
+using VpuxOffsetParam = size_t;
 
 namespace InferenceEngine {
-namespace KmbContextParams {
+namespace VpuxContextParams {
+
 /**
- * @def KMB_PARAM_KEY(name)
+ * @def VPUX_PARAM_KEY(name)
  * @brief Shortcut for defining configuration keys
- * @deprecated Use VPUX_PARAM_KEY instead
  */
-#define KMB_PARAM_KEY(name) KmbContextParams::PARAM_##name
+#define VPUX_PARAM_KEY(name) VpuxContextParams::PARAM_##name
 
 #ifndef DECLARE_PARAM_KEY_IMPL
 #define DECLARE_PARAM_KEY_IMPL(...)
 #endif
 
 /**
- * @def DECLARE_KMB_PARAM_KEY(name, ...)
+ * @def DECLARE_VPUX_PARAM_KEY(name, ...)
  * @brief Shortcut for defining object parameter keys
- * @deprecated Use DECLARE_VPUX_PARAM_KEY instead
  */
-#define DECLARE_KMB_PARAM_KEY(name, ...)        \
+#define DECLARE_VPUX_PARAM_KEY(name, ...)        \
     static constexpr auto PARAM_##name = #name; \
     DECLARE_PARAM_KEY_IMPL(name, __VA_ARGS__)
 
 /**
  * @brief Remote memory file descriptor
- * @deprecated Use VPUX_PARAM(REMOTE_MEMORY_FD) instead
  */
-DECLARE_KMB_PARAM_KEY(REMOTE_MEMORY_FD, KmbRemoteMemoryFD);
+DECLARE_VPUX_PARAM_KEY(REMOTE_MEMORY_FD, VpuxRemoteMemoryFD);
 
 /**
- * @brief Remote memory handle
- * @deprecated Use VPUX_PARAM(MEM_HANDLE) instead
+ * @brief Memory handle
  */
-DECLARE_KMB_PARAM_KEY(MEM_HANDLE, KmbHandleParam);
+DECLARE_VPUX_PARAM_KEY(MEM_HANDLE, VpuxHandleParam);
 
 /**
- * @brief Remote memory offset to map physical address properly
- * @deprecated Use VPUX_PARAM(MEM_OFFSET) instead
+ * @brief Memory offset to map physical address properly
  */
-DECLARE_KMB_PARAM_KEY(MEM_OFFSET, KmbOffsetParam);
+DECLARE_VPUX_PARAM_KEY(MEM_OFFSET, VpuxOffsetParam);
 
 /**
  * @brief VPU device ID
- * @deprecated Use VPUX_PARAM(DEVICE_ID) instead
  */
-DECLARE_KMB_PARAM_KEY(DEVICE_ID, std::string);
-}  // namespace KmbContextParams
+DECLARE_VPUX_PARAM_KEY(DEVICE_ID, std::string);
+
+/**
+ * @brief HDDLUnite Workload context id
+ */
+DECLARE_VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID, uint64_t);
+
+}  // namespace VpuxContextParams
 }  // namespace InferenceEngine

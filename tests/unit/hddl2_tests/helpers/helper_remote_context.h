@@ -18,7 +18,7 @@
 
 #include "hddl2_helpers/helper_workload_context.h"
 #include "helper_hddl2_backend.h"
-#include "hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 #include "ie_remote_context.hpp"
 #include "vpux_remote_context.h"
 
@@ -53,7 +53,7 @@ inline RemoteContext_Helper::RemoteContext_Helper() {
 
 inline InferenceEngine::ParamMap
 RemoteContext_Helper::wrapWorkloadIdToMap(const WorkloadID &id) {
-    return {{InferenceEngine::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), id}};
+    return {{InferenceEngine::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID), id}};
 }
 
 inline WorkloadID RemoteContext_Helper::getWorkloadId() const {

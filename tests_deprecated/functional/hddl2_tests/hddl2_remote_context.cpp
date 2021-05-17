@@ -17,7 +17,7 @@
 #include "core_api.h"
 #include "gtest/gtest.h"
 #include "hddl2_helpers/helper_workload_context.h"
-#include "hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 #include "helper_remote_context.h"
 
 namespace IE = InferenceEngine;
@@ -29,7 +29,7 @@ TEST_F(HDDL2_Remote_Context_Tests, CanCreateContextFromParams) {
     WorkloadID workloadId = WorkloadContext_Helper::createAndRegisterWorkloadContext();
 
     // Store id param_map
-    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
+    IE::ParamMap paramMap = {{IE::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
 
     IE::RemoteContext::Ptr remoteContextPtr;
     // Create context from ParamMap

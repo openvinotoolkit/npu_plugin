@@ -49,13 +49,14 @@ public:
     InferDataAdapter& operator=(const InferDataAdapter&&) = delete;
     explicit InferDataAdapter(const vpux::NetworkDescription::CPtr& networkDescription,
                               const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr,
-                              const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR);
+                              const InferenceEngine::ColorFormat graphColorFormat = InferenceEngine::ColorFormat::BGR);
 
 public:
     using Ptr = std::shared_ptr<InferDataAdapter>;
     void setPreprocessFlag(const bool preprocessingRequired);
 
-    void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const std::string& inputName);
+    void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const std::string& inputName,
+                           const InferenceEngine::ColorFormat inputColorFormat);
 
     void waitInferDone() const;
 
@@ -89,9 +90,6 @@ private:
 private:  // Workarounds
     // TODO Use maxRoiNum
     const size_t maxRoiNum = 1;
-    // TODO [Workaround] Avoid allocation buffer each time
-    std::once_flag _onceFlagInputAllocations;
-    std::vector<std::string> _onceFlagOutputAllocations;
 };
 
 }  // namespace hddl2

@@ -200,7 +200,7 @@ protected:
 
     ie::NV12Blob::Ptr createNV12VPUBlob(const std::size_t width, const std::size_t height) {
         nv12Data = reinterpret_cast<uint8_t*>(_allocator->alloc(height * width * 3 / 2));
-        return NV12Blob_Creator::createFromMemory(width, height, nv12Data);
+        return NV12Blob_Creator::createBlob(width, height, nv12Data);
     }
 
     void TearDown() override {

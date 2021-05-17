@@ -19,6 +19,8 @@
 #include "ie_remote_context.hpp"
 // Plugin
 #include "vpu/utils/logger.hpp"
+#include "vpux/vpux_plugin_params.hpp"
+#include "vpux_params_private_options.hpp"
 
 namespace vpux {
 
@@ -28,11 +30,11 @@ namespace vpux {
  */
 class ParsedRemoteBlobParams {
 public:
+    using Ptr = std::shared_ptr<ParsedRemoteBlobParams>;
+    using CPtr = std::shared_ptr<const ParsedRemoteBlobParams>;
+
     InferenceEngine::ParamMap getParamMap() const {
         return _paramMap;
-    }
-    InferenceEngine::ColorFormat getColorFormat() const {
-        return _colorFormat;
     }
     std::shared_ptr<const InferenceEngine::ROI> getROIPtr() const {
         return _roiPtr;
@@ -40,21 +42,38 @@ public:
     std::shared_ptr<const InferenceEngine::TensorDesc> getOriginalTensorDesc() const {
         return _originalTensorDesc;
     }
+    size_t getMemoryOffset() const {
+        return _memoryOffset;
+    }
+    void* getMemoryHandle() const {
+        return _memoryHandle;
+    }
+    VpuxRemoteMemoryFD getRemoteMemoryFD() const {
+        return _remoteMemoryFD;
+    }
+    InferenceEngine::ColorFormat getBlobColorFormat() const {
+        return _blobColorFormat;
+    }
 
 public:
     /** @brief Override current parameters with new options, not specified keep the same */
     virtual void update(const InferenceEngine::ParamMap& updateParams);
 
+    /** @brief Override current parameters with new or existing options, not specified keep the same */
+    virtual void updateFull(const InferenceEngine::ParamMap& updateParams);
+
 protected:
     virtual void parse();
-    // TODO On default, paramMap should keep colorFormat=BGR and ROI=nullptr?
+    // TODO On default, paramMap should keep ROI=nullptr?
     InferenceEngine::ParamMap _paramMap = {};
 
 private:
-    /** @brief Since RemoteMemory represent black box, we need some way to understand that it's NV12 blob*/
-    InferenceEngine::ColorFormat _colorFormat = InferenceEngine::ColorFormat::BGR;
     std::shared_ptr<const InferenceEngine::ROI> _roiPtr = nullptr;
     std::shared_ptr<const InferenceEngine::TensorDesc> _originalTensorDesc = nullptr;
+    size_t _memoryOffset = 0;
+    void* _memoryHandle = nullptr;
+    VpuxRemoteMemoryFD _remoteMemoryFD = -1;
+    InferenceEngine::ColorFormat _blobColorFormat = InferenceEngine::ColorFormat::BGR;
 };
 
 }  // namespace vpux

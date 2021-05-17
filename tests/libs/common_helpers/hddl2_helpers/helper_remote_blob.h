@@ -17,11 +17,11 @@
 #pragma once
 
 #include <RemoteMemory.h>
-#include "hddl2_params.hpp"
+#include "vpux/vpux_plugin_params.hpp"
 #include "ie_remote_context.hpp"
 
 namespace RemoteBlob_Helper {
-    static InferenceEngine::ParamMap wrapRemoteMemToMap(const HddlUnite::RemoteMemory::Ptr& remoteMemory) {
-        return {{InferenceEngine::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory}};
+    static InferenceEngine::ParamMap wrapRemoteMemFDToMap(const VpuxRemoteMemoryFD remoteMemoryFD) {
+        return {{InferenceEngine::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFD}};
     }
 }

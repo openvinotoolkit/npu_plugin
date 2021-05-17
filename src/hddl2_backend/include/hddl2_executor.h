@@ -72,8 +72,9 @@ private:
     // Variables below might be not required for executor
     std::shared_ptr<vpux::Allocator> _allocatorPtr = nullptr;
     HddlUnite::WorkloadContext::Ptr _workloadContext = nullptr;
+    HddlUnite::RemoteMemoryDesc _remoteMemoryDesc = {0, 0, 0, 0};
 
-    // TODO [Track number: S#37397] [Workaround] Avoid allocation inferData each time. If size of inputs is changed,
+    // TODO [Track number: S#37397] [Workaround] Avoid allocation inferData each time. If size of inputs has changed,
     // need  to recreating (not implemented yet)
     std::once_flag _onceFlagInferData;
 

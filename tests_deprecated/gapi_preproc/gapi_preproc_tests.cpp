@@ -16,7 +16,10 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <thread>
-#include "vpux_params_private_options.h"
+// [Track number: E#12122]
+// TODO Remove this header after removing KMB deprecated parameters in future releases
+#include "vpux/kmb_params.hpp"
+#include "vpux_params_private_options.hpp"
 
 #include "gapi_test_computations.hpp"
 
@@ -156,7 +159,7 @@ public:
 
 InferenceEngine::RemoteContext::Ptr remoteContext() {
     static InferenceEngine::Core core;
-    InferenceEngine::ParamMap ctxParams{{InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), "VPU-0"}};
+    InferenceEngine::ParamMap ctxParams{{InferenceEngine::VPUX_PARAM_KEY(DEVICE_ID), "VPU-0"}};
     static auto ctx = core.CreateContext("VPUX", ctxParams);
     return ctx;
 }
@@ -217,10 +220,20 @@ InferenceEngine::Blob::Ptr img2Blob(
         resultBlob = make_shared_blob<data_t>(desc, buf);
     } else {
         InferenceEngine::ParamMap blobParams = {
-            { InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), allocator.fd(buf) },
-            { InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE), reinterpret_cast<KmbHandleParam>(buf) },
+            { InferenceEngine::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), allocator.fd(buf) },
+            { InferenceEngine::VPUX_PARAM_KEY(MEM_HANDLE), reinterpret_cast<VpuxHandleParam>(buf) },
         };
+        // [Track number: E#12122]
+        // TODO Remove this deprecated part after removing deprecated KMB parameters in future releases
+        if (std::rand()%2) {
+            InferenceEngine::ParamMap deprBlobParams = {
+                { InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), allocator.fd(buf) },
+                { InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE), reinterpret_cast<KmbHandleParam>(buf) },
+            };
+            resultBlob = remoteContext()->CreateBlob(desc, deprBlobParams);
+        } else {
         resultBlob = remoteContext()->CreateBlob(desc, blobParams);
+        }
     }
     IE_ASSERT(resultBlob != nullptr);
 

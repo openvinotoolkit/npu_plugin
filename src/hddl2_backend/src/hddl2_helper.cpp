@@ -20,30 +20,143 @@
 #include <device_helpers.hpp>
 
 #include "converters.h"
+// [Track number: E#12122]
+// TODO Remove this header after removing HDDL2 deprecated parameters in future releases
 #include "hddl2/hddl2_params.hpp"
 #include "hddl2_exceptions.h"
+#include "vpux/vpux_plugin_params.hpp"
+#include "vpux_params_private_options.hpp"
 
 namespace vpux {
 namespace hddl2 {
 
 namespace IE = InferenceEngine;
-HddlUnite::RemoteMemory::Ptr getRemoteMemoryFromParams(const InferenceEngine::ParamMap& params) {
-    HddlUnite::RemoteMemory::Ptr remoteMemory;
+HddlUnite::RemoteMemory* getRemoteMemoryFromParams(const IE::ParamMap& params) {
     if (params.empty()) {
-        IE_THROW() << PARAMS_ERROR_str << "Param map for allocator is empty.";
+        IE_THROW() << PARAMS_ERROR_str << "Parameter map for allocator is empty.";
+    }
+    // Check that it really contains required params
+    const auto remoteMemoryIter = params.find(IE::VPUX_PARAM_KEY(MEM_HANDLE));
+    if (remoteMemoryIter == params.end()) {
+        IE_THROW() << PARAMS_ERROR_str
+                   << "Parameter map for allocator does not contain remote memory object information";
     }
 
-    // Check that it's really contains required params
-    const auto remote_memory_iter = params.find(IE::HDDL2_PARAM_KEY(REMOTE_MEMORY));
-    if (remote_memory_iter == params.end()) {
-        IE_THROW() << PARAMS_ERROR_str << "Param map does not contain remote memory file descriptor information";
-    }
+    VpuxHandleParam vpuxMemHandle;
     try {
-        remoteMemory = remote_memory_iter->second.as<HddlUnite::RemoteMemory::Ptr>();
+        vpuxMemHandle = remoteMemoryIter->second.as<VpuxHandleParam>();
     } catch (...) {
-        IE_THROW() << CONFIG_ERROR_str << "Remote memory param have incorrect type information";
+        IE_THROW() << CONFIG_ERROR_str << "Remote memory parameter has incorrect type information";
     }
-    return remoteMemory;
+
+    if (vpuxMemHandle == nullptr) {
+        IE_THROW() << CONFIG_ERROR_str << "Remote memory parameter has incorrect data";
+    }
+
+    return static_cast<HddlUnite::RemoteMemory*>(vpuxMemHandle);
+}
+
+int32_t getRemoteMemoryFDFromParams(const IE::ParamMap& params) {
+    if (params.empty()) {
+        IE_THROW() << PARAMS_ERROR_str << "Parameter map is empty.";
+    }
+    // Check that it really contains required params
+    auto remoteMemoryIter = params.find(IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD));
+    if (remoteMemoryIter == params.end()) {
+        // ******************************************
+        // [Track number: E#12122]
+        // TODO Remove this part after removing HDDL2 deprecated parameters in future releases
+        remoteMemoryIter = params.find(IE::HDDL2_PARAM_KEY(REMOTE_MEMORY));
+        if (remoteMemoryIter != params.end()) {
+            HddlUnite::RemoteMemory::Ptr vpuxRemoteMemoryPtr = nullptr;
+            try {
+                vpuxRemoteMemoryPtr = remoteMemoryIter->second.as<HddlUnite::RemoteMemory::Ptr>();
+            } catch (...) {
+                IE_THROW() << CONFIG_ERROR_str << "Remote memory parameter has incorrect type information";
+            }
+
+            if (vpuxRemoteMemoryPtr == nullptr) {
+                IE_THROW() << CONFIG_ERROR_str << "Remote memory parameter has incorrect data";
+            }
+
+            return vpuxRemoteMemoryPtr->getDmaBufFd();
+        }
+        // ******************************************
+
+        IE_THROW() << PARAMS_ERROR_str << "Parameter map does not contain remote memory file descriptor information";
+    }
+
+    VpuxRemoteMemoryFD vpuxRemoteMemoryFD;
+    try {
+        vpuxRemoteMemoryFD = remoteMemoryIter->second.as<VpuxRemoteMemoryFD>();
+    } catch (...) {
+        IE_THROW() << CONFIG_ERROR_str << "Remote memory FD parameter has incorrect type information";
+    }
+
+    if (vpuxRemoteMemoryFD < 0) {
+        IE_THROW() << CONFIG_ERROR_str << "Remote memory FD parameter has incorrect data";
+    }
+
+    return vpuxRemoteMemoryFD;
+}
+
+std::shared_ptr<IE::TensorDesc> getOriginalTensorDescFromParams(const InferenceEngine::ParamMap& params) {
+    if (params.empty()) {
+        IE_THROW() << PARAMS_ERROR_str << "Parameter map is empty.";
+    }
+    // Check that it really contains required params
+    const auto remoteMemoryIter = params.find(IE::VPUX_PARAM_KEY(ORIGINAL_TENSOR_DESC));
+    if (remoteMemoryIter == params.end()) {
+        IE_THROW() << PARAMS_ERROR_str << "Parameter map does not contain original tensor descriptor information";
+    }
+
+    std::shared_ptr<IE::TensorDesc> originalTensorDesc = nullptr;
+    try {
+        originalTensorDesc = remoteMemoryIter->second.as<std::shared_ptr<IE::TensorDesc>>();
+    } catch (...) {
+        IE_THROW() << CONFIG_ERROR_str << "Original tensor descriptor parameter has incorrect type information";
+    }
+
+    if (originalTensorDesc == nullptr) {
+        IE_THROW() << CONFIG_ERROR_str << "Original tensor descriptor parameter has incorrect data";
+    }
+
+    return originalTensorDesc;
+}
+
+WorkloadID getWorkloadIDFromParams(const InferenceEngine::ParamMap& params) {
+    if (params.empty()) {
+        IE_THROW() << PARAMS_ERROR_str << "Parameter map is empty.";
+    }
+    // Check that it really contains required params
+    auto workloadIdIter = params.find(IE::VPUX_PARAM_KEY(WORKLOAD_CONTEXT_ID));
+    if (workloadIdIter == params.end()) {
+        // ******************************************
+        // TODO Remove this part after removing HDDL2 deprecated parameters in future releases
+        workloadIdIter = params.find(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID));
+        if (workloadIdIter != params.end()) {
+            WorkloadID workloadIdHddl2;
+            try {
+                workloadIdHddl2 = workloadIdIter->second.as<WorkloadID>();
+            } catch (...) {
+                IE_THROW() << CONFIG_ERROR_str << "Workload ID parameter has incorrect type information";
+            }
+
+            return workloadIdHddl2;
+        }
+        // ******************************************
+
+        IE_THROW() << PARAMS_ERROR_str << "Parameter map does not contain workload ID information";
+    }
+
+    WorkloadID workloadId;
+    try {
+        workloadId = workloadIdIter->second.as<WorkloadID>();
+    } catch (...) {
+        IE_THROW() << CONFIG_ERROR_str << "Workload ID parameter has incorrect type information";
+    }
+
+    return workloadId;
 }
 
 void setUniteLogLevel(const vpu::LogLevel logLevel, const vpu::Logger::Ptr logger) {
@@ -61,7 +174,7 @@ std::map<uint32_t, std::string> getSwDeviceIdNameMap() {
     std::vector<HddlUnite::Device> devices;
     auto status = getAvailableDevices(devices);
     if (status != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to get devices sw IDs!";
+        IE_THROW() << "Failed to get devices sw IDs!";
     }
 
     std::map<uint32_t, std::string> swIdNameMap;

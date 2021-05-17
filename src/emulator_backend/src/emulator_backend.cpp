@@ -18,7 +18,6 @@
 
 #include <ie_common.h>
 #include <description_buffer.hpp>
-#include <vpux/kmb_params.hpp>
 
 #include "emulator_device.hpp"
 

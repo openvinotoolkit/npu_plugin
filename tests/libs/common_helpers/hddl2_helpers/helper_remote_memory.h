@@ -28,18 +28,28 @@ class RemoteMemory_Helper {
 public:
     using Ptr = std::shared_ptr<RemoteMemory_Helper>;
 
-    HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(const WorkloadID &id, const size_t& size);
-    HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(const WorkloadID &id,
-            const InferenceEngine::TensorDesc& tensorDesc);
+    int allocateRemoteMemory(const WorkloadID& id, const size_t width, const size_t height,
+        const size_t widthStride, const size_t heightStride, const void* data = nullptr,
+        const HddlUnite::eRemoteMemoryFormat format = HddlUnite::eRemoteMemoryFormat::NONE);
+    int allocateRemoteMemory(const WorkloadID& id, const size_t size, const void* data = nullptr,
+        const HddlUnite::eRemoteMemoryFormat format = HddlUnite::eRemoteMemoryFormat::NONE);
+    int allocateRemoteMemory(const WorkloadID& id, const InferenceEngine::TensorDesc& tensorDesc,
+        const void* data = nullptr, const HddlUnite::eRemoteMemoryFormat format = HddlUnite::eRemoteMemoryFormat::NONE);
 
-    HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(const HddlUnite::WorkloadContext& workloadContext, const size_t size);
+    HddlUnite::RemoteMemory::Ptr allocateRemoteMemoryPtr(const WorkloadID& id, const size_t width, const size_t height,
+        const size_t widthStride, const size_t heightStride, const void* data = nullptr,
+        const HddlUnite::eRemoteMemoryFormat format = HddlUnite::eRemoteMemoryFormat::NONE);
+    HddlUnite::RemoteMemory::Ptr allocateRemoteMemoryPtr(const WorkloadID& id, const size_t size, const void* data = nullptr,
+        const HddlUnite::eRemoteMemoryFormat format = HddlUnite::eRemoteMemoryFormat::NONE);
+    HddlUnite::RemoteMemory::Ptr allocateRemoteMemoryPtr(const WorkloadID& id, const InferenceEngine::TensorDesc& tensorDesc,
+        const void* data = nullptr, const HddlUnite::eRemoteMemoryFormat format = HddlUnite::eRemoteMemoryFormat::NONE);
 
     void destroyRemoteMemory();
 
     void clearRemoteMemory();
-
-    std::string getRemoteMemory(const size_t &size);
-    bool isRemoteTheSame(const std::string &dataToCompare);
+    std::string getRemoteMemory(const size_t size);
+    HddlUnite::RemoteMemory::Ptr getRemoteMemoryPtr() {return _remoteMemory;}
+    bool isRemoteTheSame(const std::string& dataToCompare);
     void setRemoteMemory(const std::string& dataToSet);
 
     virtual ~RemoteMemory_Helper();
@@ -54,38 +64,80 @@ inline RemoteMemory_Helper::~RemoteMemory_Helper() {
     destroyRemoteMemory();
 }
 
-inline HddlUnite::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemory(
-    const HddlUnite::WorkloadContext& workloadContext, const size_t size) {
-        _remoteMemory = std::make_shared<HddlUnite::RemoteMemory> (workloadContext, HddlUnite::RemoteMemoryDesc(size, 1, size, 1));
-        return _remoteMemory;
-    }
-
-inline HddlUnite::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id,
-                                                                const InferenceEngine::TensorDesc& tensorDesc) {
-    const size_t size = InferenceEngine::details::product(
-            tensorDesc.getDims().begin(), tensorDesc.getDims().end());
-    return allocateRemoteMemory(id, size);
+inline int RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID& id, const size_t width, const size_t height,
+    const size_t widthStride, const size_t heightStride, const void* data, const HddlUnite::eRemoteMemoryFormat format) {
+    return allocateRemoteMemoryPtr(id, width, height, widthStride, heightStride, data, format)->getDmaBufFd();
 }
 
-inline HddlUnite::RemoteMemory::Ptr
-RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &size) {
+inline int RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID& id,
+       const InferenceEngine::TensorDesc& tensorDesc, const void* data, const HddlUnite::eRemoteMemoryFormat format) {
+    return allocateRemoteMemoryPtr(id, tensorDesc, data, format)->getDmaBufFd();
+}
+
+inline int
+RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID& id, const size_t size, const void* data,
+    const HddlUnite::eRemoteMemoryFormat format) {
+    return allocateRemoteMemoryPtr(id, size ,data, format)->getDmaBufFd();
+}
+
+inline HddlUnite::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemoryPtr(const WorkloadID& id, const size_t width, const size_t height,
+    const size_t widthStride, const size_t heightStride, const void* data, const HddlUnite::eRemoteMemoryFormat format) {
     if (_remoteMemory != nullptr) {
-        std::cerr << "Memory already allocated!" << std::endl;
-        return 0;
+       IE_THROW()  << "Remote memory is already allocated.";
     }
 
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::queryWorkloadContext(id);
     if (context == nullptr) {
-        std::cerr << "Incorrect workload id!" << std::endl;
-        return 0;
+        IE_THROW() << "Incorrect workload id.";
     }
 
-    allocateRemoteMemory(*context, size);
+    _remoteMemory = std::make_shared<HddlUnite::RemoteMemory>(*context, HddlUnite::RemoteMemoryDesc(width, height, widthStride, heightStride, format));
     if (_remoteMemory == nullptr) {
-        return 0;
+        IE_THROW() << "Failed to allocate remote memory.";
+    }
+
+    if (data != nullptr) {
+        const size_t dataSize = _remoteMemory->getMemoryDesc().getDataSize();
+        if (_remoteMemory->syncToDevice(data, dataSize) != HDDL_OK) {
+            IE_THROW() << "Failed to sync memory to device.";
+        }
     }
 
     return _remoteMemory;
+}
+
+inline HddlUnite::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemoryPtr(const WorkloadID& id,
+       const InferenceEngine::TensorDesc& tensorDesc, const void* data, const HddlUnite::eRemoteMemoryFormat format) {
+    const auto& dims = tensorDesc.getDims();
+    if (dims.size() != 4) {
+    const size_t size = InferenceEngine::details::product(
+        tensorDesc.getDims().begin(), tensorDesc.getDims().end());
+        return allocateRemoteMemoryPtr(id, size, 1, size, 1, data, format);
+    }
+
+    const bool isNV12 = (format == HddlUnite::eRemoteMemoryFormat::NV12);
+    const int H_index = 2;
+    const int W_index = 3;
+
+    const auto& blockingDesc = tensorDesc.getBlockingDesc();
+    const auto& strides = blockingDesc.getStrides();
+        if (strides.empty()) {
+            IE_THROW() << "Strides information is not provided.";
+        }
+
+    // Define strides and dimensions. Only NCHW/NHWC orders/layouts are supported. NV12 always has NHWC order
+    const bool isNCHW = isNV12 ? false : (tensorDesc.getLayout() == InferenceEngine::Layout::NCHW);
+    const size_t mWidth = dims[W_index];
+    const size_t mHeight = dims[H_index];
+    const size_t mWidthStride = strides[isNCHW ? 2 : 1];
+    const size_t mHeightStride = strides[isNCHW ? 1 : 0] / mWidthStride;
+    return allocateRemoteMemoryPtr(id, mWidth, mHeight, mWidthStride, mHeightStride, data, format);
+}
+
+inline HddlUnite::RemoteMemory::Ptr
+RemoteMemory_Helper::allocateRemoteMemoryPtr(const WorkloadID& id, const size_t size, const void* data,
+    const HddlUnite::eRemoteMemoryFormat format) {
+    return allocateRemoteMemoryPtr(id, size, 1, size, 1, data, format);
 }
 
 inline void RemoteMemory_Helper::destroyRemoteMemory() {
@@ -105,7 +157,7 @@ inline void RemoteMemory_Helper::clearRemoteMemory() {
     }
 }
 
-inline std::string RemoteMemory_Helper::getRemoteMemory(const size_t &size) {
+inline std::string RemoteMemory_Helper::getRemoteMemory(const size_t size) {
     std::vector<char> tempBuffer;
     tempBuffer.resize(size);
     auto retCode = _remoteMemory->syncFromDevice(tempBuffer.data(), size);
@@ -116,7 +168,7 @@ inline std::string RemoteMemory_Helper::getRemoteMemory(const size_t &size) {
     return std::string(tempBuffer.begin(), tempBuffer.end());
 }
 
-inline bool RemoteMemory_Helper::isRemoteTheSame(const std::string &dataToCompare) {
+inline bool RemoteMemory_Helper::isRemoteTheSame(const std::string& dataToCompare) {
     const size_t size = dataToCompare.size();
     const std::string remoteMemory = getRemoteMemory(size);
     if (dataToCompare != remoteMemory) {

@@ -128,7 +128,7 @@ PreprocMap InferRequest::preparePreProcessing(
     return preProcMap;
 }
 
-void InferRequest::moveBlobForPreprocessingToInputs(
+void InferRequest::moveBlobsForPreprocessingToInputs(
         IE::BlobMap& inputs, const IE::InputsDataMap& networkInputs,
         const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData) {
     for (auto& input : networkInputs) {
@@ -139,11 +139,12 @@ void InferRequest::moveBlobForPreprocessingToInputs(
             if (preProcessingRequired(input.second, blobForPreProcessing)) {
                 IE::Blob::Ptr blobForPreProc = preProcDataIt->second->getRoiBlob();
                 /// If pre-processing required, we need use PP blobs instead of NN for inputs
-                inputs.at(inputName) = blobForPreProcessing;
+                inputs.at(inputName) = blobForPreProc;
             }
         }
     }
 }
+
 // TODO [Track number: S#43193]
 #ifdef __aarch64__
 void InferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
@@ -252,7 +253,8 @@ void InferRequest::InferAsync() {
 
     const auto preProcMap = preparePreProcessing(_networkInputs, _preProcData);
     if (_executorPtr->isPreProcessingSupported(preProcMap)) {
-        moveBlobForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
+        moveBlobsForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
+        updateRemoteBlobs(_inputs, preProcMap);
         _executorPtr->push(_inputs, preProcMap);
     } else {
         // TODO [Track number: S#43193] KMB preprocessing should be moved from plugin level to backend.
@@ -262,6 +264,7 @@ void InferRequest::InferAsync() {
         _logger->info("Preprocessing cannot be executed on device. IE preprocessing will be executed.");
         execDataPreprocessing(_inputs);
 #endif
+        updateRemoteBlobs(_inputs, preProcMap);
         _executorPtr->push(_inputs);
     }
     if (std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH") != nullptr) {
@@ -288,11 +291,10 @@ std::map<std::string, IE::InferenceEngineProfileInfo> InferRequest::GetPerforman
 }
 
 void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
-    if (!data->is<VPUXRemoteBlob>()) {
+    if (!isRemoteAnyBlob(data)) {
         IE::IInferRequestInternal::SetBlob(name, data);
         return;
     }
-
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "SetBlob");
     if (name.empty()) {
         IE_THROW(NotFound) << "Failed to set blob with empty name";
@@ -303,13 +305,14 @@ void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
 
     IE::InputInfo::Ptr foundInput;
     IE::DataPtr foundOutput;
-    size_t dataSize = data->size();
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
         if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
             IE_THROW(ParameterMismatch)
                     << "Failed to set Blob with precision not corresponding to user input precision";
         }
 
+        // We need to revert results of moveBlobsForPreprocessingToInputs() due to preprocessing requirements
+        _inputs[name] = allocateLocalBlob(foundInput->getTensorDesc(), _allocator);
         const bool preProcRequired = preProcessingRequired(foundInput, data);
         if (isCompoundBlob && !preProcRequired) {
             IE_THROW(NotImplemented) << "Cannot set compound blob: supported only for input pre-processing";
@@ -336,6 +339,8 @@ void InferRequest::SetBlob(const std::string& name, const IE::Blob::Ptr& data) {
         if (isCompoundBlob) {
             IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
         }
+
+        size_t dataSize = data->size();
         size_t outputSize = IE::details::product(foundOutput->getDims());
         if (dataSize != outputSize) {
             IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize
@@ -359,4 +364,49 @@ void InferRequest::checkBlobs() {
             checkBlob(output.second, output.first, false);
     }
 }
+
+void InferRequest::updateRemoteBlobs(IE::BlobMap& inputs, const PreprocMap& preProcMap) {
+    for (auto& input : inputs) {
+        auto colorFormat = IE::ColorFormat::BGR;
+
+        const std::string inputName = input.first;
+        const auto& preProcIt = preProcMap.find(inputName);
+        if (preProcIt != preProcMap.end()) {
+            colorFormat = preProcIt->second.getColorFormat();
+        }
+
+        auto inputBlob = input.second;
+        updateRemoteBlobColorFormat(inputBlob, colorFormat);
+    }
+}
+
+void InferRequest::updateRemoteBlobColorFormat(InferenceEngine::Blob::Ptr& blob,
+                                               const InferenceEngine::ColorFormat colorFormat) {
+    if (!isRemoteAnyBlob(blob))
+        return;
+
+    VPUXRemoteBlob::Ptr remoteBlob = nullptr;
+    if (isRemoteBlob(blob)) {
+        remoteBlob = IE::as<VPUXRemoteBlob>(blob);
+        if (remoteBlob == nullptr) {
+            IE_THROW() << "Failed to cast to the VPUXRemoteBlob.";
+        }
+        remoteBlob->updateColorFormat(colorFormat);
+    } else if (isRemoteNV12Blob(blob)) {
+        IE::NV12Blob::Ptr nv12Blob = IE::as<IE::NV12Blob>(blob);
+
+        remoteBlob = IE::as<VPUXRemoteBlob>(nv12Blob->y());
+        if (remoteBlob == nullptr) {
+            IE_THROW() << "Failed to cast Y plane to the VPUXRemoteBlob.";
+        }
+        remoteBlob->updateColorFormat(colorFormat);
+
+        remoteBlob = IE::as<VPUXRemoteBlob>(nv12Blob->uv());
+        if (remoteBlob == nullptr) {
+            IE_THROW() << "Failed to cast UV plane to the VPUXRemoteBlob.";
+        }
+        remoteBlob->updateColorFormat(colorFormat);
+    }
+}
+
 }  // namespace vpux

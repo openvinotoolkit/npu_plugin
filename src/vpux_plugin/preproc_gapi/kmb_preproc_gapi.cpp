@@ -19,8 +19,8 @@
 #include "debug.h"
 #include "kmb_preproc_gapi_kernels.hpp"
 #include "kmb_preproc_gapi_kernels_sipp.hpp"
-#include "vpux/kmb_params.hpp"
-#include "vpux_params_private_options.h"
+#include "vpux/vpux_plugin_params.hpp"
+#include "vpux_params_private_options.hpp"
 
 // clang-format off
 namespace InferenceEngine {
@@ -193,7 +193,7 @@ cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
         const auto r_blob = std::dynamic_pointer_cast<const IE::RemoteBlob>(blob);
         checkBlobIsValid(r_blob);
         const auto& params = r_blob->getParams();
-        const auto& orig_tensor_desc = params.find(IE::KMB_PARAM_KEY(ORIGINAL_TENSOR_DESC));
+        const auto& orig_tensor_desc = params.find(IE::VPUX_PARAM_KEY(ORIGINAL_TENSOR_DESC));
         if (orig_tensor_desc != params.end()) {
             std::shared_ptr<IE::TensorDesc> r_desc;
             try {
