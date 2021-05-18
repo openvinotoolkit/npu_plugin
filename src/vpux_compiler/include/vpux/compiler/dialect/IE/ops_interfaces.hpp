@@ -30,22 +30,12 @@ namespace IE {
 //
 
 mlir::LogicalResult verifyIELayerOp(mlir::Operation* op);
-SmallVector<mlir::Value> getIELayerInputs(mlir::Operation* op);
-SmallVector<mlir::Value> getIELayerOutputs(mlir::Operation* op);
 
 template <typename ConcreteOp>
 class IELayer : public mlir::OpTrait::TraitBase<ConcreteOp, IELayer> {
 public:
     static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
         return verifyIELayerOp(op);
-    }
-
-    SmallVector<mlir::Value> getInputs() {
-        return getIELayerInputs(this->getOperation());
-    }
-
-    SmallVector<mlir::Value> getOutputs() {
-        return getIELayerOutputs(this->getOperation());
     }
 };
 

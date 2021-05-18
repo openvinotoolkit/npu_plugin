@@ -27,6 +27,23 @@ void vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::build(mlir::OpBuilder& builder, m
           mlir::ValueRange{}, mergeRepeated, nullptr, nullptr);
 }
 
+mlir::LogicalResult vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::isSupportedLayout(mlir::Operation* op,
+                                                                                vpux::DataOrderInfo& info) {
+    const auto ctcGreedyDecoderSeqLenOp = mlir::dyn_cast<IERT::CTCGreedyDecoderSeqLenOp>(op);
+    VPUX_THROW_UNLESS(ctcGreedyDecoderSeqLenOp != nullptr, "Operation {0} is not CTCGreedyDecoderSeqLenOp",
+                      op->getName());
+
+    if (info.hasInput(0)) {
+        const auto order = info.getInput(0);
+        if (order == DimsOrder::CHW) {
+            return mlir::success();
+        }
+    }
+
+    info.setInput(0, DimsOrder::CHW);
+    return mlir::failure();
+}
+
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::CTCGreedyDecoderSeqLenParamsBuilder builder(writer);
     builder.add_mergeRepeated(mergeRepeated());

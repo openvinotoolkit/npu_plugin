@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -88,12 +89,93 @@ public:
 //
 
 mlir::LogicalResult verifySameDimsOrder(mlir::Operation* op);
+mlir::LogicalResult isSupportedLayoutSameDimsOrder(mlir::Operation* op, DataOrderInfo& info);
 
 template <typename ConcreteOp>
 class SameDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameDimsOrder> {
 public:
     static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
         return verifySameDimsOrder(op);
+    }
+
+    static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+        return isSupportedLayoutSameDimsOrder(op, info);
+    }
+};
+
+//
+// SameInOutDimsOrder
+//
+
+mlir::LogicalResult verifySameInOutDimsOrder(mlir::Operation* op);
+mlir::LogicalResult isSupportedLayoutSameInOutDimsOrder(mlir::Operation* op, DataOrderInfo& info);
+
+template <typename ConcreteOp>
+class SameInOutDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameInOutDimsOrder(op);
+    }
+
+    static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+        return isSupportedLayoutSameInOutDimsOrder(op, info);
+    }
+};
+
+//
+// SameInOutSpecificDimsOrder
+//
+
+mlir::LogicalResult verifySameInOutSpecificDimsOrder(mlir::Operation* op, ArrayRef<DimsOrder> supportedLayouts);
+mlir::LogicalResult isSupportedLayoutSameInOutSpecificDimsOrder(mlir::Operation* op, DataOrderInfo& info,
+                                                                ArrayRef<DimsOrder> supportedLayouts);
+
+//
+// SameInOutDimsOrder_NCHW_NHWC
+//
+
+extern const std::array<DimsOrder, 2> NCHW_NHWC;
+
+template <typename ConcreteOp>
+class SameInOutDimsOrder_NCHW_NHWC : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_NCHW_NHWC> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameInOutSpecificDimsOrder(op, NCHW_NHWC);
+    }
+
+    static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+        return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, NCHW_NHWC);
+    }
+};
+
+//
+// SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+//
+
+extern const std::array<DimsOrder, 4> CHW_HWC_NCHW_NHWC;
+
+template <typename ConcreteOp>
+class SameInOutDimsOrder_CHW_HWC_NCHW_NHWC :
+        public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_CHW_HWC_NCHW_NHWC> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameInOutSpecificDimsOrder(op, CHW_HWC_NCHW_NHWC);
+    }
+
+    static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+        return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, CHW_HWC_NCHW_NHWC);
+    }
+};
+
+//
+// AnyDimsOrder
+//
+
+template <typename ConcreteOp>
+class AnyDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, AnyDimsOrder> {
+public:
+    static mlir::LogicalResult isSupportedLayout(mlir::Operation*, vpux::DataOrderInfo&) {
+        return mlir::success();
     }
 };
 

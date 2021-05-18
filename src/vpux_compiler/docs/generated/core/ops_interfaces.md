@@ -89,10 +89,18 @@ Get destination Value for the Operation## LayerInterface (`LayerInterface`)
 
 Base interface for Layer Operation
 ### Methods:
+#### `getDataOrderInfo`
+
+```c++
+vpux::DataOrderInfo getDataOrderInfo();
+```
+Get all inputs (tensors or memory buffers) for the Operation
+NOTE: This method *must* be implemented by the user.
+
 #### `getInputs`
 
 ```c++
-vpux::SmallVector<mlir::Value> getInputs();
+mlir::OperandRange getInputs();
 ```
 Get all inputs (tensors or memory buffers) for the Operation
 NOTE: This method *must* be implemented by the user.
@@ -100,7 +108,31 @@ NOTE: This method *must* be implemented by the user.
 #### `getOutputs`
 
 ```c++
-vpux::SmallVector<mlir::Value> getOutputs();
+mlir::OperandRange getOutputs();
+```
+Get the outputs (tensors or memory buffers) for the Operation
+NOTE: This method *must* be implemented by the user.
+
+#### `getOpOperands`
+
+```c++
+llvm::detail::concat_range<mlir::OpOperand, MutableArrayRef<mlir::OpOperand>, MutableArrayRef<mlir::OpOperand>> getOpOperands();
+```
+Get all inputs (tensors or memory buffers) for the Operation
+NOTE: This method *must* be implemented by the user.
+
+#### `getInOpOperands`
+
+```c++
+MutableArrayRef<mlir::OpOperand> getInOpOperands();
+```
+Get all inputs (tensors or memory buffers) for the Operation
+NOTE: This method *must* be implemented by the user.
+
+#### `getOutOpOperands`
+
+```c++
+MutableArrayRef<mlir::OpOperand> getOutOpOperands();
 ```
 Get the outputs (tensors or memory buffers) for the Operation
 NOTE: This method *must* be implemented by the user.

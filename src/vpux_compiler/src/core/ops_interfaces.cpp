@@ -46,6 +46,34 @@ ptrdiff_t getLastMemRefPosition(const mlir::ValueRange& vals) {
 }  // namespace
 
 //
+// DataOrderInfo
+//
+
+void DataOrderInfo::printFormat(llvm::raw_ostream& stream) const {
+    stream << "Order info [";
+    for (size_t i = 0; i < _inputOrders.size(); ++i) {
+        stream << " inL[" << i << "]=";
+        if (_inputOrders[i].hasValue()) {
+            _inputOrders[i]->printFormat(stream);
+        } else {
+            stream << "ANY";
+        }
+    }
+
+    stream << ";";
+    for (size_t i = 0; i < _outputOrders.size(); ++i) {
+        stream << " outL[" << i << "]=";
+        if (_outputOrders[i].hasValue()) {
+            _outputOrders[i]->printFormat(stream);
+        } else {
+            stream << "ANY";
+        }
+    }
+
+    stream << " ]";
+}
+
+//
 // ConstantInterface
 //
 
@@ -133,15 +161,12 @@ mlir::LogicalResult vpux::verifyLayer(mlir::Operation* op) {
         }
     }
 
-    auto inputs = layer.getInputs();
-    auto outputs = layer.getOutputs();
-
-    if (outputs.empty()) {
+    if (layer.getOutputs().empty()) {
         return errorAt(op, "Layer Operation has no outputs");
     }
 
-    for (auto var : concat<mlir::Value>(inputs, outputs)) {
-        auto type = var.getType();
+    for (auto& var : layer.getOpOperands()) {
+        auto type = var.get().getType();
 
         if (!type.isa<mlir::ShapedType>()) {
             return errorAt(op, "Layer Operation has input/output with wrong Type, expected ShapedType, got '{0}'",
@@ -156,52 +181,12 @@ mlir::LogicalResult vpux::verifyLayer(mlir::Operation* op) {
 // ConvertLayerInterface
 //
 
-namespace {
-
-template <class ConcreteLayer>
-mlir::FailureOr<std::pair<LayerInterface, ConcreteLayer>> getLayer(mlir::Operation* op, StringRef comment) {
-    auto base = mlir::dyn_cast<LayerInterface>(op);
-    if (base == nullptr) {
-        return errorAt(op, "Operation is not a Layer");
-    }
-
-    auto actual = mlir::dyn_cast<ConcreteLayer>(op);
-    if (actual == nullptr) {
-        return errorAt(op, "Operation is not a {0} Layer", comment);
-    }
-
-    return std::make_pair(base, actual);
-}
-
-mlir::LogicalResult verifyLayerInputsOutputs(LayerInterface layer, size_t numInputs, size_t numOutputs,
-                                             StringRef comment) {
-    if (layer.getInputs().size() != numInputs) {
-        return errorAt(layer, "{0} Layer has wrong number of inputs '{1}', expected '{2}'", comment,
-                       layer.getInputs().size(), numInputs);
-    }
-    if (layer.getOutputs().size() != numOutputs) {
-        return errorAt(layer, "{0} Layer has wrong number of outputs '{1}', expected '{2}'", comment,
-                       layer.getOutputs().size(), numOutputs);
-    }
-
-    return mlir::success();
-}
-
-}  // namespace
-
 mlir::LogicalResult vpux::verifyConvertLayer(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyConvertLayer");
 
-    auto res = getLayer<ConvertLayerInterface>(op, "Convert");
-    if (mlir::failed(res)) {
-        return mlir::failure();
-    }
-
-    auto layer = res->first;
-    auto convert = res->second;
-
-    if (mlir::failed(verifyLayerInputsOutputs(layer, 1, 1, "Convert"))) {
-        return mlir::failure();
+    auto convert = mlir::dyn_cast<ConvertLayerInterface>(op);
+    if (convert == nullptr) {
+        return errorAt(op, "Operation is not a Convert Layer");
     }
 
     auto inputType = convert.inputType();
@@ -222,16 +207,9 @@ mlir::LogicalResult vpux::verifyConvertLayer(mlir::Operation* op) {
 mlir::LogicalResult vpux::verifySoftMaxLayer(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySoftMaxLayer");
 
-    auto res = getLayer<SoftMaxLayerInterface>(op, "SoftMax");
-    if (mlir::failed(res)) {
-        return mlir::failure();
-    }
-
-    auto layer = res->first;
-    auto softMax = res->second;
-
-    if (mlir::failed(verifyLayerInputsOutputs(layer, 1, 1, "SoftMax"))) {
-        return mlir::failure();
+    auto softMax = mlir::dyn_cast<SoftMaxLayerInterface>(op);
+    if (softMax == nullptr) {
+        return errorAt(op, "Operation is not a SoftMax Layer");
     }
 
     auto inputType = softMax.inputType();
@@ -309,6 +287,43 @@ mlir::OperandRange vpux::getRTLayerOutOperand(mlir::Operation* op) {
     const auto outNum = getLastMemRefPosition(op->getResults());
 
     return op->getOperands().slice(inNum - outNum, outNum);
+}
+
+MutableArrayRef<mlir::OpOperand> vpux::getRTLayerInOpOperands(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getLayerInputs");
+
+    const auto inNum = getLastMemRefPosition(op->getOperands());
+    const auto outNum = getLastMemRefPosition(op->getResults());
+
+    return op->getOpOperands().take_front(inNum - outNum);
+}
+
+MutableArrayRef<mlir::OpOperand> vpux::getRTLayerOutOpOperands(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getLayerInputs");
+
+    const auto inNum = getLastMemRefPosition(op->getOperands());
+    const auto outNum = getLastMemRefPosition(op->getResults());
+
+    return op->getOpOperands().slice(inNum - outNum, outNum);
+}
+
+DataOrderInfo vpux::getRTLayerDataOrderInfo(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getRTLayerDataOrderInfo");
+
+    const auto inputs = getRTLayerInOperand(op);
+    const auto outputs = getRTLayerOutOperand(op);
+
+    DataOrderInfo orderInfo{inputs.size(), outputs.size()};
+
+    for (const auto& val : inputs | indexed) {
+        orderInfo.setInput(val.index(), DimsOrder::fromValue(val.value()));
+    }
+
+    for (const auto& val : outputs | indexed) {
+        orderInfo.setOutput(val.index(), DimsOrder::fromValue(val.value()));
+    }
+
+    return orderInfo;
 }
 
 mlir::Value vpux::getRTLayerViewSource(mlir::Operation* op, ptrdiff_t resultInd) {

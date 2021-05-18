@@ -27,4 +27,10 @@ namespace vpux {
 
 mlir::Operation* getFirstUser(mlir::Value output);
 
+//
+// DataOrderInfo
+//
+
+void fillDataInfo(DataOrderInfo& info, size_t inNum, size_t outNum, const DimsOrder& mainOrder);
+
 }  // namespace vpux

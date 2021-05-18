@@ -32,3 +32,17 @@ mlir::Operation* vpux::getFirstUser(mlir::Value output) {
 
     return firstUser == users.end() ? nullptr : *firstUser;
 }
+
+//
+// DataOrderInfo
+//
+
+void vpux::fillDataInfo(DataOrderInfo& info, size_t inNum, size_t outNum, const DimsOrder& mainOrder) {
+    for (size_t i = 0; i < inNum; ++i) {
+        info.setInput(i, mainOrder);
+    }
+
+    for (size_t i = 0; i < outNum; ++i) {
+        info.setOutput(i, mainOrder);
+    }
+}

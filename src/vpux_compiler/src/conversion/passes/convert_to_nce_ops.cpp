@@ -202,8 +202,8 @@ mlir::LogicalResult ConvertToNCEOpsPass::ConvRewrite::matchAndRewrite(IERT::Conv
         return matchFailed(rewriter, origOp, "CMX memory is not enough");
     }
 
-    for (auto input : concat<mlir::Value>(origOp.getInputs(), origOp.getOutputs())) {
-        auto shape = input.getType().cast<mlir::ShapedType>().getShape();  // TODO: Fix this assumption.
+    for (const auto& operand : origOp.getOpOperands()) {
+        auto shape = operand.get().getType().cast<mlir::ShapedType>().getShape();  // TODO: Fix this assumption.
         constexpr int CHANNEL_ALIGNMENT = 16;
         if (shape[1] % CHANNEL_ALIGNMENT != 0) {
             return matchFailed(rewriter, origOp, "Channels are not aligned");
