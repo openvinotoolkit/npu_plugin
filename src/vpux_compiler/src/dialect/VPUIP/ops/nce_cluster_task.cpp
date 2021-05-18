@@ -420,7 +420,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                             weightsData,                                // weights_data
                                             weightsTable,                               // weights_table
                                             activationWindow,                           // activation_window
-                                            activationWindowChannelLength               // activation_window_channel_length
+                                            activationWindowChannelLength  // activation_window_channel_length
             );
 
     MVCNN::NCE2TaskBuilder builder(writer);
