@@ -1591,6 +1591,25 @@ operation ::= `IERT.Tile` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Timestamp` (vpux::IERT::TimestampOp)
+
+Get timer timestamp operation
+
+
+Syntax:
+
+```
+operation ::= `IERT.Timestamp` attr-dict `->` type(results)
+```
+
+Get timer timestamp operation
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | statically shaped memref of any type values
+
 ### `IERT.Transpose` (vpux::IERT::TransposeOp)
 
 InferenceEngine run-time Transpose layer

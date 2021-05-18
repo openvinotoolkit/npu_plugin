@@ -39,6 +39,7 @@ using AttrCreateFunc = std::function<mlir::Attribute(mlir::MLIRContext*, StringR
 std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCMXTilingPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createTimestampProfilingPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 
 //
 // Asynchronous Scheduling pipeline
