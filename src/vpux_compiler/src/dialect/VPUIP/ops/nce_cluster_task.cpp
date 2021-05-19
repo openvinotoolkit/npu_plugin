@@ -395,7 +395,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     auto weightsData = this->filter() ? writer.getTensor(this->filter()) : 0;
     auto weightsTable = this->weight_table() ? writer.getTensor(this->weight_table()) : 0;
     auto activationWindow = this->activation_window() ? writer.getTensor(this->activation_window()) : 0;
-    auto activationWindowChannelLength = 4;
+    auto activationWindowChannelLength = 4;  // FIXME: calculate activation window size properly
 
     auto invariantMPEMode = getMPEFrequentModeFromDPUTasks(this->variants());
 
@@ -420,7 +420,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                             weightsData,                                // weights_data
                                             weightsTable,                               // weights_table
                                             activationWindow,                           // activation_window
-                                            activationWindowChannelLength               // activation_window_channel_length
+                                            activationWindowChannelLength  // activation_window_channel_length
             );
 
     MVCNN::NCE2TaskBuilder builder(writer);
