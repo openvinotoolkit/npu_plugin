@@ -136,3 +136,20 @@ mv::Shape sizeVectorToShape(InferenceEngine::SizeVector dims) {
     std::reverse(begin(dims), end(dims));
     return mv::Shape(dims);
 }
+
+MVCNN::TargetDeviceRevision getDeviceRevision(const InferenceEngine::VPUXConfigParams::VPUXPlatform platform) {
+    switch (platform) {
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0:
+        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_A0;
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
+        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720:
+    default:
+        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
+    }
+
+    return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
+}

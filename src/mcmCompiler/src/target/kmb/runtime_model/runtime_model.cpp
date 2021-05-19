@@ -218,6 +218,36 @@ mv::DType mv::RuntimeModel::convertDtype(const MVCNN::DType& dtype)
     return reverseDTypeMapping_.at(dtype);
 }
 
+MVCNN::TargetDevice mv::RuntimeModel::mapTargetDevice(const mv::Target& target)
+{
+    switch (target)
+    {
+    case mv::Target::ma2490:
+        return MVCNN::TargetDevice::TargetDevice_KMB;
+    case mv::Target::ma3100:
+        return MVCNN::TargetDevice::TargetDevice_TBH;
+    case mv::Target::ma3720:
+        return MVCNN::TargetDevice::TargetDevice_MTL;
+    }
+
+    return MVCNN::TargetDevice::TargetDevice_NONE;
+}
+
+MVCNN::TargetDeviceRevision mv::RuntimeModel::mapTargetDeviceRevision(const std::shared_ptr<mv::Element>& descriptor)
+{
+    if (!descriptor || !descriptor->hasAttr("DeviceRevision"))
+        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
+
+    std::string revision = descriptor->get<std::string>("DeviceRevision");
+
+    if (revision == "A0")
+        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_A0;
+    else if (revision == "B0")
+        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
+
+    return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
+}
+
 MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std::string& allocatorName,
                                                                        mv::Tensor::MemoryLocation& tensorLocation)
 {
@@ -943,6 +973,8 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->original_structure = std::move(originalHeader->original_structure);
     toBuild->resources = buildResourcesT(cm, td, compilationDescriptor);
     toBuild->identifier = cm.getName();
+    toBuild->device = mapTargetDevice(td.getTarget());
+    toBuild->device_revision = mapTargetDeviceRevision(globalConfigurationParameters);
 
     // Support multiple inputs
     auto numInputs = om.getNumNetworkInputs();

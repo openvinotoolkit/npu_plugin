@@ -9,6 +9,7 @@
 #include <ie_core.hpp>
 #include <base/behavior_test_utils.hpp>
 #include "vpux/vpux_plugin_config.hpp"
+#include "common/functions.h"
 
 using CompileForDifferentPlatformsTests = BehaviorTestsUtils::BehaviorTestsBasic;
 namespace {
@@ -19,24 +20,7 @@ TEST_P(CompileForDifferentPlatformsTests, CompilationForSpecificPlatform) {
 #endif
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     {
-        InferenceEngine::SizeVector inputShape = {1, 3, 4, 3};
-        InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32;
-        size_t axis = 1;
-
-        const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
-        const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-
-        const auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-
-        const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), axis);
-
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(softMax)};
-
-        function = std::make_shared<ngraph::Function>(results, params, "softMax");
-
-        InferenceEngine::CNNNetwork cnnNet(function);
+        InferenceEngine::CNNNetwork cnnNet = buildSingleLayerSoftMaxNetwork();
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
     }
 }

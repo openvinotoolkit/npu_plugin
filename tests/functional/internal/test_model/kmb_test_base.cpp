@@ -20,7 +20,7 @@
 #include <fstream>
 #include <iomanip>
 #include <chrono>
-
+#include "common/functions.h"
 #include <blob_factory.hpp>
 #include "functional_test_utils/plugin_cache.hpp"
 #include <format_reader_ptr.h>
@@ -165,14 +165,6 @@ const bool KmbTestBase::PRINT_PERF_COUNTERS = []() -> bool {
     return false;
 }();
 
-const std::string KmbTestBase::PLATFORM = []() -> std::string {
-    if (const auto var = std::getenv("IE_KMB_TESTS_PLATFORM")) {
-        return var;
-    }
-
-    return std::string("VPU3700");
-}();
-
 // TODO Workaround to disable some inference tests for by-pass mode
 // If HDDL scheduler is running on Linux host, this is by-pass mode
 bool KmbTestBase::isByPass() const {
@@ -293,7 +285,7 @@ ExecutableNetwork KmbTestBase::getExecNetwork(
         std::cout << "=== COMPILE NETWORK" << std::endl;
 
         auto config = configCreator();
-        config[VPUX_CONFIG_KEY(PLATFORM)] = PLATFORM;
+        config[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
 
         exeNet = core->LoadNetwork(netCreator(), DEVICE_NAME, config);
 

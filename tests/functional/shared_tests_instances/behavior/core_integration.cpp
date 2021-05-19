@@ -5,6 +5,8 @@
 #include <functional_test_utils/skip_tests_config.hpp>
 #include "behavior/core_integration.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common/functions.h"
+#include <vpux/vpux_plugin_config.hpp>
 
 using namespace BehaviorTestsDefinitions;
 using IEClassExecutableNetworkGetMetricTest_nightly = IEClassExecutableNetworkGetMetricTest;
@@ -192,6 +194,13 @@ INSTANTIATE_TEST_CASE_P(
 // IE Class Query network
 
 class IEClassQueryNetworkTest_VPU : public IEClassQueryNetworkTest {
+public:
+    void SetUp() override {
+       IEClassQueryNetworkTest::SetUp();
+       config[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
+    }
+protected:
+    std::map<std::string, std::string> config;
 };
 
 TEST_P(IEClassQueryNetworkTest_VPU, QueryNetworkWithCorrectDeviceID) {
@@ -202,7 +211,7 @@ TEST_P(IEClassQueryNetworkTest_VPU, QueryNetworkWithCorrectDeviceID) {
         auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
         if (deviceIDs.empty())
             GTEST_SKIP();
-        ASSERT_NO_THROW(ie.LoadNetwork(simpleNetwork, deviceName + "." + deviceIDs[0]));
+        ASSERT_NO_THROW(ie.LoadNetwork(simpleNetwork, deviceName + "." + deviceIDs[0], config));
     } else {
         GTEST_SKIP();
     }

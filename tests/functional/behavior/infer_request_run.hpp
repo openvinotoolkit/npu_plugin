@@ -19,6 +19,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "common/functions.h"
 
 namespace BehaviorTestsDefinitions {
 using InferRequestRunTests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -30,24 +31,7 @@ TEST_P(InferRequestRunTests, AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScop
         InferenceEngine::InferRequest req;
         InferenceEngine::Blob::Ptr OutputBlob;
         {
-            InferenceEngine::SizeVector inputShape = {1, 3, 4, 3};
-            InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32;
-            size_t axis = 1;
-
-            const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
-            const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-
-            const auto paramOuts = ngraph::helpers::convert2OutputVector(
-                    ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-
-            const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), axis);
-
-            const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(softMax)};
-
-            function = std::make_shared<ngraph::Function>(results, params, "softMax");
-            // Create CNNNetwork from ngraph::Function
-            InferenceEngine::CNNNetwork cnnNet(function);
+            InferenceEngine::CNNNetwork cnnNet = buildSingleLayerSoftMaxNetwork();
 #ifdef __aarc64__
             // Load CNNNetwork to target plugins
             auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
@@ -71,4 +55,5 @@ TEST_P(InferRequestRunTests, AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScop
     }
     std::cout << "Plugin should be unloaded from memory at this point" << std::endl;
 }
+
 }  // namespace BehaviorTestsDefinitions

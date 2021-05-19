@@ -18,6 +18,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
@@ -138,6 +139,35 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     return builder.Finish();
 }
 
+MVCNN::TargetDevice mapTargetDevice(const VPUIP::ArchKind kind) {
+    switch (kind) {
+    case VPUIP::ArchKind::VPU3400_A0:
+    case VPUIP::ArchKind::VPU3400:
+    case VPUIP::ArchKind::VPU3700:
+        return MVCNN::TargetDevice::TargetDevice_KMB;
+    case VPUIP::ArchKind::VPU3720:
+        return MVCNN::TargetDevice::TargetDevice_MTL;
+    case VPUIP::ArchKind::VPU3900:
+        return MVCNN::TargetDevice::TargetDevice_TBH;
+    default:
+        VPUX_THROW("Unsupported TargetDevice '{0}'", kind);
+    }
+}
+
+MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const VPUIP::ArchKind kind) {
+    switch (kind) {
+    case VPUIP::ArchKind::VPU3400_A0:
+        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_A0;
+    case VPUIP::ArchKind::VPU3400:
+    case VPUIP::ArchKind::VPU3700:
+        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
+    case VPUIP::ArchKind::VPU3720:
+    case VPUIP::ArchKind::VPU3900:
+    default:
+        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
+    }
+}
+
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
                                                               VPUIP::GraphOp graphOp, IE::CNNNetworkOp netOp,
                                                               mlir::FuncOp netFunc, ptrdiff_t taskCount) {
@@ -207,6 +237,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     builder.add_resources(serializedResources);
     builder.add_in_tensor_desc(serializedUserInputs);
     builder.add_out_tensor_desc(serializedUserOutputs);
+    builder.add_device(mapTargetDevice(VPUIP::getArch(module)));
+    builder.add_device_revision(mapTargetDeviceRevision(VPUIP::getArch(module)));
     return builder.Finish();
 }
 
