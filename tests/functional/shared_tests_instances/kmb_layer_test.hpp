@@ -30,8 +30,8 @@ protected:
     void ImportInput();
     void ExportInput();
     void ExportOutput();
-    void ImportReference(std::vector<std::vector<std::uint8_t>>& refs);
-    void ExportReference(const std::vector<std::vector<std::uint8_t>>& refs);
+    void ImportReference(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& refs);
+    void ExportReference(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& refs);
 
     void Validate() override;
 
