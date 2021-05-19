@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Intel Corporation.
+# Copyright Intel Corporation.
 #
 # This software and the related documents are Intel copyrighted materials,
 # and your use of them is governed by the express license under which they
@@ -13,6 +13,8 @@
 # express or implied warranties, other than those that are expressly
 # stated in the License.
 #
+
+vpux_setup_lit_tool(flatc)
 
 add_custom_target(copy_vpuip_schema_tests ALL
     COMMAND
@@ -29,12 +31,13 @@ set_target_properties(copy_vpuip_schema_tests PROPERTIES FOLDER "tests")
 set(vpuip_schema_file "path('../schema/graphfile.fbs')")
 
 if(ENABLE_PLAIDML)
-  set(ENABLE_PLAIDML_BOOL True)
+    set(has_plaidml "True")
 else()
-  set(ENABLE_PLAIDML_BOOL False)
+    set(has_plaidml "False")
 endif()
 
 vpux_setup_lit_tests(VPUX
     PATTERNS "*.mlir"
-    SUBSTITUTIONS vpuip_schema_file
+    EXTRA_SOURCES "lit.local.cfg"
+    SUBSTITUTIONS "vpuip_schema_file" "has_plaidml"
 )

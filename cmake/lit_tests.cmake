@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Intel Corporation.
+# Copyright Intel Corporation.
 #
 # This software and the related documents are Intel copyrighted materials,
 # and your use of them is governed by the express license under which they
@@ -59,14 +59,14 @@ endfunction()
 function(vpux_setup_lit_tests TEST_NAME)
     set(options)
     set(oneValueArgs ROOT)
-    set(multiValueArgs PATTERNS SUBSTITUTIONS)
+    set(multiValueArgs PATTERNS SUBSTITUTIONS EXTRA_SOURCES)
     cmake_parse_arguments(LIT "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT LIT_ROOT)
         set(LIT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
     endif()
 
-    file(GLOB_RECURSE SOURCES RELATIVE ${LIT_ROOT} CONFIGURE_DEPENDS ${LIT_PATTERNS})
+    file(GLOB_RECURSE SOURCES RELATIVE ${LIT_ROOT} CONFIGURE_DEPENDS ${LIT_PATTERNS} ${LIT_EXTRA_SOURCES})
     source_group(TREE ${LIT_ROOT} FILES ${SOURCES})
 
     set(SUFFIXES)
@@ -81,7 +81,6 @@ function(vpux_setup_lit_tests TEST_NAME)
 ${EXTRA_SUBSTITUTIONS}
 
 config.${var} = ${${var}}
-config.${var} = config.${var} % lit_config.params
 config.substitutions.append(('%${var}%', config.${var}))
         ")
     endforeach()
