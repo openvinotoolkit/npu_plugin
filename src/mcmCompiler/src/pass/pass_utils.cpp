@@ -75,6 +75,12 @@ void mv::removeOperation(mv::Data::TensorIterator sourceTensor, mv::OpModel & om
             paramOp->getOpType() == "ConstantInt" ||
             paramOp->getOpType() == "ConstantDataElement"))
         {
+            mv::DataModel dm(om);
+            if (findSinkLayers(dm, paramOp->getOutputTensor(0)).size()>1){
+                ++paramOp;
+                continue;
+            }
+
             auto backUp = paramOp;
             ++paramOp;
             om.removeOp(backUp);
@@ -104,6 +110,12 @@ mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator pa
         if (paramOp->getOutputTensor(0) != sourceTensor && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
             || paramOp->getOpType() == "ConstantDataElement"))
         {
+            mv::DataModel dm(om);
+            if (findSinkLayers(dm, paramOp->getOutputTensor(0)).size()>1){
+                ++paramOp;
+                continue;
+            }
+
             auto backUp = paramOp;
             ++paramOp;
             om.removeOp(backUp);
@@ -197,6 +209,12 @@ mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpLi
             if (paramOp->getOutputTensor(0) != *sourceTensorIt && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
                 || paramOp->getOpType() == "ConstantDataElement"))
             {
+                mv::DataModel dm(om);
+                if (findSinkLayers(dm, paramOp->getOutputTensor(0)).size()>1){
+                    ++paramOp;
+                    continue;
+                }
+
                 auto backUp = paramOp;
                 ++paramOp;
                 om.removeOp(backUp);
