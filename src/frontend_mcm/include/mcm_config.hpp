@@ -188,7 +188,7 @@ private:
 
     bool _referenceMode = false;
 
-    bool _allowNCHWLayoutForMcmModelInput = false;
+    bool _allowNCHWLayoutForMcmModelInput = true;
 
     bool _allowU8InputForFp16Models = false;
 

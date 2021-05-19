@@ -654,14 +654,14 @@ void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& /*pass*/, mv::ComputationM
     }
 }
 
-static void markCMCompatibleConvsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void markCMCompatibleConvsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
 
     // Skip pass if C-Major isn't enabled
-    if (!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")))
+    if (!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv"))  || td.getTarget() == mv::Target::ma3720)
         return;
 
     //set the CM Conv flag to 'False'. But if there are any convs exist that support CMConv, then set the flag to true
@@ -674,7 +674,9 @@ static void markCMCompatibleConvsFcn(const mv::pass::PassEntry&, mv::Computation
         auto supports_CMConv = (*conv).supportsCMConv();
         (*conv).set<bool>("supportsCM", supports_CMConv);
         if(supports_CMConv)
+        {
             om.getGlobalConfigParams()->set<bool>("enable_channel_major_conv", true);
+        }
     }
 }
 
@@ -714,85 +716,227 @@ static void markSOHnonCompatibleConcatsFcn(const mv::pass::PassEntry&, mv::Compu
     }
 }
 
-static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
+static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
-    // Skip pass if C-Major isn't enabled
-    if (!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")) || td.getTarget() == mv::Target::ma3720)
-        return;
+    /* Get input op */
+    auto inputOps = om.getOps("Input");
 
-    // Change Input op to C-Major
-    auto inputOp = om.getOps("Input")[0];
-    inputOp->set<mv::Order>("order", mv::Order("NCHW"));
-    inputOp->getOutputTensor(0)->setOrder(mv::Order("NCHW"));
+    auto implicitInputOps = om.getOps("ImplicitInput");
 
-    // Change input tensor to C-Major
+    std::vector<mv::Data::OpListIterator> inputs;
+
+    if(implicitInputOps.empty())
+    {
+        inputs.push_back(inputOps[0]);
+    }
+    else
+    {
+        for(auto implicitInput : implicitInputOps)
+        {
+            inputs.push_back(implicitInput);
+        }
+    }
+
+    for(auto inputOp : inputs)
+    {
+        /* Vector to store original tensor orders */
+        std::vector<mv::Order> originalOrders;
+
+        auto inputOrder = inputOp->get<mv::Order>("order");
+
+        auto inTens = inputOp->getOutputTensor();
+        for(auto outputTensor : inTens)
+        {
+            auto outputOrder = outputTensor->getOrder();
+
+            if(inputOrder != mv::Order("NCHW"))
+            {
+                auto flows = outputTensor->getFlowNames();
+                std::vector<std::pair<mv::Data::OpListIterator, std::size_t>> flowsToAdd;
+                for(auto flow_name : flows)
+                {
+                    auto flow = dm.getDataFlow(flow_name);
+                    auto op = flow.sink();
+
+                    if(op->hasAttr("CMinput") && op->get<bool>("CMinput"))
+                    {
+                        auto op_inputSlot = flow->get<std::size_t>("sinkInput");
+
+                        flowsToAdd.push_back(std::make_pair(op, op_inputSlot));
+
+                        /* Undefine old flow */
+                        om.undefineFlow(flow);
+                    }
+                }
+
+                if(!flowsToAdd.empty())
+                {
+                    /* Insert transpose op */
+                    auto transposedData = om.permute(inputOp->getName() + "_permute", outputTensor, mv::Order("NCHW"));
+
+                    om.getSourceOp(transposedData)->set<bool>("CMpermute", true);
+
+                    /* Set desired target order */
+                    transposedData->setOrder(mv::Order("NCHW"));
+
+                    for(auto flow : flowsToAdd)
+                    {
+                        auto op = flow.first;
+                        auto op_inputSlot = flow.second;
+
+                        /* Link tensor from permute to op */
+                        op->setInputTensor(transposedData, op_inputSlot, false);
+                        om.defineFlow(transposedData, op, op_inputSlot);
+                    }
+
+                    /* Set quant params for new tensor */
+                    transposedData->setQuantParams(outputTensor->getQuantParams());
+
+                    /* Set opID for permute */
+                    auto permuteOp = om.getSourceOp(transposedData);
+                    if(inputOp->hasAttr("opId"))
+                    {
+                        unsigned currentOpId = inputOp->get<unsigned>("opId");
+                        permuteOp->set<unsigned>("opId", currentOpId);
+                    }
+                }
+            }
+
+            if(inputOrder != outputOrder)
+            {
+                /* Set output tensor order */
+                outputTensor->setOrder(inputOrder);
+
+                auto flows = outputTensor->getFlowNames();
+                std::vector<std::pair<mv::Data::OpListIterator, std::size_t>> flowsToAdd;
+                for(auto flow_name : flows)
+                {
+                    auto flow = dm.getDataFlow(flow_name);
+                    auto op = flow.sink();
+
+                    if( (op->hasAttr("CMinput") && op->get<bool>("CMinput")) ||
+                        (op->hasAttr("CMpermute") && op->get<bool>("CMpermute")))
+                    {
+                        /* This flow is not handled here */
+                        continue;
+                    }
+
+                    auto op_inputSlot = flow->get<std::size_t>("sinkInput");
+
+                    flowsToAdd.push_back(std::make_pair(op, op_inputSlot));
+
+                    /* Undefine old flow */
+                    om.undefineFlow(flow);
+                }
+
+                if(!flowsToAdd.empty())
+                {
+                    /* Insert transpose op */
+                    auto transposedData = om.permute(inputOp->getName() + "_permute", outputTensor, mv::Order("NCHW"));
+                    /* Set desired target order */
+                    transposedData->setOrder(outputOrder);
+
+                    for(auto flow : flowsToAdd)
+                    {
+                        auto op = flow.first;
+                        auto op_inputSlot = flow.second;
+
+                        /* Link tensor from permute to op */
+                        op->setInputTensor(transposedData, op_inputSlot, false);
+                        om.defineFlow(transposedData, op, op_inputSlot);
+                    }
+
+                    /* Set quant params for new tensor */
+                    transposedData->setQuantParams(outputTensor->getQuantParams());
+
+                    /* Set opID for permute */
+                    auto permuteOp = om.getSourceOp(transposedData);
+                    if(inputOp->hasAttr("opId"))
+                    {
+                        unsigned currentOpId = inputOp->get<unsigned>("opId");
+                        permuteOp->set<unsigned>("opId", currentOpId);
+                    }
+                }
+            }
+        }
+
+        //permuteOp->set<bool>("ZMoutput", true);
+    }
+
+    /* Set CMinput ops to NCHW */
     auto ops = om.getOps();
     for(auto& opIt : ops)
         if (opIt->hasAttr("CMinput") && opIt->get<bool>("CMinput"))
             for (auto& input : opIt->getInputTensor())
                 input->setOrder(mv::Order("NCHW"));
 
-    // Change CMConv input to C-Major
-    auto convs = om.getOps("Conv");
-    for(auto& conv : convs)
-        if (conv->supportsCMConv())
-            conv->getInputTensor(0)->setOrder(mv::Order("NCHW"));
+    /* Output layout compatibility */
 
-    // Check for any Z-Major ops needing permute
-    auto permute_needed = false;
-    for (auto sinkFlow = inputOp.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+    return;
+    /* Get out op */
+    auto outputOps = om.getOps("Output");
+
+    auto implicitOutputOps = om.getOps("ImplicitOutput");
+
+    std::vector<mv::Data::OpListIterator> outputs;
+
+    if(implicitOutputOps.empty())
     {
-        if (!(sinkFlow.sink()->hasAttr("CMinput") && sinkFlow.sink()->get<bool>("CMinput")))
-            permute_needed = true;
+        outputs.push_back(outputOps[0]);
     }
-
-    if (!(permute_needed))
-        return;
-
-    // Add permute between input & Z-Major ops
-    auto outputTensor = inputOp->getOutputTensor(0);
-
-    std::vector<mv::Data::OpListIterator> opsToLink;
-    std::vector<std::size_t> inputSlots;
-    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
-
-    for (auto sinkFlow = inputOp.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+    else
     {
-        if (!(sinkFlow.sink()->hasAttr("CMinput") && sinkFlow.sink()->get<bool>("CMinput")))
+        for(auto implicitOutput : implicitOutputOps)
         {
-            opsToLink.push_back(sinkFlow.sink());
-            inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-            flowsToRemove.push_back(sinkFlow);
+            outputs.push_back(implicitOutput);
         }
     }
 
-    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+    for(auto outputOp : outputs)
     {
-        om.undefineFlow(flowsToRemove[flowIdx]);
+        /* If output doesn't have it's order explicitly stated, then check are not necessary */
+        if(outputOp->hasAttr("Order"))
+        {
+            auto outputOpOrder = outputOp->get<mv::Order>("Order");
+            auto outputInTensor = outputOp->getInputTensor(mv::IO_TENSOR_INPUT);
+            auto outputInOrder = outputInTensor->getOrder();
+            if(outputOpOrder != outputInOrder)
+            {
+                auto lastOp = om.getSourceOp(outputInTensor);
+
+                /* Undefine old flow */
+                auto flows = outputInTensor->getFlowNames();
+                for(auto flow : flows)
+                    om.undefineFlow(om.getDataFlow(flow));
+
+                /* Insert transpose op */
+                auto transposedData = om.permute(outputOp->getName() + "_permute", outputInTensor, mv::Order("NCHW"));
+
+                /* Set desired order after transpose (ToDo: Change transpose output_def function to avoid hackish implementation) */
+                transposedData->setOrder(outputOpOrder);
+
+                /* Link tensor from permute to op */
+                outputOp->setInputTensor(transposedData, mv::IO_TENSOR_INPUT, false);
+                om.defineFlow(transposedData, outputOp, mv::IO_TENSOR_INPUT);
+
+                /* Set quant params for new tensor */
+                transposedData->setQuantParams(outputInTensor->getQuantParams());
+
+                /* Set opID */
+                auto permuteOp = om.getSourceOp(transposedData);
+                if(lastOp->hasAttr("opId"))
+                {
+                    unsigned currentOpId = lastOp->get<unsigned>("opId");
+                    permuteOp->set<unsigned>("opId", currentOpId);
+                }
+            }
+        }
     }
-
-    auto transposedData = om.permute(inputOp->getName() + "_permute", outputTensor, mv::Order("NCHW"));
-    transposedData->setQuantParams(outputTensor->getQuantParams());
-
-    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
-    {
-        opsToLink[op]->setInputTensor(transposedData, inputSlots[op], false);
-        om.defineFlow(transposedData, opsToLink[op], inputSlots[op]);
-    }
-
-    auto permuteOp = om.getSourceOp(transposedData);
-    if(inputOp->hasAttr("opId"))
-    {
-        unsigned currentOpId = inputOp->get<unsigned>("opId");
-        permuteOp->set<unsigned>("opId", currentOpId);
-    }
-
-    transposedData->setOrder(mv::Order("NHWC"));
-    permuteOp->set<bool>("ZMoutput", true);
 }
 
 void initializeValues(mv::Shape& outputShape, mv::Shape& inputShape, mv::Data::TensorIterator& sourceTensor, mv::Data::TensorIterator& outputTensor,

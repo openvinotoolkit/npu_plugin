@@ -34,14 +34,17 @@ void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model,
             if (taskOp == "ChannelMajorConvolution" && td.getTarget() != mv::Target::ma3720)
             {
                 // ChannelMajorConvolution is the only operation that requires input tensor in OUR ColMajor
-                dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
-                // the implicit ops like slice, crop, concat etc need to be accounted for
-                if (om.getSourceOp(dpuTask->getInputTensor(0))->isImplicit())
-                {
-                    auto inputImplicitOp = om.getSourceOp(dpuTask->getInputTensor(0));
-                    for (size_t inputs = 0; inputs < inputImplicitOp->inputSlots(); inputs++)
-                        inputImplicitOp->getInputTensor(inputs)->setOrder(mv::Order::getColMajorID(4));
-                }
+                // dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
+                // // the implicit ops like slice, crop, concat etc need to be accounted for
+                // auto sourceOp = om.getSourceOp(dpuTask->getInputTensor(0));
+                // if (sourceOp->isImplicit() && sourceOp->getOpType() != "ImplicitPermute")
+                // {
+                //     auto inputImplicitOp = om.getSourceOp(dpuTask->getInputTensor(0));
+                //     for (size_t inputs = 0; inputs < inputImplicitOp->inputSlots(); inputs++)
+                //     {
+                //         inputImplicitOp->getInputTensor(inputs)->setOrder(mv::Order::getColMajorID(4));
+                //     }
+                // }
 
                 // We also need to set weights shape to ColMajor (see document Order.ods)
                 mv::Order targetOrder(mv::Order::getColMajorID(4));
@@ -53,7 +56,7 @@ void kmbOrderConversion(const mv::pass::PassEntry&, mv::ComputationModel& model,
                     kernelImplicitOp->getInputTensor(0)->setOrder(targetOrder);
                 }
             }
-            else 
+            else
             {
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
                 // the only dpu task that is supported currently with channel major(NCHW) order is the convolution and it outputs z-major(NHWC)

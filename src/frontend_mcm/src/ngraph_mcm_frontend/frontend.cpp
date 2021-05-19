@@ -235,12 +235,10 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.mcmLogLevel()));
         mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.removePermuteNoOp());
-        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv",
-                                       std::find_if(inputsInfo.begin(), inputsInfo.end(),
-                                                        [](const std::pair<std::string, ie::InputInfo::Ptr>& input) {
-                    return input.second->getLayout() != InferenceEngine::Layout::NCHW &&
-                           input.second->getLayout() != InferenceEngine::Layout::CHW;
-                }) == inputsInfo.end());
+
+        /* Enable channel major conv by default, may be overridden in compilation descriptor (ie for MTL platform) */
+        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv", true);
+
         mcmCompDesc.setPassArg("GlobalConfigParams", "DeviceRevision",
                                std::string(MVCNN::EnumNameTargetDeviceRevision(getDeviceRevision(config.platform()))));
 
@@ -372,7 +370,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         if (!config.layerSplitStrategies().empty()) {
             std::stringstream splitList{config.layerSplitStrategies()};
             std::string layerStrategyPair;
-            
+
             std::vector<mv::Element> overrideStrategies;
             while (std::getline(splitList, layerStrategyPair, ',')) {
                 // parse layer:strategy
@@ -383,7 +381,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                                  layerStrategyPair);
                 const auto layerName = layerStrategyPair.substr(0, delim);
                 const auto splitStrategy = layerStrategyPair.substr(delim + 1, std::string::npos);
-                
+
                 // save to vector
                 mv::Element strategyElem("item");
                 strategyElem.set<std::string>("name_filter", layerName);
@@ -411,7 +409,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     mv::Element strategyElem("item");
                     strategyElem.set<std::string>("name_filter", allVals[0]);
                     std::vector<mv::Element> streams;
-                    
+
                     mv::Element itemW("W");
                     itemW.set<int>("W", std::stoi(allVals[1]));
                     streams.emplace_back(itemW);
@@ -419,7 +417,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     mv::Element itemH("H");
                     itemH.set<int>("H", std::stoi(allVals[2]));
                     streams.emplace_back(itemH);
-                    
+
                     mv::Element itemC("C");
                     itemC.set<int>("C", std::stoi(allVals[3]));
                     streams.emplace_back(itemC);
@@ -427,7 +425,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     mv::Element itemK("K");
                     itemK.set<int>("K", std::stoi(allVals[4]));
                     streams.emplace_back(itemK);
-                    
+
                     mv::Element itemN("N");
                     itemN.set<int>("N", std::stoi(allVals[5]));
                     streams.emplace_back(itemN);
