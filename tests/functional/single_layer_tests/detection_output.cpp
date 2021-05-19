@@ -448,15 +448,20 @@ public:
         inferRequest.Infer();
     }
 
-    void Compare(const std::vector<std::uint8_t>& expected, const InferenceEngine::Blob::Ptr& actual) override {
-        _helper.Compare(convertVecUint2Float(expected), actual);
+    void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>>& expected,
+                 const InferenceEngine::Blob::Ptr& actual) override {
+        _helper.Compare(convertVecUint2Float(expected.second), actual);
     }
 
 protected:
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override {
+    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {
         const auto refFloat = _helper.Ref(inputs[0], inputs[1], inputs[2], GetOutputs()[0], attrs);
+        std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> result(refFloat.size());
+        for (size_t i = 0; i < refFloat.size(); ++i) {
+            result.push_back({function->get_results()[i]->get_element_type(), convertVecFloat2Uint(refFloat)});
 
-        return {convertVecFloat2Uint(refFloat)};
+        }
+        return result;
     }
 private:
     void GenInput() {

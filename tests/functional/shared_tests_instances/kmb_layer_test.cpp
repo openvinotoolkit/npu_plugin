@@ -80,7 +80,8 @@ void KmbLayerTestsCommon::ImportInput() {
     }
 }
 
-void KmbLayerTestsCommon::ExportReference(const std::vector<std::vector<std::uint8_t>>& refs) {
+void KmbLayerTestsCommon::ExportReference(
+        const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& refs) {
     size_t i = 0;
     for (const auto &output : executableNetwork.GetOutputsInfo()) {
         const auto &name = output.first;
@@ -89,16 +90,17 @@ void KmbLayerTestsCommon::ExportReference(const std::vector<std::vector<std::uin
         auto referenceBlob = InferenceEngine::make_shared_blob<uint8_t>(
             InferenceEngine::TensorDesc{
                 InferenceEngine::Precision::U8,
-                InferenceEngine::SizeVector{ref.size()},
+                InferenceEngine::SizeVector{ref.second.size()},
                 InferenceEngine::Layout::C
-            }, const_cast<std::uint8_t*>(&ref[0]), ref.size());
+            }, const_cast<std::uint8_t*>(&ref.second[0]), ref.second.size());
         const auto ext = llvm::formatv(".{0}.{1}", name, "ref").str();
         kmbTestTool.exportBlob(referenceBlob,
             filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
 }
 
-void KmbLayerTestsCommon::ImportReference(std::vector<std::vector<std::uint8_t>>& refs) {
+void KmbLayerTestsCommon::ImportReference(
+        const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& refs) {
     size_t i = 0;
     for (const auto &output : executableNetwork.GetOutputsInfo()) {
         const auto &name = output.first;
@@ -107,9 +109,9 @@ void KmbLayerTestsCommon::ImportReference(std::vector<std::vector<std::uint8_t>>
         auto referenceBlob = InferenceEngine::make_shared_blob<uint8_t>(
             InferenceEngine::TensorDesc{
                 InferenceEngine::Precision::U8,
-                InferenceEngine::SizeVector{ref.size()},
+                InferenceEngine::SizeVector{ref.second.size()},
                 InferenceEngine::Layout::C
-            }, &ref[0], ref.size());
+            }, const_cast<uint8_t *>(ref.second.data()), ref.second.size());
         const auto ext = llvm::formatv(".{0}.{1}", name, "ref").str();
         kmbTestTool.importBlob(referenceBlob,
             filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
