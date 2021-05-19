@@ -180,6 +180,38 @@ def VPUIP_SameDimsOrder : NativeOpTrait<"SameDimsOrder"> {
 }
 
 //
+// SameInOutDimsOrder
+//
+
+def VPUIP_SameInOutDimsOrder : NativeOpTrait<"SameInOutDimsOrder"> {
+    let cppNamespace = "vpux::VPUIP";
+}
+
+//
+// SameInOutDimsOrder_NCHW_NHWC
+//
+
+def VPUIP_SameInOutDimsOrder_NCHW_NHWC : NativeOpTrait<"SameInOutDimsOrder_NCHW_NHWC"> {
+    let cppNamespace = "vpux::VPUIP";
+}
+
+//
+// SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+//
+
+def VPUIP_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC : NativeOpTrait<"SameInOutDimsOrder_CHW_HWC_NCHW_NHWC"> {
+    let cppNamespace = "vpux::VPUIP";
+}
+
+//
+// AnyDimsOrder
+//
+
+def VPUIP_AnyDimsOrder : NativeOpTrait<"AnyDimsOrder"> {
+    let cppNamespace = "vpux::VPUIP";
+}
+
+//
 // Legacy4D
 //
 

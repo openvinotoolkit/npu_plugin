@@ -49,6 +49,7 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
     // IERT Dialect level
     pm.addPass(createComposeSubViewPass(log));
     pm.addPass(IERT::createUseUserLayout(log));
+    pm.addPass(IERT::createAdjustLayoutsPass(log));
     pm.addPass(createDeallocPlacementPass(log));
     pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpaceCb, log));
     pm.addPass(IERT::createStaticAllocationPass(ddrMemSpaceCb, log));

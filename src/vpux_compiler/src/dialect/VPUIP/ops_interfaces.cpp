@@ -15,11 +15,12 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/effects.hpp"
+#include "vpux/compiler/utils/extentions.hpp"
 
 #include "vpux/utils/core/format.hpp"
 
@@ -49,11 +50,9 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
         return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
     }
 
-    auto inputs = layer.getInputs();
-    auto outputs = layer.getOutputs();
-
-    for (auto val : concat<mlir::Value>(inputs, outputs)) {
-        auto type = val.getType().cast<mlir::MemRefType>();
+    for (auto& operand : layer.getOpOperands()) {
+        auto opVal = operand.get();
+        auto type = opVal.getType().cast<mlir::MemRefType>();
         auto mem = getPhysicalMemory(type);
 
         if (type.getRank() == 0) {
@@ -70,8 +69,8 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
 
         const auto strideReqs = StrideReqs::simple(type.getRank());
 
-        if (!strideReqs.checkStrides(val)) {
-            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", val, strideReqs);
+        if (!strideReqs.checkStrides(opVal)) {
+            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", opVal, strideReqs);
         }
     }
 
@@ -131,23 +130,21 @@ mlir::LogicalResult vpux::VPUIP::verifyNCETask(mlir::Operation* op) {
         return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
     }
 
-    auto inputs = layerOp.getInputs();
-    auto outputs = layerOp.getOutputs();
-
-    for (auto val : concat<mlir::Value>(inputs, outputs)) {
-        const auto valType = val.getType().dyn_cast_or_null<mlir::MemRefType>();
+    for (const auto& operand : layerOp.getOpOperands()) {
+        const auto opVal = operand.get();
+        const auto valType = opVal.getType().dyn_cast_or_null<mlir::MemRefType>();
         if (valType == nullptr) {
-            return errorAt(op, "Cannot cast Value '{0}' to MemRefType", val);
+            return errorAt(op, "Cannot cast Value '{0}' to MemRefType", opVal);
         }
         const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(valType.getRank() - 1)));
 
-        if (!strideReqs.checkStrides(val)) {
-            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", val, strideReqs);
+        if (!strideReqs.checkStrides(opVal)) {
+            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", opVal, strideReqs);
         }
     }
 
-    for (auto val : concat<mlir::Value>(inputs, outputs)) {
-        auto type = val.getType().cast<mlir::MemRefType>();
+    for (const auto& operand : layerOp.getOpOperands()) {
+        auto type = operand.get().getType().cast<mlir::MemRefType>();
         auto mem = getPhysicalMemory(type);
 
         if (mlir::failed(mem)) {
@@ -209,13 +206,12 @@ mlir::LogicalResult vpux::VPUIP::verifySameShape(mlir::Operation* op) {
     }
 
     auto inputs = layer.getInputs();
-    auto outputs = layer.getOutputs();
 
     const auto firstInput = inputs.front();
     const auto mainShape = getShape(firstInput);
 
-    for (const auto& val : concat<mlir::Value>(inputs, outputs)) {
-        const auto shape = getShape(val);
+    for (const auto& val : layer.getOpOperands()) {
+        const auto shape = getShape(val.get());
 
         if (shape != mainShape) {
             return errorAt(op, "Operation's input/output shapes mismatch");
@@ -238,13 +234,12 @@ mlir::LogicalResult vpux::VPUIP::verifySameElementType(mlir::Operation* op) {
     }
 
     auto inputs = layer.getInputs();
-    auto outputs = layer.getOutputs();
 
     const auto firstInput = inputs.front();
     const auto mainElemType = firstInput.getType().cast<mlir::ShapedType>().getElementType();
 
-    for (const auto& val : concat<mlir::Value>(inputs, outputs)) {
-        const auto elemType = val.getType().cast<mlir::ShapedType>().getElementType();
+    for (const auto& val : layer.getOpOperands()) {
+        const auto elemType = val.get().getType().cast<mlir::ShapedType>().getElementType();
 
         if (elemType != mainElemType) {
             return errorAt(op, "Operation's input/output element types mismatch");
@@ -267,13 +262,12 @@ mlir::LogicalResult vpux::VPUIP::verifySameDimsOrder(mlir::Operation* op) {
     }
 
     auto inputs = layer.getInputs();
-    auto outputs = layer.getOutputs();
 
     const auto firstInput = inputs.front();
     const auto mainOrder = DimsOrder::fromValue(firstInput);
 
-    for (const auto& val : concat<mlir::Value>(inputs, outputs)) {
-        const auto order = DimsOrder::fromValue(val);
+    for (const auto& val : layer.getOpOperands()) {
+        const auto order = DimsOrder::fromValue(val.get());
 
         if (order != mainOrder) {
             return errorAt(op, "Operation's input/output layout mismatch");
@@ -281,6 +275,134 @@ mlir::LogicalResult vpux::VPUIP::verifySameDimsOrder(mlir::Operation* op) {
     }
 
     return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameDimsOrder(mlir::Operation* op, DataOrderInfo& info) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in isSupportedLayoutSameDimsOrder");
+
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' doesn't implement Layer interface", op->getName());
+
+    const auto inputs = layer.getInputs();
+    const auto outputs = layer.getOutputs();
+
+    const auto inNum = inputs.size();
+    const auto outNum = outputs.size();
+
+    const auto mainOrder = info.hasInput(0) ? info.getInput(0) : DimsOrder::fromValue(inputs[0]);
+
+    for (size_t i = 0; i < inNum; ++i) {
+        if (!info.hasInput(i) || info.getInput(i) != mainOrder) {
+            fillDataInfo(info, inNum, outNum, mainOrder);
+            return mlir::failure();
+        }
+    }
+
+    for (size_t i = 0; i < outNum; ++i) {
+        if (!info.hasOutput(i) || info.getOutput(i) != mainOrder) {
+            fillDataInfo(info, inNum, outNum, mainOrder);
+            return mlir::failure();
+        }
+    }
+
+    return mlir::success();
+}
+//
+// SameInOutDimsOrder
+//
+
+mlir::LogicalResult vpux::VPUIP::verifySameInOutDimsOrder(mlir::Operation* op) {
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    VPUX_THROW_UNLESS(layer != nullptr, "Operation {0} is not layer", op->getName());
+
+    const auto input = layer.getInputs()[0];
+    const auto output = layer.getOutputs()[0];
+
+    const auto inOrder = DimsOrder::fromValue(input);
+    const auto outOrder = DimsOrder::fromValue(output);
+
+    if (inOrder != outOrder) {
+        return errorAt(op->getLoc(), "Operation must have the same input and output order. inL={0}, outL={1}", inOrder,
+                       outOrder);
+    }
+
+    return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameInOutDimsOrder(mlir::Operation* op, DataOrderInfo& info) {
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    VPUX_THROW_UNLESS(layer != nullptr, "Operation {0} is not layer", op->getName());
+
+    if (!info.hasInput(0) || !info.hasOutput(0)) {
+        const auto intType = layer.getInputs()[0].getType();
+        const auto supportedOrder = info.hasInput(0)
+                                            ? info.getInput(0)
+                                            : DimsOrder::fromNumDims(intType.cast<mlir::ShapedType>().getRank());
+
+        info.setInput(0, supportedOrder);
+        info.setOutput(0, supportedOrder);
+        return mlir::failure();
+    }
+
+    if (info.getInput(0) != info.getOutput(0)) {
+        info.setOutput(0, info.getInput(0));
+        return mlir::failure();
+    }
+
+    return mlir::success();
+}
+
+//
+// SameInOutSpecificDimsOrder
+//
+
+const std::array<DimsOrder, 2> VPUIP::NCHW_NHWC = {DimsOrder::NCHW, DimsOrder::NHWC};
+const std::array<DimsOrder, 4> VPUIP::CHW_HWC_NCHW_NHWC = {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW,
+                                                           DimsOrder::NHWC};
+
+mlir::LogicalResult vpux::VPUIP::verifySameInOutSpecificDimsOrder(mlir::Operation* op,
+                                                                  ArrayRef<DimsOrder> supportedLayouts) {
+    if (verifySameInOutDimsOrder(op).failed()) {
+        return mlir::failure();
+    }
+
+    auto layerOp = mlir::dyn_cast<LayerInterface>(op);
+
+    const auto input = layerOp.getInputs()[0];
+    const auto inOrder = DimsOrder::fromValue(input);
+
+    const auto isSupported = std::count(supportedLayouts.begin(), supportedLayouts.end(), inOrder);
+    if (!isSupported) {
+        return errorAt(op->getLoc(), "Operation does not support {0} layout", inOrder);
+    }
+
+    return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameInOutSpecificDimsOrder(mlir::Operation* op, DataOrderInfo& info,
+                                                                             ArrayRef<DimsOrder> supportedLayouts) {
+    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' doesn't implement Layer interface", op->getName());
+
+    const auto intType = layer.getInputs()[0].getType();
+    const auto defaultOrder = DimsOrder::fromNumDims(intType.cast<mlir::ShapedType>().getRank());
+
+    if (!info.hasInput(0)) {
+        info.setInput(0, defaultOrder);
+        info.setOutput(0, defaultOrder);
+
+        return mlir::failure();
+    }
+
+    const auto mainOrder = info.getInput(0);
+    const auto isSupportedLayout = std::count(supportedLayouts.begin(), supportedLayouts.end(), mainOrder);
+    if (isSupportedLayout) {
+        return isSupportedLayoutSameInOutDimsOrder(op, info);
+    }
+
+    info.setInput(0, defaultOrder);
+    info.setOutput(0, defaultOrder);
+    return mlir::failure();
 }
 
 //
@@ -295,12 +417,9 @@ mlir::LogicalResult vpux::VPUIP::verifyLegacy4D(mlir::Operation* op) {
         return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
     }
 
-    auto inputs = layer.getInputs();
-    auto outputs = layer.getOutputs();
-
-    for (const auto& val : concat<mlir::Value>(inputs, outputs)) {
-        const auto shape = getShape(val);
-        const auto order = DimsOrder::fromValue(val);
+    for (const auto& val : layer.getOpOperands()) {
+        const auto shape = getShape(val.get());
+        const auto order = DimsOrder::fromValue(val.get());
 
         if (shape.size() != 3 && shape.size() != 4) {
             return errorAt(op, "Got unsupported shape '{0}', only 3D/4D are supported", shape);

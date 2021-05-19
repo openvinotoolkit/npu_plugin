@@ -569,9 +569,6 @@ const auto params3Inputs = ::testing::Combine(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
-// TODO [Track number: C#48015]
-#ifndef WIN32
-
 TEST_P(KmbDetectionOutputLayerTest, CompareWithRefs) {
     Run();
 };
@@ -582,8 +579,7 @@ TEST_P(KmbDetectionOutputLayerTest, CompareWithRefs_MLIR) {
 };
 
 // TODO: extend the test to 5 inputs [Track number: C#49276]
-INSTANTIATE_TEST_CASE_P(smoke_DetectionOutput3In, KmbDetectionOutputLayerTest, params3Inputs, DetectionOutputLayerTest::getTestCaseName);
-
-#endif
+// TODO: disabled due to [Track number: E#12713]
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_DetectionOutput3In, KmbDetectionOutputLayerTest, params3Inputs, DetectionOutputLayerTest::getTestCaseName);
 
 }  // namespace

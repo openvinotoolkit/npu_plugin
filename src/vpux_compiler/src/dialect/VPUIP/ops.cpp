@@ -20,7 +20,6 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/IR/OpImplementation.h>
 
 #include <llvm/ADT/TypeSwitch.h>
 
@@ -38,6 +37,7 @@ public:
 
 public:
     mlir::Attribute getExecutor(mlir::Operation* op, uint32_t& numUnits) const final;
+    mlir::LogicalResult isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const final;
 };
 
 mlir::Attribute VPUIPLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUnits) const {
@@ -54,6 +54,59 @@ mlir::Attribute VPUIPLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUn
                 numUnits = upaSHAVEs.count();
                 return upaSHAVEs.kind();
             });
+}
+
+mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const {
+#define CASE(_IERT_OP_, _VPUIP_OP_)                     \
+    .Case<_IERT_OP_>([&](mlir::Operation* op) {         \
+        return _VPUIP_OP_::isSupportedLayout(op, info); \
+    })
+
+    return llvm::TypeSwitch<mlir::Operation*, mlir::LogicalResult>(origOp) CASE(IERT::QuantizeOp, VPUIP::QuantCastUPAOp)
+    CASE(IERT::DequantizeOp, VPUIP::QuantCastUPAOp)
+    CASE(IERT::ConvertOp, VPUIP::ConvertUPAOp)
+    CASE(IERT::CopyOp, VPUIP::UPADMAOp)
+    CASE(IERT::SoftMaxOp, VPUIP::SoftMaxUPAOp)
+    CASE(IERT::AvgPoolOp, VPUIP::PoolingUPAOp)
+    CASE(IERT::MaxPoolOp, VPUIP::PoolingUPAOp)
+    CASE(IERT::ConvolutionOp, VPUIP::ConvolutionUPAOp)
+    CASE(IERT::GroupConvolutionOp, VPUIP::ConvolutionUPAOp)
+    CASE(IERT::ReLUOp, VPUIP::ReLUUPAOp)
+    CASE(IERT::SigmoidOp, VPUIP::SigmoidUPAOp)
+    CASE(IERT::ClampOp, VPUIP::ClampUPAOp)
+    CASE(IERT::EluOp, VPUIP::EluUPAOp)
+    CASE(IERT::HSwishOp, VPUIP::HSwishUPAOp)
+    CASE(IERT::TanhOp, VPUIP::TanhUPAOp)
+    CASE(IERT::FakeQuantizeOp, VPUIP::FakeQuantizeUPAOp)
+    CASE(IERT::PReluOp, VPUIP::PReluUPAOp)
+    CASE(IERT::LeakyReluOp, VPUIP::LeakyReluUPAOp)
+    CASE(IERT::AddOp, VPUIP::EltwiseUPAOp)
+    CASE(IERT::MultiplyOp, VPUIP::EltwiseUPAOp)
+    CASE(IERT::DivideOp, VPUIP::EltwiseUPAOp)
+    CASE(IERT::SquaredDifferenceOp, VPUIP::EltwiseUPAOp)
+    CASE(IERT::PowerOp, VPUIP::EltwiseUPAOp)
+    CASE(IERT::FloorModOp, VPUIP::EltwiseUPAOp)
+    CASE(IERT::MinimumOp, VPUIP::EltwiseUPAOp)
+    CASE(IERT::MaximumOp, VPUIP::EltwiseUPAOp)
+    CASE(IERT::SwishOp, VPUIP::SwishUPAOp)
+    CASE(IERT::GRNOp, VPUIP::GRNUPAOp)
+    CASE(IERT::TileOp, VPUIP::PerAxisTileUPAOp)
+    CASE(IERT::PerAxisTileOp, VPUIP::PerAxisTileUPAOp)
+    CASE(IERT::NegativeOp, VPUIP::NegativeUPAOp)
+    CASE(IERT::ROIPoolingOp, VPUIP::ROIPoolingUPAOp)
+    CASE(IERT::FullyConnectedOp, VPUIP::ConvolutionUPAOp)
+    CASE(IERT::DetectionOutputOp, VPUIP::DetectionOutputUPAOp)
+    CASE(IERT::ScaleShiftOp, VPUIP::ScaleShiftUPAOp)
+    CASE(IERT::TransposeOp, VPUIP::PermuteUPAOp)
+    CASE(IERT::ReorderOp, VPUIP::PermuteUPAOp)
+    CASE(IERT::CTCGreedyDecoderOp, VPUIP::CTCGreedyDecoderUPAOp)
+    CASE(IERT::CTCGreedyDecoderSeqLenOp, VPUIP::CTCGreedyDecoderSeqLenUPAOp)
+    CASE(IERT::PadOp, VPUIP::PadUPAOp)
+    .Default([](mlir::Operation* unknownOp) -> mlir::LogicalResult {
+        VPUX_THROW("Operation '{0}' does not support layout propagation", unknownOp->getName());
+    });
+
+#undef CASE
 }
 
 }  // namespace

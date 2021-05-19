@@ -20,17 +20,18 @@
 include "mlir/Pass/PassBase.td"
 
 //
-// AddLayoutsAndStrides
+// AdjustLayouts
 //
 
-def AddLayoutsAndStrides : PassBase<"add-layouts-and-strides", "vpux::ModulePass"> {
-    let summary = "Add layouts and strides to memref";
+def AdjustLayouts : PassBase<"adjust-layouts", "vpux::FunctionPass"> {
+    let summary = "Add required layouts to memref";
 
     let description = [{
-        This pass adds default values for layouts and strides to the memref types.
+        This pass adds the required layouts instead of the default value
+        depending on the layer specification
     }];
 
-    let constructor = "vpux::IERT::createAddLayoutsAndStridesPass()";
+    let constructor = "vpux::IERT::createAdjustLayoutsPass()";
 }
 
 //

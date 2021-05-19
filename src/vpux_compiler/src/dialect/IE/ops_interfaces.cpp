@@ -27,10 +27,6 @@ using namespace vpux;
 mlir::LogicalResult IE::verifyIELayerOp(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyRTLayerOp");
 
-    if (!mlir::isa<LayerInterface>(op)) {
-        return errorAt(op, "Operation '{0}' is not a Layer", op->getName());
-    }
-
     auto isTensorized = std::all_of(op->getOperands().begin(), op->getOperands().end(), [](mlir::Value type) {
         return type.getType().isa<mlir::RankedTensorType>();
     });
@@ -44,16 +40,4 @@ mlir::LogicalResult IE::verifyIELayerOp(mlir::Operation* op) {
     }
 
     return mlir::success();
-}
-
-SmallVector<mlir::Value> IE::getIELayerInputs(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getIELayerInputs");
-
-    return op->getOperands();
-}
-
-SmallVector<mlir::Value> IE::getIELayerOutputs(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getIELayerOutputs");
-
-    return op->getResults();
 }

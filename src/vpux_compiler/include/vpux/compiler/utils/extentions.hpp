@@ -16,28 +16,21 @@
 
 #pragma once
 
-#include "vpux/utils/core/small_vector.hpp"
-
-#include <mlir/IR/OpDefinition.h>
-#include <mlir/IR/Operation.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
+#include <mlir/IR/Value.h>
+#include <vpux/compiler/conversion.hpp>
 
 namespace vpux {
-namespace IE {
 
 //
-// IELayer
+// mlir::Value
 //
 
-mlir::LogicalResult verifyIELayerOp(mlir::Operation* op);
+mlir::Operation* getFirstUser(mlir::Value output);
 
-template <typename ConcreteOp>
-class IELayer : public mlir::OpTrait::TraitBase<ConcreteOp, IELayer> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifyIELayerOp(op);
-    }
-};
+//
+// DataOrderInfo
+//
 
-}  // namespace IE
+void fillDataInfo(DataOrderInfo& info, size_t inNum, size_t outNum, const DimsOrder& mainOrder);
+
 }  // namespace vpux

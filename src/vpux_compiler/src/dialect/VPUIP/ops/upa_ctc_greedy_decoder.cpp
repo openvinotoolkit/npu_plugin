@@ -36,6 +36,22 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(CTCGreedyDecoderUPAOp op) {
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::VPUIP::CTCGreedyDecoderUPAOp::isSupportedLayout(mlir::Operation* op,
+                                                                          vpux::DataOrderInfo& info) {
+    const auto ctcGreedyDecoderOp = mlir::dyn_cast<IERT::CTCGreedyDecoderOp>(op);
+    VPUX_THROW_UNLESS(ctcGreedyDecoderOp != nullptr, "Operation {0} is not CTCGreedyDecoderOp", op->getName());
+
+    if (info.hasInput(0)) {
+        const auto order = info.getInput(0);
+        if (order == DimsOrder::CHW) {
+            return mlir::success();
+        }
+    }
+
+    info.setInput(0, DimsOrder::CHW);
+    return mlir::failure();
+}
+
 void vpux::VPUIP::CTCGreedyDecoderUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                                mlir::Value sequenceLengths, mlir::Value output,
                                                mlir::UnitAttr mergeRepeated) {

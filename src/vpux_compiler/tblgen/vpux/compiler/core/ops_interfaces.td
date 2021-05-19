@@ -139,11 +139,27 @@ def LayerInterface : OpInterface<"LayerInterface"> {
     let methods = [
         InterfaceMethod<
             "Get all inputs (tensors or memory buffers) for the Operation",
-            "vpux::SmallVector<mlir::Value>", "getInputs", (ins)>,
+            "vpux::DataOrderInfo", "getDataOrderInfo", (ins)>,
+
+        InterfaceMethod<
+            "Get all inputs (tensors or memory buffers) for the Operation",
+            "mlir::OperandRange", "getInputs", (ins)>,
 
         InterfaceMethod<
             "Get the outputs (tensors or memory buffers) for the Operation",
-            "vpux::SmallVector<mlir::Value>", "getOutputs", (ins)>,
+            "mlir::OperandRange", "getOutputs", (ins)>,
+
+        InterfaceMethod<
+            "Get all inputs (tensors or memory buffers) for the Operation",
+            "llvm::detail::concat_range<mlir::OpOperand, MutableArrayRef<mlir::OpOperand>, MutableArrayRef<mlir::OpOperand>>", "getOpOperands", (ins)>,
+
+        InterfaceMethod<
+            "Get all inputs (tensors or memory buffers) for the Operation",
+            "MutableArrayRef<mlir::OpOperand>", "getInOpOperands", (ins)>,
+
+        InterfaceMethod<
+            "Get the outputs (tensors or memory buffers) for the Operation",
+            "MutableArrayRef<mlir::OpOperand>", "getOutOpOperands", (ins)>,
     ];
 
     let verify = [{

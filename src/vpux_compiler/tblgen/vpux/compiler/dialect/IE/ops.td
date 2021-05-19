@@ -45,8 +45,7 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
             mnemonic,
             [
                 IE_Layer,
-                NoSideEffect,
-                LayerInterface
+                NoSideEffect
             ] # InferTensorType<["inferReturnTypeComponents"]>.traits # traits
         > {
     let assemblyFormat = [{
