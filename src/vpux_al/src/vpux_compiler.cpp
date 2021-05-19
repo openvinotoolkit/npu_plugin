@@ -22,7 +22,7 @@
 #include <vpux_compiler.hpp>
 
 vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr actual,
-                                             InferenceEngine::details::SharedObjectLoader::Ptr plg)
+                                             const InferenceEngine::details::SharedObjectLoader& plg)
         : _actual(actual), _plg(plg) {
     if (_actual == nullptr) {
         IE_THROW() << "ExecutableNetwork wrapper was not initialized.";

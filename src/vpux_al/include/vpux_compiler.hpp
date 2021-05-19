@@ -58,7 +58,7 @@ public:
     using Ptr = std::shared_ptr<NetworkDescription>;
     using CPtr = std::shared_ptr<const NetworkDescription>;
 
-    NetworkDescription(INetworkDescription::Ptr actual, InferenceEngine::details::SharedObjectLoader::Ptr plg = {});
+    NetworkDescription(INetworkDescription::Ptr actual, const InferenceEngine::details::SharedObjectLoader& plg = {});
 
     const std::string& getName() const {
         return _actual->getName();
@@ -93,7 +93,7 @@ private:
     INetworkDescription::Ptr _actual = nullptr;
     // NB: NetworkDescription is created by Compiler which is object from shared library,
     // so it has to keep pointer to this lib in case Compiler lifecycle less than objects which created by it
-    InferenceEngine::details::SharedObjectLoader::Ptr _plg;
+    InferenceEngine::details::SharedObjectLoader _plg;
 };
 
 //////////////////////////////////////////ICompiler ///////////////////////////////////////////////

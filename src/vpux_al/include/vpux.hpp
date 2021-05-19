@@ -111,10 +111,10 @@ private:
     // AllocatorWrapper has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
     // an instance of Allocator
     std::shared_ptr<Allocator> _actual;
-    InferenceEngine::details::SharedObjectLoader::Ptr _plg;
+    InferenceEngine::details::SharedObjectLoader _plg;
 
 public:
-    AllocatorWrapper(const std::shared_ptr<Allocator> actual, InferenceEngine::details::SharedObjectLoader::Ptr plg)
+    AllocatorWrapper(const std::shared_ptr<Allocator> actual, const InferenceEngine::details::SharedObjectLoader& plg)
             : _actual(actual), _plg(plg) {
     }
 
@@ -183,7 +183,7 @@ public:
     using Ptr = std::shared_ptr<Device>;
     using CPtr = std::shared_ptr<const Device>;
 
-    Device(const std::shared_ptr<IDevice> device, InferenceEngine::details::SharedObjectLoader::Ptr plg)
+    Device(const std::shared_ptr<IDevice> device, const InferenceEngine::details::SharedObjectLoader& plg)
             : _actual(device), _plg(plg) {
         if (_actual->getAllocator()) {
             _allocatorWrapper = std::make_shared<AllocatorWrapper>(_actual->getAllocator(), _plg);
