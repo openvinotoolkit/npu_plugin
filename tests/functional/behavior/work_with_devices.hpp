@@ -9,76 +9,34 @@
 #include <ie_core.hpp>
 #include <base/behavior_test_utils.hpp>
 #include "vpux/vpux_plugin_config.hpp"
-
+#include "common/functions.h"
 #include <details/ie_exception.hpp>
+
 
 using LoadNetwork = BehaviorTestsUtils::BehaviorTestsBasic;
 
 namespace {
 
-InferenceEngine::CNNNetwork createDummyNetwork() {
-    InferenceEngine::SizeVector inputShape = {1, 3, 4, 3};
-    InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32;
-    size_t axis = 1;
-
-    const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
-    const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-
-    const auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-
-    const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), axis);
-
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(softMax)};
-
-    auto function = std::make_shared<ngraph::Function>(results, params, "softMax");
-    InferenceEngine::CNNNetwork cnnNet(function);
-
-    return cnnNet;
-}
 
 TEST_P(LoadNetwork, samePlatformProduceTheSameBlob) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     {
-        auto cnnNet = createDummyNetwork();
+        auto cnnNet = buildSingleLayerSoftMaxNetwork();
 
         auto configuration1 = configuration;
-        configuration1[VPUX_CONFIG_KEY(PLATFORM)] = VPUX_CONFIG_VALUE(VPU3400);
+        configuration1[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
         auto exeNet1 = ie->LoadNetwork(cnnNet, "VPUX", configuration1);
         std::stringstream blobStream1;
         exeNet1.Export(blobStream1);
 
         auto configuration2 = configuration;
-        configuration2[VPUX_CONFIG_KEY(PLATFORM)] = VPUX_CONFIG_VALUE(VPU3400);
+        configuration2[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
         auto exeNet2 = ie->LoadNetwork(cnnNet, "VPUX", configuration2);
         std::stringstream blobStream2;
         exeNet2.Export(blobStream2);
 
         ASSERT_NE(0, blobStream1.str().size());
         ASSERT_EQ(blobStream1.str(), blobStream2.str());
-    }
-}
-
-TEST_P(LoadNetwork, differentPlatformsProduceTheDifferentBlob) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    {
-        auto cnnNet = createDummyNetwork();
-
-        auto configuration1 = configuration;
-        configuration1[VPUX_CONFIG_KEY(PLATFORM)] = VPUX_CONFIG_VALUE(VPU3400);
-        auto exeNet1 = ie->LoadNetwork(cnnNet, "VPUX", configuration1);
-        std::stringstream blobStream1;
-        exeNet1.Export(blobStream1);
-
-        auto configuration2 = configuration;
-        configuration2[VPUX_CONFIG_KEY(PLATFORM)] = VPUX_CONFIG_VALUE(VPU3900);
-        auto exeNet2 = ie->LoadNetwork(cnnNet, "VPUX", configuration2);
-        std::stringstream blobStream2;
-        exeNet2.Export(blobStream2);
-
-        ASSERT_NE(0, blobStream1.str().size());
-        ASSERT_NE(blobStream1.str(), blobStream2.str());
     }
 }
 
@@ -98,7 +56,7 @@ protected:
 TEST_P(LoadNetworkWithoutDevice, ThrowIfNoDeviceAndNoPlatform) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     {
-        auto cnnNet = createDummyNetwork();
+        auto cnnNet = buildSingleLayerSoftMaxNetwork();
         ASSERT_THROW(ie->LoadNetwork(cnnNet, "VPUX", configuration), InferenceEngine::Exception);
     }
 }
@@ -106,10 +64,44 @@ TEST_P(LoadNetworkWithoutDevice, ThrowIfNoDeviceAndNoPlatform) {
 TEST_P(LoadNetworkWithoutDevice, NoThrowIfNoDeviceAndButPlatformPassed) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     {
-        auto cnnNet = createDummyNetwork();
+        auto cnnNet = buildSingleLayerSoftMaxNetwork();
         auto netConfiguration = configuration;
-        netConfiguration[VPUX_CONFIG_KEY(PLATFORM)] = VPUX_CONFIG_VALUE(VPU3400);
+        netConfiguration[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, "VPUX", netConfiguration));
+    }
+}
+
+const std::map<std::string, std::string> wrongDevice =
+{
+    {"VPU3400_A0", "VPU3400"},
+    {"VPU3400", "VPU3400_A0"},
+    {"VPU3700", "VPU3400_A0"},
+    {"VPU3720", "VPU3400"},
+    {"VPU3900", "VPU3400"}
+};
+
+std::string getWrongDevice(const std::string& platform)
+{
+    // here we mix up devices in order to test the check on the runtime side
+    auto device = wrongDevice.find(platform);
+
+    if (device == wrongDevice.end())
+        THROW_IE_EXCEPTION << "Cannot map wrong device for the platform " << platform;
+    return device->second;
+}
+
+TEST_P(LoadNetwork, CheckDeviceInBlob) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    {
+        InferenceEngine::CNNNetwork cnnNet = buildSingleLayerSoftMaxNetwork();
+        // Load CNNNetwork to target plugins
+        auto netConfiguration = configuration;
+        netConfiguration[VPUX_CONFIG_KEY(PLATFORM)] = getWrongDevice(PlatformEnvironment::PLATFORM);
+#if defined(__arm__) || defined(__aarch64__)
+        EXPECT_ANY_THROW(ie->LoadNetwork(cnnNet, targetDevice, netConfiguration));
+#else
+        EXPECT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, netConfiguration));
+#endif
     }
 }
 

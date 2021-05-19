@@ -16,6 +16,7 @@
 
 #include "test_model/kmb_test_base.hpp"
 #include <condition_variable>
+#include "common/functions.h"
 
 class KmbClusterTest : public KmbNetworkTestBase {
 public:
@@ -84,7 +85,7 @@ TEST_P(KmbClusterTestWithParams, precommit_checkInferTime) {
     // FIXME [Track number: E#6518]
     SKIP() << "Throws an exception on the second runTest call";
 #endif
-    if (KmbTestBase::PLATFORM == "VPU3400_A0") {
+    if (PlatformEnvironment::PLATFORM == "VPU3400_A0") {
         // FIXME [Track number: E#10416]
         SKIP() << "MCM Compiler error: Failed to pass runtime simulation";
     }

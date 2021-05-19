@@ -59,6 +59,8 @@ namespace mv
                                                                         mv::Tensor::MemoryLocation& tensorLocation);
             static MVCNN::DType convertDtype(const DType& dtype);
             static DType convertDtype(const MVCNN::DType& dtype);
+            static MVCNN::TargetDevice mapTargetDevice(const mv::Target& target);
+            static MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const std::shared_ptr<mv::Element>& descriptor);
             static MVCNN::DPULayerType convertTaskOp(const std::string& opName);
             static MVCNN::MPE_Mode convertMPEMode(MPE_Mode mpe);
             static MVCNN::PPELayerType convertPPELayerType(PPELayerTypeEnum ppe);

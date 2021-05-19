@@ -16,6 +16,13 @@ std::vector<std::string> disabledTestPatterns() {
         ".*IEClassLoadNetworkTest.*HETERO.*",
         ".*IEClassLoadNetworkTest.*MULTI.*",
 
+        // Cannot detect vpu platform when it's not passed
+        // Skip tests on Yocto which passes device without platform
+        // [Track number: E#12774]
+        ".*IEClassLoadNetworkTest.LoadNetworkWithDeviceIDNoThrow.*",
+        ".*IEClassLoadNetworkTest.LoadNetworkWithBigDeviceIDThrows.*",
+        ".*IEClassLoadNetworkTest.LoadNetworkWithInvalidDeviceIDThrows.*",
+
         // double free detected
         // [Track number: S#27343]
         ".*InferConfigInTests\\.CanInferWithConfig.*",

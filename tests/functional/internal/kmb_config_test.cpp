@@ -14,6 +14,7 @@
 // stated in the License.
 //
 
+#include "common/functions.h"
 #include "test_model/kmb_test_base.hpp"
 
 using ConfigMap = std::map<std::string, std::string>;
@@ -99,8 +100,7 @@ static const std::vector<ConfigMap> baseInferConfigs = {
     { {"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "YES"} },
     { {"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "NO"} },
     #endif
-    { {"VPUX_PLATFORM", "AUTO"} },
-    { {"VPUX_PLATFORM", "VPU3400_A0"} },
+    { {"VPUX_PLATFORM", PlatformEnvironment::PLATFORM} },
 };
 
 static const std::vector<ConfigMap> colorFormatConfigs = {

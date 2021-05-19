@@ -19,8 +19,8 @@
 #include <flatbuffers/flatbuffers.h>
 #include <ie_common.h>
 #include <schema/graphfile/graphfile_generated.h>
-
 #include <ie_precision.hpp>
+#include <vpux_config.hpp>
 
 InferenceEngine::Layout orderVectorToLayout(const std::vector<float>& tensorOrder);
 InferenceEngine::Precision MvcnnDTypeToPrecision(const MVCNN::DType& dtype);
@@ -34,3 +34,4 @@ MVCNN::DType precisionToMvcnnDType(const InferenceEngine::Precision& tensorPreci
 mv::DType precisionToDType(const InferenceEngine::Precision& iePrecision);
 mv::Order layoutToOrder(const InferenceEngine::Layout& ieLayout);
 mv::Shape sizeVectorToShape(InferenceEngine::SizeVector dims);
+MVCNN::TargetDeviceRevision getDeviceRevision(const InferenceEngine::VPUXConfigParams::VPUXPlatform platform);

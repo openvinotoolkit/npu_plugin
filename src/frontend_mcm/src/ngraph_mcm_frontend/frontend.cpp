@@ -228,6 +228,8 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
                     return input.second->getLayout() != InferenceEngine::Layout::NCHW &&
                            input.second->getLayout() != InferenceEngine::Layout::CHW;
                 }) == inputsInfo.end());
+        mcmCompDesc.setPassArg("GlobalConfigParams", "DeviceRevision",
+                               std::string(MVCNN::EnumNameTargetDeviceRevision(getDeviceRevision(config.platform()))));
 
 
         if (config.referenceMode()) {
