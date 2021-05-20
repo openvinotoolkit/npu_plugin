@@ -54,4 +54,9 @@ std::vector<char> compileNGraph(
         const ie::OutputsDataMap& outputsInfo,
         const vpu::MCMConfig& config,
         std::string & errMsg);
+
+std::unordered_set<std::string> getSupportedLayers(
+        const InferenceEngine::CNNNetwork& func,
+        const vpu::MCMConfig& config);
+
 // clang-format on
