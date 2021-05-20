@@ -46,7 +46,8 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
     };
 
     resources.addAvailableMemory(nullptr, 1_GB);
-    addMem(VPUIP::PhysicalMemory::DDR, 30_MB, 0.6, 8);
+    // Size 192 found manually through experimentation. May be incorrect.
+    addMem(VPUIP::PhysicalMemory::DDR, 192_MB, 0.6, 8);
 
     switch (kind) {
     case VPUIP::ArchKind::VPU3720:
