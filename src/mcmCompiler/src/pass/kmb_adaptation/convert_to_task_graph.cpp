@@ -1143,6 +1143,44 @@ mv::Data::TensorIterator convertPreluToUPATask(mv::OpModel& om, const std::vecto
 
     return prelu;
 }
+uint32_t maskToInt(mv::Shape mask) {
+    uint32_t result = 0;
+
+    for (size_t i = 0; i < mask.ndims(); i++) {
+        switch (mask[i]) {
+        case 1:
+            result |= (0x1 << i);
+            break;
+        case 0:
+            break;
+        default:
+            throw mv::RuntimeError("Convert to UPATask", "StridedSlice has wrong layer arguments");
+        }
+    }
+
+    return result;
+}
+
+mv::Data::TensorIterator convertStridedSliceToUPATask(
+        mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+        const std::map<std::string, mv::Attribute>& attrs,
+        const std::string& name, bool /*software*/,
+        const mv::QuantizationParams& quantParams,
+        const mv::DType& outputTensorType,
+        const mv::Order& outputTensorOrder)
+{
+    auto begins = attrs.at("begins").get<std::vector<unsigned>>();
+    auto ends = attrs.at("ends").get<std::vector<unsigned>>();
+    auto strides = attrs.at("strides").get<std::vector<unsigned>>();
+    auto out_shape = attrs.at("out_shape").get<std::vector<unsigned>>();
+
+    auto stridedSlice = om.uPATaskStridedSlice(name, inputs, begins, ends, strides, out_shape);
+
+    stridedSlice->setDType(outputTensorType);
+    stridedSlice->setQuantParams(quantParams);
+    stridedSlice->setOrder(outputTensorOrder);
+    return stridedSlice;
+}
 
 mv::Data::TensorIterator convertDepthToSpaceToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                                         const std::map<std::string, mv::Attribute>& attrs,
@@ -1176,7 +1214,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                                        "Norm", "FakeQuantize", "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
                                                        "RefConv", "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu",
                                                        "PermuteND", "Mish", "Floor", "Round", "Erf", "Gelu", "Pad", "Interpolate", "MVN", "Ceiling",
-                                                       "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu", "DepthToSpace", "ReverseSequence"};
+                                                       "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu", "DepthToSpace", "ReverseSequence",
+                                                       "StridedSlice"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -1239,7 +1278,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     {"CTCGreedyDecoderSeqLen", convertCTCGreedyDecoderSeqLenToUPATask},
     {"Prelu", convertPreluToUPATask},
     {"DepthToSpace", convertDepthToSpaceToUPATask},
-    {"ReverseSequence", convertReverseSequenceToUPATask}
+    {"ReverseSequence", convertReverseSequenceToUPATask},
+    {"StridedSlice", convertStridedSliceToUPATask},
     };
 
     // Layer types that given current compiler state, it's

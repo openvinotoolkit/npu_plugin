@@ -46,7 +46,8 @@ namespace mv
                            "CustomOcl", "CustomCpp", "Sigmoid", "Deconv", "Tile", "CTCDecoder", "RefConv",
                            "Gather", "HSwish", "Swish", "Conversion", "Relu", "Tanh", "SoftPlus", "Elu", "PermuteND",
                            "Pad", "Mish", "Floor", "Round", "Erf", "Gelu", "Interpolate", "MVN", "LeakyRelu", "Ceiling",
-                           "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu", "DepthToSpace", "ReverseSequence"})
+                           "Exp", "SpaceToDepth", "CTCGreedyDecoderSeqLen", "Log", "Prelu", "DepthToSpace",
+                           "ReverseSequence", "StridedSlice"})
         .setExtraInputs(true);
     }
 

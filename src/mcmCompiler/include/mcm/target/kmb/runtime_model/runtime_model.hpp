@@ -170,6 +170,7 @@ namespace mv
             static MVCNN::UPALayerTaskT * buildUPAPreluTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPADepthToSpaceTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPAReverseSequenceTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            static MVCNN::UPALayerTaskT * buildUPAStridedSliceTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
 
             // UTILS
             static unsigned countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt, bool trimEmptyTensors = false);
