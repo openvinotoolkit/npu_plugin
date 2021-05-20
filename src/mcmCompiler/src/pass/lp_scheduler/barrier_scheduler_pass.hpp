@@ -1,6 +1,7 @@
-#include "pass/lp_scheduler/operation_precedence_dag.hpp"
 #include "pass/lp_scheduler/barrier_schedule_generator.hpp"
 #include "pass/lp_scheduler/barrier_simulator.hpp"
+#include "pass/lp_scheduler/operation_precedence_dag.hpp"
+#include "runtime_simulator.hpp"
 
 namespace mv_unit_testing { class Barrier_Control_Dag_Test; }
 
@@ -862,7 +863,7 @@ struct Control_Model_Barrier_Checker {
     }
   }; // struct real_barrier_mapper_t //
 
-  typedef mv::lp_scheduler::Runtime_Barrier_Simulation_Checker<dag_t,
+  typedef mv::lp_scheduler::Runtime_Barrier_Simulation_Assigner<dag_t,
           barrier_op_selector_t, real_barrier_mapper_t> runtime_checker_t;
   //////////////////////////////////////////////////////////////////////////////
 
@@ -871,8 +872,9 @@ struct Control_Model_Barrier_Checker {
     assert(real_barrier_bound%2UL == 0UL);
 
     dag_t dag(cmodel);
-    runtime_checker_t checker(dag, real_barrier_bound/2UL);
-    return checker.check();
+    mv::OpModel om(cmodel);
+    runtime_checker_t checker(dag, real_barrier_bound/2UL, om);
+    return checker.assign();
   }
 
 };  // class Control_Model_Barrier_Checker //
