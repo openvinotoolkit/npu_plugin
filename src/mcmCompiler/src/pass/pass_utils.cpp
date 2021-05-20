@@ -469,6 +469,11 @@ std::vector<mv::Data::OpListIterator> mv::findSinkLayers(mv::DataModel &dataMode
     return sinkOperations;
 }
 
+bool mv::checkA0Sparsity(const mv::OpModel& model)
+{
+    return model.hasGlobalConfigParam("enableSparsityA0") && model.getGlobalConfigParam("enableSparsityA0").get<bool>();
+}
+
 bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice, mv::Target target)
 {
     if (target != mv::Target::ma2490 || referenceDevice != "A0")
