@@ -22,8 +22,9 @@
 #include <vpu/utils/io.hpp>
 #include <ngraph/type/element_type.hpp>
 
-#include <random>
+#include <blob_factory.hpp>
 #include <cstddef>
+#include <random>
 
 using namespace InferenceEngine;
 
@@ -40,6 +41,23 @@ Blob::Ptr genBlobUniform(const TensorDesc& desc, std::default_random_engine& rd,
 Blob::Ptr genBlobUniform(const TensorDesc& desc, std::default_random_engine& rd, int min, int max);
 
 Blob::Ptr genBlobNormal(const TensorDesc& desc, std::default_random_engine& rd, float mean, float stddev);
+
+template <typename T>
+Blob::Ptr genBlobFromData(const TensorDesc& desc, const std::vector<T>& values) {
+    auto blob = make_blob_with_precision(desc);
+    blob->allocate();
+
+    const auto outPtr = blob->buffer().as<T*>();
+    IE_ASSERT(outPtr != nullptr);
+
+    const auto& dims = desc.getDims();
+    const auto dataSize = std::accumulate(begin(dims), end(dims), 1ul, std::multiplies<>{});
+    IE_ASSERT(dataSize == values.size());
+
+    std::copy_n(values.data(), values.size(), outPtr);
+
+    return blob;
+}
 
 enum class CompareMethod { Absolute, Relative, Combined };
 

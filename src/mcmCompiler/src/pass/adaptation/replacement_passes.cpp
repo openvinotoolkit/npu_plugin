@@ -89,7 +89,6 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 {
     fullyConnectedAsConv2DFcn(pass, model);
     cloneConvForNonReluOutput(pass, model);
-    replaceStridedSliceWithStridedConvConcat(pass, model);
     replacePoolReshapePatternFcn(pass, model);
     replacePermuteReshapePermutePatternFcn(pass, model);
     replaceExpReduceSumMultipyFcn(pass, model);
@@ -1953,7 +1952,7 @@ void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry&, mv::Computat
     }
 }
 //pass slicing horizontally by the provided width also slicing vertically by the provided height
-//original operation  is performed per small partitions, 
+//original operation  is performed per small partitions,
 //result concatenated per each line (horizontally) and at the end concatening the  1 column of results vertically
 mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::ComputationModel& model, mv::Data::OpListIterator operation, size_t widthSlice, size_t heightSlice, mv::Data::OpListIterator nextOpIt)
 {
@@ -1991,7 +1990,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
     //concat iteratively on the line vertically on the width axis and the vector of Horizontally Concats to be concatenated Vertically
     mv::Data::TensorIterator opConcat;
     std::vector <mv::Data::TensorIterator> opsSlicesConcatHorizontally;
-    
+
     size_t input_w = std::max(stride[mv::STRIDE_HORIZONTAL], kSize[mv::KERNEL_WIDTH]);
     size_t input_h = std::max(stride[mv::STRIDE_VERTICAL], kSize[mv::KERNEL_HEIGHT]);
 
@@ -2011,7 +2010,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
 
     unsigned int i = 0; //counts the slices on the 0x axis
     unsigned int j = 0; //counts the slices on the 0y axis
-    do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on oy axis 
+    do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on oy axis
         do {//slicing on the horizontal axis , agnostic whether we need to slice horizontally that's why [do .. while] is chosen to execute at least once the code if we not slice on ox axis
             //start new tile from the boundaries, with origin at the strides
             beginInputShape = { (unsigned long)( (i)*widthSlice),
@@ -2026,14 +2025,14 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                         static_cast<unsigned short>((i+1 == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0),
                         static_cast<unsigned short>((j == 0)         ? initialPadding[mv::PADDING_TOP]   : 0),
                         static_cast<unsigned short>((j+1 == vslices) ? initialPadding[mv::PADDING_BOT]   : 0) };
-                        
+
             mv::Shape branchInputSize = {
                             (hslices > 1 ? input_w
                                                  : width) - padding[mv::PADDING_LEFT] - padding[mv::PADDING_RIGHT],
                             (vslices > 1 ? input_h
                                                  : height) - padding[mv::PADDING_TOP] - padding[mv::PADDING_BOT],
                             inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
-                            inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};           
+                            inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
             std::string sliceName ("Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j));
             auto quantParams = inputTensor->getQuantParams();
             auto sliceInput = om.slice("Slice" + operation->getName() +  sliceName,
@@ -2173,7 +2172,7 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
 
         unsigned int i = 0; //counts the slices on the width axis
         unsigned int j = 0; //counts the slices on the height axis
-        do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on height axis 
+        do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on height axis
             do {//slicing on the horizontal axis , agnostic whether we need to slice horizontally that's why [do .. while] is chosen to execute at least once the code if we not slice on width axis
                 beginInputShape = { (unsigned long)( (i)*minStride),
                                     (unsigned long)( (j)*minStride),
@@ -2189,7 +2188,7 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
                                 width - (i)*minStride,
                                 height - (j)*minStride,
                                 inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
-                                inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};           
+                                inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
                 std::string sliceName ("Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j));
                 auto quantParams = inputTensor->getQuantParams();
                 auto sliceInput = om.slice("Slice" + operation->getName() +  sliceName,
@@ -2276,7 +2275,7 @@ mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model,
 
         //recircuit the graph flow
         operation = linkNewOperationsReplacementRemoveFlows(nextOpIt, passthrough, om, operation);
-                
+
         return operation;
     }
 }
@@ -2403,7 +2402,7 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
                                                         stride[mv::STRIDE_HORIZONTAL],
                                                         stride[mv::STRIDE_VERTICAL],
                                                         nextOp);
-        }        
+        }
     }
 }
 
@@ -2463,7 +2462,7 @@ void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& /*pass*/, mv::Comp
                     om.getSourceOp(sm)->set<unsigned>("opId", currentOpId);
                 }
 
-                linkNewOperationsReplacement(om.getSourceOp(scoreMap), sm, om, opIt);  
+                linkNewOperationsReplacement(om.getSourceOp(scoreMap), sm, om, opIt);
             }
         }
     }
@@ -2842,7 +2841,7 @@ void resampleWithStorageElementPointerTable(const mv::pass::PassEntry&, mv::Comp
         {
             throw mv::RuntimeError(om, "Resample has multiple outputs - not supported");
         }
-        
+
         auto childOpIt = mv::findSinkLayers(dm, outputTensor)[0];
 
         auto sourceTensor = parentOpIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);

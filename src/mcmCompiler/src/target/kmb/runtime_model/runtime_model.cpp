@@ -4135,6 +4135,31 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADepthToSpaceTask(ComputationMod
     return toBuild.release();
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAStridedSliceTask(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_StridedSliceParams;
+
+    for (std::size_t i = 0; i < opIt->inputSlots(); ++i) {
+        auto input = opIt->getInputTensor(i);
+        toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    }
+
+    for (std::size_t i = 0; i < opIt->outputSlots(); ++i) {
+        auto output = opIt->getOutputTensor(i);
+        toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+    }
+
+    auto params = new MVCNN::StridedSliceParamsT();
+    params->begins = opIt->get<std::vector<unsigned>>("begins");
+    params->ends = opIt->get<std::vector<unsigned>>("ends");
+    params->strides = opIt->get<std::vector<unsigned>>("strides");
+
+    toBuild->softLayerParams.value = params;
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -4254,6 +4279,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPADepthToSpaceTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "ReverseSequence")
         toReturn[0]->task.value = buildUPAReverseSequenceTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "StridedSlice")
+        toReturn[0]->task.value = buildUPAStridedSliceTask(cm, compilationDescriptor, opIt);
 
     // TODO: Add other UPA layers
 
