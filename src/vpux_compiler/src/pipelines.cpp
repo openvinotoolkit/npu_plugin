@@ -54,12 +54,16 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpaceCb, log));
     pm.addPass(IERT::createStaticAllocationPass(ddrMemSpaceCb, log));
 
-    // Lower IERT->VPUIP
-    pm.addPass(createLowerIERT2VPUIPPass(log));
+    // Lower remaining IERT->VPUIP
+    buildLowerIERT2VPUIPPipeline(pm, log);
 
     // VPUIP Dialect level
     pm.addPass(VPUIP::createAddLinearSchedulingPass(log));
 }
+
+//
+// HardwareMode
+//
 
 void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
     const auto ddrMemSpaceCb = [](mlir::MLIRContext* ctx, StringRef) -> mlir::Attribute {
@@ -80,16 +84,18 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
 
-    // IERT Dialect level
+    // Partially lower IERT->VPUIP (NCE Operations only)
     pm.addPass(createConvertToNCEOpsPass());
+
+    // IERT Dialect level
     pm.addPass(createComposeSubViewPass(log));
     pm.addPass(createDeallocPlacementPass(log));
     pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpaceCb, log));
     pm.addPass(IERT::createStaticAllocationPass(ddrMemSpaceCb, log));
     pm.addPass(IERT::createStaticAllocationPass(cmxMemSpaceCb, log));
 
-    // Lower IERT->VPUIP
-    pm.addPass(createLowerIERT2VPUIPPass(log));
+    // Finally lower remaining IERT->VPUIP
+    buildLowerIERT2VPUIPPipeline(pm, log);
 
     // VPUIP Dialect level
     pm.addPass(VPUIP::createAddLinearSchedulingPass(log));
@@ -104,6 +110,7 @@ void vpux::registerPipelines() {
                                      [](mlir::OpPassManager& pm) {
                                          buildReferenceModePipeline(pm);
                                      });
+
     mlir::PassPipelineRegistration<>("hardware-mode", "Compile IE Network in Hardware mode (HW and SW execution)",
                                      [](mlir::OpPassManager& pm) {
                                          buildHardwareModePipeline(pm);

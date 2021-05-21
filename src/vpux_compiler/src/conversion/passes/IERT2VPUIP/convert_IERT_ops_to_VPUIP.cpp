@@ -31,22 +31,20 @@ namespace {
 // Generated
 //
 
-#include <vpux/compiler/conversion/rewriters/generated/lower_IERT_to_VPUIP.hpp.inc>
+#include <vpux/compiler/conversion/rewriters/generated/convert_IERT_ops_to_VPUIP.hpp.inc>
 
 //
-// LowerIERT2VPUIPPass
+// ConvertIERTOps2VPUIPPass
 //
 
-class LowerIERT2VPUIPPass final : public LowerIERT2VPUIPBase<LowerIERT2VPUIPPass> {
+class ConvertIERTOps2VPUIPPass final : public ConvertIERTOps2VPUIPBase<ConvertIERTOps2VPUIPPass> {
 public:
-    explicit LowerIERT2VPUIPPass(Logger log) {
+    explicit ConvertIERTOps2VPUIPPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
 public:
-    class ConstantRewrite;
     class CTCGreedyDecoderSeqLenRewrite;
-    class ConcatViewRewrite;
     class FakeQuantizeRewrite;
     class ViewLikeRewrite;
 
@@ -55,36 +53,10 @@ private:
 };
 
 //
-// ConstantRewrite
-//
-
-class LowerIERT2VPUIPPass::ConstantRewrite final : public mlir::OpRewritePattern<IERT::ConstantOp> {
-public:
-    ConstantRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::ConstantOp>(ctx), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IERT::ConstantOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult LowerIERT2VPUIPPass::ConstantRewrite::matchAndRewrite(IERT::ConstantOp origOp,
-                                                                          mlir::PatternRewriter& rewriter) const {
-    _log.trace("Found Constant Operation '{0}'", origOp->getLoc());
-
-    rewriter.replaceOpWithNewOp<VPUIP::DeclareConstantTensorOp>(origOp, origOp.getType(), origOp.value());
-    _log.trace("Replaced with 'VPUIP.DeclareConstantTensorOp'");
-
-    return mlir::success();
-}
-
-//
 // CTCGreedyDecoderSeqLenRewrite
 //
 
-class LowerIERT2VPUIPPass::CTCGreedyDecoderSeqLenRewrite final :
+class ConvertIERTOps2VPUIPPass::CTCGreedyDecoderSeqLenRewrite final :
         public mlir::OpRewritePattern<IERT::CTCGreedyDecoderSeqLenOp> {
 public:
     CTCGreedyDecoderSeqLenRewrite(mlir::MLIRContext* ctx, Logger log)
@@ -99,7 +71,7 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult LowerIERT2VPUIPPass::CTCGreedyDecoderSeqLenRewrite::matchAndRewrite(
+mlir::LogicalResult ConvertIERTOps2VPUIPPass::CTCGreedyDecoderSeqLenRewrite::matchAndRewrite(
         IERT::CTCGreedyDecoderSeqLenOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found CTCGreedyDecoderSeqLen Operation '{0}'", origOp->getLoc());
 
@@ -112,37 +84,10 @@ mlir::LogicalResult LowerIERT2VPUIPPass::CTCGreedyDecoderSeqLenRewrite::matchAnd
 }
 
 //
-// ConcatViewRewrite
-//
-
-class LowerIERT2VPUIPPass::ConcatViewRewrite final : public mlir::OpRewritePattern<IERT::ConcatViewOp> {
-public:
-    ConcatViewRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::ConcatViewOp>(ctx), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IERT::ConcatViewOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult LowerIERT2VPUIPPass::ConcatViewRewrite::matchAndRewrite(IERT::ConcatViewOp origOp,
-                                                                            mlir::PatternRewriter& rewriter) const {
-    _log.trace("Found ConcatOp Operation '{0}'", origOp->getLoc());
-
-    rewriter.replaceOp(origOp, origOp.output_buff());
-
-    _log.trace("Replaced with output_buff '{0}'", origOp.output_buff().getLoc());
-
-    return mlir::success();
-}
-
-//
 // FakeQuantizeRewrite
 //
 
-class LowerIERT2VPUIPPass::FakeQuantizeRewrite final : public mlir::OpRewritePattern<IERT::FakeQuantizeOp> {
+class ConvertIERTOps2VPUIPPass::FakeQuantizeRewrite final : public mlir::OpRewritePattern<IERT::FakeQuantizeOp> {
 public:
     FakeQuantizeRewrite(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<IERT::FakeQuantizeOp>(ctx), _log(log) {
@@ -155,8 +100,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult LowerIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(IERT::FakeQuantizeOp origOp,
-                                                                              mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertIERTOps2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(
+        IERT::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found FakeQuantize Operation '{0}'", origOp->getLoc());
 
     auto inLowConst = origOp.input_low().getDefiningOp<ConstantInterface>();
@@ -179,14 +124,11 @@ mlir::LogicalResult LowerIERT2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(IE
 // ViewLikeRewrite
 //
 
-class LowerIERT2VPUIPPass::ViewLikeRewrite final : public mlir::OpInterfaceRewritePattern<mlir::ViewLikeOpInterface> {
+class ConvertIERTOps2VPUIPPass::ViewLikeRewrite final :
+        public mlir::OpInterfaceRewritePattern<mlir::ViewLikeOpInterface> {
 public:
-    ViewLikeRewrite(IE::CNNNetworkOp netInfo, mlir::FuncOp netFunc, AliasesInfo* aliasInfo, Logger log)
-            : mlir::OpInterfaceRewritePattern<mlir::ViewLikeOpInterface>(netInfo.getContext()),
-              _netInfo(netInfo),
-              _netFunc(netFunc),
-              _aliasInfo(aliasInfo),
-              _log(log) {
+    ViewLikeRewrite(mlir::MLIRContext* ctx, AliasesInfo* aliasInfo, Logger log)
+            : mlir::OpInterfaceRewritePattern<mlir::ViewLikeOpInterface>(ctx), _aliasInfo(aliasInfo), _log(log) {
         VPUX_THROW_UNLESS(_aliasInfo != nullptr, "Got NULL pointer for AliasesInfo in ViewLikeRewrite");
     }
 
@@ -194,23 +136,17 @@ public:
     mlir::LogicalResult matchAndRewrite(mlir::ViewLikeOpInterface origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    mutable IE::CNNNetworkOp _netInfo;
-    mutable mlir::FuncOp _netFunc;
     AliasesInfo* _aliasInfo = nullptr;
     Logger _log;
 };
 
-mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
-                                                                          mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertIERTOps2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
+                                                                               mlir::PatternRewriter& rewriter) const {
     if (!mlir::isa<IERT::GenericReshapeOp, mlir::linalg::ReshapeOp, mlir::memref::SubViewOp>(origOp.getOperation())) {
         return matchFailed(rewriter, origOp, "Unknown view-like operation '{0}'", origOp->getName());
     }
 
     _log.trace("Found view-like Operation '{0}'", origOp->getLoc());
-
-    if (origOp->getParentOfType<mlir::FuncOp>() != _netFunc) {
-        return matchFailed(rewriter, origOp, "The operation doesn't belong to network entry point Function");
-    }
 
     const auto origInput = origOp.getViewSource();
     const auto rootVal = _aliasInfo->getRoot(origInput);
@@ -228,13 +164,18 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
     } else if (auto blockArg = rootVal.dyn_cast<mlir::BlockArgument>()) {
         _log.nest().trace("It aliases internal Function argument");
 
-        if (blockArg.getOwner()->getParentOp() != _netFunc) {
-            return matchFailed(rewriter, origOp, "The view source doesn't belong to network entry point Function");
+        auto funcOp = mlir::dyn_cast_or_null<mlir::FuncOp>(blockArg.getOwner()->getParentOp());
+        if (funcOp == nullptr) {
+            return matchFailed(rewriter, origOp, "The view source doesn't belong to Function");
         }
 
         const auto argInd = checked_cast<size_t>(blockArg.getArgNumber());
-        const auto numNetInputs = _netInfo.getNetInputsCount();
-        const auto numNetOutputs = _netInfo.getNetOutputsCount();
+
+        const auto numNetOutputs = funcOp.getNumResults();
+        if (numNetOutputs >= funcOp.getNumArguments()) {
+            return matchFailed(rewriter, origOp, "The Function '@{0}' is not bufferized", funcOp.getName());
+        }
+        const auto numNetInputs = funcOp.getNumArguments() - numNetOutputs;
 
         if (argInd < numNetInputs) {
             _log.nest(2).trace("It aliases network input");
@@ -281,36 +222,22 @@ mlir::LogicalResult LowerIERT2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::
 // safeRunOnFunc
 //
 
-void LowerIERT2VPUIPPass::safeRunOnFunc() {
+void ConvertIERTOps2VPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
 
     auto& aliasInfo = getAnalysis<AliasesInfo>();
 
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    VPUX_THROW_UNLESS(module != nullptr, "Can't get module from Function '{0}'", func.getLoc());
-
-    IE::CNNNetworkOp netInfo;
-    mlir::FuncOp netFunc;
-    IE::CNNNetworkOp::getFromModule(module, netInfo, netFunc);
-
     mlir::ConversionTarget target(ctx);
-    target.addIllegalDialect<IE::IEDialect>();
-    target.addIllegalDialect<IERT::IERTDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
-    target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp>();
-    target.addLegalOp<IERT::RunTimeResourcesOp, IERT::MemoryResourceOp, IERT::ExecutorResourceOp>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
-    target.addLegalOp<mlir::ModuleOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ConstantRewrite>(&ctx, _log);
     patterns.insert<CTCGreedyDecoderSeqLenRewrite>(&ctx, _log);
-    patterns.insert<ConcatViewRewrite>(&ctx, _log);
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
-    patterns.insert<ViewLikeRewrite>(netInfo, netFunc, &aliasInfo, _log);
+    patterns.insert<ViewLikeRewrite>(&ctx, &aliasInfo, _log);
     populateWithGenerated(patterns);
 
+    auto func = getFunction();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
@@ -319,9 +246,9 @@ void LowerIERT2VPUIPPass::safeRunOnFunc() {
 }  // namespace
 
 //
-// createLowerIERT2VPUIPPass
+// createConvertIERTOps2VPUIPPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::createLowerIERT2VPUIPPass(Logger log) {
-    return std::make_unique<LowerIERT2VPUIPPass>(log);
+std::unique_ptr<mlir::Pass> vpux::createConvertIERTOps2VPUIPPass(Logger log) {
+    return std::make_unique<ConvertIERTOps2VPUIPPass>(log);
 }

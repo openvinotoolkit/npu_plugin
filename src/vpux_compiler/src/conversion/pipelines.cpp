@@ -31,7 +31,15 @@ void vpux::buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(createBufferizeIEPass(log));
     pm.addPass(mlir::createFuncBufferizePass());
     pm.addPass(mlir::createFinalizingBufferizePass());
-    pm.addPass(vpux::createAddBuffersForNetResults());
+    pm.addPass(createAddBuffersForNetResults(log));
+}
+
+//
+// LowerIERT2VPUIP
+//
+
+void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log) {
+    pm.addPass(createConvertIERTOps2VPUIPPass(log));
 }
 
 //
@@ -42,5 +50,11 @@ void vpux::registerConversionPipelines() {
     mlir::PassPipelineRegistration<>("lower-IE-to-IERT", "Performs full lowering from the IE Dialect to IERT Dialect",
                                      [](mlir::OpPassManager& pm) {
                                          buildLowerIE2IERTPipeline(pm);
+                                     });
+
+    mlir::PassPipelineRegistration<>("lower-IERT-to-VPUIP",
+                                     "Performs full lowering from the IERT Dialect to VPUIP Dialect",
+                                     [](mlir::OpPassManager& pm) {
+                                         buildLowerIERT2VPUIPPipeline(pm);
                                      });
 }

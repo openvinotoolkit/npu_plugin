@@ -19,6 +19,10 @@
 
 include "mlir/Pass/PassBase.td"
 
+//=================================================================================
+// LowerIE2IERT
+//=================================================================================
+
 //
 // BufferizeIE
 //
@@ -67,33 +71,9 @@ def AddBuffersForNetResults : PassBase<"add-buffers-for-net-results", "vpux::Mod
     ];
 }
 
-//
-// LowerIERT2VPUIP
-//
-
-def LowerIERT2VPUIP : PassBase<"lower-IERT-to-VPUIP", "vpux::FunctionPass"> {
-    let summary = "Convert IERT Dialect Layer Operations to VPUIP Dialect";
-
-    let description = [{
-        This pass converts Layer Operations from IERT Dialect to VPUIP Dialect.
-        It uses simple SHAVE implementation for IERT operations without any optimizations.
-
-        The pass:
-
-        * Updates only Function inner regions.
-        * Replaces only Layer Operations and `IERT.StaticAlloc`.
-    }];
-
-    let constructor = "vpux::createLowerIERT2VPUIPPass()";
-
-    let dependentDialects = [
-        "vpux::VPUIP::VPUIPDialect"
-    ];
-}
-
-//
+//=================================================================================
 // ConvertToNCEOps
-//
+//=================================================================================
 
 def ConvertToNCEOps : PassBase<"convert-to-nce-ops", "vpux::FunctionPass"> {
     let summary = "Convert to NCE2 ops";
@@ -106,6 +86,29 @@ def ConvertToNCEOps : PassBase<"convert-to-nce-ops", "vpux::FunctionPass"> {
 
     let dependentDialects = [
         "vpux::IERT::IERTDialect",
+        "vpux::VPUIP::VPUIPDialect"
+    ];
+}
+
+//=================================================================================
+// LowerIERT2VPUIP
+//=================================================================================
+
+//
+// ConvertIERTOps2VPUIP
+//
+
+def ConvertIERTOps2VPUIP : PassBase<"convert-IERT-ops-to-VPUIP", "vpux::FunctionPass"> {
+    let summary = "Convert IERT Dialect Operations to VPUIP Dialect";
+
+    let description = [{
+        This pass converts IERT Layer Operations to VPUIP Dialect UPA tasks.
+        It also converts IERT declarations and view-like operations to VPUIP declarations.
+    }];
+
+    let constructor = "vpux::createConvertIERTOps2VPUIPPass()";
+
+    let dependentDialects = [
         "vpux::VPUIP::VPUIPDialect"
     ];
 }
