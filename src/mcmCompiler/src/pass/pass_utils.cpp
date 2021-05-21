@@ -65,6 +65,14 @@ void mv::setOutputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator 
         cm.defineFlow(op, outputOp);
 }
 
+/// Note: This helper can't remove a paramOp shared by two sinkOps
+void mv::removeConstantOp(mv::OpModel & om, mv::Data::OpListIterator paramOp){
+    mv::DataModel dm(om);
+    if (findSinkLayers(dm, paramOp->getOutputTensor(mv::IO_TENSOR_OUTPUT)).size() == 1){
+        om.removeOp(paramOp);
+    }
+}
+
 void mv::removeOperation(mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt)
 {
     auto paramOp = opIt.leftmostParent();
@@ -75,18 +83,9 @@ void mv::removeOperation(mv::Data::TensorIterator sourceTensor, mv::OpModel & om
             paramOp->getOpType() == "ConstantInt" ||
             paramOp->getOpType() == "ConstantDataElement"))
         {
-            mv::DataModel dm(om);
-            if (findSinkLayers(dm, paramOp->getOutputTensor(0)).size()>1){
-                ++paramOp;
-                continue;
-            }
-
-            auto backUp = paramOp;
-            ++paramOp;
-            om.removeOp(backUp);
+            removeConstantOp(om, paramOp);
         }
-        else
-            ++paramOp;
+        ++paramOp;
     }
 
     om.removeOp(opIt);
@@ -110,18 +109,9 @@ mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator pa
         if (paramOp->getOutputTensor(0) != sourceTensor && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
             || paramOp->getOpType() == "ConstantDataElement"))
         {
-            mv::DataModel dm(om);
-            if (findSinkLayers(dm, paramOp->getOutputTensor(0)).size()>1){
-                ++paramOp;
-                continue;
-            }
-
-            auto backUp = paramOp;
-            ++paramOp;
-            om.removeOp(backUp);
+            removeConstantOp(om, paramOp);
         }
-        else
-            ++paramOp;
+        ++paramOp;
     }
 
     om.removeOp(opIt);
@@ -156,20 +146,9 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterat
         if (paramOp->getOutputTensor(0) != sourceTensor && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
             || paramOp->getOpType() == "ConstantDataElement"))
         {
-            
-            /// You can't remove a paramOp shared by two sinkOps
-            mv::DataModel dm(om);
-            if (findSinkLayers(dm, paramOp->getOutputTensor(0)).size()>1){
-                ++paramOp;
-                continue;
-            }
-
-            auto backUp = paramOp;
-            ++paramOp;
-            om.removeOp(backUp);
+            removeConstantOp(om, paramOp);
         }
-        else
-            ++paramOp;
+        ++paramOp;
     }
 
     om.removeOp(opIt);
@@ -209,18 +188,9 @@ mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpLi
             if (paramOp->getOutputTensor(0) != *sourceTensorIt && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
                 || paramOp->getOpType() == "ConstantDataElement"))
             {
-                mv::DataModel dm(om);
-                if (findSinkLayers(dm, paramOp->getOutputTensor(0)).size()>1){
-                    ++paramOp;
-                    continue;
-                }
-
-                auto backUp = paramOp;
-                ++paramOp;
-                om.removeOp(backUp);
+                removeConstantOp(om, paramOp);
             }
-            else
-                ++paramOp;
+            ++paramOp;
         }
     }
 
