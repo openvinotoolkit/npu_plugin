@@ -701,28 +701,6 @@ protected:
             const int winLen, const float scoreThresh);
 };
 
-class KmbVasFDStage2Test : public KmbDetectionNetworkTest {
-public:
-
-    struct Candidate {
-        float x_min;
-        float y_min;
-        float x_max;
-        float y_max;
-    };
-
-    void runTest(
-            const TestNetworkDesc& netDesc,
-            const TestImageDesc& image,
-            const float threshold, const float boxTolerance, const float probTolerance,
-            const Candidate& candidate);
-
-protected:
-    static utils::BoundingBox parseOutput(
-            const Blob::Ptr& blobProb, const Blob::Ptr& blobReg,
-            const Candidate& candidate, const float threshold);
-};
-
 class KmbVasFRTest : public KmbNetworkTestBase {
 public:
     void runTest(
