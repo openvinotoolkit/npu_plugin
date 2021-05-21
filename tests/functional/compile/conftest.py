@@ -29,21 +29,21 @@ from py.xml import html  # pylint: disable=no-name-in-module,import-error
 # Keem Bay KPI models list
 # find <models path> -wholename "*/FP16-INT8/*.xml"
 KMB_KPI_MODELS = [
-    'vd-kmb-models-kpi-ww50.tar.bz2/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml',
-    'vd-kmb-models-kpi-ww50.tar.bz2/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-30-0001.xml',
-    'vd-kmb-models-kpi-ww50.tar.bz2/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-60-0001.xml',
-    'vd-kmb-models-kpi-ww50.tar.bz2/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml',
-    'vd-kmb-models-kpi-ww50.tar.bz2/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml',
-    'vd-kmb-models-kpi-ww50.tar.bz2/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml',
-    'vd-kmb-models-kpi-ww50.tar.bz2/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml',
-    'vd-kmb-models-kpi-ww50.tar.bz2/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml',
+    'vd-vpu-models-kpi-ww14.tar.bz2/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml',
+    'vd-vpu-models-kpi-ww14.tar.bz2/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-30-0001.xml',
+    'vd-vpu-models-kpi-ww14.tar.bz2/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-60-0001.xml',
+    'vd-vpu-models-kpi-ww14.tar.bz2/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml',
+    'vd-vpu-models-kpi-ww14.tar.bz2/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml',
+    'vd-vpu-models-kpi-ww14.tar.bz2/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml',
+    'vd-vpu-models-kpi-ww14.tar.bz2/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml',
+    'vd-vpu-models-kpi-ww14.tar.bz2/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml',
 
-    {'marks': pytest.mark.xfail, 'path': 'vd-kmb-models-kpi-ww50.tar.bz2/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml'},
-    {'path': 'vd-kmb-models-kpi-ww50.tar.bz2/ssd512/caffe/FP16-INT8/ssd512.xml'},
-    {'path': 'vd-kmb-models-kpi-ww50.tar.bz2/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml'},
-    {'path': 'vd-kmb-models-kpi-ww50.tar.bz2/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml'},
-    {'path': 'vd-kmb-models-kpi-ww50.tar.bz2/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml'},
-    {'path': 'vd-kmb-models-kpi-ww50.tar.bz2/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml'},
+    {'marks': pytest.mark.xfail, 'path': 'vd-vpu-models-kpi-ww14.tar.bz2/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml'},
+    {'path': 'vd-vpu-models-kpi-ww14.tar.bz2/ssd512/caffe/FP16-INT8/ssd512.xml'},
+    {'path': 'vd-vpu-models-kpi-ww14.tar.bz2/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml'},
+    {'path': 'vd-vpu-models-kpi-ww14.tar.bz2/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml'},
+    {'path': 'vd-vpu-models-kpi-ww14.tar.bz2/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml'},
+    {'path': 'vd-vpu-models-kpi-ww14.tar.bz2/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml'},
 ]
 
 
