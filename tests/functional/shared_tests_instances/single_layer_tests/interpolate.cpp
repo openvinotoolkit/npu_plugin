@@ -107,6 +107,8 @@ const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMo
         // ngraph::op::v4::Interpolate::ShapeCalcMode::scales,
 };
 
+std::map<std::string, std::string> additional_config = {};
+
 const auto interpolateCasesNearestMode = ::testing::Combine(
         ::testing::ValuesIn(nearestMode),
         ::testing::ValuesIn(shapeCalculationMode),
@@ -140,7 +142,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode, KmbInterpolateLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(additional_config)),
                             KmbInterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest, KmbInterpolateLayerTest, ::testing::Combine(
@@ -152,7 +155,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest, KmbInterpolateLayerTe
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(additional_config)),
                             KmbInterpolateLayerTest::getTestCaseName);
 
 } // namespace
