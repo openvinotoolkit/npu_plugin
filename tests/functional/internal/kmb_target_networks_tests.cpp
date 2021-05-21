@@ -204,17 +204,6 @@ TEST_F(KmbVasFDStage1Test, precommit_vasfd_stage1) {
             0.35f, 0.1f, 0.3f, layerNames, anchorSizes, windowScales, windowLengths);
 }
 
-TEST_F(KmbVasFDStage2Test, precommit_vasfd_stage2) {
-    const std::string inputName = "data";
-    const KmbVasFDStage2Test::Candidate candidate = {118.36408299, 50.26568365, 158.98897427, 125.54895544};
-    runTest(
-            TestNetworkDesc("KMB_models/FP16-INT8/private/face_detection_stage2/vasfd_stage2.xml")
-                    .setUserInputPrecision(inputName, Precision::U8),
-            TestImageDesc("48x48/Alma_Powell_0_0.1133.jpg", ImageFormat::BGR),
-            0.5f, 1, 0.3f, candidate);
-}
-
-
 TEST_F(KmbVasFRTest, precommit_vasfr_feature) {
     const std::string inputName = "input_data";
     runTest(
