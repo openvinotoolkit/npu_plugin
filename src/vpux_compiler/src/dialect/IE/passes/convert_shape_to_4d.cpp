@@ -556,13 +556,10 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.insert<HSwishOpConverter>(&ctx, _log);
     patterns.insert<TanhOpConverter>(&ctx, _log);
     patterns.insert<FakeQuantizeOpConverter>(&ctx, _log);
-<<<<<<< HEAD
     patterns.insert<ScaleShiftOpConverter>(&ctx, _log);
     patterns.insert<MultiplyOpConverter>(&ctx, _log);
     patterns.insert<AddOpConverter>(&ctx, _log);
-=======
     patterns.insert<ExpOpConverter>(&ctx, _log);
->>>>>>> Added convert-shape-to-4d pass for Exp
     IE::ReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto func = getFunction();

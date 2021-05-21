@@ -99,6 +99,7 @@ mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, D
     CASE(IERT::CTCGreedyDecoderOp, VPUIP::CTCGreedyDecoderUPAOp)
     CASE(IERT::CTCGreedyDecoderSeqLenOp, VPUIP::CTCGreedyDecoderSeqLenUPAOp)
     CASE(IERT::PadOp, VPUIP::PadUPAOp)
+    CASE(IERT::ExpOp, VPUIP::ExpUPAOp)
     .Default([](mlir::Operation* unknownOp) -> mlir::LogicalResult {
         VPUX_THROW("Operation '{0}' does not support layout propagation", unknownOp->getName());
     });
