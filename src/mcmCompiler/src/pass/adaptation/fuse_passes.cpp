@@ -226,7 +226,7 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
     std::vector<mv::Data::OpListIterator> fusableParents;
     std::vector<mv::Data::OpListIterator> quantParamsPathOps;
     auto isActivationAgnostic = [](mv::Data::OpListIterator &op)
-        {return op->isImplicit() || op->getOpType() == "Concat" || op->getOpType() == "Identity";};
+        {return op->isImplicit() || op->getOpType() == "Concat" || op->getOpType() == "Identity" || op->getOpType() == "StridedSlice";};
 
     quantParamsPathOps.push_back(parentOp);
     if (!isActivationAgnostic(parentOp))
