@@ -1369,7 +1369,8 @@ def VPUIP_ScaleShiftUPAOp :
             [
                 ViewLikeOpInterface,
                 VPUIP_SameElementType,
-                VPUIP_SameInOutDimsOrder
+                VPUIP_SameInOutDimsOrder,
+		VPUIP_Legacy4D
             ]
         > {
     let summary = "ScaleShift UPA SHAVE kernel";
