@@ -325,4 +325,54 @@ def VPUIP_CompilationMode  :
 }
 
 
+//
+// eDSL DMA
+//
+
+def VPUIP_EdslDMAStage :
+        StrEnumAttr<
+            "EdslDMAStage",
+            "eDSL DMA stage",
+            [
+                StrEnumAttrCase<"NONE">,
+                StrEnumAttrCase<"OUTER">,
+                StrEnumAttrCase<"MIDDLE">,
+                StrEnumAttrCase<"ALL">,
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
+}
+
+def VPUIP_EdslDMADirection :
+        StrEnumAttr<
+            "EdslDMADirection",
+            "eDSL DMA direction",
+            [
+                StrEnumAttrCase<"NONE">,
+                StrEnumAttrCase<"IN">,
+                StrEnumAttrCase<"OUT">,
+                StrEnumAttrCase<"INOUT">,
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
+}
+
+def VPUIP_EdslDMADesc :
+        StructAttr<
+            "VPUIP_EdslDMADesc",
+            VPUIP_Dialect,
+            [
+                StructFieldAttr<"baseMap", AffineMapAttr>,
+                StructFieldAttr<"stage", VPUIP_EdslDMAStage>,
+                StructFieldAttr<"dir", VPUIP_EdslDMADirection>
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+}
+
+def VPUIP_EdslDMADescArrayAttr : TypedArrayAttrBase<VPUIP_EdslDMADesc,
+                                      "eDSL DMA descriptor array attribute">;
+
 #endif
