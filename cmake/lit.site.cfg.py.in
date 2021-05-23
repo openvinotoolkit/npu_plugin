@@ -20,11 +20,10 @@ import lit.llvm
 
 config.name = '@TEST_NAME@'
 config.suffixes = [@SUFFIXES@]
-
 config.bin_dir = path('../..')
-config.bin_dir = config.bin_dir % lit_config.params
-
 config.lit_tools_dir = ''
+
+@EXTRA_DECLARATIONS@
 
 @EXTRA_SUBSTITUTIONS@
 

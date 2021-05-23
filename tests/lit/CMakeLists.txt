@@ -39,5 +39,6 @@ endif()
 vpux_setup_lit_tests(VPUX
     PATTERNS "*.mlir"
     EXTRA_SOURCES "lit.local.cfg"
-    SUBSTITUTIONS "vpuip_schema_file" "has_plaidml"
+    VARS "vpuip_schema_file" "has_plaidml"
+    SUBSTITUTIONS "vpuip_schema_file"
 )
