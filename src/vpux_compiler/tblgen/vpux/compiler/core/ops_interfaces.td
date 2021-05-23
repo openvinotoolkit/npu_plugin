@@ -25,13 +25,16 @@ include "mlir/IR/OpBase.td"
 
 class InferReturnTypesForLayer<int numResult> {
     code impl = [{
-      static ::mlir::LogicalResult inferReturnTypes(::mlir::MLIRContext *context,
-      ::llvm::Optional<::mlir::Location> location, ::mlir::ValueRange operands,
-      ::mlir::DictionaryAttr attributes, ::mlir::RegionRange regions,
-      ::llvm::SmallVectorImpl<::mlir::Type>&inferredReturnTypes) {
-        inferRTLayerReturnTypes(operands, }] #numResult# [{, inferredReturnTypes);
-        return ::mlir::success();
-      }
+        static ::mlir::LogicalResult inferReturnTypes(
+                ::mlir::MLIRContext *context,
+                ::llvm::Optional<::mlir::Location> location,
+                ::mlir::ValueRange operands,
+                ::mlir::DictionaryAttr attributes,
+                ::mlir::RegionRange regions,
+                ::llvm::SmallVectorImpl<::mlir::Type>& inferredReturnTypes) {
+            inferRTLayerReturnTypes(operands, }] #numResult# [{, inferredReturnTypes);
+            return ::mlir::success();
+        }
     }];
 }
 

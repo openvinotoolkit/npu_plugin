@@ -157,6 +157,7 @@ endmacro()
 macro(add_rewriters subdir)
     file(GLOB rewriters_sources
         RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+        CONFIGURE_DEPENDS
         "${gen_base_src_dir}/${subdir}/rewriters/*.td"
     )
 
@@ -199,7 +200,7 @@ add_passes("dialect/VPUIP" "VPUIP")
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")
 
-file(GLOB_RECURSE TBLGEN_SOURCES "*.td")
+file(GLOB_RECURSE TBLGEN_SOURCES CONFIGURE_DEPENDS "*.td")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TBLGEN_SOURCES})
 
 vpux_add_tblgen_target(${TBLGEN_TARGET_NAME} ${TBLGEN_SOURCES})
@@ -248,7 +249,7 @@ set_target_properties(${SCHEMA_TARGET_NAME} PROPERTIES FOLDER "src")
 # OBJECT target
 #
 
-file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "*.cpp" "*.hpp")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES})
