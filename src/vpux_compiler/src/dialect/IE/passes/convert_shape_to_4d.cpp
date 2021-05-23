@@ -63,6 +63,9 @@ public:
     class HSwishOpConverter;
     class TanhOpConverter;
     class FakeQuantizeOpConverter;
+    class ScaleShiftOpConverter;
+    class MultiplyOpConverter;
+    class AddOpConverter;
 
 private:
     void safeRunOnFunc() final;
@@ -336,6 +339,143 @@ mlir::LogicalResult ConvertShapeTo4DPass::FakeQuantizeOpConverter::matchAndRewri
 }
 
 //
+// ScaleShiftOpConverter
+//
+
+class ConvertShapeTo4DPass::ScaleShiftOpConverter final : public mlir::OpRewritePattern<IE::ScaleShiftOp> {
+public:
+    ScaleShiftOpConverter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::ScaleShiftOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ScaleShiftOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertShapeTo4DPass::ScaleShiftOpConverter::matchAndRewrite(
+        IE::ScaleShiftOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", origOp.getLoc());
+
+    auto opType = origOp.getType();
+    auto newShape = getNewShape(opType);
+    if (newShape.empty()) {
+        return mlir::failure();
+    }
+
+    SmallVector<int64_t> newWeightsShape;
+    SmallVector<int64_t> newBiasesShape;
+    if (origOp.weights() != nullptr) {
+        newWeightsShape = getNewShape(origOp.weights().getType().dyn_cast<mlir::ShapedType>());
+        if (newWeightsShape.empty()) {
+            return mlir::failure();
+        }
+    }
+    if (origOp.biases() != nullptr) {
+        newBiasesShape = getNewShape(origOp.biases().getType().dyn_cast<mlir::ShapedType>());
+        if (newBiasesShape.empty()) {
+            return mlir::failure();
+        }
+    }
+
+    mlir::Value newWeights = origOp.weights() != nullptr ? addReshapeOperation(origOp, origOp.weights(),
+                                                                               makeArrayRef(newWeightsShape), rewriter)
+                                                         : nullptr;
+    mlir::Value newBiases = origOp.biases() != nullptr ? addReshapeOperation(origOp, origOp.biases(),
+                                                                             makeArrayRef(newBiasesShape), rewriter)
+                                                       : nullptr;
+
+    auto reshapeBefore = addReshapeOperation(origOp, origOp.input(), makeArrayRef(newShape), rewriter);
+
+    auto newScaleShiftOp = rewriter.create<IE::ScaleShiftOp>(origOp->getLoc(), reshapeBefore, newWeights, newBiases);
+
+    auto reshapeAfter = addReshapeOperation(origOp, newScaleShiftOp.output(), opType.getShape(), rewriter);
+    rewriter.replaceOp(origOp, reshapeAfter.output());
+
+    return mlir::success();
+}
+
+//
+// MultiplyOpConverter
+//
+
+class ConvertShapeTo4DPass::MultiplyOpConverter final : public mlir::OpRewritePattern<IE::MultiplyOp> {
+public:
+    MultiplyOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::MultiplyOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::MultiplyOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertShapeTo4DPass::MultiplyOpConverter::matchAndRewrite(IE::MultiplyOp origOp,
+                                                                               mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", origOp.getLoc());
+
+    auto opType = origOp.getType();
+    auto newInput1Shape = getNewShape(opType);
+    auto newInput2Shape = getNewShape(origOp.input2().getType().dyn_cast<mlir::ShapedType>());
+    if (newInput1Shape.empty() || newInput2Shape.empty()) {
+        return mlir::failure();
+    }
+
+    auto reshapedInput1 = addReshapeOperation(origOp, origOp.input1(), makeArrayRef(newInput1Shape), rewriter);
+    auto reshapedInput2 = addReshapeOperation(origOp, origOp.input2(), makeArrayRef(newInput2Shape), rewriter);
+
+    auto newMultiplyOp = rewriter.create<IE::MultiplyOp>(origOp->getLoc(), reshapedInput1, reshapedInput2,
+                                                         origOp.auto_broadcastAttr());
+
+    auto reshapeAfter = addReshapeOperation(origOp, newMultiplyOp.output(), opType.getShape(), rewriter);
+    rewriter.replaceOp(origOp, reshapeAfter.output());
+
+    return mlir::success();
+}
+
+//
+// AddOpConverter
+//
+
+class ConvertShapeTo4DPass::AddOpConverter final : public mlir::OpRewritePattern<IE::AddOp> {
+public:
+    AddOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::AddOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::AddOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertShapeTo4DPass::AddOpConverter::matchAndRewrite(IE::AddOp origOp,
+                                                                          mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", origOp.getLoc());
+
+    auto opType = origOp.getType();
+    auto newInput1Shape = getNewShape(opType);
+    auto newInput2Shape = getNewShape(origOp.input2().getType().dyn_cast<mlir::ShapedType>());
+    if (newInput1Shape.empty() || newInput2Shape.empty()) {
+        return mlir::failure();
+    }
+
+    auto reshapedInput1 = addReshapeOperation(origOp, origOp.input1(), makeArrayRef(newInput1Shape), rewriter);
+    auto reshapedInput2 = addReshapeOperation(origOp, origOp.input2(), makeArrayRef(newInput2Shape), rewriter);
+
+    auto newMultiplyOp =
+            rewriter.create<IE::AddOp>(origOp->getLoc(), reshapedInput1, reshapedInput2, origOp.auto_broadcastAttr());
+
+    auto reshapeAfter = addReshapeOperation(origOp, newMultiplyOp.output(), opType.getShape(), rewriter);
+    rewriter.replaceOp(origOp, reshapeAfter.output());
+
+    return mlir::success();
+}
+
+//
 // getNewShape
 //
 
@@ -382,6 +522,9 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.insert<HSwishOpConverter>(&ctx, _log);
     patterns.insert<TanhOpConverter>(&ctx, _log);
     patterns.insert<FakeQuantizeOpConverter>(&ctx, _log);
+    patterns.insert<ScaleShiftOpConverter>(&ctx, _log);
+    patterns.insert<MultiplyOpConverter>(&ctx, _log);
+    patterns.insert<AddOpConverter>(&ctx, _log);
     IE::ReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto func = getFunction();

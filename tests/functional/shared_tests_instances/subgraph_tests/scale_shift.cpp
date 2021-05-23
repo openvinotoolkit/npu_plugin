@@ -55,6 +55,14 @@ class KmbScaleShiftLayerTest: public ScaleShiftLayerTest, virtual public LayerTe
                 {{100}},
                 {{200}},
                 {{100}, {100}},
+                {{1, 8}},
+                {{2, 16}},
+                {{3, 32}},
+                {{4, 64}},
+                {{5, 128}},
+                {{6, 256}},
+                {{7, 512}},
+                {{8, 1024}}
             };
             if (badShapesForMLIR.find(inShape) != badShapesForMLIR.end() ) {
                 throw LayerTestsUtils::KmbSkipTestException("Infer hangs the board.");
@@ -88,15 +96,7 @@ class KmbScaleShiftLayerTest: public ScaleShiftLayerTest, virtual public LayerTe
         // [Track number: E#11542]
         if (isCompilerMLIR()) {
             std::set<std::vector<std::vector<size_t>>> badShapesForMLIR = {
-                    {{4, 64}, {64}},
-                    {{1, 8}},
-                    {{2, 16}},
-                    {{3, 32}},
-                    {{4, 64}},
-                    {{5, 128}},
-                    {{6, 256}},
-                    {{7, 512}},
-                    {{8, 1024}}
+                {{4, 64}, {64}}
             };
             if (badShapesForMLIR.find(inShape) != badShapesForMLIR.end() ) {
                 throw LayerTestsUtils::KmbSkipTestException("Comparison fails for this input shape");
