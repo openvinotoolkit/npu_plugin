@@ -4,6 +4,7 @@
 #include <string>
 #include <array>
 #include <climits>
+#include <limits>
 #include "include/mcm/target/kmb/ppe_layer_type.hpp"
 
 namespace mv

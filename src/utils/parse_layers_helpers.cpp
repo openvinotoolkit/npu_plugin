@@ -17,6 +17,7 @@
 #include "parse_layers_helpers.hpp"
 
 #include <cmath>
+#include <limits>
 
 #include <ie_common.h>
 #include "ie_parallel.hpp"
