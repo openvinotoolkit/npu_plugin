@@ -59,7 +59,7 @@ endfunction()
 function(vpux_setup_lit_tests TEST_NAME)
     set(options)
     set(oneValueArgs ROOT)
-    set(multiValueArgs PATTERNS SUBSTITUTIONS EXTRA_SOURCES)
+    set(multiValueArgs PATTERNS VARS SUBSTITUTIONS EXTRA_SOURCES)
     cmake_parse_arguments(LIT "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT LIT_ROOT)
@@ -75,14 +75,14 @@ function(vpux_setup_lit_tests TEST_NAME)
         set(SUFFIXES "'${suf}', ${SUFFIXES}")
     endforeach()
 
+    set(EXTRA_DECLARATIONS)
+    foreach(var IN LISTS LIT_VARS)
+        set(EXTRA_DECLARATIONS "${EXTRA_DECLARATIONS}\nconfig.${var} = ${${var}}")
+    endforeach()
+
     set(EXTRA_SUBSTITUTIONS)
     foreach(var IN LISTS LIT_SUBSTITUTIONS)
-        set(EXTRA_SUBSTITUTIONS "
-${EXTRA_SUBSTITUTIONS}
-
-config.${var} = ${${var}}
-config.substitutions.append(('%${var}%', config.${var}))
-        ")
+        set(EXTRA_SUBSTITUTIONS "${EXTRA_SUBSTITUTIONS}\nconfig.substitutions.append(('%${var}%', config.${var}))")
     endforeach()
 
     get_directory_property(LLVM_LIBRARY_DIR DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_LIBRARY_DIR)
