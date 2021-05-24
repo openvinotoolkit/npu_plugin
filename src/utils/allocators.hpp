@@ -15,6 +15,8 @@
 //
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <tuple>
 #include <vector>
 
