@@ -45,15 +45,13 @@ macro(add_op_interfaces subdir)
         OUTPUT "${gen_base_dst_include_dir}/${subdir}/generated/ops_interfaces.cpp.inc"
     )
 
-    if(UNIX)
-        vpux_add_tblgen_command(
-            TOOL "MLIR"
-            MODE "-gen-op-interface-docs"
-            SOURCE "${gen_base_src_dir}/${subdir}/ops_interfaces.td"
-            OUTPUT "${gen_base_dst_docs_dir}/${subdir}/ops_interfaces.md"
-        )
-        list(APPEND generated_docs "${subdir}/ops_interfaces.md")
-    endif()
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-op-interface-docs"
+        SOURCE "${gen_base_src_dir}/${subdir}/ops_interfaces.td"
+        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/ops_interfaces.md"
+    )
+    list(APPEND generated_docs "${subdir}/ops_interfaces.md")
 endmacro()
 
 macro(add_enum_attrs dialect)
@@ -123,15 +121,13 @@ macro(add_dialect dialect)
         OUTPUT "${gen_base_dst_include_dir}/dialect/${dialect}/generated/ops.cpp.inc"
     )
 
-    if(UNIX)
-        vpux_add_tblgen_command(
-            TOOL "MLIR"
-            MODE "-gen-dialect-doc"
-            SOURCE "${gen_base_src_dir}/dialect/${dialect}/ops.td"
-            OUTPUT "${gen_base_dst_docs_dir}/dialect/${dialect}.md"
-        )
-        list(APPEND generated_docs "dialect/${dialect}.md")
-    endif()
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-dialect-doc"
+        SOURCE "${gen_base_src_dir}/dialect/${dialect}/ops.td"
+        OUTPUT "${gen_base_dst_docs_dir}/dialect/${dialect}.md"
+    )
+    list(APPEND generated_docs "dialect/${dialect}.md")
 endmacro()
 
 macro(add_passes subdir name)
@@ -143,15 +139,13 @@ macro(add_passes subdir name)
         OUTPUT "${gen_base_dst_include_dir}/${subdir}/generated/passes.hpp.inc"
     )
 
-    if(UNIX)
-        vpux_add_tblgen_command(
-            TOOL "MLIR"
-            MODE "-gen-pass-doc"
-            SOURCE "${gen_base_src_dir}/${subdir}/passes.td"
-            OUTPUT "${gen_base_dst_docs_dir}/${subdir}/passes.md"
-        )
-        list(APPEND generated_docs "${subdir}/passes.md")
-    endif()
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-pass-doc"
+        SOURCE "${gen_base_src_dir}/${subdir}/passes.td"
+        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/passes.md"
+    )
+    list(APPEND generated_docs "${subdir}/passes.md")
 endmacro()
 
 macro(add_rewriters subdir)
@@ -212,27 +206,25 @@ add_dependencies(${TBLGEN_TARGET_NAME} mlir-headers mlir-generic-headers)
 # DOCS target
 #
 
-if(UNIX)
-    set(docs_cmd_list)
-    foreach(doc_file IN LISTS generated_docs)
-        set(gen_doc_file "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_docs_dir}/${doc_file}")
-        set(out_doc_file "${CMAKE_CURRENT_SOURCE_DIR}/${gen_base_dst_docs_dir}/${doc_file}")
+set(docs_cmd_list)
+foreach(doc_file IN LISTS generated_docs)
+    set(gen_doc_file "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_docs_dir}/${doc_file}")
+    set(out_doc_file "${CMAKE_CURRENT_SOURCE_DIR}/${gen_base_dst_docs_dir}/${doc_file}")
 
-        get_filename_component(out_doc_dir ${out_doc_file} DIRECTORY)
-        file(MAKE_DIRECTORY ${out_doc_dir})
+    get_filename_component(out_doc_dir ${out_doc_file} DIRECTORY)
+    file(MAKE_DIRECTORY ${out_doc_dir})
 
-        list(APPEND docs_cmd_list COMMAND ${CMAKE_COMMAND} -E copy ${gen_doc_file} ${out_doc_file})
-    endforeach()
+    list(APPEND docs_cmd_list COMMAND ${CMAKE_COMMAND} -E copy ${gen_doc_file} ${out_doc_file})
+endforeach()
 
-    add_custom_target(${DOCS_TARGET_NAME} ALL
-        ${docs_cmd_list}
-        COMMENT "[DOCS] ${TARGET_NAME}"
-    )
+add_custom_target(${DOCS_TARGET_NAME} ALL
+    ${docs_cmd_list}
+    COMMENT "[DOCS] ${TARGET_NAME}"
+)
 
-    add_dependencies(${DOCS_TARGET_NAME}
-        ${TBLGEN_TARGET_NAME}
-    )
-endif()
+add_dependencies(${DOCS_TARGET_NAME}
+    ${TBLGEN_TARGET_NAME}
+)
 
 #
 # SCHEMA target
