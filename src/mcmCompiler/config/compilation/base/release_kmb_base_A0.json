@@ -60,7 +60,7 @@
               "ddr_address_generation" : true,
               "no_temporal_edges" : true,
               "enable_cmx_concat" : true,
-              "enable_inplace_eltwise" : true
+              "enable_inplace_eltwise" : false
             },
             "AssignSEBasePtr",
             {
