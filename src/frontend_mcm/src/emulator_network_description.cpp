@@ -12,7 +12,17 @@ EmulatorNetworkDescription::EmulatorNetworkDescription(std::unique_ptr<mv::Compi
           _logger{std::unique_ptr<vpu::Logger>(
                   new vpu::Logger("EmulatorNetworkDescription", config.logLevel(), consoleOutput()))},
           _dataMapPlaceholder{},
-          _compiledNetworkPlaceholder{} {
+          _compiledNetwork{} {
+}
+
+EmulatorNetworkDescription::EmulatorNetworkDescription(const std::vector<char>& compiledNetwork,
+                                                       const vpu::MCMConfig& config, const std::string& name)
+        : _name{name},
+          _compiler{nullptr},
+          _logger{std::unique_ptr<vpu::Logger>(
+                  new vpu::Logger("EmulatorNetworkDescription", config.logLevel(), consoleOutput()))},
+          _dataMapPlaceholder{},
+          _compiledNetwork{compiledNetwork} {
 }
 
 const vpux::DataMap& EmulatorNetworkDescription::getInputsInfo() const {
@@ -36,16 +46,22 @@ const vpux::DataMap& EmulatorNetworkDescription::getDeviceOutputsInfo() const {
 }
 
 const std::vector<char>& EmulatorNetworkDescription::getCompiledNetwork() const {
-    _logger->warning("EmulatorNetworkDescription::getCompiledNetwork()\n");
-    return _compiledNetworkPlaceholder;
+    if (_compiledNetwork.empty())
+        _logger->warning("EmulatorNetworkDescription::getCompiledNetwork() - _compiledNetwork is empty\n");
+    return _compiledNetwork;
 }
 
 const void* EmulatorNetworkDescription::getNetworkModel() const {
+    if (_compiler.get() == nullptr)
+        _logger->error("EmulatorNetworkDescription::getNetworkModel() - _compiler is nullptr\n");
     return &_compiler->model();
 }
 
 std::size_t EmulatorNetworkDescription::getNetworkModelSize() const {
-    return sizeof _compiler->model();
+    if (_compiledNetwork.empty())
+        return sizeof _compiler->model();
+
+    return _compiledNetwork.size();
 }
 
 const std::string& EmulatorNetworkDescription::getName() const {
