@@ -85,7 +85,66 @@ Get the source Value for the Operation#### `output`
 ```c++
 mlir::Value output();
 ```
-Get destination Value for the Operation## LayerInterface (`LayerInterface`)
+Get destination Value for the Operation#### `filter_out_channel_dim`
+
+```c++
+static int64_t filter_out_channel_dim();
+```
+Get the filter outChannel Dim#### `filter_in_channel_dim`
+
+```c++
+static int64_t filter_in_channel_dim();
+```
+Get the filter inChannel Dim#### `filter_spatial_width_dim`
+
+```c++
+static int64_t filter_spatial_width_dim();
+```
+Get the filter spatial X Dim#### `filter_spatial_height_dim`
+
+```c++
+static int64_t filter_spatial_height_dim();
+```
+Get the filter spatial Y Dim#### `filter_spatial_dims`
+
+```c++
+static int64_t filter_spatial_dims();
+```
+Get the nr of kernel dims available#### `filter_spatial_dim`
+
+```c++
+static int64_t filter_spatial_dim(int64_t index);
+```
+Get the filter dim index of a spatial dim## IERT4DTensorInterface (`IERT4DTensorInterface`)
+
+Interface for getting tensor DIM infromation
+### Methods:
+#### `act_batch_dim`
+
+```c++
+static int64_t act_batch_dim();
+```
+Get the activation batch Dim#### `act_channel_dim`
+
+```c++
+static int64_t act_channel_dim();
+```
+Get the activation channel Dim#### `act_height_dim`
+
+```c++
+static int64_t act_height_dim();
+```
+Get the activation height Dim#### `act_width_dim`
+
+```c++
+static int64_t act_width_dim();
+```
+Get the activation widht Dim#### `act_spatial_dim`
+
+```c++
+static int64_t act_spatial_dim(int64_t index);
+```
+Get the tensor index of a spatial dim index## LayerInterface (`LayerInterface`)
 
 Base interface for Layer Operation
 ### Methods:

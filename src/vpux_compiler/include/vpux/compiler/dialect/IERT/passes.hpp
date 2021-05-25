@@ -43,6 +43,7 @@ std::unique_ptr<mlir::Pass> createAdjustLayoutsPass(Logger log = Logger::global(
 std::unique_ptr<mlir::Pass> createUseUserLayout(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createCMXTilingPass(Logger log = Logger::global());
 
 //
 // Generated

@@ -110,4 +110,20 @@ def StaticAllocation : PassBase<"static-allocation", "vpux::ModulePass"> {
     ];
 }
 
+//
+// CMX Tiling
+//
+
+def CXMTiling : PassBase<"cmx-tiling", "vpux::ModulePass"> {
+    let summary = "Tile Operations to the condition that all their I/O fit into CMX";
+
+    let description = [{
+        This pass will replace a set of operations with the pattern OP ==> Subview->Copy->Op->Copy->SubView.
+        The condition for the replacment is that for each op the SUM of their I/O tensors to fit into CMX memory
+    }];
+
+    let constructor = "vpux::IERT::createCMXTilingPass()";
+
+}
+
 #endif
