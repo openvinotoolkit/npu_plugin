@@ -29,6 +29,13 @@ namespace LayerTestsDefinitions {
                 throw LayerTestsUtils::KmbSkipTestException("Comparison fails");
             }
         }
+
+        // [Track number: E#12804]
+        void SkipBeforeInfer() override {
+            if (envConfig.IE_KMB_TESTS_PLATFORM == "VPU3900") {
+                throw LayerTestsUtils::KmbSkipTestException("CallVpu error: -1");
+            }
+        }
     };
 
     TEST_P(KmbGroupConvolutionLayerTest, CompareWithRefs) {
