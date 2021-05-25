@@ -838,6 +838,7 @@ mutually exclusive.
 `kernel_padding` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `kernel_size` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`activation_window_channel_length` | ::mlir::IntegerAttr | 32-bit signless integer attribute
 
 #### Operands:
 

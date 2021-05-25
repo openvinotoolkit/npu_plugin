@@ -366,7 +366,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
             mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::CONV, VPUIP::PPELayerTypeAttr(), kernel_padding,
-            strides, kernel_size, 0);
+            strides, kernel_size, nullptr, 0);
 
     // Create DPU task for NCE task
     nceTask.variants().emplaceBlock();

@@ -23,10 +23,11 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::Value parent_input, mlir::Value parent_output, mlir::Value output,
                                           vpux::VPUIP::NCETaskType task_type,
                                           vpux::VPUIP::PPELayerTypeAttr fixed_ppe_task, mlir::ArrayAttr kernel_padding,
-                                          mlir::ArrayAttr strides, mlir::ArrayAttr kernel_size) {
+                                          mlir::ArrayAttr strides, mlir::ArrayAttr kernel_size,
+                                          mlir::IntegerAttr activation_window_channel_length) {
     build(builder, state, output.getType(), input, filter, weight_table, activation_window, parent_input, parent_output,
           output, mlir::ValueRange{}, mlir::ValueRange{}, task_type, fixed_ppe_task, kernel_padding, strides,
-          kernel_size, 0);
+          kernel_size, activation_window_channel_length, 0);
 }
 
 vpux::VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start,
@@ -104,6 +105,29 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
                        "received is: {2}*{0} bytes",
                        weightTableElemTypeSize, outputChannels * numElementsPerChannelInWeightTable,
                        weightTableNumElements);
+    }
+
+    return mlir::success();
+}
+
+mlir::LogicalResult verifyNCEMaxPool(VPUIP::NCEClusterTaskOp op) {
+    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::MAXPOOL, "Expected task type '{0}', but got '{1}'",
+                      VPUIP::NCETaskType::MAXPOOL, op.task_type());
+
+    if (!op.weight_table()) {
+        return errorAt(op, "weight_table is required for NCETaskType : '{0}'", VPUIP::NCETaskType::CONV);
+    }
+    if (!op.activation_window()) {
+        return errorAt(op, "activation_window is required for NCETaskType : '{0}'", VPUIP::NCETaskType::CONV);
+    }
+    if (!op.activation_window_channel_length()) {
+        return errorAt(op, "activation_window_channel_length is required for NCETaskType : '{0}'",
+                       VPUIP::NCETaskType::CONV);
+    }
+
+    auto p = checkNCEKernel(op);
+    if (mlir::failed(p)) {
+        return p;
     }
 
     return mlir::success();
@@ -269,6 +293,11 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
         if (mlir::failed(check)) {
             return check;
         }
+    } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL) {
+        auto check = verifyNCEMaxPool(op);
+        if (mlir::failed(check)) {
+            return check;
+        }
     } else if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {
         auto check = verifyNCEEltwise(op);
         if (mlir::failed(check)) {
@@ -340,13 +369,15 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         auto start = parseIntArrayAttr(dpuTaskOp.start());
         auto end = parseIntArrayAttr(dpuTaskOp.end());
 
+        // TODO: [Track number: E#13226]
+        // Make padding indexing more obvious
         auto nceVariantFields = MVCNN::CreateNCEVariantFields(writer,
                                                               0,                                   // Barriers
                                                               getMPEMode(dpuTaskOp.mpe_mode()),    // MPE mode
-                                                              static_cast<int16_t>(padsBegin[0]),  // padLeft
-                                                              static_cast<int16_t>(padsEnd[0]),    // padRight
-                                                              static_cast<int16_t>(padsBegin[1]),  // padTop
-                                                              static_cast<int16_t>(padsEnd[1]),    // padBottom
+                                                              static_cast<int16_t>(padsBegin[1]),  // padLeft
+                                                              static_cast<int16_t>(padsEnd[1]),    // padRight
+                                                              static_cast<int16_t>(padsBegin[0]),  // padTop
+                                                              static_cast<int16_t>(padsEnd[0]),    // padBottom
                                                               static_cast<int16_t>(start[0]),      // workload_start_X
                                                               static_cast<int16_t>(start[1]),      // workload_start_Y
                                                               static_cast<int16_t>(start[2]),      // workload_start_Z
@@ -392,7 +423,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     auto weightsData = this->filter() ? writer.getTensor(this->filter()) : 0;
     auto weightsTable = this->weight_table() ? writer.getTensor(this->weight_table()) : 0;
     auto activationWindow = this->activation_window() ? writer.getTensor(this->activation_window()) : 0;
-    auto activationWindowChannelLength = 4;  // FIXME: calculate activation window size properly
+    auto activationWindowChannelLength =
+            this->activation_window_channel_length() ? this->activation_window_channel_length().getValue() : 0;
 
     auto invariantMPEMode = getMPEFrequentModeFromDPUTasks(this->variants());
 
