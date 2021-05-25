@@ -59,6 +59,26 @@ The VPUX plugin accepts the following options:
 | `VPU_COMPILER_CUSTOM_LAYERS` | string                                                                                       | empty            | Path to custom layer binding xml file. Custom layer has higher priority over native implementation |
 
 
+## Supported Parameters of shared device contexts and shared device memory blobs
+
+The VPUX plugin accepts the following parameters:
+
+| Parameter Name        | Parameter Scope | Parameter Type | Description                                                                        |
+| :---                  | :---            | :---           | :---                                                                               |
+| `COLOR_FORMAT`    | `HDDL2_PARAM_KEY` | InferenceEngine::ColorFormat |  **[Deprecated]** **[Unused]** Color format of remote memory |
+| `DEVICE_ID`    | `VPUX_PARAM_KEY` | std::string |  VPU device ID |
+| `DEVICE_ID`    | `KMB_PARAM_KEY` | std::string |  **[Deprecated]** VPU device ID |
+| `MEM_HANDLE`    | `VPUX_PARAM_KEY` | VpuxHandleParam |  Memory handle |
+| `MEM_HANDLE`    | `KMB_PARAM_KEY` | KmbHandleParam |  **[Deprecated]** Memory handle |
+| `MEM_OFFSET`    | `VPUX_PARAM_KEY` | VpuxOffsetParam |  Memory offset to map physical address properly |
+| `MEM_OFFSET`    | `KMB_PARAM_KEY` | KmbOffsetParam |  **[Deprecated]** Memory offset to map physical address properly |
+| `REMOTE_MEMORY_FD`    | `VPUX_PARAM_KEY` | VpuxRemoteMemoryFD |  Remote memory file descriptor |
+| `REMOTE_MEMORY_FD`    | `KMB_PARAM_KEY` | KmbRemoteMemoryFD |  **[Deprecated]** Remote memory file descriptor |
+| `REMOTE_MEMORY`    | `HDDL2_PARAM_KEY` | HddlUnite::RemoteMemory::Ptr | **[Deprecated]** HDDLUnite remote memory object |
+| `WORKLOAD_CONTEXT_ID`    | `VPUX_PARAM_KEY` | uint64_t |  HDDLUnite workload context ID |
+| `WORKLOAD_CONTEXT_ID`    | `HDDL2_PARAM_KEY` | uint64_t | **[Deprecated]** HDDLUnite workload context ID |
+
+
 # See Also
 
 * [Inference Engine introduction](https://gitlab-icv.inn.intel.com/inference-engine/dldt/blob/master/docs/IE_DG/inference_engine_intro.md)
