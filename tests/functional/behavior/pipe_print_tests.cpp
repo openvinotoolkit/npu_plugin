@@ -1,12 +1,35 @@
-#!/bin/bash
-cat << EOF_PIPE_PRINT_SRC | g++ -xc++ -o pipeprint - && chmod +x pipeprint && ./pipeprint $1
+//
+// Copyright 2021 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
+//
+
+#if defined(__arm__) || defined(__aarch64__)
+
+#if __has_include("consoleTxQueue.h")
+# include "consoleTxQueue.h"
+#else
+# define MV_CONSOLE_TX_QUEUE 0x0000000094400040
+#endif
+
+#include "dummy_network.hpp"
+#include "vpux/vpux_plugin_config.hpp"
+
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
-
 #include <iostream>
-#include <sstream>
 
 typedef uint64_t u64;
 typedef uint32_t u32;
@@ -19,20 +42,20 @@ typedef uint8_t u8;
 #define SET_BLUE_COLOR        printf("\033[0;34m")
 #define RESET_COLOR           printf("\033[0m")
 
- typedef struct  {
-     volatile u32  canaryStart;
-     volatile u32  in;
-     volatile u32  out;
-     volatile i32  queueSize;
-     volatile u32  queuePtr;
-     volatile u32  canaryEnd;
+typedef struct  {
+    volatile u32  canaryStart;
+    volatile u32  in;
+    volatile u32  out;
+    volatile i32  queueSize;
+    volatile u32  queuePtr;
+    volatile u32  canaryEnd;
 } tyMvConsoleQueue;
 
 #define PIPEPRINT_CANARY_START (0x22334455)
 #define PIPEPRINT_CANARY_END (0xBBCCDDEE)
 
 #define VPU_CACHE_LINE_SIZE 64L
-#define ALIGN_DOWN(a, size) ((a)&(~(size-1)))
+#define ALIGN_DOWN(a, size) ((a)&(~(size - 1)))
 
 #define PAGE_SIZE (4096)
 
@@ -65,7 +88,7 @@ public:
 
         if (!isPageAligned(phy_addr)) {
             std::cout  << "phy_addr 0x"<<std::hex << phy_addr << " is not page-aligned!" <<
-                " memory mapping to lest page aligned addr of: 0x" << std::hex << phy_addr_page_aligned << "\n";
+                       " memory mapping to least page aligned addr of: 0x" << std::hex << phy_addr_page_aligned << "\n";
         }
 
         mapsize = PAGE_ALIGN_UP(page_offset + sz);
@@ -93,27 +116,57 @@ public:
     }
 };
 
+class PipePrintTest : public BehaviorTestsUtils::BehaviorTestsBasic {
+protected:
+    u64	phy_addr = MV_CONSOLE_TX_QUEUE;
+};
+
+// this test uses specific physical adredd, that might be changed unexpectedly with updating og FW
+// if that happened current approach is update pointer taken from bilt FW folder :
+// vpuip_2/application/vpuFirmware/FW_bootLoader/mvbuild/ma2490/payload/payload.map
+//                0x0000000094400040                mvConsoleTxQueue
+TEST_P(PipePrintTest, CanLocateCanaries) {
+    // clear canaries
+    PhysPtr<tyMvConsoleQueue> header(phy_addr);
+
+    memset(*header, sizeof(tyMvConsoleQueue), 0);
+
+    auto cnnNet = createDummyNetwork();
+    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, "VPUX", configuration));
+
+    // after graph loading pipe should be initialized by runtime
+
+    ASSERT_EQ(PIPEPRINT_CANARY_START, header->canaryStart)
+        << "Invalid start Canary at given address: expected to be " << PIPEPRINT_CANARY_START;
+
+    ASSERT_EQ(PIPEPRINT_CANARY_END, header->canaryEnd)
+        << "Invalid end Canary at given address: expected to be " << PIPEPRINT_CANARY_END;
+
+    // checking that actually some data printed out already
+    PhysPtr<u32> inputCounterPtr(static_cast<u64>(header->in));
+
+    ASSERT_NE(0, *(*inputCounterPtr)) << " data not printed";
+}
+
 void (*oldHandler)(int) = nullptr;
 
 void intHandler(int sig) {
     RESET_COLOR;
     printf("\n");
     if (oldHandler != nullptr) {
-      oldHandler(sig);
+        oldHandler(sig);
     } else {
-      exit(0);
+        exit(0);
     }
 }
 
-int main(int argc, const char * argv[]) {
 
-    u64	phy_addr = 0x94400040;
-    oldHandler = signal(SIGINT, intHandler);
-
-    if (argc > 1)
-        phy_addr = strtoll(argv[1], NULL, 0);
-
+// can be use as actual application running data pooling from pipe
+// expect that is connected to already launched application since there is no way to check canaries otherwise
+TEST_P(PipePrintTest, DISABLED_run_pipe_print) {
     try {
+        oldHandler = signal(SIGINT, intHandler);
+
         PhysPtr<tyMvConsoleQueue> header(phy_addr);
 
         // if buffer pointer outside mapped page
@@ -158,7 +211,7 @@ int main(int argc, const char * argv[]) {
                 // only 64bit aligned part is flushed from cache to RAM in time
                 // the rest part will be flushed later by subsequent logs or forcely with timeout
                 auto cnt_caligned = (ALIGN_DOWN((queuePtr + next_in), VPU_CACHE_LINE_SIZE) -
-                                                ((queuePtr + in))) % queueSize;
+                                     ((queuePtr + in))) % queueSize;
 
                 if (cnt_caligned)
                     cnt = cnt_caligned;
@@ -166,7 +219,8 @@ int main(int argc, const char * argv[]) {
                     cnt = 0;
 
                 if (cnt) {
-                    write(1, *queBuffer + in, cnt);
+                    auto writtenBytes = write(STDOUT_FILENO, *queBuffer + in, cnt);
+                    ASSERT_NE(writtenBytes, 0);
                     in = (in + cnt) % queueSize;
                     no_data_ticks = 0;
                     continue;
@@ -177,12 +231,18 @@ int main(int argc, const char * argv[]) {
         }
 
     } catch(const std::exception &ex) {
-        RESET_COLOR;
-        std::cout << "\nERROR: " << ex.what();
-        return 1;
+        FAIL() << "ERROR: " << ex.what();
     }
-
-    return 0;
 }
 
-EOF_PIPE_PRINT_SRC
+const std::vector<std::map<std::string, std::string>> configs = {
+        {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(AUTO)}}};
+
+INSTANTIATE_TEST_CASE_P(smoke_PipePrintBaseTest, PipePrintTest,
+                        ::testing::Combine(
+                                ::testing::Values(InferenceEngine::Precision::FP32),
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                                ::testing::ValuesIn(configs)),
+                        PipePrintTest::getTestCaseName);
+
+#endif  // #if defined(__arm__) || defined(__aarch64__)
