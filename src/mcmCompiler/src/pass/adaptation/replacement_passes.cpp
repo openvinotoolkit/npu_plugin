@@ -35,6 +35,7 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 void interpolateAsResample(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::ComputationModel& model);
+void replaceStridedSliceWithSlice(const mv::pass::PassEntry&, mv::ComputationModel& model);
 void resampleAsDepthDeConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void resampleWithStorageElementPointerTable(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -110,6 +111,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     interpolateAsResample(pass, model);
     resampleAsDepthDeConvFcn(pass, model);
     replaceBroadcastEltwiseMultWithConv(pass, model);
+    replaceStridedSliceWithSlice(pass, model);
     insertUpaDmaAfterSliceOnOutputFcn(pass, model);
 }
 
@@ -490,6 +492,42 @@ void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::Co
         linkNewOperationsReplacement(parentOpIt, mcmConcat, om, opIt);
         mcmConcat->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
         mcmConcat->setQuantParams(convOutputTensors[0]->getQuantParams());
+    }
+}
+
+void replaceStridedSliceWithSlice(const mv::pass::PassEntry&, mv::ComputationModel& model) {
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+
+    for (auto& sliceOp : om.getOps("StridedSlice")) {
+        auto parentOutputTensor = sliceOp->getInputTensor(mv::IO_TENSOR_INPUT);
+        auto parentOp = om.getSourceOp(parentOutputTensor);
+        auto childOp = sliceOp.leftmostOutput().sink();
+
+        // Skip if FuncTest
+        if (parentOp->getOpType() == "Input" && childOp->getOpType() == "Output")
+            continue;
+
+        auto stridedSlice_begins = sliceOp->get<std::vector<unsigned>>("begins");
+        auto slice_begin = mv::Shape({stridedSlice_begins[3], stridedSlice_begins[2], stridedSlice_begins[1], stridedSlice_begins[0]});
+        auto slice_size = sliceOp->getOutputTensor(0)->getShape();
+
+        // Add Slice
+        auto stridedSlice = sliceOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+        auto dtype = stridedSlice->getDType();
+        auto quantParams = stridedSlice->getQuantParams();
+        auto slice = om.slice(sliceOp->getName() + "_replace", parentOp->getOutputTensor(mv::IO_TENSOR_OUTPUT), slice_begin, slice_size);
+        slice->setDType(dtype);
+        slice->setQuantParams(quantParams);
+        parentOutputTensor->setDType(dtype);
+        if(sliceOp->hasAttr("opId")) {
+            unsigned opId = sliceOp->get<unsigned>("opId");
+            slice->set<unsigned>("opId", opId);
+            om.getSourceOp(slice)->set<unsigned>("opId", opId);
+        }
+
+        // Replace StridedSlice with Slice
+        linkNewOperationsReplacement(parentOp, slice, om, om.getSourceOp(stridedSlice));
     }
 }
 
