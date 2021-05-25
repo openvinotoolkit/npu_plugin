@@ -16,3 +16,5 @@ This pass converts IERT Layer Operations to VPUIP Dialect UPA tasks.
 It also converts IERT declarations and view-like operations to VPUIP declarations.
 ### `-convert-to-nce-ops`: Convert to NCE2 ops
 Convert ops which can be executed on NCE to explicit NCE ops.
+### `-fuse-activations`: Fuse activation functions to NCE tasks
+Fuse activation functions (e.g. ReLU, leaky ReLU) into NCE post-processing engine.

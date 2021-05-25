@@ -88,6 +88,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(createConvertToNCEOpsPass());
 
     // IERT Dialect level
+    pm.addPass(createFuseActivationsPass());
     pm.addPass(createComposeSubViewPass(log));
     pm.addPass(createDeallocPlacementPass(log));
     pm.addPass(IERT::createSetInternalMemorySpacePass(ddrMemSpaceCb, log));
