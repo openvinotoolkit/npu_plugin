@@ -33,6 +33,25 @@ class KmbScaleShiftLayerTest: public ScaleShiftLayerTest, virtual public LayerTe
                 throw LayerTestsUtils::KmbSkipTestException("Bad shape: - ArgumentError: index subscript 1 - "
                                                             "Exceeds the dimensionality 1");
             }
+        } else {
+            std::set<std::vector<std::vector<size_t>>> badShapesForMLIR = {
+                {{100}},
+                {{200}},
+                {{100}, {100}},
+                {{4, 64}, {64}},
+                {{1, 8}},
+                {{2, 16}},
+                {{3, 32}},
+                {{4, 64}},
+                {{5, 128}},
+                {{6, 256}},
+                {{7, 512}},
+                {{8, 1024}},
+            };
+
+            if (badShapesForMLIR.find(inShape) != badShapesForMLIR.end() ) {
+                throw LayerTestsUtils::KmbSkipTestException("Bad shape. Expected to be 4-d");
+            }
         }
     }
 

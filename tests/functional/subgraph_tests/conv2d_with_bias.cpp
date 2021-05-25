@@ -10,7 +10,24 @@
 
 namespace {
 
-class KmbConv2dWithBiasTest : public LayerTestsUtils::KmbLayerTestsCommon {
+std::shared_ptr<ngraph::Node> build_activation_helper(const std::shared_ptr<ngraph::Node>& producer,
+                                                      const ngraph::helpers::ActivationTypes& act_type) {
+    switch (act_type) {
+    case ngraph::helpers::None:
+        return producer;
+    case ngraph::helpers::Relu:
+        return std::make_shared<ngraph::op::Relu>(producer->output(0));
+    default:
+        IE_THROW() << "build_activation_helper: unsupported activation type: " << act_type;
+    }
+
+    // execution must never reach this point
+    return nullptr;
+}
+
+class KmbConv2dWithBiasTest :
+        public LayerTestsUtils::KmbLayerTestsCommon,
+        public testing::WithParamInterface<ngraph::helpers::ActivationTypes> {
     void SetUp() override {
         targetDevice = LayerTestsUtils::testPlatformTargetDevice;
         const size_t KERNEL_W = 2;
@@ -43,8 +60,10 @@ class KmbConv2dWithBiasTest : public LayerTestsUtils::KmbLayerTestsCommon {
                 ngraph::element::Type_t::f32, ngraph::Shape{1, FILT_OUT, 1, 1}, biases.data());
 
         auto bias_node = std::make_shared<ngraph::op::v1::Add>(conv2d_node->output(0), bias_weights_node->output(0));
+        auto act_type = GetParam();
+        auto act_node = build_activation_helper(bias_node, act_type);
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(bias_node)};
+        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(act_node)};
 
         function = std::make_shared<ngraph::Function>(results, params, "KmbConv2dWithBiasTest");
 
@@ -52,19 +71,26 @@ class KmbConv2dWithBiasTest : public LayerTestsUtils::KmbLayerTestsCommon {
     }
 };
 
-TEST_F(KmbConv2dWithBiasTest, CompareWithRefs_MCM) {
+TEST_P(KmbConv2dWithBiasTest, CompareWithRefs_MCM) {
     Run();
 }
 
-TEST_F(KmbConv2dWithBiasTest, CompareWithRefs_MLIR_SW) {
+TEST_P(KmbConv2dWithBiasTest, CompareWithRefs_MLIR_SW) {
     useCompilerMLIR();
     Run();
 }
 
-TEST_F(KmbConv2dWithBiasTest, CompareWithRefs_MLIR_HW) {
+TEST_P(KmbConv2dWithBiasTest, CompareWithRefs_MLIR_HW) {
     useCompilerMLIR();
     setReferenceHardwareModeMLIR();
     Run();
 }
+
+const std::vector<ngraph::helpers::ActivationTypes> activations = {
+        ngraph::helpers::None,
+        ngraph::helpers::Relu,
+};
+
+INSTANTIATE_TEST_CASE_P(conv2d_with_act, KmbConv2dWithBiasTest, ::testing::ValuesIn(activations));
 
 }  // namespace
