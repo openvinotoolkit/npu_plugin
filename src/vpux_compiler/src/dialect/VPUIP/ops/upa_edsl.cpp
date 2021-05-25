@@ -21,6 +21,7 @@
 #include "mlir/Support/DebugStringHelper.h"
 
 #ifdef ENABLE_PLAIDML
+
 #include "pmlc/util/strides.h"
 
 using namespace vpux;
@@ -64,9 +65,7 @@ VPUIP::BlobWriter::SpecificTask VPUIP::EdslUPAOp::serialize(VPUIP::BlobWriter& w
     SymbolRefAttr kernelRef = kernel();
     auto module = (*this)->getParentOfType<ModuleOp>();
     auto func = module.lookupSymbol<FuncOp>(kernelRef);
-    if (!func) {
-        throw std::runtime_error("Could not resolve kernel symbol reference: " + debugString(kernelRef));
-    }
+    VPUX_THROW_UNLESS(func != nullptr, "Could not resolve kernel symbol reference '{0}'", kernelRef);
     auto interiorOperands = func.getArguments().drop_front(numOuters + numMiddles);
 
     // DMA descriptors
@@ -112,12 +111,18 @@ VPUIP::BlobWriter::SpecificTask VPUIP::EdslUPAOp::serialize(VPUIP::BlobWriter& w
         dmaTransfers.emplace_back(dmaTransfer);
     }
 
+    const auto outerRangesOff = writer.createVector(outerRanges);
+    const auto outerStepsOff = writer.createVector(outerSteps);
+    const auto middleRangesOff = writer.createVector(middleRanges);
+    const auto middleStepsOff = writer.createVector(middleSteps);
+    const auto dmaTransfersOff = writer.createVector(dmaTransfers);
+
     MVCNN::EdslParamsBuilder builder(writer);
-    builder.add_outerRanges(writer.createVector(outerRanges));
-    builder.add_outerSteps(writer.createVector(outerSteps));
-    builder.add_middleRanges(writer.createVector(middleRanges));
-    builder.add_middleSteps(writer.createVector(middleSteps));
-    builder.add_dmaTransfers(writer.createVector(dmaTransfers));
+    builder.add_outerRanges(outerRangesOff);
+    builder.add_outerSteps(outerStepsOff);
+    builder.add_middleRanges(middleRangesOff);
+    builder.add_middleSteps(middleStepsOff);
+    builder.add_dmaTransfers(dmaTransfersOff);
     // TODO: compile kernel() and get the binary data
     // builder.add_kernelData(elfBinary);
     const auto paramsOff = builder.Finish();
@@ -128,7 +133,7 @@ VPUIP::BlobWriter::SpecificTask VPUIP::EdslUPAOp::serialize(VPUIP::BlobWriter& w
 #else  // ENABLE_PLAIDML
 
 vpux::VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EdslUPAOp::serialize(VPUIP::BlobWriter& /*writer*/) {
-    throw std::runtime_error("EdslUPAOp is only supported when ENABLE_PLAIDML=ON");
+    VPUX_THROW("EdslUPAOp is only supported when ENABLE_PLAIDML=ON");
 }
 
 #endif  // ENABLE_PLAIDML
