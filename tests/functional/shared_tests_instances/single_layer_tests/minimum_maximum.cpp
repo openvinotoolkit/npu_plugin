@@ -11,7 +11,8 @@ namespace LayerTestsDefinitions {
 class KmbMaxMinLayerTest: public MaxMinLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         if (isCompilerMCM()) {
-            throw LayerTestsUtils::KmbSkipTestException("Unsupported operation in MCM compiler [Track number: S#43484]");
+            /// now mcm compiler supports max op (min will be converted to max by IE) - MR #2602
+            // throw LayerTestsUtils::KmbSkipTestException("Unsupported operation in MCM compiler [Track number: S#43484]");
         }
     }
 };
