@@ -71,6 +71,7 @@ def VPUIP_PhysicalMemory :
                 StrEnumAttrCase<"CSRAM">,
                 StrEnumAttrCase<"CMX_UPA">,
                 StrEnumAttrCase<"CMX_NN">,
+                StrEnumAttrCase<"Register">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
@@ -149,6 +150,7 @@ def VPUIP_MemoryLocation :
                 StrEnumAttrCase<"VPU_CMX_UPA">,
                 StrEnumAttrCase<"VPU_DDR_BSS">,
                 StrEnumAttrCase<"VPU_CSRAM">,
+                StrEnumAttrCase<"AbsoluteAddr">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";

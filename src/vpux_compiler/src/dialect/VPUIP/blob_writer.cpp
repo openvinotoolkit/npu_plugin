@@ -388,6 +388,7 @@ MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocati
         CASE(VPU_CMX_UPA);
         CASE(VPU_DDR_BSS);
         CASE(VPU_CSRAM);
+        CASE(AbsoluteAddr);
     default:
         VPUX_THROW("Unsupported MemoryLocation {0}", location);
     }

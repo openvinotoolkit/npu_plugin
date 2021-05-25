@@ -41,6 +41,9 @@ namespace VPUIP {
 PhysicalMemory getPhysicalMemory(MemoryLocation location);
 mlir::FailureOr<PhysicalMemory> getPhysicalMemory(mlir::MemRefType memref);
 
+MemoryLocation getDefaultMemoryLocation(PhysicalMemory location);
+mlir::FailureOr<VPUIP::MemoryLocation> getMemoryLocation(mlir::MemRefType memref);
+
 bool isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref);
 
 CompilationMode getCompilationMode(mlir::ModuleOp module);

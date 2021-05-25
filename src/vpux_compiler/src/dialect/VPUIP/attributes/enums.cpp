@@ -44,8 +44,27 @@ VPUIP::PhysicalMemory vpux::VPUIP::getPhysicalMemory(MemoryLocation location) {
         return PhysicalMemory::CMX_UPA;
     case MemoryLocation::VPU_CMX_NN:
         return PhysicalMemory::CMX_NN;
+    case MemoryLocation::AbsoluteAddr:
+        return PhysicalMemory::Register;
     default:
         VPUX_THROW("Unsupported MemoryLocation : {0}", location);
+    }
+}
+
+VPUIP::MemoryLocation vpux::VPUIP::getDefaultMemoryLocation(VPUIP::PhysicalMemory memory) {
+    switch (memory) {
+    case PhysicalMemory::DDR:
+        return MemoryLocation::VPU_DDR_Heap;
+    case PhysicalMemory::CSRAM:
+        return MemoryLocation::VPU_CSRAM;
+    case PhysicalMemory::CMX_UPA:
+        return MemoryLocation::VPU_CMX_UPA;
+    case PhysicalMemory::CMX_NN:
+        return MemoryLocation::VPU_CMX_NN;
+    case PhysicalMemory::Register:
+        return MemoryLocation::AbsoluteAddr;
+    default:
+        VPUX_THROW("Unsupported PhysicalMemory : {0}", memory);
     }
 }
 
@@ -65,6 +84,24 @@ mlir::FailureOr<VPUIP::PhysicalMemory> vpux::VPUIP::getPhysicalMemory(mlir::MemR
     }
 
     return getPhysicalMemory(memSpace.cast<VPUIP::MemoryLocationAttr>().getValue());
+}
+
+mlir::FailureOr<VPUIP::MemoryLocation> vpux::VPUIP::getMemoryLocation(mlir::MemRefType memref) {
+    const auto memSpace = memref.getMemorySpace();
+
+    if (memSpace == nullptr) {
+        return VPUIP::MemoryLocation::VPU_DDR_Heap;
+    }
+
+    if (memSpace.isa<VPUIP::MemoryLocationAttr>()) {
+        return memSpace.cast<VPUIP::MemoryLocationAttr>().getValue();
+    }
+
+    if (!memSpace.isa<VPUIP::PhysicalMemoryAttr>()) {
+        return mlir::failure();
+    }
+
+    return getDefaultMemoryLocation(memSpace.cast<VPUIP::PhysicalMemoryAttr>().getValue());
 }
 
 bool vpux::VPUIP::isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref) {
