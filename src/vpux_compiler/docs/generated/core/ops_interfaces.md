@@ -88,63 +88,52 @@ mlir::Value output();
 Get destination Value for the Operation#### `filter_out_channel_dim`
 
 ```c++
-static int64_t filter_out_channel_dim();
+static vpux::Dim filter_out_channel_dim();
 ```
-Get the filter outChannel Dim#### `filter_in_channel_dim`
+Get the filter outChannel Dim
+NOTE: This method *must* be implemented by the user.
+
+#### `filter_in_channel_dim`
 
 ```c++
-static int64_t filter_in_channel_dim();
+static vpux::Dim filter_in_channel_dim();
 ```
-Get the filter inChannel Dim#### `filter_spatial_width_dim`
+Get the filter inChannel Dim
+NOTE: This method *must* be implemented by the user.
+
+#### `filter_spatial_height_dim`
 
 ```c++
-static int64_t filter_spatial_width_dim();
+static vpux::Dim filter_spatial_height_dim();
 ```
-Get the filter spatial X Dim#### `filter_spatial_height_dim`
+Get the filter spatial Y Dim
+NOTE: This method *must* be implemented by the user.
+
+#### `filter_spatial_width_dim`
 
 ```c++
-static int64_t filter_spatial_height_dim();
+static vpux::Dim filter_spatial_width_dim();
 ```
-Get the filter spatial Y Dim#### `filter_spatial_dims`
+Get the filter spatial X Dim
+NOTE: This method *must* be implemented by the user.
+
+#### `filter_spatial_dims`
 
 ```c++
-static int64_t filter_spatial_dims();
+static size_t filter_spatial_dims();
 ```
-Get the nr of kernel dims available#### `filter_spatial_dim`
+Get the nr of kernel dims available
+NOTE: This method *must* be implemented by the user.
+
+#### `filter_spatial_dim`
 
 ```c++
-static int64_t filter_spatial_dim(int64_t index);
+static vpux::Dim filter_spatial_dim(int32_t index);
 ```
-Get the filter dim index of a spatial dim## IERT4DTensorInterface (`IERT4DTensorInterface`)
+Get the filter dim index of a spatial dim
+NOTE: This method *must* be implemented by the user.
 
-Interface for getting tensor DIM infromation
-### Methods:
-#### `act_batch_dim`
-
-```c++
-static int64_t act_batch_dim();
-```
-Get the activation batch Dim#### `act_channel_dim`
-
-```c++
-static int64_t act_channel_dim();
-```
-Get the activation channel Dim#### `act_height_dim`
-
-```c++
-static int64_t act_height_dim();
-```
-Get the activation height Dim#### `act_width_dim`
-
-```c++
-static int64_t act_width_dim();
-```
-Get the activation widht Dim#### `act_spatial_dim`
-
-```c++
-static int64_t act_spatial_dim(int64_t index);
-```
-Get the tensor index of a spatial dim index## LayerInterface (`LayerInterface`)
+## LayerInterface (`LayerInterface`)
 
 Base interface for Layer Operation
 ### Methods:
@@ -241,5 +230,49 @@ Get the axis index in logical dimensions#### `getAxisDim`
 vpux::Dim getAxisDim();
 ```
 Get the axis parameter in logical dimensions
+NOTE: This method *must* be implemented by the user.
+
+## TensorInterface_4D (`TensorInterface_4D`)
+
+Interface for getting tensor DIM infromation
+### Methods:
+#### `act_batch_dim`
+
+```c++
+static vpux::Dim act_batch_dim();
+```
+Get the activation batch Dim
+NOTE: This method *must* be implemented by the user.
+
+#### `act_channel_dim`
+
+```c++
+static vpux::Dim act_channel_dim();
+```
+Get the activation channel Dim
+NOTE: This method *must* be implemented by the user.
+
+#### `act_height_dim`
+
+```c++
+static vpux::Dim act_height_dim();
+```
+Get the activation height Dim
+NOTE: This method *must* be implemented by the user.
+
+#### `act_width_dim`
+
+```c++
+static vpux::Dim act_width_dim();
+```
+Get the activation widht Dim
+NOTE: This method *must* be implemented by the user.
+
+#### `act_spatial_dim`
+
+```c++
+static vpux::Dim act_spatial_dim(int32_t index);
+```
+Get the tensor Dim index of a spatial dim index
 NOTE: This method *must* be implemented by the user.
 

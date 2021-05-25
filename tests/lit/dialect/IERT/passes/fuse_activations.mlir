@@ -1,7 +1,7 @@
 // RUN: vpux-opt --split-input-file --fuse-activations %s | FileCheck %s
 
 func @MLIRConv2dWithReluTest(%arg0: memref<1x16x4x4xf32>, %arg1: memref<1x16x3x3xf32>) -> memref<1x16x3x3xf32> {
-    %0 = IERT.Constant memref<16x16x2x2xf16> = opaque<"_", "0xDEADBEEF"> : tensor<16x16x2x2xf32>
+    %0 = IERT.Constant memref<16x16x2x2xf16> = dense<0.0> : tensor<16x16x2x2xf32>
     %1 = memref.alloc() : memref<1x16x4x4xf16>
     %2 = IERT.Convert inputs(%arg0 : memref<1x16x4x4xf32>) outputs(%1 : memref<1x16x4x4xf16>) -> memref<1x16x4x4xf16>
     %3 = memref.alloc() : memref<1x16x3x3xf16>
@@ -9,7 +9,7 @@ func @MLIRConv2dWithReluTest(%arg0: memref<1x16x4x4xf32>, %arg1: memref<1x16x3x3
     %5 = IERT.Reorder inputs(%0 : memref<16x16x2x2xf16>) outputs(%4 : memref<16x16x2x2xf16>) -> memref<16x16x2x2xf16>
     %6 = memref.alloc() : memref<16x16x2x2xf16, "CMX_NN">
     %7 = IERT.Copy inputs(%5 : memref<16x16x2x2xf16>) outputs(%6 : memref<16x16x2x2xf16, "CMX_NN">) -> memref<16x16x2x2xf16, "CMX_NN">
-    %8 = IERT.Constant memref<16x1x1x4xsi32> = opaque<"_", "0xDEADBEEF"> : tensor<16x1x1x4xsi32>
+    %8 = IERT.Constant memref<16x1x1x4xsi32> = dense<0> : tensor<16x1x1x4xsi32>
     %9 = memref.alloc() : memref<16x1x1x4xsi32, "CMX_NN">
     %10 = IERT.Copy inputs(%8 : memref<16x1x1x4xsi32>) outputs(%9 : memref<16x1x1x4xsi32, "CMX_NN">) -> memref<16x1x1x4xsi32, "CMX_NN">
     %11 = memref.alloc() : memref<1x16x4x4xf16>
@@ -35,4 +35,3 @@ func @MLIRConv2dWithReluTest(%arg0: memref<1x16x4x4xf32>, %arg1: memref<1x16x3x3
 // CHECK:      VPUIP.DPUTask {end = [2 : i32, 2 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 0 : i32, 0 : i32]}
 // CHECK:    } -> memref<1x16x3x3xf16, "CMX_NN">
 // CHECK-NOT: %21 = IERT.ReLU {{.*}}
-
