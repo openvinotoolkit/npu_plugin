@@ -91,7 +91,7 @@ const std::vector<KmbEltwiseMultiplyTestParams> eltwiseParams {
         KmbEltwiseMultiplyTestParams()
             .inDims({1, 900, 1, 1})
             .outPrecision(Precision::FP16)
-            .scale({30})
+            .scale({3})
 };
 
 INSTANTIATE_TEST_CASE_P(precommit, KmbEltwiseMultiplyTest, testing::ValuesIn(eltwiseParams));
