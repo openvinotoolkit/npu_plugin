@@ -8,19 +8,29 @@
 #include "include/mcm/pass/pass_utils.hpp"
 
 typedef std::pair<std::string, std::string> pairs;
-static void fuseConcatsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void fuseImplicitsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void fuseConcatsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void fuseCropSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void fuseCropStridedSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void fuseSliceSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
     namespace pass
     {
-        MV_REGISTER_PASS(FuseConcats)
-            .setFunc(fuseConcatsFcn)
+        MV_REGISTER_PASS(FuseImplicits)
+            .setFunc(fuseImplicitsFcn)
             .setDescription(
-                "The idea of this pass is the following: If we have a concat leading to another concat, and there is\
-                only one/unique connection/flow between them, then these concats can be fused. There is no reason for the\
-                intermediate concat/tensor.");
+                "Fuse back-to-back implicit ops (e.g., Concat-to-Concat, Crop-to-StridedSlice, Slice-to-Slice");
     }
+}
+
+void fuseImplicitsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    fuseConcatsFcn(pass, model);
+    fuseCropSliceFcn(pass, model);
+    fuseCropStridedSliceFcn(pass, model);
+    fuseSliceSliceFcn(pass, model);
 }
 
 void locateConcatPairs(mv::ComputationModel& model, std::vector<pairs> &acceptableFusedConcats)
@@ -171,7 +181,9 @@ void placeNewConcatInTheOpModel(mv::ComputationModel& model, mv::Data::OpListIte
 
 }
 
-void fuseConcatsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+// If we have a concat leading to another concat, and there is only one/unique connection/flow
+// between them, then these concats can be fused. There is no reason for the intermediate concat/tensor
+void fuseConcatsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -209,5 +221,131 @@ void fuseConcatsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv
 
             placeNewConcatInTheOpModel(model, concatChild, sortedInputTensors, acceptableFusedConcats, nextOps, nextOpSlotKeeper);
         }
+    }
+}
+
+// Fuse Crop & Slice
+void fuseCropSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto cropOps = om.getOps("Crop");
+    for (auto cropOp : cropOps)
+    {
+        auto crop = cropOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+        auto parentOutputTensor = cropOp->getInputTensor(mv::IO_TENSOR_INPUT);
+        auto parentOp = om.getSourceOp(parentOutputTensor);
+        auto childOp = cropOp.leftmostOutput().sink();
+
+        // Skip if child isn't Slice
+        if (childOp->getOpType() != "Slice")
+            continue;
+
+        pass.log(mv::Logger::MessageType::Debug, "Fuse Crop & Slice: " + cropOp->getName() + ", & " + childOp->getName());
+
+        // Remove Crop
+        linkNewOperationsRemove(parentOp, parentOutputTensor, om, cropOp);
+    }
+}
+
+// Fuse Crop & StridedSlice
+void fuseCropStridedSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto cropOps = om.getOps("Crop");
+    for (auto cropOp : cropOps)
+    {
+        auto crop = cropOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+        auto parentOutputTensor = cropOp->getInputTensor(mv::IO_TENSOR_INPUT);
+        auto parentOp = om.getSourceOp(parentOutputTensor);
+        auto childOp = cropOp.leftmostOutput().sink();
+
+        // Skip if child isn't StridedSlice
+        if (childOp->getOpType() != "UPATask")
+            continue;
+        if (!(childOp->hasAttr("taskOp") && childOp->get<std::string>("taskOp") == "StridedSlice"))
+            continue;
+
+        // Skip if strides not all 1
+        auto strides = childOp->get<std::vector<unsigned>>("strides");
+        if (!(strides[0] == 1 && strides[1] == 1 && strides[2] == 1 && strides[3] == 1))
+            continue;
+
+        pass.log(mv::Logger::MessageType::Debug, "Fuse Crop & StridedSlice: " + cropOp->getName() + ", & " + childOp->getName());
+
+        // New slice_begin is StridedSlice's begin, since crop begin is all 0
+        auto stridedSlice_begins = childOp->get<std::vector<unsigned>>("begins");
+        auto slice_begin = mv::Shape({stridedSlice_begins[3], stridedSlice_begins[2], stridedSlice_begins[1], stridedSlice_begins[0]});
+
+        // Calculate new slice_size
+        auto stridedSlice_ends = childOp->get<std::vector<unsigned>>("ends");
+        auto slice_end = mv::Shape({stridedSlice_ends[3], stridedSlice_ends[2], stridedSlice_ends[1], stridedSlice_ends[0]});
+        auto slice_size = slice_end - slice_begin;
+
+        // Remove Crop
+        auto cropName = cropOp->getName();
+        linkNewOperationsRemove(parentOp, parentOutputTensor, om, cropOp);
+
+        // Add Slice
+        auto stridedSlice = childOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+        auto dtype = stridedSlice->getDType();
+        auto quantParams = stridedSlice->getQuantParams();
+        auto splitStrategy = stridedSlice->get<std::string>("splitStrategy");
+        auto slice = om.slice(cropName + "_fuseStridedSlice", parentOp->getOutputTensor(mv::IO_TENSOR_OUTPUT), slice_begin, slice_size);
+        slice->setDType(dtype);
+        slice->setQuantParams(quantParams);
+        slice->set<std::string>("splitStrategy", splitStrategy);
+        if(childOp->hasAttr("opId")) {
+            unsigned opId = childOp->get<unsigned>("opId");
+            slice->set<unsigned>("opId", opId);
+            om.getSourceOp(slice)->set<unsigned>("opId", opId);
+        }
+
+        // Replace StridedSlice with Slice
+        linkNewOperationsReplacement(parentOp, slice, om, om.getSourceOp(stridedSlice));
+    }
+}
+
+// Fuse back-to-back Slices
+// This logic finds one slice driving multiple slices, e.g., a slice from asymmetric-stride Conv replacement & slices from StreamingOps
+void fuseSliceSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto sliceOps = om.getOps("Slice");
+    for (auto sliceOp : sliceOps)
+    {
+        // Skip if not all children are slices
+        auto all_children_are_slices = true;
+        for (auto sinkFlow = sliceOp.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+            if (sinkFlow.sink()->getOpType() != "Slice")
+                all_children_are_slices = false;
+
+        if (all_children_are_slices == false)
+            continue;
+
+        // Update all child slice begins
+        auto first_slice_begin = sliceOp->get<mv::Shape>("begin");
+        for (auto sinkFlow = sliceOp.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
+            // Set new slice begin
+            auto second_slice_begin = sinkFlow.sink()->get<mv::Shape>("begin");
+            auto new_begin = first_slice_begin + second_slice_begin;
+            sinkFlow.sink()->set<mv::Shape>("begin", new_begin);
+            pass.log(mv::Logger::MessageType::Debug, "Adjust slice begin: " + sinkFlow.sink()->getName());
+        }
+
+        // Remove first slice
+        auto parentOutputTensor = sliceOp->getInputTensor(mv::IO_TENSOR_INPUT);
+        auto parentOp = om.getSourceOp(parentOutputTensor);
+        pass.log(mv::Logger::MessageType::Debug, "Remove first slice: " + sliceOp->getName());
+        linkNewOperationsRemove(parentOp, parentOutputTensor, om, sliceOp);
     }
 }
