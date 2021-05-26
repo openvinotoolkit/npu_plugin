@@ -148,15 +148,17 @@ mlir::LogicalResult ConvertIERTOps2VPUIPPass::ViewLikeRewrite::matchAndRewrite(m
     const auto origInput = origOp.getViewSource();
     const auto rootVal = _aliasInfo->getRoot(origInput);
 
-    VPUIP::MemoryLocation location = VPUIP::MemoryLocation::VPU_DDR_Heap;
+    VPUIP::MemoryLocation location;
     Optional<uint32_t> locationIndex;
     Byte viewOffset(0);
 
     if (auto allocOp = rootVal.getDefiningOp<IERT::StaticAllocOp>()) {
         _log.nest().trace("It aliases internal buffer produced by '{0}' StaticAlloc", allocOp.getLoc());
 
-        // TODO: generalize location type
-        location = VPUIP::MemoryLocation::VPU_DDR_Heap;
+        auto memSpace = allocOp.getType().cast<mlir::MemRefType>();
+        auto memLocation = VPUIP::getMemoryLocation(memSpace);
+        location = (mlir::failed(memLocation)) ? VPUIP::MemoryLocation::VPU_DDR_Heap : memLocation.getValue();
+
         viewOffset = Byte(allocOp.offset());
     } else if (auto blockArg = rootVal.dyn_cast<mlir::BlockArgument>()) {
         _log.nest().trace("It aliases internal Function argument");

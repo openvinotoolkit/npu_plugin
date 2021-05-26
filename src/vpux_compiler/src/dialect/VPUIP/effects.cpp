@@ -28,6 +28,8 @@ mlir::SideEffects::Resource* vpux::VPUIP::getMemoryResource(PhysicalMemory mem) 
         return MemoryResource<PhysicalMemory::CMX_UPA>::get();
     case PhysicalMemory::CMX_NN:
         return MemoryResource<PhysicalMemory::CMX_NN>::get();
+    case PhysicalMemory::Register:
+        return MemoryResource<PhysicalMemory::Register>::get();
     default:
         VPUX_THROW("Unsupported PhysicalMemory '{0}' for MemoryResource", mem);
     }
