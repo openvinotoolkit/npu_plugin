@@ -1232,6 +1232,23 @@ namespace mv
                         }
                 }
 
+                // TODO: Work on removal of below temporar W/A which was added to prevent
+                // unexpected inference issue on yolo-v3-darknet. Activation sparsity itself is not the source
+                // of the problem but once removed for this specific case compiler makes decisions which eventually
+                // makes the blob not executable on KMB
+                if (op.isSparsityConsumer() &&
+                    op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
+                    !isCMConv && (op.hasAttr("placeConversionToFloat") && op.get<bool>("placeConversionToFloat")))
+                {
+                    auto inputShape = op.getInputTensor(0)->getShape();
+                    auto outputShape = op.getOutputTensor(0)->getShape();
+                    if (inputShape[mv::IO_CHANNEL_DIMENSION] == 1024 && inputShape[mv::IO_WIDTH_DIMENSION] == 19 && inputShape[mv::IO_HEIGHT_DIMENSION] == 19 &&
+                        outputShape[mv::IO_CHANNEL_DIMENSION] == 255 && outputShape[mv::IO_WIDTH_DIMENSION] == 19 && outputShape[mv::IO_HEIGHT_DIMENSION] == 19)
+                    {
+                        return true;
+                    }
+                }
+
                 return false;
             }
 
