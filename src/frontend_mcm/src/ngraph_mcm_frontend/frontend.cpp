@@ -126,25 +126,15 @@ namespace {
     }
 }
 
-std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
-        const std::shared_ptr<ngraph::Function>& func,
-        const std::string& netName,
-        const ie::InputsDataMap& inputsInfo,
-        const ie::OutputsDataMap& outputsInfo,
-        const vpu::MCMConfig& config,
-        std::string & errMsg) {
-    const auto log = std::make_shared<vpu::Logger>("KMB nGraph Parser", config.logLevel(), vpu::consoleOutput());
-
-    log->info("Parse nGraph %v", netName);
-
-    bool needConvertInputPrecision = false;
-
-    //
-    // Configure MCM Compiler
-    //
-
+std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
+    const std::string& netName,
+    const ie::InputsDataMap& inputsInfo,
+    const ie::OutputsDataMap& outputsInfo,
+    const vpu::MCMConfig& config,
+    std::shared_ptr<vpu::Logger> log,
+    std::string & errMsg)
+{
     auto mcmCompiler = std::unique_ptr<mv::CompilationUnit>(new mv::CompilationUnit(netName));
-
     {
         log->debug("Configure MCM Compiler");
         VPU_LOGGER_SECTION(log);
@@ -295,96 +285,131 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
 
         IE_ASSERT(mcmCompiler->initialize());
     }
+    return mcmCompiler;
+}
 
-    //
-    // Convert nGraph to MCM Model
-    //
 
-    {
-        log->debug("Convert nGraph to MCM Model");
+void applyTransformations(
+    const std::shared_ptr<ngraph::Function>& func,
+    std::unique_ptr<mv::CompilationUnit>& mcmCompiler,
+    const ie::InputsDataMap& inputsInfo,
+    const ie::OutputsDataMap& outputsInfo,
+    const vpu::MCMConfig& config,
+    std::shared_ptr<vpu::Logger> log,
+    const bool useCompiler
+    )
+{
+    log->debug("Convert nGraph to MCM Model");
 
-        auto& mcmModel = mcmCompiler->model();
-        NodeOutputToMcmMap mcmOutputsMap;
+    bool needConvertInputPrecision = false;
 
-        ngraph::pass::Manager passManager;
-        passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
-        passManager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
-        passManager.register_pass<ngraph::pass::ConstantFolding>();
+    auto& mcmModel = mcmCompiler->model();
+    NodeOutputToMcmMap mcmOutputsMap;
 
-        if (config.scaleShiftFusing()) {
-            passManager.register_pass<FuseScaleShift>();
-        }
+    ngraph::pass::Manager passManager;
+    passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
+    passManager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+    passManager.register_pass<ngraph::pass::ConstantFolding>();
 
-        // TODO: Add passes for rewriting parts of graph
-        auto anchor = passManager.register_pass<ngraph::pass::GraphRewrite>();
-        anchor->add_matcher<ngraph::pass::CollapseConcats0238>();
-        anchor->set_name("ngraph::pass::mcmAdaptation");
-
-        passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
-        passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
-        passManager.register_pass<PropagateFQ>();
-        passManager.register_pass<AlignScales>();
-
-        if (!config.serializeCNNBeforeCompileFile().empty()) {
-            std::string origFileName = config.serializeCNNBeforeCompileFile();
-            auto baseFileName = (origFileName.substr(origFileName.length() - 4, 4) == ".xml")
-                                ? origFileName.substr(0, origFileName.length() - 4)
-                                : origFileName;
-
-            passManager.register_pass<ngraph::pass::Serialize>(baseFileName + ".xml", baseFileName + ".bin");
-        }
-
-        passManager.register_pass<ngraph::pass::ConvertPriorBox>(); // strict requirement: ConvertPriorBox should be first
-
-        passManager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-        passManager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-        passManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-        passManager.register_pass<ngraph::pass::ConstantFolding>();
-
-        passManager.register_pass<ngraph::pass::ConvertReduceToPooling>();
-
-        // TBD Should be ngraph::pass too in order to be applied in between other passes.
-        const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
-
-        passManager.register_pass<FuseScaleAfterClamp>();
-        passManager.register_pass<ConvertToMcmConv>();
-        passManager.register_pass<ConvertToMcmFC>();
-        passManager.register_pass<ReplaceScaleShiftWithMcmScale>();
-        passManager.register_pass<ReplaceAddWithMcmEltwise>();
-        passManager.register_pass<ConvertMVN6toMVN1>();
-        passManager.register_pass<ngraph::pass::ConstantFolding>();
-        passManager.register_pass<BroadcastEltwiseInputs>();
-        passManager.register_pass<MergeTopKConvert>();
-        passManager.register_pass<InsertMaxPool>();
-        passManager.register_pass<ReplaceShuffle>();
-        passManager.register_pass<Handle3DTranspose>();
-        passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
-        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config, &needConvertInputPrecision);
-        passManager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
-
-        const auto start = std::chrono::high_resolution_clock::now();
-
-        const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
-            const bool skipLayers =
-                std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
-                std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node);
-
-            return skipLayers;
-        };
-
-        passManager.set_callback(transformationsPredicate);
-
-        auto passConfig = passManager.get_pass_config();
-        auto disablePassPredicate = [](const std::shared_ptr<const ngraph::Node>&) {
-            return true;
-        };
-        passConfig->set_callback<ngraph::pass::ConvertStridedSliceToCropMatcher>(disablePassPredicate);
-
-        passManager.run_passes(func);
-        const auto end = std::chrono::high_resolution_clock::now();
-        const auto process_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
-        log->info("Plugin processing time: %v ms", process_time.count());
+    if (config.scaleShiftFusing()) {
+        passManager.register_pass<FuseScaleShift>();
     }
+
+    // TODO: Add passes for rewriting parts of graph
+    auto anchor = passManager.register_pass<ngraph::pass::GraphRewrite>();
+    anchor->add_matcher<ngraph::pass::CollapseConcats0238>();
+    anchor->set_name("ngraph::pass::mcmAdaptation");
+
+    passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
+    passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
+    passManager.register_pass<PropagateFQ>();
+    passManager.register_pass<AlignScales>();
+
+    if (!config.serializeCNNBeforeCompileFile().empty()) {
+        std::string origFileName = config.serializeCNNBeforeCompileFile();
+        auto baseFileName = (origFileName.substr(origFileName.length() - 4, 4) == ".xml")
+                            ? origFileName.substr(0, origFileName.length() - 4)
+                            : origFileName;
+
+        passManager.register_pass<ngraph::pass::Serialize>(baseFileName + ".xml", baseFileName + ".bin");
+    }
+
+    passManager.register_pass<ngraph::pass::ConvertPriorBox>(); // strict requirement: ConvertPriorBox should be first
+
+    passManager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+    passManager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    passManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    passManager.register_pass<ngraph::pass::ConstantFolding>();
+
+    passManager.register_pass<ngraph::pass::ConvertReduceToPooling>();
+
+    // TBD Should be ngraph::pass too in order to be applied in between other passes.
+    const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
+
+    passManager.register_pass<FuseScaleAfterClamp>();
+    passManager.register_pass<ConvertToMcmConv>();
+    passManager.register_pass<ConvertToMcmFC>();
+    passManager.register_pass<ReplaceScaleShiftWithMcmScale>();
+    passManager.register_pass<ReplaceAddWithMcmEltwise>();
+    passManager.register_pass<ConvertMVN6toMVN1>();
+    passManager.register_pass<ngraph::pass::ConstantFolding>();
+    passManager.register_pass<BroadcastEltwiseInputs>();
+    passManager.register_pass<MergeTopKConvert>();
+    passManager.register_pass<InsertMaxPool>();
+    passManager.register_pass<ReplaceShuffle>();
+    passManager.register_pass<Handle3DTranspose>();
+    passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
+    // TODO: [Track number: E#13091]
+    // passManager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
+
+    if (useCompiler) {
+        passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config, &needConvertInputPrecision);
+    } else {
+        // TODO QueryModel Pass
+        // passManager.register_pass<QueryModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config, &needConvertInputPrecision,
+    }
+
+    const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+        const bool skipLayers =
+            std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node);
+
+        return skipLayers;
+    };
+
+    passManager.set_callback(transformationsPredicate);
+
+    auto passConfig = passManager.get_pass_config();
+    auto disablePassPredicate = [](const std::shared_ptr<const ngraph::Node>&) {
+        return true;
+    };
+
+    passConfig->set_callback<ngraph::pass::ConvertStridedSliceToCropMatcher>(disablePassPredicate);
+
+    const auto start = std::chrono::high_resolution_clock::now();
+    passManager.run_passes(func);
+    const auto end = std::chrono::high_resolution_clock::now();
+    const auto process_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
+    log->info("Plugin processing time: %v ms", process_time.count());
+}
+
+std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
+        const std::shared_ptr<ngraph::Function>& func,
+        const std::string& netName,
+        const ie::InputsDataMap& inputsInfo,
+        const ie::OutputsDataMap& outputsInfo,
+        const vpu::MCMConfig& config,
+        std::string & errMsg) {
+    const auto log = std::make_shared<vpu::Logger>("VPUX nGraph Parser", config.logLevel(), vpu::consoleOutput());
+
+    log->info("Parse nGraph %v", netName);
+
+    auto mcmCompiler = createCompilationUnit(netName, inputsInfo, outputsInfo, config, log, errMsg);
+
+    if (!mcmCompiler)
+        return {};
+
+    applyTransformations(func, mcmCompiler, inputsInfo, outputsInfo, config, log, true);
 
     //
     // Run MCM Compiler
@@ -418,6 +443,21 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
     }
 
     return mcmCompiler;
+}
+
+std::unordered_set<std::string> getSupportedLayers(
+        const InferenceEngine::CNNNetwork& network,
+        const vpu::MCMConfig& config)
+{
+    std::unordered_set<std::string> supported;
+
+    auto mcmCompiler = std::unique_ptr<mv::CompilationUnit>();
+    ie::InputsDataMap inputsInfo = network.getInputsInfo();
+    ie::OutputsDataMap outputsInfo = network.getOutputsInfo();
+    const auto ngraph_function = ngraph::clone_function(*(network.getFunction()));
+    const auto log = std::make_shared<vpu::Logger>("VPUX nGraph Parser", config.logLevel(), vpu::consoleOutput());
+    applyTransformations(ngraph_function, mcmCompiler, inputsInfo, outputsInfo, config, log, false);
+    return supported;
 }
 
 std::vector<char> serializeCompilationUnit(
