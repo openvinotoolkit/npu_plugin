@@ -144,4 +144,14 @@ def WrapIntoAsyncRegions : PassBase<"wrap-into-async-regions", "vpux::FunctionPa
     ];
 }
 
+//
+// MoveWaitResultToAsyncBlockArgs
+//
+
+def MoveWaitResultToAsyncBlockArgs : PassBase<"move-wait-result-to-async-block-args", "vpux::FunctionPass"> {
+    let summary = "Moves 'async.await' result usage from 'async.region' body to it's operands";
+
+    let constructor = "vpux::IERT::createMoveWaitResultToAsyncBlockArgsPass()";
+}
+
 #endif
