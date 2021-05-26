@@ -900,14 +900,23 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
         toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
 
+        
         if(t->isSparse())
         {
-            toBuild->data->sparsity_index = subtensor.getSparsityMap()->getAddress();
             if(!t->isPopulated())
+            {
+                toBuild->data->sparsity_index = subtensor.getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = subtensor.getStorageElement()->getAddress();
+            }
             else
+            {
+                //weights in case of SplitOverH, weights and weights sparsity map are broadcasted
+                if (t->hasAttr("splitStrategy") && t->get<std::string>("splitStrategy") == "SplitOverH" )
+                    toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
+                else
+                    toBuild->data->sparsity_index = subtensor.getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = 0;
-        }
+            }
     }
 
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName, tensorLocation);
