@@ -36,9 +36,14 @@ std::ostream& operator<<(std::ostream& os, const DeconvTestParams& p) {
 
 class KmbDeconvLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<DeconvTestParams> {};
 
+// out_spatial_shape == infered_out_spatial_shape
+// [Track number: E#13189]
 // Bad results
 // [Track number: S#39622]
 TEST_P(KmbDeconvLayerTests, DepthWiseFP16) {
+#ifdef _WIN32
+    SKIP() << "out_spatial_shape == infered_out_spatial_shape";
+#endif
     SKIP_ON("KMB", "HDDL2", "VPUX", "Bad results");
     const auto& p = GetParam();
 
