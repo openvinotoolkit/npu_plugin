@@ -333,13 +333,43 @@ void fuseSliceSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 
         // Update all child slice begins
         auto first_slice_begin = sliceOp->get<mv::Shape>("begin");
+        unsigned slice_num = 0;
         for (auto sinkFlow = sliceOp.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
         {
+            // Skip noop slices
+            if (!(first_slice_begin[0] || first_slice_begin[1] || first_slice_begin[2] || first_slice_begin[3]))
+                break;
+
+            // Skip if not stream-over-H
+            if (!(first_slice_begin[mv::IO_HEIGHT_DIMENSION]))
+                break;
+
             // Set new slice begin
             auto second_slice_begin = sinkFlow.sink()->get<mv::Shape>("begin");
             auto new_begin = first_slice_begin + second_slice_begin;
             sinkFlow.sink()->set<mv::Shape>("begin", new_begin);
             pass.log(mv::Logger::MessageType::Debug, "Adjust slice begin: " + sinkFlow.sink()->getName());
+            auto last_slice = (slice_num == sliceOp.childrenSize()-1);
+            if (last_slice)
+            {
+                // Adjust last slice's size
+                auto tensorSize = sinkFlow.sink()->get<mv::Shape>("size");
+                tensorSize[mv::IO_HEIGHT_DIMENSION] += first_slice_begin[mv::IO_HEIGHT_DIMENSION];
+                sinkFlow.sink()->set<mv::Shape>("size", tensorSize);
+                auto outputTensor = sinkFlow.sink()->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+                outputTensor->setShape(tensorSize);
+                pass.log(mv::Logger::MessageType::Debug, "Adjust slice size: " + outputTensor->getName() + " - " + tensorSize.toString());
+
+                // Adjust last slice's subtensor sizes
+                for (unsigned idx=0; idx<outputTensor->numSubTensors(); ++idx)
+                {
+                    auto subtensorSize = outputTensor->getSubTensor(idx).getShape();
+                    subtensorSize[mv::IO_HEIGHT_DIMENSION] += first_slice_begin[mv::IO_HEIGHT_DIMENSION];
+                    outputTensor->getSubTensor(idx).setShape(subtensorSize);
+                    pass.log(mv::Logger::MessageType::Debug, "Adjust slice subtensor " + std::to_string(idx) + " size: " + tensorSize.toString());
+                }
+            }
+            slice_num++;
         }
 
         // Remove first slice
