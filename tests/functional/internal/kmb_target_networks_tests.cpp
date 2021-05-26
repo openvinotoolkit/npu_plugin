@@ -506,7 +506,9 @@ TEST_P(SmokeNetworkTestWithSpecificLayout, openpose_pose_cf) {
 }
 INSTANTIATE_TEST_CASE_P(precommit, SmokeNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
+// [Track number: E#12913]
 TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
+    SKIP() << "Invalid overwrite state of inplace output";
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/face-detection-adas-0001/face-detection-adas-0001.xml")
 	    .setUserInputPrecision("input", Precision::U8)
