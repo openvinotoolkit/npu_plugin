@@ -112,7 +112,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     resampleAsDepthDeConvFcn(pass, model);
     replaceBroadcastEltwiseMultWithConv(pass, model);
     replaceStridedSliceWithSlice(pass, model);
-    insertUpaDmaAfterSliceOnOutputFcn(pass, model);
+    //insertUpaDmaAfterSliceOnOutputFcn(pass, model);
 }
 
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
