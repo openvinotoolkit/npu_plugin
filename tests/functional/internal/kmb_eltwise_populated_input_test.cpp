@@ -42,6 +42,7 @@ TEST_P(KmbEltwisePopulatedInputTest, eltwiseAdd) {
     const auto &p = GetParam();
 
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
+    const auto ConstDesc = TensorDesc(Precision::U8, {1, 1, 1, 1}, Layout::NHWC);
     const auto userOutDesc = TensorDesc(p._outPrecision, Layout::NHWC);
 
     const auto inputRange = std::make_pair(0.0f, 10.0f);
@@ -49,14 +50,14 @@ TEST_P(KmbEltwisePopulatedInputTest, eltwiseAdd) {
     const auto tolerance = 1e-2f;
 
     registerBlobGenerator(
-        "constant1", userInDesc,
+        "constant", ConstDesc,
         [&](const TensorDesc& desc) {
             return genBlobUniform(desc, rd, inputRange.first, inputRange.second);
         }
     );
 
     registerBlobGenerator(
-        "input2", userInDesc,
+        "input", userInDesc,
         [&](const TensorDesc& desc) {
             return genBlobUniform(desc, rd, inputRange.first, inputRange.second);
         }
@@ -64,12 +65,11 @@ TEST_P(KmbEltwisePopulatedInputTest, eltwiseAdd) {
 
     const auto netBuidler = [&](TestNetwork& testNet) {
         testNet
-            .addConst("constant1", getBlobByName("constant1"))
-            .setUserInput("input2", userInDesc.getPrecision(), userInDesc.getLayout())
-            .addNetInput("input2", userInDesc.getDims(), Precision::U8)
+            .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
+            .addNetInput("input", userInDesc.getDims(), Precision::U8)
             .addLayer<AddLayerDef>("eltwiseAdd")
-                .input1("constant1")
-                .input2("input2")
+                .input1(getBlobByName("constant"))
+                .input2("input")
                 .build()
             .addNetOutput(PortInfo("eltwiseAdd"))
             .setUserOutput(PortInfo("eltwiseAdd"), userOutDesc.getPrecision(), userOutDesc.getLayout())
