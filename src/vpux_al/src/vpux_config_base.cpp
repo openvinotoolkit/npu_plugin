@@ -13,13 +13,20 @@
 
 #include "vpux_config_base.hpp"
 
-vpux::VPUXConfigBase::VPUXConfigBase()
-        : _compileOptions(vpu::ParsedConfigBase::getCompileOptions()),
-          _runTimeOptions(vpu::ParsedConfigBase::getRunTimeOptions()) {
-}
-
 void vpux::VPUXConfigBase::parse(const std::map<std::string, std::string>& config) {
-    ParsedConfigBase::parse(config);
+    static const std::unordered_map<std::string, vpu::LogLevel> logLevels = {
+            {CONFIG_VALUE(LOG_NONE), vpu::LogLevel::None},       {CONFIG_VALUE(LOG_ERROR), vpu::LogLevel::Error},
+            {CONFIG_VALUE(LOG_WARNING), vpu::LogLevel::Warning}, {CONFIG_VALUE(LOG_INFO), vpu::LogLevel::Info},
+            {CONFIG_VALUE(LOG_DEBUG), vpu::LogLevel::Debug},     {CONFIG_VALUE(LOG_TRACE), vpu::LogLevel::Trace}};
+
+    setOption(_logLevel, logLevels, config, CONFIG_KEY(LOG_LEVEL));
+    setOption(_exclusiveAsyncRequests, switches, config, CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
+
+#ifndef NDEBUG
+    if (const auto envVar = std::getenv("IE_VPUX_LOG_LEVEL")) {
+        _logLevel = logLevels.at(envVar);
+    }
+#endif
     for (const auto& p : config) {
         auto it = _config.find(p.first);
         // FIXME: insert_or_assign (c++17)
@@ -44,5 +51,32 @@ const std::unordered_set<std::string>& vpux::VPUXConfigBase::getCompileOptions()
 }
 
 const std::unordered_set<std::string>& vpux::VPUXConfigBase::getRunTimeOptions() const {
+    static const std::unordered_set<std::string> options = {
+            CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
+            CONFIG_KEY(LOG_LEVEL),
+    };
+
     return _runTimeOptions;
+}
+
+void vpux::VPUXConfigBase::update(const std::map<std::string, std::string>& config, ConfigMode mode) {
+    const auto& compileOptions = getCompileOptions();
+    const auto& runTimeOptions = getRunTimeOptions();
+
+    for (const auto& entry : config) {
+        const bool isCompileOption = compileOptions.count(entry.first) != 0;
+        const bool isRunTimeOption = runTimeOptions.count(entry.first) != 0;
+
+        if (!isCompileOption && !isRunTimeOption) {
+            IE_THROW(NotFound) << entry.first << " key is not supported for VPU";
+        }
+
+        if (mode == ConfigMode::RunTime) {
+            if (!isRunTimeOption) {
+                _log->warning("%s option is used in %s mode", entry.first, mode);
+            }
+        }
+    }
+
+    parse(config);
 }
