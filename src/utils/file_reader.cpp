@@ -16,8 +16,10 @@
 #include <ie_common.h>
 #include <precision_utils.h>
 
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <fstream>
+#include <ie_icore.hpp>
 
 #include "ie_compound_blob.h"
 #if defined(__arm__) || defined(__aarch64__)

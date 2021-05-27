@@ -18,7 +18,7 @@
 #include <ie_compound_blob.h>
 #include <blob_factory.hpp>
 #include <blob_transform.hpp>
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_data.h>
