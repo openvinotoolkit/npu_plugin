@@ -231,7 +231,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
                   delete nnCorePlgPtr;
               }
           }),
-      _nnSync(new VpualCoreNNSynchronizer(_nnXlinkPlg, _logger)),
+      _vpualSyncImpl(VpualSyncXLinkImpl(_nnXlinkPlg)),
+      _nnSync(new VpualCoreNNSynchronizer<VpualSyncXLinkImpl>(_vpualSyncImpl, _logger)),
       _pipe(new Pipeline(MAX_PLUGS_PER_PIPE, deviceId),
           [](Pipeline* pipePtr) {
               if (pipePtr != nullptr) {
@@ -299,7 +300,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     const VpusmmAllocator::Ptr& allocator,
     const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
     const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
-    const std::shared_ptr<VpualCoreNNSynchronizer>& other_nnSync,
+    const std::shared_ptr<VpualCoreNNSynchronizer<VpualSyncXLinkImpl>>& other_nnSync,
     const std::shared_ptr<Pipeline>& other_pipe,
     const std::shared_ptr<WatchDog>& wd,
     const VpualConfig& config)
@@ -310,6 +311,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
       _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
       _nnXlinkPlg(other_nnXlinkPlg),
       _nnCorePlg(other_nnCorePlg),
+      _vpualSyncImpl(other_nnXlinkPlg),
       _nnSync(other_nnSync),
       _pipe(other_pipe),
       blob_file(nullptr,
@@ -340,10 +342,10 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     _pipePrint = PipePrintHandler::get();
 #endif
 
-    //need _execId to be a unique-id, but only across the current set of
+    //need _execInferId to be a unique-id, but only across the current set of
     // executor clones..
-    static int gExecId = 1;
-    _execId = gExecId++;
+    static unsigned int gExecInferId = 1;
+    _execInferId = gExecInferId++;
 
     Byte inputsTotalSize(0);
     for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
@@ -727,7 +729,7 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
         request.outputTensors.push_back(inferOutput);
     }
 
-    auto status = _nnSync->RequestInference(request,_execId);
+    const auto status = _nnSync->RequestInference(request,_execInferId);
     if (X_LINK_SUCCESS != status) {
         _logger->error("push: RequestInference failed");
         IE_THROW() << "VpualCoreNNExecutor::push: RequestInference failed" << status;
@@ -786,7 +788,7 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     _logger->info("pull started");
     NnExecResponseMsg response;
     _wd->Start(this);
-    auto status = _nnSync->WaitForResponse(_execId);
+    const auto status = _nnSync->WaitForResponse(_execInferId);
     _wd->Pause(this);
     if (MVNCI_SUCCESS != status) {
         _logger->error("pull: for inference: %d, received error response: %d", response.inferenceID, response.status);

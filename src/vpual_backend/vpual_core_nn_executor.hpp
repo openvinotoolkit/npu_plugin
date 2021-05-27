@@ -61,7 +61,7 @@ public:
         const VpusmmAllocator::Ptr& allocator,
         const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
         const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
-        const std::shared_ptr<VpualCoreNNSynchronizer>& other_nnSync,
+        const std::shared_ptr<VpualCoreNNSynchronizer<VpualSyncXLinkImpl>>& other_nnSync,
         const std::shared_ptr<Pipeline>& other_pipe,
         const std::shared_ptr<WatchDog>& watchDog,
         const VpualConfig& config);
@@ -88,13 +88,14 @@ private:
     std::shared_ptr<WatchDog> _wd;
     std::shared_ptr<NnXlinkPlg> _nnXlinkPlg = nullptr;
     std::shared_ptr<NnCorePlg> _nnCorePlg = nullptr;
-    std::shared_ptr<VpualCoreNNSynchronizer> _nnSync = nullptr;
+    VpualSyncXLinkImpl _vpualSyncImpl;
+    std::shared_ptr<VpualCoreNNSynchronizer<VpualSyncXLinkImpl>> _nnSync = nullptr;
     // pipeline has to be deleted before NNCore plug-in
     // otherwise it leads to 'Bus error'
     std::shared_ptr<Pipeline> _pipe = nullptr;
     std::unique_ptr<void, std::function<void(void*)>> blob_file = nullptr;
     std::unique_ptr<BlobHandle_t> _blobHandle = nullptr;
-    unsigned int _execId = 0;
+    unsigned int _execInferId = 0;
 
     void initWatchDog();
 #endif
