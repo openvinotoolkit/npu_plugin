@@ -132,8 +132,8 @@ vpux::DataMap MCMNetworkDescription::matchElementsByName(const vpux::DataMap& ac
                 dataCorrectedName->setName(name);
                 updatedMap.insert({name, dataCorrectedName});
                 isNameFound = true;
+                _logger->debug("Matched \'%s\' with \'%s\'\n", name, data.first);
                 actualDeviceDataLocal.erase(data.first);
-                _logger->debug("Matched \'%s\' with \'%s'\\n", name, data.first);
                 break;
             }
         }
@@ -150,7 +150,7 @@ vpux::DataMap MCMNetworkDescription::matchElementsByName(const vpux::DataMap& ac
             const auto dataCorrectedName = data.second;
             dataCorrectedName->setName(name);
             updatedMap.insert({name, dataCorrectedName});
-            _logger->debug("Added \'%s\' with \'%s'\\n", name);
+            _logger->debug("Added \'%s\'\n", name);
         }
     }
 
