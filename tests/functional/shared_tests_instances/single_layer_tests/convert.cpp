@@ -38,13 +38,6 @@ class KmbConvertLayerTest: public ConvertLayerTest, virtual public LayerTestsUti
             isCompilerMCM()) {
             throw LayerTestsUtils::KmbSkipTestException("FP <-> U8 issue for MCM (bug: E#9602");
         }
-        if (inPrc == InferenceEngine::Precision::I8 ||
-            outPrc == InferenceEngine::Precision::I8) {
-            throw LayerTestsUtils::KmbSkipTestException("I8 input/output precision is not supported");
-        }
-        if (outPrc == InferenceEngine::Precision::U8 && isCompilerMLIR()) {
-            throw LayerTestsUtils::KmbSkipTestException("U8 output precision is not supported for MLIR");
-        }
     }
 };
 
@@ -65,11 +58,11 @@ namespace {
 
 const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};
 
+// Precision I8 was deleted from netPrecisions because it is not supported by run-time and compiler.
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::U8,
-    InferenceEngine::Precision::I8,
+    InferenceEngine::Precision::U8
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_NoReshape, KmbConvertLayerTest,
