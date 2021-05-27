@@ -119,19 +119,19 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetw
 IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& modelFileName,
                                                           const std::map<std::string, std::string>& config) {
     std::ifstream blobStream(modelFileName, std::ios::binary);
-    return ImportNetworkImpl(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
+    return ImportNetwork(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
-IE::IExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& networkModel,
-                                                             const std::map<std::string, std::string>& config) {
+IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
+                                                          const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(networkConfig.deviceId());
     return std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
 }
 
-IE::IExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& networkModel, const IE::RemoteContext::Ptr& context,
-                                                             const std::map<std::string, std::string>& config) {
+IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel, const IE::RemoteContext::Ptr& context,
+                                                          const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(context);

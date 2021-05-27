@@ -42,10 +42,10 @@ public:
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
             const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetworkImpl(
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
             std::istream& networkModel, const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetworkImpl(
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
             std::istream& networkModel, const InferenceEngine::RemoteContext::Ptr& context,
             const std::map<std::string, std::string>& config) override;
 

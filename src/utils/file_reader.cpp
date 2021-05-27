@@ -165,11 +165,13 @@ std::ifstream& skipMagic(std::ifstream& blobStream) {
         IE_THROW(NetworkNotRead);
     }
 
-    InferenceEngine::ExportMagic magic = {};
+    using ExportMagic = std::array<char, 4>;
+    constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
+    ExportMagic magic = {};
 
     blobStream.seekg(0, blobStream.beg);
     blobStream.read(magic.data(), magic.size());
-    auto exportedWithName = (InferenceEngine::exportMagic == magic);
+    auto exportedWithName = (exportMagic == magic);
     if (exportedWithName) {
         std::string tmp;
         std::getline(blobStream, tmp);

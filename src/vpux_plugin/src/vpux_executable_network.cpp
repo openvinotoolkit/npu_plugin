@@ -174,7 +174,7 @@ InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferReques
 //------------------------------------------------------------------------------
 //      Export
 //------------------------------------------------------------------------------
-void ExecutableNetwork::ExportImpl(std::ostream& model) {
+void ExecutableNetwork::Export(std::ostream& model) {
     auto graphBlob = _networkPtr->getCompiledNetwork();
     model.write(graphBlob.data(), graphBlob.size());
 }
@@ -183,7 +183,7 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
     std::ofstream modelFile(modelFileName, std::ios::binary);
 
     if (modelFile.is_open()) {
-        ExportImpl(modelFile);
+        Export(modelFile);
     } else {
         IE_THROW() << "The " << modelFileName << " file can not be opened for export.";
     }
