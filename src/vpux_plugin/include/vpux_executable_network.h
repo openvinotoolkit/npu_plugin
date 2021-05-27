@@ -38,10 +38,7 @@ public:
             const InferenceEngine::OutputsDataMap networkOutputs) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
-    void ExportImpl(std::ostream& model) override;
-    void Export(std::ostream& networkModel) override {
-        ExportImpl(networkModel);
-    }
+    void Export(std::ostream& model) override;
     void Export(const std::string& modelFileName) override;
 
     InferenceEngine::Parameter GetMetric(const std::string& name) const override;
