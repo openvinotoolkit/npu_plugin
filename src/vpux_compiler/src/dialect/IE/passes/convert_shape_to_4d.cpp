@@ -63,6 +63,7 @@ public:
     class ScaleShiftOpConverter;
     class MultiplyOpConverter;
     class AddOpConverter;
+    class ExpOpConverter;
 
 private:
     void safeRunOnFunc() final;
@@ -279,6 +280,42 @@ mlir::LogicalResult ConvertShapeTo4DPass::TanhOpConverter::matchAndRewrite(IE::T
     auto newTanhOp = rewriter.create<IE::TanhOp>(origOp->getLoc(), reshapeBefore);
 
     auto reshapeAfter = addReshapeOperation(origOp, newTanhOp.output(), opType.getShape(), rewriter);
+    rewriter.replaceOp(origOp, reshapeAfter.output());
+
+    return mlir::success();
+}
+
+//
+// ExpOpConverter
+//
+
+class ConvertShapeTo4DPass::ExpOpConverter final : public mlir::OpRewritePattern<IE::ExpOp> {
+public:
+    ExpOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ExpOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ExpOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertShapeTo4DPass::ExpOpConverter::matchAndRewrite(IE::ExpOp origOp,
+                                                                          mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}'", origOp.getLoc());
+
+    auto opType = origOp.getType();
+    auto newShape = getNewShape(opType);
+    if (newShape.empty()) {
+        return mlir::failure();
+    }
+
+    auto reshapeBefore = addReshapeOperation(origOp, origOp.input(), makeArrayRef(newShape), rewriter);
+
+    auto newExpOp = rewriter.create<IE::ExpOp>(origOp->getLoc(), reshapeBefore);
+
+    auto reshapeAfter = addReshapeOperation(origOp, newExpOp.output(), opType.getShape(), rewriter);
     rewriter.replaceOp(origOp, reshapeAfter.output());
 
     return mlir::success();
@@ -522,6 +559,7 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.insert<ScaleShiftOpConverter>(&ctx, _log);
     patterns.insert<MultiplyOpConverter>(&ctx, _log);
     patterns.insert<AddOpConverter>(&ctx, _log);
+    patterns.insert<ExpOpConverter>(&ctx, _log);
     IE::ReshapeOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto func = getFunction();

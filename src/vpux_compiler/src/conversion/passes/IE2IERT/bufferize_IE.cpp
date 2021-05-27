@@ -544,6 +544,11 @@ mlir::Operation* createRTLayer(IE::PadOp origOp, ArrayRef<mlir::Value> allBufs, 
                                  origOp.pad_value_attrAttr(), origOp.mode());
 }
 
+mlir::Operation* createRTLayer(IE::ExpOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ExpOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ExpOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 class BufferizeIEPass::LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -618,6 +623,7 @@ mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operati
     CASE(IE::CTCGreedyDecoderOp)
     CASE(IE::CTCGreedyDecoderSeqLenOp)
     CASE(IE::PadOp)
+    CASE(IE::ExpOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

@@ -289,6 +289,21 @@ def RewriteTanh :
         >;
 
 //
+// IERT.Exp -> VPUIP.ExpUPA
+//
+
+def createExpUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ExpUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteExp :
+        Pat<
+            (IERT_ExpOp $input, $output),
+            (createExpUPAOp $input, $output)
+        >;
+
+//
 // IERT.PRelu -> VPUIP.PReluUPA
 //
 

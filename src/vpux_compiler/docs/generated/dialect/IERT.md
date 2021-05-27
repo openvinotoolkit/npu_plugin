@@ -575,6 +575,34 @@ The executor resource is defined by the following attributes:
 `kind` | ::mlir::Attribute | any attribute
 `count` | ::mlir::IntegerAttr | 32-bit signless integer attribute
 
+### `IERT.Exp` (vpux::IERT::ExpOp)
+
+InferenceEngine run-time Exp layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Exp` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.FakeQuantize` (vpux::IERT::FakeQuantizeOp)
 
 InferenceEngine FakeQuantize layer
